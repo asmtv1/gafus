@@ -2,7 +2,10 @@ import type { Course } from "@/types/course";
 import { getFavoritesCourses } from "@/lib/course/getFavoritesCourses";
 import styles from "./favorites.module.css";
 import { FavoritesList } from "@/components/CourseCard/FavoritesCourseList";
-
+export const metadata = {
+  title: "Избранные курсы",
+  description: "Курсы которые вы добавили в избранное",
+};
 export default async function FavoritesPage() {
   const { data } = await getFavoritesCourses();
   const courses: Course[] = data ?? [];

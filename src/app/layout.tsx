@@ -1,10 +1,12 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import type { Viewport } from "next";
-import PWARegister from "@/components/PWARegister";
+import SessionWrapper from "@/components/SessionWrapper";
+import ClientLayout from "@/components/ui/ClientLayout";
 
 export const metadata: Metadata = {
   manifest: "/manifest.json",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://gafus.ru"),
   appleWebApp: {
     capable: true,
     title: "Гафус",
@@ -53,8 +55,11 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <PWARegister />
-        {children}
+        <ClientLayout>
+          <SessionWrapper>
+            <main>{children}</main>
+          </SessionWrapper>
+        </ClientLayout>
       </body>
     </html>
   );

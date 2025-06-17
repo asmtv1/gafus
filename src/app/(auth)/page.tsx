@@ -1,7 +1,25 @@
 import styles from "./page.module.css";
 import Link from "next/link";
 import Image from "next/image";
-
+export const metadata = {
+  title: "Гафус — тренировки с собакой",
+  description:
+    "Умные прогулки с собакой: тренировки по шагам, отдых и обучение — всё в одном.",
+  openGraph: {
+    title: "Гафус — тренировки с собакой",
+    description:
+      "Онлайн-платформа с пошаговыми тренировками, отдыхом и обучением для собак и их хозяев.",
+    url: "https://gafus.ru",
+    images: [
+      {
+        url: "/logo.png",
+        width: 1200,
+        height: 630,
+        alt: "Гафус — тренировки с собакой",
+      },
+    ],
+  },
+};
 export default function HomePage() {
   return (
     <main className={styles.container}>

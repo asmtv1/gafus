@@ -3,36 +3,52 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 export async function middleware(request: NextRequest) {
-  const token = await getToken({ req: request });
-
   const { pathname } = request.nextUrl;
 
-  // Разрешаем публичные маршруты без авторизации
-  const isPublic =
-    pathname === "/" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
-    pathname.startsWith("/confirm") ||
-    pathname.startsWith("/passwordReset") ||
-    pathname.startsWith("/reset-password") ||
-    pathname.startsWith("/api/auth");
-
-  if (isPublic) {
+  // Разрешаем доступ к PWA-ресурсам без авторизации
+  if (
+    pathname === "/sw.js" ||
+    pathname === "/manifest.json" ||
+    pathname.startsWith("/_next/") ||
+    pathname === "/favicon.ico"
+  ) {
     return NextResponse.next();
   }
 
+  // Публичные пути
+  const publicPaths = [
+    "/",
+    "/login",
+    "/register",
+    "/confirm",
+    "/passwordReset",
+    "/reset-password",
+    "/api/auth",
+  ];
+  if (publicPaths.some((path) => pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
+
+  // Проверяем токен
+  const token = await getToken({ req: request });
   if (!token) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  // Если токен есть — пропускаем
   return NextResponse.next();
 }
 
-// Применяем middleware ко всем маршрутам, кроме статических файлов
-//Эта версия исключает все изображения по расширению, а также маршруты /auth и API авторизации. (gpt так посоветовал)
+// ✅ Применяем middleware только на нужные страницы, без ошибок regex
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$|.*\\.webp$|auth|api/auth).*)",
+    "/",
+    "/login/:path*",
+    "/register/:path*",
+    "/confirm/:path*",
+    "/passwordReset/:path*",
+    "/reset-password/:path*",
+    "/profile/:path*",
+    "/courses/:path*",
+    // Добавь сюда остальные защищенные маршруты
   ],
 };

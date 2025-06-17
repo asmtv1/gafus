@@ -6,12 +6,14 @@ import { useRef, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { updateAvatar } from "@/lib/profile/updateAvatar";
 import imageCompression from "browser-image-compression";
+import { useRouter } from "next/navigation";
 
 export default function EditableAvatar({
   avatarUrl,
 }: {
   avatarUrl: string | null;
 }) {
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: session } = useSession();
 
@@ -51,7 +53,7 @@ export default function EditableAvatar({
       const newUrl = await updateAvatar(compressedFile);
       setCurrentAvatarUrl(newUrl);
       setCacheBuster(Date.now().toString());
-      window.location.reload();
+      router.refresh();
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error("Unknown error");
       console.error("Ошибка при сохранении avatar:", errorObj);

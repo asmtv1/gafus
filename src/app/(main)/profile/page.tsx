@@ -7,6 +7,11 @@ import { getAuthoredCourses } from "@/lib/course/getAuthoredCourses";
 import { getIsOwner } from "@/lib/auth/getIsOwner";
 import type { UserWithTrainings } from "@/types/user";
 import type { LiteCourse } from "@/types/course";
+export const metadata = {
+  title: "Ваш профиль",
+  description:
+    "Управляйте своим аккаунтом, отслеживайте прогресс и настройки тренировок.",
+};
 export default async function ProfilPage({
   searchParams,
 }: {

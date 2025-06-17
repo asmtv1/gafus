@@ -1,0 +1,14 @@
+# Dockerfile.prisma-base
+FROM node:18-slim AS prisma-base
+WORKDIR /app
+
+# Копируем package.json и schema
+COPY package*.json ./
+COPY prisma/schema.prisma ./prisma/schema.prisma
+
+# Устанавливаем prod-зависимости + Prisma CLI
+RUN npm ci --omit=dev \
+    && npm install prisma --save-dev
+
+# Генерируем клиента с нужными binaryTargets:
+RUN npx prisma generate --schema=prisma/schema.prisma

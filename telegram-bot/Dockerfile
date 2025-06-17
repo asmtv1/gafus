@@ -1,32 +1,33 @@
-# --- Stage 1: сборка TS ---
-FROM node:18-alpine AS builder
+# --- Stage 0: готовый клиент ---
+FROM gafus/prisma-base:latest AS prisma
 
+# --- Stage 1: build ---
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Копируем манифесты и устанавливаем все зависимости (включая dev)
-COPY package.json tsconfig.json ./
-RUN npm install
+# 1. ставим всё, включая dev (нужен tsc)
+COPY telegram-bot/package*.json .
+RUN npm ci
 
-# Копируем код бота и компилируем его в папку dist
-COPY bot.ts ./
-RUN npx tsc --outDir dist
+# 2. подсовываем client
+COPY --from=prisma /app/node_modules/.prisma  ./node_modules/.prisma
+COPY --from=prisma /app/node_modules/@prisma ./node_modules/@prisma
+
+# 3. исходники
+COPY shared        ./shared
+COPY telegram-bot  ./telegram-bot
+
+# 4. компиляция → ./dist
+RUN npx tsc -p telegram-bot/tsconfig.json
 
 # --- Stage 2: runtime ---
-FROM node:18-alpine AS runner
-
+FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Копируем только продакшн-зависимости
-COPY package.json ./
-RUN npm install --omit=dev
+COPY --from=builder /app/node_modules      ./node_modules
+RUN npm prune --production
+COPY --from=builder /app/dist              ./dist
+COPY --from=builder /app/shared            ./shared
 
-# Забираем скомпилированный бот из билд-стадии
-COPY --from=builder /app/dist ./dist
-
-# Если у вас есть Prisma-клиент, его тоже нужно сгенерировать/скопировать:
-COPY prisma ./prisma
-RUN npx prisma generate
-
-# По умолчанию Fly.io запускает CMD
-CMD ["node", "dist/bot.js"]
+CMD ["node", "dist/telegram-bot/bot.js"]

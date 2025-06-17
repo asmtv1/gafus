@@ -125,7 +125,7 @@ export default function RegisterForm() {
         })}
         error={errors.confirmPassword?.message}
       />
-      ч
+
       <button className={styles.button} type="submit" disabled={isPending}>
         {isPending ? "Создание..." : "Зарегистрироваться"}
       </button>

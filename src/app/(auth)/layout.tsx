@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import "../globals.css";
 
-import SessionWrapper from "../../components/SessionWrapper";
-
 export const metadata: Metadata = {
   applicationName: "Гафус",
   description: "Пошаговые тренировки собак онлайн",
@@ -17,9 +15,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body>
-        <SessionWrapper>
-          <main>{children}</main>
-        </SessionWrapper>
+        <main>{children}</main>
       </body>
     </html>
   );

@@ -5,6 +5,10 @@ import { getCoursesWithProgress } from "@/lib/course/getCourses";
 
 export const revalidate = 60; // seconds
 
+export const metadata = {
+  title: "Список курсов",
+  description: "Выбирайте курсы для послушания, фокуса и социализации вашей собаки.",
+};
 
 export default async function CoursesPage() {
   const courses: Course[] = (await getCoursesWithProgress()).data ?? [];

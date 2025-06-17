@@ -7,6 +7,20 @@ type TrainingsPageProps = {
   params: Promise<{ courseType: string }>;
 };
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ courseType: string }>;
+}) {
+  const { courseType } = await params;
+  const { courseDescription } = await getTrainingDays(courseType);
+
+  return {
+    title: `Тренировки: ${courseType}`,
+    description: courseDescription || "План пошаговых тренировок по курсу.",
+  };
+}
+
 export default async function TrainingsPage({ params }: TrainingsPageProps) {
   const { courseType } = await params;
   const { trainingDays, courseDescription, courseId } = await getTrainingDays(

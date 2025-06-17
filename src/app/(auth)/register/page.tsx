@@ -1,8 +1,10 @@
-// src/app/(auth)/register/page.tsx
 import RegisterForm from "@/app/(auth)/register/RegisterForm";
 import styles from "./register.module.css";
 import Image from "next/image";
-
+export const metadata = {
+  title: "Страница регистрации пользователя",
+  description: "Страница регистрации пользователя",
+};
 export default function RegisterPage() {
   return (
     <main className={styles.container}>

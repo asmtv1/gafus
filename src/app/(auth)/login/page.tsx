@@ -1,4 +1,3 @@
-// src/app/(auth)/login/page.tsx
 import Link from "next/link";
 import LoginForm from "@/app/(auth)/login/LoginForm";
 import styles from "./login.module.css";

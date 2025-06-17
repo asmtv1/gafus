@@ -2,3 +2,5 @@ node_modules
 .git
 telegram-bot
 .DS_Store
+!telegram-bot/**
+!shared/**

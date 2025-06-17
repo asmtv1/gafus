@@ -14,3 +14,18 @@ export default async function DayPage(props: {
 
   return <Day training={training} />;
 }
+
+// Генерируем метаданные (params — обычный объект)
+export async function generateMetadata(props: {
+  params: Promise<{ courseType: string; day: string }>;
+}) {
+  const { courseType, day } = await props.params;
+  const training: TrainingDetail | null = await getTrainingDayWithUserSteps(
+    courseType,
+    Number(day)
+  );
+  return {
+    title: training?.title ?? "Тренировка",
+    description: training?.description ?? "Детали тренировки по курсу.",
+  };
+}
