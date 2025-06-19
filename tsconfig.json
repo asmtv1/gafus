@@ -33,6 +33,6 @@
     ".next/types/**/*.ts",
     "src/types/**/*.d.ts",
     "prisma/seed.ts"
-  ],
+, "worker/index.js"  ],
   "exclude": ["node_modules"]
 }

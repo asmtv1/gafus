@@ -7,6 +7,5 @@ export default async function HeaderServerWrapper() {
   const session = await getServerSession(authOptions);
   const userName = session?.user?.username ?? "";
   const avatarUrl = session?.user?.avatarUrl ?? "/avatar.svg";
-  console.log(session, userName, avatarUrl, "ГДЕ?!");
   return <Header userName={userName} avatarUrl={avatarUrl} />;
 }

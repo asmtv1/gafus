@@ -1,44 +1,71 @@
+// src/middleware.ts
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { withAuth } from "next-auth/middleware";
 import { getToken } from "next-auth/jwt";
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/register",
+  "/confirm",
+  "/passwordReset",
+  "/reset-password",
+  "/api/auth",
+];
 
-  // Разрешаем доступ к PWA-ресурсам без авторизации
-  if (
-    pathname === "/sw.js" ||
+function isPublicAsset(pathname: string): boolean {
+  return (
+    pathname === "/favicon.ico" ||
     pathname === "/manifest.json" ||
+    pathname === "/sw.js" ||
+    pathname.startsWith("/static/") ||
     pathname.startsWith("/_next/") ||
-    pathname === "/favicon.ico"
-  ) {
-    return NextResponse.next();
-  }
-
-  // Публичные пути
-  const publicPaths = [
-    "/",
-    "/login",
-    "/register",
-    "/confirm",
-    "/passwordReset",
-    "/reset-password",
-    "/api/auth",
-  ];
-  if (publicPaths.some((path) => pathname.startsWith(path))) {
-    return NextResponse.next();
-  }
-
-  // Проверяем токен
-  const token = await getToken({ req: request });
-  if (!token) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
-  return NextResponse.next();
+    pathname.startsWith("/icons/") ||
+    /\.(png|jpg|jpeg|svg|webp)$/.test(pathname)
+  );
 }
 
-// ✅ Применяем middleware только на нужные страницы, без ошибок regex
+export default withAuth(
+  async (req) => {
+    const { nextUrl, url } = req;
+    const pathname = nextUrl.pathname;
+    const token = await getToken({ req });
+
+    if (isPublicAsset(pathname)) return NextResponse.next();
+
+    if (
+      PUBLIC_PATHS.includes(pathname) ||
+      PUBLIC_PATHS.some((p) => pathname.startsWith(`${p}/`))
+    ) {
+      return NextResponse.next();
+    }
+
+    if (!token) {
+      return NextResponse.redirect(new URL("/", url));
+    }
+
+    return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: ({ token, req }) => {
+        const pathname = req.nextUrl.pathname;
+
+        // Блокируем доступ на защищённые маршруты без токена:
+        if (
+          !PUBLIC_PATHS.some((p) => pathname.startsWith(p)) &&
+          !isPublicAsset(pathname)
+        ) {
+          return !!token;
+        }
+
+        // Во всех остальных случаях — пропускаем без проверки
+        return true;
+      },
+    },
+  }
+);
+
 export const config = {
   matcher: [
     "/",
@@ -49,6 +76,5 @@ export const config = {
     "/reset-password/:path*",
     "/profile/:path*",
     "/courses/:path*",
-    // Добавь сюда остальные защищенные маршруты
   ],
 };

@@ -17,6 +17,7 @@ export default function Day({ training }: DayProps) {
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [courseAssigned, setCourseAssigned] = useState(false);
   const [assignError, setAssignError] = useState<Error | null>(null);
+
   async function handleStepStart(stepIndex: number) {
     setRunningIndex(stepIndex);
   }

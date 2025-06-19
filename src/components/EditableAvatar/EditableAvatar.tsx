@@ -47,9 +47,6 @@ export default function EditableAvatar({
         type: compressedFileRaw.type,
       });
 
-      console.log("Исходный файл:", file.name, file.size);
-      console.log("Сжатый файл:", compressedFile.name, compressedFile.size);
-
       const newUrl = await updateAvatar(compressedFile);
       setCurrentAvatarUrl(newUrl);
       setCacheBuster(Date.now().toString());

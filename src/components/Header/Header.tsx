@@ -104,7 +104,7 @@ export default React.memo(function Header({
           <button
             onClick={() => {
               setMenuOpen(false);
-              signOut();
+              signOut({ callbackUrl: "/" });
             }}
           >
             Выход

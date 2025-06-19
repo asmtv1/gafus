@@ -1,31 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { sendTelegramPasswordResetRequest } from "@/lib/auth/sendTelegramPasswordResetRequest";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { useState } from "react";
+
+type FormData = {
+  username: string;
+  phone: string;
+};
 
 export function PasswordResetClient() {
-  const [username, setUsername] = useState("");
-  const [phone, setPhone] = useState("");
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setError,
+    clearErrors,
+  } = useForm<FormData>();
+
   const [status, setStatus] = useState("");
   const [caughtError, setCaughtError] = useState<Error | null>(null);
-  const [phoneError, setPhoneError] = useState("");
 
   if (caughtError) {
     throw caughtError;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const phoneNumberObj = parsePhoneNumberFromString(phone, "RU");
+  const onSubmit = async (data: FormData) => {
+    const phoneNumberObj = parsePhoneNumberFromString(data.phone, "RU");
+
     if (!phoneNumberObj?.isValid()) {
-      setPhoneError("Неверный формат телефона");
+      setError("phone", { message: "Неверный формат телефона" });
       return;
     }
 
-    setPhoneError("");
+    clearErrors("phone");
+
     try {
-      await sendTelegramPasswordResetRequest(username, phone);
+      await sendTelegramPasswordResetRequest(data.username, data.phone);
       setStatus("Если данные верны, вам придёт сообщение в Telegram");
     } catch (error) {
       setCaughtError(error as Error);
@@ -33,31 +45,37 @@ export function PasswordResetClient() {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit(onSubmit)}>
       <label>
         Логин:
         <input
           type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
+          {...register("username", { required: "Обязательное поле" })}
           style={{ width: "100%", marginBottom: "1rem" }}
         />
+        {errors.username && (
+          <p style={{ color: "red", marginBottom: "1rem" }}>
+            {errors.username.message}
+          </p>
+        )}
       </label>
+
       <label>
         Телефон:
         <input
           type="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          required
+          {...register("phone", { required: "Обязательное поле" })}
           style={{ width: "100%", marginBottom: "1rem" }}
         />
-        {phoneError && (
-          <p style={{ color: "red", marginBottom: "1rem" }}>{phoneError}</p>
+        {errors.phone && (
+          <p style={{ color: "red", marginBottom: "1rem" }}>
+            {errors.phone.message}
+          </p>
         )}
       </label>
+
       <button type="submit">Отправить</button>
+
       {status && <p style={{ marginTop: "1rem" }}>{status}</p>}
     </form>
   );

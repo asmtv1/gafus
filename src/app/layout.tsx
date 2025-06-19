@@ -1,8 +1,9 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import type { Viewport } from "next";
-import SessionWrapper from "@/components/SessionWrapper";
 import ClientLayout from "@/components/ui/ClientLayout";
+import SessionWrapper from "@/components/ui/SessionWrapper";
+import PullToRefresh from "@/components/ui/PullToRefresh";
 
 export const metadata: Metadata = {
   manifest: "/manifest.json",
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
 };
+
 export const viewport: Viewport = {
   themeColor: "#4F46E5",
 };
@@ -25,19 +27,13 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <head>
-        {/* PWA Manifest */}
         <link rel="manifest" href="/manifest.json" />
-
-        {/* Android: theme color for status bar */}
         <meta name="theme-color" content="#4F46E5" />
-
-        {/* iOS: full-screen web app */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
           name="apple-mobile-web-app-status-bar-style"
           content="black-translucent"
         />
-        {/* iOS home-screen icons */}
         <link
           rel="apple-touch-icon"
           sizes="180x180"
@@ -56,9 +52,11 @@ export default function RootLayout({
       </head>
       <body>
         <ClientLayout>
-          <SessionWrapper>
-            <main>{children}</main>
-          </SessionWrapper>
+          <PullToRefresh>
+            <SessionWrapper>
+              <main>{children}</main>
+            </SessionWrapper>
+          </PullToRefresh>
         </ClientLayout>
       </body>
     </html>

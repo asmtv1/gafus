@@ -98,7 +98,7 @@ export async function updateUserStepStatus(
       include: { steps: true },
     });
 
-    if (!trainingDay) throw new Error("TrainingDay not found");
+    if (!trainingDay) throw new Error("Training Day not found");
 
     const userTraining = await findOrCreateUserTraining(userId, trainingDay.id);
 

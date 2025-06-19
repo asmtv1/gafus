@@ -12,18 +12,12 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "Гафус", statusBarStyle: "default" },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru">
-      <body>
-        <HeaderServerWrapper />
-        <main>{children}</main>
-        <Footer />
-      </body>
-    </html>
+    <>
+      <HeaderServerWrapper />
+      {children}
+      <Footer />
+    </>
   );
 }

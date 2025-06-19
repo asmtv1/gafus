@@ -22,6 +22,7 @@ async function findTrainingDayWithUserTraining(
       userTrainings: {
         where: { userId },
         select: {
+          id: true,
           currentStepIndex: true,
           status: true,
         },
@@ -47,23 +48,27 @@ export async function getTrainingDayWithUserSteps(
     if (!trainingDay) return null;
 
     const userTraining = trainingDay.userTrainings[0];
-    const currentIndex = userTraining?.currentStepIndex ?? 0;
-    const steps = trainingDay.steps.map((step, idx) => {
-      const status = userTraining
-        ? idx < currentIndex
-          ? TrainingStatus.COMPLETED
-          : idx === currentIndex
-          ? TrainingStatus.IN_PROGRESS
-          : TrainingStatus.NOT_STARTED
-        : TrainingStatus.NOT_STARTED;
-      return {
-        id: step.id,
-        title: step.title,
-        description: step.description,
-        durationSec: step.durationSec,
-        status,
-      };
-    });
+
+    // --- Ключевая часть: тянем статусы шагов из UserStep! ---
+    let userStepStatuses: Record<string, TrainingStatus> = {};
+
+    if (userTraining) {
+      const userSteps = await prisma.userStep.findMany({
+        where: { userTrainingId: userTraining.id },
+        select: { stepId: true, status: true },
+      });
+      userStepStatuses = Object.fromEntries(
+        userSteps.map((us) => [us.stepId, us.status])
+      );
+    }
+
+    const steps = trainingDay.steps.map((step) => ({
+      id: step.id,
+      title: step.title,
+      description: step.description,
+      durationSec: step.durationSec,
+      status: userStepStatuses[step.id] || TrainingStatus.NOT_STARTED,
+    }));
 
     return {
       id: trainingDay.id,

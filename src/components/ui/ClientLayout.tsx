@@ -12,28 +12,28 @@ export default function ClientLayout({
   const pathname = usePathname();
 
   useEffect(() => {
-    // Показываем спиннер при смене маршрута
     setLoading(true);
-    const timeout = setTimeout(() => setLoading(false), 400); // минимальная задержка, чтобы не мигал
-
+    const timeout = setTimeout(() => setLoading(false), 400);
     return () => clearTimeout(timeout);
   }, [pathname]);
 
   return (
-    <>
+    <div style={{ position: "relative" }}>
       {loading && (
         <div
           style={{
             position: "fixed",
             top: 0,
             left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(255, 255, 255, 0.8)",
+            width: "100vw",
+            height: "100vh",
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 9999,
+            pointerEvents: "none",
           }}
         >
           <div
@@ -54,7 +54,8 @@ export default function ClientLayout({
           `}</style>
         </div>
       )}
+
       {children}
-    </>
+    </div>
   );
 }

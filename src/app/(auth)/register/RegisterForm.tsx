@@ -1,12 +1,14 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { registerUser } from "@/lib/auth/registerUser";
 import { FormField } from "@/components/ui/FormField";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import styles from "./register.module.css";
 import parsePhoneNumberFromString from "libphonenumber-js";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 type FormData = {
   name: string;
@@ -16,6 +18,13 @@ type FormData = {
 };
 
 export default function RegisterForm() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.id) {
+      router.replace("/courses");
+    }
+  }, [status, session, router]);
   const form = useForm<FormData>({ mode: "onBlur" });
   const {
     handleSubmit,
@@ -55,12 +64,9 @@ export default function RegisterForm() {
         }
         setIsPending(false);
       } else {
-        window.location.href = `/confirm?phone=${encodeURIComponent(
-          formattedPhone
-        )}`;
+        router.push(`/confirm?phone=${encodeURIComponent(formattedPhone)}`);
       }
     } catch (error) {
-      console.error("Ошибка при регистрации:", error);
       setCaughtError(error as Error);
     }
   };

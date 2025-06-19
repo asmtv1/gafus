@@ -7,16 +7,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: { capable: true, title: "Гафус", statusBarStyle: "default" },
 };
-export default function RootLayout({
+export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <html lang="ru">
-      <body>
-        <main>{children}</main>
-      </body>
-    </html>
-  );
+  return <>{children}</>;
 }

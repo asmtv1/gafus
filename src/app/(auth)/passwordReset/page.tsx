@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { PasswordResetClient } from "./PasswordResetClient";
+import { PasswordResetClient } from "./PasswordResetForm";
 
 export const metadata = {
   title: "Смена пароля",

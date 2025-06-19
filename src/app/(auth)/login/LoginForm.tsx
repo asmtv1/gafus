@@ -1,14 +1,14 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import styles from "./login.module.css";
 import { FormField } from "@/components/ui/FormField";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { checkUserConfirmed } from "@/lib/auth/checkUserConfirmed";
 import { getUserPhoneByUsername } from "@/lib/auth/getUserPhoneByUsername";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type FormData = {
   username: string;
@@ -17,18 +17,23 @@ type FormData = {
 
 export default function LoginForm() {
   const [caughtError, setCaughtError] = useState<Error | null>(null);
+  const { data: session, status } = useSession();
 
-  if (caughtError) {
-    throw caughtError;
-  }
-
+  const router = useRouter();
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.id) {
+      router.replace("/courses");
+    }
+  }, [status, session, router]);
   const form = useForm<FormData>({ mode: "onBlur" });
   const {
     handleSubmit,
     formState: { errors },
   } = form;
 
-  const router = useRouter();
+  if (caughtError) {
+    throw caughtError;
+  }
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -40,18 +45,20 @@ export default function LoginForm() {
 
       if (res?.error) {
         alert("❌ Неверное имя пользователя или пароль");
-      } else if (res?.ok) {
-        const phone = await getUserPhoneByUsername(data.username);
+        return;
+      }
 
-        if (!phone) return;
+      const phone = await getUserPhoneByUsername(data.username);
+      if (!phone) return;
 
-        const isConfirmed = await checkUserConfirmed(phone);
+      const isConfirmed = await checkUserConfirmed(phone);
 
-        if (isConfirmed) {
-          router.push("/courses");
-        } else {
-          router.push(`/confirm?phone=${encodeURIComponent(phone)}`);
-        }
+      if (isConfirmed) {
+        console.log("✅ Подтвержден → /courses");
+        router.push("/courses");
+      } else {
+        console.log("⚠️ Не подтверждён → /confirm");
+        router.push(`/confirm?phone=${encodeURIComponent(phone)}`);
       }
     } catch (error) {
       setCaughtError(error as Error);
@@ -59,35 +66,31 @@ export default function LoginForm() {
   };
 
   return (
-    <>
-      <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
-        <FormField
-          id="username"
-          label="Имя пользователя"
-          name="username"
-          type="text"
-          placeholder="Имя пользователя"
-          form={form}
-          rules={{
-            required: "Введите имя пользователя",
-          }}
-        />
+    <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+      <FormField
+        id="username"
+        label="Имя пользователя"
+        name="username"
+        type="text"
+        placeholder="Имя пользователя"
+        form={form}
+        rules={{ required: "Введите имя пользователя" }}
+      />
 
-        <PasswordInput
-          className={styles.input}
-          placeholder="Пароль"
-          autoComplete="current-password"
-          {...form.register("password", {
-            required: "Введите пароль",
-            minLength: { value: 6, message: "Минимум 6 символов" },
-          })}
-          error={errors.password?.message}
-        />
+      <PasswordInput
+        className={styles.input}
+        placeholder="Пароль"
+        autoComplete="current-password"
+        {...form.register("password", {
+          required: "Введите пароль",
+          minLength: { value: 6, message: "Минимум 6 символов" },
+        })}
+        error={errors.password?.message}
+      />
 
-        <button className={styles.button} type="submit">
-          Войти
-        </button>
-      </form>
-    </>
+      <button className={styles.button} type="submit">
+        Войти
+      </button>
+    </form>
   );
 }

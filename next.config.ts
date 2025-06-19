@@ -103,6 +103,10 @@ const pwaConfig = {
   minify: false,
   buildExcludes: [/\.js\.map$/, /\.js\.LICENSE$/, /middleware-manifest\.json$/],
   workboxOptions: { disableDevLogs: true },
+
+  // подключаем кастомный сервис-воркер ▼
+  sw: "sw.js",
+  customWorkerSrc: "worker",
 };
 
 const nextConfig: NextConfig = {
@@ -140,6 +144,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-const config = withPWA(pwaConfig)(nextConfig);
-
-export default config;
+export default withPWA(pwaConfig)(nextConfig);
