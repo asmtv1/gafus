@@ -1,9 +1,10 @@
 {
   "name": "gafus.ru-telegram-bot",
   "version": "1.0.0",
-  "main": "dist/telegram-bot/bot.js",
+  "main": "dist/telegram-bot/bot.ts",
   "scripts": {
-    "start": "node dist/telegram-bot/bot.js"
+    "start": "node dist/telegram-bot/bot.js",
+    "dev": "tsx bot.ts"
   },
   "dependencies": {
     "@prisma/client": "6.9.0",

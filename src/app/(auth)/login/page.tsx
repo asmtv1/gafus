@@ -2,6 +2,7 @@ import Link from "next/link";
 import LoginForm from "@/app/(auth)/login/LoginForm";
 import styles from "./login.module.css";
 import Image from "next/image";
+import ClientRedirectIfAuth from "@/components/ui/useRedirectIfAuth";
 export const metadata = {
   title: "Страница входа пользователя",
   description: "Страница входа пользователя",
@@ -9,6 +10,7 @@ export const metadata = {
 export default function LoginPage() {
   return (
     <main className={styles.container}>
+      <ClientRedirectIfAuth />
       <Image
         className={styles.logo}
         src="/logo.png"

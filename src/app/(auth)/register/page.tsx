@@ -1,6 +1,7 @@
 import RegisterForm from "@/app/(auth)/register/RegisterForm";
 import styles from "./register.module.css";
 import Image from "next/image";
+import ClientRedirectIfAuth from "@/components/ui/useRedirectIfAuth";
 export const metadata = {
   title: "Страница регистрации пользователя",
   description: "Страница регистрации пользователя",
@@ -8,6 +9,7 @@ export const metadata = {
 export default function RegisterPage() {
   return (
     <main className={styles.container}>
+      <ClientRedirectIfAuth />
       <Image
         className={styles.logo}
         src="/logo.png"

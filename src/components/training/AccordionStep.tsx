@@ -60,6 +60,7 @@ export default function AccordionStep({
     clearInterval(intervalRef.current!);
     setIsFinished(true);
     onReset(stepIndex);
+
     localStorage.removeItem(END_KEY);
     await updateStepStatusServerAction(
       courseType,
@@ -101,15 +102,14 @@ export default function AccordionStep({
   ]);
 
   // ─── Пауза/Резюм ─────────────────────────────────────────────────────────────
-  const handlePause = useCallback(() => {
-    setIsPaused(true);
-  }, []);
-
-  const handleResume = useCallback(() => {
-    if (!isPaused) return;
-    const endTs = nowSec() + timeLeft;
-    saveEnd(END_KEY, endTs);
-    setIsPaused(false);
+  const togglePause = useCallback(() => {
+    if (isPaused) {
+      const endTs = nowSec() + timeLeft;
+      saveEnd(END_KEY, endTs);
+      setIsPaused(false);
+    } else {
+      setIsPaused(true);
+    }
   }, [isPaused, timeLeft, END_KEY]);
 
   // ─── Сброс ───────────────────────────────────────────────────────────────────
@@ -162,10 +162,7 @@ export default function AccordionStep({
     if (isRunning && !isFinished) {
       return (
         <>
-          <button
-            onClick={isPaused ? handleResume : handlePause}
-            className={styles.button}
-          >
+          <button onClick={togglePause} className={styles.button}>
             {isPaused ? "▶️ Продолжить" : "⏸ Пауза"}
           </button>
           <button onClick={handleReset} className={styles.button}>

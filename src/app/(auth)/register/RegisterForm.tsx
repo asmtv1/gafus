@@ -1,13 +1,13 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { registerUser } from "@/lib/auth/registerUser";
 import { FormField } from "@/components/ui/FormField";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import styles from "./register.module.css";
 import parsePhoneNumberFromString from "libphonenumber-js";
-import { useSession } from "next-auth/react";
+
 import { useRouter } from "next/navigation";
 
 type FormData = {
@@ -18,13 +18,8 @@ type FormData = {
 };
 
 export default function RegisterForm() {
-  const { data: session, status } = useSession();
   const router = useRouter();
-  useEffect(() => {
-    if (status === "authenticated" && session?.user?.id) {
-      router.replace("/courses");
-    }
-  }, [status, session, router]);
+
   const form = useForm<FormData>({ mode: "onBlur" });
   const {
     handleSubmit,

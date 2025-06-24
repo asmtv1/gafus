@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "../dist", // куда класть .js
+    "outDir": "../dist", // куда класть .ts
     "target": "ES2019",
     "module": "CommonJS",
     "moduleResolution": "Node",

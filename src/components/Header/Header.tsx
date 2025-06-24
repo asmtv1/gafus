@@ -7,6 +7,7 @@ import styles from "./Header.module.css";
 import React from "react";
 import { signOut } from "next-auth/react";
 import { BurgerIcon } from "../ui/BurgerIcon";
+import NotificationRequester from "../ui/NotificationRequester";
 
 interface HeaderProps {
   userName: string;
@@ -101,6 +102,7 @@ export default React.memo(function Header({
               height={24}
             />
           </Link>
+          <NotificationRequester />
           <button
             onClick={() => {
               setMenuOpen(false);

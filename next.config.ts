@@ -93,15 +93,22 @@ const runtimeCaching = [
 const pwaConfig = {
   dest: "public",
   disable: process.env.NODE_ENV === "development",
-  register: true,
+  register: false,
   skipWaiting: true,
-  injectRegister: true,
+  injectRegister: false,
   runtimeCaching,
   mode: "production",
   dynamicStartUrl: false,
   fallback: {},
   minify: false,
-  buildExcludes: [/\.js\.map$/, /\.js\.LICENSE$/, /middleware-manifest\.json$/],
+  exclude: [
+    /\.js\.map$/,
+    /\.js\.LICENSE$/,
+    /middleware-manifest\.json$/,
+    /_buildManifest\.js$/,
+    /_ssgManifest\.js$/,
+  ],
+
   workboxOptions: { disableDevLogs: true },
 
   // подключаем кастомный сервис-воркер ▼

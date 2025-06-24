@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    /* ───────── базовые ───────── */
+    "target": "ES2022",
+    "module": "NodeNext", // чистый ESM-вывод
+    "moduleResolution": "NodeNext",
+
+    /* ───────── каталоги ───────── */
+    "outDir": "../../../dist/workers",
+
+    /* ───────── строгие флаги ───────── */
+    "strict": true,
+    "esModuleInterop": true,
+
+    /* ───────── доп. возможности ───────── */
+    "types": ["node"], // глобальные типы Node.js
+    "resolveJsonModule": true // если вдруг есть import './*.json'
+  },
+
+  /* какие файлы компилировать */
+  "include": ["**/*.ts"], // только .ts
+  "exclude": ["**/*.test.ts"] // тесты мимо сборки
+}

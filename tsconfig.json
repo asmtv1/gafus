@@ -13,26 +13,36 @@
     "noEmit": true,
     "incremental": true,
     "jsx": "preserve",
-    "typeRoots": ["./types", "./src/types", "./node_modules/@types"],
+
+    // Базовый URL для всех абсолютных импортов
     "baseUrl": ".",
+    // Алиасы путей
     "paths": {
-      "@/*": ["./src/*"],
+      "@/*": ["src/*"],
       "@/shared/prisma": ["shared/prisma/index.ts"],
-      "@/shared/*": ["./shared/*"]
+      "@/shared/*": ["shared/*"]
     },
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+
+    "typeRoots": ["./types", "./src/types", "./node_modules/@types"],
+
+    "plugins": [{ "name": "next" }]
   },
+
+  // Настройка для ts-node: сразу подключать tsconfig-paths
+  "ts-node": {
+    "esm": true,
+    "require": ["tsconfig-paths/register"]
+  },
+
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
     "src/types/**/*.d.ts",
-    "prisma/seed.ts"
-, "worker/index.js"  ],
+    "prisma/seed.ts",
+    "worker/index.js"
+  ],
+
   "exclude": ["node_modules"]
 }

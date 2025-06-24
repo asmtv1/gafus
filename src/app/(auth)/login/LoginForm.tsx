@@ -1,14 +1,14 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { signIn, useSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import styles from "./login.module.css";
 import { FormField } from "@/components/ui/FormField";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { checkUserConfirmed } from "@/lib/auth/checkUserConfirmed";
 import { getUserPhoneByUsername } from "@/lib/auth/getUserPhoneByUsername";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type FormData = {
   username: string;
@@ -17,14 +17,8 @@ type FormData = {
 
 export default function LoginForm() {
   const [caughtError, setCaughtError] = useState<Error | null>(null);
-  const { data: session, status } = useSession();
-
   const router = useRouter();
-  useEffect(() => {
-    if (status === "authenticated" && session?.user?.id) {
-      router.replace("/courses");
-    }
-  }, [status, session, router]);
+
   const form = useForm<FormData>({ mode: "onBlur" });
   const {
     handleSubmit,

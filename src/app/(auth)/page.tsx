@@ -1,6 +1,7 @@
 import styles from "./page.module.css";
 import Link from "next/link";
 import Image from "next/image";
+import ClientRedirectIfAuth from "@/components/ui/useRedirectIfAuth";
 export const metadata = {
   title: "Гафус — тренировки с собакой",
   description:
@@ -32,6 +33,7 @@ export default function HomePage() {
         priority
       />
 
+      <ClientRedirectIfAuth />
       <p className={styles.subtitle}>
         Умные прогулки с собакой: тренировки по шагам, отдых и обучение — всё в
         одном.

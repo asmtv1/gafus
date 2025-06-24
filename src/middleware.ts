@@ -71,7 +71,7 @@ export const config = {
     "/",
     "/login/:path*",
     "/register/:path*",
-    "/confirm/:path*",
+    "/confirm(:path*)?", // поймает и "/confirm", и "/confirm/…"
     "/passwordReset/:path*",
     "/reset-password/:path*",
     "/profile/:path*",

@@ -1,4 +1,5 @@
 // src/utils/getCurrentUserId.ts
+"use server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
 
