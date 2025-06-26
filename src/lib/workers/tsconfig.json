@@ -1,23 +1,32 @@
 {
+  // тянем общие правила из корня
+  "extends": "../../../tsconfig.json",
+
   "compilerOptions": {
-    /* ───────── базовые ───────── */
+    /* ── формат сборки ── */
     "target": "ES2022",
-    "module": "NodeNext", // чистый ESM-вывод
+    "module": "NodeNext",
     "moduleResolution": "NodeNext",
 
-    /* ───────── каталоги ───────── */
-    "outDir": "../../../dist/workers",
+    /* ── каталоги ── */
+    "rootDir": "../../..", //  ⇢ /gafus   (src + shared)
+    "outDir": "../../../dist/workers", //  ⇢ /gafus/dist/workers
 
-    /* ───────── строгие флаги ───────── */
+    /* ── алиасы ── */
+    "baseUrl": "../../..", //  базовый корень = /gafus
+    "paths": {
+      "@/*": ["src/*"], //  "@/lib/…"  → src/lib/…
+      "@/shared/*": ["shared/*"] //  "@/shared/prisma" → shared/…
+    },
+
+    /* ── прочие флаги ── */
     "strict": true,
     "esModuleInterop": true,
-
-    /* ───────── доп. возможности ───────── */
-    "types": ["node"], // глобальные типы Node.js
-    "resolveJsonModule": true // если вдруг есть import './*.json'
+    "types": ["node"],
+    "resolveJsonModule": true
   },
 
-  /* какие файлы компилировать */
-  "include": ["**/*.ts"], // только .ts
-  "exclude": ["**/*.test.ts"] // тесты мимо сборки
+  /* компилируем ТОЛЬКО воркеры */
+  "include": ["../../lib/workers/**/*.ts", "src/types/**/*.d.ts"],
+  "exclude": ["../../**/*.test.ts"]
 }

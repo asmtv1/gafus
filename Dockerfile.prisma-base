@@ -1,14 +1,22 @@
-# Dockerfile.prisma-base
-FROM node:18-slim AS prisma-base
+# syntax=docker/dockerfile:1
+
+# ────────────────────────────────
+#   prisma-base (prod-deps + client)
+# ────────────────────────────────
+FROM node:20-bookworm-slim AS prisma-base
 WORKDIR /app
 
-# Копируем package.json и schema
+# 1️⃣  OpenSSL 3 → даёт libssl.so.3 для Prisma
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# 2️⃣  Копируем package.json и schema + Устанавливаем prod-зависимости + Prisma CLI
 COPY package*.json ./
-COPY prisma/schema.prisma ./prisma/schema.prisma
-
-# Устанавливаем prod-зависимости + Prisma CLI
 RUN npm ci --omit=dev \
-    && npm install prisma --save-dev
+    && npm install prisma --save-dev        
 
-# Генерируем клиента с нужными binaryTargets:
+# 3️⃣  Генерируем клиента с нужными binaryTargets:
+COPY prisma/schema.prisma ./prisma/schema.prisma
 RUN npx prisma generate --schema=prisma/schema.prisma

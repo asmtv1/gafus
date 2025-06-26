@@ -1,7 +1,9 @@
+console.log("🟢 [Worker] Starting push-worker process...");
+
 import "dotenv/config";
 import { Worker, Job } from "bullmq";
+import { prisma } from "@/shared/prisma/index.js";
 import webpush from "../webpush/webpush.js";
-import prisma from "../../../shared/prisma/index.js";
 import { connection } from "../redis.js";
 import type { PushSubscription } from "web-push";
 
@@ -9,20 +11,23 @@ interface SendStepNotificationPayload {
   notificationId: string;
 }
 
-// Надёжный type guard для PushSubscription
+// Type guard для PushSubscription
 function isPushSubscription(obj: unknown): obj is PushSubscription {
-  if (typeof obj !== "object" || obj === null) return false;
+  console.log("🔍 Checking push subscription:", obj);
+  if (typeof obj !== "object" || obj === null) {
+    console.error("❌ Subscription is not an object");
+    return false;
+  }
   const sub = obj as Record<string, unknown>;
   const keys = sub.keys as Record<string, unknown> | undefined;
-
-  return (
+  const ok =
     typeof sub.endpoint === "string" &&
     typeof keys?.p256dh === "string" &&
-    typeof keys?.auth === "string"
-  );
+    typeof keys?.auth === "string";
+  console.log("🔑 Subscription valid:", ok);
+  return ok;
 }
 
-// Надёжный type guard для ошибки с statusCode
 function isPushError(err: unknown): err is { statusCode: number } {
   return (
     typeof err === "object" &&
@@ -31,13 +36,22 @@ function isPushError(err: unknown): err is { statusCode: number } {
   );
 }
 
-new Worker(
+console.log("🟢 [Worker] Initializing BullMQ Worker...");
+
+const worker = new Worker(
   "push",
   async (job: Job<SendStepNotificationPayload>) => {
-    if (job.name !== "send-step-notification") return;
+    console.log(`📥 [Worker] Received job:`, job.name, job.data);
+
+    if (job.name !== "send-step-notification") {
+      console.warn(
+        `⚠️ [Worker] Ignoring job with unexpected name: ${job.name}`
+      );
+      return;
+    }
 
     const { notificationId } = job.data;
-
+    console.log(`🔄 [Worker] Fetching notification ID=${notificationId}`);
     const notif = await prisma.stepNotification.findUnique({
       where: { id: notificationId },
       select: {
@@ -47,15 +61,30 @@ new Worker(
         url: true,
       },
     });
-    if (!notif || notif.sent) return;
+    console.log("✅ [Worker] Notification record:", notif);
+
+    if (!notif) {
+      console.error(
+        `❌ [Worker] No notification found with ID=${notificationId}`
+      );
+      return;
+    }
+    if (notif.sent) {
+      console.warn(
+        `⚠️ [Worker] Notification ID=${notificationId} already sent`
+      );
+      return;
+    }
 
     const raw = notif.subscription;
     if (!isPushSubscription(raw)) {
-      console.error("Некорректная подписка — пропускаем");
+      console.error("❌ [Worker] Invalid subscription, skipping.");
       return;
     }
-    const subscription = raw;
+    const subscription = raw as PushSubscription;
     const link = notif.url ?? "/";
+    console.log("🌐 [Worker] Sending push to:", subscription.endpoint);
+
     try {
       await webpush.sendNotification(
         subscription,
@@ -65,22 +94,40 @@ new Worker(
           url: link,
         })
       );
+      console.log("📤 [Worker] Push sent successfully");
 
-      await prisma.stepNotification.delete({
-        where: { id: notificationId },
-      });
-      console.log("✅ Deleted notification record:", notificationId);
+      await prisma.stepNotification.delete({ where: { id: notificationId } });
+      console.log("🗑️ [Worker] Deleted notification ID=", notificationId);
     } catch (err: unknown) {
+      console.error("🚨 [Worker] Error while sending push:", err);
       if (
         isPushError(err) &&
         (err.statusCode === 404 || err.statusCode === 410)
       ) {
+        console.log(
+          "🧹 [Worker] Removing invalid subscription:",
+          subscription.endpoint
+        );
         await prisma.pushSubscription.delete({
           where: { endpoint: subscription.endpoint },
         });
       }
-      console.error("Push error:", err);
     }
   },
-  { connection }
+  {
+    connection,
+    concurrency: 5,
+  }
 );
+
+worker.on("completed", (job) => {
+  console.log(`✅ [Worker] Job completed: ${job.id}`);
+});
+worker.on("failed", (job, err) => {
+  console.error(`❌ [Worker] Job failed: ${job?.id}`, err);
+});
+worker.on("error", (err) => {
+  console.error("🔥 [Worker] Worker error:", err);
+});
+
+console.log("🟢 [Worker] Worker is up and running, listening for jobs...");

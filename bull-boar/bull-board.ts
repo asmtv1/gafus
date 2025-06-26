@@ -4,8 +4,7 @@ import express from "express";
 import { ExpressAdapter } from "@bull-board/express";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
-import { pushQueue } from "@/lib/queues/push-queue"; // <-- используем существующую очередь
-
+import { pushQueue } from "../src/lib/queues/push-queue";
 const app = express();
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath("/admin/queues");

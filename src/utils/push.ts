@@ -45,7 +45,7 @@ export async function sendPushToAll(
 
   const subs = await getAllSubscriptions();
   await Promise.all(
-    subs.map((sub: webpush.PushSubscription) =>
+    subs.map((sub: PushSubscriptionJSON) =>
       webpush.sendNotification(sub, payloadString)
     )
   );
