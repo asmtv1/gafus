@@ -23,16 +23,15 @@
     },
 
     /* Типы */
-    "typeRoots": ["./types", "../../node_modules/@types"]
+    "typeRoots": ["./types", "../../packages/types/src", "../../node_modules/@types"]
   },
 
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "../../packages/webpush/src/getVapidPublicKey.ts",
     "../../packages/webpush/src/db.ts",
-    "../../packages/webpush/src/webpush.ts",
+    "../../packages/webpush/src/index.ts",
     "src/utils/push.ts",
     "src/utils/getCurrentUserId.ts"
   ],

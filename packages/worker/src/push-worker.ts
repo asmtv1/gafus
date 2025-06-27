@@ -3,8 +3,8 @@ console.log("🟢 [Worker] Starting push-worker process...");
 import "dotenv/config";
 import { Worker, Job } from "bullmq";
 import { prisma } from "@prisma";
-import webpush from "../../webpush/src/webpush.js";
-import { connection } from "../redis.js";
+import webpush from "@gafus/webpush";
+import { connection } from "@queues/redis";
 import type { PushSubscription } from "web-push";
 
 interface SendStepNotificationPayload {

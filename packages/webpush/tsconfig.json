@@ -1,16 +1,14 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
 
     "baseUrl": ".",
     "paths": {
-      "@prisma": ["../prisma/src/index.ts"]
+      "@prisma": ["../prisma/src/index.ts"],
+      "@web/*": ["../../apps/web/src/*"]
     },
 
     "outDir": "dist",

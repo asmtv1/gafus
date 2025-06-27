@@ -11,8 +11,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "types": ["node"]
+    "resolveJsonModule": true
   },
   "include": ["src"]
 }

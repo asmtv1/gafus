@@ -20,7 +20,8 @@
       "@queues/*": ["packages/queues/src/*"],
       "@gafus/webpush": ["packages/webpush/src/index.ts"],
       "@gafus/webpush/db": ["packages/webpush/src/db.ts"],
-      "@gafus/types": ["packages/types/src"]
+      "@gafus/types": ["packages/types/src"],
+      "@web/*": ["apps/web/src/*"]
     },
 
     "typeRoots": ["./node_modules/@types", "packages/types/src"]
