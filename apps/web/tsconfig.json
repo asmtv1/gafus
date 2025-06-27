@@ -30,9 +30,8 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "../../packages/webpush/src/getVapidPublicKey.ts",
     "../../packages/webpush/src/db.ts",
-    "../../packages/webpush/src/webpush.ts",
+    "../../packages/webpush/src/index.ts",
     "src/utils/push.ts",
     "src/utils/getCurrentUserId.ts"
   ],
