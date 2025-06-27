@@ -5,22 +5,17 @@
  * Важно:  maxRetriesPerRequest = null  и  enableReadyCheck = false
  *         позволяют BullMQ выполнять BLPOP/BRPOP без повторных попыток.
  */
-
-import dotenv from "dotenv";
-dotenv.config({ path: "../../.env" });
+import "dotenv/config";
 import { Redis } from "ioredis";
-
 /**
  * REDIS_URL должен быть задан в .env, например:
  * REDIS_URL=redis://localhost:6379
  */
 if (!process.env.REDIS_URL) {
-  throw new Error("REDIS_URL is not set in .env");
+    throw new Error("REDIS_URL is not set in .env");
 }
-
 export const connection = new Redis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: null, // требование BullMQ
-  enableReadyCheck: false, // ускоряет подключение
+    maxRetriesPerRequest: null, // требование BullMQ
+    enableReadyCheck: false, // ускоряет подключение
 });
-
 export default connection;

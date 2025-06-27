@@ -3,7 +3,11 @@
   "compilerOptions": {
     /* Базовые */
     "target": "ES2022",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
     "module": "ESNext",
     "moduleResolution": "Node",
     "jsx": "preserve",
@@ -13,21 +17,30 @@
     "isolatedModules": true,
     "noEmit": true,
     "incremental": true,
-
     /* Пути и алиасы наследуются из корневого tsconfig */
-
     /* Типы */
-    "typeRoots": ["./types", "../../packages/types/src", "../../node_modules/@types"]
+    "typeRoots": [
+      "./types",
+      "../../packages/types/src",
+      "../../node_modules/@types"
+    ],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     "../../packages/webpush/src/db.ts",
     "../../packages/webpush/src/index.ts",
+    "next-env.d.ts",
+    "src/utils/getCurrentUserId.ts",
     "src/utils/push.ts",
-    "src/utils/getCurrentUserId.ts"
+    ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

@@ -1,5 +1,7 @@
-const path = require("path");
-const withPWA = require("@ducanh2912/next-pwa");
+import path from "path";
+import type { NextConfig } from "next";
+import type { Configuration } from "webpack";
+import withPWA from "@ducanh2912/next-pwa";
 
 const runtimeCaching = [
   {
@@ -106,13 +108,15 @@ const pwaConfig = {
     /_buildManifest\.js$/,
     /_ssgManifest\.js$/,
   ],
+
   workboxOptions: { disableDevLogs: true },
+
+  // подключаем кастомный сервис-воркер ▼
   sw: "sw.js",
   customWorkerSrc: "worker",
 };
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig: NextConfig = {
   reactStrictMode: true,
   async headers() {
     return [
@@ -127,15 +131,24 @@ const nextConfig = {
   images: {
     remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
   },
-  webpack(config: import("webpack").Configuration) {
-    config.resolve = config.resolve || {};
+  webpack: (
+    config: Configuration,
+    options: {
+      buildId: string;
+      dev: boolean;
+      isServer: boolean;
+      nextRuntime?: string;
+      defaultLoaders: { babel: any };
+      webpack: typeof import("webpack");
+    }
+  ): Configuration => {
+    config.resolve = config.resolve ?? {};
     config.resolve.alias = {
-      ...(config.resolve.alias || {}),
-      "@/shared": path.resolve(__dirname, "shared"), // ваш старый алиас
-      "@": path.resolve(__dirname, "src"), // новый алиас для "@/..."
+      ...(config.resolve.alias ?? {}),
+      "@/shared": path.resolve(__dirname, "shared"),
     };
     return config;
   },
 };
 
-module.exports = withPWA(pwaConfig)(nextConfig);
+export default withPWA(pwaConfig)(nextConfig);
