@@ -6,7 +6,7 @@ import styles from "./day.module.css";
 import { TrainingOverview } from "./TrainingOverview";
 import { TrainingStepList } from "./TrainingStepList";
 import { assignCoursesToUser } from "@/lib/user/userCourses";
-import type { TrainingDetail } from "@/types/training";
+import type { TrainingDetail } from "@gafus/types";
 
 interface DayProps {
   training: TrainingDetail;

@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { PetFormData } from "@/types/Pet";
+import { PetFormData } from "@gafus/types";
 
 export function usePetForm(initialValues: Partial<PetFormData>) {
   return useForm<PetFormData>({

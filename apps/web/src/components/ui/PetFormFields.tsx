@@ -1,5 +1,5 @@
 import { UseFormReturn } from "react-hook-form";
-import { PetFormData } from "@/types/Pet";
+import { PetFormData } from "@gafus/types";
 import { FormField } from "./FormField"; // замените путь при необходимости
 
 type Props = {

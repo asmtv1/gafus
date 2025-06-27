@@ -3,28 +3,4 @@
 > @gafus/webpush@0.1.0 typecheck
 > tsc --noEmit
 
-[1G[0K[96m../../apps/web/src/utils/getCurrentUserId.ts[0m:[93m4[0m:[93m29[0m - [91merror[0m[90m TS2307: [0mCannot find module '@/lib/auth//auth' or its corresponding type declarations.
-
-[7m4[0m import { authOptions } from "@/lib/auth//auth";
-[7m [0m [91m                            ~~~~~~~~~~~~~~~~~~[0m
-
-[96msrc/index.ts[0m:[93m1[0m:[93m21[0m - [91merror[0m[90m TS7016: [0mCould not find a declaration file for module 'web-push'. '/Users/asmtv1/gafus/node_modules/web-push/src/index.js' implicitly has an 'any' type.
-  Try `npm i --save-dev @types/web-push` if it exists or add a new declaration (.d.ts) file containing `declare module 'web-push';`
-
-[7m1[0m import webpush from "web-push";
-[7m [0m [91m                    ~~~~~~~~~~[0m
-
-
-Found 2 errors in 2 files.
-
-Errors  Files
-     1  ../../apps/web/src/utils/getCurrentUserId.ts[90m:4[0m
-     1  src/index.ts[90m:1[0m
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m Lifecycle script `typecheck` failed with error:
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mcode[39m [33m2[39m
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mpath[39m /Users/asmtv1/gafus/packages/webpush
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mworkspace[39m @gafus/webpush@0.1.0
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mlocation[39m /Users/asmtv1/gafus/packages/webpush
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m command failed
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mcommand[39m sh -c tsc --noEmit
-[1G[0K⠙[1G[0K
+[1G[0K[1G[0K⠙[1G[0K

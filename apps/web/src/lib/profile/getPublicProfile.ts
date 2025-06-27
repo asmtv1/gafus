@@ -1,4 +1,4 @@
-import type { PublicProfile } from "@/types/user";
+import type { PublicProfile } from "@gafus/types";
 import { prisma } from "@prisma";
 
 export async function getPublicProfile(

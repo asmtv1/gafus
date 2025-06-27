@@ -1,22 +1,19 @@
+export interface AuthUser {
+  avatarUrl?: string | null;
+  id: string;
+  username: string;
+}
+
 declare module "next-auth" {
   interface Session {
-    user: {
-      avatarUrl?: string | null;
-      id: string;
-      username: string;
-    };
+    user: AuthUser;
   }
 
-  interface User {
-    id: string;
-    username: string;
-  }
+  interface User extends AuthUser {}
 }
 
 declare module "next-auth/jwt" {
-  interface JWT {
-    id: string;
-    username: string;
-  }
+  interface JWT extends AuthUser {}
 }
+
 export {};

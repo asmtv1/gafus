@@ -1,4 +1,4 @@
-import type { TrainingDetail } from "@/types/training";
+import type { TrainingDetail } from "@gafus/types";
 export function calculateDuration(training: TrainingDetail): number {
   const totalSeconds = training.steps.reduce(
     (sum, step) => sum + step.durationSec,

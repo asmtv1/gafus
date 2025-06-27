@@ -1,5 +1,4 @@
-import type { UserWithTrainings } from "@/types/user";
-import type { LiteCourse } from "@/types/course";
+import type { LiteCourse, UserWithTrainings } from "@gafus/types";
 import Link from "next/link";
 import MyCourses from "./MyCourses";
 import MyCreatedCourses from "./MyCreatedCourses";

@@ -2,7 +2,7 @@
 
 import { CourseCard } from "@/components/CourseCard/CourseCard";
 import { useState, useEffect } from "react";
-import { Course as CourseType } from "@/types/course";
+import { Course as CourseType } from "@gafus/types";
 
 type Course = Omit<CourseType, "description"> & {
   startedAt?: Date | null;

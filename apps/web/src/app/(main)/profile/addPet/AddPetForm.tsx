@@ -5,7 +5,7 @@ import { useState } from "react";
 import { savePet } from "@/lib/pet/savePet";
 import { PetFormFields } from "@/components/ui/PetFormFields";
 import { usePetForm } from "@/hooks/usePetForm";
-import type { PetFormData } from "@/types/Pet";
+import type { PetFormData } from "@gafus/types";
 
 export default function AddPetForm() {
   const [caughtError, setCaughtError] = useState<Error | null>(null);

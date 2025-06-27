@@ -2,7 +2,7 @@
 
 import { prisma } from "@prisma";
 import { TrainingStatus } from "@prisma/client";
-import type { TrainingDetail } from "@/types/training";
+import type { TrainingDetail } from "@gafus/types";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 
 export async function getTrainingDays(typeParam?: string): Promise<{

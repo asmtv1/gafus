@@ -145,6 +145,7 @@ const nextConfig: NextConfig = {
     config.resolve = config.resolve ?? {};
     config.resolve.alias = {
       ...(config.resolve.alias ?? {}),
+      "@web": path.resolve(__dirname, "src"), // <- для "@web/…"
       "@/shared": path.resolve(__dirname, "shared"),
     };
     return config;

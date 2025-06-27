@@ -1,4 +1,4 @@
-import type { UserCourse } from "@/types/user";
+import type { UserCourse } from "@gafus/types";
 
 export default function MyCourses({
   courseName,

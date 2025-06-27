@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import styles from "./EditBioForm.module.css";
 import { updateUserProfile } from "@/lib/user/updateUserProfile";
 import { getUserProfile } from "@/lib/user/getUserProfile";
-import { BioFormData } from "@/types/user";
+import { BioFormData } from "@gafus/types";
 import { FormField } from "@/components/ui/FormField";
 import type { UserProfile } from "@prisma/client";
 

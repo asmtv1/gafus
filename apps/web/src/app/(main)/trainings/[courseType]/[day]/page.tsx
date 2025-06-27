@@ -1,6 +1,6 @@
 import Day from "@/components/training/Day";
 import { getTrainingDayWithUserSteps } from "@/lib/training/getTrainingDayWithUserSteps";
-import type { TrainingDetail } from "@/types/training";
+import type { TrainingDetail } from "@gafus/types";
 
 export default async function DayPage(props: {
   params: Promise<{ courseType: string; day: string }>;

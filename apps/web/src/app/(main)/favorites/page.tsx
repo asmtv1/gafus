@@ -1,4 +1,4 @@
-import type { Course } from "@/types/course";
+import type { Course } from "@gafus/types";
 import { getFavoritesCourses } from "@/lib/course/getFavoritesCourses";
 import styles from "./favorites.module.css";
 import { FavoritesList } from "@/components/CourseCard/FavoritesCourseList";

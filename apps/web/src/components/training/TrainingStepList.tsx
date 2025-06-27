@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { TrainingStep } from "@/types/training";
+import type { TrainingStep } from "@gafus/types";
 
 const AccordionStep = dynamic(() => import("./AccordionStep"), {
   ssr: false,

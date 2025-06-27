@@ -3,7 +3,7 @@ import { Avatar } from "@mui/material";
 import Link from "next/link";
 import EditableAvatar from "@/components/EditableAvatar/EditableAvatar";
 import styles from "./Bio.module.css";
-import type { PublicProfile } from "@/types/user";
+import type { PublicProfile } from "@gafus/types";
 import { getAge } from "@/utils/getAge";
 import { declOfNum } from "@/utils/pluralize";
 

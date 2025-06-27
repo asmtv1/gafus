@@ -3,7 +3,7 @@
 import { savePet } from "@/lib/pet/savePet";
 import { PetFormFields } from "@/components/ui/PetFormFields";
 import { usePetForm } from "@/hooks/usePetForm";
-import { Pet, PetFormData } from "@/types/Pet";
+import { Pet, PetFormData } from "@gafus/types";
 
 type EditPetFormProps = {
   pet: Pet;

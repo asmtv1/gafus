@@ -1,4 +1,4 @@
-import type { Course } from "@/types/course";
+import type { Course } from "@gafus/types";
 import { CourseCard } from "@/components/CourseCard/CourseCard";
 import styles from "./courses.module.css";
 import { getCoursesWithProgress } from "@/lib/course/getCourses";
@@ -7,7 +7,8 @@ export const revalidate = 60; // seconds
 
 export const metadata = {
   title: "Список курсов",
-  description: "Выбирайте курсы для послушания, фокуса и социализации вашей собаки.",
+  description:
+    "Выбирайте курсы для послушания, фокуса и социализации вашей собаки.",
 };
 
 export default async function CoursesPage() {

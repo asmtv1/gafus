@@ -1,8 +1,8 @@
 import { prisma } from "@prisma";
 import bcrypt from "bcrypt";
 import CredentialsProvider from "next-auth/providers/credentials";
-import type { AdapterUser } from "next-auth/adapters";
 import type { NextAuthOptions } from "next-auth";
+import type { AuthUser } from "@gafus/types";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -12,7 +12,8 @@ export const authOptions: NextAuthOptions = {
         username: { label: "Имя пользователя", type: "text" },
         password: { label: "Пароль", type: "password" },
       },
-      async authorize(credentials) {
+
+      async authorize(credentials): Promise<AuthUser> {
         if (!credentials?.username || !credentials?.password) {
           throw new Error("Введите имя пользователя и пароль");
         }
@@ -40,7 +41,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.username = (user as AdapterUser).username;
+        token.username = (user as AuthUser).username;
       }
       return token;
     },

@@ -5,8 +5,8 @@ import { getPublicProfile } from "@/lib/profile/getPublicProfile";
 import { getUserWithTrainings } from "@/lib/user/getUserWithTrainings";
 import { getAuthoredCourses } from "@/lib/course/getAuthoredCourses";
 import { getIsOwner } from "@/lib/auth/getIsOwner";
-import type { UserWithTrainings } from "@/types/user";
-import type { LiteCourse } from "@/types/course";
+import type { UserWithTrainings } from "@gafus/types";
+import type { LiteCourse } from "@gafus/types";
 export const metadata = {
   title: "Ваш профиль",
   description:

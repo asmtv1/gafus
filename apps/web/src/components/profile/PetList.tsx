@@ -14,7 +14,7 @@ const EditPetForm = dynamic(() => import("./EditPetForm"), {
   ssr: false,
   loading: () => <p>Загрузка формы…</p>,
 });
-import { Pet } from "@/types/Pet";
+import { Pet } from "@gafus/types";
 import { getAgeWithMonths } from "@/utils/getAgeWithMonths";
 import { declOfNum } from "@/utils/pluralize";
 

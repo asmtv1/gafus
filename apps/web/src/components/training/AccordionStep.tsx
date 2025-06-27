@@ -5,7 +5,7 @@ import { TrainingStatus } from "@prisma/client";
 import { updateStepStatusServerAction } from "@/lib/training/updateUserStepStatus";
 import { formatTime } from "@/utils/date";
 import { declOfNum } from "@/utils/pluralize";
-import type { TrainingStep } from "@/types/training";
+import type { TrainingStep } from "@gafus/types";
 
 // ─── Хелперы ───────────────────────────────────────────────────────────────────
 const nowSec = () => Math.floor(Date.now() / 1000);

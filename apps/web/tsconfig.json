@@ -3,11 +3,7 @@
   "compilerOptions": {
     /* Базовые */
     "target": "ES2022",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "module": "ESNext",
     "moduleResolution": "Node",
     "jsx": "preserve",
@@ -40,7 +36,6 @@
     "src/utils/push.ts",
     ".next/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"],
+  "typeRoots": ["../../node_modules/@types", "../../packages/types/src"]
 }
