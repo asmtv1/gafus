@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noEmit": false, // чтобы не было ошибок при запуске через ts-node
+    "module": "CommonJS", // Telegram-bot обычно запускается через node
+    "target": "ES2019"
+  },
+  "include": ["bot.ts"],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,40 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* Базовые */
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "jsx": "preserve",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "incremental": true,
+
+    /* Пути и алиасы */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@prisma": ["../../packages/prisma/src/index.ts"],
+      "@queues/*": ["../../packages/queues/src/*"]
+    },
+
+    /* Типы */
+    "typeRoots": ["./types", "../../node_modules/@types"]
+  },
+
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "../../packages/webpush/src/getVapidPublicKey.ts",
+    "../../packages/webpush/src/db.ts",
+    "../../packages/webpush/src/webpush.ts",
+    "src/utils/push.ts",
+    "src/utils/getCurrentUserId.ts"
+  ],
+  "exclude": ["node_modules"]
+}

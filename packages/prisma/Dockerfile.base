@@ -1,0 +1,22 @@
+# syntax=docker/dockerfile:1
+
+# ────────────────────────────────
+#   prisma-base (prod-deps + client)
+# ────────────────────────────────
+FROM node:20-bookworm-slim AS prisma-base
+WORKDIR /app
+
+# 1️⃣ Устанавливаем OpenSSL 3
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# 2️⃣ Копируем только нужные package.json/lock из корня монорепо
+COPY ../../package*.json ./
+RUN npm ci --omit=dev \
+ && npm install prisma --save-dev
+
+# 3️⃣ Копируем schema.prisma и генерируем клиента
+COPY ./prisma/schema.prisma ./prisma/schema.prisma
+RUN npx prisma generate --schema=prisma/schema.prisma

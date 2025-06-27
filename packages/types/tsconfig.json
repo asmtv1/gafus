@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true, // нужно для сборки в монорепо
+    "declaration": true, // генерировать .d.ts
+    "declarationMap": true, // полезно при отладке типов
+    "emitDeclarationOnly": true, // не генерировать JS
+    "outDir": "dist", // декларации будут в dist
+    "rootDir": "src", // исходники в src
+    "baseUrl": ".", // для paths внутри пакета
+    "skipLibCheck": true // ускоряет сборку
+  },
+  "include": ["src"]
+}
