@@ -1,6 +1,6 @@
 "use server";
 import { prisma } from "@prisma";
-import { getCurrentUserId } from "../../../apps/web/src/utils/getCurrentUserId.js";
+import { getCurrentUserId } from "@web/utils/getCurrentUserId";
 
 export type PushSubscriptionJSON = {
   endpoint: string;
