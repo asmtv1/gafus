@@ -1,8 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 // Импортируем серверные экшны
-import { getVapidPublicKey } from "@/lib/webpush/getVapidPublicKey";
-import { savePushSubscription } from "@/lib/webpush/savePushSubscription";
+import { getVapidPublicKey, saveSubscription } from "@/utils/push";
 
 // Утилита для конвертации VAPID-ключа из base64 в Uint8Array
 function urlBase64ToUint8Array(base64String: string) {
@@ -56,7 +55,7 @@ export default function NotificationRequester() {
           "🔹 Before savePushSubscription, endpoint:",
           subscriptionJSON.endpoint
         );
-        await savePushSubscription(
+        await saveSubscription(
           subscriptionJSON as {
             endpoint: string;
             keys: { p256dh: string; auth: string };
