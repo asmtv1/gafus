@@ -7,7 +7,7 @@
     "emitDeclarationOnly": true, // не генерировать JS
     "outDir": "dist", // декларации будут в dist
     "rootDir": "src", // исходники в src
-    "baseUrl": ".", // для paths внутри пакета
+    /* пути и алиасы наследуются из корневого tsconfig */
     "skipLibCheck": true // ускоряет сборку
   },
   "include": ["src"]
