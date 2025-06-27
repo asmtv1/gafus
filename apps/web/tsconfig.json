@@ -23,7 +23,7 @@
     },
 
     /* Типы */
-    "typeRoots": ["./types", "../../node_modules/@types"]
+    "typeRoots": ["./types", "../../packages/types/src", "../../node_modules/@types"]
   },
 
   "include": [
