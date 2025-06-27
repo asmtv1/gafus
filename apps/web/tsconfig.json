@@ -14,13 +14,7 @@
     "noEmit": true,
     "incremental": true,
 
-    /* Пути и алиасы */
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@prisma": ["../../packages/prisma/src/index.ts"],
-      "@queues/*": ["../../packages/queues/src/*"]
-    },
+    /* Пути и алиасы наследуются из корневого tsconfig */
 
     /* Типы */
     "typeRoots": ["./types", "../../packages/types/src", "../../node_modules/@types"]

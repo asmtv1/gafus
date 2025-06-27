@@ -21,7 +21,8 @@
       "@gafus/webpush": ["packages/webpush/src/index.ts"],
       "@gafus/webpush/db": ["packages/webpush/src/db.ts"],
       "@gafus/types": ["packages/types/src"],
-      "@web/*": ["apps/web/src/*"]
+      "@web/*": ["apps/web/src/*"],
+      "@/*": ["apps/web/src/*"]
     },
 
     "typeRoots": ["./node_modules/@types", "packages/types/src"]
