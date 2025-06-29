@@ -10,10 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@auth/core": "0.40.0",
     "@gafus/prisma": "*",
     "@gafus/queues": "file:../../packages/queues",
-    "@prisma/client": "6.9.0",
     "dotenv": "^16.5.0",
     "node-telegram-bot-api": "^0.66.0"
   },
