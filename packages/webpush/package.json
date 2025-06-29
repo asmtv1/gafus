@@ -10,11 +10,14 @@
     "./db": "./src/db.ts"
   },
   "scripts": {
+    "dev": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
+    "start": "node dist/webpush/src/index.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
+    "dotenv": "^16.6.1",
     "web-push": "^3.6.1"
   },
   "devDependencies": {

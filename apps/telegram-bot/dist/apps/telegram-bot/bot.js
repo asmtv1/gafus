@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.bot = void 0;
 require("dotenv/config");
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
-const _prisma_1 = require("@prisma");
+const index_js_1 = require("../../packages/prisma/src/index.js");
 const token = process.env.TELEGRAM_BOT_TOKEN;
 exports.bot = new node_telegram_bot_api_1.default(token, { polling: true });
 exports.bot.on("message", async (msg) => {
@@ -15,11 +15,11 @@ exports.bot.on("message", async (msg) => {
     if (msg.contact) {
         const phone = "+" + msg.contact.phone_number.replace(/\D/g, "");
         try {
-            const user = await _prisma_1.prisma.user.findUnique({ where: { phone } });
+            const user = await index_js_1.prisma.user.findUnique({ where: { phone } });
             if (!user) {
                 return exports.bot.sendMessage(chatId, "Пользователь с этим номером не найден.");
             }
-            await _prisma_1.prisma.user.update({
+            await index_js_1.prisma.user.update({
                 where: { phone },
                 data: {
                     telegramId: chatId.toString(),

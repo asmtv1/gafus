@@ -1,6 +1,5 @@
-// src/lib/queues/push-queue.ts
 import { Queue } from "bullmq";
-import { connection } from "./redis";
+import { connection } from "@queues/redis";
 // Название очереди — «push»
 export const pushQueue = new Queue("push", { connection });
 // Отвечает за повторные попытки, автоматическую перезапись «застрявших» задач и т.п.

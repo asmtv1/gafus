@@ -4,7 +4,7 @@ import "dotenv/config";
 import { Worker, Job } from "bullmq";
 import { prisma } from "@prisma";
 import webpush from "@gafus/webpush";
-import { connection } from "@queues/redis";
+import { connection } from "@queues/redis.js";
 import type { PushSubscription } from "web-push";
 
 interface SendStepNotificationPayload {
@@ -96,7 +96,9 @@ const worker = new Worker(
       );
       console.log("📤 [Worker] Push sent successfully");
 
-      await prisma.stepNotification.delete({ where: { id: notificationId } });
+      await prisma.pushSubscription.deleteMany({
+        where: { endpoint: subscription.endpoint },
+      });
       console.log("🗑️ [Worker] Deleted notification ID=", notificationId);
     } catch (err: unknown) {
       console.error("🚨 [Worker] Error while sending push:", err);

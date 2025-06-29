@@ -19,24 +19,39 @@
  [32m[1m✓[22m[39m (pwa) Building the custom worker to /Users/asmtv1/gafus/apps/web/public/worker-36f2b201aefe2348.js...
  [37m[1m○[22m[39m (pwa) This app will fallback to these precached routes when fetching from the cache and the network fails:
  [37m[1m○[22m[39m (pwa)   Documents (pages): /~offline
-[31mFailed to compile.
-[39m
-../../packages/webpush/src/db.ts
-[31m[1mModule not found[22m[39m: Can't resolve '[32m@web/utils/getCurrentUserId.js[39m'
+ [32m[1m✓[22m[39m Compiled successfully in 2000ms
+[?25l [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G[?25h [37m[1m [22m[39m Linting and checking validity of types     [32m[1m✓[22m[39m Linting and checking validity of types 
+[?25l [37m[1m [22m[39m Collecting page data  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting page data  [36m..[39m[2K[1G[?25h [37m[1m [22m[39m Collecting page data     [32m[1m✓[22m[39m Collecting page data 
+[?25l [37m[1m [22m[39m Generating static pages (0/15)  [36m[    ][39m[2K[1G [37m[1m [22m[39m Generating static pages (0/15)  [36m[=   ][39m[2K[1G [37m[1m [22m[39m Generating static pages (8/15)  [36m[==  ][39m[2K[1G[?25h [32m[1m✓[22m[39m Generating static pages (15/15)
+[?25l [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[?25l [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G[?25h [37m[1m [22m[39m Collecting build traces     [32m[1m✓[22m[39m Collecting build traces 
+[2K[1G[?25h [37m[1m [22m[39m Finalizing page optimization     [32m[1m✓[22m[39m Finalizing page optimization 
 
-https://nextjs.org/docs/messages/module-not-found
+[4mRoute (app)[24m                                 [4mSize[24m  [4mFirst Load JS[24m  [4m[24m  [4m[24m
+┌ ○ /                                      620 B         [37m[1m123 kB[22m[39m
+├ ○ /_not-found                            979 B         [37m[1m105 kB[22m[39m
+├ ○ /~offline                              633 B         [37m[1m105 kB[22m[39m
+├ ƒ /api/auth/[...nextauth]                144 B         [37m[1m104 kB[22m[39m
+├ ○ /confirm                               985 B         [37m[1m114 kB[22m[39m
+├ ƒ /courses                             1.49 kB         [37m[1m146 kB[22m[39m
+├ ƒ /favorites                            2.7 kB         [37m[1m147 kB[22m[39m
+├ ○ /login                               2.06 kB         [37m[1m132 kB[22m[39m
+├ ○ /passwordReset                         931 B         [37m[1m142 kB[22m[39m
+├ ƒ /profile                             50.9 kB         [37m[1m195 kB[22m[39m
+├ ƒ /profile/addPet                      1.85 kB         [37m[1m114 kB[22m[39m
+├ ƒ /profile/editBio                     1.89 kB         [37m[1m114 kB[22m[39m
+├ ○ /register                            2.48 kB         [37m[1m158 kB[22m[39m
+├ ○ /reset-password                      1.17 kB         [37m[1m105 kB[22m[39m
+├ ƒ /trainings/[courseType]                389 B         [37m[1m108 kB[22m[39m
+└ ƒ /trainings/[courseType]/[day]        2.26 kB         [37m[1m107 kB[22m[39m
++ First Load JS shared by all             [37m[1m104 kB[22m[39m
+  ├ chunks/3605-4f66e5d35b5e9b75.js      48.5 kB
+  ├ chunks/87c73c54-ceb61891d963a448.js  53.2 kB
+  └ other shared chunks (total)           2.6 kB
 
-Import trace for requested module:
-./src/utils/push.ts
-../../node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fasmtv1%2Fgafus%2Fapps%2Fweb%2Fsrc%2Futils%2Fpush.ts%22%2C%5B%7B%22id%22%3A%22004f7237957f0e7245cd4e6da588bb5c11c0aa3757%22%2C%22exportedName%22%3A%22getVapidPublicKey%22%7D%2C%7B%22id%22%3A%224009b6573f98917df7666af33ab7f7867a1412a881%22%2C%22exportedName%22%3A%22sendPushToAll%22%7D%2C%7B%22id%22%3A%22405415c17adcf50bd99beba430eb917f341a902c27%22%2C%22exportedName%22%3A%22saveSubscription%22%7D%5D%5D%5D&__client_imported__=true!
 
+ƒ Middleware                             [37m[1m60.1 kB[22m[39m
 
-> Build failed because of webpack errors
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m Lifecycle script `build` failed with error:
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mcode[39m [33m1[39m
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mpath[39m /Users/asmtv1/gafus/apps/web
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mworkspace[39m @gafus/web@0.1.0
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mlocation[39m /Users/asmtv1/gafus/apps/web
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m command failed
-[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mcommand[39m sh -c next build
-[1G[0K⠙[1G[0K
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+[?25h[1G[0K⠙[1G[0K

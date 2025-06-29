@@ -2,6 +2,11 @@
   "name": "@gafus/web",
   "version": "0.1.0",
   "private": true,
+  "turbo": {
+    "outputs": [
+      ".next/**"
+    ]
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@auth/core": "0.40.0",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -21,7 +27,8 @@
     "browser-image-compression": "^2.0.2",
     "libphonenumber-js": "^1.12.8",
     "next": "^15.3.4",
-    "next-auth": "^4.24.11",
+    "next-auth": "^4.24.7",
+    "node-telegram-bot-api": "0.66.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.58.1",

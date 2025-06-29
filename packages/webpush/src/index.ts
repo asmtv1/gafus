@@ -1,5 +1,7 @@
 import webpush from "web-push";
-import "dotenv/config";
+import dotenv from "dotenv";
+dotenv.config({ path: "../../.env" });
+
 /**
  * Перед запуском убедитесь, что в .env заданы:
  * VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CONTACT_EMAIL

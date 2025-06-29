@@ -4,10 +4,9 @@ import webpush from "@gafus/webpush";
 import { revalidatePath } from "next/cache";
 import {
   savePushSubscription,
-  getAllSubscriptions,
   PushSubscriptionJSON,
-} from "@gafus/webpush/db"
-
+} from "../lib/savePushSubscription/savePushSubscription";
+import { getAllSubscriptions } from "@gafus/webpush/db";
 /**
  * Возвращает публичный VAPID-ключ для Push API.
  */
@@ -48,9 +47,12 @@ export async function sendPushToAll(
 
   const subs = await getAllSubscriptions();
   await Promise.all(
-    subs.map((sub: PushSubscriptionJSON) =>
-      webpush.sendNotification(sub, payloadString)
-    )
+    subs
+      .filter(
+        (sub): sub is PushSubscriptionJSON & { endpoint: string } =>
+          typeof sub.endpoint === "string" && !!sub.endpoint
+      )
+      .map((sub) => webpush.sendNotification(sub, payloadString))
   );
 
   // Инвалидируем кэшированную страницу

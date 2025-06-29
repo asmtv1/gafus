@@ -1,0 +1,7 @@
+
+
+> @gafus/web@0.1.0 lint
+> next lint --dir src
+
+[1G[0K[32m✔ No ESLint warnings or errors[39m
+[1G[0K⠙[1G[0K

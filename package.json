@@ -9,9 +9,11 @@
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
+    "start": "turbo run start --parallel",
+    "start:all": "turbo run start --parallel --filter=@gafus/web --filter=@gafus/telegram-bot --filter=@gafus/webpush --filter=@gafus/bull-board --filter=@gafus/worker",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "clean": "rimraf node_modules **/dist **/.turbo"
+    "clean": "find . -type d -name \"dist\" -exec rm -rf {} + && rm -rf .turbo"
   },
   "devDependencies": {
     "@types/node": "^20.4.8",
@@ -20,5 +22,13 @@
     "tsx": "^4.20.3",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@auth/core": "^0.40.0",
+    "next": "^15.3.4",
+    "next-auth": "4.24.7",
+    "next-cookies": "^2.0.3",
+    "node-telegram-bot-api": "^0.66.0",
+    "tsconfig-paths-webpack-plugin": "^4.2.0"
   }
 }
