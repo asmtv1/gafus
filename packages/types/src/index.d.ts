@@ -7,3 +7,4 @@ export * from "./next-auth";
 export * from "./next-pwa-cache";
 export * from "./next-pwa-register";
 export * from "./web-push";
+export * from "./training-status";

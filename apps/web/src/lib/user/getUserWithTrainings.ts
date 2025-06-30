@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@prisma";
-import { TrainingStatus } from "@prisma/client";
+import { TrainingStatus } from "@gafus/types";
 import type { UserWithTrainings } from "@gafus/types";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 
@@ -59,25 +59,33 @@ export async function getUserWithTrainings(): Promise<UserWithTrainings | null> 
 
     if (!user) return null;
 
-    const courses = user.userCourses.map((uc) => {
-      const trainingsForCourse = user.userTrainings.filter(
-        (ut) => ut.trainingDay.course.id === uc.courseId
-      );
+    const courses = user.userCourses.map(
+      (uc: (typeof user.userCourses)[number]) => {
+        const trainingsForCourse = user.userTrainings.filter(
+          (ut: (typeof user.userTrainings)[number]) =>
+            ut.trainingDay.course.id === uc.courseId
+        );
 
-      const completedDays = trainingsForCourse
-        .filter((t) => t.status === TrainingStatus.COMPLETED)
-        .map((t) => t.trainingDay.dayNumber)
-        .sort((a, b) => a - b);
+        const completedDays = trainingsForCourse
+          .filter(
+            (t: (typeof user.userTrainings)[number]) =>
+              t.status === TrainingStatus.COMPLETED
+          )
+          .map(
+            (t: (typeof user.userTrainings)[number]) => t.trainingDay.dayNumber
+          )
+          .sort((a: number, b: number) => a - b);
 
-      return {
-        courseId: uc.courseId,
-        courseName: uc.course.name,
-        startedAt: uc.startedAt,
-        completedAt: uc.completedAt,
-        completedDays: uc.completedAt ? [] : completedDays,
-        totalDays: uc.course.trainingDays.length,
-      };
-    });
+        return {
+          courseId: uc.courseId,
+          courseName: uc.course.name,
+          startedAt: uc.startedAt,
+          completedAt: uc.completedAt,
+          completedDays: uc.completedAt ? [] : completedDays,
+          totalDays: uc.course.trainingDays.length,
+        };
+      }
+    );
 
     return {
       id: user.id,

@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TrainingStatus } from "@prisma/client";
 import { updateStepStatusServerAction } from "@/lib/training/updateUserStepStatus";
 import { formatTime } from "@/utils/date";
 import { declOfNum } from "@/utils/pluralize";
+import { TrainingStatus } from "@gafus/types";
 import type { TrainingStep } from "@gafus/types";
 
 // ─── Хелперы ───────────────────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 
 
-> @gafus/web@0.1.0 build
+> @gafus/web@0.1.0 build /Users/asmtv1/gafus/apps/web
 > next build
 
-[1G[0K   [1m[38;2;173;127;168m▲ Next.js 15.3.4[39m[22m
+   [1m[38;2;173;127;168m▲ Next.js 15.3.4[39m[22m
 
  [37m[1m [22m[39m Creating an optimized production build ...
  [32m[1m✓[22m[39m (pwa) Compiling for server...
@@ -19,39 +19,49 @@
  [32m[1m✓[22m[39m (pwa) Building the custom worker to /Users/asmtv1/gafus/apps/web/public/worker-36f2b201aefe2348.js...
  [37m[1m○[22m[39m (pwa) This app will fallback to these precached routes when fetching from the cache and the network fails:
  [37m[1m○[22m[39m (pwa)   Documents (pages): /~offline
- [32m[1m✓[22m[39m Compiled successfully in 2000ms
-[?25l [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G[?25h [37m[1m [22m[39m Linting and checking validity of types     [32m[1m✓[22m[39m Linting and checking validity of types 
-[?25l [37m[1m [22m[39m Collecting page data  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting page data  [36m..[39m[2K[1G[?25h [37m[1m [22m[39m Collecting page data     [32m[1m✓[22m[39m Collecting page data 
-[?25l [37m[1m [22m[39m Generating static pages (0/15)  [36m[    ][39m[2K[1G [37m[1m [22m[39m Generating static pages (0/15)  [36m[=   ][39m[2K[1G [37m[1m [22m[39m Generating static pages (8/15)  [36m[==  ][39m[2K[1G[?25h [32m[1m✓[22m[39m Generating static pages (15/15)
-[?25l [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[?25l [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G[?25h [37m[1m [22m[39m Collecting build traces     [32m[1m✓[22m[39m Collecting build traces 
-[2K[1G[?25h [37m[1m [22m[39m Finalizing page optimization     [32m[1m✓[22m[39m Finalizing page optimization 
+[31mFailed to compile.
+[39m
+./src/components/training/AccordionStep.tsx
+[31m[1mModule not found[22m[39m: Can't resolve '[32m@gafus/types[39m'
 
-[4mRoute (app)[24m                                 [4mSize[24m  [4mFirst Load JS[24m  [4m[24m  [4m[24m
-┌ ○ /                                      620 B         [37m[1m123 kB[22m[39m
-├ ○ /_not-found                            979 B         [37m[1m105 kB[22m[39m
-├ ○ /~offline                              633 B         [37m[1m105 kB[22m[39m
-├ ƒ /api/auth/[...nextauth]                144 B         [37m[1m104 kB[22m[39m
-├ ○ /confirm                               985 B         [37m[1m114 kB[22m[39m
-├ ƒ /courses                             1.49 kB         [37m[1m146 kB[22m[39m
-├ ƒ /favorites                            2.7 kB         [37m[1m147 kB[22m[39m
-├ ○ /login                               2.06 kB         [37m[1m132 kB[22m[39m
-├ ○ /passwordReset                         931 B         [37m[1m142 kB[22m[39m
-├ ƒ /profile                             50.9 kB         [37m[1m195 kB[22m[39m
-├ ƒ /profile/addPet                      1.85 kB         [37m[1m114 kB[22m[39m
-├ ƒ /profile/editBio                     1.89 kB         [37m[1m114 kB[22m[39m
-├ ○ /register                            2.48 kB         [37m[1m158 kB[22m[39m
-├ ○ /reset-password                      1.17 kB         [37m[1m105 kB[22m[39m
-├ ƒ /trainings/[courseType]                389 B         [37m[1m108 kB[22m[39m
-└ ƒ /trainings/[courseType]/[day]        2.26 kB         [37m[1m107 kB[22m[39m
-+ First Load JS shared by all             [37m[1m104 kB[22m[39m
-  ├ chunks/3605-4f66e5d35b5e9b75.js      48.5 kB
-  ├ chunks/87c73c54-ceb61891d963a448.js  53.2 kB
-  └ other shared chunks (total)           2.6 kB
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/components/training/TrainingStepList.tsx
+./src/components/training/Day.tsx
+
+./src/lib/course/getCourses.ts
+[31m[1mModule not found[22m[39m: Can't resolve '[32m@gafus/types[39m'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/(main)/courses/page.tsx
+
+./src/lib/course/getFavoritesCourses.ts
+[31m[1mModule not found[22m[39m: Can't resolve '[32m@gafus/types[39m'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/(main)/favorites/page.tsx
+
+./src/lib/training/getTrainingDayWithUserSteps.ts
+[31m[1mModule not found[22m[39m: Can't resolve '[32m@gafus/types[39m'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/(main)/trainings/[courseType]/[day]/page.tsx
+
+./src/lib/training/getTrainingDays.ts
+[31m[1mModule not found[22m[39m: Can't resolve '[32m@gafus/types[39m'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/(main)/trainings/[courseType]/page.tsx
 
 
-ƒ Middleware                             [37m[1m60.1 kB[22m[39m
-
-○  (Static)   prerendered as static content
-ƒ  (Dynamic)  server-rendered on demand
-
-[?25h[1G[0K⠙[1G[0K
+> Build failed because of webpack errors
+[41m[30m ELIFECYCLE [39m[49m [31mCommand failed with exit code 1.[39m

@@ -1,59 +1,63 @@
+# syntax=docker/dockerfile:1
+
 # ─────────────────────────────────────────────
-# deps-слой c готовым Prisma-клиентом
+# Stage 0: prisma-base (готовый @prisma/client)
 # ─────────────────────────────────────────────
 FROM gafus/prisma-base:latest AS prisma-base
 
 # ─────────────────────────────────────────────
-# Stage 1: build frontend
+# Stage 1: builder (Next.js build с pnpm)
 # ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-##
-## 1) Устанавливаем зависимости workspaces
-##
-#  Копируем корневой lock и package.json
-COPY package.json package-lock.json ./
-#  Копируем package.json самого фронта, чтобы npm понял «workspace = apps/web»
-COPY apps/web/package.json apps/web/package.json
+# 1️⃣ Устанавливаем corepack + pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-#  Устанавливаем dev-зависимости всех пакетов (turbo, typescript и т.д.)
-RUN npm ci
+# 2️⃣ Копируем workspace файлы + lockfile
+COPY pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml ./
 
-##
-## 2) Копируем исходники и собираем Next.js
-##
+# 3️⃣ Устанавливаем зависимости
+RUN pnpm install --frozen-lockfile
+
+# 4️⃣ Копируем исходники проекта полностью
 COPY . .
-#  Собираем только фронт: npm v10 понимает флаг --workspace
-RUN npm run build --workspace=apps/web
+
+# 5️⃣ Билдим только frontend
+RUN pnpm build --filter @gafus/web...
 
 # ─────────────────────────────────────────────
-# Stage 2: runtime (production)
+# Stage 2: runner (production)
 # ─────────────────────────────────────────────
 FROM node:20-alpine AS runner
-ENV NODE_ENV=production
 WORKDIR /app
+ENV NODE_ENV=production
 
-#
-# 1) node_modules
-#
-#   a) общие prod-зависимости всех пакетов
+# 1️⃣ Устанавливаем corepack + pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# 2️⃣ Копируем pnpm workspace файлы + lockfile для prune
+COPY pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml ./
+
+# 3️⃣ Копируем node_modules:
+#   a) общие зависимости всех пакетов
 COPY --from=builder /app/node_modules ./node_modules
-#   b) патчим prisma-модули заранее сгенерированными бинарями
-COPY --from=prisma-base /app/node_modules/.prisma            ./node_modules/.prisma
-COPY --from=prisma-base /app/node_modules/@prisma            ./node_modules/@prisma
+#   b) prisma клиент + бинарники
+COPY --from=prisma-base /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=prisma-base /app/node_modules/@prisma ./node_modules/@prisma
 
-#
-# 2) само Next-приложение (готовая сборка + статика)
-#
-COPY --from=builder /app/apps/web/.next       ./apps/web/.next
-COPY --from=builder /app/apps/web/public      ./apps/web/public
+# 4️⃣ Копируем билд фронта и конфиг
+COPY --from=builder /app/apps/web/.next ./apps/web/.next
+COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/next.config.ts ./apps/web/next.config.ts
 COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
 
-#
-# 3) Запуск
-#
+# 5️⃣ Удаляем devDependencies, оставляя только production
+RUN pnpm prune --prod
+
+# 6️⃣ Открываем порт и запускаем Next.js
 WORKDIR /app/apps/web
 EXPOSE 3000
-CMD ["../../node_modules/.bin/next", "start"]
+CMD ["pnpm", "next", "start"]

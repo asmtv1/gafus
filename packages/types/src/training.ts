@@ -1,6 +1,6 @@
 // src/types/training.ts
 
-import type { TrainingStatus } from "@prisma/client";
+import { TrainingStatus } from "./training-status";
 
 /** Тип шага тренировки с прогрессом пользователя */
 export type TrainingStep = {

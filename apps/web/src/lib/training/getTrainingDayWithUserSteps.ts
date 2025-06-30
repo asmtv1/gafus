@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@prisma";
-import { TrainingStatus } from "@prisma/client";
+import { TrainingStatus } from "@gafus/types";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 import type { TrainingDetail } from "@gafus/types";
 
@@ -58,17 +58,27 @@ export async function getTrainingDayWithUserSteps(
         select: { stepId: true, status: true },
       });
       userStepStatuses = Object.fromEntries(
-        userSteps.map((us) => [us.stepId, us.status])
+        userSteps.map((us: { stepId: string; status: TrainingStatus }) => [
+          us.stepId,
+          us.status,
+        ])
       );
     }
 
-    const steps = trainingDay.steps.map((step) => ({
-      id: step.id,
-      title: step.title,
-      description: step.description,
-      durationSec: step.durationSec,
-      status: userStepStatuses[step.id] || TrainingStatus.NOT_STARTED,
-    }));
+    const steps = trainingDay.steps.map(
+      (step: {
+        id: string;
+        title: string;
+        description: string;
+        durationSec: number;
+      }) => ({
+        id: step.id,
+        title: step.title,
+        description: step.description,
+        durationSec: step.durationSec,
+        status: userStepStatuses[step.id] || TrainingStatus.NOT_STARTED,
+      })
+    );
 
     return {
       id: trainingDay.id,

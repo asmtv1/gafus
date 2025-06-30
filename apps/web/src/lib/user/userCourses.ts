@@ -2,7 +2,7 @@
 
 import { prisma } from "@prisma";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
-import { TrainingStatus } from "@prisma/client";
+import { TrainingStatus } from "@gafus/types";
 
 export async function assignCoursesToUser(courseId: number) {
   try {

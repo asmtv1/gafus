@@ -32,3 +32,20 @@ export type LiteCourse = Pick<Course, "id" | "name"> & {
     };
   }[];
 };
+
+export type CourseWithRelations = {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  shortDesc: string;
+  duration: number;
+  logoImg: string;
+  isPrivate: boolean;
+  avgRating: number;
+  createdAt: Date;
+  author: { username: string };
+  favoritedBy: any[];
+  reviews: any[];
+  access: any[];
+};

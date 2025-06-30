@@ -1,11 +1,7 @@
 {
   "name": "gafus.ru",
   "private": true,
-  "packageManager": "npm@11.4.2",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "packageManager": "pnpm@9.1.0",
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
@@ -17,14 +13,17 @@
   },
   "devDependencies": {
     "@types/node": "^20.4.8",
+    "@types/web-push": "^3.6.4",
+    "@types/webpack": "^5.28.5",
     "rimraf": "^5.0.1",
     "tsx": "^4.20.3",
     "turbo": "^2.5.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.9"
   },
   "dependencies": {
     "next": "^15.3.4",
-    "next-auth": "4.24.7",
+    "next-auth": "^4.24.11",
     "node-telegram-bot-api": "^0.66.0"
   }
 }

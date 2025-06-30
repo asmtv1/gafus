@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@prisma";
-import { TrainingStatus } from "@prisma/client";
+import { TrainingStatus } from "@gafus/types";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 import { checkAndCompleteCourse } from "../user/userCourses";
 import { pushQueue } from "@queues/push-queue";
@@ -60,11 +60,11 @@ async function updateUserTrainingStatus(
 
   const allCompleted =
     userSteps.length === trainingDayStepsCount &&
-    userSteps.every((s) => s.status === TrainingStatus.COMPLETED);
+    userSteps.every((s: { status: TrainingStatus }) => s.status === TrainingStatus.COMPLETED);
 
   const nextCurrentStepIndex = allCompleted
     ? trainingDayStepsCount
-    : userSteps.findIndex((s) => s.status !== TrainingStatus.COMPLETED);
+    : userSteps.findIndex((s: { status: TrainingStatus }) => s.status !== TrainingStatus.COMPLETED);
 
   await prisma.userTraining.update({
     where: { id: userTrainingId },

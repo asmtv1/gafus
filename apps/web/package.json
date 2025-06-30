@@ -20,6 +20,8 @@
     "@emotion/styled": "^11.14.0",
     "@gafus/prisma": "file:../../packages/prisma",
     "@mui/icons-material": "^7.1.0",
+    "@gafus/types": "workspace:*",
+    "bcrypt": "^6.0.0",
     "@mui/material": "^7.1.0",
     "@prisma/client": "6.9.0",
     "browser-image-compression": "^2.0.2",

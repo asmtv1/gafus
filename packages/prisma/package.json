@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "migrate": "prisma migrate deploy",
+    "migrate": "prisma migrate deploy --schema=packages/prisma/schema.prisma",
     "seed": "node --loader ts-node/esm seed.ts",
     "prisma:generate": "prisma generate --schema=packages/prisma/schema.prisma",
     "prisma:migrate:dev": "prisma migrate dev --schema=packages/prisma/schema.prisma",
@@ -14,13 +14,13 @@
     "prisma:studio": "prisma studio --schema=packages/prisma/schema.prisma"
   },
   "dependencies": {
-    "@types/bcrypt": "^5.0.2",
-    "@prisma/client": "6.9.0"
+    "@prisma/client": "6.10.1",
+    "bcrypt": "^6.0.0",
+    "prisma": "6.10.1"
   },
   "devDependencies": {
-    "prisma": "6.9.0",
-    "ts-node": "^10.9.2",
-    "bcrypt": "^6.0.0"
+    "@types/bcrypt": "^5.0.2",
+    "ts-node": "^10.9.2"
   },
   "prisma": {
     "schema": "./schema.prisma"

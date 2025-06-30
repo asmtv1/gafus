@@ -1,7 +1,8 @@
 "use server";
 import { prisma } from "@prisma";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
-import { TrainingStatus } from "@prisma/client";
+import { TrainingStatus } from "@gafus/types";
+import { CourseWithRelations } from "@gafus/types";
 
 export async function getFavoritesCourses() {
   const userId = await getCurrentUserId();
@@ -12,7 +13,9 @@ export async function getFavoritesCourses() {
       select: { courseId: true },
     });
 
-    const favoriteCourseIds = userFavorites.map((f) => f.courseId);
+    const favoriteCourseIds = userFavorites.map(
+      (f: { courseId: string }) => f.courseId
+    );
 
     const allCourses = await prisma.course.findMany({
       where: {
@@ -31,7 +34,7 @@ export async function getFavoritesCourses() {
         access: true,
       },
     });
-    const userCourses = await prisma.userCourse.findMany({
+    const userCourses = (await prisma.userCourse.findMany({
       where: { userId },
       select: {
         courseId: true,
@@ -39,9 +42,15 @@ export async function getFavoritesCourses() {
         startedAt: true,
         completedAt: true,
       },
-    });
+    })) as {
+      courseId: string;
+      status: TrainingStatus;
+      startedAt: Date | null;
+      completedAt: Date | null;
+    }[];
     console.log(userCourses);
-    const data = allCourses.map((course) => {
+
+    const data = allCourses.map((course: CourseWithRelations) => {
       const userCourse = userCourses.find((uc) => uc.courseId === course.id);
       return {
         id: course.id,
