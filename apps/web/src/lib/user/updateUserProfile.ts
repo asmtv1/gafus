@@ -1,7 +1,7 @@
 // /lib/actions/userProfileService.ts
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 import type { Prisma } from "@prisma/client";
 

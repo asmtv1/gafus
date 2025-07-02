@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 
 export async function rateCourse(courseId: number, rating: number | null) {

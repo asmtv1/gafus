@@ -16,7 +16,8 @@
 
     "baseUrl": ".",
     "paths": {
-      "@prisma": ["packages/prisma/src/index.ts"],
+      "@gafus/prisma": ["packages/prisma/src/index.ts"],
+      "@gafus/prisma/*": ["packages/prisma/src/*"],
       "@queues": ["packages/queues/src"],
       "@queues/*": ["packages/queues/src/*"],
       "@gafus/webpush": ["packages/webpush/src/index.ts"],
@@ -28,5 +29,4 @@
 
     "typeRoots": ["./node_modules/@types", "packages/types/src"]
   }
-  
 }

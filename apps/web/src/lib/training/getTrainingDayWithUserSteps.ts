@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 import type { TrainingDetail } from "@gafus/types";
@@ -18,7 +18,13 @@ async function findTrainingDayWithUserTraining(
     },
     include: {
       steps: true,
-      course: true,
+      course: {
+        select: {
+          description: true,
+          duration: true,
+          id: true,
+        },
+      },
       userTrainings: {
         where: { userId },
         select: {
@@ -49,7 +55,7 @@ export async function getTrainingDayWithUserSteps(
 
     const userTraining = trainingDay.userTrainings[0];
 
-    // --- Ключевая часть: тянем статусы шагов из UserStep! ---
+    // Получаем статусы шагов пользователя из UserStep
     let userStepStatuses: Record<string, TrainingStatus> = {};
 
     if (userTraining) {
@@ -57,28 +63,23 @@ export async function getTrainingDayWithUserSteps(
         where: { userTrainingId: userTraining.id },
         select: { stepId: true, status: true },
       });
+
+      // Map Prisma status to app TrainingStatus enum
       userStepStatuses = Object.fromEntries(
-        userSteps.map((us: { stepId: string; status: TrainingStatus }) => [
-          us.stepId,
-          us.status,
+        userSteps.map(({ stepId, status }) => [
+          stepId,
+          TrainingStatus[status as keyof typeof TrainingStatus],
         ])
       );
     }
 
-    const steps = trainingDay.steps.map(
-      (step: {
-        id: string;
-        title: string;
-        description: string;
-        durationSec: number;
-      }) => ({
-        id: step.id,
-        title: step.title,
-        description: step.description,
-        durationSec: step.durationSec,
-        status: userStepStatuses[step.id] || TrainingStatus.NOT_STARTED,
-      })
-    );
+    const steps = trainingDay.steps.map((step) => ({
+      id: step.id,
+      title: step.title,
+      description: step.description,
+      durationSec: step.durationSec,
+      status: userStepStatuses[step.id] ?? TrainingStatus.NOT_STARTED,
+    }));
 
     return {
       id: trainingDay.id,
@@ -88,7 +89,9 @@ export async function getTrainingDayWithUserSteps(
       courseId: trainingDay.courseId,
       description: trainingDay.course?.description ?? "",
       duration: trainingDay.course?.duration ?? "",
-      userStatus: userTraining?.status ?? TrainingStatus.NOT_STARTED,
+      userStatus: userTraining
+        ? TrainingStatus[userTraining.status as keyof typeof TrainingStatus]
+        : TrainingStatus.NOT_STARTED,
       steps,
     };
   } catch (err) {

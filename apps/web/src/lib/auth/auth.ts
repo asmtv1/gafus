@@ -1,4 +1,4 @@
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import bcrypt from "bcrypt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { NextAuthOptions } from "next-auth";

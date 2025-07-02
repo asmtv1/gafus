@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 import { TrainingStatus } from "@gafus/types";
 
@@ -94,16 +94,15 @@ export async function checkAndCompleteCourse(courseId: number) {
       select: { id: true },
     });
 
-    const userTrainings: { status: TrainingStatus }[] =
-      await prisma.userTraining.findMany({
-        where: {
-          userId,
-          trainingDayId: {
-            in: allDays.map((day) => day.id),
-          },
+    const userTrainings = await prisma.userTraining.findMany({
+      where: {
+        userId,
+        trainingDayId: {
+          in: allDays.map((day) => day.id),
         },
-        select: { status: true },
-      });
+      },
+      select: { status: true },
+    });
 
     const allCompleted =
       allDays.length > 0 &&

@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import type { UserWithTrainings } from "@gafus/types";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";

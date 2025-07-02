@@ -1,7 +1,7 @@
 // /lib/actions/checkUserConfirmed.ts
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 
 export async function checkUserConfirmed(phone: string) {
   // Удаляем все символы, кроме цифр

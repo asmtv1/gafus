@@ -1,5 +1,5 @@
 "use server";
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 /**
  * Возвращает все PushSubscription записи из БД
  * в формате, который понимает PushManager (endpoint + ключи).

@@ -1,7 +1,7 @@
 // src/lib/actions/savePet.ts
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 import type { Prisma, PetType } from "@prisma/client";
 

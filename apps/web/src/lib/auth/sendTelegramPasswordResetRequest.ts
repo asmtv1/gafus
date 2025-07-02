@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 
 export async function sendTelegramPasswordResetRequest(
   username: string,

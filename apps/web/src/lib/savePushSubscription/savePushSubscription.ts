@@ -1,5 +1,5 @@
 "use server";
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { getCurrentUserId } from "@web/utils/getCurrentUserId";
 
 export type PushSubscriptionJSON = {

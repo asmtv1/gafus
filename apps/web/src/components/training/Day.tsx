@@ -1,18 +1,17 @@
-// src/components/training/Day.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./day.module.css";
 import { TrainingOverview } from "./TrainingOverview";
 import { TrainingStepList } from "./TrainingStepList";
 import { assignCoursesToUser } from "@/lib/user/userCourses";
 import type { TrainingDetail } from "@gafus/types";
 
-interface DayProps {
-  training: TrainingDetail;
-}
+const nowSec = () => Math.floor(Date.now() / 1000);
+const makeEndKey = (day: number, idx: number) => `training-${day}-${idx}-end`;
+const makeLeftKey = (day: number, idx: number) => `training-${day}-${idx}-left`;
 
-export default function Day({ training }: DayProps) {
+export default function Day({ training }: { training: TrainingDetail }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [courseAssigned, setCourseAssigned] = useState(false);
@@ -41,6 +40,22 @@ export default function Day({ training }: DayProps) {
       setAssignError(errorObj);
     }
   }
+
+  // ─── Восстановление состояния runningIndex ────────────────────────────────
+  useEffect(() => {
+    const now = nowSec();
+    for (let i = 0; i < training.steps.length; i++) {
+      const end = localStorage.getItem(makeEndKey(training.day, i));
+      const left = localStorage.getItem(makeLeftKey(training.day, i));
+      if (
+        (end && Number(end) > now) || // активный шаг
+        left // на паузе
+      ) {
+        setRunningIndex(i);
+        break;
+      }
+    }
+  }, [training]);
 
   return (
     <main className={styles.main}>

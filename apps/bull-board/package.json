@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "tsx bull-board.ts",
     "build": "tsc -p tsconfig.json",
     "start": "tsx bull-board.ts",
     "typecheck": "tsc --noEmit"

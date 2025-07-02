@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import type { TrainingDetail } from "@gafus/types";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
@@ -20,14 +20,18 @@ export async function getTrainingDays(typeParam?: string): Promise<{
   try {
     const where = typeParam ? { type: typeParam } : {};
 
+    // Получаем первый день тренировки для описания курса и courseId
     const firstTrainingDay = await prisma.trainingDay.findFirst({
       where,
       orderBy: { dayNumber: "asc" },
       select: {
-        course: { select: { description: true, id: true } },
+        course: {
+          select: { description: true, id: true },
+        },
       },
     });
 
+    // Получаем список дней с прогрессом пользователя (userTrainings)
     const trainingDaysWithStatus = await prisma.trainingDay.findMany({
       where,
       orderBy: { dayNumber: "asc" },
@@ -44,23 +48,18 @@ export async function getTrainingDays(typeParam?: string): Promise<{
       },
     });
 
-    const trainingDays = trainingDaysWithStatus.map(
-      (day: {
-        id: number;
-        dayNumber: number;
-        title: string;
-        type: string;
-        courseId: number;
-        userTrainings: { status: TrainingStatus }[];
-      }) => ({
-        id: day.id,
-        day: day.dayNumber,
-        title: day.title,
-        type: day.type,
-        courseId: day.courseId,
-        userStatus: day.userTrainings[0]?.status ?? TrainingStatus.NOT_STARTED,
-      })
-    );
+    // Преобразуем в нужный формат с дефолтным статусом, если нет userTrainings
+    const trainingDays = trainingDaysWithStatus.map((day) => ({
+      id: day.id,
+      day: day.dayNumber,
+      title: day.title,
+      type: day.type,
+      courseId: day.courseId,
+      userStatus:
+        day.userTrainings.length > 0
+          ? day.userTrainings[0].status as TrainingStatus
+          : TrainingStatus.NOT_STARTED,
+    }));
 
     return {
       trainingDays,

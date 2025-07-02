@@ -1,5 +1,5 @@
 "use server";
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 
 export async function getUserPet(ownerId: string | null) {
   if (!ownerId) throw new Error("Не удалось получить профиль пользователя");

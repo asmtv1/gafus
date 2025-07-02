@@ -18,12 +18,12 @@
     "@ducanh2912/next-pwa": "^10.2.9",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@gafus/prisma": "file:../../packages/prisma",
-    "@mui/icons-material": "^7.1.0",
+    "@gafus/prisma": "workspace:*",
     "@gafus/types": "workspace:*",
-    "bcrypt": "^6.0.0",
+    "@mui/icons-material": "^7.1.0",
     "@mui/material": "^7.1.0",
-    "@prisma/client": "6.9.0",
+    "@prisma/client": "6.10.1",
+    "bcrypt": "^6.0.0",
     "browser-image-compression": "^2.0.2",
     "libphonenumber-js": "^1.12.8",
     "next": "^15.3.4",
@@ -39,6 +39,8 @@
     "workbox-strategies": "^7.3.0"
   },
   "devDependencies": {
+    "@prisma/client": "6.10.1",
+    "@types/bcrypt": "^5.0.2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19",
     "eslint-config-next": "^15.3.4"

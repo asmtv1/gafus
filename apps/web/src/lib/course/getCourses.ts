@@ -1,21 +1,21 @@
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 import { TrainingStatus } from "@gafus/types";
-import type {
+import {
   Course,
+  CourseAccess,
+  CourseReview,
   FavoriteCourse,
-  UserCourse,
-  Review,
-  Access,
+  User,
 } from "@prisma/client";
 
 type CourseWithExtras = Course & {
-  author: { username: string };
+  author: Pick<User, "username">;
   favoritedBy: FavoriteCourse[];
-  reviews: Review[];
-  access: Access[];
+  access: (CourseAccess & { user: Pick<User, "id"> })[];
+  reviews: (CourseReview & { user: Pick<User, "id"> })[];
 };
 
 export async function getCoursesWithProgress() {
@@ -29,13 +29,25 @@ export async function getCoursesWithProgress() {
             username: true,
           },
         },
-        reviews: true,
+        reviews: {
+          include: {
+            user: {
+              select: { id: true },
+            },
+          },
+        },
         favoritedBy: true,
-        access: true,
+        access: {
+          include: {
+            user: {
+              select: { id: true },
+            },
+          },
+        },
       },
     });
 
-    const userCourses: UserCourse[] = await prisma.userCourse.findMany({
+    const userCourses = await prisma.userCourse.findMany({
       where: { userId },
       select: {
         courseId: true,
@@ -45,7 +57,7 @@ export async function getCoursesWithProgress() {
       },
     });
 
-    const userFavorites: FavoriteCourse[] =
+    const userFavorites: { courseId: number }[] =
       await prisma.favoriteCourse.findMany({
         where: { userId },
         select: { courseId: true },

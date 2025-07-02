@@ -1,6 +1,5 @@
 
 
-> @gafus/webpush@0.1.0 build
+> @gafus/webpush@0.1.0 build /Users/asmtv1/gafus/packages/webpush
 > tsc -p tsconfig.json
 
-[1G[0K[1G[0K⠙[1G[0K

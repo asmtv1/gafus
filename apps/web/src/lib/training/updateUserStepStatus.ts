@@ -1,12 +1,10 @@
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 import { checkAndCompleteCourse } from "../user/userCourses";
-import { pushQueue } from "@queues/push-queue";
 
-// Найти или создать тренировку пользователя на день
 async function findOrCreateUserTraining(userId: string, trainingDayId: number) {
   return (
     (await prisma.userTraining.findFirst({
@@ -20,7 +18,6 @@ async function findOrCreateUserTraining(userId: string, trainingDayId: number) {
   );
 }
 
-// Найти или создать шаг пользователя (без startedAt/completedAt)
 async function findOrCreateUserStep(
   userTrainingId: string,
   step: { id: string; title: string; durationSec: number },
@@ -48,7 +45,6 @@ async function findOrCreateUserStep(
   }
 }
 
-// Обновить статус всей дневной тренировки (если все шаги завершены)
 async function updateUserTrainingStatus(
   userTrainingId: string,
   trainingDayStepsCount: number,
@@ -60,11 +56,11 @@ async function updateUserTrainingStatus(
 
   const allCompleted =
     userSteps.length === trainingDayStepsCount &&
-    userSteps.every((s: { status: TrainingStatus }) => s.status === TrainingStatus.COMPLETED);
+    userSteps.every((s) => s.status === TrainingStatus.COMPLETED);
 
   const nextCurrentStepIndex = allCompleted
     ? trainingDayStepsCount
-    : userSteps.findIndex((s: { status: TrainingStatus }) => s.status !== TrainingStatus.COMPLETED);
+    : userSteps.findIndex((s) => s.status !== TrainingStatus.COMPLETED);
 
   await prisma.userTraining.update({
     where: { id: userTrainingId },
@@ -81,7 +77,6 @@ async function updateUserTrainingStatus(
   }
 }
 
-// Главная логика обновления шага и при необходимости — курса
 export async function updateUserStepStatus(
   userId: string,
   courseType: string,
@@ -108,57 +103,11 @@ export async function updateUserStepStatus(
       trainingDay.courseId
     );
 
-    // Планируем отложенный пуш при старте шага
-    if (status === TrainingStatus.IN_PROGRESS) {
-      console.log(
-        "Scheduling push for step",
-        day,
-        stepIndex,
-        "duration",
-        step.durationSec
-      );
-      const nowTs = Math.floor(Date.now() / 1000);
-      const endTs = nowTs + step.durationSec;
-      const maybeUrl: string | undefined = "";
-      const subs = await prisma.pushSubscription.findMany({
-        where: { userId },
-      });
-      for (const sub of subs) {
-        const notif = await prisma.stepNotification.create({
-          data: {
-            userId,
-            day,
-            stepIndex,
-            endTs,
-            url: maybeUrl,
-            subscription: { endpoint: sub.endpoint, keys: sub.keys },
-          },
-        });
-        await pushQueue.add(
-          "send-step-notification",
-          { notificationId: notif.id },
-          {
-            delay: (endTs - nowTs) * 1000,
-            attempts: 5,
-            backoff: { type: "exponential", delay: 3000 },
-            removeOnComplete: true, // удалит из Redis после успешной отправки
-            removeOnFail: false, // НЕ удаляет при ошибке, чтобы можно было потом проанализировать какого хуя
-          }
-        );
-      }
-    }
-
     // Обновляем startedAt у курса, если это первый шаг и он начат
     if (stepIndex === 0 && status === TrainingStatus.IN_PROGRESS) {
       await prisma.userCourse.updateMany({
-        where: {
-          userId,
-          courseId: trainingDay.courseId,
-          startedAt: null,
-        },
-        data: {
-          startedAt: new Date(),
-        },
+        where: { userId, courseId: trainingDay.courseId, startedAt: null },
+        data: { startedAt: new Date() },
       });
     }
 
@@ -171,7 +120,6 @@ export async function updateUserStepStatus(
   }
 }
 
-// Обёртка с авторизацией
 export async function updateStepStatusServerAction(
   courseType: string,
   day: number,

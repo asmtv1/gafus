@@ -354,7 +354,10 @@ model StepNotification {
   endTs         Int      // UNIX timestamp seconds
   sent          Boolean  @default(false)
   subscription  Json     // JSON с данными PushSubscription
-  url           String?   
+  url           String?
+  jobId         String?  // ID задачи BullMQ, если есть
+  paused        Boolean  @default(false) // 🔄 новое
+  remainingSec  Int?     // Сколько секунд осталось при паузе
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

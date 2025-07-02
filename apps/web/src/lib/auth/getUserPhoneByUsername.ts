@@ -1,7 +1,7 @@
 // src/lib/actions/getUserPhoneByUsername.ts
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 
 export async function getUserPhoneByUsername(username: string) {
   const user = await prisma.user.findUnique({

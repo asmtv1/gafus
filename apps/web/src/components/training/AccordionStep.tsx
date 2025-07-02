@@ -6,13 +6,22 @@ import { formatTime } from "@/utils/date";
 import { declOfNum } from "@/utils/pluralize";
 import { TrainingStatus } from "@gafus/types";
 import type { TrainingStep } from "@gafus/types";
+import { toggleStepNotificationPause } from "@web/lib/StepNotification/toggleStepNotificationPause";
+import { startUserStepServerAction } from "@web/lib/training/startUserStepServerAction";
+import { deletedStepNotification } from "@web/lib/StepNotification/deletedStepNotification";
 
 // ─── Хелперы ───────────────────────────────────────────────────────────────────
 const nowSec = () => Math.floor(Date.now() / 1000);
 const makeEndKey = (day: number, idx: number) => `training-${day}-${idx}-end`;
-const saveEnd = (key: string, ts: number) =>
-  localStorage.setItem(key, ts.toString());
-const loadEnd = (key: string) => Number(localStorage.getItem(key) ?? 0);
+const makeLeftKey = (day: number, idx: number) => `training-${day}-${idx}-left`;
+
+const saveToLS = (key: string, val: string | number) =>
+  localStorage.setItem(key, val.toString());
+
+const loadFromLS = (key: string): string | null => localStorage.getItem(key);
+
+const removeKeys = (...keys: string[]) =>
+  keys.forEach((k) => localStorage.removeItem(k));
 // ───────────────────────────────────────────────────────────────────────────────
 
 interface AccordionStepProps {
@@ -43,8 +52,8 @@ export default function AccordionStep({
   styles,
 }: AccordionStepProps) {
   const END_KEY = makeEndKey(day, stepIndex);
+  const LEFT_KEY = makeLeftKey(day, stepIndex);
 
-  // секунда ≈ базовая точность UI
   const [timeLeft, setTimeLeft] = useState(step.durationSec);
   const [isFinished, setIsFinished] = useState(
     step.status === TrainingStatus.COMPLETED
@@ -54,68 +63,77 @@ export default function AccordionStep({
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // ─── Завершить шаг ───────────────────────────────────────────────────────────
+  // ─── Завершение ──────────────────────────────────────────────────────────────
   const finishStep = useCallback(async () => {
-    audioRef.current?.play();
-    clearInterval(intervalRef.current!);
+    if (intervalRef.current) clearInterval(intervalRef.current);
     setIsFinished(true);
     onReset(stepIndex);
+    removeKeys(END_KEY, LEFT_KEY);
+    audioRef.current?.play();
 
-    localStorage.removeItem(END_KEY);
     await updateStepStatusServerAction(
       courseType,
       day,
       stepIndex,
       TrainingStatus.COMPLETED
     );
-  }, [courseType, day, stepIndex, onReset, END_KEY]);
+  }, [END_KEY, LEFT_KEY, courseType, day, stepIndex, onReset]);
 
   // ─── Старт ───────────────────────────────────────────────────────────────────
   const handleStart = useCallback(async () => {
     if (isRunning || isFinished) return;
 
     const endTs = nowSec() + step.durationSec;
-    saveEnd(END_KEY, endTs);
+    saveToLS(END_KEY, endTs);
+    removeKeys(LEFT_KEY);
 
-    onRun(stepIndex);
-    setIsPaused(false);
     setTimeLeft(step.durationSec);
-
+    setIsPaused(false);
+    onRun(stepIndex);
     if (stepIndex === 0) handleFirstStart();
 
-    await updateStepStatusServerAction(
+    await startUserStepServerAction(
       courseType,
       day,
       stepIndex,
-      TrainingStatus.IN_PROGRESS
+      TrainingStatus.IN_PROGRESS,
+      step.durationSec
     );
   }, [
+    END_KEY,
+    LEFT_KEY,
     isRunning,
     isFinished,
-    courseType,
+    step.durationSec,
     day,
     stepIndex,
-    step.durationSec,
     handleFirstStart,
-    END_KEY,
+    courseType,
     onRun,
   ]);
 
-  // ─── Пауза/Резюм ─────────────────────────────────────────────────────────────
-  const togglePause = useCallback(() => {
+  // ─── Пауза / Продолжение ────────────────────────────────────────────────────
+  const togglePause = useCallback(async () => {
     if (isPaused) {
+      // Возобновление
+      await toggleStepNotificationPause(day, stepIndex, false);
       const endTs = nowSec() + timeLeft;
-      saveEnd(END_KEY, endTs);
+      saveToLS(END_KEY, endTs);
+      removeKeys(LEFT_KEY);
       setIsPaused(false);
     } else {
+      // Пауза
+      await toggleStepNotificationPause(day, stepIndex, true);
+      saveToLS(LEFT_KEY, timeLeft);
+      removeKeys(END_KEY);
       setIsPaused(true);
     }
-  }, [isPaused, timeLeft, END_KEY]);
+  }, [END_KEY, LEFT_KEY, isPaused, timeLeft, day, stepIndex]);
 
   // ─── Сброс ───────────────────────────────────────────────────────────────────
   const handleReset = useCallback(async () => {
-    clearInterval(intervalRef.current!);
-    localStorage.removeItem(END_KEY);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    removeKeys(END_KEY, LEFT_KEY);
     setTimeLeft(step.durationSec);
     setIsFinished(false);
     setIsPaused(false);
@@ -127,35 +145,62 @@ export default function AccordionStep({
       stepIndex,
       TrainingStatus.NOT_STARTED
     );
-  }, [courseType, day, stepIndex, step.durationSec, onReset, END_KEY]);
+    await deletedStepNotification(day, stepIndex, true);
+  }, [
+    END_KEY,
+    LEFT_KEY,
+    courseType,
+    day,
+    stepIndex,
+    step.durationSec,
+    onReset,
+  ]);
 
-  // ─── Основной «тик» (1 раз в сек) ────────────────────────────────────────────
+  // ─── Интервал ────────────────────────────────────────────────────────────────
   useEffect(() => {
     intervalRef.current = setInterval(() => {
-      const endTs = loadEnd(END_KEY);
+      const endTsStr = loadFromLS(END_KEY);
+      if (!endTsStr || isPaused) return;
 
-      if (!endTs || isPaused) return;
-
+      const endTs = Number(endTsStr);
       const diff = Math.max(endTs - nowSec(), 0);
       setTimeLeft(diff);
 
       if (diff === 0 && !isFinished) finishStep();
     }, 1000);
 
-    return () => clearInterval(intervalRef.current!);
-  }, [isPaused, isFinished, finishStep, END_KEY]);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [END_KEY, isPaused, isFinished, finishStep]);
 
-  // ─── Восстанавливаем таймер при монтировании ────────────────────────────────
+  // ─── Восстановление ─────────────────────────────────────────────────────────
   useEffect(() => {
-    const storedEnd = loadEnd(END_KEY);
-    if (storedEnd > nowSec()) {
-      // осталось времени
-      setTimeLeft(storedEnd - nowSec());
-      setIsPaused(false);
+    const endStr = loadFromLS(END_KEY);
+    const leftStr = loadFromLS(LEFT_KEY);
+    const now = nowSec();
+
+    if (leftStr && !isNaN(Number(leftStr))) {
+      const pausedTime = Number(leftStr);
+      setTimeLeft(pausedTime);
+      setIsPaused(true);
       setIsFinished(false);
-      onRun(stepIndex); // восстановим глобальный «бежит шаг»
+    } else if (endStr && !isNaN(Number(endStr))) {
+      const end = Number(endStr);
+      if (end > now) {
+        const remaining = end - now;
+        setTimeLeft(remaining);
+        setIsPaused(false);
+        setIsFinished(false);
+        setTimeout(() => onRun(stepIndex), 0);
+      } else {
+        finishStep();
+      }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [END_KEY, LEFT_KEY, onRun, stepIndex, finishStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── UI кнопки ───────────────────────────────────────────────────────────────
   const renderActions = () => {
@@ -190,6 +235,7 @@ export default function AccordionStep({
         </>
       );
     }
+
     return null;
   };
 

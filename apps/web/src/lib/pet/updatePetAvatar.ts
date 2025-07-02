@@ -2,7 +2,7 @@
 
 import path from "path";
 import { writeFile, mkdir, unlink } from "fs/promises";
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 
 export async function updatePetAvatar(
   file: File,

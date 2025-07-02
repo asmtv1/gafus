@@ -1,7 +1,7 @@
 "use server";
 
 import type { LiteCourse } from "@gafus/types";
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 
 export async function getAuthoredCourses(): Promise<LiteCourse[]> {

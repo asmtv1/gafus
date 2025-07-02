@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 import { revalidatePath } from "next/cache";
 import { unlink } from "fs/promises";
 import path from "path";

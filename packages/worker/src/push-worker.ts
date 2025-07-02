@@ -1,33 +1,33 @@
+// Запуск процесса push-worker
 console.log("🟢 [Worker] Starting push-worker process...");
 
 import "dotenv/config";
-import { Worker, Job } from "bullmq";
-import { prisma } from "@prisma";
-import webpush from "@gafus/webpush";
-import { connection } from "@queues/redis.js";
-import type { PushSubscription } from "web-push";
+import { Worker, Job } from "bullmq"; // Классы BullMQ для работы с задачами
+import { prisma } from "@gafus/prisma"; // Подключение Prisma-клиента
+import webpush from "@gafus/webpush"; // Клиент для отправки Web Push-уведомлений
+import { connection } from "@queues/redis.js"; // Redis-соединение
+import type { PushSubscription } from "web-push"; // Тип для Push-подписки
 
+// Интерфейс ожидаемой полезной нагрузки задачи
 interface SendStepNotificationPayload {
-  notificationId: string;
+  notificationId: string; // ID уведомления в БД
 }
 
-// Type guard для PushSubscription
+// ─── Вспомогательные функции ──────────────────────────────────────────────
+
+// Проверка, что объект является Push-подпиской
 function isPushSubscription(obj: unknown): obj is PushSubscription {
-  console.log("🔍 Checking push subscription:", obj);
-  if (typeof obj !== "object" || obj === null) {
-    console.error("❌ Subscription is not an object");
-    return false;
-  }
+  if (typeof obj !== "object" || obj === null) return false;
   const sub = obj as Record<string, unknown>;
   const keys = sub.keys as Record<string, unknown> | undefined;
-  const ok =
+  return (
     typeof sub.endpoint === "string" &&
     typeof keys?.p256dh === "string" &&
-    typeof keys?.auth === "string";
-  console.log("🔑 Subscription valid:", ok);
-  return ok;
+    typeof keys?.auth === "string"
+  );
 }
 
+// Проверка, что ошибка относится к Web Push (например, 410 Gone)
 function isPushError(err: unknown): err is { statusCode: number } {
   return (
     typeof err === "object" &&
@@ -36,13 +36,17 @@ function isPushError(err: unknown): err is { statusCode: number } {
   );
 }
 
+// ─── Инициализация воркера ─────────────────────────────────────────────────
+
 console.log("🟢 [Worker] Initializing BullMQ Worker...");
 
-const worker = new Worker(
-  "push",
+// Создание BullMQ Worker для очереди "push"
+const worker = new Worker<SendStepNotificationPayload>(
+  "push", // Название очереди
   async (job: Job<SendStepNotificationPayload>) => {
     console.log(`📥 [Worker] Received job:`, job.name, job.data);
 
+    // Обработка только задач с нужным именем
     if (job.name !== "send-step-notification") {
       console.warn(
         `⚠️ [Worker] Ignoring job with unexpected name: ${job.name}`
@@ -51,41 +55,49 @@ const worker = new Worker(
     }
 
     const { notificationId } = job.data;
-    console.log(`🔄 [Worker] Fetching notification ID=${notificationId}`);
+
+    // Получение уведомления из БД по ID
     const notif = await prisma.stepNotification.findUnique({
       where: { id: notificationId },
       select: {
         stepIndex: true,
         sent: true,
+        paused: true,
         subscription: true,
         url: true,
       },
     });
-    console.log("✅ [Worker] Notification record:", notif);
 
+    // Если уведомление не найдено — логируем и выходим
     if (!notif) {
-      console.error(
-        `❌ [Worker] No notification found with ID=${notificationId}`
-      );
-      return;
-    }
-    if (notif.sent) {
-      console.warn(
-        `⚠️ [Worker] Notification ID=${notificationId} already sent`
-      );
+      console.error(`❌ No notification found with ID=${notificationId}`);
       return;
     }
 
+    // Если уже отправлено — пропускаем
+    if (notif.sent) {
+      console.warn(`⚠️ Notification ID=${notificationId} already sent`);
+      return;
+    }
+
+    // Если на паузе — пропускаем
+    if (notif.paused) {
+      console.warn(`⏸️ Notification ID=${notificationId} is paused. Skipping.`);
+      return;
+    }
+
+    // Проверка корректности объекта подписки
     const raw = notif.subscription;
     if (!isPushSubscription(raw)) {
-      console.error("❌ [Worker] Invalid subscription, skipping.");
+      console.error("❌ Invalid subscription object. Skipping.");
       return;
     }
+
     const subscription = raw as PushSubscription;
-    const link = notif.url ?? "/";
-    console.log("🌐 [Worker] Sending push to:", subscription.endpoint);
+    const link = notif.url ?? "/"; // fallback-ссылка
 
     try {
+      // Отправка Push-уведомления
       await webpush.sendNotification(
         subscription,
         JSON.stringify({
@@ -94,22 +106,22 @@ const worker = new Worker(
           url: link,
         })
       );
-      console.log("📤 [Worker] Push sent successfully");
+      console.log("📤 Push sent successfully");
 
-      await prisma.pushSubscription.deleteMany({
-        where: { endpoint: subscription.endpoint },
+      // Помечаем уведомление как отправленное в БД
+      await prisma.stepNotification.update({
+        where: { id: notificationId },
+        data: { sent: true },
       });
-      console.log("🗑️ [Worker] Deleted notification ID=", notificationId);
     } catch (err: unknown) {
-      console.error("🚨 [Worker] Error while sending push:", err);
+      console.error("🚨 Error while sending push:", err);
+
+      // Если ошибка — недействительная подписка (404/410), удаляем её из БД
       if (
         isPushError(err) &&
         (err.statusCode === 404 || err.statusCode === 410)
       ) {
-        console.log(
-          "🧹 [Worker] Removing invalid subscription:",
-          subscription.endpoint
-        );
+        console.log("🧹 Removing invalid subscription:", subscription.endpoint);
         await prisma.pushSubscription.delete({
           where: { endpoint: subscription.endpoint },
         });
@@ -117,19 +129,26 @@ const worker = new Worker(
     }
   },
   {
-    connection,
-    concurrency: 5,
+    connection, // Redis-соединение
+    concurrency: 5, // Кол-во одновременных задач
   }
 );
 
+// ─── Обработка событий воркера ─────────────────────────────────────────────
+
+// Успешное выполнение задачи
 worker.on("completed", (job) => {
-  console.log(`✅ [Worker] Job completed: ${job.id}`);
-});
-worker.on("failed", (job, err) => {
-  console.error(`❌ [Worker] Job failed: ${job?.id}`, err);
-});
-worker.on("error", (err) => {
-  console.error("🔥 [Worker] Worker error:", err);
+  console.log(`✅ Job completed: ${job.id}`);
 });
 
-console.log("🟢 [Worker] Worker is up and running, listening for jobs...");
+// Ошибка при выполнении задачи
+worker.on("failed", (job, err) => {
+  console.error(`❌ Job failed: ${job?.id}`, err);
+});
+
+// Ошибка самого воркера (например, Redis отключился)
+worker.on("error", (err) => {
+  console.error("🔥 Worker error:", err);
+});
+
+console.log("🟢 Worker is up and running, listening for jobs...");

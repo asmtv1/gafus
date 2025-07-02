@@ -1,5 +1,5 @@
 import type { PublicProfile } from "@gafus/types";
-import { prisma } from "@prisma";
+import { prisma } from "@gafus/prisma";
 
 export async function getPublicProfile(
   username: string
