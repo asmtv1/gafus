@@ -2,9 +2,6 @@
 
 console.log("🟢 [Worker] Bootstrapping...");
 
-// Загружаем переменные окружения
-import "dotenv/config";
-
 // Импортируем основную логику воркера
 import "./push-worker.js";
 

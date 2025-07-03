@@ -1,7 +1,6 @@
 // Запуск процесса push-worker
 console.log("🟢 [Worker] Starting push-worker process...");
 
-import "dotenv/config";
 import { Worker, Job } from "bullmq"; // Классы BullMQ для работы с задачами
 import { prisma } from "@gafus/prisma"; // Подключение Prisma-клиента
 import webpush from "@gafus/webpush"; // Клиент для отправки Web Push-уведомлений

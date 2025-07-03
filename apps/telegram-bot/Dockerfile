@@ -1,27 +1,46 @@
-# syntax=docker/dockerfile:1
+# --- Stage 0: Prisma клиент сгенерирован ---
+FROM gafus/prisma-base:latest AS prisma
 
-# ---------- build ----------
-FROM node:20-alpine AS build
+# --- Stage 1: Build stage ---
+FROM node:20-alpine AS builder
+
 WORKDIR /app
 
-# 1. зависимости
-COPY ../../package.json ../../package-lock.json ./
-COPY ./package.json ./ 
-RUN npm ci --omit=dev
+# Копируем корневые конфиги
+COPY package.json pnpm-lock.yaml tsconfig.base.json ./
 
-# 2. исходники
+# Копируем package.json нужных пакетов
+COPY apps/telegram-bot/package.json ./apps/telegram-bot/package.json
+
+# Устанавливаем pnpm и зависимости
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+RUN pnpm install --frozen-lockfile
+
+# Копируем весь исходный код (теперь, когда зависимости установлены — быстрее кешируется)
 COPY . .
 
-# 3. компиляция
-RUN npx tsc -p tsconfig.json
+# Собираем telegram-бота
+RUN pnpm --filter @gafus/telegram-bot run build
 
-# ---------- runtime ----------
+# --- Stage 2: Runtime stage ---
 FROM node:20-alpine AS runner
+
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY .env .env
+# Копируем только нужные файлы
+COPY package.json pnpm-lock.yaml ./
+
+# Устанавливаем pnpm и production-зависимости
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+RUN pnpm install --prod --frozen-lockfile
+
+# Копируем собранный билд, prisma-клиент и shared пакеты
+COPY --from=builder /app/apps/telegram-bot/dist ./apps/telegram-bot/dist
+COPY --from=builder /app/generated/prisma-client ./generated/prisma-client
+
+
+# Переключаемся в рабочую папку бота (только на этом этапе)
+WORKDIR /app/apps/telegram-bot
 
 CMD ["node", "dist/bot.js"]

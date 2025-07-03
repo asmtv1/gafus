@@ -20,7 +20,8 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "prisma": "6.10.1"
   },
   "prisma": {
     "schema": "./schema.prisma"

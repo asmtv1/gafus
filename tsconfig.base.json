@@ -18,8 +18,10 @@
     "paths": {
       "@gafus/prisma": ["packages/prisma/src/index.ts"],
       "@gafus/prisma/*": ["packages/prisma/src/*"],
+      "@prisma/client": ["generated/prisma-client"],
       "@queues": ["packages/queues/src"],
       "@queues/*": ["packages/queues/src/*"],
+      "@gafus/queues": ["packages/queues/src/index.ts"],
       "@gafus/webpush": ["packages/webpush/src/index.ts"],
       "@gafus/webpush/db": ["packages/webpush/src/db.ts"],
       "@gafus/types": ["packages/types/src"],

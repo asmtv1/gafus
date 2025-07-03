@@ -1,0 +1,367 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../../generated/prisma-client"
+  binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------------
+
+enum TrainingStatus {
+  NOT_STARTED // ещё не приступал
+  IN_PROGRESS // в процессе
+  COMPLETED // завершено
+}
+
+enum UserRole {
+  USER // Обычный пользователь
+  TRAINER // Кинолог
+  ADMIN // Администратор
+  MODERATOR // Модератор
+  PREMIUM // Премиальный пользователь
+}
+
+enum PetType {
+  DOG
+  CAT
+}
+
+// ------------------------------------------------------------
+// СПРАВОЧНИКИ (каталоги)
+// ------------------------------------------------------------
+
+model Course {
+  id           Int           @id @default(autoincrement())
+  trainingDays TrainingDay[] // Одна «программа» включает N дней
+  userCourses  UserCourse[]
+
+  name        String
+  type        String           @unique @db.VarChar(50)
+  description String           @default("")
+  shortDesc   String           @default("")
+  duration    String
+  logoImg     String
+  authorId    String
+  author      User             @relation(fields: [authorId], references: [id])
+  isPrivate   Boolean          @default(false)
+  access      CourseAccess[]
+  favoritedBy FavoriteCourse[]
+  reviews     CourseReview[]
+  avgRating   Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TrainingDay {
+  id            Int            @id @default(autoincrement())
+  courseId      Int
+  course        Course         @relation(fields: [courseId], references: [id])
+  description   String         @default("")
+  title         String
+  dayNumber     Int
+  type          String         @db.VarChar(50)
+  steps         Step[]
+  userTrainings UserTraining[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([courseId, dayNumber], name: "courseId_dayNumber_unique")
+}
+
+model Step {
+  id            String      @id @default(cuid())
+  trainingDayId Int
+  trainingDay   TrainingDay @relation(fields: [trainingDayId], references: [id])
+
+  title       String
+  description String @default("")
+  durationSec Int
+
+  userSteps UserStep[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ------------------------------------------------------------
+// ПОЛЬЗОВАТЕЛИ И СВЯЗАННЫЕ МОДЕЛИ
+// ------------------------------------------------------------
+
+model User {
+  id          String   @id @default(cuid())
+  username    String   @unique
+  phone       String   @unique
+  password    String
+  telegramId  String?  @unique
+  isConfirmed Boolean  @default(false)
+  role        UserRole @default(USER)
+
+  profile                  UserProfile?
+  diplomas                 Diploma[]
+  trainings                Training[]
+  trainingAccesses         TrainingAccess[]
+  courseAccesses           CourseAccess[]
+  authoredCourses          Course[]
+  userTrainings            UserTraining[]
+  userCourses              UserCourse[]
+  pets                     Pet[]
+  favoriteCourses          FavoriteCourse[]
+  courseReviews            CourseReview[]
+  passwordResetRequestedAt DateTime?
+  passwordResetTokens      PasswordResetToken[]
+  pushSubscriptions        PushSubscription[]
+  stepNotifications        StepNotification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fullName  String?
+  birthDate DateTime?
+  about     String?
+  telegram  String?
+  instagram String?
+  website   String?
+  avatarUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+model Diploma {
+  id     Int    @id @default(autoincrement())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title    String
+  issuedBy String?
+  issuedAt DateTime?
+  url      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Training {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  isPrivate Boolean          @default(false)
+  access    TrainingAccess[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserTraining {
+  id            String         @id @default(cuid())
+  userId        String
+  trainingDayId Int
+  status        TrainingStatus @default(NOT_STARTED)
+
+  user        User        @relation(fields: [userId], references: [id])
+  trainingDay TrainingDay @relation(fields: [trainingDayId], references: [id])
+  steps       UserStep[]
+
+  currentStepIndex Int? @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, trainingDayId])
+}
+
+model UserStep {
+  id             String       @id @default(cuid())
+  userTrainingId String
+  userTraining   UserTraining @relation(fields: [userTrainingId], references: [id])
+
+  stepId String
+  step   Step   @relation(fields: [stepId], references: [id])
+
+  title       String
+  durationSec Int
+  status      TrainingStatus @default(NOT_STARTED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userTrainingId, stepId])
+}
+
+model UserCourse {
+  userId   String
+  courseId Int
+  user     User   @relation(fields: [userId], references: [id])
+  course   Course @relation(fields: [courseId], references: [id])
+
+  status      TrainingStatus @default(NOT_STARTED)
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, courseId])
+}
+
+model Pet {
+  id      String @id @default(cuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name      String
+  type      PetType
+  breed     String
+  birthDate DateTime
+  heightCm  Float?
+  weightKg  Float?
+  photoUrl  String?
+  notes     String?
+  awards    Award[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+model Award {
+  id    Int    @id @default(autoincrement())
+  petId String
+  pet   Pet    @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  title String
+  event String?
+  date  DateTime?
+  rank  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@index([petId])
+}
+
+model TrainingAccess {
+  trainingId String
+  userId     String
+
+  training Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@unique([trainingId, userId])
+}
+
+model CourseAccess {
+  courseId Int
+  userId   String
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@unique([courseId, userId])
+}
+
+model FavoriteCourse {
+  userId   String
+  courseId Int
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, courseId])
+}
+
+model CourseReview {
+  id       Int    @id @default(autoincrement())
+  userId   String
+  courseId Int
+
+  rating  Float?
+  comment String?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@index([courseId, userId], name: "idx_rating_course_user")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+// ------------------------------------------------------------
+// Web-Push подписки устройств пользователя
+// ------------------------------------------------------------
+
+model PushSubscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  endpoint String @unique
+  keys     Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ------------------------------------------------------------
+// Уведомления о завершении шага тренировки
+// ------------------------------------------------------------
+
+model StepNotification {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day          Int
+  stepIndex    Int
+  endTs        Int // UNIX timestamp seconds
+  sent         Boolean  @default(false)
+  subscription Json // JSON с данными PushSubscription
+  url          String?
+  jobId        String? // ID задачи BullMQ, если есть
+  paused       Boolean  @default(false) // 🔄 новое
+  remainingSec Int? // Сколько секунд осталось при паузе
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([day, stepIndex])
+}

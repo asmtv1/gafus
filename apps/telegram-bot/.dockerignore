@@ -1,5 +1,46 @@
+# Исключаем папки с node_modules во всех пакетах и подпапках
 node_modules
-dist
-.out
-**/dist
 **/node_modules
+
+# Исключаем скомпилированные файлы
+dist
+**/dist
+.out
+**/.out
+
+# Кэш и временные папки
+.cache
+**/.cache
+.pnpm-store
+.turbo
+.vscode
+
+# Логи
+*.log
+
+# Файлы окружения
+.env
+.env.local
+.env.*.local
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# Dockerfile и файлы сборки
+Dockerfile
+docker-compose.yml
+
+# Игнорируем файлы IDE и редакторов
+.idea
+*.sublime-project
+*.sublime-workspace
+
+# Исключаем тестовые данные, доки, если не нужны в билд
+docs
+tests
+test
+
+# Любые другие временные файлы
+*.tmp
+*.temp

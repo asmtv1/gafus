@@ -1,35 +1,37 @@
-# syntax=docker/dockerfile:1
-
 FROM node:20-bookworm-slim AS prisma-base
-WORKDIR /app
 
-# 1️⃣ OpenSSL + curl
+WORKDIR /app/packages/prisma
+
 RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update \
- && apt-get install -y --no-install-recommends openssl ca-certificates curl \
- && rm -rf /var/lib/apt/lists/*
+    apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
-# 2️⃣ Corepack + pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# 3️⃣ Копируем workspace + lockfile
-COPY pnpm-workspace.yaml ./
-COPY package.json pnpm-lock.yaml ./
+# Копируем весь пакет prisma (package.json + исходники)
+COPY packages/prisma .
 
-# 4️⃣ Устанавливаем Prisma и @prisma/client глобально в образе
-RUN pnpm add -w prisma @prisma/client
+# Копируем корневой lock-файл в родительскую папку
+COPY pnpm-lock.yaml ../pnpm-lock.yaml
 
-# 5️⃣ Копируем весь пакет prisma
-COPY packages/prisma ./packages/prisma
+# Устанавливаем зависимости (учитывая монорепозиторий и lock-файл)
+RUN pnpm install
 
-# 6️⃣ Генерация Prisma Client
-WORKDIR /app/packages/prisma
-RUN pnpm exec prisma generate
+# Генерируем Prisma Client (сгенерируется в ../../generated/prisma-client)
+RUN pnpm exec prisma generate --schema=schema.prisma
 
-# 7️⃣ prune production deps
+# Проверка, что сгенерировался клиент
+RUN ls -la /app/generated/prisma-client || echo "generated prisma-client folder not found"
+
+# Чистим dev-зависимости (если нужно, но не обязательно)
+# RUN pnpm prune --prod
+
 WORKDIR /app
-RUN pnpm prune --prod
 
-# ────────────────────────────────
-# DONE
-# ────────────────────────────────
+# Копируем node_modules из prisma в корень
+RUN cp -r packages/prisma/node_modules ./node_modules
+
+# Копируем сгенерированный клиент в корень /app/generated/prisma-client
+RUN cp -r generated/prisma-client ./generated/prisma-client || echo "generated/prisma-client not found"
+
+# Проверяем содержимое
+RUN ls -la ./generated/prisma-client

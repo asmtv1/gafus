@@ -4,12 +4,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.bot = void 0;
-require("dotenv/config");
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
 const index_js_1 = require("../../packages/prisma/src/index.js");
 const token = process.env.TELEGRAM_BOT_TOKEN;
+if (!token) {
+    throw new Error("❌❌❌❌❌❌TELEGRAM_BOT_TOKEN не задан в переменных окружения");
+}
 exports.bot = new node_telegram_bot_api_1.default(token, { polling: true });
 exports.bot.on("message", async (msg) => {
+    if (!msg.chat)
+        return;
     const chatId = msg.chat.id;
     // Если пользователь уже отправил номер
     if (msg.contact) {

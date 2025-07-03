@@ -1,8 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import "dotenv/config";
-import dotenv from "dotenv";
-dotenv.config();
-console.log('DATABASE_URL:', process.env.DATABASE_URL);
+console.log("⛳DATABASE_URL=", process.env.DATABASE_URL);
 /** СТАРЫЙ ВАРИАНТ
  в dev-контексте кешируем инстанс в globalThis, чтобы при хот-релоаде не плодить подключения
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };

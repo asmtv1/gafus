@@ -1,63 +1,51 @@
 # syntax=docker/dockerfile:1
 
 # ─────────────────────────────────────────────
-# Stage 0: prisma-base (готовый @prisma/client)
-# ─────────────────────────────────────────────
-FROM gafus/prisma-base:latest AS prisma-base
-
-# ─────────────────────────────────────────────
-# Stage 1: builder (Next.js build с pnpm)
+# Stage 0: builder — сборка фронта
 # ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# 1️⃣ Устанавливаем corepack + pnpm
+# 1️⃣ Corepack + pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# 2️⃣ Копируем workspace файлы + lockfile
+# 2️⃣ Копируем workspace + lockfile + корневой package.json
 COPY pnpm-workspace.yaml ./
 COPY package.json pnpm-lock.yaml ./
 
 # 3️⃣ Устанавливаем зависимости
 RUN pnpm install --frozen-lockfile
 
-# 4️⃣ Копируем исходники проекта полностью
+# 4️⃣ Копируем исходники проекта
 COPY . .
 
-# 5️⃣ Билдим только frontend
+# 5️⃣ Билдим только frontend (Next.js)
 RUN pnpm build --filter @gafus/web...
 
 # ─────────────────────────────────────────────
-# Stage 2: runner (production)
+# Stage 1: runner — минимальный production
 # ─────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# 1️⃣ Устанавливаем corepack + pnpm
+# 1️⃣ Corepack + pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# 2️⃣ Копируем pnpm workspace файлы + lockfile для prune
+# 2️⃣ Копируем workspace + lockfile + package.json
 COPY pnpm-workspace.yaml ./
 COPY package.json pnpm-lock.yaml ./
+COPY apps/web/package.json ./apps/web/package.json
 
-# 3️⃣ Копируем node_modules:
-#   a) общие зависимости всех пакетов
-COPY --from=builder /app/node_modules ./node_modules
-#   b) prisma клиент + бинарники
-COPY --from=prisma-base /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=prisma-base /app/node_modules/@prisma ./node_modules/@prisma
+# 3️⃣ Устанавливаем только production-зависимости web-пакета
+RUN pnpm install --prod --filter @gafus/web...
 
-# 4️⃣ Копируем билд фронта и конфиг
+# 4️⃣ Копируем собранный фронт и нужные файлы
 COPY --from=builder /app/apps/web/.next ./apps/web/.next
 COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/next.config.ts ./apps/web/next.config.ts
-COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
 
-# 5️⃣ Удаляем devDependencies, оставляя только production
-RUN pnpm prune --prod
-
-# 6️⃣ Открываем порт и запускаем Next.js
+# 5️⃣ Устанавливаем рабочую директорию и запускаем
 WORKDIR /app/apps/web
 EXPOSE 3000
 CMD ["pnpm", "next", "start"]

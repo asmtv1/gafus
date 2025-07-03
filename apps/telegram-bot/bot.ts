@@ -1,11 +1,17 @@
-import "dotenv/config";
 import TelegramBot from "node-telegram-bot-api";
 import { prisma } from "../../packages/prisma/src/index.js";
 
 const token = process.env.TELEGRAM_BOT_TOKEN!;
+if (!token) {
+  throw new Error(
+    "❌❌❌❌❌❌TELEGRAM_BOT_TOKEN не задан в переменных окружения"
+  );
+}
+
 export const bot = new TelegramBot(token, { polling: true });
 
-bot.on("message", async (msg) => {
+bot.on("message", async (msg: TelegramBot.Message) => {
+  if (!msg.chat) return;
   const chatId = msg.chat.id;
 
   // Если пользователь уже отправил номер

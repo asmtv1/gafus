@@ -2,7 +2,7 @@ import express from "express";
 import { ExpressAdapter } from "@bull-board/express";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter.js";
-import { pushQueue } from "@queues/push-queue";
+import { pushQueue } from "@gafus/queues";
 const app = express();
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath("/admin/queues");
