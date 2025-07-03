@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Копируем корневые конфиги
-COPY package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 
 # Копируем package.json самого worker
 COPY packages/worker/package.json ./packages/worker/package.json
@@ -26,11 +26,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Копируем package.json и lock-файл
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/worker/package.json ./packages/worker/package.json
 
 # Устанавливаем только production зависимости
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --filter @gafus/worker... --frozen-lockfile
 
 # Копируем собранный билд
 COPY --from=builder /app/packages/worker/dist ./packages/worker/dist

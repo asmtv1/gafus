@@ -1,6 +1,3 @@
-# --- Stage 0: Prisma клиент сгенерирован ---
-FROM gafus/prisma-base:latest AS prisma
-
 # --- Stage 1: Build stage ---
 FROM node:20-alpine AS builder
 
