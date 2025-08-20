@@ -2,18 +2,54 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: asmtv1/gafus
 
 jobs:
+  # Security and code quality checks
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run security audit
+        run: pnpm audit --audit-level moderate
+
+      - name: Run ESLint
+        run: |
+          cd apps/web
+          pnpm lint --if-present
+
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: HEAD~1
+
   # Build and test web app
   build-web:
     runs-on: ubuntu-latest
+    needs: security
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,34 +78,73 @@ jobs:
           cd apps/web
           pnpm test --if-present
 
+      - name: Run type check
+        run: |
+          cd apps/web
+          pnpm type-check --if-present
+
   # Build Docker image
   build-image:
-    needs: build-web
-    if: github.ref == 'refs/heads/main'
+    needs: [security, build-web]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build Docker image
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./apps/web
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
 
-  # Deploy to server
-  deploy:
-    needs: build-image
-    if: github.ref == 'refs/heads/main'
+  # Deploy to staging (develop branch)
+  deploy-staging:
+    needs: [security, build-web]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Deploy to staging
+        run: echo "Deploy to staging environment"
+
+  # Deploy to production (main branch)
+  deploy-production:
+    needs: [security, build-web, build-image]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to server
+      - name: Deploy to production server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -77,7 +152,50 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            echo "Deployment started..."
+            set -e
+            echo "🚀 Starting production deployment..."
+            
+            # Navigate to project directory
             cd /root/gafus
+            
+            # Pull latest changes
             git pull origin main
-            echo "Deployment completed!"
+            
+            # Create uploads directories if they don't exist
+            mkdir -p uploads/avatars uploads/pets uploads/courses
+            chmod -R 755 uploads/
+            
+            # Stop existing containers
+            docker-compose -f docker-compose.prod.yml down || true
+            
+            # Pull latest images
+            docker-compose -f docker-compose.prod.yml pull
+            
+            # Start services
+            docker-compose -f docker-compose.prod.yml up -d
+            
+            # Wait for services to be ready
+            sleep 10
+            
+            # Check service health
+            if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
+              echo "✅ Deployment completed successfully!"
+              
+              # Clean up unused images
+              docker image prune -f
+            else
+              echo "❌ Deployment failed - services not running"
+              exit 1
+            fi
+
+  # Post-deployment checks
+  health-check:
+    needs: deploy-production
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check
+        run: |
+          echo "🏥 Running post-deployment health checks..."
+          # Add your health check logic here
+          # Example: curl -f https://gafus.ru/health

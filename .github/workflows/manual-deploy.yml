@@ -1,0 +1,59 @@
+name: Manual Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      app:
+        description: 'Application to deploy'
+        required: true
+        default: 'web'
+        type: choice
+        options:
+          - web
+          - all
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: asmtv1/gafus
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to ${{ github.event.inputs.environment }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+            echo "🚀 Manual deployment to ${{ github.event.inputs.environment }} started..."
+            
+            cd /root/gafus
+            git pull origin main
+            
+            if [ "${{ github.event.inputs.environment }}" = "production" ]; then
+              echo "🏭 Deploying to production..."
+              docker-compose -f docker-compose.prod.yml down || true
+              docker-compose -f docker-compose.prod.yml pull
+              docker-compose -f docker-compose.prod.yml up -d
+            else
+              echo "🧪 Deploying to staging..."
+              # Add staging deployment logic here
+            fi
+            
+            echo "✅ Manual deployment completed!"
