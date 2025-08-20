@@ -54,7 +54,7 @@ export default async function EditCoursePage({ params }: PageProps) {
   };
 
   const initialSelectedUsers = course.isPrivate
-    ? course.access.map((a) => ({ id: a.user.id, username: a.user.username }))
+    ? course.access.map((a: { user: { id: string; username: string } }) => ({ id: a.user.id, username: a.user.username }))
     : [];
 
   return (

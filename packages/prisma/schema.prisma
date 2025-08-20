@@ -39,7 +39,7 @@ model Course {
   name           String
   type           String             @db.VarChar(50) @unique
   description    String             @default("")
-  equipment?     String             @default("")
+  equipment      String             @default("")
   trainingLevel  TrainingLevel      
   shortDesc      String             @default("")
   duration       String
@@ -63,7 +63,7 @@ model Course {
 model TrainingDay {
   id             String            @id @default(cuid())
   title          String
-  equipment?      String             @default("")
+  equipment      String             @default("")
   description    String             @default("")
   type           String             @default("regular")
   stepLinks      StepOnDay[]

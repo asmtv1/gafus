@@ -185,7 +185,7 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
           avatarUrl: uc.user.profile?.avatarUrl ?? null,
           startedAt: uc.startedAt,
           completedAt: uc.completedAt,
-          days: days.filter((d) => d.status !== "NOT_STARTED"),
+          days: days.filter((d: { status: string }) => d.status !== "NOT_STARTED"),
         })),
       };
     }),
