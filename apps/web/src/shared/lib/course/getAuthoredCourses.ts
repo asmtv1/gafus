@@ -116,39 +116,51 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
       });
 
       const days = await Promise.all(
-        trainings.map(async (training) => {
-          const userSteps = await prisma.userStep.findMany({
-            where: {
-              userTrainingId: training.id,
-            },
-            select: {
-              stepOnDayId: true,
-              status: true,
-            },
-          });
-
-          const stepProgressMap = new Map(
-            userSteps.map((userStep) => [userStep.stepOnDayId, userStep.status]),
-          );
-
-          const stepProgress = training.dayOnCourse.day.stepLinks.map(
-            (link: { id: string; order: number; step: { title: string } }) => {
-              const stepStatus = stepProgressMap.get(link.id) || "NOT_STARTED";
-              return {
-                stepOrder: link.order,
-                stepTitle: link.step.title,
-                status: stepStatus as TrainingStatus,
+        trainings.map(
+          async (training: {
+            id: string;
+            status: string;
+            dayOnCourse: {
+              order: number;
+              day: {
+                title: string;
+                stepLinks: { id: string; order: number; step: { title: string } }[];
               };
-            },
-          );
+            };
+          }) => {
+            const userSteps = await prisma.userStep.findMany({
+              where: {
+                userTrainingId: training.id,
+              },
+              select: {
+                stepOnDayId: true,
+                status: true,
+              },
+            });
 
-          return {
-            dayOrder: training.dayOnCourse.order,
-            dayTitle: training.dayOnCourse.day.title,
-            status: training.status as TrainingStatus,
-            steps: stepProgress,
-          };
-        }),
+            const stepProgressMap = new Map(
+              userSteps.map((userStep) => [userStep.stepOnDayId, userStep.status]),
+            );
+
+            const stepProgress = training.dayOnCourse.day.stepLinks.map(
+              (link: { id: string; order: number; step: { title: string } }) => {
+                const stepStatus = stepProgressMap.get(link.id) || "NOT_STARTED";
+                return {
+                  stepOrder: link.order,
+                  stepTitle: link.step.title,
+                  status: stepStatus as TrainingStatus,
+                };
+              },
+            );
+
+            return {
+              dayOrder: training.dayOnCourse.order,
+              dayTitle: training.dayOnCourse.day.title,
+              status: training.status as TrainingStatus,
+              steps: stepProgress,
+            };
+          },
+        ),
       );
 
       const totalStarted = course.userCourses.filter(
