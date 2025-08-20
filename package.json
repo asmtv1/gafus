@@ -8,20 +8,22 @@
   "scripts": {
     "analyze:trainer": "pnpm --filter @gafus/trainer-panel analyze",
     "analyze:web": "pnpm --filter @gafus/web analyze",
-    "build": "pnpm -r run build",
-    "build:all": "pnpm -r run build",
+    "build": "turbo run build",
+    "build:all": "pnpm db:generate && pnpm -r run build",
+    "check:architecture": "node scripts/check-circular-deps.js",
     "check:builds": "node scripts/check-builds.js",
     "check:ports": "node scripts/check-ports.js",
-    "check:architecture": "node scripts/check-circular-deps.js",
-    "clean": "find . -type d -name \"dist\" -exec rm -rf {} + && rm -rf .turbo",
-    "dev": "turbo run dev --parallel --filter=@gafus/web --filter=@gafus/trainer-panel --filter=@gafus/error-dashboard",
+    "clean": "turbo run clean",
+    "clean:all": "pnpm -r run clean",
+    "dev": "turbo run dev",
     "dev:env": "node -r dotenv/config scripts/dev-with-env.js",
     "dev:trainer": "node -r dotenv/config scripts/dev-trainer-with-env.js",
     "dev:web": "node -r dotenv/config scripts/dev-web-with-env.js",
     "format": "prettier --cache --write .",
     "format:check": "prettier --check .",
     "preinstall": "only-allow pnpm",
-    "lint": "eslint --cache \"{apps,packages}/**/*.{js,ts,tsx}\"",
+    "lint": "turbo run lint",
+    "lint:all": "pnpm -r run lint",
     "lint:fix": "eslint --cache --fix \"{apps,packages}/**/*.{js,ts,tsx}\"",
     "optimize:all": "pnpm optimize:imports && pnpm optimize:deps && pnpm analyze:web",
     "optimize:deps": "node scripts/remove-unused-deps.js",
@@ -31,8 +33,11 @@
     "start:all": "node scripts/start-all.js",
     "start:basic": "node scripts/start-basic.js",
     "start:stable": "node scripts/start-stable.js",
-    "test": "pnpm -r run test",
-    "typecheck": "pnpm -r run typecheck"
+    "test": "turbo run test",
+    "test:all": "pnpm -r run test",
+    "typecheck": "turbo run typecheck",
+    "typecheck:all": "pnpm -r run typecheck",
+    "typecheck:ci": "./scripts/typecheck-local.sh"
   },
   "dependencies": {
     "dotenv": "17.2.0"
@@ -73,18 +78,18 @@
       "@mui/x-date-pickers": "7.8.0",
       "@types/react": "19.1.9",
       "@types/react-dom": "19.1.7",
+      "cross-spawn@<6.0.6": ">=6.0.6",
+      "esbuild@<=0.24.2": ">=0.25.0",
+      "form-data@<2.5.4": ">=2.5.4",
+      "got@<11.8.5": ">=11.8.5",
+      "http-cache-semantics@<4.1.1": ">=4.1.1",
       "next": "15.3.5",
       "next-auth": "4.24.11",
       "react": "19.1.0",
       "react-dom": "19.1.0",
-      "got@<11.8.5": ">=11.8.5",
       "semver-regex@<3.1.3": ">=3.1.3",
       "semver-regex@<3.1.4": ">=3.1.4",
-      "tough-cookie@<4.1.3": ">=4.1.3",
-      "esbuild@<=0.24.2": ">=0.25.0",
-      "http-cache-semantics@<4.1.1": ">=4.1.1",
-      "cross-spawn@<6.0.6": ">=6.0.6",
-      "form-data@<2.5.4": ">=2.5.4"
+      "tough-cookie@<4.1.3": ">=4.1.3"
     }
   }
 }

@@ -128,7 +128,10 @@ export async function getCourseStatistics(
   );
 
   const totalCourses = courses.length;
-  const totalDays = coursesRaw.reduce((sum: number, course) => sum + course.dayLinks.length, 0);
+  const totalDays = coursesRaw.reduce(
+    (sum: number, course: { dayLinks: unknown[] }) => sum + (course.dayLinks as unknown[]).length,
+    0,
+  );
 
   return {
     courses,

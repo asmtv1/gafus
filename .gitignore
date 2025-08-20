@@ -99,6 +99,7 @@ temp/
 
 # TypeScript
 *.tsbuildinfo
+tsconfig.tsbuildinfo
 # Next.js cache
 .next/cache/
 .next/cache/**/*
