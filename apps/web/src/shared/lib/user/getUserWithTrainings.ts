@@ -77,7 +77,7 @@ export async function getUserWithTrainings(): Promise<UserWithTrainings | null> 
       // Список номеров дней, которые пользователь уже закончил
       const completedDays = trainingsForCourse
         .filter((t) => t.status === TrainingStatus.COMPLETED)
-        .map((t) => t.dayOnCourse.order)
+        .map((t: { dayOnCourse: { order: number } }) => t.dayOnCourse.order)
         .sort((a, b) => a - b);
 
       return {

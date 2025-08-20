@@ -54,7 +54,7 @@ export async function getTrainingDays(typeParam?: string): Promise<{
       };
     }
 
-    const trainingDays = firstCourse.dayLinks.map((link) => ({
+    const trainingDays = firstCourse.dayLinks.map((link: { id: string; order: number; day: { title: string; type: string }; userTrainings: { status: string }[] }) => ({
       id: link.id,
       day: link.order,
       title: link.day.title,

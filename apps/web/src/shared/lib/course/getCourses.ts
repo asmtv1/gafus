@@ -3,7 +3,7 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 
-import type { CourseWithProgressData, CourseWithExtras } from "@gafus/types";
+import type { CourseWithExtras, CourseWithProgressData } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 
@@ -92,7 +92,7 @@ export async function getCoursesWithProgress(): Promise<{ data: CourseWithProgre
       select: { courseId: true },
     });
 
-    const favoriteCourseIds = new Set(userFavorites.map((f) => f.courseId));
+    const favoriteCourseIds = new Set(userFavorites.map((f: { courseId: string }) => f.courseId));
 
     const data: CourseWithProgressData[] = allCourses.map((course) => {
       const userCourse = userCourses.find((uc) => uc.courseId === course.id);

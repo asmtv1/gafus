@@ -36,7 +36,7 @@ export function useRefreshData(pageType: RefreshPageType) {
 
     try {
       // Обновляем все связанные endpoints
-      const updatePromises = config.endpoints.map((endpoint) =>
+      const updatePromises = config.endpoints.map((endpoint: string) =>
         mutate(endpoint, undefined, { revalidate: true }),
       );
 

@@ -45,8 +45,8 @@ export async function getStepStatistics(userId: string, isElevated: boolean) {
     },
   });
 
-  const stats: StepStats[] = steps.map((step) => {
-    const dayIds = new Set(step.stepLinks.map((sl) => sl.dayId));
+  const stats: StepStats[] = steps.map((step: { id: string; title: string; durationSec: number; stepLinks: { dayId: string; day: { dayLinks: { courseId: string }[] } }[] }) => {
+    const dayIds = new Set(step.stepLinks.map((sl: { dayId: string }) => sl.dayId));
     const courseIds = new Set(
       step.stepLinks.flatMap((sl) => sl.day.dayLinks.map((dl) => dl.courseId)),
     );

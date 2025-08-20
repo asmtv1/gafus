@@ -40,7 +40,7 @@ export async function getFavoritesCourses(): Promise<{
       select: { courseId: true },
     });
 
-    const favoriteCourseIds: string[] = userFavorites.map((f) => f.courseId);
+    const favoriteCourseIds: string[] = userFavorites.map((f: { courseId: string }) => f.courseId);
 
     const allCourses = await prisma.course.findMany({
       where: {

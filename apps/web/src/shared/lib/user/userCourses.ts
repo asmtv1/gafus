@@ -93,7 +93,7 @@ export async function checkAndCompleteCourse(courseId: string) {
       select: { id: true },
     });
 
-    const dayIds = allDays.map((d) => d.id);
+    const dayIds = allDays.map((d: { id: string }) => d.id);
 
     // Получаем все записи о тренировках пользователя по этим дням
     const userTrainings = await prisma.userTraining.findMany({

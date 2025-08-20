@@ -1,10 +1,9 @@
 import { CACHE_DURATION } from "@gafus/types";
-import { getUserPets, createPet, updatePet, deletePet } from "@shared/lib/pets";
+import { createPet, deletePet, getUserPets, updatePet } from "@shared/lib/pets";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import type { PetsState } from "@gafus/types";
-import type { UpdatePetInput } from "@gafus/types";
+import type { PetsState, UpdatePetInput } from "@gafus/types";
 
 // Утилиты для проверки кэша
 const isStale = (timestamp: number, maxAge: number = CACHE_DURATION) => {
@@ -120,7 +119,7 @@ export const usePetsStore = create<PetsState>()(
         try {
           await deletePet(petId);
           set((state) => ({
-            pets: state.pets.filter((pet) => pet.id !== petId),
+            pets: state.pets.filter((pet: { id: string }) => pet.id !== petId),
             activePetId: state.activePetId === petId ? null : state.activePetId,
             isDeleting: false,
             lastFetched: Date.now(),

@@ -48,8 +48,8 @@ export const useCourseStore = create<CourseState>()(
         if (type === "all" && courses.length > 0) {
           // Проверяем, какие курсы из загруженных уже есть в избранном
           const existingFavoriteIds = courses
-            .filter((course) => course.isFavorite)
-            .map((course) => course.id);
+            .filter((course: { isFavorite: boolean }) => course.isFavorite)
+            .map((course: { id: string }) => course.id);
 
           // Обновляем состояние избранного
           updatedFavoriteIds = new Set([...state.favoriteCourseIds, ...existingFavoriteIds]);
@@ -68,7 +68,7 @@ export const useCourseStore = create<CourseState>()(
 
       setFavorites: (courses) => {
         // Обновляем список избранных курсов
-        const favoriteIds = new Set(courses.map((course) => course.id));
+        const favoriteIds = new Set(courses.map((course: { id: string }) => course.id));
 
         set({
           favorites: {
@@ -113,7 +113,7 @@ export const useCourseStore = create<CourseState>()(
 
       removeFromFavorites: (courseId) => {
         const state = get();
-        const newFavorites = new Set([...state.favoriteCourseIds].filter((id) => id !== courseId));
+        const newFavorites = new Set([...state.favoriteCourseIds].filter((id: string) => id !== courseId));
         set({ favoriteCourseIds: newFavorites });
 
         // Обновляем кэш избранных курсов, если он есть

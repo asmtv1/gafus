@@ -45,47 +45,90 @@ export async function getCourseStatistics(
     },
   });
 
-  const courses = coursesRaw.map((course) => {
-    const totalUsers = course.userCourses.length;
-    const completedUsers = course.userCourses.filter((uc) => uc.status === "COMPLETED").length;
-    const inProgressUsers = course.userCourses.filter((uc) => uc.status === "IN_PROGRESS").length;
-    const notStartedUsers = course.userCourses.filter((uc) => uc.status === "NOT_STARTED").length;
+  const courses = coursesRaw.map(
+    (course: {
+      id: string;
+      name: string;
+      logoImg: string;
+      avgRating: number | null;
+      isPrivate: boolean;
+      trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+      userCourses: {
+        userId: string;
+        status: string;
+        startedAt: Date | null;
+        completedAt: Date | null;
+        user: { username: string; profile: { avatarUrl: string | null } | null };
+      }[];
+      reviews: {
+        rating: number | null;
+        comment: string | null;
+        createdAt: Date;
+        user: { username: string; profile: { avatarUrl: string | null } | null };
+      }[];
+    }) => {
+      const totalUsers = course.userCourses.length;
+      const completedUsers = course.userCourses.filter(
+        (uc: { status: string }) => uc.status === "COMPLETED",
+      ).length;
+      const inProgressUsers = course.userCourses.filter(
+        (uc: { status: string }) => uc.status === "IN_PROGRESS",
+      ).length;
+      const notStartedUsers = course.userCourses.filter(
+        (uc: { status: string }) => uc.status === "NOT_STARTED",
+      ).length;
 
-    return {
-      id: course.id,
-      name: course.name,
-      logoImg: course.logoImg,
-      avgRating: course.avgRating,
-      isPrivate: course.isPrivate,
-      totalUsers,
-      completedUsers,
-      inProgressUsers,
-      notStartedUsers,
-      trainingLevel: course.trainingLevel,
-      reviews: course.reviews.map((r) => ({
-        rating: r.rating,
-        comment: r.comment,
-        createdAt: r.createdAt,
-        user: {
-          username: r.user.username,
-          profile: { avatarUrl: r.user.profile?.avatarUrl ?? null },
-        },
-      })),
-      userCourses: course.userCourses.map((uc) => ({
-        userId: uc.userId,
-        status: uc.status as unknown as TrainingStatus,
-        startedAt: uc.startedAt,
-        completedAt: uc.completedAt,
-        user: {
-          username: uc.user.username,
-          profile: { avatarUrl: uc.user.profile?.avatarUrl ?? null },
-        },
-      })),
-    };
-  });
+      return {
+        id: course.id,
+        name: course.name,
+        logoImg: course.logoImg,
+        avgRating: course.avgRating,
+        isPrivate: course.isPrivate,
+        totalUsers,
+        completedUsers,
+        inProgressUsers,
+        notStartedUsers,
+        trainingLevel: course.trainingLevel,
+        reviews: course.reviews.map(
+          (r: {
+            rating: number | null;
+            comment: string | null;
+            createdAt: Date;
+            user: { username: string; profile: { avatarUrl: string | null } | null };
+          }) => ({
+            rating: r.rating,
+            comment: r.comment,
+            createdAt: r.createdAt,
+            user: {
+              username: r.user.username,
+              profile: { avatarUrl: r.user.profile?.avatarUrl ?? null },
+            },
+          }),
+        ),
+        userCourses: course.userCourses.map(
+          (uc: {
+            userId: string;
+            status: string;
+            startedAt: Date | null;
+            completedAt: Date | null;
+            user: { username: string; profile: { avatarUrl: string | null } | null };
+          }) => ({
+            userId: uc.userId,
+            status: uc.status as unknown as TrainingStatus,
+            startedAt: uc.startedAt,
+            completedAt: uc.completedAt,
+            user: {
+              username: uc.user.username,
+              profile: { avatarUrl: uc.user.profile?.avatarUrl ?? null },
+            },
+          }),
+        ),
+      };
+    },
+  );
 
   const totalCourses = courses.length;
-  const totalDays = coursesRaw.reduce((sum, course) => sum + course.dayLinks.length, 0);
+  const totalDays = coursesRaw.reduce((sum: number, course) => sum + course.dayLinks.length, 0);
 
   return {
     courses,
@@ -174,33 +217,48 @@ export async function getDetailedCourseStatistics(
   // Аналитика по дням
   const dayAnalytics = await Promise.all(
     course.dayLinks.map(async (dayLink) => {
-      const dayTrainings = userTrainings.filter((ut) => ut.dayOnCourseId === dayLink.id);
+      const dayTrainings = userTrainings.filter(
+        (ut: {
+          dayOnCourseId: string;
+          steps: { status: string; createdAt: Date; updatedAt: Date }[];
+        }) => ut.dayOnCourseId === dayLink.id,
+      );
 
       const totalSteps = dayLink.day.stepLinks.length;
-      const completedSteps = dayTrainings.reduce((sum, training) => {
-        return sum + training.steps.filter((step) => step.status === "COMPLETED").length;
-      }, 0);
+      const completedSteps = dayTrainings.reduce(
+        (sum: number, training: { steps: { status: string }[] }) => {
+          return (
+            sum +
+            training.steps.filter((step: { status: string }) => step.status === "COMPLETED").length
+          );
+        },
+        0,
+      );
 
-      const totalStepAttempts = dayTrainings.reduce((sum, training) => {
-        return sum + training.steps.length;
-      }, 0);
+      const totalStepAttempts = dayTrainings.reduce(
+        (sum: number, training: { steps: { status: string }[] }) => {
+          return sum + training.steps.length;
+        },
+        0,
+      );
 
       const completionRate = totalStepAttempts > 0 ? (completedSteps / totalStepAttempts) * 100 : 0;
 
       // Вычисляем среднее время на шаг (в секундах)
-      const stepTimes = dayTrainings.flatMap((training) =>
-        training.steps.map((step) => {
-          const createdAt = new Date(step.createdAt);
-          const updatedAt = new Date(step.updatedAt);
-          return step.status === "COMPLETED"
-            ? (updatedAt.getTime() - createdAt.getTime()) / 1000
-            : 0;
-        }),
+      const stepTimes = dayTrainings.flatMap(
+        (training: { steps: { status: string; createdAt: Date; updatedAt: Date }[] }) =>
+          training.steps.map((step: { status: string; createdAt: Date; updatedAt: Date }) => {
+            const createdAt = new Date(step.createdAt);
+            const updatedAt = new Date(step.updatedAt);
+            return step.status === "COMPLETED"
+              ? (updatedAt.getTime() - createdAt.getTime()) / 1000
+              : 0;
+          }),
       );
 
       const averageTimePerStep =
         stepTimes.length > 0
-          ? stepTimes.reduce((sum, time) => sum + time, 0) / stepTimes.length
+          ? stepTimes.reduce((sum: number, time: number) => sum + time, 0) / stepTimes.length
           : 0;
 
       // Оценка сложности дня (обратная зависимость от процента завершения)

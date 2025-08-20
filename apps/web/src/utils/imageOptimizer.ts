@@ -58,7 +58,7 @@ export function generateSrcSet(
 ): string {
   const optimalFormat = format || getOptimalFormat();
 
-  return widths.map((width) => `${baseUrl}?w=${width}&f=${optimalFormat} ${width}w`).join(", ");
+  return widths.map((width: number) => `${baseUrl}?w=${width}&f=${optimalFormat} ${width}w`).join(", ");
 }
 
 /**

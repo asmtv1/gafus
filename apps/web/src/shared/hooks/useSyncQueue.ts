@@ -32,7 +32,7 @@ export function useSyncQueue() {
     syncOfflineActions,
 
     // Утилиты
-    getActionCount: (type: string) => syncQueue.filter((action) => action.type === type).length,
+    getActionCount: (type: string) => syncQueue.filter((action: { type: string }) => action.type === type).length,
     getRetryCount: (actionId: string) =>
       syncQueue.find((action) => action.id === actionId)?.retryCount || 0,
 

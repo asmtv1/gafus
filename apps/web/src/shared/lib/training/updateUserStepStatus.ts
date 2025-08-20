@@ -137,7 +137,7 @@ export async function updateUserStepStatus(
           stepIndex,
           stepOrder,
           total: trainingDay.stepLinks.length,
-          orders: trainingDay.stepLinks.map((s) => s.order),
+          orders: trainingDay.stepLinks.map((s: { order: number }) => s.order),
         });
         throw new Error("Step not found");
       }

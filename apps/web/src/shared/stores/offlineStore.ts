@@ -119,7 +119,7 @@ export const useOfflineStore = create<OfflineState>()(
       // Удаление действия из очереди
       removeFromSyncQueue: (id: string) => {
         set((state) => ({
-          syncQueue: state.syncQueue.filter((action) => action.id !== id),
+          syncQueue: state.syncQueue.filter((action: { id: string }) => action.id !== id),
         }));
       },
 
@@ -257,7 +257,7 @@ export const useOfflineStore = create<OfflineState>()(
               } else {
                 // Обновляем действие с новым счетчиком попыток
                 set((state) => ({
-                  syncQueue: state.syncQueue.map((a) => (a.id === action.id ? updatedAction : a)),
+                  syncQueue: state.syncQueue.map((a: { id: string }) => (a.id === action.id ? updatedAction : a)),
                 }));
               }
             }

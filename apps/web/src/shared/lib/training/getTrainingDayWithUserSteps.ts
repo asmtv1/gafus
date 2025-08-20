@@ -92,7 +92,7 @@ export async function getTrainingDayWithUserSteps(
       select: { stepOnDayId: true, status: true },
     });
     stepStatuses = Object.fromEntries(
-      userSteps.map(({ stepOnDayId, status }) => [
+      userSteps.map(({ stepOnDayId, status }: { stepOnDayId: string; status: string }) => [
         stepOnDayId,
         TrainingStatus[status as keyof typeof TrainingStatus],
       ]),

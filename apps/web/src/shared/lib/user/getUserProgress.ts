@@ -94,7 +94,7 @@ export async function getUserProgress(
     });
 
     // Создаем мапу для быстрого поиска userTraining по dayOnCourseId
-    const userTrainingMap = new Map(userTrainings.map((ut) => [ut.dayOnCourseId, ut]));
+    const userTrainingMap = new Map(userTrainings.map((ut: { dayOnCourseId: string }) => [ut.dayOnCourseId, ut]));
 
     // Собираем детальный прогресс по дням
     const daysProgress = courseDays.map((dayLink) => {
@@ -144,10 +144,10 @@ export async function getUserProgress(
       if (dayStatus === TrainingStatus.COMPLETED && userTraining) {
         const completedDates = userTraining.steps
           .filter((s) => (s.status as TrainingStatus) === TrainingStatus.COMPLETED)
-          .map((s) => s.updatedAt)
+          .map((s: { updatedAt: Date }) => s.updatedAt)
           .filter(Boolean) as Date[];
         if (completedDates.length) {
-          const maxTs = Math.max(...completedDates.map((d) => new Date(d).getTime()));
+          const maxTs = Math.max(...completedDates.map((d: Date) => new Date(d).getTime()));
           dayCompletedAt = new Date(maxTs);
         }
       }
