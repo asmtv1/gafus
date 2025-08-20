@@ -77,7 +77,7 @@ export async function getFavoritesCourses(): Promise<{
           access: CourseAccess[];
         },
       ) => {
-        const userCourse = userCourses.find((uc) => uc.courseId === course.id);
+        const userCourse = userCourses.find((uc: { courseId: string; status: string; startedAt: Date | null; completedAt: Date | null }) => uc.courseId === course.id);
 
         return {
           id: course.id,
