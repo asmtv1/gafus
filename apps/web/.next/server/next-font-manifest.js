@@ -1,1 +1,0 @@
-self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/Users/asmtv1/gafus/apps/web/src/app/layout\":[\"static/media/6325a8417175c41d-s.p.woff2\",\"static/media/4f05ba3a6752a328-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"

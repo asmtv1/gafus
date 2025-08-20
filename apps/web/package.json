@@ -26,8 +26,6 @@
     "@mui/material": "7.1.0",
     "bcrypt": "6.0.0",
     "browser-image-compression": "2.0.2",
-    "imagemin": "9.0.1",
-    "imagemin-webp": "8.0.0",
     "libphonenumber-js": "1.12.8",
     "next": "15.3.5",
     "next-auth": "4.24.11",
