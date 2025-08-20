@@ -65,7 +65,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
     const publicProfile: PublicProfile = {
       ...user,
       diplomas: user.diplomas
-        .filter((d): d is Required<typeof d> => d.issuedAt !== null)
+        .filter((d: { issuedAt: Date | null }) => d.issuedAt !== null)
         .map(
           (d: {
             id: string | number;

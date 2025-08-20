@@ -70,6 +70,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Generate Prisma Client
+        run: |
+          cd packages/prisma
+          pnpm db:generate
+
       - name: Build web app
         run: |
           cd apps/web
@@ -108,6 +113,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Generate Prisma Client
+        run: |
+          cd packages/prisma
+          pnpm db:generate
+
       - name: Build trainer-panel app
         run: |
           cd apps/trainer-panel
@@ -145,6 +155,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Generate Prisma Client
+        run: |
+          cd packages/prisma
+          pnpm db:generate
 
       - name: Build error-dashboard app
         run: |

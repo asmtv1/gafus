@@ -408,7 +408,7 @@ async function getTimeAnalytics(courseId: string) {
   });
 
   // Анализируем временные паттерны
-  userActivities.forEach((activity) => {
+  userActivities.forEach((activity: { createdAt: Date | string }) => {
     const date = new Date(activity.createdAt);
     const dayOfWeek = date.toLocaleDateString("ru-RU", { weekday: "long" });
     const hour = date.getHours();
