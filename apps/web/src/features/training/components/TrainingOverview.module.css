@@ -1,0 +1,25 @@
+/* Стили для Markdown, чтобы задать отступы и форматирование */
+.markdownContent p {
+  margin-bottom: 1em;
+}
+
+.markdownContent ul,
+.markdownContent ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.markdownContent li {
+  margin-bottom: 0.5em;
+}
+
+.markdownContent h1,
+.markdownContent h2,
+.markdownContent h3,
+.markdownContent h4,
+.markdownContent h5,
+.markdownContent h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: bold;
+}

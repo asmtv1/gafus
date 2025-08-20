@@ -1,0 +1,59 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  align-content: space-around;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.accordionItem {
+  margin-bottom: 10px;
+}
+
+.accordionHeader {
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  font-weight: bold;
+  background-color: #7b7070;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.accordionContent {
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-left: 3px solid #ccc;
+  border-radius: 0 0 4px 4px;
+}
+
+.finished {
+  background-color: #00ff4c; /* светло-красный фон */
+  color: #a19194; /* акцентный текст */
+  border: 1px solid #ff5252;
+}
+/* Стили для Markdown, чтобы задать отступы и форматирование */
+.markdownContent p {
+  margin-bottom: 1em;
+}
+
+.markdownContent ul,
+.markdownContent ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.markdownContent li {
+  margin-bottom: 0.5em;
+}
+
+.markdownContent h1,
+.markdownContent h2,
+.markdownContent h3,
+.markdownContent h4,
+.markdownContent h5,
+.markdownContent h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: bold;
+}

@@ -1,0 +1,103 @@
+.container {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: var(--bg-2);
+}
+
+.backButton {
+  background: none;
+  border: none;
+  color: #f0a222;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 100%;
+  letter-spacing: 0px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 101;
+}
+
+.avatar {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.avatarPlaceholder {
+  width: 24px;
+  height: 24px;
+  background-color: #cccccce2;
+  border-radius: 50%;
+}
+
+.profil {
+  display: flex;
+  align-items: center;
+}
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  right: 0%;
+  transform: translateX(-10%) translateY(-8%);
+  background-color: #fff8e5;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  row-gap: 10px;
+  padding: 16px;
+  min-width: 160px;
+  z-index: 100;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  z-index: 99;
+}
+.menuButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: black;
+  text-decoration: none;
+  font-size: 1rem;
+}
+.burgerButton {
+  background: none;
+  border: none;
+  outline: none;
+  z-index: 101;
+}
+.logoutButton {
+  background: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  color: black;
+  text-decoration: none;
+  font-size: 1rem;
+  padding: 0;
+}
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

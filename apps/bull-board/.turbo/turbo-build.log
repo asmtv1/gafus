@@ -1,0 +1,5 @@
+
+
+> @gafus/bull-board@0.1.0 build /Users/asmtv1/gafus/apps/bull-board
+> tsc -p tsconfig.json
+

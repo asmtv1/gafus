@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true, // нужно для сборки в монорепо
+    "declaration": true, // генерировать .d.ts
+    "declarationMap": true, // полезно при отладке типов
+    "emitDeclarationOnly": true, // не генерировать JS
+    "outDir": "dist", // декларации будут в dist
+    "rootDir": "src", // исходники в src
+    /* пути и алиасы наследуются из корневого tsconfig */
+    "skipLibCheck": true, // ускоряет сборку
+    "typeRoots": ["../../node_modules/@types"] // явно указываем где искать типы
+  },
+  "include": ["src"]
+}

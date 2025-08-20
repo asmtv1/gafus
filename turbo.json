@@ -1,0 +1,80 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "pnpm-lock.yaml",
+    ".env",
+    ".env.local",
+    ".env.development",
+    ".env.production"
+  ],
+  "globalEnv": ["NODE_ENV", "DATABASE_URL", "NEXT_RUNTIME", "NEXT_PUBLIC_APP_URL", "CI"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build", "prisma:generate"],
+      "outputs": [".next/**", "dist/**", "build/**", "coverage/**"],
+      "inputs": [
+        "src/**",
+        "public/**",
+        "package.json",
+        "tsconfig*.json",
+        "next.config.*",
+        "postcss.config.*",
+        "tailwind.config.*",
+        "prisma/**"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["prisma:generate"],
+      "inputs": ["src/**", "public/**", "package.json", "tsconfig*.json", "next.config.*"]
+    },
+    "lint": {
+      "outputs": [],
+      "inputs": [
+        "**/*.{js,ts,tsx,mjs,cjs}",
+        "eslint.config.*",
+        ".eslintrc.*",
+        "tsconfig*.json",
+        "package.json"
+      ]
+    },
+    "lint:fix": {
+      "outputs": [],
+      "inputs": [
+        "**/*.{js,ts,tsx,mjs,cjs}",
+        "eslint.config.*",
+        ".eslintrc.*",
+        "tsconfig*.json",
+        "package.json"
+      ]
+    },
+    "typecheck": {
+      "outputs": [],
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "types/**", "tsconfig*.json", "package.json"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**", "junit.xml"],
+      "inputs": [
+        "src/**",
+        "tests/**",
+        "test/**",
+        "**/*.{test,spec}.{js,ts,tsx}",
+        "vitest.config.*",
+        "jest.config.*",
+        "package.json"
+      ]
+    },
+    "start": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["build"]
+    },
+    "prisma:generate": {
+      "outputs": ["../../node_modules/.prisma/**"],
+      "inputs": ["prisma/schema.prisma", "package.json"]
+    }
+  }
+}

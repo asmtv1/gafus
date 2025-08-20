@@ -1,0 +1,39 @@
+.item {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background-color: #f4f4f4;
+  border-radius: 8px;
+}
+.inprogress {
+  background-color: #c1d623;
+}
+.completed {
+  background-color: #23d62a;
+  border-left: 4px solid #23d62a;
+  transition: background-color 0.3s ease;
+}
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.day {
+  font-weight: 600;
+}
+.link {
+  display: flex;
+  justify-content: space-around;
+  padding: 1rem;
+  text-decoration: none;
+  color: #333;
+  background-color: #f4f4f4;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.link:hover {
+  background-color: #e0e0e0;
+}

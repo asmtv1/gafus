@@ -1,0 +1,43 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* Базовые */
+    "target": "ES2022",
+    "moduleResolution": "node",
+    "module": "esnext",
+    "jsx": "preserve",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+
+    /* emit / декларации */
+    "declaration": true, // генерировать .d.ts
+    "declarationMap": true,
+    "emitDeclarationOnly": true, // только декларации (для .js можно убрать, если нужен полный emit)
+    "outDir": "dist", // куда складывать результирующие файлы
+
+    /* инкрементальный билд */
+    "incremental": true,
+    "composite": false, // если не используете project references, можно оставить false
+
+    /* Типы */
+    "typeRoots": ["../../node_modules/@types", "../../packages/types/src"],
+    "skipLibCheck": true,
+
+    /* Пути для пакета auth */
+    "baseUrl": ".",
+    "paths": {
+      "@gafus/types": ["../../packages/types/src/index.ts"],
+      "@gafus/types/*": ["../../packages/types/src/*"],
+      "@gafus/prisma": ["../../packages/prisma/src/index.ts"],
+      "@gafus/prisma/*": ["../../packages/prisma/src/*"]
+    },
+
+    /* Исключаем проблемные типы */
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

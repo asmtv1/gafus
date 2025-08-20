@@ -1,0 +1,23 @@
+.container {
+  background-color: var(--bg-1);
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px 16px 0px 16px;
+  gap: 14px;
+}
+
+
+.title {
+  color: #352e2e;
+  font-family: var(--font-impact), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 58px;
+  line-height: 100%;
+  letter-spacing: 0px;
+  text-align: center;
+  margin-top: 15px;
+}

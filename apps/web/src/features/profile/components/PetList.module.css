@@ -1,0 +1,21 @@
+.dog_avatar {
+  width: 80px;
+  border-radius: 50%;
+}
+.dog_list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.dog_item {
+  display: flex;
+}
+.dog_actions {
+  display: flex;
+  gap: 1.5rem;
+  flex-direction: column;
+  margin-left: 2rem;
+}
+.dog_info {
+  margin-left: 1rem;
+}

@@ -1,0 +1,12 @@
+.next
+dist
+build
+coverage
+.turbo
+node_modules
+packages/prisma/migrations
+packages/public-assets/public
+apps/**/public
+apps/**/logs
+
+

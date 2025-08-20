@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    /* пути и алиасы наследуются из корневого tsconfig */
+    "typeRoots": ["../../node_modules/@types"],
+    "outDir": "dist",
+    "noEmit": false
+  },
+  "include": ["src"]
+}

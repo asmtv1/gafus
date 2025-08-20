@@ -1,0 +1,13 @@
+.form {
+  display: flex;
+  gap: 0.5rem;
+  flex-direction: column;
+}
+.form_control {
+  display: flex;
+  flex-direction: column;
+}
+.form_button {
+  display: flex;
+  gap: 10px;
+}

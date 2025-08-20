@@ -1,0 +1,60 @@
+{
+  "name": "@gafus/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "analyze": "node scripts/analyze-bundle.js",
+    "analyze:build": "ANALYZE=true npm run build",
+    "build": "next build",
+    "dev": "PORT=3002 next dev",
+    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
+    "start": "PORT=3002 next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ducanh2912/next-pwa": "10.2.9",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
+    "@gafus/csrf": "workspace:*",
+    "@gafus/error-handling": "workspace:*",
+    "@gafus/prisma": "workspace:*",
+    "@gafus/swr": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "@gafus/webpush": "workspace:*",
+    "@mui/icons-material": "7.1.0",
+    "@mui/material": "7.1.0",
+    "bcrypt": "6.0.0",
+    "browser-image-compression": "2.0.2",
+    "imagemin": "9.0.1",
+    "imagemin-webp": "8.0.0",
+    "libphonenumber-js": "1.12.8",
+    "next": "15.3.5",
+    "next-auth": "4.24.11",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "7.58.1",
+    "react-markdown": "10.1.0",
+    "sharp": "0.34.3",
+    "workbox-cacheable-response": "7.3.0",
+    "workbox-core": "7.3.0",
+    "workbox-expiration": "7.3.0",
+    "workbox-precaching": "7.3.0",
+    "workbox-routing": "7.3.0",
+    "workbox-strategies": "7.3.0",
+    "zustand": "5.0.7"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "3.3.1",
+    "@next/bundle-analyzer": "15.3.4",
+    "@types/bcrypt": "5.0.2",
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.7",
+    "eslint-config-next": "15.4.5"
+  },
+  "turbo": {
+    "outputs": [
+      ".next/**"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Тест загрузки чанков</title>
+  </head>
+  <body>
+    <h1>Тест загрузки чанков</h1>
+    <p>Этот файл поможет диагностировать проблемы с загрузкой JavaScript чанков.</p>
+
+    <div id="status">Проверяем загрузку...</div>
+
+    <script>
+      // Проверяем загрузку основных чанков
+      const chunks = [
+        "http://errors.gafus.localhost/_next/static/chunks/app/login/page-2423925686df1164.js",
+        "http://localhost:3002/_next/static/chunks/app/login/page-2423925686df1164.js",
+      ];
+
+      chunks.forEach((chunk) => {
+        fetch(chunk)
+          .then((response) => {
+            if (response.ok) {
+              console.log(`✅ ${chunk} загружен успешно`);
+              document.getElementById("status").innerHTML += `<br>✅ ${chunk} загружен успешно`;
+            } else {
+              console.log(`❌ ${chunk} не найден: ${response.status}`);
+              document.getElementById("status").innerHTML +=
+                `<br>❌ ${chunk} не найден: ${response.status}`;
+            }
+          })
+          .catch((error) => {
+            console.log(`🚨 ${chunk} ошибка загрузки:`, error);
+            document.getElementById("status").innerHTML +=
+              `<br>🚨 ${chunk} ошибка загрузки: ${error.message}`;
+          });
+      });
+    </script>
+  </body>
+</html>

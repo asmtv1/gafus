@@ -1,0 +1,91 @@
+.stepContainer {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stepHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.stepTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.stepInfo {
+  margin-bottom: 24px;
+}
+
+.stepInfo p {
+  margin-bottom: 8px;
+  color: #666;
+}
+
+.stepActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btnPrimary {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.btnPrimary:hover {
+  background-color: #0056b3;
+}
+
+.btnSecondary {
+  background-color: #ffc107;
+  color: #212529;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.btnSecondary:hover {
+  background-color: #e0a800;
+}
+
+.btnOutline {
+  background-color: transparent;
+  color: #6c757d;
+  border: 1px solid #6c757d;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.btnOutline:hover {
+  background-color: #6c757d;
+  color: white;
+}
+
+.timerDisplay {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}

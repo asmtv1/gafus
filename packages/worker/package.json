@@ -1,0 +1,36 @@
+{
+  "name": "@gafus/worker",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prebuild": "pnpm clean",
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "dev": "tsx --tsconfig tsconfig.json --require tsconfig-paths/register src/push-worker.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bullmq": "5.2.0",
+    "ioredis": "5.3.2",
+    "next": "15.3.5",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "web-push": "3.6.6"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.7",
+    "@types/web-push": "3.6.4",
+    "rimraf": "5.0.1",
+    "tsx": "4.19.0",
+    "typescript": "5.8.3"
+  },
+  "peerDependencies": {
+    "next": "15.3.5",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "@gafus/swr",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prebuild": "pnpm clean",
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "15.3.5",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "swr": "2.3.5"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.7",
+    "rimraf": "5.0.1",
+    "typescript": "5.8.3"
+  },
+  "peerDependencies": {
+    "next": "15.3.5",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}

@@ -1,0 +1,149 @@
+.link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.courseCard {
+  list-style: none;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.courseCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.imageContainer {
+  width: 100%;
+  max-width: 350px;
+  aspect-ratio: 16 / 9;
+  height: 200px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #009dcf;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease-in-out;
+}
+
+.courseCard:hover .image {
+  transform: scale(1.05);
+}
+
+.privateBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 0, 0, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.content {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  margin: 0 0 10px 0;
+  font-size: 1.3rem;
+  color: #333;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.description {
+  margin: 0 0 15px 0;
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+}
+
+.duration {
+  color: #666;
+}
+
+.status {
+  font-weight: 500;
+}
+
+.notStarted {
+  color: #666;
+}
+
+.inProgress {
+  color: #009dcf;
+}
+
+.completed {
+  color: #28a745;
+}
+
+.date {
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.reviews {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.author {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #eee;
+  padding: 12px 20px;
+  color: #37373d;
+  font-size: 0.9rem;
+}
+
+.authorlink {
+  color: #009dcf;
+  text-decoration: none;
+}
+
+.authorlink:hover {
+  text-decoration: underline;
+}

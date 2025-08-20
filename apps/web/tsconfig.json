@@ -1,0 +1,57 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* Базовые */
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "jsx": "preserve",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "incremental": true,
+    /* Пути и алиасы для web */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@features/*": ["./src/features/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@widgets/*": ["./src/widgets/*"],
+      "@gafus/csrf": ["../../packages/csrf/src/index.ts"],
+      "@gafus/csrf/*": ["../../packages/csrf/src/*"],
+      "@gafus/auth": ["../../packages/auth/src/index.ts"],
+      "@gafus/auth/*": ["../../packages/auth/src/*"],
+      "@gafus/prisma": ["../../packages/prisma/src/index.ts"],
+      "@gafus/prisma/*": ["../../packages/prisma/src/*"],
+      "@gafus/types": ["../../packages/types/src/index.ts"],
+      "@gafus/types/*": ["../../packages/types/src/*"],
+      "@gafus/error-handling": ["../../packages/error-handling/src/index.ts"],
+      "@gafus/error-handling/*": ["../../packages/error-handling/src/*"],
+      "@gafus/swr": ["../../packages/swr/src/index.ts"],
+      "@gafus/swr/*": ["../../packages/swr/src/*"],
+      "@gafus/webpush": ["../../packages/webpush/src/index.ts"],
+      "@gafus/webpush/*": ["../../packages/webpush/src/*"]
+    },
+    /* Типы */
+    "typeRoots": ["./types", "../../node_modules/@types"],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../../packages/webpush/src/db.ts",
+    "../../packages/webpush/src/index.ts",
+    "next-env.d.ts",
+    "src/utils/getCurrentUserId.ts",
+    "src/utils/push.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

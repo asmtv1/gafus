@@ -1,0 +1,199 @@
+.container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 240px;
+  background-color: #f0f0f0;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-right: 1px solid #ddd;
+}
+
+.button {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border: none;
+  background-color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #333;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.button:hover {
+  background-color: #e0e0e0;
+}
+
+.content {
+  flex: 1;
+  padding: 2rem;
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.avatarPlaceholder {
+  width: 32px;
+  height: 32px;
+  background-color: #cccccce2;
+  border-radius: 50%;
+}
+.userName {
+  color: #026ed2;
+
+  margin-right: 10px;
+}
+.profil {
+  display: flex;
+  align-items: center;
+}
+.profilWrapper {
+  display: flex;
+  gap: 0.5rem;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: flex-end;
+}
+.courseList {
+  list-style: none;
+  padding: 0;
+}
+
+.courseItem {
+  margin-bottom: 12px;
+}
+
+.courseLink {
+  color: #0070f3;
+  text-decoration: none;
+}
+
+.courseLink:hover {
+  text-decoration: underline;
+}
+
+/* Стили для статистики */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.statCard {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.statCard h3 {
+  margin: 0 0 0.5rem 0;
+  color: #666;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.statNumber {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #0070f3;
+  margin: 0;
+}
+
+.coursesList {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.courseCard {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.courseHeader {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.courseImage {
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.courseInfo h3 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+}
+
+.courseInfo p {
+  margin: 0.25rem 0;
+  color: #666;
+}
+
+.courseStats {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.statItem span {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.statItem strong {
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.daysList {
+  margin-top: 1rem;
+}
+
+.daysList h4 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+}
+
+.dayItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 0.25rem;
+}
+
+.dayItem strong {
+  color: #333;
+}
+
+.dayItem span {
+  color: #666;
+  font-size: 0.9rem;
+}

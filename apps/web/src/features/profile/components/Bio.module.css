@@ -1,0 +1,190 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: #ffffff;
+  border-radius: 16px;
+  position: relative;
+}
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.container h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+  text-align: center;
+}
+
+.container p {
+  font-size: 1rem;
+  color: #555;
+  margin: 0.3rem 0;
+  padding: 0.8rem 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.container div {
+  font-size: 0.95rem;
+  color: #000000;
+  background: #fff3cd;
+  border-radius: 8px;
+  text-align: center;
+  font-style: italic;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.container button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+  text-decoration: none;
+  display: inline-block;
+  min-width: 200px;
+}
+
+.container button:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.container button:active {
+  transform: translateY(0);
+}
+
+.addpet {
+  background: #28a745 !important;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2) !important;
+  margin-top: 0.5rem;
+}
+
+.addpet:hover {
+  background: #218838 !important;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3) !important;
+}
+
+.roleBadge {
+  background: #dc3545;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: inline-block;
+  margin: 0.3rem 0;
+}
+
+.roleBadge.admin {
+  background: #d10015;
+}
+
+.roleBadge.moderator {
+  background: #fd7e14;
+}
+
+.roleBadge.trainer {
+  background: #6f42c1;
+}
+
+.roleBadge.premium {
+  background: #ffc107;
+  color: #212529;
+}
+
+.emptyNotice {
+  background: #f8f9fa;
+  color: #6c757d;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px dashed #dee2e6;
+  text-align: center;
+  font-style: italic;
+  margin: 0.5rem 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.diplomasSection {
+  width: 100%;
+  margin-top: 1.5rem;
+  padding: 1.2rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.diplomasSection h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  text-align: center;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 0.5rem;
+}
+
+.diplomasSection ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.diplomasSection li {
+  background: white;
+  padding: 0.8rem;
+  margin: 0.4rem 0;
+  border-radius: 8px;
+  border-left: 3px solid #007bff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.diplomasSection li:hover {
+  transform: translateX(3px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+
+  .container h1 {
+    font-size: 1.8rem;
+  }
+
+  .container p {
+    font-size: 0.95rem;
+  }
+
+  .container button {
+    width: 100%;
+    text-align: center;
+  }
+}

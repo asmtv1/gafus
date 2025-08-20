@@ -1,0 +1,14 @@
+{
+  "shared/stores/offlineStore.ts -> @shared/lib/training/updateUserStepStatus": {
+    "id": "shared/stores/offlineStore.ts -> @shared/lib/training/updateUserStepStatus",
+    "files": []
+  },
+  "shared/stores/stepStore.ts -> @shared/stores/timerStore": {
+    "id": "shared/stores/stepStore.ts -> @shared/stores/timerStore",
+    "files": []
+  },
+  "shared/stores/timerStore.ts -> @shared/stores/offlineStore": {
+    "id": "shared/stores/timerStore.ts -> @shared/stores/offlineStore",
+    "files": []
+  }
+}

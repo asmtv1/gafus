@@ -1,0 +1,28 @@
+:root {
+  --bg-1: #dad3c1;
+  --bg-2: #636128;
+  /* Фоновые переменные для шрифтов */
+  --font-impact: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  /* next/font монтирует .variable с именем --font-montserrat; создаем безопасный стек */
+  --font-sans-fallback: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* Альтернативные имена (если удобнее) */
+:root {
+  --background-primary: var(--bg-1);
+  --background-secondary: var(--bg-2);
+}
+
+/* База: Montserrat глобально (если переменная подключена), иначе системный санс */
+html,
+body {
+  font-family: var(--font-montserrat, var(--font-sans-fallback));
+}
+
+/* Утилити-классы */
+.font-impact {
+  font-family: var(--font-impact) !important;
+}
+.font-montserrat {
+  font-family: var(--font-montserrat, var(--font-sans-fallback)) !important;
+}

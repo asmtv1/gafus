@@ -1,0 +1,23 @@
+{
+  "name": "@gafus/bull-board",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "PORT=3004 tsx bull-board.ts",
+    "start": "tsx bull-board.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bull-board/api": "^6.10.1",
+    "@bull-board/express": "^6.10.1",
+    "@gafus/queues": "workspace:*",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@gafus/queues": "workspace:*",
+    "@types/express": "^4.17.21",
+    "tsx": "^4.20.3"
+  }
+}

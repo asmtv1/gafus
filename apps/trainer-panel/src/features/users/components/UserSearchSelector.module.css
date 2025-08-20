@@ -1,0 +1,51 @@
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.label {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: rgb(255, 255, 255);
+}
+
+.root {
+  background-color: white;
+  border-radius: 4px;
+  color: black;
+}
+
+.input {
+  background-color: white;
+  color: black;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 4px;
+}
+.textField {
+  background-color: white;
+}
+.selectedUsersBlock {
+  background-color: white;
+  padding: 16px;
+  border-radius: 12px;
+  margin-top: 16px;
+}
+
+.selectedUsersBlockLabel {
+  color: rgb(0, 0, 0);
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.emptyText {
+  color: #000000;
+  font-size: 14px;
+}
+
+.chip {
+  margin-right: 8px;
+  margin-top: 8px;
+}

@@ -1,0 +1,13 @@
+
+
+> @gafus/types@0.1.0 prebuild /Users/asmtv1/gafus/packages/types
+> pnpm clean
+
+
+> @gafus/types@0.1.0 clean /Users/asmtv1/gafus/packages/types
+> rimraf dist
+
+
+> @gafus/types@0.1.0 build /Users/asmtv1/gafus/packages/types
+> tsc -p tsconfig.json
+

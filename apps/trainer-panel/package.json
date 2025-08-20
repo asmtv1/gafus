@@ -1,0 +1,46 @@
+{
+  "name": "@gafus/trainer-panel",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "PORT=3001 next dev",
+    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
+    "start": "PORT=3001 next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
+    "@gafus/auth": "workspace:*",
+    "@gafus/csrf": "workspace:*",
+    "@gafus/error-handling": "workspace:*",
+    "@gafus/prisma": "workspace:*",
+    "@gafus/swr": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "@mui/icons-material": "7.1.0",
+    "@mui/material": "7.1.0",
+    "@mui/x-data-grid": "7.8.0",
+    "@mui/x-date-pickers": "7.8.0",
+    "date-fns": "3.6.0",
+    "next": "15.3.5",
+    "next-auth": "4.24.11",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "7.58.1",
+    "react-markdown": "10.1.0",
+    "react-markdown-editor-lite": "^1.3.4",
+    "recharts": "2.12.0",
+    "zustand": "5.0.7"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "3.3.1",
+    "@types/node": "20.4.8",
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.7",
+    "eslint": "9.32.0",
+    "eslint-config-next": "15.4.5",
+    "typescript": "5.8.3"
+  }
+}

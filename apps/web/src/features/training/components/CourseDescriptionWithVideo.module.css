@@ -1,0 +1,74 @@
+.videoContainer {
+  margin: 2rem 0;
+  text-align: center;
+}
+
+.videoWrapper {
+  position: relative;
+  padding-bottom: 56.25%; /* 16:9 */
+  padding-top: 25px;
+  height: 0;
+  overflow: hidden;
+}
+
+/* Для вертикального видео (9:16) */
+.verticalPlayer {
+  padding-bottom: 107.78%; /* 16:9 -> 9:16 - меняем padding-bottom */
+  /* Ограничения */
+  max-height: 160px; /* например, максимум 360px высоты */
+  max-width: 64%; /* по пропорциям */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Для горизонтального видео (16:9) */
+.horizontalPlayer {
+  /* Используем стандартные пропорции 16:9 */
+  padding-bottom: 56.25%;
+}
+
+.videoIframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  border: none;
+}
+
+.details {
+  margin-bottom: 1.5rem;
+}
+
+.summary {
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdownContent p {
+  margin-bottom: 1em;
+}
+
+.markdownContent ul,
+.markdownContent ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.markdownContent li {
+  margin-bottom: 0.5em;
+}
+
+.markdownContent h1,
+.markdownContent h2,
+.markdownContent h3,
+.markdownContent h4,
+.markdownContent h5,
+.markdownContent h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: bold;
+}

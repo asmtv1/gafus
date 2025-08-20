@@ -1,0 +1,181 @@
+.container {
+  background-color: var(--bg-1);
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px 16px 0px 16px;
+  gap: 14px;
+}
+
+.pawContainer {
+  color: var(--bg-2);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  gap: 8px;
+  width: 100%;
+}
+.pawText {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 100%;
+  letter-spacing: 0px;
+  text-align: center;
+}
+.paw {
+  width: 140px;
+  height: 135px;
+  position: relative;
+  left: 13px;
+  top: 10px;
+}
+.title {
+  color: var(--bg-2);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 110px;
+  line-height: 100%;
+  letter-spacing: 0px;
+  text-align: center;
+  /*margin: -6px 0 8px;*/
+}
+.logo {
+  height: auto;
+  /*margin: -46px auto 16px;*/
+  display: block;
+}
+.subtitle {
+  color: var(--bg-2);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-size: 40px;
+  line-height: 1.3;
+  text-align: left;
+  max-width: 320px;
+}
+p.subtitle {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 100%;
+  letter-spacing: 0px;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+}
+.input {
+  background-color: var(--bg-1);
+  width: 250px;
+  height: 29px;
+  opacity: 1;
+  border: 2px solid #636128;
+  border-radius: 5px;
+  padding-left: 10px;
+}
+.errorText {
+  font-size: 12px;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  line-height: 1.2;
+  margin-top: 4px;
+  color: red;
+}
+/* Сохраняем фон при фокусе/вводе */
+.input:focus,
+.input:active {
+  background-color: var(--bg-1);
+  outline: none;
+}
+
+/* Чиним фон при автозаполнении Chrome/Safari */
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px var(--bg-1) inset;
+  box-shadow: 0 0 0px 1000px var(--bg-1) inset;
+  -webkit-text-fill-color: inherit;
+  caret-color: inherit;
+}
+.button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  width: 150px;
+  height: 150px;
+}
+.forgotButton {
+  background-color: transparent;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--bg-2);
+}
+.registerButton {
+  background-color: transparent;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--bg-2);
+}
+
+.buttonsContainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+}
+.paw_absolute {
+  position: absolute;
+  top: 18rem;
+  left: 20.5rem;
+  width: 87px;
+  height: 84px;
+  rotate: -76deg;
+}
+/* responsive skeleton */
+@media (min-width: 481px) and (max-width: 768px) {
+  .paw_absolute {
+    display: none;
+  }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  .paw_absolute {
+    display: none;
+  }
+}
+@media (min-width: 1025px) and (max-width: 1439px) {
+  .paw_absolute {
+    display: none;
+  }
+}
+@media (min-width: 1440px) {
+  .paw_absolute {
+    display: none;
+  }
+}
+
+/* orientation */
+@media (orientation: portrait) {
+}
+@media (orientation: landscape) {
+}
+
+/* color scheme */
+@media (prefers-color-scheme: dark) {
+}
+
+/* motion */
+@media (prefers-reduced-motion: reduce) {
+}
+
+/* print */
+@media print {
+}

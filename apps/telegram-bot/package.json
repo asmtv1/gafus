@@ -1,0 +1,21 @@
+{
+  "name": "@gafus/telegram-bot",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/bot.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx bot.ts",
+    "start": "tsx bot.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/queues": "workspace:*",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.1",
+    "tsx": "^4.20.3"
+  }
+}
