@@ -25,7 +25,10 @@ export default async function EditCoursePage({ params }: PageProps) {
   });
 
   const days = await getVisibleDays();
-  const formattedDays = days.map((day) => ({ id: String(day.id), title: day.title }));
+  const formattedDays = days.map((day: { id: string | number; title: string }) => ({
+    id: String(day.id),
+    title: day.title,
+  }));
 
   if (!course) {
     return (

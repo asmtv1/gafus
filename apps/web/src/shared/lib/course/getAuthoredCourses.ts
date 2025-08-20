@@ -138,9 +138,9 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
               },
             });
 
-            const stepProgressMap = new Map(
-              userSteps.map((userStep) => [userStep.stepOnDayId, userStep.status]),
-            );
+                         const stepProgressMap = new Map(
+               userSteps.map((userStep: { stepOnDayId: string; status: string }) => [userStep.stepOnDayId, userStep.status]),
+             );
 
             const stepProgress = training.dayOnCourse.day.stepLinks.map(
               (link: { id: string; order: number; step: { title: string } }) => {

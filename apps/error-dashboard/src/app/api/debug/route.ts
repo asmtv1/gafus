@@ -13,7 +13,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       totalErrors: stats,
-      errors: errors.map((error) => ({
+      errors: errors.map((error: { id: string; message: string; appName: string; environment: string; createdAt: Date; resolved: boolean; url: string | null; userAgent: string | null }) => ({
         id: error.id,
         message: error.message,
         appName: error.appName,
