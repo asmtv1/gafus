@@ -10,7 +10,12 @@ interface Props {
   videoUrl?: string | null;
 }
 
-const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({ description, videoUrl }: Props) {
+const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
+  description,
+  videoUrl,
+}: Props) {
+  const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [videoUrl]);
+
   if (!videoUrl)
     return (
       <details className={styles.details}>
@@ -19,8 +24,6 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({ de
       </details>
     );
 
-  const { embedUrl, isShorts } = useMemo(() => getEmbeddedVideoInfo(videoUrl), [videoUrl]);
-
   return (
     <details className={styles.details}>
       <summary className={styles.summary}>Описание курса</summary>
@@ -28,20 +31,22 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({ de
         <ReactMarkdown>{description ?? ""}</ReactMarkdown>
       </div>
 
-      <div className={styles.videoContainer}>
-        <h3>Видео презентация курса:</h3>
-        <div
-          className={`${styles.videoWrapper} ${isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
-        >
-          <iframe
-            src={embedUrl}
-            title="Видео презентация курса"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className={styles.videoIframe}
-          />
+      {videoInfo && (
+        <div className={styles.videoContainer}>
+          <h3>Видео презентация курса:</h3>
+          <div
+            className={`${styles.videoWrapper} ${videoInfo.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
+          >
+            <iframe
+              src={videoInfo.embedUrl}
+              title="Видео презентация курса"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className={styles.videoIframe}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </details>
   );
 });
