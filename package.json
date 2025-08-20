@@ -10,6 +10,7 @@
     "analyze:web": "pnpm --filter @gafus/web analyze",
     "build": "turbo run build",
     "build:all": "pnpm db:generate && pnpm -r run build",
+    "build:ci": "./scripts/build-local.sh",
     "check:architecture": "node scripts/check-circular-deps.js",
     "check:builds": "node scripts/check-builds.js",
     "check:ports": "node scripts/check-ports.js",

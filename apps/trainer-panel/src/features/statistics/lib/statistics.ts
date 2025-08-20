@@ -219,15 +219,20 @@ export async function getDetailedCourseStatistics(
 
   // Аналитика по дням
   const dayAnalytics = await Promise.all(
-    course.dayLinks.map(async (dayLink) => {
+    course.dayLinks.map(async (dayLink: unknown) => {
+      const dl = dayLink as {
+        id: string;
+        day: { id: string; title: string; stepLinks: { length: number }[] };
+        order: number;
+      };
       const dayTrainings = userTrainings.filter(
         (ut: {
           dayOnCourseId: string;
           steps: { status: string; createdAt: Date; updatedAt: Date }[];
-        }) => ut.dayOnCourseId === dayLink.id,
+        }) => ut.dayOnCourseId === dl.id,
       );
 
-      const totalSteps = dayLink.day.stepLinks.length;
+      const totalSteps = dl.day.stepLinks.length;
       const completedSteps = dayTrainings.reduce(
         (sum: number, training: { steps: { status: string }[] }) => {
           return (
@@ -268,9 +273,9 @@ export async function getDetailedCourseStatistics(
       const difficultyScore = Math.max(0, 100 - completionRate);
 
       return {
-        dayId: dayLink.day.id,
-        dayTitle: dayLink.day.title,
-        dayOrder: dayLink.order,
+        dayId: dl.day.id,
+        dayTitle: dl.day.title,
+        dayOrder: dl.order,
         totalSteps,
         completedSteps,
         completionRate: Math.round(completionRate),

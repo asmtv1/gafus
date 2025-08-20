@@ -66,7 +66,10 @@ export async function updateCourseRatingAction(
 
     const avgRating =
       reviews.length > 0
-        ? reviews.reduce((sum, review) => sum + (review.rating || 0), 0) / reviews.length
+        ? reviews.reduce(
+            (sum: number, review: { rating: number | null }) => sum + (review.rating || 0),
+            0,
+          ) / reviews.length
         : null;
 
     await prisma.course.update({
