@@ -3,7 +3,7 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 
-import type { CourseAccess, CourseReview, FavoriteCourse } from "@gafus/prisma";
+import type { Course, CourseAccess, CourseReview, FavoriteCourse } from "@gafus/prisma";
 
 import { getCurrentUserId } from "@/utils";
 
@@ -68,7 +68,15 @@ export async function getFavoritesCourses(): Promise<{
       },
     });
 
-    const data: CourseWithUserData[] = allCourses.map((course) => {
+    const data: CourseWithUserData[] = allCourses.map(
+      (
+        course: Course & {
+          author: { username: string };
+          reviews: CourseReview[];
+          favoritedBy: FavoriteCourse[];
+          access: CourseAccess[];
+        },
+      ) => {
         const userCourse = userCourses.find((uc) => uc.courseId === course.id);
 
         return {
