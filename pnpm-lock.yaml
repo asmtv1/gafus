@@ -348,6 +348,9 @@ importers:
       '@gafus/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma
+      '@gafus/queues':
+        specifier: workspace:*
+        version: link:../../packages/queues
       '@gafus/swr':
         specifier: workspace:*
         version: link:../../packages/swr

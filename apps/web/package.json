@@ -19,6 +19,7 @@
     "@gafus/csrf": "workspace:*",
     "@gafus/error-handling": "workspace:*",
     "@gafus/prisma": "workspace:*",
+    "@gafus/queues": "workspace:*",
     "@gafus/swr": "workspace:*",
     "@gafus/types": "workspace:*",
     "@gafus/webpush": "workspace:*",
