@@ -97,7 +97,7 @@ export async function getUserProgress(
     const userTrainingMap = new Map(userTrainings.map((ut: { dayOnCourseId: string }) => [ut.dayOnCourseId, ut]));
 
     // Собираем детальный прогресс по дням
-    const daysProgress = courseDays.map((dayLink) => {
+    const daysProgress = courseDays.map((dayLink: { id: string; order: number; day: { title: string; stepLinks: { id: string; order: number; step: { title: string } }[] } }) => {
       const userTraining = userTrainingMap.get(dayLink.id);
 
       // Статус дня формируется следующим образом:
@@ -112,7 +112,7 @@ export async function getUserProgress(
         : TrainingStatus.NOT_STARTED;
 
       // Собираем прогресс по шагам дня
-      const stepsProgress = dayLink.day.stepLinks.map((stepLink) => {
+      const stepsProgress = dayLink.day.stepLinks.map((stepLink: { id: string; order: number; step: { title: string } }) => {
         let stepStatus = TrainingStatus.NOT_STARTED;
         let stepCompletedAt: Date | null = null;
 

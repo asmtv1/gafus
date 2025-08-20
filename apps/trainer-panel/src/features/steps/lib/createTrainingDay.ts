@@ -24,7 +24,7 @@ export async function createTrainingDay(data: {
       equipment: data.equipment,
       author: { connect: { id: authorId } },
       stepLinks: {
-        create: data.stepIds.map((stepId, index) => ({
+        create: data.stepIds.map((stepId: string, index: number) => ({
           step: { connect: { id: stepId } },
           order: index,
         })),

@@ -66,13 +66,21 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
       ...user,
       diplomas: user.diplomas
         .filter((d): d is Required<typeof d> => d.issuedAt !== null)
-        .map((d: { id: string | number; title: string; issuedBy: string; issuedAt: Date; url?: string | null }) => ({
-          id: String(d.id),
-          title: d.title,
-          issuedBy: d.issuedBy,
-          issuedAt: d.issuedAt!,
-          ...(d.url ? { url: d.url } : {}),
-        })),
+        .map(
+          (d: {
+            id: string | number;
+            title: string;
+            issuedBy: string | null;
+            issuedAt: Date | null;
+            url?: string | null;
+          }) => ({
+            id: String(d.id),
+            title: d.title,
+            issuedBy: d.issuedBy!,
+            issuedAt: d.issuedAt!,
+            ...(d.url ? { url: d.url } : {}),
+          }),
+        ),
       pets: user.pets.map((pet) => ({
         id: String(pet.id),
         name: pet.name,
@@ -86,13 +94,21 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
         ownerId: String(pet.ownerId),
         awards: pet.awards
           .filter((a): a is Required<typeof a> => a.date !== null)
-          .map((a: { id: string | number; title: string; event: string; date: Date; rank: string }) => ({
-            id: String(a.id),
-            title: a.title,
-            event: a.event,
-            date: a.date!,
-            rank: a.rank,
-          })),
+          .map(
+            (a: {
+              id: string | number;
+              title: string;
+              event: string | null;
+              date: Date | null;
+              rank: string | null;
+            }) => ({
+              id: String(a.id),
+              title: a.title,
+              event: a.event!,
+              date: a.date!,
+              rank: a.rank!,
+            }),
+          ),
       })),
     };
 

@@ -45,26 +45,35 @@ export async function getStepStatistics(userId: string, isElevated: boolean) {
     },
   });
 
-  const stats: StepStats[] = steps.map((step: { id: string; title: string; durationSec: number; stepLinks: { dayId: string; day: { dayLinks: { courseId: string }[] } }[] }) => {
-    const dayIds = new Set(step.stepLinks.map((sl: { dayId: string }) => sl.dayId));
-    const courseIds = new Set(
-      step.stepLinks.flatMap((sl) => sl.day.dayLinks.map((dl) => dl.courseId)),
-    );
+  const stats: StepStats[] = steps.map(
+    (step: {
+      id: string;
+      title: string;
+      durationSec: number;
+      stepLinks: { dayId: string; day: { dayLinks: { courseId: string }[] } }[];
+    }) => {
+      const dayIds = new Set(step.stepLinks.map((sl: { dayId: string }) => sl.dayId));
+      const courseIds = new Set(
+        step.stepLinks.flatMap((sl: { day: { dayLinks: { courseId: string }[] } }) =>
+          sl.day.dayLinks.map((dl: { courseId: string }) => dl.courseId),
+        ),
+      );
 
-    // Пользовательская статистика по шагу через UserStep
-    // Для упрощения вычислим позже на детальной странице, а здесь дадим заглушки 0
-    return {
-      id: step.id,
-      title: step.title,
-      durationSec: step.durationSec,
-      usedInDaysCount: dayIds.size,
-      usedInCoursesCount: courseIds.size,
-      totalUsers: 0,
-      completedUsers: 0,
-      inProgressUsers: 0,
-      notStartedUsers: 0,
-    };
-  });
+      // Пользовательская статистика по шагу через UserStep
+      // Для упрощения вычислим позже на детальной странице, а здесь дадим заглушки 0
+      return {
+        id: step.id,
+        title: step.title,
+        durationSec: step.durationSec,
+        usedInDaysCount: dayIds.size,
+        usedInCoursesCount: courseIds.size,
+        totalUsers: 0,
+        completedUsers: 0,
+        inProgressUsers: 0,
+        notStartedUsers: 0,
+      };
+    },
+  );
 
   return { steps: stats, totalSteps: stats.length };
 }
@@ -96,16 +105,22 @@ export async function getDetailedStepStatistics(
 
   if (!step) return null;
 
-  const days = step.stepLinks.map((sl) => ({
+  const days = step.stepLinks.map((sl: { day: { id: string; title: string }; order: number }) => ({
     id: sl.day.id,
     title: sl.day.title,
     order: sl.order,
   }));
   const courses = Array.from(
     new Map(
-      step.stepLinks.flatMap((sl) => sl.day.dayLinks.map((dl) => [dl.course.id, dl.course])),
+      step.stepLinks.flatMap(
+        (sl: { day: { dayLinks: { course: { id: string; name: string } }[] } }) =>
+          sl.day.dayLinks.map((dl: { course: { id: string; name: string } }) => [
+            dl.course.id,
+            dl.course,
+          ]),
+      ),
     ).values(),
-  ).map((c) => ({ id: c.id, name: c.name }));
+  ).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }));
 
   // Собираем userSteps по этому шагу
   const userSteps = await prisma.userStep.findMany({
@@ -115,12 +130,18 @@ export async function getDetailedStepStatistics(
     },
   });
 
-  const totalUsers = new Set(userSteps.map((us) => us.userTraining.userId)).size;
+  const totalUsers = new Set(
+    userSteps.map((us: { userTraining: { userId: string } }) => us.userTraining.userId),
+  ).size;
   const completedUsers = new Set(
-    userSteps.filter((us) => us.status === "COMPLETED").map((us) => us.userTraining.userId),
+    userSteps
+      .filter((us: { status: string }) => us.status === "COMPLETED")
+      .map((us: { userTraining: { userId: string } }) => us.userTraining.userId),
   ).size;
   const inProgressUsers = new Set(
-    userSteps.filter((us) => us.status === "IN_PROGRESS").map((us) => us.userTraining.userId),
+    userSteps
+      .filter((us: { status: string }) => us.status === "IN_PROGRESS")
+      .map((us: { userTraining: { userId: string } }) => us.userTraining.userId),
   ).size;
   const notStartedUsers = Math.max(0, totalUsers - completedUsers - inProgressUsers);
 
@@ -153,7 +174,9 @@ export async function getDetailedStepStatistics(
     "Ноябрь",
     "Декабрь",
   ];
-  const activityByMonth: Record<string, number> = Object.fromEntries(months.map((m) => [m, 0]));
+  const activityByMonth: Record<string, number> = Object.fromEntries(
+    months.map((m: string) => [m, 0]),
+  );
 
   let totalCompletionTimeSec = 0;
   let completionCount = 0;
@@ -179,7 +202,7 @@ export async function getDetailedStepStatistics(
     id: step.id,
     title: step.title,
     durationSec: step.durationSec,
-    usedInDaysCount: new Set(step.stepLinks.map((sl) => sl.dayId)).size,
+    usedInDaysCount: new Set(step.stepLinks.map((sl: { dayId: string }) => sl.dayId)).size,
     usedInCoursesCount: courses.length,
     totalUsers,
     completedUsers,

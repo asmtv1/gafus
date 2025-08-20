@@ -38,6 +38,6 @@ export function transliterate(text: string): string {
   return text
     .toLowerCase()
     .split("")
-    .map((char) => cyrillicToLatinMap[char] || char)
+    .map((char: string) => cyrillicToLatinMap[char] || char)
     .join("");
 }

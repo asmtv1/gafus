@@ -22,7 +22,7 @@ export async function updateTrainingDay(data: {
       equipment,
       stepLinks: {
         deleteMany: {},
-        create: stepIds.map((stepId, index) => ({ stepId, order: index })),
+        create: stepIds.map((stepId: string, index: number) => ({ stepId, order: index })),
       },
     },
   });

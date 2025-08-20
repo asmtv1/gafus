@@ -95,7 +95,7 @@ export async function getCoursesWithProgress(): Promise<{ data: CourseWithProgre
     const favoriteCourseIds = new Set(userFavorites.map((f: { courseId: string }) => f.courseId));
 
     const data: CourseWithProgressData[] = allCourses.map((course) => {
-      const userCourse = userCourses.find((uc) => uc.courseId === course.id);
+      const userCourse = userCourses.find((uc: { courseId: string }) => uc.courseId === course.id);
 
       // Правильно обрабатываем enum из Prisma
       const userStatus = userCourse?.status

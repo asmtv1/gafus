@@ -50,7 +50,7 @@ export class MetricsCollector {
   getErrorMetrics(): ErrorMetrics {
     const totalErrors = Array.from(this.errors.values()).reduce((sum, count) => sum + count, 0);
     const mostCommonErrors = Array.from(this.errors.entries())
-      .map(([message, count]) => ({ message, count }))
+      .map(([message, count]: [string, number]) => ({ message, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 

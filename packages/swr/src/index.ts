@@ -1,7 +1,7 @@
 // Основные экспорты SWR
 export { default as useSWR } from "swr";
-export { default as useSWRInfinite } from "swr/infinite";
 export { useSWRConfig } from "swr/_internal";
+export { default as useSWRInfinite } from "swr/infinite";
 
 // Типы
 export type { SWRConfiguration, SWRResponse } from "swr";
@@ -56,7 +56,7 @@ export { useOptimistic } from "react";
 
 // Утилиты для кэширования
 export const createCacheKey = (...parts: (string | number | boolean | null | undefined)[]) => {
-  return parts.filter((part) => part != null).join(":");
+  return parts.filter((part: string | null) => part != null).join(":");
 };
 
 // Хук для работы с Server Actions (упрощенная версия)
@@ -111,13 +111,13 @@ export const useOptimisticUpdate = <T>(
 };
 
 // Экспорты из хуков
-export { useData, useMutate, useInfiniteData, useSearchData } from "./hooks/useData";
+export { useData, useInfiniteData, useMutate, useSearchData } from "./hooks/useData";
 export {
   useCoursesData,
-  useUserProfileData,
-  useStatisticsData,
+  useOptimizedData,
   useSearchData as useOptimizedSearchData,
   useRealTimeData,
-  useOptimizedData,
+  useStatisticsData,
+  useUserProfileData,
 } from "./hooks/useOptimizedData";
 export { SWRProvider } from "./providers/SWRProvider";

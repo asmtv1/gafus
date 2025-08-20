@@ -236,7 +236,7 @@ async function main() {
 
   for (const course of allCourses) {
     const ratings = course.reviews
-      .map((r) => r.rating)
+      .map((r: { rating: number }) => r.rating)
       .filter((r): r is number => typeof r === "number");
 
     const avg = ratings.length ? ratings.reduce((acc, r) => acc + r, 0) / ratings.length : null;

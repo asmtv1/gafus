@@ -68,7 +68,7 @@ export async function getUserWithTrainings(): Promise<UserWithTrainings | null> 
 
     if (!user) return null;
 
-    const courses = user.userCourses.map((uc) => {
+    const courses = user.userCourses.map((uc: { courseId: string; startedAt: Date | null; completedAt: Date | null; course: { id: string; name: string; dayLinks: { id: string }[] } }) => {
       // Фильтруем userTrainings, которые относятся к этому курсу
       const trainingsForCourse = user.userTrainings.filter(
         (ut) => ut.dayOnCourse.course.id === uc.courseId,

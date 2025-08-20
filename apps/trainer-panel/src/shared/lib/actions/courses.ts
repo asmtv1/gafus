@@ -42,14 +42,14 @@ export async function createCourseServerAction(input: CreateCourseInput) {
       trainingLevel: input.trainingLevel,
       author: { connect: { id: authorId } },
       dayLinks: {
-        create: (input.trainingDays || []).map((dayId, index) => ({
+        create: (input.trainingDays || []).map((dayId: string, index: number) => ({
           day: { connect: { id: String(dayId) } },
           order: index,
         })),
       },
       access: isPrivate
         ? {
-            create: (input.allowedUsers || []).map((userId) => ({
+            create: (input.allowedUsers || []).map((userId: string) => ({
               user: { connect: { id: String(userId) } },
             })),
           }
@@ -92,7 +92,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   // Пересобираем DayOnCourse
   await prisma.dayOnCourse.deleteMany({ where: { courseId: input.id } });
   await prisma.dayOnCourse.createMany({
-    data: (input.trainingDays || []).map((dayId, index) => ({
+              data: (input.trainingDays || []).map((dayId: string, index: number) => ({
       courseId: input.id,
       dayId: String(dayId),
       order: index,
@@ -103,7 +103,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   await prisma.courseAccess.deleteMany({ where: { courseId: input.id } });
   if (isPrivate) {
     await prisma.courseAccess.createMany({
-      data: (input.allowedUsers || []).map((userId) => ({
+                data: (input.allowedUsers || []).map((userId: string) => ({
         courseId: input.id,
         userId: String(userId),
       })),

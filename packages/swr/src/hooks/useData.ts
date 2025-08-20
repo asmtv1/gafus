@@ -1,5 +1,4 @@
-import { useCallback, useState } from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import useSWRInfinite from "swr/infinite";
 
@@ -41,7 +40,7 @@ export function useMutate() {
         populateCache?: boolean;
       },
     ) => {
-      await Promise.all(keys.map((key) => mutate(key, data, options)));
+      await Promise.all(keys.map((key: string) => mutate(key, data, options)));
     },
     [mutate],
   );

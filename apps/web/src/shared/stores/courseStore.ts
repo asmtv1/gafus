@@ -113,7 +113,9 @@ export const useCourseStore = create<CourseState>()(
 
       removeFromFavorites: (courseId) => {
         const state = get();
-        const newFavorites = new Set([...state.favoriteCourseIds].filter((id: string) => id !== courseId));
+        const newFavorites = new Set(
+          [...state.favoriteCourseIds].filter((id: string) => id !== courseId),
+        );
         set({ favoriteCourseIds: newFavorites });
 
         // Обновляем кэш избранных курсов, если он есть

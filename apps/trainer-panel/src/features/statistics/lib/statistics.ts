@@ -297,25 +297,40 @@ export async function getDetailedCourseStatistics(
     inProgressUsers: course.userCourses.filter((uc) => uc.status === "IN_PROGRESS").length,
     notStartedUsers: course.userCourses.filter((uc) => uc.status === "NOT_STARTED").length,
     trainingLevel: course.trainingLevel,
-    reviews: course.reviews.map((r) => ({
-      rating: r.rating,
-      comment: r.comment,
-      createdAt: r.createdAt,
-      user: {
-        username: r.user.username,
-        profile: { avatarUrl: r.user.profile?.avatarUrl ?? null },
-      },
-    })),
-    userCourses: course.userCourses.map((uc) => ({
-      userId: uc.userId,
-      status: uc.status as unknown as TrainingStatus,
-      startedAt: uc.startedAt,
-      completedAt: uc.completedAt,
-      user: {
-        username: uc.user.username,
-        profile: { avatarUrl: uc.user.profile?.avatarUrl ?? null },
-      },
-    })),
+    reviews: course.reviews.map(
+      (r: {
+        rating: number | null;
+        comment: string | null;
+        createdAt: Date;
+        user: { username: string; profile: { avatarUrl: string | null } | null };
+      }) => ({
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        user: {
+          username: r.user.username,
+          profile: { avatarUrl: r.user.profile?.avatarUrl ?? null },
+        },
+      }),
+    ),
+    userCourses: course.userCourses.map(
+      (uc: {
+        userId: string;
+        status: string;
+        startedAt: Date | null;
+        completedAt: Date | null;
+        user: { username: string; profile: { avatarUrl: string | null } | null };
+      }) => ({
+        userId: uc.userId,
+        status: uc.status as unknown as TrainingStatus,
+        startedAt: uc.startedAt,
+        completedAt: uc.completedAt,
+        user: {
+          username: uc.user.username,
+          profile: { avatarUrl: uc.user.profile?.avatarUrl ?? null },
+        },
+      }),
+    ),
     dayAnalytics,
     timeAnalytics,
     progressAnalytics,
