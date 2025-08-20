@@ -180,7 +180,7 @@ export async function getDetailedStepStatistics(
 
   let totalCompletionTimeSec = 0;
   let completionCount = 0;
-  userSteps.forEach((us) => {
+  userSteps.forEach((us: { createdAt: Date; updatedAt: Date; status: string }) => {
     const created = new Date(us.createdAt);
     const updated = new Date(us.updatedAt);
     const dayOfWeek = created.toLocaleDateString("ru-RU", { weekday: "long" });
