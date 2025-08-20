@@ -18,8 +18,8 @@ export async function getErrorFilters(): Promise<ErrorFilters> {
     ]);
 
     return {
-      appNames: appNames.map((item) => item.appName).filter(Boolean) as string[],
-      environments: environments.map((item) => item.environment).filter(Boolean) as string[],
+      appNames: appNames.map((item: { appName: string }) => item.appName).filter(Boolean) as string[],
+      environments: environments.map((item: { environment: string }) => item.environment).filter(Boolean) as string[],
       dateRange: { from: null, to: null },
     };
   } catch (error) {
