@@ -1,6 +1,5 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import UserSearchSelector from "@features/users/components/UserSearchSelector";
 import { useCSRFStore } from "@gafus/csrf";
 import { DualListSelector, MarkdownInput } from "@shared/components/common";

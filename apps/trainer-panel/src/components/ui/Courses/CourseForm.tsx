@@ -1,6 +1,5 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCSRFStore } from "@gafus/csrf";
 import { DualListSelector } from "@shared/components/common";
 import { useSession } from "next-auth/react";
