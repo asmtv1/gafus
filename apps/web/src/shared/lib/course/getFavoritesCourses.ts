@@ -69,29 +69,30 @@ export async function getFavoritesCourses(): Promise<{
     });
 
     const data: CourseWithUserData[] = allCourses.map((course) => {
-      const userCourse = userCourses.find((uc) => uc.courseId === course.id);
+        const userCourse = userCourses.find((uc) => uc.courseId === course.id);
 
-      return {
-        id: course.id,
-        name: course.name,
-        type: course.type,
-        description: course.description,
-        shortDesc: course.shortDesc,
-        duration: course.duration,
-        logoImg: course.logoImg,
-        isPrivate: course.isPrivate,
-        avgRating: course.avgRating,
-        createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
-        authorUsername: course.author.username,
-        favoritedBy: course.favoritedBy,
-        reviews: course.reviews,
-        access: course.access,
-        userStatus: (userCourse?.status ?? TrainingStatus.NOT_STARTED) as TrainingStatus,
-        startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
-        completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,
-        isFavorite: true,
-      };
-    });
+        return {
+          id: course.id,
+          name: course.name,
+          type: course.type,
+          description: course.description,
+          shortDesc: course.shortDesc,
+          duration: course.duration,
+          logoImg: course.logoImg,
+          isPrivate: course.isPrivate,
+          avgRating: course.avgRating,
+          createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
+          authorUsername: course.author.username,
+          favoritedBy: course.favoritedBy,
+          reviews: course.reviews,
+          access: course.access,
+          userStatus: (userCourse?.status ?? TrainingStatus.NOT_STARTED) as TrainingStatus,
+          startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
+          completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,
+          isFavorite: true,
+        };
+      },
+    );
 
     return {
       data,

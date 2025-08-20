@@ -119,8 +119,8 @@ export async function getDetailedStepStatistics(
             dl.course,
           ]),
       ),
-    ).values(),
-  ).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }));
+    ).values() as IterableIterator<{ id: string; name: string }>,
+  ).map((c) => ({ id: c.id, name: c.name }));
 
   // Собираем userSteps по этому шагу
   const userSteps = await prisma.userStep.findMany({
