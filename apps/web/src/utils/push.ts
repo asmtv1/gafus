@@ -87,7 +87,10 @@ export async function sendPushToUser(
       }),
     );
 
-    const _successful = results.filter((r: { status: string; value: { success: boolean } }) => r.status === "fulfilled" && r.value.success).length;
+    const _successful = results.filter(
+      (r): r is PromiseFulfilledResult<{ success: boolean; endpoint: string; error?: unknown }> =>
+        r.status === "fulfilled" && r.value.success,
+    ).length;
   } catch (error) {
     console.error("❌ Ошибка при отправке push:", error);
   }
@@ -134,7 +137,16 @@ export async function sendPushToAll(payload: string | Record<string, unknown>): 
       }),
     );
 
-    const _successful = results.filter((r: { status: string; value: { success: boolean } }) => r.status === "fulfilled" && r.value.success).length;
+    const _successful = results.filter(
+      (
+        r,
+      ): r is PromiseFulfilledResult<{
+        success: boolean;
+        endpoint: string;
+        userId: string;
+        error?: unknown;
+      }> => r.status === "fulfilled" && r.value.success,
+    ).length;
   } catch (error) {
     console.error("❌ Ошибка при отправке push всем пользователям:", error);
   }

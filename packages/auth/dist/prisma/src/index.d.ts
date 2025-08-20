@@ -25,6 +25,6 @@ export interface DatabaseClient {
 }
 export declare const createPrismaClient: () => Promise<PrismaClient<{
     log: ("query" | "warn" | "error")[];
-}, "query" | "warn" | "error", import("@prisma/client/runtime/library").DefaultArgs>>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs>>;
 export { prisma, default as prismaClient } from "./client";
 //# sourceMappingURL=index.d.ts.map

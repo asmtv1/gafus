@@ -94,72 +94,93 @@ export async function getUserProgress(
     });
 
     // Создаем мапу для быстрого поиска userTraining по dayOnCourseId
-    const userTrainingMap = new Map(userTrainings.map((ut: { dayOnCourseId: string }) => [ut.dayOnCourseId, ut]));
+    const userTrainingMap = new Map(
+      userTrainings.map(
+        (ut: {
+          dayOnCourseId: string;
+          status: string;
+          steps: { stepOnDayId: string; status: string; updatedAt: Date }[];
+        }) => [ut.dayOnCourseId, ut],
+      ),
+    );
 
     // Собираем детальный прогресс по дням
-    const daysProgress = courseDays.map((dayLink: { id: string; order: number; day: { title: string; stepLinks: { id: string; order: number; step: { title: string } }[] } }) => {
-      const userTraining = userTrainingMap.get(dayLink.id);
+    const daysProgress = courseDays.map(
+      (dayLink: {
+        id: string;
+        order: number;
+        day: { title: string; stepLinks: { id: string; order: number; step: { title: string } }[] };
+      }) => {
+        const userTraining = userTrainingMap.get(dayLink.id);
 
-      // Статус дня формируется следующим образом:
-      // - Если есть userTraining с этим днем, берем его статус
-      // - Если userTraining нет, значит день не начат
-      // Статус дня может быть:
-      // - NOT_STARTED: день не начат
-      // - IN_PROGRESS: день начат, но не завершен
-      // - COMPLETED: день завершен
-      const dayStatus = userTraining?.status
-        ? (userTraining.status as TrainingStatus)
-        : TrainingStatus.NOT_STARTED;
+        // Статус дня формируется следующим образом:
+        // - Если есть userTraining с этим днем, берем его статус
+        // - Если userTraining нет, значит день не начат
+        // Статус дня может быть:
+        // - NOT_STARTED: день не начат
+        // - IN_PROGRESS: день начат, но не завершен
+        // - COMPLETED: день завершен
+        const dayStatus = userTraining?.status
+          ? (userTraining.status as TrainingStatus)
+          : TrainingStatus.NOT_STARTED;
 
-      // Собираем прогресс по шагам дня
-      const stepsProgress = dayLink.day.stepLinks.map((stepLink: { id: string; order: number; step: { title: string } }) => {
-        let stepStatus = TrainingStatus.NOT_STARTED;
-        let stepCompletedAt: Date | null = null;
+        // Собираем прогресс по шагам дня
+        const stepsProgress = dayLink.day.stepLinks.map(
+          (stepLink: { id: string; order: number; step: { title: string } }) => {
+            let stepStatus = TrainingStatus.NOT_STARTED;
+            let stepCompletedAt: Date | null = null;
 
-        if (userTraining) {
-          const userStep = userTraining.steps.find((step) => step.stepOnDayId === stepLink.id);
-          if (userStep) {
-            // Статус шага может быть:
-            // - NOT_STARTED: шаг не начат
-            // - IN_PROGRESS: шаг в процессе выполнения
-            // - COMPLETED: шаг завершен
-            const currentStatus = userStep.status as TrainingStatus;
-            stepStatus = currentStatus;
-            // Дату завершения показываем только для завершенных шагов
-            stepCompletedAt =
-              currentStatus === TrainingStatus.COMPLETED ? userStep.updatedAt : null;
+            if (userTraining) {
+              const userStep = userTraining.steps.find(
+                (step: { stepOnDayId: string; status: string; updatedAt: Date }) =>
+                  step.stepOnDayId === stepLink.id,
+              );
+              if (userStep) {
+                // Статус шага может быть:
+                // - NOT_STARTED: шаг не начат
+                // - IN_PROGRESS: шаг в процессе выполнения
+                // - COMPLETED: шаг завершен
+                const currentStatus = userStep.status as TrainingStatus;
+                stepStatus = currentStatus;
+                // Дату завершения показываем только для завершенных шагов
+                stepCompletedAt =
+                  currentStatus === TrainingStatus.COMPLETED ? userStep.updatedAt : null;
+              }
+            }
+
+            return {
+              stepOrder: stepLink.order,
+              stepTitle: stepLink.step.title,
+              status: stepStatus,
+              completedAt: stepCompletedAt,
+            };
+          },
+        );
+
+        // Вычисляем дату завершения дня (максимальная дата завершения шагов), только если день завершен
+        let dayCompletedAt: Date | null = null;
+        if (dayStatus === TrainingStatus.COMPLETED && userTraining) {
+          const completedDates = userTraining.steps
+            .filter(
+              (s: { status: string }) => (s.status as TrainingStatus) === TrainingStatus.COMPLETED,
+            )
+            .map((s: { updatedAt: Date }) => s.updatedAt)
+            .filter(Boolean) as Date[];
+          if (completedDates.length) {
+            const maxTs = Math.max(...completedDates.map((d: Date) => new Date(d).getTime()));
+            dayCompletedAt = new Date(maxTs);
           }
         }
 
         return {
-          stepOrder: stepLink.order,
-          stepTitle: stepLink.step.title,
-          status: stepStatus,
-          completedAt: stepCompletedAt,
+          dayOrder: dayLink.order,
+          dayTitle: dayLink.day.title,
+          status: dayStatus,
+          dayCompletedAt,
+          steps: stepsProgress,
         };
-      });
-
-      // Вычисляем дату завершения дня (максимальная дата завершения шагов), только если день завершен
-      let dayCompletedAt: Date | null = null;
-      if (dayStatus === TrainingStatus.COMPLETED && userTraining) {
-        const completedDates = userTraining.steps
-          .filter((s) => (s.status as TrainingStatus) === TrainingStatus.COMPLETED)
-          .map((s: { updatedAt: Date }) => s.updatedAt)
-          .filter(Boolean) as Date[];
-        if (completedDates.length) {
-          const maxTs = Math.max(...completedDates.map((d: Date) => new Date(d).getTime()));
-          dayCompletedAt = new Date(maxTs);
-        }
-      }
-
-      return {
-        dayOrder: dayLink.order,
-        dayTitle: dayLink.day.title,
-        status: dayStatus,
-        dayCompletedAt,
-        steps: stepsProgress,
-      };
-    });
+      },
+    );
 
     const result = {
       userId,

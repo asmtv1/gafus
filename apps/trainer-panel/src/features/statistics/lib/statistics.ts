@@ -293,9 +293,14 @@ export async function getDetailedCourseStatistics(
     isPrivate: course.isPrivate,
     avgRating: course.avgRating,
     totalUsers: course.userCourses.length,
-    completedUsers: course.userCourses.filter((uc) => uc.status === "COMPLETED").length,
-    inProgressUsers: course.userCourses.filter((uc) => uc.status === "IN_PROGRESS").length,
-    notStartedUsers: course.userCourses.filter((uc) => uc.status === "NOT_STARTED").length,
+    completedUsers: course.userCourses.filter((uc: { status: string }) => uc.status === "COMPLETED")
+      .length,
+    inProgressUsers: course.userCourses.filter(
+      (uc: { status: string }) => uc.status === "IN_PROGRESS",
+    ).length,
+    notStartedUsers: course.userCourses.filter(
+      (uc: { status: string }) => uc.status === "NOT_STARTED",
+    ).length,
     trainingLevel: course.trainingLevel,
     reviews: course.reviews.map(
       (r: {
@@ -484,8 +489,10 @@ async function getProgressAnalytics(
   const dropoutPoints = await getDropoutPoints(courseId);
 
   // Повторные прохождения
-  const repeatUsers = userCourses.filter((uc) => {
-    const userCourseCount = userCourses.filter((uc2) => uc2.userId === uc.userId).length;
+  const repeatUsers = userCourses.filter((uc: { userId: string }) => {
+    const userCourseCount = userCourses.filter(
+      (uc2: { userId: string }) => uc2.userId === uc.userId,
+    ).length;
     return userCourseCount > 1;
   }).length;
 

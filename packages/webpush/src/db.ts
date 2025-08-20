@@ -10,7 +10,7 @@ export async function getUserSubscriptions(userId: string): Promise<PushSubscrip
   });
 
   return records
-    .map((r: { endpoint: string; keys: { p256dh: string; auth: string } }) => {
+    .map((r: { endpoint: string; keys: unknown }) => {
       const keysRaw = r.keys as unknown;
 
       // Проверка структуры вручную

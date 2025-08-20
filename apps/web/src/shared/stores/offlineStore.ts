@@ -9,8 +9,8 @@ import type {
   RatingData,
   StepCompletionData,
   StepStatusUpdateData,
+  TrainingStatus,
 } from "@gafus/types";
-import { TrainingStatus } from "@gafus/types";
 
 export const useOfflineStore = create<OfflineState>()(
   persist(
@@ -257,7 +257,7 @@ export const useOfflineStore = create<OfflineState>()(
               } else {
                 // Обновляем действие с новым счетчиком попыток
                 set((state) => ({
-                  syncQueue: state.syncQueue.map((a: { id: string }) => (a.id === action.id ? updatedAction : a)),
+                  syncQueue: state.syncQueue.map((a) => (a.id === action.id ? updatedAction : a)),
                 }));
               }
             }
@@ -357,7 +357,7 @@ async function syncStepStatusUpdate(data: StepStatusUpdateData): Promise<void> {
     );
 
     if (process.env.NODE_ENV === "development") {
-      console.log("✅ Step status synced successfully:", data);
+      console.warn("✅ Step status synced successfully:", data);
     }
   } catch (error) {
     console.error("❌ Failed to sync step status:", error);

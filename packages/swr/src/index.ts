@@ -56,7 +56,7 @@ export { useOptimistic } from "react";
 
 // Утилиты для кэширования
 export const createCacheKey = (...parts: (string | number | boolean | null | undefined)[]) => {
-  return parts.filter((part: string | null) => part != null).join(":");
+  return parts.filter((part): part is string | number | boolean => part != null).join(":");
 };
 
 // Хук для работы с Server Actions (упрощенная версия)
