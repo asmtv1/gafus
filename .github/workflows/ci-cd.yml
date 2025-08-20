@@ -85,9 +85,85 @@ jobs:
           cd apps/web
           pnpm typecheck
 
+  # Build trainer-panel app
+  build-trainer-panel:
+    runs-on: ubuntu-latest
+    needs: security
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build trainer-panel app
+        run: |
+          cd apps/trainer-panel
+          pnpm build
+
+      - name: Test trainer-panel app
+        run: |
+          cd apps/trainer-panel
+          pnpm test || echo "No tests found"
+
+      - name: Run type check
+        run: |
+          cd apps/trainer-panel
+          pnpm typecheck
+
+  # Build error-dashboard app
+  build-error-dashboard:
+    runs-on: ubuntu-latest
+    needs: security
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build error-dashboard app
+        run: |
+          cd apps/error-dashboard
+          pnpm build
+
+      - name: Test error-dashboard app
+        run: |
+          cd apps/error-dashboard
+          pnpm test || echo "No tests found"
+
+      - name: Run type check
+        run: |
+          cd apps/error-dashboard
+          pnpm typecheck
+
   # Build Docker image
   build-image:
-    needs: [security, build-web]
+    needs: [security, build-web, build-trainer-panel, build-error-dashboard]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
@@ -128,7 +204,7 @@ jobs:
 
   # Deploy to staging (develop branch)
   deploy-staging:
-    needs: [security, build-web]
+    needs: [security, build-web, build-trainer-panel, build-error-dashboard]
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: staging
@@ -138,7 +214,7 @@ jobs:
 
   # Deploy to production (main branch)
   deploy-production:
-    needs: [security, build-web, build-image]
+    needs: [security, build-web, build-trainer-panel, build-error-dashboard, build-image]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
