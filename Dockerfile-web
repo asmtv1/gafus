@@ -20,7 +20,10 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # 5️⃣ Билдим только frontend (Next.js)
-RUN pnpm build --filter @gafus/web
+WORKDIR /app/apps/web
+RUN pnpm install --frozen-lockfile
+RUN pnpm build
+WORKDIR /app
 
 # ─────────────────────────────────────────────
 # Stage 1: runner — минимальный production
