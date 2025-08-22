@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1
+
+FROM node:20-bookworm-slim AS prisma-base
+WORKDIR /app
+
+# 1️⃣ Установка openssl, curl и прочих системных зависимостей (кэшируем apt)
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
+    apt-get install -y --no-install-recommends openssl ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# 2️⃣ Включаем Corepack и активируем pnpm (фиксированная версия)
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# 3️⃣ Копируем корневые конфиги workspace
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY *.json ./
+
+# 4️⃣ Копируем пакет prisma со всем содержимым (код + package.json)
+COPY packages/prisma ./packages/prisma
+RUN echo ">>> Содержимое /app/packages/prisma:" && ls -la /app/packages/prisma
+
+# 5️⃣ Устанавливаем зависимости всего workspace с заморозкой lockfile
+RUN pnpm install --frozen-lockfile
+
+# 6️⃣ Генерируем Prisma Client внутри пакета prisma
+WORKDIR /app/packages/prisma
+RUN pnpm exec prisma generate
+
+# 7️⃣ Оставляем контейнер в живом состоянии для запуска миграций и сидов вручную
+CMD ["tail", "-f", "/dev/null"]

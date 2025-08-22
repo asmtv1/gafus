@@ -1,4 +1,38 @@
 services:
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: gafus-postgres
+    environment:
+      - POSTGRES_DB=gafus
+      - POSTGRES_USER=gafus
+      - POSTGRES_PASSWORD=gafus_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gafus -d gafus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: gafus-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # Web Application
   web:
     build:
@@ -9,11 +43,124 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
+      - REDIS_URL=redis://redis:6379
     ports:
       - "3000:3000"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     volumes:
       - ./uploads:/app/uploads
+      - ./uploads/avatars:/app/apps/web/public/uploads/avatars
+      - ./uploads/pets:/app/apps/web/public/uploads/pets
+      - ./uploads/courses:/app/apps/web/public/uploads/courses
+      - ./uploads/shared:/app/apps/web/public/uploads/shared
+    depends_on:
+      - postgres
+      - redis
+
+  # Trainer Panel
+  trainer-panel:
+    image: trainer-panel:latest
+    container_name: gafus-trainer-panel
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    volumes:
+      - ./uploads:/app/uploads
+      - ./uploads/shared:/app/apps/trainer-panel/public/uploads/shared
+    depends_on:
+      - postgres
+      - redis
+
+  # Error Dashboard
+  error-dashboard:
+    image: error-dashboard:latest
+    container_name: gafus-error-dashboard
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "3005:3005"
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+
+  # Prisma Database Management
+  prisma:
+    build:
+      context: .
+      dockerfile: Dockerfile-prisma
+    image: gafus-prisma:latest
+    container_name: gafus-prisma
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    volumes:
+      - ./packages/prisma:/app/packages/prisma
+
+  # Worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile-worker
+    image: gafus-worker:latest
+    container_name: gafus-worker
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
+      - REDIS_URL=redis://redis:6379
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+
+  # Bull Board
+  bull-board:
+    build:
+      context: .
+      dockerfile: Dockerfile-bull-board
+    image: gafus-bull-board:latest
+    container_name: gafus-bull-board
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "3002:3002"
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # Telegram Bot
+  telegram-bot:
+    image: gafus-telegram-bot:latest
+    container_name: gafus-telegram-bot
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
+      - REDIS_URL=redis://redis:6379
+      - BOT_TOKEN=7882612913:AAGGrYg0NYG_cq9pAQ8ocaSdLqmQB-mI-as
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
 
   # Nginx Reverse Proxy
   nginx:
@@ -29,3 +176,9 @@ services:
     restart: unless-stopped
     depends_on:
       - web
+      - trainer-panel
+      - error-dashboard
+      - bull-board
+
+volumes:
+  postgres_data:

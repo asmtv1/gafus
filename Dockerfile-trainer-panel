@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ─────────────────────────────────────────────
-# Stage 0: builder — сборка фронта
+# Stage 0: builder — сборка trainer-panel
 # ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -19,8 +19,8 @@ RUN pnpm install --frozen-lockfile
 # 4️⃣ Копируем исходники проекта
 COPY . .
 
-# 5️⃣ Билдим только frontend (Next.js)
-RUN pnpm build --filter @gafus/web...
+# 5️⃣ Билдим только trainer-panel (Next.js)
+RUN pnpm build --filter @gafus/trainer-panel...
 
 # ─────────────────────────────────────────────
 # Stage 1: runner — минимальный production
@@ -35,11 +35,11 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 # 2️⃣ Копируем workspace + lockfile + нужные package.json
 COPY pnpm-workspace.yaml ./
 COPY package.json pnpm-lock.yaml ./
-COPY apps/web/package.json ./apps/web/package.json
+COPY apps/trainer-panel/package.json ./apps/trainer-panel/package.json
 COPY packages/prisma/package.json ./packages/prisma/package.json
 
 # 3️⃣ Устанавливаем production-зависимости
-RUN pnpm install --prod --filter @gafus/web... --ignore-scripts \
+RUN pnpm install --prod --filter @gafus/trainer-panel... --ignore-scripts \
  && pnpm install --filter @gafus/prisma... --ignore-scripts
 
 # 4️⃣ Копируем Prisma схему и исходники для генерации
@@ -48,12 +48,12 @@ COPY packages/prisma ./packages/prisma
 # 5️⃣ Генерируем Prisma Client
 RUN pnpm --filter @gafus/prisma run prisma:generate
 
-# 6️⃣ Копируем собранный фронт
-COPY --from=builder /app/apps/web/.next ./apps/web/.next
-COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder /app/apps/web/next.config.ts ./apps/web/next.config.ts
+# 6️⃣ Копируем собранный trainer-panel
+COPY --from=builder /app/apps/trainer-panel/.next ./apps/trainer-panel/.next
+COPY --from=builder /app/apps/trainer-panel/public ./apps/trainer-panel/public
+COPY --from=builder /app/apps/trainer-panel/next.config.ts ./apps/trainer-panel/next.config.ts
 
 # 7️⃣ Запуск
-WORKDIR /app/apps/web
-EXPOSE 3000
-CMD ["pnpm", "next", "start"]
+WORKDIR /app/apps/trainer-panel
+EXPOSE 3001
+CMD ["pnpm", "next", "start", "-p", "3001"]

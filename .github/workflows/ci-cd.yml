@@ -21,12 +21,12 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
           cache: "pnpm"
           cache-dependency-path: "**/pnpm-lock.yaml"
 
@@ -47,10 +47,13 @@ jobs:
           path: ./
           base: HEAD~1
 
-  # Build and test web app
-  build-web:
+  # Build and test all apps
+  build-apps:
     runs-on: ubuntu-latest
     needs: security
+    strategy:
+      matrix:
+        app: [web, trainer-panel, error-dashboard]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -58,12 +61,12 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
           cache: "pnpm"
           cache-dependency-path: "**/pnpm-lock.yaml"
 
@@ -75,110 +78,24 @@ jobs:
           cd packages/prisma
           pnpm db:generate
 
-      - name: Build web app
+      - name: Build ${{ matrix.app }}
         run: |
-          cd apps/web
+          cd apps/${{ matrix.app }}
           pnpm build
 
-      - name: Test web app
+      - name: Test ${{ matrix.app }}
         run: |
-          cd apps/web
+          cd apps/${{ matrix.app }}
           pnpm test || echo "No tests found"
 
-      - name: Run type check
+      - name: Run type check for ${{ matrix.app }}
         run: |
-          cd apps/web
+          cd apps/${{ matrix.app }}
           pnpm typecheck
 
-  # Build trainer-panel app
-  build-trainer-panel:
-    runs-on: ubuntu-latest
-    needs: security
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Generate Prisma Client
-        run: |
-          cd packages/prisma
-          pnpm db:generate
-
-      - name: Build trainer-panel app
-        run: |
-          cd apps/trainer-panel
-          pnpm build
-
-      - name: Test trainer-panel app
-        run: |
-          cd apps/trainer-panel
-          pnpm test || echo "No tests found"
-
-      - name: Run type check
-        run: |
-          cd apps/trainer-panel
-          pnpm typecheck
-
-  # Build error-dashboard app
-  build-error-dashboard:
-    runs-on: ubuntu-latest
-    needs: security
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Generate Prisma Client
-        run: |
-          cd packages/prisma
-          pnpm db:generate
-
-      - name: Build error-dashboard app
-        run: |
-          cd apps/error-dashboard
-          pnpm build
-
-      - name: Test error-dashboard app
-        run: |
-          cd apps/error-dashboard
-          pnpm test || echo "No tests found"
-
-      - name: Run type check
-        run: |
-          cd apps/error-dashboard
-          pnpm typecheck
-
-  # Build Docker image
-  build-image:
-    needs: [security, build-web, build-trainer-panel, build-error-dashboard]
+  # Build all Docker images
+  build-images:
+    needs: [security, build-apps]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
@@ -195,32 +112,93 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
+      # Build Web image
+      - name: Build and push Web image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile-web
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
+
+      # Build Trainer Panel image
+      - name: Build and push Trainer Panel image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile-trainer-panel
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-trainer-panel:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      # Build Error Dashboard image
+      - name: Build and push Error Dashboard image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile-error-dashboard
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-error-dashboard:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      # Build Worker image
+      - name: Build and push Worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile-worker
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      # Build Bull Board image
+      - name: Build and push Bull Board image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile-bull-board
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bull-board:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      # Build Telegram Bot image
+      - name: Build and push Telegram Bot image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile-telegram-bot
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-telegram-bot:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      # Build Prisma image
+      - name: Build and push Prisma image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile-prisma
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-prisma:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
 
   # Deploy to staging (develop branch)
   deploy-staging:
-    needs: [security, build-web, build-trainer-panel, build-error-dashboard]
+    needs: [security, build-apps]
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: staging
@@ -230,7 +208,7 @@ jobs:
 
   # Deploy to production (main branch)
   deploy-production:
-    needs: [security, build-web, build-trainer-panel, build-error-dashboard, build-image]
+    needs: [security, build-apps, build-images]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
@@ -256,20 +234,55 @@ jobs:
             git pull origin main
 
             # Create uploads directories if they don't exist
-            mkdir -p uploads/avatars uploads/pets uploads/courses
+            mkdir -p uploads/avatars uploads/pets uploads/courses uploads/shared
             chmod -R 755 uploads/
+
+            # Create public uploads directories for web app
+            mkdir -p apps/web/public/uploads/avatars
+            mkdir -p apps/web/public/uploads/pets
+            mkdir -p apps/web/public/uploads/courses
+            mkdir -p apps/web/public/uploads/shared
+
+            # Create public uploads directories for trainer panel
+            mkdir -p apps/trainer-panel/public/uploads/shared
+
+            # Set proper permissions
+            chmod -R 755 apps/web/public/uploads/
+            chmod -R 755 apps/trainer-panel/public/uploads/
 
             # Stop existing containers
             docker-compose -f docker-compose.prod.yml down || true
 
-            # Pull latest images
-            docker-compose -f docker-compose.prod.yml pull
+            # Pull latest images from registry
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-trainer-panel:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-error-dashboard:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bull-board:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-telegram-bot:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-prisma:latest
+
+            # Tag images for local use
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:latest gafus-web:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-trainer-panel:latest trainer-panel:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-error-dashboard:latest error-dashboard:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:latest gafus-worker:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bull-board:latest gafus-bull-board:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-telegram-bot:latest gafus-telegram-bot:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-prisma:latest gafus-prisma:latest
 
             # Start services
             docker-compose -f docker-compose.prod.yml up -d
 
             # Wait for services to be ready
-            sleep 10
+            sleep 15
+
+                        # Run Prisma migrations
+            echo "🗄️ Running Prisma migrations..."
+            docker-compose -f docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
+
+            # Run migrations using the dedicated Prisma container
+            docker-compose -f docker-compose.prod.yml exec -T prisma pnpm run prisma:migrate:deploy || echo "Migrations failed, continuing..."
 
             # Check service health
             if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then

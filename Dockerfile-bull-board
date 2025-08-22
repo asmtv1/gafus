@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Enable pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Copy workspace files
+COPY pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml ./
+
+# Copy bull-board package.json
+COPY apps/bull-board/package.json ./apps/bull-board/package.json
+
+# Copy queues package.json
+COPY packages/queues/package.json ./packages/queues/package.json
+
+# Install only production dependencies
+RUN pnpm install --prod --filter @gafus/bull-board... --ignore-scripts && pnpm store prune
+
+# Copy source code
+COPY apps/bull-board ./apps/bull-board
+COPY packages/queues ./packages/queues
+
+# Set working directory
+WORKDIR /app/apps/bull-board
+
+# Expose port
+EXPOSE 3002
+
+# Start the bull-board
+CMD ["pnpm", "start"]

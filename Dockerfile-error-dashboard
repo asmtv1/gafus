@@ -1,0 +1,64 @@
+# syntax=docker/dockerfile:1
+
+# Build stage
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Enable pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Copy workspace files
+COPY pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml ./
+
+# Install all dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN pnpm build --filter @gafus/error-dashboard...
+
+# Production stage
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Enable pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Copy workspace files
+COPY pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml ./
+
+# Copy app package.json
+COPY apps/error-dashboard/package.json ./apps/error-dashboard/package.json
+
+# Copy prisma package.json
+COPY packages/prisma/package.json ./packages/prisma/package.json
+
+# Install only production dependencies
+RUN pnpm install --prod --filter @gafus/error-dashboard... --ignore-scripts && pnpm store prune
+
+# Copy prisma files
+COPY packages/prisma ./packages/prisma
+
+# Generate Prisma client
+RUN pnpm --filter @gafus/prisma run prisma:generate
+
+# Copy built application
+COPY --from=builder /app/apps/error-dashboard/.next ./apps/error-dashboard/.next
+COPY --from=builder /app/apps/error-dashboard/next.config.ts ./apps/error-dashboard/next.config.ts
+COPY --from=builder /app/apps/error-dashboard/tailwind.config.js ./apps/error-dashboard/tailwind.config.js
+COPY --from=builder /app/apps/error-dashboard/postcss.config.js ./apps/error-dashboard/postcss.config.js
+
+# Set working directory
+WORKDIR /app/apps/error-dashboard
+
+# Expose port
+EXPOSE 3005
+
+# Start the application
+CMD ["pnpm", "start:prod"]
