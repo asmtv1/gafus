@@ -9,7 +9,7 @@
 Добавьте в GitHub Repository → Settings → Secrets:
 - `SERVER_HOST`: 185.239.51.125
 - `SERVER_USERNAME`: root  
-- `SERVER_PASSWORD`: YOUR_SERVER_PASSWORD
+- `SERVER_PASSWORD`: 3z6Uefq9PR04S2uYKn
 - `SERVER_PORT`: 22
 
 ### 2. Настройка сервера
