@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ducanh2912/next-pwa": "10.2.9",
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.0",
     "@gafus/csrf": "workspace:*",

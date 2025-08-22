@@ -30,7 +30,7 @@ export async function getUserProgress(
   userId: string,
 ): Promise<UserDetailedProgress | null> {
   try {
-    // Получаем детальную информацию о прогрессе пользователя по курсу
+    // Сначала пытаемся получить информацию из userCourse
     const userProgress = await prisma.userCourse.findFirst({
       where: {
         courseId,
@@ -50,7 +50,140 @@ export async function getUserProgress(
       },
     });
 
-    if (!userProgress) {
+    // Если записи в userCourse нет, пытаемся получить информацию из userTraining
+    let userInfo: {
+      username: string;
+      avatarUrl: string | null;
+    } | null = null;
+    let startedAt: Date | null = null;
+    let completedAt: Date | null = null;
+
+    if (userProgress) {
+      userInfo = {
+        username: userProgress.user.username,
+        avatarUrl: userProgress.user.profile?.avatarUrl || null,
+      };
+      startedAt = userProgress.startedAt;
+      completedAt = userProgress.completedAt;
+
+      // Синхронизируем статус курса с реальным прогрессом
+      const userTrainings = await prisma.userTraining.findMany({
+        where: {
+          userId,
+          dayOnCourse: {
+            courseId,
+          },
+        },
+        select: {
+          status: true,
+        },
+      });
+
+      if (userTrainings.length > 0) {
+        const totalDays = userTrainings.length;
+        const completedDays = userTrainings.filter((t) => t.status === "COMPLETED").length;
+
+        // Если все дни завершены, но курс не помечен как завершенный
+        if (completedDays === totalDays && totalDays > 0 && userProgress.status !== "COMPLETED") {
+          completedAt = new Date();
+          // Обновляем статус курса в базе
+          try {
+            await prisma.userCourse.update({
+              where: {
+                userId_courseId: {
+                  userId,
+                  courseId,
+                },
+              },
+              data: {
+                status: "COMPLETED",
+                completedAt: new Date(),
+              },
+            });
+          } catch (error) {
+            console.error("Failed to sync course status:", error);
+          }
+        }
+        // Если есть активность, но курс не помечен как начатый
+        else if (
+          userProgress.status === "NOT_STARTED" &&
+          userTrainings.some((t) => t.status !== "NOT_STARTED")
+        ) {
+          if (!startedAt) {
+            startedAt = new Date();
+          }
+          // Обновляем статус курса в базе
+          try {
+            await prisma.userCourse.update({
+              where: {
+                userId_courseId: {
+                  userId,
+                  courseId,
+                },
+              },
+              data: {
+                status: "IN_PROGRESS",
+                startedAt: startedAt,
+              },
+            });
+          } catch (error) {
+            console.error("Failed to sync course status:", error);
+          }
+        }
+      }
+    } else {
+      // Получаем информацию о пользователе
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          username: true,
+          profile: {
+            select: {
+              avatarUrl: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        return null;
+      }
+
+      userInfo = {
+        username: user.username,
+        avatarUrl: user.profile?.avatarUrl || null,
+      };
+
+      // Определяем даты на основе userTraining
+      const userTrainings = await prisma.userTraining.findMany({
+        where: {
+          userId,
+          dayOnCourse: {
+            courseId,
+          },
+        },
+        select: {
+          createdAt: true,
+          updatedAt: true,
+          status: true,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
+
+      if (userTrainings.length > 0) {
+        startedAt = userTrainings[0].createdAt;
+        // Проверяем, завершены ли все дни
+        const totalDays = userTrainings.length;
+        const completedDays = userTrainings.filter((t) => t.status === "COMPLETED").length;
+        if (completedDays === totalDays && totalDays > 0) {
+          completedAt = new Date();
+        }
+      }
+    }
+
+    if (!userInfo) {
       return null;
     }
 
@@ -184,34 +317,36 @@ export async function getUserProgress(
 
     const result = {
       userId,
-      username: userProgress.user.username,
-      avatarUrl: userProgress.user.profile?.avatarUrl || null,
-      startedAt: userProgress.startedAt,
-      completedAt: userProgress.completedAt,
+      username: userInfo.username,
+      avatarUrl: userInfo.avatarUrl,
+      startedAt,
+      completedAt,
       days: daysProgress,
     };
 
-    // Валидация логической согласованности данных
-    // Если курс не начат, не должно быть даты начала
-    if (userProgress.status === "NOT_STARTED" && userProgress.startedAt) {
-      console.warn(
-        `Пользователь ${userProgress.user.username} имеет статус NOT_STARTED, но есть дата начала:`,
-        userProgress.startedAt,
-      );
-    }
+    // Валидация логической согласованности данных только если есть userProgress
+    if (userProgress) {
+      // Если курс не начат, не должно быть даты начала
+      if (userProgress.status === "NOT_STARTED" && userProgress.startedAt) {
+        console.warn(
+          `Пользователь ${userProgress.user.username} имеет статус NOT_STARTED, но есть дата начала:`,
+          userProgress.startedAt,
+        );
+      }
 
-    // Если курс завершен, должны быть обе даты
-    if (
-      userProgress.status === "COMPLETED" &&
-      (!userProgress.startedAt || !userProgress.completedAt)
-    ) {
-      console.warn(
-        `Пользователь ${userProgress.user.username} имеет статус COMPLETED, но отсутствуют даты:`,
-        {
-          startedAt: userProgress.startedAt,
-          completedAt: userProgress.completedAt,
-        },
-      );
+      // Если курс завершен, должны быть обе даты
+      if (
+        userProgress.status === "COMPLETED" &&
+        (!userProgress.startedAt || !userProgress.completedAt)
+      ) {
+        console.warn(
+          `Пользователь ${userProgress.user.username} имеет статус COMPLETED, но отсутствуют даты:`,
+          {
+            startedAt: userProgress.startedAt,
+            completedAt: userProgress.completedAt,
+          },
+        );
+      }
     }
 
     return result;

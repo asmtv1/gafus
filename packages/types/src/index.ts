@@ -23,6 +23,8 @@ export type { UserPreferences, UserState } from "./stores/userStore";
 
 // Utils
 export * from "./utils";
+export * from "./utils/logger";
+export * from "./utils/validation";
 
 // Pages
 export * from "./pages";

@@ -34,7 +34,12 @@ export interface TimerStore {
     stepTitle: string,
     stepOrder: number,
   ) => Promise<void>;
-  resetStepWithServer: (
+  resetStepWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
+
+  // Управление уведомлениями
+  pauseNotification: (courseId: string, day: number, stepIndex: number) => Promise<void>;
+
+  resumeNotification: (
     courseId: string,
     day: number,
     stepIndex: number,

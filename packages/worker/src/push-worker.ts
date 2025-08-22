@@ -1,159 +1,326 @@
-// Запуск процесса push-worker
-console.warn("🟢 [Worker] Starting push-worker process...");
-
 import { prisma } from "@gafus/prisma";
-import { connection } from "@gafus/queues/redis.js";
-import { Queue, Worker } from "bullmq";
-import webpush from "web-push";
+import { connection } from "@gafus/queues";
+import type { Job } from "bullmq";
+import { Worker } from "bullmq";
 
-import type { PushSubscriptionKeys, PushSubscriptionJSON } from "@gafus/types";
+import type { PushSubscription } from "@gafus/prisma";
+import type { PushSubscriptionJSON } from "@gafus/types";
+import { PushNotificationService } from "../../webpush/src/service";
+// Временное решение - используем console вместо createLogger
+const createLogger = (context: string) => ({
+  info: (msg: string, meta?: Record<string, unknown>) =>
+    console.log(`[${context}] INFO:`, msg, meta),
+  warn: (msg: string, meta?: Record<string, unknown>) =>
+    console.warn(`[${context}] WARN:`, msg, meta),
+  error: (msg: string, meta?: Record<string, unknown>) =>
+    console.error(`[${context}] ERROR:`, msg, meta),
+  debug: (msg: string, meta?: Record<string, unknown>) =>
+    console.log(`[${context}] DEBUG:`, msg, meta),
+  success: (msg: string, meta?: Record<string, unknown>) =>
+    console.log(`[${context}] SUCCESS:`, msg, meta),
+});
 
-// Настройка VAPID ключей для web-push
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+// Конфигурация
+const config = {
+  worker: {
+    concurrency: 5,
+    removeOnComplete: { count: 100 },
+    removeOnFail: { count: 50 },
+  },
+  push: {
+    retryAttempts: 3,
+    retryDelay: 1000,
+  },
+} as const;
 
-if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-  console.error("❌ VAPID keys not found in environment variables");
-  console.error("Please set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in .env");
-} else {
-  webpush.setVapidDetails(
-    "mailto:admin@gafus.ru", // Email для VAPID
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY,
-  );
-  console.warn("✅ VAPID keys configured");
-}
+// Инициализация PushNotificationService
+const pushService = PushNotificationService.fromEnvironment();
 
-// Используем типы из @gafus/types
+// Сервис для обработки уведомлений
+class NotificationProcessor {
+  private logger = createLogger("NotificationProcessor");
 
-function _isPushSubscriptionJSON(obj: unknown): obj is PushSubscriptionJSON {
-  return (
-    typeof obj === "object" &&
-    obj !== null &&
-    "endpoint" in obj &&
-    "keys" in obj &&
-    typeof (obj as PushSubscriptionJSON).endpoint === "string" &&
-    typeof (obj as PushSubscriptionJSON).keys === "object" &&
-    (obj as PushSubscriptionJSON).keys !== null &&
-    "p256dh" in (obj as PushSubscriptionJSON).keys! &&
-    "auth" in (obj as PushSubscriptionJSON).keys!
-  );
-}
+  async process(notificationId: string): Promise<void> {
+    this.logger.info("Processing notification", { notificationId });
 
-function isPushError(err: unknown): err is { statusCode: number } {
-  return typeof err === "object" && err !== null && "statusCode" in err;
-}
+    const notification = await this.fetchNotification(notificationId);
+    if (!notification) return;
 
-const _pushQueue = new Queue("push", { connection });
-
-const worker = new Worker(
-  "push",
-  async (job) => {
-    console.warn("🔍 Job data:", JSON.stringify(job.data, null, 2));
-    const { notificationId } = job.data as { notificationId: string };
-
-    const notif = await prisma.stepNotification.findUnique({
-      where: { id: notificationId },
-    });
-
-    if (!notif) {
-      console.warn("⚠️ Notification not found:", notificationId);
+    // Проверяем, не приостановлено ли уведомление
+    if (notification.paused) {
+      this.logger.info("Notification is paused, skipping processing", {
+        notificationId,
+        day: notification.day,
+        stepIndex: notification.stepIndex,
+      });
       return;
     }
 
-    const subscriptions = await prisma.pushSubscription.findMany({
-      where: { userId: notif.userId },
-    });
+    // Проверяем, не отправлено ли уже уведомление
+    if (notification.sent) {
+      this.logger.info("Notification already sent, skipping processing", {
+        notificationId,
+        day: notification.day,
+        stepIndex: notification.stepIndex,
+      });
+      return;
+    }
 
-    const stepTitle = notif.stepTitle || `Шаг ${notif.stepIndex + 1}`;
-    const payload = JSON.stringify({
+    const subscriptions = await this.fetchSubscriptions(notification.userId);
+    if (subscriptions.length === 0) {
+      this.logger.warn("No subscriptions found for user", { userId: notification.userId });
+      return;
+    }
+
+    const payload = this.createNotificationPayload(notification);
+    const results = await this.sendNotifications(subscriptions, payload);
+
+    await this.updateNotificationStatus(notificationId, results.successCount > 0);
+
+    this.logger.success("Notification processing completed", {
+      notificationId,
+      day: notification.day,
+      stepIndex: notification.stepIndex,
+      totalSubscriptions: subscriptions.length,
+      successfulSends: results.successCount,
+      failedSends: results.failedCount,
+    });
+  }
+
+  private async fetchNotification(notificationId: string) {
+    try {
+      const notification = await prisma.stepNotification.findUnique({
+        where: { id: notificationId },
+      });
+
+      if (!notification) {
+        this.logger.warn("Notification not found", { notificationId });
+        return null;
+      }
+
+      return notification;
+    } catch (error) {
+      this.logger.error("Failed to fetch notification", { notificationId, error });
+      throw error;
+    }
+  }
+
+  private async fetchSubscriptions(userId: string): Promise<PushSubscription[]> {
+    try {
+      return await prisma.pushSubscription.findMany({
+        where: { userId },
+      });
+    } catch (error) {
+      this.logger.error("Failed to fetch subscriptions", { userId, error });
+      throw error;
+    }
+  }
+
+  private createNotificationPayload(notification: {
+    stepTitle?: string | null;
+    stepIndex: number;
+    url?: string | null;
+  }): string {
+    const stepTitle = notification.stepTitle || `Шаг ${notification.stepIndex + 1}`;
+
+    return JSON.stringify({
       title: "Шаг завершён!",
       body: `Вы успешно прошли "${stepTitle}".`,
       icon: "/icons/icon192.png",
       badge: "/icons/badge-72.png",
       data: {
-        url: notif.url ?? "/",
+        url: notification.url ?? "/",
       },
     });
+  }
 
-    console.warn("📤 Sending push notification:", {
-      stepTitle,
-      url: notif.url,
-      payload: JSON.parse(payload),
-    });
+  private async sendNotifications(
+    subscriptions: PushSubscription[],
+    payload: string,
+  ): Promise<{ successCount: number; failedCount: number }> {
+    // Конвертируем подписки в правильный формат
+    const jsonSubscriptions: PushSubscriptionJSON[] = subscriptions
+      .map((sub) => ({
+        endpoint: sub.endpoint,
+        keys: sub.keys as { p256dh: string; auth: string },
+      }))
+      .filter((sub) => sub.endpoint && sub.keys?.p256dh && sub.keys?.auth);
 
-    const results = await Promise.allSettled(
-      subscriptions.map(async (sub) => {
-        const keysRaw = sub.keys as unknown;
+    const results = await pushService.sendNotifications(jsonSubscriptions, payload);
 
-        if (
-          keysRaw &&
-          typeof keysRaw === "object" &&
-          !Array.isArray(keysRaw) &&
-          "p256dh" in keysRaw &&
-          "auth" in keysRaw &&
-          typeof (keysRaw as PushSubscriptionKeys).p256dh === "string" &&
-          typeof (keysRaw as PushSubscriptionKeys).auth === "string"
-        ) {
-          if (typeof sub.endpoint === "string") {
-            const subscription = {
-              endpoint: sub.endpoint,
-              keys: {
-                p256dh: (keysRaw as PushSubscriptionKeys).p256dh,
-                auth: (keysRaw as PushSubscriptionKeys).auth,
-              },
-            };
+    // Обрабатываем неудачные подписки
+    for (const result of results.results) {
+      if (!result.success && PushNotificationService.shouldDeleteSubscription(result.error)) {
+        await this.handleFailedSubscription(result.endpoint);
+      }
+    }
 
-            try {
-              await webpush.sendNotification(subscription, payload);
-              console.warn("📤 Push sent to", sub.endpoint);
-            } catch (err) {
-              console.error("🚨 Push error for", sub.endpoint, err);
-              if (isPushError(err) && (err.statusCode === 404 || err.statusCode === 410)) {
-                await prisma.pushSubscription.delete({
-                  where: { endpoint: sub.endpoint },
-                });
-                console.warn("🧹 Deleted invalid subscription:", sub.endpoint);
-              }
-            }
-          } else {
-            console.warn("⚠️ Subscription skipped due to missing endpoint:", sub.endpoint);
-          }
-        } else {
-          console.warn("⚠️ Invalid subscription skipped:", sub.endpoint);
-        }
-      }),
-    );
+    return {
+      successCount: results.successCount,
+      failedCount: results.failureCount,
+    };
+  }
 
-    // Отмечаем уведомление как отправленное (если был хотя бы 1 успешный пуш)
-    const hasSuccess = results.some((res) => res.status === "fulfilled");
+  private async handleFailedSubscription(endpoint: string): Promise<void> {
+    try {
+      // Удаляем недействительную подписку из базы данных
+      await prisma.pushSubscription.deleteMany({
+        where: { endpoint },
+      });
 
-    if (hasSuccess) {
+      this.logger.info("Removed invalid subscription", {
+        endpoint: endpoint.substring(0, 50) + "...",
+      });
+    } catch (error) {
+      this.logger.error("Failed to handle subscription failure", {
+        endpoint: endpoint.substring(0, 50) + "...",
+        error,
+      });
+    }
+  }
+
+  private async updateNotificationStatus(notificationId: string, sent: boolean): Promise<void> {
+    try {
       await prisma.stepNotification.update({
         where: { id: notificationId },
-        data: { sent: true },
+        data: { sent },
       });
-      console.warn("✅ Notification marked as sent");
-    } else {
-      console.warn("⚠️ No successful push. Notification not marked as sent.");
+
+      this.logger.success("Notification status updated", { notificationId, sent });
+    } catch (error) {
+      this.logger.error("Failed to update notification status", { notificationId, error });
+      throw error;
     }
-  },
-  {
-    connection,
-    concurrency: 5,
-  },
-);
+  }
+}
 
-worker.on("completed", (job) => {
-  console.warn(`✅ Job completed: ${job.id}`);
-});
+// Основной класс worker'а
+class PushWorker {
+  private worker: Worker;
+  private notificationProcessor: NotificationProcessor;
+  private logger = createLogger("PushWorker");
 
-worker.on("failed", (job, err) => {
-  console.error(`❌ Job failed: ${job?.id}`, err);
-});
+  constructor() {
+    this.notificationProcessor = new NotificationProcessor();
 
-worker.on("error", (err) => {
-  console.error("🔥 Worker error:", err);
-});
+    this.worker = new Worker("push", this.processJob.bind(this), {
+      connection,
+      concurrency: config.worker.concurrency,
+      removeOnComplete: config.worker.removeOnComplete,
+      removeOnFail: config.worker.removeOnFail,
+    });
 
-console.warn("🟢 Worker is up and running, listening for jobs...");
+    this.setupEventHandlers();
+  }
+
+  private async processJob(job: Job): Promise<void> {
+    try {
+      const { notificationId } = job.data as { notificationId: string };
+
+      this.logger.info("Processing job", { jobId: job.id, notificationId });
+
+      // АТОМАРНАЯ проверка статуса уведомления с блокировкой
+      const notification = await prisma.stepNotification.findUnique({
+        where: {
+          id: notificationId,
+          // Проверяем что jobId все еще актуален (не был изменен)
+          jobId: job.id?.toString() || "",
+        },
+        select: {
+          id: true,
+          jobId: true,
+          sent: true,
+          paused: true,
+        },
+      });
+
+      if (!notification) {
+        this.logger.info("Notification skipped - jobId mismatch or not found", {
+          jobId: job.id,
+          notificationId,
+          reason: "jobId mismatch or notification not found",
+        });
+        return;
+      }
+
+      // Дополнительная проверка статуса
+      if (notification.sent) {
+        this.logger.info("Notification skipped - already sent", {
+          jobId: job.id,
+          notificationId,
+          reason: "already sent",
+        });
+        return;
+      }
+
+      if (notification.paused) {
+        this.logger.info("Notification skipped - paused", {
+          jobId: job.id,
+          notificationId,
+          reason: "paused",
+        });
+        return;
+      }
+
+      this.logger.info("Notification will be processed", {
+        jobId: job.id,
+        notificationId,
+        notificationJobId: notification.jobId,
+        sent: notification.sent,
+        paused: notification.paused,
+      });
+
+      await this.notificationProcessor.process(notificationId);
+
+      this.logger.success("Job completed successfully", { jobId: job.id });
+    } catch (error) {
+      this.logger.error("Job processing failed", {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error; // BullMQ автоматически retry
+    }
+  }
+
+  private setupEventHandlers(): void {
+    this.worker.on("completed", (job) => {
+      this.logger.success("Job completed", { jobId: job.id });
+    });
+
+    this.worker.on("failed", (job, err) => {
+      this.logger.error("Job failed", {
+        jobId: job?.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+
+    this.worker.on("error", (err) => {
+      this.logger.error("Worker error", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+
+    this.worker.on("stalled", (jobId) => {
+      this.logger.warn("Job stalled", { jobId });
+    });
+  }
+
+  public start(): void {
+    this.logger.success("Push worker started", {
+      concurrency: config.worker.concurrency,
+      removeOnComplete: config.worker.removeOnComplete,
+      removeOnFail: config.worker.removeOnFail,
+    });
+  }
+}
+
+// Запуск worker'а
+console.log("🟢 [Worker] Starting push-worker process...");
+
+try {
+  const worker = new PushWorker();
+  worker.start();
+} catch (error) {
+  console.error("❌ [Worker] Failed to start push-worker:", error);
+  process.exit(1);
+}

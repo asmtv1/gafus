@@ -41,17 +41,27 @@ self.addEventListener('activate', (event) => {
 // Если нужен офлайн фолбек для навигаций, он настроен в next.config.ts через fallback.document
 
 self.addEventListener("push", (event) => {
+  console.log("🔔 Service Worker: Получено push-событие!", event);
+  console.log("🔔 Service Worker: Тип события:", event.type);
+  console.log("🔔 Service Worker: Данные события:", event.data);
+  console.log("🔔 Service Worker: Registration:", self.registration);
   
   let payload = {};
   try {
     if (event.data) {
+      console.log("🔔 Service Worker: Данные события:", event.data);
       try {
         payload = event.data.json();
+        console.log("🔔 Service Worker: JSON payload:", payload);
       } catch (e) {
+        console.log("🔔 Service Worker: Ошибка парсинга JSON, используем text:", e);
         payload = { body: event.data.text() };
       }
+    } else {
+      console.log("🔔 Service Worker: Нет данных в событии");
     }
   } catch (e) {
+    console.error("🔔 Service Worker: Ошибка обработки данных:", e);
   }
 
   const title = payload.title || "Гафус";
@@ -61,10 +71,13 @@ self.addEventListener("push", (event) => {
   const tag = payload.tag || "gafus";
   const data = payload.data || {};
 
+  console.log("🔔 Service Worker: Показываем уведомление:", { title, body, icon, badge, tag, data });
+
   event.waitUntil(
     self.registration.showNotification(title, {
       body, icon, badge, tag, data, requireInteraction: false,
     }).then(() => {
+      console.log("✅ Service Worker: Уведомление показано успешно!");
     }).catch((error) => {
       console.error("❌ Ошибка показа уведомления:", error);
     }),
@@ -90,6 +103,38 @@ self.addEventListener("notificationclick", (event) => {
       }
     })(),
   );
+});
+
+// Обработка сообщений от клиента
+self.addEventListener("message", (event) => {
+  console.log("🔔 Service Worker: Получено сообщение от клиента:", event.data);
+  
+  if (event.data.type === "TEST_PUSH") {
+    console.log("🔔 Service Worker: Показываем тестовое уведомление");
+    
+    const { title, body, icon } = event.data.data;
+    
+    event.waitUntil(
+      self.registration.showNotification(title || "Тест", {
+        body: body || "Тестовое уведомление",
+        icon: icon || "/icons/icon192.png",
+        badge: "/icons/badge-72.png",
+        tag: "test",
+        data: {},
+        requireInteraction: false,
+      }).then(() => {
+        console.log("✅ Service Worker: Тестовое уведомление показано!");
+      }).catch((error) => {
+        console.error("❌ Service Worker: Ошибка показа тестового уведомления:", error);
+      }),
+    );
+    
+    // Возвращаем true для асинхронных сообщений
+    return true;
+  }
+  
+  // Для всех остальных сообщений возвращаем false (синхронная обработка)
+  return false;
 });
 
 

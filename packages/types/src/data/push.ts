@@ -10,11 +10,6 @@ export interface PushSubscriptionJSON {
   keys: PushSubscriptionKeys;
 }
 
-export interface SubscriptionKeys {
-  p256dh: string;
-  auth: string;
-}
-
 export interface PushSubscription {
   endpoint: string;
   expirationTime?: number | null;

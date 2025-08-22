@@ -26,7 +26,7 @@ export async function createTrainingDay(data: {
       stepLinks: {
         create: data.stepIds.map((stepId: string, index: number) => ({
           step: { connect: { id: stepId } },
-          order: index,
+          order: index + 1, // Шаги начинаются с 1, а не с 0
         })),
       },
     },

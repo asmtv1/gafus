@@ -2,7 +2,8 @@
 
 import { prisma } from "@gafus/prisma";
 
-import type { AuthoredCourse, RawCourseData, TrainingStatus } from "@gafus/types";
+import type { AuthoredCourse, RawCourseData } from "@gafus/types";
+import { TrainingStatus } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 
@@ -90,7 +91,9 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
         },
         select: {
           id: true,
+          userId: true,
           status: true,
+          createdAt: true,
           dayOnCourse: {
             select: {
               order: true,
@@ -115,6 +118,104 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
         },
       });
 
+      // Получаем уникальных пользователей из userTrainings
+      const uniqueUserIds = new Set(trainings.map((t: { userId: string }) => t.userId));
+
+      // Объединяем пользователей из userCourses и userTrainings
+      const allUsers = new Map<
+        string,
+        {
+          userId: string;
+          username: string;
+          avatarUrl: string | null;
+          startedAt: Date | null;
+          completedAt: Date | null;
+          status: TrainingStatus;
+        }
+      >();
+
+      // Добавляем пользователей из userCourses
+      course.userCourses.forEach((uc) => {
+        allUsers.set(uc.userId, {
+          userId: uc.userId,
+          username: uc.user.username,
+          avatarUrl: uc.user.profile?.avatarUrl ?? null,
+          startedAt: uc.startedAt,
+          completedAt: uc.completedAt,
+          status: uc.status as TrainingStatus,
+        });
+      });
+
+      // Добавляем пользователей из userTrainings, если их нет в userCourses
+      for (const userId of uniqueUserIds) {
+        const userIdStr = userId as string;
+        if (!allUsers.has(userIdStr)) {
+          // Получаем информацию о пользователе
+          const user = await prisma.user.findUnique({
+            where: { id: userIdStr },
+            select: {
+              username: true,
+              profile: {
+                select: {
+                  avatarUrl: true,
+                },
+              },
+            },
+          });
+
+          if (user) {
+            // Проверяем статус всех дней пользователя
+            const userTrainings = trainings.filter(
+              (t: { userId: string }) => t.userId === userIdStr,
+            );
+
+            // Получаем общее количество дней в курсе
+            const totalDaysInCourse = await prisma.dayOnCourse.count({
+              where: { courseId: course.id },
+            });
+
+            let status: TrainingStatus = TrainingStatus.NOT_STARTED;
+
+            if (userTrainings.length > 0) {
+              // Если есть хотя бы одна тренировка - проверяем завершение
+              const completedDays = userTrainings.filter(
+                (t: { status: string }) => t.status === TrainingStatus.COMPLETED,
+              ).length;
+
+              // Проверяем, что у пользователя есть тренировки для ВСЕХ дней курса
+              // и ВСЕ эти дни завершены
+              if (
+                completedDays === totalDaysInCourse &&
+                userTrainings.length === totalDaysInCourse &&
+                totalDaysInCourse > 0
+              ) {
+                status = TrainingStatus.COMPLETED;
+              } else {
+                status = TrainingStatus.IN_PROGRESS;
+              }
+            }
+
+            // Определяем startedAt как время первой тренировки пользователя
+            const userCourseTrainings = userTrainings.filter(
+              (t: { userId: string }) => t.userId === userIdStr,
+            );
+            const firstTraining = userCourseTrainings.sort(
+              (a: { createdAt: Date | null }, b: { createdAt: Date | null }) =>
+                new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime(),
+            )[0];
+
+            allUsers.set(userIdStr, {
+              userId: userIdStr,
+              username: user.username,
+              avatarUrl: user.profile?.avatarUrl ?? null,
+              startedAt: firstTraining?.createdAt || null,
+              completedAt: status === TrainingStatus.COMPLETED ? new Date() : null,
+              status,
+            });
+          }
+        }
+      }
+
       const days = await Promise.all(
         trainings.map(
           async (training: {
@@ -138,7 +239,7 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
               },
             });
 
-            const stepProgressMap = new Map(
+            const stepProgressMap = new Map<string, string>(
               userSteps.map((userStep: { stepOnDayId: string; status: string }) => [
                 userStep.stepOnDayId,
                 userStep.status,
@@ -147,7 +248,7 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
 
             const stepProgress = training.dayOnCourse.day.stepLinks.map(
               (link: { id: string; order: number; step: { title: string } }) => {
-                const stepStatus = stepProgressMap.get(link.id) || "NOT_STARTED";
+                const stepStatus = stepProgressMap.get(link.id) || TrainingStatus.NOT_STARTED;
                 return {
                   stepOrder: link.order,
                   stepTitle: link.step.title,
@@ -166,11 +267,12 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
         ),
       );
 
-      const totalStarted = course.userCourses.filter(
-        (uc: RawCourseData["userCourses"][0]) => uc.status !== "NOT_STARTED",
+      const userProgressArray = Array.from(allUsers.values());
+      const totalStarted = userProgressArray.filter(
+        (uc) => uc.status !== TrainingStatus.NOT_STARTED,
       ).length;
-      const totalCompleted = course.userCourses.filter(
-        (uc: RawCourseData["userCourses"][0]) => uc.status === "COMPLETED",
+      const totalCompleted = userProgressArray.filter(
+        (uc) => uc.status === TrainingStatus.COMPLETED,
       ).length;
       const totalRatings = course.reviews.length;
 
@@ -179,13 +281,15 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
         totalStarted,
         totalCompleted,
         totalRatings,
-        userProgress: course.userCourses.map((uc: RawCourseData["userCourses"][0]) => ({
-          userId: uc.userId,
-          username: uc.user.username,
-          avatarUrl: uc.user.profile?.avatarUrl ?? null,
-          startedAt: uc.startedAt,
-          completedAt: uc.completedAt,
-          days: days.filter((d: { status: string }) => d.status !== "NOT_STARTED"),
+        userProgress: userProgressArray.map((user) => ({
+          userId: user.userId,
+          username: user.username,
+          avatarUrl: user.avatarUrl,
+          startedAt: user.startedAt,
+          completedAt: user.completedAt,
+          days: days.filter(
+            (d: { status: TrainingStatus }) => d.status !== TrainingStatus.NOT_STARTED,
+          ),
         })),
       };
     }),

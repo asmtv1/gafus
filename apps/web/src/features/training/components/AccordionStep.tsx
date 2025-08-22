@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useStepStore } from "@shared/stores/stepStore";
 import { useTimerStore } from "@shared/stores/timerStore";
+import { useTrainingStore } from "@shared/stores/trainingStore";
 import styles from "./AccordionStep.module.css";
 
 interface AccordionStepProps {
@@ -13,7 +14,6 @@ interface AccordionStepProps {
   durationSec: number;
   stepTitle: string;
   stepOrder: number;
-  isRunning: boolean;
   onRun: (stepIndex: number) => void;
   onReset: (stepIndex: number) => void;
 }
@@ -25,10 +25,12 @@ export function AccordionStep({
   durationSec,
   stepTitle,
   stepOrder,
-  isRunning,
   onRun,
   onReset,
 }: AccordionStepProps) {
+  // Состояние для отслеживания загрузки
+  const [isPausing, setIsPausing] = useState(false);
+
   // Функция для перевода статуса на русский язык
   const getStatusText = useCallback((status: string) => {
     switch (status) {
@@ -62,6 +64,7 @@ export function AccordionStep({
     resetStepWithServer,
     canStartStep,
   } = useTimerStore();
+  const { togglePauseWithServer, resumeNotificationWithServer } = useTrainingStore();
   // Инициализируем шаг при монтировании
   useEffect(() => {
     initializeStep(courseId, day, stepIndex, durationSec);
@@ -88,7 +91,6 @@ export function AccordionStep({
           const existingTimer = timers.get(stepKey);
 
           if (!existingTimer) {
-            
             // Восстанавливаем таймер с флагом isRestore = true
             startTimer(
               courseId,
@@ -129,6 +131,11 @@ export function AccordionStep({
     stepIndex,
     updateTimeLeft,
     finishStep,
+    finishStepWithServer,
+    stepKey,
+    stepOrder,
+    stepTitle,
+    timers,
     onRun,
   ]);
 
@@ -168,6 +175,8 @@ export function AccordionStep({
         alert("Один шаг уже активен. Сначала остановите его!");
         return false;
       }
+
+      return true;
 
       return true;
     },
@@ -229,19 +238,43 @@ export function AccordionStep({
     startStepTimer,
   ]);
 
-  const togglePause = useCallback(() => {
+  const togglePause = useCallback(async () => {
     if (stepState?.status === "IN_PROGRESS") {
       if (isActuallyRunning) {
         // Если таймер работает - ставим на паузу
-        pauseStep(courseId, day, stepIndex);
-        stopTimer(courseId, day, stepIndex);
+        setIsPausing(true);
+        try {
+          // Приостанавливаем уведомления на сервере
+          await togglePauseWithServer(courseId, day, stepIndex);
+
+          // Обновляем локальное состояние
+          pauseStep(courseId, day, stepIndex);
+          stopTimer(courseId, day, stepIndex);
+        } catch (error) {
+          console.error("Ошибка при постановке на паузу:", error);
+          alert("Ошибка при постановке на паузу");
+        } finally {
+          setIsPausing(false);
+        }
       } else {
         // Если таймер не работает, но статус IN_PROGRESS - возобновляем
-        startStepTimer(true);
+        try {
+          await resumeNotificationWithServer(courseId, day, stepIndex);
+          startStepTimer(true);
+        } catch (error) {
+          console.error("Ошибка при возобновлении уведомлений:", error);
+          alert("Ошибка при возобновлении уведомлений");
+        }
       }
     } else if (stepState?.status === "PAUSED") {
       // Проверяем, может ли шаг быть возобновлен
-      startStepTimer(true);
+      try {
+        await resumeNotificationWithServer(courseId, day, stepIndex);
+        startStepTimer(true);
+      } catch (error) {
+        console.error("Ошибка при возобновлении уведомлений:", error);
+        alert("Ошибка при возобновлении уведомлений");
+      }
     }
   }, [
     stepState?.status,
@@ -252,12 +285,15 @@ export function AccordionStep({
     stepIndex,
     stopTimer,
     startStepTimer,
+    togglePauseWithServer,
+    resumeNotificationWithServer,
+    setIsPausing,
   ]);
 
   const handleReset = useCallback(async () => {
     try {
       // Сбрасываем шаг на сервере
-      await resetStepWithServer(courseId, day, stepIndex, durationSec);
+      await resetStepWithServer(courseId, day, stepIndex);
 
       // Останавливаем таймер
       stopTimer(courseId, day, stepIndex);
@@ -289,8 +325,8 @@ export function AccordionStep({
       if (isActuallyRunning) {
         return (
           <div className={styles.stepActions}>
-            <button onClick={togglePause} className={styles.btnSecondary}>
-              Пауза
+            <button onClick={togglePause} className={styles.btnSecondary} disabled={isPausing}>
+              {isPausing ? "⏳ Пауза..." : "Пауза"}
             </button>
             <button onClick={handleReset} className={styles.btnOutline}>
               Сброс
@@ -301,8 +337,8 @@ export function AccordionStep({
         // Если статус IN_PROGRESS, но таймер не работает - показываем "Продолжить"
         return (
           <div className={styles.stepActions}>
-            <button onClick={togglePause} className={styles.btnPrimary}>
-              Продолжить
+            <button onClick={togglePause} className={styles.btnPrimary} disabled={isPausing}>
+              {isPausing ? "⏳ Продолжить..." : "Продолжить"}
             </button>
             <button onClick={handleReset} className={styles.btnOutline}>
               Сброс
@@ -315,8 +351,8 @@ export function AccordionStep({
     if (stepState.status === "PAUSED") {
       return (
         <div className={styles.stepActions}>
-          <button onClick={togglePause} className={styles.btnPrimary}>
-            Продолжить
+          <button onClick={togglePause} className={styles.btnPrimary} disabled={isPausing}>
+            {isPausing ? "⏳ Продолжить..." : "Продолжить"}
           </button>
           <button onClick={handleReset} className={styles.btnOutline}>
             Сброс
@@ -334,17 +370,7 @@ export function AccordionStep({
     }
 
     return null;
-  }, [
-    stepState,
-    isActuallyRunning,
-    handleStart,
-    togglePause,
-    handleReset,
-    styles.btnPrimary,
-    styles.btnSecondary,
-    styles.btnOutline,
-    styles.stepActions,
-  ]);
+  }, [stepState, isActuallyRunning, handleStart, togglePause, handleReset, isPausing]);
 
   if (!stepState) return null;
 

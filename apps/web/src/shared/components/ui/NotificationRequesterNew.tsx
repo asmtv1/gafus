@@ -2,9 +2,9 @@
 
 import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
 import {
-  useNotificationStore,
-  useNotificationModal,
+  useNotificationComposite,
   useNotificationInitializer,
+  useNotificationModal,
 } from "@shared/stores";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -23,7 +23,7 @@ export default function NotificationRequesterNew() {
     dismissModal,
     isSupported,
     checkServerSubscription,
-  } = useNotificationStore();
+  } = useNotificationComposite();
 
   const [mounted, setMounted] = useState(false);
 
@@ -41,21 +41,18 @@ export default function NotificationRequesterNew() {
   useEffect(() => {
     const initializeData = async () => {
       try {
-        // Получаем VAPID ключ
         const vapidData = await getPublicKeyAction();
         setVapidKey(vapidData.publicKey);
-
-        // Обновляем статус в store
         checkServerSubscription();
       } catch (error) {
-        console.error("Failed to initialize push notification data:", error);
+        console.error("NotificationRequesterNew initialization error:", error);
       }
     };
 
     if (mounted) {
       initializeData();
     }
-  }, [mounted]);
+  }, [mounted, checkServerSubscription]);
 
   const handleAllowNotifications = async () => {
     if (vapidKey) {

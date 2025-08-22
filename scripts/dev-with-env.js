@@ -34,26 +34,37 @@ const apps = [
   { name: "Web App", filter: "@gafus/web", port: 3002, type: "next-dev" },
   { name: "Trainer Panel", filter: "@gafus/trainer-panel", port: 3001, type: "next-dev" },
   { name: "Error Dashboard", filter: "@gafus/error-dashboard", port: 3005, type: "next-dev" },
+  { name: "Push Worker", filter: "@gafus/worker", port: null, type: "worker" },
 ];
 
 // Освобождаем порты, если заняты
 apps.forEach((app) => {
-  try {
-    execSync(`lsof -ti tcp:${app.port} | xargs -r kill -9`, { stdio: "ignore" });
-    console.warn(`🔓 Порт ${app.port} освобожден`);
-  } catch {}
+  if (app.port) {
+    try {
+      execSync(`lsof -ti tcp:${app.port} | xargs -r kill -9`, { stdio: "ignore" });
+      console.warn(`🔓 Порт ${app.port} освобожден`);
+    } catch {}
+  }
 });
 
 // Запускаем все приложения параллельно
 const processes = [];
 apps.forEach((app) => {
-  console.warn(`🔄 Запуск ${app.name} (порт ${app.port})...`);
+  console.warn(`🔄 Запуск ${app.name}${app.port ? ` (порт ${app.port})` : ''}...`);
 
   let child;
   if (app.type === "next-dev") {
     // Создаем объект окружения с переменными из .env + системными + портом
     const childEnv = createChildEnv(envVars, { PORT: String(app.port) });
 
+    child = spawn("pnpm", ["--filter", app.filter, "dev"], {
+      stdio: "pipe",
+      env: childEnv,
+    });
+  } else if (app.type === "worker") {
+    // Запускаем worker в dev режиме
+    const childEnv = createChildEnv(envVars, {});
+    
     child = spawn("pnpm", ["--filter", app.filter, "dev"], {
       stdio: "pipe",
       env: childEnv,
@@ -102,5 +113,6 @@ setTimeout(() => {
   console.warn("  Web App: http://web.gafus.localhost:3002");
   console.warn("  Trainer Panel: http://trainer.gafus.localhost:3001");
   console.warn("  Error Dashboard: http://errors.gafus.localhost:3005");
+  console.warn("  Push Worker: обрабатывает уведомления");
   console.warn("\n💡 Для остановки нажмите Ctrl+C");
 }, 5000);

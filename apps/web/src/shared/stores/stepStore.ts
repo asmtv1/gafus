@@ -54,19 +54,12 @@ export const useStepStore = create<StepStore>()(
         const stepKey = get().getStepKey(courseId, day, stepIndex);
         const endTs = nowSec() + durationSec;
 
-        if (process.env.NODE_ENV === "development") {
-          console.log(`🚀 Starting step: ${stepKey}`);
-        }
-
         // Проверяем, нет ли уже активных таймеров (реальное состояние)
         // Используем динамический импорт для избежания циклических зависимостей
         const timerStore = await import("@shared/stores/timerStore");
         const hasActiveTimers = timerStore.useTimerStore.getState().getActiveStep() !== null;
 
         if (hasActiveTimers) {
-          if (process.env.NODE_ENV === "development") {
-            console.log(`🚫 Another timer is already active, skipping start for ${stepKey}`);
-          }
           return false; // Возвращаем false для показа уведомления
         }
 
@@ -84,10 +77,6 @@ export const useStepStore = create<StepStore>()(
             },
           },
         }));
-
-        if (process.env.NODE_ENV === "development") {
-          console.log(`✅ Step started: ${stepKey}`);
-        }
 
         return true; // Успешно запущен
       },
@@ -109,9 +98,12 @@ export const useStepStore = create<StepStore>()(
 
       resumeStep: (courseId, day, stepIndex) => {
         const stepKey = get().getStepKey(courseId, day, stepIndex);
+
         const currentStep = get().stepStates[stepKey];
 
-        if (!currentStep) return;
+        if (!currentStep) {
+          return;
+        }
 
         const timeLeft = currentStep.timeLeft;
         const endTs = nowSec() + timeLeft;

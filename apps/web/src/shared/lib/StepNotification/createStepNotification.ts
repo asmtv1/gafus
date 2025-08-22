@@ -1,14 +1,36 @@
 import { prisma } from "@gafus/prisma";
-import { connection, pushQueue } from "@gafus/queues";
+import { pushQueue } from "@gafus/queues";
 
-console.warn("🔍 pushQueue imported:", pushQueue);
-console.warn("🔍 pushQueue name:", pushQueue.name);
-console.warn("🔍 REDIS_URL from env:", process.env.REDIS_URL);
+// Функция для логирования в error-dashboard
+async function logToErrorDashboard(
+  message: string,
+  level: "info" | "warn" | "error" = "info",
+  meta?: Record<string, unknown>,
+) {
+  try {
+    const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || "http://localhost:3005";
 
-// Тестируем подключение к Redis
-console.warn("🔍 Redis connection:", connection);
+    const logEntry = {
+      message,
+      level,
+      context: "step-notification",
+      service: "training",
+      additionalContext: {
+        ...meta,
+      },
+      tags: ["step-notification", "push-subscription", level],
+    };
 
-console.warn("🔍 Redis connection:", connection);
+    await fetch(`${errorDashboardUrl}/api/push-logs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(logEntry),
+    });
+  } catch {
+    // Fallback на console если error-dashboard недоступен
+    console.warn(`[${level.toUpperCase()}] ${message}`, meta);
+  }
+}
 
 export async function createStepNotificationsForUserStep({
   userId,
@@ -33,8 +55,32 @@ export async function createStepNotificationsForUserStep({
   });
 
   if (!subscription) {
+    // Логируем ошибку в error-dashboard
+    await logToErrorDashboard("No push subscription found for user", "error", {
+      userId,
+      day,
+      stepIndex,
+      durationSec,
+      stepTitle,
+      url: maybeUrl,
+      errorType: "missing_subscription",
+      timestamp: new Date().toISOString(),
+    });
+
     throw new Error("No push subscription found for user");
   }
+
+  // Логируем успешное создание уведомления
+  await logToErrorDashboard("Step notification created successfully", "info", {
+    userId,
+    day,
+    stepIndex,
+    durationSec,
+    stepTitle,
+    url: maybeUrl,
+    subscriptionId: subscription.id,
+    timestamp: new Date().toISOString(),
+  });
 
   const notif = await prisma.stepNotification.create({
     data: {
@@ -52,14 +98,8 @@ export async function createStepNotificationsForUserStep({
   });
 
   try {
-    console.warn("🔍 Adding job to queue:", {
-      notificationId: notif.id,
-      delay: durationSec * 1000,
-      durationSec,
-    });
-
     const job = await pushQueue.add(
-      "push",
+      "send-step-notification",
       { notificationId: notif.id },
       {
         delay: durationSec * 1000,
@@ -70,21 +110,33 @@ export async function createStepNotificationsForUserStep({
       },
     );
 
-    console.warn("✅ Job added successfully:", job.id);
-
     await prisma.stepNotification.update({
       where: { id: notif.id },
       data: { jobId: job.id },
     });
+
+    // Логируем успешное добавление в очередь
+    await logToErrorDashboard("Job added to push queue successfully", "info", {
+      notificationId: notif.id,
+      jobId: job.id,
+      userId,
+      day,
+      stepIndex,
+      delay: durationSec * 1000,
+      timestamp: new Date().toISOString(),
+    });
   } catch (err) {
-    console.error("❌ Error adding job to queue:", err);
-    if (err instanceof Error) {
-      console.error("❌ Error details:", {
-        message: err.message,
-        stack: err.stack,
-        name: err.name,
-      });
-    }
+    // Логируем ошибку добавления в очередь
+    await logToErrorDashboard("Error adding job to push queue", "error", {
+      notificationId: notif.id,
+      userId,
+      day,
+      stepIndex,
+      error: err instanceof Error ? err.message : String(err),
+      timestamp: new Date().toISOString(),
+    });
+
+    console.error("Error adding job to queue:", err);
     throw err;
   }
 }

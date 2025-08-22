@@ -1,12 +1,33 @@
 "use server";
 
+import { validateVapidPublicKey } from "@gafus/types";
+
 export async function getPublicKeyAction() {
   const key = process.env.VAPID_PUBLIC_KEY;
 
-  console.warn("🔑 VAPID_PUBLIC_KEY from env:", key);
+  if (!key) {
+    console.warn("⚠️ VAPID_PUBLIC_KEY is not defined in environment variables");
+    return {
+      publicKey: null,
+      isDefined: false,
+      isValid: false,
+    };
+  }
+
+  const isValid = validateVapidPublicKey(key);
+
+  if (!isValid) {
+    console.error("❌ VAPID_PUBLIC_KEY is not valid format");
+    return {
+      publicKey: null,
+      isDefined: true,
+      isValid: false,
+    };
+  }
 
   return {
-    publicKey: key ?? null,
-    isDefined: Boolean(key),
+    publicKey: key,
+    isDefined: true,
+    isValid: true,
   };
 }

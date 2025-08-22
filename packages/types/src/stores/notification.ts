@@ -33,4 +33,14 @@ export interface NotificationState {
 
   // Управление пользовательским запретом авто-переподписки
   setDisabledByUser: (disabled: boolean) => void;
+
+  // Автоматическое обновление push-подписки
+  updateSubscriptionAction: (subscription: {
+    id: string;
+    userId: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+    keys: { p256dh: string; auth: string };
+  }) => Promise<{ success: boolean }>;
 }

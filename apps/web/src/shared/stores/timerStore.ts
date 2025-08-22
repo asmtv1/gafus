@@ -2,6 +2,11 @@ import { useEffect } from "react";
 import { create } from "zustand";
 
 import { TrainingStatus, type TimerStore } from "@gafus/types";
+import {
+  pauseNotificationClient,
+  resetNotificationClient,
+  resumeNotificationClient,
+} from "@shared/lib/StepNotification/manageStepNotificationSimple";
 import { startUserStepServerAction } from "@shared/lib/training/startUserStepServerAction";
 import { updateStepStatusServerAction } from "@shared/lib/training/updateUserStepStatus";
 
@@ -46,9 +51,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       if (!isRestore) {
         // Проверяем, может ли шаг быть запущен
         if (!get().canStartStep(courseId, day, stepIndex)) {
-          if (process.env.NODE_ENV === "development") {
-            console.log(`🚫 Cannot start timer: another step is already active (${activeStep})`);
-          }
           return false; // Возвращаем false для показа уведомления
         }
 
@@ -58,10 +60,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           activeTimer = null;
           activeStep = null;
         }
-      }
-
-      if (process.env.NODE_ENV === "development") {
-        console.log(`🚀 Starting timer for step: ${stepKey}`);
       }
 
       // Создаем новый таймер
@@ -92,10 +90,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       activeStep = stepKey;
       timers.set(stepKey, timer);
 
-      if (process.env.NODE_ENV === "development") {
-        console.log(`✅ Timer started for step: ${stepKey}, active step: ${activeStep}`);
-      }
-
       return true; // Успешно запущен
     },
 
@@ -104,10 +98,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
       const stepKey = `${courseId}-${day}-${stepIndex}`;
       const timer = timers.get(stepKey);
-
-      if (process.env.NODE_ENV === "development") {
-        console.log(`⏹️ stopTimer called for: ${stepKey}, timer exists: ${!!timer}`);
-      }
 
       if (timer) {
         clearInterval(timer);
@@ -118,19 +108,11 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           activeStep = null;
           activeTimer = null;
         }
-
-        if (process.env.NODE_ENV === "development") {
-          console.log(`✅ Timer stopped for: ${stepKey}, active step: ${activeStep}`);
-        }
       }
     },
 
     stopAllTimers: () => {
       if (typeof window === "undefined") return;
-
-      if (process.env.NODE_ENV === "development") {
-        console.log(`🛑 stopAllTimers called, stopping all timers`);
-      }
 
       // Останавливаем все таймеры
       timers.forEach((timer) => clearInterval(timer));
@@ -142,10 +124,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         activeTimer = null;
       }
       activeStep = null;
-
-      if (process.env.NODE_ENV === "development") {
-        console.log(`✅ All timers stopped, active step: ${activeStep}`);
-      }
     },
 
     cleanupTimers: () => {
@@ -189,10 +167,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             },
             maxRetries: 3,
           });
-
-          if (process.env.NODE_ENV === "development") {
-            console.log("📱 Step start added to offline sync queue");
-          }
         } catch (offlineError) {
           console.error("Failed to add to offline queue:", offlineError);
         }
@@ -231,10 +205,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             },
             maxRetries: 3,
           });
-
-          if (process.env.NODE_ENV === "development") {
-            console.log("📱 Step completion added to offline sync queue");
-          }
         } catch (offlineError) {
           console.error("Failed to add to offline queue:", offlineError);
         }
@@ -243,8 +213,15 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       }
     },
 
-    resetStepWithServer: async (courseId, day, stepIndex, durationSec) => {
+    resetStepWithServer: async (courseId, day, stepIndex) => {
       try {
+        // Сбрасываем уведомление (удаляем из очереди и БД)
+        try {
+          await resetNotificationClient({ courseId, day, stepIndex });
+        } catch (notificationError) {
+          console.warn("Failed to reset notification:", notificationError);
+        }
+
         await updateStepStatusServerAction(courseId, day, stepIndex, TrainingStatus.NOT_STARTED);
       } catch (error) {
         console.error("Ошибка при сбросе шага на сервере:", error);
@@ -264,14 +241,30 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             },
             maxRetries: 3,
           });
-
-          if (process.env.NODE_ENV === "development") {
-            console.log("📱 Step reset added to offline sync queue");
-          }
         } catch (offlineError) {
           console.error("Failed to add to offline queue:", offlineError);
         }
 
+        throw error;
+      }
+    },
+
+    // Приостанавливает уведомление (удаляет из очереди, но оставляет в БД)
+    pauseNotification: async (courseId, day, stepIndex) => {
+      try {
+        await pauseNotificationClient({ courseId, day, stepIndex });
+      } catch (error) {
+        console.error("Failed to pause notification:", error);
+        throw error;
+      }
+    },
+
+    // Возобновляет уведомление (создает новую задачу в очереди)
+    resumeNotification: async (courseId, day, stepIndex, durationSec) => {
+      try {
+        await resumeNotificationClient({ courseId, day, stepIndex, durationSec });
+      } catch (error) {
+        console.error("Failed to resume notification:", error);
         throw error;
       }
     },

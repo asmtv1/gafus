@@ -33,6 +33,7 @@ COPY --from=deps /app/packages ./packages
 COPY --from=deps /app/apps/web ./apps/web
 COPY apps/web ./apps/web
 
+
 # Build the application
 RUN npm install -g pnpm && cd apps/web && pnpm build
 

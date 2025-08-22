@@ -1,4 +1,7 @@
-// src/index.ts
+#!/usr/bin/env node
+
+// Загружаем переменные окружения из корневой директории
+import "dotenv/config";
 
 console.warn("🟢 [Worker] Bootstrapping...");
 

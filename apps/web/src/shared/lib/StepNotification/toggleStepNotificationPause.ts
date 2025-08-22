@@ -67,7 +67,7 @@ export async function toggleStepNotificationPause(day: number, stepIndex: number
         removeOnFail: false,
       },
     );
-    console.warn("📤 [Resume] Job scheduled:", job.id);
+
     await prisma.stepNotification.update({
       where: { id: notif.id },
       data: {

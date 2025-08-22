@@ -36,5 +36,5 @@ export async function getUserSubscriptions(userId: string): Promise<PushSubscrip
 
       return null;
     })
-    .filter((sub): sub is PushSubscriptionJSON => sub !== null);
+    .filter((sub: PushSubscriptionJSON | null): sub is PushSubscriptionJSON => sub !== null);
 }

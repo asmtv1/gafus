@@ -2,7 +2,7 @@
 
 import { deletePushSubscription } from "@shared/lib/savePushSubscription/deletePushSubscription";
 
-import { saveSubscription } from "@/utils";
+import { savePushSubscription } from "@shared/lib/savePushSubscription/savePushSubscription";
 
 export async function updateSubscriptionAction(subscription: {
   id: string;
@@ -13,7 +13,7 @@ export async function updateSubscriptionAction(subscription: {
   keys: { p256dh: string; auth: string };
 }) {
   try {
-    await saveSubscription(subscription);
+    await savePushSubscription(subscription);
     return { success: true };
   } catch (error) {
     console.error("Ошибка при сохранении подписки:", error);

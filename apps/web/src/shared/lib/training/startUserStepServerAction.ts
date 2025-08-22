@@ -4,9 +4,8 @@ import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createStepNotificationsForUserStep } from "@shared/lib/StepNotification/createStepNotification";
 
+import { TrainingStatus } from "@gafus/types";
 import { updateUserStepStatus } from "./updateUserStepStatus";
-
-import type { TrainingStatus } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 
@@ -22,39 +21,41 @@ export async function startUserStepServerAction(
 
     // Получаем информацию о шаге для уведомления в транзакции
 
-    const stepInfo = await prisma.$transaction(async (tx) => {
-      const dayOnCourse = await tx.dayOnCourse.findFirst({
-        where: { courseId, order: day },
-        include: {
-          day: {
-            include: {
-              stepLinks: {
-                include: { step: true },
-                orderBy: { order: "asc" },
+    const stepInfo = await prisma.$transaction(
+      async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
+        const dayOnCourse = await tx.dayOnCourse.findFirst({
+          where: { courseId, order: day },
+          include: {
+            day: {
+              include: {
+                stepLinks: {
+                  include: { step: true },
+                  orderBy: { order: "asc" },
+                },
               },
             },
+            course: true,
           },
-          course: true,
-        },
-      });
+        });
 
-      if (!dayOnCourse?.day) {
-        throw new Error("DayOnCourse or day not found");
-      }
+        if (!dayOnCourse?.day) {
+          throw new Error("DayOnCourse or day not found");
+        }
 
-      // Берём шаг по индексу массива (stepIndex — это 0-based индекс в UI)
-      const stepLink = dayOnCourse.day.stepLinks[stepIndex];
-      if (!stepLink?.step) {
-        throw new Error("Step not found");
-      }
+        // Берём шаг по индексу массива (stepIndex — это 0-based индекс в UI)
+        const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+        if (!stepLink?.step) {
+          throw new Error("Step not found");
+        }
 
-      return {
-        step: stepLink.step,
-        stepTitle: stepLink.step.title,
-        stepOrder: stepLink.order,
-        trainingUrl: `/trainings/${courseId}/${day}`,
-      };
-    });
+        return {
+          step: stepLink.step,
+          stepTitle: stepLink.step.title,
+          stepOrder: stepLink.order,
+          trainingUrl: `/trainings/${courseId}/${day}`,
+        };
+      },
+    );
 
     // Обновляем статус шага (это уже использует транзакции)
 
@@ -68,7 +69,34 @@ export async function startUserStepServerAction(
       stepInfo.stepOrder,
     );
 
-    // Создаем уведомления (это внешний сервис, не должен быть в транзакции)
+    // Устанавливаем статус курса в IN_PROGRESS при первом шаге
+    if (status === TrainingStatus.IN_PROGRESS) {
+      try {
+        await prisma.userCourse.upsert({
+          where: {
+            userId_courseId: {
+              userId,
+              courseId,
+            },
+          },
+          update: {
+            status: TrainingStatus.IN_PROGRESS,
+            startedAt: new Date(),
+          },
+          create: {
+            userId,
+            courseId,
+            status: TrainingStatus.IN_PROGRESS,
+            startedAt: new Date(),
+          },
+        });
+      } catch (courseError) {
+        console.error("Failed to update course status:", courseError);
+        // Не прерываем выполнение, если обновление курса не удалось
+      }
+    }
+
+    // Создаем уведомления при старте шага (для push-уведомлений по завершении)
 
     try {
       await createStepNotificationsForUserStep({

@@ -440,8 +440,8 @@ async function getTimeAnalytics(courseId: string) {
   let sessionCount = 0;
 
   // Группируем по пользователям и вычисляем интервалы
-  const userSessionsMap = new Map<string, typeof userSessions>();
-  userSessions.forEach((session) => {
+  const userSessionsMap = new Map<string, { userId: string; createdAt: Date; updatedAt: Date }[]>();
+  userSessions.forEach((session: { userId: string; createdAt: Date; updatedAt: Date }) => {
     if (!userSessionsMap.has(session.userId)) {
       userSessionsMap.set(session.userId, []);
     }
@@ -558,7 +558,7 @@ async function getDropoutPoints(courseId: string) {
   // Группируем по дням
   const dayStats = new Map<number, { total: number; completed: number }>();
 
-  userTrainings.forEach((training) => {
+  userTrainings.forEach((training: { dayOnCourse: { order: number }; status: string }) => {
     const dayOrder = training.dayOnCourse.order;
     if (!dayStats.has(dayOrder)) {
       dayStats.set(dayOrder, { total: 0, completed: 0 });

@@ -108,9 +108,6 @@ const withPWA = withPWAInit({
 const nextConfig = {
   reactStrictMode: true,
 
-  // Standalone output для Docker
-  output: "standalone",
-
   // ESLint проверки включены для качества кода
   eslint: {
     ignoreDuringBuilds: false,

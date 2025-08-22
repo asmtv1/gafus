@@ -10,6 +10,8 @@ export * from "./stores/training";
 export { CACHE_DURATION, DEFAULT_USER_PREFERENCES, PREFERENCES_CACHE_DURATION, } from "./stores/userStore";
 export type { UserPreferences, UserState } from "./stores/userStore";
 export * from "./utils";
+export * from "./utils/logger";
+export * from "./utils/validation";
 export * from "./pages";
 export * from "./error-handling";
 export * from "./offline";

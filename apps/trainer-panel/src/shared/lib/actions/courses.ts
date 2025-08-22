@@ -2,8 +2,8 @@
 
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
-import { revalidatePath, revalidateTag } from "next/cache";
 import { getServerSession } from "next-auth";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 export interface CreateCourseInput {
   name: string;
@@ -20,7 +20,9 @@ export interface CreateCourseInput {
 }
 
 export async function createCourseServerAction(input: CreateCourseInput) {
-  const session = (await getServerSession(authOptions)) as { user: { id: string; username: string; role: string } } | null;
+  const session = (await getServerSession(authOptions)) as {
+    user: { id: string; username: string; role: string };
+  } | null;
   if (!session?.user?.id) {
     return { success: false, error: "Не авторизован" };
   }
@@ -44,7 +46,7 @@ export async function createCourseServerAction(input: CreateCourseInput) {
       dayLinks: {
         create: (input.trainingDays || []).map((dayId: string, index: number) => ({
           day: { connect: { id: String(dayId) } },
-          order: index,
+          order: index + 1, // Дни начинаются с 1, а не с 0
         })),
       },
       access: isPrivate
@@ -68,7 +70,9 @@ export interface UpdateCourseInput extends CreateCourseInput {
 }
 
 export async function updateCourseServerAction(input: UpdateCourseInput) {
-  const session = (await getServerSession(authOptions)) as { user: { id: string; username: string; role: string } } | null;
+  const session = (await getServerSession(authOptions)) as {
+    user: { id: string; username: string; role: string };
+  } | null;
   if (!session?.user?.id) return { success: false, error: "Не авторизован" };
 
   const isPrivate = !input.isPublic;
@@ -92,10 +96,10 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   // Пересобираем DayOnCourse
   await prisma.dayOnCourse.deleteMany({ where: { courseId: input.id } });
   await prisma.dayOnCourse.createMany({
-              data: (input.trainingDays || []).map((dayId: string, index: number) => ({
+    data: (input.trainingDays || []).map((dayId: string, index: number) => ({
       courseId: input.id,
       dayId: String(dayId),
-      order: index,
+      order: index + 1, // Дни начинаются с 1, а не с 0
     })),
   });
 
@@ -103,7 +107,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   await prisma.courseAccess.deleteMany({ where: { courseId: input.id } });
   if (isPrivate) {
     await prisma.courseAccess.createMany({
-                data: (input.allowedUsers || []).map((userId: string) => ({
+      data: (input.allowedUsers || []).map((userId: string) => ({
         courseId: input.id,
         userId: String(userId),
       })),
@@ -116,7 +120,9 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
 }
 
 export async function deleteCourseServerAction(courseId: string) {
-  const session = (await getServerSession(authOptions)) as { user: { id: string; username: string; role: string } } | null;
+  const session = (await getServerSession(authOptions)) as {
+    user: { id: string; username: string; role: string };
+  } | null;
   if (!session?.user?.id) return { success: false, error: "Не авторизован" };
 
   // Удаляем зависимые записи

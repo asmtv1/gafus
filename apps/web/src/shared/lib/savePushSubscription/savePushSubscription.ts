@@ -12,13 +12,30 @@ import { getCurrentUserId } from "@/utils";
 
 export async function savePushSubscription(subscription: PushSubscriptionJSON) {
   const userId = await getCurrentUserId();
-  return prisma.pushSubscription.upsert({
-    where: { endpoint: subscription.endpoint },
-    update: { keys: subscription.keys as { p256dh: string; auth: string } },
-    create: {
-      endpoint: subscription.endpoint,
-      keys: subscription.keys as { p256dh: string; auth: string },
-      userId, // связываем подписку с пользователем
-    },
+
+  // Сначала ищем существующую подписку для пользователя
+  const existingSubscription = await prisma.pushSubscription.findFirst({
+    where: { userId },
   });
+
+  if (existingSubscription) {
+    // Обновляем существующую подписку (включая endpoint)
+    return prisma.pushSubscription.update({
+      where: { id: existingSubscription.id },
+      data: {
+        endpoint: subscription.endpoint,
+        keys: subscription.keys as { p256dh: string; auth: string },
+        updatedAt: new Date(),
+      },
+    });
+  } else {
+    // Создаем новую подписку для пользователя
+    return prisma.pushSubscription.create({
+      data: {
+        endpoint: subscription.endpoint,
+        keys: subscription.keys as { p256dh: string; auth: string },
+        userId,
+      },
+    });
+  }
 }

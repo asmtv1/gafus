@@ -7,7 +7,6 @@ import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { checkAndCompleteCourse } from "../user/userCourses";
 
 import { getCurrentUserId } from "@/utils";
-import { sendPushToUser } from "@/utils/push";
 
 // Вспомогательные функции для работы с транзакциями
 async function findOrCreateUserTrainingWithTx(
@@ -64,7 +63,11 @@ async function updateUserTrainingStatusWithTx(
     orderBy: { id: "asc" },
   });
 
-  const allCompleted = userSteps.every((step: { status: string }) => step.status === "COMPLETED");
+  // Проверяем, что у пользователя есть записи для всех шагов дня
+  // и все они завершены
+  const allCompleted =
+    userSteps.length === trainingDayStepsCount &&
+    userSteps.every((step: { status: string }) => step.status === "COMPLETED");
 
   // Индекс текущего шага вычисляем по порядку в дне (0..n-1)
   const firstNotCompletedIndex = userSteps.findIndex(
@@ -100,107 +103,80 @@ export async function updateUserStepStatus(
 ): Promise<{ success: boolean }> {
   try {
     // ВСЕ операции выполняются в одной транзакции
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Получаем данные о дне
-      const dayOnCourse = await tx.dayOnCourse.findFirst({
-        where: { courseId, order: day },
-        include: {
-          day: {
-            include: {
-              stepLinks: {
-                include: { step: true },
-                orderBy: { order: "asc" },
+    const result = await prisma.$transaction(
+      async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
+        // 1. Получаем данные о дне
+        const dayOnCourse = await tx.dayOnCourse.findFirst({
+          where: { courseId, order: day },
+          include: {
+            day: {
+              include: {
+                stepLinks: {
+                  include: { step: true },
+                  orderBy: { order: "asc" },
+                },
               },
             },
           },
-        },
-      });
-
-      if (!dayOnCourse) {
-        throw new Error("DayOnCourse not found");
-      }
-
-      const trainingDay = dayOnCourse.day;
-      if (!trainingDay) {
-        console.error("Training Day not found", { dayOnCourse });
-        throw new Error("Training Day not found");
-      }
-
-      // 2. Создаем/находим UserTraining
-      const userTraining = await findOrCreateUserTrainingWithTx(tx, userId, dayOnCourse.id);
-
-      // 3. Ищем шаг строго по индексу массива (UI передает 0-based индекс)
-      const stepLink = trainingDay.stepLinks[stepIndex];
-
-      if (!stepLink) {
-        console.error("Step not found by index after ordering", {
-          stepIndex,
-          stepOrder,
-          total: trainingDay.stepLinks.length,
-          orders: trainingDay.stepLinks.map((s: { order: number }) => s.order),
         });
-        throw new Error("Step not found");
-      }
 
-      // 4. Создаем/обновляем UserStep
-      await findOrCreateUserStepWithTx(tx, userTraining.id, stepLink.id, status);
+        if (!dayOnCourse) {
+          throw new Error("DayOnCourse not found");
+        }
 
-      // 5. Обновляем статус дня
-      const { allCompleted } = await updateUserTrainingStatusWithTx(
-        tx,
-        userTraining.id,
-        trainingDay.stepLinks.length,
-        dayOnCourse.id,
-      );
+        const trainingDay = dayOnCourse.day;
+        if (!trainingDay) {
+          console.error("Training Day not found", { dayOnCourse });
+          throw new Error("Training Day not found");
+        }
 
-      // 6. Обновляем startedAt у курса, если это первый шаг и он начат
-      if (stepIndex === 0 && status === TrainingStatus.IN_PROGRESS) {
-        await tx.userCourse.updateMany({
-          where: { userId, courseId: dayOnCourse.courseId, startedAt: null },
-          data: { startedAt: new Date() },
-        });
-      }
+        // 2. Создаем/находим UserTraining
+        const userTraining = await findOrCreateUserTrainingWithTx(tx, userId, dayOnCourse.id);
 
-      return {
-        success: true,
-        allCompleted,
-        courseId: dayOnCourse.courseId,
-        stepTitle: stepLink.step?.title ?? "Шаг",
-        trainingUrl: `/trainings/${dayOnCourse.courseId}/${day}`,
-      };
-    });
+        // 3. Ищем шаг строго по индексу массива (UI передает 0-based индекс)
+        const stepLink = trainingDay.stepLinks[stepIndex];
+
+        if (!stepLink) {
+          console.error("Step not found by index after ordering", {
+            stepIndex,
+            stepOrder,
+            total: trainingDay.stepLinks.length,
+            orders: trainingDay.stepLinks.map((s: { order: number }) => s.order),
+          });
+          throw new Error("Step not found");
+        }
+
+        // 4. Создаем/обновляем UserStep
+        await findOrCreateUserStepWithTx(tx, userTraining.id, stepLink.id, status);
+
+        // 5. Обновляем статус дня
+        const { allCompleted } = await updateUserTrainingStatusWithTx(
+          tx,
+          userTraining.id,
+          trainingDay.stepLinks.length,
+          dayOnCourse.id,
+        );
+
+        return {
+          success: true,
+          allCompleted,
+          courseId: dayOnCourse.courseId,
+          stepTitle: stepLink.step?.title ?? "Шаг",
+          trainingUrl: `/trainings/${dayOnCourse.courseId}/${day}`,
+        };
+      },
+    );
 
     // После успешного завершения транзакции выполняем операции, которые не должны быть в транзакции
     if (result.allCompleted) {
-      // Проверяем завершение курса (это может быть долгая операция)
+      // Проверяем завершение курса только если день действительно завершен
+      // и у пользователя есть записи для всех шагов дня
       try {
         await checkAndCompleteCourse(result.courseId);
       } catch (courseError) {
         console.error("Failed to check course completion:", courseError);
         // Не прерываем выполнение, если проверка курса не удалась
       }
-    }
-
-    // Отправляем push-уведомление о прогрессе
-    try {
-      await sendPushToUser(
-        {
-          title: "Прогресс обновлен!",
-          body: `Шаг "${result.stepTitle}" ${status === TrainingStatus.COMPLETED ? "завершен" : "начат"}`,
-          data: {
-            type: "step_progress",
-            courseId: result.courseId,
-            day,
-            stepIndex,
-            status,
-            url: result.trainingUrl,
-          },
-        },
-        userId,
-      );
-    } catch (pushError) {
-      console.error("Failed to send push notification:", pushError);
-      // Не прерываем выполнение, если push не удался
     }
 
     return { success: true };

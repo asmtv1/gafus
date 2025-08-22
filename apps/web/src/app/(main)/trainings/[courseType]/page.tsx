@@ -1,10 +1,9 @@
 import CourseDescriptionWithVideo from "@features/training/components/CourseDescriptionWithVideo";
 import TrainingDayList from "@features/training/components/TrainingDayList";
 import { getTrainingDays } from "@shared/lib/training/getTrainingDays";
+import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
 
 import styles from "./trainings.module.css";
-
-import { checkAndCompleteCourse } from "@/utils/checkAndCompleteCourse";
 
 interface TrainingsPageProps {
   params: Promise<{ courseType: string }>;

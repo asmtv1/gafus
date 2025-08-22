@@ -83,7 +83,69 @@ export async function completeUserCourse(courseId: string) {
   }
 }
 
-export async function checkAndCompleteCourse(courseId: string) {
+/**
+ * Проверяет завершение курса и помечает его как завершенный если все дни завершены
+ * Поддерживает два варианта вызова:
+ * 1. checkAndCompleteCourse(courseId) - для вызова из updateUserStepStatus
+ * 2. checkAndCompleteCourse(trainingDays, courseId) - для вызова со страницы тренировок
+ *
+ * @param courseIdOrTrainingDays - ID курса или массив дней с их статусами
+ * @param courseIdParam - ID курса (используется только при втором варианте вызова)
+ * @returns Объект с результатом операции
+ */
+export async function checkAndCompleteCourse(
+  courseIdOrTrainingDays: string | { userStatus: string }[],
+  courseIdParam?: string | null,
+): Promise<{ success: boolean; reason?: string }> {
+  let courseId: string;
+
+  // Поддержка двух вариантов вызова:
+  // 1. checkAndCompleteCourse(courseId) - для вызова из updateUserStepStatus
+  // 2. checkAndCompleteCourse(trainingDays, courseId) - для вызова со страницы тренировок
+  if (typeof courseIdOrTrainingDays === "string") {
+    courseId = courseIdOrTrainingDays;
+  } else {
+    courseId = courseIdParam || "";
+    if (!courseId) {
+      return { success: false, reason: "CourseId not provided" };
+    }
+
+    // Если переданы trainingDays, проверяем их статус
+    const trainingDays = courseIdOrTrainingDays;
+    if (trainingDays.length === 0) {
+      return { success: false, reason: "No training days provided" };
+    }
+
+    // Проверяем, что все переданные дни завершены
+    const allCompleted = trainingDays.every((day) => day.userStatus === "COMPLETED");
+    if (!allCompleted) {
+      return { success: false, reason: "Not all training days completed" };
+    }
+
+    // Дополнительная проверка: убеждаемся, что у пользователя есть тренировки для всех дней курса
+    // Это предотвратит преждевременное завершение курса
+    try {
+      const { prisma } = await import("@gafus/prisma");
+
+      // Получаем общее количество дней в курсе
+      const totalDaysInCourse = await prisma.dayOnCourse.count({
+        where: { courseId },
+      });
+
+      // Если количество завершенных дней равно общему количеству дней в курсе
+      // и у пользователя есть тренировки для всех дней, то курс завершен
+      if (trainingDays.length === totalDaysInCourse) {
+        await completeUserCourse(courseId);
+        return { success: true };
+      } else {
+        return { success: false, reason: "Not all course days have trainings" };
+      }
+    } catch (error) {
+      console.error("Ошибка при проверке завершения курса:", error);
+      return { success: false, reason: "Error checking course completion" };
+    }
+  }
+
   try {
     const userId = await getCurrentUserId();
 
@@ -91,23 +153,39 @@ export async function checkAndCompleteCourse(courseId: string) {
     const allDays = await prisma.dayOnCourse.findMany({
       where: { courseId },
       select: { id: true },
+      orderBy: { order: "asc" },
     });
 
-    const dayIds = allDays.map((d: { id: string }) => d.id);
+    if (allDays.length === 0) {
+      return { success: false, reason: "No days in course" };
+    }
 
     // Получаем все записи о тренировках пользователя по этим дням
     const userTrainings = await prisma.userTraining.findMany({
       where: {
         userId,
-        dayOnCourseId: { in: dayIds },
+        dayOnCourseId: { in: allDays.map((d: { id: string }) => d.id) },
       },
-      select: { status: true },
+      select: {
+        dayOnCourseId: true,
+        status: true,
+      },
     });
 
-    const allCompleted =
-      allDays.length > 0 &&
-      userTrainings.length === allDays.length &&
-      userTrainings.every((ut) => ut.status === TrainingStatus.COMPLETED);
+    // Проверяем, что у пользователя есть тренировки для ВСЕХ дней курса
+    // и ВСЕ эти дни завершены
+    const userTrainingMap = new Map(
+      userTrainings.map((ut: { dayOnCourseId: string; status: string }) => [
+        ut.dayOnCourseId,
+        ut.status,
+      ]),
+    );
+
+    // Проверяем, что для каждого дня курса есть завершенная тренировка
+    const allCompleted = allDays.every((day: { id: string }) => {
+      const trainingStatus = userTrainingMap.get(day.id);
+      return trainingStatus === TrainingStatus.COMPLETED;
+    });
 
     if (allCompleted) {
       await prisma.userCourse.update({

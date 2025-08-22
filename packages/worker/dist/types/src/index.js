@@ -33,6 +33,8 @@ Object.defineProperty(exports, "DEFAULT_USER_PREFERENCES", { enumerable: true, g
 Object.defineProperty(exports, "PREFERENCES_CACHE_DURATION", { enumerable: true, get: function () { return userStore_1.PREFERENCES_CACHE_DURATION; } });
 // Utils
 __exportStar(require("./utils"), exports);
+__exportStar(require("./utils/logger"), exports);
+__exportStar(require("./utils/validation"), exports);
 // Pages
 __exportStar(require("./pages"), exports);
 // Error Handling
