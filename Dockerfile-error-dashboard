@@ -1,70 +1,46 @@
 # syntax=docker/dockerfile:1
 
-# Build stage
+# ─────────────────────────────────────────────
+# Stage 0: builder — сборка error-dashboard с hoisting
+# ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
-
 WORKDIR /app
 
-# Enable pnpm
+# 1️⃣ Corepack + pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Copy workspace files
-COPY pnpm-workspace.yaml ./
-COPY package.json pnpm-lock.yaml ./
+# 2️⃣ Копируем только package файлы для кэширования
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/error-dashboard/package.json ./apps/error-dashboard/package.json
+COPY packages/*/package.json ./packages/*/
 
-# Install all dependencies
+# 3️⃣ Устанавливаем ВСЕ зависимости (включая hoisted)
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
+# 4️⃣ Копируем исходники
 COPY . .
 
-# Build the application
-WORKDIR /app/apps/error-dashboard
-# Копируем node_modules из корня для доступа к зависимостям
-RUN cp -r /app/node_modules ./node_modules
-RUN pnpm build
-WORKDIR /app
+# 5️⃣ Билдим с использованием hoisted node_modules
+RUN pnpm build --filter @gafus/error-dashboard
 
-# Production stage
+# ─────────────────────────────────────────────
+# Stage 1: runner — минимальный production
+# ─────────────────────────────────────────────
 FROM node:20-alpine AS runner
-
 WORKDIR /app
+ENV NODE_ENV=production
 
-# Enable pnpm
+# 1️⃣ Corepack + pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Copy workspace files
-COPY pnpm-workspace.yaml ./
-COPY package.json pnpm-lock.yaml ./
-
-# Copy app package.json
-COPY apps/error-dashboard/package.json ./apps/error-dashboard/package.json
-
-# Copy prisma package.json
-COPY packages/prisma/package.json ./packages/prisma/package.json
-
-# Install only production dependencies
-RUN pnpm install --prod --ignore-scripts
-RUN pnpm store prune
-
-# Copy node_modules and prisma files
+# 2️⃣ Копируем только production зависимости
 COPY --from=builder /app/node_modules ./node_modules
-COPY packages/prisma ./packages/prisma
-
-# Generate Prisma client
-RUN pnpm --filter @gafus/prisma run prisma:generate
-
-# Copy built application
 COPY --from=builder /app/apps/error-dashboard/.next ./apps/error-dashboard/.next
 COPY --from=builder /app/apps/error-dashboard/next.config.ts ./apps/error-dashboard/next.config.ts
 COPY --from=builder /app/apps/error-dashboard/tailwind.config.js ./apps/error-dashboard/tailwind.config.js
 COPY --from=builder /app/apps/error-dashboard/postcss.config.js ./apps/error-dashboard/postcss.config.js
 
-# Set working directory
+# 3️⃣ Запуск
 WORKDIR /app/apps/error-dashboard
-
-# Expose port
 EXPOSE 3005
-
-# Start the application
 CMD ["pnpm", "start:prod"]

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ─────────────────────────────────────────────
-# Stage 0: builder — сборка фронта
+# Stage 0: builder — сборка фронта с hoisting
 # ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -9,22 +9,19 @@ WORKDIR /app
 # 1️⃣ Corepack + pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# 2️⃣ Копируем workspace + lockfile + корневой package.json
-COPY pnpm-workspace.yaml ./
-COPY package.json pnpm-lock.yaml ./
+# 2️⃣ Копируем только package файлы для кэширования
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/web/package.json ./apps/web/package.json
+COPY packages/*/package.json ./packages/*/
 
-# 3️⃣ Устанавливаем зависимости
+# 3️⃣ Устанавливаем ВСЕ зависимости (включая hoisted)
 RUN pnpm install --frozen-lockfile
 
-# 4️⃣ Копируем исходники проекта
+# 4️⃣ Копируем исходники
 COPY . .
 
-# 5️⃣ Билдим только frontend (Next.js)
-WORKDIR /app/apps/web
-# Копируем node_modules из корня для доступа к зависимостям
-RUN cp -r /app/node_modules ./node_modules
-RUN pnpm build
-WORKDIR /app
+# 5️⃣ Билдим с использованием hoisted node_modules
+RUN pnpm build --filter @gafus/web
 
 # ─────────────────────────────────────────────
 # Stage 1: runner — минимальный production
@@ -36,28 +33,13 @@ ENV NODE_ENV=production
 # 1️⃣ Corepack + pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# 2️⃣ Копируем workspace + lockfile + нужные package.json
-COPY pnpm-workspace.yaml ./
-COPY package.json pnpm-lock.yaml ./
-COPY apps/web/package.json ./apps/web/package.json
-COPY packages/prisma/package.json ./packages/prisma/package.json
-
-# 3️⃣ Устанавливаем production-зависимости
-RUN pnpm install --prod --ignore-scripts
-
-# 4️⃣ Копируем node_modules и Prisma схему
+# 2️⃣ Копируем только production зависимости
 COPY --from=builder /app/node_modules ./node_modules
-COPY packages/prisma ./packages/prisma
-
-# 5️⃣ Генерируем Prisma Client
-RUN pnpm --filter @gafus/prisma run prisma:generate
-
-# 6️⃣ Копируем собранный фронт
 COPY --from=builder /app/apps/web/.next ./apps/web/.next
 COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/next.config.ts ./apps/web/next.config.ts
 
-# 7️⃣ Запуск
+# 3️⃣ Запуск
 WORKDIR /app/apps/web
 EXPOSE 3000
 CMD ["pnpm", "next", "start"]
