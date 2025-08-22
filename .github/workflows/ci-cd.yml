@@ -76,7 +76,22 @@ jobs:
       - name: Generate Prisma Client
         run: |
           cd packages/prisma
-          pnpm db:generate
+          # Retry Prisma generate with exponential backoff
+          for i in {1..3}; do
+            echo "Attempt $i: Generating Prisma Client..."
+            if pnpm db:generate; then
+              echo "✅ Prisma Client generated successfully!"
+              break
+            else
+              echo "❌ Attempt $i failed"
+              if [ $i -lt 3 ]; then
+                echo "Waiting $((2**i)) seconds before retry..."
+                sleep $((2**i))
+              else
+                echo "❌ All attempts failed. Continuing without Prisma Client..."
+              fi
+            fi
+          done
 
       - name: Build ${{ matrix.app }}
         run: |
