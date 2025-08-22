@@ -27,8 +27,6 @@ RUN pnpm store prune
 
 # Copy source code
 COPY packages/worker ./packages/worker
-# Copy node_modules and prisma files
-COPY --from=builder /app/node_modules ./node_modules
 COPY packages/prisma ./packages/prisma
 COPY packages/queues ./packages/queues
 
