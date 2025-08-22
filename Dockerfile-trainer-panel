@@ -20,7 +20,10 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # 5️⃣ Билдим только trainer-panel (Next.js)
-RUN pnpm build --filter @gafus/trainer-panel
+WORKDIR /app/apps/trainer-panel
+RUN pnpm install --frozen-lockfile --filter @gafus/trainer-panel
+RUN pnpm build
+WORKDIR /app
 
 # ─────────────────────────────────────────────
 # Stage 1: runner — минимальный production
