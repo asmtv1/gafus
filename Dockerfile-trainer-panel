@@ -21,7 +21,8 @@ COPY . .
 
 # 5️⃣ Билдим только trainer-panel (Next.js)
 WORKDIR /app/apps/trainer-panel
-RUN pnpm install --frozen-lockfile --filter @gafus/trainer-panel
+# Копируем node_modules из корня для доступа к зависимостям
+RUN cp -r /app/node_modules ./node_modules
 RUN pnpm build
 WORKDIR /app
 
