@@ -30,7 +30,7 @@ WORKDIR /app
 # Install pnpm globally
 RUN npm install -g pnpm
 
-# Copy package files and dependencies
+# Copy package files
 COPY package.json pnpm-lock.yaml* ./
 COPY apps/web/package.json ./apps/web/
 COPY packages ./packages
@@ -40,6 +40,9 @@ COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source code
 COPY apps/web ./apps/web
+
+# Install dependencies in the builder stage to ensure everything is available
+RUN pnpm install --frozen-lockfile
 
 # Build the application
 RUN cd apps/web && pnpm build
