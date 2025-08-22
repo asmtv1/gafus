@@ -81,53 +81,55 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
             ...(d.url ? { url: d.url } : {}),
           }),
         ),
-      pets: user.pets.map((pet: {
-        id: string | number;
-        name: string;
-        type: string | number;
-        breed: string | null;
-        birthDate: Date | null;
-        heightCm: number | null;
-        weightKg: number | null;
-        photoUrl: string | null;
-        notes: string | null;
-        ownerId: string | number;
-        awards: Array<{
+      pets: user.pets.map(
+        (pet: {
           id: string | number;
-          title: string;
-          event: string | null;
-          date: Date | null;
-          rank: string | null;
-        }>;
-      }) => ({
-        id: String(pet.id),
-        name: pet.name,
-        type: String(pet.type),
-        breed: pet.breed,
-        birthDate: pet.birthDate ?? null,
-        heightCm: pet.heightCm,
-        weightKg: pet.weightKg,
-        photoUrl: pet.photoUrl,
-        notes: pet.notes,
-        ownerId: String(pet.ownerId),
-        awards: pet.awards
-          .filter((a): a is Required<typeof a> => a.date !== null)
-          .map(
-            (a: {
-              id: string | number;
-              title: string;
-              event: string | null;
-              date: Date | null;
-              rank: string | null;
-            }) => ({
-              id: String(a.id),
-              title: a.title,
-              event: a.event!,
-              date: a.date!,
-              rank: a.rank!,
-            }),
-          ),
-      })),
+          name: string;
+          type: string | number;
+          breed: string;
+          birthDate: Date | null;
+          heightCm: number | null;
+          weightKg: number | null;
+          photoUrl: string | null;
+          notes: string | null;
+          ownerId: string | number;
+          awards: {
+            id: string | number;
+            title: string;
+            event: string | null;
+            date: Date | null;
+            rank: string | null;
+          }[];
+        }) => ({
+          id: String(pet.id),
+          name: pet.name,
+          type: String(pet.type),
+          breed: pet.breed ?? "",
+          birthDate: pet.birthDate ?? null,
+          heightCm: pet.heightCm,
+          weightKg: pet.weightKg,
+          photoUrl: pet.photoUrl,
+          notes: pet.notes,
+          ownerId: String(pet.ownerId),
+          awards: pet.awards
+            .filter((a): a is Required<typeof a> => a.date !== null)
+            .map(
+              (a: {
+                id: string | number;
+                title: string;
+                event: string | null;
+                date: Date | null;
+                rank: string | null;
+              }) => ({
+                id: String(a.id),
+                title: a.title,
+                event: a.event!,
+                date: a.date!,
+                rank: a.rank!,
+              }),
+            ),
+        }),
+      ),
     };
 
     return publicProfile;
