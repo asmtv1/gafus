@@ -100,7 +100,7 @@ export async function getTrainingDayWithUserSteps(
   }
 
   // Собираем финальный массив шагов
-  const steps = stepLinks.map(({ id: stepOnDayId, step, order }) => ({
+  const steps = stepLinks.map(({ id: stepOnDayId, step, order }: { id: string; step: any; order: number }) => ({
     id: step.id,
     title: step.title,
     description: step.description,
