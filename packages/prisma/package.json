@@ -11,8 +11,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "tsx seed.ts",
-    "db:studio": "prisma studio",
-    "typecheck": "tsc --noEmit"
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "bcrypt": "6.0.0"
