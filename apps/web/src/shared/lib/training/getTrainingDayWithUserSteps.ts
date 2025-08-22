@@ -100,17 +100,35 @@ export async function getTrainingDayWithUserSteps(
   }
 
   // Собираем финальный массив шагов
-  const steps = stepLinks.map(({ id: stepOnDayId, step, order }: { id: string; step: any; order: number }) => ({
-    id: step.id,
-    title: step.title,
-    description: step.description,
-    durationSec: step.durationSec,
-    videoUrl: step.videoUrl,
-    imageUrls: step.imageUrls,
-    pdfUrls: step.pdfUrls,
-    status: stepStatuses[stepOnDayId] ?? TrainingStatus.NOT_STARTED,
-    order: order,
-  }));
+  const steps = stepLinks.map(
+    ({
+      id: stepOnDayId,
+      step,
+      order,
+    }: {
+      id: string;
+      step: {
+        id: string;
+        title: string;
+        description: string;
+        durationSec: number;
+        videoUrl: string | null;
+        imageUrls: string[];
+        pdfUrls: string[];
+      };
+      order: number;
+    }) => ({
+      id: step.id,
+      title: step.title,
+      description: step.description,
+      durationSec: step.durationSec,
+      videoUrl: step.videoUrl ?? "",
+      imageUrls: step.imageUrls,
+      pdfUrls: step.pdfUrls,
+      status: stepStatuses[stepOnDayId] ?? TrainingStatus.NOT_STARTED,
+      order: order,
+    }),
+  );
 
   return {
     trainingDayId,
