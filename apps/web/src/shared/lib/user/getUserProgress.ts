@@ -81,7 +81,9 @@ export async function getUserProgress(
 
       if (userTrainings.length > 0) {
         const totalDays = userTrainings.length;
-        const completedDays = userTrainings.filter((t) => t.status === "COMPLETED").length;
+        const completedDays = userTrainings.filter(
+          (t: { status: string }) => t.status === "COMPLETED",
+        ).length;
 
         // Если все дни завершены, но курс не помечен как завершенный
         if (completedDays === totalDays && totalDays > 0 && userProgress.status !== "COMPLETED") {
@@ -107,7 +109,7 @@ export async function getUserProgress(
         // Если есть активность, но курс не помечен как начатый
         else if (
           userProgress.status === "NOT_STARTED" &&
-          userTrainings.some((t) => t.status !== "NOT_STARTED")
+          userTrainings.some((t: { status: string }) => t.status !== "NOT_STARTED")
         ) {
           if (!startedAt) {
             startedAt = new Date();
@@ -176,7 +178,9 @@ export async function getUserProgress(
         startedAt = userTrainings[0].createdAt;
         // Проверяем, завершены ли все дни
         const totalDays = userTrainings.length;
-        const completedDays = userTrainings.filter((t) => t.status === "COMPLETED").length;
+        const completedDays = userTrainings.filter(
+          (t: { status: string }) => t.status === "COMPLETED",
+        ).length;
         if (completedDays === totalDays && totalDays > 0) {
           completedAt = new Date();
         }
