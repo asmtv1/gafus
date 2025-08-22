@@ -9,18 +9,13 @@ WORKDIR /app
 # 1️⃣ Corepack + pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# 2️⃣ Копируем только package файлы для кэширования
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
-COPY apps/web/package.json ./apps/web/package.json
-COPY packages/*/package.json ./packages/*/
+# 2️⃣ Копируем ВСЕ исходники сразу
+COPY . .
 
 # 3️⃣ Устанавливаем ВСЕ зависимости (включая hoisted)
 RUN pnpm install --no-frozen-lockfile
 
-# 4️⃣ Копируем исходники
-COPY . .
-
-# 5️⃣ Билдим с использованием hoisted node_modules
+# 4️⃣ Билдим с использованием hoisted node_modules
 RUN pnpm build --filter @gafus/web
 
 # ─────────────────────────────────────────────
