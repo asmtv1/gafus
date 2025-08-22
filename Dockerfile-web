@@ -42,7 +42,8 @@ COPY packages/prisma/package.json ./packages/prisma/package.json
 RUN pnpm install --prod --filter @gafus/web --ignore-scripts
 RUN pnpm install --filter @gafus/prisma --ignore-scripts
 
-# 4️⃣ Копируем Prisma схему и исходники для генерации
+# 4️⃣ Копируем node_modules и Prisma схему
+COPY --from=builder /app/node_modules ./node_modules
 COPY packages/prisma ./packages/prisma
 
 # 5️⃣ Генерируем Prisma Client

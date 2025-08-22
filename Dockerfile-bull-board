@@ -24,6 +24,8 @@ RUN pnpm store prune
 
 # Copy source code
 COPY apps/bull-board ./apps/bull-board
+# Copy node_modules and packages
+COPY --from=builder /app/node_modules ./node_modules
 COPY packages/queues ./packages/queues
 
 # Set working directory

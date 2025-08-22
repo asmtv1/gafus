@@ -44,7 +44,8 @@ RUN pnpm install --prod --filter @gafus/error-dashboard --ignore-scripts
 RUN pnpm install --filter @gafus/prisma --ignore-scripts
 RUN pnpm store prune
 
-# Copy prisma files
+# Copy node_modules and prisma files
+COPY --from=builder /app/node_modules ./node_modules
 COPY packages/prisma ./packages/prisma
 
 # Generate Prisma client
