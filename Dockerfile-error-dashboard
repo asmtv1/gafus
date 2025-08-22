@@ -44,8 +44,7 @@ COPY apps/error-dashboard/package.json ./apps/error-dashboard/package.json
 COPY packages/prisma/package.json ./packages/prisma/package.json
 
 # Install only production dependencies
-RUN pnpm install --prod --filter @gafus/error-dashboard --ignore-scripts
-RUN pnpm install --filter @gafus/prisma --ignore-scripts
+RUN pnpm install --prod --ignore-scripts
 RUN pnpm store prune
 
 # Copy node_modules and prisma files
