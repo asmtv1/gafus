@@ -1,6 +1,9 @@
 services:
   # Web Application
   web:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: ghcr.io/asmtv1/gafus-web:latest
     container_name: gafus-web
     environment:

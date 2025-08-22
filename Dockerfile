@@ -31,8 +31,6 @@ COPY --from=deps /app/package.json ./package.json
 COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=deps /app/packages ./packages
 COPY --from=deps /app/apps/web ./apps/web
-COPY apps/web ./apps/web
-
 
 # Build the application
 RUN npm install -g pnpm && cd apps/web && pnpm build
