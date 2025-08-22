@@ -18,7 +18,9 @@ COPY apps/bull-board/package.json ./apps/bull-board/package.json
 COPY packages/queues/package.json ./packages/queues/package.json
 
 # Install only production dependencies
-RUN pnpm install --prod --filter @gafus/bull-board --ignore-scripts && pnpm store prune
+RUN cd apps/bull-board && pnpm install --prod --ignore-scripts
+RUN cd packages/queues && pnpm install --prod --ignore-scripts
+RUN pnpm store prune
 
 # Copy source code
 COPY apps/bull-board ./apps/bull-board
