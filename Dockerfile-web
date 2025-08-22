@@ -26,14 +26,23 @@ RUN npm install -g pnpm && pnpm install --frozen-lockfile
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+
+# Install pnpm globally
+RUN npm install -g pnpm
+
+# Copy package files and dependencies
+COPY package.json pnpm-lock.yaml* ./
+COPY apps/web/package.json ./apps/web/
+COPY packages ./packages
+
+# Copy node_modules from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/package.json ./package.json
-COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=deps /app/packages ./packages
-COPY --from=deps /app/apps/web ./apps/web
+
+# Copy source code
+COPY apps/web ./apps/web
 
 # Build the application
-RUN npm install -g pnpm && cd apps/web && pnpm build
+RUN cd apps/web && pnpm build
 
 # Production image, copy all the files and run next
 FROM base AS runner
