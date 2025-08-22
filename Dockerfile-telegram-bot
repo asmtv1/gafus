@@ -24,7 +24,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Build bot
-RUN cd apps/telegram-bot && pnpm run build
+RUN pnpm --filter @gafus/telegram-bot run build
 
 # ─────────────────────────────────────────────
 # Stage 2: Runtime stage

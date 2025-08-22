@@ -5,15 +5,13 @@
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "scripts": {
-    "prebuild": "pnpm clean",
-    "build": "tsc -p tsconfig.json",
     "clean": "rimraf dist",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "tsx seed.ts",
     "db:studio": "prisma studio",
-    "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

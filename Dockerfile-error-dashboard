@@ -19,7 +19,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Build the application
-RUN cd apps/error-dashboard && pnpm build
+RUN pnpm build --filter @gafus/error-dashboard
 
 # Production stage
 FROM node:20-alpine AS runner
@@ -40,8 +40,8 @@ COPY apps/error-dashboard/package.json ./apps/error-dashboard/package.json
 COPY packages/prisma/package.json ./packages/prisma/package.json
 
 # Install only production dependencies
-RUN cd apps/error-dashboard && pnpm install --prod --ignore-scripts
-RUN cd packages/prisma && pnpm install --prod --ignore-scripts
+RUN pnpm install --prod --filter @gafus/error-dashboard --ignore-scripts
+RUN pnpm install --filter @gafus/prisma --ignore-scripts
 RUN pnpm store prune
 
 # Copy prisma files

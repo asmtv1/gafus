@@ -21,8 +21,8 @@ COPY packages/prisma/package.json ./packages/prisma/package.json
 COPY packages/queues/package.json ./packages/queues/package.json
 
 # Install only production dependencies
-RUN cd packages/worker && pnpm install --prod --ignore-scripts
-RUN cd packages/prisma && pnpm install --prod --ignore-scripts
+RUN pnpm install --prod --filter @gafus/worker --ignore-scripts
+RUN pnpm install --filter @gafus/prisma --ignore-scripts
 RUN pnpm store prune
 
 # Copy source code
