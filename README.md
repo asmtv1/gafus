@@ -57,3 +57,4 @@ certbot --nginx \
 
 Для подробной информации см. [DEPLOYMENT.md](DEPLOYMENT.md)
 # Trigger new workflow
+# CI/CD test
