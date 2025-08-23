@@ -45,6 +45,8 @@ services:
       - PORT=3000
       - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
       - REDIS_URL=redis://redis:6379
+      - NEXTAUTH_SECRET=your-super-secret-key-here-change-in-production
+      - NEXTAUTH_URL=https://gafus.ru
     ports:
       - "3000:3000"
     restart: unless-stopped
@@ -73,6 +75,8 @@ services:
       - PORT=3001
       - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
       - REDIS_URL=redis://redis:6379
+      - NEXTAUTH_SECRET=your-super-secret-key-here-change-in-production
+      - NEXTAUTH_URL=https://trainer-panel.gafus.ru
     ports:
       - "3001:3001"
     restart: unless-stopped
