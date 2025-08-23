@@ -3,28 +3,33 @@
 ## 📋 Что настроено:
 
 ### 1. **Nginx конфигурация**
+
 - ✅ HTTP → HTTPS редирект
 - ✅ SSL сертификаты Let's Encrypt
 - ✅ Безопасные заголовки
 - ✅ HTTP/2 поддержка
 
 ### 2. **Docker Compose**
+
 - ✅ Certbot контейнер для автоматических сертификатов
 - ✅ Volumes для сертификатов
 - ✅ Зависимости между сервисами
 
 ### 3. **Автоматическое обновление**
+
 - ✅ Скрипт `scripts/renew-ssl.sh`
 - ✅ Cron job для ежедневного обновления
 
 ## 🚀 Первый запуск:
 
 ### 1. **Запустите сервисы:**
+
 ```bash
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
 ### 2. **Получите первый сертификат:**
+
 ```bash
 # Остановите nginx
 docker-compose -f docker-compose.prod.yml stop nginx
@@ -37,6 +42,7 @@ docker-compose -f docker-compose.prod.yml up -d nginx
 ```
 
 ### 3. **Проверьте HTTPS:**
+
 ```bash
 curl -I https://gafus.ru
 ```
@@ -44,12 +50,14 @@ curl -I https://gafus.ru
 ## 🔄 Продакшн сертификаты:
 
 ### 1. **Уберите флаг --staging:**
+
 ```bash
 # В docker-compose.prod.yml измените команду certbot:
 command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru
 ```
 
 ### 2. **Пересоздайте сертификат:**
+
 ```bash
 docker-compose -f docker-compose.prod.yml stop nginx
 docker-compose -f docker-compose.prod.yml run --rm certbot certbot certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru
@@ -59,6 +67,7 @@ docker-compose -f docker-compose.prod.yml up -d nginx
 ## ⏰ Автоматическое обновление:
 
 ### 1. **Добавьте cron job:**
+
 ```bash
 # Откройте crontab
 crontab -e
@@ -68,6 +77,7 @@ crontab -e
 ```
 
 ### 2. **Сделайте скрипт исполняемым:**
+
 ```bash
 chmod +x /root/gafus/scripts/renew-ssl.sh
 ```
@@ -75,16 +85,19 @@ chmod +x /root/gafus/scripts/renew-ssl.sh
 ## 🔍 Проверка:
 
 ### 1. **Статус сертификатов:**
+
 ```bash
 docker-compose -f docker-compose.prod.yml run --rm certbot certbot certificates
 ```
 
 ### 2. **Логи nginx:**
+
 ```bash
 docker-compose -f docker-compose.prod.yml logs nginx
 ```
 
 ### 3. **Логи certbot:**
+
 ```bash
 docker-compose -f docker-compose.prod.yml logs certbot
 ```
@@ -101,4 +114,22 @@ docker-compose -f docker-compose.prod.yml logs certbot
 ```
 A     gafus.ru        → 185.239.51.125
 A     www.gafus.ru    → 185.239.51.125
+A     api.gafus.ru    → 185.239.51.125
+A     admin.gafus.ru  → 185.239.51.125
+A     monitor.gafus.ru → 185.239.51.125
+A     queues.gafus.ru → 185.239.51.125
 ```
+
+## 🚀 Поддомены:
+
+### **Основные сервисы:**
+- **`gafus.ru`** - основной сайт
+- **`www.gafus.ru`** - www версия
+
+### **Административные:**
+- **`admin.gafus.ru`** - панель тренера
+- **`monitor.gafus.ru`** - мониторинг ошибок
+- **`queues.gafus.ru`** - управление очередями
+
+### **API:**
+- **`api.gafus.ru`** - API endpoints
