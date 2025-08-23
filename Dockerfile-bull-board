@@ -31,9 +31,6 @@ COPY packages/queues ./packages/queues
 # Build queues package
 RUN cd packages/queues && pnpm build
 
-# Set working directory
-WORKDIR /app
-
 # Set environment variables
 ENV REDIS_URL=redis://redis:6379
 ENV NODE_ENV=production
@@ -42,5 +39,5 @@ ENV PORT=3002
 # Expose port
 EXPOSE 3002
 
-# Start the bull-board
-CMD ["pnpm", "start"]
+# Start the bull-board from the correct directory
+CMD ["sh", "-c", "cd /app/apps/bull-board && REDIS_URL=$REDIS_URL NODE_ENV=$NODE_ENV PORT=$PORT pnpm start"]
