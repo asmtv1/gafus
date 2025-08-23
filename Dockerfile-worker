@@ -32,12 +32,10 @@ COPY packages/worker ./packages/worker
 COPY packages/prisma ./packages/prisma
 COPY packages/queues ./packages/queues
 
-# Generate Prisma client first
-RUN pnpm --filter @gafus/prisma run prisma:generate
-
-# Build TypeScript code after Prisma is ready
-RUN pnpm --filter @gafus/queues run build
-RUN pnpm --filter @gafus/worker run build
+# Copy pre-built dist folders from CI/CD artifacts
+COPY packages/worker/dist ./packages/worker/dist
+COPY packages/queues/dist ./packages/queues/dist
+COPY packages/prisma/node_modules/.prisma ./packages/prisma/node_modules/.prisma
 
 # Set working directory
 WORKDIR /app/packages/worker

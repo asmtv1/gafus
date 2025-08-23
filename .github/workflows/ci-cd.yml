@@ -108,14 +108,66 @@ jobs:
           cd apps/${{ matrix.app }}
           pnpm typecheck
 
-  # Build all Docker images
-  build-images:
+
+          # Build worker packages for Docker
+  build-worker-packages:
     needs: [security, build-apps]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Generate Prisma Client
+        run: |
+          cd packages/prisma
+          pnpm run db:generate
+
+      - name: Build worker packages
+        run: |
+          cd packages/worker
+          pnpm run build
+          cd ../queues
+          pnpm run build
+
+      - name: Upload worker build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: worker-dist
+          path: |
+            packages/worker/dist
+            packages/queues/dist
+            packages/prisma/node_modules/.prisma
+
+  # Build all Docker images
+  build-images:
+    needs: [security, build-apps, build-worker-packages]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download worker build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: worker-dist
+          path: .
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
