@@ -98,6 +98,12 @@ temp/
 .turbo
 
 # TypeScript
+
+# SSL Certificates
+certbot/
+*.pem
+*.key
+*.crt
 *.tsbuildinfo
 tsconfig.tsbuildinfo
 # Next.js cache
