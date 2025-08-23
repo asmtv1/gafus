@@ -58,7 +58,7 @@ jobs:
 
             # Login to GitHub Container Registry
             echo "🔐 Logging in to GitHub Container Registry..."
-            echo "${{ secrets.GH_PACKAGES_TOKEN }}" | docker login ghcr.io -u asmtv1 --password-stdin
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u asmtv1 --password-stdin
 
             # Navigate to project directory
             cd /root/gafus || {
