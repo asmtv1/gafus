@@ -243,8 +243,19 @@ jobs:
             echo "🚀 Starting production deployment..."
 
             # Navigate to project directory
-            cd /root/gafus
+            cd /root/gafus || {
+              echo "Directory /root/gafus not found, creating it..."
+              mkdir -p /root/gafus
+              cd /root/gafus
+            }
 
+            # Initialize git repository if it doesn't exist
+            if [ ! -d .git ]; then
+              echo "Git repository not found, initializing..."
+              git init
+              git remote add origin https://github.com/asmtv1/gafus.git
+            fi
+            
             # Pull latest changes
             git pull origin main
 
@@ -269,22 +280,22 @@ jobs:
             docker-compose -f docker-compose.prod.yml down || true
 
             # Pull latest images from registry
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/gafus-web:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/gafus-trainer-panel:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/gafus-error-dashboard:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/gafus-worker:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/gafus-bull-board:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/gafus-telegram-bot:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/gafus-prisma:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-trainer-panel:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-error-dashboard:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-worker:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-bull-board:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-telegram-bot:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-prisma:latest
 
             # Tag images for local use
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/gafus-web:latest gafus-web:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/gafus-trainer-panel:latest trainer-panel:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/gafus-error-dashboard:latest error-dashboard:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/gafus-worker:latest gafus-worker:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/gafus-bull-board:latest gafus-bull-board:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/gafus-telegram-bot:latest gafus-telegram-bot:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/gafus-prisma:latest gafus-prisma:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest gafus-web:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-trainer-panel:latest trainer-panel:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-error-dashboard:latest error-dashboard:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-worker:latest gafus-worker:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-bull-board:latest gafus-bull-board:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-telegram-bot:latest gafus-telegram-bot:latest
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-prisma:latest gafus-prisma:latest
 
             # Start services
             docker-compose -f docker-compose.prod.yml up -d
