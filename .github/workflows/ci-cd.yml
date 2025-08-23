@@ -108,8 +108,7 @@ jobs:
           cd apps/${{ matrix.app }}
           pnpm typecheck
 
-
-          # Build worker packages for Docker
+  # Build worker packages for Docker
   build-worker-packages:
     needs: [security, build-apps]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
