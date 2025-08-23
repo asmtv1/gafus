@@ -305,8 +305,10 @@ jobs:
             chmod -R 755 apps/web/public/uploads/
             chmod -R 755 apps/trainer-panel/public/uploads/
 
-            # Stop existing containers
-            docker-compose -f docker-compose.prod.yml down || true
+            # Stop and remove existing containers forcefully
+            docker-compose -f docker-compose.prod.yml down --remove-orphans --volumes || true
+            docker system prune -f || true
+            docker container prune -f || true
 
             # Pull latest images from registry
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest
@@ -325,7 +327,7 @@ jobs:
             # Wait for services to be ready
             sleep 15
 
-                        # Run Prisma migrations
+            # Run Prisma migrations
             echo "🗄️ Running Prisma migrations..."
             docker-compose -f docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
 
