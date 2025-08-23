@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: asmtv1/gafus
+  IMAGE_NAME: asmtv1
 
 jobs:
   # Security and code quality checks
