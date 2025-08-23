@@ -37,6 +37,9 @@ COPY --from=builder /app/apps/error-dashboard/.next ./apps/error-dashboard/.next
 COPY --from=builder /app/apps/error-dashboard/next.config.ts ./apps/error-dashboard/next.config.ts
 COPY --from=builder /app/apps/error-dashboard/tailwind.config.js ./apps/error-dashboard/tailwind.config.js
 COPY --from=builder /app/apps/error-dashboard/postcss.config.js ./apps/error-dashboard/postcss.config.js
+COPY --from=builder /app/apps/error-dashboard/package.json ./apps/error-dashboard/package.json
+COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
 # 3️⃣ Запуск
 WORKDIR /app/apps/error-dashboard

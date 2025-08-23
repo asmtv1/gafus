@@ -28,6 +28,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/trainer-panel/.next ./apps/trainer-panel/.next
 COPY --from=builder /app/apps/trainer-panel/public ./apps/trainer-panel/public
 COPY --from=builder /app/apps/trainer-panel/next.config.ts ./apps/trainer-panel/next.config.ts
+COPY --from=builder /app/apps/trainer-panel/package.json ./apps/trainer-panel/package.json
+COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 # 3️⃣ Запуск
 WORKDIR /app/apps/trainer-panel
 EXPOSE 3001
