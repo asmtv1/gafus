@@ -106,7 +106,7 @@
 
 ### **2. Что проверяется:**
 
-- **🌐 Main website** - `/api/ping` endpoint
+- **🌐 Main website** - `/api/ping` endpointHealth Check:
 - **🎯 Trainer panel** - порт 3001
 - **📊 Error dashboard** - порт 3005
 - **📋 Bull board** - порт 3002
