@@ -1,40 +1,60 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-alpine
+# ─────────────────────────────────────────────
+# Stage 1: Build stage
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Enable pnpm
-RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
-
-# Copy workspace files
-COPY pnpm-workspace.yaml ./
-COPY package.json pnpm-lock.yaml ./
-
-# Copy worker package.json
+# Copy configs
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages/worker/package.json ./packages/worker/package.json
-
-# Copy prisma package.json
 COPY packages/prisma/package.json ./packages/prisma/package.json
-
-# Copy queues package.json
 COPY packages/queues/package.json ./packages/queues/package.json
 
-# Install only production dependencies
-RUN pnpm install --prod --filter @gafus/worker --ignore-scripts
-RUN pnpm install --filter @gafus/prisma --ignore-scripts
-RUN pnpm store prune
+# Install pnpm and dependencies
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+RUN pnpm install --frozen-lockfile
 
-# Copy source code
-COPY packages/worker ./packages/worker
-COPY packages/prisma ./packages/prisma
-COPY packages/queues ./packages/queues
+# Copy full project
+COPY . .
+
+# Build TypeScript code
+RUN pnpm --filter @gafus/worker run build
+RUN pnpm --filter @gafus/queues run build
+
+# Generate Prisma client
+RUN pnpm --filter @gafus/prisma run db:generate
+
+# ─────────────────────────────────────────────
+# Stage 2: Runtime stage
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Copy workspace manifests
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/worker/package.json ./packages/worker/package.json
+COPY packages/prisma/package.json ./packages/prisma/package.json
+COPY packages/queues/package.json ./packages/queues/package.json
+
+# Copy built code and dependencies from builder
+COPY --from=builder /app/packages/worker/dist ./packages/worker/dist
+COPY --from=builder /app/packages/prisma ./packages/prisma
+COPY --from=builder /app/packages/queues ./packages/queues
+
+# Install pnpm and production deps
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts
 
 # Generate Prisma client
 RUN pnpm --filter @gafus/prisma run prisma:generate
 
-# Set working directory
-WORKDIR /app/packages/worker
+# Set working directory to worker
+WORKDIR /app/packages/worker/dist
 
-# Start the worker
-CMD ["pnpm", "start"]
+# Launch worker
+CMD ["node", "index.js"]
