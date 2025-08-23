@@ -56,3 +56,4 @@ certbot --nginx \
 ## 🆘 Поддержка
 
 Для подробной информации см. [DEPLOYMENT.md](DEPLOYMENT.md)
+# Trigger new workflow
