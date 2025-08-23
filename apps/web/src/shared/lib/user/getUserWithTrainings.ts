@@ -71,14 +71,14 @@ export async function getUserWithTrainings(): Promise<UserWithTrainings | null> 
     const courses = user.userCourses.map((uc: { courseId: string; startedAt: Date | null; completedAt: Date | null; course: { id: string; name: string; dayLinks: { id: string }[] } }) => {
       // Фильтруем userTrainings, которые относятся к этому курсу
       const trainingsForCourse = user.userTrainings.filter(
-        (ut) => ut.dayOnCourse.course.id === uc.courseId,
+        (ut: { dayOnCourse: { course: { id: string } } }) => ut.dayOnCourse.course.id === uc.courseId,
       );
 
       // Список номеров дней, которые пользователь уже закончил
       const completedDays = trainingsForCourse
         .filter((t: { status: string }) => t.status === TrainingStatus.COMPLETED)
         .map((t: { dayOnCourse: { order: number } }) => t.dayOnCourse.order)
-        .sort((a, b) => a - b);
+        .sort((a: number, b: number) => a - b);
 
       return {
         courseId: uc.courseId,

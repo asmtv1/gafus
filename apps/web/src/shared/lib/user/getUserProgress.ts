@@ -231,7 +231,14 @@ export async function getUserProgress(
     });
 
     // Создаем мапу для быстрого поиска userTraining по dayOnCourseId
-    const userTrainingMap = new Map(
+    const userTrainingMap = new Map<
+      string,
+      {
+        dayOnCourseId: string;
+        status: string;
+        steps: { stepOnDayId: string; status: string; updatedAt: Date }[];
+      }
+    >(
       userTrainings.map(
         (ut: {
           dayOnCourseId: string;
@@ -257,9 +264,10 @@ export async function getUserProgress(
         // - NOT_STARTED: день не начат
         // - IN_PROGRESS: день начат, но не завершен
         // - COMPLETED: день завершен
-        const dayStatus = userTraining?.status
-          ? (userTraining.status as TrainingStatus)
-          : TrainingStatus.NOT_STARTED;
+        const dayStatus =
+          userTraining && userTraining.status
+            ? (userTraining.status as TrainingStatus)
+            : TrainingStatus.NOT_STARTED;
 
         // Собираем прогресс по шагам дня
         const stepsProgress = dayLink.day.stepLinks.map(
@@ -267,7 +275,7 @@ export async function getUserProgress(
             let stepStatus = TrainingStatus.NOT_STARTED;
             let stepCompletedAt: Date | null = null;
 
-            if (userTraining) {
+            if (userTraining && userTraining.steps) {
               const userStep = userTraining.steps.find(
                 (step: { stepOnDayId: string; status: string; updatedAt: Date }) =>
                   step.stepOnDayId === stepLink.id,
@@ -296,7 +304,7 @@ export async function getUserProgress(
 
         // Вычисляем дату завершения дня (максимальная дата завершения шагов), только если день завершен
         let dayCompletedAt: Date | null = null;
-        if (dayStatus === TrainingStatus.COMPLETED && userTraining) {
+        if (dayStatus === TrainingStatus.COMPLETED && userTraining && userTraining.steps) {
           const completedDates = userTraining.steps
             .filter(
               (s: { status: string }) => (s.status as TrainingStatus) === TrainingStatus.COMPLETED,
