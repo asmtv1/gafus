@@ -1,0 +1,100 @@
+name: Monitor Services Health
+
+on:
+  workflow_dispatch:
+    inputs:
+      check_all:
+        description: "Check all services"
+        required: false
+        default: true
+        type: boolean
+  schedule:
+    # Run every 30 minutes
+    - cron: "*/30 * * * *"
+  repository_dispatch:
+    types: [health-check]
+
+env:
+  SERVER_HOST: ${{ secrets.SERVER_HOST }}
+  SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
+  SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+  SERVER_PORT: ${{ secrets.SERVER_PORT }}
+
+jobs:
+  health-monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check main website
+        run: |
+          echo "🌐 Checking main website health..."
+          if curl -f -s --max-time 10 http://${{ env.SERVER_HOST }}/health > /dev/null; then
+            echo "✅ Main website is healthy"
+          else
+            echo "❌ Main website health check failed"
+            exit 1
+          fi
+
+      - name: Check trainer panel
+        run: |
+          echo "🎯 Checking trainer panel health..."
+          if curl -f -s --max-time 10 http://${{ env.SERVER_HOST }}:3001/ > /dev/null; then
+            echo "✅ Trainer panel is healthy"
+          else
+            echo "❌ Trainer panel health check failed"
+            exit 1
+          fi
+
+      - name: Check error dashboard
+        run: |
+          echo "📊 Checking error dashboard health..."
+          if curl -f -s --max-time 10 http://${{ env.SERVER_HOST }}:3005/ > /dev/null; then
+            echo "✅ Error dashboard is healthy"
+          else
+            echo "❌ Error dashboard health check failed"
+            exit 1
+          fi
+
+      - name: Check bull board
+        run: |
+          echo "📋 Checking bull board health..."
+          if curl -f -s --max-time 10 http://${{ env.SERVER_HOST }}:3002/ > /dev/null; then
+            echo "✅ Bull board is healthy"
+          else
+            echo "❌ Bull board health check failed"
+            exit 1
+          fi
+
+      - name: Check Docker containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.SERVER_HOST }}
+          username: ${{ env.SERVER_USERNAME }}
+          password: ${{ env.SERVER_PASSWORD }}
+          port: ${{ env.SERVER_PORT }}
+          script: |
+            set -e
+            echo "🐳 Checking Docker containers health..."
+
+            cd /root/gafus
+
+            # Check container status
+            echo "📊 Container Status:"
+            docker-compose -f docker-compose.prod.yml ps
+
+            # Check for unhealthy containers
+            if docker-compose -f docker-compose.prod.yml ps | grep -q "unhealthy\|Restarting\|Exit"; then
+              echo "❌ Found unhealthy containers!"
+              exit 1
+            else
+              echo "✅ All containers are healthy"
+            fi
+
+            # Check service logs for errors
+            echo "📝 Checking recent logs for errors..."
+            docker-compose -f docker-compose.prod.yml logs --tail=50 | grep -i "error\|fatal\|failed" || echo "✅ No errors found in recent logs"
+
+      - name: Health check summary
+        run: |
+          echo "🎉 Health check completed successfully!"
+          echo "✅ All services are running properly"
+          echo "🕐 Check completed at: $(date)"

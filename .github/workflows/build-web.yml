@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       force_rebuild:
-        description: 'Force rebuild even if no changes'
+        description: "Force rebuild even if no changes"
         required: false
         default: false
         type: boolean
   push:
     paths:
-      - 'apps/web/**'
-      - 'packages/**'
-      - 'Dockerfile-web'
-      - 'docker-compose.prod.yml'
-      - '.github/workflows/build-web.yml'
+      - "apps/web/**"
+      - "packages/**"
+      - "Dockerfile-web"
+      - "docker-compose.prod.yml"
+      - ".github/workflows/build-web.yml"
 
 env:
   REGISTRY: ghcr.io
@@ -58,16 +58,16 @@ jobs:
           script: |
             set -e
             echo "🚀 Deploying updated web app..."
-            
+
             cd /root/gafus
-            
+
             # Pull new web image
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest
-            
+
             # Tag for local use
             docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest gafus-web:latest
-            
+
             # Restart only web service
             docker-compose -f docker-compose.prod.yml restart web
-            
+
             echo "✅ Web app deployed successfully!"
