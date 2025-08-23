@@ -26,6 +26,9 @@ RUN pnpm store prune
 COPY apps/bull-board ./apps/bull-board
 COPY packages/queues ./packages/queues
 
+# Build queues package
+RUN cd packages/queues && pnpm build
+
 # Set working directory
 WORKDIR /app/apps/bull-board
 
