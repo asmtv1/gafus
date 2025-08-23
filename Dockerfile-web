@@ -15,7 +15,10 @@ COPY . .
 # 3️⃣ Устанавливаем ВСЕ зависимости (включая hoisted)
 RUN pnpm install --no-frozen-lockfile
 
-# 4️⃣ Билдим с использованием hoisted node_modules
+# 4️⃣ Генерируем Prisma client
+RUN cd packages/prisma && pnpm db:generate
+
+# 5️⃣ Билдим с использованием hoisted node_modules
 RUN pnpm build --filter @gafus/web
 
 # ─────────────────────────────────────────────

@@ -11,7 +11,9 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 COPY . .
 # 3️⃣ Устанавливаем ВСЕ зависимости (включая hoisted)
 RUN pnpm install --no-frozen-lockfile
-# 4️⃣ Билдим с использованием hoisted node_modules
+# 4️⃣ Генерируем Prisma client
+RUN cd packages/prisma && pnpm db:generate
+# 5️⃣ Билдим с использованием hoisted node_modules
 RUN pnpm build --filter @gafus/trainer-panel
 # ─────────────────────────────────────────────
 # Stage 1: runner — минимальный production
