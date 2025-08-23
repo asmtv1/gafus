@@ -115,7 +115,7 @@ docker-compose -f docker-compose.prod.yml logs certbot
 A     gafus.ru        → 185.239.51.125
 A     www.gafus.ru    → 185.239.51.125
 A     api.gafus.ru    → 185.239.51.125
-A     admin.gafus.ru  → 185.239.51.125
+A     trainer-panel.gafus.ru → 185.239.51.125
 A     monitor.gafus.ru → 185.239.51.125
 A     queues.gafus.ru → 185.239.51.125
 ```
@@ -123,13 +123,16 @@ A     queues.gafus.ru → 185.239.51.125
 ## 🚀 Поддомены:
 
 ### **Основные сервисы:**
+
 - **`gafus.ru`** - основной сайт
 - **`www.gafus.ru`** - www версия
 
 ### **Административные:**
-- **`admin.gafus.ru`** - панель тренера
+
+- **`trainer-panel.gafus.ru`** - панель тренера
 - **`monitor.gafus.ru`** - мониторинг ошибок
 - **`queues.gafus.ru`** - управление очередями
 
 ### **API:**
+
 - **`api.gafus.ru`** - API endpoints
