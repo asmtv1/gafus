@@ -1,0 +1,134 @@
+name: Deploy Only
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+            echo "🚀 Starting deployment to ${{ github.event.inputs.environment }}..."
+
+            # Install Docker if not present
+            if ! command -v docker &> /dev/null; then
+              echo "🐳 Installing Docker..."
+              curl -fsSL https://get.docker.com -o get-docker.sh
+              sh get-docker.sh
+              rm get-docker.sh
+              systemctl start docker
+              systemctl enable docker
+            fi
+
+            # Install Docker Compose if not present
+            if ! command -v docker-compose &> /dev/null; then
+              echo "🐳 Installing Docker Compose..."
+              curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+            fi
+
+            # Login to GitHub Container Registry
+            echo "🔐 Logging in to GitHub Container Registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Navigate to project directory
+            cd /root/gafus || {
+              echo "Directory /root/gafus not found, creating it..."
+              mkdir -p /root/gafus
+              cd /root/gafus
+            }
+
+            # Initialize git repository if it doesn't exist
+            if [ ! -d .git ]; then
+              echo "Git repository not found, initializing..."
+              git init
+              git remote add origin https://github.com/asmtv1/gafus.git
+            fi
+
+            # Pull latest changes
+            git pull origin main
+
+            # Create uploads directories if they don't exist
+            mkdir -p uploads/avatars uploads/pets uploads/courses uploads/shared
+            chmod -R 755 uploads/
+
+            # Create public uploads directories for web app
+            mkdir -p apps/web/public/uploads/avatars
+            mkdir -p apps/web/public/uploads/pets
+            mkdir -p apps/web/public/uploads/courses
+            mkdir -p apps/web/public/uploads/shared
+
+            # Create public uploads directories for trainer panel
+            mkdir -p apps/trainer-panel/public/uploads/shared
+
+            # Set proper permissions
+            chmod -R 755 apps/web/public/uploads/
+            chmod -R 755 apps/trainer-panel/public/uploads/
+
+            # Stop existing containers
+            docker-compose -f docker-compose.prod.yml down || true
+
+            # Pull latest images from registry (используем существующие образы)
+            echo "📥 Pulling latest Docker images..."
+            docker pull ghcr.io/${{ github.actor }}/gafus-web:latest
+            docker pull ghcr.io/${{ github.actor }}/gafus-trainer-panel:latest
+            docker pull ghcr.io/${{ github.actor }}/gafus-error-dashboard:latest
+            docker pull ghcr.io/${{ github.actor }}/gafus-worker:latest
+            docker pull ghcr.io/${{ github.actor }}/gafus-bull-board:latest
+            docker pull ghcr.io/${{ github.actor }}/gafus-telegram-bot:latest
+            docker pull ghcr.io/${{ github.actor }}/gafus-prisma:latest
+
+            # Tag images for local use
+            docker tag ghcr.io/${{ github.actor }}/gafus-web:latest gafus-web:latest
+            docker tag ghcr.io/${{ github.actor }}/gafus-trainer-panel:latest trainer-panel:latest
+            docker tag ghcr.io/${{ github.actor }}/gafus-error-dashboard:latest error-dashboard:latest
+            docker tag ghcr.io/${{ github.actor }}/gafus-worker:latest gafus-worker:latest
+            docker tag ghcr.io/${{ github.actor }}/gafus-bull-board:latest gafus-bull-board:latest
+            docker tag ghcr.io/${{ github.actor }}/gafus-telegram-bot:latest gafus-telegram-bot:latest
+            docker tag ghcr.io/${{ github.actor }}/gafus-prisma:latest gafus-prisma:latest
+
+            # Start services
+            echo "🚀 Starting services..."
+            docker-compose -f docker-compose.prod.yml up -d
+
+            # Wait for services to be ready
+            sleep 15
+
+            # Run Prisma migrations
+            echo "🗄️ Running Prisma migrations..."
+            docker-compose -f docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
+
+            # Run migrations using the dedicated Prisma container
+            docker-compose -f docker-compose.prod.yml exec -T prisma pnpm run prisma:migrate:deploy || echo "Migrations failed, continuing..."
+
+            # Check service health
+            if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
+              echo "✅ Deployment completed successfully!"
+              
+              # Clean up unused images
+              docker image prune -f
+            else
+              echo "❌ Deployment failed - services not running"
+              exit 1
+            fi
