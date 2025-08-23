@@ -10,6 +10,7 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 # Copy workspace files
 COPY pnpm-workspace.yaml ./
 COPY package.json pnpm-lock.yaml ./
+COPY tsconfig.base.json ./
 
 # Copy bull-board package.json
 COPY apps/bull-board/package.json ./apps/bull-board/package.json
