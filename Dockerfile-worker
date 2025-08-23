@@ -33,9 +33,8 @@ COPY packages/prisma ./packages/prisma
 COPY packages/queues ./packages/queues
 
 # Copy pre-built dist folders from CI/CD artifacts
-COPY packages/worker/dist ./packages/worker/dist
-COPY packages/queues/dist ./packages/queues/dist
-COPY packages/prisma/node_modules/.prisma ./packages/prisma/node_modules/.prisma
+COPY worker-dist/worker/dist ./packages/worker/dist
+COPY worker-dist/queues/dist ./packages/queues/dist
 
 # Set working directory
 WORKDIR /app/packages/worker
