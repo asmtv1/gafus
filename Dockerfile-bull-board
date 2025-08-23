@@ -34,6 +34,11 @@ RUN cd packages/queues && pnpm build
 # Set working directory
 WORKDIR /app
 
+# Set environment variables
+ENV REDIS_URL=redis://redis:6379
+ENV NODE_ENV=production
+ENV PORT=3002
+
 # Expose port
 EXPOSE 3002
 
