@@ -23,6 +23,9 @@ RUN pnpm install --frozen-lockfile
 # Copy full project
 COPY . .
 
+# Generate Prisma client
+RUN pnpm --filter @gafus/prisma run db:generate
+
 # Build bot
 RUN pnpm --filter @gafus/telegram-bot run build
 
