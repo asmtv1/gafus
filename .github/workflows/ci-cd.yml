@@ -134,7 +134,7 @@ jobs:
           context: .
           file: Dockerfile-web
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/web:latest
+          tags: ${{ env.REGISTRY }}/web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -146,7 +146,7 @@ jobs:
           context: .
           file: Dockerfile-trainer-panel
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/trainer-panel:latest
+          tags: ${{ env.REGISTRY }}/trainer-panel:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -158,7 +158,7 @@ jobs:
           context: .
           file: Dockerfile-error-dashboard
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/error-dashboard:latest
+          tags: ${{ env.REGISTRY }}/error-dashboard:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -170,7 +170,7 @@ jobs:
           context: .
           file: Dockerfile-worker
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/worker:latest
+          tags: ${{ env.REGISTRY }}/worker:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -182,7 +182,7 @@ jobs:
           context: .
           file: Dockerfile-bull-board
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/bull-board:latest
+          tags: ${{ env.REGISTRY }}/bull-board:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -194,7 +194,7 @@ jobs:
           context: .
           file: Dockerfile-telegram-bot
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/telegram-bot:latest
+          tags: ${{ env.REGISTRY }}/telegram-bot:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -206,7 +206,7 @@ jobs:
           context: .
           file: Dockerfile-prisma
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/prisma:latest
+          tags: ${{ env.REGISTRY }}/prisma:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -269,22 +269,22 @@ jobs:
             docker-compose -f docker-compose.prod.yml down || true
 
             # Pull latest images from registry
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/web:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/trainer-panel:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/error-dashboard:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/worker:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/bull-board:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/telegram-bot:latest
-            docker pull ${{ env.REGISTRY }}/${{ github.actor }}/prisma:latest
+            docker pull ${{ env.REGISTRY }}/web:latest
+            docker pull ${{ env.REGISTRY }}/trainer-panel:latest
+            docker pull ${{ env.REGISTRY }}/error-dashboard:latest
+            docker pull ${{ env.REGISTRY }}/worker:latest
+            docker pull ${{ env.REGISTRY }}/bull-board:latest
+            docker pull ${{ env.REGISTRY }}/telegram-bot:latest
+            docker pull ${{ env.REGISTRY }}/prisma:latest
 
             # Tag images for local use
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/web:latest gafus-web:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/trainer-panel:latest trainer-panel:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/error-dashboard:latest error-dashboard:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/worker:latest gafus-worker:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/bull-board:latest gafus-bull-board:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/telegram-bot:latest gafus-telegram-bot:latest
-            docker tag ${{ env.REGISTRY }}/${{ github.actor }}/prisma:latest gafus-prisma:latest
+            docker tag ${{ env.REGISTRY }}/web:latest gafus-web:latest
+            docker tag ${{ env.REGISTRY }}/trainer-panel:latest trainer-panel:latest
+            docker tag ${{ env.REGISTRY }}/error-dashboard:latest error-dashboard:latest
+            docker tag ${{ env.REGISTRY }}/worker:latest gafus-worker:latest
+            docker tag ${{ env.REGISTRY }}/bull-board:latest gafus-bull-board:latest
+            docker tag ${{ env.REGISTRY }}/telegram-bot:latest gafus-telegram-bot:latest
+            docker tag ${{ env.REGISTRY }}/prisma:latest gafus-prisma:latest
 
             # Start services
             docker-compose -f docker-compose.prod.yml up -d
