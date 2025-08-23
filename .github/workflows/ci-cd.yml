@@ -359,20 +359,20 @@ jobs:
       - name: Health check
         run: |
           echo "🏥 Running post-deployment health checks..."
-          
+
           # Wait for deployment to stabilize
           echo "⏳ Waiting for services to stabilize..."
           sleep 30
-          
+
           # Check main website
           echo "🌐 Checking main website..."
-          if curl -f -s --max-time 10 http://185.239.51.125/health > /dev/null; then
+          if curl -f -s --max-time 10 http://185.239.51.125/api/ping > /dev/null; then
             echo "✅ Main website is healthy"
           else
             echo "❌ Main website health check failed"
             exit 1
           fi
-          
+
           # Check trainer panel
           echo "🎯 Checking trainer panel..."
           if curl -f -s --max-time 10 http://185.239.51.125:3001/ > /dev/null; then
@@ -381,7 +381,7 @@ jobs:
             echo "❌ Trainer panel health check failed"
             exit 1
           fi
-          
+
           # Check error dashboard
           echo "📊 Checking error dashboard..."
           if curl -f -s --max-time 10 http://185.239.51.125:3005/ > /dev/null; then
@@ -390,7 +390,7 @@ jobs:
             echo "❌ Error dashboard health check failed"
             exit 1
           fi
-          
+
           # Check bull board
           echo "📋 Checking bull board..."
           if curl -f -s --max-time 10 http://185.239.51.125:3002/ > /dev/null; then
@@ -399,5 +399,5 @@ jobs:
             echo "❌ Bull board health check failed"
             exit 1
           fi
-          
+
           echo "🎉 All health checks passed!"

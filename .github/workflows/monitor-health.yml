@@ -27,7 +27,7 @@ jobs:
       - name: Check main website
         run: |
           echo "🌐 Checking main website health..."
-          if curl -f -s --max-time 10 http://${{ env.SERVER_HOST }}/health > /dev/null; then
+          if curl -f -s --max-time 10 http://${{ env.SERVER_HOST }}/api/ping > /dev/null; then
             echo "✅ Main website is healthy"
           else
             echo "❌ Main website health check failed"
