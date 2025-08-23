@@ -31,7 +31,7 @@ COPY packages/queues ./packages/queues
 RUN cd packages/queues && pnpm build
 
 # Set working directory
-WORKDIR /app/apps/bull-board
+WORKDIR /app
 
 # Expose port
 EXPOSE 3002
