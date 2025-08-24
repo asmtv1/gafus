@@ -45,8 +45,9 @@ services:
       - PORT=3000
       - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
       - REDIS_URL=redis://redis:6379
-      - NEXTAUTH_SECRET=your-super-secret-key-here-change-in-production
+      - NEXTAUTH_SECRET=bh3r4xw2GbKDrizNREjAEDpSSi2hwrMFl8BPQ2nYHSs=
       - NEXTAUTH_URL=https://gafus.ru
+      - AUTH_COOKIE_DOMAIN=.gafus.ru
     ports:
       - "3000:3000"
     restart: unless-stopped
@@ -75,8 +76,9 @@ services:
       - PORT=3001
       - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
       - REDIS_URL=redis://redis:6379
-      - NEXTAUTH_SECRET=your-super-secret-key-here-change-in-production
+      - NEXTAUTH_SECRET=bh3r4xw2GbKDrizNREjAEDpSSi2hwrMFl8BPQ2nYHSs=
       - NEXTAUTH_URL=https://trainer-panel.gafus.ru
+      - AUTH_COOKIE_DOMAIN=.gafus.ru
     ports:
       - "3001:3001"
     restart: unless-stopped
@@ -96,6 +98,9 @@ services:
       - PORT=3005
       - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
       - REDIS_URL=redis://redis:6379
+      - NEXTAUTH_SECRET=bh3r4xw2GbKDrizNREjAEDpSSi2hwrMFl8BPQ2nYHSs=
+      - NEXTAUTH_URL=https://monitor.gafus.ru
+      - AUTH_COOKIE_DOMAIN=.gafus.ru
     ports:
       - "3005:3005"
     restart: unless-stopped
@@ -190,7 +195,7 @@ services:
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email --staging -d gafus.ru -d www.gafus.ru -d api.gafus.ru -d trainer-panel.gafus.ru -d monitor.gafus.ru -d queues.gafus.ru
+    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru -d api.gafus.ru -d trainer-panel.gafus.ru -d monitor.gafus.ru -d queues.gafus.ru
     depends_on:
       - nginx
 

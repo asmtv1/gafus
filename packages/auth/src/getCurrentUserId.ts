@@ -1,9 +1,9 @@
 "use server";
 
 import { getServerSession } from "next-auth";
-import { edgeAuthOptions } from "./edge-auth";
+import { authOptions } from "./auth";
 
 export async function getCurrentUserId(): Promise<string | null> {
-  const session = await getServerSession(edgeAuthOptions);
+  const session = await getServerSession(authOptions);
   return session?.user?.id || null;
 }

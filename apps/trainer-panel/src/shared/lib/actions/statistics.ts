@@ -5,7 +5,7 @@ import {
   getDetailedCourseStatistics,
 } from "@features/statistics/lib/statistics";
 import { getDetailedStepStatistics } from "@features/statistics/lib/statistics-steps";
-import { edgeAuthOptions } from "@gafus/auth";
+import { authOptions } from "@gafus/auth";
 import { getServerSession } from "next-auth";
 
 export async function getCourseStatisticsAction(userId: string, isElevated: boolean) {
@@ -23,7 +23,7 @@ export async function getCourseStatisticsAction(userId: string, isElevated: bool
 
 export async function getDetailedCourseStatisticsAction(courseId: string) {
   try {
-    const session = await getServerSession(edgeAuthOptions);
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return { success: false, error: "Не авторизован" };
     }
@@ -42,7 +42,7 @@ export async function getDetailedCourseStatisticsAction(courseId: string) {
 
 export async function getDetailedStepStatisticsAction(stepId: string) {
   try {
-    const session = await getServerSession(edgeAuthOptions);
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return { success: false, error: "Не авторизован" };
     }
