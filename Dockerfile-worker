@@ -19,8 +19,8 @@ COPY packages/prisma/package.json ./packages/prisma/package.json
 COPY packages/queues/package.json ./packages/queues/package.json
 COPY packages/webpush/package.json ./packages/webpush/package.json
 
-# Install ALL dependencies (including dev dependencies for build)
-RUN pnpm install
+# Install dependencies only for worker and its dependencies
+RUN pnpm install --filter @gafus/worker --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush
 
 # Copy source code
 COPY packages/worker ./packages/worker
