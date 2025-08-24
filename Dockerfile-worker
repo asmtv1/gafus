@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-alpine
+# Build stage
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -12,29 +13,50 @@ COPY pnpm-workspace.yaml ./
 COPY package.json pnpm-lock.yaml ./
 COPY tsconfig.base.json ./
 
-# Copy worker package.json
+# Copy package.json files
 COPY packages/worker/package.json ./packages/worker/package.json
-
-# Copy prisma package.json
 COPY packages/prisma/package.json ./packages/prisma/package.json
-
-# Copy queues package.json
 COPY packages/queues/package.json ./packages/queues/package.json
 
-# Install dependencies (including dev dependencies for build)
-RUN pnpm install --filter @gafus/worker
-RUN pnpm install --filter @gafus/prisma
-RUN pnpm install --filter @gafus/queues
-RUN pnpm store prune
+# Install ALL dependencies (including dev dependencies for build)
+RUN pnpm install
 
 # Copy source code
 COPY packages/worker ./packages/worker
 COPY packages/prisma ./packages/prisma
 COPY packages/queues ./packages/queues
 
-# Copy pre-built dist folders from CI/CD artifacts
-COPY worker-dist/worker/dist ./packages/worker/dist
-COPY worker-dist/queues/dist ./packages/queues/dist
+# Generate Prisma client
+RUN pnpm --filter @gafus/prisma run db:generate
+
+# Build worker and queues
+RUN pnpm --filter @gafus/worker run build
+RUN pnpm --filter @gafus/queues run build
+
+# Production stage
+FROM node:20-alpine AS production
+
+WORKDIR /app
+
+# Enable pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Copy workspace files
+COPY pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml ./
+
+# Copy package.json files
+COPY packages/worker/package.json ./packages/worker/package.json
+COPY packages/prisma/package.json ./packages/prisma/package.json
+COPY packages/queues/package.json ./packages/queues/package.json
+
+# Install only production dependencies
+RUN pnpm install --prod
+
+# Copy built files from builder stage
+COPY --from=builder /app/packages/worker/dist ./packages/worker/dist
+COPY --from=builder /app/packages/queues/dist ./packages/queues/dist
+COPY --from=builder /app/packages/prisma/node_modules/.prisma ./packages/prisma/node_modules/.prisma
 
 # Set working directory
 WORKDIR /app/packages/worker
