@@ -299,8 +299,32 @@ jobs:
               git remote add origin https://github.com/asmtv1/gafus.git
             fi
 
-            # Pull latest changes
-            git pull origin main
+            # Ensure we have the correct remote
+            git remote set-url origin https://github.com/asmtv1/gafus.git
+
+            # Pull latest changes (force update to avoid conflicts)
+            echo "🔄 Updating repository..."
+            if ! git fetch origin; then
+              echo "❌ Failed to fetch from origin"
+              exit 1
+            fi
+
+            if ! git reset --hard origin/main; then
+              echo "❌ Failed to reset to origin/main"
+              exit 1
+            fi
+
+            if ! git clean -fd; then
+              echo "❌ Failed to clean working directory"
+              exit 1
+            fi
+
+            echo "✅ Repository updated successfully"
+            echo "📁 Current directory: $(pwd)"
+            echo "📋 Git status:"
+            git status --porcelain || echo "Git status check failed"
+            echo "🔗 Git remote:"
+            git remote -v || echo "Git remote check failed"
 
             # Create uploads directories if they don't exist
             mkdir -p uploads/avatars uploads/pets uploads/courses uploads/shared
