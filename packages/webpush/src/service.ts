@@ -1,7 +1,14 @@
 // Единый сервис для работы с push-уведомлениями
 // Объединяет логику из apps/web/src/utils/push.ts и packages/worker/src/push-worker.ts
 
-import type { PushSubscriptionJSON } from "@gafus/types";
+// Local type definition to avoid @gafus/types dependency
+interface PushSubscriptionJSON {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
 import webpush from "web-push";
 import type { PushLogEntry } from "./types";
 

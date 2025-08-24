@@ -2,7 +2,16 @@
 
 import { prisma } from "@gafus/prisma";
 
-import type { PushSubscriptionJSON, PushSubscriptionKeys } from "@gafus/types";
+// Local type definitions to avoid @gafus/types dependency
+interface PushSubscriptionKeys {
+  p256dh: string;
+  auth: string;
+}
+
+interface PushSubscriptionJSON {
+  endpoint: string;
+  keys: PushSubscriptionKeys;
+}
 
 export async function getUserSubscriptions(userId: string): Promise<PushSubscriptionJSON[]> {
   const records = await prisma.pushSubscription.findMany({
