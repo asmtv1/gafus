@@ -53,15 +53,5 @@ export interface DatabaseClient {
   $transaction: <T>(fn: (prisma: DatabaseClient) => Promise<T>) => Promise<T>;
 }
 
-// Экспортируем функцию для создания клиента (только для внутреннего использования)
-export const createPrismaClient = async () => {
-  // Динамический импорт для избежания проблем с SSR
-  const { PrismaClient } = await import("@prisma/client");
-
-  return new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-  });
-};
-
 // Экспортируем готовый экземпляр клиента для приложений
 export { prisma, default as prismaClient } from "./client";

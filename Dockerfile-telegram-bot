@@ -1,9 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# ─────────────────────────────────────────────
-# Stage 1: Build stage
-# ─────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -18,7 +15,7 @@ COPY packages/queues/package.json ./packages/queues/package.json
 
 # Install pnpm and dependencies
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --recursive
 
 # Copy full project
 COPY . .
@@ -26,40 +23,17 @@ COPY . .
 # Generate Prisma client
 RUN pnpm --filter @gafus/prisma run db:generate
 
+# Build prisma package
+RUN pnpm --filter @gafus/prisma run build
+
 # Build bot
 RUN pnpm --filter @gafus/telegram-bot run build
 
-# ─────────────────────────────────────────────
-# Stage 2: Runtime stage
-# ─────────────────────────────────────────────
-FROM node:20-alpine AS runner
+# Create symlinks for workspace packages
+RUN ln -sf /app/node_modules/.pnpm/node_modules/@gafus /app/node_modules/@gafus
 
+# Set working directory to app root
 WORKDIR /app
-ENV NODE_ENV=production
-
-# Install OpenSSL for Prisma
-RUN apk add --no-cache openssl curl
-
-# Copy workspace manifests
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/telegram-bot/package.json ./apps/telegram-bot/package.json
-COPY packages/prisma/package.json ./packages/prisma/package.json
-COPY packages/queues/package.json ./packages/queues/package.json
-
-# Copy built code and dependencies from builder
-COPY --from=builder /app/apps/telegram-bot/dist ./apps/telegram-bot/dist
-COPY --from=builder /app/packages/prisma ./packages/prisma
-COPY --from=builder /app/packages/queues ./packages/queues
-
-# Install pnpm and production deps
-RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
-RUN pnpm install --prod --frozen-lockfile --ignore-scripts
-
-# Generate Prisma client
-RUN pnpm --filter @gafus/prisma run prisma:generate
-
-# Set working directory to bot
-WORKDIR /app/apps/telegram-bot/dist
 
 # Launch bot
-CMD ["node", "bot.js"]
+CMD ["node", "apps/telegram-bot/dist/apps/telegram-bot/bot.js"]

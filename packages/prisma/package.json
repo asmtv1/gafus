@@ -2,10 +2,11 @@
   "name": "@gafus/prisma",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/src/index.js",
-  "types": "dist/src/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "clean": "rimraf dist",
+    "build": "tsc",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",

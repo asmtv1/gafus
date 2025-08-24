@@ -51,7 +51,7 @@ services:
       - "3000:3000"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/ping"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -105,6 +105,9 @@ services:
 
   # Prisma Database Management
   prisma:
+    build:
+      context: .
+      dockerfile: Dockerfile-prisma
     image: ghcr.io/asmtv1/gafus-prisma:latest
     container_name: gafus-prisma
     environment:
@@ -113,8 +116,6 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
-    volumes:
-      - ./packages/prisma:/app/packages/prisma
 
   # Worker
   worker:
@@ -124,6 +125,8 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
       - REDIS_URL=redis://redis:6379
+      - VAPID_PUBLIC_KEY=BMcswIZWoKJYgR6aoolgVD_f2APbFlZqgI6dCWDI8OT4NzL5o0lIDcT6yN9UXgfEfaLJ7T7PxOl417Dchl1V7vM
+      - VAPID_PRIVATE_KEY=Y5kbSDIwwa4iUEvJEBvyDu7hIAzRMhNXlys_liWluUk
     restart: unless-stopped
     depends_on:
       - postgres
@@ -145,6 +148,9 @@ services:
 
   # Telegram Bot
   telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile-telegram-bot
     image: ghcr.io/asmtv1/gafus-telegram-bot:latest
     container_name: gafus-telegram-bot
     environment:

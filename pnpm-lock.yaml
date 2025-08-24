@@ -680,18 +680,6 @@ importers:
 
   packages/webpush:
     dependencies:
-      '@gafus/types':
-        specifier: workspace:*
-        version: link:../types
-      next:
-        specifier: 15.3.5
-        version: 15.3.5(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      react:
-        specifier: 19.1.0
-        version: 19.1.0
-      react-dom:
-        specifier: 19.1.0
-        version: 19.1.0(react@19.1.0)
       web-push:
         specifier: 3.6.6
         version: 3.6.6
@@ -699,12 +687,6 @@ importers:
       '@types/node':
         specifier: 20.4.8
         version: 20.4.8
-      '@types/react':
-        specifier: 19.1.9
-        version: 19.1.9
-      '@types/react-dom':
-        specifier: 19.1.7
-        version: 19.1.7(@types/react@19.1.9)
       '@types/web-push':
         specifier: 3.6.4
         version: 3.6.4
