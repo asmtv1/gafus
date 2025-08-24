@@ -17,6 +17,7 @@ COPY tsconfig.base.json ./
 COPY packages/worker/package.json ./packages/worker/package.json
 COPY packages/prisma/package.json ./packages/prisma/package.json
 COPY packages/queues/package.json ./packages/queues/package.json
+COPY packages/webpush/package.json ./packages/webpush/package.json
 
 # Install ALL dependencies (including dev dependencies for build)
 RUN pnpm install
@@ -25,6 +26,7 @@ RUN pnpm install
 COPY packages/worker ./packages/worker
 COPY packages/prisma ./packages/prisma
 COPY packages/queues ./packages/queues
+COPY packages/webpush ./packages/webpush
 
 # Generate Prisma client
 RUN pnpm --filter @gafus/prisma run db:generate
@@ -49,17 +51,38 @@ COPY package.json pnpm-lock.yaml ./
 COPY packages/worker/package.json ./packages/worker/package.json
 COPY packages/prisma/package.json ./packages/prisma/package.json
 COPY packages/queues/package.json ./packages/queues/package.json
+COPY packages/webpush/package.json ./packages/webpush/package.json
 
-# Install only production dependencies
-RUN pnpm install --prod
+# Copy all node_modules from builder stage
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/worker/node_modules ./packages/worker/node_modules
+COPY --from=builder /app/packages/prisma/node_modules ./packages/prisma/node_modules
+COPY --from=builder /app/packages/queues/node_modules ./packages/queues/node_modules
+COPY --from=builder /app/packages/webpush/node_modules ./packages/webpush/node_modules
 
 # Copy built files from builder stage
 COPY --from=builder /app/packages/worker/dist ./packages/worker/dist
 COPY --from=builder /app/packages/queues/dist ./packages/queues/dist
-COPY --from=builder /app/packages/prisma/node_modules/.prisma ./packages/prisma/node_modules/.prisma
 
-# Set working directory
-WORKDIR /app/packages/worker
+# Copy source code for all packages
+COPY --from=builder /app/packages/worker ./packages/worker
+COPY --from=builder /app/packages/prisma ./packages/prisma
+COPY --from=builder /app/packages/queues ./packages/queues
+COPY --from=builder /app/packages/webpush ./packages/webpush
 
-# Start the worker
-CMD ["pnpm", "start"]
+# ULTRA RADICAL APPROACH: Copy entire prisma, queues, and webpush packages to worker's node_modules
+RUN cd packages/worker/node_modules/@gafus && \
+    rm -f prisma queues webpush && \
+    cp -r /app/packages/prisma prisma && \
+    cp -r /app/packages/queues queues && \
+    cp -r /app/packages/webpush webpush
+
+# FINAL RADICAL APPROACH: Fix package.json files to point to source code
+RUN sed -i 's|"main": "dist/src/index.js"|"main": "src/index.ts"|g' packages/worker/node_modules/@gafus/prisma/package.json && \
+    sed -i 's|"types": "dist/src/index.d.ts"|"types": "src/index.ts"|g' packages/worker/node_modules/@gafus/prisma/package.json
+
+# Set working directory to root to use root node_modules
+WORKDIR /app
+
+# Start the worker with tsx to use TypeScript source code
+CMD ["npx", "tsx", "packages/worker/src/index.ts"]
