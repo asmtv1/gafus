@@ -723,9 +723,6 @@ importers:
       '@gafus/queues':
         specifier: workspace:*
         version: link:../queues
-      '@gafus/webpush':
-        specifier: workspace:*
-        version: link:../webpush
       bullmq:
         specifier: 5.2.0
         version: 5.2.0
