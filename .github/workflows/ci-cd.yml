@@ -321,6 +321,15 @@ jobs:
 
             # Infrastructure cleanup - best practice: remove everything and start fresh
             echo "🧹 Cleaning up infrastructure..."
+
+            # Stop and remove all containers with gafus prefix
+            docker stop $(docker ps -q --filter "name=gafus-*") 2>/dev/null || true
+            docker rm $(docker ps -aq --filter "name=gafus-*") 2>/dev/null || true
+
+            # Remove all gafus containers by name explicitly
+            docker rm -f gafus-web gafus-trainer-panel gafus-error-dashboard gafus-worker gafus-bull-board gafus-telegram-bot gafus-prisma gafus-postgres gafus-redis gafus-nginx 2>/dev/null || true
+
+            # Now do the normal compose cleanup
             docker-compose -f docker-compose.prod.yml down --remove-orphans --volumes --timeout 30 || true
             docker system prune -f --volumes || true
             docker image prune -f --all || true
@@ -346,22 +355,22 @@ jobs:
             echo "🚀 Starting infrastructure services..."
 
             # 1. Start core infrastructure (database, redis)
-            docker-compose -f docker-compose.prod.yml up -d postgres redis
+            docker-compose -f docker-compose.prod.yml up -d --force-recreate postgres redis
             echo "⏳ Waiting for core services to be ready..."
             sleep 15
 
             # 2. Start application services
-            docker-compose -f docker-compose.prod.yml up -d prisma worker telegram-bot
+            docker-compose -f docker-compose.prod.yml up -d --force-recreate prisma worker telegram-bot
             echo "⏳ Waiting for application services to be ready..."
             sleep 10
 
             # 3. Start web services
-            docker-compose -f docker-compose.prod.yml up -d web trainer-panel error-dashboard
+            docker-compose -f docker-compose.prod.yml up -d --force-recreate web trainer-panel error-dashboard
             echo "⏳ Waiting for web services to be ready..."
             sleep 10
 
             # 4. Start bull-board (critical for nginx)
-            docker-compose -f docker-compose.prod.yml up -d bull-board
+            docker-compose -f docker-compose.prod.yml up -d --force-recreate bull-board
             echo "⏳ Waiting for bull-board to be ready..."
             sleep 15
 
@@ -384,7 +393,7 @@ jobs:
             fi
 
             # 5. Start nginx last (depends on all upstreams)
-            docker-compose -f docker-compose.prod.yml up -d nginx
+            docker-compose -f docker-compose.prod.yml up -d --force-recreate nginx
             echo "⏳ Waiting for nginx to be ready..."
             sleep 10
 
