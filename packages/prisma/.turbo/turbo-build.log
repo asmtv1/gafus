@@ -1,13 +1,5 @@
 
 
-> @gafus/prisma@0.1.0 prebuild /Users/asmtv1/gafus/packages/prisma
-> pnpm clean
-
-
-> @gafus/prisma@0.1.0 clean /Users/asmtv1/gafus/packages/prisma
-> rimraf dist
-
-
 > @gafus/prisma@0.1.0 build /Users/asmtv1/gafus/packages/prisma
-> tsc -p tsconfig.json
+> tsc
 

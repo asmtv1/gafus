@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import type { AuthUser } from "@gafus/types";
-import type { NextAuthOptions, DefaultSession } from "next-auth";
+import type { DefaultSession, NextAuthOptions } from "next-auth";
 
 // Расширяем типы NextAuth для пользовательских полей
 declare module "next-auth" {
@@ -15,7 +15,7 @@ declare module "next-auth" {
       avatarUrl?: string | null;
     } & DefaultSession["user"];
   }
-  
+
   interface User {
     id: string;
     username: string;

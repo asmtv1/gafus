@@ -40,6 +40,9 @@ COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
+# 3️⃣ Копируем исходный код для API endpoints
+COPY --from=builder /app/apps/web/src ./apps/web/src
+
 # 3️⃣ Запуск
 WORKDIR /app/apps/web
 EXPOSE 3000

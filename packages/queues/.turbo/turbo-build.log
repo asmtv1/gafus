@@ -1,13 +1,5 @@
 
 
-> @gafus/queues@0.1.0 prebuild /Users/asmtv1/gafus/packages/queues
-> pnpm clean
-
-
-> @gafus/queues@0.1.0 clean /Users/asmtv1/gafus/packages/queues
-> rimraf dist
-
-
 > @gafus/queues@0.1.0 build /Users/asmtv1/gafus/packages/queues
-> tsc -p tsconfig.json
+> tsc
 
