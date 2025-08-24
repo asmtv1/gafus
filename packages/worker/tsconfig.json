@@ -14,8 +14,7 @@
     "baseUrl": ".",
     "paths": {
       "@gafus/prisma": ["../../packages/prisma/src"],
-      "@gafus/queues": ["../../packages/queues/src"],
-      "@gafus/types": ["../../packages/types/src"]
+      "@gafus/queues": ["../../packages/queues/src"]
     }
   },
   "include": ["src"],

@@ -4,7 +4,14 @@ import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 
 import type { PushSubscription } from "@gafus/prisma";
-import type { PushSubscriptionJSON } from "@gafus/types";
+// Local type definition to avoid @gafus/types dependency
+interface PushSubscriptionJSON {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
 import { PushNotificationService } from "../../webpush/src/service";
 // Временное решение - используем console вместо createLogger
 const createLogger = (context: string) => ({
