@@ -33,7 +33,7 @@ RUN pnpm --filter @gafus/prisma run db:generate
 
 # Create .prisma folder in node_modules
 RUN mkdir -p /app/node_modules/.prisma
-RUN cp -r /app/node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/* /app/node_modules/.prisma/
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {} /app/node_modules/.prisma \;
 
 # Build prisma package
 RUN pnpm --filter @gafus/prisma run build
@@ -57,8 +57,7 @@ COPY package.json pnpm-lock.yaml ./
 # Copy all node_modules from builder stage
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy Prisma client completely
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Copy Prisma client полностью
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copy built files from builder stage with correct structure

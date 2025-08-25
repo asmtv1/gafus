@@ -30,7 +30,6 @@ RUN pnpm --filter @gafus/prisma run build
 RUN pnpm --filter @gafus/telegram-bot run build
 
 # Ensure Prisma client is properly linked
-RUN ln -sf /app/node_modules/.prisma /app/node_modules/.prisma || true
 RUN ln -sf /app/node_modules/@prisma /app/node_modules/@prisma || true
 
 # Create symlinks for workspace packages

@@ -13,10 +13,9 @@ COPY . .
 RUN pnpm install --no-frozen-lockfile
 # 4️⃣ Генерируем Prisma client
 RUN cd packages/prisma && pnpm db:generate
-
 # 5️⃣ Создаем .prisma папку в node_modules
 RUN mkdir -p /app/node_modules/.prisma
-RUN cp -r /app/node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/* /app/node_modules/.prisma/
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {} /app/node_modules/.prisma \;
 
 # 6️⃣ Билдим с использованием hoisted node_modules
 RUN pnpm build --filter @gafus/trainer-panel
@@ -32,7 +31,6 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 COPY --from=builder /app/node_modules ./node_modules
 
 # Копируем Prisma client полностью
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 COPY --from=builder /app/apps/trainer-panel/.next ./apps/trainer-panel/.next
