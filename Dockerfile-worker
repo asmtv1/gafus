@@ -53,7 +53,7 @@ COPY package.json pnpm-lock.yaml ./
 # Copy all node_modules from builder stage
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy Prisma client полностью
+# Copy Prisma client completely
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
