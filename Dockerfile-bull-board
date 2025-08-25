@@ -1,43 +1,40 @@
-# syntax=docker/dockerfile:1
-
-FROM node:20-alpine
+# --- Stage 1: Build stage ---
+FROM node:20-alpine AS builder
 
 WORKDIR /app
+# Отключаем интерактивные подтверждения в pnpm
+ENV CI=true
 
-# Enable pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Copy workspace files
+# Копируем весь workspace (монорепу) сразу
+COPY . .
+
+# Установка всех зависимостей и сборка
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @gafus/queues run build
+RUN pnpm --filter @gafus/bull-board run build
+
+# --- Stage 2: Runtime stage ---
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+# Production‑режим и отключение интерактива
+ENV NODE_ENV=production
+ENV CI=true
+
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
 COPY pnpm-workspace.yaml ./
 COPY package.json pnpm-lock.yaml ./
-COPY tsconfig.base.json ./
-COPY turbo.json ./
-
-# Copy bull-board package.json
 COPY apps/bull-board/package.json ./apps/bull-board/package.json
-
-# Copy queues package.json
 COPY packages/queues/package.json ./packages/queues/package.json
 
-# Install dependencies (including dev dependencies for tsx)
-RUN pnpm install --filter @gafus/bull-board
-RUN pnpm install --filter @gafus/queues
-RUN pnpm store prune
+RUN pnpm install --filter @gafus/bull-board... --prod --frozen-lockfile
 
-# Copy source code
-COPY apps/bull-board ./apps/bull-board
-COPY packages/queues ./packages/queues
+COPY --from=builder /app/apps/bull-board/dist ./apps/bull-board/dist
+COPY --from=builder /app/packages/queues/dist ./packages/queues/dist
 
-# Build queues package
-RUN cd packages/queues && pnpm build
+WORKDIR /app/apps/bull-board
 
-# Set environment variables
-ENV REDIS_URL=redis://redis:6379
-ENV NODE_ENV=production
-ENV PORT=3002
-
-# Expose port
-EXPOSE 3002
-
-# Start the bull-board from the correct directory
-CMD ["sh", "-c", "cd /app/apps/bull-board && REDIS_URL=$REDIS_URL NODE_ENV=$NODE_ENV PORT=$PORT pnpm start"]
+CMD ["node", "dist/apps/bull-board/bull-board.js"]
