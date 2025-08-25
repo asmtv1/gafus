@@ -1,5 +1,5 @@
 import type { AuthUser } from "@gafus/types";
-import type { NextAuthOptions, DefaultSession } from "next-auth";
+import type { DefaultSession, NextAuthOptions } from "next-auth";
 declare module "next-auth" {
     interface Session {
         user: {
