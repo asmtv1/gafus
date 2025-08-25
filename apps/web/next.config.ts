@@ -42,6 +42,8 @@ const withPWA = withPWAInit({
   workboxOptions: {
     disableDevLogs: true,
     importScripts: ["/sw-custom.js"],
+    // Очистка устаревших кэшей
+    cleanupOutdatedCaches: true,
     // Добавляем кастомную логику кеширования
     runtimeCaching: [
       {
@@ -97,7 +99,6 @@ const withPWA = withPWAInit({
       },
     ],
     // Дополнительные настройки для избежания ошибок кеширования
-    cleanupOutdatedCaches: true,
     skipWaiting: true,
     clientsClaim: true,
   },

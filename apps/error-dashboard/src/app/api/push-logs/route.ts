@@ -138,7 +138,8 @@ export async function GET(request: NextRequest) {
 
       if (level) {
         filteredErrors = filteredErrors.filter(
-          (error) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (error: any) =>
             error.additionalContext &&
             typeof error.additionalContext === "object" &&
             "pushSpecific" in error.additionalContext &&
@@ -148,7 +149,8 @@ export async function GET(request: NextRequest) {
 
       if (context) {
         filteredErrors = filteredErrors.filter(
-          (error) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (error: any) =>
             error.additionalContext &&
             typeof error.additionalContext === "object" &&
             "pushSpecific" in error.additionalContext &&
