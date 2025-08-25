@@ -23,6 +23,11 @@ COPY . .
 # Generate Prisma client
 RUN pnpm --filter @gafus/prisma run db:generate
 
+# Fix .prisma folder structure
+RUN mkdir -p /app/node_modules/.prisma
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
+
 # Build prisma package
 RUN pnpm --filter @gafus/prisma run build
 

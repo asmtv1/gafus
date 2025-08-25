@@ -33,7 +33,8 @@ RUN pnpm --filter @gafus/prisma run db:generate
 
 # Create .prisma folder in node_modules
 RUN mkdir -p /app/node_modules/.prisma
-RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {} /app/node_modules/.prisma \;
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
 
 # Build prisma package
 RUN pnpm --filter @gafus/prisma run build
@@ -54,8 +55,10 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 COPY pnpm-workspace.yaml ./
 COPY package.json pnpm-lock.yaml ./
 
-# Copy all node_modules from builder stage
+# Copy node_modules without .prisma (we'll copy it separately)
+RUN mkdir -p /app/node_modules
 COPY --from=builder /app/node_modules ./node_modules
+RUN rm -rf /app/node_modules/.prisma
 
 # Copy built files from builder stage with correct structure
 COPY --from=builder /app/packages/worker/dist ./packages/worker/dist
@@ -67,6 +70,11 @@ COPY --from=builder /app/packages/worker ./packages/worker
 COPY --from=builder /app/packages/prisma ./packages/prisma
 COPY --from=builder /app/packages/queues ./packages/queues
 COPY --from=builder /app/packages/webpush ./packages/webpush
+
+# Copy Prisma client полностью
+COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
+COPY --from=builder /app/node_modules/.prisma/schema.prisma ./node_modules/.prisma/schema.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Set working directory to root
 WORKDIR /app

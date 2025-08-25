@@ -15,7 +15,8 @@ RUN pnpm install --no-frozen-lockfile
 RUN cd packages/prisma && pnpm db:generate
 # 5️⃣ Создаем .prisma папку в node_modules
 RUN mkdir -p /app/node_modules/.prisma
-RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {} /app/node_modules/.prisma \;
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
 
 # 6️⃣ Билдим с использованием hoisted node_modules
 RUN pnpm build --filter @gafus/trainer-panel
