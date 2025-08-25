@@ -18,7 +18,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install pnpm
+      - name: Install pnpm with retry
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+        continue-on-error: true
+
+      - name: Retry pnpm install if failed
+        if: steps.pnpm-setup.outcome == 'failure'
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Final pnpm install attempt
+        if: steps.pnpm-setup.outcome == 'failure' && steps.pnpm-retry.outcome == 'failure'
         uses: pnpm/action-setup@v2
         with:
           version: 9
@@ -58,7 +71,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install pnpm
+      - name: Install pnpm with retry
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+        continue-on-error: true
+
+      - name: Retry pnpm install if failed
+        if: steps.pnpm-setup.outcome == 'failure'
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Final pnpm install attempt
+        if: steps.pnpm-setup.outcome == 'failure' && steps.pnpm-retry.outcome == 'failure'
         uses: pnpm/action-setup@v2
         with:
           version: 9
