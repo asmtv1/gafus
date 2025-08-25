@@ -73,8 +73,7 @@ COPY --from=builder /app/packages/webpush ./packages/webpush
 
 # Copy Prisma client полностью
 COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
-COPY --from=builder /app/node_modules/.prisma/schema.prisma ./node_modules/.prisma/schema.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/packages/prisma/schema.prisma ./node_modules/.prisma/schema.prisma
 
 # Set working directory to root
 WORKDIR /app
