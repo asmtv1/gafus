@@ -33,6 +33,11 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
 # 2️⃣ Копируем только production зависимости
 COPY --from=builder /app/node_modules ./node_modules
+
+# Копируем .prisma папку для Prisma client
+RUN mkdir -p /app/node_modules/.prisma
+COPY --from=builder /app/node_modules/.pnpm/@prisma+client@*/node_modules/.prisma ./node_modules/.prisma
+
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps/web/.next ./apps/web/.next
 COPY --from=builder /app/apps/web/public ./apps/web/public
