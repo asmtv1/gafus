@@ -33,6 +33,11 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
 # 2️⃣ Копируем только production зависимости
 COPY --from=builder /app/node_modules ./node_modules
+
+# Копируем Prisma client полностью
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
 COPY --from=builder /app/apps/error-dashboard/.next ./apps/error-dashboard/.next
 COPY --from=builder /app/apps/error-dashboard/next.config.ts ./apps/error-dashboard/next.config.ts
 COPY --from=builder /app/apps/error-dashboard/tailwind.config.js ./apps/error-dashboard/tailwind.config.js
