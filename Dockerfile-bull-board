@@ -25,6 +25,9 @@ ENV CI=true
 
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
+# Устанавливаем only-allow для preinstall скрипта
+RUN npm install -g only-allow
+
 COPY pnpm-workspace.yaml ./
 COPY package.json pnpm-lock.yaml ./
 COPY apps/bull-board/package.json ./apps/bull-board/package.json
@@ -37,4 +40,4 @@ COPY --from=builder /app/packages/queues/dist ./packages/queues/dist
 
 WORKDIR /app/apps/bull-board
 
-CMD ["node", "dist/apps/bull-board/bull-board.js"]
+CMD ["node", "dist/bull-board.js"]
