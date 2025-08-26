@@ -2,6 +2,7 @@
 
 # Скрипт для загрузки бэкапа БД на Яндекс.Диск
 # Требует: YANDEX_DISK_TOKEN в переменных окружения
+# Бэкапы сохраняются в папку: https://disk.yandex.ru/d/5jUK_9xNULmPLg
 
 echo "🗄️ Создание и загрузка бэкапа БД на Яндекс.Диск..."
 
@@ -37,16 +38,16 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Загружаем на Яндекс.Диск
-REMOTE_PATH="/Gafus/backups/$(basename $COMPRESSED_FILE)"
+# Загружаем на Яндекс.Диск в указанную папку
+REMOTE_PATH="/5jUK_9xNULmPLg/backups/$(basename $COMPRESSED_FILE)"
 echo "☁️ Загрузка на Яндекс.Диск: $REMOTE_PATH"
 
-# Создаем папку на диске если её нет
+# Создаем папку backups в указанной папке если её нет
 curl -X PUT \
   -H "Authorization: OAuth $YANDEX_DISK_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"path": "/Gafus/backups"}' \
-  "https://cloud-api.yandex.net/v1/disk/resources?path=/Gafus/backups" \
+  -d '{"path": "/5jUK_9xNULmPLg/backups"}' \
+  "https://cloud-api.yandex.net/v1/disk/resources?path=/5jUK_9xNULmPLg/backups" \
   > /dev/null 2>&1
 
 # Загружаем файл
@@ -79,7 +80,7 @@ if [ $? -eq 0 ]; then
     # Получаем список файлов в папке
     FILES=$(curl -s -X GET \
       -H "Authorization: OAuth $YANDEX_DISK_TOKEN" \
-      "https://cloud-api.yandex.net/v1/disk/resources?path=/Gafus/backups&limit=100" | \
+      "https://cloud-api.yandex.net/v1/disk/resources?path=/5jUK_9xNULmPLg/backups&limit=100" | \
       grep -o '"[^"]*\.sql\.gz"' | cut -d'"' -f2 | sort -r)
     
     # Удаляем старые (оставляем 10)
@@ -90,7 +91,7 @@ if [ $? -eq 0 ]; then
             echo "🗑️ Удаление старого бэкапа: $FILE"
             curl -X DELETE \
               -H "Authorization: OAuth $YANDEX_DISK_TOKEN" \
-              "https://cloud-api.yandex.net/v1/disk/resources?path=/Gafus/backups/$FILE" > /dev/null 2>&1
+              "https://cloud-api.yandex.net/v1/disk/resources?path=/5jUK_9xNULmPLg/backups/$FILE" > /dev/null 2>&1
         fi
     done
     

@@ -7,6 +7,8 @@
 3. Авторизуйтесь в Яндексе
 4. Скопируйте полученный токен
 
+**Или используйте готовый токен:** `y0__xDX0eIiGNuWAyC6gsGbFEQE_xcgrWTvvSIoEA5K3fVFfntw`
+
 ## Шаг 2: Добавление токена в GitHub Secrets
 
 1. Перейдите в ваш GitHub репозиторий
@@ -26,8 +28,10 @@
 
 ## Структура бэкапов на диске
 
+Бэкапы сохраняются в папку: [https://disk.yandex.ru/d/5jUK_9xNULmPLg](https://disk.yandex.ru/d/5jUK_9xNULmPLg)
+
 ```
-/Gafus/backups/
+/5jUK_9xNULmPLg/backups/
 ├── gafus_backup_20241201_143022.sql.gz
 ├── gafus_backup_20241201_150000.sql.gz
 ├── gafus_backup_20241201_160000.sql.gz
