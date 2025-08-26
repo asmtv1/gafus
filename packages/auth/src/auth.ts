@@ -83,6 +83,21 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
+      } else if (token.username) {
+        // Проверяем, что ID пользователя в токене актуален
+        try {
+          const currentUser = await prisma.user.findUnique({
+            where: { username: token.username },
+            select: { id: true },
+          });
+          
+          if (currentUser && currentUser.id !== token.id) {
+            // Обновляем ID пользователя в токене
+            token.id = currentUser.id;
+          }
+        } catch (error) {
+          // Игнорируем ошибки при проверке
+        }
       }
       return token;
     },

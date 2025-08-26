@@ -1,13 +1,5 @@
 
 
-> @gafus/webpush@0.1.0 prebuild /Users/asmtv1/gafus/packages/webpush
-> pnpm clean
-
-
-> @gafus/webpush@0.1.0 clean /Users/asmtv1/gafus/packages/webpush
-> rimraf dist
-
-
 > @gafus/webpush@0.1.0 build /Users/asmtv1/gafus/packages/webpush
-> tsc -p tsconfig.json
+> tsc
 

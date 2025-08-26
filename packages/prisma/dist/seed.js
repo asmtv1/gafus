@@ -31,7 +31,7 @@ async function main() {
                 description: "Как тренировать хвостика дома",
                 shortDesc: "Кратко о курсе",
                 duration: "2 недели",
-                logoImg: "/shared/uploads/courses/3122311.jpg",
+                logoImg: "/uploads/courses/3122311.jpg",
                 equipment: "Поводок, игрушки, лакомства",
                 trainingLevel: "BEGINNER",
                 authorId: admin.id,
@@ -46,7 +46,7 @@ async function main() {
                 description: "Как тренировать хвостика на улице",
                 shortDesc: "Кратко о курсе",
                 duration: "2 недели",
-                logoImg: "/shared/uploads/course-logo.png",
+                logoImg: "/uploads/course-logo.webp",
                 equipment: "Поводок, ошейник, лакомства",
                 trainingLevel: "INTERMEDIATE",
                 authorId: admin.id,
@@ -61,7 +61,7 @@ async function main() {
                 description: "Что делать, пока он маленький",
                 shortDesc: "Кратко о курсе",
                 duration: "1 месяц",
-                logoImg: "/shared/uploads/courses/21312123.jpeg",
+                logoImg: "/uploads/courses/21312123.jpeg",
                 equipment: "Игрушки, лакомства, пеленки",
                 trainingLevel: "BEGINNER",
                 authorId: admin.id,
@@ -76,7 +76,7 @@ async function main() {
                 description: "Супер-методика by Буй с Бугра",
                 shortDesc: "Кратко о курсе",
                 duration: "много лет",
-                logoImg: "/shared/uploads/courses/92086288.jpg",
+                logoImg: "/uploads/courses/92086288.jpg",
                 equipment: "Специальное оборудование",
                 trainingLevel: "EXPERT",
                 authorId: admin.id,
@@ -302,7 +302,7 @@ async function main() {
                 description: "Первый курс от тренера",
                 shortDesc: "Кратко о первом курсе",
                 duration: "3 дня",
-                logoImg: "/shared/uploads/courses/trainer1.jpg",
+                logoImg: "/uploads/courses/trainer1.jpg",
                 equipment: "Базовое оборудование для тренировок",
                 trainingLevel: "INTERMEDIATE",
                 authorId: trainer.id,
@@ -315,7 +315,7 @@ async function main() {
                 description: "Второй курс от тренера",
                 shortDesc: "Кратко о втором курсе",
                 duration: "5 дней",
-                logoImg: "/shared/uploads/courses/trainer2.jpg",
+                logoImg: "/uploads/courses/trainer2.jpg",
                 equipment: "Продвинутое оборудование",
                 trainingLevel: "ADVANCED",
                 authorId: trainer.id,
@@ -340,3 +340,4 @@ main()
     console.error("❌ Ошибка при сидировании", e);
     prismaClient.$disconnect().finally(() => process.exit(1));
 });
+//# sourceMappingURL=seed.js.map

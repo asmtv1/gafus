@@ -99,11 +99,11 @@ export default function LoginForm() {
 
       {csrfError && <div className={styles.errorText}>Ошибка загрузки токена: {csrfError}</div>}
       <div className={styles.buttonsContainer}>
-        <Link href="/register" className={styles.registerLink}>
-          <button className={styles.registerButton}>Регистрация</button>
+        <Link href="/register" className={`${styles.registerLink} ${styles.registerButton}`}>
+          Регистрация
         </Link>
-        <Link href="/passwordReset" className={styles.forgotLink}>
-          <button className={styles.forgotButton}>Забыли пароль?</button>
+        <Link href="/passwordReset" className={`${styles.forgotLink} ${styles.forgotButton}`}>
+          Забыли пароль?
         </Link>
       </div>
       <button className={styles.button} type="submit" disabled={csrfLoading}>

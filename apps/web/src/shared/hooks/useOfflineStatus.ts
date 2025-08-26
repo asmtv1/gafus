@@ -13,16 +13,16 @@ export function useOfflineStatus() {
   const realOnline = isOnline && isActuallyConnected;
   const realOffline = !isOnline || !isActuallyConnected;
 
-  // В dev режиме, если браузер показывает онлайн, но реальное соединение не проверено,
-  // показываем желтый статус вместо красного
-  const devStatusColor =
-    isDevMode && isOnline && !isActuallyConnected
-      ? "yellow"
-      : realOnline
-        ? isStable
-          ? "green"
-          : "yellow"
-        : "red";
+  // В dev режиме используем более мягкую логику
+  const devStatusColor = isDevMode
+    ? isOnline
+      ? "green" // В dev режиме, если браузер показывает онлайн, считаем что все хорошо
+      : "red"
+    : realOnline
+      ? isStable
+        ? "green"
+        : "yellow"
+      : "red";
 
   return {
     isOnline: realOnline,

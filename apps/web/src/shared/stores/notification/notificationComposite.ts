@@ -76,6 +76,7 @@ export function useNotificationComposite() {
       push.setError(null);
     },
     setDisabledByUser: push.setDisabledByUser,
+    setUserId: push.setUserId,
 
     // Утилиты
     isSupported: () => permission.isSupported() && push.isSupported(),

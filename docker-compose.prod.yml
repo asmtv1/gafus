@@ -48,7 +48,8 @@ services:
       - NEXTAUTH_SECRET=bh3r4xw2GbKDrizNREjAEDpSSi2hwrMFl8BPQ2nYHSs=
       - NEXTAUTH_URL=https://gafus.ru
       - AUTH_COOKIE_DOMAIN=.gafus.ru
-      - VAPID_PUBLIC_KEY=BMcswIZWoKJYgR6aoolgVD_f2APbFlZqgI6dCWDI8OT4NzL5o0lIDcT6yN9UXgfEfaLJ7T7PxOl417Dchl1V7vM
+      - NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer-panel.gafus.ru
+      - VAPID_PUBLIC_KEY=BMcswIZWoKJYgR6aoolgVD_f2APbFlZqgI6dCWDI8OT4NzL5o0lIDcT6xN9UXgfEfaLJ7T7PxOl417Dchl1V7vM
     ports:
       - "3000:3000"
     restart: unless-stopped

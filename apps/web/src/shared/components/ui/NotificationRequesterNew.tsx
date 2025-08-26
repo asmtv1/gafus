@@ -23,6 +23,7 @@ export default function NotificationRequesterNew() {
     dismissModal,
     isSupported,
     checkServerSubscription,
+    setUserId,
   } = useNotificationComposite();
 
   const [mounted, setMounted] = useState(false);
@@ -44,6 +45,17 @@ export default function NotificationRequesterNew() {
         const vapidData = await getPublicKeyAction();
         setVapidKey(vapidData.publicKey);
         checkServerSubscription();
+        
+        // Устанавливаем userId для push-уведомлений
+        console.log("Session user:", session?.user);
+        console.log("Session user ID:", session?.user?.id);
+        
+        if (session?.user?.id) {
+          setUserId(session.user.id);
+          console.log("Set userId in push store:", session.user.id);
+        } else {
+          console.warn("No user ID found in session");
+        }
       } catch (error) {
         console.error("NotificationRequesterNew initialization error:", error);
       }
@@ -52,7 +64,7 @@ export default function NotificationRequesterNew() {
     if (mounted) {
       initializeData();
     }
-  }, [mounted, checkServerSubscription]);
+  }, [mounted, checkServerSubscription, setUserId, session?.user?.id]);
 
   const handleAllowNotifications = async () => {
     if (vapidKey) {

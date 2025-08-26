@@ -8,6 +8,7 @@ export interface NotificationState {
   isLoading: boolean;
   error: string | null;
   disabledByUser: boolean;
+  userId: string;
 
   // Действия
   initializePermission: () => void;
@@ -33,6 +34,9 @@ export interface NotificationState {
 
   // Управление пользовательским запретом авто-переподписки
   setDisabledByUser: (disabled: boolean) => void;
+  
+  // Установка userId
+  setUserId: (userId: string) => void;
 
   // Автоматическое обновление push-подписки
   updateSubscriptionAction: (subscription: {

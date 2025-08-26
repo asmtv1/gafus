@@ -28,7 +28,7 @@ export const useOfflineStore = create<OfflineState>()(
       setOnlineStatus: (isOnline: boolean) => {
         const currentState = get();
 
-        if (process.env.NODE_ENV === "development") {
+        if (process.env.NODE_ENV !== "production") {
           console.warn(`🌐 Setting online status: ${isOnline} (was: ${currentState.isOnline})`);
         }
 
@@ -36,9 +36,9 @@ export const useOfflineStore = create<OfflineState>()(
 
         if (isOnline && typeof window !== "undefined") {
           // Если стали онлайн и мы в браузере, проверяем реальное соединение
-          const checkDelay = process.env.NODE_ENV === "development" ? 500 : 100;
+          const checkDelay = process.env.NODE_ENV !== "production" ? 500 : 100;
 
-          if (process.env.NODE_ENV === "development") {
+          if (process.env.NODE_ENV !== "production") {
             console.warn(`⏰ Will check external connection in ${checkDelay}ms`);
           }
 
@@ -47,7 +47,7 @@ export const useOfflineStore = create<OfflineState>()(
               currentState
                 .checkExternalConnection()
                 .then((isConnected) => {
-                  if (process.env.NODE_ENV === "development") {
+                  if (process.env.NODE_ENV !== "production") {
                     console.warn(`🔍 External connection check result: ${isConnected}`);
                   }
                   if (isConnected && currentState.syncQueue.length > 0) {
@@ -64,7 +64,7 @@ export const useOfflineStore = create<OfflineState>()(
           }, checkDelay);
         } else {
           // Если стали офлайн, сбрасываем флаг реального соединения
-          if (process.env.NODE_ENV === "development") {
+          if (process.env.NODE_ENV !== "production") {
             console.warn("🔴 Resetting actual connection flag");
           }
           set({ isActuallyConnected: false });
@@ -73,7 +73,7 @@ export const useOfflineStore = create<OfflineState>()(
 
       // Установка стабильности сети
       setNetworkStability: (isStable: boolean) => {
-        if (process.env.NODE_ENV === "development") {
+        if (process.env.NODE_ENV !== "production") {
           console.warn(`📶 Setting network stability: ${isStable}`);
         }
         set({ isStable });
@@ -81,7 +81,7 @@ export const useOfflineStore = create<OfflineState>()(
 
       // Установка реального состояния подключения
       setActualConnection: (isConnected: boolean) => {
-        if (process.env.NODE_ENV === "development") {
+        if (process.env.NODE_ENV !== "production") {
           console.warn(`🔌 Setting actual connection: ${isConnected}`);
         }
         set({ isActuallyConnected: isConnected });
@@ -134,13 +134,13 @@ export const useOfflineStore = create<OfflineState>()(
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 сек таймаут
 
-          if (process.env.NODE_ENV === "development") {
+          if (process.env.NODE_ENV !== "production") {
             console.warn("🔍 Checking external connection...");
           }
 
           // Сначала пробуем собственный API endpoint (работает в dev режиме)
           try {
-            if (process.env.NODE_ENV === "development") {
+            if (process.env.NODE_ENV !== "production") {
               console.warn("🔍 Trying local API endpoint...");
             }
 
@@ -152,61 +152,71 @@ export const useOfflineStore = create<OfflineState>()(
 
             if (response.ok) {
               clearTimeout(timeoutId);
-              if (process.env.NODE_ENV === "development") {
+              if (process.env.NODE_ENV !== "production") {
                 console.warn("✅ Local API check successful");
               }
               set({ isActuallyConnected: true });
               return true;
             }
           } catch (error) {
-            if (process.env.NODE_ENV === "development") {
+            if (process.env.NODE_ENV !== "production") {
               console.warn("⚠️ Local API check failed:", error);
             }
             // Игнорируем ошибки собственного API, пробуем внешние сервисы
           }
 
-          // Если локальный API недоступен, пробуем простую проверку через браузерный navigator.onLine
-          // Это избегает проблем с прокси/firewall для внешних запросов
-          if (process.env.NODE_ENV === "development") {
-            console.warn("🔍 Local API unavailable, checking navigator.onLine...");
+          // В dev режиме полагаемся на navigator.onLine для избежания CORS проблем
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("🔍 Dev mode: using navigator.onLine for connection status");
+            const navigatorOnline = typeof window !== "undefined" ? navigator.onLine : true;
+            set({ isActuallyConnected: navigatorOnline });
+            return navigatorOnline;
           }
 
+          // Проверяем внешнее соединение
           const navigatorOnline = typeof window !== "undefined" ? navigator.onLine : true;
 
           if (navigatorOnline) {
-            // Попробуем один быстрый внешний запрос с коротким таймаутом
-            try {
-              const quickController = new AbortController();
-              const quickTimeoutId = setTimeout(() => quickController.abort(), 1000); // 1 сек таймаут
+            // Попробуем несколько внешних сервисов для надежности
+            const testUrls = [
+              "https://www.google.com/favicon.ico",
+              "https://httpbin.org/status/200",
+              "https://api.github.com/zen"
+            ];
 
-              await fetch("https://www.google.com/favicon.ico", {
-                method: "HEAD",
-                signal: quickController.signal,
-                mode: "no-cors",
-                cache: "no-cache",
-              });
+            for (const url of testUrls) {
+              try {
+                const quickController = new AbortController();
+                const quickTimeoutId = setTimeout(() => quickController.abort(), 2000); // 2 сек таймаут
 
-              clearTimeout(quickTimeoutId);
-              clearTimeout(timeoutId);
+                await fetch(url, {
+                  method: "HEAD",
+                  signal: quickController.signal,
+                  mode: "no-cors",
+                  cache: "no-cache",
+                });
 
-              if (process.env.NODE_ENV === "development") {
-                console.warn("✅ External connectivity confirmed");
-              }
-              set({ isActuallyConnected: true });
-              return true;
-            } catch {
-              // Если внешний запрос не работает (прокси/firewall), полагаемся на navigator.onLine
-              if (process.env.NODE_ENV === "development") {
-                console.warn("⚠️ External requests blocked, using navigator.onLine status");
+                clearTimeout(quickTimeoutId);
+                clearTimeout(timeoutId);
+
+                console.warn("✅ External connectivity confirmed via:", url);
+                set({ isActuallyConnected: true });
+                return true;
+              } catch (error) {
+                console.warn(`⚠️ Failed to check ${url}:`, error);
+                // Продолжаем с следующим URL
               }
             }
+
+            // Если все внешние запросы не работают, полагаемся на navigator.onLine
+            console.warn("⚠️ All external requests failed, using navigator.onLine status");
           }
 
           // Полагаемся на navigator.onLine если внешние запросы заблокированы
           clearTimeout(timeoutId);
           const fallbackStatus = navigatorOnline;
 
-          if (process.env.NODE_ENV === "development") {
+          if (process.env.NODE_ENV !== "production") {
             console.warn(`🔄 Using fallback status: ${fallbackStatus} (navigator.onLine)`);
           }
 
@@ -215,9 +225,9 @@ export const useOfflineStore = create<OfflineState>()(
         } catch (error) {
           // Игнорируем ошибки AbortError (таймаут)
           if (error instanceof Error && error.name === "AbortError") {
-            if (process.env.NODE_ENV === "development") {
-              console.warn("⏰ External network check timeout - assuming offline");
-            }
+                      if (process.env.NODE_ENV !== "production") {
+            console.warn("⏰ External network check timeout - assuming offline");
+          }
           } else {
             console.warn("External network check failed:", error);
           }

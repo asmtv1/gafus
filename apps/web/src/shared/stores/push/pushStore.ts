@@ -15,6 +15,7 @@ interface PushState {
   isLoading: boolean;
   error: string | null;
   disabledByUser: boolean;
+  userId: string;
 
   // Действия
   setupPushSubscription: (vapidPublicKey: string) => Promise<void>;
@@ -22,6 +23,7 @@ interface PushState {
   removePushSubscription: () => Promise<void>;
   ensureActiveSubscription: () => Promise<void>;
   setDisabledByUser: (disabled: boolean) => void;
+  setUserId: (userId: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
 
@@ -53,6 +55,7 @@ export const usePushStore = create<PushState>()(
       isLoading: false,
       error: null,
       disabledByUser: false,
+      userId: "",
 
       // Действия
       setupPushSubscription: async (vapidPublicKey: string) => {
@@ -101,9 +104,12 @@ export const usePushStore = create<PushState>()(
           const p256dhString = btoa(String.fromCharCode(...new Uint8Array(p256dh)));
           const authString = btoa(String.fromCharCode(...new Uint8Array(auth)));
 
+          // Получаем userId из текущего состояния или из другого источника
+          const userId = get().userId || "";
+          
           await updateSubscriptionAction({
             id: "",
-            userId: "",
+            userId,
             endpoint: subscription.endpoint,
             p256dh: p256dhString,
             auth: authString,
@@ -216,6 +222,10 @@ export const usePushStore = create<PushState>()(
         localStorage.setItem("notificationsDisabledByUser", disabled ? "1" : "0");
       },
 
+      setUserId: (userId: string) => {
+        set({ userId });
+      },
+
       setLoading: (loading) => {
         set({ isLoading: loading });
       },
@@ -234,6 +244,7 @@ export const usePushStore = create<PushState>()(
       partialize: (state) => ({
         hasServerSubscription: state.hasServerSubscription,
         disabledByUser: state.disabledByUser,
+        userId: state.userId,
       }),
     },
   ),
