@@ -57,23 +57,11 @@ fi
 
 # Create uploads directories with proper structure
 echo "📁 Creating uploads directories..."
-mkdir -p uploads/avatars uploads/pets uploads/courses
-chmod -R 755 uploads/
-
-# Create public uploads directories for web app
-echo "📁 Creating public uploads directories for web app..."
-mkdir -p apps/web/public/uploads/avatars
-mkdir -p apps/web/public/uploads/pets
-mkdir -p apps/web/public/uploads/courses
-mkdir -p apps/web/public/uploads/shared
-
-# Create public uploads directories for trainer panel
-echo "📁 Creating public uploads directories for trainer panel..."
-mkdir -p apps/trainer-panel/public/uploads/shared
-
-# Set proper permissions
-chmod -R 755 apps/web/public/uploads/
-chmod -R 755 apps/trainer-panel/public/uploads/
+mkdir -p packages/public-assets/public/uploads/avatars
+mkdir -p packages/public-assets/public/uploads/pets
+mkdir -p packages/public-assets/public/uploads/courses
+mkdir -p packages/public-assets/public/uploads/shared
+chmod -R 755 packages/public-assets/public/uploads/
 
 # Create .env file for environment variables
 if [ ! -f ".env" ]; then

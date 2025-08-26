@@ -169,7 +169,7 @@ export default function CourseStatsModal({
             }}
           >
             <Image
-              src={course.logoImg || "/uploads/course-logo.jpg"}
+              src={course.logoImg || "/uploads/course-logo.webp"}
               alt={course.name}
               width={100}
               height={100}

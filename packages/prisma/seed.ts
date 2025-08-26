@@ -47,7 +47,7 @@ async function main() {
         description: "Как тренировать хвостика на улице",
         shortDesc: "Кратко о курсе",
         duration: "2 недели",
-        logoImg: "/uploads/course-logo.png",
+        logoImg: "/uploads/course-logo.webp",
         equipment: "Поводок, ошейник, лакомства",
         trainingLevel: "INTERMEDIATE",
         authorId: admin.id,

@@ -38,7 +38,7 @@ export async function updateAvatar(file: File): Promise<string> {
     if (existingProfile?.avatarUrl) {
       // Убираем параметр cache-buster, если он там есть
       const relativePath = existingProfile.avatarUrl.split("?")[0];
-      const oldFilePath = path.join(process.cwd(), "public", relativePath);
+      const oldFilePath = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", relativePath);
       try {
         await unlink(oldFilePath);
       } catch {

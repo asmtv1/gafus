@@ -14,7 +14,7 @@ export async function deletePet(petId: string, pathToRevalidate = "/") {
 
     if (pet?.photoUrl) {
       const fileName = path.basename(pet.photoUrl);
-      const filePath = path.join(process.cwd(), "public", "uploads", "pets", fileName);
+      const filePath = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", "uploads", "pets", fileName);
       await unlink(filePath).catch(() => {
         console.warn("Не удалось удалить аватарку питомца:", fileName);
       });

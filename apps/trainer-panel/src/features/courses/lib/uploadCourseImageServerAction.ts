@@ -32,7 +32,7 @@ export async function uploadCourseImageServerAction(formData: FormData) {
 
     const ext = file.name.split(".").pop();
     const fileName = `${randomUUID()}.${ext}`;
-    const uploadDir = path.join(process.cwd(), "public/uploads/courses");
+    const uploadDir = path.join(process.cwd(), "../../packages/public-assets/public/uploads/courses");
     const filePath = path.join(uploadDir, fileName);
 
     await writeFile(filePath, uint8Array);

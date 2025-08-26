@@ -78,21 +78,11 @@ jobs:
             git pull origin main
 
             # Create uploads directories if they don't exist
-            mkdir -p uploads/avatars uploads/pets uploads/courses uploads/shared
-            chmod -R 755 uploads/
-
-            # Create public uploads directories for web app
-            mkdir -p apps/web/public/uploads/avatars
-            mkdir -p apps/web/public/uploads/pets
-            mkdir -p apps/web/public/uploads/courses
-            mkdir -p apps/web/public/uploads/shared
-
-            # Create public uploads directories for trainer panel
-            mkdir -p apps/trainer-panel/public/uploads/shared
-
-            # Set proper permissions
-            chmod -R 755 apps/web/public/uploads/
-            chmod -R 755 apps/trainer-panel/public/uploads/
+            mkdir -p packages/public-assets/public/uploads/avatars
+            mkdir -p packages/public-assets/public/uploads/pets
+            mkdir -p packages/public-assets/public/uploads/courses
+            mkdir -p packages/public-assets/public/uploads/shared
+            chmod -R 755 packages/public-assets/public/uploads/
 
             # Создаем бэкап БД на Яндекс.Диск перед остановкой
             ./scripts/backup-to-yandex.sh || echo "⚠️ Бэкап на Яндекс.Диск не удался, продолжаем деплой"

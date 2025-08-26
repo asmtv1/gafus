@@ -135,7 +135,7 @@ export default function CourseStatsModal({
             }}
           >
             <Image
-              src={course.logoImg || "/uploads/course-logo.jpg"}
+              src={course.logoImg || "/uploads/course-logo.webp"}
               alt={course.name}
               width={100}
               height={100}
@@ -297,7 +297,7 @@ export default function CourseStatsModal({
                       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                         <Avatar sx={{ width: 40, height: 40 }}>
                           <Image
-                            src={userCourse.user.profile?.avatarUrl || "/uploads/shared/avatar.svg"}
+                            src={userCourse.user.profile?.avatarUrl || "/uploads/avatar.svg"}
                             alt={userCourse.user.username}
                             width={40}
                             height={40}
@@ -348,7 +348,7 @@ export default function CourseStatsModal({
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
                       <Avatar sx={{ width: 40, height: 40 }}>
                         <Image
-                          src={review.user?.profile?.avatarUrl || "/uploads/shared/avatar.svg"}
+                          src={review.user?.profile?.avatarUrl || "/uploads/avatar.svg"}
                           alt={review.user?.username || "user"}
                           width={40}
                           height={40}

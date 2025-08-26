@@ -15,7 +15,7 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
     const uint8Array = new Uint8Array(arrayBuffer);
 
     // 3. Формируем папку и имя файла
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "pets");
+    const uploadDir = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", "uploads", "pets");
     // Если папки нет, создаём её
     await mkdir(uploadDir, { recursive: true });
 
