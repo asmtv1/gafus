@@ -28,17 +28,16 @@ const withPWA = withPWAInit({
     document: "/~offline",
   },
   minify: false,
-  exclude: [
-    /\.js\.map$/,
-    /\.js\.LICENSE$/,
-    /middleware-manifest\.json$/,
-    /_ssgManifest\.js$/,
-    /_buildManifest\.js$/,
-    /_next\/static\/.*\/_buildManifest\.js$/,
-    // Не исключаем offline страницу — пусть Workbox сам управляет её кэшированием
-    /shared\/uploads\//, // Исключаем большие/динамические публичные файлы
-    /uploads\//, // Исключаем публичные загрузки
-  ],
+      exclude: [
+      /\.js\.map$/,
+      /\.js\.LICENSE$/,
+      /middleware-manifest\.json$/,
+      /_ssgManifest\.js$/,
+      /_buildManifest\.js$/,
+      /_next\/static\/.*\/_buildManifest\.js$/,
+      // Не исключаем offline страницу — пусть Workbox сам управляет её кэшированием
+      /shared\/uploads\//, // Исключаем только старые пути для backward compatibility
+    ],
   workboxOptions: {
     disableDevLogs: true,
     importScripts: ["/sw-custom.js"],
