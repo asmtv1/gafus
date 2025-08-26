@@ -50,12 +50,12 @@ export default function Bio({ publicData, isOwner, username }: BioProps) {
       {isOwner ? (
         <EditableAvatar
           key={Date.now()}
-          avatarUrl={profile?.avatarUrl || "/uploads/shared/avatar.svg"}
+          avatarUrl={profile?.avatarUrl || "/uploads/avatar.svg"}
         />
       ) : (
         <Avatar
           alt="Profile picture"
-          src={profile?.avatarUrl || "/uploads/shared/avatar.svg"}
+          src={profile?.avatarUrl || "/uploads/avatar.svg"}
           sx={{ width: 120, height: 120 }}
         />
       )}

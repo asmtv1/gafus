@@ -358,7 +358,7 @@ export default function CourseStatsModal({
                           <Avatar sx={{ width: 40, height: 40 }}>
                             <Image
                               src={
-                                userCourse.user.profile?.avatarUrl || "/uploads/shared/avatar.svg"
+                                userCourse.user.profile?.avatarUrl || "/uploads/avatar.svg"
                               }
                               alt={userCourse.user.username}
                               width={40}
@@ -406,7 +406,7 @@ export default function CourseStatsModal({
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
                       <Avatar sx={{ width: 40, height: 40 }}>
                         <Image
-                          src={review.user?.profile?.avatarUrl || "/uploads/shared/avatar.svg"}
+                          src={review.user?.profile?.avatarUrl || "/uploads/avatar.svg"}
                           alt={review.user?.username || "user"}
                           width={40}
                           height={40}

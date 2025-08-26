@@ -20,7 +20,7 @@ const StatisticsContent = dynamic(() => import("./StatisticsContent"), {
 export default async function Statistics() {
   const session = await getServerSession(authOptions);
   const userName = session?.user?.username ?? "";
-  const avatarUrl = session?.user?.avatarUrl ?? "/uploads/shared/avatar.svg";
+  const avatarUrl = session?.user?.avatarUrl ?? "/uploads/avatar.svg";
 
   // Загружаем созданные курсы серверно
   let createdCourses: AuthoredCourse[] = [];
