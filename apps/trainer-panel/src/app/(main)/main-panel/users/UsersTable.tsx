@@ -138,7 +138,7 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
                 <TableCell>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <Avatar
-                      src={user.profile?.avatarUrl || "/shared/uploads/avatar.svg"}
+                      src={user.profile?.avatarUrl || "/uploads/shared/avatar.svg"}
                       alt={user.username}
                       sx={{ width: 32, height: 32 }}
                     />

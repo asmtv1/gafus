@@ -13,7 +13,7 @@ export default async function MainPanelLayout({ children }: { children: React.Re
   if (!session) return <div>Не авторизован</div>;
 
   const userName = session.user.username;
-  const avatarUrl = session.user.avatarUrl ?? "/shared/uploads/avatar.svg";
+  const avatarUrl = session.user.avatarUrl ?? "/uploads/shared/avatar.svg";
 
   return (
     <div className={styles.container}>

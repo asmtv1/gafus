@@ -120,7 +120,7 @@ export default function MyCreatedCoursesContent({
                 >
                   <div className={styles.reviewHeader}>
                     <Image
-                      src={rev.user.profile?.avatarUrl || "/shared/uploads/avatar.svg"}
+                      src={rev.user.profile?.avatarUrl || "/uploads/shared/avatar.svg"}
                       alt={`Аватар ${rev.user.username}`}
                       width={24}
                       height={24}
@@ -211,7 +211,7 @@ function UserProgressBlock({
       <div className={styles.userHeader} onClick={() => setIsExpanded(!isExpanded)}>
         <div className={styles.userInfo}>
           <Image
-            src={userProgress.avatarUrl || "/shared/uploads/avatar.svg"}
+            src={userProgress.avatarUrl || "/uploads/shared/avatar.svg"}
             alt={`Аватар ${userProgress.username}`}
             width={32}
             height={32}
