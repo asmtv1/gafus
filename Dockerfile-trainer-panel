@@ -37,6 +37,8 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/apps/trainer-panel/.next ./apps/trainer-panel/.next
 COPY --from=builder /app/apps/trainer-panel/next.config.ts ./apps/trainer-panel/next.config.ts
 COPY --from=builder /app/apps/trainer-panel/package.json ./apps/trainer-panel/package.json
+# Копируем все статические файлы из public папки (если есть)
+COPY --from=builder /app/apps/trainer-panel/public ./apps/trainer-panel/public
 # Создаем папку uploads и копируем туда статические файлы
 RUN mkdir -p /app/apps/trainer-panel/public/uploads
 COPY --from=builder /app/packages/public-assets/public/uploads ./apps/trainer-panel/public/uploads
