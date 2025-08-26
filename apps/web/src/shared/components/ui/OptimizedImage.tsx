@@ -8,7 +8,7 @@ import type { OptimizedImageProps } from "@gafus/types";
 import { shouldUseLazyLoading, shouldUsePriority } from "@/utils/imageLoading";
 
 // Заглушка по умолчанию для отсутствующих изображений
-const DEFAULT_PLACEHOLDER = "/uploads/shared/course-logo.webp";
+const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
 
 export default function OptimizedImage({
   src,

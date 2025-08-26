@@ -77,7 +77,7 @@ export default function CourseCard({ course, onClick }: CourseCardProps) {
             }}
           >
             <Image
-              src={course.logoImg || "/uploads/shared/course-logo.jpg"}
+              src={course.logoImg || "/uploads/course-logo.jpg"}
               alt={course.name}
               width={80}
               height={80}

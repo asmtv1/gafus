@@ -15,7 +15,7 @@ import type { CourseCardPropsWithIndex } from "@gafus/types";
 import { declOfNum } from "@/utils";
 
 // Заглушка по умолчанию для отсутствующих изображений
-const DEFAULT_PLACEHOLDER = "/uploads/shared/course-logo.webp";
+const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
 
 export const CourseCard = ({
   id,

@@ -50,7 +50,7 @@ export async function updateAvatar(file: File): Promise<string> {
     await writeFile(uploadPath, uint8Array);
 
     // 6. Формируем URL, который будет ссылаться на этот файл
-    const avatarUrl = `/uploads/shared/avatars/${fileName}`;
+    const avatarUrl = `/uploads/avatars/${fileName}`;
 
     // 7. Сохраняем avatarUrl в базе (таблица userProfile)
     await prisma.userProfile.upsert({
