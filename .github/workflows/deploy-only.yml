@@ -94,8 +94,8 @@ jobs:
             chmod -R 755 apps/web/public/uploads/
             chmod -R 755 apps/trainer-panel/public/uploads/
 
-            # Stop existing containers and clean up
-            docker-compose -f docker-compose.prod.yml down -v --remove-orphans || true
+            # Stop existing containers and clean up (сохраняем volumes для БД)
+            docker-compose -f docker-compose.prod.yml down --remove-orphans || true
             docker container prune -f
             docker image prune -f
 

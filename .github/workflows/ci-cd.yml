@@ -379,8 +379,8 @@ jobs:
             docker rm -f gafus-web gafus-trainer-panel gafus-error-dashboard gafus-worker gafus-bull-board gafus-telegram-bot gafus-prisma gafus-postgres gafus-redis gafus-nginx 2>/dev/null || true
 
             # Now do the normal compose cleanup
-            docker-compose -f docker-compose.prod.yml down --remove-orphans --volumes --timeout 30 || true
-            docker system prune -f --volumes || true
+            docker-compose -f docker-compose.prod.yml down --remove-orphans --timeout 30 || true
+            docker system prune -f || true
             docker image prune -f --all || true
             docker container prune -f || true
             docker network prune -f || true
