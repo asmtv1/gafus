@@ -60,10 +60,6 @@ services:
       start_period: 40s
     volumes:
       - ./uploads:/app/uploads
-      - ./uploads/avatars:/app/apps/web/public/uploads/avatars
-      - ./uploads/pets:/app/apps/web/public/uploads/pets
-      - ./uploads/courses:/app/apps/web/public/uploads/courses
-      - ./uploads/shared:/app/apps/web/public/uploads/shared
     depends_on:
       - postgres
       - redis
@@ -85,7 +81,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./uploads:/app/uploads
-      - ./uploads/shared:/app/apps/trainer-panel/public/uploads/shared
     depends_on:
       - postgres
       - redis
