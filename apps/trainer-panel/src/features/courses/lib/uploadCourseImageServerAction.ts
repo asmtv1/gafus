@@ -32,12 +32,12 @@ export async function uploadCourseImageServerAction(formData: FormData) {
 
     const ext = file.name.split(".").pop();
     const fileName = `${randomUUID()}.${ext}`;
-    const uploadDir = path.join(process.cwd(), "public/shared/uploads/courses");
+    const uploadDir = path.join(process.cwd(), "public/uploads/shared/courses");
     const filePath = path.join(uploadDir, fileName);
 
     await writeFile(filePath, uint8Array);
 
-    return `/shared/uploads/courses/${fileName}`;
+    return `/uploads/shared/courses/${fileName}`;
   } catch (error) {
     console.error("❌ Error in uploadCourseImageServerAction:", error);
 
