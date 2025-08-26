@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { withAuth } from "next-auth/middleware";
 
 // Роли, которым разрешен доступ к trainer-panel
 const ALLOWED_ROLES = ["ADMIN", "MODERATOR", "TRAINER"];
@@ -22,70 +21,76 @@ function isPublicAsset(pathname: string): boolean {
   );
 }
 
-export default withAuth(
-  async (req) => {
-    const { nextUrl, url } = req;
-    const pathname = nextUrl.pathname;
-    const token = await getToken({ req });
+export default async function middleware(req: NextRequest) {
+  const { nextUrl, url } = req;
+  const pathname = nextUrl.pathname;
+  
+  console.log(`=== MIDDLEWARE START for ${pathname} ===`);
+  console.log(`Request URL: ${req.url}`);
+  console.log(`Request method: ${req.method}`);
+  
+  const token = await getToken({ 
+    req, 
+    secret: process.env.NEXTAUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === "production",
+    cookieName: "next-auth.session-token"
+  });
 
-    // Пропускаем публичные ресурсы
-    if (isPublicAsset(pathname)) return NextResponse.next();
+  console.log(`Cookies for ${pathname}:`, [req.cookies.getAll().map(c => c.name)]);
+  console.log(`All cookies:`, req.cookies);
+  console.log(`NEXTAUTH_SECRET exists: ${!!process.env.NEXTAUTH_SECRET}`);
+  console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`Token result:`, token);
 
-    // Пропускаем API маршруты (они имеют свою авторизацию)
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.next();
-    }
+  if (token) {
+    console.log(`Token details:`, {
+      id: token.id,
+      username: token.username,
+      role: token.role,
+      exp: token.exp,
+      iat: token.iat
+    });
+  }
 
-    // Пропускаем публичные страницы
-    const isPublicPath =
-      PUBLIC_PATHS.includes(pathname) || PUBLIC_PATHS.some((p) => pathname.startsWith(`${p}/`));
-
-    if (isPublicPath) {
-      return NextResponse.next();
-    }
-
-    // Проверяем авторизацию
-    if (!token) {
-      console.warn(`Redirecting unauthenticated user from ${pathname} to /login`);
-      return NextResponse.redirect(new URL("/login", url));
-    }
-
-    // Проверяем роль пользователя
-    const userRole = token.role as string;
-    if (!ALLOWED_ROLES.includes(userRole)) {
-      console.warn(`Access denied for user with role ${userRole} from ${pathname}`);
-      return NextResponse.redirect(new URL("/login", url));
-    }
-
+  // Пропускаем публичные ресурсы
+  if (isPublicAsset(pathname)) {
+    console.log(`Public asset, allowing: ${pathname}`);
     return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const pathname = req.nextUrl.pathname;
+  }
 
-        // Пропускаем публичные ресурсы
-        if (isPublicAsset(pathname)) return true;
+  // Пропускаем API маршруты (они имеют свою авторизацию)
+  if (pathname.startsWith("/api/")) {
+    console.log(`API route, allowing: ${pathname}`);
+    return NextResponse.next();
+  }
 
-        // Пропускаем API маршруты
-        if (pathname.startsWith("/api/")) return true;
+  // Пропускаем публичные страницы
+  const isPublicPath =
+    PUBLIC_PATHS.includes(pathname) || PUBLIC_PATHS.some((p) => pathname.startsWith(`${p}/`));
 
-        // Пропускаем публичные маршруты
-        const isPublicPath =
-          PUBLIC_PATHS.includes(pathname) || PUBLIC_PATHS.some((p) => pathname.startsWith(`${p}/`));
+  if (isPublicPath) {
+    console.log(`Public path, allowing: ${pathname}`);
+    return NextResponse.next();
+  }
 
-        if (isPublicPath) return true;
+  // Проверяем авторизацию
+  if (!token) {
+    console.warn(`No token found for path ${pathname}, redirecting to /login`);
+    return NextResponse.redirect(new URL("/login", url));
+  }
 
-        // Проверяем наличие токена
-        if (!token) return false;
+  // Проверяем роль пользователя
+  const userRole = token.role as string;
+  if (!ALLOWED_ROLES.includes(userRole)) {
+    console.warn(`Access denied for user with role ${userRole} from ${pathname}`);
+    return NextResponse.redirect(new URL("/login", url));
+  }
 
-        // Проверяем роль пользователя
-        const userRole = token.role as string;
-        return ALLOWED_ROLES.includes(userRole);
-      },
-    },
-  },
-);
+  console.log(`=== MIDDLEWARE SUCCESS for ${pathname} ===`);
+  console.log(`User ${token.username} with role ${userRole} authorized for ${pathname}`);
+  
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
