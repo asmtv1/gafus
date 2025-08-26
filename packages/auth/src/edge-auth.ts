@@ -2,7 +2,8 @@ import type { NextAuthOptions, Session, User } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 
 const isProd = process.env.NODE_ENV === "production";
-const cookieDomain = process.env.AUTH_COOKIE_DOMAIN?.trim() || undefined;
+// Для поддоменов не указываем домен cookies, чтобы они работали локально
+const cookieDomain = undefined;
 
 // Расширяем типы для пользователя
 interface ExtendedUser extends User {
@@ -40,6 +41,7 @@ export const edgeAuthOptions: NextAuthOptions = {
     secret: process.env.NEXTAUTH_SECRET,
     maxAge: 30 * 24 * 60 * 60,
   },
+  useSecureCookies: isProd,
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -68,6 +70,26 @@ export const edgeAuthOptions: NextAuthOptions = {
   cookies: {
     sessionToken: {
       name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        domain: cookieDomain,
+        secure: isProd,
+      },
+    },
+    callbackUrl: {
+      name: "next-auth.callback-url",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        domain: cookieDomain,
+        secure: isProd,
+      },
+    },
+    csrfToken: {
+      name: "next-auth.csrf-token",
       options: {
         httpOnly: true,
         sameSite: "lax",

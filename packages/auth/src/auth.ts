@@ -76,6 +76,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60,
   },
   // Доверяем заголовкам X-Forwarded-* для работы через прокси
+  useSecureCookies: isProd,
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -116,5 +117,27 @@ export const authOptions: NextAuthOptions = {
         secure: isProd,
       },
     },
+    callbackUrl: {
+      name: "next-auth.callback-url",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        domain: cookieDomain,
+        secure: isProd,
+      },
+    },
+    csrfToken: {
+      name: "next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        domain: cookieDomain,
+        secure: isProd,
+      },
+    },
   },
+  // Дополнительные настройки для работы с поддоменами
+  secret: process.env.NEXTAUTH_SECRET,
 };
