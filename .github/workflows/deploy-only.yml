@@ -94,8 +94,10 @@ jobs:
             chmod -R 755 apps/web/public/uploads/
             chmod -R 755 apps/trainer-panel/public/uploads/
 
-            # Stop existing containers
-            docker-compose -f docker-compose.prod.yml down || true
+            # Stop existing containers and clean up
+            docker-compose -f docker-compose.prod.yml down -v --remove-orphans || true
+            docker container prune -f
+            docker image prune -f
 
             # Pull latest images from registry (используем существующие образы)
             echo "📥 Pulling latest Docker images..."
@@ -118,7 +120,7 @@ jobs:
 
             # Start services
             echo "🚀 Starting services..."
-            docker-compose -f docker-compose.prod.yml up -d
+            docker-compose -f docker-compose.prod.yml up -d --force-recreate
 
             # Wait for services to be ready
             sleep 15
@@ -134,8 +136,10 @@ jobs:
             if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
               echo "✅ Deployment completed successfully!"
               
-              # Clean up unused images
-              docker image prune -f
+                          # Clean up unused images and containers
+            docker image prune -f
+            docker container prune -f
+            docker system prune -f
             else
               echo "❌ Deployment failed - services not running"
               exit 1
