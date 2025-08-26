@@ -15,7 +15,7 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 
 // 2. передаём ей объект настроек Workbox/PWA
 const withPWA = withPWAInit({
-  disable: process.env.NODE_ENV === "development",
+  disable: false, // PWA всегда включена
   register: true, // Автоматическая регистрация
   skipWaiting: true,
   injectRegister: "auto", // Автоматическая инъекция
