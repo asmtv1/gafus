@@ -94,6 +94,9 @@ jobs:
             chmod -R 755 apps/web/public/uploads/
             chmod -R 755 apps/trainer-panel/public/uploads/
 
+            # Создаем резервную копию БД перед остановкой
+            ./scripts/backup-db.sh || echo "⚠️ Бэкап не удался, продолжаем деплой"
+            
             # Stop existing containers and clean up (сохраняем volumes для БД)
             docker-compose -f docker-compose.prod.yml down --remove-orphans || true
             docker container prune -f
