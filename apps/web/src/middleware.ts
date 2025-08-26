@@ -36,9 +36,9 @@ export default async function middleware(req: NextRequest) {
   const { nextUrl, url } = req;
   const pathname = nextUrl.pathname;
   
-  console.log(`=== MIDDLEWARE START for ${pathname} ===`);
-  console.log(`Request URL: ${req.url}`);
-  console.log(`Request method: ${req.method}`);
+  console.warn(`=== MIDDLEWARE START for ${pathname} ===`);
+  console.warn(`Request URL: ${req.url}`);
+  console.warn(`Request method: ${req.method}`);
   
   const token = await getToken({ 
     req, 
@@ -47,13 +47,13 @@ export default async function middleware(req: NextRequest) {
     cookieName: "next-auth.session-token"
   });
 
-  console.log(`Cookies for ${pathname}:`, [req.cookies.getAll().map(c => c.name)]);
-  console.log(`NEXTAUTH_SECRET exists: ${!!process.env.NEXTAUTH_SECRET}`);
-  console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-  console.log(`Token result:`, token);
+  console.warn(`Cookies for ${pathname}:`, [req.cookies.getAll().map(c => c.name)]);
+  console.warn(`NEXTAUTH_SECRET exists: ${!!process.env.NEXTAUTH_SECRET}`);
+  console.warn(`NODE_ENV: ${process.env.NODE_ENV}`);
+  console.warn(`Token result:`, token);
 
   if (token) {
-    console.log(`Token details:`, {
+    console.warn(`Token details:`, {
       id: token.id,
       username: token.username,
       role: token.role,
@@ -64,19 +64,19 @@ export default async function middleware(req: NextRequest) {
 
   // Пропускаем публичные ресурсы
   if (isPublicAsset(pathname)) {
-    console.log(`Public asset, allowing: ${pathname}`);
+    console.warn(`Public asset, allowing: ${pathname}`);
     return NextResponse.next();
   }
 
   // Пропускаем API маршруты (они имеют свою авторизацию)
   if (pathname.startsWith("/api/")) {
-    console.log(`API route, allowing: ${pathname}`);
+    console.warn(`API route, allowing: ${pathname}`);
     return NextResponse.next();
   }
 
   // Перенаправляем авторизованных пользователей с главной страницы на курсы
   if (pathname === "/" && token) {
-    console.log(`Redirecting authenticated user from / to /courses`);
+    console.warn(`Redirecting authenticated user from / to /courses`);
     return NextResponse.redirect(new URL("/courses", url));
   }
 
@@ -86,7 +86,7 @@ export default async function middleware(req: NextRequest) {
   );
 
   if (isPublicPath) {
-    console.log(`Public path, allowing: ${pathname}`);
+    console.warn(`Public path, allowing: ${pathname}`);
     return NextResponse.next();
   }
 
@@ -96,8 +96,8 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", url));
   }
 
-  console.log(`=== MIDDLEWARE SUCCESS for ${pathname} ===`);
-  console.log(`User ${token.username} authorized for ${pathname}`);
+  console.warn(`=== MIDDLEWARE SUCCESS for ${pathname} ===`);
+  console.warn(`User ${token.username} authorized for ${pathname}`);
   
   return NextResponse.next();
 }
