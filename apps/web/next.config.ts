@@ -43,13 +43,7 @@ const withPWA = withPWAInit({
     importScripts: ["/sw-custom.js"],
     // Очистка устаревших кэшей
     cleanupOutdatedCaches: true,
-    // Предзагрузка важных страниц для offline режима
-    precacheAndRoute: [
-      { url: "/~offline", revision: "1" },
-      { url: "/", revision: "1" },
-      { url: "/courses", revision: "1" },
-      { url: "/timer", revision: "1" },
-    ],
+
     // Добавляем кастомную логику кеширования
     runtimeCaching: [
       {
@@ -203,8 +197,6 @@ const nextConfig = {
       "@emotion/react",
       "@emotion/styled",
     ],
-    // Добавляем настройки для решения проблем с чанками
-    webpackBuildWorker: false,
   },
 
   // Webpack конфигурация для workspace зависимостей

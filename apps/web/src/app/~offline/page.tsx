@@ -1,12 +1,4 @@
-export const metadata = {
-  title: "Оффлайн",
-  description: "Вы потеряли соединение с интернетом. Попробуйте обновить страницу.",
-  robots: { index: false, follow: false },
-};
-
-// Делаем страницу полностью статической
-export const dynamic = "force-static";
-export const revalidate = false;
+"use client";
 
 export default function OfflinePage() {
   return (
