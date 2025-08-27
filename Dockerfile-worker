@@ -75,6 +75,13 @@ COPY --from=builder /app/packages/webpush ./packages/webpush
 COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
 COPY --from=builder /app/packages/prisma/schema.prisma ./node_modules/.prisma/schema.prisma
 
+# Create symlink for @gafus packages
+RUN mkdir -p /app/node_modules/@gafus && \
+    ln -sf /app/packages/prisma /app/node_modules/@gafus/prisma && \
+    ln -sf /app/packages/queues /app/node_modules/@gafus/queues && \
+    ln -sf /app/packages/webpush /app/node_modules/@gafus/webpush && \
+    ln -sf /app/packages/worker /app/node_modules/@gafus/worker
+
 # Set working directory to root
 WORKDIR /app
 
