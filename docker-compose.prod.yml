@@ -60,8 +60,7 @@ services:
       retries: 3
       start_period: 40s
     volumes:
-      - ./packages/public-assets/public/uploads:/app/uploads:ro
-      - gafus-web-uploads:/app/uploads
+      - ./packages/public-assets/public/uploads:/app/apps/web/public/uploads
     depends_on:
       - postgres
       - redis
@@ -179,7 +178,6 @@ services:
       - ./packages/public-assets/public/uploads:/var/www/uploads:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
-      - gafus-web-uploads:/var/www/web-uploads:ro
     restart: unless-stopped
     depends_on:
       - web
@@ -200,4 +198,3 @@ services:
 
 volumes:
   postgres_data:
-  gafus-web-uploads:
