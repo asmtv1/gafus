@@ -50,24 +50,28 @@ const petValidationRules = {
     },
   },
   heightCm: {
-    valueAsNumber: true,
-    validate: (value: string | number | undefined) => {
-      if (value === undefined || value === null || value === "") return true;
-      const numValue = typeof value === "string" ? parseFloat(value) : value;
-      if (isNaN(numValue)) return "Введите число";
-      if (numValue < 1) return "Рост должен быть больше 0";
-      if (numValue > 200) return "Рост не может быть больше 200 см";
+    setValueAs: (value: string | number) => {
+      if (value === "" || value === undefined || value === null) return undefined;
+      const num = Number(value);
+      return isNaN(num) ? undefined : num;
+    },
+    validate: (value: number | undefined) => {
+      if (value === undefined || value === null) return true;
+      if (value < 1) return "Рост должен быть больше 0";
+      if (value > 200) return "Рост не может быть больше 200 см";
       return true;
     },
   },
   weightKg: {
-    valueAsNumber: true,
-    validate: (value: string | number | undefined) => {
-      if (value === undefined || value === null || value === "") return true;
-      const numValue = typeof value === "string" ? parseFloat(value) : value;
-      if (isNaN(numValue)) return "Введите число";
-      if (numValue < 0.1) return "Вес должен быть больше 0";
-      if (numValue > 200) return "Вес не может быть больше 200 кг";
+    setValueAs: (value: string | number) => {
+      if (value === "" || value === undefined || value === null) return undefined;
+      const num = Number(value);
+      return isNaN(num) ? undefined : num;
+    },
+    validate: (value: number | undefined) => {
+      if (value === undefined || value === null) return true;
+      if (value < 0.1) return "Вес должен быть больше 0";
+      if (value > 200) return "Вес не может быть больше 200 кг";
       return true;
     },
   },
