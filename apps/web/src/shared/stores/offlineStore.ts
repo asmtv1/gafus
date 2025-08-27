@@ -18,7 +18,7 @@ export const useOfflineStore = create<OfflineState>()(
       // Начальное состояние
       isOnline: typeof window !== "undefined" ? navigator.onLine : true,
       isStable: true,
-      isActuallyConnected: false,
+      isActuallyConnected: typeof window !== "undefined" ? navigator.onLine : true,
       syncQueue: [],
       lastSyncTime: null,
       syncErrors: [],
@@ -32,10 +32,10 @@ export const useOfflineStore = create<OfflineState>()(
           console.warn(`🌐 Setting online status: ${isOnline} (was: ${currentState.isOnline})`);
         }
 
-        set({ isOnline });
+        set({ isOnline, isActuallyConnected: isOnline });
 
         if (isOnline && typeof window !== "undefined") {
-          // Если стали онлайн и мы в браузере, проверяем реальное соединение
+          // Если стали онлайн и мы в браузере, проверяем реальное соединение в фоне
           const checkDelay = process.env.NODE_ENV !== "production" ? 500 : 100;
 
           if (process.env.NODE_ENV !== "production") {
@@ -49,6 +49,10 @@ export const useOfflineStore = create<OfflineState>()(
                 .then((isConnected) => {
                   if (process.env.NODE_ENV !== "production") {
                     console.warn(`🔍 External connection check result: ${isConnected}`);
+                  }
+                  // Обновляем реальное соединение только если проверка показала, что его нет
+                  if (!isConnected) {
+                    set({ isActuallyConnected: false });
                   }
                   if (isConnected && currentState.syncQueue.length > 0) {
                     // Если есть реальное соединение и есть действия в очереди, синхронизируем
