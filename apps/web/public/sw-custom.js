@@ -1,12 +1,25 @@
 // Кастомный Service Worker для улучшения offline режима
 self.addEventListener('install', (event) => {
   console.log('🔄 Custom SW installing...');
-  self.skipWaiting();
+  event.waitUntil(
+    Promise.resolve().then(() => {
+      console.log('✅ Custom SW installed successfully');
+      return self.skipWaiting();
+    })
+  );
 });
 
 self.addEventListener('activate', (event) => {
   console.log('✅ Custom SW activated');
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    self.clients.claim()
+      .then(() => {
+        console.log('✅ Clients claimed successfully');
+      })
+      .catch((error) => {
+        console.error('❌ Failed to claim clients:', error);
+      })
+  );
 });
 
 // Перехватываем fetch запросы для лучшего offline режима
@@ -59,6 +72,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // Для push-уведомлений не используем кэширование
+  if (request.url.includes('/api/push')) {
+    return;
+  }
+  
   // Для API запросов используем NetworkFirst с коротким таймаутом
   if (request.url.includes('/api/')) {
     event.respondWith(
@@ -77,6 +95,8 @@ self.addEventListener('fetch', (event) => {
             
             caches.open(cacheName).then((cache) => {
               cache.put(request, responseClone);
+            }).catch((error) => {
+              console.warn('⚠️ Failed to cache API response:', error);
             });
           }
           return response;
@@ -92,10 +112,14 @@ self.addEventListener('fetch', (event) => {
             cacheName = 'timer-progress-api';
           }
           
-          const cachedResponse = await caches.match(request);
-          if (cachedResponse) {
-            console.log('✅ Serving API from cache:', request.url);
-            return cachedResponse;
+          try {
+            const cachedResponse = await caches.match(request);
+            if (cachedResponse) {
+              console.log('✅ Serving API from cache:', request.url);
+              return cachedResponse;
+            }
+          } catch (cacheError) {
+            console.warn('⚠️ Cache lookup failed:', cacheError);
           }
           
           // Если в кэше нет, возвращаем ошибку
@@ -108,39 +132,85 @@ self.addEventListener('fetch', (event) => {
 
 // Обработка push уведомлений
 self.addEventListener('push', (event) => {
+  console.log('🔔 Push event received:', event);
+  
   if (event.data) {
-    const data = event.data.json();
-    const options = {
-      body: data.body || 'Новое уведомление',
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
-      tag: 'gafus-notification',
-      data: data,
-      actions: [
-        {
-          action: 'open',
-          title: 'Открыть',
-        },
-        {
-          action: 'close',
-          title: 'Закрыть',
-        }
-      ]
-    };
+    try {
+      const data = event.data.json();
+      console.log('🔔 Push data:', data);
+      
+      const options = {
+        body: data.body || 'Новое уведомление',
+        icon: '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: 'gafus-notification',
+        data: data,
+        requireInteraction: false,
+        actions: [
+          {
+            action: 'open',
+            title: 'Открыть',
+          },
+          {
+            action: 'close',
+            title: 'Закрыть',
+          }
+        ]
+      };
+      
+      console.log('🔔 Showing notification with options:', options);
+      
+      event.waitUntil(
+        self.registration.showNotification(data.title || 'Gafus', options)
+          .then(() => {
+            console.log('✅ Notification shown successfully');
+          })
+          .catch((error) => {
+            console.error('❌ Failed to show notification:', error);
+          })
+      );
+    } catch (error) {
+      console.error('❌ Error processing push data:', error);
+      
+      // Fallback notification
+      event.waitUntil(
+        self.registration.showNotification('Gafus', {
+          body: 'Новое уведомление',
+          icon: '/favicon.ico',
+          tag: 'gafus-notification-fallback'
+        })
+      );
+    }
+  } else {
+    console.log('🔔 Push event without data');
     
+    // Fallback notification
     event.waitUntil(
-      self.registration.showNotification(data.title || 'Gafus', options)
+      self.registration.showNotification('Gafus', {
+        body: 'Новое уведомление',
+        icon: '/favicon.ico',
+        tag: 'gafus-notification-fallback'
+      })
     );
   }
 });
 
 // Обработка кликов по уведомлениям
 self.addEventListener('notificationclick', (event) => {
+  console.log('🔔 Notification clicked:', event);
   event.notification.close();
   
   if (event.action === 'open') {
     event.waitUntil(
       self.clients.openWindow('/')
+        .then((windowClient) => {
+          if (windowClient) {
+            console.log('✅ Window opened successfully');
+          }
+        })
+        .catch((error) => {
+          console.error('❌ Failed to open window:', error);
+        })
     );
   }
 });
