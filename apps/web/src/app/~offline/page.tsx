@@ -10,78 +10,69 @@ export const revalidate = false;
 
 export default function OfflinePage() {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        padding: "20px",
-        textAlign: "center",
-        background: "#f8f9fa",
-      }}
-    >
-      <div
-        style={{
-          background: "white",
-          padding: "40px",
-          borderRadius: "12px",
-          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-          maxWidth: "500px",
-        }}
-      >
-        <h1 style={{ color: "#dc3545", marginBottom: "20px" }}>🔴 Нет подключения к интернету</h1>
-
-        <p style={{ fontSize: "18px", marginBottom: "20px", color: "#6c757d" }}>
-          Приложение работает в offline режиме
-        </p>
-
-        <div
-          style={{
-            background: "#e9ecef",
-            padding: "20px",
-            borderRadius: "8px",
-            marginBottom: "20px",
-          }}
-        >
-          <h3 style={{ marginBottom: "15px" }}>Что работает offline:</h3>
-          <ul style={{ textAlign: "left", margin: 0, paddingLeft: "20px" }}>
-            <li>✅ Просмотр загруженных курсов</li>
-            <li>✅ Тренировки и прогресс</li>
-            <li>✅ Профиль и настройки</li>
-            <li>✅ Навигация по основным страницам</li>
-          </ul>
-        </div>
-
-        <div
-          style={{
-            background: "#fff3cd",
-            padding: "15px",
-            borderRadius: "8px",
-            border: "1px solid #ffeaa7",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: "14px" }}>
-            <strong>💡 Совет:</strong> Ваши действия сохраняются локально и будут синхронизированы
-            при восстановлении соединения.
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+        <div className="mb-6">
+          <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+            <svg
+              className="w-8 h-8 text-yellow-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Нет соединения с сервером
+          </h1>
+          <p className="text-gray-600">
+            Сервер временно недоступен, но вы можете использовать приложение в офлайн режиме
           </p>
         </div>
 
-        <button
-          style={{
-            background: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            padding: "12px 24px",
-            fontSize: "16px",
-            cursor: "pointer",
-            marginTop: "20px",
-          }}
-        >
-          Попробовать снова
-        </button>
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+            <h3 className="font-semibold text-blue-900 mb-2">Что доступно:</h3>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• Просмотр загруженных курсов</li>
+              <li>• Работа с кэшированным контентом</li>
+              <li>• Локальные действия (сохранятся при восстановлении связи)</li>
+            </ul>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
+            <h3 className="font-semibold text-yellow-900 mb-2">Что недоступно:</h3>
+            <ul className="text-sm text-yellow-800 space-y-1">
+              <li>• Загрузка новых курсов</li>
+              <li>• Синхронизация с сервером</li>
+              <li>• Обновление данных</li>
+            </ul>
+          </div>
+
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Попробовать снова
+          </button>
+
+          <button
+            onClick={() => window.history.back()}
+            className="w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Назад
+          </button>
+        </div>
+
+        <div className="mt-6 text-xs text-gray-500">
+          <p>Приложение будет автоматически синхронизироваться при восстановлении соединения</p>
+        </div>
       </div>
     </div>
   );

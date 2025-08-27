@@ -43,15 +43,24 @@ const withPWA = withPWAInit({
     importScripts: ["/sw-custom.js"],
     // Очистка устаревших кэшей
     cleanupOutdatedCaches: true,
+    // Предзагрузка offline страницы
+    precacheAndRoute: [
+      { url: "/~offline", revision: "1" },
+      { url: "/", revision: "1" },
+    ],
     // Добавляем кастомную логику кеширования
     runtimeCaching: [
       {
-        // Навигации (HTML) — NetworkFirst с недельным TTL
+        // Навигации (HTML) — NetworkFirst с fallback на кэш для offline режима
         urlPattern: ({ request }: { request: Request }) => request.mode === "navigate",
         handler: "NetworkFirst",
         options: {
           cacheName: "pages",
           expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 },
+          networkTimeoutSeconds: 3, // Таймаут для сети 3 секунды
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
         },
       },
       {
@@ -86,6 +95,28 @@ const withPWA = withPWAInit({
         options: {
           cacheName: "offline-page",
           expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 дней
+        },
+      },
+      {
+        // Главная страница — всегда доступна из кэша для offline режима
+        urlPattern: /^\/$/,
+        handler: "CacheFirst",
+        options: {
+          cacheName: "home-page",
+          expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 дней
+        },
+      },
+      {
+        // Страницы курсов — NetworkFirst с fallback на кэш
+        urlPattern: /^\/courses(\/.*)?$/,
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "courses-pages",
+          expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 дней
+          networkTimeoutSeconds: 3,
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
         },
       },
       {

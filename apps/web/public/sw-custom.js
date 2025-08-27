@@ -1,141 +1,125 @@
-// Кастомная логика кеширования для критических файлов
-const CACHE_VERSION = 'v1.0.0';
-const CRITICAL_CACHE = `critical-files-${CACHE_VERSION}`;
-const STATIC_CACHE = `static-resources-${CACHE_VERSION}`;
-
+// Кастомный Service Worker для улучшения offline режима
 self.addEventListener('install', (event) => {
-  console.warn('Service Worker: Установка...');
-  event.waitUntil(
-    caches.open(CRITICAL_CACHE).then((cache) => {
-      // Кешируем только критически важные файлы
-      return cache.addAll([
-        '/~offline',
-        '/icons/icon192.png',
-        '/icons/badge-72.png'
-      ]);
-    }).catch((error) => {
-      console.log('Service Worker: Ошибка кеширования критических файлов:', error);
-    })
-  );
+  console.log('🔄 Custom SW installing...');
+  self.skipWaiting();
 });
 
-// Очистка старых кешей при активации
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Активация...');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CRITICAL_CACHE && cacheName !== STATIC_CACHE) {
-            console.log('Service Worker: Удаление старого кеша:', cacheName);
-            return caches.delete(cacheName);
+  console.log('✅ Custom SW activated');
+  event.waitUntil(self.clients.claim());
+});
+
+// Перехватываем fetch запросы для лучшего offline режима
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  
+  // Обрабатываем только GET запросы
+  if (request.method !== 'GET') return;
+  
+  // Для навигационных запросов используем специальную логику
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Если запрос успешен, кэшируем его
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            caches.open('pages').then((cache) => {
+              cache.put(request, responseClone);
+            });
           }
+          return response;
         })
-      );
-    })
-  );
-});
-
-// Обработка ошибок кеширования
-// Не перехватываем fetch — оставляем стратегию Workbox из next-pwa
-// Если нужен офлайн фолбек для навигаций, он настроен в next.config.ts через fallback.document
-
-self.addEventListener("push", (event) => {
-  console.log("🔔 Service Worker: Получено push-событие!", event);
-  console.log("🔔 Service Worker: Тип события:", event.type);
-  console.log("🔔 Service Worker: Данные события:", event.data);
-  console.log("🔔 Service Worker: Registration:", self.registration);
-  
-  let payload = {};
-  try {
-    if (event.data) {
-      console.log("🔔 Service Worker: Данные события:", event.data);
-      try {
-        payload = event.data.json();
-        console.log("🔔 Service Worker: JSON payload:", payload);
-      } catch (e) {
-        console.log("🔔 Service Worker: Ошибка парсинга JSON, используем text:", e);
-        payload = { body: event.data.text() };
-      }
-    } else {
-      console.log("🔔 Service Worker: Нет данных в событии");
-    }
-  } catch (e) {
-    console.error("🔔 Service Worker: Ошибка обработки данных:", e);
+        .catch(async (error) => {
+          console.log('🌐 Network failed, trying cache...', error);
+          
+          // Пытаемся найти в кэше
+          const cachedResponse = await caches.match(request);
+          if (cachedResponse) {
+            console.log('✅ Serving from cache:', request.url);
+            return cachedResponse;
+          }
+          
+          // Если в кэше нет, показываем offline страницу
+          console.log('📱 No cache found, showing offline page');
+          const offlineResponse = await caches.match('/~offline');
+          if (offlineResponse) {
+            return offlineResponse;
+          }
+          
+          // Fallback на пустую страницу
+          return new Response(
+            '<html><body><h1>Offline</h1><p>No internet connection</p></body></html>',
+            {
+              headers: { 'Content-Type': 'text/html' },
+            }
+          );
+        })
+    );
+    return;
   }
-
-  const title = payload.title || "Гафус";
-  const body = payload.body || "Новое уведомление";
-  const icon = payload.icon || "/icons/icon192.png";
-  const badge = payload.badge || "/icons/badge-72.png";
-  const tag = payload.tag || "gafus";
-  const data = payload.data || {};
-
-  console.log("🔔 Service Worker: Показываем уведомление:", { title, body, icon, badge, tag, data });
-
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body, icon, badge, tag, data, requireInteraction: false,
-    }).then(() => {
-      console.log("✅ Service Worker: Уведомление показано успешно!");
-    }).catch((error) => {
-      console.error("❌ Ошибка показа уведомления:", error);
-    }),
-  );
-});
-
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  const data = event.notification?.data || {};
-  const targetUrl = data.url || "/";
-
-  event.waitUntil(
-    (async () => {
-      const url = new URL(targetUrl, self.location.origin).href;
-      const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      for (const client of clientList) {
-        if (client.url === url && "focus" in client) {
-          return client.focus();
-        }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(url);
-      }
-    })(),
-  );
-});
-
-// Обработка сообщений от клиента
-self.addEventListener("message", (event) => {
-  console.log("🔔 Service Worker: Получено сообщение от клиента:", event.data);
   
-  if (event.data.type === "TEST_PUSH") {
-    console.log("🔔 Service Worker: Показываем тестовое уведомление");
-    
-    const { title, body, icon } = event.data.data;
+  // Для API запросов используем NetworkFirst с коротким таймаутом
+  if (request.url.includes('/api/')) {
+    event.respondWith(
+      Promise.race([
+        fetch(request),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 3000)
+        )
+      ]).catch(async (error) => {
+        console.log('⏰ API timeout, checking cache:', request.url);
+        const cachedResponse = await caches.match(request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        throw error;
+      })
+    );
+    return;
+  }
+});
+
+// Обработка push уведомлений
+self.addEventListener('push', (event) => {
+  if (event.data) {
+    const data = event.data.json();
+    const options = {
+      body: data.body || 'Новое уведомление',
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      tag: 'gafus-notification',
+      data: data,
+      actions: [
+        {
+          action: 'open',
+          title: 'Открыть',
+        },
+        {
+          action: 'close',
+          title: 'Закрыть',
+        }
+      ]
+    };
     
     event.waitUntil(
-      self.registration.showNotification(title || "Тест", {
-        body: body || "Тестовое уведомление",
-        icon: icon || "/icons/icon192.png",
-        badge: "/icons/badge-72.png",
-        tag: "test",
-        data: {},
-        requireInteraction: false,
-      }).then(() => {
-        console.log("✅ Service Worker: Тестовое уведомление показано!");
-      }).catch((error) => {
-        console.error("❌ Service Worker: Ошибка показа тестового уведомления:", error);
-      }),
+      self.registration.showNotification(data.title || 'Gafus', options)
     );
-    
-    // Возвращаем true для асинхронных сообщений
-    return true;
   }
-  
-  // Для всех остальных сообщений возвращаем false (синхронная обработка)
-  return false;
 });
+
+// Обработка кликов по уведомлениям
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  if (event.action === 'open') {
+    event.waitUntil(
+      self.clients.openWindow('/')
+    );
+  }
+});
+
+console.log('🚀 Custom Service Worker loaded');
 
 
 
