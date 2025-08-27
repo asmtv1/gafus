@@ -81,7 +81,7 @@ services:
       - "3001:3001"
     restart: unless-stopped
     volumes:
-      - ./packages/public-assets/public/uploads:/app/uploads
+      - ./packages/public-assets/public/uploads:/app/apps/trainer-panel/public/uploads
     depends_on:
       - postgres
       - redis
