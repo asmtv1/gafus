@@ -62,19 +62,45 @@ self.addEventListener('fetch', (event) => {
   // Для API запросов используем NetworkFirst с коротким таймаутом
   if (request.url.includes('/api/')) {
     event.respondWith(
-      Promise.race([
-        fetch(request),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 3000)
-        )
-      ]).catch(async (error) => {
-        console.log('⏰ API timeout, checking cache:', request.url);
-        const cachedResponse = await caches.match(request);
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        throw error;
-      })
+      fetch(request)
+        .then((response) => {
+          // Если запрос успешен, кэшируем его
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            // Определяем подходящий кэш в зависимости от типа API
+            let cacheName = 'api-cache';
+            if (request.url.includes('/api/courses')) {
+              cacheName = 'courses-api';
+            } else if (request.url.includes('/api/timer') || request.url.includes('/api/progress')) {
+              cacheName = 'timer-progress-api';
+            }
+            
+            caches.open(cacheName).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(async (error) => {
+          console.log('🌐 API failed, trying cache:', request.url);
+          
+          // Пытаемся найти в соответствующем кэше
+          let cacheName = 'api-cache';
+          if (request.url.includes('/api/courses')) {
+            cacheName = 'courses-api';
+          } else if (request.url.includes('/api/timer') || request.url.includes('/api/progress')) {
+            cacheName = 'timer-progress-api';
+          }
+          
+          const cachedResponse = await caches.match(request);
+          if (cachedResponse) {
+            console.log('✅ Serving API from cache:', request.url);
+            return cachedResponse;
+          }
+          
+          // Если в кэше нет, возвращаем ошибку
+          throw error;
+        })
     );
     return;
   }

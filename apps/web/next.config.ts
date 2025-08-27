@@ -43,10 +43,12 @@ const withPWA = withPWAInit({
     importScripts: ["/sw-custom.js"],
     // Очистка устаревших кэшей
     cleanupOutdatedCaches: true,
-    // Предзагрузка offline страницы
+    // Предзагрузка важных страниц для offline режима
     precacheAndRoute: [
       { url: "/~offline", revision: "1" },
       { url: "/", revision: "1" },
+      { url: "/courses", revision: "1" },
+      { url: "/timer", revision: "1" },
     ],
     // Добавляем кастомную логику кеширования
     runtimeCaching: [
@@ -90,6 +92,32 @@ const withPWA = withPWAInit({
         options: { cacheName: "ping-api" },
       },
       {
+        // API курсов — NetworkFirst с fallback на кэш для offline режима
+        urlPattern: /^\/api\/courses(\/.*)?$/,
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "courses-api",
+          expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 дней
+          networkTimeoutSeconds: 3,
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
+        // API таймеров и прогресса — NetworkFirst с fallback на кэш
+        urlPattern: /^\/api\/(timer|progress|steps)(\/.*)?$/,
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "timer-progress-api",
+          expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 дней
+          networkTimeoutSeconds: 3,
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
         urlPattern: /^\/~offline$/,
         handler: "CacheFirst",
         options: {
@@ -113,6 +141,19 @@ const withPWA = withPWAInit({
         options: {
           cacheName: "courses-pages",
           expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 дней
+          networkTimeoutSeconds: 3,
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
+        // Страницы таймеров и тренировок — NetworkFirst с fallback на кэш
+        urlPattern: /^\/(timer|training|workout)(\/.*)?$/,
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "timer-training-pages",
+          expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 }, // 7 дней
           networkTimeoutSeconds: 3,
           cacheableResponse: {
             statuses: [0, 200],

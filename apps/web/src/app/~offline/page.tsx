@@ -41,6 +41,8 @@ export default function OfflinePage() {
             <h3 className="font-semibold text-blue-900 mb-2">Что доступно:</h3>
             <ul className="text-sm text-blue-800 space-y-1">
               <li>• Просмотр загруженных курсов</li>
+              <li>• Таймеры и тренировки (если были закэшированы)</li>
+              <li>• Прогресс и статистика (из кэша)</li>
               <li>• Работа с кэшированным контентом</li>
               <li>• Локальные действия (сохранятся при восстановлении связи)</li>
             </ul>
