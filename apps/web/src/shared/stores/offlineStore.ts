@@ -23,6 +23,8 @@ export const useOfflineStore = create<OfflineState>()(
       lastSyncTime: null,
       syncErrors: [],
       maxRetries: 3,
+      lastSyncAttempt: null, // Время последней попытки синхронизации
+      syncCooldown: 60000, // 60 секунд между попытками синхронизации
 
       // Установка статуса онлайн/офлайн
       setOnlineStatus: (isOnline: boolean) => {
@@ -56,7 +58,16 @@ export const useOfflineStore = create<OfflineState>()(
                   }
                   if (isConnected && currentState.syncQueue.length > 0) {
                     // Если есть реальное соединение и есть действия в очереди, синхронизируем
-                    currentState.syncOfflineActions();
+                    // Но только если прошло достаточно времени с последней попытки
+                    const now = Date.now();
+                    if (!currentState.lastSyncAttempt || (now - currentState.lastSyncAttempt) >= currentState.syncCooldown) {
+                      currentState.syncOfflineActions();
+                    } else {
+                      if (process.env.NODE_ENV !== "production") {
+                        const remainingTime = Math.ceil((currentState.syncCooldown - (now - currentState.lastSyncAttempt)) / 1000);
+                        console.warn(`⏰ Skipping sync on connection change, cooldown active for ${remainingTime}s`);
+                      }
+                    }
                   }
                 })
                 .catch((error) => {
@@ -105,15 +116,25 @@ export const useOfflineStore = create<OfflineState>()(
             syncQueue: [...state.syncQueue, newAction],
           }));
 
-          // Если онлайн, пытаемся синхронизировать с задержкой
+          // Если онлайн, пытаемся синхронизировать с задержкой (но только если прошло достаточно времени)
           if (get().isOnline) {
-            setTimeout(() => {
-              try {
-                get().syncOfflineActions();
-              } catch (error) {
-                console.warn("Failed to sync offline actions:", error);
+            const now = Date.now();
+            const state = get();
+            
+            if (!state.lastSyncAttempt || (now - state.lastSyncAttempt) >= state.syncCooldown) {
+              setTimeout(() => {
+                try {
+                  get().syncOfflineActions();
+                } catch (error) {
+                  console.warn("Failed to sync offline actions:", error);
+                }
+              }, 100);
+            } else {
+              if (process.env.NODE_ENV !== "production") {
+                const remainingTime = Math.ceil((state.syncCooldown - (now - state.lastSyncAttempt)) / 1000);
+                console.warn(`⏰ Skipping auto-sync, cooldown active for ${remainingTime}s`);
               }
-            }, 100);
+            }
           }
         } catch (error) {
           console.warn("Failed to add action to sync queue:", error);
@@ -244,11 +265,24 @@ export const useOfflineStore = create<OfflineState>()(
       syncOfflineActions: async () => {
         try {
           const state = get();
+          const now = Date.now();
 
           // Проверяем, что мы действительно онлайн и есть реальное соединение
           if (!state.isOnline || !state.isActuallyConnected || state.syncQueue.length === 0) {
             return;
           }
+
+          // Проверяем таймаут между попытками синхронизации
+          if (state.lastSyncAttempt && (now - state.lastSyncAttempt) < state.syncCooldown) {
+            const remainingTime = Math.ceil((state.syncCooldown - (now - state.lastSyncAttempt)) / 1000);
+            if (process.env.NODE_ENV !== "production") {
+              console.warn(`⏰ Sync cooldown active, waiting ${remainingTime}s before next attempt`);
+            }
+            return;
+          }
+
+          // Обновляем время последней попытки синхронизации
+          set({ lastSyncAttempt: now });
 
           const actionsToSync = [...state.syncQueue];
 
@@ -288,6 +322,8 @@ export const useOfflineStore = create<OfflineState>()(
         lastSyncTime: state.lastSyncTime,
         syncErrors: state.syncErrors,
         maxRetries: state.maxRetries,
+        lastSyncAttempt: state.lastSyncAttempt,
+        syncCooldown: state.syncCooldown,
       }),
     },
   ),

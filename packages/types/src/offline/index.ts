@@ -57,6 +57,8 @@ export interface OfflineState {
   lastSyncTime: number | null;
   syncErrors: string[];
   maxRetries: number;
+  lastSyncAttempt: number | null; // Время последней попытки синхронизации
+  syncCooldown: number; // Таймаут между попытками синхронизации (в мс)
 
   // Действия
   setOnlineStatus: (isOnline: boolean) => void;

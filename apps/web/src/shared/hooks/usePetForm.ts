@@ -54,7 +54,7 @@ const petValidationRules = {
       if (value === "" || value === undefined || value === null) return undefined;
       const num = Number(value);
       return isNaN(num) ? undefined : num;
-    },
+    },  
     validate: (value: number | undefined) => {
       if (value === undefined || value === null) return true;
       if (value < 1) return "Рост должен быть больше 0";
