@@ -90,20 +90,22 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                   />
                   Статистика
                 </Link>
-                <Link
-                  href={process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || "http://localhost:3001"}
-                  onClick={() => setMenuOpen(false)}
-                  className={styles.menuButton}
-                >
-                  <Image
-                    src="/header/trainer-panel.svg"
-                    alt="statistics"
-                    width={24}
-                    height={24}
-                    loading="lazy"
-                  />
-                  Панель тренера
-                </Link>
+                {process.env.NEXT_PUBLIC_TRAINER_PANEL_URL && (
+                  <Link
+                    href={process.env.NEXT_PUBLIC_TRAINER_PANEL_URL}
+                    onClick={() => setMenuOpen(false)}
+                    className={styles.menuButton}
+                  >
+                    <Image
+                      src="/header/trainer-panel.svg"
+                      alt="statistics"
+                      width={24}
+                      height={24}
+                      loading="lazy"
+                    />
+                    Панель тренера
+                  </Link>
+                )}
               </>
             )}
             <Link href="/courses" onClick={() => setMenuOpen(false)} className={styles.menuButton}>
