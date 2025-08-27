@@ -61,6 +61,7 @@ services:
       start_period: 40s
     volumes:
       - ./packages/public-assets/public/uploads:/app/apps/web/public/uploads
+      - ./packages/public-assets/public/uploads:/app/public/uploads
     depends_on:
       - postgres
       - redis
@@ -82,6 +83,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./packages/public-assets/public/uploads:/app/apps/trainer-panel/public/uploads
+      - ./packages/public-assets/public/uploads:/app/public/uploads
     depends_on:
       - postgres
       - redis
