@@ -3,7 +3,7 @@
 import { useCourseStoreActions } from "@shared/stores";
 import { useEffect, useCallback } from "react";
 
-import { CourseCard } from "./CourseCard";
+import { CourseCard } from "./CourseCard/CourseCard";
 import styles from "./favorites.module.css";
 
 export default function FavoritesCourseList() {
