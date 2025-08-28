@@ -173,7 +173,10 @@ const withPWA = withPWAInit({
 // 3. основной конфиг Next.js
 const nextConfig = {
   reactStrictMode: true,
-
+  // Переменные окружения для клиентской части
+  env: {
+    NEXT_PUBLIC_TRAINER_PANEL_URL: process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || 'https://trainer-panel.gafus.ru',
+  },
   // ESLint проверки включены для качества кода
   eslint: {
     ignoreDuringBuilds: false,
