@@ -59,7 +59,7 @@ export async function toggleStepNotificationPause(day: number, stepIndex: number
     const newEndTs = now + remainingSec;
 
     const job = await pushQueue.add(
-      "send-step-notification",
+      "push",
       { notificationId: notif.id },
       {
         delay: delayMs,

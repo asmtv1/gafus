@@ -99,7 +99,7 @@ export async function createStepNotificationsForUserStep({
 
   try {
     const job = await pushQueue.add(
-      "send-step-notification",
+      "push",
       { notificationId: notif.id },
       {
         delay: durationSec * 1000,
