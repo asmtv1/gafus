@@ -16,7 +16,7 @@ import type { PushLogEntry } from "./types";
 const sendToErrorDashboard = async (logEntry: PushLogEntry): Promise<void> => {
   try {
     // Определяем URL error-dashboard из переменных окружения
-    const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || "http://localhost:3001";
+    const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || "http://gafus-error-dashboard:3005";
 
     const errorReport = {
       message: logEntry.message,
