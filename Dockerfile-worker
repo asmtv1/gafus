@@ -77,18 +77,17 @@ COPY --from=builder /app/packages/webpush ./packages/webpush
 COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
 COPY --from=builder /app/packages/prisma/schema.prisma ./node_modules/.prisma/schema.prisma
 
-# Copy package.json files for proper module resolution
-COPY --from=builder /app/packages/prisma/package.json ./packages/prisma/package.json
-COPY --from=builder /app/packages/queues/package.json ./packages/queues/package.json
-COPY --from=builder /app/packages/webpush/package.json ./packages/webpush/package.json
-COPY --from=builder /app/packages/worker/package.json ./packages/worker/package.json
-
 # Create symlink for @gafus packages
 RUN mkdir -p /app/node_modules/@gafus && \
     ln -sf /app/packages/prisma /app/node_modules/@gafus/prisma && \
     ln -sf /app/packages/queues /app/node_modules/@gafus/queues && \
     ln -sf /app/packages/webpush /app/node_modules/@gafus/webpush && \
     ln -sf /app/packages/worker /app/node_modules/@gafus/worker
+
+# Create symlinks for worker dependencies
+RUN ln -sf /app/node_modules/.pnpm/web-push@3.6.6/node_modules/web-push /app/node_modules/web-push && \
+    ln -sf /app/node_modules/.pnpm/bullmq@5.2.0/node_modules/bullmq /app/node_modules/bullmq && \
+    ln -sf /app/node_modules/.pnpm/ioredis@5.3.2/node_modules/ioredis /app/node_modules/ioredis
 
 # Set working directory to root
 WORKDIR /app
