@@ -174,6 +174,20 @@ export class PushNotificationService {
     this.initialized = true;
   }
 
+  private formatIOSCompatiblePayload(payload: string | Record<string, unknown>): string {
+    const payloadObj = typeof payload === "string" ? JSON.parse(payload) : payload;
+    return JSON.stringify({
+      title: payloadObj.title || "Уведомление",
+      body: payloadObj.body || "",
+      icon: payloadObj.icon || "/icons/icon192.png",
+      badge: payloadObj.badge || 1,
+      tag: payloadObj.tag || "default",
+      data: payloadObj.data || {},
+      requireInteraction: true,
+      silent: false,
+    });
+  }
+
   /**
    * Отправляет push-уведомление на одну подписку
    */
@@ -199,7 +213,6 @@ export class PushNotificationService {
     }
 
     try {
-      // Форматируем payload для iOS-совместимости
       const iosCompatiblePayload = this.formatIOSCompatiblePayload(payload);
       
       logger.debug("Sending iOS-compatible push notification", {
@@ -208,7 +221,6 @@ export class PushNotificationService {
         serviceType: subscription.endpoint.includes("web.push.apple.com") ? "iOS Safari" : "Other",
       });
 
-      // Отправляем через web-push (работает на всех платформах)
       await webpush.sendNotification(subscription, iosCompatiblePayload);
 
       logger.info("Push notification sent successfully", {
