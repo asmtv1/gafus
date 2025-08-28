@@ -198,18 +198,22 @@ export class PushNotificationService {
       };
     }
 
-    const payloadString = typeof payload === "string" ? payload : JSON.stringify(payload);
-
     try {
-      logger.debug("Sending push notification", {
+      // Форматируем payload для iOS-совместимости
+      const iosCompatiblePayload = this.formatIOSCompatiblePayload(payload);
+      
+      logger.debug("Sending iOS-compatible push notification", {
         endpoint: subscription.endpoint.substring(0, 50) + "...",
-        payloadLength: payloadString.length,
+        payloadLength: iosCompatiblePayload.length,
+        serviceType: subscription.endpoint.includes("web.push.apple.com") ? "iOS Safari" : "Other",
       });
 
-      await webpush.sendNotification(subscription, payloadString);
+      // Отправляем через web-push (работает на всех платформах)
+      await webpush.sendNotification(subscription, iosCompatiblePayload);
 
       logger.info("Push notification sent successfully", {
         endpoint: subscription.endpoint.substring(0, 50) + "...",
+        serviceType: subscription.endpoint.includes("web.push.apple.com") ? "iOS Safari" : "Other",
       });
 
       return {
@@ -222,6 +226,7 @@ export class PushNotificationService {
         error instanceof Error ? error : new Error(String(error)),
         {
           endpoint: subscription.endpoint.substring(0, 50) + "...",
+          serviceType: subscription.endpoint.includes("web.push.apple.com") ? "iOS Safari" : "Other",
         },
       );
 
