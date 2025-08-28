@@ -79,15 +79,10 @@ COPY --from=builder /app/packages/prisma/schema.prisma ./node_modules/.prisma/sc
 
 # Create symlink for @gafus packages
 RUN mkdir -p /app/node_modules/@gafus && \
-    ln -sf /app/packages/prisma /app/node_modules/@gafus/prisma && \
-    ln -sf /app/packages/queues /app/node_modules/@gafus/queues && \
-    ln -sf /app/packages/webpush /app/node_modules/@gafus/webpush && \
-    ln -sf /app/packages/worker /app/node_modules/@gafus/worker
-
-# Create symlinks for worker dependencies
-RUN ln -sf /app/node_modules/.pnpm/web-push@3.6.6/node_modules/web-push /app/node_modules/web-push && \
-    ln -sf /app/node_modules/.pnpm/bullmq@5.2.0/node_modules/bullmq /app/node_modules/bullmq && \
-    ln -sf /app/node_modules/.pnpm/ioredis@5.3.2/node_modules/ioredis /app/node_modules/ioredis
+    ln -sf /app/packages/prisma/dist /app/node_modules/@gafus/prisma && \
+    ln -sf /app/packages/queues/dist /app/node_modules/@gafus/queues && \
+    ln -sf /app/packages/webpush/dist /app/node_modules/@gafus/webpush && \
+    ln -sf /app/packages/worker/dist /app/node_modules/@gafus/worker
 
 # Set working directory to root
 WORKDIR /app
