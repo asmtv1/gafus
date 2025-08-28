@@ -8,7 +8,7 @@ async function logToErrorDashboard(
   meta?: Record<string, unknown>,
 ) {
   try {
-    const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || "http://localhost:3005";
+    const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || "http://errors.gafus.localhost:3005";
 
     const logEntry = {
       message,

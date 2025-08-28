@@ -7,12 +7,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import styles from "./CourseCard.module.css";
-import { CourseRating } from "./CourseRating";
-import { FavoriteButton } from "./FavoriteButton";
+
 
 import type { CourseCardPropsWithIndex } from "@gafus/types";
 
 import { declOfNum } from "@/utils";
+import { CourseRating } from "../CourseRating";
+import { FavoriteButton } from "../FavoriteButton";
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
@@ -134,20 +135,23 @@ export const CourseCard = ({
 
         <div className={styles.content}>
           <h3 className={styles.title}>{name}</h3>
-          <p className={styles.description}>{shortDesc}</p>
-
           <div className={styles.meta}>
             <div className={styles.duration}>
-              <span>Длительность: {duration}</span>
+              <span><b>Длительность:</b> {duration}</span>
             </div>
             <div className={styles.status}>
               <span className={getStatusColor()}>{getStatusText()}</span>
             </div>
           </div>
+          <div className={styles.description}>
+          <p > <b>Описание: </b>{shortDesc}</p>
+          </div>
+
+         
 
           {startedAt && (
             <div className={styles.date}>
-              Начат:{" "}
+              <b>Начат:</b>{" "}
               {(() => {
                 if (startedAt instanceof Date) {
                   return startedAt.toLocaleDateString("ru-RU");
@@ -162,7 +166,7 @@ export const CourseCard = ({
 
           {completedAt && (
             <div className={styles.date}>
-              Завершен:{" "}
+              <b>Завершен:</b>{" "}
               {(() => {
                 if (completedAt instanceof Date) {
                   return completedAt.toLocaleDateString("ru-RU");

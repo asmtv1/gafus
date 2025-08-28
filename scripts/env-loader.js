@@ -12,21 +12,21 @@ function loadEnvVars(rootDir = process.cwd()) {
   const envVars = {};
 
   try {
-    // Загружаем .env файл
-    const envPath = path.join(rootDir, ".env");
-    if (fs.existsSync(envPath)) {
-      const envContent = fs.readFileSync(envPath, "utf8");
-      parseEnvContent(envContent, envVars);
-    }
-
-    // Загружаем .env.local если существует
+    // Загружаем .env.local если существует (с приоритетом)
     const envLocalPath = path.join(rootDir, ".env.local");
     if (fs.existsSync(envLocalPath)) {
       const envLocalContent = fs.readFileSync(envLocalPath, "utf8");
       parseEnvContent(envLocalContent, envVars);
     }
 
-    console.warn("🔑 ENV загружен из .env и .env.local");
+    // Загружаем .env файл (базовые значения)
+    const envPath = path.join(rootDir, ".env");
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, "utf8");
+      parseEnvContent(envContent, envVars);
+    }
+
+    console.warn("🔑 ENV загружен из .env.local (приоритет) и .env");
     console.warn(`📋 Загружено ${Object.keys(envVars).length} переменных окружения`);
   } catch (error) {
     console.warn("⚠️ Ошибка загрузки .env файлов:", error.message);

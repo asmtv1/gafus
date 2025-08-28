@@ -6,46 +6,34 @@
 
 .courseCard {
   list-style: none;
-  background: white;
+  background: #FFF8E5;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition:
-    transform 0.2s ease-in-out,
-    box-shadow 0.2s ease-in-out;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.courseCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
 .imageContainer {
   width: 100%;
   max-width: 350px;
-  aspect-ratio: 16 / 9;
-  height: 200px;
-  overflow: hidden;
+  padding-top: 10px;
+  padding-left: 30px;
+  padding-right: 30px;  
+ 
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #009dcf;
   flex-shrink: 0;
   position: relative;
 }
 
 .image {
-  width: 100%;
-  height: 100%;
+  width: 245px;
+  height: 140px;
   object-fit: cover;
-  transition: transform 0.2s ease-in-out;
-}
-
-.courseCard:hover .image {
-  transform: scale(1.05);
+  border-radius: 8px;
 }
 
 .privateBadge {
@@ -61,7 +49,9 @@
 }
 
 .content {
-  padding: 20px;
+  padding-top: 10px;
+  padding-left: 30px;
+  padding-right: 10px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -69,18 +59,18 @@
 
 .title {
   margin: 0 0 10px 0;
-  font-size: 1.3rem;
-  color: #333;
-  line-height: 1.3;
-  font-weight: 600;
+  font-size: 20px;
+  color: #352E2E;
+  line-height: 100%;
+  font-weight: 400;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
 .description {
-  margin: 0 0 15px 0;
-  font-size: 0.9rem;
-  color: #666;
-  line-height: 1.4;
-  flex: 1;
+  color: #352E2E;
+  font-size: 12px;
+  font-weight: 400;
+  font-family: var(--font-montserrat), var(--font-impact), system-ui, sans-serif;
 }
 
 .meta {
@@ -92,7 +82,10 @@
 }
 
 .duration {
-  color: #666;
+  color: #352E2E;
+  font-size: 12px;
+  font-weight: 400;
+  font-family: var(--font-montserrat), var(--font-impact), system-ui, sans-serif;
 }
 
 .status {
@@ -100,7 +93,7 @@
 }
 
 .notStarted {
-  color: #666;
+  color: #352E2E
 }
 
 .inProgress {
@@ -113,7 +106,7 @@
 
 .date {
   font-size: 0.8rem;
-  color: #666;
+  color: #352E2E;
   margin-bottom: 5px;
 }
 
@@ -126,7 +119,7 @@
 
 .reviews {
   font-size: 0.8rem;
-  color: #666;
+  color: #352E2E;
 }
 
 .author {
@@ -134,7 +127,7 @@
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid #eee;
-  padding: 12px 20px;
+  padding: 10px 30px;
   color: #37373d;
   font-size: 0.9rem;
 }

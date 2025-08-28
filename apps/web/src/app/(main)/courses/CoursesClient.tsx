@@ -1,12 +1,12 @@
 "use client";
 
-import { CourseCard } from "@features/courses/components/CourseCard";
 import PullToRefresh from "@shared/components/ui/PullToRefresh";
 import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
 import { useCourseStoreActions } from "@shared/stores";
 import { useEffect } from "react";
 
 import styles from "./page.module.css";
+import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
 
 export default function CoursesClient() {
   const { allCourses, loading, errors, fetchAllCourses, forceRefreshFavorites } =

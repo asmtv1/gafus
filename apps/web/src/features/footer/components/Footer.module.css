@@ -3,8 +3,7 @@
   padding: 2vh;
   border-top: 1px solid #000000;
   justify-content: center;
-  background-color: var(--bg-2);
-  margin-top: 2px;
+  background-color: var(--bg-1);
 }
 .footerText {
   color: black;

@@ -4,13 +4,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background-color: var(--bg-2);
+  background-color: var(--bg-1);
 }
 
 .backButton {
   background: none;
   border: none;
-  color: #f0a222;
+  color: var(--bg-2);
   font-family: var(--font-montserrat), system-ui, sans-serif;
   font-weight: 600;
   font-size: 15px;

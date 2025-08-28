@@ -12,7 +12,7 @@ export const BurgerIcon = ({
   active,
   onClick,
   size = 30,
-  color = "#F0A222",
+  color = "#636128",
 
   thickness = 4,
 }: Props) => {
