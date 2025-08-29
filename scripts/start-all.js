@@ -43,7 +43,7 @@ const apps = [
   { name: "Error Dashboard", filter: "@gafus/error-dashboard", port: 3005, type: "next" },
   { name: "Telegram Bot", filter: "@gafus/telegram-bot", port: 3003, type: "node" },
   { name: "Bull Board", filter: "@gafus/bull-board", port: 3004, type: "node" },
-  { name: "Worker", filter: "@gafus/worker", port: null, type: "worker", delay: 5000 },
+  { name: "Worker", filter: "@gafus/worker", port: null, type: "worker", delay: 5000, watch: true },
 ];
 
 function ensureBuilt(app) {
@@ -118,7 +118,8 @@ apps.forEach((app) => {
   }
 
   let child;
-  child = spawn("pnpm", ["--filter", app.filter, "start"], {
+  const startCommand = app.watch ? "start:watch" : "start";
+  child = spawn("pnpm", ["--filter", app.filter, startCommand], {
     stdio: "pipe",
     shell: true,
     env: { ...process.env },

@@ -87,9 +87,15 @@ class NotificationProcessor {
     }
     async fetchSubscriptions(userId) {
         try {
-            return await prisma_1.prisma.pushSubscription.findMany({
+            // Получаем все подписки пользователя напрямую из БД
+            const subscriptions = await prisma_1.prisma.pushSubscription.findMany({
                 where: { userId },
             });
+            this.logger.info("Found subscriptions", {
+                userId,
+                count: subscriptions.length
+            });
+            return subscriptions;
         }
         catch (error) {
             this.logger.error("Failed to fetch subscriptions", { userId, error });

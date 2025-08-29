@@ -1,4 +1,67 @@
 // Кастомный Service Worker для улучшения offline режима
+
+// Определяем, является ли браузер Safari
+const isSafari = () => {
+  const userAgent = navigator.userAgent;
+  return /Safari/.test(userAgent) && !/Chrome/.test(userAgent);
+};
+
+// Функция для создания уведомления с учетом особенностей Safari
+const createNotificationOptions = (data, baseUrl) => {
+  // Safari 2025: требует иконки в формате PNG, размеры 192x192, 256x256, 512x512
+  // Safari НЕ поддерживает badge, actions, vibrate, timestamp
+  let iconUrl = data.icon ? (data.icon.startsWith('http') ? data.icon : baseUrl + data.icon) : baseUrl + '/icons/icon192.png';
+  
+  // Fallback для Safari - используем иконки в правильных размерах
+  if (!data.icon) {
+    if (isSafari()) {
+      // Safari требует иконки в определенных размерах, пробуем по приоритету
+      // Приоритет: простая иконка 192x192, затем 72x72
+      iconUrl = baseUrl + '/icons/icon-safari-simple.png';
+    } else {
+      iconUrl = baseUrl + '/icons/icon192.png';
+    }
+  }
+  
+  // Safari поддерживает только базовые опции
+  if (isSafari()) {
+    return {
+      body: data.body || data.message || 'Новое уведомление',
+      icon: iconUrl,
+      tag: data.tag || 'gafus-notification',
+      data: data,
+      // Safari не поддерживает: badge, actions, vibrate, timestamp, renotify, dir
+      requireInteraction: false,
+      silent: false
+    };
+  }
+  
+  // Для других браузеров используем полный набор опций
+  const badgeUrl = data.badge ? (data.badge.startsWith('http') ? data.badge : baseUrl + data.badge) : baseUrl + '/icons/badge-72.png';
+  
+  return {
+    body: data.body || data.message || 'Новое уведомление',
+    icon: iconUrl,
+    badge: badgeUrl,
+    tag: data.tag || 'gafus-notification',
+    data: data,
+    requireInteraction: false,
+    actions: [
+      {
+        action: 'open',
+        title: 'Открыть',
+      },
+      {
+        action: 'close',
+        title: 'Закрыть',
+      }
+    ],
+    silent: false,
+    vibrate: [200, 100, 200],
+    timestamp: Date.now()
+  };
+};
+
 self.addEventListener('install', (event) => {
   console.log('🔄 Custom SW installing...');
   event.waitUntil(
@@ -89,29 +152,9 @@ self.addEventListener('push', (event) => {
       const data = event.data.json();
       console.log('🔔 Push data:', data);
       
-      // Специальный формат для iOS Safari
-      const options = {
-        body: data.body || data.message || 'Новое уведомление',
-        icon: data.icon || '/icons/icon192.png',
-        badge: data.badge || '/icons/icon192.png',
-        tag: data.tag || 'gafus-notification',
-        data: data,
-        requireInteraction: false,
-        actions: [
-          {
-            action: 'open',
-            title: 'Открыть',
-          },
-          {
-            action: 'close',
-            title: 'Закрыть',
-          }
-        ],
-        // Специальные опции для iOS Safari
-        silent: false,
-        vibrate: [200, 100, 200],
-        timestamp: Date.now()
-      };
+      // Создаем абсолютные URL для иконок (требуется для Safari)
+      const baseUrl = self.location.origin;
+      const options = createNotificationOptions(data, baseUrl);
       
       console.log('🔔 Showing notification with options:', options);
       
@@ -122,16 +165,26 @@ self.addEventListener('push', (event) => {
           })
           .catch((error) => {
             console.error('❌ Failed to show notification:', error);
+            // Fallback для Safari - пробуем с минимальными опциями
+            if (isSafari()) {
+              const safariFallback = {
+                body: data.body || data.message || 'Новое уведомление',
+                icon: baseUrl + '/icons/icon-512-safari.png',
+                tag: data.tag || 'gafus-notification-safari-fallback'
+              };
+              return self.registration.showNotification(data.title || 'Gafus', safariFallback);
+            }
           })
       );
     } catch (error) {
       console.error('❌ Error processing push data:', error);
       
-      // Fallback notification
+      // Fallback notification с абсолютным URL
+      const baseUrl = self.location.origin;
       event.waitUntil(
         self.registration.showNotification('Gafus', {
           body: 'Новое уведомление',
-          icon: '/icons/icon192.png',
+          icon: baseUrl + '/icons/icon192.png',
           tag: 'gafus-notification-fallback'
         })
       );
@@ -139,11 +192,12 @@ self.addEventListener('push', (event) => {
   } else {
     console.log('🔔 Push event without data');
     
-    // Fallback notification
+    // Fallback notification с абсолютным URL
+    const baseUrl = self.location.origin;
     event.waitUntil(
       self.registration.showNotification('Gafus', {
         body: 'Новое уведомление',
-        icon: '/icons/icon192.png',
+        icon: baseUrl + '/icons/icon192.png',
         tag: 'gafus-notification-fallback'
       })
     );
@@ -159,27 +213,9 @@ self.addEventListener('message', (event) => {
     
     const { data } = event.data;
     
-    const options = {
-      body: data.body || 'Тестовое уведомление',
-      icon: data.icon || '/icons/icon192.png',
-      badge: data.badge || '/icons/icon192.png',
-      tag: 'test-notification',
-      data: data,
-      requireInteraction: false,
-      actions: [
-        {
-          action: 'open',
-          title: 'Открыть',
-        },
-        {
-          action: 'close',
-          title: 'Закрыть',
-        }
-      ],
-      silent: false,
-      vibrate: [200, 100, 200],
-      timestamp: Date.now()
-    };
+    // Создаем абсолютные URL для иконок (требуется для Safari)
+    const baseUrl = self.location.origin;
+    const options = createNotificationOptions(data, baseUrl);
     
     event.waitUntil(
       self.registration.showNotification(data.title || 'Тест Gafus', options)

@@ -1,0 +1,20 @@
+{
+  "watch": [
+    "packages/worker/dist"
+  ],
+  "ext": "js",
+  "ignore": [
+    "packages/worker/dist/**/*.map",
+    "node_modules",
+    "*.log"
+  ],
+  "exec": "node packages/worker/dist/worker/src/start-worker.js",
+  "delay": 1000,
+  "verbose": true,
+  "restartable": "rs",
+  "colours": true,
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
+

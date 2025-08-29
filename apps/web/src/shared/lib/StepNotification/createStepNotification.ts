@@ -50,13 +50,14 @@ export async function createStepNotificationsForUserStep({
   const nowTs = Math.floor(Date.now() / 1000);
   const endTs = nowTs + durationSec;
 
-  const subscription = await prisma.pushSubscription.findFirst({
+  // Получаем ВСЕ подписки пользователя
+  const subscriptions = await prisma.pushSubscription.findMany({
     where: { userId },
   });
 
-  if (!subscription) {
+  if (subscriptions.length === 0) {
     // Логируем ошибку в error-dashboard
-    await logToErrorDashboard("No push subscription found for user", "error", {
+    await logToErrorDashboard("No push subscriptions found for user", "error", {
       userId,
       day,
       stepIndex,
@@ -67,7 +68,7 @@ export async function createStepNotificationsForUserStep({
       timestamp: new Date().toISOString(),
     });
 
-    throw new Error("No push subscription found for user");
+    throw new Error("No push subscriptions found for user");
   }
 
   // Логируем успешное создание уведомления
@@ -78,10 +79,11 @@ export async function createStepNotificationsForUserStep({
     durationSec,
     stepTitle,
     url: maybeUrl,
-    subscriptionId: subscription.id,
+    subscriptionCount: subscriptions.length,
     timestamp: new Date().toISOString(),
   });
 
+  // Создаем уведомление с ВСЕМИ подписками пользователя
   const notif = await prisma.stepNotification.create({
     data: {
       userId,
@@ -90,9 +92,13 @@ export async function createStepNotificationsForUserStep({
       endTs,
       url: maybeUrl,
       stepTitle,
+      // Сохраняем все подписки в JSON поле
       subscription: {
-        endpoint: subscription.endpoint,
-        keys: subscription.keys,
+        subscriptions: subscriptions.map(sub => ({
+          endpoint: sub.endpoint,
+          keys: sub.keys,
+        })),
+        count: subscriptions.length,
       },
     },
   });
@@ -122,6 +128,7 @@ export async function createStepNotificationsForUserStep({
       userId,
       day,
       stepIndex,
+      subscriptionCount: subscriptions.length,
       delay: durationSec * 1000,
       timestamp: new Date().toISOString(),
     });

@@ -319,7 +319,7 @@ model PasswordResetToken {
 model PushSubscription {
   id            String         @id @default(cuid())
   userId        String
-  endpoint      String         @unique
+  endpoint      String
   keys          Json
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt     DateTime       @default(now())
