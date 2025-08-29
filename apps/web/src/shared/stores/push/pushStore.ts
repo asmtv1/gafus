@@ -80,9 +80,10 @@ export const usePushStore = create<PushState>()(
           const registration = await navigator.serviceWorker.ready;
           const existingSubscription = await registration.pushManager.getSubscription();
 
-          if (existingSubscription) {
-            await existingSubscription.unsubscribe();
-          }
+          // НЕ удаляем существующую подписку - позволяем иметь несколько подписок
+          // if (existingSubscription) {
+          //   await existingSubscription.unsubscribe();
+          // }
 
           const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
           
@@ -238,7 +239,32 @@ export const usePushStore = create<PushState>()(
         set({ isLoading: true, error: null });
 
         try {
-          await deleteSubscriptionAction();
+          const currentSubscription = get().subscription;
+          let endpoint: string | undefined;
+
+          if (currentSubscription?.endpoint) {
+            endpoint = currentSubscription.endpoint;
+          } else if (isPushSupported()) {
+            // Если нет текущей подписки в store, пытаемся получить из service worker
+            try {
+              const registration = await navigator.serviceWorker.ready;
+              const existing = await registration.pushManager.getSubscription();
+              if (existing?.endpoint) {
+                endpoint = existing.endpoint;
+              }
+            } catch (error) {
+              console.warn("Failed to get existing subscription:", error);
+            }
+          }
+
+          // Удаляем подписку из базы данных (только для конкретного устройства)
+          if (endpoint) {
+            await deleteSubscriptionAction(endpoint);
+          } else {
+            // Fallback: удаляем все подписки если не можем определить endpoint
+            console.warn("Endpoint not found, removing all subscriptions as fallback");
+            await deleteSubscriptionAction();
+          }
 
           if (get().subscription) {
             try {

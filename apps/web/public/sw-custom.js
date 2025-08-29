@@ -14,13 +14,7 @@ const createNotificationOptions = (data, baseUrl) => {
   
   // Fallback для Safari - используем иконки в правильных размерах
   if (!data.icon) {
-    if (isSafari()) {
-      // Safari требует иконки в определенных размерах, пробуем по приоритету
-      // Приоритет: простая иконка 192x192, затем 72x72
-      iconUrl = baseUrl + '/icons/icon-safari-simple.png';
-    } else {
-      iconUrl = baseUrl + '/icons/icon192.png';
-    }
+    iconUrl = baseUrl + '/icons/icon192.png';
   }
   
   // Safari поддерживает только базовые опции
@@ -169,7 +163,7 @@ self.addEventListener('push', (event) => {
             if (isSafari()) {
               const safariFallback = {
                 body: data.body || data.message || 'Новое уведомление',
-                icon: baseUrl + '/icons/icon-512-safari.png',
+                icon: baseUrl + '/icons/icon192.png',
                 tag: data.tag || 'gafus-notification-safari-fallback'
               };
               return self.registration.showNotification(data.title || 'Gafus', safariFallback);

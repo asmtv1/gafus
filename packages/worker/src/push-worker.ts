@@ -139,7 +139,7 @@ class NotificationProcessor {
     const stepTitle = notification.stepTitle || `Шаг ${notification.stepIndex + 1}`;
 
     return JSON.stringify({
-      title: "Шаг завершён!",
+      title: "ВЫ ВЕЛИКОЛЕПНЫ!",
       body: `Вы успешно прошли "${stepTitle}".`,
       icon: "/icons/icon192.png",
       badge: "/icons/badge-72.png",

@@ -1,6 +1,6 @@
 "use server";
 
-import { deletePushSubscription } from "@shared/lib/savePushSubscription/deletePushSubscription";
+import { deletePushSubscriptionByEndpoint, deleteAllPushSubscriptions } from "@shared/lib/savePushSubscription/deletePushSubscription";
 
 import { savePushSubscription } from "@shared/lib/savePushSubscription/savePushSubscription";
 
@@ -21,9 +21,15 @@ export async function updateSubscriptionAction(subscription: {
   }
 }
 
-export async function deleteSubscriptionAction() {
+export async function deleteSubscriptionAction(endpoint?: string) {
   try {
-    await deletePushSubscription();
+    if (endpoint) {
+      // Удаляем конкретную подписку по endpoint (для конкретного устройства)
+      await deletePushSubscriptionByEndpoint(endpoint);
+    } else {
+      // Удаляем все подписки пользователя (только в крайних случаях)
+      await deleteAllPushSubscriptions();
+    }
     return { success: true };
   } catch (error) {
     console.error("Ошибка при удалении подписки:", error);
