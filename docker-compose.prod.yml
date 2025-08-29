@@ -59,9 +59,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    volumes:
-      - ./packages/public-assets/public/uploads:/app/apps/web/public/uploads
-      - ./packages/public-assets/public/uploads:/app/public/uploads
+
     depends_on:
       - postgres
       - redis
@@ -81,9 +79,7 @@ services:
     ports:
       - "3001:3001"
     restart: unless-stopped
-    volumes:
-      - ./packages/public-assets/public/uploads:/app/apps/trainer-panel/public/uploads
-      - ./packages/public-assets/public/uploads:/app/public/uploads
+
     depends_on:
       - postgres
       - redis
@@ -178,7 +174,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./packages/public-assets/public/uploads:/var/www/uploads:ro
+      - ./packages/public-assets/public:/var/www/public-assets:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
     restart: unless-stopped

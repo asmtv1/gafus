@@ -30,7 +30,7 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
     });
     if (existingPet?.photoUrl) {
       const relativePath = existingPet.photoUrl.split("?")[0];
-      const oldFilePath = path.join(process.cwd(), "public", relativePath);
+      const oldFilePath = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", relativePath);
       try {
         await unlink(oldFilePath);
       } catch {

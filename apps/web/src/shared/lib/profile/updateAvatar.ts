@@ -21,7 +21,7 @@ export async function updateAvatar(file: File): Promise<string> {
     const uint8Array = new Uint8Array(arrayBuffer);
 
     // 3. Формируем папку и имя файла
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "avatars");
+    const uploadDir = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", "uploads", "avatars");
     // Если папки нет, создаём её
     await mkdir(uploadDir, { recursive: true });
 
@@ -37,7 +37,7 @@ export async function updateAvatar(file: File): Promise<string> {
     if (existingProfile?.avatarUrl) {
       // Убираем параметр cache-buster, если он там есть
       const relativePath = existingProfile.avatarUrl.split("?")[0];
-      const oldFilePath = path.join(process.cwd(), "public", relativePath);
+      const oldFilePath = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", relativePath);
       try {
         await unlink(oldFilePath);
       } catch {
