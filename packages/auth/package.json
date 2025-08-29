@@ -13,7 +13,7 @@
     "@gafus/prisma": "workspace:*",
     "bcryptjs": "^3.0.2",
     "libphonenumber-js": "1.12.8",
-    "next": "15.3.5",
+    "next": "15.4.7",
     "next-auth": "4.24.11",
     "react": "19.1.0",
     "react-dom": "19.1.0"
@@ -26,7 +26,7 @@
     "typescript": "5.8.3"
   },
   "peerDependencies": {
-    "next": "15.3.5",
+    "next": "15.4.7",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   }
