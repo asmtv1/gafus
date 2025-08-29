@@ -210,14 +210,54 @@ export class PushNotificationService {
     this.initialized = true;
   }
 
+  /**
+   * Урезает payload до размера, совместимого с Apple
+   */
+  private trimPayloadToSize(payloadStr: string, maxBytes = MAX_APPLE_PAYLOAD_BYTES): string {
+    if (Buffer.byteLength(payloadStr, "utf8") <= maxBytes) return payloadStr;
+
+    // Попробуем аккуратно урезать body, сохранив JSON-валидность
+    try {
+      const obj = JSON.parse(payloadStr);
+      if (typeof obj === "object" && obj !== null && "body" in obj) {
+        const body = obj.body as string;
+        // Уменьшаем body пока не влезает
+        let low = 0;
+        let high = body.length;
+        let best = "";
+        while (low <= high) {
+          const mid = Math.floor((low + high) / 2);
+          const testObj = { ...obj, body: body.slice(0, mid) };
+          const candidate = JSON.stringify(testObj);
+          if (Buffer.byteLength(candidate, "utf8") <= maxBytes) {
+            best = candidate;
+            low = mid + 1;
+          } else {
+            high = mid - 1;
+          }
+        }
+        if (best) return best;
+      }
+    } catch (_) {
+      // fallthrough — если не JSON или не получилось, вернём усечённую строку
+    }
+
+    // Последняя инстанция — просто обрезаем строку
+    const buf = Buffer.from(payloadStr, "utf8");
+    return buf.slice(0, maxBytes).toString("utf8");
+  }
+
+  /**
+   * Форматирует payload для iOS Safari (обратная совместимость)
+   */
   private formatIOSCompatiblePayload(payload: string | Record<string, unknown>): string {
     // Парсим безопасно
     let payloadObj: Record<string, unknown> = {};
+    
     if (typeof payload === "string") {
       try {
         payloadObj = JSON.parse(payload) as Record<string, unknown>;
       } catch {
-        // если строка — просто кладём её в body
         payloadObj = { title: "Уведомление", body: String(payload) };
       }
     } else {
@@ -230,21 +270,35 @@ export class PushNotificationService {
         ? payloadObj.badge
         : payloadObj.badgeUrl || undefined;
 
+    // Специальный формат для iOS Safari
     const out: Record<string, unknown> = {
       title: payloadObj.title || "Уведомление",
-      body: payloadObj.body || "",
+      body: payloadObj.body || payloadObj.message || "",
       icon: payloadObj.icon || "/icons/icon192.png",
       badge: badgeUrl,
       tag: payloadObj.tag || "default",
       data: payloadObj.data || {},
-      requireInteraction: payloadObj.requireInteraction ?? true,
+      requireInteraction: payloadObj.requireInteraction ?? false,
       silent: payloadObj.silent ?? false,
+      // Специальные опции для iOS Safari
+      actions: payloadObj.actions || [
+        {
+          action: 'open',
+          title: 'Открыть',
+        },
+        {
+          action: 'close',
+          title: 'Закрыть',
+        }
+      ],
+      vibrate: payloadObj.vibrate || [200, 100, 200],
+      timestamp: payloadObj.timestamp || Date.now(),
     };
 
     const str = JSON.stringify(out);
 
     // Проверяем и при необходимости урезаем до лимита Apple
-    return trimPayloadToSize(str, MAX_APPLE_PAYLOAD_BYTES);
+    return this.trimPayloadToSize(str, MAX_APPLE_PAYLOAD_BYTES);
   }
 
   /**

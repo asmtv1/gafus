@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Принудительная Safari подписка</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      }
+      .warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        color: #856404;
+      }
+      .success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        color: #155724;
+      }
+      .error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        color: #721c24;
+      }
+      button {
+        background-color: #007AFF;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        margin: 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+      }
+      button:hover {
+        background-color: #0056CC;
+      }
+      button:disabled {
+        background-color: #8E8E93;
+        cursor: not-allowed;
+      }
+      .log {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        max-height: 400px;
+        overflow-y: auto;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      .step {
+        margin: 20px 0;
+        padding: 15px;
+        border-left: 4px solid #007AFF;
+        background-color: #f8f9fa;
+      }
+      .endpoint-info {
+        background-color: #e3f2fd;
+        border: 1px solid #bbdefb;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        font-family: monospace;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🍎 Принудительная Safari подписка</h1>
+      
+      <div class="warning">
+        <h3>⚠️ Важно!</h3>
+        <p>Эта страница предназначена для принудительного создания push-подписки для Safari на iOS.</p>
+        <p><strong>Обязательно:</strong></p>
+        <ul>
+          <li>Откройте сайт в Safari на iOS</li>
+          <li>Добавьте в главный экран</li>
+          <li>Запустите как приложение из главного экрана</li>
+          <li>Запросите разрешение на уведомления</li>
+        </ul>
+      </div>
+
+      <div id="status" class="warning">Проверяем Safari...</div>
+
+      <div class="step">
+        <h3>Шаг 1: Проверка окружения</h3>
+        <button id="checkEnvironment">🔍 Проверить окружение</button>
+        <button id="checkPWA">📱 Проверить PWA режим</button>
+      </div>
+
+      <div class="step">
+        <h3>Шаг 2: Создание подписки</h3>
+        <button id="createSubscription">🚀 Создать подписку</button>
+        <button id="forceAPNS">🍎 Принудительно APNS</button>
+        <button id="clearSubscription">🗑️ Очистить подписку</button>
+      </div>
+
+      <div class="step">
+        <h3>Шаг 3: Тестирование</h3>
+        <button id="testNotification">🔔 Тест уведомления</button>
+        <button id="testPush">🚀 Тест Push</button>
+      </div>
+
+      <div class="step">
+        <h3>Утилиты</h3>
+        <button id="clearLog">🧹 Очистить лог</button>
+        <button id="fullDiagnostic">🔬 Полная диагностика</button>
+      </div>
+
+      <div id="endpointInfo" class="endpoint-info" style="display: none;">
+        <h4>🔗 Endpoint подписки:</h4>
+        <div id="endpointText"></div>
+        <h4>🔑 Ключи:</h4>
+        <div id="keysText"></div>
+      </div>
+
+      <div class="log" id="log"></div>
+    </div>
+
+    <script>
+      const log = document.getElementById("log");
+      const status = document.getElementById("status");
+      const endpointInfo = document.getElementById("endpointInfo");
+      const endpointText = document.getElementById("endpointText");
+      const keysText = document.getElementById("keysText");
+
+      function addLog(message, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement("div");
+        logEntry.innerHTML = `[${timestamp}] ${message}`;
+        logEntry.style.color = type === "error" ? "#FF3B30" : type === "success" ? "#34C759" : type === "warning" ? "#FF9500" : "#007AFF";
+        log.appendChild(logEntry);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      function updateStatus(message, type = "warning") {
+        status.textContent = message;
+        status.className = type;
+      }
+
+      // Проверка окружения
+      function checkEnvironment() {
+        addLog("🔍 Проверяем окружение...");
+        
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isMac = /Macintosh/.test(navigator.userAgent);
+        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        const isStandalone = window.navigator.standalone || false;
+        const hasServiceWorker = 'serviceWorker' in navigator;
+        const hasPushManager = 'PushManager' in window;
+        const hasNotification = 'Notification' in window;
+        
+        addLog(`🍎 iOS: ${isIOS ? "✅" : "❌"}`);
+        addLog(`🍎 Mac: ${isMac ? "✅" : "❌"}`);
+        addLog(`🌐 Safari: ${isSafari ? "✅" : "❌"}`);
+        addLog(`📱 PWA режим: ${isStandalone ? "✅" : "❌"}`);
+        addLog(`⚙️ Service Worker: ${hasServiceWorker ? "✅" : "❌"}`);
+        addLog(`🚀 Push Manager: ${hasPushManager ? "✅" : "❌"}`);
+        addLog(`🔔 Notifications: ${hasNotification ? "✅" : "❌"}`);
+        
+        // На Mac Safari push-уведомления работают без PWA режима
+        if (isSafari && hasServiceWorker && hasPushManager && hasNotification && (isIOS || isMac)) {
+          addLog("✅ Все условия выполнены для Safari push-уведомлений", "success");
+          updateStatus("Окружение готово для Safari ✅", "success");
+          return true;
+        } else {
+          addLog("❌ Не все условия выполнены", "error");
+          updateStatus("Окружение не готово ❌", "error");
+          return false;
+        }
+      }
+
+      // Проверка PWA режима
+      function checkPWA() {
+        addLog("📱 Проверяем PWA режим...");
+        
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isMac = /Macintosh/.test(navigator.userAgent);
+        const isStandalone = window.navigator.standalone || false;
+        
+        if (isStandalone) {
+          addLog("✅ Приложение в PWA режиме", "success");
+          addLog("📱 Запущено из главного экрана", "success");
+        } else {
+          if (isMac) {
+            addLog("ℹ️ На Mac Safari push-уведомления работают без PWA режима", "info");
+          } else {
+            addLog("❌ Приложение НЕ в PWA режиме", "error");
+            addLog("💡 Добавьте сайт в главный экран и запустите оттуда", "warning");
+          }
+        }
+        
+        // Проверяем display mode
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+          addLog("✅ Display mode: standalone", "success");
+        } else {
+          if (isMac) {
+            addLog("ℹ️ На Mac Safari display mode не критичен", "info");
+          } else {
+            addLog("❌ Display mode: не standalone", "error");
+          }
+        }
+        
+        return isStandalone;
+      }
+
+      // Создание подписки
+      async function createSubscription() {
+        addLog("🚀 Создаем push-подписку...");
+        
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isMac = /Macintosh/.test(navigator.userAgent);
+        
+        // На Mac Safari не нужен PWA режим
+        if (isMac) {
+          addLog("🍎 Mac Safari - PWA режим не требуется", "info");
+        } else if (!checkEnvironment()) {
+          addLog("❌ Окружение не готово", "error");
+          return;
+        }
+        
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          
+          // Очищаем существующую подписку
+          const existingSubscription = await registration.pushManager.getSubscription();
+          if (existingSubscription) {
+            addLog("🗑️ Удаляем существующую подписку...");
+            await existingSubscription.unsubscribe();
+          }
+          
+          // Создаем новую подписку
+          addLog("🔑 Создаем новую подписку...");
+          
+          // Используем VAPID ключ из вашего проекта
+          const vapidKey = "BPmb6CQrFMWqBD3sNNE9AZ0iBoKHXNZMSiXQh4t_PJ9qxpH97GT1iIbnrPnnDiMx3dsMQFJSlOIuw8kkhwAeZXU";
+          addLog("🔑 Используем VAPID ключ из проекта", "success");
+          
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidKey),
+          });
+          
+          addLog("✅ Подписка создана!", "success");
+          addLog(`🔗 Endpoint: ${subscription.endpoint.substring(0, 80)}...`);
+          
+          // Проверяем тип endpoint
+          if (subscription.endpoint.includes('web.push.apple.com')) {
+            addLog("🍎 APNS endpoint создан! Safari будет получать уведомления", "success");
+            updateStatus("APNS подписка создана! ✅", "success");
+          } else if (subscription.endpoint.includes('fcm.googleapis.com')) {
+            addLog("⚠️ FCM endpoint создан. Safari НЕ будет получать уведомления", "warning");
+            updateStatus("FCM подписка создана (не для Safari) ⚠️", "warning");
+          } else {
+            addLog("❓ Неизвестный endpoint тип", "error");
+            updateStatus("Неизвестный endpoint ❓", "error");
+          }
+          
+          // Показываем информацию о подписке
+          showSubscriptionInfo(subscription);
+          
+        } catch (error) {
+          addLog(`❌ Ошибка создания подписки: ${error.message}`, "error");
+          updateStatus("Ошибка создания подписки ❌", "error");
+        }
+      }
+
+      // Принудительное создание APNS подписки
+      async function forceAPNS() {
+        addLog("🍎 Принудительно создаем APNS подписку...");
+        
+        if (!checkEnvironment()) {
+          addLog("❌ Окружение не готово", "error");
+          return;
+        }
+        
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          
+          // Очищаем все подписки
+          const existingSubscription = await registration.pushManager.getSubscription();
+          if (existingSubscription) {
+            addLog("🗑️ Удаляем существующую подписку...");
+            await existingSubscription.unsubscribe();
+          }
+          
+          // Ждем немного
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Пробуем создать подписку несколько раз
+          let attempts = 0;
+          const maxAttempts = 5;
+          
+          while (attempts < maxAttempts) {
+            attempts++;
+            addLog(`🔄 Попытка ${attempts}/${maxAttempts} создания APNS подписки...`);
+            
+            try {
+              // Используем VAPID ключ из вашего проекта
+              const vapidKey = "BPmb6CQrFMWqBD3sNNE9AZ0iBoKHXNZMSiXQh4t_PJ9qxpH97GT1iIbnrPnnDiMx3dsMQFJSlOIuw8kkhwAeZXU";
+              
+              const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidKey),
+              });
+              
+              if (subscription.endpoint.includes('web.push.apple.com')) {
+                addLog("🍎 Успешно создана APNS подписка!", "success");
+                updateStatus("APNS подписка создана! ✅", "success");
+                showSubscriptionInfo(subscription);
+                return;
+              } else {
+                addLog(`⚠️ Попытка ${attempts}: создан ${subscription.endpoint.includes('fcm.googleapis.com') ? 'FCM' : 'неизвестный'} endpoint`);
+                await subscription.unsubscribe();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            } catch (error) {
+              addLog(`❌ Попытка ${attempts} не удалась: ${error.message}`);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+          
+          addLog("❌ Не удалось создать APNS подписку после всех попыток", "error");
+          updateStatus("APNS подписка не создана ❌", "error");
+          
+        } catch (error) {
+          addLog(`❌ Ошибка принудительного создания APNS: ${error.message}`, "error");
+        }
+      }
+
+      // Очистка подписки
+      async function clearSubscription() {
+        addLog("🗑️ Очищаем подписку...");
+        
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          
+          if (subscription) {
+            await subscription.unsubscribe();
+            addLog("✅ Подписка удалена", "success");
+            endpointInfo.style.display = "none";
+          } else {
+            addLog("ℹ️ Подписка не найдена", "info");
+          }
+        } catch (error) {
+          addLog(`❌ Ошибка удаления подписки: ${error.message}`, "error");
+        }
+      }
+
+      // Показ информации о подписке
+      function showSubscriptionInfo(subscription) {
+        endpointInfo.style.display = "block";
+        endpointText.textContent = subscription.endpoint;
+        
+        const keys = subscription.toJSON().keys;
+        if (keys) {
+          keysText.innerHTML = `
+            <strong>P256DH:</strong> ${keys.p256dh}<br>
+            <strong>Auth:</strong> ${keys.auth}
+          `;
+        } else {
+          keysText.textContent = "Ключи недоступны";
+        }
+      }
+
+      // Тест уведомления
+      function testNotification() {
+        addLog("🔔 Тестируем уведомление...");
+        
+        if (Notification.permission !== "granted") {
+          addLog("❌ Нет разрешения на уведомления", "error");
+          return;
+        }
+        
+        try {
+          const notification = new Notification("Safari Push Тест", {
+            body: "Это тестовое уведомление для проверки Safari",
+            icon: "/icons/icon192.png",
+            badge: "/icons/icon192.png",
+            tag: "safari-test",
+            requireInteraction: false
+          });
+          
+          addLog("✅ Уведомление показано", "success");
+          
+          notification.onclick = () => {
+            addLog("👆 Уведомление кликнуто");
+            window.focus();
+          };
+          
+        } catch (error) {
+          addLog(`❌ Ошибка показа уведомления: ${error.message}`, "error");
+        }
+      }
+
+      // Тест Push через Service Worker
+      async function testPush() {
+        addLog("🚀 Тестируем Push через Service Worker...");
+        
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          
+          if (!registration.active) {
+            addLog("❌ Service Worker не активен", "error");
+            return;
+          }
+          
+          const messageChannel = new MessageChannel();
+          
+          messageChannel.port1.onmessage = (event) => {
+            if (event.data.success) {
+              addLog("✅ Push-уведомление показано успешно", "success");
+            } else {
+              addLog(`❌ Ошибка Push: ${event.data.error}`, "error");
+            }
+          };
+          
+          registration.active.postMessage({
+            type: "TEST_PUSH",
+            data: {
+              title: "Safari Push Тест",
+              body: "Это тестовое push-уведомление для Safari",
+              icon: "/icons/icon192.png",
+              badge: "/icons/icon192.png",
+              tag: "safari-push-test"
+            }
+          }, [messageChannel.port2]);
+          
+          addLog("📤 Push-сообщение отправлено в SW");
+          
+        } catch (error) {
+          addLog(`❌ Ошибка Push: ${error.message}`, "error");
+        }
+      }
+
+      // Полная диагностика
+      async function fullDiagnostic() {
+        addLog("🔬 Начинаем полную диагностику...");
+        
+        // Проверяем окружение
+        const envOk = checkEnvironment();
+        
+        // Проверяем PWA
+        const pwaOk = checkPWA();
+        
+        // Проверяем Service Worker
+        try {
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (registration) {
+            addLog(`✅ SW зарегистрирован: ${registration.scope}`);
+            addLog(`📱 Активный: ${registration.active ? "Да" : "Нет"}`);
+          } else {
+            addLog("❌ SW не зарегистрирован");
+          }
+        } catch (error) {
+          addLog(`❌ Ошибка проверки SW: ${error.message}`);
+        }
+        
+        // Проверяем подписку
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          
+          if (subscription) {
+            addLog("✅ Подписка найдена");
+            addLog(`🔗 Endpoint: ${subscription.endpoint.substring(0, 60)}...`);
+            
+            if (subscription.endpoint.includes('web.push.apple.com')) {
+              addLog("🍎 APNS endpoint - Safari будет работать", "success");
+            } else if (subscription.endpoint.includes('fcm.googleapis.com')) {
+              addLog("⚠️ FCM endpoint - Safari НЕ будет работать", "warning");
+            }
+          } else {
+            addLog("❌ Подписка не найдена");
+          }
+        } catch (error) {
+          addLog(`❌ Ошибка проверки подписки: ${error.message}`);
+        }
+        
+        addLog("✅ Диагностика завершена");
+      }
+
+      // Утилиты
+      function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      }
+
+      // Обработчики событий
+      document.getElementById("checkEnvironment").addEventListener("click", checkEnvironment);
+      document.getElementById("checkPWA").addEventListener("click", checkPWA);
+      document.getElementById("createSubscription").addEventListener("click", createSubscription);
+      document.getElementById("forceAPNS").addEventListener("click", forceAPNS);
+      document.getElementById("clearSubscription").addEventListener("click", clearSubscription);
+      document.getElementById("testNotification").addEventListener("click", testNotification);
+      document.getElementById("testPush").addEventListener("click", testPush);
+      document.getElementById("fullDiagnostic").addEventListener("click", fullDiagnostic);
+      document.getElementById("clearLog").addEventListener("click", () => {
+        log.innerHTML = "";
+        addLog("🧹 Лог очищен");
+      });
+
+      // Автоматическая проверка при загрузке
+      window.addEventListener("load", () => {
+        addLog("🌐 Страница загружена, начинаем проверку...");
+        checkEnvironment();
+        checkPWA();
+      });
+
+      // Обработка сообщений от Service Worker
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        addLog(`📨 Сообщение от SW: ${JSON.stringify(event.data)}`);
+      });
+    </script>
+  </body>
+</html>

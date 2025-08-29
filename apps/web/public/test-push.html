@@ -248,20 +248,61 @@
 
         try {
           const registration = await navigator.serviceWorker.ready;
+          
+          if (!registration.active) {
+            addLog("❌ Service Worker не активен", "error");
+            return;
+          }
 
-          // Отправляем сообщение в Service Worker
+          // Создаем MessageChannel для получения ответа
+          const messageChannel = new MessageChannel();
+          
+          messageChannel.port1.onmessage = (event) => {
+            if (event.data.success) {
+              addLog("✅ Тестовое push-уведомление показано успешно", "success");
+            } else {
+              addLog(`❌ Ошибка показа push-уведомления: ${event.data.error}`, "error");
+            }
+          };
+
+          // Отправляем сообщение в Service Worker с портом
           registration.active.postMessage({
             type: "TEST_PUSH",
             data: {
               title: "Тест Push",
               body: "Это тестовое push-уведомление от Service Worker",
               icon: "/icons/icon192.png",
-            },
-          });
+              badge: "/icons/icon192.png",
+              tag: "test-push",
+              timestamp: Date.now()
+            }
+          }, [messageChannel.port2]);
 
           addLog("✅ Сообщение отправлено в Service Worker", "success");
         } catch (error) {
           addLog(`❌ Ошибка тестирования push: ${error.message}`, "error");
+        }
+      }
+
+      // Проверяем iOS Safari специфичные возможности
+      function checkIOSSafari() {
+        addLog("🍎 Проверяем iOS Safari специфики...");
+        
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        
+        if (isIOS && isSafari) {
+          addLog("✅ Обнаружен iOS Safari", "success");
+          addLog("📱 Версия iOS Safari может требовать специальных настроек для push-уведомлений", "info");
+          
+          // Проверяем поддержку PWA
+          if (window.navigator.standalone) {
+            addLog("✅ Приложение запущено в standalone режиме (PWA)", "success");
+          } else {
+            addLog("⚠️ Приложение не в standalone режиме. Для лучшей работы push-уведомлений добавьте в главный экран", "warning");
+          }
+        } else {
+          addLog("ℹ️ Не iOS Safari", "info");
         }
       }
 
@@ -271,6 +312,9 @@
 
         // Проверяем поддержку
         if (!checkSupport()) return;
+
+        // Проверяем iOS Safari специфики
+        checkIOSSafari();
 
         // Проверяем разрешения
         checkPermissionStatus();

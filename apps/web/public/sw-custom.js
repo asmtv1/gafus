@@ -29,16 +29,23 @@ self.addEventListener('fetch', (event) => {
   // Обрабатываем только GET запросы
   if (request.method !== 'GET') return;
   
-  // Для навигационных запросов используем специальную логику
-  if (request.mode === 'navigate') {
+  // Для push-уведомлений не используем кэширование
+  if (request.url.includes('/api/push')) {
+    return;
+  }
+  
+  // Упрощенная логика для Safari - только базовое кэширование
+  try {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Если запрос успешен, кэшируем его
-          if (response.status === 200) {
+          // Если запрос успешен и это страница, кэшируем
+          if (response.status === 200 && request.mode === 'navigate') {
             const responseClone = response.clone();
             caches.open('pages').then((cache) => {
-              cache.put(request, responseClone);
+              cache.put(request, responseClone).catch(err => {
+                console.warn('⚠️ Failed to cache page:', err);
+              });
             });
           }
           return response;
@@ -47,17 +54,14 @@ self.addEventListener('fetch', (event) => {
           console.log('🌐 Network failed, trying cache...', error);
           
           // Пытаемся найти в кэше
-          const cachedResponse = await caches.match(request);
-          if (cachedResponse) {
-            console.log('✅ Serving from cache:', request.url);
-            return cachedResponse;
-          }
-          
-          // Если в кэше нет, показываем offline страницу
-          console.log('📱 No cache found, showing offline page');
-          const offlineResponse = await caches.match('/~offline');
-          if (offlineResponse) {
-            return offlineResponse;
+          try {
+            const cachedResponse = await caches.match(request);
+            if (cachedResponse) {
+              console.log('✅ Serving from cache:', request.url);
+              return cachedResponse;
+            }
+          } catch (cacheError) {
+            console.warn('⚠️ Cache error:', cacheError);
           }
           
           // Fallback на пустую страницу
@@ -69,63 +73,9 @@ self.addEventListener('fetch', (event) => {
           );
         })
     );
-    return;
-  }
-  
-  // Для push-уведомлений не используем кэширование
-  if (request.url.includes('/api/push')) {
-    return;
-  }
-  
-  // Для API запросов используем NetworkFirst с коротким таймаутом
-  if (request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Если запрос успешен, кэшируем его
-          if (response.status === 200) {
-            const responseClone = response.clone();
-            // Определяем подходящий кэш в зависимости от типа API
-            let cacheName = 'api-cache';
-            if (request.url.includes('/api/courses')) {
-              cacheName = 'courses-api';
-            } else if (request.url.includes('/api/timer') || request.url.includes('/api/progress')) {
-              cacheName = 'timer-progress-api';
-            }
-            
-            caches.open(cacheName).then((cache) => {
-              cache.put(request, responseClone);
-            }).catch((error) => {
-              console.warn('⚠️ Failed to cache API response:', error);
-            });
-          }
-          return response;
-        })
-        .catch(async (error) => {
-          console.log('🌐 API failed, trying cache:', request.url);
-          
-          // Пытаемся найти в соответствующем кэше
-          let cacheName = 'api-cache';
-          if (request.url.includes('/api/courses')) {
-            cacheName = 'courses-api';
-          } else if (request.url.includes('/api/timer') || request.url.includes('/api/progress')) {
-            cacheName = 'timer-progress-api';
-          }
-          
-          try {
-            const cachedResponse = await caches.match(request);
-            if (cachedResponse) {
-              console.log('✅ Serving API from cache:', request.url);
-              return cachedResponse;
-            }
-          } catch (cacheError) {
-            console.warn('⚠️ Cache lookup failed:', cacheError);
-          }
-          
-          // Если в кэше нет, возвращаем ошибку
-          throw error;
-        })
-    );
+  } catch (error) {
+    console.warn('⚠️ Fetch handler error:', error);
+    // В случае ошибки просто пропускаем
     return;
   }
 });
@@ -139,11 +89,12 @@ self.addEventListener('push', (event) => {
       const data = event.data.json();
       console.log('🔔 Push data:', data);
       
+      // Специальный формат для iOS Safari
       const options = {
-        body: data.body || 'Новое уведомление',
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        tag: 'gafus-notification',
+        body: data.body || data.message || 'Новое уведомление',
+        icon: data.icon || '/icons/icon192.png',
+        badge: data.badge || '/icons/icon192.png',
+        tag: data.tag || 'gafus-notification',
         data: data,
         requireInteraction: false,
         actions: [
@@ -155,7 +106,11 @@ self.addEventListener('push', (event) => {
             action: 'close',
             title: 'Закрыть',
           }
-        ]
+        ],
+        // Специальные опции для iOS Safari
+        silent: false,
+        vibrate: [200, 100, 200],
+        timestamp: Date.now()
       };
       
       console.log('🔔 Showing notification with options:', options);
@@ -176,7 +131,7 @@ self.addEventListener('push', (event) => {
       event.waitUntil(
         self.registration.showNotification('Gafus', {
           body: 'Новое уведомление',
-          icon: '/favicon.ico',
+          icon: '/icons/icon192.png',
           tag: 'gafus-notification-fallback'
         })
       );
@@ -188,10 +143,72 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification('Gafus', {
         body: 'Новое уведомление',
-        icon: '/favicon.ico',
+        icon: '/icons/icon192.png',
         tag: 'gafus-notification-fallback'
       })
     );
+  }
+});
+
+// Обработка сообщений от основного потока (для тестовых уведомлений)
+self.addEventListener('message', (event) => {
+  console.log('📨 Message received in Service Worker:', event.data);
+  
+  if (event.data && event.data.type === 'TEST_PUSH') {
+    console.log('🔔 Processing test push notification');
+    
+    const { data } = event.data;
+    
+    const options = {
+      body: data.body || 'Тестовое уведомление',
+      icon: data.icon || '/icons/icon192.png',
+      badge: data.badge || '/icons/icon192.png',
+      tag: 'test-notification',
+      data: data,
+      requireInteraction: false,
+      actions: [
+        {
+          action: 'open',
+          title: 'Открыть',
+        },
+        {
+          action: 'close',
+          title: 'Закрыть',
+        }
+      ],
+      silent: false,
+      vibrate: [200, 100, 200],
+      timestamp: Date.now()
+    };
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'Тест Gafus', options)
+        .then(() => {
+          console.log('✅ Test notification shown successfully');
+          // Безопасная отправка ответа
+          if (event.ports && event.ports.length > 0) {
+            event.ports[0].postMessage({ success: true });
+          }
+        })
+        .catch((error) => {
+          console.error('❌ Failed to show test notification:', error);
+          if (event.ports && event.ports.length > 0) {
+            event.ports[0].postMessage({ success: false, error: error.message });
+          }
+        })
+    );
+  } else if (event.data && event.data.type === 'PING') {
+    console.log('🏓 PING received, responding with PONG');
+    
+    // Безопасная отправка ответа
+    if (event.ports && event.ports.length > 0) {
+      event.ports[0].postMessage({ 
+        success: true, 
+        message: 'PONG',
+        timestamp: event.data.timestamp,
+        swTimestamp: Date.now()
+      });
+    }
   }
 });
 
@@ -202,7 +219,8 @@ self.addEventListener('notificationclick', (event) => {
   
   if (event.action === 'open') {
     event.waitUntil(
-      self.clients.openWindow('/')
+      // Используем относительный путь для Safari
+      self.clients.openWindow('./')
         .then((windowClient) => {
           if (windowClient) {
             console.log('✅ Window opened successfully');
@@ -210,6 +228,8 @@ self.addEventListener('notificationclick', (event) => {
         })
         .catch((error) => {
           console.error('❌ Failed to open window:', error);
+          // Fallback - открываем текущий URL
+          self.clients.openWindow(self.location.origin);
         })
     );
   }
