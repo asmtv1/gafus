@@ -33,7 +33,7 @@ declare module "next-auth/jwt" {
 
 // Импортируем CredentialsProvider напрямую
 
-const isProd = process.env.NODE_ENV === "production";
+const isProd = process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL?.includes("https://");
 const cookieDomain = process.env.AUTH_COOKIE_DOMAIN?.trim() || undefined;
 
 export const authOptions: NextAuthOptions = {

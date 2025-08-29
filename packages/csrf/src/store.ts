@@ -202,6 +202,11 @@ export const useCSRFStore = create<CSRFState>()(
   ),
 );
 
+// Экспорт глобальной переменной для Safari совместимости
+if (typeof window !== 'undefined') {
+  (window as unknown as { __CSRF_STORE__?: typeof useCSRFStore }).__CSRF_STORE__ = useCSRFStore;
+}
+
 // ===== УТИЛИТАРНЫЕ ФУНКЦИИ =====
 /**
  * Utility функция для добавления CSRF токена к fetch запросам

@@ -1,5 +1,5 @@
-// Единый сервис для работы с push-уведомлениями
-// Объединяет логику из apps/web/src/utils/push.ts и packages/worker/src/push-worker.ts
+// Unified Push Notification service
+// Объединяет логику отправки push-уведомлений для web и worker
 
 // Local type definition to avoid @gafus/types dependency
 interface PushSubscriptionJSON {
@@ -9,13 +9,13 @@ interface PushSubscriptionJSON {
     auth: string;
   };
 }
+
 import webpush from "web-push";
 import type { PushLogEntry } from "./types";
 
 // Функция для отправки логов в error-dashboard
 const sendToErrorDashboard = async (logEntry: PushLogEntry): Promise<void> => {
   try {
-    // Определяем URL error-dashboard из переменных окружения
     const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || "http://gafus-error-dashboard:3005";
 
     const errorReport = {
@@ -29,7 +29,7 @@ const sendToErrorDashboard = async (logEntry: PushLogEntry): Promise<void> => {
       url: `${errorDashboardUrl}/push-logs`,
       userAgent: "push-service",
       userId: logEntry.userId || null,
-      sessionId: null, // Для push-уведомлений не используем сессии
+      sessionId: null,
       componentStack: null,
       additionalContext: {
         context: logEntry.context,
@@ -52,17 +52,17 @@ const sendToErrorDashboard = async (logEntry: PushLogEntry): Promise<void> => {
     });
 
     if (!response.ok) {
+      // не кидаем исключение — логируем локально
       console.error(
         `Failed to send log to error-dashboard: ${response.status} ${response.statusText}`,
       );
     }
   } catch (error) {
-    // Если не удалось отправить в error-dashboard, логируем локально
     console.error("Failed to send log to error-dashboard:", error);
   }
 };
 
-// Собственный логгер для push-уведомлений, интегрирующийся с error-dashboard
+// Logger
 interface PushLogger {
   info(message: string, meta?: Record<string, unknown>): void;
   warn(message: string, meta?: Record<string, unknown>): void;
@@ -70,7 +70,6 @@ interface PushLogger {
   debug(message: string, meta?: Record<string, unknown>): void;
 }
 
-// Реализация логгера с интеграцией в error-dashboard
 const createPushLogger = (context: string): PushLogger => {
   const logToErrorDashboard = (
     level: string,
@@ -78,7 +77,6 @@ const createPushLogger = (context: string): PushLogger => {
     error?: unknown,
     meta?: Record<string, unknown>,
   ) => {
-    // Отправляем в error-dashboard через стандартный интерфейс
     const logEntry: PushLogEntry = {
       timestamp: new Date().toISOString(),
       level: level as PushLogEntry["level"],
@@ -86,21 +84,17 @@ const createPushLogger = (context: string): PushLogger => {
       message,
       error:
         error instanceof Error
-          ? {
-              name: error.name,
-              message: error.message,
-              stack: error.stack,
-            }
+          ? { name: error.name, message: error.message, stack: error.stack }
           : error,
       meta,
       service: "push-notifications",
     };
 
-    // Отправляем в error-dashboard
-    sendToErrorDashboard(logEntry);
+    // Fire-and-forget: не блокируем основной поток отправкой логов
+    void sendToErrorDashboard(logEntry);
 
-    // В разработке также выводим в console для отладки
     if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
       console.log(`[${context}] ${level.toUpperCase()}: ${message}`, { error, meta });
     }
   };
@@ -115,13 +109,21 @@ const createPushLogger = (context: string): PushLogger => {
 
 const logger = createPushLogger("webpush-service");
 
-// Простые функции валидации
-const validateVapidPublicKey = (key: string) => key && key.length >= 20;
-const validateVapidPrivateKey = (key: string) => key && key.length >= 20;
+// Валидация
+const validateVapidPublicKey = (key: string) => !!key && key.length >= 20;
+const validateVapidPrivateKey = (key: string) => !!key && key.length >= 20;
 const validateVapidSubject = (subject: string) =>
-  subject && (subject.startsWith("mailto:") || subject.startsWith("http"));
+  !!subject && (subject.startsWith("mailto:") || subject.startsWith("http"));
 const validatePushSubscription = (sub: { endpoint?: string }) =>
-  sub && sub.endpoint && typeof sub.endpoint === "string";
+  !!(sub && sub.endpoint && typeof sub.endpoint === "string");
+const validatePushSubscriptionFull = (sub: unknown): sub is PushSubscriptionJSON =>
+  !!(
+    sub &&
+    typeof (sub as PushSubscriptionJSON).endpoint === "string" &&
+    (sub as PushSubscriptionJSON).keys &&
+    typeof (sub as PushSubscriptionJSON).keys.p256dh === "string" &&
+    typeof (sub as PushSubscriptionJSON).keys.auth === "string"
+  );
 
 export interface PushServiceConfig {
   vapidSubject: string;
@@ -133,6 +135,42 @@ export interface SendResult {
   success: boolean;
   endpoint: string;
   error?: unknown;
+}
+
+// Helper: ensure payload fits under Apple's 4KB limit (4096 bytes)
+const MAX_APPLE_PAYLOAD_BYTES = 4096;
+function trimPayloadToSize(payloadStr: string, maxBytes = MAX_APPLE_PAYLOAD_BYTES): string {
+  if (Buffer.byteLength(payloadStr, "utf8") <= maxBytes) return payloadStr;
+
+  // Попробуем аккуратно урезать body, сохранив JSON-валидность
+  try {
+    const obj = JSON.parse(payloadStr);
+    if (typeof obj === "object" && obj !== null && "body" in obj && typeof obj.body === "string") {
+      const body = obj.body as string;
+      // Уменьшаем body пока не влезает
+      let low = 0;
+      let high = body.length;
+      let best = "";
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const testObj = { ...obj, body: body.slice(0, mid) };
+        const candidate = JSON.stringify(testObj);
+        if (Buffer.byteLength(candidate, "utf8") <= maxBytes) {
+          best = candidate;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+      if (best) return best;
+    }
+  } catch (_) {
+    // fallthrough — если не JSON или не получилось, вернём усечённую строку
+  }
+
+  // Последняя инстанция — просто обрезаем строку
+  const buf = Buffer.from(payloadStr, "utf8");
+  return buf.slice(0, maxBytes).toString("utf8");
 }
 
 /**
@@ -149,7 +187,6 @@ export class PushNotificationService {
   private validateAndInitialize(): void {
     const { vapidSubject, vapidPublicKey, vapidPrivateKey } = this.config;
 
-    // Валидируем все VAPID параметры
     if (!validateVapidPublicKey(vapidPublicKey)) {
       throw new Error("Invalid VAPID public key format");
     }
@@ -162,7 +199,6 @@ export class PushNotificationService {
       throw new Error("Invalid VAPID subject format");
     }
 
-    // Настраиваем web-push
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
     logger.info("VAPID configuration validated", {
@@ -175,17 +211,40 @@ export class PushNotificationService {
   }
 
   private formatIOSCompatiblePayload(payload: string | Record<string, unknown>): string {
-    const payloadObj = typeof payload === "string" ? JSON.parse(payload) : payload;
-    return JSON.stringify({
+    // Парсим безопасно
+    let payloadObj: Record<string, unknown> = {};
+    if (typeof payload === "string") {
+      try {
+        payloadObj = JSON.parse(payload) as Record<string, unknown>;
+      } catch {
+        // если строка — просто кладём её в body
+        payloadObj = { title: "Уведомление", body: String(payload) };
+      }
+    } else {
+      payloadObj = payload;
+    }
+
+    // Notifications API badge — это URL к изображению; для числового бейджа используйте Badging API на клиенте
+    const badgeUrl =
+      typeof payloadObj.badge === "string" && payloadObj.badge.length > 0
+        ? payloadObj.badge
+        : payloadObj.badgeUrl || undefined;
+
+    const out: Record<string, unknown> = {
       title: payloadObj.title || "Уведомление",
       body: payloadObj.body || "",
       icon: payloadObj.icon || "/icons/icon192.png",
-      badge: payloadObj.badge || 1,
+      badge: badgeUrl,
       tag: payloadObj.tag || "default",
       data: payloadObj.data || {},
-      requireInteraction: true,
-      silent: false,
-    });
+      requireInteraction: payloadObj.requireInteraction ?? true,
+      silent: payloadObj.silent ?? false,
+    };
+
+    const str = JSON.stringify(out);
+
+    // Проверяем и при необходимости урезаем до лимита Apple
+    return trimPayloadToSize(str, MAX_APPLE_PAYLOAD_BYTES);
   }
 
   /**
@@ -199,29 +258,34 @@ export class PushNotificationService {
       throw new Error("PushNotificationService not initialized");
     }
 
-    // Валидируем подписку
-    if (!validatePushSubscription(subscription)) {
+    if (!validatePushSubscriptionFull(subscription)) {
       const sub = subscription as { endpoint?: string };
       logger.warn("Invalid subscription format", {
-        endpoint: sub.endpoint?.substring(0, 50) + "...",
+        endpoint: sub.endpoint ? `${sub.endpoint.substring(0, 50)}...` : "unknown",
       });
+
       return {
         success: false,
-        endpoint: sub.endpoint || "unknown",
+        endpoint: (subscription as { endpoint?: string })?.endpoint || "unknown",
         error: new Error("Invalid subscription format"),
       };
     }
 
     try {
       const iosCompatiblePayload = this.formatIOSCompatiblePayload(payload);
-      
+
       logger.debug("Sending iOS-compatible push notification", {
         endpoint: subscription.endpoint.substring(0, 50) + "...",
-        payloadLength: iosCompatiblePayload.length,
+        payloadLength: Buffer.byteLength(iosCompatiblePayload, "utf8"),
         serviceType: subscription.endpoint.includes("web.push.apple.com") ? "iOS Safari" : "Other",
       });
 
-      await webpush.sendNotification(subscription, iosCompatiblePayload);
+      // Опции: TTL и (при необходимости) другой набор опций
+      const options: Record<string, unknown> = {
+        TTL: 60 * 60, // 1 час
+      };
+
+      await webpush.sendNotification(subscription, iosCompatiblePayload, options);
 
       logger.info("Push notification sent successfully", {
         endpoint: subscription.endpoint.substring(0, 50) + "...",
@@ -232,20 +296,28 @@ export class PushNotificationService {
         success: true,
         endpoint: subscription.endpoint,
       };
-    } catch (error) {
-      logger.error(
-        "Failed to send push notification",
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          endpoint: subscription.endpoint.substring(0, 50) + "...",
-          serviceType: subscription.endpoint.includes("web.push.apple.com") ? "iOS Safari" : "Other",
-        },
-      );
+    } catch (err) {
+      // web-push throws объекты с полем statusCode и body
+      const errorObj = err as { statusCode?: number; body?: string };
+      const statusCode = errorObj?.statusCode;
+      const body = errorObj?.body;
+
+      logger.error("Failed to send push notification", err instanceof Error ? err : new Error(String(err)), {
+        endpoint: subscription.endpoint.substring(0, 50) + "...",
+        serviceType: subscription.endpoint.includes("web.push.apple.com") ? "iOS Safari" : "Other",
+        statusCode,
+        body,
+      });
 
       return {
         success: false,
         endpoint: subscription.endpoint,
-        error: error instanceof Error ? error.message : String(error),
+        error:
+          statusCode || body
+            ? { statusCode: statusCode ?? null, body: body ?? String(err) }
+            : err instanceof Error
+            ? err.message
+            : String(err),
       };
     }
   }
@@ -303,28 +375,34 @@ export class PushNotificationService {
 
   /**
    * Проверяет, является ли ошибка признаком недействительной подписки
-   * Удаляем подписку ТОЛЬКО при явных признаках недействительности
    */
   static shouldDeleteSubscription(error: unknown): boolean {
-    if (typeof error === "object" && error !== null && "statusCode" in error) {
-      const statusCode = (error as { statusCode: number }).statusCode;
-      // Удаляем только при явных признаках недействительности
-      return statusCode === 404 || statusCode === 410;
+    if (typeof error === "object" && error !== null) {
+      const e = error as { statusCode?: number; status?: number; body?: string; message?: string };
+      const statusCode = e.statusCode ?? e.status ?? null;
+      if (typeof statusCode === "number") {
+        return statusCode === 404 || statusCode === 410;
+      }
+
+      const body = e.body ?? e.message ?? "";
+      if (typeof body === "string") {
+        const lower = body.toLowerCase();
+        return (
+          (lower.includes("subscription") && (lower.includes("expired") || lower.includes("invalid"))) ||
+          lower.includes("not found") ||
+          lower.includes("gone")
+        );
+      }
     }
 
-    // Если ошибка - строка, проверяем на явные признаки недействительности
     if (typeof error === "string") {
       const errorLower = error.toLowerCase();
-      // Удаляем только при явных признаках недействительности
       return (
         errorLower.includes("subscription") &&
-        (errorLower.includes("expired") ||
-          errorLower.includes("invalid") ||
-          errorLower.includes("not found"))
+        (errorLower.includes("expired") || errorLower.includes("invalid") || errorLower.includes("not found"))
       );
     }
 
-    // По умолчанию НЕ удаляем подписку
     return false;
   }
 

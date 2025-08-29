@@ -231,6 +231,12 @@ export const useUserStore = create<UserState>()(
   ),
 );
 
+// Экспорт глобальной переменной для Safari совместимости
+if (typeof window !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).__USER_STORE__ = useUserStore;
+}
+
 // ===== ХУКИ ДЛЯ УДОБСТВА =====
 
 /**

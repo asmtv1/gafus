@@ -99,7 +99,7 @@ export async function generateCSRFToken(): Promise<string> {
     // Сохраняем токен в cookie
     cookiesStore.set(CSRF_TOKEN_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL?.includes("https://"),
       sameSite: "strict",
       maxAge: SECURITY_CONFIG.tokenLifetime,
       path: "/",

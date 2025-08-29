@@ -2,10 +2,16 @@
 
 const { spawn } = require("child_process");
 const { execSync } = require("child_process");
-const { loadEnvVars } = require("./env-loader");
+const path = require("path");
+const dotenv = require("dotenv");
 
-// Загружаем переменные окружения из корня репозитория
-const envVars = loadEnvVars();
+// Загружаем переменные окружения только из .env.local
+try {
+  const rootDir = process.cwd();
+  dotenv.config({ path: path.join(rootDir, ".env.local") });
+  // eslint-disable-next-line no-console
+  console.warn("🔑 ENV загружен из .env.local");
+} catch {}
 
 console.warn("🚀 Запуск всех приложений Гафус...\n");
 
@@ -87,7 +93,7 @@ function ensureBuilt(app) {
 const processes = [];
 apps.forEach((app) => {
   if (app.requireEnv) {
-    const missing = app.requireEnv.filter((k) => !envVars[k]);
+    const missing = app.requireEnv.filter((k) => !process.env[k]);
     if (missing.length) {
       console.warn(`⚠️  Пропускаю ${app.name}: отсутствуют переменные ${missing.join(", ")}`);
       return;
@@ -115,7 +121,7 @@ apps.forEach((app) => {
   child = spawn("pnpm", ["--filter", app.filter, "start"], {
     stdio: "pipe",
     shell: true,
-    env: { ...process.env, ...envVars },
+    env: { ...process.env },
   });
 
   child.stdout.on("data", (data) => {

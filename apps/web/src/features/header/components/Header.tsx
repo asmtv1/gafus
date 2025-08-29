@@ -90,8 +90,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                   />
                   Статистика
                 </Link>
-                {/* Debug: показываем значение переменной окружения */}
-                {process.env.NEXT_PUBLIC_TRAINER_PANEL_URL ? (
+                {process.env.NEXT_PUBLIC_TRAINER_PANEL_URL && (
                   <Link
                     href={process.env.NEXT_PUBLIC_TRAINER_PANEL_URL}
                     onClick={() => setMenuOpen(false)}
@@ -104,12 +103,8 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                       height={24}
                       loading="lazy"
                     />
-                    Панель тренера ({process.env.NEXT_PUBLIC_TRAINER_PANEL_URL})
+                    Панель тренера
                   </Link>
-                ) : (
-                  <div style={{color: 'red', padding: '10px'}}>
-                    NEXT_PUBLIC_TRAINER_PANEL_URL не найден: {JSON.stringify(process.env)}
-                  </div>
                 )}
               </>
             )}
