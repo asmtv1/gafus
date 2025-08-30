@@ -33,10 +33,35 @@ export default function NotificationStatus() {
 
   const handleAllowNotifications = async () => {
     console.log("🚀 NotificationStatus: handleAllowNotifications вызван");
+    
+    // Специальная диагностика для Safari
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
+    
+    if (isIOS && isSafari) {
+      console.log("🍎 iOS Safari detected");
+      console.log("🔧 PWA standalone mode:", isStandalone);
+      console.log("🔧 HTTPS:", window.location.protocol === 'https:');
+      console.log("🔧 Service Worker supported:", 'serviceWorker' in navigator);
+      
+      if (!isStandalone) {
+        console.error("❌ Safari requires PWA mode (add to home screen)");
+        alert("Для push-уведомлений в Safari добавьте сайт в главный экран и запустите как приложение");
+        return;
+      }
+      
+      if (window.location.protocol !== 'https:') {
+        console.error("❌ Safari requires HTTPS for push notifications");
+        alert("Для push-уведомлений в Safari требуется HTTPS");
+        return;
+      }
+    }
+    
     if (vapidKey) {
-      console.log("✅ NotificationStatus: VAPID ключ доступен, запрашиваем разрешение");
-ка      
-      try {
+        console.log("✅ NotificationStatus: VAPID ключ доступен, запрашиваем разрешение");
+        
+        try {
         // Добавляем таймаут для Safari, чтобы избежать зависания
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => {
@@ -62,6 +87,14 @@ export default function NotificationStatus() {
   const handleDenyNotifications = async () => {
     console.log("🚀 NotificationStatus: handleDenyNotifications вызван");
     
+    // Специальная диагностика для Safari
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    
+    if (isIOS && isSafari) {
+      console.log("🍎 iOS Safari detected for deny operation");
+    }
+    
     try {
       // Добавляем таймаут для Safari, чтобы избежать зависания
       const timeoutPromise = new Promise((_, reject) => {
@@ -78,6 +111,9 @@ export default function NotificationStatus() {
       // В Safari часто бывают таймауты, показываем пользователю
       if (error instanceof Error && error.message.includes("timeout")) {
         console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
+        if (isIOS && isSafari) {
+          alert("В Safari удаление подписки может работать медленно. Попробуйте еще раз.");
+        }
       }
     }
   };

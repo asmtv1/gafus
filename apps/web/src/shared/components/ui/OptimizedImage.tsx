@@ -34,6 +34,7 @@ export default function OptimizedImage({
 }: OptimizedImageProps) {
   const [imgError, setImgError] = useState(false);
   const [isSafariBrowser] = useState(isSafari());
+  const [retryCount, setRetryCount] = useState(0);
 
   // Определяем стратегию загрузки изображения
   const useLazyLoading = forceLoading || shouldUseLazyLoading(index, isAboveFold, isCritical);
@@ -44,6 +45,15 @@ export default function OptimizedImage({
 
   const handleError = () => {
     console.warn(`❌ OptimizedImage: Ошибка загрузки изображения в Safari: ${src}`);
+    
+    // В Safari попробуем перезагрузить изображение несколько раз
+    if (isSafariBrowser && retryCount < 2) {
+      console.log(`🔄 OptimizedImage: Safari - попытка перезагрузки ${retryCount + 1}/2: ${src}`);
+      setRetryCount(prev => prev + 1);
+      setImgError(false); // Сбрасываем ошибку для повторной попытки
+      return;
+    }
+    
     setImgError(true);
     onError?.();
   };
@@ -64,7 +74,13 @@ export default function OptimizedImage({
       };
       img.src = src;
     }
-  }, [src, isSafariBrowser, imgError]);
+  }, [src, isSafariBrowser, imgError, retryCount]);
+
+  // Сбрасываем retryCount при изменении src
+  useEffect(() => {
+    setRetryCount(0);
+    setImgError(false);
+  }, [src]);
 
   return (
     <Image
