@@ -115,23 +115,72 @@ export const usePushStore = create<PushState>()(
         try {
           console.log("🚀 setupPushSubscription: Начинаем создание подписки");
           console.log(`🌐 Browser: ${settings.isIOS ? 'iOS' : 'Other'} ${settings.isSafari ? 'Safari' : 'Other'}`);
+          console.log(`📱 PWA Mode: ${isStandalone ? 'Standalone' : 'Browser'}`);
           
-          // Безопасное получение Service Worker с таймаутом для Safari
-          const registration = await getServiceWorkerSafely(settings.swTimeoutMs);
+          // Для Safari в PWA: принудительно регистрируем Service Worker
+          let registration: ServiceWorkerRegistration;
           
-          if (!registration) {
-            // Safari: SW не готов, но продолжаем работу
-            console.log("🦁 Safari: Service Worker не готов, но продолжаем работу");
+          if (settings.isSafari) {
+            console.log("🦁 Safari: Регистрируем Service Worker для PWA...");
+            
+            try {
+              // Удаляем существующие SW
+              const existingRegistrations = await navigator.serviceWorker.getRegistrations();
+              for (const existingReg of existingRegistrations) {
+                await existingReg.unregister();
+                console.log("🗑️ Safari: Удален существующий SW");
+              }
+              
+              // Регистрируем новый SW
+              registration = await navigator.serviceWorker.register('/sw.js');
+              console.log("✅ Safari: Новый SW зарегистрирован:", registration);
+              
+              // Ждем готовности SW
+              console.log("⏳ Safari: Ждем готовности SW...");
+              
+              // Ждем пока SW станет активным
+              if (registration.installing) {
+                await new Promise<void>((resolve) => {
+                  registration.installing!.addEventListener('statechange', (e) => {
+                    const target = e.target as ServiceWorker;
+                    if (target && target.state === 'installed') {
+                      resolve();
+                    }
+                  });
+                });
+              }
+              
+              // Активируем SW
+              if (registration.waiting) {
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+              }
+              
+              console.log("✅ Safari: SW готов к использованию");
+              
+            } catch (swError) {
+              console.error("❌ Safari: Ошибка регистрации SW:", swError);
+              
+              // Для PWA Safari: пробуем обычную регистрацию
+              if (isStandalone) {
+                console.log("🦁 Safari PWA: Пробуем обычную регистрацию...");
+                registration = await navigator.serviceWorker.ready;
+                console.log("✅ Safari PWA: SW готов");
+              } else {
+                throw new Error("Не удалось зарегистрировать Service Worker в Safari");
+              }
+            }
+          } else {
+            // Другие браузеры: обычная регистрация
+            registration = await navigator.serviceWorker.ready;
+            console.log("✅ Service Worker готов:", registration);
           }
 
           // Получаем существующую подписку
           let existingSubscription: PushSubscription | null = null;
-          if (registration) {
-            try {
-              existingSubscription = await registration.pushManager.getSubscription();
-            } catch (error) {
-              console.warn("⚠️ Не удалось получить существующую подписку:", error);
-            }
+          try {
+            existingSubscription = await registration.pushManager.getSubscription();
+          } catch (error) {
+            console.warn("⚠️ Не удалось получить существующую подписку:", error);
           }
 
           // Удаляем существующую подписку для чистого старта
@@ -144,49 +193,14 @@ export const usePushStore = create<PushState>()(
             }
           }
 
-          // Создаем новую подписку
-          if (!registration) {
-            // Safari: честно показываем что push недоступен
-            if (settings.isSafari) {
-              console.log("🦁 Safari: SW недоступен, push уведомления недоступны");
-              
-              // Для Safari честно показываем что push не работает
-              set({
-                subscription: null,
-                hasServerSubscription: false,
-                isLoading: false,
-                error: "Push уведомления недоступны в Safari на этом устройстве. Попробуйте перезагрузить страницу или использовать другой браузер.",
-              });
-              
-              console.log("❌ Safari: Push уведомления недоступны");
-              return;
-            } else {
-              throw new Error("Service Worker недоступен");
-            }
-          }
-
           const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
           
-          // Создаем подписку с таймаутом для Safari
-          let subscription: PushSubscription;
-          if (settings.useTimeout) {
-            // Safari: используем таймаут для предотвращения зависания
-            const pushPromise = registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey,
-            });
-            const pushTimeoutPromise = new Promise<never>((_, reject) => 
-              setTimeout(() => reject(new Error('Push subscription timeout')), settings.pushTimeoutMs)
-            );
-            
-            subscription = await Promise.race([pushPromise, pushTimeoutPromise]);
-          } else {
-            // Другие браузеры: обычная подписка
-            subscription = await registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey,
-            });
-          }
+          // Создаем подписку
+          console.log("🔧 Создаем новую push подписку...");
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
+          });
 
           const p256dh = subscription.getKey ? subscription.getKey("p256dh") : null;
           const auth = subscription.getKey ? subscription.getKey("auth") : null;
