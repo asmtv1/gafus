@@ -1,7 +1,7 @@
 "use client";
 
 import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
-import { useNotificationStore } from "@shared/stores";
+import { useNotificationComposite, useNotificationInitializer } from "@shared/stores";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
@@ -18,45 +18,110 @@ export default function NotificationStatus() {
     removePushSubscription,
     isSupported,
     isGranted,
-  } = useNotificationStore();
+    checkServerSubscription,
+    setUserId,
+  } = useNotificationComposite();
   const [mounted, setMounted] = useState(false);
   const [vapidKey, setVapidKey] = useState<string | null>(null);
+
+  // Инициализируем уведомления
+  useNotificationInitializer();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Инициализируем уведомления
-  // useNotificationInitializer(); // This line is removed as per the edit hint.
-
   const handleAllowNotifications = async () => {
+    console.log("🚀 NotificationStatus: handleAllowNotifications вызван");
     if (vapidKey) {
-      await requestPermission(vapidKey);
+      console.log("✅ NotificationStatus: VAPID ключ доступен, запрашиваем разрешение");
+ка      
+      try {
+        // Добавляем таймаут для Safari, чтобы избежать зависания
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error("Request permission timeout in Safari"));
+          }, 15000); // 15 секунд для Safari
+        });
+        
+        const permissionPromise = requestPermission(vapidKey);
+        await Promise.race([permissionPromise, timeoutPromise]);
+        console.log("✅ NotificationStatus: Разрешение получено успешно");
+      } catch (error) {
+        console.error("❌ NotificationStatus: Ошибка при запросе разрешения:", error);
+        // В Safari часто бывают таймауты, показываем пользователю
+        if (error instanceof Error && error.message.includes("timeout")) {
+          console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
+        }
+      }
     } else {
-      console.error("VAPID key not available");
+      console.error("❌ NotificationStatus: VAPID key not available");
     }
   };
 
   const handleDenyNotifications = async () => {
-    await removePushSubscription();
+    console.log("🚀 NotificationStatus: handleDenyNotifications вызван");
+    
+    try {
+      // Добавляем таймаут для Safari, чтобы избежать зависания
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error("Remove subscription timeout in Safari"));
+        }, 15000); // 15 секунд для Safari
+      });
+      
+      const removePromise = removePushSubscription();
+      await Promise.race([removePromise, timeoutPromise]);
+      console.log("✅ NotificationStatus: Подписка успешно удалена");
+    } catch (error) {
+      console.error("❌ NotificationStatus: Ошибка при удалении подписки:", error);
+      // В Safari часто бывают таймауты, показываем пользователю
+      if (error instanceof Error && error.message.includes("timeout")) {
+        console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
+      }
+    }
   };
 
-  // Получаем публичный VAPID ключ при монтировании
+  // Получаем публичный VAPID ключ и инициализируем push-уведомления при монтировании
   useEffect(() => {
+    console.log("🚀 NotificationStatus: useEffect для инициализации запущен");
     let cancelled = false;
+    
     (async () => {
       try {
+        console.log("🔧 NotificationStatus: Получаем VAPID ключ...");
         const { publicKey } = await getPublicKeyAction();
-        if (!cancelled) setVapidKey(publicKey ?? null);
+        if (!cancelled) {
+          setVapidKey(publicKey ?? null);
+          console.log("✅ NotificationStatus: VAPID ключ установлен:", !!publicKey);
+        }
+        
+        // Устанавливаем userId для push-уведомлений
+        if (session?.user?.id) {
+          console.log("🔧 NotificationStatus: Устанавливаем userId:", session.user.id);
+          setUserId(session.user.id);
+          
+          // Проверяем серверную подписку только после установки userId
+          console.log("🔧 NotificationStatus: Планируем проверку серверной подписки через 100мс");
+          setTimeout(() => {
+            console.log("🔧 NotificationStatus: Вызываем checkServerSubscription...");
+            checkServerSubscription();
+          }, 100);
+        } else {
+          console.warn("⚠️ NotificationStatus: No user ID found in session");
+        }
       } catch (e) {
-        if (!cancelled) setVapidKey(null);
-        console.error("Failed to fetch VAPID public key", e);
+        if (!cancelled) {
+          setVapidKey(null);
+          console.error("❌ NotificationStatus: Failed to fetch VAPID public key", e);
+        }
       }
     })();
+    
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [session?.user?.id, setUserId, checkServerSubscription]);
 
   // Если пользователь не авторизован, не показываем ничего
   if (status !== "authenticated" || !session?.user) {

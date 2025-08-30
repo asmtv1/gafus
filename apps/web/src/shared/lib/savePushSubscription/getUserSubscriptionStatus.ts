@@ -8,38 +8,60 @@ import { getCurrentUserId } from "@/utils";
  */
 export async function getUserSubscriptionStatus() {
   console.log("🚀 getUserSubscriptionStatus: Начинаем проверку статуса подписки");
-  try {
-    console.log("🔧 getUserSubscriptionStatus: Получаем userId...");
-    const userId = await getCurrentUserId();
-    console.log("✅ getUserSubscriptionStatus: userId получен:", userId);
+  
+  // Пробуем несколько раз с увеличивающимся таймаутом
+  const retries = 3;
+  const baseTimeout = 3000; // 3 секунды
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`🔧 getUserSubscriptionStatus: Попытка ${attempt}/${retries}`);
+      console.log("🔧 getUserSubscriptionStatus: Получаем userId...");
+      const userId = await getCurrentUserId();
+      console.log("✅ getUserSubscriptionStatus: userId получен:", userId);
 
-    // Добавляем таймаут для Prisma запроса
-    console.log("🔧 getUserSubscriptionStatus: Создаем Prisma запрос...");
-    const subscriptionPromise = prisma.pushSubscription.findFirst({
-      where: { userId },
-      select: { id: true },
-    });
-    
-    console.log("🔧 getUserSubscriptionStatus: Создаем промис с таймаутом 8 сек");
-    const timeoutPromise = new Promise<null>((_, reject) => {
-      setTimeout(() => {
-        console.log("⏰ getUserSubscriptionStatus: Таймаут истек!");
-        reject(new Error("Database query timeout"));
-      }, 8000);
-    });
-    
-    console.log("🔧 getUserSubscriptionStatus: Запускаем гонку между запросом и таймаутом");
-    const subscription = await Promise.race([subscriptionPromise, timeoutPromise]);
-    console.log("✅ getUserSubscriptionStatus: Запрос выполнен, результат:", subscription);
+      // Добавляем таймаут для Prisma запроса
+      console.log("🔧 getUserSubscriptionStatus: Создаем Prisma запрос...");
+      const subscriptionPromise = prisma.pushSubscription.findFirst({
+        where: { userId },
+        select: { id: true },
+      });
+      
+      const timeout = baseTimeout * attempt; // Увеличиваем таймаут с каждой попыткой
+      console.log(`🔧 getUserSubscriptionStatus: Создаем промис с таймаутом ${timeout}мс`);
+      const timeoutPromise = new Promise<null>((_, reject) => {
+        setTimeout(() => {
+          console.log(`⏰ getUserSubscriptionStatus: Таймаут истек на попытке ${attempt}!`);
+          reject(new Error(`Database query timeout (attempt ${attempt})`));
+        }, timeout);
+      });
+      
+      console.log("🔧 getUserSubscriptionStatus: Запускаем гонку между запросом и таймаутом");
+      const subscription = await Promise.race([subscriptionPromise, timeoutPromise]);
+      console.log("✅ getUserSubscriptionStatus: Запрос выполнен, результат:", subscription);
 
-    const hasSubscription = !!subscription;
-    console.log("✅ getUserSubscriptionStatus: Возвращаем результат:", { hasSubscription });
-    return { hasSubscription };
-  } catch (error) {
-    console.error("❌ getUserSubscriptionStatus: Ошибка при проверке статуса подписки:", error);
-    console.log("🔧 getUserSubscriptionStatus: Возвращаем hasSubscription: false из-за ошибки");
-    return { hasSubscription: false };
+      const hasSubscription = !!subscription;
+      console.log("✅ getUserSubscriptionStatus: Возвращаем результат:", { hasSubscription });
+      return { hasSubscription };
+      
+    } catch (error) {
+      console.error(`❌ getUserSubscriptionStatus: Ошибка на попытке ${attempt}:`, error);
+      
+      if (attempt === retries) {
+        console.log("🔧 getUserSubscriptionStatus: Все попытки исчерпаны, возвращаем hasSubscription: false");
+        return { hasSubscription: false };
+      }
+      
+      // Ждем перед следующей попыткой
+      const waitTime = 1000 * attempt; // 1с, 2с, 3с
+      console.log(`⏳ getUserSubscriptionStatus: Ждем ${waitTime}мс перед следующей попыткой...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
   }
+  
+  // Fallback
+  console.log("🔧 getUserSubscriptionStatus: Fallback - возвращаем hasSubscription: false");
+  return { hasSubscription: false };
 }
 
 /**
