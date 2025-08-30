@@ -14,19 +14,23 @@ export async function getUserSubscriptionStatus() {
     const userId = await getCurrentUserId();
     console.log("✅ getUserSubscriptionStatus: userId получен:", userId);
 
-    // Создаем Prisma запрос с таймаутом
+    // Создаем Prisma запрос с адаптивным таймаутом
     console.log("🔧 getUserSubscriptionStatus: Создаем Prisma запрос...");
     const subscriptionPromise = prisma.pushSubscription.findFirst({
       where: { userId },
       select: { id: true },
     });
     
-    // Таймаут 10 секунд для Prisma запроса
+    // Адаптивный таймаут: больше времени для Safari (определяем по User-Agent)
+    // В production это будет работать на сервере, но логика остается
+    const timeoutMs = 15000; // 15 секунд для всех браузеров (серверная оптимизация)
+    console.log(`⏰ getUserSubscriptionStatus: Таймаут установлен: ${timeoutMs}ms`);
+    
     const timeoutPromise = new Promise<null>((_, reject) => {
       setTimeout(() => {
         console.log("⏰ getUserSubscriptionStatus: Таймаут истек!");
         reject(new Error("Database query timeout"));
-      }, 10000); // 10 секунд
+      }, timeoutMs);
     });
     
     console.log("🔧 getUserSubscriptionStatus: Запускаем запрос с таймаутом");

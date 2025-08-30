@@ -98,12 +98,18 @@ export default function NotificationStatus() {
     }
     
     try {
-      // Добавляем таймаут для Safari, чтобы избежать зависания
+      // Адаптивные таймауты для разных браузеров
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+      const timeoutMs = isSafari ? 45000 : 30000; // 45 сек для Safari, 30 для остальных
+      
+      console.log(`⏰ NotificationStatus: Таймаут для удаления установлен: ${timeoutMs}ms (${isSafari ? 'Safari' : 'Other'})`);
+      
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
           console.log("⏰ NotificationStatus: Таймаут истек для Safari!");
           reject(new Error("Remove subscription timeout in Safari"));
-        }, 30000); // Увеличиваем до 30 секунд для Safari
+        }, timeoutMs);
       });
       
       const removePromise = removePushSubscription();
@@ -114,9 +120,6 @@ export default function NotificationStatus() {
       // В Safari часто бывают таймауты, показываем пользователю
       if (error instanceof Error && error.message.includes("timeout")) {
         console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
-        if (isIOS && isSafari) {
-          alert("В Safari удаление подписки может работать медленно. Попробуйте еще раз.");
-        }
       }
     }
   };
