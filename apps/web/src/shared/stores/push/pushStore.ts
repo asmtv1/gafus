@@ -5,7 +5,6 @@ import {
   deleteSubscriptionAction,
   updateSubscriptionAction,
 } from "@shared/lib/actions/subscription";
-import { getUserSubscriptionStatus } from "@shared/lib/savePushSubscription/getUserSubscriptionStatus";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -252,7 +251,7 @@ export const usePushStore = create<PushState>()(
       },
 
       checkServerSubscription: async () => {
-        console.log("🚀 checkServerSubscription: Начинаем проверку серверной подписки");
+        console.log("🚀 checkServerSubscription: Начинаем проверку локальной подписки");
         
         const settings = getSafariSettings();
         console.log(`🌐 Browser: ${settings.isIOS ? 'iOS' : 'Other'} ${settings.isSafari ? 'Safari' : 'Other'}`);
@@ -264,23 +263,33 @@ export const usePushStore = create<PushState>()(
             return;
           }
 
-          console.log("🔧 checkServerSubscription: Checking subscription for userId:", userId);
+          console.log("🔧 checkServerSubscription: Checking local subscription for userId:", userId);
           
-          try {
-            // Упрощенная проверка для всех браузеров
-            const status = await getUserSubscriptionStatus();
-            console.log("✅ checkServerSubscription: Server subscription status checked:", status);
-            
-            // Обновляем состояние для всех браузеров одинаково
-            console.log("🔧 checkServerSubscription: Обновляем состояние hasServerSubscription:", status.hasSubscription);
-            set({ hasServerSubscription: status.hasSubscription });
-            console.log("✅ checkServerSubscription: Состояние обновлено");
-            
-          } catch (error) {
-            // Единая обработка ошибок для всех браузеров
-            console.error("❌ checkServerSubscription: Failed for all browsers:", error);
-            set({ hasServerSubscription: false });
+          // Проверяем локальную подписку на устройстве, а не в БД
+          let hasLocalSubscription = false;
+          
+          if (isPushSupported()) {
+            try {
+              // Безопасное получение Service Worker с таймаутом для Safari
+              const registration = await getServiceWorkerSafely(settings.swTimeoutMs);
+              if (registration) {
+                const subscription = await registration.pushManager.getSubscription();
+                hasLocalSubscription = !!subscription;
+                console.log("🔍 Локальная подписка найдена:", hasLocalSubscription);
+              } else {
+                console.log("⚠️ Service Worker недоступен для проверки");
+                hasLocalSubscription = false;
+              }
+            } catch (error) {
+              console.warn("⚠️ Не удалось проверить локальную подписку:", error);
+              hasLocalSubscription = false;
+            }
           }
+          
+          // Обновляем состояние на основе локальной подписки
+          console.log("🔧 checkServerSubscription: Обновляем состояние hasServerSubscription:", hasLocalSubscription);
+          set({ hasServerSubscription: hasLocalSubscription });
+          console.log("✅ checkServerSubscription: Состояние обновлено на основе локальной подписки");
           
         } catch (error) {
           console.error("❌ checkServerSubscription: Unexpected error:", error);
