@@ -50,6 +50,9 @@ services:
       - AUTH_COOKIE_DOMAIN=.gafus.ru
       - NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer-panel.gafus.ru
       - VAPID_PUBLIC_KEY=BPmb6CQrFMWqBD3sNNE9AZ0iBoKHXNZMSiXQh4t_PJ9qxpH97GT1iIbnrPnnDiMx3dsMQFJSlOIuw8kkhwAeZXU
+      - VAPID_SUBJECT=mailto:admin@gafus.ru
+    volumes:
+      - uploads_data:/var/www/public-assets/uploads
     ports:
       - "3000:3000"
     restart: unless-stopped
@@ -76,6 +79,8 @@ services:
       - NEXTAUTH_SECRET=bh3r4xw2GbKDrizNREjAEDpSSi2hwrMFl8BPQ2nYHSs=
       - NEXTAUTH_URL=https://trainer-panel.gafus.ru
       - AUTH_COOKIE_DOMAIN=.gafus.ru
+    volumes:
+      - uploads_data:/var/www/public-assets/uploads
     ports:
       - "3001:3001"
     restart: unless-stopped
@@ -128,6 +133,7 @@ services:
       - ERROR_DASHBOARD_URL=http://gafus-error-dashboard:3005
       - VAPID_PUBLIC_KEY=BPmb6CQrFMWqBD3sNNE9AZ0iBoKHXNZMSiXQh4t_PJ9qxpH97GT1iIbnrPnnDiMx3dsMQFJSlOIuw8kkhwAeZXU
       - VAPID_PRIVATE_KEY=ya6wNdROtdwiJ2rM8pRc1azoLiC-NtsCRUsHY7OhtdE
+      - VAPID_SUBJECT=mailto:admin@gafus.ru
     restart: unless-stopped
     depends_on:
       - postgres
@@ -174,7 +180,9 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - uploads_data:/var/www/public-assets/uploads
       - ./packages/public-assets/public:/var/www/public-assets:ro
+      - ./apps/web/public:/var/www/web-public:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
     restart: unless-stopped
@@ -197,3 +205,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
