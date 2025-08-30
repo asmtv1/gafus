@@ -3,7 +3,6 @@ import { authOptions } from "@gafus/auth";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 
-import { SafeImage } from "@/components/ui/SafeImage";
 import styles from "./main-panel.module.css";
 
 export default async function MainPanelLayout({ children }: { children: React.ReactNode }) {
@@ -20,14 +19,12 @@ export default async function MainPanelLayout({ children }: { children: React.Re
       <aside className={styles.sidebar}>
         <div className={styles.profilWrapper}>
           <div className={styles.userName}>{userName || "\u00A0"}</div>
-          <SafeImage
+          <img
             src={avatarUrl}
             alt="Avatar"
             width={32}
             height={32}
             className={styles.avatar}
-            fallbackSrc="/uploads/avatar.svg"
-            priority
           />
         </div>
         <Link href="/main-panel/statistics" className={styles.button}>
