@@ -62,23 +62,25 @@ export default function NotificationStatus() {
         console.log("✅ NotificationStatus: VAPID ключ доступен, запрашиваем разрешение");
         
         try {
-        // Добавляем таймаут для Safari, чтобы избежать зависания
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => {
-            reject(new Error("Request permission timeout in Safari"));
-          }, 15000); // 15 секунд для Safari
-        });
-        
-        const permissionPromise = requestPermission(vapidKey);
-        await Promise.race([permissionPromise, timeoutPromise]);
-        console.log("✅ NotificationStatus: Разрешение получено успешно");
-      } catch (error) {
-        console.error("❌ NotificationStatus: Ошибка при запросе разрешения:", error);
-        // В Safari часто бывают таймауты, показываем пользователю
-        if (error instanceof Error && error.message.includes("timeout")) {
-          console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
+          // Добавляем таймаут для Safari, чтобы избежать зависания
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+              console.log("⏰ NotificationStatus: Таймаут истек для Safari!");
+              reject(new Error("Request permission timeout in Safari"));
+            }, 30000); // Увеличиваем до 30 секунд для Safari
+          });
+          
+          console.log("🔧 NotificationStatus: Вызываем requestPermission...");
+          const permissionPromise = requestPermission(vapidKey);
+          await Promise.race([permissionPromise, timeoutPromise]);
+          console.log("✅ NotificationStatus: Разрешение получено успешно");
+        } catch (error) {
+          console.error("❌ NotificationStatus: Ошибка при запросе разрешения:", error);
+          // В Safari часто бывают таймауты, показываем пользователю
+          if (error instanceof Error && error.message.includes("timeout")) {
+            console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
+          }
         }
-      }
     } else {
       console.error("❌ NotificationStatus: VAPID key not available");
     }
@@ -99,8 +101,9 @@ export default function NotificationStatus() {
       // Добавляем таймаут для Safari, чтобы избежать зависания
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
+          console.log("⏰ NotificationStatus: Таймаут истек для Safari!");
           reject(new Error("Remove subscription timeout in Safari"));
-        }, 15000); // 15 секунд для Safari
+        }, 30000); // Увеличиваем до 30 секунд для Safari
       });
       
       const removePromise = removePushSubscription();
