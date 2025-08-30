@@ -74,6 +74,20 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
               </div>
               <div className={styles.profiltext}>Профиль</div>
             </Link>
+            <Link
+                  href="/achievements/"
+                  onClick={() => setMenuOpen(false)}
+                  className={styles.menuButton}
+                >
+                  <Image
+                    src="/header/statistics.svg"
+                    alt="statistics"
+                    width={24}
+                    height={24}
+                    loading="lazy"
+                  />
+                  Достижения
+                </Link>
             {trainerOnly && (
               <>
                 <Link
