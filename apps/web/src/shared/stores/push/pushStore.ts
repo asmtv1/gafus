@@ -76,6 +76,11 @@ export const usePushStore = create<PushState>()(
 
         set({ isLoading: true, error: null });
 
+        // Проверяем Safari на iOS в начале функции
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
+
         try {
           const registration = await navigator.serviceWorker.ready;
           const existingSubscription = await registration.pushManager.getSubscription();
@@ -86,11 +91,6 @@ export const usePushStore = create<PushState>()(
           // }
 
           const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
-          
-          // Проверяем Safari на iOS
-          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-          const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-          const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
           
           if (isIOS && isSafari) {
             console.log("🍎 iOS Safari detected");
@@ -215,23 +215,70 @@ export const usePushStore = create<PushState>()(
             console.log("🍎 Safari подписка создана. Убедитесь что приложение запущено из главного экрана!");
           }
         } catch (error) {
-          console.error("❌ Push subscription setup failed:", error);
+          console.error("❌ setupPushSubscription: Push subscription setup failed:", error);
+          
+          let errorMessage = "Unknown error occurred";
+          
+          if (error instanceof Error) {
+            if (error.message.includes("timeout")) {
+              errorMessage = "Превышено время ожидания. Попробуйте еще раз.";
+            } else if (error.message.includes("Service Worker")) {
+              errorMessage = "Ошибка Service Worker. Попробуйте перезагрузить страницу.";
+            } else if (error.message.includes("Subscribe")) {
+              errorMessage = "Ошибка создания подписки. Проверьте подключение к интернету.";
+            } else {
+              errorMessage = error.message;
+            }
+          }
+          
+          // Специальные сообщения для iOS Safari
+          if (isIOS && isSafari) {
+            if (errorMessage.includes("timeout")) {
+              errorMessage = "В iOS Safari уведомления могут работать медленно. Убедитесь, что приложение запущено из главного экрана.";
+            } else if (errorMessage.includes("Service Worker")) {
+              errorMessage = "В iOS Safari требуется перезагрузка страницы для работы уведомлений.";
+            }
+          }
+          
+          console.log("🔧 setupPushSubscription: Устанавливаем ошибку:", errorMessage);
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : "Unknown error occurred",
+            error: errorMessage,
           });
         }
       },
 
       checkServerSubscription: async () => {
+        console.log("🚀 checkServerSubscription: Начинаем проверку серверной подписки");
         try {
           const userId = get().userId;
-          if (!userId) return;
+          if (!userId) {
+            console.log("❌ checkServerSubscription: No userId, skipping");
+            return;
+          }
 
-          const status = await getUserSubscriptionStatus();
-          console.log("Server subscription status checked:", status);
+          console.log("🔧 checkServerSubscription: Checking subscription for userId:", userId);
+          
+          // Добавляем таймаут для избежания зависания
+          console.log("🔧 checkServerSubscription: Вызываем getUserSubscriptionStatus с таймаутом...");
+          const statusPromise = getUserSubscriptionStatus();
+          const timeoutPromise = new Promise<{ hasSubscription: boolean }>((_, reject) => {
+            setTimeout(() => reject(new Error("Subscription check timeout")), 10000);
+          });
+          
+          console.log("🔧 checkServerSubscription: Ожидаем результат...");
+          const status = await Promise.race([statusPromise, timeoutPromise]);
+          console.log("✅ checkServerSubscription: Server subscription status checked:", status);
+          
+          // Обновляем состояние
+          console.log("🔧 checkServerSubscription: Обновляем состояние hasServerSubscription:", status.hasSubscription);
+          set({ hasServerSubscription: status.hasSubscription });
+          console.log("✅ checkServerSubscription: Состояние обновлено");
         } catch (error) {
-          console.error("Failed to check server subscription:", error);
+          console.error("❌ checkServerSubscription: Failed to check server subscription:", error);
+          // В случае ошибки устанавливаем false, чтобы не зависать
+          console.log("🔧 checkServerSubscription: Устанавливаем hasServerSubscription: false из-за ошибки");
+          set({ hasServerSubscription: false });
         }
       },
 

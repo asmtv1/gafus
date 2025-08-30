@@ -44,7 +44,6 @@ export default function NotificationRequesterNew() {
       try {
         const vapidData = await getPublicKeyAction();
         setVapidKey(vapidData.publicKey);
-        checkServerSubscription();
         
         // Устанавливаем userId для push-уведомлений
         console.log("Session user:", session?.user);
@@ -53,6 +52,11 @@ export default function NotificationRequesterNew() {
         if (session?.user?.id) {
           setUserId(session.user.id);
           console.log("Set userId in push store:", session.user.id);
+          
+          // Проверяем серверную подписку только после установки userId
+          setTimeout(() => {
+            checkServerSubscription();
+          }, 100);
         } else {
           console.warn("No user ID found in session");
         }
@@ -67,10 +71,12 @@ export default function NotificationRequesterNew() {
   }, [mounted, checkServerSubscription, setUserId, session?.user?.id]);
 
   const handleAllowNotifications = async () => {
+    console.log("🚀 NotificationRequesterNew: handleAllowNotifications вызван");
     if (vapidKey) {
+      console.log("✅ NotificationRequesterNew: VAPID ключ доступен, запрашиваем разрешение");
       await requestPermission(vapidKey);
     } else {
-      console.error("VAPID key not available");
+      console.error("❌ NotificationRequesterNew: VAPID key not available");
     }
   };
 

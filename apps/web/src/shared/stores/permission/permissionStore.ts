@@ -44,24 +44,44 @@ export const usePermissionStore = create<PermissionState>()(
       },
 
       requestPermission: async () => {
+        console.log("🚀 requestPermission: Начинаем запрос разрешения на уведомления");
+        
         if (!isNotificationSupported()) {
+          console.log("❌ requestPermission: Уведомления не поддерживаются");
           set({ error: "Этот браузер не поддерживает уведомления" });
           return "denied";
         }
 
+        console.log("✅ requestPermission: Уведомления поддерживаются, запрашиваем разрешение");
         set({ isLoading: true, error: null });
 
         try {
-          const result = await Notification.requestPermission();
+          // Добавляем таймаут для iOS Safari, чтобы избежать зависания
+          console.log("🔧 requestPermission: Создаем промис для запроса разрешения");
+          const permissionPromise = Notification.requestPermission();
+          
+          // Таймаут 10 секунд для iOS Safari
+          console.log("🔧 requestPermission: Создаем промис с таймаутом 10 сек");
+          const timeoutPromise = new Promise<NotificationPermission>((_, reject) => {
+            setTimeout(() => {
+              console.log("⏰ requestPermission: Таймаут истек!");
+              reject(new Error("Request permission timeout"));
+            }, 10000);
+          });
+          
+          console.log("🔧 requestPermission: Запускаем гонку между разрешением и таймаутом");
+          const result = await Promise.race([permissionPromise, timeoutPromise]);
+          console.log("✅ requestPermission: Разрешение получено:", result);
+          
           set({
             permission: result,
             isLoading: false,
           });
           return result;
         } catch (error) {
-          console.error("Ошибка запроса разрешения уведомлений:", error);
+          console.error("❌ requestPermission: Ошибка запроса разрешения уведомлений:", error);
           set({
-            error: "Не удалось запросить разрешение",
+            error: "Не удалось запросить разрешение (таймаут)",
             isLoading: false,
           });
           return "denied";
