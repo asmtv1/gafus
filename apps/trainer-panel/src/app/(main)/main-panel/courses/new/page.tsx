@@ -20,7 +20,12 @@ export default async function NewCoursePage() {
     );
   }
 
-  const formattedDays = steps.map((day) => ({
+  // Убираем дубликаты по id, оставляя только уникальные дни
+  const uniqueDays = steps.filter((day, index, self) => 
+    index === self.findIndex(d => d.id === day.id)
+  );
+
+  const formattedDays = uniqueDays.map((day) => ({
     id: String(day.id),
     title: day.title,
   }));
