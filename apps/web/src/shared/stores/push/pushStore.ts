@@ -50,16 +50,13 @@ const isNotificationSupported = () => {
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isSafari = () => /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
 
-// Safari-специфичные настройки
+// Упрощенные настройки для всех браузеров
 const getSafariSettings = () => {
   const safari = isSafari();
   const ios = isIOS();
   return {
     isSafari: safari,
     isIOS: ios,
-    timeoutMs: safari ? 25000 : 15000, // 25 сек для Safari, 15 для остальных
-    maxRetries: safari ? 2 : 1, // 2 попытки для Safari
-    retryDelayMs: safari ? 2000 : 0, // 2 сек задержка для Safari
   };
 };
 
@@ -101,23 +98,7 @@ export const usePushStore = create<PushState>()(
           console.log("🚀 setupPushSubscription: Начинаем создание подписки");
           console.log(`🌐 Browser: ${settings.isIOS ? 'iOS' : 'Other'} ${settings.isSafari ? 'Safari' : 'Other'}`);
           
-          // Критическая проверка для Safari
-          if (settings.isIOS && settings.isSafari) {
-            console.log("🍎 iOS Safari detected");
-            
-            // Safari требует PWA режим для push-уведомлений
-            if (!isStandalone) {
-              const errorMessage = "Для push-уведомлений в Safari добавьте сайт в главный экран и запустите как приложение";
-              console.warn("⚠️ Safari: PWA режим не активен");
-              set({ 
-                isLoading: false, 
-                error: errorMessage 
-              });
-              return;
-            }
-            
-            console.log("✅ Safari: PWA режим активен, создаем APNS подписку");
-          }
+          // Упрощенная логика для всех браузеров
 
           const registration = await navigator.serviceWorker.ready;
           const existingSubscription = await registration.pushManager.getSubscription();
@@ -126,156 +107,54 @@ export const usePushStore = create<PushState>()(
           if (existingSubscription) {
             console.log("🗑️ Удаляем существующую подписку");
             await existingSubscription.unsubscribe();
-            // Даем время браузеру обработать
-            await new Promise(resolve => setTimeout(resolve, 1000));
           }
 
           const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
           
-          // Создаем подписку с адаптивным таймаутом
-          const subscriptionPromise = (async () => {
-            const subscription = await registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey,
-            });
-
-            const p256dh = subscription.getKey ? subscription.getKey("p256dh") : null;
-            const auth = subscription.getKey ? subscription.getKey("auth") : null;
-
-            if (!subscription.endpoint) {
-              throw new Error("Subscription has no endpoint");
-            }
-
-            if (!p256dh || !auth) {
-              throw new Error("Subscription keys are incomplete");
-            }
-
-            // Критическая проверка endpoint для Safari
-            if (settings.isIOS && settings.isSafari) {
-              const isAPNSEndpoint = subscription.endpoint.includes('web.push.apple.com');
-              console.log(`🔍 Safari endpoint check: ${isAPNSEndpoint ? 'APNS' : 'FCM'}`);
-              
-              if (!isAPNSEndpoint) {
-                console.warn("⚠️ Safari создал FCM endpoint вместо APNS!");
-                console.log("🔧 Принудительно создаем APNS подписку...");
-                
-                // Удаляем FCM подписку
-                await subscription.unsubscribe();
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Принудительно создаем APNS подписку
-                let apnsSubscription: PushSubscription | null = null;
-                let attempts = 0;
-                const maxAttempts = 3;
-                
-                while (attempts < maxAttempts && !apnsSubscription) {
-                  attempts++;
-                  console.log(`🔄 Попытка ${attempts}/${maxAttempts} создания APNS подписки...`);
-                  
-                  try {
-                    apnsSubscription = await registration.pushManager.subscribe({
-                      userVisibleOnly: true,
-                      applicationServerKey,
-                    });
-                    
-                    if (apnsSubscription.endpoint.includes('web.push.apple.com')) {
-                      console.log("✅ Успешно создана APNS подписка для Safari!");
-                      break;
-                    } else {
-                      console.warn(`⚠️ Попытка ${attempts}: создан ${apnsSubscription.endpoint.includes('fcm.googleapis.com') ? 'FCM' : 'неизвестный'} endpoint`);
-                      await apnsSubscription.unsubscribe();
-                      await new Promise(resolve => setTimeout(resolve, 1000));
-                      apnsSubscription = null;
-                    }
-                  } catch (error) {
-                    console.warn(`⚠️ Попытка ${attempts} не удалась:`, error);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                  }
-                }
-                
-                if (apnsSubscription && apnsSubscription.endpoint.includes('web.push.apple.com')) {
-                  // Используем успешную APNS подписку
-                  const apnsP256dh = apnsSubscription.getKey ? apnsSubscription.getKey("p256dh") : null;
-                  const apnsAuth = apnsSubscription.getKey ? apnsSubscription.getKey("auth") : null;
-                  
-                  if (apnsP256dh && apnsAuth) {
-                    const p256dhString = btoa(String.fromCharCode(...new Uint8Array(apnsP256dh)));
-                    const authString = btoa(String.fromCharCode(...new Uint8Array(apnsAuth)));
-                    
-                    const userId = get().userId || "";
-                    
-                    await updateSubscriptionAction({
-                      id: "",
-                      userId,
-                      endpoint: apnsSubscription.endpoint,
-                      p256dh: p256dhString,
-                      auth: authString,
-                      keys: {
-                        p256dh: p256dhString,
-                        auth: authString,
-                      },
-                    });
-
-                    set({
-                      subscription: apnsSubscription,
-                      hasServerSubscription: true,
-                      isLoading: false,
-                      error: null,
-                    });
-
-                    console.log("✅ Safari APNS push subscription setup completed successfully");
-                    console.log(`🔗 APNS Endpoint: ${apnsSubscription.endpoint.substring(0, 50)}...`);
-                    return;
-                  }
-                }
-                
-                // Если APNS не удалось создать, используем fallback
-                console.warn("⚠️ Не удалось создать APNS подписку для Safari, используем fallback");
-                throw new Error("Failed to create APNS subscription for Safari");
-              }
-            }
-
-            // Используем созданную подписку (APNS для Safari или FCM для других)
-            const p256dhString = btoa(String.fromCharCode(...new Uint8Array(p256dh)));
-            const authString = btoa(String.fromCharCode(...new Uint8Array(auth)));
-
-            const userId = get().userId || "";
-
-            await updateSubscriptionAction({
-              id: "",
-              userId,
-              endpoint: subscription.endpoint,
-              p256dh: p256dhString,
-              auth: authString,
-              keys: {
-                p256dh: p256dhString,
-                auth: authString,
-              },
-            });
-
-            set({
-              subscription,
-              hasServerSubscription: true,
-              isLoading: false,
-              error: null,
-            });
-
-            console.log("✅ Push subscription setup completed successfully");
-            console.log(`🔗 Endpoint: ${subscription.endpoint.substring(0, 50)}...`);
-            
-            if (settings.isIOS && settings.isSafari) {
-              console.log("🍎 Safari APNS подписка создана. Убедитесь что приложение запущено из главного экрана!");
-            }
-          })();
-
-          // Адаптивный таймаут для Safari
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => {
-              reject(new Error(`Setup push subscription timeout in ${settings.isSafari ? 'Safari' : 'browser'}`));
-            }, settings.timeoutMs);
+          // Создаем подписку простым способом без IIFE
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
           });
 
-          await Promise.race([subscriptionPromise, timeoutPromise]);
+          const p256dh = subscription.getKey ? subscription.getKey("p256dh") : null;
+          const auth = subscription.getKey ? subscription.getKey("auth") : null;
+
+          if (!subscription.endpoint) {
+            throw new Error("Subscription has no endpoint");
+          }
+
+          if (!p256dh || !auth) {
+            throw new Error("Subscription keys are incomplete");
+          }
+
+          // Упрощенная логика для всех браузеров - используем любую созданную подписку
+          const p256dhString = btoa(String.fromCharCode(...new Uint8Array(p256dh)));
+          const authString = btoa(String.fromCharCode(...new Uint8Array(auth)));
+
+          const userId = get().userId || "";
+
+          await updateSubscriptionAction({
+            id: "",
+            userId,
+            endpoint: subscription.endpoint,
+            p256dh: p256dhString,
+            auth: authString,
+            keys: {
+              p256dh: p256dhString,
+              auth: authString,
+            },
+          });
+
+          set({
+            subscription,
+            hasServerSubscription: true,
+            isLoading: false,
+            error: null,
+          });
+
+          console.log("✅ Push subscription setup completed successfully");
+          console.log(`🔗 Endpoint: ${subscription.endpoint.substring(0, 50)}...`);
           
         } catch (error) {
           console.error("❌ setupPushSubscription: Push subscription setup failed:", error);
@@ -283,15 +162,7 @@ export const usePushStore = create<PushState>()(
           let errorMessage = "Unknown error occurred";
           
           if (error instanceof Error) {
-            if (error.message.includes("timeout")) {
-              errorMessage = settings.isSafari 
-                ? "Превышено время ожидания в Safari. Попробуйте еще раз."
-                : "Превышено время ожидания. Попробуйте еще раз.";
-              console.warn(`⚠️ ${settings.isSafari ? 'Safari' : 'Browser'} timeout - это нормально для push-уведомлений`);
-            } else if (error.message.includes("APNS")) {
-              errorMessage = "Не удалось создать подписку для Safari. Убедитесь, что приложение запущено из главного экрана.";
-              console.warn("⚠️ Safari: APNS подписка не создана");
-            } else if (error.message.includes("Service Worker")) {
+            if (error.message.includes("Service Worker")) {
               errorMessage = "Ошибка Service Worker. Попробуйте перезагрузить страницу.";
             } else if (error.message.includes("Subscribe")) {
               errorMessage = "Ошибка создания подписки. Проверьте подключение к интернету.";
@@ -300,14 +171,7 @@ export const usePushStore = create<PushState>()(
             }
           }
           
-          // Специальные сообщения для iOS Safari
-          if (settings.isIOS && settings.isSafari) {
-            if (errorMessage.includes("timeout")) {
-              errorMessage = "В iOS Safari уведомления могут работать медленно. Убедитесь, что приложение запущено из главного экрана.";
-            } else if (errorMessage.includes("APNS")) {
-              errorMessage = "В iOS Safari требуется PWA режим для push-уведомлений. Добавьте сайт в главный экран.";
-            }
-          }
+          // Упрощенные сообщения для всех браузеров
           
           set({
             error: errorMessage,
@@ -321,10 +185,6 @@ export const usePushStore = create<PushState>()(
         
         const settings = getSafariSettings();
         console.log(`🌐 Browser: ${settings.isIOS ? 'iOS' : 'Other'} ${settings.isSafari ? 'Safari' : 'Other'}`);
-        console.log(`⏰ checkServerSubscription: Таймаут установлен: ${settings.timeoutMs}ms`);
-        
-        let timeoutId: NodeJS.Timeout | undefined;
-        
         try {
           const userId = get().userId;
           if (!userId) {
@@ -334,118 +194,30 @@ export const usePushStore = create<PushState>()(
 
           console.log("🔧 checkServerSubscription: Checking subscription for userId:", userId);
           
-          // Используем AbortController для лучшего контроля таймаутов
-          const controller = new AbortController();
-          timeoutId = setTimeout(() => controller.abort(), settings.timeoutMs);
-          
           try {
-            // Progressive enhancement: сначала пробуем быструю проверку
+            // Упрощенная проверка для всех браузеров
             const status = await getUserSubscriptionStatus();
             console.log("✅ checkServerSubscription: Server subscription status checked:", status);
             
-            // Критическая проверка для Safari - проверяем endpoint тип
-            if (settings.isSafari && status.hasSubscription) {
-              console.log("🔍 Safari: Проверяем endpoint тип...");
-              
-              try {
-                const registration = await navigator.serviceWorker.ready;
-                const subscription = await registration.pushManager.getSubscription();
-                
-                if (subscription) {
-                  const isAPNSEndpoint = subscription.endpoint.includes('web.push.apple.com');
-                  console.log(`🔍 Safari endpoint: ${isAPNSEndpoint ? 'APNS' : 'FCM'}`);
-                  
-                  if (!isAPNSEndpoint) {
-                    console.warn("⚠️ Safari: Найдена FCM подписка вместо APNS!");
-                    console.log("🔧 Safari: FCM подписка не будет работать, устанавливаем hasSubscription: false");
-                    
-                    // Для Safari FCM endpoint = нерабочая подписка
-                    set({ hasServerSubscription: false });
-                    return;
-                  } else {
-                    console.log("✅ Safari: APNS endpoint найден, подписка будет работать");
-                  }
-                } else {
-                  console.warn("⚠️ Safari: Подписка в БД есть, но в браузере не найдена");
-                  set({ hasServerSubscription: false });
-                  return;
-                }
-              } catch (error) {
-                console.warn("⚠️ Safari: Ошибка проверки endpoint:", error);
-                // Продолжаем с результатом сервера
-              }
-            }
-            
-            // Обновляем состояние
+            // Обновляем состояние для всех браузеров одинаково
             console.log("🔧 checkServerSubscription: Обновляем состояние hasServerSubscription:", status.hasSubscription);
             set({ hasServerSubscription: status.hasSubscription });
             console.log("✅ checkServerSubscription: Состояние обновлено");
             
           } catch (error) {
-            // Graceful degradation для Safari
-            if (settings.isSafari) {
-              console.warn("⚠️ Safari: Первая попытка не удалась, пробуем retry логику");
-              
-              // Retry логика для Safari с exponential backoff
-              let lastError: unknown = null;
-              
-              for (let attempt = 1; attempt <= settings.maxRetries; attempt++) {
-                try {
-                  console.log(`🔧 checkServerSubscription: Попытка ${attempt}/${settings.maxRetries}`);
-                  
-                  // Создаем новый AbortController для каждой попытки
-                  const retryController = new AbortController();
-                  const retryTimeoutId = setTimeout(() => retryController.abort(), settings.timeoutMs);
-                  
-                  try {
-                    const status = await getUserSubscriptionStatus();
-                    console.log("✅ checkServerSubscription: Retry успешен:", status);
-                    
-                    set({ hasServerSubscription: status.hasSubscription });
-                    clearTimeout(retryTimeoutId);
-                    return; // Успешно, выходим
-                    
-                  } catch (retryError) {
-                    lastError = retryError;
-                    clearTimeout(retryTimeoutId);
-                    console.warn(`⚠️ checkServerSubscription: Попытка ${attempt} не удалась:`, retryError);
-                    
-                    if (attempt < settings.maxRetries) {
-                      // Exponential backoff для Safari
-                      const delayMs = settings.retryDelayMs * Math.pow(2, attempt - 1);
-                      console.log(`⏳ checkServerSubscription: Ждем ${delayMs}ms перед следующей попыткой...`);
-                      await new Promise(resolve => setTimeout(resolve, delayMs));
-                    }
-                  }
-                } catch (retryError) {
-                  lastError = retryError;
-                  console.warn(`⚠️ checkServerSubscription: Ошибка в retry логике:`, retryError);
-                }
-              }
-              
-              // Все попытки исчерпаны для Safari
-              console.error("❌ checkServerSubscription: Все попытки исчерпаны для Safari");
-              console.warn("⚠️ Safari: Устанавливаем hasServerSubscription: false из-за ошибок");
-              set({ hasServerSubscription: false });
-              
-            } else {
-              // Для других браузеров просто устанавливаем false
-              console.error("❌ checkServerSubscription: Failed for non-Safari browser:", error);
-              set({ hasServerSubscription: false });
-            }
+            // Единая обработка ошибок для всех браузеров
+            console.error("❌ checkServerSubscription: Failed for all browsers:", error);
+            set({ hasServerSubscription: false });
           }
           
         } catch (error) {
           console.error("❌ checkServerSubscription: Unexpected error:", error);
           set({ hasServerSubscription: false });
-        } finally {
-          if (timeoutId) clearTimeout(timeoutId);
         }
       },
 
       removePushSubscription: async () => {
         set({ isLoading: true, error: null });
-
 
         const settings = getSafariSettings();
         console.log(`🗑️ removePushSubscription: Удаляем подписку для ${settings.isSafari ? 'Safari' : 'browser'}`);
@@ -454,11 +226,11 @@ export const usePushStore = create<PushState>()(
           const currentSubscription = get().subscription;
           let endpoint: string | undefined;
 
+          // Получаем endpoint из store или service worker
           if (currentSubscription?.endpoint) {
             endpoint = currentSubscription.endpoint;
             console.log(`🔍 Найдена подписка в store: ${endpoint.substring(0, 50)}...`);
           } else if (isPushSupported()) {
-            // Если нет текущей подписки в store, пытаемся получить из service worker
             try {
               const registration = await navigator.serviceWorker.ready;
               const existing = await registration.pushManager.getSubscription();
@@ -471,57 +243,56 @@ export const usePushStore = create<PushState>()(
             }
           }
 
-          // Safari-специфичная логика удаления
-          if (settings.isSafari && endpoint) {
-            const isAPNSEndpoint = endpoint.includes('web.push.apple.com');
-            console.log(`🍎 Safari: Удаляем ${isAPNSEndpoint ? 'APNS' : 'FCM'} подписку`);
+          // Последовательно удаляем подписку из всех мест
+          if (endpoint) {
+            console.log(`🔍 Удаляем подписку с endpoint: ${endpoint.substring(0, 50)}...`);
             
-            if (!isAPNSEndpoint) {
-              console.warn("⚠️ Safari: Удаляем нерабочую FCM подписку");
+            // 1. Удаляем из базы данных
+            try {
+              console.log("🗑️ Удаляем подписку из БД...");
+              await deleteSubscriptionAction(endpoint);
+              console.log("✅ Подписка удалена из БД");
+            } catch (error) {
+              console.warn("Failed to delete from database:", error);
+            }
+          } else {
+            // Fallback: удаляем все подписки если не можем определить endpoint
+            try {
+              console.warn("Endpoint not found, removing all subscriptions as fallback");
+              await deleteSubscriptionAction();
+              console.log("✅ Все подписки удалены из БД");
+            } catch (error) {
+              console.warn("Failed to delete all subscriptions:", error);
             }
           }
 
-          // Удаляем подписку из базы данных (только для конкретного устройства)
-          if (endpoint) {
-            console.log("🗑️ Удаляем подписку из БД...");
-            await deleteSubscriptionAction(endpoint);
-            console.log("✅ Подписка удалена из БД");
-          } else {
-            // Fallback: удаляем все подписки если не можем определить endpoint
-            console.warn("Endpoint not found, removing all subscriptions as fallback");
-            await deleteSubscriptionAction();
-            console.log("✅ Все подписки удалены из БД");
-          }
-
-          // Удаляем подписку из браузера
+          // 2. Удаляем из store
           if (get().subscription) {
             try {
               console.log("🗑️ Удаляем подписку из store...");
               await get().subscription!.unsubscribe();
               console.log("✅ Подписка удалена из store");
             } catch (error) {
-              console.warn("Failed to unsubscribe from push subscription:", error);
+              console.warn("Failed to unsubscribe from store:", error);
             }
           }
 
+          // 3. Удаляем из service worker
           if (isPushSupported()) {
             try {
               const registration = await navigator.serviceWorker.ready;
               const existing = await registration.pushManager.getSubscription();
               if (existing) {
-                try {
-                  console.log("🗑️ Удаляем подписку из Service Worker...");
-                  await existing.unsubscribe();
-                  console.log("✅ Подписка удалена из Service Worker");
-                } catch (error) {
-                  console.warn("Failed to unsubscribe from existing push subscription:", error);
-                }
+                console.log("🗑️ Удаляем подписку из Service Worker...");
+                await existing.unsubscribe();
+                console.log("✅ Подписка удалена из Service Worker");
               }
             } catch (error) {
-              console.warn("Failed to unsubscribe from existing push subscription:", error);
+              console.warn("Failed to unsubscribe from service worker:", error);
             }
           }
 
+          // Обновляем состояние
           set({
             subscription: null,
             hasServerSubscription: false,
@@ -537,11 +308,7 @@ export const usePushStore = create<PushState>()(
           let errorMessage = "Не удалось удалить подписку";
           
           if (error instanceof Error) {
-            if (error.message.includes("timeout")) {
-              errorMessage = settings.isSafari 
-                ? "Превышено время ожидания в Safari. Попробуйте еще раз."
-                : "Превышено время ожидания. Попробуйте еще раз.";
-            } else if (error.message.includes("network")) {
+            if (error.message.includes("network")) {
               errorMessage = "Ошибка сети. Проверьте подключение к интернету.";
             } else {
               errorMessage = error.message;

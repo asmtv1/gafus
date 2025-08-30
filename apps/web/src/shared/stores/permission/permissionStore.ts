@@ -56,21 +56,9 @@ export const usePermissionStore = create<PermissionState>()(
         set({ isLoading: true, error: null });
 
         try {
-          // Добавляем таймаут для iOS Safari, чтобы избежать зависания
-          console.log("🔧 requestPermission: Создаем промис для запроса разрешения");
-          const permissionPromise = Notification.requestPermission();
-          
-          // Таймаут 10 секунд для iOS Safari
-          console.log("🔧 requestPermission: Создаем промис с таймаутом 10 сек");
-          const timeoutPromise = new Promise<NotificationPermission>((_, reject) => {
-            setTimeout(() => {
-              console.log("⏰ requestPermission: Таймаут истек!");
-              reject(new Error("Request permission timeout"));
-            }, 10000);
-          });
-          
-          console.log("🔧 requestPermission: Запускаем гонку между разрешением и таймаутом");
-          const result = await Promise.race([permissionPromise, timeoutPromise]);
+          // Простой запрос разрешения без таймаута
+          console.log("🔧 requestPermission: Запрашиваем разрешение");
+          const result = await Notification.requestPermission();
           console.log("✅ requestPermission: Разрешение получено:", result);
           
           set({
@@ -81,7 +69,7 @@ export const usePermissionStore = create<PermissionState>()(
         } catch (error) {
           console.error("❌ requestPermission: Ошибка запроса разрешения уведомлений:", error);
           set({
-            error: "Не удалось запросить разрешение (таймаут)",
+            error: "Не удалось запросить разрешение",
             isLoading: false,
           });
           return "denied";
