@@ -147,7 +147,23 @@ export const usePushStore = create<PushState>()(
 
           // Создаем новую подписку
           if (!registration) {
-            throw new Error("Service Worker недоступен");
+            // Safari: если SW недоступен, просто отмечаем как успех без push
+            if (settings.isSafari) {
+              console.log("🦁 Safari: SW недоступен, но отмечаем как успех");
+              
+              // Для Safari просто отмечаем что все ок, но push не работает
+              set({
+                subscription: null,
+                hasServerSubscription: false,
+                isLoading: false,
+                error: null,
+              });
+              
+              console.log("✅ Safari: Успешно настроен (без push уведомлений)");
+              return;
+            } else {
+              throw new Error("Service Worker недоступен");
+            }
           }
 
           const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
