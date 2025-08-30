@@ -1,6 +1,6 @@
-// Кастомный Service Worker для улучшения offline режима
+// Современный Service Worker для всех браузеров с оптимизацией для Safari
 
-// Определяем, является ли браузер Safari
+// Определяем браузер
 const isSafari = () => {
   const userAgent = navigator.userAgent;
   return /Safari/.test(userAgent) && !/Chrome/.test(userAgent);
@@ -11,38 +11,37 @@ const getSafariSettings = () => {
   const safari = isSafari();
   return {
     isSafari: safari,
-    // Safari: упрощенная логика, меньше кэширования
-    useSimpleCache: safari,
-    // Safari: таймауты для предотвращения зависаний
-    timeoutMs: safari ? 3000 : 10000,
+    // Safari: минимальная логика, быстрая активация
+    useMinimalLogic: safari,
+    // Safari: простые уведомления без сложных опций
+    useSimpleNotifications: safari,
   };
 };
 
-// Функция для создания уведомления с учетом особенностей Safari
+// Функция для создания уведомления
 const createNotificationOptions = (data, baseUrl) => {
-  // Safari 2025: требует иконки в формате PNG, размеры 192x192, 256x256, 512x512
-  // Safari НЕ поддерживает badge, actions, vibrate, timestamp
+  const settings = getSafariSettings();
+  
+  // Базовые опции для всех браузеров
   let iconUrl = data.icon ? (data.icon.startsWith('http') ? data.icon : baseUrl + data.icon) : baseUrl + '/icons/icon192.png';
   
-  // Fallback для Safari - используем иконки в правильных размерах
   if (!data.icon) {
     iconUrl = baseUrl + '/icons/icon192.png';
   }
   
-  // Safari поддерживает только базовые опции
-  if (isSafari()) {
+  // Safari: только базовые опции
+  if (settings.useSimpleNotifications) {
     return {
       body: data.body || data.message || 'Новое уведомление',
       icon: iconUrl,
       tag: data.tag || 'gafus-notification',
       data: data,
-      // Safari не поддерживает: badge, actions, vibrate, timestamp, renotify, dir
       requireInteraction: false,
       silent: false
     };
   }
   
-  // Для других браузеров используем полный набор опций
+  // Другие браузеры: полный набор опций
   const badgeUrl = data.badge ? (data.badge.startsWith('http') ? data.badge : baseUrl + data.badge) : baseUrl + '/icons/badge-72.png';
   
   return {
@@ -53,14 +52,8 @@ const createNotificationOptions = (data, baseUrl) => {
     data: data,
     requireInteraction: false,
     actions: [
-      {
-        action: 'open',
-        title: 'Открыть',
-      },
-      {
-        action: 'close',
-        title: 'Закрыть',
-      }
+      { action: 'open', title: 'Открыть' },
+      { action: 'close', title: 'Закрыть' }
     ],
     silent: false,
     vibrate: [200, 100, 200],
@@ -68,46 +61,55 @@ const createNotificationOptions = (data, baseUrl) => {
   };
 };
 
-// Упрощенная установка для Safari
+// Современная установка Service Worker
 self.addEventListener('install', (event) => {
-  console.log('🔄 Custom SW installing...');
+  console.log('🔄 SW: Устанавливаемся...');
   
   const settings = getSafariSettings();
   
-  if (settings.isSafari) {
-    // Safari: простая установка без сложной логики
-    console.log('🦁 Safari: упрощенная установка');
+  if (settings.useMinimalLogic) {
+    // Safari: минимальная установка
+    console.log('🦁 Safari: Минимальная установка');
     event.waitUntil(self.skipWaiting());
   } else {
-    // Другие браузеры: обычная установка
+    // Другие браузеры: полная установка
     event.waitUntil(
-      Promise.resolve().then(() => {
-        console.log('✅ Custom SW installed successfully');
-        return self.skipWaiting();
-      })
+      Promise.resolve()
+        .then(() => {
+          console.log('✅ SW: Установка завершена');
+          return self.skipWaiting();
+        })
+        .catch(error => {
+          console.error('❌ SW: Ошибка установки:', error);
+        })
     );
   }
 });
 
-// Упрощенная активация для Safari
+// Современная активация Service Worker
 self.addEventListener('activate', (event) => {
-  console.log('✅ Custom SW activated');
+  console.log('✅ SW: Активируемся...');
   
   const settings = getSafariSettings();
   
-  if (settings.isSafari) {
-    // Safari: простая активация без сложной логики
-    console.log('🦁 Safari: упрощенная активация');
-    event.waitUntil(self.clients.claim());
+  if (settings.useMinimalLogic) {
+    // Safari: минимальная активация
+    console.log('🦁 Safari: Минимальная активация');
+    event.waitUntil(
+      self.clients.claim()
+        .catch(error => {
+          console.warn('⚠️ Safari: Ошибка claim (но это нормально):', error);
+        })
+    );
   } else {
-    // Другие браузеры: обычная активация
+    // Другие браузеры: полная активация
     event.waitUntil(
       self.clients.claim()
         .then(() => {
-          console.log('✅ Clients claimed successfully');
+          console.log('✅ SW: Активация завершена');
         })
-        .catch((error) => {
-          console.error('❌ Failed to claim clients:', error);
+        .catch(error => {
+          console.error('❌ SW: Ошибка активации:', error);
         })
     );
   }
@@ -122,135 +124,127 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   
   // Для push-уведомлений не используем кэширование
-  if (request.url.includes('/api/push')) {
-    return;
-  }
+  if (request.url.includes('/api/push')) return;
   
-  // Safari: упрощенная логика fetch
-  if (settings.useSimpleCache) {
-    console.log('🦁 Safari: упрощенная обработка fetch');
+  if (settings.useMinimalLogic) {
+    // Safari: минимальная обработка fetch
+    console.log('🦁 Safari: Минимальная обработка fetch');
     
-    // Простая обработка без сложного кэширования
     event.respondWith(
       fetch(request)
         .catch(async (error) => {
-          console.log('🌐 Network failed, trying simple cache...', error);
+          console.log('🌐 Safari: Сеть недоступна, пробуем кэш');
           
           try {
             const cachedResponse = await caches.match(request);
             if (cachedResponse) {
-              console.log('✅ Serving from cache:', request.url);
+              console.log('✅ Safari: Обслуживаем из кэша');
               return cachedResponse;
             }
           } catch (cacheError) {
-            console.warn('⚠️ Cache error:', cacheError);
+            console.warn('⚠️ Safari: Ошибка кэша:', cacheError);
           }
           
           // Простой fallback для Safari
           return new Response(
-            '<html><body><h1>Offline</h1><p>No internet connection</p></body></html>',
+            '<html><body><h1>Offline</h1><p>Нет подключения к интернету</p></body></html>',
             { headers: { 'Content-Type': 'text/html' } }
           );
         })
     );
   } else {
-    // Другие браузеры: полная логика кэширования
+    // Другие браузеры: полная обработка fetch
     try {
       event.respondWith(
         fetch(request)
           .then((response) => {
-            // Если запрос успешен и это страница, кэшируем
+            // Кэшируем страницы
             if (response.status === 200 && request.mode === 'navigate') {
               const responseClone = response.clone();
               caches.open('pages').then((cache) => {
                 cache.put(request, responseClone).catch(err => {
-                  console.warn('⚠️ Failed to cache page:', err);
+                  console.warn('⚠️ Не удалось кэшировать страницу:', err);
                 });
               });
             }
             return response;
           })
           .catch(async (error) => {
-            console.log('🌐 Network failed, trying cache...', error);
+            console.log('🌐 Сеть недоступна, пробуем кэш');
             
-            // Пытаемся найти в кэше
             try {
               const cachedResponse = await caches.match(request);
               if (cachedResponse) {
-                console.log('✅ Serving from cache:', request.url);
+                console.log('✅ Обслуживаем из кэша');
                 return cachedResponse;
               }
             } catch (cacheError) {
-              console.warn('⚠️ Cache error:', cacheError);
+              console.warn('⚠️ Ошибка кэша:', cacheError);
             }
             
-            // Fallback на пустую страницу
             return new Response(
-              '<html><body><h1>Offline</h1><p>No internet connection</p></body></html>',
-              {
-                headers: { 'Content-Type': 'text/html' },
-              }
+              '<html><body><h1>Offline</h1><p>Нет подключения к интернету</p></body></html>',
+              { headers: { 'Content-Type': 'text/html' } }
             );
           })
       );
     } catch (error) {
-      console.warn('⚠️ Fetch handler error:', error);
-      // В случае ошибки просто пропускаем
-      return;
+      console.warn('⚠️ Ошибка обработки fetch:', error);
     }
   }
 });
 
-// Упрощенная обработка push уведомлений для Safari
+// Упрощенная обработка push уведомлений
 self.addEventListener('push', (event) => {
-  console.log('🔔 Push event received:', event);
+  console.log('🔔 Push событие получено');
   
   const settings = getSafariSettings();
   
   if (event.data) {
     try {
       const data = event.data.json();
-      console.log('🔔 Push data:', data);
+      console.log('🔔 Push данные:', data);
       
-      // Создаем абсолютные URL для иконок (требуется для Safari)
       const baseUrl = self.location.origin;
       const options = createNotificationOptions(data, baseUrl);
       
-      console.log('🔔 Showing notification with options:', options);
+      console.log('🔔 Показываем уведомление с опциями:', options);
       
-      if (settings.isSafari) {
-        // Safari: упрощенная обработка push
-        console.log('🦁 Safari: упрощенная обработка push');
+      if (settings.useMinimalLogic) {
+        // Safari: минимальная обработка push
+        console.log('🦁 Safari: Минимальная обработка push');
         
         event.waitUntil(
           self.registration.showNotification(data.title || 'Gafus', options)
             .catch((error) => {
-              console.error('❌ Safari push failed, using fallback:', error);
-              // Fallback для Safari - минимальные опции
+              console.error('❌ Safari: Ошибка показа уведомления:', error);
+              
+              // Fallback для Safari
               const safariFallback = {
                 body: data.body || data.message || 'Новое уведомление',
                 icon: baseUrl + '/icons/icon192.png',
-                tag: data.tag || 'gafus-notification-safari-fallback'
+                tag: 'gafus-notification-safari-fallback'
               };
+              
               return self.registration.showNotification(data.title || 'Gafus', safariFallback);
             })
         );
       } else {
-        // Другие браузеры: полная обработка
+        // Другие браузеры: полная обработка push
         event.waitUntil(
           self.registration.showNotification(data.title || 'Gafus', options)
             .then(() => {
-              console.log('✅ Notification shown successfully');
+              console.log('✅ Уведомление показано успешно');
             })
             .catch((error) => {
-              console.error('❌ Failed to show notification:', error);
+              console.error('❌ Ошибка показа уведомления:', error);
             })
         );
       }
     } catch (error) {
-      console.error('❌ Error processing push data:', error);
+      console.error('❌ Ошибка обработки push данных:', error);
       
-      // Fallback notification с абсолютным URL
+      // Fallback уведомление
       const baseUrl = self.location.origin;
       event.waitUntil(
         self.registration.showNotification('Gafus', {
@@ -261,9 +255,9 @@ self.addEventListener('push', (event) => {
       );
     }
   } else {
-    console.log('🔔 Push event without data');
+    console.log('🔔 Push событие без данных');
     
-    // Fallback notification с абсолютным URL
+    // Fallback уведомление
     const baseUrl = self.location.origin;
     event.waitUntil(
       self.registration.showNotification('Gafus', {
@@ -275,36 +269,33 @@ self.addEventListener('push', (event) => {
   }
 });
 
-// Упрощенная обработка сообщений для Safari
+// Упрощенная обработка сообщений
 self.addEventListener('message', (event) => {
-  console.log('📨 Message received in Service Worker:', event.data);
+  console.log('📨 Сообщение получено в SW:', event.data);
   
   const settings = getSafariSettings();
   
   if (event.data && event.data.type === 'TEST_PUSH') {
-    console.log('🔔 Processing test push notification');
+    console.log('🔔 Обрабатываем тестовое push уведомление');
     
     const { data } = event.data;
-    
-    // Создаем абсолютные URL для иконок (требуется для Safari)
     const baseUrl = self.location.origin;
     const options = createNotificationOptions(data, baseUrl);
     
-    if (settings.isSafari) {
-      // Safari: упрощенная обработка тестовых уведомлений
-      console.log('🦁 Safari: упрощенная обработка тестового push');
+    if (settings.useMinimalLogic) {
+      // Safari: минимальная обработка тестового push
+      console.log('🦁 Safari: Минимальная обработка тестового push');
       
       event.waitUntil(
         self.registration.showNotification(data.title || 'Тест Gafus', options)
           .then(() => {
-            console.log('✅ Test notification shown successfully');
-            // Безопасная отправка ответа
+            console.log('✅ Safari: Тестовое уведомление показано');
             if (event.ports && event.ports.length > 0) {
               event.ports[0].postMessage({ success: true });
             }
           })
           .catch((error) => {
-            console.error('❌ Safari test notification failed:', error);
+            console.error('❌ Safari: Ошибка тестового уведомления:', error);
             if (event.ports && event.ports.length > 0) {
               event.ports[0].postMessage({ success: false, error: error.message });
             }
@@ -315,14 +306,13 @@ self.addEventListener('message', (event) => {
       event.waitUntil(
         self.registration.showNotification(data.title || 'Тест Gafus', options)
           .then(() => {
-            console.log('✅ Test notification shown successfully');
-            // Безопасная отправка ответа
+            console.log('✅ Тестовое уведомление показано');
             if (event.ports && event.ports.length > 0) {
               event.ports[0].postMessage({ success: true });
             }
           })
           .catch((error) => {
-            console.error('❌ Failed to show test notification:', error);
+            console.error('❌ Ошибка тестового уведомления:', error);
             if (event.ports && event.ports.length > 0) {
               event.ports[0].postMessage({ success: false, error: error.message });
             }
@@ -330,9 +320,8 @@ self.addEventListener('message', (event) => {
       );
     }
   } else if (event.data && event.data.type === 'PING') {
-    console.log('🏓 PING received, responding with PONG');
+    console.log('🏓 PING получен, отвечаем PONG');
     
-    // Безопасная отправка ответа
     if (event.ports && event.ports.length > 0) {
       event.ports[0].postMessage({ 
         success: true, 
@@ -344,23 +333,22 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Упрощенная обработка кликов по уведомлениям для Safari
+// Упрощенная обработка кликов по уведомлениям
 self.addEventListener('notificationclick', (event) => {
-  console.log('🔔 Notification clicked:', event);
+  console.log('🔔 Клик по уведомлению:', event);
   event.notification.close();
   
   const settings = getSafariSettings();
   
   if (event.action === 'open') {
-    if (settings.isSafari) {
-      // Safari: упрощенная обработка клика
-      console.log('🦁 Safari: упрощенная обработка клика по уведомлению');
+    if (settings.useMinimalLogic) {
+      // Safari: минимальная обработка клика
+      console.log('🦁 Safari: Минимальная обработка клика');
       
       event.waitUntil(
         self.clients.openWindow('./')
           .catch((error) => {
-            console.error('❌ Safari failed to open window:', error);
-            // Fallback - открываем текущий URL
+            console.error('❌ Safari: Ошибка открытия окна:', error);
             return self.clients.openWindow(self.location.origin);
           })
       );
@@ -370,12 +358,11 @@ self.addEventListener('notificationclick', (event) => {
         self.clients.openWindow('./')
           .then((windowClient) => {
             if (windowClient) {
-              console.log('✅ Window opened successfully');
+              console.log('✅ Окно открыто успешно');
             }
           })
           .catch((error) => {
-            console.error('❌ Failed to open window:', error);
-            // Fallback - открываем текущий URL
+            console.error('❌ Ошибка открытия окна:', error);
             self.clients.openWindow(self.location.origin);
           })
       );
@@ -383,7 +370,7 @@ self.addEventListener('notificationclick', (event) => {
   }
 });
 
-console.log('🚀 Custom Service Worker loaded');
+console.log('🚀 Современный Service Worker загружен');
 
 
 
