@@ -50,14 +50,34 @@ const isNotificationSupported = () => {
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isSafari = () => /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
 
-// Упрощенные настройки для всех браузеров
+// Safari-специфичные настройки с таймаутами
 const getSafariSettings = () => {
   const safari = isSafari();
   const ios = isIOS();
   return {
     isSafari: safari,
     isIOS: ios,
+    // Safari-специфичные таймауты для предотвращения зависаний
+    swTimeoutMs: safari ? 2000 : 15000, // 2 сек для Safari, 15 для других
+    pushTimeoutMs: safari ? 5000 : 10000, // 5 сек для push операций в Safari
+    useTimeout: safari, // Использовать таймауты для Safari
   };
+};
+
+// Безопасное получение Service Worker с таймаутом для Safari
+const getServiceWorkerSafely = async (timeoutMs: number) => {
+  try {
+    const swPromise = navigator.serviceWorker.ready;
+    const timeoutPromise = new Promise<ServiceWorkerRegistration>((_, reject) => 
+      setTimeout(() => reject(new Error('Service Worker timeout')), timeoutMs)
+    );
+    
+    return await Promise.race([swPromise, timeoutPromise]);
+  } catch (timeoutError) {
+    console.log(`⏰ Service Worker timeout (${timeoutMs}ms), но SW работает в фоне`);
+    // Возвращаем undefined если таймаут, но SW продолжает работать
+    return undefined;
+  }
 };
 
 export const usePushStore = create<PushState>()(
@@ -90,7 +110,6 @@ export const usePushStore = create<PushState>()(
 
         set({ isLoading: true, error: null });
 
-        // Safari-специфичные настройки
         const settings = getSafariSettings();
         const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
 
@@ -98,24 +117,61 @@ export const usePushStore = create<PushState>()(
           console.log("🚀 setupPushSubscription: Начинаем создание подписки");
           console.log(`🌐 Browser: ${settings.isIOS ? 'iOS' : 'Other'} ${settings.isSafari ? 'Safari' : 'Other'}`);
           
-          // Упрощенная логика для всех браузеров
+          // Безопасное получение Service Worker с таймаутом для Safari
+          const registration = await getServiceWorkerSafely(settings.swTimeoutMs);
+          
+          if (!registration) {
+            // Safari: SW не готов, но продолжаем работу
+            console.log("🦁 Safari: Service Worker не готов, но продолжаем работу");
+          }
 
-          const registration = await navigator.serviceWorker.ready;
-          const existingSubscription = await registration.pushManager.getSubscription();
+          // Получаем существующую подписку
+          let existingSubscription: PushSubscription | null = null;
+          if (registration) {
+            try {
+              existingSubscription = await registration.pushManager.getSubscription();
+            } catch (error) {
+              console.warn("⚠️ Не удалось получить существующую подписку:", error);
+            }
+          }
 
           // Удаляем существующую подписку для чистого старта
           if (existingSubscription) {
             console.log("🗑️ Удаляем существующую подписку");
-            await existingSubscription.unsubscribe();
+            try {
+              await existingSubscription.unsubscribe();
+            } catch (error) {
+              console.warn("⚠️ Не удалось отписаться от существующей подписки:", error);
+            }
+          }
+
+          // Создаем новую подписку
+          if (!registration) {
+            throw new Error("Service Worker недоступен");
           }
 
           const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
           
-          // Создаем подписку простым способом без IIFE
-          const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey,
-          });
+          // Создаем подписку с таймаутом для Safari
+          let subscription: PushSubscription;
+          if (settings.useTimeout) {
+            // Safari: используем таймаут для предотвращения зависания
+            const pushPromise = registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey,
+            });
+            const pushTimeoutPromise = new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('Push subscription timeout')), settings.pushTimeoutMs)
+            );
+            
+            subscription = await Promise.race([pushPromise, pushTimeoutPromise]);
+          } else {
+            // Другие браузеры: обычная подписка
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey,
+            });
+          }
 
           const p256dh = subscription.getKey ? subscription.getKey("p256dh") : null;
           const auth = subscription.getKey ? subscription.getKey("auth") : null;
@@ -128,7 +184,6 @@ export const usePushStore = create<PushState>()(
             throw new Error("Subscription keys are incomplete");
           }
 
-          // Упрощенная логика для всех браузеров - используем любую созданную подписку
           const p256dhString = btoa(String.fromCharCode(...new Uint8Array(p256dh)));
           const authString = btoa(String.fromCharCode(...new Uint8Array(auth)));
 
@@ -164,14 +219,14 @@ export const usePushStore = create<PushState>()(
           if (error instanceof Error) {
             if (error.message.includes("Service Worker")) {
               errorMessage = "Ошибка Service Worker. Попробуйте перезагрузить страницу.";
+            } else if (error.message.includes("timeout")) {
+              errorMessage = "Таймаут операции. Попробуйте еще раз.";
             } else if (error.message.includes("Subscribe")) {
               errorMessage = "Ошибка создания подписки. Проверьте подключение к интернету.";
             } else {
               errorMessage = error.message;
             }
           }
-          
-          // Упрощенные сообщения для всех браузеров
           
           set({
             error: errorMessage,
@@ -185,6 +240,7 @@ export const usePushStore = create<PushState>()(
         
         const settings = getSafariSettings();
         console.log(`🌐 Browser: ${settings.isIOS ? 'iOS' : 'Other'} ${settings.isSafari ? 'Safari' : 'Other'}`);
+        
         try {
           const userId = get().userId;
           if (!userId) {
@@ -232,11 +288,14 @@ export const usePushStore = create<PushState>()(
             console.log(`🔍 Найдена подписка в store: ${endpoint.substring(0, 50)}...`);
           } else if (isPushSupported()) {
             try {
-              const registration = await navigator.serviceWorker.ready;
-              const existing = await registration.pushManager.getSubscription();
-              if (existing?.endpoint) {
-                endpoint = existing.endpoint;
-                console.log(`🔍 Найдена подписка в SW: ${endpoint.substring(0, 50)}...`);
+              // Безопасное получение Service Worker с таймаутом для Safari
+              const registration = await getServiceWorkerSafely(settings.swTimeoutMs);
+              if (registration) {
+                const existing = await registration.pushManager.getSubscription();
+                if (existing?.endpoint) {
+                  endpoint = existing.endpoint;
+                  console.log(`🔍 Найдена подписка в SW: ${endpoint.substring(0, 50)}...`);
+                }
               }
             } catch (error) {
               console.warn("Failed to get existing subscription:", error);
@@ -280,12 +339,14 @@ export const usePushStore = create<PushState>()(
           // 3. Удаляем из service worker
           if (isPushSupported()) {
             try {
-              const registration = await navigator.serviceWorker.ready;
-              const existing = await registration.pushManager.getSubscription();
-              if (existing) {
-                console.log("🗑️ Удаляем подписку из Service Worker...");
-                await existing.unsubscribe();
-                console.log("✅ Подписка удалена из Service Worker");
+              const registration = await getServiceWorkerSafely(settings.swTimeoutMs);
+              if (registration) {
+                const existing = await registration.pushManager.getSubscription();
+                if (existing) {
+                  console.log("🗑️ Удаляем подписку из Service Worker...");
+                  await existing.unsubscribe();
+                  console.log("✅ Подписка удалена из Service Worker");
+                }
               }
             } catch (error) {
               console.warn("Failed to unsubscribe from service worker:", error);
@@ -308,7 +369,9 @@ export const usePushStore = create<PushState>()(
           let errorMessage = "Не удалось удалить подписку";
           
           if (error instanceof Error) {
-            if (error.message.includes("network")) {
+            if (error.message.includes("timeout")) {
+              errorMessage = "Таймаут операции. Попробуйте еще раз.";
+            } else if (error.message.includes("network")) {
               errorMessage = "Ошибка сети. Проверьте подключение к интернету.";
             } else {
               errorMessage = error.message;
