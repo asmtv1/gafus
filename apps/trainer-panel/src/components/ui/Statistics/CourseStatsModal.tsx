@@ -1,3 +1,20 @@
+import React, { useState } from "react";
+import {
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  IconButton,
+  Paper,
+  Tab,
+  Tabs,
+  Typography,
+} from "@mui/material";
+import NextLink from "next/link";
 import {
   Category,
   Close,
@@ -9,10 +26,6 @@ import {
   Star,
   TrendingUp,
 } from "@mui/icons-material";
-import Image from "next/image";
-import NextLink from "next/link";
-import React, { useState } from "react";
-
 
 // Функция для получения русского названия уровня сложности
 const getTrainingLevelLabel = (level: string) => {
@@ -53,21 +66,6 @@ import TimeAnalytics from "@/features/statistics/components/TimeAnalytics";
 import { Toast } from "@/shared/components/ui";
 import { useToast } from "@/shared/components/ui/Toast";
 import { deleteCourseServerAction } from "@/shared/lib/actions/courses";
-import {
-  Avatar,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  IconButton,
-  Paper,
-  Tab,
-  Tabs,
-  Typography,
-} from "@/utils/muiImports";
 
 import type { DetailedCourseStats } from "@gafus/types";
 
@@ -168,7 +166,7 @@ export default function CourseStatsModal({
               borderRadius: 2,
             }}
           >
-            <Image
+            <img
               src={course.logoImg || "/uploads/course-logo.webp"}
               alt={course.name}
               width={100}
@@ -356,7 +354,7 @@ export default function CourseStatsModal({
                       >
                         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                           <Avatar sx={{ width: 40, height: 40 }}>
-                            <Image
+                            <img
                               src={
                                 userCourse.user.profile?.avatarUrl || "/uploads/avatar.svg"
                               }
@@ -405,7 +403,7 @@ export default function CourseStatsModal({
                   <Paper key={index} sx={{ p: 2, mb: 1 }}>
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
                       <Avatar sx={{ width: 40, height: 40 }}>
-                        <Image
+                        <img
                           src={review.user?.profile?.avatarUrl || "/uploads/avatar.svg"}
                           alt={review.user?.username || "user"}
                           width={40}

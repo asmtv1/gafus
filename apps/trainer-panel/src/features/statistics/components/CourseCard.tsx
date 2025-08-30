@@ -7,7 +7,7 @@ import {
   Star,
   TrendingUp,
 } from "@mui/icons-material";
-import Image from "next/image";
+
 import NextLink from "next/link";
 
 import { Avatar, Box, Button, Card, CardContent, Chip, Typography } from "@/utils/muiImports";
@@ -76,12 +76,16 @@ export default function CourseCard({ course, onClick }: CourseCardProps) {
               borderRadius: 2,
             }}
           >
-            <Image
+            <img
               src={course.logoImg || "/uploads/course-logo.webp"}
               alt={course.name}
               width={80}
               height={80}
               style={{ borderRadius: "8px" }}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/uploads/course-logo.webp";
+              }}
             />
           </Avatar>
 
