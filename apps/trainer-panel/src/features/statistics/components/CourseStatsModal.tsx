@@ -10,7 +10,7 @@ import {
 } from "@mui/icons-material";
 import { Toast, useToast } from "@shared/components/ui/Toast";
 import { deleteCourseServerAction } from "@shared/lib/actions/courses";
-import Image from "next/image";
+
 import NextLink from "next/link";
 import { useState } from "react";
 
@@ -134,12 +134,16 @@ export default function CourseStatsModal({
               borderRadius: 2,
             }}
           >
-            <Image
+            <img
               src={course.logoImg || "/uploads/course-logo.webp"}
               alt={course.name}
               width={100}
               height={100}
               style={{ borderRadius: "8px" }}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/uploads/course-logo.webp";
+              }}
             />
           </Avatar>
 
@@ -296,11 +300,15 @@ export default function CourseStatsModal({
                     >
                       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                         <Avatar sx={{ width: 40, height: 40 }}>
-                          <Image
+                          <img
                             src={userCourse.user.profile?.avatarUrl || "/uploads/avatar.svg"}
                             alt={userCourse.user.username}
                             width={40}
                             height={40}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = "/uploads/avatar.svg";
+                            }}
                           />
                         </Avatar>
                         <Box>
@@ -347,11 +355,15 @@ export default function CourseStatsModal({
                   <Paper key={index} sx={{ p: 2, mb: 1 }}>
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
                       <Avatar sx={{ width: 40, height: 40 }}>
-                        <Image
+                        <img
                           src={review.user?.profile?.avatarUrl || "/uploads/avatar.svg"}
                           alt={review.user?.username || "user"}
                           width={40}
                           height={40}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = "/uploads/avatar.svg";
+                          }}
                         />
                       </Avatar>
                       <Box sx={{ flex: 1 }}>

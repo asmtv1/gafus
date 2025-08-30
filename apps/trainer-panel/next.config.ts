@@ -9,6 +9,27 @@ const nextConfig: NextConfig = {
     dirs: ["src"],
   },
 
+  // Конфигурация для изображений
+  images: {
+    // Разрешаем загрузку изображений с любых доменов
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+      {
+        protocol: "http",
+        hostname: "**",
+      },
+    ],
+    // Отключаем оптимизацию для локальных изображений
+    unoptimized: true,
+    // Обработка ошибок загрузки
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
+
   // Webpack конфигурация для workspace зависимостей
   webpack: (config, { isServer: _isServer }) => {
     // Разрешаем workspace зависимости
