@@ -156,9 +156,6 @@ export const useOfflineStore = create<OfflineState>()(
       // Проверка реального соединения через внешние сервисы
       checkExternalConnection: async () => {
         try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 сек таймаут
-
           if (process.env.NODE_ENV !== "production") {
             console.warn("🔍 Checking external connection...");
           }
@@ -171,12 +168,10 @@ export const useOfflineStore = create<OfflineState>()(
 
             const response = await fetch("/api/ping", {
               method: "GET",
-              signal: controller.signal,
               cache: "no-cache",
             });
 
             if (response.ok) {
-              clearTimeout(timeoutId);
               if (process.env.NODE_ENV !== "production") {
                 console.warn("✅ Local API check successful");
               }
@@ -211,18 +206,11 @@ export const useOfflineStore = create<OfflineState>()(
 
             for (const url of testUrls) {
               try {
-                const quickController = new AbortController();
-                const quickTimeoutId = setTimeout(() => quickController.abort(), 2000); // 2 сек таймаут
-
                 await fetch(url, {
                   method: "HEAD",
-                  signal: quickController.signal,
                   mode: "no-cors",
                   cache: "no-cache",
                 });
-
-                clearTimeout(quickTimeoutId);
-                clearTimeout(timeoutId);
 
                 console.warn("✅ External connectivity confirmed via:", url);
                 set({ isActuallyConnected: true });
@@ -238,7 +226,6 @@ export const useOfflineStore = create<OfflineState>()(
           }
 
           // Полагаемся на navigator.onLine если внешние запросы заблокированы
-          clearTimeout(timeoutId);
           const fallbackStatus = navigatorOnline;
 
           if (process.env.NODE_ENV !== "production") {
