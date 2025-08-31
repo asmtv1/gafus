@@ -52,10 +52,10 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
     console.log(`🔧 SW Manager: Registering for ${isSafari ? 'Safari' : 'Other'} browser (timeout: ${timeout}ms)`);
 
     try {
-      // Стратегия 1: Использовать готовый Workbox SW (если есть)
+      // Стратегия 1: Использовать готовый SW (если есть)
       const existingRegistration = await this.tryGetExistingRegistration(timeout);
       if (existingRegistration) {
-        console.log('✅ SW Manager: Using existing Workbox registration');
+        console.log('✅ SW Manager: Using existing registration');
         return existingRegistration;
       }
 
@@ -66,7 +66,12 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
         return newRegistration;
       }
 
-      // Стратегия 3: Создать минимальный SW на лету (крайний случай)
+      // В Safari blob URL не работают для SW, поэтому не пытаемся создать fallback
+      if (isSafari) {
+        throw new Error('Service Worker registration failed in Safari - no fallback available');
+      }
+
+      // Стратегия 3: Создать минимальный SW на лету (только для не-Safari браузеров)
       return await this.createFallbackServiceWorker();
 
     } catch (error) {
@@ -91,12 +96,30 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
 
   private async tryForceRegistration(timeout: number): Promise<ServiceWorkerRegistration | null> {
     try {
-      console.log('🔄 SW Manager: Force registering /sw.js...');
+      console.log('🔄 SW Manager: Checking for existing registration before force register...');
+      
+      // Сначала проверим, есть ли уже регистрация
+      const existingRegistrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of existingRegistrations) {
+        if (reg.scope === new URL('/', location.href).href) {
+          console.log('✅ SW Manager: Found existing registration, using it');
+          
+          // Если SW не активен, ждем активации
+          if (!reg.active) {
+            await this.waitForActivation(reg, timeout);
+          }
+          
+          return reg;
+        }
+      }
+      
+      console.log('🔄 SW Manager: No existing registration, creating new one...');
       
       const registration = await Promise.race([
         navigator.serviceWorker.register('/sw.js', {
           scope: '/',
-          type: 'classic'
+          type: 'classic',
+          updateViaCache: 'none'
         }),
         new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error('Force registration timeout')), timeout)

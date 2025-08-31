@@ -7,6 +7,7 @@ import "../globals.css";
 import NotificationRequesterNew from "@shared/components/ui/NotificationRequesterNew";
 import OfflineStatus from "@shared/components/ui/OfflineStatus";
 import OfflineStoreInitializer from "@shared/components/ui/OfflineStoreInitializer";
+import ServiceWorkerRegistrar from "@shared/components/ui/ServiceWorkerRegistrar";
 
 import Footer from "@/features/footer/components/Footer";
 import HeaderServerWrapper from "@/features/header/components/HeaderServerWrapper";
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <>
       <div className="page-container">
         <HeaderServerWrapper />
+        <ServiceWorkerRegistrar />
         <NotificationRequesterNew />
         <OfflineStatus />
         <OfflineStoreInitializer />
