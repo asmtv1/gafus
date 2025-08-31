@@ -35,6 +35,18 @@
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-72-safari.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-256-safari.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "screenshots": [

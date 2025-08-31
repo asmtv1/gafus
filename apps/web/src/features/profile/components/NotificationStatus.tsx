@@ -34,27 +34,37 @@ export default function NotificationStatus() {
   const handleAllowNotifications = async () => {
     console.log("🚀 NotificationStatus: handleAllowNotifications вызван");
     
-    // Специальная диагностика для Safari
+    // Проверяем поддержку push-уведомлений
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    const isWebKit = /webkit/i.test(navigator.userAgent);
+    const isChrome = /chrome/i.test(navigator.userAgent);
+    const isSafari = isWebKit && (/safari/i.test(navigator.userAgent) && !isChrome || isIOS);
     const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
     
-    if (isIOS && isSafari) {
-      console.log("🍎 iOS Safari detected");
+    // Современные версии Safari поддерживают push в браузере (с iOS 16.4+, macOS 13+)
+    if (isSafari) {
+      console.log("🦁 Safari/WebKit detected");
+      console.log("🔧 iOS:", isIOS);
       console.log("🔧 PWA standalone mode:", isStandalone);
       console.log("🔧 HTTPS:", window.location.protocol === 'https:');
       console.log("🔧 Service Worker supported:", 'serviceWorker' in navigator);
+      console.log("🔧 Push Manager supported:", 'PushManager' in window);
       
-      if (!isStandalone) {
-        console.error("❌ Safari requires PWA mode (add to home screen)");
-        alert("Для push-уведомлений в Safari добавьте сайт в главный экран и запустите как приложение");
+      // Обязательное требование HTTPS для push
+      if (window.location.protocol !== 'https:') {
+        console.error("❌ Safari requires HTTPS for push notifications");
+        alert("Для push-уведомлений требуется HTTPS соединение");
         return;
       }
       
-      if (window.location.protocol !== 'https:') {
-        console.error("❌ Safari requires HTTPS for push notifications");
-        alert("Для push-уведомлений в Safari требуется HTTPS");
-        return;
+      // Для старых версий iOS Safari (< 16.4) требуется PWA режим
+      if (isIOS && !isStandalone) {
+        // Проверяем поддержку push в браузере
+        if (!('PushManager' in window) || !('serviceWorker' in navigator)) {
+          console.warn("⚠️ Old iOS Safari: PWA mode required for push notifications");
+          alert("На данной версии iOS для push-уведомлений добавьте сайт на главный экран и запустите как приложение");
+          return;
+        }
       }
     }
     
