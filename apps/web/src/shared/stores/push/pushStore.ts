@@ -71,17 +71,17 @@ const getSafariSettings = () => {
   };
 };
 
-// Безопасное получение Service Worker с таймаутом для Safari
+// Безопасное получение Workbox Service Worker с таймаутом для Safari
 const getServiceWorkerSafely = async (timeoutMs: number) => {
   try {
     const swPromise = navigator.serviceWorker.ready;
     const timeoutPromise = new Promise<ServiceWorkerRegistration>((_, reject) => 
-      setTimeout(() => reject(new Error('Service Worker timeout')), timeoutMs)
+      setTimeout(() => reject(new Error('Workbox Service Worker timeout')), timeoutMs)
     );
     
     return await Promise.race([swPromise, timeoutPromise]);
   } catch (timeoutError) {
-    console.log(`⏰ Service Worker timeout (${timeoutMs}ms), но SW работает в фоне`);
+    console.log(`⏰ Workbox Service Worker timeout (${timeoutMs}ms), но SW работает в фоне`);
     // Возвращаем undefined если таймаут, но SW продолжает работать
     return undefined;
   }
@@ -128,122 +128,45 @@ export const usePushStore = create<PushState>()(
           // Для Safari в PWA: принудительно регистрируем Service Worker
           let registration: ServiceWorkerRegistration;
           
-          if (settings.isSafari) {
-            console.log("🦁 Safari: Регистрируем Service Worker для PWA...");
-            
-            try {
-              // Регистрируем новый SW
-              registration = await navigator.serviceWorker.register('/sw.js');
-              console.log("✅ Safari: Новый SW зарегистрирован:", registration);
-              
-              // Ждем готовности SW с таймаутом для Safari
-              console.log("⏳ Safari: Ждем готовности SW...");
-              
-              // Ждем установку SW (installed|activated) с таймаутом
-              if (registration.installing) {
-                const sw = registration.installing;
-                await Promise.race([
-                  new Promise<void>((resolve, reject) => {
-                    const onStateChange = () => {
-                      if (sw.state === 'installed' || sw.state === 'activated') {
-                        sw.removeEventListener('statechange', onStateChange);
-                        resolve();
-                      } else if (sw.state === 'redundant') {
-                        sw.removeEventListener('statechange', onStateChange);
-                        reject(new Error('Safari SW became redundant during install'));
-                      }
-                    };
-                    if (sw.state === 'installed' || sw.state === 'activated') {
-                      resolve();
-                      return;
-                    }
-                    sw.addEventListener('statechange', onStateChange);
-                  }),
-                  new Promise<void>((_, reject) => {
-                    setTimeout(() => {
-                      reject(new Error('Safari SW installation timeout'));
-                    }, 15000);
-                  })
-                ]);
-              }
-              
-              // Активируем SW
-              if (registration.waiting) {
-                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-              }
-              
-              // Ждем активации (activated + контроллер) с таймаутом
-              await Promise.race([
-                new Promise<void>((resolve) => {
-                  if (registration.active && navigator.serviceWorker.controller) {
-                    resolve();
-                    return;
-                  }
-                  const tryResolve = () => {
-                    if (registration.active && navigator.serviceWorker.controller) {
-                      navigator.serviceWorker.removeEventListener('controllerchange', tryResolve);
-                      resolve();
-                    }
-                  };
-                  navigator.serviceWorker.addEventListener('controllerchange', tryResolve);
-                  const worker = registration.waiting || registration.installing;
-                  if (worker) {
-                    const onStateChange = () => {
-                      if (worker.state === 'activated') {
-                        worker.removeEventListener('statechange', onStateChange);
-                        resolve();
-                      }
-                    };
-                    worker.addEventListener('statechange', onStateChange);
-                  }
-                }),
-                new Promise<void>((_, reject) => {
+          // Используем существующий Workbox SW (зарегистрированный @ducanh2912/next-pwa)
+          console.log("🔧 Используем существующий Workbox Service Worker...");
+          
+          try {
+            // Ждем готовности SW с таймаутом для Safari
+            if (settings.isSafari) {
+              console.log("🦁 Safari: Ждем готовности Workbox SW...");
+              registration = await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise<ServiceWorkerRegistration>((_, reject) => {
                   setTimeout(() => {
-                    reject(new Error('Safari SW activation timeout'));
-                  }, 15000);
+                    reject(new Error('Safari SW ready timeout'));
+                  }, 10000); // 10 секунд для Safari
                 })
               ]);
-              
-              console.log("✅ Safari: SW готов к использованию");
-              
-            } catch (swError) {
-              console.error("❌ Safari: Ошибка регистрации SW:", swError);
-              
-              // Для Safari: пробуем обычную регистрацию или продолжаем без SW
-              if (isStandalone) {
-                console.log("🦁 Safari PWA: Пробуем обычную регистрацию...");
-                try {
-                  registration = await navigator.serviceWorker.ready;
-                  console.log("✅ Safari PWA: SW готов");
-                } catch (readyError) {
-                  console.warn("⚠️ Safari PWA: SW ready failed, продолжаем без SW:", readyError);
-                  // Создаем заглушку для registration
-                  registration = {
-                    pushManager: {
-                      getSubscription: async () => null,
-                      subscribe: async () => {
-                        throw new Error('Safari SW not available');
-                      }
-                    }
-                  } as unknown as ServiceWorkerRegistration;
-                }
-              } else {
-                console.warn("⚠️ Safari Browser: SW недоступен, продолжаем без push уведомлений");
-                // Создаем заглушку для registration
-                registration = {
-                  pushManager: {
-                    getSubscription: async () => null,
-                    subscribe: async () => {
-                      throw new Error('Safari SW not available');
-                    }
-                  }
-                } as unknown as ServiceWorkerRegistration;
-              }
+            } else {
+              // Другие браузеры: обычное ожидание
+              registration = await navigator.serviceWorker.ready;
             }
-          } else {
-            // Другие браузеры: обычная регистрация
-            registration = await navigator.serviceWorker.ready;
-            console.log("✅ Service Worker готов:", registration);
+            
+            console.log("✅ Workbox Service Worker готов:", registration);
+            
+          } catch (swError) {
+            console.error("❌ Ошибка получения Workbox SW:", swError);
+            
+            if (settings.isSafari) {
+              console.warn("⚠️ Safari: SW недоступен, продолжаем без push уведомлений");
+              // Создаем заглушку для registration
+              registration = {
+                pushManager: {
+                  getSubscription: async () => null,
+                  subscribe: async () => {
+                    throw new Error('Safari SW not available');
+                  }
+                }
+              } as unknown as ServiceWorkerRegistration;
+            } else {
+              throw swError; // Для других браузеров пробрасываем ошибку
+            }
           }
 
           // Проверяем доступность pushManager
