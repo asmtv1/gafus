@@ -135,19 +135,26 @@ export const usePushStore = create<PushState>()(
               registration = await navigator.serviceWorker.register('/sw.js');
               console.log("✅ Safari: Новый SW зарегистрирован:", registration);
               
-              // Ждем готовности SW
+              // Ждем готовности SW с таймаутом для Safari
               console.log("⏳ Safari: Ждем готовности SW...");
               
-              // Ждем пока SW станет активным
+              // Ждем пока SW станет активным с таймаутом
               if (registration.installing) {
-                await new Promise<void>((resolve) => {
-                  registration.installing!.addEventListener('statechange', (e) => {
-                    const target = e.target as ServiceWorker;
-                    if (target && target.state === 'installed') {
-                      resolve();
-                    }
-                  });
-                });
+                await Promise.race([
+                  new Promise<void>((resolve) => {
+                    registration.installing!.addEventListener('statechange', (e) => {
+                      const target = e.target as ServiceWorker;
+                      if (target && target.state === 'installed') {
+                        resolve();
+                      }
+                    });
+                  }),
+                  new Promise<void>((_, reject) => {
+                    setTimeout(() => {
+                      reject(new Error('Safari SW installation timeout'));
+                    }, 15000); // 15 секунд таймаут для Safari
+                  })
+                ]);
               }
               
               // Активируем SW
@@ -155,24 +162,67 @@ export const usePushStore = create<PushState>()(
                 registration.waiting.postMessage({ type: 'SKIP_WAITING' });
               }
               
+              // Ждем активации с таймаутом
+              await Promise.race([
+                new Promise<void>((resolve) => {
+                  if (registration.active) {
+                    resolve();
+                  } else {
+                    registration.addEventListener('activate', () => resolve());
+                  }
+                }),
+                new Promise<void>((_, reject) => {
+                  setTimeout(() => {
+                    reject(new Error('Safari SW activation timeout'));
+                  }, 10000); // 10 секунд таймаут для активации
+                })
+              ]);
+              
               console.log("✅ Safari: SW готов к использованию");
               
             } catch (swError) {
               console.error("❌ Safari: Ошибка регистрации SW:", swError);
               
-              // Для PWA Safari: пробуем обычную регистрацию
+              // Для Safari: пробуем обычную регистрацию или продолжаем без SW
               if (isStandalone) {
                 console.log("🦁 Safari PWA: Пробуем обычную регистрацию...");
-                registration = await navigator.serviceWorker.ready;
-                console.log("✅ Safari PWA: SW готов");
+                try {
+                  registration = await navigator.serviceWorker.ready;
+                  console.log("✅ Safari PWA: SW готов");
+                } catch (readyError) {
+                  console.warn("⚠️ Safari PWA: SW ready failed, продолжаем без SW:", readyError);
+                  // Создаем заглушку для registration
+                  registration = {
+                    pushManager: {
+                      getSubscription: async () => null,
+                      subscribe: async () => {
+                        throw new Error('Safari SW not available');
+                      }
+                    }
+                  } as unknown as ServiceWorkerRegistration;
+                }
               } else {
-                throw new Error("Не удалось зарегистрировать Service Worker в Safari");
+                console.warn("⚠️ Safari Browser: SW недоступен, продолжаем без push уведомлений");
+                // Создаем заглушку для registration
+                registration = {
+                  pushManager: {
+                    getSubscription: async () => null,
+                    subscribe: async () => {
+                      throw new Error('Safari SW not available');
+                    }
+                  }
+                } as unknown as ServiceWorkerRegistration;
               }
             }
           } else {
             // Другие браузеры: обычная регистрация
             registration = await navigator.serviceWorker.ready;
             console.log("✅ Service Worker готов:", registration);
+          }
+
+          // Проверяем доступность pushManager
+          if (!registration.pushManager) {
+            throw new Error("Push Manager недоступен в этом браузере");
           }
 
           // Получаем существующую подписку

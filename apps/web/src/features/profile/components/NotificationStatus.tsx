@@ -79,6 +79,11 @@ export default function NotificationStatus() {
           // В Safari часто бывают таймауты, показываем пользователю
           if (error instanceof Error && error.message.includes("timeout")) {
             console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
+            // Показываем пользователю информацию о таймауте
+            alert("В Safari может потребоваться больше времени для настройки уведомлений. Попробуйте еще раз через несколько секунд.");
+          } else if (error instanceof Error && error.message.includes("SW not available")) {
+            console.warn("⚠️ NotificationStatus: Service Worker недоступен в Safari");
+            alert("В Safari push-уведомления могут работать нестабильно. Добавьте сайт в главный экран для лучшей работы.");
           }
         }
     } else {
@@ -120,6 +125,10 @@ export default function NotificationStatus() {
       // В Safari часто бывают таймауты, показываем пользователю
       if (error instanceof Error && error.message.includes("timeout")) {
         console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
+        alert("В Safari может потребоваться больше времени для удаления подписки. Попробуйте еще раз через несколько секунд.");
+      } else if (error instanceof Error && error.message.includes("SW not available")) {
+        console.warn("⚠️ NotificationStatus: Service Worker недоступен в Safari");
+        alert("В Safari push-уведомления могут работать нестабильно. Добавьте сайт в главный экран для лучшей работы.");
       }
     }
   };
