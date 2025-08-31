@@ -2,7 +2,7 @@
 function getSafariSettings() {
   const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isStandalone = window.navigator.standalone;
+  const isStandalone = navigator.standalone;
   
   return {
     isSafari,
