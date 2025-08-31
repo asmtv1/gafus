@@ -5,6 +5,7 @@ import {
   deleteSubscriptionAction,
   updateSubscriptionAction,
 } from "@shared/lib/actions/subscription";
+import serviceWorkerManager from "@shared/utils/serviceWorkerManager";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -37,54 +38,8 @@ const urlBase64ToUint8Array = (base64String: string) => {
   return new Uint8Array([...rawData].map((char: string) => char.charCodeAt(0)));
 };
 
-const isPushSupported = () => {
-  return "serviceWorker" in navigator && "PushManager" in window;
-};
-
 const isNotificationSupported = () => {
   return typeof Notification !== "undefined";
-};
-
-// Утилиты для определения браузера
-const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
-const isSafari = () => {
-  // Проверяем WebKit-based браузеры (Safari, Chrome на iOS)
-  const isWebKit = /webkit/i.test(navigator.userAgent);
-  const isChrome = /chrome/i.test(navigator.userAgent);
-  const isSafariDesktop = /safari/i.test(navigator.userAgent) && !isChrome;
-  
-  // На iOS все браузеры используют WebKit, включая Chrome
-  return isIOS() || (isWebKit && isSafariDesktop);
-};
-
-// Safari-специфичные настройки с таймаутами
-const getSafariSettings = () => {
-  const safari = isSafari();
-  const ios = isIOS();
-  return {
-    isSafari: safari,
-    isIOS: ios,
-    // Safari-специфичные таймауты для предотвращения зависаний
-    swTimeoutMs: safari ? 2000 : 15000, // 2 сек для Safari, 15 для других
-    pushTimeoutMs: safari ? 5000 : 10000, // 5 сек для push операций в Safari
-    useTimeout: safari, // Использовать таймауты для Safari
-  };
-};
-
-// Безопасное получение Workbox Service Worker с таймаутом для Safari
-const getServiceWorkerSafely = async (timeoutMs: number) => {
-  try {
-    const swPromise = navigator.serviceWorker.ready;
-    const timeoutPromise = new Promise<ServiceWorkerRegistration>((_, reject) => 
-      setTimeout(() => reject(new Error('Workbox Service Worker timeout')), timeoutMs)
-    );
-    
-    return await Promise.race([swPromise, timeoutPromise]);
-  } catch (timeoutError) {
-    console.log(`⏰ Workbox Service Worker timeout (${timeoutMs}ms), но SW работает в фоне`);
-    // Возвращаем undefined если таймаут, но SW продолжает работать
-    return undefined;
-  }
 };
 
 export const usePushStore = create<PushState>()(
@@ -100,7 +55,7 @@ export const usePushStore = create<PushState>()(
 
       // Действия
       setupPushSubscription: async (vapidPublicKey: string) => {
-        if (!isPushSupported()) {
+        if (!serviceWorkerManager.isSupported()) {
           set({ error: "Push-уведомления не поддерживаются в этом браузере" });
           return;
         }
@@ -117,57 +72,14 @@ export const usePushStore = create<PushState>()(
 
         set({ isLoading: true, error: null });
 
-        const settings = getSafariSettings();
-        const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
-
         try {
           console.log("🚀 setupPushSubscription: Начинаем создание подписки");
-          console.log(`🌐 Browser: ${settings.isIOS ? 'iOS' : 'Other'} ${settings.isSafari ? 'Safari' : 'Other'}`);
-          console.log(`📱 PWA Mode: ${isStandalone ? 'Standalone' : 'Browser'}`);
           
-          // Для Safari в PWA: принудительно регистрируем Service Worker
-          let registration: ServiceWorkerRegistration;
+          // Используем универсальный менеджер SW
+          console.log("🔧 Получаем Service Worker через универсальный менеджер...");
+          const registration = await serviceWorkerManager.register();
           
-          // Используем существующий Workbox SW (зарегистрированный @ducanh2912/next-pwa)
-          console.log("🔧 Используем существующий Workbox Service Worker...");
-          
-          try {
-            // Ждем готовности SW с таймаутом для Safari
-            if (settings.isSafari) {
-              console.log("🦁 Safari: Ждем готовности Workbox SW...");
-              registration = await Promise.race([
-                navigator.serviceWorker.ready,
-                new Promise<ServiceWorkerRegistration>((_, reject) => {
-                  setTimeout(() => {
-                    reject(new Error('Safari SW ready timeout'));
-                  }, 10000); // 10 секунд для Safari
-                })
-              ]);
-            } else {
-              // Другие браузеры: обычное ожидание
-              registration = await navigator.serviceWorker.ready;
-            }
-            
-            console.log("✅ Workbox Service Worker готов:", registration);
-            
-          } catch (swError) {
-            console.error("❌ Ошибка получения Workbox SW:", swError);
-            
-            if (settings.isSafari) {
-              console.warn("⚠️ Safari: SW недоступен, продолжаем без push уведомлений");
-              // Создаем заглушку для registration
-              registration = {
-                pushManager: {
-                  getSubscription: async () => null,
-                  subscribe: async () => {
-                    throw new Error('Safari SW not available');
-                  }
-                }
-              } as unknown as ServiceWorkerRegistration;
-            } else {
-              throw swError; // Для других браузеров пробрасываем ошибку
-            }
-          }
+          console.log("✅ Service Worker готов:", registration);
 
           // Проверяем доступность pushManager
           if (!registration.pushManager) {
@@ -266,9 +178,6 @@ export const usePushStore = create<PushState>()(
       checkServerSubscription: async () => {
         console.log("🚀 checkServerSubscription: Начинаем проверку локальной подписки");
         
-        const settings = getSafariSettings();
-        console.log(`🌐 Browser: ${settings.isIOS ? 'iOS' : 'Other'} ${settings.isSafari ? 'Safari' : 'Other'}`);
-        
         try {
           const userId = get().userId;
           if (!userId) {
@@ -278,13 +187,12 @@ export const usePushStore = create<PushState>()(
 
           console.log("🔧 checkServerSubscription: Checking local subscription for userId:", userId);
           
-          // Проверяем локальную подписку на устройстве, а не в БД
+          // Проверяем локальную подписку через универсальный менеджер
           let hasLocalSubscription = false;
           
-          if (isPushSupported()) {
+          if (serviceWorkerManager.isSupported()) {
             try {
-              // Безопасное получение Service Worker с таймаутом для Safari
-              const registration = await getServiceWorkerSafely(settings.swTimeoutMs);
+              const registration = await serviceWorkerManager.getRegistration();
               if (registration) {
                 const subscription = await registration.pushManager.getSubscription();
                 hasLocalSubscription = !!subscription;
@@ -313,8 +221,7 @@ export const usePushStore = create<PushState>()(
       removePushSubscription: async () => {
         set({ isLoading: true, error: null });
 
-        const settings = getSafariSettings();
-        console.log(`🗑️ removePushSubscription: Удаляем подписку для ${settings.isSafari ? 'Safari' : 'browser'}`);
+        console.log(`🗑️ removePushSubscription: Удаляем подписку`);
 
         try {
           const currentSubscription = get().subscription;
@@ -324,10 +231,10 @@ export const usePushStore = create<PushState>()(
           if (currentSubscription?.endpoint) {
             endpoint = currentSubscription.endpoint;
             console.log(`🔍 Найдена подписка в store: ${endpoint.substring(0, 50)}...`);
-          } else if (isPushSupported()) {
+          } else if (serviceWorkerManager.isSupported()) {
             try {
-              // Безопасное получение Service Worker с таймаутом для Safari
-              const registration = await getServiceWorkerSafely(settings.swTimeoutMs);
+              // Получаем Service Worker через универсальный менеджер
+              const registration = await serviceWorkerManager.getRegistration();
               if (registration) {
                 const existing = await registration.pushManager.getSubscription();
                 if (existing?.endpoint) {
@@ -375,9 +282,9 @@ export const usePushStore = create<PushState>()(
           }
 
           // 3. Удаляем из service worker
-          if (isPushSupported()) {
+          if (serviceWorkerManager.isSupported()) {
             try {
-              const registration = await getServiceWorkerSafely(settings.swTimeoutMs);
+              const registration = await serviceWorkerManager.getRegistration();
               if (registration) {
                 const existing = await registration.pushManager.getSubscription();
                 if (existing) {
@@ -425,7 +332,7 @@ export const usePushStore = create<PushState>()(
 
       ensureActiveSubscription: async () => {
         try {
-          if (!isPushSupported() || !isNotificationSupported()) return;
+          if (!serviceWorkerManager.isSupported() || !isNotificationSupported()) return;
 
           const state = get();
           if (state.disabledByUser) return;
@@ -461,7 +368,7 @@ export const usePushStore = create<PushState>()(
 
       // Утилиты
       isSupported: () => {
-        return isPushSupported();
+        return serviceWorkerManager.isSupported();
       },
     }),
     {
