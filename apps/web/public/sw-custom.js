@@ -1,12 +1,15 @@
-// Safari-specific settings
+// Safari/WebKit-specific settings
 function getSafariSettings() {
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isWebKit = /webkit/i.test(navigator.userAgent);
+  const isChrome = /chrome/i.test(navigator.userAgent);
+  const isSafari = isWebKit && (/safari/i.test(navigator.userAgent) && !isChrome || isIOS);
   const isStandalone = navigator.standalone;
   
   return {
     isSafari,
     isIOS,
+    isWebKit,
     isStandalone,
     useMinimalLogic: isSafari,
     useSimpleNotifications: isSafari,
@@ -26,12 +29,15 @@ console.log('🦁 Service Worker loaded', {
 
 // Упрощенная функция создания уведомлений
 function createNotificationOptions(title, options = {}) {
+  const safariIcon = settings.isSafari ? '/icons/icon-256-safari.png' : '/icons/icon192.png';
+  const safariBadge = settings.isSafari ? '/icons/badge-72.png' : '/icons/icon192.png';
+  
   if (settings.useSimpleNotifications) {
-    // Для Safari: только базовые опции
+    // Для Safari: только базовые опции с Safari-специфичными иконками
     return {
       body: options.body || 'Новое уведомление',
-      icon: options.icon || '/icons/icon192.png',
-      badge: options.badge || '/icons/icon192.png',
+      icon: options.icon || safariIcon,
+      badge: options.badge || safariBadge,
       tag: options.tag || 'default',
       requireInteraction: false,
       silent: false,
@@ -41,8 +47,8 @@ function createNotificationOptions(title, options = {}) {
   // Для других браузеров: полные опции
   return {
     body: options.body || 'Новое уведомление',
-    icon: options.icon || '/icons/icon192.png',
-    badge: options.badge || '/icons/icon192.png',
+    icon: options.icon || safariIcon,
+    badge: options.badge || safariBadge,
     tag: options.tag || 'default',
     requireInteraction: options.requireInteraction || false,
     silent: options.silent || false,
@@ -152,14 +158,15 @@ self.addEventListener('push', (event) => {
       data = { title: 'Gafus', body: 'Новое уведомление' };
     }
     
-    const options = createNotificationOptions(data.title || 'Gafus', {
+    const title = data.title || 'Gafus';
+    const options = createNotificationOptions(title, {
       body: data.body || 'Новое уведомление',
       icon: data.icon || '/icons/icon192.png',
       data: data,
     });
     
     event.waitUntil(
-      self.registration.showNotification(options.body, options)
+      self.registration.showNotification(title, options)
         .catch(error => {
           console.error('❌ Safari: Ошибка показа уведомления:', error);
         })
@@ -176,7 +183,8 @@ self.addEventListener('push', (event) => {
       data = { title: 'Gafus', body: 'Новое уведомление' };
     }
     
-    const options = createNotificationOptions(data.title || 'Gafus', {
+    const title = data.title || 'Gafus';
+    const options = createNotificationOptions(title, {
       body: data.body || 'Новое уведомление',
       icon: data.icon || '/icons/icon192.png',
       badge: data.badge || '/icons/icon192.png',
@@ -190,7 +198,7 @@ self.addEventListener('push', (event) => {
       Promise.resolve()
         .then(() => {
           console.log('✅ SW: Showing notification');
-          return self.registration.showNotification(options.body, options);
+          return self.registration.showNotification(title, options);
         })
         .catch(error => {
           console.error('❌ SW: Error showing notification:', error);

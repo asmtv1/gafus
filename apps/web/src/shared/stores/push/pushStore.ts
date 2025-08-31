@@ -47,7 +47,15 @@ const isNotificationSupported = () => {
 
 // Утилиты для определения браузера
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
-const isSafari = () => /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+const isSafari = () => {
+  // Проверяем WebKit-based браузеры (Safari, Chrome на iOS)
+  const isWebKit = /webkit/i.test(navigator.userAgent);
+  const isChrome = /chrome/i.test(navigator.userAgent);
+  const isSafariDesktop = /safari/i.test(navigator.userAgent) && !isChrome;
+  
+  // На iOS все браузеры используют WebKit, включая Chrome
+  return isIOS() || (isWebKit && isSafariDesktop);
+};
 
 // Safari-специфичные настройки с таймаутами
 const getSafariSettings = () => {
@@ -124,13 +132,6 @@ export const usePushStore = create<PushState>()(
             console.log("🦁 Safari: Регистрируем Service Worker для PWA...");
             
             try {
-              // Удаляем существующие SW
-              const existingRegistrations = await navigator.serviceWorker.getRegistrations();
-              for (const existingReg of existingRegistrations) {
-                await existingReg.unregister();
-                console.log("🗑️ Safari: Удален существующий SW");
-              }
-              
               // Регистрируем новый SW
               registration = await navigator.serviceWorker.register('/sw.js');
               console.log("✅ Safari: Новый SW зарегистрирован:", registration);
@@ -138,21 +139,30 @@ export const usePushStore = create<PushState>()(
               // Ждем готовности SW с таймаутом для Safari
               console.log("⏳ Safari: Ждем готовности SW...");
               
-              // Ждем пока SW станет активным с таймаутом
+              // Ждем установку SW (installed|activated) с таймаутом
               if (registration.installing) {
+                const sw = registration.installing;
                 await Promise.race([
-                  new Promise<void>((resolve) => {
-                    registration.installing!.addEventListener('statechange', (e) => {
-                      const target = e.target as ServiceWorker;
-                      if (target && target.state === 'installed') {
+                  new Promise<void>((resolve, reject) => {
+                    const onStateChange = () => {
+                      if (sw.state === 'installed' || sw.state === 'activated') {
+                        sw.removeEventListener('statechange', onStateChange);
                         resolve();
+                      } else if (sw.state === 'redundant') {
+                        sw.removeEventListener('statechange', onStateChange);
+                        reject(new Error('Safari SW became redundant during install'));
                       }
-                    });
+                    };
+                    if (sw.state === 'installed' || sw.state === 'activated') {
+                      resolve();
+                      return;
+                    }
+                    sw.addEventListener('statechange', onStateChange);
                   }),
                   new Promise<void>((_, reject) => {
                     setTimeout(() => {
                       reject(new Error('Safari SW installation timeout'));
-                    }, 15000); // 15 секунд таймаут для Safari
+                    }, 15000);
                   })
                 ]);
               }
@@ -162,19 +172,35 @@ export const usePushStore = create<PushState>()(
                 registration.waiting.postMessage({ type: 'SKIP_WAITING' });
               }
               
-              // Ждем активации с таймаутом
+              // Ждем активации (activated + контроллер) с таймаутом
               await Promise.race([
                 new Promise<void>((resolve) => {
-                  if (registration.active) {
+                  if (registration.active && navigator.serviceWorker.controller) {
                     resolve();
-                  } else {
-                    registration.addEventListener('activate', () => resolve());
+                    return;
+                  }
+                  const tryResolve = () => {
+                    if (registration.active && navigator.serviceWorker.controller) {
+                      navigator.serviceWorker.removeEventListener('controllerchange', tryResolve);
+                      resolve();
+                    }
+                  };
+                  navigator.serviceWorker.addEventListener('controllerchange', tryResolve);
+                  const worker = registration.waiting || registration.installing;
+                  if (worker) {
+                    const onStateChange = () => {
+                      if (worker.state === 'activated') {
+                        worker.removeEventListener('statechange', onStateChange);
+                        resolve();
+                      }
+                    };
+                    worker.addEventListener('statechange', onStateChange);
                   }
                 }),
                 new Promise<void>((_, reject) => {
                   setTimeout(() => {
                     reject(new Error('Safari SW activation timeout'));
-                  }, 10000); // 10 секунд таймаут для активации
+                  }, 15000);
                 })
               ]);
               
