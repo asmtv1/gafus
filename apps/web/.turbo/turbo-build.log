@@ -18,10 +18,10 @@
  [37m[1m○[22m[39m (pwa) This app will fallback to these precached routes when fetching from the cache and the network fails:
  [37m[1m○[22m[39m (pwa)   Documents (pages): /~offline
  [37m[1m○[22m[39m (pwa) Custom runtimeCaching array found, using it instead of the default one.
- [32m[1m✓[22m[39m Compiled successfully in 15.0s
-[?25l [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m
+ [32m[1m✓[22m[39m Compiled successfully in 10.0s
+[?25l [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m
  ⚠ The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config
-[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G[?25h
+[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G[?25h
 ./src/app/(main)/courses/CoursesClient.tsx
 23:6  Warning: React Hook useEffect has a missing dependency: 'fetchAllCourses'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
 
@@ -134,34 +134,32 @@
 62:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
 
 ./src/shared/stores/push/pushStore.ts
-84:12  Warning: 'timeoutError' is defined but never used.  unused-imports/no-unused-vars
-85:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-122:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-125:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-128:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-145:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-156:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-197:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-198:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-225:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-230:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-234:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-245:17  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-247:17  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-257:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-259:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-271:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-280:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-289:19  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-299:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-303:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-305:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-314:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-323:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-325:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-338:19  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-340:19  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-356:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+76:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+79:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+82:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+99:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+110:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+151:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+152:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+179:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+184:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+188:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+199:17  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+201:17  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+211:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+213:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+224:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+233:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+242:19  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+252:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+256:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+258:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+267:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+276:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+278:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+291:19  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+293:19  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
+309:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
 
 ./src/shared/utils/serviceWorkerManager.ts
 35:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
@@ -177,66 +175,4 @@
 236:14  Warning: 'error' is defined but never used.  unused-imports/no-unused-vars
 
 info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
-[?25l [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G[?25h    [32m[1m✓[22m[39m Linting and checking validity of types 
-[?25l [37m[1m [22m[39m Collecting page data  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting page data  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting page data  [36m...[39m⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-Инициализация NextAuth...
-NextAuth инициализирован успешно
-⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-[2K[1G [37m[1m [22m[39m Collecting page data  [36m.[39m⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-[2K[1G[?25h [37m[1m [22m[39m Collecting page data     [32m[1m✓[22m[39m Collecting page data 
-[?25l [37m[1m [22m[39m Generating static pages (0/19)  [36m[    ][39m[2K[1G [37m[1m [22m[39m Generating static pages (0/19)  [36m[=   ][39m[2K[1G [37m[1m [22m[39m Generating static pages (1/19)  [36m[==  ][39m[2K[1G[?25h⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-Ошибка в getUserWithTrainings: Error: Dynamic server usage: Route /achievements couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
-    at r (.next/server/chunks/9396.js:8:47768)
-    at m (.next/server/chunks/4102.js:1:5229)
-    at h (.next/server/chunks/2530.js:21:32837)
-    at g (.next/server/chunks/5032.js:1:3746)
-    at f (.next/server/chunks/5032.js:1:4718)
-    at h (.next/server/app/(main)/achievements/page.js:2:8756)
-    at k (.next/server/app/(main)/achievements/page.js:2:12481) {
-  description: "Route /achievements couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
-  digest: 'DYNAMIC_SERVER_USAGE'
-}
-[?25h [32m[1m✓[22m[39m Generating static pages (19/19)
-[?25l [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[?25l [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G[?25h [37m[1m [22m[39m Collecting build traces     [32m[1m✓[22m[39m Collecting build traces 
-[2K[1G[?25h [37m[1m [22m[39m Finalizing page optimization     [32m[1m✓[22m[39m Finalizing page optimization 
-
-[4mRoute (app)[24m                                 [4mSize[24m  [4mFirst Load JS[24m  [4m[24m  [4m[24m
-┌ ○ /                                      369 B         [37m[1m111 kB[22m[39m
-├ ○ /_not-found                             1 kB         [37m[1m103 kB[22m[39m
-├ ○ /~offline                            1.35 kB         [37m[1m104 kB[22m[39m
-├ ƒ /achievements                          166 B         [37m[1m106 kB[22m[39m
-├ ƒ /api/auth/[...nextauth]                150 B         [37m[1m102 kB[22m[39m
-├ ƒ /api/csrf-token                      2.29 kB         [37m[1m107 kB[22m[39m
-├ ƒ /api/ping                              150 B         [37m[1m102 kB[22m[39m
-├ ƒ /api/public-key                        150 B         [37m[1m102 kB[22m[39m
-├ ƒ /confirm                             1.08 kB         [37m[1m112 kB[22m[39m
-├ ƒ /courses                             4.03 kB         [37m[1m423 kB[22m[39m
-├ ƒ /favorites                           3.39 kB         [37m[1m420 kB[22m[39m
-├ ○ /login                               3.12 kB         [37m[1m160 kB[22m[39m
-├ ƒ /passwordReset                       2.69 kB         [37m[1m147 kB[22m[39m
-├ ƒ /profile                              103 kB         [37m[1m535 kB[22m[39m
-├ ƒ /profile/addPet                      2.94 kB         [37m[1m113 kB[22m[39m
-├ ƒ /profile/editBio                     2.17 kB         [37m[1m390 kB[22m[39m
-├ ○ /register                             3.3 kB         [37m[1m148 kB[22m[39m
-├ ƒ /reset-password                      1.15 kB         [37m[1m103 kB[22m[39m
-├ ○ /robots.txt                            150 B         [37m[1m102 kB[22m[39m
-├ ○ /sitemap.xml                           150 B         [37m[1m102 kB[22m[39m
-├ ƒ /statistics                           2.6 kB         [37m[1m110 kB[22m[39m
-├ ƒ /trainings/[courseType]                519 B         [37m[1m106 kB[22m[39m
-└ ƒ /trainings/[courseType]/[day]        3.28 kB         [37m[1m373 kB[22m[39m
-+ First Load JS shared by all             [37m[1m102 kB[22m[39m
-  ├ chunks/3220-1fc986220bf9f0bd.js        46 kB
-  ├ chunks/cf5f146d-603318a56ae6bbbd.js  54.1 kB
-  └ other shared chunks (total)          2.16 kB
-
-
-ƒ Middleware                             [37m[1m54.7 kB[22m[39m
-
-○  (Static)   prerendered as static content
-ƒ  (Dynamic)  server-rendered on demand
-
-[?25h
+[?25l [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [?25h[41m[30m ELIFECYCLE [39m[49m [31mCommand failed with exit code 130.[39m
