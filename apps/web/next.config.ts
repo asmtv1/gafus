@@ -43,6 +43,9 @@ const withPWA = withPWAInit({
     importScripts: ["/sw-custom.js"],
     // Очистка устаревших кэшей
     cleanupOutdatedCaches: true,
+    // Принудительная активация для избежания конфликтов
+    skipWaiting: true,
+    clientsClaim: true,
 
     // Добавляем кастомную логику кеширования
     runtimeCaching: [
@@ -163,9 +166,6 @@ const withPWA = withPWAInit({
         },
       },
     ],
-    // Дополнительные настройки для избежания ошибок кеширования
-    skipWaiting: true,
-    clientsClaim: true,
   },
   sw: "sw.js", // Используем стандартный Workbox SW
 });
