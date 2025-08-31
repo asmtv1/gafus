@@ -19,8 +19,14 @@ const withPWA = withPWAInit({
   register: true, // Автоматическая регистрация
   skipWaiting: true,
   injectRegister: "auto", // Автоматическая инъекция
-  mode: "production",
+  mode: process.env.NODE_ENV === "production" ? "production" : "development",
   dynamicStartUrl: false,
+  // Для dev-режима: генерировать SW даже в разработке
+  dev: {
+    enable: true, // Включаем PWA в dev-режиме
+    type: "module", // Используем ES modules для совместимости
+    runtimeCaching: [], // Минимальное кэширование в dev
+  },
   // Исключаем проблемные внутренние манифесты Next из предкеша Workbox
   buildExcludes: [/_buildManifest\.js$/, /_ssgManifest\.js$/, /middleware-manifest\.json$/],
   // Fallback документ для офлайн-навигаций (лучшие практики Workbox)
