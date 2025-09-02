@@ -1,12 +1,9 @@
 // Кастомный Service Worker для Gafus
-// Полная замена Workbox - простой и понятный код
+// Отвечает только за push-уведомления
 
-const CACHE_VERSION = 'v1';
-const CACHE_NAME = `gafus-cache-${CACHE_VERSION}`;
+console.log('🚀 SW: Starting Gafus Service Worker for Push Notifications');
 
-console.log('🚀 SW: Starting Gafus Service Worker', { version: CACHE_VERSION });
-
-// Safari/WebKit-specific settings
+// Safari/WebKit-specific settings для уведомлений
 function getSafariSettings() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isWebKit = /webkit/i.test(navigator.userAgent);
@@ -33,31 +30,19 @@ console.log('🦁 SW: Settings loaded', {
   usePWALogic: settings.usePWALogic
 });
 
-// Install event - простая установка
+// Install event
 self.addEventListener('install', (event) => {
   console.log('📦 SW: Install event');
   self.skipWaiting();
 });
 
-// Activate event - захват клиентов
+// Activate event
 self.addEventListener('activate', (event) => {
   console.log('🔄 SW: Activate event');
   event.waitUntil(self.clients.claim());
 });
 
-// Fetch event - минимальная обработка для офлайн
-self.addEventListener('fetch', (event) => {
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response(
-          '<!DOCTYPE html><html><head><title>Gafus - Офлайн</title></head><body><h1>Gafus</h1><p>Нет подключения к интернету</p></body></html>',
-          { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-        );
-      })
-    );
-  }
-});
+
 
 // Функция создания уведомлений с Safari-оптимизацией
 function createNotificationOptions(title, options = {}) {
@@ -167,7 +152,7 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports[0].postMessage({
       type: 'VERSION_INFO',
-      version: CACHE_VERSION,
+      version: 'push-only',
       safari: settings.isSafari,
       ios: settings.isIOS,
     });
