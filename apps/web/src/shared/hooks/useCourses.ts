@@ -85,20 +85,29 @@ export function useCoursesMutation() {
 
   const invalidateAllCourses = () => {
     mutate("courses:all", undefined);
+    // Инвалидируем достижения при изменении курсов
+    mutate("user:achievements", undefined);
   };
 
   const invalidateFavorites = () => {
     mutate("courses:favorites", undefined);
+    // Инвалидируем достижения при изменении избранного
+    mutate("user:achievements", undefined);
   };
 
   const invalidateAuthored = () => {
     mutate("courses:authored", undefined);
+    // Инвалидируем достижения при изменении созданных курсов
+    mutate("user:achievements", undefined);
   };
 
   const invalidateAll = () => {
     invalidateAllCourses();
     invalidateFavorites();
     invalidateAuthored();
+    // Инвалидируем все связанные данные
+    mutate("user:profile", undefined);
+    mutate("user:with-trainings", undefined);
   };
 
   return {
