@@ -46,11 +46,24 @@ export interface StepStatusUpdateData {
   stepOrder?: number;
 }
 
+// Типы для качества соединения
+export type ConnectionQuality = 'excellent' | 'good' | 'fair' | 'poor' | 'offline';
+
+export interface NetworkMetrics {
+  latency: number; // в миллисекундах
+  quality: ConnectionQuality;
+  lastChecked: number;
+  consecutiveFailures: number;
+  adaptiveInterval: number; // текущий интервал проверки
+}
+
 export interface OfflineState {
   // Статус сети
   isOnline: boolean;
   isStable: boolean;
   isActuallyConnected: boolean;
+  connectionQuality: ConnectionQuality;
+  networkMetrics: NetworkMetrics;
 
   // Очередь синхронизации
   syncQueue: OfflineAction[];
@@ -64,7 +77,9 @@ export interface OfflineState {
   setOnlineStatus: (isOnline: boolean) => void;
   setNetworkStability: (isStable: boolean) => void;
   setActualConnection: (isConnected: boolean) => void;
+  setConnectionQuality: (quality: ConnectionQuality) => void;
   checkExternalConnection: () => Promise<boolean>;
+  checkConnectionQuality: () => Promise<ConnectionQuality>;
   addToSyncQueue: (action: Omit<OfflineAction, "id" | "timestamp" | "retryCount">) => void;
   removeFromSyncQueue: (id: string) => void;
   clearSyncQueue: () => void;

@@ -3,6 +3,11 @@
 import { initializeOfflineStore } from "@shared/stores/offlineStore";
 import { useEffect } from "react";
 
+// Импортируем тестер только в development режиме
+if (process.env.NODE_ENV === "development") {
+  import("@shared/utils/offlineTest");
+}
+
 export default function OfflineStoreInitializer() {
   useEffect(() => {
     // Инициализируем offline store только после монтирования компонента
