@@ -137,6 +137,8 @@ export function useUserMutations() {
   const invalidateUserData = () => {
     mutate("user:profile", undefined);
     mutate("user:preferences", undefined);
+    // Инвалидируем достижения при изменении пользовательских данных
+    mutate("user:achievements", undefined);
   };
 
   return {

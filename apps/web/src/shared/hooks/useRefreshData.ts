@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { mutate } from "swr";
 
 // Типы для разных страниц
-export type RefreshPageType = "home" | "courses" | "trainings" | "profile";
+export type RefreshPageType = "home" | "courses" | "trainings" | "profile" | "achievements";
 
 // Конфигурация обновления для разных страниц
 const refreshConfigs = {
@@ -22,6 +22,10 @@ const refreshConfigs = {
     endpoints: ["/api/user/profile", "/api/user/pets"],
     message: "Обновляем профиль...",
   },
+  achievements: {
+    endpoints: ["/api/user/achievements", "/api/user/profile", "/api/courses"],
+    message: "Обновляем достижения...",
+  },
 };
 
 export function useRefreshData(pageType: RefreshPageType) {
@@ -35,9 +39,12 @@ export function useRefreshData(pageType: RefreshPageType) {
     console.warn(`🔄 ${config.message}`);
 
     try {
-      // Обновляем все связанные endpoints
-      const updatePromises = config.endpoints.map((endpoint: string) =>
-        mutate(endpoint, undefined, { revalidate: true }),
+      // Определяем SWR ключи для обновления
+      const swrKeys = getSWRKeysForPageType(pageType);
+      
+      // Обновляем все связанные SWR ключи
+      const updatePromises = swrKeys.map((key: string) =>
+        mutate(key, undefined, { revalidate: true }),
       );
 
       await Promise.all(updatePromises);
@@ -48,7 +55,7 @@ export function useRefreshData(pageType: RefreshPageType) {
       return {
         success: true,
         message: `${pageType} обновлен`,
-        updatedEndpoints: config.endpoints,
+        updatedKeys: swrKeys,
       };
     } catch (error) {
       console.error(`❌ Ошибка обновления ${pageType}:`, error);
@@ -60,4 +67,48 @@ export function useRefreshData(pageType: RefreshPageType) {
     refreshData,
     config: refreshConfigs[pageType],
   };
+}
+
+/**
+ * Получает SWR ключи для обновления в зависимости от типа страницы
+ */
+function getSWRKeysForPageType(pageType: RefreshPageType): string[] {
+  switch (pageType) {
+    case "home":
+      return [
+        "courses:all",
+        "user:profile", 
+        "user:with-trainings",
+        "user:achievements"
+      ];
+    case "courses":
+      return [
+        "courses:all",
+        "courses:favorites",
+        "courses:authored",
+        "user:achievements"
+      ];
+    case "trainings":
+      return [
+        "user:with-trainings",
+        "user:profile",
+        "user:achievements"
+      ];
+    case "profile":
+      return [
+        "user:profile",
+        "user:preferences",
+        "user:pets",
+        "user:achievements"
+      ];
+    case "achievements":
+      return [
+        "user:achievements",
+        "user:profile",
+        "user:with-trainings",
+        "courses:all"
+      ];
+    default:
+      return [];
+  }
 }
