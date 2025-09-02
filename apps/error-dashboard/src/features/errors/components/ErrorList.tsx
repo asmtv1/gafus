@@ -12,36 +12,58 @@ import {
   TextField,
   Chip,
   Alert,
+  CircularProgress,
   Card,
   CardContent,
 } from "@mui/material";
 import { DataGrid, GridActionsCellItem } from "@mui/x-data-grid";
+import { useErrors, useErrorsMutation } from "@shared/hooks/useErrors";
 import { resolveError, deleteError } from "@shared/lib/actions/errors";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-import type { ErrorDashboardReport, ErrorListProps } from "@gafus/types";
+import type { ErrorDashboardReport } from "@gafus/types";
 import type { GridColDef } from "@mui/x-data-grid";
 
-export default function ErrorList({ errors }: ErrorListProps) {
+interface ErrorListProps {
+  filters?: {
+    appName?: string;
+    environment?: string;
+    resolved?: boolean;
+  };
+}
+
+export default function ErrorList({ filters = {} }: ErrorListProps) {
+  // Используем TanStack Query для загрузки ошибок
+  const { data: errors, error, isLoading } = useErrors(filters);
+  const { invalidateErrors } = useErrorsMutation();
+
+  // Вспомогательная функция для проверки additionalContext
+  const hasAdditionalContext = (error: ErrorDashboardReport): boolean => {
+    try {
+      const context = error.additionalContext;
+      if (typeof context === "string") {
+        return context.trim().length > 0;
+      }
+      return context !== null && context !== undefined;
+    } catch {
+      return false;
+    }
+  };
+
   const [selectedError, setSelectedError] = useState<ErrorDashboardReport | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isResolveDialogOpen, setIsResolveDialogOpen] = useState(false);
   const [resolveNote, setResolveNote] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleResolve = async () => {
     if (!selectedError) return;
 
     setLoading(true);
-    setError(null);
+    setActionError(null);
 
     try {
       const result = await resolveError(selectedError.id, `admin-${Date.now()}`);
@@ -49,13 +71,13 @@ export default function ErrorList({ errors }: ErrorListProps) {
         setIsResolveDialogOpen(false);
         setSelectedError(null);
         setResolveNote("");
-        // Перезагружаем страницу для обновления данных
-        window.location.reload();
+        // Инвалидируем кэш для обновления данных
+        invalidateErrors();
       } else {
-        setError(result.error || "Не удалось разрешить ошибку");
+        setActionError(result.error || "Не удалось разрешить ошибку");
       }
     } catch {
-      setError("Произошла ошибка при разрешении");
+      setActionError("Произошла ошибка при разрешении");
     } finally {
       setLoading(false);
     }
@@ -63,18 +85,18 @@ export default function ErrorList({ errors }: ErrorListProps) {
 
   const handleDelete = async (id: string) => {
     setLoading(true);
-    setError(null);
+    setActionError(null);
 
     try {
       const result = await deleteError(id);
       if (result.success) {
-        // Перезагружаем страницу для обновления данных
-        window.location.reload();
+        // Инвалидируем кэш для обновления данных
+        invalidateErrors();
       } else {
-        setError(result.error || "Не удалось удалить ошибку");
+        setActionError(result.error || "Не удалось удалить ошибку");
       }
     } catch {
-      setError("Произошла ошибка при удалении");
+      setActionError("Произошла ошибка при удалении");
     } finally {
       setLoading(false);
     }
@@ -211,6 +233,28 @@ export default function ErrorList({ errors }: ErrorListProps) {
     },
   ];
 
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent>
+          <Box display="flex" justifyContent="center" alignItems="center" height={400}>
+            <CircularProgress />
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent>
+          <Alert severity="error">Ошибка загрузки данных: {error.message}</Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <>
       <Card>
@@ -220,33 +264,28 @@ export default function ErrorList({ errors }: ErrorListProps) {
             <Typography variant="h6">Список ошибок</Typography>
           </Box>
 
-          {error && (
+          {actionError && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+              {actionError}
             </Alert>
           )}
 
           <Box sx={{ height: 600, width: "100%" }}>
-            {isMounted ? (
-              <DataGrid
-                rows={errors}
-                columns={columns}
-                pageSizeOptions={[10, 25, 50]}
-                initialState={{
-                  pagination: {
-                    paginationModel: { page: 0, pageSize: 25 },
-                  },
-                }}
-                disableRowSelectionOnClick
-                getRowClassName={(params) =>
-                  params.row.resolved ? "resolved-row" : "unresolved-row"
-                }
-              />
-            ) : (
-              <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-                <Typography>Загрузка...</Typography>
-              </Box>
-            )}
+            <DataGrid
+              rows={Array.isArray(errors) ? errors : []}
+              columns={columns}
+              pageSizeOptions={[10, 25, 50]}
+              initialState={{
+                pagination: {
+                  paginationModel: { page: 0, pageSize: 25 },
+                },
+              }}
+              disableRowSelectionOnClick
+              getRowId={(row) => row.id}
+              getRowClassName={(params) =>
+                params.row.resolved ? "resolved-row" : "unresolved-row"
+              }
+            />
           </Box>
         </CardContent>
       </Card>
@@ -313,7 +352,7 @@ export default function ErrorList({ errors }: ErrorListProps) {
                 </Box>
               )}
 
-              {selectedError.componentStack && (
+              {selectedError.componentStack && String(selectedError.componentStack).trim() && (
                 <Box mt={2}>
                   <Typography variant="subtitle2" gutterBottom>
                     Component Stack:
@@ -329,12 +368,12 @@ export default function ErrorList({ errors }: ErrorListProps) {
                       maxHeight: 200,
                     }}
                   >
-                    {selectedError.componentStack}
+                    {String(selectedError.componentStack || "")}
                   </Box>
                 </Box>
               )}
 
-              {selectedError.additionalContext != null && (
+              {hasAdditionalContext(selectedError) && (
                 <Box mt={2}>
                   <Typography variant="subtitle2" gutterBottom>
                     Дополнительный контекст:
@@ -351,18 +390,15 @@ export default function ErrorList({ errors }: ErrorListProps) {
                     }}
                   >
                     {(() => {
-                      const context = selectedError.additionalContext;
-                      if (typeof context === "string") {
+                      if (typeof selectedError.additionalContext === "string") {
                         try {
-                          const parsed = JSON.parse(context);
+                          const parsed = JSON.parse(selectedError.additionalContext);
                           return JSON.stringify(parsed, null, 2);
                         } catch {
-                          return context;
+                          return selectedError.additionalContext;
                         }
-                      } else if (context && typeof context === "object") {
-                        return JSON.stringify(context, null, 2);
                       } else {
-                        return String(context);
+                        return JSON.stringify(selectedError.additionalContext, null, 2);
                       }
                     })()}
                   </Box>

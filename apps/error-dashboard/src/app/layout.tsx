@@ -1,7 +1,7 @@
 
 import { SessionProviderWrapper } from "@features/errors/components/SessionProviderWrapper";
 import { CSRFProvider } from "@gafus/csrf";
-import { ErrorDashboardSWRProvider } from "@shared/providers/SWRProvider";
+import { ErrorDashboardQueryProvider } from "@shared/providers/QueryProvider";
 
 import type { Metadata } from "next";
 
@@ -18,7 +18,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="bg-background min-h-screen font-sans antialiased">
         <SessionProviderWrapper>
           <CSRFProvider>
-            <ErrorDashboardSWRProvider>{children}</ErrorDashboardSWRProvider>
+            <ErrorDashboardQueryProvider>{children}</ErrorDashboardQueryProvider>
           </CSRFProvider>
         </SessionProviderWrapper>
       </body>

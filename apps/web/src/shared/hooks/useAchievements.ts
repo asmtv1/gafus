@@ -1,6 +1,6 @@
 "use client";
 
-import { useData, useMutate } from "@gafus/swr";
+import { useData, useMutate } from "@gafus/react-query";
 import { getUserWithTrainings } from "@shared/lib/user/getUserWithTrainings";
 import { createAchievementData } from "@shared/lib/achievements/calculateAchievements";
 
@@ -38,28 +38,20 @@ export function useAchievements() {
     },
     {
       // Кэширование
-      revalidateOnFocus: false, // Не обновляем при фокусе (достижения статичны)
-      revalidateOnReconnect: true, // Обновляем при восстановлении соединения
-      dedupingInterval: 300000, // 5 минут - достижения редко изменяются
+      refetchOnWindowFocus: false, // Не обновляем при фокусе (достижения статичны)
+      refetchOnReconnect: true, // Обновляем при восстановлении соединения
+      staleTime: 300000, // 5 минут - достижения редко изменяются
       
       // Повторные попытки
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
+      retry: 3,
+      retryDelay: 5000,
       
       // Кэш
-      keepPreviousData: true, // Показываем старые данные во время обновления
+      placeholderData: (previousData) => previousData, // Показываем старые данные во время обновления
       
-      // Обработка ошибок
-      onError: (error: Error) => {
-        console.error("SWR Error (Achievements):", error);
-      },
+      // Обработка ошибок (убрано в TanStack Query v5)
       
-      // Успешная загрузка
-      onSuccess: (data: AchievementData) => {
-        if (process.env.NODE_ENV === "development") {
-          console.warn(`🏆 Achievements loaded: ${data.achievements.length} achievements, ${data.completedCourses} completed courses`);
-        }
-      },
+      // Успешная загрузка (убрано в TanStack Query v5)
     }
   );
 }
@@ -74,7 +66,7 @@ export function useAchievementsMutation() {
    * Инвалидирует кэш достижений
    */
   const invalidateAchievements = () => {
-    mutate("user:achievements", undefined);
+    mutate("user:achievements");
   };
   
   /**
@@ -83,10 +75,10 @@ export function useAchievementsMutation() {
   const updateAchievements = async (newData?: AchievementData) => {
     if (newData) {
       // Обновляем кэш новыми данными
-      mutate("user:achievements", newData, { revalidate: false });
+      mutate("user:achievements");
     } else {
       // Принудительно обновляем данные
-      mutate("user:achievements", undefined, { revalidate: true });
+      mutate("user:achievements");
     }
   };
   
@@ -94,10 +86,10 @@ export function useAchievementsMutation() {
    * Инвалидирует все связанные данные
    */
   const invalidateAllUserData = () => {
-    mutate("user:achievements", undefined);
-    mutate("user:profile", undefined);
-    mutate("user:with-trainings", undefined);
-    mutate("courses:all", undefined);
+    mutate("user:achievements");
+    mutate("user:profile");
+    mutate("user:with-trainings");
+    mutate("courses:all");
   };
   
   return {

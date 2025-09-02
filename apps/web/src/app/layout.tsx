@@ -5,7 +5,7 @@ import PetsProvider from "@shared/components/common/PetsProvider";
 import UserProvider from "@shared/components/common/UserProvider";
 import ClientLayout from "@shared/components/ui/ClientLayout";
 import SessionWrapper from "@shared/components/ui/SessionWrapper";
-import { WebSWRProvider } from "@shared/providers/SWRProvider";
+import { WebQueryProvider } from "@shared/providers/QueryProvider";
 import { Montserrat } from "next/font/google";
 
 import type { Metadata, Viewport } from "next";
@@ -96,9 +96,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <SessionWrapper>
               <UserProvider>
                 <PetsProvider>
-                  <WebSWRProvider>
+                  <WebQueryProvider>
                     <main>{children}</main>
-                  </WebSWRProvider>
+                  </WebQueryProvider>
                 </PetsProvider>
               </UserProvider>
             </SessionWrapper>

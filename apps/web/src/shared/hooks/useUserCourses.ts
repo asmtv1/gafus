@@ -1,6 +1,6 @@
 "use client";
 
-import { useData } from "@gafus/swr";
+import { useData } from "@gafus/react-query";
 import { getCoursesWithProgress } from "@shared/lib/course/getCourses";
 
 /**
@@ -14,9 +14,9 @@ export function useUserCourses() {
       return result.data;
     },
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 300000, // 5 минут
-      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      staleTime: 300000, // 5 минут
+      placeholderData: (previousData) => previousData,
     }
   );
 }

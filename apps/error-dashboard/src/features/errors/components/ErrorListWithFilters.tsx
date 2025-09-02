@@ -4,7 +4,7 @@ import { CircularProgress, Box } from "@mui/material";
 import { useFilters } from "@shared/contexts/FilterContext";
 import { Suspense } from "react";
 
-import ErrorListSWRWrapper from "./ErrorListSWRWrapper";
+import ErrorListWrapper from "./ErrorListWrapper";
 
 export default function ErrorListWithFilters() {
   const { filters } = useFilters();
@@ -17,7 +17,7 @@ export default function ErrorListWithFilters() {
         </Box>
       }
     >
-      <ErrorListSWRWrapper filters={filters} />
+      <ErrorListWrapper filters={filters} />
     </Suspense>
   );
 }

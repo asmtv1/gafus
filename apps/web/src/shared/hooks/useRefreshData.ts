@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { mutate } from "swr";
+import { useQueryClient } from "@gafus/react-query";
 
 // Типы для разных страниц
 export type RefreshPageType = "home" | "courses" | "trainings" | "profile" | "achievements";
@@ -29,6 +29,8 @@ const refreshConfigs = {
 };
 
 export function useRefreshData(pageType: RefreshPageType) {
+  const queryClient = useQueryClient();
+
   const refreshData = useCallback(async () => {
     const config = refreshConfigs[pageType];
 
@@ -39,12 +41,12 @@ export function useRefreshData(pageType: RefreshPageType) {
     console.warn(`🔄 ${config.message}`);
 
     try {
-      // Определяем SWR ключи для обновления
-      const swrKeys = getSWRKeysForPageType(pageType);
+      // Определяем ключи запросов для обновления
+      const queryKeys = getQueryKeysForPageType(pageType);
       
-      // Обновляем все связанные SWR ключи
-      const updatePromises = swrKeys.map((key: string) =>
-        mutate(key, undefined, { revalidate: true }),
+      // Инвалидируем все связанные запросы
+      const updatePromises = queryKeys.map((key: string) =>
+        queryClient.invalidateQueries({ queryKey: [key] }),
       );
 
       await Promise.all(updatePromises);
@@ -55,13 +57,13 @@ export function useRefreshData(pageType: RefreshPageType) {
       return {
         success: true,
         message: `${pageType} обновлен`,
-        updatedKeys: swrKeys,
+        updatedKeys: queryKeys,
       };
     } catch (error) {
       console.error(`❌ Ошибка обновления ${pageType}:`, error);
       throw error;
     }
-  }, [pageType]);
+  }, [pageType, queryClient]);
 
   return {
     refreshData,
@@ -70,9 +72,9 @@ export function useRefreshData(pageType: RefreshPageType) {
 }
 
 /**
- * Получает SWR ключи для обновления в зависимости от типа страницы
+ * Получает ключи запросов для обновления в зависимости от типа страницы
  */
-function getSWRKeysForPageType(pageType: RefreshPageType): string[] {
+function getQueryKeysForPageType(pageType: RefreshPageType): string[] {
   switch (pageType) {
     case "home":
       return [

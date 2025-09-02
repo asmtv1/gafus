@@ -1,6 +1,6 @@
 "use client";
 
-import { useData, useMutate } from "@gafus/swr";
+import { useData, useMutate } from "@gafus/react-query";
 
 import { getCourseStatisticsCached } from "../lib/actions/cachedStatistics";
 
@@ -24,8 +24,8 @@ export function useCourseStatistics(userId: string, isElevated: boolean) {
       return result.data as StatisticsData;
     },
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 30000, // 30 секунд
+      refetchOnWindowFocus: false,
+      staleTime: 30000, // 30 секунд
     },
   );
 }
@@ -35,7 +35,7 @@ export function useStatisticsMutation() {
 
   const invalidateStatistics = (userId: string, isElevated: boolean) => {
     const cacheKey = `statistics:${userId}:${isElevated}`;
-    mutate(cacheKey, undefined);
+    mutate(cacheKey);
   };
 
   return { invalidateStatistics };

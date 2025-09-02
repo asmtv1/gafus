@@ -1,6 +1,6 @@
 "use client";
 
-import { useData, useMutate } from "@gafus/swr";
+import { useData, useMutate } from "@gafus/react-query";
 import { getAuthoredCourses } from "@shared/lib/course/getAuthoredCourses";
 import { getCoursesWithProgress } from "@shared/lib/course/getCourses";
 import { getFavoritesCourses } from "@shared/lib/course/getFavoritesCourses";
@@ -17,8 +17,8 @@ export function useCoursesWithStore() {
     error,
     isLoading,
   } = useData("courses:all", () => getCoursesWithProgress().then((result) => result.data), {
-    revalidateOnFocus: false,
-    dedupingInterval: 60000, // 1 минута
+    refetchOnWindowFocus: false,
+    staleTime: 60000, // 1 минута
   });
 
   // Инвалидируем кэш
@@ -54,8 +54,8 @@ export function useFavoritesWithStore() {
     error,
     isLoading,
   } = useData("courses:favorites", () => getFavoritesCourses().then((result) => result.data), {
-    revalidateOnFocus: false,
-    dedupingInterval: 300000, // 5 минут
+    refetchOnWindowFocus: false,
+    staleTime: 300000, // 5 минут
   });
 
   const invalidateFavorites = () => {
@@ -89,8 +89,8 @@ export function useAuthoredWithStore() {
     error,
     isLoading,
   } = useData("courses:authored", () => getAuthoredCourses(), {
-    revalidateOnFocus: false,
-    dedupingInterval: 300000, // 5 минут
+    refetchOnWindowFocus: false,
+    staleTime: 300000, // 5 минут
   });
 
   const invalidateAuthored = () => {

@@ -1,5 +1,5 @@
 {
-  "name": "@gafus/swr",
+  "name": "@gafus/react-query",
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",
@@ -13,7 +13,8 @@
     "next": "15.4.7",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "swr": "2.3.5"
+    "@tanstack/react-query": "^5.85.9",
+    "@tanstack/react-query-devtools": "^5.85.9"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

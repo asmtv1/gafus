@@ -1,13 +1,16 @@
 "use client";
 
-import { useSearchData } from "@gafus/swr";
+import { useSearchData } from "@gafus/react-query";
 
 import { searchUsersByUsername } from "../lib/utils/searchUsersByUsername";
 
 export function useUserSearch(query: string) {
   return useSearchData(
-    query,
+    "user-search",
     (searchQuery: string) => searchUsersByUsername(searchQuery),
-    500, // 500ms дебаунс
+    query,
+    {
+      staleTime: 500, // 500ms дебаунс
+    }
   );
 }
