@@ -3,6 +3,8 @@ import { persist } from "zustand/middleware";
 
 import type {
   CommentData,
+  ConnectionQuality,
+  NetworkMetrics,
   OfflineAction,
   OfflineState,
   ProfileUpdateData,
@@ -19,6 +21,14 @@ export const useOfflineStore = create<OfflineState>()(
       isOnline: typeof window !== "undefined" ? navigator.onLine : true,
       isStable: true,
       isActuallyConnected: typeof window !== "undefined" ? navigator.onLine : true,
+      connectionQuality: 'good' as ConnectionQuality,
+      networkMetrics: {
+        latency: 0,
+        quality: 'good' as ConnectionQuality,
+        lastChecked: 0,
+        consecutiveFailures: 0,
+        adaptiveInterval: 300000, // 5 минут по умолчанию
+      },
       syncQueue: [],
       lastSyncTime: null,
       syncErrors: [],
@@ -44,27 +54,36 @@ export const useOfflineStore = create<OfflineState>()(
             console.warn(`⏰ Will check external connection in ${checkDelay}ms`);
           }
 
+          // Используем замыкание для получения актуального состояния
           setTimeout(() => {
             try {
-              currentState
+              // Получаем актуальное состояние на момент выполнения
+              const actualState = get();
+              
+              actualState
                 .checkExternalConnection()
                 .then((isConnected) => {
                   if (process.env.NODE_ENV !== "production") {
                     console.warn(`🔍 External connection check result: ${isConnected}`);
                   }
+                  
+                  // Получаем еще раз актуальное состояние для обновления
+                  const stateForUpdate = get();
+                  
                   // Обновляем реальное соединение только если проверка показала, что его нет
                   if (!isConnected) {
                     set({ isActuallyConnected: false });
                   }
-                  if (isConnected && currentState.syncQueue.length > 0) {
+                  
+                  if (isConnected && stateForUpdate.syncQueue.length > 0) {
                     // Если есть реальное соединение и есть действия в очереди, синхронизируем
                     // Но только если прошло достаточно времени с последней попытки
                     const now = Date.now();
-                    if (!currentState.lastSyncAttempt || (now - currentState.lastSyncAttempt) >= currentState.syncCooldown) {
-                      currentState.syncOfflineActions();
+                    if (!stateForUpdate.lastSyncAttempt || (now - stateForUpdate.lastSyncAttempt) >= stateForUpdate.syncCooldown) {
+                      stateForUpdate.syncOfflineActions();
                     } else {
                       if (process.env.NODE_ENV !== "production") {
-                        const remainingTime = Math.ceil((currentState.syncCooldown - (now - currentState.lastSyncAttempt)) / 1000);
+                        const remainingTime = Math.ceil((stateForUpdate.syncCooldown - (now - stateForUpdate.lastSyncAttempt)) / 1000);
                         console.warn(`⏰ Skipping sync on connection change, cooldown active for ${remainingTime}s`);
                       }
                     }
@@ -100,6 +119,21 @@ export const useOfflineStore = create<OfflineState>()(
           console.warn(`🔌 Setting actual connection: ${isConnected}`);
         }
         set({ isActuallyConnected: isConnected });
+      },
+
+      // Установка качества соединения
+      setConnectionQuality: (quality: ConnectionQuality) => {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`📊 Setting connection quality: ${quality}`);
+        }
+        set((state) => ({
+          connectionQuality: quality,
+          networkMetrics: {
+            ...state.networkMetrics,
+            quality,
+            lastChecked: Date.now(),
+          },
+        }));
       },
 
       // Добавление действия в очередь синхронизации
@@ -153,6 +187,82 @@ export const useOfflineStore = create<OfflineState>()(
         set({ syncQueue: [] });
       },
 
+      // Проверка качества соединения
+      checkConnectionQuality: async (): Promise<ConnectionQuality> => {
+        try {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("📊 Checking connection quality...");
+          }
+
+          const startTime = Date.now();
+          
+          // Используем собственный API для проверки
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
+
+          try {
+            const response = await fetch("/api/ping", {
+              method: "GET",
+              cache: "no-cache",
+              signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+            const latency = Date.now() - startTime;
+
+            if (response.ok) {
+              let quality: ConnectionQuality;
+              if (latency < 100) {
+                quality = 'excellent';
+              } else if (latency < 300) {
+                quality = 'good';
+              } else if (latency < 1000) {
+                quality = 'fair';
+              } else {
+                quality = 'poor';
+              }
+
+              // Обновляем метрики
+              set((state) => ({
+                networkMetrics: {
+                  ...state.networkMetrics,
+                  latency,
+                  quality,
+                  lastChecked: Date.now(),
+                  consecutiveFailures: 0,
+                },
+              }));
+
+              if (process.env.NODE_ENV !== "production") {
+                console.warn(`📊 Connection quality: ${quality} (${latency}ms)`);
+              }
+
+              return quality;
+            } else {
+              throw new Error(`HTTP ${response.status}`);
+            }
+          } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+          }
+        } catch (error) {
+          // Увеличиваем счетчик неудач
+          set((state) => ({
+            networkMetrics: {
+              ...state.networkMetrics,
+              consecutiveFailures: state.networkMetrics.consecutiveFailures + 1,
+              lastChecked: Date.now(),
+            },
+          }));
+
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("📊 Connection quality check failed:", error);
+          }
+
+          return 'offline';
+        }
+      },
+
       // Проверка реального соединения через внешние сервисы
       checkExternalConnection: async () => {
         try {
@@ -160,29 +270,64 @@ export const useOfflineStore = create<OfflineState>()(
             console.warn("🔍 Checking external connection...");
           }
 
-          // Сначала пробуем собственный API endpoint (работает в dev режиме)
-          try {
-            if (process.env.NODE_ENV !== "production") {
-              console.warn("🔍 Trying local API endpoint...");
-            }
+          // Улучшенная fallback стратегия с приоритетами
+          const fallbackUrls = [
+            { url: "/api/ping", timeout: 3000, priority: 1 }, // Собственный API - приоритет 1
+            { url: "https://www.google.com/favicon.ico", timeout: 5000, priority: 2 },
+            { url: "https://httpbin.org/status/200", timeout: 5000, priority: 3 },
+            { url: "https://api.github.com/zen", timeout: 5000, priority: 4 },
+          ];
 
-            const response = await fetch("/api/ping", {
-              method: "GET",
-              cache: "no-cache",
-            });
+          // Сортируем по приоритету
+          fallbackUrls.sort((a, b) => a.priority - b.priority);
 
-            if (response.ok) {
+          for (const { url, timeout } of fallbackUrls) {
+            try {
               if (process.env.NODE_ENV !== "production") {
-                console.warn("✅ Local API check successful");
+                console.warn(`🔍 Trying ${url} (timeout: ${timeout}ms)...`);
               }
-              set({ isActuallyConnected: true });
-              return true;
+
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+              const response = await fetch(url, {
+                method: "HEAD",
+                cache: "no-cache",
+                signal: controller.signal,
+                mode: url.startsWith('http') ? "no-cors" : "cors",
+              });
+
+              clearTimeout(timeoutId);
+
+              if (response.ok || response.type === 'opaque') { // opaque для no-cors
+                if (process.env.NODE_ENV !== "production") {
+                  console.warn(`✅ Connection confirmed via: ${url}`);
+                }
+                
+                // Обновляем метрики при успешном соединении
+                set((state) => ({
+                  isActuallyConnected: true,
+                  networkMetrics: {
+                    ...state.networkMetrics,
+                    consecutiveFailures: 0,
+                    lastChecked: Date.now(),
+                  },
+                }));
+                
+                return true;
+              }
+            } catch (error) {
+              if (error instanceof Error && error.name === "AbortError") {
+                if (process.env.NODE_ENV !== "production") {
+                  console.warn(`⏰ Timeout for ${url}`);
+                }
+              } else {
+                if (process.env.NODE_ENV !== "production") {
+                  console.warn(`⚠️ Failed to check ${url}:`, error);
+                }
+              }
+              // Продолжаем с следующим URL
             }
-          } catch (error) {
-            if (process.env.NODE_ENV !== "production") {
-              console.warn("⚠️ Local API check failed:", error);
-            }
-            // Игнорируем ошибки собственного API, пробуем внешние сервисы
           }
 
           // В dev режиме полагаемся на navigator.onLine для избежания CORS проблем
@@ -193,56 +338,17 @@ export const useOfflineStore = create<OfflineState>()(
             return navigatorOnline;
           }
 
-          // Проверяем внешнее соединение
+          // Если все запросы не работают, полагаемся на navigator.onLine
           const navigatorOnline = typeof window !== "undefined" ? navigator.onLine : true;
-
-          if (navigatorOnline) {
-            // Попробуем несколько внешних сервисов для надежности
-            const testUrls = [
-              "https://www.google.com/favicon.ico",
-              "https://httpbin.org/status/200",
-              "https://api.github.com/zen"
-            ];
-
-            for (const url of testUrls) {
-              try {
-                await fetch(url, {
-                  method: "HEAD",
-                  mode: "no-cors",
-                  cache: "no-cache",
-                });
-
-                console.warn("✅ External connectivity confirmed via:", url);
-                set({ isActuallyConnected: true });
-                return true;
-              } catch (error) {
-                console.warn(`⚠️ Failed to check ${url}:`, error);
-                // Продолжаем с следующим URL
-              }
-            }
-
-            // Если все внешние запросы не работают, полагаемся на navigator.onLine
-            console.warn("⚠️ All external requests failed, using navigator.onLine status");
-          }
-
-          // Полагаемся на navigator.onLine если внешние запросы заблокированы
-          const fallbackStatus = navigatorOnline;
-
+          
           if (process.env.NODE_ENV !== "production") {
-            console.warn(`🔄 Using fallback status: ${fallbackStatus} (navigator.onLine)`);
+            console.warn(`🔄 All checks failed, using fallback status: ${navigatorOnline} (navigator.onLine)`);
           }
 
-          set({ isActuallyConnected: fallbackStatus });
-          return fallbackStatus;
+          set({ isActuallyConnected: navigatorOnline });
+          return navigatorOnline;
         } catch (error) {
-          // Игнорируем ошибки AbortError (таймаут)
-          if (error instanceof Error && error.name === "AbortError") {
-                      if (process.env.NODE_ENV !== "production") {
-            console.warn("⏰ External network check timeout - assuming offline");
-          }
-          } else {
-            console.warn("External network check failed:", error);
-          }
+          console.warn("External network check failed:", error);
           set({ isActuallyConnected: false });
           return false;
         }
@@ -311,10 +417,34 @@ export const useOfflineStore = create<OfflineState>()(
         maxRetries: state.maxRetries,
         lastSyncAttempt: state.lastSyncAttempt,
         syncCooldown: state.syncCooldown,
+        networkMetrics: state.networkMetrics,
       }),
     },
   ),
 );
+
+// Функция для вычисления адаптивного интервала проверки
+function getAdaptiveInterval(consecutiveFailures: number, connectionQuality: ConnectionQuality): number {
+  // Базовые интервалы в миллисекундах
+  const baseIntervals = {
+    excellent: 300000,  // 5 минут
+    good: 180000,       // 3 минуты
+    fair: 120000,       // 2 минуты
+    poor: 60000,        // 1 минута
+    offline: 30000,     // 30 секунд
+  };
+
+  let baseInterval = baseIntervals[connectionQuality];
+  
+  // Увеличиваем интервал при множественных неудачах
+  if (consecutiveFailures > 0) {
+    const multiplier = Math.min(1 + (consecutiveFailures * 0.5), 3); // Максимум 3x
+    baseInterval = Math.floor(baseInterval * multiplier);
+  }
+  
+  // Минимальный интервал 10 секунд, максимальный 10 минут
+  return Math.max(10000, Math.min(baseInterval, 600000));
+}
 
 // Функция синхронизации конкретного действия
 async function syncAction(action: OfflineAction): Promise<void> {
@@ -523,57 +653,81 @@ export function initializeOfflineStore() {
     console.warn("Error overriding fetch:", error);
   }
 
-  // Периодическая проверка реального соединения только при необходимости
-  // (например, если нет Network Information API или есть проблемы с сетью)
+  // Адаптивная периодическая проверка реального соединения
   try {
-    let consecutiveFailures = 0;
-    const maxFailures = 3;
-
-    setInterval(() => {
-      try {
-        const state = useOfflineStore.getState();
-
-        // Проверяем только если:
-        // 1. Нет Network Information API
-        // 2. Есть проблемы с сетью (несколько неудач подряд)
-        // 3. Нет реального соединения
-        if (
-          !(navigator as { connection?: unknown }).connection ||
-          consecutiveFailures >= maxFailures ||
-          !state.isActuallyConnected
-        ) {
-          if (process.env.NODE_ENV === "development") {
-            console.warn(`🔄 Periodic connection check (failures: ${consecutiveFailures})`);
-          }
-
-          state
-            .checkExternalConnection()
-            .then((isConnected) => {
-              if (isConnected) {
-                consecutiveFailures = 0; // Сбрасываем счетчик неудач
-                if (process.env.NODE_ENV === "development") {
-                  console.warn("✅ Periodic check successful, resetting failure counter");
-                }
-              } else {
-                consecutiveFailures++; // Увеличиваем счетчик неудач
-                if (process.env.NODE_ENV === "development") {
-                  console.warn(`❌ Periodic check failed, failure count: ${consecutiveFailures}`);
-                }
-              }
-            })
-            .catch(() => {
-              consecutiveFailures++; // Увеличиваем счетчик неудач
-              if (process.env.NODE_ENV === "development") {
-                console.warn(`❌ Periodic check error, failure count: ${consecutiveFailures}`);
-              }
-            });
-        }
-      } catch {
-        // Игнорируем ошибки проверки соединения
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    const scheduleNextCheck = () => {
+      if (intervalId) {
+        clearTimeout(intervalId);
       }
-    }, 300000); // Каждые 5 минут вместо 30 секунд
+      
+      const state = useOfflineStore.getState();
+      const adaptiveInterval = getAdaptiveInterval(
+        state.networkMetrics.consecutiveFailures,
+        state.networkMetrics.quality
+      );
+      
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`🔄 Scheduling next check in ${Math.round(adaptiveInterval / 1000)}s (failures: ${state.networkMetrics.consecutiveFailures}, quality: ${state.networkMetrics.quality})`);
+      }
+      
+      intervalId = setTimeout(() => {
+        try {
+          const currentState = useOfflineStore.getState();
+
+          // Проверяем только если:
+          // 1. Нет Network Information API
+          // 2. Есть проблемы с сетью
+          // 3. Нет реального соединения
+          if (
+            !(navigator as { connection?: unknown }).connection ||
+            currentState.networkMetrics.consecutiveFailures > 0 ||
+            !currentState.isActuallyConnected
+          ) {
+            if (process.env.NODE_ENV === "development") {
+              console.warn(`🔄 Adaptive periodic check (failures: ${currentState.networkMetrics.consecutiveFailures}, quality: ${currentState.networkMetrics.quality})`);
+            }
+
+            currentState
+              .checkExternalConnection()
+              .then((isConnected) => {
+                if (isConnected) {
+                  if (process.env.NODE_ENV === "development") {
+                    console.warn("✅ Adaptive check successful");
+                  }
+                } else {
+                  if (process.env.NODE_ENV === "development") {
+                    console.warn(`❌ Adaptive check failed, failure count: ${currentState.networkMetrics.consecutiveFailures}`);
+                  }
+                }
+                
+                // Планируем следующую проверку
+                scheduleNextCheck();
+              })
+              .catch(() => {
+                if (process.env.NODE_ENV === "development") {
+                  console.warn(`❌ Adaptive check error, failure count: ${currentState.networkMetrics.consecutiveFailures}`);
+                }
+                
+                // Планируем следующую проверку
+                scheduleNextCheck();
+              });
+          } else {
+            // Если все хорошо, планируем следующую проверку с базовым интервалом
+            scheduleNextCheck();
+          }
+        } catch {
+          // Игнорируем ошибки проверки соединения
+          scheduleNextCheck();
+        }
+      }, adaptiveInterval);
+    };
+    
+    // Запускаем первую проверку
+    scheduleNextCheck();
   } catch (error) {
-    console.warn("Error setting up connection check interval:", error);
+    console.warn("Error setting up adaptive connection check:", error);
   }
 
   // В dev режиме делаем дополнительную проверку при загрузке страницы

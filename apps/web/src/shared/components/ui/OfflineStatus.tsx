@@ -6,11 +6,19 @@ import { useOfflineStore } from "@shared/stores/offlineStore";
 import { useEffect, useState } from "react";
 
 export default function OfflineStatus() {
-  const { statusIcon, statusText, statusColor, detailedStatus, browserOnline, actuallyConnected } =
-    useOfflineStatus();
+  const { 
+    statusIcon, 
+    statusText, 
+    statusColor, 
+    detailedStatus, 
+    browserOnline, 
+    actuallyConnected,
+    connectionQuality,
+    networkMetrics
+  } = useOfflineStatus();
   const { queueLength, hasPendingActions, lastSyncDate, formatLastSync, syncOfflineActions } =
     useSyncQueue();
-  const { checkExternalConnection } = useOfflineStore();
+  const { checkExternalConnection, checkConnectionQuality } = useOfflineStore();
   const [showDetails, setShowDetails] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
 
@@ -26,7 +34,11 @@ export default function OfflineStatus() {
   const handleForceCheck = async () => {
     setIsChecking(true);
     try {
-      await checkExternalConnection();
+      // Проверяем и качество соединения, и внешнее соединение
+      await Promise.all([
+        checkConnectionQuality(),
+        checkExternalConnection()
+      ]);
     } catch (error) {
       console.warn("Force check failed:", error);
     } finally {
@@ -137,6 +149,10 @@ export default function OfflineStatus() {
             Браузер: {browserOnline ? "🟢 Онлайн" : "🔴 Офлайн"}
             <br />
             Реально: {actuallyConnected ? "🟢 Работает" : "🔴 Не работает"}
+            <br />
+            Качество: {connectionQuality} {networkMetrics.latency > 0 && `(${networkMetrics.latency}ms)`}
+            <br />
+            Неудачи: {networkMetrics.consecutiveFailures}
             {process.env.NODE_ENV === "development" && (
               <>
                 <br />
