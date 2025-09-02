@@ -176,7 +176,7 @@ export const usePushStore = create<PushState>()(
       },
 
       checkServerSubscription: async () => {
-        console.log("🚀 checkServerSubscription: Начинаем проверку локальной подписки");
+        console.log("🚀 checkServerSubscription: Начинаем проверку соответствия локальной подписки и БД");
         
         try {
           const userId = get().userId;
@@ -185,18 +185,22 @@ export const usePushStore = create<PushState>()(
             return;
           }
 
-          console.log("🔧 checkServerSubscription: Checking local subscription for userId:", userId);
+          console.log("🔧 checkServerSubscription: Checking subscription sync for userId:", userId);
           
-          // Проверяем локальную подписку через универсальный менеджер
+          // Проверяем локальную подписку
+          let localSubscription = null;
           let hasLocalSubscription = false;
           
           if (serviceWorkerManager.isSupported()) {
             try {
               const registration = await serviceWorkerManager.getRegistration();
               if (registration) {
-                const subscription = await registration.pushManager.getSubscription();
-                hasLocalSubscription = !!subscription;
+                localSubscription = await registration.pushManager.getSubscription();
+                hasLocalSubscription = !!localSubscription;
                 console.log("🔍 Локальная подписка найдена:", hasLocalSubscription);
+                if (localSubscription) {
+                  console.log("🔗 Локальный endpoint:", localSubscription.endpoint.substring(0, 50) + "...");
+                }
               } else {
                 console.log("⚠️ Service Worker недоступен для проверки");
                 hasLocalSubscription = false;
@@ -207,10 +211,49 @@ export const usePushStore = create<PushState>()(
             }
           }
           
-          // Обновляем состояние на основе локальной подписки
-          console.log("🔧 checkServerSubscription: Обновляем состояние hasServerSubscription:", hasLocalSubscription);
-          set({ hasServerSubscription: hasLocalSubscription });
-          console.log("✅ checkServerSubscription: Состояние обновлено на основе локальной подписки");
+          // Если локальной подписки нет, то и серверной быть не должно
+          if (!hasLocalSubscription) {
+            console.log("🔧 checkServerSubscription: Локальной подписки нет, устанавливаем hasServerSubscription: false");
+            set({ hasServerSubscription: false });
+            return;
+          }
+          
+          // Проверяем, есть ли локальная подписка в БД
+          try {
+            const { getUserSubscriptionStatus } = await import("@shared/lib/savePushSubscription/getUserSubscriptionStatus");
+            const { hasSubscription } = await getUserSubscriptionStatus();
+            
+            // Проверяем соответствие endpoint'ов
+            let endpointMatches = false;
+            if (localSubscription && hasSubscription) {
+              // Получаем все подписки пользователя из БД
+              const { getUserSubscriptions } = await import("@shared/lib/savePushSubscription/getUserSubscriptionStatus");
+              const { subscriptions } = await getUserSubscriptions();
+              
+              // Проверяем, есть ли локальный endpoint в БД
+              endpointMatches = subscriptions.some(sub => sub.endpoint === localSubscription!.endpoint);
+              console.log("🔍 Проверка соответствия endpoint'ов:", endpointMatches);
+              console.log("🔗 Локальный endpoint:", localSubscription.endpoint.substring(0, 50) + "...");
+              console.log("📊 Подписок в БД:", subscriptions.length);
+            }
+            
+            // Состояние синхронизировано, если есть и локальная подписка, и соответствующая запись в БД
+            const isSynced = hasLocalSubscription && hasSubscription && endpointMatches;
+            console.log("🔧 checkServerSubscription: Состояние синхронизации:", {
+              hasLocalSubscription,
+              hasSubscription,
+              endpointMatches,
+              isSynced
+            });
+            
+            set({ hasServerSubscription: isSynced });
+            console.log("✅ checkServerSubscription: Состояние обновлено:", isSynced);
+            
+          } catch (error) {
+            console.error("❌ checkServerSubscription: Ошибка проверки БД:", error);
+            // В случае ошибки БД, полагаемся только на локальную подписку
+            set({ hasServerSubscription: hasLocalSubscription });
+          }
           
         } catch (error) {
           console.error("❌ checkServerSubscription: Unexpected error:", error);

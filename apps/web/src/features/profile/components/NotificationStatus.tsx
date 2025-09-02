@@ -51,11 +51,11 @@ export default function NotificationStatus() {
       console.log("🔧 Push Manager supported:", 'PushManager' in window);
       
       // Обязательное требование HTTPS для push
-      if (window.location.protocol !== 'https:') {
-        console.error("❌ Safari requires HTTPS for push notifications");
-        alert("Для push-уведомлений требуется HTTPS соединение");
-        return;
-      }
+      //if (window.location.protocol !== 'https:') {
+        //console.error("❌ Safari requires HTTPS for push notifications");
+        //alert("Для push-уведомлений требуется HTTPS соединение");
+        //return;
+      //}
       
       // Для старых версий iOS Safari (< 16.4) требуется PWA режим
       if (isIOS && !isStandalone) {

@@ -42,27 +42,60 @@ export async function savePushSubscription(subscription: PushSubscriptionJSON) {
         // Используем правильный ID
         const correctUserId = userByUsername.id;
         
-        // Всегда создаем новую подписку, позволяя пользователю иметь несколько подписок
-        return prisma.pushSubscription.create({
-          data: {
-            endpoint: subscription.endpoint,
-            keys: subscription.keys as { p256dh: string; auth: string },
-            userId: correctUserId,
-          },
+        // Проверяем существование подписки по endpoint
+        const existingSubscription = await prisma.pushSubscription.findFirst({
+          where: { endpoint: subscription.endpoint },
         });
+        
+        if (existingSubscription) {
+          // Обновляем существующую подписку
+          return prisma.pushSubscription.update({
+            where: { id: existingSubscription.id },
+            data: {
+              keys: subscription.keys as { p256dh: string; auth: string },
+              userId: correctUserId,
+              updatedAt: new Date(),
+            },
+          });
+        } else {
+          // Создаем новую подписку
+          return prisma.pushSubscription.create({
+            data: {
+              endpoint: subscription.endpoint,
+              keys: subscription.keys as { p256dh: string; auth: string },
+              userId: correctUserId,
+            },
+          });
+        }
       }
     }
     
     throw new Error(`Пользователь с ID ${userId} не найден в базе данных`);
   }
 
-  // Всегда создаем новую подписку, позволяя пользователю иметь несколько подписок
-  // Это решает проблему с удалением старых подписок при создании новых
-  return prisma.pushSubscription.create({
-    data: {
-      endpoint: subscription.endpoint,
-      keys: subscription.keys as { p256dh: string; auth: string },
-      userId,
-    },
+  // Проверяем существование подписки по endpoint
+  const existingSubscription = await prisma.pushSubscription.findFirst({
+    where: { endpoint: subscription.endpoint },
   });
+  
+  if (existingSubscription) {
+    // Обновляем существующую подписку
+    return prisma.pushSubscription.update({
+      where: { id: existingSubscription.id },
+      data: {
+        keys: subscription.keys as { p256dh: string; auth: string },
+        userId,
+        updatedAt: new Date(),
+      },
+    });
+  } else {
+    // Создаем новую подписку
+    return prisma.pushSubscription.create({
+      data: {
+        endpoint: subscription.endpoint,
+        keys: subscription.keys as { p256dh: string; auth: string },
+        userId,
+      },
+    });
+  }
 }
