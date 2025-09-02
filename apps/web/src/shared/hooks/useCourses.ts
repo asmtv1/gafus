@@ -1,6 +1,6 @@
 "use client";
 
-import { useData, useMutate } from "@gafus/swr";
+import { useData, useMutate } from "@gafus/react-query";
 import { getCoursesWithProgressCached } from "@shared/lib/actions/cachedCourses";
 import { getFavoritesCoursesCached } from "@shared/lib/actions/cachedCourses";
 import { getAuthoredCoursesCached } from "@shared/lib/actions/cachedCourses";
@@ -40,8 +40,8 @@ export function useCourses() {
       return result.data || [];
     },
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 30000, // 30 секунд
+      refetchOnWindowFocus: false,
+      staleTime: 30000, // 30 секунд
     },
   );
 }
@@ -57,8 +57,8 @@ export function useFavorites() {
       return result.data || [];
     },
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 30000, // 30 секунд
+      refetchOnWindowFocus: false,
+      staleTime: 30000, // 30 секунд
     },
   );
 }
@@ -74,8 +74,8 @@ export function useAuthored() {
       return result.data || [];
     },
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 30000, // 30 секунд
+      refetchOnWindowFocus: false,
+      staleTime: 30000, // 30 секунд
     },
   );
 }
@@ -84,21 +84,21 @@ export function useCoursesMutation() {
   const { mutate } = useMutate();
 
   const invalidateAllCourses = () => {
-    mutate("courses:all", undefined);
+    mutate("courses:all");
     // Инвалидируем достижения при изменении курсов
-    mutate("user:achievements", undefined);
+    mutate("user:achievements");
   };
 
   const invalidateFavorites = () => {
-    mutate("courses:favorites", undefined);
+    mutate("courses:favorites");
     // Инвалидируем достижения при изменении избранного
-    mutate("user:achievements", undefined);
+    mutate("user:achievements");
   };
 
   const invalidateAuthored = () => {
-    mutate("courses:authored", undefined);
+    mutate("courses:authored");
     // Инвалидируем достижения при изменении созданных курсов
-    mutate("user:achievements", undefined);
+    mutate("user:achievements");
   };
 
   const invalidateAll = () => {
@@ -106,8 +106,8 @@ export function useCoursesMutation() {
     invalidateFavorites();
     invalidateAuthored();
     // Инвалидируем все связанные данные
-    mutate("user:profile", undefined);
-    mutate("user:with-trainings", undefined);
+    mutate("user:profile");
+    mutate("user:with-trainings");
   };
 
   return {

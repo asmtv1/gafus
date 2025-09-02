@@ -1,33 +1,67 @@
+"use client";
+
 import { BugReport, Warning, CheckCircle, Apps } from "@mui/icons-material";
-import { Card, CardContent, Typography, Box, LinearProgress } from "@mui/material";
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  LinearProgress,
+  CircularProgress,
+  Alert,
+} from "@mui/material";
+import { useErrorStats } from "@shared/hooks/useErrorStats";
 
-interface ErrorStatsProps {
-  stats: {
-    total: number;
-    unresolved: number;
-    byApp: { appName: string; _count: { id: number } }[];
-    byEnvironment: { environment: string; _count: { id: number } }[];
-  };
-}
+export default function ErrorStatsSWR() {
+  const { data: stats, error, isLoading } = useErrorStats();
 
-export default function ErrorStats({ stats }: ErrorStatsProps) {
-  const resolvedCount = stats.total - stats.unresolved;
-  const resolvedPercentage = stats.total > 0 ? (resolvedCount / stats.total) * 100 : 0;
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          display: "grid",
+          gap: 3,
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
+        }}
+      >
+        {[1, 2, 3, 4].map((index) => (
+          <Card key={index}>
+            <CardContent>
+              <Box display="flex" justifyContent="center" alignItems="center" height={100}>
+                <CircularProgress />
+              </Box>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
+    );
+  }
+
+  if (error) {
+    return <Alert severity="error">Ошибка загрузки статистики: {error.message}</Alert>;
+  }
+
+  if (!stats || !stats.success || !stats.stats) {
+    return <Alert severity="info">Статистика недоступна</Alert>;
+  }
+
+  const resolvedCount = stats.stats.total - stats.stats.unresolved;
+  const resolvedPercentage = stats.stats.total > 0 ? (resolvedCount / stats.stats.total) * 100 : 0;
 
   const statCards = [
     {
       title: "Всего ошибок",
-      value: stats.total,
+      value: stats.stats.total,
       icon: <BugReport />,
       color: "error" as const,
       progress: null,
     },
     {
       title: "Неразрешенных",
-      value: stats.unresolved,
+      value: stats.stats.unresolved,
       icon: <Warning />,
       color: "warning" as const,
-      progress: stats.total > 0 ? (stats.unresolved / stats.total) * 100 : 0,
+      progress: stats.stats.total > 0 ? (stats.stats.unresolved / stats.stats.total) * 100 : 0,
     },
     {
       title: "Разрешенных",
@@ -38,7 +72,7 @@ export default function ErrorStats({ stats }: ErrorStatsProps) {
     },
     {
       title: "Приложений",
-      value: stats.byApp.length,
+      value: stats.stats.byApp.length,
       icon: <Apps />,
       color: "info" as const,
       progress: null,
@@ -58,52 +92,50 @@ export default function ErrorStats({ stats }: ErrorStatsProps) {
       }}
     >
       {statCards.map((card, index) => (
-        <Box key={index}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" mb={2}>
-                <Box
-                  sx={{
-                    backgroundColor: `${card.color}.light`,
-                    color: `${card.color}.main`,
-                    borderRadius: 1,
-                    p: 1,
-                    mr: 2,
-                  }}
-                >
-                  {card.icon}
-                </Box>
-                <Box flex={1}>
-                  <Typography variant="h4" component="div" fontWeight="bold">
-                    {card.value}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {card.title}
-                  </Typography>
-                </Box>
+        <Card key={index}>
+          <CardContent>
+            <Box display="flex" alignItems="center" mb={2}>
+              <Box
+                sx={{
+                  backgroundColor: `${card.color}.light`,
+                  color: `${card.color}.main`,
+                  borderRadius: 1,
+                  p: 1,
+                  mr: 2,
+                }}
+              >
+                {card.icon}
               </Box>
+              <Box flex={1}>
+                <Typography variant="h4" component="div" fontWeight="bold">
+                  {card.value}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {card.title}
+                </Typography>
+              </Box>
+            </Box>
 
-              {card.progress !== null && (
-                <Box mt={2}>
-                  <Box display="flex" justifyContent="space-between" mb={1}>
-                    <Typography variant="caption" color="text.secondary">
-                      Процент
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {card.progress.toFixed(1)}%
-                    </Typography>
-                  </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={card.progress}
-                    color={card.color}
-                    sx={{ height: 6, borderRadius: 3 }}
-                  />
+            {card.progress !== null && (
+              <Box mt={2}>
+                <Box display="flex" justifyContent="space-between" mb={1}>
+                  <Typography variant="caption" color="text.secondary">
+                    Процент
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {card.progress.toFixed(1)}%
+                  </Typography>
                 </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={card.progress}
+                  color={card.color}
+                  sx={{ height: 6, borderRadius: 3 }}
+                />
+              </Box>
+            )}
+          </CardContent>
+        </Card>
       ))}
     </Box>
   );

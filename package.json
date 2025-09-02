@@ -42,6 +42,8 @@
     "typecheck:ci": "./scripts/typecheck-local.sh"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.85.9",
+    "@tanstack/react-query-devtools": "^5.85.9",
     "dotenv": "17.2.0"
   },
   "devDependencies": {

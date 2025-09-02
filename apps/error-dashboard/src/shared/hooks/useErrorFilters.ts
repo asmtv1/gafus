@@ -1,15 +1,15 @@
 "use client";
 
-import { useData, useMutate } from "@gafus/swr";
+import { useData, useMutate } from "@gafus/react-query";
 import { getErrorFilters } from "@shared/lib/actions/errorFilters";
 
 import type { ErrorFilters } from "@gafus/types";
 
 export function useErrorFilters() {
   return useData<ErrorFilters>("error-filters", getErrorFilters, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: true,
-    dedupingInterval: 300000, // 5 минут
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    staleTime: 300000, // 5 минут
   });
 }
 

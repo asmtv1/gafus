@@ -1,12 +1,12 @@
 "use client";
 
-import { useData } from "@gafus/swr";
+import { useData } from "@gafus/react-query";
 import { getErrorStats } from "@shared/lib/actions/errorStats";
 
 export function useErrorStats() {
   return useData("error-stats", getErrorStats, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: true,
-    dedupingInterval: 300000, // 5 минут
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    staleTime: 300000, // 5 минут
   });
 }

@@ -2,7 +2,7 @@
 
 import ErrorFiltersWrapper from "@features/errors/components/ErrorFiltersWrapper";
 import ErrorListWithFilters from "@features/errors/components/ErrorListWithFilters";
-import ErrorStatsSWR from "@features/errors/components/ErrorStatsSWR";
+import ErrorStats from "@features/errors/components/ErrorStats";
 import UserInfo from "@features/errors/components/UserInfo";
 import { Box, Container, Typography, CircularProgress } from "@mui/material";
 import { FilterProvider } from "@shared/contexts/FilterContext";
@@ -34,7 +34,7 @@ export default function DashboardPage() {
             }
           >
             <Box mb={4}>
-              <ErrorStatsSWR />
+              <ErrorStats />
             </Box>
           </Suspense>
 

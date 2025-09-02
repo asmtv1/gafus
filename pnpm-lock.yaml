@@ -28,6 +28,12 @@ importers:
 
   .:
     dependencies:
+      '@tanstack/react-query':
+        specifier: ^5.85.9
+        version: 5.85.9(react@19.1.0)
+      '@tanstack/react-query-devtools':
+        specifier: ^5.85.9
+        version: 5.85.9(@tanstack/react-query@5.85.9(react@19.1.0))(react@19.1.0)
       dotenv:
         specifier: 17.2.0
         version: 17.2.0
@@ -147,9 +153,9 @@ importers:
       '@gafus/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma
-      '@gafus/swr':
+      '@gafus/react-query':
         specifier: workspace:*
-        version: link:../../packages/swr
+        version: link:../../packages/react-query
       '@gafus/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -165,6 +171,12 @@ importers:
       '@mui/x-date-pickers':
         specifier: 7.8.0
         version: 7.8.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@types/react@19.1.9)(react@19.1.0))(@mui/material@7.1.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@types/react@19.1.9)(react@19.1.0))(@types/react@19.1.9)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@types/react@19.1.9)(date-fns@3.6.0)(luxon@3.7.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@tanstack/react-query':
+        specifier: ^5.85.9
+        version: 5.85.9(react@19.1.0)
+      '@tanstack/react-query-devtools':
+        specifier: ^5.85.9
+        version: 5.85.9(@tanstack/react-query@5.85.9(react@19.1.0))(react@19.1.0)
       date-fns:
         specifier: 3.6.0
         version: 3.6.0
@@ -173,7 +185,7 @@ importers:
         version: 15.4.7(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       next-auth:
         specifier: 4.24.11
-        version: 4.24.11(next@15.4.7(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -260,9 +272,9 @@ importers:
       '@gafus/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma
-      '@gafus/swr':
+      '@gafus/react-query':
         specifier: workspace:*
-        version: link:../../packages/swr
+        version: link:../../packages/react-query
       '@gafus/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -278,6 +290,12 @@ importers:
       '@mui/x-date-pickers':
         specifier: 7.8.0
         version: 7.8.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@types/react@19.1.9)(react@19.1.0))(@mui/material@7.1.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@types/react@19.1.9)(react@19.1.0))(@types/react@19.1.9)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@types/react@19.1.9)(date-fns@3.6.0)(luxon@3.7.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@tanstack/react-query':
+        specifier: ^5.85.9
+        version: 5.85.9(react@19.1.0)
+      '@tanstack/react-query-devtools':
+        specifier: ^5.85.9
+        version: 5.85.9(@tanstack/react-query@5.85.9(react@19.1.0))(react@19.1.0)
       date-fns:
         specifier: 3.6.0
         version: 3.6.0
@@ -286,7 +304,7 @@ importers:
         version: 15.4.7(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       next-auth:
         specifier: 4.24.11
-        version: 4.24.11(next@15.4.7(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -354,9 +372,9 @@ importers:
       '@gafus/queues':
         specifier: workspace:*
         version: link:../../packages/queues
-      '@gafus/swr':
+      '@gafus/react-query':
         specifier: workspace:*
-        version: link:../../packages/swr
+        version: link:../../packages/react-query
       '@gafus/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -369,6 +387,12 @@ importers:
       '@mui/material':
         specifier: 7.1.0
         version: 7.1.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@types/react@19.1.9)(react@19.1.0))(@types/react@19.1.9)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@tanstack/react-query':
+        specifier: ^5.85.9
+        version: 5.85.9(react@19.1.0)
+      '@tanstack/react-query-devtools':
+        specifier: ^5.85.9
+        version: 5.85.9(@tanstack/react-query@5.85.9(react@19.1.0))(react@19.1.0)
       bcrypt:
         specifier: 6.0.0
         version: 6.0.0
@@ -383,7 +407,7 @@ importers:
         version: 15.4.7(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       next-auth:
         specifier: 4.24.11
-        version: 4.24.11(next@15.4.7(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -441,7 +465,7 @@ importers:
         version: 15.4.7(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       next-auth:
         specifier: 4.24.11
-        version: 4.24.11(next@15.4.7(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -583,8 +607,14 @@ importers:
         specifier: 5.8.3
         version: 5.8.3
 
-  packages/swr:
+  packages/react-query:
     dependencies:
+      '@tanstack/react-query':
+        specifier: ^5.85.9
+        version: 5.85.9(react@19.1.0)
+      '@tanstack/react-query-devtools':
+        specifier: ^5.85.9
+        version: 5.85.9(@tanstack/react-query@5.85.9(react@19.1.0))(react@19.1.0)
       next:
         specifier: 15.4.7
         version: 15.4.7(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -594,9 +624,6 @@ importers:
       react-dom:
         specifier: 19.1.0
         version: 19.1.0(react@19.1.0)
-      swr:
-        specifier: 2.3.5
-        version: 2.3.5(react@19.1.0)
     devDependencies:
       '@types/node':
         specifier: 20.4.8
@@ -2210,6 +2237,23 @@ packages:
 
   '@tailwindcss/postcss@4.1.12':
     resolution: {integrity: sha512-5PpLYhCAwf9SJEeIsSmCDLgyVfdBhdBpzX1OJ87anT9IVR0Z9pjM0FNixCAUAHGnMBGB8K99SwAheXrT0Kh6QQ==}
+
+  '@tanstack/query-core@5.85.9':
+    resolution: {integrity: sha512-5fxb9vwyftYE6KFLhhhDyLr8NO75+Wpu7pmTo+TkwKmMX2oxZDoLwcqGP8ItKSpUMwk3urWgQDZfyWr5Jm9LsQ==}
+
+  '@tanstack/query-devtools@5.84.0':
+    resolution: {integrity: sha512-fbF3n+z1rqhvd9EoGp5knHkv3p5B2Zml1yNRjh7sNXklngYI5RVIWUrUjZ1RIcEoscarUb0+bOvIs5x9dwzOXQ==}
+
+  '@tanstack/react-query-devtools@5.85.9':
+    resolution: {integrity: sha512-BAdhgwpzxkC1vdyCfiPbbC7FU/t/x6q2d9ZyhON/WykVUdznD69nlppuWpSIlIGipdRG7sF6tRZ6x3GtSq0EUQ==}
+    peerDependencies:
+      '@tanstack/react-query': ^5.85.9
+      react: 19.1.0
+
+  '@tanstack/react-query@5.85.9':
+    resolution: {integrity: sha512-2T5zgSpcOZXGkH/UObIbIkGmUPQqZqn7esVQFXLOze622h4spgWf5jmvrqAo9dnI13/hyMcNsF1jsoDcb59nJQ==}
+    peerDependencies:
+      react: 19.1.0
 
   '@telegraf/types@7.1.0':
     resolution: {integrity: sha512-kGevOIbpMcIlCDeorKGpwZmdH7kHbqlk/Yj6dEpJMKEQw5lk0KVQY0OLXaCswy8GqlIVLd5625OB+rAntP9xVw==}
@@ -5054,11 +5098,6 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
-  swr@2.3.5:
-    resolution: {integrity: sha512-4e7pjTVulZTIL+b/S0RYFsgDcTcXPLUOvBPqyh9YdD+PkHeEMoaPwDmF9Kv6I1nnPg1OFKhiiEYpsYaaE2W2jA==}
-    peerDependencies:
-      react: 19.1.0
-
   synckit@0.11.11:
     resolution: {integrity: sha512-MeQTA1r0litLUf0Rp/iisCaL8761lKAZHaimlbGK4j0HysC4PLfqygQj9srcs0m2RdtDYnF8UuYyKpbjHYp7Jw==}
     engines: {node: ^14.18.0 || >=16.0.0}
@@ -7090,6 +7129,21 @@ snapshots:
       '@tailwindcss/oxide': 4.1.12
       postcss: 8.5.6
       tailwindcss: 4.1.12
+
+  '@tanstack/query-core@5.85.9': {}
+
+  '@tanstack/query-devtools@5.84.0': {}
+
+  '@tanstack/react-query-devtools@5.85.9(@tanstack/react-query@5.85.9(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      '@tanstack/query-devtools': 5.84.0
+      '@tanstack/react-query': 5.85.9(react@19.1.0)
+      react: 19.1.0
+
+  '@tanstack/react-query@5.85.9(react@19.1.0)':
+    dependencies:
+      '@tanstack/query-core': 5.85.9
+      react: 19.1.0
 
   '@telegraf/types@7.1.0': {}
 
@@ -9582,7 +9636,7 @@ snapshots:
 
   neo-async@2.6.2: {}
 
-  next-auth@4.24.11(next@15.4.7(@babel/core@7.28.3)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+  next-auth@4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
       '@babel/runtime': 7.28.3
       '@panva/hkdf': 1.2.1
@@ -10414,12 +10468,6 @@ snapshots:
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
-  swr@2.3.5(react@19.1.0):
-    dependencies:
-      dequal: 2.0.3
-      react: 19.1.0
-      use-sync-external-store: 1.5.0(react@19.1.0)
-
   synckit@0.11.11:
     dependencies:
       '@pkgr/core': 0.2.9
@@ -10723,6 +10771,7 @@ snapshots:
   use-sync-external-store@1.5.0(react@19.1.0):
     dependencies:
       react: 19.1.0
+    optional: true
 
   uuid@8.3.2: {}
 

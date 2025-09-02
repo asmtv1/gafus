@@ -1,6 +1,6 @@
 "use client";
 
-import { useData, useMutate } from "@gafus/swr";
+import { useData, useMutate, useQueryClient } from "@gafus/react-query";
 import { getUserPreferences } from "@shared/lib/user/getUserPreferences";
 import { getUserProfile } from "@shared/lib/user/getUserProfile";
 import { updateUserPreferences } from "@shared/lib/user/updateUserPreferences";
@@ -20,8 +20,8 @@ export function useUserProfile() {
       }
     },
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 минута
+      refetchOnWindowFocus: false,
+      staleTime: 60000, // 1 минута
     },
   );
 }
@@ -87,14 +87,15 @@ export function useUserPreferences() {
       }
     },
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 минута
+      refetchOnWindowFocus: false,
+      staleTime: 60000, // 1 минута
     },
   );
 }
 
 export function useUserMutations() {
   const { mutate } = useMutate();
+  const queryClient = useQueryClient();
 
   const updateProfile = async (data: Partial<UserProfile>) => {
     try {
@@ -109,7 +110,7 @@ export function useUserMutations() {
       };
 
       const updatedProfile = await updateUserProfile(updateData);
-      mutate("user:profile", updatedProfile);
+      queryClient.setQueryData(["user:profile"], updatedProfile);
       return { success: true, data: updatedProfile };
     } catch (error) {
       console.error("Ошибка обновления профиля:", error);
@@ -123,7 +124,7 @@ export function useUserMutations() {
   const updatePreferences = async (data: Partial<UserPreferences>) => {
     try {
       const updatedPreferences = await updateUserPreferences(data);
-      mutate("user:preferences", updatedPreferences);
+      queryClient.setQueryData(["user:preferences"], updatedPreferences);
       return { success: true, data: updatedPreferences };
     } catch (error) {
       console.error("Ошибка обновления настроек:", error);
@@ -135,10 +136,10 @@ export function useUserMutations() {
   };
 
   const invalidateUserData = () => {
-    mutate("user:profile", undefined);
-    mutate("user:preferences", undefined);
+    mutate("user:profile");
+    mutate("user:preferences");
     // Инвалидируем достижения при изменении пользовательских данных
-    mutate("user:achievements", undefined);
+    mutate("user:achievements");
   };
 
   return {

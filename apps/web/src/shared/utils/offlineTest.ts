@@ -192,7 +192,7 @@ export class OfflineTester {
 
 // Экспортируем глобальный экземпляр для использования в консоли браузера
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  (window as any).offlineTester = OfflineTester.getInstance();
+  (window as unknown as Record<string, unknown>).offlineTester = OfflineTester.getInstance();
   console.warn("🧪 OfflineTester: Available as window.offlineTester");
   console.warn("🧪 Available methods: simulateOffline(), simulateOnline(), addTestAction(), runFullTest(), logCurrentState()");
 }

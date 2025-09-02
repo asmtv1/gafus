@@ -4,7 +4,6 @@ import { persist } from "zustand/middleware";
 import type {
   CommentData,
   ConnectionQuality,
-  NetworkMetrics,
   OfflineAction,
   OfflineState,
   ProfileUpdateData,
@@ -190,6 +189,14 @@ export const useOfflineStore = create<OfflineState>()(
       // Проверка качества соединения
       checkConnectionQuality: async (): Promise<ConnectionQuality> => {
         try {
+          // Быстрая проверка navigator.onLine
+          if (!navigator.onLine) {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn("🔴 navigator.onLine = false, возвращаем offline");
+            }
+            return 'offline';
+          }
+
           if (process.env.NODE_ENV !== "production") {
             console.warn("📊 Checking connection quality...");
           }

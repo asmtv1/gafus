@@ -1,7 +1,7 @@
 import { CSRFProvider, CSRFErrorBoundary } from "@gafus/csrf";
 import { ErrorBoundary } from "@gafus/error-handling";
 import { SessionProvider } from "@shared/providers/SessionProvider";
-import { TrainerPanelSWRProvider } from "@shared/providers/SWRProvider";
+import { TrainerQueryProvider } from "@shared/providers/QueryProvider";
 import React from "react";
 
 import type { Metadata } from "next";
@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SessionProvider>
             <CSRFProvider autoInitialize={true} logErrors={true} maxRetries={3} retryDelay={1000}>
               <CSRFErrorBoundary>
-                <TrainerPanelSWRProvider>{children}</TrainerPanelSWRProvider>
+                <TrainerQueryProvider>{children}</TrainerQueryProvider>
               </CSRFErrorBoundary>
             </CSRFProvider>
           </SessionProvider>

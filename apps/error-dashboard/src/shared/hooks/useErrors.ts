@@ -1,6 +1,6 @@
 "use client";
 
-import { useData, useMutate } from "@gafus/swr";
+import { useData, useMutate } from "@gafus/react-query";
 import { getErrorsCached } from "@shared/lib/actions/cachedErrors";
 
 import type { ErrorDashboardReport } from "@gafus/types";
@@ -24,8 +24,8 @@ export function useErrors(filters?: {
       return Array.isArray(result.errors) ? result.errors : [];
     },
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 30000, // 30 секунд
+      refetchOnWindowFocus: false,
+      staleTime: 30000, // 30 секунд
     },
   );
 }

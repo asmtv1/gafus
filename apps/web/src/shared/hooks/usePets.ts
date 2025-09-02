@@ -1,14 +1,14 @@
 "use client";
 
-import { useData, useMutate } from "@gafus/swr";
+import { useData, useMutate } from "@gafus/react-query";
 import { getUserPets } from "@shared/lib/pets/getUserPets";
 
 import type { Pet } from "@gafus/types";
 
 export function useUserPets() {
   return useData<Pet[]>("user:pets", getUserPets, {
-    revalidateOnFocus: false,
-    dedupingInterval: 300000, // 5 минут
+    refetchOnWindowFocus: false,
+    staleTime: 300000, // 5 минут
   });
 }
 
