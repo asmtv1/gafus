@@ -47,8 +47,8 @@ export default function OfflineStatus() {
     <div
       style={{
         position: "fixed",
-        top: "20px",
-        right: "20px",
+        top: "5px",
+        right: "42%",
         background: statusColor === "green" ? "#d4edda" : "#f8d7da",
         border: `1px solid ${statusColor === "green" ? "#c3e6cb" : "#f5c6cb"}`,
         borderRadius: "8px",
