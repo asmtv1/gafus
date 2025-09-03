@@ -5,14 +5,14 @@ import { useEffect } from "react";
 
 export default function ServiceWorkerRegistrar() {
   useEffect(() => {
-    // Регистрируем Service Worker при загрузке приложения
+    // Мгновенная регистрация Service Worker
     if (serviceWorkerManager.isSupported()) {
       serviceWorkerManager.register()
         .then(() => {
-          console.log("✅ Service Worker зарегистрирован при загрузке приложения");
+          console.warn("✅ Service Worker зарегистрирован");
         })
         .catch((error) => {
-          console.warn("⚠️ Не удалось зарегистрировать Service Worker при загрузке:", error);
+          console.warn("⚠️ Не удалось зарегистрировать Service Worker:", error);
         });
     }
   }, []);

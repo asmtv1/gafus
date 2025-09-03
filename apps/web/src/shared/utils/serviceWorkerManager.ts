@@ -32,7 +32,7 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
       return this.registration;
     }
 
-    console.log('🚀 SW Manager: Starting service worker registration...');
+    console.warn('🚀 SW Manager: Starting service worker registration...');
 
     this.registrationPromise = this.performRegistration();
     
@@ -46,198 +46,52 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
   }
 
   private async performRegistration(): Promise<ServiceWorkerRegistration> {
-    const isSafari = this.detectSafari();
-    const timeout = isSafari ? 15000 : 30000;
-
-    console.log(`🔧 SW Manager: Registering for ${isSafari ? 'Safari' : 'Other'} browser (timeout: ${timeout}ms)`);
+    console.warn('🔧 SW Manager: Registering service worker...');
 
     try {
-      // Стратегия 1: Использовать готовый SW (если есть)
-      const existingRegistration = await this.tryGetExistingRegistration(timeout);
-      if (existingRegistration) {
-        console.log('✅ SW Manager: Using existing registration');
-        return existingRegistration;
-      }
+      // Очищаем старые регистрации перед новой регистрацией
+      await this.cleanupOldRegistrations();
 
-      // Стратегия 2: Принудительно зарегистрировать SW
-      const newRegistration = await this.tryForceRegistration(timeout);
-      if (newRegistration) {
-        console.log('✅ SW Manager: Force registration successful');
-        return newRegistration;
-      }
-
-      // В Safari blob URL не работают для SW, поэтому не пытаемся создать fallback
-      if (isSafari) {
-        throw new Error('Service Worker registration failed in Safari - no fallback available');
-      }
-
-      // Стратегия 3: Создать минимальный SW на лету (только для не-Safari браузеров)
-      return await this.createFallbackServiceWorker();
-
-    } catch (error) {
-      console.error('❌ SW Manager: All registration strategies failed:', error);
-      throw new Error('Service Worker registration failed completely');
-    }
-  }
-
-  private async tryGetExistingRegistration(timeout: number): Promise<ServiceWorkerRegistration | null> {
-    try {
-      return await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Existing SW timeout')), timeout)
-        )
-      ]);
-    } catch (error) {
-      console.log('⚠️ SW Manager: No existing registration available');
-      return null;
-    }
-  }
-
-  private async tryForceRegistration(timeout: number): Promise<ServiceWorkerRegistration | null> {
-    try {
-      console.log('🔄 SW Manager: Checking for existing registration before force register...');
-      
-      // Сначала проверим, есть ли уже регистрация
-      const existingRegistrations = await navigator.serviceWorker.getRegistrations();
-      for (const reg of existingRegistrations) {
-        if (reg.scope === new URL('/', location.href).href) {
-          console.log('✅ SW Manager: Found existing registration, using it');
-          
-          // Если SW не активен, ждем активации
-          if (!reg.active) {
-            await this.waitForActivation(reg, timeout);
-          }
-          
-          return reg;
-        }
-      }
-      
-      console.log('🔄 SW Manager: No existing registration, creating new one...');
-      
-      const registration = await Promise.race([
-        navigator.serviceWorker.register('/sw.js', {
-          scope: '/',
-          type: 'classic',
-          updateViaCache: 'none'
-        }),
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Force registration timeout')), timeout)
-        )
-      ]);
-
-      // Ждем активации
-      await this.waitForActivation(registration, timeout);
-      return registration;
-
-    } catch (error) {
-      console.log('⚠️ SW Manager: Force registration failed:', error);
-      return null;
-    }
-  }
-
-  private async waitForActivation(registration: ServiceWorkerRegistration, timeout: number): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error('SW activation timeout'));
-      }, timeout);
-
-      const checkActivation = () => {
-        if (registration.active && navigator.serviceWorker.controller) {
-          clearTimeout(timeoutId);
-          resolve();
-          return;
-        }
-
-        // Если SW устанавливается
-        if (registration.installing) {
-          registration.installing.addEventListener('statechange', (e) => {
-            const sw = e.target as ServiceWorker;
-            if (sw.state === 'activated') {
-              clearTimeout(timeoutId);
-              resolve();
-            } else if (sw.state === 'redundant') {
-              clearTimeout(timeoutId);
-              reject(new Error('SW became redundant'));
-            }
-          });
-        }
-        
-        // Если SW ждет активации
-        if (registration.waiting) {
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
-      };
-
-      checkActivation();
-      
-      // Слушаем изменения контроллера
-      navigator.serviceWorker.addEventListener('controllerchange', checkActivation);
-    });
-  }
-
-  private async createFallbackServiceWorker(): Promise<ServiceWorkerRegistration> {
-    console.log('🆘 SW Manager: Creating fallback service worker...');
-    
-    // Создаем минимальный SW с push поддержкой
-    const swCode = `
-      console.log('🆘 Fallback SW: Loaded');
-      
-      self.addEventListener('install', (event) => {
-        console.log('🆘 Fallback SW: Install');
-        self.skipWaiting();
-      });
-      
-      self.addEventListener('activate', (event) => {
-        console.log('🆘 Fallback SW: Activate');
-        event.waitUntil(self.clients.claim());
-      });
-      
-      self.addEventListener('push', (event) => {
-        console.log('🆘 Fallback SW: Push received');
-        const data = event.data ? event.data.json() : {};
-        const title = data.title || 'Gafus';
-        const options = {
-          body: data.body || 'Новое уведомление',
-          icon: '/icons/icon192.png',
-          badge: '/icons/badge-72.png',
-        };
-        
-        event.waitUntil(
-          self.registration.showNotification(title, options)
-        );
-      });
-      
-      self.addEventListener('notificationclick', (event) => {
-        event.notification.close();
-        event.waitUntil(
-          self.clients.matchAll().then((clients) => {
-            if (clients.length > 0) {
-              return clients[0].focus();
-            }
-            return self.clients.openWindow('/');
-          })
-        );
-      });
-    `;
-
-    const blob = new Blob([swCode], { type: 'application/javascript' });
-    const swUrl = URL.createObjectURL(blob);
-    
-    try {
-      const registration = await navigator.serviceWorker.register(swUrl, {
+      // Мгновенная регистрация без таймаутов
+      const registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
-        type: 'classic'
+        type: 'classic',
+        updateViaCache: 'none'
       });
-      
-      await this.waitForActivation(registration, 10000);
-      console.log('✅ SW Manager: Fallback SW registered successfully');
-      
+
+      console.warn('✅ SW Manager: SW registered successfully');
       return registration;
-    } finally {
-      URL.revokeObjectURL(swUrl);
+
+    } catch (error) {
+      console.error('❌ SW Manager: Registration failed:', error);
+      throw new Error('Service Worker registration failed');
     }
   }
+
+  private async cleanupOldRegistrations(): Promise<void> {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      const currentScope = new URL('/', location.href).href;
+      
+      // Удаляем все регистрации, кроме текущей
+      const cleanupPromises = registrations
+        .filter(reg => reg.scope !== currentScope)
+        .map(reg => reg.unregister());
+      
+      if (cleanupPromises.length > 0) {
+        await Promise.all(cleanupPromises);
+        console.warn(`🧹 SW Manager: Cleaned up ${cleanupPromises.length} old registrations`);
+      }
+    } catch (error) {
+      console.warn('⚠️ SW Manager: Failed to cleanup old registrations:', error);
+    }
+  }
+
+
+
+
+
+
 
   async getRegistration(): Promise<ServiceWorkerRegistration | null> {
     if (this.registration) {
@@ -246,8 +100,8 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
 
     try {
       return await this.register();
-    } catch (error) {
-      console.error('SW Manager: Failed to get registration:', error);
+    } catch {
+      console.error('SW Manager: Failed to get registration');
       return null;
     }
   }
@@ -256,7 +110,7 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
     try {
       const registration = await this.getRegistration();
       return !!(registration?.active && navigator.serviceWorker.controller);
-    } catch (error) {
+    } catch {
       return false;
     }
   }
