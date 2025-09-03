@@ -4,6 +4,7 @@
 import { TrainingStatus } from "@gafus/types";
 import { useCourseStore } from "@shared/stores";
 import Link from "next/link";
+import NextLink from "next/link";
 import { useEffect, useState } from "react";
 
 import styles from "./CourseCard.module.css";
@@ -30,12 +31,12 @@ export const CourseCard = ({
   completedAt,
   shortDesc,
   authorUsername,
-  createdAt,
+  createdAt: _createdAt,
   avgRating,
   reviews,
   isFavorite: propIsFavorite,
   onUnfavorite,
-  index = 0,
+  index: _index = 0,
 }: CourseCardPropsWithIndex) => {
   const {
     markImageLoaded,
@@ -190,9 +191,9 @@ export const CourseCard = ({
         <div>
           Автор курса:&nbsp;
           {authorUsername ? (
-            <a href={`/profile?username=${authorUsername}`} className={styles.authorlink}>
+            <NextLink href={`/profile?username=${authorUsername}`} className={styles.authorlink}>
               {authorUsername}
-            </a>
+            </NextLink>
           ) : (
             <span>Неизвестный автор</span>
           )}

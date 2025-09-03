@@ -6,7 +6,7 @@ import UserProvider from "@shared/components/common/UserProvider";
 import ClientLayout from "@shared/components/ui/ClientLayout";
 import SessionWrapper from "@shared/components/ui/SessionWrapper";
 import { WebQueryProvider } from "@shared/providers/QueryProvider";
-import { OfflineStatus } from "@shared/components/OfflineStatus";
+
 import { Montserrat } from "next/font/google";
 
 import type { Metadata, Viewport } from "next";
@@ -99,7 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <PetsProvider>
                   <WebQueryProvider>
                     <main>{children}</main>
-                    <OfflineStatus />
+
                   </WebQueryProvider>
                 </PetsProvider>
               </UserProvider>

@@ -3,38 +3,79 @@
 
 console.log('🚀 SW: Starting Gafus Service Worker for Push Notifications & Offline Caching');
 
-// Конфигурация кэширования
+// 🎯 ГИБРИДНАЯ СТРАТЕГИЯ КЭШИРОВАНИЯ ДЛЯ NEXT.JS RSC
+// Решает проблему офлайн-доступа к страницам в Next.js с React Server Components
+
 const CACHE_CONFIG = {
-  // Версии кэшей для независимого обновления
-  STATIC_CACHE: 'gafus-static-v1',
-  PAGES_CACHE: 'gafus-pages-v1',
-  API_CACHE: 'gafus-api-v1',
-  IMAGES_CACHE: 'gafus-images-v1',
-  
-  // Максимальное количество записей в кэше
-  MAX_CACHE_ENTRIES: 200, // Увеличено для кэширования большего количества страниц
-  
-  // TTL для разных типов ресурсов (в миллисекундах)
-  TTL: {
-    STATIC: 7 * 24 * 60 * 60 * 1000, // 7 дней
-    PAGES: 7 * 24 * 60 * 60 * 1000,  // 7 дней (увеличено для лучшего офлайн опыта)
-    API: 2 * 60 * 60 * 1000,         // 2 часа (увеличено для лучшего офлайн опыта)
-    IMAGES: 30 * 24 * 60 * 60 * 1000, // 30 дней
+  // 🏗️ Архитектура кэшей
+  CACHES: {
+    // Полные HTML-страницы (для офлайн-навигации)
+    HTML_PAGES: 'gafus-html-v1',
+    
+    // RSC-данные (для динамических обновлений)
+    RSC_DATA: 'gafus-rsc-v1',
+    
+    // Статические ресурсы
+    STATIC: 'gafus-static-v1',
+    
+    // API-ответы
+    API: 'gafus-api-v1',
+    
+    // Изображения
+    IMAGES: 'gafus-images-v1',
   },
   
-  // Паттерны для кэширования
+  // ⚡ Стратегии кэширования
+  STRATEGIES: {
+    HTML_PAGES: 'cacheFirst',    // HTML - кэш в первую очередь (критично для офлайна)
+    RSC_DATA: 'networkFirst',    // RSC - сеть в первую очередь, но кэшируем
+    STATIC: 'cacheFirst',        // Статика - кэш в первую очередь
+    API: 'networkFirst',         // API - сеть в первую очередь
+    IMAGES: 'cacheFirst',        // Изображения - кэш в первую очередь
+  },
+  
+  // 🎯 Приоритеты кэширования
+  PRIORITIES: {
+    CRITICAL: ['HTML_PAGES'],           // Критично для офлайна
+    HIGH: ['RSC_DATA', 'STATIC'],       // Высокий приоритет
+    NORMAL: ['API', 'IMAGES'],          // Обычный приоритет
+  },
+  
+  // ⏰ TTL для разных типов ресурсов
+  TTL: {
+    HTML_PAGES: 7 * 24 * 60 * 60 * 1000,  // 7 дней
+    RSC_DATA: 2 * 60 * 60 * 1000,         // 2 часа
+    STATIC: 7 * 24 * 60 * 60 * 1000,      // 7 дней
+    API: 2 * 60 * 60 * 1000,              // 2 часа
+    IMAGES: 30 * 24 * 60 * 60 * 1000,     // 30 дней
+  },
+  
+  // 📊 Лимиты кэша
+  LIMITS: {
+    HTML_PAGES: 50,    // Максимум 50 HTML-страниц
+    RSC_DATA: 200,     // Максимум 200 RSC-запросов
+    STATIC: 500,       // Максимум 500 статических файлов
+    API: 100,          // Максимум 100 API-ответов
+    IMAGES: 300,       // Максимум 300 изображений
+  },
+  
+  // 🔍 Паттерны для определения типов ресурсов
   PATTERNS: {
-    STATIC: [
-      /\.(?:js|css|woff2?|ttf|eot)$/,
-      /\/_next\/static\//,
-      /\/icons\//,
-    ],
-    PAGES: [
+    HTML_PAGES: [
       /^\/$/,
       /^\/courses/,
       /^\/profile/,
       /^\/achievements/,
       /^\/trainings/,
+    ],
+    RSC_DATA: [
+      /_rsc=/,
+      /Accept.*text\/x-component/,
+    ],
+    STATIC: [
+      /\.(?:js|css|woff2?|ttf|eot)$/,
+      /\/_next\/static\//,
+      /\/icons\//,
     ],
     API: [
       /^\/api\//,
@@ -45,6 +86,328 @@ const CACHE_CONFIG = {
     ],
   },
 };
+
+// 🧠 УМНАЯ СИСТЕМА ОПРЕДЕЛЕНИЯ ТИПОВ РЕСУРСОВ
+// Анализирует запросы и определяет оптимальную стратегию кэширования
+
+function getResourceType(request) {
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+  const search = url.search;
+  const accept = request.headers.get('Accept') || '';
+  const method = request.method;
+  
+  console.log(`🔍 SW: Analyzing request: ${pathname}${search}, Accept: ${accept}, Method: ${method}`);
+  
+  // 1. 🧭 НАВИГАЦИОННЫЕ ЗАПРОСЫ (HTML-страницы)
+  // Это запросы, которые должны возвращать полные HTML-страницы
+  const isNavigation = request.mode === 'navigate' || 
+                      (method === 'GET' && accept.includes('text/html') && !accept.includes('image/'));
+  
+  if (isNavigation) {
+    console.log(`🧭 SW: Navigation request detected - will cache as HTML page`);
+    return 'HTML_PAGES';
+  }
+  
+  // 1.5. 🎯 СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ NEXT.JS RSC
+  // Кэшируем HTML-страницы при первой загрузке через RSC-запросы
+  if (method === 'GET' && !search.includes('_rsc') && !accept.includes('text/x-component')) {
+    // Это может быть запрос HTML-страницы без RSC параметров
+    for (const pattern of CACHE_CONFIG.PATTERNS.HTML_PAGES) {
+      if (pattern.test(pathname)) {
+        console.log(`📄 SW: Potential HTML page request detected: ${pathname}`);
+        return 'HTML_PAGES';
+      }
+    }
+  }
+  
+  // 2. 🔄 RSC-ЗАПРОСЫ (React Server Components)
+  // Это запросы Next.js для получения данных компонентов
+  const isRSC = search.includes('_rsc=') || 
+                accept.includes('text/x-component') ||
+                (method === 'POST' && accept.includes('text/x-component'));
+  
+  if (isRSC) {
+    console.log(`🔄 SW: RSC request detected - will cache as RSC data`);
+    return 'RSC_DATA';
+  }
+  
+  // 3. 📁 СТАТИЧЕСКИЕ РЕСУРСЫ
+  for (const pattern of CACHE_CONFIG.PATTERNS.STATIC) {
+    if (pattern.test(pathname)) {
+      console.log(`📁 SW: Static resource detected`);
+      return 'STATIC';
+    }
+  }
+  
+  // 4. 🖼️ ИЗОБРАЖЕНИЯ
+  // Проверяем по Accept заголовку и по паттернам
+  if (accept.includes('image/') || accept.includes('image/*')) {
+    console.log(`🖼️ SW: Image resource detected by Accept header`);
+    return 'IMAGES';
+  }
+  
+  // Специальная обработка для Next.js Image Optimization API
+  if (pathname.startsWith('/_next/image')) {
+    console.log(`🖼️ SW: Next.js Image Optimization detected`);
+    return 'IMAGES';
+  }
+  
+  for (const pattern of CACHE_CONFIG.PATTERNS.IMAGES) {
+    if (pattern.test(pathname)) {
+      console.log(`🖼️ SW: Image resource detected by pattern`);
+      return 'IMAGES';
+    }
+  }
+  
+  // 5. 🔌 API-ЗАПРОСЫ
+  for (const pattern of CACHE_CONFIG.PATTERNS.API) {
+    if (pattern.test(pathname)) {
+      console.log(`🔌 SW: API request detected`);
+      return 'API';
+    }
+  }
+  
+  // 6. 📄 СТРАНИЦЫ (fallback)
+  for (const pattern of CACHE_CONFIG.PATTERNS.HTML_PAGES) {
+    if (pattern.test(pathname)) {
+      console.log(`📄 SW: Page request detected (fallback)`);
+      return 'HTML_PAGES';
+    }
+  }
+  
+  // 6.5. 🎯 ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ДЛЯ СТРАНИЦ
+  // Если это GET-запрос к корню или известным страницам, считаем это HTML-страницей
+  if (method === 'GET' && (pathname === '/' || pathname.startsWith('/profile') || pathname.startsWith('/statistics') || pathname.startsWith('/achievements') || pathname.startsWith('/courses') || pathname.startsWith('/favorites'))) {
+    console.log(`📄 SW: Page request detected by path: ${pathname}`);
+    return 'HTML_PAGES';
+  }
+  
+  // 7. ❓ НЕИЗВЕСТНЫЙ ТИП
+  console.log(`❓ SW: Unknown resource type, defaulting to API`);
+  return 'API';
+}
+
+// 🎯 ОПРЕДЕЛЕНИЕ СТРАТЕГИИ КЭШИРОВАНИЯ
+function getCachingStrategy(resourceType) {
+  return CACHE_CONFIG.STRATEGIES[resourceType] || 'networkFirst';
+}
+
+// 🏗️ ПОЛУЧЕНИЕ ИМЕНИ КЭША
+function getCacheName(resourceType) {
+  return CACHE_CONFIG.CACHES[resourceType] || CACHE_CONFIG.CACHES.API;
+}
+
+// ⚡ УМНЫЕ СТРАТЕГИИ КЭШИРОВАНИЯ
+// Реализуют различные подходы к кэшированию в зависимости от типа ресурса
+
+// 🎯 CACHE FIRST - кэш в первую очередь (для статики и HTML)
+async function cacheFirstStrategy(request, resourceType) {
+  const cacheName = getCacheName(resourceType);
+  const cache = await caches.open(cacheName);
+  
+  console.log(`🎯 SW: Cache First strategy for ${resourceType}: ${request.url}`);
+  
+  // 1. Проверяем кэш
+  const cachedResponse = await cache.match(request);
+  if (cachedResponse) {
+    console.log(`✅ SW: Cache hit for ${request.url}`);
+    return cachedResponse;
+  }
+  
+  // 2. Если нет в кэше - идем в сеть
+  console.log(`🌐 SW: Cache miss, fetching from network: ${request.url}`);
+  try {
+    const networkResponse = await fetch(request);
+    
+    if (networkResponse.ok) {
+      // 3. Кэшируем успешный ответ
+      const responseToCache = networkResponse.clone();
+      const headers = new Headers(responseToCache.headers);
+      headers.set('sw-cache-time', Date.now().toString());
+      headers.set('sw-cache-type', resourceType);
+      
+      const modifiedResponse = new Response(responseToCache.body, {
+        status: responseToCache.status,
+        statusText: responseToCache.statusText,
+        headers: headers,
+      });
+      
+      await cache.put(request, modifiedResponse);
+      console.log(`💾 SW: Cached ${resourceType}: ${request.url}`);
+      
+      // 4. Очищаем старые записи
+      await cleanupCache(cacheName, resourceType);
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    console.log(`❌ SW: Network error for ${request.url}:`, error);
+    
+    // 5. Fallback для HTML-страниц
+    if (resourceType === 'HTML_PAGES') {
+      return await getOfflineFallback(request);
+    }
+    
+    throw error;
+  }
+}
+
+// 🌐 NETWORK FIRST - сеть в первую очередь (для API и RSC)
+async function networkFirstStrategy(request, resourceType) {
+  const cacheName = getCacheName(resourceType);
+  const cache = await caches.open(cacheName);
+  
+  console.log(`🌐 SW: Network First strategy for ${resourceType}: ${request.url}`);
+  
+  try {
+    // 1. Пробуем сеть
+    const networkResponse = await fetch(request);
+    
+    if (networkResponse.ok) {
+      // 2. Кэшируем успешный ответ
+      const responseToCache = networkResponse.clone();
+      const headers = new Headers(responseToCache.headers);
+      headers.set('sw-cache-time', Date.now().toString());
+      headers.set('sw-cache-type', resourceType);
+      
+      const modifiedResponse = new Response(responseToCache.body, {
+        status: responseToCache.status,
+        statusText: responseToCache.statusText,
+        headers: headers,
+      });
+      
+      await cache.put(request, modifiedResponse);
+      console.log(`💾 SW: Cached ${resourceType}: ${request.url}`);
+      
+      // 3. Очищаем старые записи
+      await cleanupCache(cacheName, resourceType);
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    console.log(`❌ SW: Network error, trying cache: ${request.url}`);
+    
+    // 4. Если сеть недоступна - пробуем кэш
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) {
+      console.log(`✅ SW: Cache fallback for ${request.url}`);
+      return cachedResponse;
+    }
+    
+    // 5. Специальный fallback для RSC-запросов
+    if (resourceType === 'RSC_DATA') {
+      return await getRSCFallback(request);
+    }
+    
+    // 6. Fallback для HTML-страниц
+    if (resourceType === 'HTML_PAGES') {
+      return await getOfflineFallback(request);
+    }
+    
+    throw error;
+  }
+}
+
+// 🧹 УМНАЯ ОЧИСТКА КЭША
+async function cleanupCache(cacheName, resourceType) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  const limit = CACHE_CONFIG.LIMITS[resourceType] || 100;
+  
+  if (keys.length <= limit) return;
+  
+  console.log(`🧹 SW: Cleaning up ${cacheName}, current: ${keys.length}, limit: ${limit}`);
+  
+  // Сортируем по времени кэширования (старые первыми)
+  const entries = await Promise.all(
+    keys.map(async (key) => {
+      const response = await cache.match(key);
+      const cacheTime = response?.headers.get('sw-cache-time') || '0';
+      return { key, cacheTime: parseInt(cacheTime) };
+    })
+  );
+  
+  entries.sort((a, b) => a.cacheTime - b.cacheTime);
+  
+  // Удаляем старые записи
+  const toDelete = entries.slice(0, entries.length - limit);
+  await Promise.all(toDelete.map(entry => cache.delete(entry.key)));
+  
+  console.log(`🗑️ SW: Deleted ${toDelete.length} old entries from ${cacheName}`);
+}
+
+// 🆘 FALLBACK ДЛЯ ОФЛАЙН-СТРАНИЦ
+async function getOfflineFallback(request) {
+  console.log(`🆘 SW: Providing offline fallback for: ${request.url}`);
+  
+  // Пробуем найти похожую страницу в кэше
+  const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
+  const keys = await htmlCache.keys();
+  
+  // Ищем страницу по пути (игнорируя query параметры)
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+  
+  for (const key of keys) {
+    const keyUrl = new URL(key.url);
+    if (keyUrl.pathname === pathname) {
+      console.log(`🎯 SW: Found similar page in cache: ${key.url}`);
+      return await htmlCache.match(key);
+    }
+  }
+  
+  // Если не нашли - возвращаем общую офлайн-страницу
+  return new Response(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Офлайн - Gafus</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+               margin: 0; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; 
+                    padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .icon { font-size: 48px; text-align: center; margin-bottom: 20px; }
+        h1 { color: #333; text-align: center; margin-bottom: 20px; }
+        p { color: #666; line-height: 1.6; text-align: center; }
+        .retry { background: #007bff; color: white; border: none; 
+                padding: 12px 24px; border-radius: 6px; cursor: pointer; 
+                margin-top: 20px; display: block; margin-left: auto; margin-right: auto; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="icon">📱</div>
+        <h1>Нет подключения к интернету</h1>
+        <p>Проверьте подключение к интернету и попробуйте снова.</p>
+        <button class="retry" onclick="window.location.reload()">Попробовать снова</button>
+      </div>
+    </body>
+    </html>
+  `, {
+    status: 200,
+    statusText: 'OK',
+    headers: { 'Content-Type': 'text/html' }
+  });
+}
+
+// 🔄 FALLBACK ДЛЯ RSC-ЗАПРОСОВ
+async function getRSCFallback(request) {
+  console.log(`🔄 SW: Providing RSC fallback for: ${request.url}`);
+  
+  // Возвращаем пустой RSC-ответ
+  return new Response('{}', {
+    status: 200,
+    statusText: 'OK',
+    headers: { 
+      'Content-Type': 'text/x-component',
+      'sw-fallback': 'true'
+    }
+  });
+}
 
 // Safari/WebKit-specific settings для уведомлений
 function getSafariSettings() {
@@ -159,6 +522,22 @@ class CacheManager {
 
 const cacheManager = new CacheManager();
 
+// Нормализация запросов страниц: удаляем волатильные параметры (например, _rsc у Next.js)
+function getNormalizedPageRequest(originalRequest) {
+  try {
+    const originalUrl = new URL(originalRequest.url);
+    const normalizedUrl = new URL(originalUrl.toString());
+    // Удаляем параметр _rsc, чтобы кэш не разрастался и хиты совпадали
+    if (normalizedUrl.searchParams.has('_rsc')) {
+      normalizedUrl.searchParams.delete('_rsc');
+    }
+    // Можно при необходимости очищать и другие метки трекинга (utm_* и т.п.)
+    return new Request(normalizedUrl.toString(), { method: 'GET' });
+  } catch {
+    return originalRequest;
+  }
+}
+
 // Install event
 self.addEventListener('install', (event) => {
   console.log('📦 SW: Install event - Setting up caches');
@@ -196,12 +575,7 @@ self.addEventListener('activate', (event) => {
       try {
         // Удаляем старые версии кэшей
         const cacheNames = await caches.keys();
-        const currentCacheNames = [
-          CACHE_CONFIG.STATIC_CACHE,
-          CACHE_CONFIG.PAGES_CACHE,
-          CACHE_CONFIG.API_CACHE,
-          CACHE_CONFIG.IMAGES_CACHE,
-        ];
+        const currentCacheNames = Object.values(CACHE_CONFIG.CACHES);
         
         const cachesToDelete = cacheNames.filter(
           cacheName => !currentCacheNames.includes(cacheName)
@@ -224,6 +598,9 @@ self.addEventListener('activate', (event) => {
         
         console.log('✅ SW: Cache cleanup completed');
         await self.clients.claim();
+        
+        // 🎯 ПРЕДВАРИТЕЛЬНОЕ КЭШИРОВАНИЕ HTML-СТРАНИЦ
+        await precacheHTMLPages();
       } catch (error) {
         console.error('❌ SW: Failed to cleanup caches:', error);
       }
@@ -231,55 +608,138 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// 🎯 ФУНКЦИЯ ПРЕДВАРИТЕЛЬНОГО КЭШИРОВАНИЯ HTML-СТРАНИЦ
+async function precacheHTMLPages() {
+  console.log('🎯 SW: Starting HTML pages precaching');
+  
+  try {
+    const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
+    const pagesToCache = [
+      '/',
+      '/profile?username=admin',
+      '/statistics',
+      '/achievements',
+      '/courses',
+      '/favorites'
+    ];
+    
+    for (const pageUrl of pagesToCache) {
+      try {
+        console.log(`🎯 SW: Precaching HTML page: ${pageUrl}`);
+        
+        // Создаем запрос с правильными заголовками для получения HTML
+        const request = new Request(pageUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Cache-Control': 'no-cache'
+          },
+          mode: 'cors'
+        });
+        
+        const response = await fetch(request);
+        
+        if (response.ok && response.headers.get('Content-Type')?.includes('text/html')) {
+          const modifiedResponse = new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: {
+              ...Object.fromEntries(response.headers.entries()),
+              'sw-cache-time': Date.now().toString(),
+              'sw-cache-type': 'HTML_PAGES'
+            }
+          });
+          
+          await htmlCache.put(request, modifiedResponse);
+          console.log(`✅ SW: Precached HTML page: ${pageUrl}`);
+        } else {
+          console.warn(`⚠️ SW: Response not HTML for ${pageUrl}:`, response.headers.get('Content-Type'));
+        }
+      } catch (error) {
+        console.warn(`⚠️ SW: Failed to precache ${pageUrl}:`, error);
+      }
+    }
+    
+    console.log('✅ SW: HTML pages precaching completed');
+  } catch (error) {
+    console.error('❌ SW: Error in precacheHTMLPages:', error);
+  }
+}
+
 // Fetch event handler для кэширования
+// 🎯 ГЛАВНЫЙ ОБРАБОТЧИК FETCH СОБЫТИЙ
+// Использует новую гибридную стратегию кэширования
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
+  console.log(`🌐 SW: Fetch intercepted: ${request.url}, method: ${request.method}, mode: ${request.mode}`);
+  
   // Пропускаем не-GET запросы (кроме API)
   if (request.method !== 'GET' && !url.pathname.startsWith('/api/')) {
+    console.log(`⏭️ SW: Skipping non-GET request: ${request.url}`);
     return;
   }
   
   // Пропускаем chrome-extension и другие протоколы
   if (!url.protocol.startsWith('http')) {
+    console.log(`⏭️ SW: Skipping non-HTTP request: ${request.url}`);
     return;
   }
-  
-  const resourceType = cacheManager.getResourceType(request.url);
-  
-  if (!cacheManager.shouldCache(request.url, resourceType)) {
-    return;
-  }
-  
-  event.respondWith(handleRequest(request, resourceType));
-});
-
-// Обработка запросов с разными стратегиями кэширования
-async function handleRequest(request, resourceType) {
-  const cacheName = cacheManager.getCacheName(resourceType);
   
   try {
-    switch (resourceType) {
-      case 'STATIC':
-      case 'IMAGES':
-        return await cacheFirstStrategy(request, cacheName);
+    // 🧠 Определяем тип ресурса с помощью умной системы
+    const resourceType = getResourceType(request);
+    const strategy = getCachingStrategy(resourceType);
+    
+    console.log(`🎯 SW: Resource type: ${resourceType}, Strategy: ${strategy}`);
+    
+    // 🚀 Обрабатываем запрос с соответствующей стратегией
+    event.respondWith(handleRequest(request, resourceType, strategy));
+  } catch (error) {
+    console.error(`❌ SW: Error in fetch handler:`, error);
+    // Возвращаем ошибку, чтобы браузер мог обработать запрос сам
+    event.respondWith(new Response('Service Worker Error', { 
+      status: 500, 
+      statusText: 'Internal Server Error' 
+    }));
+  }
+});
+
+// 🚀 ГЛАВНАЯ ФУНКЦИЯ ОБРАБОТКИ ЗАПРОСОВ
+// Использует новую гибридную стратегию кэширования
+
+async function handleRequest(request, resourceType, strategy) {
+  console.log(`🚀 SW: Handling ${resourceType} request with ${strategy} strategy: ${request.url}`);
+  
+  try {
+    // Выбираем стратегию кэширования
+    switch (strategy) {
+      case 'cacheFirst':
+        console.log(`🎯 SW: Using cacheFirst strategy for ${resourceType}`);
+        return await cacheFirstStrategy(request, resourceType);
       
-      case 'PAGES':
-        return await cacheFirstStrategy(request, cacheName);
-      
-      case 'API':
-        return await networkFirstStrategy(request, cacheName);
+      case 'networkFirst':
+        console.log(`🌐 SW: Using networkFirst strategy for ${resourceType}`);
+        return await networkFirstStrategy(request, resourceType);
       
       default:
-        return await networkFirstStrategy(request, cacheName);
+        console.warn(`⚠️ SW: Unknown strategy ${strategy}, using networkFirst`);
+        return await networkFirstStrategy(request, resourceType);
     }
   } catch (error) {
-    console.warn(`⚠️ SW: Request failed for ${request.url}:`, error);
+    console.error(`❌ SW: Request failed for ${request.url}:`, error);
+    console.error(`❌ SW: Error details:`, error.stack);
     
     // Fallback для страниц - показываем офлайн страницу
-    if (resourceType === 'PAGES') {
-      return await getOfflinePage();
+    if (resourceType === 'HTML_PAGES') {
+      return await getOfflineFallback(request);
+    }
+    
+    // Fallback для RSC-запросов
+    if (resourceType === 'RSC_DATA') {
+      return await getRSCFallback(request);
     }
     
     // Для остальных типов возвращаем ошибку
@@ -290,163 +750,7 @@ async function handleRequest(request, resourceType) {
   }
 }
 
-// Стратегия Cache First (для статических ресурсов и страниц)
-async function cacheFirstStrategy(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  
-  // Проверяем кэш
-  const cachedResponse = await cache.match(request);
-  if (cachedResponse) {
-    console.log(`📦 SW: Serving from cache: ${request.url}`);
-    return cachedResponse;
-  }
-  
-  // Если нет в кэше или истек TTL, запрашиваем из сети
-  try {
-    const networkResponse = await fetch(request);
-    
-    if (networkResponse.ok) {
-      // Клонируем ответ и добавляем метаданные кэширования
-      const responseToCache = networkResponse.clone();
-      const headers = new Headers(responseToCache.headers);
-      headers.set('sw-cache-time', Date.now().toString());
-      
-      const modifiedResponse = new Response(responseToCache.body, {
-        status: responseToCache.status,
-        statusText: responseToCache.statusText,
-        headers: headers,
-      });
-      
-      await cache.put(request, modifiedResponse);
-      console.log(`💾 SW: Cached: ${request.url}`);
-      
-      // Очищаем старые записи
-      await cacheManager.cleanupCache(cacheName);
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    // Если сеть недоступна и нет кэша, показываем офлайн страницу для страниц
-    if (cacheName === CACHE_CONFIG.PAGES_CACHE) {
-      console.log(`📦 SW: No cache for page, showing offline page: ${request.url}`);
-      return await getOfflinePage();
-    }
-    throw error;
-  }
-}
-
-// Стратегия Network First (для API запросов) - улучшенная
-async function networkFirstStrategy(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  
-  // Сначала проверяем кэш для быстрого ответа
-  const cachedResponse = await cache.match(request);
-  
-  try {
-    // Пытаемся получить из сети
-    const networkResponse = await fetch(request);
-    
-    if (networkResponse.ok) {
-      // Кэшируем успешные ответы
-      const responseToCache = networkResponse.clone();
-      const headers = new Headers(responseToCache.headers);
-      headers.set('sw-cache-time', Date.now().toString());
-      
-      const modifiedResponse = new Response(responseToCache.body, {
-        status: responseToCache.status,
-        statusText: responseToCache.statusText,
-        headers: headers,
-      });
-      
-      await cache.put(request, modifiedResponse);
-      console.log(`💾 SW: Cached API response: ${request.url}`);
-      
-      // Очищаем старые записи
-      await cacheManager.cleanupCache(cacheName);
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    // Если сеть недоступна, возвращаем из кэша
-    if (cachedResponse) {
-      console.log(`📦 SW: Network failed, serving cached API: ${request.url}`);
-      return cachedResponse;
-    }
-    
-    // Если нет кэша, возвращаем ошибку с информацией об офлайн режиме
-    console.warn(`⚠️ SW: No cache available for ${request.url}`);
-    return new Response(JSON.stringify({
-      error: 'Offline',
-      message: 'Нет подключения к интернету и данные не найдены в кэше',
-      offline: true
-    }), {
-      status: 503,
-      statusText: 'Service Unavailable',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-  }
-}
-
-// Получение офлайн страницы
-async function getOfflinePage() {
-  try {
-    const cache = await caches.open(CACHE_CONFIG.PAGES_CACHE);
-    const offlineResponse = await cache.match('/~offline');
-    
-    if (offlineResponse) {
-      return offlineResponse;
-    }
-  } catch (error) {
-    console.warn('⚠️ SW: Failed to get offline page from cache:', error);
-  }
-  
-  // Fallback офлайн страница
-  return new Response(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Gafus - Офлайн</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-          body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0; padding: 20px; text-align: center; 
-            background: #f5f5f5; color: #333;
-          }
-          .container { 
-            max-width: 400px; margin: 50px auto; 
-            background: white; padding: 40px; border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-          }
-          .icon { font-size: 48px; margin-bottom: 20px; }
-          h1 { margin: 0 0 16px; color: #2563eb; }
-          p { margin: 0 0 24px; line-height: 1.5; }
-          .retry-btn {
-            background: #2563eb; color: white; border: none;
-            padding: 12px 24px; border-radius: 8px; cursor: pointer;
-            font-size: 16px; transition: background 0.2s;
-          }
-          .retry-btn:hover { background: #1d4ed8; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="icon">📱</div>
-          <h1>Нет подключения к интернету</h1>
-          <p>Проверьте подключение к интернету и попробуйте снова.</p>
-          <button class="retry-btn" onclick="window.location.reload()">
-            Попробовать снова
-          </button>
-        </div>
-      </body>
-    </html>
-  `, {
-    headers: { 'Content-Type': 'text/html' }
-  });
-}
+// 🗑️ УДАЛЕНЫ СТАРЫЕ ФУНКЦИИ - используются новые функции выше
 
 // Функция создания уведомлений с Safari-оптимизацией
 function createNotificationOptions(title, options = {}) {
