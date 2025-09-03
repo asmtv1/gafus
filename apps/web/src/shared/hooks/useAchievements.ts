@@ -37,21 +37,25 @@ export function useAchievements() {
       }
     },
     {
-      // Кэширование
-      refetchOnWindowFocus: false, // Не обновляем при фокусе (достижения статичны)
-      refetchOnReconnect: true, // Обновляем при восстановлении соединения
-      staleTime: 300000, // 5 минут - достижения редко изменяются
+      // Кэширование для офлайн работы
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      staleTime: 2 * 60 * 60 * 1000, // 2 часа - достижения редко изменяются
+      gcTime: 24 * 60 * 60 * 1000, // 24 часа - кэш хранится долго
+      networkMode: "offlineFirst", // Сначала используем кэш, потом сеть
       
       // Повторные попытки
-      retry: 3,
+      retry: (failureCount, error) => {
+        if (!navigator.onLine) return false;
+        if (error instanceof Error && error.message.includes('fetch')) {
+          return failureCount < 2;
+        }
+        return failureCount < 3;
+      },
       retryDelay: 5000,
       
       // Кэш
       placeholderData: (previousData) => previousData, // Показываем старые данные во время обновления
-      
-      // Обработка ошибок (убрано в TanStack Query v5)
-      
-      // Успешная загрузка (убрано в TanStack Query v5)
     }
   );
 }
