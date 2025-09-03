@@ -41,7 +41,19 @@ export function useCourses() {
     },
     {
       refetchOnWindowFocus: false,
-      staleTime: 30000, // 30 секунд
+      refetchOnReconnect: true, // Обновляем при восстановлении соединения
+      staleTime: 60 * 60 * 1000, // 1 час - курсы редко изменяются
+      gcTime: 24 * 60 * 60 * 1000, // 24 часа - кэш хранится долго
+      networkMode: "offlineFirst", // Сначала используем кэш, потом сеть
+      retry: (failureCount, error) => {
+        // В офлайне не повторяем
+        if (!navigator.onLine) return false;
+        // Для сетевых ошибок повторяем меньше
+        if (error instanceof Error && error.message.includes('fetch')) {
+          return failureCount < 2;
+        }
+        return failureCount < 3;
+      },
     },
   );
 }
@@ -58,7 +70,17 @@ export function useFavorites() {
     },
     {
       refetchOnWindowFocus: false,
-      staleTime: 30000, // 30 секунд
+      refetchOnReconnect: true,
+      staleTime: 30 * 60 * 1000, // 30 минут - избранное может изменяться чаще
+      gcTime: 12 * 60 * 60 * 1000, // 12 часов
+      networkMode: "offlineFirst",
+      retry: (failureCount, error) => {
+        if (!navigator.onLine) return false;
+        if (error instanceof Error && error.message.includes('fetch')) {
+          return failureCount < 2;
+        }
+        return failureCount < 3;
+      },
     },
   );
 }
@@ -75,7 +97,17 @@ export function useAuthored() {
     },
     {
       refetchOnWindowFocus: false,
-      staleTime: 30000, // 30 секунд
+      refetchOnReconnect: true,
+      staleTime: 15 * 60 * 1000, // 15 минут - созданные курсы могут обновляться чаще
+      gcTime: 6 * 60 * 60 * 1000, // 6 часов
+      networkMode: "offlineFirst",
+      retry: (failureCount, error) => {
+        if (!navigator.onLine) return false;
+        if (error instanceof Error && error.message.includes('fetch')) {
+          return failureCount < 2;
+        }
+        return failureCount < 3;
+      },
     },
   );
 }

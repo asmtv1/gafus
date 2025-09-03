@@ -8,7 +8,17 @@ import type { Pet } from "@gafus/types";
 export function useUserPets() {
   return useData<Pet[]>("user:pets", getUserPets, {
     refetchOnWindowFocus: false,
-    staleTime: 300000, // 5 минут
+    refetchOnReconnect: true,
+    staleTime: 60 * 60 * 1000, // 1 час - питомцы редко изменяются
+    gcTime: 24 * 60 * 60 * 1000, // 24 часа
+    networkMode: "offlineFirst",
+    retry: (failureCount, error) => {
+      if (!navigator.onLine) return false;
+      if (error instanceof Error && error.message.includes('fetch')) {
+        return failureCount < 2;
+      }
+      return failureCount < 3;
+    },
   });
 }
 
