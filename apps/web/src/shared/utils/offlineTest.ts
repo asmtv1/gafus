@@ -111,8 +111,8 @@ export class OfflineTester {
       return;
     }
 
-    console.warn("🧪 OfflineTester: Forcing connection check");
-    await useOfflineStore.getState().checkExternalConnection();
+    console.warn("🧪 OfflineTester: Connection check disabled to prevent infinite requests");
+    // await useOfflineStore.getState().checkExternalConnection();
   }
 
   /**
