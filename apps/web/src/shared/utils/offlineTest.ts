@@ -41,31 +41,7 @@ export class OfflineTester {
     useOfflineStore.getState().setOnlineStatus(true);
   }
 
-  /**
-   * Симулирует медленное соединение
-   */
-  simulateSlowConnection(): void {
-    if (process.env.NODE_ENV !== "development") {
-      console.warn("OfflineTester: Available only in development mode");
-      return;
-    }
 
-    console.warn("🧪 OfflineTester: Simulating slow connection");
-    useOfflineStore.getState().setConnectionQuality('poor');
-  }
-
-  /**
-   * Симулирует нестабильное соединение
-   */
-  simulateUnstableConnection(): void {
-    if (process.env.NODE_ENV !== "development") {
-      console.warn("OfflineTester: Available only in development mode");
-      return;
-    }
-
-    console.warn("🧪 OfflineTester: Simulating unstable connection");
-    useOfflineStore.getState().setNetworkStability(false);
-  }
 
   /**
    * Добавляет тестовое действие в очередь синхронизации
@@ -102,31 +78,7 @@ export class OfflineTester {
     useOfflineStore.getState().clearSyncQueue();
   }
 
-  /**
-   * Принудительно проверяет соединение
-   */
-  async forceConnectionCheck(): Promise<void> {
-    if (process.env.NODE_ENV !== "development") {
-      console.warn("OfflineTester: Available only in development mode");
-      return;
-    }
 
-    console.warn("🧪 OfflineTester: Connection check disabled to prevent infinite requests");
-    // await useOfflineStore.getState().checkExternalConnection();
-  }
-
-  /**
-   * Принудительно проверяет качество соединения
-   */
-  async forceQualityCheck(): Promise<void> {
-    if (process.env.NODE_ENV !== "development") {
-      console.warn("OfflineTester: Available only in development mode");
-      return;
-    }
-
-    console.warn("🧪 OfflineTester: Forcing quality check");
-    await useOfflineStore.getState().checkConnectionQuality();
-  }
 
   /**
    * Выводит текущее состояние в консоль
@@ -140,10 +92,6 @@ export class OfflineTester {
     const state = useOfflineStore.getState();
     console.warn("🧪 OfflineTester: Current state:", {
       isOnline: state.isOnline,
-      isActuallyConnected: state.isActuallyConnected,
-      isStable: state.isStable,
-      connectionQuality: state.connectionQuality,
-      networkMetrics: state.networkMetrics,
       syncQueueLength: state.syncQueue.length,
       lastSyncAttempt: state.lastSyncAttempt,
     });
@@ -178,9 +126,9 @@ export class OfflineTester {
     this.simulateOnline();
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // 5. Проверяем качество соединения
-    console.warn("🧪 Step 5: Checking connection quality");
-    await this.forceQualityCheck();
+    // 5. Проверяем синхронизацию
+    console.warn("🧪 Step 5: Checking sync status");
+    this.logCurrentState();
     
     // 6. Финальное состояние
     console.warn("🧪 Step 6: Final state");

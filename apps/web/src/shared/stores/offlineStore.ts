@@ -3,7 +3,6 @@ import { persist } from "zustand/middleware";
 
 import type {
   CommentData,
-  ConnectionQuality,
   OfflineAction,
   OfflineState,
   ProfileUpdateData,
@@ -16,38 +15,25 @@ import type {
 export const useOfflineStore = create<OfflineState>()(
   persist(
     (set, get) => ({
-      // Начальное состояние
+      // Упрощенное состояние - только navigator.onLine
       isOnline: typeof window !== "undefined" ? navigator.onLine : true,
-      isStable: true,
-      isActuallyConnected: typeof window !== "undefined" ? navigator.onLine : true,
-      connectionQuality: 'good' as ConnectionQuality,
-      networkMetrics: {
-        latency: 0,
-        quality: 'good' as ConnectionQuality,
-        lastChecked: 0,
-        consecutiveFailures: 0,
-        adaptiveInterval: 300000, // 5 минут по умолчанию
-      },
       syncQueue: [],
       lastSyncTime: null,
       syncErrors: [],
       maxRetries: 3,
-      lastSyncAttempt: null, // Время последней попытки синхронизации
+      lastSyncAttempt: null,
       syncCooldown: 60000, // 60 секунд между попытками синхронизации
 
-      // Установка статуса онлайн/офлайн
+      // Установка статуса онлайн/офлайн - только navigator.onLine
       setOnlineStatus: (isOnline: boolean) => {
-        const currentState = get();
-
         if (process.env.NODE_ENV !== "production") {
-          console.warn(`🌐 Setting online status: ${isOnline} (was: ${currentState.isOnline})`);
+          console.warn(`🌐 Setting online status: ${isOnline}`);
         }
 
-        // Просто устанавливаем статус без дополнительных проверок
-        set({ isOnline, isActuallyConnected: isOnline });
+        set({ isOnline });
 
-        if (isOnline && typeof window !== "undefined") {
-          // Если стали онлайн, пытаемся синхронизировать очередь
+        // Если стали онлайн, пытаемся синхронизировать очередь
+        if (isOnline) {
           const state = get();
           if (state.syncQueue.length > 0) {
             const now = Date.now();
@@ -58,46 +44,10 @@ export const useOfflineStore = create<OfflineState>()(
                 } catch (error) {
                   console.warn("Failed to sync offline actions:", error);
                 }
-              }, 100);
-            } else {
-              if (process.env.NODE_ENV !== "production") {
-                const remainingTime = Math.ceil((state.syncCooldown - (now - state.lastSyncAttempt)) / 1000);
-                console.warn(`⏰ Skipping sync on connection change, cooldown active for ${remainingTime}s`);
-              }
+              }, 1000);
             }
           }
         }
-      },
-
-      // Установка стабильности сети
-      setNetworkStability: (isStable: boolean) => {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn(`📶 Setting network stability: ${isStable}`);
-        }
-        set({ isStable });
-      },
-
-      // Установка реального состояния подключения
-      setActualConnection: (isConnected: boolean) => {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn(`🔌 Setting actual connection: ${isConnected}`);
-        }
-        set({ isActuallyConnected: isConnected });
-      },
-
-      // Установка качества соединения
-      setConnectionQuality: (quality: ConnectionQuality) => {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn(`📊 Setting connection quality: ${quality}`);
-        }
-        set((state) => ({
-          connectionQuality: quality,
-          networkMetrics: {
-            ...state.networkMetrics,
-            quality,
-            lastChecked: Date.now(),
-          },
-        }));
       },
 
       // Добавление действия в очередь синхронизации
@@ -114,7 +64,7 @@ export const useOfflineStore = create<OfflineState>()(
             syncQueue: [...state.syncQueue, newAction],
           }));
 
-          // Если онлайн, пытаемся синхронизировать с задержкой (но только если прошло достаточно времени)
+          // Если онлайн, пытаемся синхронизировать с задержкой
           if (get().isOnline) {
             const now = Date.now();
             const state = get();
@@ -127,11 +77,6 @@ export const useOfflineStore = create<OfflineState>()(
                   console.warn("Failed to sync offline actions:", error);
                 }
               }, 100);
-            } else {
-              if (process.env.NODE_ENV !== "production") {
-                const remainingTime = Math.ceil((state.syncCooldown - (now - state.lastSyncAttempt)) / 1000);
-                console.warn(`⏰ Skipping auto-sync, cooldown active for ${remainingTime}s`);
-              }
             }
           }
         } catch (error) {
@@ -151,60 +96,14 @@ export const useOfflineStore = create<OfflineState>()(
         set({ syncQueue: [] });
       },
 
-      // Проверка качества соединения (временно отключена для предотвращения бесконечных запросов)
-      checkConnectionQuality: async (): Promise<ConnectionQuality> => {
-        try {
-          // Быстрая проверка navigator.onLine
-          if (!navigator.onLine) {
-            if (process.env.NODE_ENV !== "production") {
-              console.warn("🔴 navigator.onLine = false, возвращаем offline");
-            }
-            return 'offline';
-          }
-
-          // Временно возвращаем базовое качество без запросов к API
-          const quality: ConnectionQuality = 'good';
-          
-          // Обновляем метрики без реальной проверки
-          set((state) => ({
-            networkMetrics: {
-              ...state.networkMetrics,
-              latency: 0,
-              quality,
-              lastChecked: Date.now(),
-              consecutiveFailures: 0,
-            },
-          }));
-
-          if (process.env.NODE_ENV !== "production") {
-            console.warn(`📊 Connection quality: ${quality} (cached, no API call)`);
-          }
-
-          return quality;
-        } catch (error) {
-          if (process.env.NODE_ENV !== "production") {
-            console.warn("📊 Connection quality check failed:", error);
-          }
-
-          return 'offline';
-        }
-      },
-
-      // Проверка реального соединения (полностью отключена для предотвращения бесконечных запросов)
-      checkExternalConnection: async () => {
-        console.warn("🔍 checkExternalConnection disabled to prevent infinite requests");
-        // Просто возвращаем текущий статус без внешних запросов
-        return get().isActuallyConnected;
-      },
-
       // Синхронизация offline действий
       syncOfflineActions: async () => {
         try {
           const state = get();
           const now = Date.now();
 
-          // Проверяем, что мы действительно онлайн и есть реальное соединение
-          if (!state.isOnline || !state.isActuallyConnected || state.syncQueue.length === 0) {
+          // Проверяем, что мы онлайн и есть действия для синхронизации
+          if (!state.isOnline || state.syncQueue.length === 0) {
             return;
           }
 
@@ -227,67 +126,43 @@ export const useOfflineStore = create<OfflineState>()(
               await syncAction(action);
               // Удаляем успешно синхронизированное действие
               get().removeFromSyncQueue(action.id);
+              
+              if (process.env.NODE_ENV !== "production") {
+                console.warn(`✅ Successfully synced action: ${action.type}`);
+              }
             } catch (error) {
+              console.warn(`❌ Failed to sync action ${action.type}:`, error);
+              
               // Увеличиваем счетчик попыток
               const updatedAction = { ...action, retryCount: action.retryCount + 1 };
-
+              
+              // Если превышено максимальное количество попыток, удаляем действие
               if (updatedAction.retryCount >= state.maxRetries) {
-                // Превышено максимальное количество попыток, удаляем действие
                 get().removeFromSyncQueue(action.id);
-                const errorMessage = `Failed to sync ${action.type}: ${error instanceof Error ? error.message : String(error)}`;
-                set((state) => ({
-                  syncErrors: [...state.syncErrors, errorMessage],
-                }));
-              } else {
-                // Обновляем действие с новым счетчиком попыток
-                set((state) => ({
-                  syncQueue: state.syncQueue.map((a) => (a.id === action.id ? updatedAction : a)),
-                }));
+                console.warn(`🗑️ Removed action ${action.type} after ${state.maxRetries} failed attempts`);
               }
             }
           }
+
+          // Обновляем время последней синхронизации
+          set({ lastSyncTime: now });
+          
         } catch (error) {
-          console.warn("Error in syncOfflineActions:", error);
+          console.warn("Failed to sync offline actions:", error);
         }
       },
     }),
     {
-      name: "gafus-offline-store",
+      name: "offline-store",
       partialize: (state) => ({
         syncQueue: state.syncQueue,
         lastSyncTime: state.lastSyncTime,
         syncErrors: state.syncErrors,
-        maxRetries: state.maxRetries,
         lastSyncAttempt: state.lastSyncAttempt,
-        syncCooldown: state.syncCooldown,
-        networkMetrics: state.networkMetrics,
       }),
-    },
-  ),
+    }
+  )
 );
-
-// Функция для вычисления адаптивного интервала проверки
-function getAdaptiveInterval(consecutiveFailures: number, connectionQuality: ConnectionQuality): number {
-  // Базовые интервалы в миллисекундах
-  const baseIntervals = {
-    excellent: 300000,  // 5 минут
-    good: 180000,       // 3 минуты
-    fair: 120000,       // 2 минуты
-    poor: 60000,        // 1 минута
-    offline: 30000,     // 30 секунд
-  };
-
-  let baseInterval = baseIntervals[connectionQuality];
-  
-  // Увеличиваем интервал при множественных неудачах
-  if (consecutiveFailures > 0) {
-    const multiplier = Math.min(1 + (consecutiveFailures * 0.5), 3); // Максимум 3x
-    baseInterval = Math.floor(baseInterval * multiplier);
-  }
-  
-  // Минимальный интервал 10 секунд, максимальный 10 минут
-  return Math.max(10000, Math.min(baseInterval, 600000));
-}
 
 // Функция синхронизации конкретного действия
 async function syncAction(action: OfflineAction): Promise<void> {
@@ -362,30 +237,23 @@ async function syncStepStatusUpdate(data: StepStatusUpdateData): Promise<void> {
       data.day,
       data.stepIndex,
       data.status as TrainingStatus,
-      data.stepTitle,
-      data.stepOrder,
+      data.stepTitle
     );
-
-    if (process.env.NODE_ENV === "development") {
-      console.warn("✅ Step status synced successfully:", data);
-    }
   } catch (error) {
-    console.error("❌ Failed to sync step status:", error);
+    console.warn("Failed to sync step status update:", error);
     throw error;
   }
 }
 
-// Функция инициализации store
+// Упрощенная функция инициализации store
 export function initializeOfflineStore() {
   if (typeof window === "undefined") return;
 
   if (process.env.NODE_ENV === "development") {
-    console.warn("🔧 Initializing offline store in development mode...");
-    console.warn("🔧 This will provide detailed logging for network status detection");
-    console.warn("🔧 Check browser console for detailed network status information");
+    console.warn("🔧 Initializing simplified offline store...");
   }
 
-  // Добавляем слушатели событий сети
+  // Добавляем слушатели событий сети - только navigator.onLine
   window.addEventListener("online", () => {
     if (process.env.NODE_ENV === "development") {
       console.warn("🌐 Browser went online");
@@ -400,62 +268,7 @@ export function initializeOfflineStore() {
     useOfflineStore.getState().setOnlineStatus(false);
   });
 
-  // Упрощенная проверка стабильности сети
-  const checkNetworkStability = () => {
-    try {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("📶 Checking network stability...");
-      }
-
-      // Используем Network Information API если доступен
-      const connection = (navigator as { connection?: { effectiveType: string } }).connection;
-
-      if (connection) {
-        const networkType = connection.effectiveType;
-
-        if (process.env.NODE_ENV === "development") {
-          console.warn(`📶 Network Information API available: ${networkType}`);
-        }
-
-        if (networkType === "4g" || networkType === "3g") {
-          useOfflineStore.getState().setNetworkStability(true);
-        } else if (networkType === "2g" || networkType === "slow-2g") {
-          useOfflineStore.getState().setNetworkStability(false);
-        }
-      } else {
-        // Если нет Network Information API, считаем сеть стабильной если navigator.onLine = true
-        const isOnline = navigator.onLine;
-        useOfflineStore.getState().setNetworkStability(isOnline);
-        
-        if (process.env.NODE_ENV === "development") {
-          console.warn(`📶 No Network Information API, using navigator.onLine: ${isOnline}`);
-        }
-      }
-    } catch (error) {
-      console.warn("Error checking network stability:", error);
-    }
-  };
-
-  // Проверяем стабильность при изменении соединения
-  try {
-    if (
-      (
-        navigator as {
-          connection?: { addEventListener: (event: string, handler: () => void) => void };
-        }
-      ).connection
-    ) {
-      (
-        navigator as {
-          connection?: { addEventListener: (event: string, handler: () => void) => void };
-        }
-      ).connection?.addEventListener("change", checkNetworkStability);
-    }
-  } catch (error) {
-    console.warn("Error adding connection change listener:", error);
-  }
-
-  // Перехватываем fetch ошибки для обновления статуса (без бесконечных запросов)
+  // Перехватываем fetch ошибки для обновления статуса
   try {
     const originalFetch = window.fetch;
     let lastNetworkErrorTime = 0;
@@ -464,58 +277,56 @@ export function initializeOfflineStore() {
       try {
         return await originalFetch(...args);
       } catch (error) {
-        // Если произошла ошибка сети, обновляем статус (но не делаем новые запросы)
+        // Если произошла ошибка сети, проверяем через /api/ping
         if (
           error instanceof TypeError &&
           (error.message.includes("fetch") || error.message.includes("network"))
         ) {
           const now = Date.now();
           
-          // Обновляем статус не чаще раза в 5 секунд
+          // Проверяем не чаще раза в 5 секунд
           if (now - lastNetworkErrorTime > 5000) {
             lastNetworkErrorTime = now;
             
             if (process.env.NODE_ENV === "development") {
-              console.warn("🌐 Fetch error detected, updating offline status...");
+              console.warn("🌐 Fetch error detected, checking with /api/ping...");
             }
             
-            // Просто обновляем статус без внешних запросов
+            // Проверяем реальное соединение через /api/ping
             try {
-              useOfflineStore.getState().setActualConnection(false);
+              const response = await originalFetch("/api/ping", {
+                method: "GET",
+                cache: "no-cache",
+              });
+              
+              if (response.ok) {
+                // Соединение есть, но navigator.onLine может быть неточным
+                if (process.env.NODE_ENV === "development") {
+                  console.warn("🌐 /api/ping successful, connection is actually available");
+                }
+              } else {
+                // Соединение действительно отсутствует
+                useOfflineStore.getState().setOnlineStatus(false);
+              }
             } catch {
-              // Игнорируем ошибки
+              // Соединение действительно отсутствует
+              useOfflineStore.getState().setOnlineStatus(false);
             }
           }
         }
+        
         throw error;
       }
     };
   } catch (error) {
-    console.warn("Error overriding fetch:", error);
+    console.warn("Error setting up fetch interceptor:", error);
   }
 
-  // Адаптивная периодическая проверка реального соединения (временно отключена)
-  if (process.env.NODE_ENV === "development") {
-    console.warn("🔄 Adaptive periodic connection check disabled to prevent infinite requests");
-  }
-
-  // Инициализируем статус сети при загрузке
-  try {
-    const initialState = useOfflineStore.getState();
-    const isOnline = navigator.onLine;
-    
-    if (process.env.NODE_ENV === "development") {
-      console.warn(`🔧 Initializing network status: online=${isOnline}, actuallyConnected=${initialState.isActuallyConnected}`);
-    }
-    
-    // Устанавливаем корректный статус сети
-    if (initialState.isOnline !== isOnline || initialState.isActuallyConnected !== isOnline) {
-      useOfflineStore.getState().setOnlineStatus(isOnline);
-    }
-    
-    // Проверяем стабильность сети
-    checkNetworkStability();
-  } catch (error) {
-    console.warn("Error initializing network status:", error);
+  // Инициализируем статус на основе navigator.onLine
+  const isOnline = navigator.onLine;
+  const initialState = useOfflineStore.getState();
+  
+  if (initialState.isOnline !== isOnline) {
+    useOfflineStore.getState().setOnlineStatus(isOnline);
   }
 }
