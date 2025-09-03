@@ -12,13 +12,13 @@ const CACHE_CONFIG = {
   IMAGES_CACHE: 'gafus-images-v1',
   
   // Максимальное количество записей в кэше
-  MAX_CACHE_ENTRIES: 100,
+  MAX_CACHE_ENTRIES: 200, // Увеличено для кэширования большего количества страниц
   
   // TTL для разных типов ресурсов (в миллисекундах)
   TTL: {
     STATIC: 7 * 24 * 60 * 60 * 1000, // 7 дней
-    PAGES: 24 * 60 * 60 * 1000,      // 1 день
-    API: 30 * 60 * 1000,             // 30 минут
+    PAGES: 7 * 24 * 60 * 60 * 1000,  // 7 дней (увеличено для лучшего офлайн опыта)
+    API: 2 * 60 * 60 * 1000,         // 2 часа (увеличено для лучшего офлайн опыта)
     IMAGES: 30 * 24 * 60 * 60 * 1000, // 30 дней
   },
   
@@ -296,7 +296,7 @@ async function cacheFirstStrategy(request, cacheName) {
   
   // Проверяем кэш
   const cachedResponse = await cache.match(request);
-  if (cachedResponse && await cacheManager.isCacheEntryValid(request, cacheName)) {
+  if (cachedResponse) {
     console.log(`📦 SW: Serving from cache: ${request.url}`);
     return cachedResponse;
   }
@@ -326,21 +326,24 @@ async function cacheFirstStrategy(request, cacheName) {
     
     return networkResponse;
   } catch (error) {
-    // Если сеть недоступна, возвращаем кэшированную версию (даже если TTL истек)
-    if (cachedResponse) {
-      console.log(`📦 SW: Network failed, serving stale cache: ${request.url}`);
-      return cachedResponse;
+    // Если сеть недоступна и нет кэша, показываем офлайн страницу для страниц
+    if (cacheName === CACHE_CONFIG.PAGES_CACHE) {
+      console.log(`📦 SW: No cache for page, showing offline page: ${request.url}`);
+      return await getOfflinePage();
     }
     throw error;
   }
 }
 
-// Стратегия Network First (для API запросов)
+// Стратегия Network First (для API запросов) - улучшенная
 async function networkFirstStrategy(request, cacheName) {
   const cache = await caches.open(cacheName);
   
+  // Сначала проверяем кэш для быстрого ответа
+  const cachedResponse = await cache.match(request);
+  
   try {
-    // Сначала пытаемся получить из сети
+    // Пытаемся получить из сети
     const networkResponse = await fetch(request);
     
     if (networkResponse.ok) {
@@ -365,12 +368,24 @@ async function networkFirstStrategy(request, cacheName) {
     return networkResponse;
   } catch (error) {
     // Если сеть недоступна, возвращаем из кэша
-    const cachedResponse = await cache.match(request);
     if (cachedResponse) {
       console.log(`📦 SW: Network failed, serving cached API: ${request.url}`);
       return cachedResponse;
     }
-    throw error;
+    
+    // Если нет кэша, возвращаем ошибку с информацией об офлайн режиме
+    console.warn(`⚠️ SW: No cache available for ${request.url}`);
+    return new Response(JSON.stringify({
+      error: 'Offline',
+      message: 'Нет подключения к интернету и данные не найдены в кэше',
+      offline: true
+    }), {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
   }
 }
 
