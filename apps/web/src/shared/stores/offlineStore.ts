@@ -190,98 +190,11 @@ export const useOfflineStore = create<OfflineState>()(
         }
       },
 
-      // Умная проверка реального соединения (адаптивная)
+      // Проверка реального соединения (полностью отключена для предотвращения бесконечных запросов)
       checkExternalConnection: async () => {
-        try {
-          const state = get();
-          
-          // Если уже офлайн по navigator.onLine, не проверяем внешние сервисы
-          if (!navigator.onLine) {
-            if (process.env.NODE_ENV !== "production") {
-              console.warn("🔍 navigator.onLine = false, skipping external check");
-            }
-            set({ isActuallyConnected: false });
-            return false;
-          }
-
-          // Проверяем, не было ли недавней проверки (кулдаун 30 секунд)
-          const now = Date.now();
-          const lastCheck = state.networkMetrics.lastChecked || 0;
-          const cooldown = 30000; // 30 секунд
-          
-          if (now - lastCheck < cooldown) {
-            if (process.env.NODE_ENV !== "production") {
-              console.warn(`🔍 External check on cooldown, ${Math.ceil((cooldown - (now - lastCheck)) / 1000)}s remaining`);
-            }
-            return state.isActuallyConnected;
-          }
-
-          // Если много неудачных попыток подряд, увеличиваем интервал
-          const failures = state.networkMetrics.consecutiveFailures || 0;
-          if (failures > 3) {
-            const backoffTime = Math.min(failures * 10000, 300000); // Максимум 5 минут
-            if (now - lastCheck < backoffTime) {
-              if (process.env.NODE_ENV !== "production") {
-                console.warn(`🔍 Backing off due to ${failures} failures, ${Math.ceil((backoffTime - (now - lastCheck)) / 1000)}s remaining`);
-              }
-              return state.isActuallyConnected;
-            }
-          }
-
-          // Делаем быструю проверку только собственного API
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-          try {
-            const response = await fetch("/api/ping", {
-              method: "HEAD",
-              cache: "no-cache",
-              signal: controller.signal,
-            });
-
-            clearTimeout(timeoutId);
-
-            const isConnected = response.ok;
-            
-            // Обновляем метрики
-            set((state) => ({
-              isActuallyConnected: isConnected,
-              networkMetrics: {
-                ...state.networkMetrics,
-                lastChecked: now,
-                consecutiveFailures: isConnected ? 0 : (state.networkMetrics.consecutiveFailures || 0) + 1,
-              },
-            }));
-
-            if (process.env.NODE_ENV !== "production") {
-              console.warn(`🔍 Connection check via /api/ping: ${isConnected ? 'connected' : 'failed'}`);
-            }
-
-            return isConnected;
-          } catch (error) {
-            clearTimeout(timeoutId);
-            
-            // Увеличиваем счетчик неудач
-            set((state) => ({
-              isActuallyConnected: false,
-              networkMetrics: {
-                ...state.networkMetrics,
-                lastChecked: now,
-                consecutiveFailures: (state.networkMetrics.consecutiveFailures || 0) + 1,
-              },
-            }));
-
-            if (process.env.NODE_ENV !== "production") {
-              console.warn("🔍 Connection check failed:", error);
-            }
-
-            return false;
-          }
-        } catch (error) {
-          console.warn("External network check failed:", error);
-          set({ isActuallyConnected: false });
-          return false;
-        }
+        console.warn("🔍 checkExternalConnection disabled to prevent infinite requests");
+        // Просто возвращаем текущий статус без внешних запросов
+        return get().isActuallyConnected;
       },
 
       // Синхронизация offline действий

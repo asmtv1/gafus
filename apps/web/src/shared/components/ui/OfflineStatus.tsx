@@ -34,11 +34,9 @@ export default function OfflineStatus() {
   const handleForceCheck = async () => {
     setIsChecking(true);
     try {
-      // Проверяем и качество соединения, и внешнее соединение
-      await Promise.all([
-        checkConnectionQuality(),
-        checkExternalConnection()
-      ]);
+      // Проверяем только качество соединения (внешняя проверка отключена)
+      await checkConnectionQuality();
+      // checkExternalConnection() - отключено для предотвращения бесконечных запросов
     } catch (error) {
       console.warn("Force check failed:", error);
     } finally {
