@@ -9,10 +9,10 @@ import { getFavoritesCourses } from "../course/getFavoritesCourses";
 
 // Кэшированная версия получения всех курсов
 export const getCoursesWithProgressCached = unstable_cache(
-  async () => {
+  async (userId?: string) => {
     try {
       console.warn("[React Cache] Fetching all courses with progress");
-      const result = await getCoursesWithProgress();
+      const result = await getCoursesWithProgress(userId);
       console.warn(`[React Cache] Cached ${result.data.length} courses successfully`);
       return { success: true, data: result.data };
     } catch (error) {
@@ -36,17 +36,17 @@ export const getCoursesWithProgressCached = unstable_cache(
   },
   ["courses-all"],
   {
-    revalidate: 30, // 30 секунд
-    tags: ["courses"],
+    revalidate: 60, // 60 секунд - синхронизируем с revalidate страницы
+    tags: ["courses", "courses-all"],
   },
 );
 
 // Кэшированная версия получения избранных курсов
 export const getFavoritesCoursesCached = unstable_cache(
-  async () => {
+  async (userId?: string) => {
     try {
       console.warn("[React Cache] Fetching favorite courses");
-      const result = await getFavoritesCourses();
+      const result = await getFavoritesCourses(userId);
       console.warn(`[React Cache] Cached ${result.data.length} favorite courses successfully`);
       return { success: true, data: result.data };
     } catch (error) {
@@ -70,8 +70,8 @@ export const getFavoritesCoursesCached = unstable_cache(
   },
   ["courses-favorites"],
   {
-    revalidate: 30, // 30 секунд
-    tags: ["courses-favorites"],
+    revalidate: 60, // 60 секунд - синхронизируем с revalidate страницы
+    tags: ["courses", "courses-favorites"],
   },
 );
 
@@ -104,7 +104,7 @@ export const getAuthoredCoursesCached = unstable_cache(
   },
   ["courses-authored"],
   {
-    revalidate: 30, // 30 секунд
-    tags: ["courses-authored"],
+    revalidate: 60, // 60 секунд - синхронизируем с revalidate страницы
+    tags: ["courses", "courses-authored"],
   },
 );

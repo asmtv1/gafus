@@ -2,28 +2,52 @@
 
 import { useCourseStoreActions } from "@shared/stores";
 import { useEffect, useCallback } from "react";
+import type { CourseWithProgressData } from "@gafus/types";
 
 import { CourseCard } from "./CourseCard/CourseCard";
 import styles from "./favorites.module.css";
 
-export default function FavoritesCourseList() {
-  const { favorites, loading, errors, fetchFavorites, forceRefreshFavorites, favoriteCourseIds } =
+interface FavoritesCourseListProps {
+  initialFavorites?: CourseWithProgressData[] | null;
+  initialError?: string | null;
+  userId?: string;
+}
+
+export default function FavoritesCourseList({ 
+  initialFavorites, 
+  initialError, 
+  userId 
+}: FavoritesCourseListProps) {
+  const { favorites, loading, errors, fetchFavorites, forceRefreshFavorites, favoriteCourseIds, setFavorites } =
     useCourseStoreActions();
 
   // Мемоизируем функцию обновления избранного
   const handleUnfavorite = useCallback(
-    (courseId: string) => {
+    (_courseId: string) => {
       // Принудительно обновляем кэш для синхронизации с сервером
       forceRefreshFavorites();
     },
     [forceRefreshFavorites],
   );
 
-  // Загружаем избранные курсы при монтировании компонента и при фокусе
+  // Инициализируем данные при монтировании компонента
   useEffect(() => {
-    fetchFavorites();
+    // Если есть серверные данные, используем их
+    if (initialFavorites && !favorites) {
+      setFavorites(initialFavorites);
+    }
+    // Если есть ошибка сервера, показываем её
+    else if (initialError && !favorites) {
+      // Ошибка будет обработана в store
+    }
+    // Если нет серверных данных и нет загруженных избранных, загружаем клиентски
+    else if (!initialFavorites && !favorites && !loading.favorites && userId) {
+      fetchFavorites();
+    }
+  }, [initialFavorites, initialError, favorites, loading.favorites, userId, setFavorites, fetchFavorites]);
 
-    // Обновляем данные при фокусе на вкладке
+  // Обновляем данные при фокусе на вкладке
+  useEffect(() => {
     const handleFocus = () => {
       // Проверяем, что прошло достаточно времени с последнего обновления (например, 30 секунд)
       if (favorites?.timestamp && Date.now() - favorites.timestamp > 30000) {
@@ -53,18 +77,18 @@ export default function FavoritesCourseList() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("favoritesChanged", handleFavoritesChanged);
     };
-  }, []); // Убираем fetchFavorites из зависимостей
+  }, [favorites, forceRefreshFavorites]);
 
   // Показываем загрузку при первой загрузке
   if (loading.favorites && !favorites?.data) {
     return <div style={{ textAlign: "center", padding: "20px" }}>Загрузка избранных курсов...</div>;
   }
 
-  // Показываем ошибку если есть
-  if (errors.favorites) {
+  // Показываем ошибку если есть (серверная или клиентская)
+  if (errors.favorites || initialError) {
     return (
       <div style={{ textAlign: "center", padding: "20px", color: "red" }}>
-        Ошибка загрузки избранных курсов: {errors.favorites}
+        Ошибка загрузки избранных курсов: {errors.favorites || initialError}
       </div>
     );
   }

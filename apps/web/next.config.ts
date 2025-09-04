@@ -96,6 +96,28 @@ const nextConfig = {
         source: "/_next/image/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
+      // Кэширование HTML страниц для офлайн работы
+      {
+        source: "/courses",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=60, s-maxage=60" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+      {
+        source: "/statistics",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=60, s-maxage=60" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+      {
+        source: "/favorites",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=60, s-maxage=60" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
     ];
   },
 };

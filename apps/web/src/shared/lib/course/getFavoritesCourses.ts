@@ -4,39 +4,19 @@ import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 
 import type { Course, CourseAccess, CourseReview, FavoriteCourse } from "@gafus/prisma";
+import type { CourseWithProgressData } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 
-export interface CourseWithUserData {
-  id: string;
-  name: string;
-  type: string;
-  description: string;
-  shortDesc: string;
-  duration: string;
-  logoImg: string;
-  isPrivate: boolean;
-  avgRating: number | null;
-  createdAt: Date;
-  authorUsername: string;
-  favoritedBy: FavoriteCourse[];
-  reviews: CourseReview[];
-  access: CourseAccess[];
-  userStatus: TrainingStatus;
-  startedAt: Date | null;
-  completedAt: Date | null;
-  isFavorite: boolean;
-}
-
-export async function getFavoritesCourses(): Promise<{
-  data: CourseWithUserData[];
+export async function getFavoritesCourses(userId?: string): Promise<{
+  data: CourseWithProgressData[];
   favoriteIds: string[];
 }> {
-  const userId = await getCurrentUserId();
+  const currentUserId = userId || await getCurrentUserId();
 
   try {
     const userFavorites = await prisma.favoriteCourse.findMany({
-      where: { userId },
+      where: { userId: currentUserId },
       select: { courseId: true },
     });
 
@@ -59,7 +39,7 @@ export async function getFavoritesCourses(): Promise<{
     });
 
     const userCourses = await prisma.userCourse.findMany({
-      where: { userId },
+      where: { userId: currentUserId },
       select: {
         courseId: true,
         status: true,
@@ -68,7 +48,7 @@ export async function getFavoritesCourses(): Promise<{
       },
     });
 
-    const data: CourseWithUserData[] = allCourses.map(
+    const data: CourseWithProgressData[] = allCourses.map(
       (
         course: Course & {
           author: { username: string };
@@ -98,13 +78,21 @@ export async function getFavoritesCourses(): Promise<{
           avgRating: course.avgRating,
           createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
           authorUsername: course.author.username,
-          favoritedBy: course.favoritedBy,
-          reviews: course.reviews,
-          access: course.access,
           userStatus: (userCourse?.status ?? TrainingStatus.NOT_STARTED) as TrainingStatus,
           startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
           completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,
           isFavorite: true,
+          reviews: course.reviews.map((review: CourseReview) => ({
+            rating: review.rating ?? 0,
+            comment: review.comment ?? "",
+            createdAt: review.createdAt ? new Date(review.createdAt) : new Date(),
+            user: {
+              username: "", // Будет заполнено из связанных данных
+              profile: null,
+            },
+          })),
+          userCourses: [], // Пустой массив для избранных курсов
+          dayLinks: [], // Пустой массив для избранных курсов
         };
       },
     );

@@ -7,13 +7,13 @@ import type { CourseWithExtras, CourseWithProgressData } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 
-export async function getCoursesWithProgress(): Promise<{ data: CourseWithProgressData[] }> {
-  const userId = await getCurrentUserId();
+export async function getCoursesWithProgress(userId?: string): Promise<{ data: CourseWithProgressData[] }> {
+  const currentUserId = userId || await getCurrentUserId();
 
   try {
     const allCourses: CourseWithExtras[] = await prisma.course.findMany({
       where: {
-        OR: [{ isPrivate: false }, { access: { some: { userId } } }],
+        OR: [{ isPrivate: false }, { access: { some: { userId: currentUserId } } }],
       },
       include: {
         author: {
@@ -78,7 +78,7 @@ export async function getCoursesWithProgress(): Promise<{ data: CourseWithProgre
     });
 
     const userCourses = await prisma.userCourse.findMany({
-      where: { userId },
+      where: { userId: currentUserId },
       select: {
         courseId: true,
         status: true,
@@ -88,7 +88,7 @@ export async function getCoursesWithProgress(): Promise<{ data: CourseWithProgre
     });
 
     const userFavorites = await prisma.favoriteCourse.findMany({
-      where: { userId },
+      where: { userId: currentUserId },
       select: { courseId: true },
     });
 

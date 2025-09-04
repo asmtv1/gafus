@@ -1,9 +1,9 @@
-import CoursesClient from "./courses/CoursesClient";
+import CoursesPage from "./courses/page";
 
 export default function HomePage() {
   return (
     <main>
-      <CoursesClient />
+      <CoursesPage />
     </main>
   );
 }

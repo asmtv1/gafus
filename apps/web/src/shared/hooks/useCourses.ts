@@ -59,7 +59,7 @@ export function useCourses() {
 }
 
 export function useFavorites() {
-  return useData<CourseWithUserData[]>(
+  return useData<CourseWithProgressData[]>(
     "courses:favorites",
     async () => {
       const result = await getFavoritesCoursesCached();
