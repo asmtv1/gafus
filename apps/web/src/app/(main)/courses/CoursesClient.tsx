@@ -4,23 +4,42 @@ import PullToRefresh from "@shared/components/ui/PullToRefresh";
 import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
 import { useCourseStoreActions } from "@shared/stores";
 import { useEffect } from "react";
+import type { CourseWithProgressData } from "@gafus/types";
 
 import styles from "./page.module.css";
 import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
 
-export default function CoursesClient() {
-  const { allCourses, loading, errors, fetchAllCourses, forceRefreshFavorites } =
+interface CoursesClientProps {
+  initialCourses?: CourseWithProgressData[] | null;
+  initialError?: string | null;
+  userId?: string;
+}
+
+export default function CoursesClient({ 
+  initialCourses, 
+  initialError, 
+  userId 
+}: CoursesClientProps) {
+  const { allCourses, loading, errors, fetchAllCourses, forceRefreshFavorites, setAllCourses } =
     useCourseStoreActions();
 
-  // Загружаем курсы при монтировании компонента
+  // Инициализируем данные при монтировании компонента
   useEffect(() => {
-    // Загружаем курсы только если они еще не загружены
-    if (!allCourses && !loading.all) {
+    // Если есть серверные данные, используем их
+    if (initialCourses && !allCourses) {
+      setAllCourses(initialCourses, "server");
+    }
+    // Если есть ошибка сервера, показываем её
+    else if (initialError && !allCourses) {
+      // Ошибка будет обработана в store
+    }
+    // Если нет серверных данных и нет загруженных курсов, загружаем клиентски
+    else if (!initialCourses && !allCourses && !loading.all && userId) {
       fetchAllCourses().catch((_error) => {
         // Ошибка уже обрабатывается в store
       });
     }
-  }, [allCourses, loading.all]); // Убираем fetchAllCourses из зависимостей
+  }, [initialCourses, initialError, allCourses, loading.all, userId, setAllCourses, fetchAllCourses]);
 
   // Слушаем глобальные изменения избранного для синхронизации состояния
   useEffect(() => {
@@ -52,11 +71,11 @@ export default function CoursesClient() {
     return <CoursesSkeleton />;
   }
 
-  // Показываем ошибку если есть
-  if (errors.all) {
+  // Показываем ошибку если есть (серверная или клиентская)
+  if (errors.all || initialError) {
     return (
       <div style={{ textAlign: "center", padding: "20px", color: "red" }}>
-        Ошибка загрузки курсов: {errors.all}
+        Ошибка загрузки курсов: {errors.all || initialError}
       </div>
     );
   }
