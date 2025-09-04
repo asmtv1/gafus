@@ -1,218 +1,0 @@
-
-
-> @gafus/web@0.1.0 build /Users/asmtv1/gafus/apps/web
-> next build
-
-   [1m[38;2;173;127;168m▲ Next.js 15.4.7[39m[22m
-   - Environments: .env.local
-   - Experiments (use with caution):
-     · optimizePackageImports
-
- [37m[1m [22m[39m Creating an optimized production build ...
- [37m[1m○[22m[39m (pwa) PWA support is disabled.
- [32m[1m✓[22m[39m Compiled successfully in 11.0s
-[?25l [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m
-[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m ⚠ The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config
-[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G[?25h
-./src/app/(main)/courses/CoursesClient.tsx
-23:6  Warning: React Hook useEffect has a missing dependency: 'fetchAllCourses'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
-
-./src/app/api/ping/route.ts
-11:12  Warning: 'error' is defined but never used.  unused-imports/no-unused-vars
-
-./src/features/courses/components/CourseCard/CourseCard.tsx
-33:3  Warning: 'createdAt' is defined but never used. Allowed unused args must match /^_/u.  unused-imports/no-unused-vars
-38:3  Warning: 'index' is assigned a value but never used. Allowed unused args must match /^_/u.  unused-imports/no-unused-vars
-
-./src/features/courses/components/FavoritesCourseList.tsx
-15:6  Warning: 'courseId' is defined but never used. Allowed unused args must match /^_/u.  unused-imports/no-unused-vars
-56:6  Warning: React Hook useEffect has missing dependencies: 'favorites.timestamp', 'fetchFavorites', and 'forceRefreshFavorites'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
-
-./src/features/profile/components/NotificationStatus.tsx
-35:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-46:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-47:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-48:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-49:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-50:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-51:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-72:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-78:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-83:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-86:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-105:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-112:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-117:13  Warning: 'isIOS' is assigned a value but never used. Allowed unused vars must match /^_/u.  unused-imports/no-unused-vars
-121:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-125:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-132:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-148:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-153:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-157:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-162:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-166:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-168:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-./src/features/profile/components/PrivateProfileSection.tsx
-9:49  Warning: 'user' is defined but never used. Allowed unused args must match /^_/u.  unused-imports/no-unused-vars
-
-./src/features/training/components/TrainingDayList.tsx
-21:6  Warning: React Hook useCallback has unnecessary dependencies: 'styles.completed', 'styles.inprogress', and 'styles.item'. Either exclude them or remove the dependency array. Outer scope values like 'styles.item' aren't valid dependencies because mutating them doesn't re-render the component.  react-hooks/exhaustive-deps
-
-./src/shared/components/ui/NotificationRequesterNew.tsx
-12:5  Warning: 'hasServerSubscription' is assigned a value but never used. Allowed unused vars must match /^_/u.  unused-imports/no-unused-vars
-18:5  Warning: 'isGranted' is assigned a value but never used. Allowed unused vars must match /^_/u.  unused-imports/no-unused-vars
-22:5  Warning: 'setShowModal' is assigned a value but never used. Allowed unused vars must match /^_/u.  unused-imports/no-unused-vars
-37:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-42:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-46:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-51:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-55:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-57:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-92:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-94:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-103:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-./src/shared/components/ui/OptimizedImage.tsx
-51:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-64:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-69:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-./src/shared/hooks/useServiceWorker.ts
-92:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-97:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-105:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-./src/shared/lib/ErrorReporter.ts
-129:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-131:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-133:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-135:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-./src/shared/lib/StepNotification/manageStepNotification.ts
-28:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-35:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-57:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-90:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-98:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-109:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-123:3  Warning: 'durationSec' is defined but never used. Allowed unused args must match /^_/u.  unused-imports/no-unused-vars
-141:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-154:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-177:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-./src/shared/lib/actions/publicKey.ts
-6:3  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-9:3  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-20:3  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-22:3  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-33:3  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-./src/shared/lib/savePushSubscription/getUserSubscriptionStatus.ts
-10:3  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-13:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-15:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-18:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-24:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-27:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-32:5  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-./src/shared/lib/savePushSubscription/savePushSubscription.ts
-18:3  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-26:3  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-38:7  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-41:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-./src/shared/stores/permission/permissionStore.ts
-47:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-50:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-55:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-60:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-62:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-./src/shared/stores/push/pushStore.ts
-76:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-79:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-82:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-99:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-110:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-151:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-152:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-179:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-184:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-188:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-200:17  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-202:19  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-205:17  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-216:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-235:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-236:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-237:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-242:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-250:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-267:9  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-276:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-285:19  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-295:13  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-299:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-301:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-310:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-319:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-321:15  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-334:19  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-336:19  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-352:11  Warning: Unexpected console statement. Only these console methods are allowed: warn, error.  no-console
-
-info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
-[?25l [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G [36m...[39m [2K[1G [36m.[39m [2K[1G [36m..[39m [2K[1G[?25h    [32m[1m✓[22m[39m Linting and checking validity of types 
-[?25l [37m[1m [22m[39m Collecting page data  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting page data  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting page data  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting page data  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting page data  [36m..[39m⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-Инициализация NextAuth...
-NextAuth инициализирован успешно
-[2K[1G [37m[1m [22m[39m Collecting page data  [36m...[39m⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-[2K[1G [37m[1m [22m[39m Collecting page data  [36m.[39m[2K[1G[?25h [37m[1m [22m[39m Collecting page data     [32m[1m✓[22m[39m Collecting page data 
-[?25l [37m[1m [22m[39m Generating static pages (0/19)  [36m[    ][39m[2K[1G [37m[1m [22m[39m Generating static pages (0/19)  [36m[=   ][39m[2K[1G [37m[1m [22m[39m Generating static pages (8/19)  [36m[==  ][39m[2K[1G[?25h⛳DATABASE_URL= postgresql://postgres:1488@localhost:5432/dog_trainer
-[?25h [32m[1m✓[22m[39m Generating static pages (19/19)
-[?25l [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[?25l [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m.[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m.[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m..[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m..[39m[2K[1G [37m[1m [22m[39m Finalizing page optimization  [36m...[39m[2K[1G [37m[1m [22m[39m Collecting build traces  [36m...[39m[2K[1G[?25h [37m[1m [22m[39m Collecting build traces     [32m[1m✓[22m[39m Collecting build traces 
-[2K[1G[?25h [37m[1m [22m[39m Finalizing page optimization     [32m[1m✓[22m[39m Finalizing page optimization 
-
-[4mRoute (app)[24m                                 [4mSize[24m  [4mFirst Load JS[24m  [4m[24m  [4m[24m
-┌ ○ /                                      369 B         [37m[1m109 kB[22m[39m
-├ ○ /_not-found                             1 kB         [37m[1m101 kB[22m[39m
-├ ○ /~offline                            1.35 kB         [37m[1m102 kB[22m[39m
-├ ƒ /achievements                        15.6 kB         [37m[1m477 kB[22m[39m
-├ ƒ /api/auth/[...nextauth]                150 B         [37m[1m100 kB[22m[39m
-├ ƒ /api/csrf-token                      2.29 kB         [37m[1m105 kB[22m[39m
-├ ƒ /api/ping                              150 B         [37m[1m100 kB[22m[39m
-├ ƒ /api/public-key                        150 B         [37m[1m100 kB[22m[39m
-├ ƒ /confirm                             1.08 kB         [37m[1m110 kB[22m[39m
-├ ƒ /courses                             4.02 kB         [37m[1m419 kB[22m[39m
-├ ƒ /favorites                           3.39 kB         [37m[1m416 kB[22m[39m
-├ ○ /login                               3.13 kB         [37m[1m157 kB[22m[39m
-├ ƒ /passwordReset                       2.69 kB         [37m[1m145 kB[22m[39m
-├ ƒ /profile                              103 kB         [37m[1m531 kB[22m[39m
-├ ƒ /profile/addPet                      2.94 kB         [37m[1m111 kB[22m[39m
-├ ƒ /profile/editBio                     3.28 kB         [37m[1m386 kB[22m[39m
-├ ○ /register                             3.3 kB         [37m[1m146 kB[22m[39m
-├ ƒ /reset-password                      1.16 kB         [37m[1m101 kB[22m[39m
-├ ○ /robots.txt                            150 B         [37m[1m100 kB[22m[39m
-├ ○ /sitemap.xml                           150 B         [37m[1m100 kB[22m[39m
-├ ƒ /statistics                           2.6 kB         [37m[1m108 kB[22m[39m
-├ ƒ /trainings/[courseType]                519 B         [37m[1m104 kB[22m[39m
-└ ƒ /trainings/[courseType]/[day]         4.4 kB         [37m[1m371 kB[22m[39m
-+ First Load JS shared by all             [37m[1m100 kB[22m[39m
-  ├ chunks/4226-3fffe46e81aacc8b.js      43.9 kB
-  ├ chunks/cf5f146d-603318a56ae6bbbd.js  54.1 kB
-  └ other shared chunks (total)          2.17 kB
-
-
-ƒ Middleware                             [37m[1m54.7 kB[22m[39m
-
-○  (Static)   prerendered as static content
-ƒ  (Dynamic)  server-rendered on demand
-
-[?25h
