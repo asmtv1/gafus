@@ -8,10 +8,30 @@ import styles from "./TrainingDayList.module.css";
 
 interface TrainingDayListProps {
   courseType: string;
+  initialData?: {
+    trainingDays: {
+      day: number;
+      title: string;
+      type: string;
+      courseId: string;
+      userStatus: string;
+    }[];
+    courseDescription: string | null;
+    courseId: string | null;
+    courseVideoUrl: string | null;
+  } | null;
+  initialError?: string | null;
 }
 
-const TrainingDayList = memo(function TrainingDayList({ courseType }: TrainingDayListProps) {
-  const { data, loading, error, refetch } = useCachedTrainingDays(courseType);
+const TrainingDayList = memo(function TrainingDayList({ 
+  courseType, 
+  initialData, 
+  initialError 
+}: TrainingDayListProps) {
+  const { data, loading, error, refetch } = useCachedTrainingDays(courseType, {
+    initialData,
+    initialError
+  });
 
   const getItemClass = useCallback((status: string) => {
     if (status === "IN_PROGRESS") return `${styles.item} ${styles.inprogress}`;
