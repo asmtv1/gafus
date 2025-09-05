@@ -8,6 +8,23 @@ export interface TrainingState {
   runningSteps: Record<string, number | null>;
   courseAssignments: Record<string, boolean>;
   assignErrors: Record<string, string | null>;
+  
+  // Кэширование дней тренировок
+  cachedTrainingDays: Record<string, {
+    data: {
+      trainingDays: Array<{
+        day: number;
+        title: string;
+        type: string;
+        courseId: string;
+        userStatus: string;
+      }>;
+      courseDescription: string | null;
+      courseId: string | null;
+      courseVideoUrl: string | null;
+    };
+    timestamp: number;
+  }>;
 
   // Утилиты
   getStepKey: (courseId: string, day: number, stepIndex: number) => string;
@@ -18,6 +35,36 @@ export interface TrainingState {
   getRunningIndex: (courseId: string, day: number) => number | null;
   getCourseAssigned: (courseId: string) => boolean;
   getAssignError: (courseId: string) => string | null;
+  
+  // Кэширование дней тренировок
+  getCachedTrainingDays: (courseType: string) => {
+    data: {
+      trainingDays: Array<{
+        day: number;
+        title: string;
+        type: string;
+        courseId: string;
+        userStatus: string;
+      }>;
+      courseDescription: string | null;
+      courseId: string | null;
+      courseVideoUrl: string | null;
+    } | null;
+    isExpired: boolean;
+  };
+  setCachedTrainingDays: (courseType: string, data: {
+    trainingDays: Array<{
+      day: number;
+      title: string;
+      type: string;
+      courseId: string;
+      userStatus: string;
+    }>;
+    courseDescription: string | null;
+    courseId: string | null;
+    courseVideoUrl: string | null;
+  }) => void;
+  clearCachedTrainingDays: (courseType?: string) => void;
 
   // Определение статуса дня
   getDayStatus: (

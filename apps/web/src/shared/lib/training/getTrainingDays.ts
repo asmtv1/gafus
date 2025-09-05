@@ -13,9 +13,15 @@ export async function getTrainingDays(typeParam?: string): Promise<{
   courseId: string | null;
   courseVideoUrl: string | null; // <--- добавили сюда
 }> {
-  const userId = await getCurrentUserId();
-
   try {
+    const userId = await getCurrentUserId();
+    
+    if (!userId) {
+      console.error("getTrainingDays: userId is null or undefined");
+      throw new Error("Пользователь не авторизован");
+    }
+    
+    console.warn("getTrainingDays: userId =", userId, "typeParam =", typeParam);
     const courseWhere = typeParam ? { type: typeParam } : {};
 
     const firstCourse = await prisma.course.findFirst({
