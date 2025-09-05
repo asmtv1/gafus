@@ -3,3 +3,4 @@ export { default as CourseDescriptionWithVideo } from "./CourseDescriptionWithVi
 export { Day } from "./Day";
 export { default as TrainingDayList } from "./TrainingDayList";
 export { TrainingOverview } from "./TrainingOverview";
+export { default as TrainingPageClient } from "./TrainingPageClient";

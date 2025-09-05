@@ -13,6 +13,7 @@ export const useTrainingStore = create<TrainingState>()(
       runningSteps: {},
       courseAssignments: {},
       assignErrors: {},
+      cachedTrainingDays: {},
 
       // ===== УТИЛИТЫ =====
       getStepKey: (courseId, day, stepIndex) => `${courseId}-${day}-${stepIndex}`,
@@ -35,6 +36,45 @@ export const useTrainingStore = create<TrainingState>()(
 
       getAssignError: (courseId) => {
         return get().assignErrors[courseId] ?? null;
+      },
+
+      // ===== КЭШИРОВАНИЕ ДНЕЙ ТРЕНИРОВОК =====
+      getCachedTrainingDays: (courseType) => {
+        const cached = get().cachedTrainingDays[courseType];
+        
+        if (!cached) {
+          return { data: null, isExpired: true };
+        }
+
+        const now = Date.now();
+        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 часа в миллисекундах
+        const isExpired = now - cached.timestamp > CACHE_DURATION;
+
+        return { data: cached.data, isExpired };
+      },
+
+      setCachedTrainingDays: (courseType, data) => {
+        set((state) => ({
+          cachedTrainingDays: {
+            ...state.cachedTrainingDays,
+            [courseType]: {
+              data,
+              timestamp: Date.now(),
+            },
+          },
+        }));
+      },
+
+      clearCachedTrainingDays: (courseType) => {
+        if (courseType) {
+          set((state) => {
+            const newCached = { ...state.cachedTrainingDays };
+            delete newCached[courseType];
+            return { cachedTrainingDays: newCached };
+          });
+        } else {
+          set({ cachedTrainingDays: {} });
+        }
       },
 
       // ===== ОПРЕДЕЛЕНИЕ СТАТУСА ДНЯ =====
@@ -139,6 +179,7 @@ export const useTrainingStore = create<TrainingState>()(
         runningSteps: state.runningSteps,
         courseAssignments: state.courseAssignments,
         assignErrors: state.assignErrors,
+        cachedTrainingDays: state.cachedTrainingDays,
       }),
     },
   ),
