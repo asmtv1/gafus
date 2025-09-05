@@ -66,7 +66,6 @@ const CACHE_CONFIG = {
       /^\/courses/,
       /^\/profile/,
       /^\/achievements/,
-      /^\/trainings/,
     ],
     RSC_DATA: [
       /_rsc=/,
@@ -86,6 +85,9 @@ const CACHE_CONFIG = {
     ],
   },
 };
+
+// Таймаут для сетевых запросов RSC (best practice: быстрый failover к кэшу)
+const RSC_NETWORK_TIMEOUT_MS = 500;
 
 // 🧠 УМНАЯ СИСТЕМА ОПРЕДЕЛЕНИЯ ТИПОВ РЕСУРСОВ
 // Анализирует запросы и определяет оптимальную стратегию кэширования
@@ -108,6 +110,8 @@ function getResourceType(request) {
     console.log(`🧭 SW: Navigation request detected - will cache as HTML page`);
     return 'HTML_PAGES';
   }
+  
+  // 1.5. (удалено) Специальная обработка тренинговых страниц при навигации
   
   // 1.5. 🎯 СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ NEXT.JS RSC
   // Кэшируем HTML-страницы при первой загрузке через RSC-запросы
@@ -141,6 +145,12 @@ function getResourceType(request) {
   }
   
   // 4. 🖼️ ИЗОБРАЖЕНИЯ
+  // Специальная обработка для favicon.ico
+  if (pathname === '/favicon.ico') {
+    console.log(`🖼️ SW: Favicon detected - special handling`);
+    return 'IMAGES';
+  }
+  
   // Проверяем по Accept заголовку и по паттернам
   if (accept.includes('image/') || accept.includes('image/*')) {
     console.log(`🖼️ SW: Image resource detected by Accept header`);
@@ -183,6 +193,8 @@ function getResourceType(request) {
     return 'HTML_PAGES';
   }
   
+  // 6.6. (удалено) Спец. обработка HTML для тренинговых страниц
+  
   // 7. ❓ НЕИЗВЕСТНЫЙ ТИП
   console.log(`❓ SW: Unknown resource type, defaulting to API`);
   return 'API';
@@ -207,6 +219,8 @@ async function cacheFirstStrategy(request, resourceType) {
   const cache = await caches.open(cacheName);
   
   console.log(`🎯 SW: Cache First strategy for ${resourceType}: ${request.url}`);
+  
+  // (удалено) Спец. retry для HTML /trainings — используем RSC
   
   // 1. Проверяем кэш
   const cachedResponse = await cache.match(request);
@@ -234,6 +248,16 @@ async function cacheFirstStrategy(request, resourceType) {
       });
       
       await cache.put(request, modifiedResponse);
+      // Для HTML страниц тренировок: также кешируем под нормализованным ключом без _rsc
+      if (resourceType === 'HTML_PAGES' && request.url.includes('/trainings/')) {
+        try {
+          const normalizedRequest = getNormalizedRSCRequest(request);
+          await cache.put(normalizedRequest, modifiedResponse.clone());
+          console.log(`💾 SW: Also cached normalized HTML key: ${normalizedRequest.url}`);
+        } catch (e) {
+          console.warn('⚠️ SW: Failed to cache normalized HTML key', e);
+        }
+      }
       console.log(`💾 SW: Cached ${resourceType}: ${request.url}`);
       
       // 4. Очищаем старые записи
@@ -244,7 +268,21 @@ async function cacheFirstStrategy(request, resourceType) {
   } catch (error) {
     console.log(`❌ SW: Network error for ${request.url}:`, error);
     
-    // 5. Fallback для HTML-страниц
+    // 5. Специальный fallback для favicon.ico
+    if (request.url.endsWith('/favicon.ico')) {
+      console.log(`🖼️ SW: Providing favicon fallback for ${request.url}`);
+      return new Response('', {
+        status: 200,
+        statusText: 'OK',
+        headers: {
+          'Content-Type': 'image/x-icon',
+          'sw-cache-time': Date.now().toString(),
+          'sw-cache-type': 'IMAGES'
+        }
+      });
+    }
+    
+    // 6. Fallback для HTML-страниц
     if (resourceType === 'HTML_PAGES') {
       return await getOfflineFallback(request);
     }
@@ -253,12 +291,20 @@ async function cacheFirstStrategy(request, resourceType) {
   }
 }
 
+// (удалено) cacheFirstWithRetry — не требуется
+
 // 🌐 NETWORK FIRST - сеть в первую очередь (для API и RSC)
 async function networkFirstStrategy(request, resourceType) {
   const cacheName = getCacheName(resourceType);
   const cache = await caches.open(cacheName);
   
   console.log(`🌐 SW: Network First strategy for ${resourceType}: ${request.url}`);
+  
+  // Специальная retry логика для RSC-запросов
+  if (resourceType === 'RSC_DATA') {
+    console.log(`🔄 SW: Using timeout strategy for RSC: ${request.url}`);
+    return await networkFirstWithTimeout(request, cache, resourceType, RSC_NETWORK_TIMEOUT_MS);
+  }
   
   try {
     // 1. Пробуем сеть
@@ -277,7 +323,16 @@ async function networkFirstStrategy(request, resourceType) {
         headers: headers,
       });
       
+      // Кладем под оригинальным ключом
       await cache.put(request, modifiedResponse);
+      // И под нормализованным ключом без _rsc (чтобы офлайн работал с первого раза)
+      try {
+        const normalizedRequest = getNormalizedRSCRequest(request);
+        await cache.put(normalizedRequest, modifiedResponse.clone());
+        console.log(`💾 SW: Also cached normalized RSC key: ${normalizedRequest.url}`);
+      } catch (e) {
+        console.warn('⚠️ SW: Failed to cache normalized RSC key', e);
+      }
       console.log(`💾 SW: Cached ${resourceType}: ${request.url}`);
       
       // 3. Очищаем старые записи
@@ -289,7 +344,20 @@ async function networkFirstStrategy(request, resourceType) {
     console.log(`❌ SW: Network error, trying cache: ${request.url}`);
     
     // 4. Если сеть недоступна - пробуем кэш
-    const cachedResponse = await cache.match(request);
+    // Сначала пробуем точный ключ
+    let cachedResponse = await cache.match(request);
+    // Если промах — пробуем нормализованный ключ без _rsc
+    if (!cachedResponse) {
+      try {
+        const normalizedRequest = getNormalizedRSCRequest(request);
+        cachedResponse = await cache.match(normalizedRequest);
+        if (cachedResponse) {
+          console.log(`✅ SW: RSC normalized cache hit for ${normalizedRequest.url}`);
+        }
+      } catch (e) {
+        console.warn('⚠️ SW: Failed to match normalized RSC key', e);
+      }
+    }
     if (cachedResponse) {
       console.log(`✅ SW: Cache fallback for ${request.url}`);
       return cachedResponse;
@@ -307,6 +375,92 @@ async function networkFirstStrategy(request, resourceType) {
     
     throw error;
   }
+}
+
+// 🔄 Network-first with timeout для RSC-запросов
+async function networkFirstWithTimeout(request, cache, resourceType, timeoutMs) {
+  function fetchWithTimeout(req, ms) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timeout')), ms);
+      fetch(req).then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      }).catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+    });
+  }
+
+  // 1) Быстрая попытка сети с таймаутом
+  try {
+    const networkResponse = await fetchWithTimeout(request, timeoutMs);
+    if (networkResponse.ok) {
+      const responseToCache = networkResponse.clone();
+      const headers = new Headers(responseToCache.headers);
+      headers.set('sw-cache-time', Date.now().toString());
+      headers.set('sw-cache-type', resourceType);
+      const modifiedResponse = new Response(responseToCache.body, {
+        status: responseToCache.status,
+        statusText: responseToCache.statusText,
+        headers: headers,
+      });
+      // Под оригинальным ключом
+      await cache.put(request, modifiedResponse);
+      // И под нормализованным ключом без _rsc
+      try {
+        const normalizedRequest = getNormalizedRSCRequest(request);
+        await cache.put(normalizedRequest, modifiedResponse.clone());
+        console.log(`💾 SW: Also cached normalized RSC key: ${normalizedRequest.url}`);
+      } catch (e) {
+        console.warn('⚠️ SW: Failed to cache normalized RSC key', e);
+      }
+      return networkResponse;
+    }
+  } catch (e) {
+    console.log(`❌ SW: RSC network attempt failed or timed out for ${request.url}`);
+  }
+
+  // 2) Падаем в кэш: сначала точный ключ
+  let cachedResponse = await cache.match(request);
+  // Затем нормализованный без _rsc
+  if (!cachedResponse) {
+    try {
+      const normalizedRequest = getNormalizedRSCRequest(request);
+      cachedResponse = await cache.match(normalizedRequest);
+      if (cachedResponse) {
+        console.log(`✅ SW: RSC normalized cache hit for ${normalizedRequest.url}`);
+      }
+    } catch (e) {
+      console.warn('⚠️ SW: Failed to match normalized RSC key', e);
+    }
+  }
+  // Затем поиск по pathname без query
+  if (!cachedResponse) {
+    try {
+      const cacheName = getCacheName(resourceType);
+      const rscCache = await caches.open(cacheName);
+      const keys = await rscCache.keys();
+      const reqUrl = new URL(request.url);
+      const matchKey = keys.find(k => {
+        try {
+          const kUrl = new URL(k.url);
+          return kUrl.origin === reqUrl.origin && kUrl.pathname === reqUrl.pathname;
+        } catch { return false; }
+      });
+      if (matchKey) {
+        console.log(`✅ SW: RSC pathname cache hit for ${reqUrl.pathname} via ${matchKey.url}`);
+        cachedResponse = await rscCache.match(matchKey);
+      }
+    } catch (e) {
+      console.warn('⚠️ SW: Pathname-based RSC lookup failed', e);
+    }
+  }
+  if (cachedResponse) return cachedResponse;
+
+  // 3) Последний fallback — пустой RSC
+  console.log(`🆘 SW: No RSC data available, using fallback: ${request.url}`);
+  return await getRSCFallback(request);
 }
 
 // 🧹 УМНАЯ ОЧИСТКА КЭША
@@ -538,6 +692,20 @@ function getNormalizedPageRequest(originalRequest) {
   }
 }
 
+// Нормализация RSC-запросов: удаляем волатильный параметр _rsc
+function getNormalizedRSCRequest(originalRequest) {
+  try {
+    const originalUrl = new URL(originalRequest.url);
+    const normalizedUrl = new URL(originalUrl.toString());
+    if (normalizedUrl.searchParams.has('_rsc')) {
+      normalizedUrl.searchParams.delete('_rsc');
+    }
+    return new Request(normalizedUrl.toString(), { method: 'GET' });
+  } catch {
+    return originalRequest;
+  }
+}
+
 // Install event
 self.addEventListener('install', (event) => {
   console.log('📦 SW: Install event - Setting up caches');
@@ -547,10 +715,11 @@ self.addEventListener('install', (event) => {
       try {
         // Создаем все необходимые кэши
         const cacheNames = [
-          CACHE_CONFIG.STATIC_CACHE,
-          CACHE_CONFIG.PAGES_CACHE,
-          CACHE_CONFIG.API_CACHE,
-          CACHE_CONFIG.IMAGES_CACHE,
+          CACHE_CONFIG.CACHES.HTML_PAGES,
+          CACHE_CONFIG.CACHES.RSC_DATA,
+          CACHE_CONFIG.CACHES.STATIC,
+          CACHE_CONFIG.CACHES.API,
+          CACHE_CONFIG.CACHES.IMAGES,
         ];
         
         await Promise.all(
@@ -622,6 +791,53 @@ async function precacheHTMLPages() {
       '/courses',
       '/favorites'
     ];
+    
+    // Кэшируем favicon.ico
+    const faviconUrl = '/favicon.ico';
+    try {
+      console.log(`🎯 SW: Precaching favicon: ${faviconUrl}`);
+      
+      const faviconRequest = new Request(faviconUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+        }
+      });
+      
+      const faviconResponse = await fetch(faviconRequest);
+      
+      if (faviconResponse.ok) {
+        const modifiedResponse = new Response(faviconResponse.body, {
+          status: faviconResponse.status,
+          statusText: faviconResponse.statusText,
+          headers: {
+            ...Object.fromEntries(faviconResponse.headers.entries()),
+            'sw-cache-time': Date.now().toString(),
+            'sw-cache-type': 'IMAGES'
+          }
+        });
+        
+        await htmlCache.put(faviconRequest, modifiedResponse);
+        console.log(`✅ SW: Precached favicon: ${faviconUrl}`);
+      } else {
+        console.warn(`⚠️ SW: Favicon not found, creating fallback`);
+        // Создаем простой favicon fallback
+        const fallbackFavicon = new Response('', {
+          status: 200,
+          statusText: 'OK',
+          headers: {
+            'Content-Type': 'image/x-icon',
+            'sw-cache-time': Date.now().toString(),
+            'sw-cache-type': 'IMAGES'
+          }
+        });
+        
+        await htmlCache.put(faviconRequest, fallbackFavicon);
+        console.log(`✅ SW: Created favicon fallback`);
+      }
+    } catch (error) {
+      console.warn(`⚠️ SW: Failed to precache favicon:`, error);
+    }
     
     for (const pageUrl of pagesToCache) {
       try {

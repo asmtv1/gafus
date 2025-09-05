@@ -19,6 +19,11 @@ interface TrainingDaysData {
   courseVideoUrl: string | null;
 }
 
+interface UseCachedTrainingDaysOptions {
+  initialData?: TrainingDaysData | null;
+  initialError?: string | null;
+}
+
 interface UseCachedTrainingDaysResult {
   data: TrainingDaysData | null;
   loading: boolean;
@@ -26,7 +31,11 @@ interface UseCachedTrainingDaysResult {
   refetch: () => Promise<void>;
 }
 
-export function useCachedTrainingDays(courseType: string): UseCachedTrainingDaysResult {
+export function useCachedTrainingDays(
+  courseType: string, 
+  options: UseCachedTrainingDaysOptions = {}
+): UseCachedTrainingDaysResult {
+  const { initialData, initialError } = options;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -37,6 +46,20 @@ export function useCachedTrainingDays(courseType: string): UseCachedTrainingDays
     setError(null);
 
     try {
+      // Если есть серверные данные, используем их
+      if (initialData) {
+        setCachedTrainingDays(courseType, initialData);
+        setLoading(false);
+        return;
+      }
+
+      // Если есть серверная ошибка, показываем её
+      if (initialError) {
+        setError(initialError);
+        setLoading(false);
+        return;
+      }
+
       // Сначала проверяем кэш
       const cached = getCachedTrainingDays(courseType);
       
@@ -46,7 +69,6 @@ export function useCachedTrainingDays(courseType: string): UseCachedTrainingDays
       }
 
       // Если кэш истек или отсутствует, загружаем с сервера
-      
       let result;
       try {
         result = await getTrainingDaysCached(courseType);
@@ -70,7 +92,7 @@ export function useCachedTrainingDays(courseType: string): UseCachedTrainingDays
     } finally {
       setLoading(false);
     }
-  }, [courseType, getCachedTrainingDays, setCachedTrainingDays]);
+  }, [courseType, initialData, initialError, getCachedTrainingDays, setCachedTrainingDays]);
 
   const refetch = useCallback(async () => {
     // Очищаем кэш и загружаем заново
