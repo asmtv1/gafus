@@ -110,7 +110,17 @@ export const CourseCard = ({
 
   return (
     <li className={styles.courseCard}>
-      <Link href={`/trainings/${type}`} className={styles.link}>
+      <Link
+        href={`/trainings/${type}`}
+        className={styles.link}
+        prefetch={false}
+        onClick={(e) => {
+          if (typeof navigator !== "undefined" && !navigator.onLine) {
+            e.preventDefault();
+            window.location.assign(`/trainings/${type}`);
+          }
+        }}
+      >
         <div className={styles.imageContainer}>
           {isImageAlreadyCached ? (
             <img

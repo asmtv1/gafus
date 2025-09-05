@@ -73,7 +73,18 @@ const TrainingDayList = memo(function TrainingDayList({
     <ul className={styles.list}>
       {data.trainingDays.map((day) => (
         <li key={`${day.courseId}-${day.day}`} className={getItemClass(day.userStatus)}>
-          <Link href={`/trainings/${courseType}/${day.day}`} className={styles.link}>
+          <Link
+            href={`/trainings/${courseType}/${day.day}`}
+            className={styles.link}
+            prefetch={false}
+            onClick={(e) => {
+              // При офлайн-навигации форсируем полную навигацию, чтобы SW отдал HTML заглушку
+              if (typeof navigator !== "undefined" && !navigator.onLine) {
+                e.preventDefault();
+                window.location.assign(`/trainings/${courseType}/${day.day}`);
+              }
+            }}
+          >
             <span className={styles.day}>{day.title}</span>
           </Link>
         </li>

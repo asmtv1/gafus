@@ -72,7 +72,7 @@ const CACHE_CONFIG = {
       /Accept.*text\/x-component/,
     ],
     STATIC: [
-      /\.(?:js|css|woff2?|ttf|eot)$/,
+      /\.(?:js|css|woff2?|ttf|eot|mp3|mp4|webm|ogg|wav|m4a)$/,
       /\/_next\/static\//,
       /\/icons\//,
     ],
@@ -328,7 +328,13 @@ async function networkFirstStrategy(request, resourceType) {
       // И под нормализованным ключом без _rsc (чтобы офлайн работал с первого раза)
       try {
         const normalizedRequest = getNormalizedRSCRequest(request);
-        await cache.put(normalizedRequest, modifiedResponse.clone());
+        // Клонируем response до его использования
+        const normalizedResponse = new Response(responseToCache.body, {
+          status: responseToCache.status,
+          statusText: responseToCache.statusText,
+          headers: headers,
+        });
+        await cache.put(normalizedRequest, normalizedResponse);
         console.log(`💾 SW: Also cached normalized RSC key: ${normalizedRequest.url}`);
       } catch (e) {
         console.warn('⚠️ SW: Failed to cache normalized RSC key', e);
@@ -363,7 +369,7 @@ async function networkFirstStrategy(request, resourceType) {
       return cachedResponse;
     }
     
-    // 5. Специальный fallback для RSC-запросов
+    // 5. Fallback для RSC-запросов -> корректный RSC-ответ
     if (resourceType === 'RSC_DATA') {
       return await getRSCFallback(request);
     }
@@ -410,7 +416,13 @@ async function networkFirstWithTimeout(request, cache, resourceType, timeoutMs) 
       // И под нормализованным ключом без _rsc
       try {
         const normalizedRequest = getNormalizedRSCRequest(request);
-        await cache.put(normalizedRequest, modifiedResponse.clone());
+        // Клонируем response до его использования
+        const normalizedResponse = new Response(responseToCache.body, {
+          status: responseToCache.status,
+          statusText: responseToCache.statusText,
+          headers: headers,
+        });
+        await cache.put(normalizedRequest, normalizedResponse);
         console.log(`💾 SW: Also cached normalized RSC key: ${normalizedRequest.url}`);
       } catch (e) {
         console.warn('⚠️ SW: Failed to cache normalized RSC key', e);
@@ -458,9 +470,9 @@ async function networkFirstWithTimeout(request, cache, resourceType, timeoutMs) 
   }
   if (cachedResponse) return cachedResponse;
 
-  // 3) Последний fallback — пустой RSC
-  console.log(`🆘 SW: No RSC data available, using fallback: ${request.url}`);
-  return await getRSCFallback(request);
+  // 3) Последний fallback — HTML офлайн-страница (поведение Next заглушки)
+  console.log(`🆘 SW: No RSC data available, using HTML offline fallback: ${request.url}`);
+  return await getOfflineFallback(request);
 }
 
 // 🧹 УМНАЯ ОЧИСТКА КЭША
@@ -552,13 +564,18 @@ async function getOfflineFallback(request) {
 async function getRSCFallback(request) {
   console.log(`🔄 SW: Providing RSC fallback for: ${request.url}`);
   
-  // Возвращаем пустой RSC-ответ
-  return new Response('{}', {
+  // Возвращаем валидный RSC-ответ с минимальными данными
+  // Next.js ожидает JSON с компонентами
+  const rscData = {
+    "0": ["$", "div", null, {"children": ["$", "div", null, {"children": "Нет подключения к интернету", "className": "text-center p-8"}]}]
+  };
+  
+  return new Response(JSON.stringify(rscData), {
     status: 200,
     statusText: 'OK',
     headers: { 
       'Content-Type': 'text/x-component',
-      'sw-fallback': 'true'
+      'sw-fallback': 'rsc-offline'
     }
   });
 }
