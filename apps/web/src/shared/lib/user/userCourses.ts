@@ -4,6 +4,7 @@ import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 export async function assignCoursesToUser(courseId: string) {
   try {
@@ -24,6 +25,9 @@ export async function assignCoursesToUser(courseId: string) {
         startedAt: new Date(),
       },
     });
+
+    // Инвалидируем кэш прогресса пользователя
+    await invalidateUserProgressCache(userId);
 
     return { success: true, data: createdUserCourse };
   } catch (error) {
@@ -75,6 +79,9 @@ export async function completeUserCourse(courseId: string) {
         },
       });
     }
+
+    // Инвалидируем кэш прогресса пользователя
+    await invalidateUserProgressCache(userId);
 
     return { success: true, data: result };
   } catch (error) {

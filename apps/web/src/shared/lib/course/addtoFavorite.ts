@@ -3,6 +3,7 @@
 import { prisma } from "@gafus/prisma";
 
 import { getCurrentUserId } from "@/utils";
+import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
   try {
@@ -36,6 +37,10 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
       });
       return true; // теперь в избранном
     }
+    
+    // Инвалидируем кэш прогресса пользователя
+    await invalidateUserProgressCache(userId);
+    
   } catch (error) {
     console.error("Ошибка в toggleFavoriteCourse:", error);
     throw new Error("Ошибка при изменении избранного курса. Попробуйте перезагрузить страницу.");

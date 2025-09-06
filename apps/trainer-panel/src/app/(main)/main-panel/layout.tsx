@@ -46,11 +46,16 @@ export default async function MainPanelLayout({ children }: { children: React.Re
           Создать новый курс
         </Link>
 
-        {/* Пункт меню только для админов и модераторов */}
+        {/* Пункты меню только для админов и модераторов */}
         {(session.user.role === "ADMIN" || session.user.role === "MODERATOR") && (
-          <Link href="/main-panel/users" className={styles.button}>
-            Пользователи платформы
-          </Link>
+          <>
+            <Link href="/main-panel/users" className={styles.button}>
+              Пользователи платформы
+            </Link>
+            <Link href="/main-panel/admin" className={styles.button}>
+              Администрирование
+            </Link>
+          </>
         )}
       </aside>
 

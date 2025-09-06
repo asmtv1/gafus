@@ -7,21 +7,22 @@ import type { TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 
-export async function getTrainingDays(typeParam?: string): Promise<{
-  trainingDays: Pick<TrainingDetail, "day" | "title" | "type" | "courseId" | "userStatus">[];
+export async function getTrainingDays(typeParam?: string, userId?: string): Promise<{
+  trainingDays: Pick<TrainingDetail, "trainingDayId" | "day" | "title" | "type" | "courseId" | "userStatus">[];
   courseDescription: string | null;
   courseId: string | null;
   courseVideoUrl: string | null; // <--- добавили сюда
 }> {
   try {
-    const userId = await getCurrentUserId();
+    // Если userId не передан, получаем его
+    const currentUserId = userId || await getCurrentUserId();
     
-    if (!userId) {
+    if (!currentUserId) {
       console.error("getTrainingDays: userId is null or undefined");
       throw new Error("Пользователь не авторизован");
     }
     
-    console.warn("getTrainingDays: userId =", userId, "typeParam =", typeParam);
+    console.warn("getTrainingDays: userId =", currentUserId, "typeParam =", typeParam);
     const courseWhere = typeParam ? { type: typeParam } : {};
 
     const firstCourse = await prisma.course.findFirst({
@@ -43,7 +44,7 @@ export async function getTrainingDays(typeParam?: string): Promise<{
               },
             },
             userTrainings: {
-              where: { userId },
+              where: { userId: currentUserId },
               select: { status: true },
             },
           },
@@ -61,7 +62,7 @@ export async function getTrainingDays(typeParam?: string): Promise<{
     }
 
     const trainingDays = firstCourse.dayLinks.map((link: { id: string; order: number; day: { title: string; type: string }; userTrainings: { status: string }[] }) => ({
-      id: link.id,
+      trainingDayId: link.id,
       day: link.order,
       title: link.day.title,
       type: link.day.type,

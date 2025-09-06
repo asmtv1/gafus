@@ -94,20 +94,76 @@ export const usePushStore = create<PushState>()(
             console.warn("⚠️ Не удалось получить существующую подписку:", error);
           }
 
-          // Удаляем существующую подписку для чистого старта
+          // Если подписка уже существует, проверяем есть ли она в БД
           if (existingSubscription) {
-            console.log("🗑️ Удаляем существующую подписку");
+            console.log("🔍 Найдена существующая локальная подписка, проверяем БД...");
+            
             try {
-              await existingSubscription.unsubscribe();
+              const { getUserSubscriptions } = await import("@shared/lib/savePushSubscription/getUserSubscriptionStatus");
+              const { subscriptions } = await getUserSubscriptions();
+              
+              // Проверяем, есть ли локальный endpoint в БД
+              const isInDatabase = subscriptions.some(sub => sub.endpoint === existingSubscription!.endpoint);
+              
+              if (isInDatabase) {
+                console.log("✅ Подписка уже синхронизирована с БД, используем существующую");
+                set({
+                  subscription: existingSubscription,
+                  hasServerSubscription: true,
+                  isLoading: false,
+                  error: null,
+                });
+                return;
+              } else {
+                console.log("⚠️ Подписка есть локально, но нет в БД, обновляем БД");
+                // Обновляем БД с существующей подпиской
+                const p256dh = existingSubscription.getKey ? existingSubscription.getKey("p256dh") : null;
+                const auth = existingSubscription.getKey ? existingSubscription.getKey("auth") : null;
+
+                if (!existingSubscription.endpoint) {
+                  throw new Error("Existing subscription has no endpoint");
+                }
+
+                if (!p256dh || !auth) {
+                  throw new Error("Existing subscription keys are incomplete");
+                }
+
+                const p256dhString = btoa(String.fromCharCode(...new Uint8Array(p256dh)));
+                const authString = btoa(String.fromCharCode(...new Uint8Array(auth)));
+
+                const userId = get().userId || "";
+
+                await updateSubscriptionAction({
+                  id: "",
+                  userId,
+                  endpoint: existingSubscription.endpoint,
+                  p256dh: p256dhString,
+                  auth: authString,
+                  keys: {
+                    p256dh: p256dhString,
+                    auth: authString,
+                  },
+                });
+
+                set({
+                  subscription: existingSubscription,
+                  hasServerSubscription: true,
+                  isLoading: false,
+                  error: null,
+                });
+
+                console.log("✅ Существующая подписка синхронизирована с БД");
+                return;
+              }
             } catch (error) {
-              console.warn("⚠️ Не удалось отписаться от существующей подписки:", error);
+              console.warn("⚠️ Ошибка проверки БД, продолжаем создание новой подписки:", error);
             }
           }
 
+          // Если локальной подписки нет или она не в БД, создаем новую
+          console.log("🔧 Создаем новую push подписку...");
           const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
           
-          // Создаем подписку
-          console.log("🔧 Создаем новую push подписку...");
           const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey,
@@ -380,7 +436,76 @@ export const usePushStore = create<PushState>()(
           const state = get();
           if (state.disabledByUser) return;
 
-          // Логика восстановления подписки
+          // Сначала проверяем, есть ли уже синхронизированная подписка
+          if (state.hasServerSubscription === true) {
+            console.log("🔍 ensureActiveSubscription: Подписка уже синхронизирована, пропускаем");
+            return;
+          }
+
+          // Проверяем, есть ли локальная подписка, которую можно синхронизировать
+          if (serviceWorkerManager.isSupported()) {
+            try {
+              const registration = await serviceWorkerManager.getRegistration();
+              if (registration) {
+                const localSubscription = await registration.pushManager.getSubscription();
+                if (localSubscription) {
+                  console.log("🔍 ensureActiveSubscription: Найдена локальная подписка, проверяем синхронизацию");
+                  
+                  // Проверяем, есть ли эта подписка в БД
+                  const { getUserSubscriptions } = await import("@shared/lib/savePushSubscription/getUserSubscriptionStatus");
+                  const { subscriptions } = await getUserSubscriptions();
+                  
+                  const isInDatabase = subscriptions.some(sub => sub.endpoint === localSubscription.endpoint);
+                  
+                  if (isInDatabase) {
+                    console.log("✅ ensureActiveSubscription: Локальная подписка уже в БД, обновляем состояние");
+                    set({
+                      subscription: localSubscription,
+                      hasServerSubscription: true,
+                    });
+                    return;
+                  } else {
+                    console.log("⚠️ ensureActiveSubscription: Локальная подписка не в БД, синхронизируем");
+                    // Синхронизируем существующую подписку
+                    const p256dh = localSubscription.getKey ? localSubscription.getKey("p256dh") : null;
+                    const auth = localSubscription.getKey ? localSubscription.getKey("auth") : null;
+
+                    if (localSubscription.endpoint && p256dh && auth) {
+                      const p256dhString = btoa(String.fromCharCode(...new Uint8Array(p256dh)));
+                      const authString = btoa(String.fromCharCode(...new Uint8Array(auth)));
+
+                      const userId = get().userId || "";
+
+                      await updateSubscriptionAction({
+                        id: "",
+                        userId,
+                        endpoint: localSubscription.endpoint,
+                        p256dh: p256dhString,
+                        auth: authString,
+                        keys: {
+                          p256dh: p256dhString,
+                          auth: authString,
+                        },
+                      });
+
+                      set({
+                        subscription: localSubscription,
+                        hasServerSubscription: true,
+                      });
+
+                      console.log("✅ ensureActiveSubscription: Локальная подписка синхронизирована с БД");
+                      return;
+                    }
+                  }
+                }
+              }
+            } catch (error) {
+              console.warn("⚠️ ensureActiveSubscription: Ошибка проверки локальной подписки:", error);
+            }
+          }
+
+          // Если локальной подписки нет или она не синхронизирована, создаем новую
+          console.log("🔧 ensureActiveSubscription: Создаем новую подписку");
           const { getPublicKeyAction } = await import("@shared/lib/actions/publicKey");
           const { publicKey } = await getPublicKeyAction();
 
