@@ -226,8 +226,8 @@ model UserCourse {
   status        TrainingStatus @default(NOT_STARTED)
   startedAt     DateTime?
   completedAt   DateTime?
-  user          User           @relation(fields: [userId], references: [id])
-  course        Course         @relation(fields: [courseId], references: [id])
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   @@id([userId, courseId])
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @default(now())

@@ -25,9 +25,25 @@ export const useStepStore = create<StepStore>()(
       // ===== ДЕЙСТВИЯ ДЛЯ ШАГОВ =====
       initializeStep: (courseId, day, stepIndex, durationSec, initialStatus = "NOT_STARTED") => {
         const stepKey = get().getStepKey(courseId, day, stepIndex);
+        const existingState = get().stepStates[stepKey];
 
-        // Если уже есть состояние, не перезаписываем
-        if (get().stepStates[stepKey]) return;
+        // Если уже есть состояние, проверяем, нужно ли обновить статус
+        if (existingState) {
+          // Обновляем статус только если он изменился на сервере
+          if (initialStatus && existingState.status !== initialStatus) {
+            set((state) => ({
+              stepStates: {
+                ...state.stepStates,
+                [stepKey]: {
+                  ...existingState,
+                  status: initialStatus,
+                  isFinished: initialStatus === "COMPLETED",
+                },
+              },
+            }));
+          }
+          return;
+        }
 
         // Проверяем localStorage для восстановления
         const restoredState = get().restoreStepFromLS(courseId, day, stepIndex);

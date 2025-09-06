@@ -5,6 +5,7 @@ import { TrainingStatus } from "@gafus/types";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 
 import { checkAndCompleteCourse } from "../user/userCourses";
+import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
 
@@ -178,6 +179,9 @@ export async function updateUserStepStatus(
         // Не прерываем выполнение, если проверка курса не удалась
       }
     }
+
+    // Инвалидируем кэш прогресса пользователя при изменении статуса шага
+    await invalidateUserProgressCache(userId);
 
     return { success: true };
   } catch (error) {

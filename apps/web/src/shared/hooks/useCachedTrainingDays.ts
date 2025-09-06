@@ -5,9 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { getTrainingDaysCached } from "../lib/actions/cachedCourses";
 import { getTrainingDays } from "../lib/training/getTrainingDays";
 import { useTrainingStore } from "../stores/trainingStore";
+import { getCurrentUserId } from "@/utils";
 
 interface TrainingDaysData {
   trainingDays: {
+    trainingDayId: string;
     day: number;
     title: string;
     type: string;
@@ -71,7 +73,9 @@ export function useCachedTrainingDays(
       // Если кэш истек или отсутствует, загружаем с сервера
       let result;
       try {
-        result = await getTrainingDaysCached(courseType);
+        // Получаем userId для кэшированной функции
+        const userId = await getCurrentUserId();
+        result = await getTrainingDaysCached(courseType, userId);
       } catch (cachedError) {
         console.warn("[Cache] Cached function failed, trying direct function:", cachedError);
         // Fallback на прямую функцию
@@ -106,7 +110,19 @@ export function useCachedTrainingDays(
 
   // Получаем данные из кэша для отображения
   const cached = getCachedTrainingDays(courseType);
-  const data = cached.data;
+  let data: TrainingDaysData | null = null;
+  
+  // Проверяем, что данные имеют правильный формат с trainingDayId
+  if (cached.data && cached.data.trainingDays && cached.data.trainingDays.length > 0) {
+    const hasTrainingDayId = cached.data.trainingDays.every((day: unknown) => 'trainingDayId' in (day as Record<string, unknown>));
+    if (hasTrainingDayId) {
+      data = cached.data as TrainingDaysData;
+    } else {
+      // Если данные в старом формате, очищаем кэш и загружаем заново
+      console.warn("[Cache] Cached data is in old format, clearing cache");
+      useTrainingStore.getState().clearCachedTrainingDays(courseType);
+    }
+  }
 
   return {
     data,

@@ -229,6 +229,7 @@ export function Day({ training }: DayProps) {
                 durationSec={step.durationSec}
                 stepTitle={step.title}
                 stepOrder={step.order}
+                initialStatus={step.status}
                 onRun={handleStepStart}
                 onReset={handleReset}
               />

@@ -10,6 +10,7 @@ export { default as Box } from "@mui/material/Box";
 export { default as Button } from "@mui/material/Button";
 export { default as Card } from "@mui/material/Card";
 export { default as CardContent } from "@mui/material/CardContent";
+export { default as CardHeader } from "@mui/material/CardHeader";
 export { default as Chip } from "@mui/material/Chip";
 export { default as CircularProgress } from "@mui/material/CircularProgress";
 export { default as Container } from "@mui/material/Container";

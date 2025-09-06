@@ -10,6 +10,7 @@ interface TrainingPageClientProps {
   courseType: string;
   initialData?: {
     trainingDays: {
+      trainingDayId: string;
       day: number;
       title: string;
       type: string;

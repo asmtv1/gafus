@@ -4,6 +4,7 @@ import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { invalidateCoursesCache } from "./invalidateCoursesCache";
 
 export interface CreateCourseInput {
   name: string;
@@ -61,6 +62,9 @@ export async function createCourseServerAction(input: CreateCourseInput) {
 
   revalidateTag("statistics");
   revalidatePath("/main-panel/statistics");
+  
+  // Инвалидируем кэш курсов при создании нового курса
+  await invalidateCoursesCache();
 
   return { success: true, id: course.id };
 }
@@ -116,6 +120,10 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
 
   revalidateTag("statistics");
   revalidatePath("/main-panel/statistics");
+  
+  // Инвалидируем кэш курсов при обновлении курса
+  await invalidateCoursesCache();
+  
   return { success: true };
 }
 
@@ -135,5 +143,9 @@ export async function deleteCourseServerAction(courseId: string) {
 
   revalidateTag("statistics");
   revalidatePath("/main-panel/statistics");
+  
+  // Инвалидируем кэш курсов при удалении курса
+  await invalidateCoursesCache();
+  
   return { success: true };
 }

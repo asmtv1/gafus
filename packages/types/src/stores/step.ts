@@ -18,7 +18,7 @@ export interface StepStore {
     day: number,
     stepIndex: number,
     durationSec: number,
-    initialStatus?: "NOT_STARTED" | "COMPLETED",
+    initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED",
   ) => void;
   startStep: (
     courseId: string,

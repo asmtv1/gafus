@@ -14,6 +14,7 @@ interface AccordionStepProps {
   durationSec: number;
   stepTitle: string;
   stepOrder: number;
+  initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
   onRun: (stepIndex: number) => void;
   onReset: (stepIndex: number) => void;
 }
@@ -25,6 +26,7 @@ export function AccordionStep({
   durationSec,
   stepTitle,
   stepOrder,
+  initialStatus,
   onRun,
   onReset,
 }: AccordionStepProps) {
@@ -70,8 +72,8 @@ export function AccordionStep({
   // const { togglePauseWithServer, resumeNotificationWithServer } = useTrainingStore();
   // Инициализируем шаг при монтировании
   useEffect(() => {
-    initializeStep(courseId, day, stepIndex, durationSec);
-  }, [courseId, day, stepIndex, durationSec, initializeStep]);
+    initializeStep(courseId, day, stepIndex, durationSec, initialStatus);
+  }, [courseId, day, stepIndex, durationSec, initialStatus, initializeStep]);
 
   // Получаем состояние шага
   const stepKey = useMemo(() => `${courseId}-${day}-${stepIndex}`, [courseId, day, stepIndex]);

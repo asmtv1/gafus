@@ -1,6 +1,7 @@
 import TrainingPageClient from "@features/training/components/TrainingPageClient";
 import { getTrainingDaysCached } from "@shared/lib/actions/cachedCourses";
 import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
+import { getCurrentUserId } from "@/utils";
 
 import styles from "./trainings.module.css";
 
@@ -16,7 +17,9 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
   let serverError = null;
   
   try {
-    const result = await getTrainingDaysCached(courseType);
+    // Получаем userId на сервере
+    const userId = await getCurrentUserId();
+    const result = await getTrainingDaysCached(courseType, userId);
     if (result.success) {
       serverData = result.data;
       // Проверяем завершение курса

@@ -6,6 +6,7 @@ import { createStepNotificationsForUserStep } from "@shared/lib/StepNotification
 
 import { TrainingStatus } from "@gafus/types";
 import { updateUserStepStatus } from "./updateUserStepStatus";
+import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
 
@@ -111,6 +112,9 @@ export async function startUserStepServerAction(
       console.error("❌ Failed to create step notifications:", notificationError);
       // Не прерываем выполнение, если уведомления не создались
     }
+
+    // Инвалидируем кэш прогресса пользователя при начале шага
+    await invalidateUserProgressCache(userId);
 
     return { success: true };
   } catch (error) {
