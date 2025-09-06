@@ -45,4 +45,10 @@ export interface TimerStore {
     stepIndex: number,
     durationSec: number,
   ) => Promise<void>;
+
+  // Офлайн функции для паузы и возобновления
+  pauseStepOffline: (courseId: string, day: number, stepIndex: number) => void;
+  resumeStepOffline: (courseId: string, day: number, stepIndex: number) => void;
+  pauseStepWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
+  resumeStepWithServer: (courseId: string, day: number, stepIndex: number, durationSec: number) => Promise<void>;
 }

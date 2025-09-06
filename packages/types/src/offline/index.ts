@@ -1,7 +1,7 @@
 export interface OfflineAction {
   id: string;
-  type: "step-completion" | "profile-update" | "comment" | "rating" | "step-status-update";
-  data: StepCompletionData | ProfileUpdateData | CommentData | RatingData | StepStatusUpdateData;
+  type: "step-completion" | "profile-update" | "comment" | "rating" | "step-status-update" | "step-pause" | "step-resume";
+  data: StepCompletionData | ProfileUpdateData | CommentData | RatingData | StepStatusUpdateData | StepPauseData | StepResumeData;
   timestamp: number;
   retryCount: number;
   maxRetries: number;
@@ -41,9 +41,25 @@ export interface StepStatusUpdateData {
   courseId: string;
   day: number;
   stepIndex: number;
-  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
   stepTitle?: string;
   stepOrder?: number;
+}
+
+export interface StepPauseData {
+  courseId: string;
+  day: number;
+  stepIndex: number;
+  pausedAt: number; // timestamp когда была поставлена пауза
+  timeLeft: number; // оставшееся время в секундах
+}
+
+export interface StepResumeData {
+  courseId: string;
+  day: number;
+  stepIndex: number;
+  resumedAt: number; // timestamp когда было возобновлено
+  timeLeft: number; // оставшееся время в секундах
 }
 
 export interface OfflineState {
