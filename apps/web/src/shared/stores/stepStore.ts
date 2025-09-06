@@ -84,6 +84,15 @@ export const useStepStore = create<StepStore>()(
       pauseStep: (courseId, day, stepIndex) => {
         const stepKey = get().getStepKey(courseId, day, stepIndex);
 
+        // Сохраняем данные паузы в localStorage для офлайн работы
+        const PAUSE_KEY = `training-${courseId}-${day}-${stepIndex}-paused`;
+        const currentStep = get().stepStates[stepKey];
+        const pauseData = {
+          pausedAt: Date.now(),
+          timeLeft: currentStep?.timeLeft || 0,
+        };
+        localStorage.setItem(PAUSE_KEY, JSON.stringify(pauseData));
+
         set((state) => ({
           stepStates: {
             ...state.stepStates,
@@ -104,6 +113,10 @@ export const useStepStore = create<StepStore>()(
         if (!currentStep) {
           return;
         }
+
+        // Удаляем данные паузы из localStorage
+        const PAUSE_KEY = `training-${courseId}-${day}-${stepIndex}-paused`;
+        localStorage.removeItem(PAUSE_KEY);
 
         const timeLeft = currentStep.timeLeft;
         const endTs = nowSec() + timeLeft;
@@ -164,8 +177,27 @@ export const useStepStore = create<StepStore>()(
       // ===== ВОССТАНОВЛЕНИЕ И СИНХРОНИЗАЦИЯ =====
       restoreStepFromLS: (courseId, day, stepIndex) => {
         const END_KEY = makeEndKey(courseId, day, stepIndex);
-        const endTsStr = loadFromLS(END_KEY);
+        const PAUSE_KEY = `training-${courseId}-${day}-${stepIndex}-paused`;
+        
+        // Проверяем, есть ли данные паузы
+        const pauseDataStr = loadFromLS(PAUSE_KEY);
+        if (pauseDataStr) {
+          try {
+            const pauseData = JSON.parse(pauseDataStr);
+            return {
+              timeLeft: pauseData.timeLeft || 0,
+              isFinished: false,
+              isPaused: true,
+              status: "PAUSED" as const,
+            };
+          } catch (error) {
+            console.warn("Failed to parse pause data:", error);
+            localStorage.removeItem(PAUSE_KEY);
+          }
+        }
 
+        // Проверяем активный таймер
+        const endTsStr = loadFromLS(END_KEY);
         if (!endTsStr) return null;
 
         const endTs = Number(endTsStr);

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useStepStore } from "@shared/stores/stepStore";
 import { useTimerStore } from "@shared/stores/timerStore";
-import { useTrainingStore } from "@shared/stores/trainingStore";
+// import { useTrainingStore } from "@shared/stores/trainingStore";
 import styles from "./AccordionStep.module.css";
 
 interface AccordionStepProps {
@@ -62,9 +62,12 @@ export function AccordionStep({
     startStepWithServer,
     finishStepWithServer,
     resetStepWithServer,
+    pauseStepWithServer,
+    resumeStepWithServer,
     canStartStep,
   } = useTimerStore();
-  const { togglePauseWithServer, resumeNotificationWithServer } = useTrainingStore();
+  // Удаляем неиспользуемые импорты из trainingStore
+  // const { togglePauseWithServer, resumeNotificationWithServer } = useTrainingStore();
   // Инициализируем шаг при монтировании
   useEffect(() => {
     initializeStep(courseId, day, stepIndex, durationSec);
@@ -224,7 +227,14 @@ export function AccordionStep({
       }
     } catch (error) {
       console.error("Ошибка при запуске шага:", error);
-      alert("Ошибка при запуске шага");
+      // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
+      
+      // Все равно выполняем локальный запуск
+      const stepStarted = await startStep(courseId, day, stepIndex, durationSec);
+      if (stepStarted) {
+        onRun(stepIndex);
+        startStepTimer(false);
+      }
     }
   }, [
     canStartStep,
@@ -244,36 +254,43 @@ export function AccordionStep({
         // Если таймер работает - ставим на паузу
         setIsPausing(true);
         try {
-          // Приостанавливаем уведомления на сервере
-          await togglePauseWithServer(courseId, day, stepIndex);
+          // Используем новую офлайн функцию паузы
+          await pauseStepWithServer(courseId, day, stepIndex);
 
           // Обновляем локальное состояние
           pauseStep(courseId, day, stepIndex);
-          stopTimer(courseId, day, stepIndex);
         } catch (error) {
           console.error("Ошибка при постановке на паузу:", error);
-          alert("Ошибка при постановке на паузу");
+          // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
         } finally {
           setIsPausing(false);
         }
       } else {
         // Если таймер не работает, но статус IN_PROGRESS - возобновляем
+        setIsPausing(true);
         try {
-          await resumeNotificationWithServer(courseId, day, stepIndex);
+          // Используем новую офлайн функцию возобновления
+          await resumeStepWithServer(courseId, day, stepIndex, durationSec);
           startStepTimer(true);
         } catch (error) {
-          console.error("Ошибка при возобновлении уведомлений:", error);
-          alert("Ошибка при возобновлении уведомлений");
+          console.error("Ошибка при возобновлении:", error);
+          // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
+        } finally {
+          setIsPausing(false);
         }
       }
     } else if (stepState?.status === "PAUSED") {
-      // Проверяем, может ли шаг быть возобновлен
+      // Если на паузе - возобновляем
+      setIsPausing(true);
       try {
-        await resumeNotificationWithServer(courseId, day, stepIndex);
+        // Используем новую офлайн функцию возобновления
+        await resumeStepWithServer(courseId, day, stepIndex, durationSec);
         startStepTimer(true);
       } catch (error) {
-        console.error("Ошибка при возобновлении уведомлений:", error);
-        alert("Ошибка при возобновлении уведомлений");
+        console.error("Ошибка при возобновлении:", error);
+        // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
+      } finally {
+        setIsPausing(false);
       }
     }
   }, [
@@ -283,10 +300,10 @@ export function AccordionStep({
     courseId,
     day,
     stepIndex,
-    stopTimer,
+    durationSec,
     startStepTimer,
-    togglePauseWithServer,
-    resumeNotificationWithServer,
+    pauseStepWithServer,
+    resumeStepWithServer,
     setIsPausing,
   ]);
 
@@ -305,7 +322,12 @@ export function AccordionStep({
       onReset(stepIndex);
     } catch (error) {
       console.error("Ошибка при сбросе шага:", error);
-      alert("Ошибка при сбросе шага");
+      // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
+      
+      // Все равно выполняем локальный сброс
+      stopTimer(courseId, day, stepIndex);
+      resetStep(courseId, day, stepIndex, durationSec);
+      onReset(stepIndex);
     }
   }, [resetStepWithServer, courseId, day, stepIndex, durationSec, stopTimer, resetStep, onReset]);
 

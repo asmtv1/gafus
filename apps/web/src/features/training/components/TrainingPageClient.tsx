@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 
 import CourseDescriptionWithVideo from "./CourseDescriptionWithVideo";
 import TrainingDayList from "./TrainingDayList";
+import { OfflineTimerTest } from "./OfflineTimerTest";
 
 interface TrainingPageClientProps {
   courseType: string;
@@ -27,7 +28,7 @@ export default function TrainingPageClient({
   initialData,
   initialError
 }: TrainingPageClientProps) {
-  const [isOnline, setIsOnline] = useState(true);
+  const [_isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
     // Проверяем онлайн статус
@@ -48,6 +49,15 @@ export default function TrainingPageClient({
 
   return (
     <>
+      {/* Тестовый компонент для офлайн таймера - только в development */}
+      {process.env.NODE_ENV === "development" && initialData?.courseId && (
+        <OfflineTimerTest
+          courseId={initialData.courseId}
+          day={1}
+          stepIndex={0}
+          durationSec={60} // 1 минута для тестирования
+        />
+      )}
       
       <div className="courseDescription">
         <CourseDescriptionWithVideo 

@@ -268,6 +268,123 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         throw error;
       }
     },
+
+    // ===== ОФЛАЙН ФУНКЦИИ =====
+
+    // Пауза шага в офлайн режиме
+    pauseStepOffline: (courseId, day, stepIndex) => {
+      if (typeof window === "undefined") return;
+
+      // Останавливаем таймер
+      get().stopTimer(courseId, day, stepIndex);
+      
+      // Сохраняем состояние паузы в localStorage
+      const PAUSE_KEY = `training-${courseId}-${day}-${stepIndex}-paused`;
+      const pauseData = {
+        pausedAt: Date.now(),
+        timeLeft: 0, // Будет обновлено из stepStore
+      };
+      localStorage.setItem(PAUSE_KEY, JSON.stringify(pauseData));
+    },
+
+    // Возобновление шага в офлайн режиме
+    resumeStepOffline: (courseId, day, stepIndex) => {
+      if (typeof window === "undefined") return;
+
+      // Удаляем данные паузы из localStorage
+      const PAUSE_KEY = `training-${courseId}-${day}-${stepIndex}-paused`;
+      localStorage.removeItem(PAUSE_KEY);
+    },
+
+    // Пауза шага с синхронизацией на сервер
+    pauseStepWithServer: async (courseId, day, stepIndex) => {
+      try {
+        // Сначала пытаемся синхронизировать с сервером
+        await get().pauseNotification(courseId, day, stepIndex);
+        
+        // Если успешно, выполняем локальную паузу
+        get().pauseStepOffline(courseId, day, stepIndex);
+      } catch (error) {
+        console.error("Ошибка при паузе шага на сервере:", error);
+
+        // Если сервер недоступен, добавляем в очередь синхронизации
+        try {
+          const { useOfflineStore } = await import("@shared/stores/offlineStore");
+          const offlineStore = useOfflineStore.getState();
+
+          // Получаем текущее оставшееся время из stepStore
+          const { useStepStore } = await import("@shared/stores/stepStore");
+          const stepStore = useStepStore.getState();
+          const stepKey = `${courseId}-${day}-${stepIndex}`;
+          const stepState = stepStore.stepStates[stepKey];
+          const timeLeft = stepState?.timeLeft || 0;
+
+          offlineStore.addToSyncQueue({
+            type: "step-pause",
+            data: {
+              courseId,
+              day,
+              stepIndex,
+              pausedAt: Date.now(),
+              timeLeft,
+            },
+            maxRetries: 3,
+          });
+
+          // Выполняем локальную паузу
+          get().pauseStepOffline(courseId, day, stepIndex);
+        } catch (offlineError) {
+          console.error("Failed to add pause to offline queue:", offlineError);
+          // Все равно выполняем локальную паузу
+          get().pauseStepOffline(courseId, day, stepIndex);
+        }
+      }
+    },
+
+    // Возобновление шага с синхронизацией на сервер
+    resumeStepWithServer: async (courseId, day, stepIndex, durationSec) => {
+      try {
+        // Сначала пытаемся синхронизировать с сервером
+        await get().resumeNotification(courseId, day, stepIndex, durationSec);
+        
+        // Если успешно, выполняем локальное возобновление
+        get().resumeStepOffline(courseId, day, stepIndex);
+      } catch (error) {
+        console.error("Ошибка при возобновлении шага на сервере:", error);
+
+        // Если сервер недоступен, добавляем в очередь синхронизации
+        try {
+          const { useOfflineStore } = await import("@shared/stores/offlineStore");
+          const offlineStore = useOfflineStore.getState();
+
+          // Получаем текущее оставшееся время из stepStore
+          const { useStepStore } = await import("@shared/stores/stepStore");
+          const stepStore = useStepStore.getState();
+          const stepKey = `${courseId}-${day}-${stepIndex}`;
+          const stepState = stepStore.stepStates[stepKey];
+          const timeLeft = stepState?.timeLeft || durationSec;
+
+          offlineStore.addToSyncQueue({
+            type: "step-resume",
+            data: {
+              courseId,
+              day,
+              stepIndex,
+              resumedAt: Date.now(),
+              timeLeft,
+            },
+            maxRetries: 3,
+          });
+
+          // Выполняем локальное возобновление
+          get().resumeStepOffline(courseId, day, stepIndex);
+        } catch (offlineError) {
+          console.error("Failed to add resume to offline queue:", offlineError);
+          // Все равно выполняем локальное возобновление
+          get().resumeStepOffline(courseId, day, stepIndex);
+        }
+      }
+    },
   };
 });
 

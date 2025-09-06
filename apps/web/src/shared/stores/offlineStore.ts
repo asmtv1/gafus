@@ -9,6 +9,8 @@ import type {
   RatingData,
   StepCompletionData,
   StepStatusUpdateData,
+  StepPauseData,
+  StepResumeData,
   TrainingStatus,
 } from "@gafus/types";
 
@@ -182,6 +184,12 @@ async function syncAction(action: OfflineAction): Promise<void> {
     case "step-status-update":
       await syncStepStatusUpdate(action.data as StepStatusUpdateData);
       break;
+    case "step-pause":
+      await syncStepPause(action.data as StepPauseData);
+      break;
+    case "step-resume":
+      await syncStepResume(action.data as StepResumeData);
+      break;
     default:
       throw new Error(`Unknown action type: ${action.type}`);
   }
@@ -241,6 +249,47 @@ async function syncStepStatusUpdate(data: StepStatusUpdateData): Promise<void> {
     );
   } catch (error) {
     console.warn("Failed to sync step status update:", error);
+    throw error;
+  }
+}
+
+// Синхронизация паузы шага
+async function syncStepPause(data: StepPauseData): Promise<void> {
+  try {
+    // Импортируем функцию паузы уведомления
+    const { pauseNotificationClient } = await import(
+      "@shared/lib/StepNotification/manageStepNotificationSimple"
+    );
+
+    // Вызываем серверное действие для паузы
+    await pauseNotificationClient({
+      courseId: data.courseId,
+      day: data.day,
+      stepIndex: data.stepIndex,
+    });
+  } catch (error) {
+    console.warn("Failed to sync step pause:", error);
+    throw error;
+  }
+}
+
+// Синхронизация возобновления шага
+async function syncStepResume(data: StepResumeData): Promise<void> {
+  try {
+    // Импортируем функцию возобновления уведомления
+    const { resumeNotificationClient } = await import(
+      "@shared/lib/StepNotification/manageStepNotificationSimple"
+    );
+
+    // Вызываем серверное действие для возобновления
+    await resumeNotificationClient({
+      courseId: data.courseId,
+      day: data.day,
+      stepIndex: data.stepIndex,
+      durationSec: data.timeLeft,
+    });
+  } catch (error) {
+    console.warn("Failed to sync step resume:", error);
     throw error;
   }
 }
