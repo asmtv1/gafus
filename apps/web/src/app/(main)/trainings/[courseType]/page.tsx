@@ -27,7 +27,7 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
     } else {
       serverError = result.error;
     }
-  } catch (error) {
+  } catch  {
     // В случае ошибки сервера (например, офлайн), не показываем ошибку
     // Client Component сам разберется с кэшем
     serverError = null;

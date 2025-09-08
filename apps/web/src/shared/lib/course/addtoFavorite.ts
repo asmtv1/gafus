@@ -39,7 +39,11 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
     }
     
     // Инвалидируем кэш прогресса пользователя
-    await invalidateUserProgressCache(userId);
+    const cacheResult = await invalidateUserProgressCache(userId, false);
+    
+    if (cacheResult.skipped) {
+      console.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`);
+    }
     
   } catch (error) {
     console.error("Ошибка в toggleFavoriteCourse:", error);

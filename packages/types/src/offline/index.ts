@@ -1,7 +1,7 @@
 export interface OfflineAction {
   id: string;
-  type: "step-completion" | "profile-update" | "comment" | "rating" | "step-status-update" | "step-pause" | "step-resume";
-  data: StepCompletionData | ProfileUpdateData | CommentData | RatingData | StepStatusUpdateData | StepPauseData | StepResumeData;
+  type: "step-completion" | "profile-update" | "comment" | "rating" | "step-status-update" | "step-pause" | "step-resume" | "cache-invalidation";
+  data: StepCompletionData | ProfileUpdateData | CommentData | RatingData | StepStatusUpdateData | StepPauseData | StepResumeData | CacheInvalidationData;
   timestamp: number;
   retryCount: number;
   maxRetries: number;
@@ -60,6 +60,11 @@ export interface StepResumeData {
   stepIndex: number;
   resumedAt: number; // timestamp когда было возобновлено
   timeLeft: number; // оставшееся время в секундах
+}
+
+export interface CacheInvalidationData {
+  userId: string;
+  cacheKeys: string[];
 }
 
 export interface OfflineState {
