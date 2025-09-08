@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useTimerStore } from "@shared/stores/timerStore";
 import { useCacheManager } from "@shared/utils/cacheManager";
-import { TrainingStatus } from "@gafus/types";
+import { useSyncStatus } from "@shared/hooks/useSyncStatus";
+// import { TrainingStatus } from "@gafus/types";
 import styles from "./AccordionStep.module.css";
 
 interface AccordionStepProps {
@@ -15,6 +16,7 @@ interface AccordionStepProps {
   durationSec: number;
   stepTitle: string;
   stepOrder: number;
+  totalSteps: number;
   initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
   onRun: (stepIndex: number) => void;
   onReset: (stepIndex: number) => void;
@@ -27,6 +29,7 @@ export function AccordionStep({
   durationSec,
   stepTitle,
   stepOrder,
+  totalSteps,
   initialStatus,
   onRun,
   onReset,
@@ -52,7 +55,6 @@ export function AccordionStep({
   const {
     stepStates,
     initializeStep,
-    startStep,
     pauseStep,
     resumeStep,
     resetStep,
@@ -69,6 +71,7 @@ export function AccordionStep({
     resumeStepWithServer,
     canStartStep,
   } = useTimerStore();
+  const { startSync, finishSync, addPendingChange, removePendingChange } = useSyncStatus();
 
   // Централизованный менеджер кэша
   const { updateStepProgress } = useCacheManager();
@@ -166,20 +169,23 @@ export function AccordionStep({
         stepIndex,
         (timeLeft: number) => updateTimeLeft(courseId, day, stepIndex, timeLeft),
         async () => {
-          // 1. СНАЧАЛА обновляем локальное состояние (работает в офлайне)
-          finishStep(courseId, day, stepIndex);
+          // 1. Обновляем кэш на всех уровнях (шаг, день, курс) - это также обновляет локальное состояние
+          updateStepProgress(courseId, day, stepIndex, 'COMPLETED', undefined, totalSteps);
 
           // 2. Обновляем UI немедленно (оптимистичное обновление)
           onRun(-1);
 
-          // 3. Обновляем кэш на всех уровнях (шаг, день, курс)
-          updateStepProgress(courseId, day, stepIndex, TrainingStatus.COMPLETED);
-
-          // 4. Отправляем на сервер с офлайн обработкой
+          // 4. Отправляем на сервер с ретраями и индикатором синхронизации
+          addPendingChange();
+          startSync();
+          
           try {
             await finishStepWithServer(courseId, day, stepIndex, stepTitle, stepOrder);
+            finishSync(true);
+            removePendingChange();
           } catch (error) {
             console.error("Ошибка при обновлении статуса шага на сервере:", error);
+            finishSync(false);
             // При ошибке добавляем в очередь синхронизации (уже обработано в finishStepWithServer)
           }
         },
@@ -202,13 +208,17 @@ export function AccordionStep({
       resumeStep,
       startTimer,
       updateTimeLeft,
-    finishStep,
-    finishStepWithServer,
-    stepTitle,
-    stepOrder,
-    onRun,
-    updateStepProgress,
-  ],
+      finishStepWithServer,
+      stepTitle,
+      stepOrder,
+      onRun,
+      updateStepProgress,
+      addPendingChange,
+      finishSync,
+      removePendingChange,
+      startSync,
+      totalSteps,
+    ],
   );
 
   const handleStart = useCallback(async () => {
@@ -222,19 +232,11 @@ export function AccordionStep({
       // Запускаем шаг на сервере
       await startStepWithServer(courseId, day, stepIndex, durationSec);
 
-      // Обновляем локальное состояние
-      const stepStarted = await startStep(courseId, day, stepIndex, durationSec);
-
-      if (!stepStarted) {
-        alert("Один шаг уже активен. Сначала остановите его!");
-        return;
-      }
+      // Обновляем кэш на всех уровнях при запуске шага (включая локальное состояние)
+      updateStepProgress(courseId, day, stepIndex, 'IN_PROGRESS', durationSec, totalSteps);
 
       // Устанавливаем как активный
       onRun(stepIndex);
-
-      // Обновляем кэш на всех уровнях при запуске шага
-      updateStepProgress(courseId, day, stepIndex, TrainingStatus.IN_PROGRESS);
 
       // Запускаем таймер
       if (!startStepTimer(false)) {
@@ -245,11 +247,9 @@ export function AccordionStep({
       // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
       
       // Все равно выполняем локальный запуск
-      const stepStarted = await startStep(courseId, day, stepIndex, durationSec);
-      if (stepStarted) {
-        onRun(stepIndex);
-        startStepTimer(false);
-      }
+      updateStepProgress(courseId, day, stepIndex, 'IN_PROGRESS', durationSec, totalSteps);
+      onRun(stepIndex);
+      startStepTimer(false);
     }
   }, [
     canStartStep,
@@ -258,10 +258,10 @@ export function AccordionStep({
     stepIndex,
     startStepWithServer,
     durationSec,
-    startStep,
     onRun,
     startStepTimer,
     updateStepProgress,
+    totalSteps,
   ]);
 
   const togglePause = useCallback(async () => {
@@ -273,8 +273,9 @@ export function AccordionStep({
           // Используем новую офлайн функцию паузы
           await pauseStepWithServer(courseId, day, stepIndex);
 
-          // Обновляем локальное состояние
+          // Обновляем локальное состояние + кэш дня/курса
           pauseStep(courseId, day, stepIndex);
+          updateStepProgress(courseId, day, stepIndex, 'PAUSED', undefined, totalSteps);
         } catch (error) {
           console.error("Ошибка при постановке на паузу:", error);
           // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
@@ -286,7 +287,14 @@ export function AccordionStep({
         setIsPausing(true);
         try {
           // Используем новую офлайн функцию возобновления
-          await resumeStepWithServer(courseId, day, stepIndex, durationSec);
+          await resumeStepWithServer(
+            courseId,
+            day,
+            stepIndex,
+            stepState?.timeLeft ?? durationSec,
+          );
+          // Обновляем кэш дня/курса
+          updateStepProgress(courseId, day, stepIndex, 'IN_PROGRESS', undefined, totalSteps);
           startStepTimer(true);
         } catch (error) {
           console.error("Ошибка при возобновлении:", error);
@@ -300,7 +308,14 @@ export function AccordionStep({
       setIsPausing(true);
       try {
         // Используем новую офлайн функцию возобновления
-        await resumeStepWithServer(courseId, day, stepIndex, durationSec);
+        await resumeStepWithServer(
+          courseId,
+          day,
+          stepIndex,
+          stepState?.timeLeft ?? durationSec,
+        );
+        // Обновляем кэш дня/курса
+        updateStepProgress(courseId, day, stepIndex, 'IN_PROGRESS', undefined, totalSteps);
         startStepTimer(true);
       } catch (error) {
         console.error("Ошибка при возобновлении:", error);
@@ -309,19 +324,7 @@ export function AccordionStep({
         setIsPausing(false);
       }
     }
-  }, [
-    stepState?.status,
-    isActuallyRunning,
-    pauseStep,
-    courseId,
-    day,
-    stepIndex,
-    durationSec,
-    startStepTimer,
-    pauseStepWithServer,
-    resumeStepWithServer,
-    setIsPausing,
-  ]);
+  }, [stepState?.status, stepState?.timeLeft, isActuallyRunning, pauseStepWithServer, courseId, day, stepIndex, pauseStep, updateStepProgress, resumeStepWithServer, durationSec, startStepTimer, totalSteps]);
 
   const handleReset = useCallback(async () => {
     try {
@@ -438,4 +441,5 @@ export function AccordionStep({
       <div className={styles.stepActions}>{renderActions()}</div>
     </div>
   );
+
 }

@@ -2,6 +2,7 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
+import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
 
 import type { TrainingDetail } from "@gafus/types";
 
@@ -130,6 +131,15 @@ export async function getTrainingDayWithUserSteps(
     }),
   );
 
+  // Пересчитываем статус дня по статусам шагов (единая логика)
+  // Создаем массив статусов для ВСЕХ шагов дня, заполняя недостающие как NOT_STARTED
+  const stepStatusesArr: string[] = [];
+  for (const stepLink of stepLinks) {
+    const status = stepStatuses[stepLink.id] ?? TrainingStatus.NOT_STARTED;
+    stepStatusesArr.push(status);
+  }
+  const dayUserStatus = calculateDayStatusFromStatuses(stepStatusesArr);
+
   return {
     trainingDayId,
     day: dayOrder,
@@ -139,7 +149,7 @@ export async function getTrainingDayWithUserSteps(
     description: description ?? "",
     duration: courseDuration ?? "",
     userStatus: userTraining
-      ? TrainingStatus[userTraining.status as keyof typeof TrainingStatus]
+      ? dayUserStatus
       : TrainingStatus.NOT_STARTED,
     steps,
   };

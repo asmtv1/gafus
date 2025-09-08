@@ -340,6 +340,17 @@ export const useCourseStore = create<CourseState>()(
           if (Array.isArray(state.favoriteCourseIds)) {
             state.favoriteCourseIds = new Set(state.favoriteCourseIds);
           }
+          
+          // Синхронизируем с актуальными данными из stepStore
+          // Используем setTimeout чтобы избежать циклических зависимостей
+          setTimeout(async () => {
+            try {
+              const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
+              await syncCourseStoreWithStepStates();
+            } catch (error) {
+              console.warn("Failed to sync courseStore with stepStates:", error);
+            }
+          }, 100);
         }
       },
     },
@@ -368,6 +379,17 @@ export const useCourseStoreActions = () => {
         const { data } = await getCoursesWithProgress();
 
         store.setAllCourses(data, type);
+        
+        // Синхронизируем с актуальными данными из stepStore после загрузки
+        setTimeout(async () => {
+          try {
+            const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
+            await syncCourseStoreWithStepStates();
+          } catch (error) {
+            console.warn("Failed to sync courseStore with stepStates after fetch:", error);
+          }
+        }, 50);
+        
         return data;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -398,6 +420,16 @@ export const useCourseStoreActions = () => {
 
       // Синхронизируем ID избранных курсов
       store.setFavoriteCourseIds(favoriteIds);
+      
+      // Синхронизируем с актуальными данными из stepStore
+      setTimeout(async () => {
+        try {
+          const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
+          await syncCourseStoreWithStepStates();
+        } catch (error) {
+          console.warn("Failed to sync courseStore with stepStates after fetchFavorites:", error);
+        }
+      }, 50);
 
       return typedData;
     } catch (error) {
@@ -471,6 +503,17 @@ export const useCourseStoreActions = () => {
       );
 
       store.setAuthored(transformedData);
+      
+      // Синхронизируем с актуальными данными из stepStore
+      setTimeout(async () => {
+        try {
+          const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
+          await syncCourseStoreWithStepStates();
+        } catch (error) {
+          console.warn("Failed to sync courseStore with stepStates after fetchAuthored:", error);
+        }
+      }, 50);
+      
       return transformedData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";

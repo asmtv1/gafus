@@ -9,6 +9,7 @@ import {
 } from "@shared/lib/StepNotification/manageStepNotificationSimple";
 import { startUserStepServerAction } from "@shared/lib/training/startUserStepServerAction";
 import { updateStepStatusServerAction } from "@shared/lib/training/updateUserStepStatus";
+import { retryServerAction } from "@shared/utils/retryUtils";
 
 // ===== УТИЛИТЫ =====
 const nowSec = () => Math.floor(Date.now() / 1000);
@@ -139,20 +140,24 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       activeStep = null;
     },
 
-    // ===== СЕРВЕРНЫЕ ДЕЙСТВИЯ =====
+    // ===== СЕРВЕРНЫЕ ДЕЙСТВИЯ С РЕТРАЯМИ =====
     startStepWithServer: async (courseId, day, stepIndex, durationSec) => {
       try {
-        await startUserStepServerAction(
-          courseId,
-          day,
-          stepIndex,
-          TrainingStatus.IN_PROGRESS,
-          durationSec,
+        // Пытаемся выполнить с ретраями
+        await retryServerAction(
+          () => startUserStepServerAction(
+            courseId,
+            day,
+            stepIndex,
+            TrainingStatus.IN_PROGRESS,
+            durationSec,
+          ),
+          `Запуск шага ${courseId}-${day}-${stepIndex}`
         );
       } catch (error) {
-        console.error("Ошибка при запуске шага на сервере:", error);
+        console.error("❌ Все попытки запуска шага исчерпаны:", error);
 
-        // Если сервер недоступен, добавляем в очередь синхронизации
+        // Если все ретраи исчерпаны, добавляем в очередь синхронизации
         try {
           const { useOfflineStore } = await import("@shared/stores/offlineStore");
           const offlineStore = useOfflineStore.getState();
@@ -167,8 +172,10 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             },
             maxRetries: 3,
           });
+          
+          console.warn("📝 Добавлено в очередь офлайн синхронизации");
         } catch (offlineError) {
-          console.error("Failed to add to offline queue:", offlineError);
+          console.error("❌ Не удалось добавить в очередь синхронизации:", offlineError);
         }
 
         throw error;
@@ -177,18 +184,22 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
     finishStepWithServer: async (courseId, day, stepIndex, stepTitle, stepOrder) => {
       try {
-        await updateStepStatusServerAction(
-          courseId,
-          day,
-          stepIndex,
-          TrainingStatus.COMPLETED,
-          stepTitle,
-          stepOrder,
+        // Пытаемся выполнить с ретраями
+        await retryServerAction(
+          () => updateStepStatusServerAction(
+            courseId,
+            day,
+            stepIndex,
+            TrainingStatus.COMPLETED,
+            stepTitle,
+            stepOrder,
+          ),
+          `Завершение шага ${courseId}-${day}-${stepIndex}`
         );
       } catch (error) {
-        console.error("Ошибка при завершении шага на сервере:", error);
+        console.error("❌ Все попытки завершения шага исчерпаны:", error);
 
-        // Если сервер недоступен, добавляем в очередь синхронизации
+        // Если все ретраи исчерпаны, добавляем в очередь синхронизации
         try {
           const { useOfflineStore } = await import("@shared/stores/offlineStore");
           const offlineStore = useOfflineStore.getState();
@@ -205,8 +216,10 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             },
             maxRetries: 3,
           });
+          
+          console.warn("📝 Добавлено в очередь офлайн синхронизации");
         } catch (offlineError) {
-          console.error("Failed to add to offline queue:", offlineError);
+          console.error("❌ Не удалось добавить в очередь синхронизации:", offlineError);
         }
 
         throw error;
@@ -222,11 +235,15 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           console.warn("Failed to reset notification:", notificationError);
         }
 
-        await updateStepStatusServerAction(courseId, day, stepIndex, TrainingStatus.NOT_STARTED);
+        // Пытаемся выполнить с ретраями
+        await retryServerAction(
+          () => updateStepStatusServerAction(courseId, day, stepIndex, TrainingStatus.NOT_STARTED),
+          `Сброс шага ${courseId}-${day}-${stepIndex}`
+        );
       } catch (error) {
-        console.error("Ошибка при сбросе шага на сервере:", error);
+        console.error("❌ Все попытки сброса шага исчерпаны:", error);
 
-        // Если сервер недоступен, добавляем в очередь синхронизации
+        // Если все ретраи исчерпаны, добавляем в очередь синхронизации
         try {
           const { useOfflineStore } = await import("@shared/stores/offlineStore");
           const offlineStore = useOfflineStore.getState();
@@ -241,8 +258,10 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             },
             maxRetries: 3,
           });
+          
+          console.warn("📝 Добавлено в очередь офлайн синхронизации");
         } catch (offlineError) {
-          console.error("Failed to add to offline queue:", offlineError);
+          console.error("❌ Не удалось добавить в очередь синхронизации:", offlineError);
         }
 
         throw error;

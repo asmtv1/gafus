@@ -25,14 +25,14 @@ export async function pauseStepNotification(
     });
 
     if (!notification || !notification.jobId) {
-      console.log(`No active notification found for user ${userId}, day ${day}, step ${stepIndex}`);
+      console.warn(`No active notification found for user ${userId}, day ${day}, step ${stepIndex}`);
       return; // Уведомление не найдено или уже отправлено
     }
 
     // Удаляем задачу из очереди
     try {
       await pushQueue.remove(notification.jobId.toString());
-      console.log(`Job ${notification.jobId} removed from queue`);
+      console.warn(`Job ${notification.jobId} removed from queue`);
     } catch (error) {
       console.warn("Failed to remove job from queue:", error);
     }
@@ -54,7 +54,7 @@ export async function pauseStepNotification(
       },
     });
 
-    console.log(
+    console.warn(
       `Notification paused for user ${userId}, day ${day}, step ${stepIndex}, jobId cleared, paused: true`,
     );
   } catch (error) {
@@ -87,7 +87,7 @@ export async function resetStepNotification(
     });
 
     if (!notification) {
-      console.log(`No active notification found for user ${userId}, day ${day}, step ${stepIndex}`);
+      console.warn(`No active notification found for user ${userId}, day ${day}, step ${stepIndex}`);
       return; // Уведомление не найдено
     }
 
@@ -144,14 +144,22 @@ export async function resumeStepNotification(
 
     // Вычисляем оставшееся время
     const nowTs = Math.floor(Date.now() / 1000);
-    const remainingSec = Math.max(notification.endTs - nowTs, 0);
+    // Приоритетно используем durationSec, пришедший с клиента (оставшееся время)
+    const remainingSec = Math.max(Number(durationSec) || 0, 0) || Math.max(notification.endTs - nowTs, 0);
+
+    // Обновляем endTs, чтобы серверная сторона была согласована с клиентским временем
+    const newEndTs = nowTs + remainingSec;
+    await prisma.stepNotification.update({
+      where: { id: notification.id },
+      data: { endTs: newEndTs },
+    });
 
     if (remainingSec <= 0) {
       // Время истекло, удаляем уведомление
       await prisma.stepNotification.delete({
         where: { id: notification.id },
       });
-      console.log(`Notification expired for user ${userId}, day ${day}, step ${stepIndex}`);
+      console.warn(`Notification expired for user ${userId}, day ${day}, step ${stepIndex}`);
       return;
     }
 
@@ -174,9 +182,7 @@ export async function resumeStepNotification(
       data: { jobId: job.id, paused: false },
     });
 
-    console.log(
-      `Notification resumed for user ${userId}, day ${day}, step ${stepIndex}, remaining: ${remainingSec}s, jobId: ${job.id}`,
-    );
+    console.warn(`Notification resumed for user ${userId}, day ${day}, step ${stepIndex}, remaining: ${remainingSec}s, jobId: ${job.id}`);
   } catch (error) {
     console.error("Failed to resume step notification:", error);
     throw error;

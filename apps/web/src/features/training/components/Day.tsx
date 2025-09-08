@@ -37,8 +37,9 @@ interface DayProps {
 export function Day({ training }: DayProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
-  const { stepStates } = useStepStore();
+  const { stepStates, initializeStep } = useStepStore();
   const {
     getOpenIndex,
     getRunningIndex,
@@ -55,9 +56,20 @@ export function Day({ training }: DayProps) {
   );
 
   // Определяем статус дня через store
-  const dayStatus = useMemo(() => {
-    return getDayStatus(training.courseId, training.day, stepStates);
-  }, [getDayStatus, training.courseId, training.day, stepStates]);
+  const computedStatus = useMemo(() => {
+    return getDayStatus(training.courseId, training.day, stepStates, training.steps.length);
+  }, [getDayStatus, training.courseId, training.day, stepStates, training.steps.length]);
+
+  // Состояние для статуса дня
+  const [dayStatus, setDayStatus] = useState(training.userStatus as keyof typeof DAY_STATUS_CONFIG);
+  
+  // Обновляем статус после гидратации
+  useEffect(() => {
+    if (hydrated) {
+      setDayStatus(computedStatus as keyof typeof DAY_STATUS_CONFIG);
+    }
+  }, [hydrated, computedStatus]);
+  
 
   // Логирование в error-dashboard
   const logToErrorDashboard = useCallback(
@@ -157,6 +169,23 @@ export function Day({ training }: DayProps) {
 
   // Инициализация состояния при монтировании
   useEffect(() => {
+    console.warn(`[Day] Initializing day ${training.day} with ${training.steps.length} steps`);
+    setHydrated(true);
+    // Инициализируем все шаги дня, чтобы корректно считать статус дня офлайн
+    try {
+      training.steps.forEach((step, index) => {
+        console.warn(`[Day] Initializing step ${index}: ${step.title} with status ${step.status}`);
+        initializeStep(
+          training.courseId,
+          training.day,
+          index,
+          step.durationSec,
+          step.status,
+        );
+      });
+    } catch {
+      // no-op
+    }
     const savedOpenIndex = getOpenIndex(training.courseId, training.day);
     const savedRunningIndex = getRunningIndex(training.courseId, training.day);
 
@@ -186,12 +215,13 @@ export function Day({ training }: DayProps) {
   }, [
     training.courseId,
     training.day,
-    training.steps.length,
+    training.steps,
     findRunningStepIndex,
     setStoreRunningIndex,
     getOpenIndex,
     getRunningIndex,
     checkDayCompletion,
+    initializeStep,
   ]);
 
   // Получаем конфигурацию статуса дня
@@ -202,9 +232,12 @@ export function Day({ training }: DayProps) {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-800">
           День {training.day}
-          {dayStatus === DAY_STATUS.COMPLETED && " ✅"}
+          {hydrated && dayStatus === DAY_STATUS.COMPLETED && " ✅"}
         </h2>
-        <span className={`rounded-full px-3 py-1 text-sm font-medium ${statusConfig.className}`}>
+        <span
+          className={`rounded-full px-3 py-1 text-sm font-medium ${statusConfig.className}`}
+          suppressHydrationWarning
+        >
           {statusConfig.text}
         </span>
       </div>
@@ -229,6 +262,7 @@ export function Day({ training }: DayProps) {
                 durationSec={step.durationSec}
                 stepTitle={step.title}
                 stepOrder={step.order}
+                totalSteps={training.steps.length}
                 initialStatus={step.status}
                 onRun={handleStepStart}
                 onReset={handleReset}
