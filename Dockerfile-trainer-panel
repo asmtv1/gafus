@@ -24,7 +24,7 @@ RUN pnpm --filter @gafus/auth run build
 RUN pnpm build --filter @gafus/csrf
 RUN pnpm build --filter @gafus/error-handling
 RUN pnpm build --filter @gafus/prisma
-RUN pnpm build --filter @gafus/swr
+RUN pnpm build --filter @gafus/react-query
 RUN pnpm build --filter @gafus/trainer-panel
 # ─────────────────────────────────────────────
 # Stage 1: runner — минимальный production

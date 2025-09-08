@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
     // Разрешаем workspace зависимости
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@gafus/swr": path.resolve(__dirname, "../../packages/swr/src"),
+      "@gafus/react-query": path.resolve(__dirname, "../../packages/react-query/src"),
       "@gafus/types": path.resolve(__dirname, "../../packages/types/src"),
       "@gafus/csrf": path.resolve(__dirname, "../../packages/csrf/src"),
       "@gafus/error-handling": path.resolve(__dirname, "../../packages/error-handling/src"),

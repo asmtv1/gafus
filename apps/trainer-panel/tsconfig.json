@@ -31,8 +31,8 @@
       "@gafus/types/*": ["../../packages/types/src/*"],
       "@gafus/error-handling": ["../../packages/error-handling/src/index.ts"],
       "@gafus/error-handling/*": ["../../packages/error-handling/src/*"],
-      "@gafus/swr": ["../../packages/swr/src/index.ts"],
-      "@gafus/swr/*": ["../../packages/swr/src/*"],
+      "@gafus/react-query": ["../../packages/react-query/src/index.ts"],
+      "@gafus/react-query/*": ["../../packages/react-query/src/*"],
       "@gafus/ui-components": ["../../packages/ui-components/src/index.ts"],
       "@gafus/ui-components/*": ["../../packages/ui-components/src/*"]
     },
