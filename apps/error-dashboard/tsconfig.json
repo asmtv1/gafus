@@ -28,7 +28,7 @@
       "@gafus/prisma": ["../../packages/prisma/src"],
       "@gafus/auth": ["../../packages/auth/src"],
       "@gafus/csrf": ["../../packages/csrf/src"],
-      "@gafus/swr": ["../../packages/swr/src"]
+      "@gafus/react-query": ["../../packages/react-query/src"]
     },
     "target": "ES2017"
   },
