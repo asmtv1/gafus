@@ -30,7 +30,6 @@ RUN pnpm build --filter @gafus/worker
 RUN pnpm build --filter @gafus/csrf
 RUN pnpm build --filter @gafus/error-handling
 RUN pnpm build --filter @gafus/prisma
-RUN pnpm build --filter @gafus/swr
 RUN pnpm build --filter @gafus/queues
 RUN pnpm build --filter @gafus/webpush
 RUN pnpm build --filter @gafus/web
