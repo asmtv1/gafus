@@ -46,6 +46,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Generate Prisma Client
+        run: |
+          cd packages/prisma
+          pnpm db:generate
+
       - name: Build packages
         run: pnpm build --filter=@gafus/*
 
@@ -102,9 +107,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build packages
-        run: pnpm build --filter=@gafus/*
-
       - name: Generate Prisma Client
         run: |
           cd packages/prisma
@@ -124,6 +126,9 @@ jobs:
               fi
             fi
           done
+
+      - name: Build packages
+        run: pnpm build --filter=@gafus/*
 
       - name: Build ${{ matrix.app }}
         run: |
