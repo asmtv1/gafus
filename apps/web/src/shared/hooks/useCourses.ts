@@ -6,6 +6,7 @@ import { getFavoritesCoursesCached } from "@shared/lib/actions/cachedCourses";
 import { getAuthoredCoursesCached } from "@shared/lib/actions/cachedCourses";
 
 import type { CourseWithProgressData, AuthoredCourse } from "@gafus/types";
+import { TrainingStatus } from "@gafus/types";
 
 // Тип из getFavoritesCourses
 interface CourseWithUserData {
@@ -142,10 +143,94 @@ export function useCoursesMutation() {
     mutate("user:with-trainings");
   };
 
+  // Функция для обновления прогресса курса в кэше
+  const updateCourseProgress = (courseId: string, day: number, stepIndex: number, stepStatus: TrainingStatus) => {
+    // Обновляем кэш всех курсов
+    mutate("courses:all", (oldData: CourseWithProgressData[] | undefined) => {
+      if (!oldData) return oldData;
+      
+      return oldData.map(course => {
+        if (course.id !== courseId) return course;
+        
+        // Обновляем userStatus курса на основе прогресса
+        let newUserStatus = course.userStatus;
+        
+        if (stepStatus === TrainingStatus.COMPLETED) {
+          // Если шаг завершен, проверяем, завершен ли весь курс
+          // Это упрощенная логика - в реальности нужно проверять все шаги
+          newUserStatus = TrainingStatus.COMPLETED;
+        } else if (stepStatus === TrainingStatus.IN_PROGRESS && course.userStatus === TrainingStatus.NOT_STARTED) {
+          newUserStatus = TrainingStatus.IN_PROGRESS;
+        }
+        
+        return {
+          ...course,
+          userStatus: newUserStatus,
+          // Обновляем startedAt если курс только начался
+          startedAt: course.startedAt || (stepStatus === TrainingStatus.IN_PROGRESS ? new Date() : course.startedAt),
+          // Обновляем completedAt если курс завершен
+          completedAt: newUserStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
+        };
+      });
+    });
+
+    // Обновляем кэш избранных курсов
+    mutate("courses:favorites", (oldData: CourseWithProgressData[] | undefined) => {
+      if (!oldData) return oldData;
+      
+      return oldData.map(course => {
+        if (course.id !== courseId) return course;
+        
+        let newUserStatus = course.userStatus;
+        
+        if (stepStatus === TrainingStatus.COMPLETED) {
+          newUserStatus = TrainingStatus.COMPLETED;
+        } else if (stepStatus === TrainingStatus.IN_PROGRESS && course.userStatus === TrainingStatus.NOT_STARTED) {
+          newUserStatus = TrainingStatus.IN_PROGRESS;
+        }
+        
+        return {
+          ...course,
+          userStatus: newUserStatus,
+          startedAt: course.startedAt || (stepStatus === TrainingStatus.IN_PROGRESS ? new Date() : course.startedAt),
+          completedAt: newUserStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
+        };
+      });
+    });
+
+    // Обновляем кэш созданных курсов
+    mutate("courses:authored", (oldData: CourseWithProgressData[] | undefined) => {
+      if (!oldData) return oldData;
+      
+      return oldData.map(course => {
+        if (course.id !== courseId) return course;
+        
+        let newUserStatus = course.userStatus;
+        
+        if (stepStatus === TrainingStatus.COMPLETED) {
+          newUserStatus = TrainingStatus.COMPLETED;
+        } else if (stepStatus === TrainingStatus.IN_PROGRESS && course.userStatus === TrainingStatus.NOT_STARTED) {
+          newUserStatus = TrainingStatus.IN_PROGRESS;
+        }
+        
+        return {
+          ...course,
+          userStatus: newUserStatus,
+          startedAt: course.startedAt || (stepStatus === TrainingStatus.IN_PROGRESS ? new Date() : course.startedAt),
+          completedAt: newUserStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
+        };
+      });
+    });
+
+    // Инвалидируем достижения при изменении прогресса
+    mutate("user:achievements");
+  };
+
   return {
     invalidateAllCourses,
     invalidateFavorites,
     invalidateAuthored,
     invalidateAll,
+    updateCourseProgress,
   };
 }

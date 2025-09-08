@@ -27,7 +27,11 @@ export async function assignCoursesToUser(courseId: string) {
     });
 
     // Инвалидируем кэш прогресса пользователя
-    await invalidateUserProgressCache(userId);
+    const cacheResult = await invalidateUserProgressCache(userId, false);
+    
+    if (cacheResult.skipped) {
+      console.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`);
+    }
 
     return { success: true, data: createdUserCourse };
   } catch (error) {
@@ -81,7 +85,11 @@ export async function completeUserCourse(courseId: string) {
     }
 
     // Инвалидируем кэш прогресса пользователя
-    await invalidateUserProgressCache(userId);
+    const cacheResult = await invalidateUserProgressCache(userId, false);
+    
+    if (cacheResult.skipped) {
+      console.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`);
+    }
 
     return { success: true, data: result };
   } catch (error) {

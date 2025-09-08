@@ -114,7 +114,11 @@ export async function startUserStepServerAction(
     }
 
     // Инвалидируем кэш прогресса пользователя при начале шага
-    await invalidateUserProgressCache(userId);
+    const cacheResult = await invalidateUserProgressCache(userId, false);
+    
+    if (cacheResult.skipped) {
+      console.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`);
+    }
 
     return { success: true };
   } catch (error) {

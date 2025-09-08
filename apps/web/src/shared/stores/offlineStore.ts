@@ -190,6 +190,9 @@ async function syncAction(action: OfflineAction): Promise<void> {
     case "step-resume":
       await syncStepResume(action.data as StepResumeData);
       break;
+    case "cache-invalidation":
+      await syncCacheInvalidation(action.data as { userId: string; cacheKeys: string[] });
+      break;
     default:
       throw new Error(`Unknown action type: ${action.type}`);
   }
@@ -290,6 +293,24 @@ async function syncStepResume(data: StepResumeData): Promise<void> {
     });
   } catch (error) {
     console.warn("Failed to sync step resume:", error);
+    throw error;
+  }
+}
+
+// Синхронизация инвалидации кэша
+async function syncCacheInvalidation(data: { userId: string; cacheKeys: string[] }): Promise<void> {
+  try {
+    // Импортируем функцию инвалидации кэша
+    const { invalidateUserProgressCache } = await import(
+      "@shared/lib/actions/invalidateCoursesCache"
+    );
+
+    // Принудительно инвалидируем кэш (force = true)
+    await invalidateUserProgressCache(data.userId, true);
+    
+    console.warn(`[OfflineStore] Cache invalidation synced for user ${data.userId}`);
+  } catch (error) {
+    console.warn("Failed to sync cache invalidation:", error);
     throw error;
   }
 }

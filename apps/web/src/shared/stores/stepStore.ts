@@ -165,7 +165,30 @@ export const useStepStore = create<StepStore>()(
               timeLeft: 0,
               isFinished: true,
               isPaused: false,
-              status: "COMPLETED",
+              status: "COMPLETED" as const,
+            },
+          },
+        }));
+      },
+
+      // Универсальная функция для обновления статуса шага
+      updateStepStatus: (courseId, day, stepIndex, status) => {
+        const stepKey = get().getStepKey(courseId, day, stepIndex);
+        const existingState = get().stepStates[stepKey];
+
+        if (!existingState) {
+          console.warn(`[StepStore] Step state not found for ${stepKey}`);
+          return;
+        }
+
+        set((state) => ({
+          stepStates: {
+            ...state.stepStates,
+            [stepKey]: {
+              ...existingState,
+              status: status,
+              isFinished: status === "COMPLETED",
+              isPaused: status === "PAUSED",
             },
           },
         }));

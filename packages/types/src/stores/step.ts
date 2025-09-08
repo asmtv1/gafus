@@ -30,6 +30,7 @@ export interface StepStore {
   resumeStep: (courseId: string, day: number, stepIndex: number) => void;
   finishStep: (courseId: string, day: number, stepIndex: number) => void;
   resetStep: (courseId: string, day: number, stepIndex: number, durationSec: number) => void;
+  updateStepStatus: (courseId: string, day: number, stepIndex: number, status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED") => void;
 
   // Восстановление и синхронизация
   restoreStepFromLS: (courseId: string, day: number, stepIndex: number) => StepState | null;
