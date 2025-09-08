@@ -18,7 +18,7 @@ const CACHE_CONFIG = {
     HTML_PAGES: 'gafus-html-v2',
     
     // RSC-данные (для динамических обновлений)
-    RSC_DATA: 'gafus-rsc-v2',
+    // RSC_DATA кэш отключен
     
     // Статические ресурсы
     STATIC: 'gafus-static-v2',
@@ -27,7 +27,7 @@ const CACHE_CONFIG = {
     IMAGES: 'gafus-images-v2',
     
     // Данные курсов (для синхронизации с courseStore)
-    COURSE_DATA: 'gafus-course-v2',
+    // COURSE_DATA кэш отключен
     
     // Прочие API-запросы (которые не попали в специализированные группы)
     API: 'gafus-api-v2',
@@ -36,37 +36,37 @@ const CACHE_CONFIG = {
   // ⚡ Стратегии кэширования (обновлены под текущую архитектуру)
   STRATEGIES: {
     HTML_PAGES: 'cacheFirst',    // HTML - кэш в первую очередь (критично для офлайна)
-    RSC_DATA: 'networkFirst',    // RSC - сеть в первую очередь, но кэшируем
+    // RSC_DATA: отключено
     STATIC: 'cacheFirst',        // Статика - кэш в первую очередь
     IMAGES: 'cacheFirst',        // Изображения - кэш в первую очередь
-    COURSE_DATA: 'networkFirst', // Данные курсов - сеть в первую очередь (синхронизация с courseStore)
+    // COURSE_DATA: отключено
     API: 'networkFirst',         // Прочие API - сеть в первую очередь
   },
   
   // 🎯 Приоритеты кэширования (обновлены)
   PRIORITIES: {
     CRITICAL: ['HTML_PAGES'],                    // Критично для офлайна
-    HIGH: ['RSC_DATA', 'STATIC', 'COURSE_DATA'], // Высокий приоритет
+    HIGH: ['STATIC'],                            // Высокий приоритет
     NORMAL: ['IMAGES'],                          // Обычный приоритет
   },
   
   // ⏰ TTL для разных типов ресурсов (синхронизировано с React Query + Zustand)
   TTL: {
     HTML_PAGES: 7 * 24 * 60 * 60 * 1000,  // 7 дней (остается)
-    RSC_DATA: 5 * 60 * 1000,              // 5 минут (синхронизировано с React Query)
+    // RSC_DATA: отключено
     STATIC: 7 * 24 * 60 * 60 * 1000,      // 7 дней (остается)
     IMAGES: 30 * 60 * 1000,               // 30 минут (синхронизировано с courseStore)
-    COURSE_DATA: 10 * 60 * 1000,          // 10 минут (синхронизировано с courseStore)
+    // COURSE_DATA: отключено
     API: 5 * 60 * 1000,                   // 5 минут для прочих API
   },
   
   // 📊 Лимиты кэша (обновлены)
   LIMITS: {
     HTML_PAGES: 50,    // Максимум 50 HTML-страниц
-    RSC_DATA: 200,     // Максимум 200 RSC-запросов
+    // RSC_DATA: отключено
     STATIC: 500,       // Максимум 500 статических файлов
     IMAGES: 300,       // Максимум 300 изображений
-    COURSE_DATA: 50,   // Максимум 50 запросов данных курсов
+    // COURSE_DATA: отключено
     API: 200,          // Максимум 200 прочих API-запросов
   },
   
@@ -79,21 +79,13 @@ const CACHE_CONFIG = {
       /^\/profile/,
       /^\/achievements/,
     ],
-    RSC_DATA: [
-      /_rsc=/,
-      /Accept.*text\/x-component/,
-    ],
+    // RSC_DATA: отключено
     STATIC: [
       /\.(?:js|css|woff2?|ttf|eot|mp3|mp4|webm|ogg|wav|m4a)$/,
       /\/_next\/static\//,
       /\/icons\//,
     ],
-    COURSE_DATA: [
-      /^\/api\/courses/,
-      /^\/api\/favorites/,
-      /^\/api\/authored/,
-      /^\/api\/training/,
-    ],
+    // COURSE_DATA: отключено
     IMAGES: [
       /\.(?:png|jpg|jpeg|gif|webp|svg)$/,
       /\/uploads\//,
@@ -128,28 +120,27 @@ function getResourceType(request) {
   
   // 1.5. (удалено) Специальная обработка тренинговых страниц при навигации
   
-  // 1.5. 🎯 СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ NEXT.JS RSC
-  // Кэшируем HTML-страницы при первой загрузке через RSC-запросы
-  if (method === 'GET' && !search.includes('_rsc') && !accept.includes('text/x-component')) {
-    // Это может быть запрос HTML-страницы без RSC параметров
+  // 1.6. Обработка RSC-запросов для известных страниц — считаем их HTML
+  if (method === 'GET' && accept.includes('text/x-component')) {
     for (const pattern of CACHE_CONFIG.PATTERNS.HTML_PAGES) {
       if (pattern.test(pathname)) {
-        console.log(`📄 SW: Potential HTML page request detected: ${pathname}`);
+        console.log(`📄 SW: Treating RSC GET as HTML page for offline support: ${pathname}`);
         return 'HTML_PAGES';
       }
     }
   }
   
-  // 2. 🔄 RSC-ЗАПРОСЫ (React Server Components)
-  // Это запросы Next.js для получения данных компонентов
-  const isRSC = search.includes('_rsc=') || 
-                accept.includes('text/x-component') ||
-                (method === 'POST' && accept.includes('text/x-component'));
-  
-  if (isRSC) {
-    console.log(`🔄 SW: RSC request detected - will cache as RSC data`);
-    return 'RSC_DATA';
+  // 1.7. Приоритет страниц по пути
+  if (method === 'GET') {
+    for (const pattern of CACHE_CONFIG.PATTERNS.HTML_PAGES) {
+      if (pattern.test(pathname)) {
+        console.log(`📄 SW: Page request detected by path: ${pathname}`);
+        return 'HTML_PAGES';
+      }
+    }
   }
+  
+  // 2. 🔄 (упрощено) Кэширование RSC отключено — используем кэширование Next.js/React Query
   
   // 3. 📁 СТАТИЧЕСКИЕ РЕСУРСЫ
   for (const pattern of CACHE_CONFIG.PATTERNS.STATIC) {
@@ -185,13 +176,7 @@ function getResourceType(request) {
     }
   }
   
-  // 5. 📚 ДАННЫЕ КУРСОВ (API-запросы для курсов)
-  for (const pattern of CACHE_CONFIG.PATTERNS.COURSE_DATA) {
-    if (pattern.test(pathname)) {
-      console.log(`📚 SW: Course data request detected`);
-      return 'COURSE_DATA';
-    }
-  }
+  // 5. (упрощено) Данные курсов не кэшируем на уровне SW
   
   // 6. 📄 СТРАНИЦЫ (fallback)
   for (const pattern of CACHE_CONFIG.PATTERNS.HTML_PAGES) {
@@ -213,6 +198,12 @@ function getResourceType(request) {
   // 7. ❓ НЕИЗВЕСТНЫЙ ТИП
   console.log(`❓ SW: Unknown resource type, defaulting to API`);
   return 'API';
+}
+
+function isKnownPagePath(pathname) {
+  try {
+    return CACHE_CONFIG.PATTERNS.HTML_PAGES.some((p) => p.test(pathname));
+  } catch { return false; }
 }
 
 // 🎯 ОПРЕДЕЛЕНИЕ СТРАТЕГИИ КЭШИРОВАНИЯ
@@ -244,9 +235,20 @@ async function cacheFirstStrategy(request, resourceType) {
   // (удалено) Спец. retry для HTML /trainings — используем RSC
   
   // 1. Проверяем кэш
-  const cachedResponse = await cache.match(request);
+  // Для HTML страниц ищем под специальным ключом
+  const cacheKey = resourceType === 'HTML_PAGES' ? getHTMLCacheRequest(request) : request;
+  const cachedResponse = await cache.match(cacheKey);
   if (cachedResponse) {
     console.log(`✅ SW: Cache hit for ${request.url}`);
+    // Не возвращаем RSC-потоки как HTML-страницы
+    if (resourceType === 'HTML_PAGES') {
+      const ct = cachedResponse.headers.get('Content-Type') || '';
+      if (!ct.includes('text/html')) {
+        console.log(`⚠️ SW: Cached HTML entry is not text/html (${ct}). Deleting and serving offline fallback`);
+        try { await cache.delete(cacheKey); } catch {}
+        return await getOfflineFallback(request);
+      }
+    }
     // Проверяем TTL, если просрочено — пробуем обновить из сети
     const cacheTimeHeader = cachedResponse.headers.get('sw-cache-time');
     const ttlMs = CACHE_CONFIG.TTL[resourceType];
@@ -294,6 +296,14 @@ async function cacheFirstStrategy(request, resourceType) {
     const networkResponse = await fetch(request);
     
     if (networkResponse.ok) {
+      // Если HTML страница, но пришёл RSC-поток — не возвращаем его пользователю
+      if (resourceType === 'HTML_PAGES') {
+        const ctCheck = networkResponse.headers.get('Content-Type') || '';
+        if (!ctCheck.includes('text/html')) {
+          console.log(`⚠️ SW: Network returned non-HTML for HTML_PAGES (${ctCheck}). Using HTML offline fallback.`);
+          return await getOfflineFallback(request);
+        }
+      }
       // 3. Кэшируем успешный ответ
       const resForHeaders = networkResponse.clone();
       const headers = new Headers(resForHeaders.headers);
@@ -305,17 +315,19 @@ async function cacheFirstStrategy(request, resourceType) {
         statusText: resForHeaders.statusText,
         headers,
       });
-      await cache.put(request, modifiedResponse.clone());
-      // Для HTML страниц тренировок: также кешируем под нормализованным ключом без _rsc
-      if (resourceType === 'HTML_PAGES' && request.url.includes('/trainings/')) {
-        try {
-          const normalizedRequest = getNormalizedRSCRequest(request);
-          await cache.put(normalizedRequest, modifiedResponse.clone());
-          console.log(`💾 SW: Also cached normalized HTML key: ${normalizedRequest.url}`);
-        } catch (e) {
-          console.warn('⚠️ SW: Failed to cache normalized HTML key', e);
+      // Не складываем в HTML-кэш, если это не text/html (например, text/x-component)
+      if (resourceType !== 'HTML_PAGES') {
+        await cache.put(request, modifiedResponse.clone());
+      } else {
+        const ct = resForHeaders.headers.get('Content-Type') || '';
+        if (ct.includes('text/html')) {
+          await cache.put(cacheKey, modifiedResponse.clone());
+        } else {
+          console.log(`⚠️ SW: Skipping caching for HTML_PAGES due to Content-Type: ${ct}`);
         }
       }
+
+      // Для HTML страниц: используем только специальный HTML ключ, без дополнительных нормализаций
       console.log(`💾 SW: Cached ${resourceType}: ${request.url}`);
       
       // 4. Очищаем старые записи
@@ -365,10 +377,7 @@ async function networkFirstStrategy(request, resourceType) {
   }
   
   // Специальная retry логика для RSC-запросов
-  if (resourceType === 'RSC_DATA') {
-    console.log(`🔄 SW: Using timeout strategy for RSC: ${request.url}`);
-    return await networkFirstWithTimeout(request, cache, resourceType, RSC_NETWORK_TIMEOUT_MS);
-  }
+  // (упрощено) RSC_DATA не обрабатываем в SW
   
   try {
     // 1. Пробуем сеть
@@ -428,10 +437,7 @@ async function networkFirstStrategy(request, resourceType) {
       return cachedResponse;
     }
     
-    // 5. Fallback для RSC-запросов -> корректный RSC-ответ
-    if (resourceType === 'RSC_DATA') {
-      return await getRSCFallback(request);
-    }
+    // (упрощено) RSC_DATA fallback отключен
     
     // 6. Fallback для HTML-страниц
     if (resourceType === 'HTML_PAGES') {
@@ -531,7 +537,7 @@ async function networkFirstWithTimeout(request, cache, resourceType, timeoutMs) 
   if (cachedResponse) return cachedResponse;
 
   // 3) Последний fallback — HTML офлайн-страница (поведение Next заглушки)
-  console.log(`🆘 SW: No RSC data available, using HTML offline fallback: ${request.url}`);
+  console.log(`🆘 SW: No RSC data available (RSC caching disabled), using HTML offline fallback: ${request.url}`);
   return await getOfflineFallback(request);
 }
 
@@ -777,6 +783,18 @@ function getNormalizedRSCRequest(originalRequest) {
   }
 }
 
+// Специальный ключ для HTML-кэша: помечаем URL, чтобы не пересекаться с RSC по тому же пути
+function getHTMLCacheRequest(originalRequest) {
+  try {
+    const originalUrl = new URL(originalRequest.url);
+    const keyedUrl = new URL(originalUrl.toString());
+    keyedUrl.searchParams.set('__sw_html', '1');
+    return new Request(keyedUrl.toString(), { method: 'GET' });
+  } catch {
+    return originalRequest;
+  }
+}
+
 // Install event
 self.addEventListener('install', (event) => {
   console.log('📦 SW: Install event - Setting up caches');
@@ -787,9 +805,7 @@ self.addEventListener('install', (event) => {
         // Создаем все необходимые кэши (обновлено под новую архитектуру)
         const cacheNames = [
           CACHE_CONFIG.CACHES.HTML_PAGES,
-          CACHE_CONFIG.CACHES.RSC_DATA,
           CACHE_CONFIG.CACHES.STATIC,
-          CACHE_CONFIG.CACHES.COURSE_DATA,
           CACHE_CONFIG.CACHES.IMAGES,
           CACHE_CONFIG.CACHES.API,
         ];
@@ -861,14 +877,8 @@ async function precacheHTMLPages() {
     const imagesCache = await caches.open(CACHE_CONFIG.CACHES.IMAGES);
     const pagesToCache = [
       '/',
-      '/profile?username=admin',
-      '/statistics',
-      '/achievements',
       '/courses',
-      '/trainings/beginner',
-      '/trainings/intermediate',
-      '/trainings/advanced',
-      '/favorites'
+      '/~offline',
     ];
     
     // Кэшируем favicon.ico в кэш изображений
@@ -968,9 +978,17 @@ async function precacheHTMLPages() {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+  const dest = request.headers.get('Sec-Fetch-Dest') || '';
+  const uir = request.headers.get('Upgrade-Insecure-Requests') || '';
   
   console.log(`🌐 SW: Fetch intercepted: ${request.url}, method: ${request.method}, mode: ${request.mode}`);
   
+  // Спец. обработчик навигации: всегда возвращаем HTML или офлайн HTML
+  if (request.mode === 'navigate' || dest === 'document' || uir === '1' || (request.method === 'GET' && isKnownPagePath(url.pathname))) {
+    event.respondWith(handleNavigationRequest(request));
+    return;
+  }
+
   // Пропускаем не-GET запросы (кроме API)
   if (request.method !== 'GET' && !url.pathname.startsWith('/api/')) {
     console.log(`⏭️ SW: Skipping non-GET request: ${request.url}`);
@@ -1032,9 +1050,9 @@ async function handleRequest(request, resourceType, strategy) {
       return await getOfflineFallback(request);
     }
     
-    // Fallback для RSC-запросов
+    // Fallback для RSC-запросов — отдаём HTML офлайн-страницу, чтобы не отображался сырой RSC-поток
     if (resourceType === 'RSC_DATA') {
-      return await getRSCFallback(request);
+      return await getOfflineFallback(request);
     }
     
     // Для остальных типов возвращаем ошибку
@@ -1042,6 +1060,56 @@ async function handleRequest(request, resourceType, strategy) {
       status: 503, 
       statusText: 'Service Unavailable' 
     });
+  }
+}
+
+// Специальная обработка навигации для офлайна
+async function handleNavigationRequest(request) {
+  try {
+    // Пытаемся обычный network-first
+    const response = await fetch(request);
+    const ct = response.headers.get('Content-Type') || '';
+
+    // Если пришёл корректный HTML — кэшируем под специальным ключом и возвращаем сеть
+    if (ct.includes('text/html')) {
+      try {
+        const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
+        const resForHeaders = response.clone();
+        const headers = new Headers(resForHeaders.headers);
+        headers.set('sw-cache-time', Date.now().toString());
+        headers.set('sw-cache-type', 'HTML_PAGES');
+        const bodyBuffer = await resForHeaders.arrayBuffer();
+        const cachedResponse = new Response(bodyBuffer, {
+          status: resForHeaders.status,
+          statusText: resForHeaders.statusText,
+          headers,
+        });
+        const htmlKey = getHTMLCacheRequest(request);
+        await htmlCache.put(htmlKey, cachedResponse);
+        console.log(`💾 SW: Cached navigation HTML under special key: ${htmlKey.url}`);
+      } catch (e) {
+        console.warn('⚠️ SW: Failed to cache navigation HTML', e);
+      }
+      return response;
+    }
+
+    // Если пришёл RSC-поток или иной тип — не показываем его пользователю, отдаём HTML fallback
+    console.log(`⚠️ SW: Navigation returned non-HTML (${ct}), serving HTML fallback: ${request.url}`);
+    return await getOfflineFallback(request);
+  } catch (e) {
+    // Если офлайн — отдаём HTML офлайн-страницу
+    console.log(`🧭 SW: Navigation offline, serving HTML fallback: ${request.url}`);
+    // Пробуем найти ранее закэшированный HTML под спец. ключом
+    try {
+      const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
+      const htmlKey = getHTMLCacheRequest(request);
+      const hit = await htmlCache.match(htmlKey);
+      if (hit) {
+        console.log(`✅ SW: Serving cached navigation HTML: ${htmlKey.url}`);
+        return hit;
+      }
+    } catch {}
+    return await getOfflineFallback(request);
   }
 }
 
@@ -1213,9 +1281,7 @@ async function handleCacheStatusRequest(event) {
   try {
     const cacheNames = [
       CACHE_CONFIG.CACHES.HTML_PAGES,
-      CACHE_CONFIG.CACHES.RSC_DATA,
       CACHE_CONFIG.CACHES.STATIC,
-      CACHE_CONFIG.CACHES.COURSE_DATA,
       CACHE_CONFIG.CACHES.IMAGES,
       CACHE_CONFIG.CACHES.API,
     ];
