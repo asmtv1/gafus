@@ -4,6 +4,8 @@ import { memo, useCallback } from "react";
 import Link from "next/link";
 
 import { useCachedTrainingDays } from "@shared/hooks/useCachedTrainingDays";
+import { useStepStore } from "@shared/stores/stepStore";
+import { calculateDayStatus } from "@shared/utils/trainingCalculations";
 import styles from "./TrainingDayList.module.css";
 
 interface TrainingDayListProps {
@@ -34,11 +36,20 @@ const TrainingDayList = memo(function TrainingDayList({
     initialError
   });
 
+  // Локальные статусы шагов (офлайн-истина)
+  const { stepStates } = useStepStore();
+
   const getItemClass = useCallback((status: string) => {
     if (status === "IN_PROGRESS") return `${styles.item} ${styles.inprogress}`;
     if (status === "COMPLETED") return `${styles.item} ${styles.completed}`;
     return styles.item;
   }, []);
+
+  const rank = (s?: string) => {
+    if (s === "COMPLETED") return 2;
+    if (s === "IN_PROGRESS" || s === "PAUSED") return 1;
+    return 0; // NOT_STARTED или неизвестно
+  };
 
   // Используем initialData если есть, иначе данные из хука
   const displayData = initialData || data;
@@ -78,7 +89,18 @@ const TrainingDayList = memo(function TrainingDayList({
   return (
     <ul className={styles.list}>
       {displayData.trainingDays.map((day) => (
-        <li key={`${day.courseId}-${day.day}`} className={getItemClass(day.userStatus)}>
+        <li
+          key={`${day.courseId}-${day.day}`}
+          className={(() => {
+            // Вычисляем локальный статус дня из stepStore
+            const localStatus = calculateDayStatus(day.courseId, day.day, stepStates);
+            // Не понижаем статус: берем максимум между серверным и локальным
+            const finalStatus = rank(localStatus) > rank(day.userStatus)
+              ? localStatus
+              : day.userStatus;
+            return getItemClass(finalStatus);
+          })()}
+        >
           <Link
             href={`/trainings/${courseType}/${day.day}`}
             className={styles.link}

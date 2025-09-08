@@ -84,5 +84,6 @@ export interface OfflineState {
   addToSyncQueue: (action: Omit<OfflineAction, "id" | "timestamp" | "retryCount">) => void;
   removeFromSyncQueue: (id: string) => void;
   clearSyncQueue: () => void;
+  cleanupOldActions: () => void;
   syncOfflineActions: () => Promise<void>;
 }

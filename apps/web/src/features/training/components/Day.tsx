@@ -60,15 +60,8 @@ export function Day({ training }: DayProps) {
     return getDayStatus(training.courseId, training.day, stepStates, training.steps.length);
   }, [getDayStatus, training.courseId, training.day, stepStates, training.steps.length]);
 
-  // Состояние для статуса дня
-  const [dayStatus, setDayStatus] = useState(training.userStatus as keyof typeof DAY_STATUS_CONFIG);
-  
-  // Обновляем статус после гидратации
-  useEffect(() => {
-    if (hydrated) {
-      setDayStatus(computedStatus as keyof typeof DAY_STATUS_CONFIG);
-    }
-  }, [hydrated, computedStatus]);
+  // Текущий статус дня всегда вычисляем из локальных шагов (офлайн корректен)
+  const dayStatus = computedStatus as keyof typeof DAY_STATUS_CONFIG;
   
 
   // Логирование в error-dashboard

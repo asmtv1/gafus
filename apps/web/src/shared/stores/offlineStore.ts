@@ -98,11 +98,27 @@ export const useOfflineStore = create<OfflineState>()(
         set({ syncQueue: [] });
       },
 
+      // Очистка старых действий из очереди
+      cleanupOldActions: () => {
+        const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 дней
+        const now = Date.now();
+        
+        set((state) => ({
+          syncQueue: state.syncQueue.filter((action) => {
+            const age = now - action.timestamp;
+            return age < maxAge;
+          }),
+        }));
+      },
+
       // Синхронизация offline действий
       syncOfflineActions: async () => {
         try {
           const state = get();
           const now = Date.now();
+
+          // Сначала очищаем старые действия
+          get().cleanupOldActions();
 
           // Проверяем, что мы онлайн и есть действия для синхронизации
           if (!state.isOnline || state.syncQueue.length === 0) {
@@ -399,4 +415,7 @@ export function initializeOfflineStore() {
   if (initialState.isOnline !== isOnline) {
     useOfflineStore.getState().setOnlineStatus(isOnline);
   }
+
+  // Очищаем старые действия при инициализации
+  useOfflineStore.getState().cleanupOldActions();
 }
