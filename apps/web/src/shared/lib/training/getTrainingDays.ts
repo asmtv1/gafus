@@ -3,6 +3,8 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 
+import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
+
 import type { TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
@@ -41,11 +43,25 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
               select: {
                 title: true,
                 type: true,
+                stepLinks: {
+                  select: {
+                    id: true,
+                    order: true,
+                  },
+                },
               },
             },
             userTrainings: {
               where: { userId: currentUserId },
-              select: { status: true },
+              select: { 
+                status: true, 
+                steps: { 
+                  select: { 
+                    stepOnDayId: true,
+                    status: true 
+                  } 
+                } 
+              },
             },
           },
         },
@@ -61,14 +77,42 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
       };
     }
 
-    const trainingDays = firstCourse.dayLinks.map((link: { id: string; order: number; day: { title: string; type: string }; userTrainings: { status: string }[] }) => ({
-      trainingDayId: link.id,
-      day: link.order,
-      title: link.day.title,
-      type: link.day.type,
-      courseId: firstCourse.id,
-      userStatus: (link.userTrainings[0]?.status as TrainingStatus) ?? TrainingStatus.NOT_STARTED,
-    }));
+    const trainingDays = firstCourse.dayLinks.map(
+      (link: {
+        id: string;
+        order: number;
+        day: { 
+          title: string; 
+          type: string;
+          stepLinks: { id: string; order: number }[];
+        };
+        userTrainings: { 
+          status: string; 
+          steps: { stepOnDayId: string; status: string }[] 
+        }[];
+      }) => {
+        const ut = link.userTrainings[0];
+        
+        // Создаем массив статусов для ВСЕХ шагов дня, заполняя недостающие как NOT_STARTED
+        const allStepStatuses: string[] = [];
+        for (const stepLink of link.day.stepLinks) {
+          const userStep = ut?.steps?.find((s: { stepOnDayId: string }) => s.stepOnDayId === stepLink.id);
+          allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
+        }
+        
+        const computed = calculateDayStatusFromStatuses(allStepStatuses);
+        const userStatus = ut ? computed : TrainingStatus.NOT_STARTED;
+
+        return {
+          trainingDayId: link.id,
+          day: link.order,
+          title: link.day.title,
+          type: link.day.type,
+          courseId: firstCourse.id,
+          userStatus,
+        };
+      },
+    );
 
     return {
       trainingDays,

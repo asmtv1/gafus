@@ -8,6 +8,7 @@ import { checkAndCompleteCourse } from "../user/userCourses";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
+import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
 
 // Вспомогательные функции для работы с транзакциями
 async function findOrCreateUserTrainingWithTx(
@@ -58,17 +59,28 @@ async function updateUserTrainingStatusWithTx(
   userTrainingId: string,
   trainingDayStepsCount: number,
   courseId: string,
+  stepOnDayIds: string[],
 ) {
   const userSteps = await tx.userStep.findMany({
     where: { userTrainingId },
     orderBy: { id: "asc" },
   });
 
-  // Проверяем, что у пользователя есть записи для всех шагов дня
-  // и все они завершены
-  const allCompleted =
-    userSteps.length === trainingDayStepsCount &&
-    userSteps.every((step: { status: string }) => step.status === "COMPLETED");
+  // Создаем массив статусов для всех шагов дня, заполняя недостающие как NOT_STARTED
+  const allStepStatuses: string[] = [];
+  for (let i = 0; i < trainingDayStepsCount; i++) {
+    const userStep = userSteps.find((s: { stepOnDayId: string }) => {
+      // Находим шаг по индексу в дне
+      return s.stepOnDayId === stepOnDayIds[i];
+    });
+    allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
+  }
+  
+  const correctedDayStatus = calculateDayStatusFromStatuses(allStepStatuses);
+  const allCompleted = correctedDayStatus === TrainingStatus.COMPLETED;
+  
+  
+  
 
   // Индекс текущего шага вычисляем по порядку в дне (0..n-1)
   const firstNotCompletedIndex = userSteps.findIndex(
@@ -151,11 +163,13 @@ export async function updateUserStepStatus(
         await findOrCreateUserStepWithTx(tx, userTraining.id, stepLink.id, status);
 
         // 5. Обновляем статус дня
+        const stepOnDayIds = trainingDay.stepLinks.map((link: { id: string }) => link.id);
         const { allCompleted } = await updateUserTrainingStatusWithTx(
           tx,
           userTraining.id,
           trainingDay.stepLinks.length,
           dayOnCourse.id,
+          stepOnDayIds,
         );
 
         return {

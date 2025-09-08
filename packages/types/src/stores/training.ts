@@ -12,13 +12,13 @@ export interface TrainingState {
   // Кэширование дней тренировок
   cachedTrainingDays: Record<string, {
     data: {
-      trainingDays: Array<{
+      trainingDays: {
         day: number;
         title: string;
         type: string;
         courseId: string;
         userStatus: string;
-      }>;
+      }[];
       courseDescription: string | null;
       courseId: string | null;
       courseVideoUrl: string | null;
@@ -39,13 +39,13 @@ export interface TrainingState {
   // Кэширование дней тренировок
   getCachedTrainingDays: (courseType: string) => {
     data: {
-      trainingDays: Array<{
+      trainingDays: {
         day: number;
         title: string;
         type: string;
         courseId: string;
         userStatus: string;
-      }>;
+      }[];
       courseDescription: string | null;
       courseId: string | null;
       courseVideoUrl: string | null;
@@ -53,13 +53,13 @@ export interface TrainingState {
     isExpired: boolean;
   };
   setCachedTrainingDays: (courseType: string, data: {
-    trainingDays: Array<{
+    trainingDays: {
       day: number;
       title: string;
       type: string;
       courseId: string;
       userStatus: string;
-    }>;
+    }[];
     courseDescription: string | null;
     courseId: string | null;
     courseVideoUrl: string | null;
@@ -71,6 +71,7 @@ export interface TrainingState {
     courseId: string,
     day: number,
     stepStates: Record<string, { status: string }>,
+    totalSteps: number,
   ) => DayStatus;
 
   // Действия для дня

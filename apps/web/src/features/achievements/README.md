@@ -113,7 +113,7 @@ const { stats, error, isLoading } = useAchievementsStats();
 ```typescript
 // useCourses.ts
 const invalidateAllCourses = () => {
-  mutate("courses:all", undefined);
+  // courses:all больше не используется - данные в courseStore
   mutate("user:achievements", undefined); // ← Автоматическая инвалидация
 };
 ```
@@ -131,7 +131,7 @@ const invalidateUserData = () => {
 ```typescript
 // useRefreshData.ts
 const { refreshData } = useRefreshData("achievements");
-// Обновляет: user:achievements, user:profile, user:with-trainings, courses:all
+// Обновляет: user:achievements, user:profile, user:with-trainings (courses теперь в courseStore)
 ```
 
 ## 🎨 Компоненты UI

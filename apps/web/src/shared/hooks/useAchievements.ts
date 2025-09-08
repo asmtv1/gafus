@@ -93,7 +93,7 @@ export function useAchievementsMutation() {
     mutate("user:achievements");
     mutate("user:profile");
     mutate("user:with-trainings");
-    mutate("courses:all");
+    // courses:all больше не используется - данные в courseStore
   };
   
   return {

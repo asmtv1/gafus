@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import CourseDescriptionWithVideo from "./CourseDescriptionWithVideo";
 import TrainingDayList from "./TrainingDayList";
 import { OfflineTimerTest } from "./OfflineTimerTest";
+import { CacheTester } from "@shared/components/ui/CacheTester";
 
 interface TrainingPageClientProps {
   courseType: string;
@@ -50,14 +51,19 @@ export default function TrainingPageClient({
 
   return (
     <>
-      {/* Тестовый компонент для офлайн таймера - только в development */}
-      {process.env.NODE_ENV === "development" && initialData?.courseId && (
-        <OfflineTimerTest
-          courseId={initialData.courseId}
-          day={1}
-          stepIndex={0}
-          durationSec={60} // 1 минута для тестирования
-        />
+      {/* Тестовые компоненты - только в development */}
+      {process.env.NODE_ENV === "development" && (
+        <>
+          <CacheTester />
+          {initialData?.courseId && (
+            <OfflineTimerTest
+              courseId={initialData.courseId}
+              day={1}
+              stepIndex={0}
+              durationSec={60} // 1 минута для тестирования
+            />
+          )}
+        </>
       )}
       
       <div className="courseDescription">

@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import styles from "./page.module.css";
 import CoursesClient from "./CoursesClient";
+import CacheDebugger from "@shared/components/ui/CacheDebugger";
 
 export const revalidate = 60;
 
@@ -50,6 +51,7 @@ export default async function CoursesPage() {
         initialError={error}
         userId={userId}
       />
+      <CacheDebugger />
     </main>
   );
 }

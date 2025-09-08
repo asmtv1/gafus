@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 import { useQueryClient } from "@gafus/react-query";
+import { useCourseStoreActions } from "@shared/stores/courseStore";
+import { isOnline } from "@shared/utils/offlineCacheUtils";
 
 // Типы для разных страниц
 export type RefreshPageType = "home" | "courses" | "trainings" | "profile" | "achievements";
@@ -30,6 +32,7 @@ const refreshConfigs = {
 
 export function useRefreshData(pageType: RefreshPageType) {
   const queryClient = useQueryClient();
+  const { fetchAllCourses, fetchFavorites, fetchAuthored } = useCourseStoreActions();
 
   const refreshData = useCallback(async () => {
     const config = refreshConfigs[pageType];
@@ -40,16 +43,39 @@ export function useRefreshData(pageType: RefreshPageType) {
 
     console.warn(`🔄 ${config.message}`);
 
+    // Если офлайн — не дергаем сеть, аккуратно выходим
+    if (!isOnline()) {
+      return {
+        success: true,
+        skipped: true,
+        message: `Офлайн: пропущено обновление ${pageType}`,
+        updatedKeys: [],
+      } as const;
+    }
+
     try {
       // Определяем ключи запросов для обновления
       const queryKeys = getQueryKeysForPageType(pageType);
       
-      // Инвалидируем все связанные запросы
-      const updatePromises = queryKeys.map((key: string) =>
+      // Обновляем courseStore для курсов в зависимости от типа страницы
+      const courseUpdatePromises: Promise<unknown>[] = [];
+      
+      if (pageType === "home" || pageType === "courses") {
+        courseUpdatePromises.push(fetchAllCourses());
+      }
+      if (pageType === "courses") {
+        courseUpdatePromises.push(fetchFavorites());
+        courseUpdatePromises.push(fetchAuthored());
+      }
+
+      // Инвалидируем React Query кэши для пользовательских данных
+      const userQueryKeys = queryKeys.filter(key => key.startsWith("user:"));
+      const userUpdatePromises = userQueryKeys.map((key: string) =>
         queryClient.invalidateQueries({ queryKey: [key] }),
       );
 
-      await Promise.all(updatePromises);
+      // Выполняем все обновления параллельно
+      await Promise.all([...courseUpdatePromises, ...userUpdatePromises]);
 
       console.warn(`✅ ${pageType} обновлен успешно`);
 
@@ -63,7 +89,7 @@ export function useRefreshData(pageType: RefreshPageType) {
       console.error(`❌ Ошибка обновления ${pageType}:`, error);
       throw error;
     }
-  }, [pageType, queryClient]);
+  }, [pageType, queryClient, fetchAllCourses, fetchFavorites, fetchAuthored]);
 
   return {
     refreshData,
@@ -78,16 +104,12 @@ function getQueryKeysForPageType(pageType: RefreshPageType): string[] {
   switch (pageType) {
     case "home":
       return [
-        "courses:all",
         "user:profile", 
         "user:with-trainings",
         "user:achievements"
       ];
     case "courses":
       return [
-        "courses:all",
-        "courses:favorites",
-        "courses:authored",
         "user:achievements"
       ];
     case "trainings":
@@ -107,8 +129,7 @@ function getQueryKeysForPageType(pageType: RefreshPageType): string[] {
       return [
         "user:achievements",
         "user:profile",
-        "user:with-trainings",
-        "courses:all"
+        "user:with-trainings"
       ];
     default:
       return [];

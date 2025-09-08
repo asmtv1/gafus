@@ -2,6 +2,7 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
+import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
 
 export interface UserDayProgress {
   dayOrder: number;
@@ -264,10 +265,18 @@ export async function getUserProgress(
         // - NOT_STARTED: день не начат
         // - IN_PROGRESS: день начат, но не завершен
         // - COMPLETED: день завершен
-        const dayStatus =
-          userTraining && userTraining.status
-            ? (userTraining.status as TrainingStatus)
-            : TrainingStatus.NOT_STARTED;
+        const dayStatus = (() => {
+          if (!userTraining) return TrainingStatus.NOT_STARTED;
+          
+          // Создаем массив статусов для ВСЕХ шагов дня, заполняя недостающие как NOT_STARTED
+          const allStepStatuses: string[] = [];
+          for (const stepLink of dayLink.day.stepLinks) {
+            const userStep = (userTraining.steps || []).find((s: { stepOnDayId: string }) => s.stepOnDayId === stepLink.id);
+            allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
+          }
+          
+          return calculateDayStatusFromStatuses(allStepStatuses);
+        })();
 
         // Собираем прогресс по шагам дня
         const stepsProgress = dayLink.day.stepLinks.map(

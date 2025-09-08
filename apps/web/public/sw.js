@@ -3,67 +3,79 @@
 
 console.log('🚀 SW: Starting Gafus Service Worker for Push Notifications & Offline Caching');
 
-// 🎯 ГИБРИДНАЯ СТРАТЕГИЯ КЭШИРОВАНИЯ ДЛЯ NEXT.JS RSC
-// Решает проблему офлайн-доступа к страницам в Next.js с React Server Components
+// 🎯 ОБНОВЛЕННАЯ СТРАТЕГИЯ КЭШИРОВАНИЯ (v2)
+// Синхронизирована с текущей архитектурой: React Query + Zustand + Next.js cache
+// - HTML страницы: кэшируются для офлайн режима
+// - RSC данные: кэшируются с синхронизацией TTL (5 минут)
+// - Статические ресурсы: кэшируются для быстрой загрузки
+// - Данные курсов: кэшируются с синхронизацией courseStore (10 минут)
+// - Изображения: кэшируются с синхронизацией courseStore (30 минут)
 
 const CACHE_CONFIG = {
-  // 🏗️ Архитектура кэшей
+  // 🏗️ Архитектура кэшей (синхронизирована с текущей схемой)
   CACHES: {
     // Полные HTML-страницы (для офлайн-навигации)
-    HTML_PAGES: 'gafus-html-v1',
+    HTML_PAGES: 'gafus-html-v2',
     
     // RSC-данные (для динамических обновлений)
-    RSC_DATA: 'gafus-rsc-v1',
+    RSC_DATA: 'gafus-rsc-v2',
     
     // Статические ресурсы
-    STATIC: 'gafus-static-v1',
+    STATIC: 'gafus-static-v2',
     
-    // API-ответы
-    API: 'gafus-api-v1',
+    // Изображения (синхронизировано с courseStore: 30 минут)
+    IMAGES: 'gafus-images-v2',
     
-    // Изображения
-    IMAGES: 'gafus-images-v1',
+    // Данные курсов (для синхронизации с courseStore)
+    COURSE_DATA: 'gafus-course-v2',
+    
+    // Прочие API-запросы (которые не попали в специализированные группы)
+    API: 'gafus-api-v2',
   },
   
-  // ⚡ Стратегии кэширования
+  // ⚡ Стратегии кэширования (обновлены под текущую архитектуру)
   STRATEGIES: {
     HTML_PAGES: 'cacheFirst',    // HTML - кэш в первую очередь (критично для офлайна)
     RSC_DATA: 'networkFirst',    // RSC - сеть в первую очередь, но кэшируем
     STATIC: 'cacheFirst',        // Статика - кэш в первую очередь
-    API: 'networkFirst',         // API - сеть в первую очередь
     IMAGES: 'cacheFirst',        // Изображения - кэш в первую очередь
+    COURSE_DATA: 'networkFirst', // Данные курсов - сеть в первую очередь (синхронизация с courseStore)
+    API: 'networkFirst',         // Прочие API - сеть в первую очередь
   },
   
-  // 🎯 Приоритеты кэширования
+  // 🎯 Приоритеты кэширования (обновлены)
   PRIORITIES: {
-    CRITICAL: ['HTML_PAGES'],           // Критично для офлайна
-    HIGH: ['RSC_DATA', 'STATIC'],       // Высокий приоритет
-    NORMAL: ['API', 'IMAGES'],          // Обычный приоритет
+    CRITICAL: ['HTML_PAGES'],                    // Критично для офлайна
+    HIGH: ['RSC_DATA', 'STATIC', 'COURSE_DATA'], // Высокий приоритет
+    NORMAL: ['IMAGES'],                          // Обычный приоритет
   },
   
-  // ⏰ TTL для разных типов ресурсов
+  // ⏰ TTL для разных типов ресурсов (синхронизировано с React Query + Zustand)
   TTL: {
-    HTML_PAGES: 7 * 24 * 60 * 60 * 1000,  // 7 дней
-    RSC_DATA: 2 * 60 * 60 * 1000,         // 2 часа
-    STATIC: 7 * 24 * 60 * 60 * 1000,      // 7 дней
-    API: 2 * 60 * 60 * 1000,              // 2 часа
-    IMAGES: 30 * 24 * 60 * 60 * 1000,     // 30 дней
+    HTML_PAGES: 7 * 24 * 60 * 60 * 1000,  // 7 дней (остается)
+    RSC_DATA: 5 * 60 * 1000,              // 5 минут (синхронизировано с React Query)
+    STATIC: 7 * 24 * 60 * 60 * 1000,      // 7 дней (остается)
+    IMAGES: 30 * 60 * 1000,               // 30 минут (синхронизировано с courseStore)
+    COURSE_DATA: 10 * 60 * 1000,          // 10 минут (синхронизировано с courseStore)
+    API: 5 * 60 * 1000,                   // 5 минут для прочих API
   },
   
-  // 📊 Лимиты кэша
+  // 📊 Лимиты кэша (обновлены)
   LIMITS: {
     HTML_PAGES: 50,    // Максимум 50 HTML-страниц
     RSC_DATA: 200,     // Максимум 200 RSC-запросов
     STATIC: 500,       // Максимум 500 статических файлов
-    API: 100,          // Максимум 100 API-ответов
     IMAGES: 300,       // Максимум 300 изображений
+    COURSE_DATA: 50,   // Максимум 50 запросов данных курсов
+    API: 200,          // Максимум 200 прочих API-запросов
   },
   
-  // 🔍 Паттерны для определения типов ресурсов
+  // 🔍 Паттерны для определения типов ресурсов (обновлены)
   PATTERNS: {
     HTML_PAGES: [
       /^\/$/,
       /^\/courses/,
+      /^\/trainings/,
       /^\/profile/,
       /^\/achievements/,
     ],
@@ -76,8 +88,11 @@ const CACHE_CONFIG = {
       /\/_next\/static\//,
       /\/icons\//,
     ],
-    API: [
-      /^\/api\//,
+    COURSE_DATA: [
+      /^\/api\/courses/,
+      /^\/api\/favorites/,
+      /^\/api\/authored/,
+      /^\/api\/training/,
     ],
     IMAGES: [
       /\.(?:png|jpg|jpeg|gif|webp|svg)$/,
@@ -170,11 +185,11 @@ function getResourceType(request) {
     }
   }
   
-  // 5. 🔌 API-ЗАПРОСЫ
-  for (const pattern of CACHE_CONFIG.PATTERNS.API) {
+  // 5. 📚 ДАННЫЕ КУРСОВ (API-запросы для курсов)
+  for (const pattern of CACHE_CONFIG.PATTERNS.COURSE_DATA) {
     if (pattern.test(pathname)) {
-      console.log(`🔌 SW: API request detected`);
-      return 'API';
+      console.log(`📚 SW: Course data request detected`);
+      return 'COURSE_DATA';
     }
   }
   
@@ -188,7 +203,7 @@ function getResourceType(request) {
   
   // 6.5. 🎯 ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ДЛЯ СТРАНИЦ
   // Если это GET-запрос к корню или известным страницам, считаем это HTML-страницей
-  if (method === 'GET' && (pathname === '/' || pathname.startsWith('/profile') || pathname.startsWith('/statistics') || pathname.startsWith('/achievements') || pathname.startsWith('/courses') || pathname.startsWith('/favorites'))) {
+  if (method === 'GET' && (pathname === '/' || pathname.startsWith('/profile') || pathname.startsWith('/statistics') || pathname.startsWith('/achievements') || pathname.startsWith('/courses') || pathname.startsWith('/trainings') || pathname.startsWith('/favorites'))) {
     console.log(`📄 SW: Page request detected by path: ${pathname}`);
     return 'HTML_PAGES';
   }
@@ -220,12 +235,56 @@ async function cacheFirstStrategy(request, resourceType) {
   
   console.log(`🎯 SW: Cache First strategy for ${resourceType}: ${request.url}`);
   
+  // Не кэшируем POST, PUT, DELETE и другие не-GET запросы
+  if (request.method !== 'GET') {
+    console.log(`🚫 SW: Skipping cache for non-GET request in cacheFirst: ${request.method} ${request.url}`);
+    return await fetch(request);
+  }
+  
   // (удалено) Спец. retry для HTML /trainings — используем RSC
   
   // 1. Проверяем кэш
   const cachedResponse = await cache.match(request);
   if (cachedResponse) {
     console.log(`✅ SW: Cache hit for ${request.url}`);
+    // Проверяем TTL, если просрочено — пробуем обновить из сети
+    const cacheTimeHeader = cachedResponse.headers.get('sw-cache-time');
+    const ttlMs = CACHE_CONFIG.TTL[resourceType];
+    if (cacheTimeHeader && Number.isFinite(ttlMs)) {
+      const age = Date.now() - parseInt(cacheTimeHeader);
+      if (age >= ttlMs) {
+        console.log(`⏳ SW: Cached entry is stale, attempting revalidate: ${request.url}`);
+        try {
+          const networkResponse = await fetch(request);
+          if (networkResponse.ok) {
+            const resForHeaders = networkResponse.clone();
+            const headers = new Headers(resForHeaders.headers);
+            headers.set('sw-cache-time', Date.now().toString());
+            headers.set('sw-cache-type', resourceType);
+            const bodyBuffer = await resForHeaders.arrayBuffer();
+            const updatedResponse = new Response(bodyBuffer, {
+              status: resForHeaders.status,
+              statusText: resForHeaders.statusText,
+              headers,
+            });
+            await cache.put(request, updatedResponse.clone());
+            if (resourceType === 'HTML_PAGES' && request.url.includes('/trainings/')) {
+              try {
+                const normalizedRequest = getNormalizedRSCRequest(request);
+                await cache.put(normalizedRequest, updatedResponse.clone());
+                console.log(`💾 SW: Also cached normalized HTML key: ${normalizedRequest.url}`);
+              } catch (e) {
+                console.warn('⚠️ SW: Failed to cache normalized HTML key', e);
+              }
+            }
+            await cleanupCache(cacheName, resourceType);
+            return networkResponse;
+          }
+        } catch (e) {
+          console.warn('⚠️ SW: Revalidate failed, serving stale cache', e);
+        }
+      }
+    }
     return cachedResponse;
   }
   
@@ -236,18 +295,17 @@ async function cacheFirstStrategy(request, resourceType) {
     
     if (networkResponse.ok) {
       // 3. Кэшируем успешный ответ
-      const responseToCache = networkResponse.clone();
-      const headers = new Headers(responseToCache.headers);
+      const resForHeaders = networkResponse.clone();
+      const headers = new Headers(resForHeaders.headers);
       headers.set('sw-cache-time', Date.now().toString());
       headers.set('sw-cache-type', resourceType);
-      
-      const modifiedResponse = new Response(responseToCache.body, {
-        status: responseToCache.status,
-        statusText: responseToCache.statusText,
-        headers: headers,
+      const bodyBuffer = await resForHeaders.arrayBuffer();
+      const modifiedResponse = new Response(bodyBuffer, {
+        status: resForHeaders.status,
+        statusText: resForHeaders.statusText,
+        headers,
       });
-      
-      await cache.put(request, modifiedResponse);
+      await cache.put(request, modifiedResponse.clone());
       // Для HTML страниц тренировок: также кешируем под нормализованным ключом без _rsc
       if (resourceType === 'HTML_PAGES' && request.url.includes('/trainings/')) {
         try {
@@ -300,6 +358,12 @@ async function networkFirstStrategy(request, resourceType) {
   
   console.log(`🌐 SW: Network First strategy for ${resourceType}: ${request.url}`);
   
+  // Не кэшируем POST, PUT, DELETE и другие не-GET запросы
+  if (request.method !== 'GET') {
+    console.log(`🚫 SW: Skipping cache for non-GET request: ${request.method} ${request.url}`);
+    return await fetch(request);
+  }
+  
   // Специальная retry логика для RSC-запросов
   if (resourceType === 'RSC_DATA') {
     console.log(`🔄 SW: Using timeout strategy for RSC: ${request.url}`);
@@ -311,36 +375,31 @@ async function networkFirstStrategy(request, resourceType) {
     const networkResponse = await fetch(request);
     
     if (networkResponse.ok) {
-      // 2. Кэшируем успешный ответ
-      const responseToCache = networkResponse.clone();
-      const headers = new Headers(responseToCache.headers);
+      // 2. Кэшируем успешный ответ, корректно дублируя тело
+      const resForHeaders = networkResponse.clone();
+      const headers = new Headers(resForHeaders.headers);
       headers.set('sw-cache-time', Date.now().toString());
       headers.set('sw-cache-type', resourceType);
-      
-      const modifiedResponse = new Response(responseToCache.body, {
-        status: responseToCache.status,
-        statusText: responseToCache.statusText,
-        headers: headers,
+
+      const bodyBuffer = await resForHeaders.arrayBuffer();
+      const modifiedResponse = new Response(bodyBuffer, {
+        status: resForHeaders.status,
+        statusText: resForHeaders.statusText,
+        headers,
       });
-      
+
       // Кладем под оригинальным ключом
-      await cache.put(request, modifiedResponse);
+      await cache.put(request, modifiedResponse.clone());
       // И под нормализованным ключом без _rsc (чтобы офлайн работал с первого раза)
       try {
         const normalizedRequest = getNormalizedRSCRequest(request);
-        // Клонируем response до его использования
-        const normalizedResponse = new Response(responseToCache.body, {
-          status: responseToCache.status,
-          statusText: responseToCache.statusText,
-          headers: headers,
-        });
-        await cache.put(normalizedRequest, normalizedResponse);
+        await cache.put(normalizedRequest, modifiedResponse.clone());
         console.log(`💾 SW: Also cached normalized RSC key: ${normalizedRequest.url}`);
       } catch (e) {
         console.warn('⚠️ SW: Failed to cache normalized RSC key', e);
       }
       console.log(`💾 SW: Cached ${resourceType}: ${request.url}`);
-      
+
       // 3. Очищаем старые записи
       await cleanupCache(cacheName, resourceType);
     }
@@ -385,6 +444,12 @@ async function networkFirstStrategy(request, resourceType) {
 
 // 🔄 Network-first with timeout для RSC-запросов
 async function networkFirstWithTimeout(request, cache, resourceType, timeoutMs) {
+  // Не кэшируем POST, PUT, DELETE и другие не-GET запросы
+  if (request.method !== 'GET') {
+    console.log(`🚫 SW: Skipping cache for non-GET request in timeout strategy: ${request.method} ${request.url}`);
+    return await fetch(request);
+  }
+
   function fetchWithTimeout(req, ms) {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('timeout')), ms);
@@ -402,27 +467,22 @@ async function networkFirstWithTimeout(request, cache, resourceType, timeoutMs) 
   try {
     const networkResponse = await fetchWithTimeout(request, timeoutMs);
     if (networkResponse.ok) {
-      const responseToCache = networkResponse.clone();
-      const headers = new Headers(responseToCache.headers);
+      const resForHeaders = networkResponse.clone();
+      const headers = new Headers(resForHeaders.headers);
       headers.set('sw-cache-time', Date.now().toString());
       headers.set('sw-cache-type', resourceType);
-      const modifiedResponse = new Response(responseToCache.body, {
-        status: responseToCache.status,
-        statusText: responseToCache.statusText,
-        headers: headers,
+      const bodyBuffer = await resForHeaders.arrayBuffer();
+      const modifiedResponse = new Response(bodyBuffer, {
+        status: resForHeaders.status,
+        statusText: resForHeaders.statusText,
+        headers,
       });
       // Под оригинальным ключом
-      await cache.put(request, modifiedResponse);
+      await cache.put(request, modifiedResponse.clone());
       // И под нормализованным ключом без _rsc
       try {
         const normalizedRequest = getNormalizedRSCRequest(request);
-        // Клонируем response до его использования
-        const normalizedResponse = new Response(responseToCache.body, {
-          status: responseToCache.status,
-          statusText: responseToCache.statusText,
-          headers: headers,
-        });
-        await cache.put(normalizedRequest, normalizedResponse);
+        await cache.put(normalizedRequest, modifiedResponse.clone());
         console.log(`💾 SW: Also cached normalized RSC key: ${normalizedRequest.url}`);
       } catch (e) {
         console.warn('⚠️ SW: Failed to cache normalized RSC key', e);
@@ -628,13 +688,7 @@ class CacheManager {
 
   // Получение имени кэша для типа ресурса
   getCacheName(type) {
-    const cacheMap = {
-      STATIC: CACHE_CONFIG.STATIC_CACHE,
-      PAGES: CACHE_CONFIG.PAGES_CACHE,
-      API: CACHE_CONFIG.API_CACHE,
-      IMAGES: CACHE_CONFIG.IMAGES_CACHE,
-    };
-    return cacheMap[type] || CACHE_CONFIG.API_CACHE;
+    return CACHE_CONFIG.CACHES[type] || CACHE_CONFIG.CACHES.API;
   }
 
   // Проверка, нужно ли кэшировать ресурс
@@ -654,7 +708,7 @@ class CacheManager {
   }
 
   // Очистка старых записей из кэша
-  async cleanupCache(cacheName, maxEntries = CACHE_CONFIG.MAX_CACHE_ENTRIES) {
+  async cleanupCache(cacheName, maxEntries = 200) {
     try {
       const cache = await caches.open(cacheName);
       const keys = await cache.keys();
@@ -730,13 +784,14 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       try {
-        // Создаем все необходимые кэши
+        // Создаем все необходимые кэши (обновлено под новую архитектуру)
         const cacheNames = [
           CACHE_CONFIG.CACHES.HTML_PAGES,
           CACHE_CONFIG.CACHES.RSC_DATA,
           CACHE_CONFIG.CACHES.STATIC,
-          CACHE_CONFIG.CACHES.API,
+          CACHE_CONFIG.CACHES.COURSE_DATA,
           CACHE_CONFIG.CACHES.IMAGES,
+          CACHE_CONFIG.CACHES.API,
         ];
         
         await Promise.all(
@@ -776,11 +831,14 @@ self.addEventListener('activate', (event) => {
         }
         
         // Очищаем старые записи из текущих кэшей
-        await Promise.all(
-          currentCacheNames.map(cacheName => 
-            cacheManager.cleanupCache(cacheName)
-          )
-        );
+        const entries = Object.entries(CACHE_CONFIG.CACHES);
+        for (const [resourceType, cacheName] of entries) {
+          try {
+            await cleanupCache(cacheName, resourceType);
+          } catch (e) {
+            console.warn(`⚠️ SW: Failed cleanup for ${cacheName}`, e);
+          }
+        }
         
         console.log('✅ SW: Cache cleanup completed');
         await self.clients.claim();
@@ -800,16 +858,20 @@ async function precacheHTMLPages() {
   
   try {
     const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
+    const imagesCache = await caches.open(CACHE_CONFIG.CACHES.IMAGES);
     const pagesToCache = [
       '/',
       '/profile?username=admin',
       '/statistics',
       '/achievements',
       '/courses',
+      '/trainings/beginner',
+      '/trainings/intermediate',
+      '/trainings/advanced',
       '/favorites'
     ];
     
-    // Кэшируем favicon.ico
+    // Кэшируем favicon.ico в кэш изображений
     const faviconUrl = '/favicon.ico';
     try {
       console.log(`🎯 SW: Precaching favicon: ${faviconUrl}`);
@@ -834,7 +896,7 @@ async function precacheHTMLPages() {
           }
         });
         
-        await htmlCache.put(faviconRequest, modifiedResponse);
+        await imagesCache.put(faviconRequest, modifiedResponse);
         console.log(`✅ SW: Precached favicon: ${faviconUrl}`);
       } else {
         console.warn(`⚠️ SW: Favicon not found, creating fallback`);
@@ -849,7 +911,7 @@ async function precacheHTMLPages() {
           }
         });
         
-        await htmlCache.put(faviconRequest, fallbackFavicon);
+        await imagesCache.put(faviconRequest, fallbackFavicon);
         console.log(`✅ SW: Created favicon fallback`);
       }
     } catch (error) {
@@ -1150,10 +1212,12 @@ async function handleSyncQueue(actions) {
 async function handleCacheStatusRequest(event) {
   try {
     const cacheNames = [
-      CACHE_CONFIG.STATIC_CACHE,
-      CACHE_CONFIG.PAGES_CACHE,
-      CACHE_CONFIG.API_CACHE,
-      CACHE_CONFIG.IMAGES_CACHE,
+      CACHE_CONFIG.CACHES.HTML_PAGES,
+      CACHE_CONFIG.CACHES.RSC_DATA,
+      CACHE_CONFIG.CACHES.STATIC,
+      CACHE_CONFIG.CACHES.COURSE_DATA,
+      CACHE_CONFIG.CACHES.IMAGES,
+      CACHE_CONFIG.CACHES.API,
     ];
     
     const cacheStatus = {};

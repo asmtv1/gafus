@@ -27,10 +27,20 @@ export const useStepStore = create<StepStore>()(
         const stepKey = get().getStepKey(courseId, day, stepIndex);
         const existingState = get().stepStates[stepKey];
 
+
         // Если уже есть состояние, проверяем, нужно ли обновить статус
         if (existingState) {
-          // Обновляем статус только если он изменился на сервере
-          if (initialStatus && existingState.status !== initialStatus) {
+          // Повышаем локальный статус до серверного, но никогда не понижаем
+          const rank = (s: string | undefined) => {
+            if (s === "COMPLETED") return 2;
+            if (s === "IN_PROGRESS" || s === "PAUSED") return 1;
+            return 0; // NOT_STARTED или неопределено
+          };
+          const localRank = rank(existingState.status);
+          const serverRank = rank(initialStatus);
+
+          if (serverRank > localRank) {
+            const END_KEY = makeEndKey(courseId, day, stepIndex);
             set((state) => ({
               stepStates: {
                 ...state.stepStates,
@@ -38,15 +48,27 @@ export const useStepStore = create<StepStore>()(
                   ...existingState,
                   status: initialStatus,
                   isFinished: initialStatus === "COMPLETED",
+                  isPaused: false,
+                  // Если повышаем с NOT_STARTED до IN_PROGRESS и нет времени, используем durationSec
+                  timeLeft:
+                    initialStatus === "IN_PROGRESS" && (existingState.timeLeft == null || existingState.timeLeft <= 0)
+                      ? durationSec
+                      : existingState.timeLeft,
                 },
               },
             }));
+
+            // Очистим таймер при апгрейде до COMPLETED
+            if (initialStatus === "COMPLETED") {
+              removeKeys(END_KEY);
+            }
           }
           return;
         }
 
         // Проверяем localStorage для восстановления
         const restoredState = get().restoreStepFromLS(courseId, day, stepIndex);
+
 
         set((state) => ({
           stepStates: {
@@ -177,7 +199,6 @@ export const useStepStore = create<StepStore>()(
         const existingState = get().stepStates[stepKey];
 
         if (!existingState) {
-          console.warn(`[StepStore] Step state not found for ${stepKey}`);
           return;
         }
 
