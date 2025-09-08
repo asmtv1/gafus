@@ -46,6 +46,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Build packages
+        run: pnpm build --filter=@gafus/*
+
       - name: Run security audit
         run: pnpm audit --audit-level high || echo "Security audit found issues, but continuing build"
 
@@ -98,6 +101,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Build packages
+        run: pnpm build --filter=@gafus/*
 
       - name: Generate Prisma Client
         run: |
