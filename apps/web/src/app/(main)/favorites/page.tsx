@@ -1,8 +1,8 @@
 import { getFavoritesCoursesCached } from "@shared/lib/actions/cachedCourses";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import styles from "./page.module.css";
-import FavoritesCourseList from "@features/courses/components/FavoritesCourseList";
+import styles from "./favorites.module.css";
+import FavoritesCourseList from "@/app/(main)/favorites/FavoritesCourseList";
 
 export const revalidate = 60;
 

@@ -6,7 +6,7 @@ import { useCourseStoreActions } from "@shared/stores";
 import { useEffect } from "react";
 import type { CourseWithProgressData } from "@gafus/types";
 
-import styles from "./page.module.css";
+import styles from "./courses.module.css";
 import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
 
 interface CoursesClientProps {

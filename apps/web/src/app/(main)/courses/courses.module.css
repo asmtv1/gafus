@@ -1,34 +1,27 @@
 .container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 20px;
+    margin: 0 auto;
+    background-color: var(--bg-1);
+    padding-bottom: 10px;
 }
 
 .title {
+  color: #352e2e;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 80px;
+  line-height: 100%;
+  letter-spacing: 0px;
   text-align: center;
-  margin-bottom: 40px;
-  color: #333;
-  font-size: 2.5rem;
 }
 
-.list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 30px;
-  padding: 0;
-  margin: 0;
-}
-
-.loading {
-  text-align: center;
-  padding: 40px;
-  font-size: 1.2rem;
-  color: #666;
-}
-
-.error {
-  text-align: center;
-  padding: 40px;
-  color: #f44336;
-  font-size: 1.2rem;
+.courseList {
+    display: flex;
+    gap: 20px;
+    padding: 0 20px;
+    margin-top: 22px;
+    justify-items: center;
+    align-items: center;
+    align-content: center;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
 }
