@@ -58,10 +58,22 @@ export const FavoriteButton = ({ id, isFavorite = false, onUnfavorite }: Favorit
       <button
         onClick={handleToggleFavorite}
         disabled={isPending}
-        style={{ backgroundColor: "unset", border: "none" }}
+        style={{
+          backgroundColor: "unset",
+          border: "none",
+          position: "absolute",
+          top: "-4%",
+          left: "82%",
+          
+        }}
         title="Добавить в избранное"
       >
-        <TurnedInIcon style={{ color: favorite ? "gold" : "gray" }} />
+        <TurnedInIcon style={{ 
+          fontSize: "2.5rem",
+          stroke: favorite ? "none" : "#636128",
+          strokeWidth: "1px",
+          fill: favorite ? "gold" : "transparent"
+        }} />
       </button>
       {error && <p style={{ color: "red" }}>Ошибка: {error.message}</p>}
     </>

@@ -2,7 +2,7 @@
 import { getCoursesWithProgressCached } from "@shared/lib/actions/cachedCourses";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import styles from "./page.module.css";
+import styles from "./courses.module.css";
 import CoursesClient from "./CoursesClient";
 
 export const revalidate = 60;

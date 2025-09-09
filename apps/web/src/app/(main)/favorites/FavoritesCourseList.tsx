@@ -4,7 +4,7 @@ import { useCourseStoreActions } from "@shared/stores";
 import { useEffect, useCallback } from "react";
 import type { CourseWithProgressData } from "@gafus/types";
 
-import { CourseCard } from "./CourseCard/CourseCard";
+import { CourseCard } from "../../../features/courses/components/CourseCard/CourseCard";
 import styles from "./favorites.module.css";
 
 interface FavoritesCourseListProps {
@@ -98,7 +98,7 @@ export default function FavoritesCourseList({
 
   if (courses.length === 0) {
     return (
-      <div>
+      <div className={styles.emptyState}>
         <p>У вас пока нет избранных курсов.</p>
       </div>
     );
@@ -111,7 +111,7 @@ export default function FavoritesCourseList({
           Обновление списка...
         </div>
       )}
-      <ul className={styles.coursesGrid}>
+      <ul className={styles.courseList}>
         {courses.map((course, index) => {
           const courseCardProps = {
             id: course.id,

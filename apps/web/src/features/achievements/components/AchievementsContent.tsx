@@ -53,14 +53,6 @@ export function AchievementsContent() {
               Ваш прогресс в обучении и достигнутые результаты
             </p>
           </div>
-          <button 
-            className={styles.refreshButton}
-            onClick={() => refreshData()}
-            type="button"
-            title="Обновить достижения"
-          >
-            🔄
-          </button>
         </div>
       </header>
       
