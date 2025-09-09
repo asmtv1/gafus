@@ -19,30 +19,7 @@ export async function getVisibleSteps() {
 
   const where = isAdminOrModerator
     ? undefined
-    : {
-        OR: [
-          { authorId: userId },
-          {
-            stepLinks: {
-              some: {
-                day: {
-                  dayLinks: {
-                    some: {
-                      course: {
-                        userCourses: {
-                          some: {
-                            userId: userId,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        ],
-      };
+    : { authorId: userId };
 
   return prisma.step.findMany({
     where,

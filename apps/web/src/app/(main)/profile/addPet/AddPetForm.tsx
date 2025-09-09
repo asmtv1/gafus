@@ -34,8 +34,8 @@ export default function AddPetForm() {
         id: "",
         // ownerId убираем - он будет получен внутри savePet из сессии
       });
-      window.history.back();
-      setTimeout(() => window.location.reload(), 100);
+      // Используем router.push вместо window.history.back() для надежности
+      router.push("/profile");
     } catch (err) {
       setCaughtError(err as Error);
     } finally {
