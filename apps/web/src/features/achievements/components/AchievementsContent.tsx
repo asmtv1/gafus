@@ -11,9 +11,8 @@ import UserCoursesStatistics from "./UserCoursesStatistics";
 
 import styles from "./AchievementsContent.module.css";
 
-/**
+/*
  * Основной компонент для отображения достижений
- * Использует SWR для кэширования и автоматического обновления данных
  */
 export function AchievementsContent() {
   const { data, error, isLoading } = useAchievements();

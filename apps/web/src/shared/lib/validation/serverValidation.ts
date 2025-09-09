@@ -27,9 +27,9 @@ export function validatePetForm(data: PetFormData): ValidationResult {
   // Валидация породы
   if (!data.breed || data.breed.trim().length === 0) {
     errors.breed = "Порода обязательна";
-  } else if (data.breed.length < 2) {
+  } else if (data.breed.trim().length < 2) {
     errors.breed = "Порода должна содержать минимум 2 символа";
-  } else if (data.breed.length > 50) {
+  } else if (data.breed.trim().length > 50) {
     errors.breed = "Порода не может быть длиннее 50 символов";
   }
 
