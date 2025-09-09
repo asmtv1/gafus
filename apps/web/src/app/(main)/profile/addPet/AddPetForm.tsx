@@ -11,6 +11,7 @@ import { usePetFormWithValidation, getPetValidationRules } from "@shared/hooks/u
 import { savePet } from "@shared/lib/pet/savePet";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 
 import type { PetFormData } from "@gafus/types";
 
@@ -21,6 +22,7 @@ export default function AddPetForm() {
   if (caughtError) throw caughtError;
 
   const router = useRouter();
+  const { data: session } = useSession();
 
   const form = usePetFormWithValidation({});
   const validationRules = getPetValidationRules();
@@ -34,8 +36,14 @@ export default function AddPetForm() {
         id: "",
         // ownerId убираем - он будет получен внутри savePet из сессии
       });
-      // Используем router.push вместо window.history.back() для надежности
-      router.push("/profile");
+      // Возвращаемся на страницу профиля с правильным username
+      const username = session?.user?.username;
+      if (username) {
+        router.push(`/profile?username=${username}`);
+      } else {
+        // Fallback на предыдущую страницу если username недоступен
+        router.back();
+      }
     } catch (err) {
       setCaughtError(err as Error);
     } finally {

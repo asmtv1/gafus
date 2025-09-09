@@ -12,6 +12,12 @@ const petValidationRules = {
       value: /^[а-яёА-ЯЁa-zA-Z\s-]+$/,
       message: "Только буквы, пробелы и дефис",
     },
+    validate: (value: string) => {
+      if (!value || value.trim().length === 0) return "Имя питомца обязательно";
+      if (value.trim().length < 2) return "Минимум 2 символа";
+      if (value.trim().length > 50) return "Максимум 50 символов";
+      return true;
+    },
   },
   type: {
     required: "Выберите тип питомца",
@@ -27,6 +33,12 @@ const petValidationRules = {
     pattern: {
       value: /^[а-яёА-ЯЁa-zA-Z\s-]+$/,
       message: "Только буквы, пробелы и дефис",
+    },
+    validate: (value: string) => {
+      if (!value || value.trim().length === 0) return "Порода обязательна";
+      if (value.trim().length < 2) return "Минимум 2 символа";
+      if (value.trim().length > 50) return "Максимум 50 символов";
+      return true;
     },
   },
   birthDate: {

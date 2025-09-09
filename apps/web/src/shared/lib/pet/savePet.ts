@@ -21,7 +21,7 @@ export async function savePet({
 }: UpdatePetInput) {
   try {
     const ownerId = await getCurrentUserId();
-   
+    console.warn("Получен ownerId:", ownerId);
 
     if (!id && !ownerId) {
       throw new Error("Поле ownerId обязательно при создании");
@@ -34,7 +34,7 @@ export async function savePet({
   
 
     // Серверная валидация
-    const validation = validatePetForm({
+    const validationData = {
       id: id || "",
       name,
       type,
@@ -43,9 +43,14 @@ export async function savePet({
       heightCm: processedHeightCm,
       weightKg: processedWeightKg,
       notes,
-    });
+    };
+    console.warn("Данные для валидации:", validationData);
+    
+    const validation = validatePetForm(validationData);
+    console.warn("Результат валидации:", validation);
 
     if (!validation.isValid) {
+      console.error("Ошибки валидации:", validation.errors);
       throw new Error(`Ошибка валидации: ${Object.values(validation.errors).join(", ")}`);
     }
 
@@ -62,9 +67,12 @@ export async function savePet({
         birthDate: parsedDate ?? new Date(),
         owner: { connect: { id: ownerId! } },
       };
-      return await prisma.pet.create({
+      console.warn("Создание питомца с данными:", createData);
+      const result = await prisma.pet.create({
         data: createData,
       });
+      console.warn("Питомец создан успешно:", result);
+      return result;
     } else {
       const updateData: Prisma.PetUpdateInput = {
         name: { set: name || "" },
