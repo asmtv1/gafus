@@ -95,6 +95,31 @@ function CourseStatisticsCard({ course }: { course: CourseWithProgressData }) {
         <span className={styles.progressText}>{progressPercentage}%</span>
       </div>
 
+      <div className={styles.daysTracker}>
+        <div className={styles.trackerHeader}>
+          <div className={styles.calendarIcon}>📅</div>
+          <h4 className={styles.trackerTitle}>Трекер занятий</h4>
+        </div>
+        <div className={styles.daysGrid}>
+          {Array.from({ length: totalDays }, (_, index) => {
+            const dayNumber = index + 1;
+            const isCompleted = dayNumber <= completedDays;
+            return (
+              <div 
+                key={dayNumber}
+                className={`${styles.dayCircle} ${isCompleted ? styles.completed : styles.pending}`}
+              >
+                {isCompleted ? (
+                  <span className={styles.checkmark}>✓</span>
+                ) : (
+                  <span className={styles.dayNumber}>{dayNumber}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div className={styles.courseStats}>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Прогресс:</span>

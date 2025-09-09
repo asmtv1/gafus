@@ -99,23 +99,16 @@
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
-  transition: all 0.2s ease;
-}
-
-.courseCard:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
 }
 
 .courseCard.completed {
-  border-left: 4px solid #28a745;
-  background: linear-gradient(135deg, #f8fff9 0%, #ffffff 100%);
+  border-left: 4px solid #B6C582;
+  background: #ECE5D2;
 }
 
 .courseCard.inProgress {
   border-left: 4px solid #007bff;
-  background: linear-gradient(135deg, #f0f8ff 0%, #ffffff 100%);
+  background: #e0ddd3;
 }
 
 /* Заголовок курса */
@@ -168,7 +161,6 @@
   font-weight: 500;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  background: #f8f9fa;
   color: #495057;
 }
 
@@ -182,17 +174,17 @@
 
 .progressBar {
   flex: 1;
-  height: 8px;
+  height: 12px;
   background: #e9ecef;
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #007bff, #0056b3);
-  border-radius: 4px;
-  transition: width 0.3s ease;
+  background: #a8c09a;
+  border-radius: 6px;
 }
 
 .progressText {
@@ -203,6 +195,77 @@
   text-align: right;
 }
 
+/* Трекер дней */
+.daysTracker {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #FFF8E5 ;
+  border-radius: 8px;
+  border: 1px solid #B6C582;
+}
+
+.trackerHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.calendarIcon {
+  font-size: 1.2rem;
+}
+
+.trackerTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.daysGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+  gap: 0.75rem;
+  justify-items: center;
+  max-width: 100%;
+}
+
+.dayCircle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.dayCircle.completed {
+  background: #B6C582;
+  color: #155724;
+}
+
+.dayCircle.pending {
+  background: #ECE5D2;
+  color: #352E2E;
+  border: 2px solid #dee2e6;
+}
+
+.checkmark {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color:#352E2E
+}
+
+.dayNumber {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 /* Статистика */
 .courseStats {
   display: grid;
@@ -210,7 +273,6 @@
   gap: 1rem;
   margin-bottom: 1.5rem;
   padding: 1rem;
-  background: #f8f9fa;
   border-radius: 8px;
 }
 
@@ -250,7 +312,6 @@
   border-radius: 8px;
   font-weight: 500;
   font-size: 0.9rem;
-  transition: all 0.2s;
   border: none;
   cursor: pointer;
 }
@@ -258,7 +319,6 @@
 .continueButton:hover {
   background: #218838;
   color: white;
-  transform: translateY(-1px);
 }
 
 .viewButton {
@@ -270,13 +330,11 @@
   border-radius: 8px;
   font-weight: 500;
   font-size: 0.9rem;
-  transition: all 0.2s;
 }
 
 .viewButton:hover {
   background: #5a6268;
   color: white;
-  transform: translateY(-1px);
 }
 
 /* Адаптивность */
@@ -304,5 +362,20 @@
   .continueButton,
   .viewButton {
     text-align: center;
+  }
+  
+  .daysGrid {
+    grid-template-columns: repeat(auto-fit, minmax(35px, 1fr));
+    gap: 0.5rem;
+  }
+  
+  .dayCircle {
+    width: 35px;
+    height: 35px;
+    font-size: 0.8rem;
+  }
+  
+  .checkmark {
+    font-size: 1rem;
   }
 }
