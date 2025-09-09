@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   "/register",
   "/passwordReset",
   "/confirm",
+  "/achievements", // Временно для тестирования
   "/api/auth",
   "/api/csrf-token",
   "/api/webhook",
