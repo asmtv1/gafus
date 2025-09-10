@@ -228,6 +228,21 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
     resetStepWithServer: async (courseId, day, stepIndex) => {
       try {
+        // Получаем текущий статус шага из store для определения нового статуса
+        const { useStepStore } = await import("@shared/stores/stepStore");
+        const stepStore = useStepStore.getState();
+        const stepKey = stepStore.getStepKey(courseId, day, stepIndex);
+        const currentState = stepStore.stepStates[stepKey];
+        
+        // Определяем статус после сброса на основе предыдущего статуса
+        let resetStatus: TrainingStatus = TrainingStatus.NOT_STARTED;
+        
+        if (currentState?.status === "IN_PROGRESS" || currentState?.status === "COMPLETED") {
+          resetStatus = TrainingStatus.IN_PROGRESS; // Если был в процессе или завершен, ставим в процесс
+        } else if (currentState?.status === "PAUSED") {
+          resetStatus = TrainingStatus.IN_PROGRESS; // Если был на паузе, ставим в процесс (PAUSED нет в TrainingStatus)
+        }
+
         // Сбрасываем уведомление (удаляем из очереди и БД)
         try {
           await resetNotificationClient({ courseId, day, stepIndex });
@@ -237,7 +252,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
         // Пытаемся выполнить с ретраями
         await retryServerAction(
-          () => updateStepStatusServerAction(courseId, day, stepIndex, TrainingStatus.NOT_STARTED),
+          () => updateStepStatusServerAction(courseId, day, stepIndex, resetStatus),
           `Сброс шага ${courseId}-${day}-${stepIndex}`
         );
       } catch (error) {
@@ -246,7 +261,20 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         // Если все ретраи исчерпаны, добавляем в очередь синхронизации
         try {
           const { useOfflineStore } = await import("@shared/stores/offlineStore");
+          const { useStepStore } = await import("@shared/stores/stepStore");
           const offlineStore = useOfflineStore.getState();
+          const stepStore = useStepStore.getState();
+          
+          const stepKey = stepStore.getStepKey(courseId, day, stepIndex);
+          const currentState = stepStore.stepStates[stepKey];
+          
+          // Определяем статус для очереди синхронизации
+          let syncStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" = "NOT_STARTED";
+          if (currentState?.status === "IN_PROGRESS" || currentState?.status === "COMPLETED") {
+            syncStatus = "IN_PROGRESS";
+          } else if (currentState?.status === "PAUSED") {
+            syncStatus = "IN_PROGRESS"; // PAUSED нет в серверных статусах, используем IN_PROGRESS
+          }
 
           offlineStore.addToSyncQueue({
             type: "step-status-update",
@@ -254,7 +282,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
               courseId,
               day,
               stepIndex,
-              status: "NOT_STARTED",
+              status: syncStatus,
             },
             maxRetries: 3,
           });

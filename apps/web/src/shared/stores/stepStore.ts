@@ -217,9 +217,17 @@ export const useStepStore = create<StepStore>()(
 
       resetStep: (courseId, day, stepIndex, durationSec) => {
         const stepKey = get().getStepKey(courseId, day, stepIndex);
+        const currentState = get().stepStates[stepKey];
 
         // Удаляем localStorage ключи
         removeKeys(makeEndKey(courseId, day, stepIndex));
+
+        // Определяем статус после сброса на основе предыдущего статуса
+        let resetStatus: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" = "NOT_STARTED";
+        
+        if (currentState?.status === "IN_PROGRESS" || currentState?.status === "COMPLETED" || currentState?.status === "PAUSED") {
+          resetStatus = "IN_PROGRESS"; // Если был в процессе, завершен или на паузе, ставим в процесс
+        }
 
         set((state) => ({
           stepStates: {
@@ -227,8 +235,8 @@ export const useStepStore = create<StepStore>()(
             [stepKey]: {
               timeLeft: durationSec,
               isFinished: false,
-              isPaused: false,
-              status: "NOT_STARTED",
+              isPaused: false, // При сбросе всегда снимаем паузу
+              status: resetStatus,
             },
           },
         }));

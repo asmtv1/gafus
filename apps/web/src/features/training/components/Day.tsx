@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TrainingDetail } from "@gafus/types";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useTrainingStore } from "@shared/stores/trainingStore";
+import { ExpandMoreIcon } from "@/utils/muiImports";
 import { AccordionStep } from "./AccordionStep";
 import styles from "./Day.module.css";
 
@@ -17,16 +18,39 @@ const DAY_STATUS = {
 
 const DAY_STATUS_CONFIG = {
   [DAY_STATUS.COMPLETED]: {
-    text: "Завершен",
+    text: "✅ Завершен",
     className: "text-green-600 bg-green-100",
+    titleColor: "#B6C582",
   },
   [DAY_STATUS.IN_PROGRESS]: {
-    text: "В процессе",
+    text: "🔄 В процессе",
     className: "text-blue-600 bg-blue-100",
+    titleColor: "#1f2937",
   },
   [DAY_STATUS.NOT_STARTED]: {
-    text: "Не начат",
+    text: "⏳ Не начат",
     className: "text-gray-600 bg-gray-100",
+    titleColor: "#1f2937",
+  },
+} as const;
+
+// Конфигурация для статусов шагов
+const STEP_STATUS_CONFIG = {
+  NOT_STARTED: {
+    text: "⏳ Не начат",
+    backgroundColor: "#FFF8E5",
+  },
+  IN_PROGRESS: {
+    text: "🔄 В процессе",
+    backgroundColor: "#E6F3FF",
+  },
+  COMPLETED: {
+    text: "✅ Завершен",
+    backgroundColor: "#B6C582",
+  },
+  PAUSED: {
+    text: "⏸️ На паузе",
+    backgroundColor: "#FFF4E6",
   },
 } as const;
 
@@ -37,7 +61,6 @@ interface DayProps {
 export function Day({ training }: DayProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
-  const [hydrated, setHydrated] = useState(false);
 
   const { stepStates, initializeStep } = useStepStore();
   const {
@@ -163,7 +186,6 @@ export function Day({ training }: DayProps) {
   // Инициализация состояния при монтировании
   useEffect(() => {
     console.warn(`[Day] Initializing day ${training.day} with ${training.steps.length} steps`);
-    setHydrated(true);
     // Инициализируем все шаги дня, чтобы корректно считать статус дня офлайн
     try {
       training.steps.forEach((step, index) => {
@@ -222,48 +244,70 @@ export function Day({ training }: DayProps) {
 
   return (
     <div className={`${styles.main} ${dayStatus === DAY_STATUS.COMPLETED ? styles.finished : ""}`}>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">
+      <div className={styles.dayHeader}>
+        <h2 
+          className={styles.dayTitle}
+          style={{ color: statusConfig.titleColor }}
+        >
           День {training.day}
-          {hydrated && dayStatus === DAY_STATUS.COMPLETED && " ✅"}
         </h2>
         <span
-          className={`rounded-full px-3 py-1 text-sm font-medium ${statusConfig.className}`}
+          className={`${styles.statusBadge} ${statusConfig.className}`}
           suppressHydrationWarning
         >
           {statusConfig.text}
         </span>
       </div>
-      <p className="mb-6 text-gray-600">{training.description}</p>
+      <p className={styles.dayDescription}>{training.description}</p>
 
-      {training.steps.map((step, index) => (
-        <div key={step.id} className={styles.accordionItem}>
-          <div className={styles.accordionHeader} onClick={() => handleToggleOpen(index)}>
-            <h3 className="text-lg font-semibold text-gray-800">{step.title}</h3>
-            <span className="text-sm text-gray-500">
-              {Math.floor(step.durationSec / 60)}:
-              {(step.durationSec % 60).toString().padStart(2, "0")}
-            </span>
-          </div>
-
-          {openIndex === index && (
-            <div className={styles.accordionContent}>
-              <AccordionStep
-                courseId={training.courseId}
-                day={training.day}
-                stepIndex={index}
-                durationSec={step.durationSec}
-                stepTitle={step.title}
-                stepOrder={step.order}
-                totalSteps={training.steps.length}
-                initialStatus={step.status}
-                onRun={handleStepStart}
-                onReset={handleReset}
-              />
+      {training.steps.map((step, index) => {
+        // Получаем статус шага из store
+        const stepKey = getStepKey(index);
+        const stepState = stepStates[stepKey];
+        const stepStatus = stepState?.status || step.status || "NOT_STARTED";
+        const stepStatusConfig = STEP_STATUS_CONFIG[stepStatus as keyof typeof STEP_STATUS_CONFIG] || STEP_STATUS_CONFIG.NOT_STARTED;
+        
+        return (
+          <div key={step.id} className={styles.accordionItem}>
+            <div 
+              className={styles.accordionHeader} 
+              onClick={() => handleToggleOpen(index)}
+              style={{ backgroundColor: stepStatusConfig.backgroundColor }}
+            >
+              <div className={styles.stepTitleContainer}>
+                <ExpandMoreIcon 
+                  className={`${styles.expandIcon} ${openIndex === index ? styles.expanded : ''}`} 
+                />
+                <h3 className={styles.stepTitle}>
+                  <div className={styles.stepTitleText}>
+                    <span>{`Упражнение #${step.order}. `}{`«${step.title}»`} </span>
+                    <span>{stepStatusConfig.text}</span>
+                  </div>
+                </h3>
+              </div>
             </div>
-          )}
-        </div>
-      ))}
+
+            {openIndex === index && (
+              <div className={styles.accordionContent}>
+                <AccordionStep
+                  courseId={training.courseId}
+                  day={training.day}
+                  stepIndex={index}
+                  durationSec={step.durationSec}
+                  stepTitle={step.title}
+                  stepDescription={step.description}
+                  stepOrder={step.order}
+                  totalSteps={training.steps.length}
+                  initialStatus={step.status}
+                  videoUrl={step.videoUrl}
+                  onRun={handleStepStart}
+                  onReset={handleReset}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

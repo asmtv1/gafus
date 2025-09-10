@@ -14,11 +14,21 @@ import { FavoriteIcon, FavoriteBorderIcon } from "@/utils/muiImports";
 import { Rating, styled } from "@/utils/muiImports";
 
 const StyledRating = styled(Rating)({
+  // Фикс отображения на мобильных: переопределяем глобальное svg { display:block }
+  lineHeight: 1,
+  "& .MuiSvgIcon-root": {
+    display: "inline-block",
+    width: "1em",
+    height: "1em",
+  },
   "& .MuiRating-iconFilled": {
     color: "#ff6d75",
   },
   "& .MuiRating-iconHover": {
     color: "#ff3d47",
+  },
+  "& .MuiRating-iconEmpty": {
+    color: "#b0b0b0",
   },
 });
 

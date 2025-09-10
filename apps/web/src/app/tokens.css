@@ -1,8 +1,18 @@
+/* Подключение шрифта Moscow2024 */
+@font-face {
+  font-family: "Moscow2024";
+  src: url("/MOSCOW2024.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg-1: #dad3c1;
   --bg-2: #636128;
   /* Фоновые переменные для шрифтов */
   --font-impact: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  --font-moscow2024: "Moscow2024", monospace;
   /* next/font монтирует .variable с именем --font-montserrat; создаем безопасный стек */
   --font-sans-fallback: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
@@ -25,4 +35,7 @@ body {
 }
 .font-montserrat {
   font-family: var(--font-montserrat, var(--font-sans-fallback)) !important;
+}
+.font-moscow2024 {
+  font-family: var(--font-moscow2024) !important;
 }
