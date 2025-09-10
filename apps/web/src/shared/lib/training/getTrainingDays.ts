@@ -10,7 +10,7 @@ import type { TrainingDetail } from "@gafus/types";
 import { getCurrentUserId } from "@/utils";
 
 export async function getTrainingDays(typeParam?: string, userId?: string): Promise<{
-  trainingDays: Pick<TrainingDetail, "trainingDayId" | "day" | "title" | "type" | "courseId" | "userStatus">[];
+  trainingDays: (Pick<TrainingDetail, "trainingDayId" | "day" | "title" | "type" | "courseId" | "userStatus"> & { estimatedDuration: number; equipment: string })[];
   courseDescription: string | null;
   courseId: string | null;
   courseVideoUrl: string | null; // <--- добавили сюда
@@ -43,10 +43,16 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
               select: {
                 title: true,
                 type: true,
+                equipment: true,  // Добавляем equipment
                 stepLinks: {
                   select: {
                     id: true,
                     order: true,
+                    step: {
+                      select: {
+                        durationSec: true
+                      }
+                    }
                   },
                 },
               },
@@ -84,7 +90,8 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
         day: { 
           title: string; 
           type: string;
-          stepLinks: { id: string; order: number }[];
+          equipment: string; // Added equipment to the type
+          stepLinks: { id: string; order: number; step: { durationSec: number } }[];
         };
         userTrainings: { 
           status: string; 
@@ -103,6 +110,9 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
         const computed = calculateDayStatusFromStatuses(allStepStatuses);
         const userStatus = ut ? computed : TrainingStatus.NOT_STARTED;
 
+        const totalSeconds = link.day.stepLinks.reduce((sum, sl) => sum + sl.step.durationSec, 0);
+        const estimatedDuration = Math.ceil(totalSeconds / 60);
+
         return {
           trainingDayId: link.id,
           day: link.order,
@@ -110,6 +120,8 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
           type: link.day.type,
           courseId: firstCourse.id,
           userStatus,
+          estimatedDuration,
+          equipment: link.day.equipment || ""
         };
       },
     );

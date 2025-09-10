@@ -66,13 +66,6 @@ export interface TrainingState {
   }) => void;
   clearCachedTrainingDays: (courseType?: string) => void;
 
-  // Определение статуса дня
-  getDayStatus: (
-    courseId: string,
-    day: number,
-    stepStates: Record<string, { status: string }>,
-    totalSteps: number,
-  ) => DayStatus;
 
   // Действия для дня
   setOpenIndex: (courseId: string, day: number, index: number | null) => void;

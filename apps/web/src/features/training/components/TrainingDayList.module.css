@@ -1,19 +1,16 @@
 .item {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 1rem;
+  justify-content: center;
   margin-bottom: 0.75rem;
-  background-color: #f4f4f4;
-  border-radius: 8px;
+  border-radius: 12px;
+  position: relative;
 }
 .inprogress {
-  background-color: #c1d623;
+  border: 2px solid #c1d623;
 }
 .completed {
-  background-color: #23d62a;
-  border-left: 4px solid #23d62a;
-  transition: background-color 0.3s ease;
+  border: 2px solid #23d62a;
 }
 .list {
   list-style: none;
@@ -24,16 +21,79 @@
   font-weight: 600;
 }
 .link {
-  display: flex;
-  justify-content: space-around;
-  padding: 1rem;
+  display: block;
   text-decoration: none;
   color: #333;
-  background-color: #f4f4f4;
-  border-radius: 8px;
-  transition: background 0.2s;
+  transition: transform 0.2s;
+  position: relative;
 }
 
 .link:hover {
-  background-color: #e0e0e0;
+  transform: scale(1.02);
+}
+
+.card {
+  min-width: 245px;
+  width: auto;
+  min-height: 120px;
+  height: auto;
+  padding: 14px;
+  background-color: #FFF8E5;
+}
+
+.timeBadge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background-color: #636128;
+  color: white;
+  border-radius: 50%;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  z-index: 1000;
+}
+
+.dayTitle {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+  padding-right: 20px;
+  margin-right: 20px;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.equipment {
+  font-size: 14px;
+  color: #888;
+  font-style: italic;
+}
+
+.dayOdd {
+  border: 14px solid #FFF8E5;
+}
+.dayEven {
+  border: 14px solid #FFF8E5;
+}
+
+.dayOdd.completed {
+  border-color: #B6C582;
+}
+
+.dayEven.completed {
+  border-color: #B6C582;
+}
+
+.dayOdd.inprogress {
+  border-color: #F6D86E;
+}
+
+.dayEven.inprogress {
+  border-color: #F6D86E;
 }

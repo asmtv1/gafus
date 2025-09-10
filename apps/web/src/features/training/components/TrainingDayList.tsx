@@ -18,6 +18,8 @@ interface TrainingDayListProps {
       type: string;
       courseId: string;
       userStatus: string;
+      estimatedDuration?: number;
+      equipment?: string;
     }[];
     courseDescription: string | null;
     courseId: string | null;
@@ -39,11 +41,21 @@ const TrainingDayList = memo(function TrainingDayList({
   // Локальные статусы шагов (офлайн-истина)
   const { stepStates } = useStepStore();
 
-  const getItemClass = useCallback((status: string) => {
-    if (status === "IN_PROGRESS") return `${styles.item} ${styles.inprogress}`;
-    if (status === "COMPLETED") return `${styles.item} ${styles.completed}`;
-    return styles.item;
+  // Добавляем в getItemClass динамику для цветов
+  const getItemClass = useCallback((status: string, dayNumber: number) => {
+    let baseClass = `${styles.item} ${styles[`day${dayNumber % 2 === 1 ? 'Odd' : 'Even'}`]}`;
+    if (status === "IN_PROGRESS") baseClass += ` ${styles.inprogress}`;
+    if (status === "COMPLETED") baseClass += ` ${styles.completed}`;
+    return baseClass;
   }, []);
+
+  const typeLabels: Record<string, string> = {
+    base: "Базовый день",
+    regular: "Тренировочный день",
+    introduction: "Вводный день",
+    test: "Проверочный или экзаменационный день",
+    rest: "День отдыха",
+  };
 
   const rank = (s?: string) => {
     if (s === "COMPLETED") return 2;
@@ -98,7 +110,7 @@ const TrainingDayList = memo(function TrainingDayList({
             const finalStatus = rank(localStatus) > rank(day.userStatus)
               ? localStatus
               : day.userStatus;
-            return getItemClass(finalStatus);
+            return getItemClass(finalStatus, day.day);
           })()}
         >
           <Link
@@ -113,8 +125,18 @@ const TrainingDayList = memo(function TrainingDayList({
               }
             }}
           >
-            <span className={styles.day}>{day.title}</span>
+            <div className={styles.timeBadge}>
+              <div>{day.estimatedDuration}</div>
+              <span>мин</span>
+            </div>
+            <div className={styles.card}>
+              <h2 className={styles.dayTitle}>{day.title}</h2>
+              <p className={styles.subtitle}>({typeLabels[day.type] || day.type})</p>
+              <p>Что понадобится:</p>
+              <p className={styles.equipment}>{day.equipment || "вкусняшки и терпение"}</p>
+            </div>
           </Link>
+          
         </li>
       ))}
     </ul>
