@@ -1,91 +1,383 @@
 .stepContainer {
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 20px;
+  border: 2px solid #636128;
+  border-radius: 12px;
+  padding: 16px;
   margin-bottom: 16px;
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.stepHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.stepTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
+  background-color: #FFF8E5;
 }
 
 .stepInfo {
-  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-.stepInfo p {
-  margin-bottom: 8px;
-  color: #666;
+:is(.btnPrimary, .btnSecondary, .btnOutline) {
+  color: #352E2E;
+  border: 2px solid #636128;
+  padding: 12px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: transform 0.1s ease;
+}
+
+.btnPrimary,
+.btnSecondary { 
+  background-color: #E6E1CE; 
+}
+
+.btnOutline { 
+  background-color: #FFF8E5; 
+}
+
+:is(.btnPrimary, .btnSecondary, .btnOutline):hover { 
+  transform: scale(1.02); 
+}
+
+:is(.btnPrimary, .btnSecondary, .btnOutline):focus {
+  outline: 2px solid #636128;
+  outline-offset: 2px;
+}
+
+:is(.btnPrimary, .btnSecondary, .btnOutline):disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.timerDisplay {
+  font-size: 55px;
+  color: #352E2E;
+  font-weight: 600;
+  font-family: var(--font-moscow2024);
+  text-align: center;
+  margin: 8px 140px 8px 0;
+}
+
+/* Карточка таймера */
+.timerCard {
+  background: #FFFDF3;
+  border: 2px solid #D5D0BB;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.timerHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #352E2E;
+  font-weight: 600;
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 0;
+  flex-wrap: wrap;
 }
 
 .stepActions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.btnPrimary {
-  background-color: #007bff;
-  color: white;
+:is(.circleBtn, .circleBtnReset) {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: unset;
+  border: 4px solid #B6C582;
+  color: #B6C582;
+}
+
+.circleBtn {
+  width: 55px;
+  height: 55px;
+  min-width: 55px;
+  min-height: 55px;
+}
+
+.circleBtnReset {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+:is(.circleBtn, .circleBtnReset):active { 
+  transform: scale(0.98); 
+}
+
+:is(.circleBtn, .circleBtnReset):focus {
+  outline: 2px solid #B6C582;
+  outline-offset: 2px;
+}
+
+:is(.circleBtn, .circleBtnReset):disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sectionTitle {
+  font-weight: 700;
+  color: #352E2E;
+  margin-bottom: 6px;
+}
+
+.cardSection,
+.videoPlaceholder {
+  background: #FFFDF3;
+  border: 2px solid #D5D0BB;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.videoPlaceholder {
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.videoContainer {
+  margin-top: 16px;
+}
+
+.videoWrapper {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #D5D0BB;
+}
+
+.verticalPlayer {
+  padding-bottom: 177.78%; /* 9:16 aspect ratio for shorts */
+}
+
+.horizontalPlayer {
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+}
+
+.videoIframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
 }
 
-.btnPrimary:hover {
-  background-color: #0056b3;
+/* Улучшения для видео на мобильных */
+@media (max-width: 768px) {
+  .videoContainer {
+    margin-top: 12px;
+  }
+  
+  .videoWrapper {
+    border-radius: 6px;
+  }
+  
+  .videoIframe {
+    /* Улучшаем производительность на мобильных */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
 }
 
-.btnSecondary {
-  background-color: #ffc107;
-  color: #212529;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
+@media (max-width: 480px) {
+  .videoContainer {
+    margin-top: 8px;
+  }
+  
+  .videoWrapper {
+    border-radius: 4px;
+  }
 }
 
-.btnSecondary:hover {
-  background-color: #e0a800;
+/* Мобильные стили */
+@media (max-width: 768px) {
+  .stepContainer {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .timerDisplay {
+    font-size: 45px;
+    margin: 8px 120px 8px 0;
+  }
+  
+  .controlRow {
+    gap: 8px;
+    padding: 12px 0;
+  }
+  
+  .cardSection {
+    padding: 10px 12px;
+  }
+  
+  .sectionTitle {
+    font-size: 14px;
+  }
+  
+  .timerCard {
+    padding: 12px 14px;
+  }
+  
+  :is(.btnPrimary, .btnSecondary, .btnOutline) {
+    padding: 14px 20px;
+    font-size: 15px;
+    min-height: 48px;
+  }
 }
 
-.btnOutline {
-  background-color: transparent;
-  color: #6c757d;
-  border: 1px solid #6c757d;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
+/* Очень маленькие экраны */
+@media (max-width: 480px) {
+  .stepContainer {
+    padding: 8px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+  }
+  
+  .timerDisplay {
+    font-size: 35px;
+    margin: 8px 100px 8px 0;
+  }
+  
+  .circleBtn {
+    width: 60px;
+    height: 60px;
+    min-width: 60px;
+    min-height: 60px;
+    border-width: 3px;
+  }
+  
+  .circleBtnReset {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    border-width: 3px;
+  }
+  
+  .controlRow {
+    gap: 6px;
+    padding: 10px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .cardSection {
+    padding: 8px 10px;
+  }
+  
+  .sectionTitle {
+    font-size: 13px;
+  }
+  
+  .timerCard {
+    padding: 10px 12px;
+  }
+  
+  .btnPrimary,
+  .btnSecondary,
+  .btnOutline {
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: 44px;
+    width: 100%;
+    max-width: 200px;
+  }
+  
+  .stepActions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .videoWrapper {
+    border-radius: 6px;
+  }
 }
 
-.btnOutline:hover {
-  background-color: #6c757d;
-  color: white;
+/* Landscape режим на мобильных */
+@media (max-width: 768px) and (orientation: landscape) {
+  .stepContainer {
+    padding: 8px;
+  }
+  
+  .timerCard {
+    padding: 8px 12px;
+  }
+  
+  .controlRow {
+    padding: 8px 0;
+  }
+  
+  .timerDisplay {
+    font-size: 40px;
+    margin: 8px 110px 8px 0;
+  }
+  
+  .videoWrapper.verticalPlayer {
+    padding-bottom: 56.25%; /* Переключаем на горизонтальный формат в landscape */
+  }
 }
 
-.timerDisplay {
-  font-size: 14px;
+/* Стили для Markdown контента */
+.markdownContent p {
+  margin-bottom: 1em;
+}
+
+.markdownContent ul,
+.markdownContent ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.markdownContent li {
+  margin-bottom: 0.5em;
+}
+
+.markdownContent h1,
+.markdownContent h2,
+.markdownContent h3,
+.markdownContent h4,
+.markdownContent h5,
+.markdownContent h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: bold;
+}
+
+.markdownContent code {
+  background-color: #f5f5f5;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.markdownContent pre {
+  background-color: #f5f5f5;
+  padding: 1em;
+  border-radius: 5px;
+  overflow-x: auto;
+}
+
+.markdownContent blockquote {
+  border-left: 4px solid #ddd;
+  margin: 1em 0;
+  padding-left: 1em;
   color: #666;
-  font-weight: 500;
 }

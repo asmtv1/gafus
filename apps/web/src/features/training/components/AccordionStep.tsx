@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 import { useStepStore } from "@shared/stores/stepStore";
 import { useTimerStore } from "@shared/stores/timerStore";
 import { useCacheManager } from "@shared/utils/cacheManager";
 import { useSyncStatus } from "@shared/hooks/useSyncStatus";
-// import { TrainingStatus } from "@gafus/types";
 import styles from "./AccordionStep.module.css";
+import { AccessTimeIcon, PauseIcon, PlayArrowIcon, ReplayIcon } from "@/utils/muiImports";
+import { getEmbeddedVideoInfo } from "@/utils";
 
 interface AccordionStepProps {
   courseId: string;
@@ -15,9 +17,11 @@ interface AccordionStepProps {
   stepIndex: number;
   durationSec: number;
   stepTitle: string;
+  stepDescription?: string;
   stepOrder: number;
   totalSteps: number;
   initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
+  videoUrl?: string | null;
   onRun: (stepIndex: number) => void;
   onReset: (stepIndex: number) => void;
 }
@@ -28,30 +32,17 @@ export function AccordionStep({
   stepIndex,
   durationSec,
   stepTitle,
+  stepDescription,
   stepOrder,
   totalSteps,
   initialStatus,
+  videoUrl,
   onRun,
   onReset,
 }: AccordionStepProps) {
   // Состояние для отслеживания загрузки
   const [isPausing, setIsPausing] = useState(false);
 
-  // Функция для перевода статуса на русский язык
-  const getStatusText = useCallback((status: string) => {
-    switch (status) {
-      case "NOT_STARTED":
-        return "Не начат";
-      case "IN_PROGRESS":
-        return "В процессе";
-      case "COMPLETED":
-        return "Завершен";
-      case "PAUSED":
-        return "На паузе";
-      default:
-        return status;
-    }
-  }, []);
   const {
     stepStates,
     initializeStep,
@@ -75,8 +66,9 @@ export function AccordionStep({
 
   // Централизованный менеджер кэша
   const { updateStepProgress } = useCacheManager();
-  // Удаляем неиспользуемые импорты из trainingStore
-  // const { togglePauseWithServer, resumeNotificationWithServer } = useTrainingStore();
+  
+  // Получаем информацию о видео
+  const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [videoUrl]);
   // Инициализируем шаг при монтировании
   useEffect(() => {
     initializeStep(courseId, day, stepIndex, durationSec, initialStatus);
@@ -195,8 +187,6 @@ export function AccordionStep({
         alert("Один шаг уже активен. Сначала остановите его!");
         return false;
       }
-
-      return true;
 
       return true;
     },
@@ -350,95 +340,72 @@ export function AccordionStep({
     }
   }, [resetStepWithServer, courseId, day, stepIndex, durationSec, stopTimer, resetStep, onReset]);
 
-  const renderActions = useCallback(() => {
-    if (!stepState) return null;
-
-    if (stepState.status === "NOT_STARTED") {
-      return (
-        <button onClick={handleStart} className={styles.btnPrimary}>
-          Начать
-        </button>
-      );
-    }
-
-    if (stepState.status === "IN_PROGRESS") {
-      // Показываем кнопки только если таймер действительно работает
-      if (isActuallyRunning) {
-        return (
-          <div className={styles.stepActions}>
-            <button onClick={togglePause} className={styles.btnSecondary} disabled={isPausing}>
-              {isPausing ? "⏳ Пауза..." : "Пауза"}
-            </button>
-            <button onClick={handleReset} className={styles.btnOutline}>
-              Сброс
-            </button>
-          </div>
-        );
-      } else {
-        // Если статус IN_PROGRESS, но таймер не работает - показываем "Продолжить"
-        return (
-          <div className={styles.stepActions}>
-            <button onClick={togglePause} className={styles.btnPrimary} disabled={isPausing}>
-              {isPausing ? "⏳ Продолжить..." : "Продолжить"}
-            </button>
-            <button onClick={handleReset} className={styles.btnOutline}>
-              Сброс
-            </button>
-          </div>
-        );
-      }
-    }
-
-    if (stepState.status === "PAUSED") {
-      return (
-        <div className={styles.stepActions}>
-          <button onClick={togglePause} className={styles.btnPrimary} disabled={isPausing}>
-            {isPausing ? "⏳ Продолжить..." : "Продолжить"}
-          </button>
-          <button onClick={handleReset} className={styles.btnOutline}>
-            Сброс
-          </button>
-        </div>
-      );
-    }
-
-    if (stepState.status === "COMPLETED") {
-      return (
-        <button onClick={handleReset} className={styles.btnOutline}>
-          Сброс
-        </button>
-      );
-    }
-
-    return null;
-  }, [stepState, isActuallyRunning, handleStart, togglePause, handleReset, isPausing]);
 
   if (!stepState) return null;
 
   return (
     <div className={styles.stepContainer}>
-      <div className={styles.stepHeader}>
-        <h3 className={styles.stepTitle}>
-          {isActuallyRunning && "⏱"}
-          {stepState.isFinished && "✅"}
-          {stepState.status === "PAUSED" && "⏸"}
-          {stepTitle}
-        </h3>
-        <div className={styles.timerDisplay}>
-          {isActuallyRunning &&
-            `Осталось: ${Math.floor(stepState.timeLeft / 60)}:${(stepState.timeLeft % 60).toString().padStart(2, "0")}`}
+
+      <div className={styles.timerCard}>
+        <div className={styles.timerHeader}>
+          <AccessTimeIcon fontSize="small" />
+          <span>Начните занятие!</span>
         </div>
+        <div className={styles.controlRow}>
+        <div className={styles.timerDisplay}>
+          {`${Math.floor(stepState.timeLeft / 60)}:${(stepState.timeLeft % 60)
+            .toString()
+            .padStart(2, "0")}`}
+        </div>
+          {stepState.status === "NOT_STARTED" && (
+            <button onClick={handleStart} className={styles.circleBtn} aria-label="start">
+              <PlayArrowIcon />
+            </button>
+          )}
+          {stepState.status === "IN_PROGRESS" && isActuallyRunning && (
+            <button onClick={togglePause} disabled={isPausing} className={styles.circleBtn} aria-label="pause">
+              <PauseIcon />
+            </button>
+          )}
+          {(stepState.status === "IN_PROGRESS" && !isActuallyRunning) || stepState.status === "PAUSED" ? (
+            <button onClick={togglePause} disabled={isPausing} className={styles.circleBtn} aria-label="resume">
+              <PlayArrowIcon />
+            </button>
+          ) : null}
+          <button onClick={handleReset} className={styles.circleBtnReset} aria-label="reset">
+            <ReplayIcon />
+          </button>
+         
+        </div>
+       
       </div>
 
-      <div className={styles.stepInfo}>
-        <p>
-          Длительность: {Math.floor(durationSec / 60)}:
-          {(durationSec % 60).toString().padStart(2, "0")}
-        </p>
-        <p>Статус: {getStatusText(stepState.status)}</p>
-      </div>
+      {stepDescription && (
+        <div className={styles.stepInfo}>
+          <div>
+            <div className={styles.sectionTitle}>Описание:</div>
+            <div className={`${styles.cardSection} ${styles.markdownContent}`}>
+              <ReactMarkdown>{stepDescription}</ReactMarkdown>
+            </div>
+          </div>
+        </div>
+      )}
 
-      <div className={styles.stepActions}>{renderActions()}</div>
+      {videoInfo && (
+        <div className={styles.videoContainer}>
+          <div
+            className={`${styles.videoWrapper} ${videoInfo.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
+          >
+            <iframe
+              src={videoInfo.embedUrl}
+              title="Видео упражнения"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className={styles.videoIframe}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 

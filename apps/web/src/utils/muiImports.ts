@@ -48,6 +48,11 @@ export { default as CancelIcon } from "@mui/icons-material/Cancel";
 export { default as SearchIcon } from "@mui/icons-material/Search";
 export { default as SortIcon } from "@mui/icons-material/Sort";
 export { default as MoreVertIcon } from "@mui/icons-material/MoreVert";
+export { default as PlayArrowIcon } from "@mui/icons-material/PlayArrow";
+export { default as PauseIcon } from "@mui/icons-material/Pause";
+export { default as ReplayIcon } from "@mui/icons-material/Replay";
+export { default as AccessTimeIcon } from "@mui/icons-material/AccessTime";
+export { default as ExpandMoreIcon } from "@mui/icons-material/ExpandMore";
 
 // Material-UI утилиты
 export { styled } from "@mui/material/styles";
