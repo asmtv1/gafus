@@ -77,38 +77,6 @@ export const useTrainingStore = create<TrainingState>()(
         }
       },
 
-      // ===== ОПРЕДЕЛЕНИЕ СТАТУСА ДНЯ =====
-      getDayStatus: (courseId, day, stepStates, totalSteps) => {
-        // Получаем все ключи шагов для данного дня
-        const stepKeys = Object.keys(stepStates).filter((key) =>
-          key.startsWith(`${courseId}-${day}-`),
-        );
-
-        // Если нет шагов в stepStates, день не начат
-        if (stepKeys.length === 0) return "NOT_STARTED";
-
-        // Создаем массив статусов для всех шагов дня
-        const stepStatuses: string[] = [];
-        for (let i = 0; i < totalSteps; i++) {
-          const stepKey = `${courseId}-${day}-${i}`;
-          const stepState = stepStates[stepKey];
-          const status = stepState?.status || "NOT_STARTED";
-          stepStatuses.push(status);
-        }
-
-        // Если все шаги завершены - день завершен
-        if (stepStatuses.every((status) => status === "COMPLETED")) {
-          return "COMPLETED";
-        }
-
-        // Если есть хотя бы один шаг начат (IN_PROGRESS/PAUSED/COMPLETED) — день в процессе
-        if (stepStatuses.some((status) => status === "IN_PROGRESS" || status === "PAUSED" || status === "COMPLETED")) {
-          return "IN_PROGRESS";
-        }
-
-        // Иначе день не начат
-        return "NOT_STARTED";
-      },
 
       // ===== ДЕЙСТВИЯ ДЛЯ ДНЯ =====
       setOpenIndex: (courseId, day, index) => {

@@ -9,7 +9,7 @@
 .dayHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   margin-bottom: 16px;
   width: 100%;
   flex-wrap: wrap;
@@ -17,7 +17,7 @@
 }
 
 .dayTitle  {
-    color: #352e2e;
+    color: #636128;
     font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
     font-weight: 400;
     font-size: 80px;

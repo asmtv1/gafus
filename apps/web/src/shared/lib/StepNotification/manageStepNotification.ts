@@ -95,7 +95,7 @@ export async function resetStepNotification(
     if (notification.jobId) {
       try {
         await pushQueue.remove(notification.jobId.toString());
-        console.log(`Job ${notification.jobId} removed from queue`);
+        console.warn(`Job ${notification.jobId} removed from queue`);
       } catch (error) {
         console.warn("Failed to remove job from queue:", error);
       }
@@ -106,7 +106,7 @@ export async function resetStepNotification(
       where: { id: notification.id },
     });
 
-    console.log(`Notification reset for user ${userId}, day ${day}, step ${stepIndex}`);
+    console.warn(`Notification reset for user ${userId}, day ${day}, step ${stepIndex}`);
   } catch (error) {
     console.error("Failed to reset step notification:", error);
     throw error;
@@ -138,8 +138,40 @@ export async function resumeStepNotification(
     });
 
     if (!notification) {
-      console.log(`No active notification found for user ${userId}, day ${day}, step ${stepIndex}`);
-      return; // Уведомление не найдено
+      // Если уведомление не найдено (например, было сброшено) — создаем новое и выходим
+      const nowTs = Math.floor(Date.now() / 1000);
+      const endTs = nowTs + Math.max(Number(durationSec) || 0, 0);
+
+      const created = await prisma.stepNotification.create({
+        data: {
+          userId,
+          day,
+          stepIndex,
+          endTs,
+          // без URL и title — опционально
+          subscription: { subscriptions: [], count: 0 },
+        },
+      });
+
+      const job = await pushQueue.add(
+        "push",
+        { notificationId: created.id },
+        {
+          delay: Math.max(Number(durationSec) || 0, 0) * 1000,
+          attempts: 5,
+          backoff: { type: "exponential", delay: 3000 },
+          removeOnComplete: true,
+          removeOnFail: false,
+        },
+      );
+
+      await prisma.stepNotification.update({
+        where: { id: created.id },
+        data: { jobId: job.id, paused: false },
+      });
+
+      console.warn(`Notification created on resume for user ${userId}, day ${day}, step ${stepIndex}, jobId: ${job.id}`);
+      return;
     }
 
     // Вычисляем оставшееся время
