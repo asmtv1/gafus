@@ -42,7 +42,7 @@
 }
 .dropdownMenu {
   position: absolute;
-  top: 100%;
+  top: 105%;
   right: 0%;
   transform: translateX(-10%) translateY(-8%);
   background-color: #fff8e5;

@@ -11,26 +11,10 @@ import type {
 } from "@gafus/types";
 
 import { FavoriteIcon, FavoriteBorderIcon } from "@/utils/muiImports";
-import { Rating, styled } from "@/utils/muiImports";
+import { Rating } from "@/utils/muiImports";
+import styles from "./CourseRating.module.css";
 
-const StyledRating = styled(Rating)({
-  // Фикс отображения на мобильных: переопределяем глобальное svg { display:block }
-  lineHeight: 1,
-  "& .MuiSvgIcon-root": {
-    display: "inline-block",
-    width: "1em",
-    height: "1em",
-  },
-  "& .MuiRating-iconFilled": {
-    color: "#ff6d75",
-  },
-  "& .MuiRating-iconHover": {
-    color: "#ff3d47",
-  },
-  "& .MuiRating-iconEmpty": {
-    color: "#b0b0b0",
-  },
-});
+// StyledRating теперь использует CSS модуль
 
 export const CourseRating: React.FC<CourseRatingProps> = ({
   courseId,
@@ -40,6 +24,7 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
 }) => {
   const [rating, setRating] = useState(initialRating);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
 
   const handleRatingChange = async (event: React.SyntheticEvent, newValue: number | null) => {
     if (newValue === null || isSubmitting || readOnly) return;
@@ -60,8 +45,17 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
     }
   };
 
+  // Если рейтинг равен 0 или null, показываем простой текст
+  if (!rating || rating === 0) {
+    return (
+      <div className={`${styles.noRating} ${styles[size]}`}>
+        <span>Нет рейтинга</span>
+      </div>
+    );
+  }
+
   return (
-    <StyledRating
+    <Rating
       value={rating}
       onChange={handleRatingChange}
       disabled={isSubmitting}
@@ -69,6 +63,7 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
       size={size}
       icon={<FavoriteIcon fontSize="inherit" />}
       emptyIcon={<FavoriteBorderIcon fontSize="inherit" />}
+      className={styles.styledRating}
     />
   );
 };
@@ -80,12 +75,13 @@ export const LegacyCourseRating: React.FC<LegacyCourseRatingProps> = ({
   size = "small",
 }) => {
   return (
-    <StyledRating
+    <Rating
       value={value}
       readOnly={readOnly}
       size={size}
       icon={<FavoriteIcon fontSize="inherit" />}
       emptyIcon={<FavoriteBorderIcon fontSize="inherit" />}
+      className={styles.styledRating}
     />
   );
 };
@@ -95,4 +91,57 @@ export const ClientCourseRating: React.FC<ClientCourseRatingProps> = ({
   initialRating,
 }) => {
   return <CourseRating courseId={courseId} initialRating={initialRating} readOnly={false} />;
+};
+
+// Простой компонент рейтинга без Material-UI для мобильных устройств
+export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
+  courseId,
+  initialRating,
+  readOnly = true,
+  size = "small",
+}) => {
+  const [rating, setRating] = useState(initialRating);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+
+  const handleRatingChange = async (newValue: number) => {
+    if (isSubmitting || readOnly) return;
+
+    setIsSubmitting(true);
+    try {
+      const result = await updateCourseRatingAction(courseId, newValue);
+      if (result.success) {
+        setRating(newValue);
+      } else {
+        console.error("Ошибка при сохранении рейтинга:", result.error);
+      }
+    } catch (error) {
+      console.error("Ошибка при сохранении рейтинга:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className={`${styles.simpleRating} ${styles[size]}`}>
+      {[1, 2, 3, 4, 5].map((heart) => (
+        <span
+          key={heart}
+          onClick={() => !readOnly && handleRatingChange(heart)}
+          className={`${styles.simpleRatingHeart} ${
+            readOnly ? styles.readOnly : ''
+          } ${
+            heart <= (rating || 0) ? styles.filled : styles.empty
+          }`}
+        >
+          ♥
+        </span>
+      ))}
+      {rating && rating > 0 && (
+        <span className={styles.simpleRatingValue}>
+          {rating.toFixed(1)}
+        </span>
+      )}
+    </div>
+  );
 };

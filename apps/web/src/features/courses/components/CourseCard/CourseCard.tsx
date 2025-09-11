@@ -13,7 +13,7 @@ import styles from "./CourseCard.module.css";
 import type { CourseCardPropsWithIndex } from "@gafus/types";
 
 import { declOfNum } from "@/utils";
-import { CourseRating } from "../CourseRating";
+import { SimpleCourseRating } from "../CourseRating";
 import { FavoriteButton } from "../FavoriteButton";
 
 // Заглушка по умолчанию для отсутствующих изображений
@@ -191,7 +191,7 @@ export const CourseCard = ({
           )}
 
           <div className={styles.rating}>
-            <CourseRating courseId={id} initialRating={avgRating || 0} />
+            <SimpleCourseRating courseId={id} initialRating={avgRating || 0} />
             <span className={styles.reviews}>{getReviewText()}</span>
           </div>
         </div>
