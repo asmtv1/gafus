@@ -110,6 +110,7 @@ export const CourseCard = ({
 
   return (
     <li className={styles.courseCard}>
+      <div className={styles.courseCardContent}>
       <Link
         href={`/trainings/${type}`}
         className={styles.link}
@@ -189,13 +190,17 @@ export const CourseCard = ({
               })()}
             </div>
           )}
-
-          <div className={styles.rating}>
-            <SimpleCourseRating courseId={id} initialRating={avgRating || 0} />
-            <span className={styles.reviews}>{getReviewText()}</span>
-          </div>
         </div>
       </Link>
+      <div className={styles.rating}>
+            <SimpleCourseRating 
+              courseId={id} 
+              initialRating={avgRating || 0} 
+              readOnly={userStatus !== TrainingStatus.COMPLETED}
+            />
+            <span className={styles.reviews}>{getReviewText()}</span>
+          </div>
+          </div>
 
       <div className={styles.author}>
         <div>
