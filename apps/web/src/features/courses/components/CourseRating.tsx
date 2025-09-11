@@ -12,6 +12,7 @@ import type {
 
 import { FavoriteIcon, FavoriteBorderIcon } from "@/utils/muiImports";
 import { Rating } from "@/utils/muiImports";
+import { showCourseRatingAlert, showErrorAlert, showSuccessAlert } from "@shared/utils/sweetAlert";
 import styles from "./CourseRating.module.css";
 
 // StyledRating теперь использует CSS модуль
@@ -29,9 +30,9 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
   const handleRatingChange = async (event: React.SyntheticEvent, newValue: number | null) => {
     if (newValue === null || isSubmitting) return;
 
-    // Если курс не завершен, показываем alert
+    // Если курс не завершен, показываем стилизованное уведомление
     if (readOnly) {
-      alert("Завершите курс, чтобы поставить рейтинг");
+      await showCourseRatingAlert();
       return;
     }
 
@@ -41,13 +42,14 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
 
       if (result.success) {
         setRating(newValue);
+        await showSuccessAlert("Рейтинг сохранен");
       } else {
         console.error("Ошибка при сохранении рейтинга:", result.error);
-        alert(result.error || "Ошибка при сохранении рейтинга");
+        await showErrorAlert(result.error || "Ошибка при сохранении рейтинга");
       }
     } catch (error) {
       console.error("Ошибка при сохранении рейтинга:", error);
-      alert("Ошибка при сохранении рейтинга");
+      await showErrorAlert("Ошибка при сохранении рейтинга");
     } finally {
       setIsSubmitting(false);
     }
@@ -115,9 +117,9 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
   const handleRatingChange = async (newValue: number) => {
     if (isSubmitting) return;
 
-    // Если курс не завершен, показываем alert
+    // Если курс не завершен, показываем стилизованное уведомление
     if (readOnly) {
-      alert("Завершите курс, чтобы поставить рейтинг");
+      await showCourseRatingAlert();
       return;
     }
 
@@ -126,13 +128,14 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
       const result = await updateCourseRatingAction(courseId, newValue);
       if (result.success) {
         setRating(newValue);
+        await showSuccessAlert("Рейтинг сохранен");
       } else {
         console.error("Ошибка при сохранении рейтинга:", result.error);
-        alert(result.error || "Ошибка при сохранении рейтинга");
+        await showErrorAlert(result.error || "Ошибка при сохранении рейтинга");
       }
     } catch (error) {
       console.error("Ошибка при сохранении рейтинга:", error);
-      alert("Ошибка при сохранении рейтинга");
+      await showErrorAlert("Ошибка при сохранении рейтинга");
     } finally {
       setIsSubmitting(false);
     }
