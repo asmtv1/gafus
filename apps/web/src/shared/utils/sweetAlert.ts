@@ -67,3 +67,59 @@ export const showSuccessAlert = (message: string) => {
     timer: 2000,
   });
 };
+
+// Стилизованный запрос разрешения на уведомления
+export const showNotificationPermissionAlert = (
+  onAllow: () => void,
+  onDeny: () => void,
+  isLoading: boolean = false,
+  error: string | null = null
+) => {
+  return Swal.fire({
+    title: 'Включить уведомления?',
+    text: 'Включите уведомления, чтобы получать оповещения о завершении упражнения.\n' +
+      'Так вы сможете не отвлекаться на телефон во время тренировки.\n' +
+      'Отключить уведомления можно в настройках профиля.',
+    imageUrl: '/logo.png',
+    imageWidth: 160,
+    imageHeight: 160,
+    imageAlt: 'Гафус',
+    showCancelButton: true,
+    confirmButtonText: isLoading ? 'Загрузка...' : 'Включить',
+    cancelButtonText: 'Не сейчас',
+    confirmButtonColor: customTheme.confirmButtonColor,
+    cancelButtonColor: customTheme.cancelButtonColor,
+    customClass: {
+      popup: 'swal2-popup-custom',
+      title: 'swal2-title-custom',
+      htmlContainer: 'swal2-content-custom',
+      confirmButton: 'swal2-confirm-custom',
+      cancelButton: 'swal2-cancel-custom',
+    },
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: () => {
+      if (error) {
+        Swal.showValidationMessage(error);
+      }
+    },
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      // Показываем загрузку
+      Swal.showLoading();
+      try {
+        await onAllow();
+        // Закрываем модальное окно после успешного выполнения
+        Swal.close();
+      } catch {
+        // Показываем ошибку, но не закрываем модальное окно
+        Swal.hideLoading();
+        Swal.showValidationMessage('Произошла ошибка при включении уведомлений');
+      }
+    } else if (result.dismiss === Swal.DismissReason.cancel) {
+      await onDeny();
+      // Закрываем модальное окно после выполнения действия
+      Swal.close();
+    }
+  });
+};

@@ -28,6 +28,17 @@
   max-width: 25em !important;
 }
 
+.swal2-cancel-custom {
+  font-family: 'Montserrat', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  border: none !important;
+  color: #352E2E !important;
+  max-width: 25em !important;
+}
+
 /* Стили для кастомного изображения */
 .swal2-image {
   border-radius: 6px !important;
