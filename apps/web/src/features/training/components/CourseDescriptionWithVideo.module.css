@@ -1,6 +1,208 @@
+/* Контейнер описания курса */
+.descriptionContainer {
+  margin-bottom: 24px;
+  max-width: 500px;
+  width: 100%;
+}
+
+.descriptionContainer:not(.expanded) .descriptionHeader {
+  border-radius: 12px;
+}
+
+.descriptionContainer.expanded .descriptionHeader {
+  border-radius: 12px 12px 0 0;
+}
+
+.descriptionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background-color: #ECE5D2;
+  border: 1px solid #636128;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.descriptionHeader:hover {
+  background-color: #E6DCC7;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.descriptionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #352E2E;
+  margin: 0;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+}
+
+.expandIcon {
+  color: #636128;
+  transition: transform 0.2s ease;
+  font-size: 24px;
+}
+
+.expandIcon.expanded {
+  transform: rotate(180deg);
+}
+
+.descriptionContent {
+  color: #352E2E;
+  background-color: #ECE5D2;
+  border: 1px solid #636128;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding: 0 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  max-height: 0;
+  opacity: 0;
+}
+
+.descriptionContent.expanded {
+  max-height: 1000px;
+  opacity: 1;
+  padding: 20px;
+}
+
+.descriptionContent.collapsed {
+  max-height: 0;
+  opacity: 0;
+  padding: 0 20px;
+}
+
+/* Стили для Markdown контента */
+.descriptionContent p {
+  margin-bottom: 1em;
+  line-height: 1.6;
+  color: #352E2E;
+}
+
+.descriptionContent ul,
+.descriptionContent ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.descriptionContent li {
+  margin-bottom: 0.5em;
+  line-height: 1.5;
+  color: #352E2E;
+}
+
+.descriptionContent h1,
+.descriptionContent h2,
+.descriptionContent h3,
+.descriptionContent h4,
+.descriptionContent h5,
+.descriptionContent h6 {
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+  font-weight: 600;
+  color: #352E2E;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+}
+
+.descriptionContent h1 {
+  font-size: 1.5em;
+}
+
+.descriptionContent h2 {
+  font-size: 1.3em;
+}
+
+.descriptionContent h3 {
+  font-size: 1.1em;
+}
+
+.descriptionContent strong {
+  font-weight: 600;
+  color: #352E2E;
+}
+
+.descriptionContent em {
+  font-style: italic;
+  color: #5a5249;
+}
+
+.descriptionContent code {
+  background-color: #D4C4A8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  color: #8B4513;
+}
+
+.descriptionContent blockquote {
+  border-left: 4px solid #636128;
+  padding-left: 16px;
+  margin: 1em 0;
+  font-style: italic;
+  color: #5a5249;
+  background-color: #D4C4A8;
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+}
+
+.descriptionContent a {
+  color: #636128;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.descriptionContent a:hover {
+  color: #4a4a1a;
+  text-decoration: none;
+}
+
+/* Стили для информации о курсе */
+.courseInfo {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background-color: #F5F0E8;
+  border: 1px solid #D4C4A8;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.infoLabel {
+  font-weight: 600;
+  color: #636128;
+  font-size: 0.9em;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+}
+
+.infoValue {
+  color: #352E2E;
+  font-size: 0.95em;
+  line-height: 1.4;
+  padding-left: 0.5rem;
+}
+
+/* Стили для видео контейнера */
 .videoContainer {
   margin: 2rem 0;
   text-align: center;
+}
+
+.videoContainer h3 {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: #352E2E;
+  margin-bottom: 1rem;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
 .videoWrapper {
@@ -37,38 +239,54 @@
   border: none;
 }
 
-.details {
-  margin-bottom: 1.5rem;
-}
-
-.summary {
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 1.2rem;
-  margin-bottom: 0.5rem;
-}
-
-.markdownContent p {
-  margin-bottom: 1em;
-}
-
-.markdownContent ul,
-.markdownContent ol {
-  padding-left: 1.5em;
-  margin-bottom: 1em;
-}
-
-.markdownContent li {
-  margin-bottom: 0.5em;
-}
-
-.markdownContent h1,
-.markdownContent h2,
-.markdownContent h3,
-.markdownContent h4,
-.markdownContent h5,
-.markdownContent h6 {
-  margin-top: 1em;
-  margin-bottom: 0.5em;
-  font-weight: bold;
+/* Мобильные стили */
+@media (max-width: 768px) {
+  .descriptionContainer {
+    margin-bottom: 20px;
+  }
+  
+  .descriptionHeader {
+    padding: 12px 16px;
+  }
+  
+  .descriptionTitle {
+    font-size: 14px;
+  }
+  
+  .descriptionContent.expanded {
+    padding: 16px;
+  }
+  
+  .descriptionContent.collapsed {
+    padding: 0 16px;
+  }
+  
+  .descriptionContent h1 {
+    font-size: 1.3em;
+  }
+  
+  .descriptionContent h2 {
+    font-size: 1.2em;
+  }
+  
+  .descriptionContent h3 {
+    font-size: 1.1em;
+  }
+  
+  .expandIcon {
+    font-size: 20px;
+  }
+  
+  .courseInfo {
+    margin: 1rem 0;
+    padding: 0.75rem;
+  }
+  
+  .infoLabel {
+    font-size: 0.85em;
+  }
+  
+  .infoValue {
+    font-size: 0.9em;
+  }
 }

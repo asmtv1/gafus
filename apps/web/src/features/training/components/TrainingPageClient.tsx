@@ -19,6 +19,8 @@ interface TrainingPageClientProps {
     courseDescription: string | null;
     courseId: string | null;
     courseVideoUrl: string | null;
+    courseEquipment: string | null;
+    courseTrainingLevel: string | null;
   } | null;
   initialError?: string | null;
 }
@@ -53,7 +55,9 @@ export default function TrainingPageClient({
       <div className="courseDescription">
         <CourseDescriptionWithVideo 
           description={initialData?.courseDescription || null} 
-          videoUrl={initialData?.courseVideoUrl || null} 
+          videoUrl={initialData?.courseVideoUrl || null}
+          equipment={initialData?.courseEquipment || null}
+          trainingLevel={initialData?.courseTrainingLevel || null}
         />
       </div>
 

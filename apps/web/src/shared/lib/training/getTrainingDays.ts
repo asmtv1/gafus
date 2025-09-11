@@ -13,7 +13,9 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
   trainingDays: (Pick<TrainingDetail, "trainingDayId" | "day" | "title" | "type" | "courseId" | "userStatus"> & { estimatedDuration: number; equipment: string })[];
   courseDescription: string | null;
   courseId: string | null;
-  courseVideoUrl: string | null; // <--- добавили сюда
+  courseVideoUrl: string | null;
+  courseEquipment: string | null;
+  courseTrainingLevel: string | null;
 }> {
   try {
     // Если userId не передан, получаем его
@@ -33,7 +35,9 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
       select: {
         id: true,
         description: true,
-        videoUrl: true, // <--- добавили сюда
+        videoUrl: true,
+        equipment: true,
+        trainingLevel: true,
         dayLinks: {
           orderBy: { order: "asc" },
           select: {
@@ -80,6 +84,8 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
         courseDescription: null,
         courseId: null,
         courseVideoUrl: null,
+        courseEquipment: null,
+        courseTrainingLevel: null,
       };
     }
 
@@ -131,6 +137,8 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
       courseDescription: firstCourse.description,
       courseId: firstCourse.id,
       courseVideoUrl: firstCourse.videoUrl,
+      courseEquipment: firstCourse.equipment,
+      courseTrainingLevel: firstCourse.trainingLevel,
     };
   } catch (error) {
     console.error("Ошибка в getTrainingDays:", error);
