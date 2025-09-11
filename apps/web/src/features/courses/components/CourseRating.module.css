@@ -1,0 +1,104 @@
+/* Стили для Material-UI рейтинга */
+.styledRating {
+  /* Фикс отображения на мобильных: переопределяем глобальное svg { display:block } */
+  line-height: 1;
+}
+
+.styledRating .MuiSvgIcon-root {
+  display: inline-block !important;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
+.styledRating .MuiRating-iconFilled {
+  color: #ff6d75;
+}
+
+.styledRating .MuiRating-iconHover {
+  color: #ff3d47;
+}
+
+.styledRating .MuiRating-iconEmpty {
+  color: #b0b0b0;
+}
+
+/* Дополнительные стили для мобильных устройств */
+@media (max-width: 768px) {
+  .styledRating .MuiSvgIcon-root {
+    display: inline-block !important;
+    width: 1.2em;
+    height: 1.2em;
+  }
+}
+
+@media (max-width: 480px) {
+  .styledRating .MuiSvgIcon-root {
+    display: inline-block !important;
+    width: 1.1em;
+    height: 1.1em;
+  }
+}
+
+/* Стили для простого рейтинга */
+.simpleRating {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.simpleRatingHeart {
+  cursor: pointer;
+  transition: color 0.2s ease;
+  user-select: none;
+}
+
+.simpleRatingHeart.readOnly {
+  cursor: default;
+}
+
+.simpleRatingHeart.filled {
+  color: #ff6d75;
+}
+
+.simpleRatingHeart.empty {
+  color: #b0b0b0;
+}
+
+.simpleRatingValue {
+  margin-left: 8px;
+  color: #666;
+}
+
+/* Стили для текста "Нет рейтинга" */
+.noRating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #b0b0b0;
+}
+
+/* Размеры для разных вариантов */
+.small {
+  font-size: 14px;
+}
+
+.small .simpleRatingHeart {
+  font-size: 16px;
+}
+
+.medium {
+  font-size: 16px;
+}
+
+.medium .simpleRatingHeart {
+  font-size: 20px;
+}
+
+.large {
+  font-size: 18px;
+}
+
+.large .simpleRatingHeart {
+  font-size: 24px;
+}
