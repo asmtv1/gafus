@@ -36,6 +36,14 @@
   width: 100%;
 }
 
+.descriptionContainer:not(.expanded) .descriptionHeader {
+  border-radius: 12px;
+}
+
+.descriptionContainer.expanded .descriptionHeader {
+  border-radius: 12px 12px 0 0;
+}
+
 .descriptionHeader {
   display: flex;
   align-items: center;
@@ -43,7 +51,6 @@
   padding: 16px 20px;
   background-color: #ECE5D2;
   border: 1px solid #636128;
-  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -63,13 +70,29 @@
 }
 
 .dayDescription {
-  margin-top: 8px;
   color: #352E2E;
   background-color: #ECE5D2;
   border: 1px solid #636128;
-  border-radius: 12px;
-  padding: 20px;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding: 0 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  max-height: 0;
+  opacity: 0;
+}
+
+.dayDescription.expanded {
+  max-height: 1000px;
+  opacity: 1;
+  padding: 20px;
+}
+
+.dayDescription.collapsed {
+  max-height: 0;
+  opacity: 0;
+  padding: 0 20px;
 }
 
 /* Стили для Markdown контента */
@@ -285,8 +308,12 @@
     font-size: 14px;
   }
   
-  .dayDescription {
+  .dayDescription.expanded {
     padding: 16px;
+  }
+  
+  .dayDescription.collapsed {
+    padding: 0 16px;
   }
   
   .dayDescription h1 {
