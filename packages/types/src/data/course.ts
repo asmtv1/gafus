@@ -11,6 +11,7 @@ export interface CourseWithProgressData {
   logoImg: string;
   isPrivate: boolean;
   avgRating: number | null;
+  trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
   createdAt: Date;
   authorUsername: string;
   userStatus: TrainingStatus;
@@ -176,6 +177,7 @@ export interface CourseCardProps {
   authorUsername: string;
   createdAt: Date;
   avgRating: number | null;
+  trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
   reviews: CourseReview[];
   isFavorite: boolean;
   onToggleFavorite?: () => void;

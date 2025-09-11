@@ -76,6 +76,7 @@ export async function getFavoritesCourses(userId?: string): Promise<{
           logoImg: course.logoImg,
           isPrivate: course.isPrivate,
           avgRating: course.avgRating,
+          trainingLevel: course.trainingLevel,
           createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
           authorUsername: course.author.username,
           userStatus: (userCourse?.status ?? TrainingStatus.NOT_STARTED) as TrainingStatus,

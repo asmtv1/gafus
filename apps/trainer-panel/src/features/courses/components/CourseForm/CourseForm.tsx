@@ -18,7 +18,10 @@ import {
   Alert,
   Box,
   Button,
+  FormControl,
   FormControlLabel,
+  Radio,
+  RadioGroup,
   Switch,
   Typography,
 } from "../../../../utils/muiImports";
@@ -215,11 +218,20 @@ export default function CourseForm({
             placeholder="например: поводок, игрушки, лакомства"
             form={form}
           />
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
+          <FormControl component="fieldset" sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" component="legend" sx={{ mb: 1 }}>
               Уровень сложности
             </Typography>
-            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+            <RadioGroup
+              value={form.watch("trainingLevel")}
+              onChange={(e) =>
+                form.setValue(
+                  "trainingLevel",
+                  e.target.value as "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT",
+                )
+              }
+              row
+            >
               {[
                 { value: "BEGINNER", label: "Начальный" },
                 { value: "INTERMEDIATE", label: "Средний" },
@@ -228,22 +240,13 @@ export default function CourseForm({
               ].map((level) => (
                 <FormControlLabel
                   key={level.value}
-                  control={
-                    <Switch
-                      checked={form.watch("trainingLevel") === level.value}
-                      onChange={() =>
-                        form.setValue(
-                          "trainingLevel",
-                          level.value as "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT",
-                        )
-                      }
-                    />
-                  }
+                  value={level.value}
+                  control={<Radio />}
                   label={level.label}
                 />
               ))}
-            </Box>
-          </Box>
+            </RadioGroup>
+          </FormControl>
           <FormField
             id="videoUrl"
             label="Ссылка на видео"

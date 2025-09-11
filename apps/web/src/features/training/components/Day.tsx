@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 import type { TrainingDetail } from "@gafus/types";
 import { useStepStore } from "@shared/stores/stepStore";
@@ -37,6 +38,7 @@ interface DayProps {
 export function Day({ training }: DayProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
+  const [isDescriptionOpen, setIsDescriptionOpen] = useState<boolean>(false);
 
   const { stepStates, initializeStep } = useStepStore();
   const {
@@ -86,6 +88,10 @@ export function Day({ training }: DayProps) {
     },
     [openIndex, training.courseId, training.day, setStoreOpenIndex],
   );
+
+  const handleToggleDescription = useCallback(() => {
+    setIsDescriptionOpen(prev => !prev);
+  }, []);
 
   // Инициализация состояния при монтировании
   useEffect(() => {
@@ -145,7 +151,22 @@ export function Day({ training }: DayProps) {
           День {training.day}
         </h2>
       </div>
-      <p className={styles.dayDescription}>{training.description}</p>
+      <div className={styles.descriptionContainer}>
+        <div 
+          className={styles.descriptionHeader} 
+          onClick={handleToggleDescription}
+        >
+          <h3 className={styles.descriptionTitle}>Описание дня</h3>
+          <ExpandMoreIcon 
+            className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ''}`} 
+          />
+        </div>
+        {isDescriptionOpen && (
+          <div className={styles.dayDescription}>
+            <ReactMarkdown>{training.description || ""}</ReactMarkdown>
+          </div>
+        )}
+      </div>
 
       {training.steps.map((step, index) => {
         // Получаем статус шага из store

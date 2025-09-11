@@ -127,6 +127,7 @@ export default function FavoritesCourseList({
             authorUsername: course.authorUsername || "",
             createdAt: course.createdAt || new Date(),
             avgRating: course.avgRating,
+            trainingLevel: course.trainingLevel || "BEGINNER",
             reviews: course.reviews || [],
             isFavorite: true, // Всегда true для избранных курсов
             index,

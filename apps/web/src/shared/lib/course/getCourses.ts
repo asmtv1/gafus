@@ -15,7 +15,18 @@ export async function getCoursesWithProgress(userId?: string): Promise<{ data: C
       where: {
         OR: [{ isPrivate: false }, { access: { some: { userId: currentUserId } } }],
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        description: true,
+        shortDesc: true,
+        duration: true,
+        logoImg: true,
+        isPrivate: true,
+        avgRating: true,
+        trainingLevel: true,
+        createdAt: true,
         author: {
           select: {
             username: true,
@@ -112,6 +123,7 @@ export async function getCoursesWithProgress(userId?: string): Promise<{ data: C
         logoImg: course.logoImg,
         isPrivate: course.isPrivate,
         avgRating: course.avgRating,
+        trainingLevel: course.trainingLevel,
         createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
         authorUsername: course.author.username,
         favoritedBy: course.favoritedBy,

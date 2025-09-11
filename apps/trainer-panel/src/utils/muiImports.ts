@@ -21,6 +21,7 @@ export { default as DialogTitle } from "@mui/material/DialogTitle";
 export { default as Divider } from "@mui/material/Divider";
 export { default as FormControl } from "@mui/material/FormControl";
 export { default as FormControlLabel } from "@mui/material/FormControlLabel";
+export { default as FormLabel } from "@mui/material/FormLabel";
 export { default as Grid } from "@mui/material/Grid";
 export { default as IconButton } from "@mui/material/IconButton";
 export { default as InputLabel } from "@mui/material/InputLabel";
