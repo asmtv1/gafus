@@ -5,6 +5,7 @@ import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { invalidateCoursesCache } from "./invalidateCoursesCache";
+import { invalidateTrainingDaysCache } from "./invalidateTrainingDaysCache";
 
 export interface CreateCourseInput {
   name: string;
@@ -65,6 +66,9 @@ export async function createCourseServerAction(input: CreateCourseInput) {
   
   // Инвалидируем кэш курсов при создании нового курса
   await invalidateCoursesCache();
+  
+  // Инвалидируем кэш дней курсов при создании курса с днями
+  await invalidateTrainingDaysCache();
 
   return { success: true, id: course.id };
 }
@@ -124,6 +128,9 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   // Инвалидируем кэш курсов при обновлении курса
   await invalidateCoursesCache();
   
+  // Инвалидируем кэш дней курсов при обновлении курса с днями
+  await invalidateTrainingDaysCache();
+  
   return { success: true };
 }
 
@@ -146,6 +153,9 @@ export async function deleteCourseServerAction(courseId: string) {
   
   // Инвалидируем кэш курсов при удалении курса
   await invalidateCoursesCache();
+  
+  // Инвалидируем кэш дней курсов при удалении курса
+  await invalidateTrainingDaysCache();
   
   return { success: true };
 }

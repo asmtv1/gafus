@@ -2,6 +2,7 @@
 
 import { prisma } from "@gafus/prisma";
 import { revalidatePath } from "next/cache";
+import { invalidateTrainingDayCache } from "@shared/lib/actions/invalidateTrainingDaysCache";
 
 export async function updateTrainingDay(data: {
   id: string;
@@ -26,6 +27,9 @@ export async function updateTrainingDay(data: {
       },
     },
   });
+
+  // Инвалидируем кэш конкретного дня курса при обновлении
+  await invalidateTrainingDayCache(id);
 
   revalidatePath("/main-panel/days");
 }
