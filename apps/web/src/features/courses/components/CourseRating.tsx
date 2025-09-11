@@ -27,7 +27,13 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
 
 
   const handleRatingChange = async (event: React.SyntheticEvent, newValue: number | null) => {
-    if (newValue === null || isSubmitting || readOnly) return;
+    if (newValue === null || isSubmitting) return;
+
+    // Если курс не завершен, показываем alert
+    if (readOnly) {
+      alert("Завершите курс, чтобы поставить рейтинг");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -37,9 +43,11 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
         setRating(newValue);
       } else {
         console.error("Ошибка при сохранении рейтинга:", result.error);
+        alert(result.error || "Ошибка при сохранении рейтинга");
       }
     } catch (error) {
       console.error("Ошибка при сохранении рейтинга:", error);
+      alert("Ошибка при сохранении рейтинга");
     } finally {
       setIsSubmitting(false);
     }
@@ -105,7 +113,13 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
 
 
   const handleRatingChange = async (newValue: number) => {
-    if (isSubmitting || readOnly) return;
+    if (isSubmitting) return;
+
+    // Если курс не завершен, показываем alert
+    if (readOnly) {
+      alert("Завершите курс, чтобы поставить рейтинг");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -114,9 +128,11 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
         setRating(newValue);
       } else {
         console.error("Ошибка при сохранении рейтинга:", result.error);
+        alert(result.error || "Ошибка при сохранении рейтинга");
       }
     } catch (error) {
       console.error("Ошибка при сохранении рейтинга:", error);
+      alert("Ошибка при сохранении рейтинга");
     } finally {
       setIsSubmitting(false);
     }
@@ -127,7 +143,7 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
       {[1, 2, 3, 4, 5].map((heart) => (
         <span
           key={heart}
-          onClick={() => !readOnly && handleRatingChange(heart)}
+          onClick={() => handleRatingChange(heart)}
           className={`${styles.simpleRatingHeart} ${
             readOnly ? styles.readOnly : ''
           } ${

@@ -16,6 +16,11 @@
   border: 2px solid #636128;
   max-width: 310px;
 }
+.courseCardContent {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 
 .imageContainer {
   width: 100%;
@@ -118,6 +123,9 @@
   gap: 10px;
   margin-top: auto;
   flex-wrap: wrap;
+  padding-top: 10px;
+  padding-left: 30px;
+  padding-right: 10px;
 }
 
 /* Мобильные стили для рейтинга */
