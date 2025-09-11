@@ -3,6 +3,7 @@
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { revalidatePath } from "next/cache";
+import { invalidateTrainingDayCache } from "@shared/lib/actions/invalidateTrainingDaysCache";
 
 import type { ActionResult } from "@gafus/types";
 
@@ -11,6 +12,11 @@ export async function deleteDays(_prev: ActionResult, formData: FormData): Promi
     const ids = formData.getAll("ids").map(String).filter(Boolean);
     if (ids.length === 0) {
       return { error: "Не указаны дни для удаления" };
+    }
+
+    // Инвалидируем кэш для каждого удаляемого дня
+    for (const dayId of ids) {
+      await invalidateTrainingDayCache(dayId);
     }
 
     // Удаляем связи дней с курсами, чтобы не нарушать ограничения внешних ключей

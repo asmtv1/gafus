@@ -3,6 +3,7 @@
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
+import { invalidateTrainingDayCache } from "@shared/lib/actions/invalidateTrainingDaysCache";
 
 export async function createTrainingDay(data: {
   title: string;
@@ -31,6 +32,9 @@ export async function createTrainingDay(data: {
       },
     },
   });
+
+  // Инвалидируем кэш конкретного дня курса при создании
+  await invalidateTrainingDayCache(day.id);
 
   return day;
 }

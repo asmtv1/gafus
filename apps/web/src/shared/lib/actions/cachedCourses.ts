@@ -442,7 +442,113 @@ export const getTrainingDaysCached = unstable_cache(
   },
   ["training-days"],
   {
-    revalidate: 300, // 5 минут - кэшируем на 5 минут
+    revalidate: false, // Бесконечное кэширование - инвалидируется только вручную
     tags: ["training", "days"],
   }
 );
+
+
+// Кэшированная версия получения отдельного дня курса
+export const getTrainingDayCached = unstable_cache(
+  async (dayId: string, userId?: string) => {
+    try {
+      console.warn("[React Cache] Fetching training day:", dayId, "userId:", userId);
+      
+      const day = await prisma.trainingDay.findUnique({
+        where: { id: dayId },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          type: true,
+          equipment: true,
+          stepLinks: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              order: true,
+              step: {
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  durationSec: true,
+                  videoUrl: true,
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!day) {
+        return { success: false, error: "День не найден" };
+      }
+
+      // Получаем курсы, которые используют этот день
+      const courses = await prisma.dayOnCourse.findMany({
+        where: { dayId },
+        select: {
+          course: {
+            select: {
+              id: true,
+              type: true,
+              description: true,
+              videoUrl: true
+            }
+          },
+          order: true
+        }
+      });
+
+      const result = {
+        trainingDayId: day.id,
+        day: courses[0]?.order || 1,
+        title: day.title,
+        type: day.type,
+        courseId: courses[0]?.course.id || null,
+        courseDescription: courses[0]?.course.description || null,
+        courseVideoUrl: courses[0]?.course.videoUrl || null,
+        equipment: day.equipment,
+        description: day.description,
+        steps: day.stepLinks.map(link => ({
+          id: link.step.id,
+          title: link.step.title,
+          description: link.step.description,
+          durationSec: link.step.durationSec,
+          videoUrl: link.step.videoUrl,
+          order: link.order
+        })),
+        estimatedDuration: day.stepLinks.reduce((total, link) => total + link.step.durationSec, 0)
+      };
+
+      console.warn(`[React Cache] Cached training day ${dayId} successfully`);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("❌ Error in getTrainingDayCached:", error);
+      await reportErrorToDashboard({
+        message: error instanceof Error ? error.message : "Unknown error in getTrainingDayCached",
+        stack: error instanceof Error ? error.stack : undefined,
+        appName: "web",
+        environment: process.env.NODE_ENV || "development",
+        additionalContext: {
+          action: "getTrainingDayCached",
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          dayId,
+        },
+        tags: ["training", "day", "cache", "server-action"],
+      });
+
+      return { 
+        success: false, 
+        error: "Что-то пошло не так при получении дня тренировки"
+      };
+    }
+  },
+  ["training-day"],
+  {
+    revalidate: false, // Бесконечное кэширование - инвалидируется только вручную
+    tags: ["training", "day"],
+  }
+);
+
