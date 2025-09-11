@@ -490,6 +490,7 @@ export const useCourseStoreActions = () => {
           logoImg: course.logoImg,
           isPrivate: false, // дефолтное значение
           avgRating: course.avgRating,
+          trainingLevel: "BEGINNER" as const, // дефолтное значение
           createdAt: new Date(), // дефолтное значение
           authorUsername: "", // дефолтное значение
           userStatus: TrainingStatus.NOT_STARTED,

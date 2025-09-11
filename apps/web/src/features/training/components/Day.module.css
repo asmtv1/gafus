@@ -30,9 +30,131 @@
   justify-content: space-between;
 }
 
-.dayDescription {
+.descriptionContainer {
   margin-bottom: 24px;
-  color: #6b7280;
+  max-width: 500px;
+  width: 100%;
+}
+
+.descriptionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background-color: #ECE5D2;
+  border: 1px solid #636128;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.descriptionHeader:hover {
+  background-color: #E6DCC7;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.descriptionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #352E2E;
+  margin: 0;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+}
+
+.dayDescription {
+  margin-top: 8px;
+  color: #352E2E;
+  background-color: #ECE5D2;
+  border: 1px solid #636128;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Стили для Markdown контента */
+.dayDescription p {
+  margin-bottom: 1em;
+  line-height: 1.6;
+  color: #352E2E;
+}
+
+.dayDescription ul,
+.dayDescription ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.dayDescription li {
+  margin-bottom: 0.5em;
+  line-height: 1.5;
+  color: #352E2E;
+}
+
+.dayDescription h1,
+.dayDescription h2,
+.dayDescription h3,
+.dayDescription h4,
+.dayDescription h5,
+.dayDescription h6 {
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+  font-weight: 600;
+  color: #352E2E;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+}
+
+.dayDescription h1 {
+  font-size: 1.5em;
+}
+
+.dayDescription h2 {
+  font-size: 1.3em;
+}
+
+.dayDescription h3 {
+  font-size: 1.1em;
+}
+
+.dayDescription strong {
+  font-weight: 600;
+  color: #352E2E;
+}
+
+.dayDescription em {
+  font-style: italic;
+  color: #5a5249;
+}
+
+.dayDescription code {
+  background-color: #D4C4A8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  color: #8B4513;
+}
+
+.dayDescription blockquote {
+  border-left: 4px solid #636128;
+  padding-left: 16px;
+  margin: 1em 0;
+  font-style: italic;
+  color: #5a5249;
+  background-color: #D4C4A8;
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+}
+
+.dayDescription a {
+  color: #636128;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.dayDescription a:hover {
+  color: #4a4a1a;
+  text-decoration: none;
 }
 
 .statusBadge {
@@ -148,7 +270,35 @@
   }
   
   .dayTitle {
-    font-size: 18px;
+    font-size: 24px;
+  }
+  
+  .descriptionContainer {
+    margin-bottom: 20px;
+  }
+  
+  .descriptionHeader {
+    padding: 12px 16px;
+  }
+  
+  .descriptionTitle {
+    font-size: 14px;
+  }
+  
+  .dayDescription {
+    padding: 16px;
+  }
+  
+  .dayDescription h1 {
+    font-size: 1.3em;
+  }
+  
+  .dayDescription h2 {
+    font-size: 1.2em;
+  }
+  
+  .dayDescription h3 {
+    font-size: 1.1em;
   }
   
   .accordionHeader {

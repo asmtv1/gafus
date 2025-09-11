@@ -19,6 +19,22 @@ import { FavoriteButton } from "../FavoriteButton";
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
 
+// Функция для получения русского названия уровня сложности
+const getTrainingLevelLabel = (level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT") => {
+  switch (level) {
+    case "BEGINNER":
+      return "Начальный";
+    case "INTERMEDIATE":
+      return "Средний";
+    case "ADVANCED":
+      return "Продвинутый";
+    case "EXPERT":
+      return "Экспертный";
+    default:
+      return level;
+  }
+};
+
 export const CourseCard = ({
   id,
   name,
@@ -33,6 +49,7 @@ export const CourseCard = ({
   authorUsername,
   createdAt: _createdAt,
   avgRating,
+  trainingLevel,
   reviews,
   isFavorite: propIsFavorite,
   onUnfavorite,
@@ -156,7 +173,8 @@ export const CourseCard = ({
             </div>
           </div>
           <div className={styles.description}>
-          <p > <b>Описание: </b>{shortDesc}</p>
+            <p><b>Уровень сложности:</b> {getTrainingLevelLabel(trainingLevel)}</p>
+            <p><b>Описание:</b> {shortDesc}</p>
           </div>
 
          

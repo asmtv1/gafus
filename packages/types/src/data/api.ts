@@ -54,6 +54,7 @@ export interface CourseWithExtras {
   logoImg: string;
   isPrivate: boolean;
   avgRating: number | null;
+  trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
   createdAt: Date;
   author: {
     username: string;

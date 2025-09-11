@@ -57,6 +57,8 @@ export default async function EditCoursePage({ params }: PageProps) {
     isPublic: !course.isPrivate,
     trainingDays: course.dayLinks.map((dl: { day: { id: string } }) => dl.day.id),
     allowedUsers: course.isPrivate ? course.access.map((a: { userId: string }) => a.userId) : [],
+    equipment: course.equipment,
+    trainingLevel: course.trainingLevel,
   };
 
   const initialSelectedUsers = course.isPrivate
