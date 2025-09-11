@@ -151,7 +151,7 @@ export function Day({ training }: DayProps) {
           День {training.day}
         </h2>
       </div>
-      <div className={styles.descriptionContainer}>
+      <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ''}`}>
         <div 
           className={styles.descriptionHeader} 
           onClick={handleToggleDescription}
@@ -161,11 +161,9 @@ export function Day({ training }: DayProps) {
             className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ''}`} 
           />
         </div>
-        {isDescriptionOpen && (
-          <div className={styles.dayDescription}>
-            <ReactMarkdown>{training.description || ""}</ReactMarkdown>
-          </div>
-        )}
+        <div className={`${styles.dayDescription} ${isDescriptionOpen ? styles.expanded : styles.collapsed}`}>
+          <ReactMarkdown>{training.description || ""}</ReactMarkdown>
+        </div>
       </div>
 
       {training.steps.map((step, index) => {
