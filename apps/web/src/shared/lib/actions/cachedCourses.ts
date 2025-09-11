@@ -436,6 +436,8 @@ export const getTrainingDaysCached = unstable_cache(
           courseDescription: null,
           courseId: null,
           courseVideoUrl: null,
+          courseEquipment: null,
+          courseTrainingLevel: null,
         }
       };
     }
