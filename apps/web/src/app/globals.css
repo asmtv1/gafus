@@ -62,3 +62,6 @@ body {
 /* print */
 @media print {
 }
+
+/* Импортируем стили для SweetAlert2 */
+@import '@shared/utils/sweetAlert.css';
