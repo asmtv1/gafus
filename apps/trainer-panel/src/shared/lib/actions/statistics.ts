@@ -4,7 +4,7 @@ import {
   getCourseStatistics,
   getDetailedCourseStatistics,
 } from "@features/statistics/lib/statistics";
-import { getDetailedStepStatistics } from "@features/statistics/lib/statistics-steps";
+import { getDetailedStepStatistics, getStepStatistics } from "@features/statistics/lib/statistics-steps";
 import { authOptions } from "@gafus/auth";
 import { getServerSession } from "next-auth";
 
@@ -56,5 +56,18 @@ export async function getDetailedStepStatisticsAction(stepId: string) {
   } catch (error) {
     console.error("Error fetching detailed step statistics:", error);
     return { success: false, error: "Внутренняя ошибка сервера" };
+  }
+}
+
+export async function getStepStatisticsAction(userId: string, isElevated: boolean) {
+  try {
+    const data = await getStepStatistics(userId, isElevated);
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error fetching step statistics:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
   }
 }

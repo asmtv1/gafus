@@ -174,7 +174,7 @@ export function Day({ training }: DayProps) {
         const stepStatusConfig = STEP_STATUS_CONFIG[stepStatus as keyof typeof STEP_STATUS_CONFIG] || STEP_STATUS_CONFIG.NOT_STARTED;
         
         return (
-          <div key={step.id} className={styles.accordionItem}>
+          <div key={`${step.id}-${index}`} className={styles.accordionItem}>
             <div 
               className={styles.accordionHeader} 
               onClick={() => handleToggleOpen(index)}

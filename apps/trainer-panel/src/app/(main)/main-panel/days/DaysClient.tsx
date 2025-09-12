@@ -4,6 +4,7 @@ import { deleteDays } from "@features/courses/lib/deleteDays";
 import { useRouter } from "next/navigation";
 import { startTransition, useActionState } from "react";
 
+import PageLayout from "@shared/components/PageLayout";
 import EnhancedDaysTable from "./EnhancedDaysTable";
 
 import type { ActionResult, TrainerDayTableRow as Day } from "@gafus/types";
@@ -27,10 +28,15 @@ export default function DaysClient({ days }: DaysClientProps) {
   };
 
   return (
-    <EnhancedDaysTable
-      days={days}
-      onEditDay={(id) => router.push(`/main-panel/days/${id}/edit`)}
-      onDeleteDays={handleDelete}
-    />
+    <PageLayout 
+      title="Созданные дни" 
+      subtitle="Управление вашими днями тренировок"
+    >
+      <EnhancedDaysTable
+        days={days}
+        onEditDay={(id) => router.push(`/main-panel/days/${id}/edit`)}
+        onDeleteDays={handleDelete}
+      />
+    </PageLayout>
   );
 }

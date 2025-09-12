@@ -37,7 +37,7 @@
   color: rgb(0, 0, 0);
   font-size: 16px;
   font-weight: 500;
-  margin-bottom: 8px;
+  margin-bottom: 1rem;
 }
 
 .emptyText {
@@ -46,6 +46,6 @@
 }
 
 .chip {
-  margin-right: 8px;
-  margin-top: 8px;
+  margin-right: 1rem;
+  margin-top: 1rem;
 }

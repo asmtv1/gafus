@@ -1,11 +1,5 @@
+import Dashboard from "@shared/components/Dashboard";
+
 export default function PanelHome() {
-  return (
-    <>
-      <h1>Добро пожаловать в панель тренера</h1>
-      <p>
-        Здесь вы можете управлять своими курсами, днями и шагами. Используйте боковое меню для
-        навигации.
-      </p>
-    </>
-  );
+  return <Dashboard />;
 }

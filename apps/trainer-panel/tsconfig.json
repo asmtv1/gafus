@@ -20,7 +20,6 @@
       "@trainer-panel/*": ["./src/*"],
       "@features/*": ["./src/features/*"],
       "@shared/*": ["./src/shared/*"],
-      "@widgets/*": ["./src/widgets/*"],
       "@gafus/csrf": ["../../packages/csrf/src/index.ts"],
       "@gafus/csrf/*": ["../../packages/csrf/src/*"],
       "@gafus/auth": ["../../packages/auth/src/index.ts"],

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useActionState } from "react";
 
+import PageLayout from "@shared/components/PageLayout";
 import EnhancedStepsTable from "./EnhancedStepsTable";
 
 import type { ActionResult, TrainerStepTableRow } from "@gafus/types";
@@ -43,10 +44,15 @@ export default function StepsClient({ steps }: StepsClientProps) {
   }));
 
   return (
-    <EnhancedStepsTable
-      steps={uiSteps}
-      onEditStep={(id) => router.push(`/main-panel/steps/${id}/edit`)}
-      onDeleteSteps={handleDelete}
-    />
+    <PageLayout 
+      title="Созданные шаги" 
+      subtitle="Управление вашими шагами тренировок"
+    >
+      <EnhancedStepsTable
+        steps={uiSteps}
+        onEditStep={(id) => router.push(`/main-panel/steps/${id}/edit`)}
+        onDeleteSteps={handleDelete}
+      />
+    </PageLayout>
   );
 }
