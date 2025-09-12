@@ -1,48 +1,68 @@
 .container {
-  max-width: 800px;
+  max-width: 500px;
+  width: 100%;
   margin: 0 auto;
-  padding: 16px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  background-color: #fff;
-  margin-bottom: 24px;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background-color: #ECE5D2;
+  border: 1px solid #636128;
+  display: flex;
+  flex-direction: column;
+  min-height: 400px; /* Минимальная высота для одинакового размера */
 }
 .header {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background-color: #F5F0E8;
+  border: 1px solid #D4C4A8;
+  border-radius: 8px;
 }
 .logo {
   border-radius: 50%;
+  border: 1px solid #636128;
 }
 .title {
   margin-left: 12px;
   font-size: 18px;
   font-weight: 600;
+  color: #352E2E;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 .stats {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
   font-size: 14px;
-  color: #555;
+  color: #352E2E;
   margin-bottom: 16px;
+  padding: 12px 16px;
+  background-color: #F5F0E8;
+  border: 1px solid #D4C4A8;
+  border-radius: 8px;
 }
 .statValue {
-  font-weight: 500;
+  font-weight: 600;
+  color: #636128;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 .subTitle {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 8px;
+  color: #636128;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 .reviewsSection,
 .progressSection {
   margin-bottom: 16px;
+  flex: 1; /* Равномерное распределение пространства */
 }
 .reviewList,
 .stepList {
-  list-style: disc inside;
+  list-style: none;
   margin: 0;
   padding: 0;
 }
@@ -50,6 +70,10 @@
 .stepItem {
   margin-bottom: 8px;
   font-size: 14px;
+  padding: 8px 12px;
+  background-color: #F5F0E8;
+  border: 1px solid #D4C4A8;
+  border-radius: 6px;
 }
 .reviewHeader {
   display: flex;
@@ -60,20 +84,25 @@
 .reviewAvatar {
   border-radius: 50%;
   object-fit: cover;
+  border: 1px solid #636128;
 }
 .reviewUsername {
-  font-weight: 500;
+  font-weight: 600;
+  color: #352E2E;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 .reviewContent {
-  margin-left: 32px;
+  margin-left: 0;
+  color: #352E2E;
 }
 .reviewRating {
   margin-left: 4px;
-  color: #888;
+  color: #636128;
+  font-weight: 500;
 }
 .userBlock {
   margin-bottom: 16px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #D4C4A8;
   padding-top: 12px;
 }
 .userHeader {
@@ -81,81 +110,102 @@
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  padding: 12px;
-  background-color: #f8f9fa;
+  padding: 12px 16px;
+  background-color: #F5F0E8;
   border-radius: 8px;
-  border: 1px solid #e9ecef;
+  border: 1px solid #D4C4A8;
   transition: all 0.2s ease;
+  min-height: 60px; /* Фиксированная высота для выравнивания */
 }
 .userHeader:hover {
-  background-color: #e9ecef;
-  border-color: #dee2e6;
+  background-color: #E6DCC7;
+  border-color: #636128;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 .userHeader:active {
-  background-color: #dee2e6;
+  background-color: #D4C4A8;
+  transform: translateY(0);
 }
 .userInfo {
   display: flex;
   align-items: center;
   flex: 1;
+  min-width: 0; /* Позволяет flex-элементу сжиматься */
 }
 .userAvatar {
   border-radius: 50%;
   object-fit: cover;
-  margin-right: 8px;
+  margin-right: 12px;
+  border: 1px solid #636128;
+  flex-shrink: 0; /* Предотвращает сжатие аватара */
 }
 .userName {
-  font-weight: 500;
+  font-weight: 600;
   font-size: 16px;
+  color: #352E2E;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  white-space: nowrap; /* Предотвращает перенос имени */
 }
 .userDates {
   font-size: 14px;
+  color: #352E2E;
 }
 .userStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   margin: 0 16px;
   font-size: 14px;
-  color: #555;
+  color: #352E2E;
   flex: 1;
+  min-width: 0;
 }
 .statusTag {
-  font-weight: 500;
-  padding: 2px 8px;
+  font-weight: 600;
+  padding: 4px 8px;
   border-radius: 12px;
   font-size: 12px;
-  margin-left: 4px;
+  margin-top: 2px;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  display: inline-block;
 }
 .statusNOT_STARTED {
-  background-color: #f1f3f4;
-  color: #5f6368;
+  background-color: #D4C4A8;
+  color: #8B4513;
 }
 .statusIN_PROGRESS {
-  background-color: #fff3cd;
-  color: #856404;
+  background-color: #FFF8E5;
+  color: #636128;
 }
 .statusCOMPLETED {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: #B6C582;
+  color: #352E2E;
 }
 .userDate {
-  margin-left: 12px;
-  color: #666;
+  margin-top: 4px;
+  color: #636128;
   font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .expandIcon {
   font-size: 18px;
-  color: #6c757d;
+  color: #636128;
   font-weight: bold;
   margin-left: 12px;
   transition: transform 0.2s ease;
+  flex-shrink: 0; /* Предотвращает сжатие иконки */
+  align-self: center; /* Выравнивает по центру */
 }
 
 .detailsContent {
   margin-top: 12px;
   padding: 16px;
-  background-color: #fff;
+  background-color: #F5F0E8;
   border-radius: 8px;
-  border: 1px solid #e9ecef;
+  border: 1px solid #D4C4A8;
   border-top: none;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
@@ -172,7 +222,8 @@
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 12px;
-  color: #333;
+  color: #636128;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 .daysList {
   display: flex;
@@ -181,9 +232,9 @@
 }
 .dayBlock {
   padding: 12px;
-  background-color: #f8f9fa;
+  background-color: #ECE5D2;
   border-radius: 6px;
-  border: 1px solid #dee2e6;
+  border: 1px solid #636128;
 }
 .dayHeader {
   display: flex;
@@ -194,21 +245,23 @@
 }
 .dayNumber {
   font-weight: 600;
-  color: #007bff;
+  color: #636128;
   font-size: 14px;
   min-width: 60px;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 .dayTitle {
   font-weight: 500;
-  color: #333;
+  color: #352E2E;
   flex: 1;
 }
 .dayStatus {
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 12px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
 /* Стили для прогресса по шагам */
@@ -226,105 +279,133 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  background-color: #fff;
+  background-color: #F5F0E8;
   border-radius: 4px;
   font-size: 13px;
-  border: 1px solid #e9ecef;
+  border: 1px solid #D4C4A8;
 }
 .stepTitle {
   flex: 1;
-  color: #495057;
+  color: #352E2E;
   font-weight: 500;
 }
 .stepStatus {
-  padding: 2px 6px;
+  padding: 4px 6px;
   border-radius: 8px;
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
   min-width: 60px;
   text-align: center;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 .stepCompletedAt {
   font-size: 11px;
-  color: #6c757d;
+  color: #636128;
   font-style: italic;
+  font-weight: 500;
 }
 .stepStatusNOT_STARTED {
-  background-color: #e9ecef;
-  color: #6c757d;
+  background-color: #D4C4A8;
+  color: #8B4513;
 }
 .stepStatusIN_PROGRESS {
-  background-color: #fff3cd;
-  color: #856404;
+  background-color: #FFF8E5;
+  color: #636128;
 }
 .stepStatusCOMPLETED {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: #B6C582;
+  color: #352E2E;
 }
 
 /* Стили для состояний загрузки */
 .loading {
   margin-top: 12px;
   padding: 8px 12px;
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: #F5F0E8;
+  color: #636128;
   border-radius: 4px;
   font-size: 13px;
   text-align: center;
+  border: 1px solid #D4C4A8;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 .error {
   margin-top: 12px;
   padding: 8px 12px;
-  background-color: #ffebee;
-  color: #c62828;
+  background-color: #F5F0E8;
+  color: #8B4513;
   border-radius: 4px;
   font-size: 13px;
   text-align: center;
+  border: 1px solid #D4C4A8;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
 .empty {
   font-size: 14px;
-  color: #888;
+  color: #352E2E;
   text-align: center;
   padding: 20px;
-  background-color: #f8f9fa;
+  background-color: #F5F0E8;
   border-radius: 6px;
-  border: 1px dashed #dee2e6;
+  border: 1px dashed #D4C4A8;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
 @media (max-width: 600px) {
+  .container {
+    min-height: 350px;
+    padding: 16px;
+  }
+  
   .stats {
     flex-direction: column;
+    gap: 8px;
   }
+  
   .header,
   .userHeader {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+    min-height: auto;
   }
+  
+  .userInfo {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
   .userDates {
     margin-top: 4px;
   }
+  
   .userStatus {
     margin: 8px 0;
     flex: none;
     width: 100%;
+    align-items: flex-start;
   }
+  
   .expandIcon {
     align-self: flex-end;
     margin-left: 0;
+    margin-top: 8px;
   }
+  
   .dayHeader {
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
   }
+  
   .stepItem {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
   }
+  
   .stepStatus {
     align-self: flex-start;
   }
