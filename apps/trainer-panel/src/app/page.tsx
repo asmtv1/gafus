@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 
 export default async function Home() {
   const session = (await getServerSession(authOptions)) as { user: { id: string; username: string; role: string } } | null;
-  console.warn("Session in Home:", session);
 
   if (!session) {
     // Не авторизован — редирект на страницу логина

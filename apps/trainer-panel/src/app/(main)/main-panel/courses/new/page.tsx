@@ -8,7 +8,6 @@ export default async function NewCoursePage() {
 
   // Проверяем, что steps не undefined и является массивом
   if (!steps || !Array.isArray(steps)) {
-    console.error("getVisibleDays вернул неверный тип:", steps);
     return (
       <FormPageLayout 
         title="Создание нового курса"
@@ -25,7 +24,6 @@ export default async function NewCoursePage() {
     id: String(day.id),
     title: day.title,
   }));
-  console.warn("Formatted Days:", formattedDays);
   return (
     <FormPageLayout 
       title="Создание нового курса"

@@ -3,6 +3,7 @@ import { ErrorBoundary } from "@gafus/error-handling";
 import { SessionProvider } from "@shared/providers/SessionProvider";
 import { TrainerQueryProvider } from "@shared/providers/QueryProvider";
 import React from "react";
+import "./globals.css";
 
 import type { Metadata } from "next";
 

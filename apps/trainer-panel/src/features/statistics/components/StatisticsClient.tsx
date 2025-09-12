@@ -1,10 +1,10 @@
 "use client";
 
-import { Assessment } from "@mui/icons-material";
-import { Box, Container, Paper, Skeleton, Typography } from "@mui/material";
+import { Box, Paper, Skeleton, Typography } from "@mui/material";
 import { useCourseStatistics } from "@shared/hooks/useStatistics";
 import { useSession } from "next-auth/react";
 
+import PageLayout from "@shared/components/PageLayout";
 import CoursesList from "./CoursesList";
 
 export default function StatisticsClient() {
@@ -20,7 +20,7 @@ export default function StatisticsClient() {
 
   if (status === "loading") {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <PageLayout title="Статистика" subtitle="Загрузка данных...">
         <Skeleton variant="rounded" height={48} sx={{ mb: 3 }} />
         <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
           {Array.from({ length: 6 }).map((_, i) => (
@@ -31,25 +31,23 @@ export default function StatisticsClient() {
             </Paper>
           ))}
         </Box>
-      </Container>
+      </PageLayout>
     );
   }
 
   if (!session) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Paper sx={{ p: 3, textAlign: "center" }}>
-          <Typography variant="h6" color="error">
-            Не авторизован
-          </Typography>
-        </Paper>
-      </Container>
+      <PageLayout title="Статистика">
+        <Typography variant="h6" color="error" sx={{ textAlign: "center" }}>
+          Не авторизован
+        </Typography>
+      </PageLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <PageLayout title="Статистика" subtitle="Загрузка данных...">
         <Skeleton variant="rounded" height={48} sx={{ mb: 3 }} />
         <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
           {Array.from({ length: 6 }).map((_, i) => (
@@ -60,38 +58,28 @@ export default function StatisticsClient() {
             </Paper>
           ))}
         </Box>
-      </Container>
+      </PageLayout>
     );
   }
 
   if (error) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Paper sx={{ p: 3, textAlign: "center" }}>
-          <Typography variant="h6" color="error">
-            Ошибка загрузки статистики
-          </Typography>
-        </Paper>
-      </Container>
+      <PageLayout title="Статистика">
+        <Typography variant="h6" color="error" sx={{ textAlign: "center" }}>
+          Ошибка загрузки статистики
+        </Typography>
+      </PageLayout>
     );
   }
 
   const { courses } = data || { courses: [] };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Заголовок страницы */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 4 }}>
-        <Assessment sx={{ fontSize: 40, color: "primary.main" }} />
-        <Typography variant="h3" component="h1" fontWeight="bold">
-          Статистика
-        </Typography>
-      </Box>
-
-      {/* Карточки курсов */}
+    <PageLayout 
+      title="Статистика" 
+      subtitle="Аналитика по вашим курсам и ученикам"
+    >
       <CoursesList courses={courses} />
-
-      {/* Только курсы */}
-    </Container>
+    </PageLayout>
   );
 }

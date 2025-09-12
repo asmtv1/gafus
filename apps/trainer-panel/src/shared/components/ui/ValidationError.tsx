@@ -54,7 +54,7 @@ export function FieldError({ error, className = "" }: FieldErrorProps) {
         color: "#d32f2f",
         fontSize: "0.75rem",
         marginTop: "4px",
-        marginBottom: "8px",
+        marginBottom: "1rem",
       }}
       className={className}
     >

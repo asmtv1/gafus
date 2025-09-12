@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import UsersTable from "@/app/(main)/main-panel/users/UsersTable";
 import EditUserForm from "@/features/users/components/EditUserForm";
-import { Box, Typography } from "@/utils/muiImports";
+import PageLayout from "@shared/components/PageLayout";
 
 interface User {
   id: string;
@@ -40,14 +40,10 @@ export default function UsersClient({ users }: UsersClientProps) {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Пользователи платформы
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Список всех зарегистрированных пользователей
-      </Typography>
-
+    <PageLayout 
+      title="Пользователи платформы" 
+      subtitle="Список всех зарегистрированных пользователей"
+    >
       <UsersTable users={users} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} />
 
       {editingUser && (
@@ -60,6 +56,6 @@ export default function UsersClient({ users }: UsersClientProps) {
           }}
         />
       )}
-    </Box>
+    </PageLayout>
   );
 }

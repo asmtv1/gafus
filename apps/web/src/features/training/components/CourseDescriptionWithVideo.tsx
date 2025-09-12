@@ -19,7 +19,8 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
   equipment,
   trainingLevel,
 }: Props) {
-  const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [videoUrl]);
+  const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [
+    videoUrl]);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState<boolean>(false);
 
   const handleToggleDescription = useCallback(() => {
@@ -41,42 +42,6 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
         return "Не указан";
     }
   }, []);
-
-  if (!videoUrl) {
-    return (
-      <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ''}`}>
-        <div 
-          className={styles.descriptionHeader} 
-          onClick={handleToggleDescription}
-        >
-          <h3 className={styles.descriptionTitle}>Описание курса</h3>
-          <ExpandMoreIcon 
-            className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ''}`} 
-          />
-        </div>
-        <div className={`${styles.descriptionContent} ${isDescriptionOpen ? styles.expanded : styles.collapsed}`}>
-          <ReactMarkdown>{description ?? ""}</ReactMarkdown>
-          
-          {(equipment || trainingLevel) && (
-            <div className={styles.courseInfo}>
-              {trainingLevel && (
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Уровень сложности:</span>
-                  <span className={styles.infoValue}>{getTrainingLevelText(trainingLevel)}</span>
-                </div>
-              )}
-              {equipment && (
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Необходимое оборудование:</span>
-                  <span className={styles.infoValue}>{equipment}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ''}`}>
@@ -109,7 +74,7 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
           </div>
         )}
 
-        {videoInfo && (
+        {videoInfo && videoInfo.embedUrl && (
           <div className={styles.videoContainer}>
             <h3>Видео презентация курса:</h3>
             <div
