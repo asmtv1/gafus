@@ -1,0 +1,155 @@
+/* Единый дизайн для всех форм создания/редактирования */
+.formPageContainer {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.formPageTitle {
+  color: #1a1a1a;
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.formContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  color: #1a1a1a;
+}
+
+.formSection {
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  padding: 1.5rem;
+  border: 1px solid #e9ecef;
+}
+
+.formSectionTitle {
+  color: #1a1a1a;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.formSectionTitle::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background-color: #007bff;
+  border-radius: 2px;
+}
+
+.formField {
+  margin-bottom: 1.5rem;
+}
+
+.formField:last-child {
+  margin-bottom: 0;
+}
+
+.formLabel {
+  color: #1a1a1a;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.formInput {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.formInput:hover {
+  border-color: #007bff;
+}
+
+.formInput:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.formSelect {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+}
+
+.formSelect:hover fieldset {
+  border-color: #007bff !important;
+}
+
+.formSelect:focus fieldset {
+  border-color: #007bff !important;
+}
+
+.formButton {
+  background-color: #007bff !important;
+  color: #ffffff !important;
+  padding: 0.75rem 2rem !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  transition: background-color 0.15s ease-in-out !important;
+}
+
+.formButton:hover {
+  background-color: #0056b3 !important;
+}
+
+.formButton:disabled {
+  background-color: #6c757d !important;
+  color: #ffffff !important;
+}
+
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.formAlert {
+  margin-bottom: 1.5rem;
+  border-radius: 6px;
+}
+
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .formPageContainer {
+    margin: 1rem;
+    padding: 1.5rem;
+    border-radius: 6px;
+  }
+  
+  .formPageTitle {
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .formSection {
+    padding: 1rem;
+  }
+  
+  .formActions {
+    flex-direction: column;
+  }
+  
+}

@@ -2,6 +2,7 @@ import NewStepForm from "@features/steps/components/NewStepForm";
 import { updateStep } from "@features/steps/lib/updateStep";
 import { prisma } from "@gafus/prisma";
 import { notFound } from "next/navigation";
+import FormPageLayout from "@shared/components/FormPageLayout";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -13,8 +14,10 @@ export default async function EditStepPage({ params }: Props) {
   if (!step) return notFound();
 
   return (
-    <div className="mx-auto mt-10 max-w-md rounded border p-4 shadow">
-      <h1 className="mb-4 text-2xl font-bold">Редактировать шаг</h1>
+    <FormPageLayout 
+      title="Редактирование шага тренировки"
+      subtitle="Измените информацию о шаге тренировки"
+    >
       <NewStepForm
         serverAction={updateStep}
         initialData={{
@@ -27,6 +30,6 @@ export default async function EditStepPage({ params }: Props) {
           pdfUrls: step.pdfUrls || [],
         }}
       />
-    </div>
+    </FormPageLayout>
   );
 }

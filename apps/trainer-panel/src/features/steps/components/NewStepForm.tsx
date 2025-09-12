@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import styles from "./NewStepForm.module.css";
+import sharedStyles from "@shared/styles/FormLayout.module.css";
+import FormSection from "@shared/components/FormSection";
 
 import type { ActionResult } from "@gafus/types";
 
@@ -177,74 +178,69 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
   }, [formState?.success, formState?.error, hasInitial, form, router]);
 
   return (
-    <Box key={formKey} className={styles.formContainer}>
-      <Typography variant="h6" gutterBottom className={styles.sectionTitle}>
-        {hasInitial ? "Измените шаг тренировки" : "Заполните шаг тренировки"}
-      </Typography>
-
+    <Box key={formKey} className={sharedStyles.formContainer}>
       {showErrorMessage && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" className={sharedStyles.formAlert}>
           {formState?.error}
         </Alert>
       )}
 
       {showSuccessMessage && (
-        <Alert severity="success" sx={{ mb: 2 }}>
+        <Alert severity="success" className={sharedStyles.formAlert}>
           {hasInitial ? "Шаг успешно обновлён!" : "Шаг успешно создан!"}
         </Alert>
       )}
 
       <form onSubmit={form.handleSubmit(handleSubmit)}>
         {initialData?.id ? <input type="hidden" name="id" value={initialData.id} /> : null}
-        <FormField
-          id="title"
-          label="Название шага *"
-          name="title"
-          placeholder="Введите название шага"
-          form={form}
-          rules={validationRules.title}
-        />
-
-        <Box sx={{ mb: 3 }}>
-          <Typography className={styles.inputLabel}>Описание *</Typography>
-          <MarkdownInput
-            value={form.watch("description")}
-            onChange={(value: string) => form.setValue("description", value)}
+        
+        <FormSection title="Основная информация">
+          <FormField
+            id="title"
+            label="Название шага *"
+            name="title"
+            placeholder="Введите название шага"
+            form={form}
+            rules={validationRules.title}
           />
-          {form.formState.errors.description && (
-            <Alert severity="error" sx={{ mt: 1 }}>
-              {form.formState.errors.description.message}
-            </Alert>
-          )}
-        </Box>
 
-        <NumberField
-          id="duration"
-          label="Длительность (секунды) *"
-          name="duration"
-          placeholder="Введите длительность"
-          form={form}
-          rules={validationRules.duration}
-        />
+          <Box className={sharedStyles.formField}>
+            <Typography className={sharedStyles.formLabel}>Описание *</Typography>
+            <MarkdownInput
+              value={form.watch("description")}
+              onChange={(value: string) => form.setValue("description", value)}
+            />
+            {form.formState.errors.description && (
+              <Alert severity="error" className={sharedStyles.formAlert}>
+                {form.formState.errors.description.message}
+              </Alert>
+            )}
+          </Box>
 
-        <FormField
-          id="videoUrl"
-          label="Ссылка на видео"
-          name="videoUrl"
-          placeholder="https://youtube.com/..."
-          form={form}
-          rules={validationRules.videoUrl}
-        />
+          <NumberField
+            id="duration"
+            label="Длительность (секунды) *"
+            name="duration"
+            placeholder="Введите длительность"
+            form={form}
+            rules={validationRules.duration}
+          />
 
-        {/* Здесь можно добавить загрузку изображений и PDF */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle1" gutterBottom>
-            Медиа файлы (опционально)
-          </Typography>
+          <FormField
+            id="videoUrl"
+            label="Ссылка на видео"
+            name="videoUrl"
+            placeholder="https://youtube.com/..."
+            form={form}
+            rules={validationRules.videoUrl}
+          />
+        </FormSection>
+
+        <FormSection title="Медиа файлы">
           <Typography variant="body2" color="text.secondary">
             Функция загрузки файлов будет добавлена позже
           </Typography>
-        </Box>
+        </FormSection>
 
         <ValidationErrors
           errors={Object.fromEntries(
@@ -255,20 +251,22 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
           )}
         />
 
-        <Button
-          type="submit"
-          variant="contained"
-          disabled={isPending || !form.formState.isValid}
-          sx={{ mt: 2 }}
-        >
-          {isPending
-            ? hasInitial
-              ? "Сохранение..."
-              : "Создание..."
-            : hasInitial
-              ? "Сохранить изменения"
-              : "Создать шаг"}
-        </Button>
+        <Box className={sharedStyles.formActions}>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={isPending || !form.formState.isValid}
+            className={sharedStyles.formButton}
+          >
+            {isPending
+              ? hasInitial
+                ? "Сохранение..."
+                : "Создание..."
+              : hasInitial
+                ? "Сохранить изменения"
+                : "Создать шаг"}
+          </Button>
+        </Box>
       </form>
     </Box>
   );
