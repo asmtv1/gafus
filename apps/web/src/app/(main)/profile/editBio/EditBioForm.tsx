@@ -3,6 +3,7 @@
 import { FormField } from "@shared/components/ui/FormField";
 import { useUserStore } from "@shared/stores";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -30,6 +31,8 @@ export default function EditBioForm() {
 
   const { profile, isLoading, error, fetchProfile, updateProfile } = useUserStore();
   const router = useRouter();
+  const { data: session } = useSession();
+  const username = session?.user?.username;
 
   // Загружаем профиль если не загружен
   useEffect(() => {
@@ -50,7 +53,9 @@ export default function EditBioForm() {
       await updateProfile(data);
       reset(data);
       // Используем router.push вместо window.history.back() для надежности
-      router.push("/profile");
+      // Сохраняем параметр username при редиректе
+      const redirectUrl = username ? `/profile?username=${username}` : "/courses";
+      router.push(redirectUrl);
     } catch (error) {
       setCaughtError(error as Error);
     }
