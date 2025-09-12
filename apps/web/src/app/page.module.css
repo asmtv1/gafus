@@ -1,4 +1,4 @@
-/* responsive skeleton */
+/* Mobile-first responsive design - базовые стили для мобильных устройств */
 .container {
   background-color: var(--bg-1);
   width: 100%;
@@ -7,7 +7,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 8px 16px 22px 16px;
+  padding: 0px 16px 12px 16px;
   gap: 16px;
 }
 .buttonsContainer {
@@ -63,7 +63,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-around;
+  justify-content: center;
   gap: 8px;
   width: 100%;
 }
@@ -86,6 +86,8 @@
   height: auto;
   margin: -46px auto 16px;
   display: block;
+  position: relative;
+  right: -15px;
 }
 
 .subtitle {
@@ -98,45 +100,152 @@
   max-width: 320px;
   margin-top: auto;
 }
-.paw_absolute {
-  position: absolute;
-  top: 18rem;
-  left: 20.5rem;
-  width: 87px;
-  height: 84px;
-  rotate: -76deg;
+/* speech bubble */
+.speechBubble {
+  position: relative;
+  top: -110px;
+  left: -40px;
+  background-color: #f5f0d8;
+  border-radius: 20px;
+  padding: 10px 10px;
+  margin: 20px 0;
+  min-width: 210px;
+  max-width: 280px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-@media (min-width: 481px) and (max-width: 768px) {
-  .paw_absolute {
-    display: none;
-  }
+.speechBubble::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-top: 17px solid transparent;
+  border-bottom: 23px solid transparent;
+  border-right: 26px solid #f5f0d8;
+  transform: translateY(-58%);
+  rotate: -0.8rad;
+}
+.gafusdialog{
+  position: relative;
+  left: -70px;
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+}
+.speechText {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #4a4a2a;
+  text-align: center;
+  margin: 0;
+  font-weight: 500;
+}
+
+
+/* Планшеты и больше */
+@media (min-width: 481px) {
   .pawContainer {
     justify-content: center;
   }
-}
-@media (min-width: 769px) and (max-width: 1024px) {
-  .paw_absolute {
-    display: none;
+  .logo {
+    right: -55px;
   }
-  .pawContainer {
+  .speechBubble {
+    position: static;
+    top: auto;
+    margin-top: -32px;
+  
+  }
+  
+}
+
+/* Планшеты - улучшения для средних экранов */
+@media (min-width: 768px) {
+  .container {
+    padding: 24px 32px;
+    gap: 20px;
+  }
+  
+  .title {
+    font-size: 120px;
+  }
+  
+  .gafusdialog {
+    flex-direction: row;
+    align-items: flex-start;
     justify-content: center;
   }
+
 }
-@media (min-width: 1025px) and (max-width: 1439px) {
-  .paw_absolute {
-    display: none;
+
+/* Десктопы - полные размеры и улучшения */
+@media (min-width: 1024px) {
+  .container {
+    padding: 32px 48px;
+    gap: 24px;
   }
-  .pawContainer {
-    justify-content: center;
+  
+  .title {
+    font-size: 110px;
+  }
+  
+  .buttonsContainer {
+    margin-top: -40px;
+  }
+  
+  .speechBubble {
+    position: static;
+    top: auto;
+    margin-top: -33px;
+    padding: 16px 20px;
+    z-index: 50;
+  }
+  
+  .speechBubble::after {
+    top: 27%;
+    left: 312px;
+  }
+  
+  .button_register,
+  .button_login {
+    width: 250px;
+    height: 52px;
+    font-size: 26px;
+  }
+  
+  .subtitle {
+    font-size: 14px;
+    max-width: 400px;
+  }
+  
+  .speechText {
+    font-size: 15px;
   }
 }
+
+/* Большие десктопы - максимальные размеры */
 @media (min-width: 1440px) {
-  .paw_absolute {
-    display: none;
+  .container {
+    padding: 48px 64px;
+    gap: 32px;
   }
-  .pawContainer {
-    justify-content: center;
+  
+  
+  .title {
+    font-size: 130px;
+  }
+  
+  .button_register,
+  .button_login {
+    width: 280px;
+    height: 56px;
+    font-size: 28px;
+  }
+  
+  .subtitle {
+    font-size: 16px;
+    max-width: 500px;
   }
 }
 
@@ -149,6 +258,7 @@
 /* color scheme */
 @media (prefers-color-scheme: dark) {
 }
+
 
 /* motion */
 @media (prefers-reduced-motion: reduce) {
