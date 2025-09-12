@@ -10,7 +10,9 @@ import EditablePetAvatar from "./EditablePetAvatar";
 import EditPetForm from "./EditPetForm";
 import styles from "./PetList.module.css";
 
-import type { Pet } from "@gafus/types";
+import type { PublicProfile, Pet } from "@gafus/types";
+
+type PetFromPublicProfile = PublicProfile['pets'][0];
 
 import { getAgeWithMonths, declOfNum } from "@/utils";
 import { Avatar, IconButton, Modal, Box } from "@/utils/muiImports";
@@ -36,18 +38,26 @@ const handleDelete = (
   });
 };
 
-export default function PetList({ pets, isOwner }: { pets: Pet[]; isOwner: boolean }) {
+export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[]; isOwner: boolean }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const [showEdit, setShowEdit] = useState(false);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
 
-  const handleEditClick = (pet: Pet) => {
-    setSelectedPet(pet);
+  const handleEditClick = (pet: PetFromPublicProfile) => {
+    // Преобразуем PetFromPublicProfile в Pet для EditPetForm
+    const petForEdit: Pet = {
+      ...pet,
+      breed: pet.breed || "",
+      birthDate: pet.birthDate || new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    setSelectedPet(petForEdit);
     setShowEdit(true);
   };
 
-  const PetCard = ({ pet }: { pet: Pet }) => (
+  const PetCard = ({ pet }: { pet: PetFromPublicProfile }) => (
     <li className={styles.dog_item} key={pet.id}>
       {isOwner ? (
         <EditablePetAvatar avatarUrl={pet.photoUrl} petId={pet.id} />
@@ -65,7 +75,7 @@ export default function PetList({ pets, isOwner }: { pets: Pet[]; isOwner: boole
         </h3>
         <p>Порода: {pet.breed}</p>
 
-        {(() => {
+        {pet.birthDate && (() => {
           const age = getAgeWithMonths(
             pet.birthDate instanceof Date ? pet.birthDate.toISOString() : pet.birthDate,
           );

@@ -76,8 +76,8 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
           }) => ({
             id: String(d.id),
             title: d.title,
-            issuedBy: d.issuedBy!,
-            issuedAt: d.issuedAt!,
+            issuedBy: d.issuedBy || "",
+            issuedAt: d.issuedAt || new Date(),
             ...(d.url ? { url: d.url } : {}),
           }),
         ),
@@ -123,9 +123,9 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
               }) => ({
                 id: String(a.id),
                 title: a.title,
-                event: a.event!,
-                date: a.date!,
-                rank: a.rank!,
+                event: a.event || "",
+                date: a.date || new Date(),
+                rank: a.rank || "",
               }),
             ),
         }),

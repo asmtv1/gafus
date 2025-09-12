@@ -49,7 +49,6 @@ export default function Bio({ publicData, isOwner, username }: BioProps) {
       <h2>Профиль {username}</h2>
       {isOwner ? (
         <EditableAvatar
-          key={Date.now()}
           avatarUrl={profile?.avatarUrl || "/uploads/avatar.svg"}
         />
       ) : (
@@ -87,12 +86,7 @@ export default function Bio({ publicData, isOwner, username }: BioProps) {
         {isOwner && <NotificationStatus />}
 
         <PetList
-          pets={pets.map((pet) => ({
-            ...pet,
-            birthDate: pet.birthDate || new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }))}
+          pets={pets}
           isOwner={isOwner}
         />
 
