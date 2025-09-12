@@ -88,7 +88,12 @@ export async function getUserProgress(
 
         // Если все дни завершены, но курс не помечен как завершенный
         if (completedDays === totalDays && totalDays > 0 && userProgress.status !== "COMPLETED") {
-          completedAt = new Date();
+          // Устанавливаем completedAt только если он еще не был установлен
+          if (!userProgress.completedAt) {
+            completedAt = new Date();
+          } else {
+            completedAt = userProgress.completedAt;
+          }
           // Обновляем статус курса в базе
           try {
             await prisma.userCourse.update({
@@ -100,7 +105,7 @@ export async function getUserProgress(
               },
               data: {
                 status: "COMPLETED",
-                completedAt: new Date(),
+                completedAt: completedAt,
               },
             });
           } catch (error) {
@@ -112,8 +117,11 @@ export async function getUserProgress(
           userProgress.status === "NOT_STARTED" &&
           userTrainings.some((t: { status: string }) => t.status !== "NOT_STARTED")
         ) {
-          if (!startedAt) {
+          // Устанавливаем startedAt только если он еще не был установлен
+          if (!userProgress.startedAt) {
             startedAt = new Date();
+          } else {
+            startedAt = userProgress.startedAt;
           }
           // Обновляем статус курса в базе
           try {
