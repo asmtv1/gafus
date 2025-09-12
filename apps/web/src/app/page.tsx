@@ -31,8 +31,19 @@ export default function AuthPage() {
         <p className={styles.pawText}>вместе</p>
       </div>
       <h1 className={styles.title}>Гафус!</h1>
-      <Image src="/paw.svg" alt="paw" className={styles.paw_absolute} width={141} height={136} />
+      <div className={styles.gafusdialog}>
       <Image src="/logo.png" alt="logo" className={styles.logo} width={303} height={303} priority />
+      
+      <div className={styles.speechBubble}>
+        <p className={styles.speechText}>
+        Добро ГАФ пожаловать!<br />
+          Я - мудрый Гафус!
+          <br />
+          Я буду помогать тебе с тренировками!
+          <br />
+        </p>
+      </div>
+      </div>
       <div className={styles.buttonsContainer}>
         <Link href="/login">
           <button className={styles.button_login}>войти</button>
