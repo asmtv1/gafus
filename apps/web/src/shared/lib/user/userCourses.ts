@@ -203,18 +203,31 @@ export async function checkAndCompleteCourse(
     });
 
     if (allCompleted) {
-      await prisma.userCourse.update({
+      // Получаем текущую запись курса
+      const existingUserCourse = await prisma.userCourse.findUnique({
         where: {
           userId_courseId: {
             userId,
             courseId,
           },
         },
-        data: {
-          status: TrainingStatus.COMPLETED,
-          completedAt: new Date(),
-        },
       });
+
+      // Обновляем только если курс еще не был завершен
+      if (!existingUserCourse?.completedAt) {
+        await prisma.userCourse.update({
+          where: {
+            userId_courseId: {
+              userId,
+              courseId,
+            },
+          },
+          data: {
+            status: TrainingStatus.COMPLETED,
+            completedAt: new Date(),
+          },
+        });
+      }
 
       return { success: true };
     }

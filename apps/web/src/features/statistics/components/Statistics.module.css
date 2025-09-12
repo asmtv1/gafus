@@ -137,28 +137,45 @@
 /* Мобильные стили */
 @media (max-width: 768px) {
   .section {
-    padding: 16px;
+    padding: 12px;
   }
   
   .header {
-    padding: 12px 16px;
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .avatarWrapper {
+    width: 32px;
+    height: 32px;
   }
   
   .userName {
-    font-size: 16px;
+    font-size: 14px;
+    text-align: center;
   }
   
   .title {
-    font-size: 20px;
+    font-size: 18px;
+    text-align: center;
+    margin: 16px 0;
   }
   
   .coursesList {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 12px;
   }
   
   .emptyMessage,
   .error {
-    padding: 20px 16px;
+    padding: 16px 12px;
+    font-size: 14px;
+  }
+  
+  .retryButton {
+    padding: 10px 20px;
+    font-size: 13px;
   }
 }

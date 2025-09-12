@@ -139,6 +139,7 @@
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -339,9 +340,26 @@
 
 /* Адаптивность */
 @media (max-width: 768px) {
+  .coursesList {
+    gap: 1rem;
+  }
+  
+  .courseCard {
+    padding: 1rem;
+  }
+  
   .courseHeader {
     flex-direction: column;
     align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .courseTitle {
+    font-size: 1.1rem;
+  }
+  
+  .courseDescription {
+    font-size: 0.85rem;
   }
   
   .courseMeta {
@@ -349,33 +367,157 @@
     flex-direction: row;
     justify-content: space-between;
     width: 100%;
+    gap: 0.5rem;
+  }
+  
+  .author {
+    font-size: 0.8rem;
+  }
+  
+  .status {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
+  }
+  
+  .progressSection {
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .progressBar {
+    height: 10px;
+  }
+  
+  .progressText {
+    font-size: 0.85rem;
+    min-width: 35px;
+  }
+  
+  .daysTracker {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  
+  .trackerTitle {
+    font-size: 0.9rem;
+  }
+  
+  .daysGrid {
+    grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
+    gap: 0.4rem;
+  }
+  
+  .dayCircle {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+  }
+  
+  .checkmark {
+    font-size: 0.9rem;
   }
   
   .courseStats {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  .statLabel {
+    font-size: 0.75rem;
+  }
+  
+  .statValue {
+    font-size: 0.9rem;
   }
   
   .courseActions {
     flex-direction: column;
+    gap: 0.5rem;
   }
   
   .continueButton,
   .viewButton {
     text-align: center;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .courseCard {
+    padding: 0.75rem;
   }
   
-  .daysGrid {
-    grid-template-columns: repeat(auto-fit, minmax(35px, 1fr));
-    gap: 0.5rem;
+  .courseTitle {
+    font-size: 1rem;
   }
   
-  .dayCircle {
-    width: 35px;
-    height: 35px;
+  .courseDescription {
     font-size: 0.8rem;
   }
   
+  .courseMeta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .author {
+    font-size: 0.75rem;
+  }
+  
+  .status {
+    font-size: 0.75rem;
+  }
+  
+  .progressBar {
+    height: 8px;
+  }
+  
+  .progressText {
+    font-size: 0.8rem;
+    min-width: 30px;
+  }
+  
+  .daysTracker {
+    padding: 0.5rem;
+  }
+  
+  .trackerTitle {
+    font-size: 0.85rem;
+  }
+  
+  .daysGrid {
+    grid-template-columns: repeat(auto-fit, minmax(28px, 1fr));
+    gap: 0.3rem;
+  }
+  
+  .dayCircle {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
+  }
+  
   .checkmark {
-    font-size: 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .courseStats {
+    padding: 0.5rem;
+  }
+  
+  .statLabel {
+    font-size: 0.7rem;
+  }
+  
+  .statValue {
+    font-size: 0.85rem;
+  }
+  
+  .continueButton,
+  .viewButton {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
   }
 }
