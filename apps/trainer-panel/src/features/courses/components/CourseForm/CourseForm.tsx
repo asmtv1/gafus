@@ -26,6 +26,8 @@ import {
   Typography,
 } from "../../../../utils/muiImports";
 import CourseMediaUploader from "./CourseMediaUploader";
+import sharedStyles from "@shared/styles/FormLayout.module.css";
+import FormSection from "@shared/components/FormSection";
 
 import type { TrainerCourseFormData as CourseFormData, TrainerDay as DayItem } from "@gafus/types";
 
@@ -156,23 +158,20 @@ export default function CourseForm({
   };
 
   return (
-    <Box sx={{ maxWidth: 800, mx: "auto", p: 3 }}>
+    <Box className={sharedStyles.formContainer}>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" className={sharedStyles.formAlert}>
           {error}
         </Alert>
       )}
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
+        <Alert severity="success" className={sharedStyles.formAlert}>
           {success}
         </Alert>
       )}
 
       <form onSubmit={form.handleSubmit(handleSubmit)}>
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Основная информация
-          </Typography>
+        <FormSection title="Основная информация">
           <FormField
             id="name"
             label="Название курса *"
@@ -189,16 +188,14 @@ export default function CourseForm({
             form={form}
             rules={commonValidationRules.shortDescription}
           />
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Полное описание *
-            </Typography>
+          <Box className={sharedStyles.formField}>
+            <Typography className={sharedStyles.formLabel}>Полное описание *</Typography>
             <MarkdownInput
               value={form.watch("description")}
               onChange={(value: string) => form.setValue("description", value)}
             />
             {form.formState.errors.description && (
-              <Alert severity="error" sx={{ mt: 1 }}>
+              <Alert severity="error" className={sharedStyles.formAlert}>
                 {form.formState.errors.description.message}
               </Alert>
             )}
@@ -218,8 +215,8 @@ export default function CourseForm({
             placeholder="например: поводок, игрушки, лакомства"
             form={form}
           />
-          <FormControl component="fieldset" sx={{ mb: 2 }}>
-            <Typography variant="subtitle1" component="legend" sx={{ mb: 1 }}>
+          <FormControl component="fieldset" className={sharedStyles.formField}>
+            <Typography className={sharedStyles.formLabel}>
               Уровень сложности
             </Typography>
             <RadioGroup
@@ -255,24 +252,18 @@ export default function CourseForm({
             form={form}
             rules={commonValidationRules.videoUrl}
           />
-        </Box>
+        </FormSection>
 
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Медиа
-          </Typography>
+        <FormSection title="Медиа">
           <CourseMediaUploader onUploadComplete={(url) => form.setValue("logoImg", url)} />
           {form.formState.errors.logoImg && (
-            <Alert severity="error" sx={{ mt: 1 }}>
+            <Alert severity="error" className={sharedStyles.formAlert}>
               {form.formState.errors.logoImg.message}
             </Alert>
           )}
-        </Box>
+        </FormSection>
 
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Доступ
-          </Typography>
+        <FormSection title="Доступ">
           <FormControlLabel
             control={
               <Switch
@@ -290,25 +281,19 @@ export default function CourseForm({
             }
             label="Публичный курс"
           />
-        </Box>
+        </FormSection>
 
         {/* Блок выбора пользователей для приватного курса */}
         {!form.watch("isPublic") && (
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Доступ к курсу
-            </Typography>
+          <FormSection title="Доступ к курсу">
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               Выберите пользователей, которым будет доступен этот курс
             </Typography>
             <UserSearchSelector selectedUsers={selectedUsers} setSelectedUsers={setSelectedUsers} />
-          </Box>
+          </FormSection>
         )}
 
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Тренировочные дни
-          </Typography>
+        <FormSection title="Тренировочные дни">
           <DualListSelector
             allItems={allDays}
             selectedItems={
@@ -326,7 +311,7 @@ export default function CourseForm({
             title="Тренировочные дни"
             allowDuplicates={true}
           />
-        </Box>
+        </FormSection>
 
         <ValidationErrors
           errors={Object.fromEntries(
@@ -337,20 +322,23 @@ export default function CourseForm({
             ]),
           )}
         />
-        <Button
-          type="submit"
-          variant="contained"
-          disabled={isSubmitting || !form.formState.isValid}
-          sx={{ mt: 2 }}
-        >
-          {isSubmitting
-            ? mode === "edit"
-              ? "Сохранение..."
-              : "Создание..."
-            : mode === "edit"
-              ? "Сохранить изменения"
-              : "Создать курс"}
-        </Button>
+        
+        <Box className={sharedStyles.formActions}>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={isSubmitting || !form.formState.isValid}
+            className={sharedStyles.formButton}
+          >
+            {isSubmitting
+              ? mode === "edit"
+                ? "Сохранение..."
+                : "Создание..."
+              : mode === "edit"
+                ? "Сохранить изменения"
+                : "Создать курс"}
+          </Button>
+        </Box>
       </form>
       <Toast open={open} message={message} severity={severity} onClose={closeToast} />
     </Box>

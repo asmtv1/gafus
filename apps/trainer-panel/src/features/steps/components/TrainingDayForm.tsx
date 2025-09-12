@@ -8,7 +8,7 @@ import { commonValidationRules } from "@shared/hooks/useFormValidation";
 import React from "react";
 import { useForm, type RegisterOptions } from "react-hook-form";
 
-import styles from "./TrainingDayForm.module.css";
+import sharedStyles from "@shared/styles/FormLayout.module.css";
 
 interface TrainingDayFormData {
   title: string;
@@ -62,11 +62,7 @@ export default function TrainingDayForm({
   }, [form, onChange]);
 
   return (
-    <Box className={styles.formContainer}>
-      <Typography variant="h6" gutterBottom className={styles.heading}>
-        Заполните информацию о дне тренировки, обязательные поля отмечены звездочкой
-      </Typography>
-
+    <Box className={sharedStyles.formContainer}>
       <FormField
         id="title"
         label="Название дня *"
@@ -98,14 +94,14 @@ export default function TrainingDayForm({
         form={form}
       />
 
-      <Box sx={{ mb: 3 }}>
-        <Typography className={styles.label}>Описание *</Typography>
+      <Box className={sharedStyles.formField}>
+        <Typography className={sharedStyles.formLabel}>Описание *</Typography>
         <MarkdownInput
           value={form.watch("description")}
           onChange={(value: string) => form.setValue("description", value)}
         />
         {form.formState.errors.description && (
-          <Alert severity="error" sx={{ mt: 1 }}>
+          <Alert severity="error" className={sharedStyles.formAlert}>
             {form.formState.errors.description.message}
           </Alert>
         )}

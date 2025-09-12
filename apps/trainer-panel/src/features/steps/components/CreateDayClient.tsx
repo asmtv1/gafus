@@ -2,13 +2,15 @@
 
 import { createTrainingDay } from "@features/steps/lib/createTrainingDay";
 import { updateTrainingDay } from "@features/steps/lib/updateTrainingDay";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import DualListSelector from "@shared/components/common/DualListSelector";
 import { Toast, useToast } from "@shared/components/ui/Toast";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import TrainingDayForm from "./TrainingDayForm";
+import sharedStyles from "@shared/styles/FormLayout.module.css";
+import FormSection from "@shared/components/FormSection";
 
 import type { IdTitleItem as Step } from "@gafus/types";
 
@@ -84,36 +86,38 @@ export default function CreateDayClient({ allSteps, initialDay }: Props) {
   };
 
   return (
-    <Box sx={{ color: "black" }}>
-      <Typography variant="h4" sx={{ mb: 4 }}>
-        {isEdit ? "Редактирование дня" : "Создание дня"}
-      </Typography>
+    <Box className={sharedStyles.formContainer}>
+      <FormSection title="Информация о дне тренировки">
+        <TrainingDayForm
+          title={dayInfo.title}
+          type={dayInfo.type}
+          description={dayInfo.description}
+          equipment={dayInfo.equipment}
+          onChange={setDayInfo}
+        />
+      </FormSection>
 
-      <TrainingDayForm
-        title={dayInfo.title}
-        type={dayInfo.type}
-        description={dayInfo.description}
-        equipment={dayInfo.equipment}
-        onChange={setDayInfo}
-      />
+      <FormSection title="Выбор шагов">
+        <DualListSelector<Step>
+          allItems={allSteps}
+          selectedItems={selectedSteps}
+          onSelectionChange={setSelectedSteps}
+          getItemLabel={(step) => step.title}
+          getItemId={(step) => step.id}
+          title="Шаги дня"
+          allowDuplicates={true}
+        />
+      </FormSection>
 
-      <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>
-        Выберите шаги, которые будут использованы в этом дне
-      </Typography>
-
-      <DualListSelector<Step>
-        allItems={allSteps}
-        selectedItems={selectedSteps}
-        onSelectionChange={setSelectedSteps}
-        getItemLabel={(step) => step.title}
-        getItemId={(step) => step.id}
-        title="Шаги дня"
-        allowDuplicates={true}
-      />
-
-      <Button variant="contained" onClick={handleSaveDay} sx={{ mt: 4 }}>
-        {isEdit ? "Сохранить изменения" : "Создать день"}
-      </Button>
+      <Box className={sharedStyles.formActions}>
+        <Button 
+          variant="contained" 
+          onClick={handleSaveDay} 
+          className={sharedStyles.formButton}
+        >
+          {isEdit ? "Сохранить изменения" : "Создать день"}
+        </Button>
+      </Box>
 
       <Toast open={open} message={message} severity={severity} onClose={closeToast} />
     </Box>

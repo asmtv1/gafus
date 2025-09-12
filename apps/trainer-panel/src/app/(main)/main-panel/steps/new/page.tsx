@@ -1,11 +1,14 @@
 import NewStepForm from "@features/steps/components/NewStepForm";
 import { createStep } from "@features/steps/lib/createStep";
+import FormPageLayout from "@shared/components/FormPageLayout";
 
 export default function NewStepPage() {
   return (
-    <div className="mx-auto mt-10 max-w-md rounded border p-4 shadow">
-      <h1 className="mb-4 text-2xl font-bold">Создать шаг</h1>
+    <FormPageLayout 
+      title="Создание шага тренировки"
+      subtitle="Заполните информацию о новом шаге тренировки"
+    >
       <NewStepForm serverAction={createStep} />
-    </div>
+    </FormPageLayout>
   );
 }

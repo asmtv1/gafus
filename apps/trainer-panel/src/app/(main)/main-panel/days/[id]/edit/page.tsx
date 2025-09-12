@@ -1,6 +1,7 @@
 import CreateDayClient from "@features/steps/components/CreateDayClient";
 import { prisma } from "@gafus/prisma";
 import { notFound } from "next/navigation";
+import FormPageLayout from "@shared/components/FormPageLayout";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -27,7 +28,10 @@ export default async function EditDayPage({ params }: Props) {
   );
 
   return (
-    <div className="mx-auto max-w-3xl p-4">
+    <FormPageLayout 
+      title="Редактирование дня тренировки"
+      subtitle="Измените информацию о дне тренировки и выберите шаги"
+    >
       <CreateDayClient
         allSteps={uniqueSteps}
         initialDay={{
@@ -39,6 +43,6 @@ export default async function EditDayPage({ params }: Props) {
           stepIds: day.stepLinks.map((sl: { stepId: string }) => sl.stepId),
         }}
       />
-    </div>
+    </FormPageLayout>
   );
 }

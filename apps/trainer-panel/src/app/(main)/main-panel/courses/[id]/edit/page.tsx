@@ -1,7 +1,8 @@
 import { CourseForm } from "@features/courses/components/CourseForm";
 import { getVisibleDays } from "@features/courses/lib/getVisibleDays";
 import { prisma } from "@gafus/prisma";
-import { Box, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
+import FormPageLayout from "@shared/components/FormPageLayout";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -38,12 +39,12 @@ export default async function EditCoursePage({ params }: PageProps) {
 
   if (!course) {
     return (
-      <Box sx={{ p: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Редактирование курса
-        </Typography>
+      <FormPageLayout 
+        title="Редактирование курса"
+        subtitle="Измените информацию о курсе и выберите тренировочные дни"
+      >
         <Typography color="error">Курс не найден</Typography>
-      </Box>
+      </FormPageLayout>
     );
   }
 
@@ -69,10 +70,10 @@ export default async function EditCoursePage({ params }: PageProps) {
     : [];
 
   return (
-    <Box sx={{ p: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Редактирование курса
-      </Typography>
+    <FormPageLayout 
+      title="Редактирование курса"
+      subtitle="Измените информацию о курсе и выберите тренировочные дни"
+    >
       <CourseForm
         allDays={formattedDays}
         mode="edit"
@@ -80,6 +81,6 @@ export default async function EditCoursePage({ params }: PageProps) {
         initialValues={initialValues}
         initialSelectedUsers={initialSelectedUsers}
       />
-    </Box>
+    </FormPageLayout>
   );
 }
