@@ -32,7 +32,7 @@ export default function NotificationStatus() {
   }, []);
 
   const handleAllowNotifications = async () => {
-    console.log("🚀 NotificationStatus: handleAllowNotifications вызван");
+    
     
     // Проверяем поддержку push-уведомлений
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -43,19 +43,6 @@ export default function NotificationStatus() {
     
     // Современные версии Safari поддерживают push в браузере (с iOS 16.4+, macOS 13+)
     if (isSafari) {
-      console.log("🦁 Safari/WebKit detected");
-      console.log("🔧 iOS:", isIOS);
-      console.log("🔧 PWA standalone mode:", isStandalone);
-      console.log("🔧 HTTPS:", window.location.protocol === 'https:');
-      console.log("🔧 Service Worker supported:", 'serviceWorker' in navigator);
-      console.log("🔧 Push Manager supported:", 'PushManager' in window);
-      
-      // Обязательное требование HTTPS для push
-      //if (window.location.protocol !== 'https:') {
-        //console.error("❌ Safari requires HTTPS for push notifications");
-        //alert("Для push-уведомлений требуется HTTPS соединение");
-        //return;
-      //}
       
       // Для старых версий iOS Safari (< 16.4) требуется PWA режим
       if (isIOS && !isStandalone) {
@@ -69,23 +56,23 @@ export default function NotificationStatus() {
     }
     
     if (vapidKey) {
-        console.log("✅ NotificationStatus: VAPID ключ доступен, запрашиваем разрешение");
+        
         
         try {
           // Добавляем таймаут для Safari, чтобы избежать зависания
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => {
-              console.log("⏰ NotificationStatus: Таймаут истек для Safari!");
+            
               reject(new Error("Request permission timeout in Safari"));
             }, 30000); // Увеличиваем до 30 секунд для Safari
           });
           
-          console.log("🔧 NotificationStatus: Вызываем requestPermission...");
+          
           const permissionPromise = requestPermission(vapidKey);
           await Promise.race([permissionPromise, timeoutPromise]);
-          console.log("✅ NotificationStatus: Разрешение получено успешно");
+          
         } catch (error) {
-          console.error("❌ NotificationStatus: Ошибка при запросе разрешения:", error);
+          
           // В Safari часто бывают таймауты, показываем пользователю
           if (error instanceof Error && error.message.includes("timeout")) {
             console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
@@ -102,15 +89,6 @@ export default function NotificationStatus() {
   };
 
   const handleDenyNotifications = async () => {
-    console.log("🚀 NotificationStatus: handleDenyNotifications вызван");
-    
-    // Специальная диагностика для Safari
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-    
-    if (isIOS && isSafari) {
-      console.log("🍎 iOS Safari detected for deny operation");
-    }
     
     try {
       // Адаптивные таймауты для разных браузеров
@@ -118,18 +96,16 @@ export default function NotificationStatus() {
       const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
       const timeoutMs = isSafari ? 45000 : 30000; // 45 сек для Safari, 30 для остальных
       
-      console.log(`⏰ NotificationStatus: Таймаут для удаления установлен: ${timeoutMs}ms (${isSafari ? 'Safari' : 'Other'})`);
       
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
-          console.log("⏰ NotificationStatus: Таймаут истек для Safari!");
           reject(new Error("Remove subscription timeout in Safari"));
         }, timeoutMs);
       });
       
       const removePromise = removePushSubscription();
       await Promise.race([removePromise, timeoutPromise]);
-      console.log("✅ NotificationStatus: Подписка успешно удалена");
+      
     } catch (error) {
       console.error("❌ NotificationStatus: Ошибка при удалении подписки:", error);
       // В Safari часто бывают таймауты, показываем пользователю
@@ -145,36 +121,35 @@ export default function NotificationStatus() {
 
   // Получаем публичный VAPID ключ и инициализируем push-уведомления при монтировании
   useEffect(() => {
-    console.log("🚀 NotificationStatus: useEffect для инициализации запущен");
+   
     let cancelled = false;
     
     (async () => {
       try {
-        console.log("🔧 NotificationStatus: Получаем VAPID ключ...");
+        
         const { publicKey } = await getPublicKeyAction();
         if (!cancelled) {
           setVapidKey(publicKey ?? null);
-          console.log("✅ NotificationStatus: VAPID ключ установлен:", !!publicKey);
+          
         }
         
         // Устанавливаем userId для push-уведомлений
         if (session?.user?.id) {
-          console.log("🔧 NotificationStatus: Устанавливаем userId:", session.user.id);
+          
           setUserId(session.user.id);
           
           // Проверяем серверную подписку только после установки userId
-          console.log("🔧 NotificationStatus: Планируем проверку серверной подписки через 100мс");
+          
           setTimeout(() => {
-            console.log("🔧 NotificationStatus: Вызываем checkServerSubscription...");
+           
             checkServerSubscription();
           }, 100);
         } else {
           console.warn("⚠️ NotificationStatus: No user ID found in session");
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) {
           setVapidKey(null);
-          console.error("❌ NotificationStatus: Failed to fetch VAPID public key", e);
         }
       }
     })();

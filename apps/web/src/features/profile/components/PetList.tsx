@@ -120,7 +120,7 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
     <div className={styles.container}>
       <h2>Питомцы</h2>
       {pets.length === 0 ? (
-        <p>Питомцы не добавлены</p>
+        <p className={styles.no_pets}>Питомцы не добавлены</p>
       ) : (
         <ul className={styles.dog_list}>
           {pets.map((pet) => (

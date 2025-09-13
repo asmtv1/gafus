@@ -2,14 +2,60 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
-  max-width: 800px;
+  gap: 16px;
+  max-width: 500px;
   margin: 0 auto;
-  padding: 2rem;
-  background: #ECE5D2;
-  border-radius: 16px;
-  border: 1px solid #636128;
+  padding: 20px;
+  background-color: var(--bg-1);
+  border-radius: 12px;
+  border: 1px solid var(--bg-2);
   position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+
+/* Новый дизайн баннера профиля */
+.profileBanner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  background: #636128;
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-bottom: 0.5rem;
+}
+
+.avatarContainer {
+  flex-shrink: 0;
+}
+
+.avatarContainer .MuiAvatar-root {
+  border: 3px solid #ECE5D2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.profileInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.greeting {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ECE5D2;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  line-height: 1.2;
+}
+
+.contactInfo {
+  font-size: 0.9rem;
+  color: #D4C4A8;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  opacity: 0.9;
 }
 
 .wrapper h2 {
@@ -30,10 +76,13 @@
   margin: 0 auto;
   padding: 2rem;
   background: #F5F0E8;
-  border-radius: 12px;
+  border-radius: 16px;
   border: 1px solid #D4C4A8;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
 }
+
 
 .container h1 {
   font-size: 2rem;
@@ -47,22 +96,26 @@
 .container p {
   font-size: 1rem;
   color: #352E2E;
-  margin: 0.3rem 0;
-  padding: 0.8rem 1rem;
-  background: #ECE5D2;
-  border-radius: 8px;
+  margin: 0.5rem 0;
+  padding: 1rem 1.2rem;
+  background: linear-gradient(135deg, #ECE5D2 0%, #F0E6D2 100%);
+  border-radius: 12px;
   border: 1px solid #D4C4A8;
   width: 100%;
   box-sizing: border-box;
   font-family: var(--font-montserrat), system-ui, sans-serif;
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: default;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
+
 
 .container div {
   font-size: 0.95rem;
   color: #636128;
   background: #FFF8E5;
   border-radius: 8px;
-  border: 1px solid #D4C4A8;
   text-align: center;
   font-style: italic;
   width: 100%;
@@ -71,31 +124,41 @@
 }
 
 .container button {
-  background: #636128;
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
   color: #ECE5D2;
   border: 1px solid #636128;
-  padding: 12px 24px;
-  border-radius: 8px;
+  padding: 14px 28px;
+  border-radius: 12px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
   text-decoration: none;
-  display: inline-block;
-  min-width: 200px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 220px;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  position: relative;
+  overflow: hidden;
 }
 
+
 .container button:hover {
-  background: #4a4a1a;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
+}
+
+.container button:hover::before {
+  left: 100%;
 }
 
 .container button:active {
-  background: #352E2E;
+  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
   transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
 
 .addpet {
@@ -122,6 +185,8 @@
   margin: 0.3rem 0;
   border: 1px solid #8B4513;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  width: fit-content;
+  max-width: none;
 }
 
 .roleBadge.admin {
@@ -206,12 +271,31 @@
 
 @media (max-width: 768px) {
   .wrapper {
-    padding: 1rem;
+    padding: 1.5rem;
     margin: 0.5rem;
+    gap: 1.5rem;
   }
 
   .wrapper h2 {
     font-size: 2rem;
+  }
+
+  .profileBanner {
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+  }
+
+  .greeting {
+    font-size: 1.1rem;
+  }
+
+  .contactInfo {
+    font-size: 0.85rem;
+  }
+
+  .avatarContainer .MuiAvatar-root {
+    width: 60px !important;
+    height: 60px !important;
   }
 
   .container {
@@ -225,6 +309,7 @@
 
   .container p {
     font-size: 0.95rem;
+    padding: 0.8rem 1rem;
   }
 
   .container button {
@@ -244,16 +329,50 @@
   .diplomasSection h2 {
     font-size: 1.1rem;
   }
+
+  .notificationStatus {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+
+  .petList {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+
+  .addpet {
+    width: 100% !important;
+    min-width: auto !important;
+  }
 }
 
 @media (max-width: 480px) {
   .wrapper {
-    padding: 0.75rem;
+    padding: 1rem;
     margin: 0.25rem;
+    gap: 1rem;
   }
 
   .wrapper h2 {
     font-size: 1.75rem;
+  }
+
+  .profileBanner {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .greeting {
+    font-size: 1rem;
+  }
+
+  .contactInfo {
+    font-size: 0.8rem;
+  }
+
+  .avatarContainer .MuiAvatar-root {
+    width: 50px !important;
+    height: 50px !important;
   }
 
   .container {
@@ -266,7 +385,7 @@
 
   .container p {
     font-size: 0.9rem;
-    padding: 0.6rem 0.8rem;
+    padding: 0.8rem 1rem;
   }
 
   .roleBadge {
@@ -286,4 +405,96 @@
     padding: 0.6rem;
     font-size: 0.9rem;
   }
+
+  .notificationStatus {
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+  }
+
+  .petList {
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+  }
+
+  .addpet {
+    padding: 10px 20px !important;
+    font-size: 0.9rem !important;
+  }
 }
+
+
+/* Стили для секции питомцев */
+.petList {
+  width: 100%;
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: #F5F0E8;
+  border: 1px solid #D4C4A8;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+
+/* Улучшенные стили для кнопки добавления питомца */
+.addpet {
+  background: #B6C582 !important;
+  color: #352E2E !important;
+  border: 1px solid #B6C582 !important;
+  box-shadow: 0 4px 12px rgba(182, 197, 130, 0.3) !important;
+  margin-top: 1rem !important;
+  padding: 12px 24px !important;
+  border-radius: 8px !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  text-decoration: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 200px !important;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.addpet:hover {
+  background: #9BA86F !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+
+.addpet:active {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+
+
+
+/* Улучшенные hover эффекты для карточек */
+.container p:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: #F0E6D2;
+  border-color: #B6C582;
+}
+
+/* Улучшенные стили для пустого уведомления */
+.emptyNotice {
+  background: #FFF8E5;
+  color: #636128;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px dashed #D4C4A8;
+  text-align: center;
+  font-style: italic;
+  margin: 1rem 0;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+
