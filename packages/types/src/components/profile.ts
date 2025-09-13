@@ -1,4 +1,4 @@
-import type { PublicProfile } from "../data/user";
+import type { PublicProfile, UserWithTrainings } from "../data/user";
 import type { Control, FieldErrors } from "../types/react-types";
 import type { PetFormFieldsData } from "./forms";
 
@@ -6,6 +6,7 @@ export interface BioProps {
   publicData: PublicProfile;
   isOwner: boolean;
   username: string;
+  userData?: UserWithTrainings | null;
 }
 
 export interface PrivateProfileSectionProps {

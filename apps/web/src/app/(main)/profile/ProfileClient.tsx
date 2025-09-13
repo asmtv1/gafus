@@ -18,7 +18,7 @@ export default function ProfileClient({
 }: ProfileClientProps) {
   return (
     <main>
-      <Bio publicData={publicData} isOwner={isOwner} username={username} />
+      <Bio publicData={publicData} isOwner={isOwner} username={username} userData={userData} />
       {isOwner && userData && <PrivateProfileSection user={userData} />}
     </main>
   );

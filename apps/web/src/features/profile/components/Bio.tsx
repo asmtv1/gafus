@@ -10,7 +10,7 @@ import type { BioProps } from "@gafus/types";
 import { getAge, declOfNum } from "@/utils";
 import { Avatar } from "@/utils/muiImports";
 
-export default function Bio({ publicData, isOwner, username }: BioProps) {
+export default function Bio({ publicData, isOwner, username, userData }: BioProps) {
   const profile = publicData.profile;
   const diplomas = publicData.diplomas;
   const pets = publicData.pets;
@@ -47,24 +47,43 @@ export default function Bio({ publicData, isOwner, username }: BioProps) {
   return (
     <section className={styles.wrapper}>
       <h2>Профиль {username}</h2>
-      {isOwner ? (
-        <EditableAvatar
-          avatarUrl={profile?.avatarUrl || "/uploads/avatar.svg"}
-        />
-      ) : (
-        <Avatar
-          alt="Profile picture"
-          src={profile?.avatarUrl || "/uploads/avatar.svg"}
-          sx={{ width: 120, height: 120 }}
-        />
-      )}
-      <div className={styles.container}>
-        {profile?.fullName && <h1>{profile.fullName}</h1>}
-        {displayRole && (
+      
+      {/* Новый дизайн в стиле баннера */}
+      <div className={styles.profileBanner}>
+        <div className={styles.avatarContainer}>
+          {isOwner ? (
+            <EditableAvatar
+              avatarUrl={profile?.avatarUrl || "/uploads/avatar.svg"}
+            />
+          ) : (
+            <Avatar
+              alt="Profile picture"
+              src={profile?.avatarUrl || "/uploads/avatar.svg"}
+              sx={{ width: 80, height: 80 }}
+            />
+          )}
+        </div>
+        <div className={styles.profileInfo}>
+          <div className={styles.greeting}>
+            Привет, {profile?.fullName || username}!
+          </div>
+          <div className={styles.contactInfo}>
+            {isOwner && userData?.phone 
+              ? `${userData.phone}` 
+              : profile?.telegram 
+                ? `@${profile.telegram}` 
+                : "Контакты не указаны"}
+          </div>
+          {displayRole && (
           <div className={`${styles.roleBadge} ${getRoleClass(publicData.role!)}`}>
             {displayRole}
           </div>
         )}
+        </div>
+      </div>
+
+      <div className={styles.container}>
+       
         {profile?.birthDate && (
           <p>
             Возраст: {getAge(profile.birthDate)}{" "}
@@ -82,9 +101,11 @@ export default function Bio({ publicData, isOwner, username }: BioProps) {
             <Link href="/profile/editBio">Внести/Изменить «О себе»</Link>
           </button>
         )}
-
+         </div>
+         <div className={styles.notificationStatus}>
         {isOwner && <NotificationStatus />}
-
+        </div>
+        <div className={styles.petList}>
         <PetList
           pets={pets}
           isOwner={isOwner}
@@ -95,7 +116,7 @@ export default function Bio({ publicData, isOwner, username }: BioProps) {
             <Link href="/profile/addPet">Добавить питомца</Link>
           </button>
         )}
-
+</div>
         {diplomas.length > 0 && (
           <div className={styles.diplomasSection}>
             <h2>Diplomas</h2>
@@ -109,7 +130,7 @@ export default function Bio({ publicData, isOwner, username }: BioProps) {
             </ul>
           </div>
         )}
-      </div>
+     
     </section>
   );
 }

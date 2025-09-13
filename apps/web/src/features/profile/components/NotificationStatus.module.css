@@ -1,37 +1,45 @@
 .container {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 1px solid #dee2e6;
+  background: var(--bg-1);
+  border: 1px solid var(--bg-2);
   border-radius: 12px;
   padding: 20px;
   margin: 20px 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: relative;
   overflow: hidden;
 }
 
-.container::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-}
-
 .status {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
   margin-bottom: 16px;
 }
 
+.statusItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #ECE5D2 0%, #F0E6D2 100%);
+  border-radius: 8px;
+  border: 1px solid #D4C4A8;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.statusValue {
+  font-weight: 600;
+  color: var(--bg-2);
+}
+
 .label {
   font-weight: 600;
-  color: #495057;
+  color: var(--bg-2);
   font-size: 16px;
   display: flex;
   align-items: center;
   gap: 8px;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
 }
 
 .label::before {
@@ -71,12 +79,13 @@
   display: flex;
   gap: 12px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .button {
   padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
+  border: 2px solid var(--bg-2);
+  border-radius: 5px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -84,6 +93,8 @@
   min-width: 140px;
   position: relative;
   overflow: hidden;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
 }
 
 .button::before {
@@ -112,37 +123,64 @@
 }
 
 .allowButton {
-  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  background-color: var(--bg-2);
+  color: var(--bg-1);
+  border: 2px solid var(--bg-2);
 }
 
 .allowButton:hover:not(:disabled) {
-  background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 123, 255, 0.4);
+  background-color: #4a4a1a;
+  transform: translateY(-1px);
+  box-shadow: 0px 6px 8px 0px rgba(0, 0, 0, 0.35);
 }
 
 .allowButton:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.25);
 }
 
 .denyButton {
-  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+  background-color: #fff8e5;
+  color: var(--bg-2);
+  border: 2px solid var(--bg-2);
 }
 
 .denyButton:hover:not(:disabled) {
-  background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+  background-color: #f0f0e0;
+  transform: translateY(-1px);
+  box-shadow: 0px 6px 8px 0px rgba(0, 0, 0, 0.35);
 }
 
 .denyButton:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.25);
+}
+
+/* Заголовок */
+.container h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--bg-2);
+  margin: 0 0 16px 0;
+  text-align: center;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+}
+
+/* Справка */
+.help {
+  text-align: center;
+  padding: 12px;
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  border-radius: 8px;
+  border: 1px solid #f5c6cb;
+  margin-top: 12px;
+}
+
+.help p {
+  margin: 0;
+  color: #721c24;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
 }
 
 @media (max-width: 480px) {
@@ -152,14 +190,13 @@
   }
 
   .status {
-    flex-direction: column;
-    align-items: flex-start;
     gap: 8px;
   }
 
-  .statusText {
-    min-width: auto;
-    width: 100%;
+  .statusItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
 
   .actions {
