@@ -12,18 +12,22 @@ echo "🔥 Удаляем миграции..."
 rm -rf packages/prisma/migrations
 
 echo "💥 Сбрасываем базу данных..."
-PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION="User explicitly consented to reset development database" DATABASE_URL="postgresql://postgres:1488@localhost:5432/dog_trainer" pnpx prisma migrate reset --schema=$SCHEMA_PATH --force --skip-seed
+PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION="User explicitly consented to reset development database" DATABASE_URL="postgresql://gafus:gafus_password@localhost:5432/gafus" pnpx prisma migrate reset --schema=$SCHEMA_PATH --force --skip-seed
 
 echo "🛠️  Создаём новый мигрэйшн: init"
-DATABASE_URL="postgresql://postgres:1488@localhost:5432/dog_trainer" pnpx prisma migrate dev --schema=$SCHEMA_PATH --name init
+DATABASE_URL="postgresql://gafus:gafus_password@localhost:5432/gafus" pnpx prisma migrate dev --schema=$SCHEMA_PATH --name init
 
 echo "🔄 Генерируем Prisma Client..."
 cd packages/prisma && pnpm prisma generate && cd ../..
 
 echo "🌱 Прогоняем сид-скрипт..."
-DATABASE_URL="postgresql://postgres:1488@localhost:5432/dog_trainer" pnpm --filter @gafus/prisma db:seed
+DATABASE_URL="postgresql://gafus:gafus_password@localhost:5432/gafus" pnpm --filter @gafus/prisma db:seed
+
+echo "🔧 Генерируем Prisma Client для всех пакетов..."
+pnpm --filter @gafus/prisma db:generate
 
 echo "✅ База данных полностью сброшена и готова."
+echo "🚀 Теперь можно запускать: pnpm run build"
 
 #запуск 
 # chmod +x /reset-db.sh

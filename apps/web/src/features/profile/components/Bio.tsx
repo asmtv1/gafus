@@ -102,9 +102,7 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           </button>
         )}
          </div>
-         <div className={styles.notificationStatus}>
-        {isOwner && <NotificationStatus />}
-        </div>
+        
         <div className={styles.petList}>
         <PetList
           pets={pets}
@@ -117,6 +115,9 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           </button>
         )}
 </div>
+<div className={styles.notificationStatus}>
+        {isOwner && <NotificationStatus />}
+        </div>
         {diplomas.length > 0 && (
           <div className={styles.diplomasSection}>
             <h2>Diplomas</h2>
