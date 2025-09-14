@@ -73,8 +73,8 @@ COPY --from=builder /app/packages/ui-components/package.json ./packages/ui-compo
 
 # Копируем собранное приложение
 COPY --from=builder /app/apps/trainer-panel/.next/standalone ./
-COPY --from=builder /app/apps/trainer-panel/.next/static ./apps/trainer-panel/.next/static
-COPY --from=builder /app/apps/trainer-panel/public ./apps/trainer-panel/public
+COPY --from=builder /app/apps/trainer-panel/.next/static ./.next/static
+COPY --from=builder /app/apps/trainer-panel/public ./public
 
 # Копируем Prisma schema и client
 COPY --from=builder /app/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
@@ -101,4 +101,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/ping || exit 1
 
 # Запускаем приложение
-CMD ["node", "apps/trainer-panel/server.js"]
+CMD ["node", "server.js"]
