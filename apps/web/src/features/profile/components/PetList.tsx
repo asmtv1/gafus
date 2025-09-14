@@ -20,20 +20,23 @@ import { getPetTypeLabel } from "@/utils/petType";
 
 const handleDelete = (
   petId: string,
+  petName: string,
   router: ReturnType<typeof useRouter>,
   startTransition: (callback: () => void) => void,
   isPending: boolean,
 ) => {
   if (isPending) return;
-  const confirmDelete = confirm("Удалить этого питомца?");
-  if (!confirmDelete) return;
+  
+  // Используем более современный способ подтверждения
+  if (!window.confirm(`Вы уверены, что хотите удалить питомца "${petName}"?`)) return;
 
   startTransition(async () => {
     try {
       await deletePet(petId, "/profile");
       router.refresh();
     } catch {
-      alert("Ошибка при удалении питомца");
+      // В будущем здесь можно добавить уведомление в верхнем баннере
+      console.error("Ошибка при удалении питомца");
     }
   });
 };
@@ -60,13 +63,16 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
   const PetCard = ({ pet }: { pet: PetFromPublicProfile }) => (
     <li className={styles.dog_item} key={pet.id}>
       {isOwner ? (
-        <EditablePetAvatar avatarUrl={pet.photoUrl} petId={pet.id} />
+        <div className={styles.avatar_container}>
+          <EditablePetAvatar avatarUrl={pet.photoUrl} petId={pet.id} />
+        </div>
       ) : (
-        <Avatar
-          alt={`${pet.name} фото питомца`}
-          src={pet.photoUrl || "/pet-avatar.jpg"}
-          sx={{ width: 50, height: 50 }}
-        />
+        <div className={styles.avatar_container}>
+          <Avatar
+            alt={`${pet.name} фото питомца`}
+            src={pet.photoUrl || "/pet-avatar.jpg"}
+          />
+        </div>
       )}
 
       <div className={styles.dog_info}>
@@ -104,7 +110,7 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
             <EditSharpIcon />
           </IconButton>
           <IconButton
-            onClick={() => handleDelete(pet.id, router, startTransition, isPending)}
+            onClick={() => handleDelete(pet.id, pet.name, router, startTransition, isPending)}
             size="small"
             aria-label="Удалить питомца"
             disabled={isPending}
@@ -131,19 +137,7 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
 
       {showEdit && selectedPet && (
         <Modal open={showEdit} onClose={() => setShowEdit(false)} aria-labelledby="edit-pet-modal">
-          <Box
-            sx={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: 400,
-              bgcolor: "background.paper",
-              border: "2px solid #000",
-              boxShadow: 24,
-              p: 4,
-            }}
-          >
+          <Box className={styles.modal_box}>
             <EditPetForm
               pet={selectedPet}
               onClose={() => setShowEdit(false)}
