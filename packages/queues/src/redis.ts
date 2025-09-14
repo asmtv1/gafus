@@ -12,7 +12,9 @@ import { Redis } from "ioredis";
  */
 console.warn("⛳ REDIS_URL=", process.env.REDIS_URL);
 if (!process.env.REDIS_URL) {
-  throw new Error("REDIS_URL is not set in .env");
+  console.error("❌ REDIS_URL is not set in environment variables");
+  console.error("Available environment variables:", Object.keys(process.env).filter(key => key.includes('REDIS')));
+  throw new Error("REDIS_URL is not set in environment variables");
 }
 
 export const connection = new Redis(process.env.REDIS_URL, {

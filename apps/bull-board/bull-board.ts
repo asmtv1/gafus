@@ -9,17 +9,34 @@ const app = express();
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath("/admin/queues");
 
-createBullBoard({
-  queues: [
-    new BullMQAdapter(pushQueue), // ✅ обёрнутый адаптер
-  ],
-  serverAdapter,
+// Добавляем обработку ошибок
+try {
+  createBullBoard({
+    queues: [
+      new BullMQAdapter(pushQueue), // ✅ обёрнутый адаптер
+    ],
+    serverAdapter,
+  });
+
+  app.use("/admin/queues", serverAdapter.getRouter());
+} catch (error) {
+  console.error("❌ Ошибка при создании Bull Board:", error);
+  // Создаем fallback роут
+  app.use("/admin/queues", (req, res) => {
+    res.status(500).json({ 
+      error: "Bull Board недоступен", 
+      message: error instanceof Error ? error.message : "Неизвестная ошибка" 
+    });
+  });
+}
+
+// Добавляем health check endpoint
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-app.use("/admin/queues", serverAdapter.getRouter());
-
-// Берём порт из env, если нет — ставим 3004
-const PORT = process.env.PORT ? Number(process.env.PORT) : 3004;
+// Берём порт из env, если нет — ставим 3002
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3002;
 
 app.listen(PORT, () => {
   console.warn(`🔧 Bull‑Board запущен: http://localhost:${PORT}/admin/queues`);
