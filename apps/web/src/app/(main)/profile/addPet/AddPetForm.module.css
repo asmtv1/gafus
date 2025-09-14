@@ -1,4 +1,4 @@
-/* Основной контейнер страницы редактирования */
+/* Основной контейнер страницы добавления питомца */
 .container {
   background-color: var(--bg-1);
   width: 100%;
@@ -9,6 +9,13 @@
   justify-content: flex-start;
   padding: 1rem;
   gap: 1rem;
+}
+
+/* Используем dvh только для современных браузеров после гидратации */
+@supports (height: 100dvh) {
+  .container {
+    min-height: 100dvh;
+  }
 }
 
 /* Заголовок страницы */
@@ -42,7 +49,6 @@
   gap: 1.5rem;
 }
 
-
 /* Переопределение стилей FormField */
 .form :global(.mb-4) {
   margin-bottom: 0;
@@ -57,8 +63,26 @@
   display: block;
 }
 
+/* Стили для обязательных полей */
+.form :global(label[for="name"]),
+.form :global(label[for="type"]),
+.form :global(label[for="breed"]),
+.form :global(label[for="birthDate"]) {
+  position: relative;
+}
+
+.form :global(label[for="name"]):after,
+.form :global(label[for="type"]):after,
+.form :global(label[for="breed"]):after,
+.form :global(label[for="birthDate"]):after {
+  content: " *";
+  color: #d32f2f;
+  font-weight: bold;
+}
+
 .form :global(input),
-.form :global(textarea) {
+.form :global(textarea),
+.form :global(select) {
   background-color: var(--bg-1);
   border: 2px solid #636128;
   border-radius: 8px;
@@ -137,7 +161,8 @@
 }
 
 .form :global(input):focus,
-.form :global(textarea):focus {
+.form :global(textarea):focus,
+.form :global(select):focus {
   outline: none;
   border-color: #B6C582;
   box-shadow: 0 0 0 3px rgba(182, 197, 130, 0.1);
@@ -157,6 +182,16 @@
   line-height: 1.4;
 }
 
+.form :global(select) {
+  cursor: pointer;
+}
+
+.form :global(select option) {
+  background-color: var(--bg-1);
+  color: #352E2E;
+  padding: 0.5rem;
+}
+
 /* Стили для ошибок валидации */
 .form :global(.text-red-500) {
   color: #d32f2f;
@@ -164,7 +199,6 @@
   margin-top: 0.25rem;
   font-family: var(--font-montserrat), system-ui, sans-serif;
 }
-
 
 /* Контейнер для кнопок */
 .form_buttons {
@@ -243,8 +277,8 @@
   padding: 2rem;
 }
 
-/* Специальные стили для секций профиля */
-.profile_info_section {
+/* Специальные стили для полей питомца */
+.pet_info_section {
   background: linear-gradient(135deg, #ECE5D2 0%, #F0E6D2 100%);
   border-radius: 8px;
   padding: 1rem;
@@ -252,7 +286,7 @@
   margin-bottom: 1rem;
 }
 
-.profile_info_section h3 {
+.pet_info_section h3 {
   font-size: 1.1rem;
   font-weight: 600;
   color: #352E2E;
@@ -260,12 +294,7 @@
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
-/* Стили для обязательных полей */
-.form :global(label[for="fullName"]) {
-  position: relative;
-}
-
-.form :global(label[for="fullName"]):after {
+.required_field::after {
   content: " *";
   color: #d32f2f;
   font-weight: bold;
@@ -292,7 +321,8 @@
   }
 
   .form :global(input),
-  .form :global(textarea) {
+  .form :global(textarea),
+  .form :global(select) {
     padding: 0.65rem 0.85rem;
     font-size: 0.85rem;
     border-radius: 6px;
@@ -309,17 +339,6 @@
     margin-bottom: 0.4rem;
   }
 
-  .profile_info_section {
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 0.75rem;
-  }
-
-  .profile_info_section h3 {
-    font-size: 1rem;
-    margin-bottom: 0.6rem;
-  }
-
   .form_buttons {
     gap: 0.75rem;
     margin-top: 0.75rem;
@@ -328,6 +347,17 @@
   .form_button {
     padding: 10px 20px;
     font-size: 0.9rem;
+  }
+
+  .pet_info_section {
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+  }
+
+  .pet_info_section h3 {
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
   }
 }
 
@@ -351,7 +381,8 @@
   }
 
   .form :global(input),
-  .form :global(textarea) {
+  .form :global(textarea),
+  .form :global(select) {
     padding: 0.6rem 0.75rem;
     font-size: 0.8rem;
     border-radius: 4px;
@@ -368,17 +399,6 @@
     margin-bottom: 0.3rem;
   }
 
-  .profile_info_section {
-    padding: 0.5rem;
-    border-radius: 4px;
-    margin-bottom: 0.5rem;
-  }
-
-  .profile_info_section h3 {
-    font-size: 0.95rem;
-    margin-bottom: 0.5rem;
-  }
-
   .form_buttons {
     gap: 0.5rem;
     margin-top: 0.5rem;
@@ -388,78 +408,15 @@
     padding: 8px 16px;
     font-size: 0.85rem;
   }
-}
 
-/* Стили для состояний загрузки */
-.loading_container {
-  background-color: var(--bg-1);
-  width: 100%;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 1rem;
-  gap: 1rem;
-}
-
-.loading_title {
-  color: var(--bg-2);
-  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
-  font-weight: 400;
-  font-size: 2.5rem;
-  line-height: 100%;
-  letter-spacing: 0px;
-  text-align: center;
-  margin: 0 0 1rem 0;
-}
-
-.loading_content {
-  background: #F5F0E8;
-  border: 1px solid #D4C4A8;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  padding: 1.5rem;
-  width: 100%;
-  max-width: 500px;
-  margin: 0 auto;
-  text-align: center;
-  color: #636128;
-  font-family: var(--font-montserrat), system-ui, sans-serif;
-  font-size: 1rem;
-}
-
-.loading_error {
-  color: #d32f2f;
-}
-
-/* Улучшенная адаптивность для loading состояний */
-@media (max-width: 768px) {
-  .loading_container {
-    padding: 0.75rem;
-  }
-
-  .loading_title {
-    font-size: 2rem;
-  }
-
-  .loading_content {
-    padding: 1rem;
-    font-size: 0.95rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .loading_container {
+  .pet_info_section {
     padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
   }
 
-  .loading_title {
-    font-size: 1.75rem;
-  }
-
-  .loading_content {
-    padding: 0.75rem;
-    font-size: 0.9rem;
+  .pet_info_section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
   }
 }

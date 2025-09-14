@@ -24,29 +24,72 @@ function mapProfileToForm(profile: UserProfile): Omit<BioFormData, "userId"> {
 
 export default function EditBioForm() {
   const [caughtError, setCaughtError] = useState<Error | null>(null);
-  if (caughtError) throw caughtError;
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const form = useForm<BioFormData>();
   const { reset, handleSubmit } = form;
 
   const { profile, isLoading, error, fetchProfile, updateProfile } = useUserStore();
   const router = useRouter();
-  const { data: session } = useSession();
-  const username = session?.user?.username;
 
-  // Загружаем профиль если не загружен
+  // Предотвращаем проблемы с гидратацией
   useEffect(() => {
-    if (!profile) {
+    setIsHydrated(true);
+  }, []);
+
+  // Загружаем профиль если не загружен (только после гидратации)
+  useEffect(() => {
+    if (isHydrated && !profile) {
       fetchProfile();
     }
-  }, [profile, fetchProfile]);
+  }, [isHydrated, profile, fetchProfile]);
 
   // Обновляем форму когда профиль загружен
   useEffect(() => {
-    if (profile) {
+    if (isHydrated && profile) {
       reset(mapProfileToForm(profile));
     }
-  }, [profile, reset]);
+  }, [isHydrated, profile, reset]);
+
+  // Получаем session только после гидратации
+  const { data: session } = useSession();
+  const username = isHydrated ? session?.user?.username : undefined;
+
+  if (caughtError) throw caughtError;
+
+  // Показываем загрузку до завершения гидратации
+  if (!isHydrated) {
+    return (
+      <div className={styles.loading_container}>
+        <h1 className={styles.loading_title}>Редактировать «О себе»</h1>
+        <div className={styles.loading_content}>
+          Загрузка формы...
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className={styles.loading_container}>
+        <h1 className={styles.loading_title}>Редактировать «О себе»</h1>
+        <div className={styles.loading_content}>
+          Загрузка профиля...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.loading_container}>
+        <h1 className={styles.loading_title}>Редактировать «О себе»</h1>
+        <div className={`${styles.loading_content} ${styles.loading_error}`}>
+          Ошибка загрузки профиля: {error}
+        </div>
+      </div>
+    );
+  }
 
   const onSubmit = async (data: BioFormData) => {
     try {
@@ -61,89 +104,97 @@ export default function EditBioForm() {
     }
   };
 
-  if (isLoading) return <p>Загрузка…</p>;
-  if (error) return <p>Ошибка загрузки профиля: {error}</p>;
-
   return (
-    <div>
-      <h1>Редактировать «О себе»</h1>
+    <div className={styles.container}>
+      <h1 className={styles.title}>Редактировать «О себе»</h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
-        <FormField
-          id="fullName"
-          name="fullName"
-          label="Имя и фамилия"
-          type="text"
-          placeholder="Имя и фамилия"
-          rules={{
-            pattern: {
-              value: /^[А-Яа-яЁё\s]+$/,
-              message: "Только русские буквы",
-            },
-            maxLength: { value: 60, message: "Не более 60 символов" },
-          }}
-          form={form}
-        />
+      <div className={styles.form_container}>
+        <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
+        
+        {/* Основная информация */}
+        <div className={styles.profile_info_section}>
+          <h3>Основная информация</h3>
+          <FormField
+            id="fullName"
+            name="fullName"
+            label="Имя и фамилия"
+            type="text"
+            placeholder="Имя и фамилия"
+            rules={{
+              pattern: {
+                value: /^[А-Яа-яЁё\s]+$/,
+                message: "Только русские буквы",
+              },
+              maxLength: { value: 60, message: "Не более 60 символов" },
+            }}
+            form={form}
+          />
 
-        <FormField
-          id="birthDate"
-          name="birthDate"
-          label="Дата рождения"
-          type="date"
-          rules={{
-            validate: (value: string) =>
-              !value || new Date(value) <= new Date() || "Дата не может быть в будущем",
-          }}
-          form={form}
-        />
+          <FormField
+            id="birthDate"
+            name="birthDate"
+            label="Дата рождения"
+            type="date"
+            rules={{
+              validate: (value: string) =>
+                !value || new Date(value) <= new Date() || "Дата не может быть в будущем",
+            }}
+            form={form}
+          />
 
-        <FormField
-          id="about"
-          name="about"
-          label="Заметки о себе"
-          as="textarea"
-          placeholder="О себе"
-          rules={{
-            maxLength: { value: 300, message: "Не более 300 символов" },
-          }}
-          form={form}
-        />
+          <FormField
+            id="about"
+            name="about"
+            label="Заметки о себе"
+            as="textarea"
+            placeholder="О себе"
+            rules={{
+              maxLength: { value: 300, message: "Не более 300 символов" },
+            }}
+            form={form}
+          />
+        </div>
 
-        <FormField
-          id="telegram"
-          name="telegram"
-          label="Telegram для связи"
-          placeholder="Telegram username"
-          rules={{ maxLength: { value: 50, message: "Не более 50 символов" } }}
-          form={form}
-        />
+        {/* Контактная информация */}
+        <div className={styles.profile_info_section}>
+          <h3>Контактная информация</h3>
+          <FormField
+            id="telegram"
+            name="telegram"
+            label="Telegram для связи"
+            placeholder="Telegram username"
+            rules={{ maxLength: { value: 50, message: "Не более 50 символов" } }}
+            form={form}
+          />
 
-        <FormField
-          id="instagram"
-          name="instagram"
-          label="Ваш Instagram"
-          placeholder="Instagram username"
-          rules={{ maxLength: { value: 50, message: "Не более 50 символов" } }}
-          form={form}
-        />
+          <FormField
+            id="instagram"
+            name="instagram"
+            label="Ваш Instagram"
+            placeholder="Instagram username"
+            rules={{ maxLength: { value: 50, message: "Не более 50 символов" } }}
+            form={form}
+          />
 
-        <FormField
-          id="website"
-          name="website"
-          label="YouTube или сайт"
-          type="url"
-          placeholder="Website URL"
-          rules={{ maxLength: { value: 50, message: "Не более 50 символов" } }}
-          form={form}
-        />
+          <FormField
+            id="website"
+            name="website"
+            label="YouTube или сайт"
+            type="url"
+            placeholder="Website URL"
+            rules={{ maxLength: { value: 50, message: "Не более 50 символов" } }}
+            form={form}
+          />
+        </div>
 
-        <div className={styles.form_button}>
-          <button type="submit">Сохранить</button>
-          <button type="button" onClick={() => router.back()}>
+        <div className={styles.form_buttons}>
+          <button type="submit" className={styles.form_button}>Сохранить</button>
+          <button type="button" onClick={() => router.back()} className={`${styles.form_button} ${styles.form_button_cancel}`}>
             Вернуться без сохранения
           </button>
         </div>
       </form>
+      </div>
     </div>
   );
 }

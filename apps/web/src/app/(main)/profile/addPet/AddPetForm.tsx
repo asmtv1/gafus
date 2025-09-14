@@ -10,14 +10,21 @@ import {
 import { usePetFormWithValidation, getPetValidationRules } from "@shared/hooks/usePetForm";
 import { savePet } from "@shared/lib/pet/savePet";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 
 import type { PetFormData } from "@gafus/types";
+import styles from "./AddPetForm.module.css";
 
 export default function AddPetForm() {
   const [caughtError, setCaughtError] = useState<Error | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Предотвращаем проблемы с гидратацией
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   if (caughtError) throw caughtError;
 
@@ -26,6 +33,18 @@ export default function AddPetForm() {
 
   const form = usePetFormWithValidation({});
   const validationRules = getPetValidationRules();
+
+  // Показываем загрузку до завершения гидратации
+  if (!isMounted) {
+    return (
+      <div className={styles.container}>
+        <h1 className={styles.title}>Добавить питомца</h1>
+        <div className={styles.form_container}>
+          <p className={styles.form_loading}>Загрузка формы...</p>
+        </div>
+      </div>
+    );
+  }
 
   const onSubmit = async (data: PetFormData) => {
     setIsSubmitting(true);
@@ -52,80 +71,94 @@ export default function AddPetForm() {
   };
 
   return (
-    <div className="mx-auto max-w-md rounded-lg bg-white p-6 shadow-md">
-      <h2 className="mb-6 text-center text-2xl font-bold">Добавить питомца</h2>
+    <div className={styles.container}>
+      <h1 className={styles.title}>Добавить питомца</h1>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <TextField
-          id="name"
-          label="Имя питомца *"
-          name="name"
-          placeholder="Введите имя питомца"
-          form={form}
-          rules={validationRules.name}
-        />
+      <div className={styles.form_container}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className={styles.form}>
+        
+        {/* Основная информация */}
+        <div className={styles.pet_info_section}>
+          <h3>Основная информация</h3>
+          <TextField
+            id="name"
+            label="Имя питомца"
+            name="name"
+            placeholder="Введите имя питомца"
+            form={form}
+            rules={validationRules.name}
+          />
 
-        <SelectField
-          id="type"
-          label="Тип питомца *"
-          name="type"
-          form={form}
-          options={[
-            { value: "DOG", label: "Собака" },
-            { value: "CAT", label: "Кошка" },
-          ]}
-          rules={validationRules.type}
-        />
+          <SelectField
+            id="type"
+            label="Тип питомца"
+            name="type"
+            form={form}
+            options={[
+              { value: "DOG", label: "Собака" },
+              { value: "CAT", label: "Кошка" },
+            ]}
+            rules={validationRules.type}
+          />
 
-        <TextField
-          id="breed"
-          label="Порода *"
-          name="breed"
-          placeholder="Введите породу"
-          form={form}
-          rules={validationRules.breed}
-        />
+          <TextField
+            id="breed"
+            label="Порода"
+            name="breed"
+            placeholder="Введите породу"
+            form={form}
+            rules={validationRules.breed}
+          />
 
-        <DateField
-          id="birthDate"
-          label="Дата рождения *"
-          name="birthDate"
-          form={form}
-          rules={validationRules.birthDate}
-        />
+          <DateField
+            id="birthDate"
+            label="Дата рождения"
+            name="birthDate"
+            form={form}
+            rules={validationRules.birthDate}
+          />
+        </div>
 
-        <NumberField
-          id="heightCm"
-          label="Рост (см)"
-          name="heightCm"
-          placeholder="Введите рост"
-          form={form}
-          rules={validationRules.heightCm}
-        />
+        {/* Физические характеристики */}
+        <div className={styles.pet_info_section}>
+          <h3>Физические характеристики</h3>
+          <NumberField
+            id="heightCm"
+            label="Рост (см)"
+            name="heightCm"
+            placeholder="Введите рост"
+            form={form}
+            rules={validationRules.heightCm}
+          />
 
-        <NumberField
-          id="weightKg"
-          label="Вес (кг)"
-          name="weightKg"
-          placeholder="Введите вес"
-          form={form}
-          rules={validationRules.weightKg}
-        />
+          <NumberField
+            id="weightKg"
+            label="Вес (кг)"
+            name="weightKg"
+            placeholder="Введите вес"
+            form={form}
+            rules={validationRules.weightKg}
+          />
+        </div>
 
-        <TextAreaField
-          id="notes"
-          label="Заметки"
-          name="notes"
-          placeholder="Дополнительная информация о питомце"
-          form={form}
-          rules={validationRules.notes}
-        />
+        {/* Дополнительная информация */}
+        <div className={styles.pet_info_section}>
+          <h3>Дополнительная информация</h3>
+          <TextAreaField
+            id="notes"
+            label="Заметки"
+            name="notes"
+            placeholder="Дополнительная информация о питомце"
+            form={form}
+            rules={validationRules.notes}
+          />
+        </div>
 
-        <div className="flex gap-3 pt-4">
+        <div className={`${styles.form_buttons} ${isSubmitting ? styles.loading : ""}`}>
           <button
             type="submit"
             disabled={isSubmitting || !form.formState.isValid}
-            className="flex-1 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className={styles.form_button}
           >
             {isSubmitting ? "Добавление..." : "Добавить питомца"}
           </button>
@@ -133,7 +166,7 @@ export default function AddPetForm() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
+            className={`${styles.form_button} ${styles.form_button_cancel}`}
           >
             Отмена
           </button>
@@ -152,6 +185,7 @@ export default function AddPetForm() {
           </div>
         )}
       </form>
+      </div>
     </div>
   );
 }
