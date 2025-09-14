@@ -73,7 +73,7 @@ COPY --from=builder /app/packages/ui-components/package.json ./packages/ui-compo
 
 # Копируем собранное приложение
 COPY --from=builder /app/apps/error-dashboard/.next/standalone ./
-COPY --from=builder /app/apps/error-dashboard/.next/static ./.next/static
+COPY --from=builder /app/apps/error-dashboard/.next/static ./apps/error-dashboard/.next/static
 
 # Копируем Prisma schema и client
 COPY --from=builder /app/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
@@ -100,4 +100,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3005/api/ping || exit 1
 
 # Запускаем приложение
-CMD ["node", "server.js"]
+CMD ["node", "apps/error-dashboard/server.js"]
