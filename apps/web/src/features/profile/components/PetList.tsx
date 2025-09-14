@@ -1,7 +1,7 @@
 "use client";
 
-import DeleteForeverSharpIcon from "@mui/icons-material/DeleteForeverSharp";
-import EditSharpIcon from "@mui/icons-material/EditSharp";
+import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import { deletePet } from "@shared/lib/pet/deletePet";
 import { useRouter } from "next/navigation";
 import { useTransition, useState } from "react";
@@ -107,7 +107,7 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
             size="small"
             aria-label="Редактировать питомца"
           >
-            <EditSharpIcon />
+            <EditRoundedIcon />
           </IconButton>
           <IconButton
             onClick={() => handleDelete(pet.id, pet.name, router, startTransition, isPending)}
@@ -115,7 +115,7 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
             aria-label="Удалить питомца"
             disabled={isPending}
           >
-            <DeleteForeverSharpIcon />
+            <DeleteRoundedIcon />
           </IconButton>
         </div>
       ) : null}
