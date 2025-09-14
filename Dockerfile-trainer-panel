@@ -9,19 +9,11 @@ WORKDIR /app
 # Установка pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Копируем файлы зависимостей
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY tsconfig.base.json ./
-
-# Копируем package.json всех пакетов
-COPY packages/*/package.json ./packages/*/
-COPY apps/trainer-panel/package.json ./apps/trainer-panel/
+# Копируем все файлы проекта
+COPY . .
 
 # Устанавливаем ВСЕ зависимости (включая dev)
-RUN pnpm install --frozen-lockfile
-
-# Копируем исходный код только нужных пакетов
-COPY packages/types ./packages/types
+RUN pnpm install --frozen-lockfileCOPY packages/types ./packages/types
 COPY packages/prisma ./packages/prisma
 COPY packages/auth ./packages/auth
 COPY packages/csrf ./packages/csrf
