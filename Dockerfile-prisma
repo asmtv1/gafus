@@ -1,31 +1,89 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm-slim AS prisma-base
+# ─────────────────────────────────────────────
+# Stage 0: base — общие зависимости
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS base
 WORKDIR /app
 
-# 1️⃣ Установка openssl, curl и прочих системных зависимостей (кэшируем apt)
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && \
-    apt-get install -y --no-install-recommends openssl ca-certificates curl && \
-    rm -rf /var/lib/apt/lists/*
-
-# 2️⃣ Включаем Corepack и активируем pnpm (фиксированная версия)
+# Установка pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# 3️⃣ Копируем корневые конфиги workspace
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
-COPY *.json ./
+# Копируем только файлы зависимостей для кэширования
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json ./
 
-# 4️⃣ Копируем пакет prisma со всем содержимым (код + package.json)
-COPY packages/prisma ./packages/prisma
-RUN echo ">>> Содержимое /app/packages/prisma:" && ls -la /app/packages/prisma
+# Копируем package.json всех пакетов
+COPY packages/*/package.json ./packages/*/
 
-# 5️⃣ Устанавливаем зависимости всего workspace с заморозкой lockfile
+# Устанавливаем только production зависимости
+RUN pnpm install --frozen-lockfile --prod
+
+# ─────────────────────────────────────────────
+# Stage 1: builder — сборка приложения
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Установка pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Копируем файлы зависимостей
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json ./
+
+# Копируем package.json всех пакетов
+COPY packages/*/package.json ./packages/*/
+
+# Устанавливаем ВСЕ зависимости (включая dev)
 RUN pnpm install --frozen-lockfile
 
-# 6️⃣ Генерируем Prisma Client внутри пакета prisma
-WORKDIR /app/packages/prisma
-RUN pnpm exec prisma generate
+# Копируем исходный код только нужных пакетов
+COPY packages/types ./packages/types
+COPY packages/prisma ./packages/prisma
 
-# 7️⃣ Оставляем контейнер в живом состоянии для запуска миграций и сидов вручную
-CMD ["tail", "-f", "/dev/null"]
+# Билдим пакеты в правильном порядке
+RUN pnpm --filter @gafus/types run build
+RUN pnpm build --filter @gafus/prisma
+
+# ─────────────────────────────────────────────
+# Stage 2: runner — минимальный production
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Создаем пользователя для безопасности
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 prisma
+
+# Установка pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Копируем только production зависимости из base stage
+COPY --from=base /app/node_modules ./node_modules
+
+# Копируем собранные пакеты
+COPY --from=builder /app/packages/types/dist ./packages/types/dist
+COPY --from=builder /app/packages/types/package.json ./packages/types/package.json
+COPY --from=builder /app/packages/prisma/dist ./packages/prisma/dist
+COPY --from=builder /app/packages/prisma/package.json ./packages/prisma/package.json
+COPY --from=builder /app/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
+COPY --from=builder /app/packages/prisma/migrations ./packages/prisma/migrations
+
+# Копируем package.json для правильной работы
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
+
+# Устанавливаем права доступа
+RUN chown -R prisma:nodejs /app
+USER prisma
+
+# Переменные окружения
+ENV NODE_ENV=production
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD node -e "console.log('Prisma container is healthy')" || exit 1
+
+# Запускаем Prisma
+CMD ["pnpm", "--filter", "@gafus/prisma", "run", "db:migrate:deploy"]
