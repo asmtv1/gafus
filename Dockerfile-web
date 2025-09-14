@@ -50,10 +50,7 @@ RUN adduser --system --uid 1001 nextjs
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
 # Устанавливаем только production зависимости
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY tsconfig.base.json ./
-COPY packages/*/package.json ./packages/*/
-COPY apps/web/package.json ./apps/web/
+COPY . .
 RUN pnpm install --frozen-lockfile --prod
 
 # Копируем собранные пакеты
