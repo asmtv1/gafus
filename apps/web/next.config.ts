@@ -23,6 +23,8 @@ const withPWA = withPWAInit({
 // 3. основной конфиг Next.js
 const nextConfig = {
   reactStrictMode: true,
+  // Включаем standalone режим для Docker
+  output: 'standalone',
   // Переменные окружения для клиентской части
   env: {
     NEXT_PUBLIC_TRAINER_PANEL_URL: process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || 'https://trainer-panel.gafus.ru',
