@@ -13,7 +13,10 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 COPY . .
 
 # Устанавливаем ВСЕ зависимости (включая dev)
-RUN pnpm install --frozen-lockfileCOPY packages/types ./packages/types
+RUN pnpm install --frozen-lockfile
+
+# Копируем исходный код только нужных пакетов
+COPY packages/types ./packages/types
 COPY packages/prisma ./packages/prisma
 COPY packages/auth ./packages/auth
 COPY packages/csrf ./packages/csrf

@@ -3,25 +3,6 @@
 # ─────────────────────────────────────────────
 # Stage 0: builder — сборка приложения
 # ─────────────────────────────────────────────
-FROM node:20-alpine AS base
-WORKDIR /app
-
-# Установка pnpm
-RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
-
-# Копируем только файлы зависимостей для кэширования
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY tsconfig.base.json ./
-
-# Копируем package.json всех пакетов
-COPY packages/*/package.json ./packages/*/
-
-# Устанавливаем только production зависимости
-COPY . .
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts
-# ─────────────────────────────────────────────
-# Stage 0: builder — сборка приложения
-# ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
 
@@ -32,7 +13,10 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 COPY . .
 
 # Устанавливаем ВСЕ зависимости (включая dev)
-RUN pnpm install --frozen-lockfileCOPY packages/types ./packages/types
+RUN pnpm install --frozen-lockfile
+
+# Копируем исходный код только нужных пакетов
+COPY packages/types ./packages/types
 COPY packages/prisma ./packages/prisma
 
 # Билдим пакеты в правильном порядке
@@ -52,10 +36,10 @@ RUN adduser --system --uid 1001 prisma
 # Установка pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Копируем только production зависимости из base stage
 # Устанавливаем только production зависимости
 COPY . .
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+
 # Копируем собранные пакеты
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
 COPY --from=builder /app/packages/types/package.json ./packages/types/package.json
