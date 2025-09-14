@@ -19,6 +19,9 @@ RUN pnpm install --frozen-lockfile
 COPY packages/types ./packages/types
 COPY packages/prisma ./packages/prisma
 
+# Генерируем Prisma client
+RUN cd packages/prisma && pnpm db:generate
+
 # Билдим пакеты в правильном порядке
 RUN pnpm --filter @gafus/types run build
 RUN pnpm build --filter @gafus/prisma
