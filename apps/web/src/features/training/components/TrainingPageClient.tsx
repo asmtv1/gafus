@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useOfflineStore } from "@shared/stores/offlineStore";
 
 import CourseDescriptionWithVideo from "./CourseDescriptionWithVideo";
 import TrainingDayList from "./TrainingDayList";
@@ -30,24 +31,7 @@ export default function TrainingPageClient({
   initialData,
   initialError
 }: TrainingPageClientProps) {
-  const [_isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    // Проверяем онлайн статус
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    // Проверяем текущий статус
-    setIsOnline(navigator.onLine);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+  const _online = useOfflineStore((s) => s.isOnline);
 
   return (
     <>

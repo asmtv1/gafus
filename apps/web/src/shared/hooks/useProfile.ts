@@ -3,6 +3,7 @@
 import { useData, useMutate } from "@gafus/react-query";
 import { getUserProfile } from "@shared/lib/user/getUserProfile";
 import { getUserWithTrainings } from "@shared/lib/user/getUserWithTrainings";
+import { isOnline } from "@shared/utils/offlineCacheUtils";
 
 import type { UserWithTrainings } from "@gafus/types";
 
@@ -14,7 +15,7 @@ export function useUserProfile() {
     gcTime: 12 * 60 * 60 * 1000, // 12 часов
     networkMode: "offlineFirst",
     retry: (failureCount, error) => {
-      if (!navigator.onLine) return false;
+      if (!isOnline()) return false;
       if (error instanceof Error && error.message.includes('fetch')) {
         return failureCount < 2;
       }
@@ -31,7 +32,7 @@ export function useUserWithTrainings() {
     gcTime: 6 * 60 * 60 * 1000, // 6 часов
     networkMode: "offlineFirst",
     retry: (failureCount, error) => {
-      if (!navigator.onLine) return false;
+      if (!isOnline()) return false;
       if (error instanceof Error && error.message.includes('fetch')) {
         return failureCount < 2;
       }

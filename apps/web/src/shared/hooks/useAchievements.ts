@@ -3,6 +3,7 @@
 import { useData, useMutate } from "@gafus/react-query";
 import { getUserWithTrainings } from "@shared/lib/user/getUserWithTrainings";
 import { createAchievementData } from "@shared/lib/achievements/calculateAchievements";
+import { isOnline } from "@shared/utils/offlineCacheUtils";
 
 import type { AchievementData } from "@gafus/types";
 
@@ -46,7 +47,7 @@ export function useAchievements() {
       
       // Повторные попытки
       retry: (failureCount, error) => {
-        if (!navigator.onLine) return false;
+        if (!isOnline()) return false;
         if (error instanceof Error && error.message.includes('fetch')) {
           return failureCount < 2;
         }

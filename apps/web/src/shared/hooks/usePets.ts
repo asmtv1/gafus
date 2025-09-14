@@ -2,6 +2,7 @@
 
 import { useData, useMutate } from "@gafus/react-query";
 import { getUserPets } from "@shared/lib/pets/getUserPets";
+import { isOnline } from "@shared/utils/offlineCacheUtils";
 
 import type { Pet } from "@gafus/types";
 
@@ -13,7 +14,7 @@ export function useUserPets() {
     gcTime: 24 * 60 * 60 * 1000, // 24 часа
     networkMode: "offlineFirst",
     retry: (failureCount, error) => {
-      if (!navigator.onLine) return false;
+      if (!isOnline()) return false;
       if (error instanceof Error && error.message.includes('fetch')) {
         return failureCount < 2;
       }

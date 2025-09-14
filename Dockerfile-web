@@ -32,6 +32,7 @@ RUN pnpm build --filter @gafus/error-handling
 RUN pnpm build --filter @gafus/prisma
 RUN pnpm build --filter @gafus/queues
 RUN pnpm build --filter @gafus/webpush
+RUN pnpm build --filter @gafus/react-query
 RUN pnpm build --filter @gafus/web
 
 # ─────────────────────────────────────────────

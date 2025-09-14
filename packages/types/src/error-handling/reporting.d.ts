@@ -1,39 +1,35 @@
-import type { ReactNode, ComponentType } from "react";
-export interface ErrorInfo {
-  componentStack: string;
-  errorBoundaryName?: string;
-  appName?: string;
-  userId?: string;
-  sessionId?: string;
-  url?: string;
-  userAgent?: string;
-  timestamp?: number;
-}
-export interface ErrorBoundaryConfig {
-  appName: string;
-  environment: "development" | "staging" | "production";
-  logToConsole?: boolean;
-  showErrorDetails?: boolean;
-  customErrorComponent?: ComponentType<{
-    error: Error | null;
-    errorInfo: ErrorInfo | null;
-    onReset: () => void;
-    showDetails?: boolean;
-  }>;
-}
-export interface GlobalErrorBoundaryProps {
-  children: ReactNode;
-  fallback?: ReactNode;
-  config?: Partial<ErrorBoundaryConfig>;
-}
-export interface GlobalErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
+import type { ComponentType, ReactNode } from "../types";
+export interface ErrorReportingConfig {
+    appName: string;
+    environment: "development" | "staging" | "production";
+    logToConsole?: boolean;
+    showErrorDetails?: boolean;
+    maxErrors?: number;
+    errorRetentionDays?: number;
 }
 export interface ErrorReport {
-  error: Error;
-  errorInfo: ErrorInfo;
-  config: ErrorBoundaryConfig;
+    message: string;
+    stack?: string;
+    componentStack?: string;
+    timestamp: number;
+    userId?: string;
+    sessionId?: string;
+    url?: string;
+    userAgent?: string;
+    additionalData?: Record<string, unknown>;
+}
+export interface ErrorReporterProps {
+    children: ReactNode;
+    fallback?: ComponentType<{
+        error: Error;
+        resetError: () => void;
+    }>;
+    onError?: (error: Error, errorInfo: ErrorReport) => void;
+    config?: ErrorReportingConfig;
+}
+export interface ErrorReporterState {
+    hasError: boolean;
+    error: Error | null;
+    errorInfo: ErrorReport | null;
 }
 //# sourceMappingURL=reporting.d.ts.map

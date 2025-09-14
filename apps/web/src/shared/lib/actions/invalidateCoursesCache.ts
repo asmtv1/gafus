@@ -13,8 +13,16 @@ import { revalidateTag } from "next/cache";
  */
 export async function invalidateUserProgressCache(userId: string, force: boolean = false) {
   try {
-    // Проверяем онлайн статус (только на клиенте)
-    const isOnline = typeof window !== "undefined" ? navigator.onLine : true;
+    // Проверяем онлайн статус через офлайн-store (если на клиенте)
+    let isOnline = true;
+    if (typeof window !== "undefined") {
+      try {
+        const { useOfflineStore } = await import("@shared/stores/offlineStore");
+        isOnline = useOfflineStore.getState().isOnline;
+      } catch {
+        isOnline = navigator.onLine;
+      }
+    }
     
     if (!force && !isOnline) {
       console.warn(`[Cache] Skipping cache invalidation - user is offline (userId: ${userId})`);

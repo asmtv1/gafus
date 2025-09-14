@@ -1,19 +1,33 @@
-/// <reference types="@gafus/types/src/auth/next-auth" />
-
 import "next-auth";
 import "next-auth/jwt";
 
-// Реэкспортируем типы из централизованного пакета
-export type { AuthUser } from "@gafus/types";
+export type AuthRole = "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
+export interface AuthUser {
+  id: string;
+  username: string;
+  role: AuthRole;
+}
 
 declare module "next-auth" {
   interface Session {
-    user: import("@gafus/types").AuthUser;
+    user: {
+      id: string;
+      username: string;
+      role: AuthRole;
+    } & import("next-auth").DefaultSession["user"];
   }
 
-  interface User extends import("@gafus/types").AuthUser {}
+  interface User {
+    id: string;
+    username: string;
+    role: AuthRole;
+  }
 }
 
 declare module "next-auth/jwt" {
-  interface JWT extends import("@gafus/types").AuthUser {}
+  interface JWT {
+    id: string;
+    username: string;
+    role: AuthRole;
+  }
 }

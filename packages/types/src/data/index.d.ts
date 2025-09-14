@@ -1,3 +1,4 @@
+export * from "./achievements";
 export * from "./course";
 export * from "./user";
 export * from "./training";

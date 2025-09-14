@@ -1,22 +1,26 @@
-import "next-auth";
-import "next-auth/jwt";
 export interface AuthUser {
-  avatarUrl?: string | null;
-  id: string;
-  username: string;
-  role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
+    avatarUrl?: string | null;
+    id: string;
+    username: string;
+    role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
 }
-declare module "next-auth" {
-  interface Session {
+export interface Session {
     user: AuthUser;
-  }
-  interface User extends AuthUser {}
 }
-declare module "next-auth/jwt" {
-  interface JWT extends AuthUser {}
+export interface User extends AuthUser {
 }
-export {};
+export interface JWT extends AuthUser {
+}
+declare global {
+    interface Window {
+        nextAuth?: {
+            Session: Session;
+            User: User;
+            JWT: JWT;
+        };
+    }
+}
 //# sourceMappingURL=next-auth.d.ts.map

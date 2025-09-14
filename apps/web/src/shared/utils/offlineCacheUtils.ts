@@ -10,14 +10,26 @@ import { useOfflineStore } from "@shared/stores/offlineStore";
  * Проверяет, находится ли пользователь в офлайн режиме
  */
 export function isOffline(): boolean {
-  return typeof window !== "undefined" ? !navigator.onLine : false;
+  if (typeof window === "undefined") return false;
+  try {
+    const state = useOfflineStore.getState();
+    return !state.isOnline;
+  } catch {
+    return !navigator.onLine;
+  }
 }
 
 /**
  * Проверяет, находится ли пользователь в онлайн режиме
  */
 export function isOnline(): boolean {
-  return typeof window !== "undefined" ? navigator.onLine : true;
+  if (typeof window === "undefined") return true;
+  try {
+    const state = useOfflineStore.getState();
+    return state.isOnline;
+  } catch {
+    return navigator.onLine;
+  }
 }
 
 /**

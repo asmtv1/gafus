@@ -2,7 +2,8 @@ import { prisma } from "@gafus/prisma";
 import bcrypt from "bcryptjs";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-import type { AuthUser } from "@gafus/types";
+type AuthRole = "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
+interface AuthUser { id: string; username: string; role: AuthRole }
 import type { DefaultSession, NextAuthOptions } from "next-auth";
 
 // Расширяем типы NextAuth для пользовательских полей
@@ -83,11 +84,11 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
-      } else if (token.username) {
+      } else if (token && typeof (token as any).username === "string") {
         // Проверяем, что ID пользователя в токене актуален
         try {
           const currentUser = await prisma.user.findUnique({
-            where: { username: token.username },
+            where: { username: (token as any).username as string },
             select: { id: true },
           });
           
@@ -103,12 +104,13 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id;
-        session.user.username = token.username;
-        session.user.role = token.role;
+        const t = token as any;
+        session.user.id = String(t.id ?? "");
+        session.user.username = String(t.username ?? "");
+        session.user.role = t.role as any;
 
         const profile = await prisma.userProfile.findUnique({
-          where: { userId: token.id },
+          where: { userId: String((token as any).id ?? "") },
           select: { avatarUrl: true },
         });
 
