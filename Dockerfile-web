@@ -9,29 +9,11 @@ WORKDIR /app
 # Установка pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Копируем файлы зависимостей
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY tsconfig.base.json ./
-
-# Копируем package.json всех пакетов
-COPY packages/*/package.json ./packages/*/
-COPY apps/web/package.json ./apps/web/
+# Копируем все файлы проекта
+COPY . .
 
 # Устанавливаем ВСЕ зависимости (включая dev)
 RUN pnpm install --frozen-lockfile
-
-# Копируем исходный код только нужных пакетов
-COPY packages/types ./packages/types
-COPY packages/prisma ./packages/prisma
-COPY packages/auth ./packages/auth
-COPY packages/worker ./packages/worker
-COPY packages/csrf ./packages/csrf
-COPY packages/error-handling ./packages/error-handling
-COPY packages/queues ./packages/queues
-COPY packages/webpush ./packages/webpush
-COPY packages/react-query ./packages/react-query
-COPY packages/ui-components ./packages/ui-components
-COPY apps/web ./apps/web
 
 # Генерируем Prisma client
 RUN cd packages/prisma && pnpm db:generate
