@@ -19,7 +19,7 @@ COPY apps/bull-board/package.json ./apps/bull-board/
 
 # Устанавливаем только production зависимости
 COPY . .
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 # ─────────────────────────────────────────────
 # Stage 0: builder — сборка приложения
 # ─────────────────────────────────────────────
@@ -58,7 +58,7 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 # Копируем только production зависимости из base stage
 # Устанавливаем только production зависимости
 COPY . .
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 # Копируем собранные пакеты
 COPY --from=builder /app/packages/types/dist ./packages/types/dist
 COPY --from=builder /app/packages/types/package.json ./packages/types/package.json
