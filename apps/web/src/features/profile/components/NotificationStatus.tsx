@@ -192,7 +192,7 @@ export default function NotificationStatus() {
 
       <div className={styles.status}>
         <div className={styles.statusItem}>
-          <strong>Разрешение браузера:</strong>
+          <strong>Разрешение браузера: </strong>
           <span className={styles.statusValue}>
             {mounted
               ? permission === "granted"

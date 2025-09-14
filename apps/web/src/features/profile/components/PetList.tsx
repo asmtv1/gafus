@@ -3,22 +3,24 @@
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import { deletePet } from "@shared/lib/pet/deletePet";
+import { savePet } from "@shared/lib/pet/savePet";
+import { showEditPetAlert, showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
+import Swal from 'sweetalert2';
 import { useRouter } from "next/navigation";
-import { useTransition, useState } from "react";
+import { useTransition } from "react";
 
 import EditablePetAvatar from "./EditablePetAvatar";
-import EditPetForm from "./EditPetForm";
 import styles from "./PetList.module.css";
 
-import type { PublicProfile, Pet } from "@gafus/types";
+import type { PublicProfile, PetFormData } from "@gafus/types";
 
 type PetFromPublicProfile = PublicProfile['pets'][0];
 
 import { getAgeWithMonths, declOfNum } from "@/utils";
-import { Avatar, IconButton, Modal, Box } from "@/utils/muiImports";
+import { Avatar, IconButton } from "@/utils/muiImports";
 import { getPetTypeLabel } from "@/utils/petType";
 
-const handleDelete = (
+const handleDelete = async (
   petId: string,
   petName: string,
   router: ReturnType<typeof useRouter>,
@@ -27,37 +29,81 @@ const handleDelete = (
 ) => {
   if (isPending) return;
   
-  // Используем более современный способ подтверждения
-  if (!window.confirm(`Вы уверены, что хотите удалить питомца "${petName}"?`)) return;
+  try {
+    const result = await Swal.fire({
+      title: 'Удалить питомца?',
+      text: `Вы уверены, что хотите удалить питомца "${petName}"? Это действие нельзя отменить.`,
+      imageUrl: '/logo.png',
+      imageWidth: 80,
+      imageHeight: 80,
+      imageAlt: 'Гафус',
+      showCancelButton: true,
+      confirmButtonText: 'Да, удалить',
+      cancelButtonText: 'Отмена',
+      confirmButtonColor: '#d32f2f',
+      cancelButtonColor: '#F5F0E8',
+      customClass: {
+        popup: 'swal2-popup-custom',
+        title: 'swal2-title-custom',
+        htmlContainer: 'swal2-content-custom',
+        confirmButton: 'swal2-confirm-custom',
+        cancelButton: 'swal2-cancel-custom',
+      },
+    });
 
-  startTransition(async () => {
-    try {
-      await deletePet(petId, "/profile");
-      router.refresh();
-    } catch {
-      // В будущем здесь можно добавить уведомление в верхнем баннере
-      console.error("Ошибка при удалении питомца");
+    if (result.isConfirmed) {
+      startTransition(async () => {
+        try {
+          await deletePet(petId, "/profile");
+          await showSuccessAlert(`Питомец "${petName}" успешно удален!`);
+          router.refresh();
+        } catch {
+          console.error("Ошибка при удалении питомца");
+          await showErrorAlert("Произошла ошибка при удалении питомца");
+        }
+      });
     }
-  });
+  } catch (error) {
+    console.error("Ошибка при показе диалога удаления:", error);
+  }
 };
 
 export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[]; isOwner: boolean }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  const [showEdit, setShowEdit] = useState(false);
-  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
 
-  const handleEditClick = (pet: PetFromPublicProfile) => {
-    // Преобразуем PetFromPublicProfile в Pet для EditPetForm
-    const petForEdit: Pet = {
-      ...pet,
+  const handleEditClick = async (pet: PetFromPublicProfile) => {
+    // Преобразуем PetFromPublicProfile в PetFormData для SweetAlert
+    const petForEdit: PetFormData = {
+      id: pet.id,
+      name: pet.name,
+      type: pet.type,
       breed: pet.breed || "",
-      birthDate: pet.birthDate || new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      photoUrl: pet.photoUrl || "",
+      notes: pet.notes || "",
+      birthDate: pet.birthDate instanceof Date ? pet.birthDate.toISOString().split("T")[0] : pet.birthDate || "",
+      heightCm: pet.heightCm || undefined,
+      weightKg: pet.weightKg || undefined,
     };
-    setSelectedPet(petForEdit);
-    setShowEdit(true);
+
+    try {
+      const updatedPetData = await showEditPetAlert(petForEdit);
+      
+      if (updatedPetData) {
+        startTransition(async () => {
+          try {
+            await savePet(updatedPetData);
+            await showSuccessAlert(`Питомец "${updatedPetData.name}" успешно обновлен!`);
+            router.refresh();
+          } catch (error) {
+            console.error("Ошибка при обновлении питомца:", error);
+            await showErrorAlert("Произошла ошибка при обновлении питомца");
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Ошибка при открытии формы редактирования:", error);
+    }
   };
 
   const PetCard = ({ pet }: { pet: PetFromPublicProfile }) => (
@@ -135,20 +181,6 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
         </ul>
       )}
 
-      {showEdit && selectedPet && (
-        <Modal open={showEdit} onClose={() => setShowEdit(false)} aria-labelledby="edit-pet-modal">
-          <Box className={styles.modal_box}>
-            <EditPetForm
-              pet={selectedPet}
-              onClose={() => setShowEdit(false)}
-              onSave={() => {
-                setShowEdit(false);
-                router.refresh();
-              }}
-            />
-          </Box>
-        </Modal>
-      )}
     </div>
   );
 }

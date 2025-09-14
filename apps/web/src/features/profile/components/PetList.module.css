@@ -172,21 +172,6 @@
   font-family: var(--font-montserrat), system-ui, sans-serif;
 }
 
-/* Модальное окно */
-.modal_box {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 90%;
-  max-width: 400px;
-  background-color: #F5F0E8;
-  border: 2px solid #636128;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  padding: 1.5rem;
-  outline: none;
-}
 
 /* Адаптивный дизайн для мобильных устройств */
 @media (max-width: 768px) {
@@ -235,10 +220,6 @@
     gap: 1rem;
   }
 
-  .modal_box {
-    width: 95%;
-    padding: 1rem;
-  }
 }
 
 @media (max-width: 480px) {
@@ -277,8 +258,4 @@
     padding: 6px;
   }
 
-  .modal_box {
-    width: 98%;
-    padding: 0.75rem;
-  }
 }
