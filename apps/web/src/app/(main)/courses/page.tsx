@@ -1,6 +1,7 @@
 // app/courses/page.tsx
 import { getCoursesWithProgressCached } from "@shared/lib/actions/cachedCourses";
 import { getServerSession } from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import styles from "./courses.module.css";
 import CoursesClient from "./CoursesClient";
@@ -23,7 +24,7 @@ export const metadata = {
 
 export default async function CoursesPage() {
   // Загружаем данные курсов серверно для кэширования
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions as NextAuthOptions);
   const userId = session?.user?.id;
 
   let coursesData = null;
