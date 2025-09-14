@@ -1,43 +1,100 @@
-# --- Stage 1: Build stage ---
+# syntax=docker/dockerfile:1
+
+# ─────────────────────────────────────────────
+# Stage 0: base — общие зависимости
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS base
+WORKDIR /app
+
+# Установка pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Копируем только файлы зависимостей для кэширования
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json ./
+
+# Копируем package.json всех пакетов
+COPY packages/*/package.json ./packages/*/
+COPY apps/bull-board/package.json ./apps/bull-board/
+
+# Устанавливаем только production зависимости
+RUN pnpm install --frozen-lockfile --prod
+
+# ─────────────────────────────────────────────
+# Stage 1: builder — сборка приложения
+# ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
-
 WORKDIR /app
-# Отключаем интерактивные подтверждения в pnpm
-ENV CI=true
 
+# Установка pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Копируем весь workspace (монорепу) сразу
-COPY . .
+# Копируем файлы зависимостей
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json ./
 
-# Установка всех зависимостей и сборка
+# Копируем package.json всех пакетов
+COPY packages/*/package.json ./packages/*/
+COPY apps/bull-board/package.json ./apps/bull-board/
+
+# Устанавливаем ВСЕ зависимости (включая dev)
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @gafus/queues run build
-RUN pnpm --filter @gafus/bull-board run build
 
-# --- Stage 2: Runtime stage ---
+# Копируем исходный код только нужных пакетов
+COPY packages/types ./packages/types
+COPY packages/queues ./packages/queues
+COPY apps/bull-board ./apps/bull-board
+
+# Билдим пакеты в правильном порядке
+RUN pnpm --filter @gafus/types run build
+RUN pnpm build --filter @gafus/queues
+RUN pnpm build --filter @gafus/bull-board
+
+# ─────────────────────────────────────────────
+# Stage 2: runner — минимальный production
+# ─────────────────────────────────────────────
 FROM node:20-alpine AS runner
-
 WORKDIR /app
-# Production‑режим и отключение интерактива
-ENV NODE_ENV=production
-ENV CI=true
 
+# Создаем пользователя для безопасности
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 bullboard
+
+# Установка pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Устанавливаем only-allow для preinstall скрипта
-RUN npm install -g only-allow
+# Копируем только production зависимости из base stage
+COPY --from=base /app/node_modules ./node_modules
 
-COPY pnpm-workspace.yaml ./
-COPY package.json pnpm-lock.yaml ./
-COPY apps/bull-board/package.json ./apps/bull-board/package.json
-COPY packages/queues/package.json ./packages/queues/package.json
-
-RUN pnpm install --filter @gafus/bull-board... --prod --frozen-lockfile
-
-COPY --from=builder /app/apps/bull-board/dist ./apps/bull-board/dist
+# Копируем собранные пакеты
+COPY --from=builder /app/packages/types/dist ./packages/types/dist
+COPY --from=builder /app/packages/types/package.json ./packages/types/package.json
 COPY --from=builder /app/packages/queues/dist ./packages/queues/dist
+COPY --from=builder /app/packages/queues/package.json ./packages/queues/package.json
 
-WORKDIR /app/apps/bull-board
+# Копируем собранное приложение
+COPY --from=builder /app/apps/bull-board/dist ./apps/bull-board/dist
+COPY --from=builder /app/apps/bull-board/package.json ./apps/bull-board/package.json
 
-CMD ["node", "dist/bull-board.js"]
+# Копируем package.json для правильной работы
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
+
+# Устанавливаем права доступа
+RUN chown -R bullboard:nodejs /app
+USER bullboard
+
+# Переменные окружения
+ENV NODE_ENV=production
+ENV PORT=3002
+ENV HOSTNAME="0.0.0.0"
+
+# Открываем порт
+EXPOSE 3002
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3002 || exit 1
+
+# Запускаем приложение
+CMD ["node", "apps/bull-board/dist/bull-board.js"]

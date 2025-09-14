@@ -1,91 +1,115 @@
 # syntax=docker/dockerfile:1
 
-# Build stage
-FROM node:20-alpine AS builder
-
+# ─────────────────────────────────────────────
+# Stage 0: base — общие зависимости
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS base
 WORKDIR /app
 
-# Enable pnpm
+# Установка pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Copy workspace files
-COPY pnpm-workspace.yaml ./
-COPY package.json pnpm-lock.yaml ./
+# Копируем только файлы зависимостей для кэширования
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY tsconfig.base.json ./
 
-# Copy package.json files
-COPY packages/worker/package.json ./packages/worker/package.json
-COPY packages/prisma/package.json ./packages/prisma/package.json
-COPY packages/queues/package.json ./packages/queues/package.json
-COPY packages/webpush/package.json ./packages/webpush/package.json
+# Копируем package.json всех пакетов
+COPY packages/*/package.json ./packages/*/
 
-# Install all dependencies
-RUN pnpm install
+# Устанавливаем только production зависимости
+RUN pnpm install --frozen-lockfile --prod
 
-# Copy source code
-COPY packages/worker ./packages/worker
+# ─────────────────────────────────────────────
+# Stage 1: builder — сборка приложения
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Установка pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Копируем файлы зависимостей
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json ./
+
+# Копируем package.json всех пакетов
+COPY packages/*/package.json ./packages/*/
+
+# Устанавливаем ВСЕ зависимости (включая dev)
+RUN pnpm install --frozen-lockfile
+
+# Копируем исходный код только нужных пакетов
+COPY packages/types ./packages/types
 COPY packages/prisma ./packages/prisma
+COPY packages/worker ./packages/worker
 COPY packages/queues ./packages/queues
 COPY packages/webpush ./packages/webpush
+COPY packages/error-handling ./packages/error-handling
 
-# Generate Prisma client
-RUN pnpm --filter @gafus/prisma run db:generate
+# Генерируем Prisma client
+RUN cd packages/prisma && pnpm db:generate
 
-# Create .prisma folder in node_modules
+# Создаем .prisma папку в node_modules
 RUN mkdir -p /app/node_modules/.prisma
 RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
 RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
 
-# Build prisma package
-RUN pnpm --filter @gafus/prisma run build
+# Билдим пакеты в правильном порядке
+RUN pnpm --filter @gafus/types run build
+RUN pnpm build --filter @gafus/prisma
+RUN pnpm build --filter @gafus/queues
+RUN pnpm build --filter @gafus/webpush
+RUN pnpm build --filter @gafus/error-handling
+RUN pnpm build --filter @gafus/worker
 
-# Build worker and queues
-RUN pnpm --filter @gafus/worker run build
-RUN pnpm --filter @gafus/queues run build
-RUN pnpm --filter @gafus/webpush run build
-
-# Production stage
-FROM node:20-alpine AS production
-
+# ─────────────────────────────────────────────
+# Stage 2: runner — минимальный production
+# ─────────────────────────────────────────────
+FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Enable pnpm
+# Создаем пользователя для безопасности
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 worker
+
+# Установка pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
-# Copy workspace files
-COPY pnpm-workspace.yaml ./
-COPY package.json pnpm-lock.yaml ./
+# Копируем только production зависимости из base stage
+COPY --from=base /app/node_modules ./node_modules
 
-# Copy node_modules without .prisma (we'll copy it separately)
-RUN mkdir -p /app/node_modules
-COPY --from=builder /app/node_modules ./node_modules
-RUN rm -rf /app/node_modules/.prisma
-
-# Copy built files from builder stage with correct structure
-COPY --from=builder /app/packages/worker/dist ./packages/worker/dist
-COPY --from=builder /app/packages/queues/dist ./packages/queues/dist
+# Копируем собранные пакеты
+COPY --from=builder /app/packages/types/dist ./packages/types/dist
+COPY --from=builder /app/packages/types/package.json ./packages/types/package.json
 COPY --from=builder /app/packages/prisma/dist ./packages/prisma/dist
+COPY --from=builder /app/packages/prisma/package.json ./packages/prisma/package.json
+COPY --from=builder /app/packages/worker/dist ./packages/worker/dist
+COPY --from=builder /app/packages/worker/package.json ./packages/worker/package.json
+COPY --from=builder /app/packages/queues/dist ./packages/queues/dist
+COPY --from=builder /app/packages/queues/package.json ./packages/queues/package.json
 COPY --from=builder /app/packages/webpush/dist ./packages/webpush/dist
+COPY --from=builder /app/packages/webpush/package.json ./packages/webpush/package.json
+COPY --from=builder /app/packages/error-handling/dist ./packages/error-handling/dist
+COPY --from=builder /app/packages/error-handling/package.json ./packages/error-handling/package.json
 
-# Copy source code for all packages
-COPY --from=builder /app/packages/worker ./packages/worker
-COPY --from=builder /app/packages/prisma ./packages/prisma
-COPY --from=builder /app/packages/queues ./packages/queues
-COPY --from=builder /app/packages/webpush ./packages/webpush
+# Копируем Prisma schema и client
+COPY --from=builder /app/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy Prisma client полностью
-COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
-COPY --from=builder /app/packages/prisma/schema.prisma ./node_modules/.prisma/schema.prisma
+# Копируем package.json для правильной работы
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
 
-# Create symlink for @gafus packages
-RUN mkdir -p /app/node_modules/@gafus && \
-    ln -sf /app/packages/prisma/dist /app/node_modules/@gafus/prisma && \
-    ln -sf /app/packages/queues/dist /app/node_modules/@gafus/queues && \
-    ln -sf /app/packages/webpush/dist /app/node_modules/@gafus/webpush && \
-    ln -sf /app/packages/worker/dist /app/node_modules/@gafus/worker
+# Устанавливаем права доступа
+RUN chown -R worker:nodejs /app
+USER worker
 
-# Set working directory to root
-WORKDIR /app
+# Переменные окружения
+ENV NODE_ENV=production
 
-# Start the worker with correct path
-CMD ["node", "packages/worker/dist/worker/src/index.js"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD node -e "console.log('Worker container is healthy')" || exit 1
+
+# Запускаем воркер
+CMD ["pnpm", "--filter", "@gafus/worker", "run", "start"]
