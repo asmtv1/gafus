@@ -1,6 +1,6 @@
 export interface TrainingsPageProps {
-  params: {
-    courseType: string;
-  };
+    params: {
+        courseType: string;
+    };
 }
 //# sourceMappingURL=index.d.ts.map

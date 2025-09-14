@@ -369,6 +369,9 @@ importers:
       '@emotion/styled':
         specifier: 11.14.0
         version: 11.14.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.1.0))(@types/react@19.1.9)(react@19.1.0)
+      '@gafus/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@gafus/csrf':
         specifier: workspace:*
         version: link:../../packages/csrf
@@ -420,6 +423,9 @@ importers:
       react:
         specifier: 19.1.0
         version: 19.1.0
+      react-detect-offline:
+        specifier: ^2.4.5
+        version: 2.4.5
       react-dom:
         specifier: 19.1.0
         version: 19.1.0(react@19.1.0)
@@ -4708,6 +4714,9 @@ packages:
   raw-body@3.0.1:
     resolution: {integrity: sha512-9G8cA+tuMS75+6G/TzW8OtLzmBDMo8p1JRxN5AZ+LAp8uxGA8V8GZm4GQ4/N5QNQEnLmg6SS7wyuSmbKepiKqA==}
     engines: {node: '>= 0.10'}
+
+  react-detect-offline@2.4.5:
+    resolution: {integrity: sha512-sI13NPEKl3uQp95FT5CwrYzH3DnXCwNP6TnY6NRF5gFDM4NU9KDlbtA6HG2dwhDVS0RYQGXwZW/mHbdf8fCnaw==}
 
   react-dom@19.1.0:
     resolution: {integrity: sha512-Xs1hdnE+DyKgeHJeJznQmYMIBG3TKIHJJT95Q58nHLSrElKlGQqDTR2HQ9fx5CN/Gk6Vh/kupBTDLU11/nDk/g==}
@@ -9973,6 +9982,8 @@ snapshots:
       http-errors: 2.0.0
       iconv-lite: 0.7.0
       unpipe: 1.0.0
+
+  react-detect-offline@2.4.5: {}
 
   react-dom@19.1.0(react@19.1.0):
     dependencies:

@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    /* Базовые */
     "target": "ES2022",
     "moduleResolution": "node",
     "module": "esnext",
@@ -10,33 +9,26 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "allowImportingTsExtensions": true,
 
-    /* emit / декларации */
-    "declaration": true, // генерировать .d.ts
-    "declarationMap": true,
-    "emitDeclarationOnly": true, // только декларации (для .js можно убрать, если нужен полный emit)
-    "outDir": "dist", // куда складывать результирующие файлы
+    "declaration": false,
+    "declarationMap": false,
+    "outDir": "dist",
+    "rootDir": "src",
 
-    /* инкрементальный билд */
     "incremental": true,
-    "composite": false, // если не используете project references, можно оставить false
+    "composite": false,
 
-    /* Типы */
-    "typeRoots": ["../../node_modules/@types", "../../packages/types/src"],
     "skipLibCheck": true,
+    "typeRoots": [
+      "../../node_modules/@types",
+      "../../packages/prisma/dist"
+    ],
 
-    /* Пути для пакета auth */
     "baseUrl": ".",
     "paths": {
-      "@gafus/types": ["../../packages/types/src/index.ts"],
-      "@gafus/types/*": ["../../packages/types/src/*"],
-      "@gafus/prisma": ["../../packages/prisma/src/index.ts"],
-      "@gafus/prisma/*": ["../../packages/prisma/src/*"]
-    },
-
-    /* Исключаем проблемные типы */
-    "types": ["node"]
+      "@gafus/prisma": ["../../packages/prisma/dist/index.d.ts"],
+      "@gafus/prisma/*": ["../../packages/prisma/dist/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

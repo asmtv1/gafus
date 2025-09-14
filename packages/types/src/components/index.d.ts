@@ -7,7 +7,6 @@ export * from "./statistics";
 export * from "./ui";
 export * from "./error-dashboard";
 export * from "./components";
-export * from "./forms";
 export * from "./steps";
 export * from "./login-form";
 export * from "./header";

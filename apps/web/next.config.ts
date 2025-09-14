@@ -57,12 +57,14 @@ const nextConfig = {
     // Разрешаем workspace зависимости
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@gafus/react-query": _path.resolve(__dirname, "../../packages/react-query/src"),
+      "@gafus/auth": _path.resolve(__dirname, "../../packages/auth/dist"),
+      "@gafus/auth/server": _path.resolve(__dirname, "../../packages/auth/dist"),
+      "@gafus/react-query": _path.resolve(__dirname, "../../packages/react-query/dist"),
       "@gafus/types": _path.resolve(__dirname, "../../packages/types/src"),
       "@gafus/csrf": _path.resolve(__dirname, "../../packages/csrf/src"),
-      "@gafus/error-handling": _path.resolve(__dirname, "../../packages/error-handling/src"),
-      "@gafus/prisma": _path.resolve(__dirname, "../../packages/prisma/src"),
-      "@gafus/webpush": _path.resolve(__dirname, "../../packages/webpush/src"),
+      "@gafus/error-handling": _path.resolve(__dirname, "../../packages/error-handling/dist/error-handling/src"),
+      "@gafus/prisma": _path.resolve(__dirname, "../../packages/prisma/dist"),
+      "@gafus/webpush": _path.resolve(__dirname, "../../packages/webpush/dist"),
     };
 
     return config;

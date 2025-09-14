@@ -162,8 +162,6 @@ export default function OfflineStatus() {
             >
               <strong>Debug Info:</strong>
               <br />
-              • Navigator.onLine: {navigator.onLine ? "true" : "false"}
-              <br />
               • Store isOnline: {isOnline ? "true" : "false"}
               <br />
               • Queue length: {queueLength}
