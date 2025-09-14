@@ -37,6 +37,8 @@ declare module "next-auth/jwt" {
 const isProd = process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL?.includes("https://");
 const cookieDomain = process.env.AUTH_COOKIE_DOMAIN?.trim() || undefined;
 
+const sessionStrategy: SessionStrategy = "jwt";
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -69,7 +71,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: {
-    strategy: "jwt" as SessionStrategy,
+    strategy: sessionStrategy,
     maxAge: 30 * 24 * 60 * 60, // 30 дней
   },
   jwt: {
