@@ -1,5 +1,6 @@
 import { getFavoritesCoursesCached } from "@shared/lib/actions/cachedCourses";
 import { getServerSession } from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import styles from "./favorites.module.css";
 import FavoritesCourseList from "@/app/(main)/favorites/FavoritesCourseList";
@@ -22,7 +23,7 @@ export const metadata = {
 
 export default async function FavoritesPage() {
   // Загружаем данные избранных курсов серверно для кэширования
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions as NextAuthOptions);
   const userId = session?.user?.id;
 
   let favoritesData = null;

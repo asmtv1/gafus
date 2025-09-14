@@ -2,6 +2,7 @@ import { authOptions } from "@gafus/auth";
 import type { AuthoredCourse } from "@gafus/types";
 import { getAuthoredCourses } from "@shared/lib/course/getAuthoredCourses";
 import { getServerSession } from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 
@@ -18,7 +19,7 @@ const StatisticsContent = dynamic(() => import("./StatisticsContent"), {
 });
 
 export default async function Statistics() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions as NextAuthOptions);
   const userName = session?.user?.username ?? "";
   const avatarUrl = session?.user?.avatarUrl ?? "/uploads/avatar.svg";
 

@@ -1,6 +1,7 @@
 "use server";
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 
 import type { PushSubscriptionJSON } from "@gafus/types";
 
@@ -29,7 +30,7 @@ export async function savePushSubscription(subscription: PushSubscriptionJSON) {
     console.error("savePushSubscription: User not found in database, userId:", userId);
     
     // Попробуем найти пользователя по username из JWT токена
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions as NextAuthOptions);
     if (session?.user?.username) {
       const userByUsername = await prisma.user.findUnique({
         where: { username: session.user.username },
