@@ -74,7 +74,6 @@ COPY --from=builder /app/packages/ui-components/package.json ./packages/ui-compo
 # Копируем собранное приложение
 COPY --from=builder /app/apps/error-dashboard/.next/standalone ./
 COPY --from=builder /app/apps/error-dashboard/.next/static ./.next/static
-COPY --from=builder /app/apps/error-dashboard/public ./public
 
 # Копируем Prisma schema и client
 COPY --from=builder /app/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
