@@ -4,7 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 
 type AuthRole = "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
 interface AuthUser { id: string; username: string; role: AuthRole }
-import type { DefaultSession, NextAuthOptions } from "next-auth";
+import type { DefaultSession, NextAuthOptions, SessionStrategy } from "next-auth";
 
 // Расширяем типы NextAuth для пользовательских полей
 declare module "next-auth" {
@@ -69,7 +69,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: {
-    strategy: "jwt",
+    strategy: "jwt" as SessionStrategy,
     maxAge: 30 * 24 * 60 * 60, // 30 дней
   },
   jwt: {
