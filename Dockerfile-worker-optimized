@@ -51,8 +51,13 @@ COPY apps/worker/package.json ./apps/worker/
 # Устанавливаем только production зависимости
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
-# Копируем собранные пакеты
-COPY --from=base /app/packages ./packages
+# Копируем только нужные собранные пакеты
+COPY --from=base /app/packages/types ./packages/types
+COPY --from=base /app/packages/prisma ./packages/prisma
+COPY --from=base /app/packages/queues ./packages/queues
+COPY --from=base /app/packages/webpush ./packages/webpush
+COPY --from=base /app/packages/telegram ./packages/telegram
+COPY --from=base /app/packages/worker ./packages/worker
 
 # Копируем собранное приложение
 COPY --from=base /app/apps/worker/dist ./apps/worker/dist

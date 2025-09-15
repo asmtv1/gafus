@@ -51,8 +51,14 @@ COPY apps/error-dashboard/package.json ./apps/error-dashboard/
 # Устанавливаем только production зависимости
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
-# Копируем собранные пакеты
-COPY --from=base /app/packages ./packages
+# Копируем только нужные собранные пакеты
+COPY --from=base /app/packages/types ./packages/types
+COPY --from=base /app/packages/prisma ./packages/prisma
+COPY --from=base /app/packages/auth ./packages/auth
+COPY --from=base /app/packages/csrf ./packages/csrf
+COPY --from=base /app/packages/error-handling ./packages/error-handling
+COPY --from=base /app/packages/react-query ./packages/react-query
+COPY --from=base /app/packages/ui-components ./packages/ui-components
 
 # Копируем собранное приложение (без public папки, так как её нет)
 COPY --from=base /app/apps/error-dashboard/.next/standalone ./
