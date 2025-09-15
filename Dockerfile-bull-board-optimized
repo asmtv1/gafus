@@ -15,11 +15,8 @@ COPY apps/bull-board/package.json ./apps/bull-board/
 # Устанавливаем зависимости
 RUN pnpm install --no-frozen-lockfile
 
-# Копируем исходный код только нужных пакетов
-COPY packages/types ./packages/types
-COPY packages/prisma ./packages/prisma
-COPY packages/queues ./packages/queues
-COPY packages/webpush ./packages/webpush
+# Копируем исходный код всех пакетов
+COPY packages ./packages
 COPY apps/bull-board ./apps/bull-board
 
 # Генерируем Prisma client
@@ -30,11 +27,7 @@ RUN mkdir -p /app/node_modules/.prisma
 RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
 RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
 
-# Билдим пакеты в правильном порядке
-RUN pnpm --filter @gafus/types run build
-RUN pnpm build --filter @gafus/prisma
-RUN pnpm build --filter @gafus/queues
-RUN pnpm build --filter @gafus/webpush
+# Билдим все пакеты
 RUN pnpm build --filter @gafus/bull-board
 
 # ─────────────────────────────────────────────
@@ -59,14 +52,7 @@ COPY apps/bull-board/package.json ./apps/bull-board/
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Копируем собранные пакеты
-COPY --from=base /app/packages/types/dist ./packages/types/dist
-COPY --from=base /app/packages/types/package.json ./packages/types/package.json
-COPY --from=base /app/packages/prisma/dist ./packages/prisma/dist
-COPY --from=base /app/packages/prisma/package.json ./packages/prisma/package.json
-COPY --from=base /app/packages/queues/dist ./packages/queues/dist
-COPY --from=base /app/packages/queues/package.json ./packages/queues/package.json
-COPY --from=base /app/packages/webpush/dist ./packages/webpush/dist
-COPY --from=base /app/packages/webpush/package.json ./packages/webpush/package.json
+COPY --from=base /app/packages ./packages
 
 # Копируем собранное приложение
 COPY --from=base /app/apps/bull-board/dist ./apps/bull-board/dist
