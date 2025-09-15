@@ -13,7 +13,7 @@ COPY packages/*/package.json ./packages/*/
 COPY apps/trainer-panel/package.json ./apps/trainer-panel/
 
 # Устанавливаем зависимости
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Копируем исходный код только нужных пакетов
 COPY packages/types ./packages/types
