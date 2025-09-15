@@ -15,13 +15,8 @@ COPY apps/web/package.json ./apps/web/
 # Устанавливаем зависимости
 RUN pnpm install --no-frozen-lockfile
 
-# Копируем исходный код только нужных пакетов
-COPY packages/types ./packages/types
-COPY packages/prisma ./packages/prisma
-COPY packages/auth ./packages/auth
-COPY packages/ui-components ./packages/ui-components
-COPY packages/react-query ./packages/react-query
-COPY packages/error-handling ./packages/error-handling
+# Копируем исходный код всех пакетов
+COPY packages ./packages
 COPY apps/web ./apps/web
 
 # Генерируем Prisma client
@@ -32,13 +27,7 @@ RUN mkdir -p /app/node_modules/.prisma
 RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
 RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
 
-# Билдим пакеты в правильном порядке
-RUN pnpm --filter @gafus/types run build
-RUN pnpm build --filter @gafus/prisma
-RUN pnpm --filter @gafus/auth run build
-RUN pnpm build --filter @gafus/error-handling
-RUN pnpm build --filter @gafus/react-query
-RUN pnpm build --filter @gafus/ui-components
+# Билдим все пакеты
 RUN pnpm build --filter @gafus/web
 
 # ─────────────────────────────────────────────
@@ -63,18 +52,7 @@ COPY apps/web/package.json ./apps/web/
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Копируем собранные пакеты
-COPY --from=base /app/packages/types/dist ./packages/types/dist
-COPY --from=base /app/packages/types/package.json ./packages/types/package.json
-COPY --from=base /app/packages/prisma/dist ./packages/prisma/dist
-COPY --from=base /app/packages/prisma/package.json ./packages/prisma/package.json
-COPY --from=base /app/packages/auth/dist ./packages/auth/dist
-COPY --from=base /app/packages/auth/package.json ./packages/auth/package.json
-COPY --from=base /app/packages/error-handling/dist ./packages/error-handling/dist
-COPY --from=base /app/packages/error-handling/package.json ./packages/error-handling/package.json
-COPY --from=base /app/packages/react-query/dist ./packages/react-query/dist
-COPY --from=base /app/packages/react-query/package.json ./packages/react-query/package.json
-COPY --from=base /app/packages/ui-components/dist ./packages/ui-components/dist
-COPY --from=base /app/packages/ui-components/package.json ./packages/ui-components/package.json
+COPY --from=base /app/packages ./packages
 
 # Копируем собранное веб-приложение
 COPY --from=base /app/apps/web/.next/standalone ./
