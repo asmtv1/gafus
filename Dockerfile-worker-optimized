@@ -9,15 +9,22 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
 # Копируем только файлы зависимостей
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/*/package.json ./packages/*/
-COPY apps/worker/package.json ./apps/worker/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/csrf/package.json ./packages/csrf/
+COPY packages/error-handling/package.json ./packages/error-handling/
+COPY packages/prisma/package.json ./packages/prisma/
+COPY packages/queues/package.json ./packages/queues/
+COPY packages/react-query/package.json ./packages/react-query/
+COPY packages/types/package.json ./packages/types/
+COPY packages/ui-components/package.json ./packages/ui-components/
+COPY packages/webpush/package.json ./packages/webpush/
+COPY packages/worker/package.json ./packages/worker/
 
 # Устанавливаем зависимости
 RUN pnpm install --no-frozen-lockfile
 
 # Копируем исходный код всех пакетов
 COPY packages ./packages
-COPY apps/worker ./apps/worker
 
 # Генерируем Prisma client
 RUN cd packages/prisma && pnpm db:generate
@@ -45,8 +52,16 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
 # Копируем только production зависимости
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/*/package.json ./packages/*/
-COPY apps/worker/package.json ./apps/worker/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/csrf/package.json ./packages/csrf/
+COPY packages/error-handling/package.json ./packages/error-handling/
+COPY packages/prisma/package.json ./packages/prisma/
+COPY packages/queues/package.json ./packages/queues/
+COPY packages/react-query/package.json ./packages/react-query/
+COPY packages/types/package.json ./packages/types/
+COPY packages/ui-components/package.json ./packages/ui-components/
+COPY packages/webpush/package.json ./packages/webpush/
+COPY packages/worker/package.json ./packages/worker/
 
 # Устанавливаем только production зависимости
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
@@ -60,10 +75,6 @@ COPY --from=base /app/packages/telegram ./packages/telegram
 COPY --from=base /app/packages/worker ./packages/worker
 
 # Копируем собранное приложение
-COPY --from=base /app/apps/worker/dist ./apps/worker/dist
-COPY --from=base /app/apps/worker/package.json ./apps/worker/package.json
-
-# Копируем Prisma schema и client
 COPY --from=base /app/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
@@ -76,4 +87,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3004/health || exit 1
 
 # Запускаем приложение
-CMD ["node", "apps/worker/dist/worker.js"]
+CMD ["node", "packages/worker/dist/worker.js"]

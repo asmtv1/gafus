@@ -9,7 +9,16 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
 # Копируем только файлы зависимостей
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/*/package.json ./packages/*/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/csrf/package.json ./packages/csrf/
+COPY packages/error-handling/package.json ./packages/error-handling/
+COPY packages/prisma/package.json ./packages/prisma/
+COPY packages/queues/package.json ./packages/queues/
+COPY packages/react-query/package.json ./packages/react-query/
+COPY packages/types/package.json ./packages/types/
+COPY packages/ui-components/package.json ./packages/ui-components/
+COPY packages/webpush/package.json ./packages/webpush/
+COPY packages/worker/package.json ./packages/worker/
 COPY apps/error-dashboard/package.json ./apps/error-dashboard/
 
 # Устанавливаем зависимости
@@ -45,7 +54,16 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
 # Копируем только production зависимости
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/*/package.json ./packages/*/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/csrf/package.json ./packages/csrf/
+COPY packages/error-handling/package.json ./packages/error-handling/
+COPY packages/prisma/package.json ./packages/prisma/
+COPY packages/queues/package.json ./packages/queues/
+COPY packages/react-query/package.json ./packages/react-query/
+COPY packages/types/package.json ./packages/types/
+COPY packages/ui-components/package.json ./packages/ui-components/
+COPY packages/webpush/package.json ./packages/webpush/
+COPY packages/worker/package.json ./packages/worker/
 COPY apps/error-dashboard/package.json ./apps/error-dashboard/
 
 # Устанавливаем только production зависимости
