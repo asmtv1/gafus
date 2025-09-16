@@ -67,6 +67,9 @@ COPY --from=base /app/packages/queues/node_modules ./packages/queues/node_module
 COPY --from=base /app/packages/webpush/node_modules ./packages/webpush/node_modules
 COPY --from=base /app/packages/types/node_modules ./packages/types/node_modules
 
+# Копируем @prisma/client в node_modules
+COPY --from=base /app/node_modules/@prisma ./node_modules/@prisma
+
 # Копируем Prisma client и Query Engine (и кладём движок рядом с клиентом)
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 RUN mkdir -p ./node_modules/.prisma/client && \
