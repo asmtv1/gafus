@@ -59,11 +59,13 @@ COPY --from=base /app/packages/queues ./packages/queues
 COPY --from=base /app/apps/bull-board/node_modules ./apps/bull-board/node_modules
 COPY --from=base /app/packages/queues/node_modules ./packages/queues/node_modules
 
+# Копируем корневые зависимости, чтобы разрешились pnpm-симлинки
+COPY --from=base /app/node_modules ./node_modules
+
 # Копируем Prisma client и Query Engine
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
-# Удаляем .pnpm папку для уменьшения размера
-RUN rm -rf /app/node_modules/.pnpm
+# Не удаляем .pnpm, так как pnpm-симлинки зависят от неё
 
 # Устанавливаем права доступа
 RUN chown -R nextjs:nodejs /app
