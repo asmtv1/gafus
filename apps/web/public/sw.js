@@ -1,7 +1,11 @@
 // Кастомный Service Worker для Gafus
 // Отвечает за push-уведомления и офлайн кэширование
 
-console.log('🚀 SW: Starting Gafus Service Worker for Push Notifications & Offline Caching');
+// Отключаем подробные логирования в production
+const SW_DEBUG = false;
+if (!SW_DEBUG) {
+  try { console.log = function () {}; } catch (e) {}
+}
 
 // 🎯 ОБНОВЛЕННАЯ СТРАТЕГИЯ КЭШИРОВАНИЯ (v2)
 // Синхронизирована с текущей архитектурой: React Query + Zustand + Next.js cache
@@ -1376,4 +1380,4 @@ async function estimateCacheSize(cache) {
   }
 }
 
-console.log('✅ SW: Gafus Service Worker loaded successfully - Push Notifications & Offline Caching enabled');
+// Логи о загрузке SW убраны

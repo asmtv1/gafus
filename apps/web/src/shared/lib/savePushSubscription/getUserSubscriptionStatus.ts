@@ -7,29 +7,20 @@ import { getCurrentUserId } from "@/utils";
  * Проверяет, есть ли у пользователя активная push-подписка
  */
 export async function getUserSubscriptionStatus() {
-  console.log("🚀 getUserSubscriptionStatus: Начинаем проверку статуса подписки");
-  
   try {
-    console.log("🔧 getUserSubscriptionStatus: Получаем userId...");
     const userId = await getCurrentUserId();
-    console.log("✅ getUserSubscriptionStatus: userId получен:", userId);
 
     // Простой Prisma запрос без таймаута
-    console.log("🔧 getUserSubscriptionStatus: Создаем Prisma запрос...");
     const subscription = await prisma.pushSubscription.findFirst({
       where: { userId },
       select: { id: true },
     });
-    
-    console.log("✅ getUserSubscriptionStatus: Запрос выполнен, результат:", subscription);
 
     const hasSubscription = !!subscription;
-    console.log("✅ getUserSubscriptionStatus: Возвращаем результат:", { hasSubscription });
     return { hasSubscription };
     
   } catch (error) {
     console.error("❌ getUserSubscriptionStatus: Ошибка:", error);
-    console.log("🔧 getUserSubscriptionStatus: Ошибка базы данных, возвращаем hasSubscription: false");
     return { hasSubscription: false };
   }
 }

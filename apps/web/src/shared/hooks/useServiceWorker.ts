@@ -89,12 +89,10 @@ export function useServiceWorker() {
       
       switch (data.type) {
         case 'NETWORK_STATUS_CHANGED':
-          console.log('🌐 SW: Network status changed:', data.isOnline);
           setOnlineStatus(data.isOnline);
           break;
           
         case 'NETWORK_RESTORED':
-          console.log('🔄 SW: Network restored, syncing...');
           // При восстановлении сети синхронизируем очередь
           setTimeout(() => {
             syncOfflineActions();
@@ -102,7 +100,6 @@ export function useServiceWorker() {
           break;
           
         case 'OFFLINE_ACTION_PROCESSED':
-          console.log('✅ SW: Offline action processed:', data.actionId);
           break;
           
         default:
