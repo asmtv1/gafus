@@ -56,8 +56,8 @@ COPY --from=base /app/apps/web/public ./apps/web/public
 # Копируем Prisma client и Query Engine
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
-# Удаляем ненужные файлы
-RUN rm -rf /app/node_modules/.pnpm
+# Копируем корневые зависимости, чтобы next/server.js и зависимости были доступны
+COPY --from=base /app/node_modules ./node_modules
 
 # Устанавливаем права доступа
 RUN chown -R nextjs:nodejs /app

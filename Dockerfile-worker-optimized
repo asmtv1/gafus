@@ -65,8 +65,8 @@ COPY --from=base /app/packages/types/node_modules ./packages/types/node_modules
 # Копируем Prisma client и Query Engine
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
-# Удаляем ненужные файлы
-RUN rm -rf /app/node_modules/.pnpm
+# Копируем корневые зависимости, чтобы сохранились pnpm-симлинки на workspace пакеты
+COPY --from=base /app/node_modules ./node_modules
 
 # Устанавливаем права доступа
 RUN chown -R worker:nodejs /app
