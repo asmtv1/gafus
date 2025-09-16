@@ -41,10 +41,10 @@ WORKDIR /app
 
 # Создаем пользователя
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN adduser --system --uid 1001 prisma
 
 # Устанавливаем только необходимые пакеты
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl postgresql-client
 
 # Копируем только собранное приложение
 COPY --from=base /app/packages/prisma/dist ./packages/prisma/dist
@@ -58,13 +58,8 @@ COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 RUN rm -rf /app/node_modules/.pnpm
 
 # Устанавливаем права доступа
-RUN chown -R nextjs:nodejs /app
-USER nextjs
+RUN chown -R prisma:nodejs /app
+USER prisma
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3006/api/ping || exit 1
-
-# Запускаем приложение
-EXPOSE 3006
-CMD ["node", "packages/prisma/dist/index.js"]
+# Запускаем приложение (Prisma CLI)
+CMD ["npx", "prisma", "migrate", "deploy"]
