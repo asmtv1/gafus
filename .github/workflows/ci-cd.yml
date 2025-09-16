@@ -39,8 +39,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
 
       - name: Cache pnpm store
         uses: actions/cache@v4
@@ -118,8 +116,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
 
       - name: Restore pnpm store cache
         uses: actions/cache@v4
@@ -183,8 +179,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
 
       - name: Restore pnpm store cache
         uses: actions/cache@v4
