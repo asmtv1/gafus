@@ -34,6 +34,8 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/ \;
 
 # Собираем приложение
+# Сначала собираем зависимость очередей, затем само приложение bull-board
+RUN pnpm build --filter @gafus/queues
 RUN pnpm build --filter @gafus/bull-board
 
 # Production stage - только runtime
@@ -51,6 +53,11 @@ RUN apk add --no-cache curl
 # Копируем только собранное приложение
 COPY --from=base /app/apps/bull-board/dist ./apps/bull-board/dist
 COPY --from=base /app/apps/bull-board/package.json ./apps/bull-board/package.json
+
+# Копируем пакет очередей и его зависимости для рантайма
+COPY --from=base /app/packages/queues ./packages/queues
+COPY --from=base /app/apps/bull-board/node_modules ./apps/bull-board/node_modules
+COPY --from=base /app/packages/queues/node_modules ./packages/queues/node_modules
 
 # Копируем Prisma client и Query Engine
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
