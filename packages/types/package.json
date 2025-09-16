@@ -9,6 +9,9 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "react-hook-form": "^7.53.2"
+  },
   "devDependencies": {
     "@types/node": "20.4.8",
     "rimraf": "5.0.1",

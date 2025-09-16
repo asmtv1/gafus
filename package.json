@@ -29,7 +29,7 @@
     "optimize:deps": "node scripts/remove-unused-deps.js",
     "optimize:imports": "node scripts/optimize-imports.js",
     "setup:env": "node scripts/setup-env.js",
-    "start": "node scripts/start-working.js",
+    "start": "node scripts/start-stable.js",
     "start:all": "node scripts/start-all.js",
     "start:basic": "node scripts/start-basic.js",
     "start:stable": "node scripts/start-stable.js",
