@@ -20,8 +20,13 @@ RUN pnpm install --frozen-lockfile
 COPY packages/*/tsconfig.json ./packages/*/
 COPY apps/bull-board/tsconfig.json ./apps/bull-board/
 
-# Генерируем Prisma client
-RUN cd packages/prisma && pnpm db:generate
+# Генерируем Prisma client (без ERD в контейнере)
+RUN cd packages/prisma \
+  && cp schema.prisma schema.prisma.bak \
+  && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
+  && mv schema.tmp schema.prisma \
+  && pnpm db:generate \
+  && mv schema.prisma.bak schema.prisma
 
 # Создаем папку для Prisma
 RUN mkdir -p /app/node_modules/.prisma
@@ -38,6 +43,9 @@ RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /
 RUN pnpm build --filter @gafus/queues
 RUN pnpm build --filter @gafus/bull-board
 
+# Готовим минимальный продовый пакет для bull-board
+RUN pnpm deploy --filter @gafus/bull-board /app/deploy --prod --no-optional
+
 # Production stage - только runtime
 FROM node:20-alpine AS runner
 
@@ -50,20 +58,8 @@ RUN adduser --system --uid 1001 nextjs
 # Устанавливаем только необходимые пакеты
 RUN apk add --no-cache curl
 
-# Копируем только собранное приложение
-COPY --from=base /app/apps/bull-board/dist ./apps/bull-board/dist
-COPY --from=base /app/apps/bull-board/package.json ./apps/bull-board/package.json
-
-# Копируем пакет очередей и его зависимости для рантайма
-COPY --from=base /app/packages/queues ./packages/queues
-COPY --from=base /app/apps/bull-board/node_modules ./apps/bull-board/node_modules
-COPY --from=base /app/packages/queues/node_modules ./packages/queues/node_modules
-
-# Копируем корневые зависимости, чтобы разрешились pnpm-симлинки
-COPY --from=base /app/node_modules ./node_modules
-
-# Копируем Prisma client и Query Engine
-COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
+# Копируем только минимальный деплой-пакет
+COPY --from=base /app/deploy/ ./
 
 # Не удаляем .pnpm, так как pnpm-симлинки зависят от неё
 
@@ -77,4 +73,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Запускаем приложение
 EXPOSE 3002
-CMD ["node", "apps/bull-board/dist/bull-board.js"]
+CMD ["node", "dist/bull-board.js"]

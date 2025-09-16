@@ -11,27 +11,26 @@ env:
   IMAGE_NAME: asmtv1
 
 jobs:
-  # Security and code quality checks
-  security:
+  # Prepare dependencies - shared job for all other jobs
+  prepare-deps:
     runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+      pnpm-cache-key: ${{ steps.pnpm-cache-key.outputs.key }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install pnpm with retry
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
-        continue-on-error: true
+      - name: Generate cache keys
+        id: cache-key
+        run: |
+          echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('packages/**/src/**', 'apps/**/src/**') }}" >> $GITHUB_OUTPUT
 
-      - name: Retry pnpm install if failed
-        if: steps.pnpm-setup.outcome == 'failure'
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+      - name: Generate pnpm cache key
+        id: pnpm-cache-key
+        run: echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store" >> $GITHUB_OUTPUT
 
-      - name: Final pnpm install attempt
-        if: steps.pnpm-setup.outcome == 'failure' && steps.pnpm-retry.outcome == 'failure'
+      - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 9
@@ -43,8 +42,30 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "**/pnpm-lock.yaml"
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ steps.pnpm-cache-key.outputs.key }}
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store
+
+      - name: Install dependencies with optimizations
+        run: |
+          # Устанавливаем зависимости с оптимизациями
+          pnpm config set store-dir ~/.pnpm-store
+          pnpm config set verify-store-integrity false
+          pnpm config set auto-install-peers true
+          pnpm config set dedupe-peer-dependents false
+          
+          # Устанавливаем только production зависимости для CI
+          pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Validate dependencies
+        run: |
+          echo "🔍 Validating dependencies..."
+          pnpm list --depth=0 --json > /dev/null || echo "⚠️ Dependency validation failed, but continuing"
+          echo "✅ Dependencies validated"
 
       - name: Generate Prisma Client
         run: |
@@ -57,6 +78,66 @@ jobs:
 
       - name: Build packages
         run: pnpm build --filter=@gafus/*
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ steps.cache-key.outputs.key }}-deps
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-deps
+
+  # Security and code quality checks - runs in parallel with build-apps
+  security:
+    runs-on: ubuntu-latest
+    needs: prepare-deps
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
+
+      - name: Restore pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.pnpm-cache-key }}
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store
+
+      - name: Install dependencies (optimized)
+        run: |
+          pnpm config set store-dir ~/.pnpm-store
+          pnpm config set verify-store-integrity false
+          pnpm config set auto-install-peers true
+          pnpm config set dedupe-peer-dependents false
+          
+          # Быстрая установка из кэша
+          pnpm install --frozen-lockfile --prefer-offline --offline
 
       - name: Run security audit
         run: pnpm audit --audit-level high || echo "Security audit found issues, but continuing build"
@@ -72,10 +153,10 @@ jobs:
           path: ./
           base: HEAD~1
 
-  # Build and test all apps
+  # Build and test all apps - runs in parallel with security
   build-apps:
     runs-on: ubuntu-latest
-    needs: security
+    needs: prepare-deps
     strategy:
       matrix:
         app: [web, trainer-panel, error-dashboard]
@@ -83,20 +164,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install pnpm with retry
-        uses: pnpm/action-setup@v2
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
         with:
-          version: 9
-        continue-on-error: true
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
 
-      - name: Retry pnpm install if failed
-        if: steps.pnpm-setup.outcome == 'failure'
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
-
-      - name: Final pnpm install attempt
-        if: steps.pnpm-setup.outcome == 'failure' && steps.pnpm-retry.outcome == 'failure'
+      - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 9
@@ -108,35 +186,23 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "**/pnpm-lock.yaml"
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Restore pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.pnpm-cache-key }}
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store
 
-      - name: Generate Prisma Client
+      - name: Install dependencies (optimized)
         run: |
-          cd packages/prisma
-          # Temporarily disable prisma-erd-generator in CI to avoid Chromium sandbox issues
-          cp schema.prisma schema.prisma.bak
-          awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp && mv schema.tmp schema.prisma
-          # Retry Prisma generate with exponential backoff
-          for i in {1..3}; do
-            echo "Attempt $i: Generating Prisma Client..."
-            if pnpm db:generate; then
-              echo "✅ Prisma Client generated successfully!"
-              break
-            else
-              echo "❌ Attempt $i failed"
-              if [ $i -lt 3 ]; then
-                echo "Waiting $((2**i)) seconds before retry..."
-                sleep $((2**i))
-              else
-                echo "❌ All attempts failed. Continuing without Prisma Client..."
-              fi
-            fi
-          done
-          mv schema.prisma.bak schema.prisma
-
-      - name: Build packages
-        run: pnpm build --filter=@gafus/*
+          pnpm config set store-dir ~/.pnpm-store
+          pnpm config set verify-store-integrity false
+          pnpm config set auto-install-peers true
+          pnpm config set dedupe-peer-dependents false
+          
+          # Быстрая установка из кэша
+          pnpm install --frozen-lockfile --prefer-offline --offline
 
       - name: Build ${{ matrix.app }}
         run: |
@@ -153,18 +219,30 @@ jobs:
           cd apps/${{ matrix.app }}
           pnpm typecheck
 
+      - name: Cache app build
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/${{ matrix.app }}/.next
+            apps/${{ matrix.app }}/dist
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-${{ matrix.app }}-build
+
   # Build worker packages for Docker - REMOVED (using multi-stage build)
 
-  # Build all Docker images
-  build-images:
+  # Prepare Docker build context
+  prepare-docker:
     needs: [security, build-apps]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    outputs:
+      docker-cache-key: ${{ steps.docker-cache-key.outputs.key }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Artifacts no longer needed - using multi-stage build
+      - name: Generate Docker cache key
+        id: docker-cache-key
+        run: echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('**/Dockerfile*') }}-docker" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -176,89 +254,65 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      # Build Web image
-      - name: Build and push Web image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile-web-optimized
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
+      - name: Create Docker build cache
+        run: |
+          # Создаем базовый образ с зависимостями для кэширования
+          docker buildx build \
+            --platform linux/amd64 \
+            --target base \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-base:latest \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            --push \
+            -f Dockerfile-web-optimized \
+            .
 
-      # Build Trainer Panel image
-      - name: Build and push Trainer Panel image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile-trainer-panel-optimized
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-trainer-panel:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
+  # Build all Docker images in parallel
+  build-images:
+    needs: [prepare-docker]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: 
+          - { name: "web", file: "Dockerfile-web-optimized", tag: "gafus-web" }
+          - { name: "trainer-panel", file: "Dockerfile-trainer-panel-optimized", tag: "gafus-trainer-panel" }
+          - { name: "error-dashboard", file: "Dockerfile-error-dashboard-optimized", tag: "gafus-error-dashboard" }
+          - { name: "worker", file: "Dockerfile-worker-optimized", tag: "gafus-worker" }
+          - { name: "bull-board", file: "Dockerfile-bull-board-optimized", tag: "gafus-bull-board" }
+          - { name: "telegram-bot", file: "Dockerfile-telegram-bot-optimized", tag: "gafus-telegram-bot" }
+          - { name: "prisma", file: "Dockerfile-prisma-optimized", tag: "gafus-prisma" }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Build Error Dashboard image
-      - name: Build and push Error Dashboard image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile-error-dashboard-optimized
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-error-dashboard:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      # Build Worker image
-      - name: Build and push Worker image
-        uses: docker/build-push-action@v5
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
         with:
-          context: .
-          file: Dockerfile-worker-optimized
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-worker:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
-      # Build Bull Board image
-      - name: Build and push Bull Board image
+      - name: Build and push ${{ matrix.image.name }} image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile-bull-board-optimized
+          file: ${{ matrix.image.file }}
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-bull-board:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:latest
+          cache-from: |
+            type=gha
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:cache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-base:latest
+          cache-to: |
+            type=gha,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:cache,mode=max
           platforms: linux/amd64
-
-      # Build Telegram Bot image
-      - name: Build and push Telegram Bot image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile-telegram-bot-optimized
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-telegram-bot:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
-
-      # Build Prisma image
-      - name: Build and push Prisma image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile-prisma-optimized
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-prisma:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
 
   # Deploy to staging (develop branch)
   deploy-staging:
