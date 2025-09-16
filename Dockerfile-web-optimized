@@ -53,11 +53,8 @@ COPY --from=base /app/apps/web/.next/standalone ./
 COPY --from=base /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=base /app/apps/web/public ./apps/web/public
 
-# Копируем Prisma client и Query Engine
+# Копируем Prisma client и Query Engine (оставляем .pnpm из standalone)
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
-
-# Копируем корневые зависимости, чтобы next/server.js и зависимости были доступны
-COPY --from=base /app/node_modules ./node_modules
 
 # Устанавливаем права доступа
 RUN chown -R nextjs:nodejs /app

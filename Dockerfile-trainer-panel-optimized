@@ -53,11 +53,8 @@ COPY --from=base /app/apps/trainer-panel/.next/standalone ./
 COPY --from=base /app/apps/trainer-panel/.next/static ./apps/trainer-panel/.next/static
 COPY --from=base /app/apps/trainer-panel/public ./apps/trainer-panel/public
 
-# Копируем Prisma client и Query Engine
+# Копируем Prisma client и Query Engine (standalone содержит свои зависимости)
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
-
-# Копируем корневые зависимости, чтобы next/server.js и зависимости были доступны
-COPY --from=base /app/node_modules ./node_modules
 
 # Устанавливаем права доступа
 RUN chown -R nextjs:nodejs /app
