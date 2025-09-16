@@ -18,8 +18,13 @@ RUN pnpm install --frozen-lockfile
 # Копируем tsconfig файлы
 COPY packages/*/tsconfig.json ./packages/*/
 
-# Генерируем Prisma client
-RUN cd packages/prisma && pnpm db:generate
+# Генерируем Prisma client (без ERD в контейнере)
+RUN cd packages/prisma \
+  && cp schema.prisma schema.prisma.bak \
+  && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
+  && mv schema.tmp schema.prisma \
+  && pnpm db:generate \
+  && mv schema.prisma.bak schema.prisma
 
 # Создаем папку для Prisma
 RUN mkdir -p /app/node_modules/.prisma
