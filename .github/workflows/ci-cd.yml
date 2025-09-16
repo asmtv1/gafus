@@ -392,14 +392,26 @@ jobs:
             docker rmi $(docker images -f "dangling=true" -q) 2>/dev/null || true
             docker rm $(docker ps -aq) 2>/dev/null || true
 
-            # Pull latest images from registry
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-trainer-panel:latest
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-error-dashboard:latest
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-worker:latest
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-bull-board:latest
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-telegram-bot:latest
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-prisma:latest
+            # Pull latest images from registry in parallel to speed up deployment
+            echo "📥 Pulling latest Docker images in parallel..."
+            pids=""
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest & pids="$pids $!"
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-trainer-panel:latest & pids="$pids $!"
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-error-dashboard:latest & pids="$pids $!"
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-worker:latest & pids="$pids $!"
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-bull-board:latest & pids="$pids $!"
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-telegram-bot:latest & pids="$pids $!"
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-prisma:latest & pids="$pids $!"
+            pull_failed=0
+            for pid in $pids; do
+              if ! wait $pid; then
+                pull_failed=1
+              fi
+            done
+            if [ "$pull_failed" -ne 0 ]; then
+              echo "❌ One or more docker pulls failed"
+              exit 1
+            fi
 
             # Images are now used directly from registry, no need to retag
 
