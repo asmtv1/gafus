@@ -77,4 +77,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Запускаем приложение
 EXPOSE 3002
-CMD ["node", "apps/bull-board/dist/index.js"]
+CMD ["node", "apps/bull-board/dist/bull-board.js"]
