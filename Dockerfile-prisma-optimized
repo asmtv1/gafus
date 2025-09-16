@@ -39,6 +39,9 @@ RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /
 # Собираем приложение
 RUN pnpm build --filter @gafus/prisma
 
+# Готовим минимальный продовый пакет для prisma (включая prisma CLI)
+RUN pnpm deploy --legacy --filter @gafus/prisma --prod --no-optional /app/deploy
+
 # Production stage - только runtime
 FROM node:20-alpine AS runner
 
@@ -48,19 +51,13 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 prisma
 
-# Устанавливаем только необходимые пакеты
-RUN apk add --no-cache curl postgresql-client
+# Устанавливаем только необходимые пакеты и pnpm через corepack
+RUN apk add --no-cache curl postgresql-client \
+  && corepack enable \
+  && corepack prepare pnpm@9.1.0 --activate
 
-# Копируем только собранное приложение
-COPY --from=base /app/packages/prisma/dist ./packages/prisma/dist
-COPY --from=base /app/packages/prisma/package.json ./packages/prisma/package.json
-COPY --from=base /app/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
-
-# Копируем Prisma client и Query Engine
-COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
-
-# Удаляем .pnpm папку для уменьшения размера
-RUN rm -rf /app/node_modules/.pnpm
+# Копируем минимальный деплой-пакет (с node_modules)
+COPY --from=base /app/deploy/ ./
 
 # Устанавливаем права доступа
 RUN chown -R prisma:nodejs /app

@@ -12,6 +12,7 @@
   "dependencies": {
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
+    "@prisma/client": "6.10.1",
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
