@@ -52,6 +52,17 @@ RUN apk add --no-cache curl
 COPY --from=base /app/apps/telegram-bot/dist ./apps/telegram-bot/dist
 COPY --from=base /app/apps/telegram-bot/package.json ./apps/telegram-bot/package.json
 
+# Копируем все необходимые пакеты
+COPY --from=base /app/packages/prisma ./packages/prisma
+COPY --from=base /app/packages/queues ./packages/queues
+COPY --from=base /app/packages/types ./packages/types
+
+# Копируем node_modules для всех пакетов
+COPY --from=base /app/apps/telegram-bot/node_modules ./apps/telegram-bot/node_modules
+COPY --from=base /app/packages/prisma/node_modules ./packages/prisma/node_modules
+COPY --from=base /app/packages/queues/node_modules ./packages/queues/node_modules
+COPY --from=base /app/packages/types/node_modules ./packages/types/node_modules
+
 # Копируем Prisma client и Query Engine
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 

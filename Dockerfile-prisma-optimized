@@ -62,4 +62,4 @@ RUN chown -R prisma:nodejs /app
 USER prisma
 
 # Запускаем приложение (Prisma CLI)
-CMD ["npx", "prisma", "migrate", "deploy"]
+CMD ["sleep", "infinity"]
