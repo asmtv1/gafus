@@ -44,7 +44,7 @@ RUN pnpm build --filter @gafus/queues
 RUN pnpm build --filter @gafus/bull-board
 
 # Готовим минимальный продовый пакет для bull-board
-RUN pnpm deploy --filter @gafus/bull-board /app/deploy --prod --no-optional
+RUN pnpm deploy --legacy --filter @gafus/bull-board --prod --no-optional /app/deploy
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner

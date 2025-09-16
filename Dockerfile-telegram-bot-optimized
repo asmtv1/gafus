@@ -20,8 +20,13 @@ RUN pnpm install --frozen-lockfile
 COPY packages/*/tsconfig.json ./packages/*/
 COPY apps/telegram-bot/tsconfig.json ./apps/telegram-bot/
 
-# Генерируем Prisma client
-RUN cd packages/prisma && pnpm db:generate
+# Генерируем Prisma client (без ERD в контейнере)
+RUN cd packages/prisma \
+  && cp schema.prisma schema.prisma.bak \
+  && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
+  && mv schema.tmp schema.prisma \
+  && pnpm db:generate \
+  && mv schema.prisma.bak schema.prisma
 
 # Создаем папку для Prisma
 RUN mkdir -p /app/node_modules/.prisma
@@ -52,19 +57,11 @@ RUN apk add --no-cache curl
 COPY --from=base /app/apps/telegram-bot/dist ./apps/telegram-bot/dist
 COPY --from=base /app/apps/telegram-bot/package.json ./apps/telegram-bot/package.json
 
-# Копируем все необходимые пакеты
-COPY --from=base /app/packages/prisma ./packages/prisma
-COPY --from=base /app/packages/queues ./packages/queues
-COPY --from=base /app/packages/types ./packages/types
+# Готовим минимальный продовый пакет для бота
+RUN pnpm deploy --legacy --filter @gafus/telegram-bot --prod --no-optional /app/deploy
 
-# Копируем node_modules для всех пакетов
-COPY --from=base /app/apps/telegram-bot/node_modules ./apps/telegram-bot/node_modules
-COPY --from=base /app/packages/prisma/node_modules ./packages/prisma/node_modules
-COPY --from=base /app/packages/queues/node_modules ./packages/queues/node_modules
-COPY --from=base /app/packages/types/node_modules ./packages/types/node_modules
-
-# Копируем Prisma client и Query Engine
-COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
+# Копируем только минимальный деплой-пакет
+COPY --from=base /app/deploy/ ./
 
 # Удаляем .pnpm папку для уменьшения размера
 RUN rm -rf /app/node_modules/.pnpm
@@ -74,4 +71,4 @@ RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 # Запускаем приложение
-CMD ["node", "apps/telegram-bot/dist/index.js"]
+CMD ["node", "dist/bot.js"]
