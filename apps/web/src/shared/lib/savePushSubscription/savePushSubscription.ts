@@ -16,15 +16,13 @@ import { authOptions } from "@gafus/auth";
 export async function savePushSubscription(subscription: PushSubscriptionJSON) {
   const userId = await getCurrentUserId();
   
-  console.log("savePushSubscription: userId from getCurrentUserId:", userId);
 
   // Проверяем существование пользователя
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true },
   });
-
-  console.log("savePushSubscription: user found:", user);
+  
 
   if (!user) {
     console.error("savePushSubscription: User not found in database, userId:", userId);
@@ -36,10 +34,8 @@ export async function savePushSubscription(subscription: PushSubscriptionJSON) {
         where: { username: session.user.username },
         select: { id: true },
       });
-      console.log("savePushSubscription: user found by username:", userByUsername);
       
       if (userByUsername) {
-        console.log("savePushSubscription: Using user ID from username lookup:", userByUsername.id);
         // Используем правильный ID
         const correctUserId = userByUsername.id;
         

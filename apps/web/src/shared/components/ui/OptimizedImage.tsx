@@ -48,7 +48,6 @@ export default function OptimizedImage({
     
     // В Safari попробуем перезагрузить изображение несколько раз
     if (isSafariBrowser && retryCount < 2) {
-      console.log(`🔄 OptimizedImage: Safari - попытка перезагрузки ${retryCount + 1}/2: ${src}`);
       setRetryCount(prev => prev + 1);
       setImgError(false); // Сбрасываем ошибку для повторной попытки
       return;
@@ -61,13 +60,10 @@ export default function OptimizedImage({
   // Специальная обработка для Safari
   useEffect(() => {
     if (isSafariBrowser && src && !imgError) {
-      console.log(`🔧 OptimizedImage: Safari - проверяем изображение: ${src}`);
       
       // В Safari иногда нужно принудительно перезагрузить изображение
       const img = new window.Image();
-      img.onload = () => {
-        console.log(`✅ OptimizedImage: Safari - изображение загружено: ${src}`);
-      };
+      img.onload = () => {};
       img.onerror = () => {
         console.warn(`⚠️ OptimizedImage: Safari - изображение не загрузилось: ${src}`);
         // Не устанавливаем ошибку сразу, даем шанс Next.js Image
