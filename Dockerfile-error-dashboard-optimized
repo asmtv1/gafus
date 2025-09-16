@@ -35,8 +35,8 @@ RUN mkdir -p /app/node_modules/.prisma
 RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
 RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
 
-# Копируем Prisma Query Engine
-RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/ \;
+# Копируем Prisma Query Engine рядом с клиентом (ожидаемое Prisma расположение)
+RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
 
 # Собираем приложение
 RUN pnpm build --filter @gafus/error-dashboard
@@ -60,15 +60,18 @@ COPY --from=base /app/apps/error-dashboard/.next/static ./apps/error-dashboard/.
 # Копируем Prisma client и Query Engine
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
+# Дублируем Prisma client рядом с приложением (для поиска движка рантаймом)
+RUN mkdir -p ./apps/error-dashboard/.prisma && cp -r ./node_modules/.prisma/client ./apps/error-dashboard/.prisma/client
+
 # Для standalone не требуется корневой node_modules — он уже внутри standalone
 
 # Устанавливаем права доступа
 RUN chown -R nextjs:nodejs /app
 USER nextjs
 
-# Health check
+# Health check (используем hostname, т.к. сервис слушает не на loopback)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3002/api/ping || exit 1
+  CMD sh -c 'curl -fsS http://$HOSTNAME:3005/api/ping || exit 1'
 
 # Запускаем приложение
 EXPOSE 3002

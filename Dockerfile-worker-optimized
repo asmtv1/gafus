@@ -67,8 +67,10 @@ COPY --from=base /app/packages/queues/node_modules ./packages/queues/node_module
 COPY --from=base /app/packages/webpush/node_modules ./packages/webpush/node_modules
 COPY --from=base /app/packages/types/node_modules ./packages/types/node_modules
 
-# Копируем Prisma client и Query Engine
+# Копируем Prisma client и Query Engine (и кладём движок рядом с клиентом)
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
+RUN mkdir -p ./node_modules/.prisma/client && \
+  find ./node_modules/.prisma -maxdepth 1 -name "libquery_engine-*" -type f -exec cp {} ./node_modules/.prisma/client/ \;
 
 # Создаём минимальные алиасы в node_modules для workspace пакетов
 RUN mkdir -p /app/node_modules/@gafus \
