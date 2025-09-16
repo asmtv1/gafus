@@ -7,10 +7,11 @@
     "jsx": "preserve",
     "strict": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
 
-    "declaration": false,
+    "declaration": true,
     "declarationMap": false,
     "outDir": "dist",
     "rootDir": "src",
