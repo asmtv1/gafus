@@ -250,6 +250,9 @@ importers:
       '@gafus/queues':
         specifier: workspace:*
         version: link:../../packages/queues
+      '@prisma/client':
+        specifier: 6.10.1
+        version: 6.10.1(prisma@6.9.0(typescript@5.8.3))(typescript@5.8.3)
       telegraf:
         specifier: ^4.16.3
         version: 4.16.3
@@ -577,19 +580,19 @@ importers:
 
   packages/prisma:
     dependencies:
-      bcrypt:
-        specifier: 6.0.0
-        version: 6.0.0
-    devDependencies:
       '@prisma/client':
         specifier: 6.10.1
         version: 6.10.1(prisma@6.9.0(typescript@5.8.3))(typescript@5.8.3)
-      '@types/node':
-        specifier: 20.4.8
-        version: 20.4.8
+      bcrypt:
+        specifier: 6.0.0
+        version: 6.0.0
       prisma:
         specifier: 6.9.0
         version: 6.9.0(typescript@5.8.3)
+    devDependencies:
+      '@types/node':
+        specifier: 20.4.8
+        version: 20.4.8
       prisma-erd-generator:
         specifier: ^2.1.0
         version: 2.1.0(@babel/core@7.28.4)(@babel/template@7.27.2)(@prisma/client@6.10.1(prisma@6.9.0(typescript@5.8.3))(typescript@5.8.3))(@types/react@19.1.9)(puppeteer@23.11.1(typescript@5.8.3))

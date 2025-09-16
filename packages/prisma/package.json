@@ -15,12 +15,12 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "bcrypt": "6.0.0"
+    "bcrypt": "6.0.0",
+    "@prisma/client": "6.10.1",
+    "prisma": "6.9.0"
   },
   "devDependencies": {
-    "@prisma/client": "6.10.1",
     "@types/node": "20.4.8",
-    "prisma": "6.9.0",
     "prisma-erd-generator": "^2.1.0",
     "rimraf": "5.0.1",
     "tsx": "4.19.0",

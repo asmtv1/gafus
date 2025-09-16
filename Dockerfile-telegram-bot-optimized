@@ -41,6 +41,12 @@ RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /
 # Собираем приложение
 RUN pnpm build --filter @gafus/telegram-bot
 
+# Готовим минимальный продовый пакет для бота
+RUN pnpm deploy --legacy --filter @gafus/telegram-bot --prod --no-optional /app/deploy
+# Переносим сгенерированный Prisma Client в продовый пакет
+RUN mkdir -p /app/deploy/node_modules/.prisma \
+  && cp -r /app/node_modules/.prisma/* /app/deploy/node_modules/.prisma/
+
 # Production stage - только runtime
 FROM node:20-alpine AS runner
 
@@ -50,25 +56,20 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Устанавливаем только необходимые пакеты
-RUN apk add --no-cache curl
+# Устанавливаем только необходимые пакеты и pnpm через corepack
+RUN apk add --no-cache curl \
+  && corepack enable \
+  && corepack prepare pnpm@9.1.0 --activate
 
-# Копируем только собранное приложение
-COPY --from=base /app/apps/telegram-bot/dist ./apps/telegram-bot/dist
-COPY --from=base /app/apps/telegram-bot/package.json ./apps/telegram-bot/package.json
+# Готовим и копируем минимальный продовый пакет для бота
+COPY --from=base /app/deploy ./
 
-# Готовим минимальный продовый пакет для бота
-RUN pnpm deploy --legacy --filter @gafus/telegram-bot --prod --no-optional /app/deploy
-
-# Копируем только минимальный деплой-пакет
-COPY --from=base /app/deploy/ ./
-
-# Удаляем .pnpm папку для уменьшения размера
-RUN rm -rf /app/node_modules/.pnpm
+# Копируем скомпилированный JS (dist) из base-стадии в корень
+COPY --from=base /app/apps/telegram-bot/dist ./dist
 
 # Устанавливаем права доступа
 RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 # Запускаем приложение
-CMD ["node", "dist/bot.js"]
+CMD ["node", "dist/apps/telegram-bot/bot.js"]
