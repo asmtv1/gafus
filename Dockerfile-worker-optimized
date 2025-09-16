@@ -65,8 +65,11 @@ COPY --from=base /app/packages/types/node_modules ./packages/types/node_modules
 # Копируем Prisma client и Query Engine
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
-# Копируем корневые зависимости, чтобы сохранились pnpm-симлинки на workspace пакеты
-COPY --from=base /app/node_modules ./node_modules
+# Создаём минимальные алиасы в node_modules для workspace пакетов
+RUN mkdir -p /app/node_modules/@gafus \
+  && ln -s /app/packages/prisma /app/node_modules/@gafus/prisma \
+  && ln -s /app/packages/queues /app/node_modules/@gafus/queues \
+  && ln -s /app/packages/types /app/node_modules/@gafus/types
 
 # Устанавливаем права доступа
 RUN chown -R worker:nodejs /app

@@ -55,8 +55,7 @@ COPY --from=base /app/apps/error-dashboard/.next/static ./apps/error-dashboard/.
 # Копируем Prisma client и Query Engine
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
-# Копируем корневые зависимости, чтобы next/server.js и зависимости были доступны
-COPY --from=base /app/node_modules ./node_modules
+# Для standalone не требуется корневой node_modules — он уже внутри standalone
 
 # Устанавливаем права доступа
 RUN chown -R nextjs:nodejs /app
