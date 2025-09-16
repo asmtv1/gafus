@@ -94,22 +94,22 @@ jobs:
 
             # Pull latest images from registry (используем существующие образы)
             echo "📥 Pulling latest Docker images..."
-            docker pull ghcr.io/${{ github.actor }}/gafus-web:latest
-            docker pull ghcr.io/${{ github.actor }}/gafus-trainer-panel:latest
-            docker pull ghcr.io/${{ github.actor }}/gafus-error-dashboard:latest
-            docker pull ghcr.io/${{ github.actor }}/gafus-worker:latest
-            docker pull ghcr.io/${{ github.actor }}/gafus-bull-board:latest
-            docker pull ghcr.io/${{ github.actor }}/gafus-telegram-bot:latest
-            docker pull ghcr.io/${{ github.actor }}/gafus-prisma:latest
+            docker pull ghcr.io/asmtv1/gafus-web:latest
+            docker pull ghcr.io/asmtv1/gafus-trainer-panel:latest
+            docker pull ghcr.io/asmtv1/gafus-error-dashboard:latest
+            docker pull ghcr.io/asmtv1/gafus-worker:latest
+            docker pull ghcr.io/asmtv1/gafus-bull-board:latest
+            docker pull ghcr.io/asmtv1/gafus-telegram-bot:latest
+            docker pull ghcr.io/asmtv1/gafus-prisma:latest
 
             # Tag images for local use
-            docker tag ghcr.io/${{ github.actor }}/gafus-web:latest gafus-web:latest
-            docker tag ghcr.io/${{ github.actor }}/gafus-trainer-panel:latest trainer-panel:latest
-            docker tag ghcr.io/${{ github.actor }}/gafus-error-dashboard:latest error-dashboard:latest
-            docker tag ghcr.io/${{ github.actor }}/gafus-worker:latest gafus-worker:latest
-            docker tag ghcr.io/${{ github.actor }}/gafus-bull-board:latest gafus-bull-board:latest
-            docker tag ghcr.io/${{ github.actor }}/gafus-telegram-bot:latest gafus-telegram-bot:latest
-            docker tag ghcr.io/${{ github.actor }}/gafus-prisma:latest gafus-prisma:latest
+            docker tag ghcr.io/asmtv1/gafus-web:latest gafus-web:latest
+            docker tag ghcr.io/asmtv1/gafus-trainer-panel:latest trainer-panel:latest
+            docker tag ghcr.io/asmtv1/gafus-error-dashboard:latest error-dashboard:latest
+            docker tag ghcr.io/asmtv1/gafus-worker:latest gafus-worker:latest
+            docker tag ghcr.io/asmtv1/gafus-bull-board:latest gafus-bull-board:latest
+            docker tag ghcr.io/asmtv1/gafus-telegram-bot:latest gafus-telegram-bot:latest
+            docker tag ghcr.io/asmtv1/gafus-prisma:latest gafus-prisma:latest
 
             # Start services
             echo "🚀 Starting services..."

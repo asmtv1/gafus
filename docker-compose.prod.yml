@@ -35,9 +35,6 @@ services:
 
   # Web Application
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile-web
     image: ghcr.io/asmtv1/gafus-web:latest
     container_name: gafus-web
     environment:
@@ -110,9 +107,6 @@ services:
 
   # Prisma Database Management
   prisma:
-    build:
-      context: .
-      dockerfile: Dockerfile-prisma
     image: ghcr.io/asmtv1/gafus-prisma:latest
     container_name: gafus-prisma
     environment:
@@ -162,9 +156,6 @@ services:
 
   # Telegram Bot
   telegram-bot:
-    build:
-      context: .
-      dockerfile: Dockerfile-telegram-bot
     image: ghcr.io/asmtv1/gafus-telegram-bot:latest
     container_name: gafus-telegram-bot
     environment:

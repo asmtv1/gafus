@@ -1,0 +1,71 @@
+# Base stage - для сборки
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+# Включаем pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Копируем файлы конфигурации
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+
+# Копируем исходный код
+COPY packages ./packages
+
+# Устанавливаем зависимости
+RUN pnpm install --frozen-lockfile
+
+# Копируем tsconfig файлы
+COPY packages/*/tsconfig.json ./packages/*/
+
+# Генерируем Prisma client
+RUN cd packages/prisma && pnpm db:generate
+
+# Создаем папку для Prisma
+RUN mkdir -p /app/node_modules/.prisma
+
+# Копируем Prisma client
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
+
+# Копируем Prisma Query Engine
+RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/ \;
+
+# Собираем worker пакет
+RUN pnpm build --filter @gafus/worker
+
+# Production stage - только runtime
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Создаем пользователя
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 worker
+
+# Устанавливаем только необходимые пакеты
+RUN apk add --no-cache curl
+
+# Копируем собранный worker
+COPY --from=base /app/packages/worker/dist ./dist
+
+# Копируем только необходимые зависимости
+COPY --from=base /app/packages/worker/node_modules ./node_modules
+
+# Копируем Prisma client и Query Engine
+COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
+
+# Удаляем ненужные файлы
+RUN rm -rf /app/node_modules/.pnpm
+
+# Устанавливаем права доступа
+RUN chown -R worker:nodejs /app
+USER worker
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3001/health || exit 1
+
+# Запускаем worker
+EXPOSE 3001
+CMD ["node", "dist/worker/src/index.js"]
