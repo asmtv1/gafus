@@ -93,15 +93,26 @@ jobs:
             docker container prune -f
             docker image prune -f
 
-            # Pull latest images from registry (используем существующие образы)
-            echo "📥 Pulling latest Docker images..."
-            docker pull ghcr.io/asmtv1/gafus-web:latest
-            docker pull ghcr.io/asmtv1/gafus-trainer-panel:latest
-            docker pull ghcr.io/asmtv1/gafus-error-dashboard:latest
-            docker pull ghcr.io/asmtv1/gafus-worker:latest
-            docker pull ghcr.io/asmtv1/gafus-bull-board:latest
-            docker pull ghcr.io/asmtv1/gafus-telegram-bot:latest
-            docker pull ghcr.io/asmtv1/gafus-prisma:latest
+            # Pull latest images from registry in parallel (используем существующие образы)
+            echo "📥 Pulling latest Docker images in parallel..."
+            pids=""
+            docker pull ghcr.io/asmtv1/gafus-web:latest & pids="$pids $!"
+            docker pull ghcr.io/asmtv1/gafus-trainer-panel:latest & pids="$pids $!"
+            docker pull ghcr.io/asmtv1/gafus-error-dashboard:latest & pids="$pids $!"
+            docker pull ghcr.io/asmtv1/gafus-worker:latest & pids="$pids $!"
+            docker pull ghcr.io/asmtv1/gafus-bull-board:latest & pids="$pids $!"
+            docker pull ghcr.io/asmtv1/gafus-telegram-bot:latest & pids="$pids $!"
+            docker pull ghcr.io/asmtv1/gafus-prisma:latest & pids="$pids $!"
+            pull_failed=0
+            for pid in $pids; do
+              if ! wait $pid; then
+                pull_failed=1
+              fi
+            done
+            if [ "$pull_failed" -ne 0 ]; then
+              echo "❌ One or more docker pulls failed"
+              exit 1
+            fi
 
             # Tag images for local use
             docker tag ghcr.io/asmtv1/gafus-web:latest gafus-web:latest
