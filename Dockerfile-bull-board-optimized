@@ -64,8 +64,8 @@ USER nextjs
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3004/api/ping || exit 1
+  CMD curl -f http://localhost:3002/health || exit 1
 
 # Запускаем приложение
-EXPOSE 3004
+EXPOSE 3002
 CMD ["node", "apps/bull-board/dist/index.js"]
