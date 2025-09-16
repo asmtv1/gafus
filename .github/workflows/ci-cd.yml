@@ -175,7 +175,7 @@ jobs:
           context: .
           file: Dockerfile-web-optimized
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/gafus-web:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -187,7 +187,7 @@ jobs:
           context: .
           file: Dockerfile-trainer-panel-optimized
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/gafus-trainer-panel:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-trainer-panel:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -199,7 +199,7 @@ jobs:
           context: .
           file: Dockerfile-error-dashboard-optimized
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/gafus-error-dashboard:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-error-dashboard:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -211,7 +211,7 @@ jobs:
           context: .
           file: Dockerfile-worker-optimized
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/gafus-worker:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-worker:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -223,7 +223,7 @@ jobs:
           context: .
           file: Dockerfile-bull-board-optimized
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/gafus-bull-board:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-bull-board:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -235,7 +235,7 @@ jobs:
           context: .
           file: Dockerfile-telegram-bot-optimized
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/gafus-telegram-bot:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-telegram-bot:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -247,7 +247,7 @@ jobs:
           context: .
           file: Dockerfile-prisma-optimized
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/gafus-prisma:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-prisma:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
