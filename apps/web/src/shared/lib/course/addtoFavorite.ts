@@ -18,6 +18,8 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
       },
     });
 
+    let isFavorite: boolean;
+
     if (existing) {
       await prisma.favoriteCourse.delete({
         where: {
@@ -27,7 +29,7 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
           },
         },
       });
-      return false; // больше не в избранном
+      isFavorite = false; // больше не в избранном
     } else {
       await prisma.favoriteCourse.create({
         data: {
@@ -35,7 +37,7 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
           courseId,
         },
       });
-      return true; // теперь в избранном
+      isFavorite = true; // теперь в избранном
     }
     
     // Инвалидируем кэш прогресса пользователя
@@ -44,6 +46,8 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
     if (cacheResult.skipped) {
       console.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`);
     }
+    
+    return isFavorite;
     
   } catch (error) {
     console.error("Ошибка в toggleFavoriteCourse:", error);
