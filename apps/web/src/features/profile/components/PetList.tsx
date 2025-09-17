@@ -16,7 +16,7 @@ import type { PublicProfile, PetFormData } from "@gafus/types";
 
 type PetFromPublicProfile = PublicProfile['pets'][0];
 
-import { getAgeWithMonths, declOfNum } from "@/utils";
+import { getAgeWithDays, declOfNum } from "@/utils";
 import { Avatar, IconButton } from "@/utils/muiImports";
 import { getPetTypeLabel } from "@/utils/petType";
 
@@ -128,19 +128,45 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
         <p>Порода: {pet.breed}</p>
 
         {pet.birthDate && (() => {
-          const age = getAgeWithMonths(
+          const age = getAgeWithDays(
             pet.birthDate instanceof Date ? pet.birthDate.toISOString() : pet.birthDate,
           );
-          return (
-            <p>
-              Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
-              {age.months > 0 && (
-                <>
-                  {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-                </>
-              )}
-            </p>
-          );
+          
+          // Если меньше года, показываем месяцы и дни
+          if (age.years === 0) {
+            if (age.months === 0) {
+              // Только дни
+              return (
+                <p>
+                  Возраст: {age.days} {declOfNum(age.days, ["день", "дня", "дней"])}
+                </p>
+              );
+            } else {
+              // Месяцы и дни
+              return (
+                <p>
+                  Возраст: {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
+                  {age.days > 0 && (
+                    <>
+                      {age.days} {declOfNum(age.days, ["день", "дня", "дней"])}
+                    </>
+                  )}
+                </p>
+              );
+            }
+          } else {
+            // Годы и месяцы
+            return (
+              <p>
+                Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
+                {age.months > 0 && (
+                  <>
+                    {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
+                  </>
+                )}
+              </p>
+            );
+          }
         })()}
         {pet.heightCm && <p>Рост: {pet.heightCm} см</p>}
         {pet.weightKg && <p>Вес: {pet.weightKg} кг</p>}
