@@ -8,6 +8,7 @@ export * from "./calculateDuration";
 export * from "./date";
 export * from "./getAge";
 export * from "./getAgeWithMonths";
+export * from "./getAgeWithDays";
 
 // утилиты для работы с текстом
 export * from "./pluralize";
