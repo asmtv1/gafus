@@ -87,7 +87,7 @@
   margin: -46px auto 16px;
   display: block;
   position: relative;
-  right: -15px;
+  right: -20px;
 }
 
 .subtitle {
@@ -104,7 +104,7 @@
 .speechBubble {
   position: relative;
   top: -118px;
-  left: -40px;
+  left: -25px;
   background-color: #f5f0d8;
   border-radius: 20px;
   padding: 10px 10px;
