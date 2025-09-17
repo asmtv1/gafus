@@ -1,0 +1,75 @@
+# Base stage - для сборки
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+# Включаем pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Копируем файлы конфигурации
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+
+# Копируем исходный код
+COPY packages ./packages
+COPY apps/telegram-bot ./apps/telegram-bot
+
+# Устанавливаем зависимости
+RUN pnpm install --frozen-lockfile
+
+# Копируем tsconfig файлы
+COPY packages/*/tsconfig.json ./packages/*/
+COPY apps/telegram-bot/tsconfig.json ./apps/telegram-bot/
+
+# Генерируем Prisma client (без ERD в контейнере)
+RUN cd packages/prisma \
+  && cp schema.prisma schema.prisma.bak \
+  && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
+  && mv schema.tmp schema.prisma \
+  && pnpm db:generate \
+  && mv schema.prisma.bak schema.prisma
+
+# Создаем папку для Prisma
+RUN mkdir -p /app/node_modules/.prisma
+
+# Копируем Prisma client
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
+
+# Копируем Prisma Query Engine
+RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/ \;
+
+# Собираем приложение
+RUN pnpm build --filter @gafus/telegram-bot
+
+# Готовим минимальный продовый пакет для бота
+RUN pnpm deploy --legacy --filter @gafus/telegram-bot --prod --no-optional /app/deploy
+# Переносим сгенерированный Prisma Client в продовый пакет
+RUN mkdir -p /app/deploy/node_modules/.prisma \
+  && cp -r /app/node_modules/.prisma/* /app/deploy/node_modules/.prisma/
+
+# Production stage - только runtime
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Создаем пользователя
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Устанавливаем только необходимые пакеты и pnpm через corepack
+RUN apk add --no-cache curl \
+  && corepack enable \
+  && corepack prepare pnpm@9.1.0 --activate
+
+# Готовим и копируем минимальный продовый пакет для бота
+COPY --from=base /app/deploy ./
+
+# Копируем скомпилированный JS (dist) из base-стадии в корень
+COPY --from=base /app/apps/telegram-bot/dist ./dist
+
+# Устанавливаем права доступа
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+# Запускаем приложение
+CMD ["node", "dist/apps/telegram-bot/bot.js"]

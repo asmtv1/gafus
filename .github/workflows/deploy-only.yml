@@ -86,10 +86,10 @@ jobs:
             chmod -R 755 packages/public-assets/public/uploads/
 
             # Создаем бэкап БД на Яндекс.Диск перед остановкой
-            ./scripts/backup-to-yandex.sh || echo "⚠️ Бэкап на Яндекс.Диск не удался, продолжаем деплой"
+            ./ci-cd/scripts/backup-to-yandex.sh || echo "⚠️ Бэкап на Яндекс.Диск не удался, продолжаем деплой"
             
             # Stop existing containers and clean up (сохраняем volumes для БД)
-            docker-compose -f docker-compose.prod.yml down --remove-orphans || true
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml down --remove-orphans || true
             docker container prune -f
             docker image prune -f
 
@@ -125,20 +125,20 @@ jobs:
 
             # Start services
             echo "🚀 Starting services..."
-            docker-compose -f docker-compose.prod.yml up -d --force-recreate
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate
 
             # Wait for services to be ready
             sleep 15
 
             # Run Prisma migrations
             echo "🗄️ Running Prisma migrations..."
-            docker-compose -f docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
 
             # Run migrations using the dedicated Prisma container
-            docker-compose -f docker-compose.prod.yml exec -T prisma pnpm run prisma:migrate:deploy || echo "Migrations failed, continuing..."
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run prisma:migrate:deploy || echo "Migrations failed, continuing..."
 
             # Check service health
-            if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
+            if docker-compose -f ci-cd/docker/docker-compose.prod.yml ps | grep -q "Up"; then
               echo "✅ Deployment completed successfully!"
               
                           # Clean up unused images and containers
