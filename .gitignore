@@ -14,6 +14,9 @@ npm-shrinkwrap.json
 .env.test.local
 .env.production.local
 
+# GitHub tokens and secrets
+ci-cd/configs/github-token.env
+
 # Build outputs
 dist
 build

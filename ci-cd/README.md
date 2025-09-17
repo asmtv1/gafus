@@ -21,7 +21,9 @@ ci-cd/
 │   ├── test-docker-build.sh      # Тест сборки Docker образов
 │   └── test-web-docker.sh        # Быстрый тест web приложения
 ├── configs/                   # Конфигурационные файлы
-│   └── environment.yml            # Переменные окружения
+│   ├── environment.yml            # Переменные окружения
+│   ├── github-token.env           # GitHub токен (не в git)
+│   └── IDE_SETUP.md               # Инструкции по настройке IDE
 └── README.md                  # Этот файл
 ```
 
@@ -52,6 +54,16 @@ ci-cd/nginx/nginx.conf
 
 # Конфигурация виртуальных хостов
 ci-cd/nginx/conf.d/gafus.ru.conf
+```
+
+### Настройка GitHub токена
+```bash
+# Автоматическая настройка
+./ci-cd/scripts/setup-github-token.sh
+
+# Ручная настройка
+source ci-cd/configs/github-token.env
+echo "$GITHUB_TOKEN" | gh auth login --with-token
 ```
 
 ## 🔧 GitHub Actions
