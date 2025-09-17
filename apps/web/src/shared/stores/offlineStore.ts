@@ -365,7 +365,8 @@ export function initializeOfflineStore() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
         
-        const fetchPromise = originalFetch(...args, {
+        const fetchPromise = originalFetch(args[0], {
+          ...args[1],
           signal: controller.signal,
         });
         
