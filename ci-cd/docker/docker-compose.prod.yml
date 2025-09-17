@@ -185,6 +185,12 @@ services:
       - ./certbot/www:/var/www/certbot:ro
     command: >
       sh -c "
+        # Копируем статические файлы в volume, если их там нет
+        if [ ! -f /var/www/uploads/avatar.svg ]; then
+          cp -r /var/www/public-assets/uploads/* /var/www/uploads/ 2>/dev/null || true
+        fi &&
+        # Создаем симлинк для совместимости с приложениями
+        rm -rf /var/www/public-assets/uploads &&
         ln -sf /var/www/uploads /var/www/public-assets/uploads &&
         nginx -g 'daemon off;'
       "
