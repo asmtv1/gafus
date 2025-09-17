@@ -3,6 +3,10 @@ FROM node:20-alpine AS base
 
 WORKDIR /app
 
+# Настройки для Prisma (используем кэшированные бинарные файлы)
+ENV PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3.0.x
+ENV PRISMA_QUERY_ENGINE_LIBRARY=/app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node
+
 # Включаем pnpm
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
@@ -20,12 +24,12 @@ RUN pnpm install --frozen-lockfile
 COPY packages/*/tsconfig.json ./packages/*/
 COPY apps/bull-board/tsconfig.json ./apps/bull-board/
 
-# Генерируем Prisma client (без ERD в контейнере)
+# Генерируем Prisma client (без ERD в контейнере) с retry
 RUN cd packages/prisma \
   && cp schema.prisma schema.prisma.bak \
   && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
   && mv schema.tmp schema.prisma \
-  && pnpm db:generate \
+  && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
   && mv schema.prisma.bak schema.prisma
 
 # Создаем папку для Prisma
