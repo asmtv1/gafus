@@ -36,8 +36,8 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 # Копируем Prisma Query Engine
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/ \;
 
-# Собираем worker пакет
-RUN pnpm build --filter @gafus/worker
+# Собираем все пакеты
+RUN pnpm build --filter @gafus/worker --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/types
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
@@ -51,14 +51,19 @@ RUN adduser --system --uid 1001 worker
 # Устанавливаем только необходимые пакеты
 RUN apk add --no-cache curl
 
-# Копируем собранный worker
-COPY --from=base /app/packages/worker/dist ./dist
+# Копируем собранные пакеты
+COPY --from=base /app/packages/worker/dist ./packages/worker/dist
+COPY --from=base /app/packages/prisma/dist ./packages/prisma/dist
+COPY --from=base /app/packages/queues/dist ./packages/queues/dist
+COPY --from=base /app/packages/webpush/dist ./packages/webpush/dist
+COPY --from=base /app/packages/types/dist ./packages/types/dist
 
-# Копируем все необходимые пакеты
-COPY --from=base /app/packages/prisma ./packages/prisma
-COPY --from=base /app/packages/queues ./packages/queues
-COPY --from=base /app/packages/webpush ./packages/webpush
-COPY --from=base /app/packages/types ./packages/types
+# Копируем package.json файлы
+COPY --from=base /app/packages/worker/package.json ./packages/worker/package.json
+COPY --from=base /app/packages/prisma/package.json ./packages/prisma/package.json
+COPY --from=base /app/packages/queues/package.json ./packages/queues/package.json
+COPY --from=base /app/packages/webpush/package.json ./packages/webpush/package.json
+COPY --from=base /app/packages/types/package.json ./packages/types/package.json
 
 # Копируем node_modules для всех пакетов
 COPY --from=base /app/packages/worker/node_modules ./packages/worker/node_modules
@@ -72,15 +77,16 @@ COPY --from=base /app/node_modules/.pnpm ./node_modules/.pnpm
 RUN mkdir -p ./node_modules/@prisma && \
   find ./node_modules/.pnpm -name "@prisma" -type d -exec cp -r {}/client ./node_modules/@prisma/ \;
 
-# Копируем Prisma client и Query Engine (и кладём движок рядом с клиентом)
+# Копируем Prisma client и Query Engine
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 RUN mkdir -p ./node_modules/.prisma/client && \
   find ./node_modules/.prisma -maxdepth 1 -name "libquery_engine-*" -type f -exec cp {} ./node_modules/.prisma/client/ \;
 
-# Создаём минимальные алиасы в node_modules для workspace пакетов
+# Создаём алиасы в node_modules для workspace пакетов
 RUN mkdir -p /app/node_modules/@gafus \
   && ln -s /app/packages/prisma /app/node_modules/@gafus/prisma \
   && ln -s /app/packages/queues /app/node_modules/@gafus/queues \
+  && ln -s /app/packages/webpush /app/node_modules/@gafus/webpush \
   && ln -s /app/packages/types /app/node_modules/@gafus/types
 
 # Устанавливаем права доступа
@@ -88,4 +94,4 @@ RUN chown -R worker:nodejs /app
 USER worker
 
 # Запускаем worker
-CMD ["node", "dist/worker/src/index.js"]
+CMD ["node", "packages/worker/dist/worker/src/index.js"]
