@@ -23,7 +23,7 @@ RUN cd packages/prisma \
   && cp schema.prisma schema.prisma.bak \
   && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
   && mv schema.tmp schema.prisma \
-  && pnpm db:generate \
+  && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
   && mv schema.prisma.bak schema.prisma
 
 # Собираем все пакеты
