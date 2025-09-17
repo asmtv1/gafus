@@ -63,16 +63,11 @@ RUN npm init -y && \
     web-push@3.6.6 \
     @prisma/client@6.10.1
 
-# Копируем Prisma client полностью из base stage
+# Копируем весь сгенерированный Prisma client из base stage
 COPY --from=base /app/node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/@prisma ./node_modules/@prisma
 
-# Копируем Prisma schema и генерируем client (без ERD)
+# Копируем Prisma schema
 COPY --from=base /app/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
-RUN cp packages/prisma/schema.prisma packages/prisma/schema.prisma.bak && \
-    awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' packages/prisma/schema.prisma > packages/prisma/schema.tmp && \
-    mv packages/prisma/schema.tmp packages/prisma/schema.prisma && \
-    npx prisma generate --schema=./packages/prisma/schema.prisma && \
-    mv packages/prisma/schema.prisma.bak packages/prisma/schema.prisma
 
 # Создаём алиасы в node_modules для workspace пакетов
 RUN mkdir -p /app/node_modules/@gafus \
