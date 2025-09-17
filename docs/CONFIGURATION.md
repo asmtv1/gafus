@@ -287,7 +287,7 @@ server {
     
     # Базовая аутентификация
     auth_basic "Error Dashboard";
-    auth_basic_user_file /etc/nginx/.htpasswd;
+    auth_basic_user_file /etc/ci-cd/nginx/.htpasswd;
 }
 ```
 

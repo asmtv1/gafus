@@ -10,6 +10,10 @@ ci-cd/
 │   ├── docker-compose.prod.yml    # Продакшен конфигурация
 │   ├── docker-compose.smoke.yml   # Тестовая конфигурация
 │   └── Dockerfile-*-optimized     # Оптимизированные Dockerfile'ы
+├── nginx/                     # Nginx конфигурации
+│   ├── nginx.conf                 # Основная конфигурация nginx
+│   └── conf.d/                    # Конфигурации виртуальных хостов
+│       └── gafus.ru.conf          # Конфигурация для gafus.ru
 ├── scripts/                   # CI/CD скрипты
 │   ├── backup-to-yandex.sh       # Бэкап на Яндекс.Диск
 │   ├── setup-github-secrets.sh   # Настройка GitHub секретов
@@ -39,6 +43,15 @@ docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d
 
 # Тестовая среда
 docker-compose -f ci-cd/docker/docker-compose.smoke.yml up -d
+```
+
+### Nginx конфигурация
+```bash
+# Основная конфигурация
+ci-cd/nginx/nginx.conf
+
+# Конфигурация виртуальных хостов
+ci-cd/nginx/conf.d/gafus.ru.conf
 ```
 
 ## 🔧 GitHub Actions

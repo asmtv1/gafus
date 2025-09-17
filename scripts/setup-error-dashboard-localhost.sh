@@ -30,8 +30,8 @@ fi
 
 # Создаем конфигурацию nginx
 echo "⚙️  Настройка nginx..."
-NGINX_CONF_DIR="/usr/local/etc/nginx/sites-available"
-NGINX_ENABLED_DIR="/usr/local/etc/nginx/sites-enabled"
+NGINX_CONF_DIR="/usr/local/etc/ci-cd/nginx/sites-available"
+NGINX_ENABLED_DIR="/usr/local/etc/ci-cd/nginx/sites-enabled"
 
 # Создаем директории если их нет
 sudo mkdir -p "$NGINX_CONF_DIR"
@@ -77,4 +77,4 @@ echo "🚀 Для запуска дашборда выполните:"
 echo "   cd apps/error-dashboard && DATABASE_URL='postgresql://postgres:password@localhost:5432/dog_trainer' pnpm dev"
 echo ""
 echo "📝 Для отладки nginx используйте:"
-echo "   sudo tail -f /usr/local/var/log/nginx/errors.gafus.localhost.error.log" 
+echo "   sudo tail -f /usr/local/var/log/ci-cd/nginx/errors.gafus.localhost.error.log" 
