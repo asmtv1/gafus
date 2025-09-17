@@ -28,16 +28,26 @@ export function QueryProvider({ children, client }: QueryProviderProps) {
             refetchOnReconnect: true,
             refetchOnMount: true,
 
-            // Повторные попытки
-            retry: 3,
-            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+            // Повторные попытки с более агрессивными таймаутами
+            retry: (failureCount, error) => {
+              // Не повторяем при сетевых ошибках или таймаутах
+              if (error instanceof Error && (
+                error.message.includes('timeout') || 
+                error.message.includes('network') ||
+                error.message.includes('fetch')
+              )) {
+                return failureCount < 1; // Только одна попытка для сетевых ошибок
+              }
+              return failureCount < 2; // Максимум 2 попытки для других ошибок
+            },
+            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000), // Максимум 5 секунд
 
             // Оптимизация для мобильных устройств
             refetchInterval: false,
             refetchIntervalInBackground: false,
 
-            // Настройки для больших данных
-            networkMode: "online",
+            // Настройки для больших данных - используем offlineFirst для лучшей работы в нестабильной сети
+            networkMode: "offlineFirst",
           },
           mutations: {
             retry: 1,

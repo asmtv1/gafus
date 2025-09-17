@@ -30,8 +30,8 @@ export const defaultQueryConfig = {
   refetchInterval: false,
   refetchIntervalInBackground: false,
 
-  // Настройки для больших данных
-  networkMode: "online" as const,
+  // Настройки для больших данных - используем offlineFirst для лучшей работы в нестабильной сети
+  networkMode: "offlineFirst" as const,
 };
 
 // Утилиты для кэширования
