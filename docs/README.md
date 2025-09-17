@@ -131,7 +131,7 @@ gafus/
 │   └── error-handling/    # Обработка ошибок
 ├── docs/                  # Документация
 ├── scripts/               # Скрипты сборки
-├── nginx/                 # Nginx конфигурация
+├── ci-cd/nginx/                 # Nginx конфигурация
 └── docker-compose*.yml    # Docker конфигурации
 ```
 

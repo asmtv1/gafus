@@ -49,7 +49,7 @@ gafus/
 │   └── error-handling/    # Обработка ошибок
 └── infrastructure/        # Инфраструктура
     ├── docker/            # Docker конфигурации
-    ├── nginx/             # Nginx конфигурации
+    ├── ci-cd/nginx/             # Nginx конфигурации
     └── scripts/           # Скрипты развертывания
 ```
 

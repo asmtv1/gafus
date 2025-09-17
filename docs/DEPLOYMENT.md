@@ -399,7 +399,7 @@ sudo crontab -e
 
 #### Основная конфигурация
 ```nginx
-# /etc/nginx/sites-available/gafus.ru
+# /etc/ci-cd/nginx/sites-available/gafus.ru
 server {
     listen 80;
     server_name gafus.ru www.gafus.ru;
@@ -444,7 +444,7 @@ server {
 
 #### Конфигурация для панели тренера
 ```nginx
-# /etc/nginx/sites-available/trainer.gafus.ru
+# /etc/ci-cd/nginx/sites-available/trainer.gafus.ru
 server {
     listen 443 ssl http2;
     server_name trainer.gafus.ru;
@@ -454,7 +454,7 @@ server {
     
     # Базовая аутентификация
     auth_basic "Trainer Panel";
-    auth_basic_user_file /etc/nginx/.htpasswd;
+    auth_basic_user_file /etc/ci-cd/nginx/.htpasswd;
     
     location / {
         proxy_pass http://localhost:3001;
@@ -914,8 +914,8 @@ docker stats
 docker-compose logs -f
 
 # Мониторинг Nginx
-tail -f /var/log/nginx/access.log
-tail -f /var/log/nginx/error.log
+tail -f /var/log/ci-cd/nginx/access.log
+tail -f /var/log/ci-cd/nginx/error.log
 
 # Мониторинг PostgreSQL
 sudo -u postgres psql -c "SELECT * FROM pg_stat_activity;"
