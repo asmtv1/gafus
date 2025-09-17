@@ -258,7 +258,7 @@ jobs:
             --cache-from type=gha \
             --cache-to type=gha,mode=max \
             --push \
-            -f Dockerfile-web-optimized \
+            -f ci-cd/docker/Dockerfile-web-optimized \
             .
 
   # Build all Docker images in parallel
@@ -294,7 +294,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ${{ matrix.image.file }}
+          file: ci-cd/docker/${{ matrix.image.file }}
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:latest
           cache-from: |
@@ -341,8 +341,8 @@ jobs:
             echo "🚀 Starting production deployment..."
 
             # Error handling and graceful shutdown - best practice
-            trap 'echo "❌ Deployment failed, cleaning up..."; docker-compose -f docker-compose.prod.yml down --timeout 30 || true; exit 1' ERR
-            trap 'echo "🛑 Deployment interrupted, cleaning up..."; docker-compose -f docker-compose.prod.yml down --timeout 30 || true; exit 1' INT TERM
+            trap 'echo "❌ Deployment failed, cleaning up..."; docker-compose -f ci-cd/docker/docker-compose.prod.yml down --timeout 30 || true; exit 1' ERR
+            trap 'echo "🛑 Deployment interrupted, cleaning up..."; docker-compose -f ci-cd/docker/docker-compose.prod.yml down --timeout 30 || true; exit 1' INT TERM
 
             # Log deployment start
             echo "📅 Deployment started at: $(date)"
@@ -438,7 +438,7 @@ jobs:
             docker rm -f gafus-web gafus-trainer-panel gafus-error-dashboard gafus-worker gafus-bull-board gafus-telegram-bot gafus-prisma gafus-postgres gafus-redis gafus-nginx 2>/dev/null || true
 
             # Now do the normal compose cleanup
-            docker-compose -f docker-compose.prod.yml down --remove-orphans --timeout 30 || true
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml down --remove-orphans --timeout 30 || true
             docker system prune -f || true
             docker image prune -f --all || true
             docker container prune -f || true
@@ -475,22 +475,22 @@ jobs:
             echo "🚀 Starting infrastructure services..."
 
             # 1. Start core infrastructure (database, redis)
-            docker-compose -f docker-compose.prod.yml up -d --force-recreate postgres redis
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate postgres redis
             echo "⏳ Waiting for core services to be ready..."
             sleep 15
 
             # 2. Start application services
-            docker-compose -f docker-compose.prod.yml up -d --force-recreate prisma worker telegram-bot
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate prisma worker telegram-bot
             echo "⏳ Waiting for application services to be ready..."
             sleep 10
 
             # 3. Start web services
-            docker-compose -f docker-compose.prod.yml up -d --force-recreate web trainer-panel error-dashboard
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate web trainer-panel error-dashboard
             echo "⏳ Waiting for web services to be ready..."
             sleep 10
 
             # 4. Start bull-board (critical for nginx)
-            docker-compose -f docker-compose.prod.yml up -d --force-recreate bull-board
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate bull-board
             echo "⏳ Waiting for bull-board to be ready..."
             sleep 15
 
@@ -513,7 +513,7 @@ jobs:
             fi
 
             # 5. Start nginx last (depends on all upstreams)
-            docker-compose -f docker-compose.prod.yml up -d --force-recreate nginx
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate nginx
             echo "⏳ Waiting for nginx to be ready..."
             sleep 10
 
@@ -536,7 +536,7 @@ jobs:
             EOF
 
             # Stop nginx temporarily
-            docker-compose -f docker-compose.prod.yml stop nginx
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml stop nginx
 
             # Start temporary nginx for certbot
             docker run -d --name temp-nginx --network gafus_default -p 80:80 \
@@ -548,7 +548,7 @@ jobs:
             sleep 5
 
             # Generate SSL certificates
-            docker-compose -f docker-compose.prod.yml run --rm certbot certonly \
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml run --rm certbot certonly \
                 --webroot --webroot-path=/var/www/certbot \
                 --email admin@gafus.ru --agree-tos --no-eff-email \
                 -d gafus.ru -d www.gafus.ru -d api.gafus.ru \
@@ -561,19 +561,19 @@ jobs:
             rm nginx/conf.d/gafus.ru.temp.conf
 
             # Start nginx with HTTPS config
-            docker-compose -f docker-compose.prod.yml up -d nginx
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d nginx
             echo "⏳ Waiting for nginx to be ready with SSL..."
             sleep 15
 
             # Run Prisma migrations
             echo "🗄️ Running Prisma migrations..."
-            docker-compose -f docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
 
             # Run migrations using the dedicated Prisma container
-            docker-compose -f docker-compose.prod.yml exec -T prisma pnpm run db:migrate:deploy || echo "Migrations failed, continuing..."
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:migrate:deploy || echo "Migrations failed, continuing..."
 
             # Run database seeds if available
-            docker-compose -f docker-compose.prod.yml exec -T prisma pnpm run db:seed || echo "Seeds failed or not available, continuing..."
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:seed || echo "Seeds failed or not available, continuing..."
 
                         # Health checks temporarily disabled - will be re-enabled later
             echo "🏥 Health checks temporarily disabled for deployment stability"

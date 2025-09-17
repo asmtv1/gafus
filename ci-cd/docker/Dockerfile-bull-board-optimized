@@ -1,0 +1,76 @@
+# Base stage - для сборки
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+# Включаем pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Копируем файлы конфигурации
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+
+# Копируем исходный код
+COPY packages ./packages
+COPY apps/bull-board ./apps/bull-board
+
+# Устанавливаем зависимости
+RUN pnpm install --frozen-lockfile
+
+# Копируем tsconfig файлы
+COPY packages/*/tsconfig.json ./packages/*/
+COPY apps/bull-board/tsconfig.json ./apps/bull-board/
+
+# Генерируем Prisma client (без ERD в контейнере)
+RUN cd packages/prisma \
+  && cp schema.prisma schema.prisma.bak \
+  && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
+  && mv schema.tmp schema.prisma \
+  && pnpm db:generate \
+  && mv schema.prisma.bak schema.prisma
+
+# Создаем папку для Prisma
+RUN mkdir -p /app/node_modules/.prisma
+
+# Копируем Prisma client
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
+
+# Копируем Prisma Query Engine
+RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/ \;
+
+# Собираем приложение
+# Сначала собираем зависимость очередей, затем само приложение bull-board
+RUN pnpm build --filter @gafus/queues
+RUN pnpm build --filter @gafus/bull-board
+
+# Готовим минимальный продовый пакет для bull-board
+RUN pnpm deploy --legacy --filter @gafus/bull-board --prod --no-optional /app/deploy
+
+# Production stage - только runtime
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Создаем пользователя
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Устанавливаем только необходимые пакеты
+RUN apk add --no-cache curl
+
+# Копируем только минимальный деплой-пакет
+COPY --from=base /app/deploy/ ./
+
+# Не удаляем .pnpm, так как pnpm-симлинки зависят от неё
+
+# Устанавливаем права доступа
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3002/health || exit 1
+
+# Запускаем приложение
+EXPOSE 3002
+CMD ["node", "dist/bull-board.js"]

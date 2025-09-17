@@ -1,0 +1,89 @@
+# Base stage - для сборки
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+# Включаем pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Копируем файлы конфигурации
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+
+# Копируем исходный код
+COPY packages ./packages
+
+# Устанавливаем зависимости
+RUN pnpm install --frozen-lockfile
+
+# Копируем tsconfig файлы
+COPY packages/*/tsconfig.json ./packages/*/
+
+# Генерируем Prisma client (без ERD в контейнере)
+RUN cd packages/prisma \
+  && cp schema.prisma schema.prisma.bak \
+  && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
+  && mv schema.tmp schema.prisma \
+  && pnpm db:generate \
+  && mv schema.prisma.bak schema.prisma
+
+# Собираем все пакеты
+RUN pnpm build --filter @gafus/worker --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/types
+
+# Production stage - только runtime
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Создаем пользователя
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 worker
+
+# Устанавливаем только необходимые пакеты
+RUN apk add --no-cache curl
+
+# Копируем только собранные файлы
+COPY --from=base /app/packages/worker/dist ./packages/worker/dist
+COPY --from=base /app/packages/prisma/dist ./packages/prisma/dist
+COPY --from=base /app/packages/queues/dist ./packages/queues/dist
+COPY --from=base /app/packages/webpush/dist ./packages/webpush/dist
+COPY --from=base /app/packages/types/dist ./packages/types/dist
+
+# Копируем только package.json файлы
+COPY --from=base /app/packages/worker/package.json ./packages/worker/package.json
+COPY --from=base /app/packages/prisma/package.json ./packages/prisma/package.json
+COPY --from=base /app/packages/queues/package.json ./packages/queues/package.json
+COPY --from=base /app/packages/webpush/package.json ./packages/webpush/package.json
+COPY --from=base /app/packages/types/package.json ./packages/types/package.json
+
+# Устанавливаем только production зависимости
+RUN npm init -y && \
+    npm install --production --no-optional \
+    bullmq@5.2.0 \
+    ioredis@5.3.2 \
+    web-push@3.6.6 \
+    @prisma/client@6.10.1
+
+# Копируем Prisma client полностью из base stage
+COPY --from=base /app/node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/@prisma ./node_modules/@prisma
+
+# Копируем Prisma schema и генерируем client (без ERD)
+COPY --from=base /app/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
+RUN cp packages/prisma/schema.prisma packages/prisma/schema.prisma.bak && \
+    awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' packages/prisma/schema.prisma > packages/prisma/schema.tmp && \
+    mv packages/prisma/schema.tmp packages/prisma/schema.prisma && \
+    npx prisma generate --schema=./packages/prisma/schema.prisma && \
+    mv packages/prisma/schema.prisma.bak packages/prisma/schema.prisma
+
+# Создаём алиасы в node_modules для workspace пакетов
+RUN mkdir -p /app/node_modules/@gafus \
+  && ln -s /app/packages/prisma /app/node_modules/@gafus/prisma \
+  && ln -s /app/packages/queues /app/node_modules/@gafus/queues \
+  && ln -s /app/packages/webpush /app/node_modules/@gafus/webpush \
+  && ln -s /app/packages/types /app/node_modules/@gafus/types
+
+# Устанавливаем права доступа
+RUN chown -R worker:nodejs /app
+USER worker
+
+# Запускаем worker
+CMD ["node", "packages/worker/dist/worker/src/index.js"]
