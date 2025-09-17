@@ -168,22 +168,6 @@ services:
       - postgres
       - redis
 
-  # Nginx Init Container (создает необходимые директории)
-  nginx-init:
-    image: alpine:latest
-    container_name: gafus-nginx-init
-    volumes:
-      - uploads_data:/var/www/public-assets/uploads
-    command: >
-      sh -c "
-        mkdir -p /var/www/public-assets/uploads/avatars &&
-        mkdir -p /var/www/public-assets/uploads/pets &&
-        mkdir -p /var/www/public-assets/uploads/courses &&
-        chmod -R 755 /var/www/public-assets/uploads &&
-        echo 'Nginx directories created successfully'
-      "
-    restart: "no"
-
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
@@ -194,14 +178,18 @@ services:
     volumes:
       - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../nginx/conf.d:/etc/nginx/conf.d:ro
-      - uploads_data:/var/www/public-assets/uploads
+      - uploads_data:/var/www/uploads
       - ./packages/public-assets/public:/var/www/public-assets:ro
       - ./apps/web/public:/var/www/web-public:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
+    command: >
+      sh -c "
+        ln -sf /var/www/uploads /var/www/public-assets/uploads &&
+        nginx -g 'daemon off;'
+      "
     restart: unless-stopped
     depends_on:
-      - nginx-init
       - web
       - trainer-panel
       - error-dashboard
