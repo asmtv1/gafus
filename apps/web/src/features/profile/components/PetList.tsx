@@ -16,7 +16,7 @@ import type { PublicProfile, PetFormData } from "@gafus/types";
 
 type PetFromPublicProfile = PublicProfile['pets'][0];
 
-import { getAgeWithDays, declOfNum } from "@/utils";
+import { getAgeWithMonths, declOfNum } from "@/utils";
 import { Avatar, IconButton } from "@/utils/muiImports";
 import { getPetTypeLabel } from "@/utils/petType";
 
@@ -128,32 +128,18 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
         <p>Порода: {pet.breed}</p>
 
         {pet.birthDate && (() => {
-          const age = getAgeWithDays(
+          const age = getAgeWithMonths(
             pet.birthDate instanceof Date ? pet.birthDate.toISOString() : pet.birthDate,
           );
           
-          // Если меньше года, показываем месяцы и дни
+          // Показываем только месяцы и годы
           if (age.years === 0) {
-            if (age.months === 0) {
-              // Только дни
-              return (
-                <p>
-                  Возраст: {age.days} {declOfNum(age.days, ["день", "дня", "дней"])}
-                </p>
-              );
-            } else {
-              // Месяцы и дни
-              return (
-                <p>
-                  Возраст: {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-                  {age.days > 0 && (
-                    <>
-                      {age.days} {declOfNum(age.days, ["день", "дня", "дней"])}
-                    </>
-                  )}
-                </p>
-              );
-            }
+            // Только месяцы
+            return (
+              <p>
+                Возраст: {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
+              </p>
+            );
           } else {
             // Годы и месяцы
             return (

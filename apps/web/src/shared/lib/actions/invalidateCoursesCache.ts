@@ -37,7 +37,9 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
           `user-${userId}`,
           "user-progress", 
           "training", 
-          "days"
+          "days",
+          "courses-favorites",
+          "courses"
         ]);
         
         addToSyncQueue(action);
@@ -60,6 +62,8 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
     revalidateTag("user-progress");
     revalidateTag("training"); // Инвалидируем кэш дней тренировок
     revalidateTag("days"); // Инвалидируем кэш дней тренировок
+    revalidateTag("courses-favorites"); // Инвалидируем кэш избранных курсов
+    revalidateTag("courses"); // Инвалидируем общий кэш курсов
     
     console.warn(`[Cache] User progress cache invalidated successfully for user: ${userId}`);
     return { success: true };
