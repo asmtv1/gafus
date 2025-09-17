@@ -521,7 +521,7 @@ jobs:
             echo "🔐 Setting up SSL certificates..."
 
             # Create temporary HTTP-only nginx config for certbot
-            cat > nginx/conf.d/gafus.ru.temp.conf << 'EOF'
+            cat > ci-cd/nginx/conf.d/gafus.ru.temp.conf << 'EOF'
             server {
                 listen 80;
                 server_name gafus.ru www.gafus.ru *.gafus.ru;
@@ -541,7 +541,7 @@ jobs:
             # Start temporary nginx for certbot
             docker run -d --name temp-nginx --network gafus_default -p 80:80 \
                 -v /root/gafus/certbot/www:/var/www/certbot \
-                -v /root/gafus/nginx/conf.d/gafus.ru.temp.conf:/etc/nginx/conf.d/default.conf \
+                -v /root/gafus/ci-cd/nginx/conf.d/gafus.ru.temp.conf:/etc/nginx/conf.d/default.conf \
                 nginx:alpine
 
             # Wait for temporary nginx
@@ -558,7 +558,7 @@ jobs:
             docker stop temp-nginx && docker rm temp-nginx
 
             # Restore original nginx config
-            rm nginx/conf.d/gafus.ru.temp.conf
+            rm ci-cd/nginx/conf.d/gafus.ru.temp.conf
 
             # Start nginx with HTTPS config
             docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d nginx
