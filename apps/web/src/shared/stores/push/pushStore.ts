@@ -96,7 +96,7 @@ export const usePushStore = create<PushState>()(
               const { subscriptions } = await getUserSubscriptions();
               
               // Проверяем, есть ли локальный endpoint в БД
-              const isInDatabase = subscriptions.some(sub => sub.endpoint === existingSubscription!.endpoint);
+              const isInDatabase = subscriptions.some((sub: { endpoint: string }) => sub.endpoint === existingSubscription!.endpoint);
               
               if (isInDatabase) {
                 set({
@@ -263,7 +263,7 @@ export const usePushStore = create<PushState>()(
               const { subscriptions } = await getUserSubscriptions();
               
               // Проверяем, есть ли локальный endpoint в БД
-              endpointMatches = subscriptions.some(sub => sub.endpoint === localSubscription!.endpoint);
+              endpointMatches = subscriptions.some((sub: { endpoint: string }) => sub.endpoint === localSubscription!.endpoint);
             }
             
             // Состояние синхронизировано, если есть и локальная подписка, и соответствующая запись в БД
@@ -405,7 +405,7 @@ export const usePushStore = create<PushState>()(
                   const { getUserSubscriptions } = await import("@shared/lib/savePushSubscription/getUserSubscriptionStatus");
                   const { subscriptions } = await getUserSubscriptions();
                   
-                  const isInDatabase = subscriptions.some(sub => sub.endpoint === localSubscription.endpoint);
+                  const isInDatabase = subscriptions.some((sub: { endpoint: string }) => sub.endpoint === localSubscription.endpoint);
                   
                   if (isInDatabase) {
                     set({

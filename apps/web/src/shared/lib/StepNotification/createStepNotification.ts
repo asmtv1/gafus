@@ -1,5 +1,6 @@
 import { prisma } from "@gafus/prisma";
 import { pushQueue } from "@gafus/queues";
+import type { PushSubscription as DbPushSubscription } from "@gafus/prisma";
 
 // Функция для логирования в error-dashboard
 async function logToErrorDashboard(
@@ -94,9 +95,9 @@ export async function createStepNotificationsForUserStep({
       stepTitle,
       // Сохраняем все подписки в JSON поле
       subscription: {
-        subscriptions: subscriptions.map(sub => ({
+        subscriptions: subscriptions.map((sub: DbPushSubscription) => ({
           endpoint: sub.endpoint,
-          keys: sub.keys,
+          keys: (sub.keys ?? {}) as Record<string, string>,
         })),
         count: subscriptions.length,
       },
