@@ -15,7 +15,7 @@ export default function LoginPage() {
       <h1 className={styles.title}>Гафус!</h1>
 
       <Image src="/logo.png" alt="logo" className={styles.logo} width={303} height={303} priority />
-      <Image src="/paw.svg" alt="paw" className={styles.paw_absolute} width={141} height={136} />
+      
       <h2 className={styles.subtitle}>Авторизация</h2>
       <p className={styles.subtitle}>
         Если у Вас еще нет аккаунта -

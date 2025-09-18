@@ -12,6 +12,7 @@ import type {
   StepPauseData,
   StepResumeData,
   TrainingStatus,
+  FavoriteToggleData,
 } from "@gafus/types";
 
 export const useOfflineStore = create<OfflineState>()(
@@ -209,6 +210,9 @@ async function syncAction(action: OfflineAction): Promise<void> {
     case "cache-invalidation":
       await syncCacheInvalidation(action.data as { userId: string; cacheKeys: string[] });
       break;
+    case "favorite-toggle":
+      await syncFavoriteToggle(action.data as FavoriteToggleData);
+      break;
     default:
       throw new Error(`Unknown action type: ${action.type}`);
   }
@@ -327,6 +331,24 @@ async function syncCacheInvalidation(data: { userId: string; cacheKeys: string[]
     console.warn(`[OfflineStore] Cache invalidation synced for user ${data.userId}`);
   } catch (error) {
     console.warn("Failed to sync cache invalidation:", error);
+    throw error;
+  }
+}
+
+// Синхронизация переключения избранного
+async function syncFavoriteToggle(data: FavoriteToggleData): Promise<void> {
+  try {
+    // Импортируем функцию переключения избранного
+    const { toggleFavoriteCourse } = await import(
+      "@shared/lib/course/addtoFavorite"
+    );
+
+    // Вызываем серверное действие для переключения избранного
+    await toggleFavoriteCourse(data.courseId);
+    
+    console.warn(`[OfflineStore] Favorite ${data.action} synced for course ${data.courseId}`);
+  } catch (error) {
+    console.warn("Failed to sync favorite toggle:", error);
     throw error;
   }
 }
