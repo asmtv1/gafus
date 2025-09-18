@@ -31,12 +31,15 @@ export default function ConfirmPage() {
         <button className={styles.button}>Открыть Telegram-бота</button>
       </Link>
 
+      <Suspense fallback={<p>Проверка подтверждения...</p>}>
+        <ConfirmClient />
+      </Suspense>
       <Image
         className={styles.confirm_paw}
         src="/confirm_paw.png"
         alt="Logo"
-        width={226}
-        height={200}
+        width={326}
+        height={300}
         priority
       />
     </main>

@@ -3,6 +3,7 @@
 import { unstable_cache } from "next/cache";
 
 import { prisma } from "@gafus/prisma";
+import type { Prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { reportErrorToDashboard } from "../actions/reportError";
 import { getAuthoredCourses } from "../course/getAuthoredCourses";
@@ -31,7 +32,44 @@ export const getAllCoursesCached = unstable_cache(
       console.warn("[React Cache] Fetching all courses (permanent cache)");
       
       // Получаем ВСЕ курсы (публичные + приватные) без пользовательских данных
-      const allCourses = await prisma.course.findMany({
+      type CourseWithRelations = Prisma.CourseGetPayload<{
+        include: {
+          author: { select: { username: true } };
+          reviews: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  profile: { select: { avatarUrl: true } },
+                };
+              };
+            };
+          };
+          access: {
+            include: {
+              user: {
+                select: { id: true };
+              };
+            };
+          };
+          dayLinks: {
+            include: {
+              day: {
+                include: {
+                  stepLinks: {
+                    include: {
+                      step: { select: { title: true } };
+                    };
+                  };
+                };
+              };
+            };
+          };
+        };
+      }>;
+
+      const allCourses: CourseWithRelations[] = await prisma.course.findMany({
         include: {
           author: { select: { username: true } },
           reviews: {
@@ -68,7 +106,7 @@ export const getAllCoursesCached = unstable_cache(
         },
       });
 
-      const data = allCourses.map((course) => ({
+      const data = allCourses.map((course: CourseWithRelations) => ({
         id: course.id,
         name: course.name,
         type: course.type,
@@ -80,7 +118,7 @@ export const getAllCoursesCached = unstable_cache(
         avgRating: course.avgRating,
         createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
         authorUsername: course.author.username,
-        reviews: course.reviews.map((review) => ({
+        reviews: course.reviews.map((review: CourseWithRelations["reviews"][number]) => ({
           rating: review.rating ?? 0,
           comment: review.comment ?? "",
           createdAt: review.createdAt ? new Date(review.createdAt) : new Date(),
@@ -90,12 +128,12 @@ export const getAllCoursesCached = unstable_cache(
           },
         })),
         access: course.access,
-        dayLinks: course.dayLinks.map((dl) => ({
+        dayLinks: course.dayLinks.map((dl: CourseWithRelations["dayLinks"][number]) => ({
           order: dl.order,
           day: {
             id: dl.day.id,
             title: dl.day.title,
-            stepLinks: dl.day.stepLinks.map((sl) => ({
+            stepLinks: dl.day.stepLinks.map((sl: CourseWithRelations["dayLinks"][number]["day"]["stepLinks"][number]) => ({
               id: sl.id,
               order: sl.order,
               step: { title: sl.step.title },
@@ -159,9 +197,14 @@ export async function getUserCoursesProgressCached(userId?: string) {
           select: { courseId: true },
         });
 
-        const favoriteCourseIds = new Set(userFavorites.map((f) => f.courseId));
+        const favoriteCourseIds = new Set(userFavorites.map((f: { courseId: string }) => f.courseId));
 
-        const data: UserCourseProgress[] = userCourses.map((uc) => ({
+        const data: UserCourseProgress[] = userCourses.map((uc: {
+          courseId: string;
+          status: unknown;
+          startedAt: Date | null;
+          completedAt: Date | null;
+        }) => ({
           courseId: uc.courseId,
           status: uc.status as TrainingStatus,
           startedAt: uc.startedAt ? new Date(uc.startedAt) : null,
@@ -286,7 +329,7 @@ export async function getCoursesWithUserProgressCached(userId?: string) {
       
       // Приватные курсы доступны только пользователям с доступом
       if (userId && course.access) {
-        return course.access.some((access) => access.user.id === userId);
+        return course.access.some((access: { user: { id: string } }) => access.user.id === userId);
       }
       
       return false;
@@ -513,7 +556,7 @@ export const getTrainingDayCached = unstable_cache(
         courseVideoUrl: courses[0]?.course.videoUrl || null,
         equipment: day.equipment,
         description: day.description,
-        steps: day.stepLinks.map(link => ({
+        steps: day.stepLinks.map((link: { order: number; step: { id: string; title: string; description: string; durationSec: number; videoUrl: string | null } }) => ({
           id: link.step.id,
           title: link.step.title,
           description: link.step.description,
@@ -521,7 +564,7 @@ export const getTrainingDayCached = unstable_cache(
           videoUrl: link.step.videoUrl,
           order: link.order
         })),
-        estimatedDuration: day.stepLinks.reduce((total, link) => total + link.step.durationSec, 0)
+        estimatedDuration: day.stepLinks.reduce((total: number, link: { step: { durationSec: number } }) => total + link.step.durationSec, 0)
       };
 
       console.warn(`[React Cache] Cached training day ${dayId} successfully`);
@@ -553,4 +596,3 @@ export const getTrainingDayCached = unstable_cache(
     tags: ["training", "day"],
   }
 );
-
