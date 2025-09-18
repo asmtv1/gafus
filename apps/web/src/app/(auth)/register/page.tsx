@@ -12,6 +12,7 @@ export default function RegisterPage() {
   return (
     <main className={styles.container}>
       <h1 className={styles.title}>Гафус!</h1>
+      <div className={styles.logoContainer}>
       <Image
         className={styles.logo}
         src="/register-logo.png"
@@ -21,6 +22,7 @@ export default function RegisterPage() {
         priority
       />
       <h2 className={styles.subtitle}>регистрация</h2>
+      </div>
       <RegisterForm />
     </main>
   );

@@ -19,7 +19,7 @@
   line-height: 100%;
   letter-spacing: 0px;
   text-align: center;
-  margin: 80px 0 8px;
+  margin: 0px 0 8px;
 }
 .subtitle {
   color: var(--bg-2);
@@ -29,13 +29,16 @@
   line-height: 100%;
   letter-spacing: 0px;
   text-align: center;
-  margin: 176px 0 8px;
+}
+.logoContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 .logo {
-  position: fixed;
-  top: 181px;
-  left: 52%;
-  transform: translateX(-54%);
+  transform: scaleX(-1);
   width: 277px;
   height: 204px;
 }
