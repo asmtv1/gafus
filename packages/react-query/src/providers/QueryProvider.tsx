@@ -26,7 +26,7 @@ export function QueryProvider({ children, client }: QueryProviderProps) {
             gcTime: 10 * 60 * 1000, // 10 минут (ранее cacheTime)
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
-            refetchOnMount: true,
+            refetchOnMount: false,
 
             // Повторные попытки с более агрессивными таймаутами
             retry: (failureCount, error) => {
