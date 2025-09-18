@@ -20,6 +20,8 @@ const CACHE_CONFIG = {
   CACHES: {
     // Полные HTML-страницы (для офлайн-навигации)
     HTML_PAGES: 'gafus-html-v2',
+    // RSC-данные (храним отдельно для управляемости)
+    RSC_DATA: 'gafus-rsc-v2',
     
     // RSC-данные (для динамических обновлений)
     // RSC_DATA кэш отключен
@@ -40,7 +42,7 @@ const CACHE_CONFIG = {
   // ⚡ Стратегии кэширования (обновлены под текущую архитектуру)
   STRATEGIES: {
     HTML_PAGES: 'cacheFirst',    // HTML - кэш в первую очередь (критично для офлайна)
-    // RSC_DATA: отключено
+    RSC_DATA: 'networkFirst',    // RSC - сеть с быстрым таймаутом и фолбэком на кэш
     STATIC: 'cacheFirst',        // Статика - кэш в первую очередь
     IMAGES: 'cacheFirst',        // Изображения - кэш в первую очередь
     // COURSE_DATA: отключено
@@ -79,7 +81,6 @@ const CACHE_CONFIG = {
     HTML_PAGES: [
       /^\/$/,
       /^\/courses/,
-      /^\/trainings/,
       /^\/profile/,
       /^\/achievements/,
     ],
@@ -97,8 +98,9 @@ const CACHE_CONFIG = {
   },
 };
 
-// Таймаут для сетевых запросов RSC (best practice: быстрый failover к кэшу)
+// Таймауты сети (best practice: быстрый failover к кэшу)
 const RSC_NETWORK_TIMEOUT_MS = 500;
+const API_NETWORK_TIMEOUT_MS = 1000;
 
 // 🧠 УМНАЯ СИСТЕМА ОПРЕДЕЛЕНИЯ ТИПОВ РЕСУРСОВ
 // Анализирует запросы и определяет оптимальную стратегию кэширования
@@ -124,14 +126,10 @@ function getResourceType(request) {
   
   // 1.5. (удалено) Специальная обработка тренинговых страниц при навигации
   
-  // 1.6. Обработка RSC-запросов для известных страниц — считаем их HTML
+  // 1.6. RSC-запросы обрабатываем как данные (с отдельной стратегией и таймаутом)
   if (method === 'GET' && accept.includes('text/x-component')) {
-    for (const pattern of CACHE_CONFIG.PATTERNS.HTML_PAGES) {
-      if (pattern.test(pathname)) {
-        console.log(`📄 SW: Treating RSC GET as HTML page for offline support: ${pathname}`);
-        return 'HTML_PAGES';
-      }
-    }
+    console.log('🧩 SW: RSC request detected');
+    return 'RSC_DATA';
   }
   
   // 1.7. Приоритет страниц по пути
@@ -192,7 +190,7 @@ function getResourceType(request) {
   
   // 6.5. 🎯 ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ДЛЯ СТРАНИЦ
   // Если это GET-запрос к корню или известным страницам, считаем это HTML-страницей
-  if (method === 'GET' && (pathname === '/' || pathname.startsWith('/profile') || pathname.startsWith('/statistics') || pathname.startsWith('/achievements') || pathname.startsWith('/courses') || pathname.startsWith('/trainings') || pathname.startsWith('/favorites'))) {
+  if (method === 'GET' && (pathname === '/' || pathname.startsWith('/profile') || pathname.startsWith('/statistics') || pathname.startsWith('/achievements') || pathname.startsWith('/courses') || pathname.startsWith('/favorites'))) {
     console.log(`📄 SW: Page request detected by path: ${pathname}`);
     return 'HTML_PAGES';
   }
@@ -882,7 +880,9 @@ async function precacheHTMLPages() {
     const pagesToCache = [
       '/',
       '/courses',
-      '/~offline',
+      '/profile',
+      '/achievements',
+      '/favorites'
     ];
     
     // Кэшируем favicon.ico в кэш изображений
@@ -987,9 +987,9 @@ self.addEventListener('fetch', (event) => {
   
   console.log(`🌐 SW: Fetch intercepted: ${request.url}, method: ${request.method}, mode: ${request.mode}`);
   
-  // Спец. обработчик навигации: всегда возвращаем HTML или офлайн HTML
+  // Спец. обработчик навигации: cache-first с фоновым revalidate
   if (request.mode === 'navigate' || dest === 'document' || uir === '1' || (request.method === 'GET' && isKnownPagePath(url.pathname))) {
-    event.respondWith(handleNavigationRequest(request));
+    event.respondWith(handleNavigationRequest(event, request));
     return;
   }
 
@@ -1031,6 +1031,16 @@ async function handleRequest(request, resourceType, strategy) {
   console.log(`🚀 SW: Handling ${resourceType} request with ${strategy} strategy: ${request.url}`);
   
   try {
+    // Спец. стратегии с таймаутом для RSC и API
+    if (resourceType === 'RSC_DATA') {
+      const cache = await caches.open(CACHE_CONFIG.CACHES.RSC_DATA);
+      return await networkFirstWithTimeout(request, cache, resourceType, RSC_NETWORK_TIMEOUT_MS);
+    }
+    if (resourceType === 'API' && strategy === 'networkFirst') {
+      const cache = await caches.open(CACHE_CONFIG.CACHES.API);
+      return await networkFirstWithTimeout(request, cache, resourceType, API_NETWORK_TIMEOUT_MS);
+    }
+
     // Выбираем стратегию кэширования
     switch (strategy) {
       case 'cacheFirst':
@@ -1068,16 +1078,26 @@ async function handleRequest(request, resourceType, strategy) {
 }
 
 // Специальная обработка навигации для офлайна
-async function handleNavigationRequest(request) {
+async function handleNavigationRequest(event, request) {
   try {
-    // Пытаемся обычный network-first
-    const response = await fetch(request);
-    const ct = response.headers.get('Content-Type') || '';
+    // 0) Если уже есть кэш — отдаем его сразу, сеть обновляем фоном
+    const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
+    const htmlKey = getHTMLCacheRequest(request);
+    const cached = await htmlCache.match(htmlKey);
+    if (cached) {
+      event.waitUntil(revalidateNavigationHTML(request, htmlCache, htmlKey));
+      return cached;
+    }
 
-    // Если пришёл корректный HTML — кэшируем под специальным ключом и возвращаем сеть
+    // 1) Кэша нет — пробуем сеть с таймаутом
+    const response = await Promise.race([
+      fetch(request),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200)),
+    ]);
+
+    const ct = response.headers.get('Content-Type') || '';
     if (ct.includes('text/html')) {
       try {
-        const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
         const resForHeaders = response.clone();
         const headers = new Headers(resForHeaders.headers);
         headers.set('sw-cache-time', Date.now().toString());
@@ -1088,7 +1108,6 @@ async function handleNavigationRequest(request) {
           statusText: resForHeaders.statusText,
           headers,
         });
-        const htmlKey = getHTMLCacheRequest(request);
         await htmlCache.put(htmlKey, cachedResponse);
         console.log(`💾 SW: Cached navigation HTML under special key: ${htmlKey.url}`);
       } catch (e) {
@@ -1097,7 +1116,7 @@ async function handleNavigationRequest(request) {
       return response;
     }
 
-    // Если пришёл RSC-поток или иной тип — не показываем его пользователю, отдаём HTML fallback
+    // Не HTML (например, RSC) — отдаём HTML fallback
     console.log(`⚠️ SW: Navigation returned non-HTML (${ct}), serving HTML fallback: ${request.url}`);
     return await getOfflineFallback(request);
   } catch (e) {
@@ -1114,6 +1133,30 @@ async function handleNavigationRequest(request) {
       }
     } catch {}
     return await getOfflineFallback(request);
+  }
+}
+
+// Фоновая ревалидация HTML для навигации
+async function revalidateNavigationHTML(request, htmlCache, htmlKey) {
+  try {
+    const response = await fetch(request);
+    const ct = response.headers.get('Content-Type') || '';
+    if (ct.includes('text/html')) {
+      const resForHeaders = response.clone();
+      const headers = new Headers(resForHeaders.headers);
+      headers.set('sw-cache-time', Date.now().toString());
+      headers.set('sw-cache-type', 'HTML_PAGES');
+      const bodyBuffer = await resForHeaders.arrayBuffer();
+      const cachedResponse = new Response(bodyBuffer, {
+        status: resForHeaders.status,
+        statusText: resForHeaders.statusText,
+        headers,
+      });
+      await htmlCache.put(htmlKey, cachedResponse);
+      console.log(`♻️ SW: Revalidated navigation HTML: ${htmlKey.url}`);
+    }
+  } catch (e) {
+    console.warn('⚠️ SW: Revalidate navigation failed', e);
   }
 }
 
