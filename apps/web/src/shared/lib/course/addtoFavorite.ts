@@ -54,3 +54,16 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
     throw new Error("Ошибка при изменении избранного курса. Попробуйте перезагрузить страницу.");
   }
 }
+
+// Идемпотентные действия для нового favoritesStore
+export async function addFavoriteCourse(courseId: string): Promise<void> {
+  await toggleFavoriteCourse(courseId).catch((e) => {
+    throw e;
+  });
+}
+
+export async function removeFavoriteCourse(courseId: string): Promise<void> {
+  await toggleFavoriteCourse(courseId).catch((e) => {
+    throw e;
+  });
+}

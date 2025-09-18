@@ -1,6 +1,4 @@
 "use client";
-
-import PullToRefresh from "@shared/components/ui/PullToRefresh";
 import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
 import { useCourseStoreActions } from "@shared/stores";
 import { useEffect } from "react";
@@ -62,7 +60,7 @@ export default function CoursesClient({
       await fetchAllCourses();
     } catch (error) {
       console.error("❌ Ошибка обновления курсов:", error);
-      throw error; // Перебрасываем ошибку для обработки в PullToRefresh
+      throw error;
     }
   };
 
@@ -83,19 +81,12 @@ export default function CoursesClient({
   const courses = allCourses?.data || [];
 
   return (
-    <PullToRefresh
-      onRefresh={handleCoursesRefresh}
-      refreshType="custom"
-      threshold={75}
-      maxPullDistance={130}
-    >
-      <div className={styles.container}>
-        <ul className={styles.courseList}>
-          {courses.map((course, index) => (
-            <CourseCard key={course.id} {...course} index={index} />
-          ))}
-        </ul>
-      </div>
-    </PullToRefresh>
+    <div className={styles.container}>
+      <ul className={styles.courseList}>
+        {courses.map((course, index) => (
+          <CourseCard key={course.id} {...course} index={index} />
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCourseStoreActions } from "@shared/stores";
-import { useEffect, useCallback } from "react";
+import { useCourseStore, useCourseStoreActions } from "@shared/stores";
+import { useFavoritesStore } from "@shared/stores/favoritesStore";
+import { useEffect, useCallback, useMemo } from "react";
 import type { CourseWithProgressData } from "@gafus/types";
 
 import { CourseCard } from "../../../features/courses/components/CourseCard/CourseCard";
@@ -20,6 +21,8 @@ export default function FavoritesCourseList({
 }: FavoritesCourseListProps) {
   const { favorites, loading, errors, fetchFavorites, forceRefreshFavorites, favoriteCourseIds, setFavorites } =
     useCourseStoreActions();
+  const { favoriteIds, loadFromServer, initialized } = useFavoritesStore();
+  const courseStore = useCourseStore();
 
   // Мемоизируем функцию обновления избранного
   const handleUnfavorite = useCallback(
@@ -32,6 +35,11 @@ export default function FavoritesCourseList({
 
   // Инициализируем данные при монтировании компонента
   useEffect(() => {
+    // Грузим IDs избранного из нового SSOT, если ещё не инициализирован
+    if (!initialized) {
+      loadFromServer();
+    }
+
     // Если есть серверные данные, используем их
     if (initialFavorites && !favorites) {
       setFavorites(initialFavorites);
@@ -79,8 +87,21 @@ export default function FavoritesCourseList({
     };
   }, [favorites, forceRefreshFavorites]);
 
+  // Собираем список отображаемых курсов из SSOT (favoriteIds) и известных курсов
+  const computedCourses = useMemo(() => {
+    const idsSet = favoriteIds as unknown as Set<string>;
+    const all = courseStore.allCourses?.data || [];
+    const fromAll = all.filter((c) => idsSet.has(c.id));
+    if (fromAll.length > 0) return fromAll;
+
+    const favData = favorites?.data || [];
+    if (favData.length > 0) return favData.filter((c) => idsSet.has(c.id));
+
+    return [] as CourseWithProgressData[];
+  }, [favoriteIds, courseStore.allCourses?.data, favorites?.data]);
+
   // Показываем загрузку при первой загрузке
-  if (loading.favorites && !favorites?.data) {
+  if ((loading.favorites || !initialized) && computedCourses.length === 0) {
     return <div style={{ textAlign: "center", padding: "20px" }}>Загрузка избранных курсов...</div>;
   }
 
@@ -93,8 +114,8 @@ export default function FavoritesCourseList({
     );
   }
 
-  // Фильтруем курсы по ID избранных - используем актуальное состояние из store
-  const courses = favorites?.data?.filter((course) => favoriteCourseIds.has(course.id)) || [];
+  // Курсы для отображения берём из вычисленного списка
+  const courses = computedCourses;
 
   if (courses.length === 0) {
     return (

@@ -1,6 +1,7 @@
 // Экспорт всех stores для удобного импорта
 export * from "./courseStore";
 export * from "./offlineStore";
+export * from "./favoritesStore";
 export * from "./petsStore";
 export * from "./stepStore";
 export * from "./timerStore";
