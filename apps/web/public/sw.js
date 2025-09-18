@@ -987,8 +987,11 @@ self.addEventListener('fetch', (event) => {
   
   console.log(`🌐 SW: Fetch intercepted: ${request.url}, method: ${request.method}, mode: ${request.mode}`);
   
-  // Спец. обработчик навигации: cache-first с фоновым revalidate
-  if (request.mode === 'navigate' || dest === 'document' || uir === '1' || (request.method === 'GET' && isKnownPagePath(url.pathname))) {
+  // Спец. обработчик навигации (ТОЛЬКО GET): cache-first с фоновым revalidate
+  if (
+    request.method === 'GET' &&
+    (request.mode === 'navigate' || dest === 'document' || uir === '1' || isKnownPagePath(url.pathname))
+  ) {
     event.respondWith(handleNavigationRequest(event, request));
     return;
   }
