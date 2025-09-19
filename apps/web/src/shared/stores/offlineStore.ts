@@ -385,7 +385,7 @@ export function initializeOfflineStore() {
       try {
         // Добавляем таймаут для всех запросов
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
+        const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 секунда таймаут
         
         const fetchPromise = originalFetch(args[0], {
           ...args[1],

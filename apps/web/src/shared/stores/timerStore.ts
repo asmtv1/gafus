@@ -17,6 +17,24 @@ const makeEndKey = (courseId: string, day: number, idx: number) =>
 
 const loadFromLS = (key: string): string | null => localStorage.getItem(key);
 
+// Быстрый локальный таймаут для серверных действий (мобайлы)
+const SERVER_ACTION_TIMEOUT_MS = 1000;
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise
+      .then((val) => {
+        clearTimeout(timer);
+        resolve(val);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 // ===== STORE =====
 export const useTimerStore = create<TimerStore>()((set, get) => {
   // Хранилище для таймеров
@@ -141,148 +159,136 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
     // ===== СЕРВЕРНЫЕ ДЕЙСТВИЯ С РЕТРАЯМИ =====
     startStepWithServer: async (courseId, day, stepIndex, durationSec) => {
-      try {
-        // Выполняем без ретраев для мгновенного офлайн-режима
-        await startUserStepServerAction(
-          courseId,
-          day,
-          stepIndex,
-          TrainingStatus.IN_PROGRESS,
-          durationSec,
-        );
-      } catch (error) {
-        console.error("❌ Ошибка запуска шага:", error);
-
-        // Если сервер недоступен, добавляем в очередь синхронизации
+      // Запускаем серверное действие в фоне с быстрым таймаутом; UI не блокируем
+      (async () => {
         try {
-          const { useOfflineStore } = await import("@shared/stores/offlineStore");
-          const offlineStore = useOfflineStore.getState();
-
-          offlineStore.addToSyncQueue({
-            type: "step-status-update",
-            data: {
+          await withTimeout(
+            startUserStepServerAction(
               courseId,
               day,
               stepIndex,
-              status: "IN_PROGRESS",
-            },
-            maxRetries: 3,
-          });
-          
-          console.warn("📝 Добавлено в очередь офлайн синхронизации");
-        } catch (offlineError) {
-          console.error("❌ Не удалось добавить в очередь синхронизации:", offlineError);
+              TrainingStatus.IN_PROGRESS,
+              durationSec,
+            ),
+            SERVER_ACTION_TIMEOUT_MS
+          );
+        } catch (error) {
+          console.error("❌ Ошибка запуска шага:", error);
+          try {
+            const { useOfflineStore } = await import("@shared/stores/offlineStore");
+            const offlineStore = useOfflineStore.getState();
+            offlineStore.addToSyncQueue({
+              type: "step-status-update",
+              data: {
+                courseId,
+                day,
+                stepIndex,
+                status: "IN_PROGRESS",
+              },
+              maxRetries: 3,
+            });
+            console.warn("📝 Добавлено в очередь офлайн синхронизации");
+          } catch (offlineError) {
+            console.error("❌ Не удалось добавить в очередь синхронизации:", offlineError);
+          }
         }
-
-        throw error;
-      }
+      })();
     },
 
     finishStepWithServer: async (courseId, day, stepIndex, stepTitle, stepOrder) => {
-      try {
-        // Выполняем без ретраев для мгновенного офлайн-режима
-        await updateStepStatusServerAction(
-          courseId,
-          day,
-          stepIndex,
-          TrainingStatus.COMPLETED,
-          stepTitle,
-          stepOrder,
-        );
-      } catch (error) {
-        console.error("❌ Ошибка завершения шага:", error);
-
-        // Если сервер недоступен, добавляем в очередь синхронизации
+      // Выполняем серверное действие в фоне, UI не блокируем
+      (async () => {
         try {
-          const { useOfflineStore } = await import("@shared/stores/offlineStore");
-          const offlineStore = useOfflineStore.getState();
-
-          offlineStore.addToSyncQueue({
-            type: "step-status-update",
-            data: {
+          await withTimeout(
+            updateStepStatusServerAction(
               courseId,
               day,
               stepIndex,
-              status: "COMPLETED",
+              TrainingStatus.COMPLETED,
               stepTitle,
               stepOrder,
-            },
-            maxRetries: 3,
-          });
-          
-          console.warn("📝 Добавлено в очередь офлайн синхронизации");
-        } catch (offlineError) {
-          console.error("❌ Не удалось добавить в очередь синхронизации:", offlineError);
+            ),
+            SERVER_ACTION_TIMEOUT_MS
+          );
+        } catch (error) {
+          console.error("❌ Ошибка завершения шага:", error);
+          try {
+            const { useOfflineStore } = await import("@shared/stores/offlineStore");
+            const offlineStore = useOfflineStore.getState();
+            offlineStore.addToSyncQueue({
+              type: "step-status-update",
+              data: {
+                courseId,
+                day,
+                stepIndex,
+                status: "COMPLETED",
+                stepTitle,
+                stepOrder,
+              },
+              maxRetries: 3,
+            });
+            console.warn("📝 Добавлено в очередь офлайн синхронизации");
+          } catch (offlineError) {
+            console.error("❌ Не удалось добавить в очередь синхронизации:", offlineError);
+          }
         }
-
-        throw error;
-      }
+      })();
     },
 
     resetStepWithServer: async (courseId, day, stepIndex) => {
+      // Получаем текущий статус шага синхронно
       try {
-        // Получаем текущий статус шага из store для определения нового статуса
         const { useStepStore } = await import("@shared/stores/stepStore");
         const stepStore = useStepStore.getState();
         const stepKey = stepStore.getStepKey(courseId, day, stepIndex);
         const currentState = stepStore.stepStates[stepKey];
-        
-        // Определяем статус после сброса на основе предыдущего статуса
         let resetStatus: TrainingStatus = TrainingStatus.NOT_STARTED;
-        
         if (currentState?.status === "IN_PROGRESS" || currentState?.status === "COMPLETED") {
-          resetStatus = TrainingStatus.IN_PROGRESS; // Если был в процессе или завершен, ставим в процесс
+          resetStatus = TrainingStatus.IN_PROGRESS;
         } else if (currentState?.status === "PAUSED") {
-          resetStatus = TrainingStatus.IN_PROGRESS; // Если был на паузе, ставим в процесс (PAUSED нет в TrainingStatus)
+          resetStatus = TrainingStatus.IN_PROGRESS;
         }
 
-        // Сбрасываем уведомление (удаляем из очереди и БД)
-        try {
-          await resetNotificationClient({ courseId, day, stepIndex });
-        } catch (notificationError) {
-          console.warn("Failed to reset notification:", notificationError);
-        }
-
-        // Выполняем без ретраев для мгновенного офлайн-режима
-        await updateStepStatusServerAction(courseId, day, stepIndex, resetStatus);
-      } catch (error) {
-        console.error("❌ Ошибка сброса шага:", error);
-
-        // Если сервер недоступен, добавляем в очередь синхронизации
-        try {
-          const { useOfflineStore } = await import("@shared/stores/offlineStore");
-          const { useStepStore } = await import("@shared/stores/stepStore");
-          const offlineStore = useOfflineStore.getState();
-          const stepStore = useStepStore.getState();
-          
-          const stepKey = stepStore.getStepKey(courseId, day, stepIndex);
-          const currentState = stepStore.stepStates[stepKey];
-          
-          // Определяем статус для очереди синхронизации
-          let syncStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" = "NOT_STARTED";
-          if (currentState?.status === "IN_PROGRESS" || currentState?.status === "COMPLETED") {
-            syncStatus = "IN_PROGRESS";
-          } else if (currentState?.status === "PAUSED") {
-            syncStatus = "IN_PROGRESS"; // PAUSED нет в серверных статусах, используем IN_PROGRESS
+        // Не блокируем UI: сбрасываем уведомление и статус в фоне
+        (async () => {
+          try {
+            await withTimeout(
+              resetNotificationClient({ courseId, day, stepIndex }),
+              SERVER_ACTION_TIMEOUT_MS
+            );
+          } catch (notificationError) {
+            console.warn("Failed to reset notification:", notificationError);
           }
-
-          offlineStore.addToSyncQueue({
-            type: "step-status-update",
-            data: {
-              courseId,
-              day,
-              stepIndex,
-              status: syncStatus,
-            },
-            maxRetries: 3,
-          });
-          
-          console.warn("📝 Добавлено в очередь офлайн синхронизации");
-        } catch (offlineError) {
-          console.error("❌ Не удалось добавить в очередь синхронизации:", offlineError);
-        }
-
-        throw error;
+          try {
+            await withTimeout(
+              updateStepStatusServerAction(courseId, day, stepIndex, resetStatus),
+              SERVER_ACTION_TIMEOUT_MS
+            );
+          } catch (error) {
+            console.error("❌ Ошибка сброса шага:", error);
+            try {
+              const { useOfflineStore } = await import("@shared/stores/offlineStore");
+              const offlineStore = useOfflineStore.getState();
+              const stepStateNow = useStepStore.getState().stepStates[stepKey];
+              let syncStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" = "NOT_STARTED";
+              if (stepStateNow?.status === "IN_PROGRESS" || stepStateNow?.status === "COMPLETED") {
+                syncStatus = "IN_PROGRESS";
+              } else if (stepStateNow?.status === "PAUSED") {
+                syncStatus = "IN_PROGRESS";
+              }
+              offlineStore.addToSyncQueue({
+                type: "step-status-update",
+                data: { courseId, day, stepIndex, status: syncStatus },
+                maxRetries: 3,
+              });
+              console.warn("📝 Добавлено в очередь офлайн синхронизации");
+            } catch (offlineError) {
+              console.error("❌ Не удалось добавить в очередь синхронизации:", offlineError);
+            }
+          }
+        })();
+      } catch (e) {
+        console.error("❌ Ошибка при локальном расчёте статуса сброса:", e);
       }
     },
 
@@ -333,93 +339,87 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       localStorage.removeItem(PAUSE_KEY);
     },
 
-    // Пауза шага с синхронизацией на сервер
+    // Пауза шага с синхронизацией на сервер (optimistic + быстрый таймаут)
     pauseStepWithServer: async (courseId, day, stepIndex) => {
       try {
-        // Сначала пытаемся синхронизировать с сервером
-        await get().pauseNotification(courseId, day, stepIndex);
-        
-        // Если успешно, выполняем локальную паузу
+        const { useStepStore } = await import("@shared/stores/stepStore");
+        const stepStore = useStepStore.getState();
+        const stepKey = `${courseId}-${day}-${stepIndex}`;
+        const stepState = stepStore.stepStates[stepKey];
+        const timeLeft = stepState?.timeLeft || 0;
+
+        // Мгновенно меняем локальное состояние
         get().pauseStepOffline(courseId, day, stepIndex);
-      } catch (error) {
-        console.error("Ошибка при паузе шага на сервере:", error);
 
-        // Если сервер недоступен, добавляем в очередь синхронизации
-        try {
-          const { useOfflineStore } = await import("@shared/stores/offlineStore");
-          const offlineStore = useOfflineStore.getState();
-
-          // Получаем текущее оставшееся время из stepStore
-          const { useStepStore } = await import("@shared/stores/stepStore");
-          const stepStore = useStepStore.getState();
-          const stepKey = `${courseId}-${day}-${stepIndex}`;
-          const stepState = stepStore.stepStates[stepKey];
-          const timeLeft = stepState?.timeLeft || 0;
-
-          offlineStore.addToSyncQueue({
-            type: "step-pause",
-            data: {
-              courseId,
-              day,
-              stepIndex,
-              pausedAt: Date.now(),
-              timeLeft,
-            },
-            maxRetries: 3,
-          });
-
-          // Выполняем локальную паузу
-          get().pauseStepOffline(courseId, day, stepIndex);
-        } catch (offlineError) {
-          console.error("Failed to add pause to offline queue:", offlineError);
-          // Все равно выполняем локальную паузу
-          get().pauseStepOffline(courseId, day, stepIndex);
-        }
+        // Сервер — в фоне с быстрым таймаутом
+        (async () => {
+          try {
+            await withTimeout(get().pauseNotification(courseId, day, stepIndex), SERVER_ACTION_TIMEOUT_MS);
+          } catch (error) {
+            try {
+              const { useOfflineStore } = await import("@shared/stores/offlineStore");
+              const offlineStore = useOfflineStore.getState();
+              offlineStore.addToSyncQueue({
+                type: "step-pause",
+                data: {
+                  courseId,
+                  day,
+                  stepIndex,
+                  pausedAt: Date.now(),
+                  timeLeft,
+                },
+                maxRetries: 3,
+              });
+            } catch (offlineError) {
+              console.error("Failed to add pause to offline queue:", offlineError);
+            }
+          }
+        })();
+      } catch (e) {
+        console.error("Ошибка при локальной паузе:", e);
+        get().pauseStepOffline(courseId, day, stepIndex);
       }
     },
 
-    // Возобновление шага с синхронизацией на сервер
+    // Возобновление шага с синхронизацией на сервер (optimistic + быстрый таймаут)
     resumeStepWithServer: async (courseId, day, stepIndex, durationSec) => {
       try {
-        // Сначала пытаемся синхронизировать с сервером
-        await get().resumeNotification(courseId, day, stepIndex, durationSec);
-        
-        // Если успешно, выполняем локальное возобновление
+        const { useStepStore } = await import("@shared/stores/stepStore");
+        const stepStore = useStepStore.getState();
+        const stepKey = `${courseId}-${day}-${stepIndex}`;
+        const stepState = stepStore.stepStates[stepKey];
+        const timeLeft = stepState?.timeLeft || durationSec;
+
+        // Мгновенно меняем локальное состояние
         get().resumeStepOffline(courseId, day, stepIndex);
-      } catch (error) {
-        console.error("Ошибка при возобновлении шага на сервере:", error);
 
-        // Если сервер недоступен, добавляем в очередь синхронизации
-        try {
-          const { useOfflineStore } = await import("@shared/stores/offlineStore");
-          const offlineStore = useOfflineStore.getState();
-
-          // Получаем текущее оставшееся время из stepStore
-          const { useStepStore } = await import("@shared/stores/stepStore");
-          const stepStore = useStepStore.getState();
-          const stepKey = `${courseId}-${day}-${stepIndex}`;
-          const stepState = stepStore.stepStates[stepKey];
-          const timeLeft = stepState?.timeLeft || durationSec;
-
-          offlineStore.addToSyncQueue({
-            type: "step-resume",
-            data: {
-              courseId,
-              day,
-              stepIndex,
-              resumedAt: Date.now(),
-              timeLeft,
-            },
-            maxRetries: 3,
-          });
-
-          // Выполняем локальное возобновление
-          get().resumeStepOffline(courseId, day, stepIndex);
-        } catch (offlineError) {
-          console.error("Failed to add resume to offline queue:", offlineError);
-          // Все равно выполняем локальное возобновление
-          get().resumeStepOffline(courseId, day, stepIndex);
-        }
+        // Сервер — в фоне с быстрым таймаутом
+        (async () => {
+          try {
+            await withTimeout(get().resumeNotification(courseId, day, stepIndex, durationSec), SERVER_ACTION_TIMEOUT_MS);
+          } catch (error) {
+            try {
+              const { useOfflineStore } = await import("@shared/stores/offlineStore");
+              const offlineStore = useOfflineStore.getState();
+              offlineStore.addToSyncQueue({
+                type: "step-resume",
+                data: {
+                  courseId,
+                  day,
+                  stepIndex,
+                  resumedAt: Date.now(),
+                  timeLeft,
+                },
+                maxRetries: 3,
+              });
+            } catch (offlineError) {
+              console.error("Failed to add resume to offline queue:", offlineError);
+            }
+          }
+        })();
+      } catch (e) {
+        console.error("Ошибка при локальном возобновлении:", e);
+        get().resumeStepOffline(courseId, day, stepIndex);
       }
     },
   };
