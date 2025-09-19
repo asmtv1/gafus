@@ -276,41 +276,34 @@ async function syncStepStatusUpdate(data: StepStatusUpdateData): Promise<void> {
   }
 }
 
-// Синхронизация паузы шага
+// Синхронизация паузы шага: серверная пауза + StepNotification
 async function syncStepPause(data: StepPauseData): Promise<void> {
   try {
-    // Импортируем функцию паузы уведомления
-    const { pauseNotificationClient } = await import(
-      "@shared/lib/StepNotification/manageStepNotificationSimple"
-    );
-
-    // Вызываем серверное действие для паузы
-    await pauseNotificationClient({
-      courseId: data.courseId,
-      day: data.day,
-      stepIndex: data.stepIndex,
-    });
+    const [{ pauseUserStepServerAction }, { pauseNotificationClient }] = await Promise.all([
+      import("@shared/lib/training/pauseResumeUserStep"),
+      import("@shared/lib/StepNotification/manageStepNotificationSimple"),
+    ]);
+    await Promise.allSettled([
+      pauseUserStepServerAction(data.courseId, data.day, data.stepIndex, data.timeLeft),
+      pauseNotificationClient({ courseId: data.courseId, day: data.day, stepIndex: data.stepIndex }),
+    ]);
   } catch (error) {
     console.warn("Failed to sync step pause:", error);
     throw error;
   }
 }
 
-// Синхронизация возобновления шага
+// Синхронизация возобновления шага: снимаем серверную паузу + возобновляем StepNotification
 async function syncStepResume(data: StepResumeData): Promise<void> {
   try {
-    // Импортируем функцию возобновления уведомления
-    const { resumeNotificationClient } = await import(
-      "@shared/lib/StepNotification/manageStepNotificationSimple"
-    );
-
-    // Вызываем серверное действие для возобновления
-    await resumeNotificationClient({
-      courseId: data.courseId,
-      day: data.day,
-      stepIndex: data.stepIndex,
-      durationSec: data.timeLeft,
-    });
+    const [{ resumeUserStepServerAction }, { resumeNotificationClient }] = await Promise.all([
+      import("@shared/lib/training/pauseResumeUserStep"),
+      import("@shared/lib/StepNotification/manageStepNotificationSimple"),
+    ]);
+    await Promise.allSettled([
+      resumeUserStepServerAction(data.courseId, data.day, data.stepIndex),
+      resumeNotificationClient({ courseId: data.courseId, day: data.day, stepIndex: data.stepIndex, durationSec: data.timeLeft }),
+    ]);
   } catch (error) {
     console.warn("Failed to sync step resume:", error);
     throw error;

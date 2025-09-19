@@ -106,6 +106,7 @@ export function Day({ training }: DayProps) {
           index,
           step.durationSec,
           step.status,
+          { serverPaused: Boolean(step.isPausedOnServer), serverRemainingSec: step.remainingSecOnServer },
         );
       });
     } catch {

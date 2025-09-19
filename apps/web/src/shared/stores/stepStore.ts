@@ -23,7 +23,7 @@ export const useStepStore = create<StepStore>()(
       getStepKey: (courseId, day, stepIndex) => `${courseId}-${day}-${stepIndex}`,
 
       // ===== ДЕЙСТВИЯ ДЛЯ ШАГОВ =====
-      initializeStep: (courseId, day, stepIndex, durationSec, initialStatus = "NOT_STARTED") => {
+      initializeStep: (courseId, day, stepIndex, durationSec, initialStatus = "NOT_STARTED", options) => {
         const stepKey = get().getStepKey(courseId, day, stepIndex);
         const existingState = get().stepStates[stepKey];
 
@@ -70,15 +70,41 @@ export const useStepStore = create<StepStore>()(
         const restoredState = get().restoreStepFromLS(courseId, day, stepIndex);
 
 
+        // Если сервер сообщает о паузе, учитываем её при начальном состоянии,
+        // но не конфликтуем с локальной PAUSE в LS (локальная имеет приоритет в оффлайне)
+        const serverPaused = options?.serverPaused === true;
+        const serverRemaining = options?.serverRemainingSec;
+
+        const baseState = restoredState || {
+          timeLeft: durationSec,
+          isFinished: initialStatus === "COMPLETED",
+          isPaused: false,
+          status: initialStatus,
+        };
+
+        const mergedState = (() => {
+          // Если локально восстановлена пауза — оставляем её
+          if (baseState.status === "PAUSED") {
+            return baseState;
+          }
+          // Иначе, если сервер говорит, что пауза активна — ставим в PAUSED и подставим оставшееся время
+          if (serverPaused) {
+            return {
+              ...baseState,
+              status: "PAUSED" as const,
+              isPaused: true,
+              timeLeft: typeof serverRemaining === "number" && serverRemaining > 0
+                ? serverRemaining
+                : baseState.timeLeft,
+            };
+          }
+          return baseState;
+        })();
+
         set((state) => ({
           stepStates: {
             ...state.stepStates,
-            [stepKey]: restoredState || {
-              timeLeft: durationSec,
-              isFinished: initialStatus === "COMPLETED",
-              isPaused: false,
-              status: initialStatus,
-            },
+            [stepKey]: mergedState,
           },
         }));
 
