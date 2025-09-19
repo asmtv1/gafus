@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/register",
   "/passwordReset",
+  "/reset-password",
   "/confirm",
   "/api/auth",
   "/api/csrf-token",
