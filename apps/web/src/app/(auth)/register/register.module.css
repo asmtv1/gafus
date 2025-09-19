@@ -109,9 +109,8 @@
 
 /* Локальный стиль ошибок для этой формы */
 .errorText {
-  font-size: 12px;
+  font-size: 9px;
   font-family: var(--font-montserrat), system-ui, sans-serif;
-  line-height: 1.2;
   margin-top: 4px;
   color: red;
 }

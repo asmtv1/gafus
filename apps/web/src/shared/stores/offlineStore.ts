@@ -379,7 +379,6 @@ export function initializeOfflineStore() {
   // Перехватываем fetch ошибки для обновления статуса
   try {
     const originalFetch = window.fetch;
-    let lastNetworkErrorTime = 0;
     
     window.fetch = async (...args) => {
       try {
@@ -396,49 +395,11 @@ export function initializeOfflineStore() {
         clearTimeout(timeoutId);
         return result;
       } catch (error) {
-        // Если произошла ошибка сети или таймаут, проверяем через /api/ping
-        if (
-          error instanceof TypeError &&
-          (error.message.includes("fetch") || 
-           error.message.includes("network") ||
-           error.message.includes("aborted"))
-        ) {
-          const now = Date.now();
-          
-          // Проверяем не чаще раза в 3 секунды (быстрее реакция)
-          if (now - lastNetworkErrorTime > 3000) {
-            lastNetworkErrorTime = now;
-            
-            if (process.env.NODE_ENV === "development") {
-              console.warn("🌐 Fetch error detected, checking with /api/ping...");
-            }
-            
-            // Проверяем реальное соединение через /api/ping с коротким таймаутом
-            try {
-              const pingController = new AbortController();
-              const pingTimeout = setTimeout(() => pingController.abort(), 3000); // 3 секунды для ping
-              
-              const response = await originalFetch("/api/ping", {
-                method: "GET",
-                cache: "no-cache",
-                signal: pingController.signal,
-              });
-              
-              clearTimeout(pingTimeout);
-              
-              if (response.ok) {
-                // Соединение есть, но navigator.onLine может быть неточным
-                if (process.env.NODE_ENV === "development") {
-                  console.warn("🌐 /api/ping successful, connection is actually available");
-                }
-              } else {
-                // Соединение действительно отсутствует
-                useOfflineStore.getState().setOnlineStatus(false);
-              }
-            } catch {
-              // Соединение действительно отсутствует
-              useOfflineStore.getState().setOnlineStatus(false);
-            }
+        // Если произошла ошибка сети или таймаут — не понижаем статус вслепую
+        if (error instanceof TypeError) {
+          // Если браузер сам говорит, что офлайн — обновляем статус
+          if (!navigator.onLine) {
+            useOfflineStore.getState().setOnlineStatus(false);
           }
         }
         
