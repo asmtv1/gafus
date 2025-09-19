@@ -86,16 +86,9 @@ export function useCoursesMutation() {
     store.fetchAuthored();
   };
 
-  const invalidateAll = () => {
-    invalidateAllCourses();
-    invalidateFavorites();
-    invalidateAuthored();
-  };
-
   return {
     invalidateAllCourses,
     invalidateFavorites,
     invalidateAuthored,
-    invalidateAll,
   };
 }

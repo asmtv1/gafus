@@ -44,58 +44,5 @@ export function useOfflineData() {
     localStorage.setItem(key, JSON.stringify(items));
   };
 
-  const completeStepOffline = (data: StepCompletionData) => {
-    // Добавляем в очередь синхронизации
-    addToSyncQueue({
-      type: "step-completion",
-      data,
-      maxRetries: 3,
-    });
-
-    // Сохраняем локально
-    saveOffline("step-completion", data);
-  };
-
-  const updateProfileOffline = (profileData: ProfileUpdateData) => {
-    // Добавляем в очередь синхронизации
-    addToSyncQueue({
-      type: "profile-update",
-      data: profileData,
-      maxRetries: 3,
-    });
-
-    // Сохраняем локально
-    saveOffline("profile-update", profileData);
-  };
-
-  const addCommentOffline = (data: CommentData) => {
-    // Добавляем в очередь синхронизации
-    addToSyncQueue({
-      type: "comment",
-      data,
-      maxRetries: 3,
-    });
-
-    // Сохраняем локально
-    saveOffline("comment", data);
-  };
-
-  const addRatingOffline = (data: RatingData) => {
-    // Добавляем в очередь синхронизации
-    addToSyncQueue({
-      type: "rating",
-      data,
-      maxRetries: 3,
-    });
-
-    // Сохраняем локально
-    saveOffline("rating", data);
-  };
-
-  return {
-    completeStepOffline,
-    updateProfileOffline,
-    addCommentOffline,
-    addRatingOffline,
-  };
+  return {};
 }

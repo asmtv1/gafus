@@ -26,9 +26,5 @@ export function useUserPets() {
 export function usePetsMutation() {
   const { mutate } = useMutate();
 
-  const invalidatePets = () => {
-    mutate("user:pets");
-  };
-
-  return { invalidatePets };
+  return {};
 }

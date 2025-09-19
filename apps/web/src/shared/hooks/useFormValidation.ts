@@ -27,11 +27,6 @@ export function useFormWithValidation<T extends FieldValues>(
     defaultValues: defaultValues as DefaultValues<T>,
   });
 
-  // Функция для получения правил валидации для конкретного поля
-  const getFieldRules = (fieldName: FieldPath<T>): RegisterOptions<T, FieldPath<T>> => {
-    return validationSchema?.[fieldName] || {};
-  };
-
   // Функция для проверки валидности всей формы
   const isFormValid = form.formState.isValid;
 
@@ -40,7 +35,6 @@ export function useFormWithValidation<T extends FieldValues>(
 
   return {
     form,
-    getFieldRules,
     isFormValid,
     getErrors,
     handleSubmit: form.handleSubmit,

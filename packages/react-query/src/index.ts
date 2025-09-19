@@ -58,23 +58,6 @@ export const useServerAction = <T>(
 
 // Хук для оптимистичных обновлений
 
-export const useOptimisticUpdate = <T>(cacheKey: string) => {
-  const queryClient = useQueryClient();
-
-  const optimisticUpdate = (newData: T, rollbackData?: T) => {
-    // Оптимистично обновляем UI
-    queryClient.setQueryData([cacheKey], newData);
-
-    // Возвращаем функцию для отката
-    return () => {
-      if (rollbackData !== undefined) {
-        queryClient.setQueryData([cacheKey], rollbackData);
-      }
-    };
-  };
-
-  return { optimisticUpdate };
-};
 
 // Экспорты из хуков
 export {
