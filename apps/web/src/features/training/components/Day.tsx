@@ -171,7 +171,15 @@ export function Day({ training }: DayProps) {
         // Получаем статус шага из store
         const stepKey = getStepKey(index);
         const stepState = stepStates[stepKey];
-        const stepStatus = stepState?.status || step.status || "NOT_STARTED";
+        
+        // Приоритет: локальное состояние > серверная пауза > базовый статус
+        let stepStatus = stepState?.status || step.status || "NOT_STARTED";
+        
+        // Если локально не на паузе, но сервер говорит что на паузе - показываем паузу
+        if (!stepState?.isPaused && step.isPausedOnServer) {
+          stepStatus = "PAUSED";
+        }
+        
         const stepStatusConfig = STEP_STATUS_CONFIG[stepStatus as keyof typeof STEP_STATUS_CONFIG] || STEP_STATUS_CONFIG.NOT_STARTED;
         
         return (

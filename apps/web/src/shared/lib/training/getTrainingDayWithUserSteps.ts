@@ -90,31 +90,41 @@ export async function getTrainingDayWithUserSteps(
   let pausedByStepId: Record<string, boolean> = {};
   let remainingByStepId: Record<string, number | undefined> = {};
   if (userTrainingId) {
-    // Обратная совместимость до обновления Prisma Client типов
-    type UserStepLite = { stepOnDayId: string; status: string; paused?: boolean; remainingSec?: number | null };
-    const userStepsRaw = (await (prisma as unknown as { userStep: { findMany: (args: unknown) => Promise<unknown> } }).userStep.findMany({
-      where: { userTrainingId },
-      select: { stepOnDayId: true, status: true, paused: true, remainingSec: true },
-    })) as unknown;
-    const userSteps = userStepsRaw as UserStepLite[];
+    // Обратная совместимость: если колонок paused/remainingSec ещё нет в БД/клиенте, не падаем
+    type UserStepWithPause = { stepOnDayId: string; status: string; paused?: boolean; remainingSec?: number | null };
+    let withPause = false;
+    let userSteps: UserStepWithPause[] = [];
+    try {
+      const res = (await (prisma as unknown as { userStep: { findMany: (args: unknown) => Promise<unknown> } }).userStep.findMany({
+        where: { userTrainingId },
+        select: { stepOnDayId: true, status: true, paused: true, remainingSec: true },
+      })) as unknown;
+      userSteps = res as UserStepWithPause[];
+      withPause = true;
+    } catch {
+      const res = (await prisma.userStep.findMany({
+        where: { userTrainingId },
+        select: { stepOnDayId: true, status: true },
+      })) as unknown as { stepOnDayId: string; status: string }[];
+      userSteps = res;
+      withPause = false;
+    }
+
     stepStatuses = Object.fromEntries(
       userSteps.map((record) => [
         record.stepOnDayId,
-        TrainingStatus[record.status as keyof typeof TrainingStatus],
+        TrainingStatus[(record.status as string) as keyof typeof TrainingStatus],
       ]),
     );
-    pausedByStepId = Object.fromEntries(
-      userSteps.map((record) => [
-        record.stepOnDayId,
-        Boolean(record.paused),
-      ]),
-    );
-    remainingByStepId = Object.fromEntries(
-      userSteps.map((record) => [
-        record.stepOnDayId,
-        record.remainingSec ?? undefined,
-      ]),
-    );
+
+    if (withPause) {
+      pausedByStepId = Object.fromEntries(
+        userSteps.map((record) => [record.stepOnDayId, Boolean(record.paused)]),
+      );
+      remainingByStepId = Object.fromEntries(
+        userSteps.map((record) => [record.stepOnDayId, record.remainingSec ?? undefined]),
+      );
+    }
   }
 
   // Собираем финальный массив шагов
