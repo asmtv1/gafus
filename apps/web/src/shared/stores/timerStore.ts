@@ -2,11 +2,8 @@ import { useEffect } from "react";
 import { create } from "zustand";
 
 import { TrainingStatus, type TimerStore } from "@gafus/types";
-import {
-  pauseNotificationClient,
-  resetNotificationClient,
-  resumeNotificationClient,
-} from "@shared/lib/StepNotification/manageStepNotificationSimple";
+import { pauseNotificationClient, resumeNotificationClient, resetNotificationClient } from "@shared/lib/StepNotification/manageStepNotificationSimple";
+import { pauseUserStepServerAction, resumeUserStepServerAction } from "@shared/lib/training/pauseResumeUserStep";
 import { startUserStepServerAction } from "@shared/lib/training/startUserStepServerAction";
 import { updateStepStatusServerAction } from "@shared/lib/training/updateUserStepStatus";
 
@@ -292,22 +289,35 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       }
     },
 
-    // Приостанавливает уведомление (удаляет из очереди, но оставляет в БД)
+    // Сервер: сохранить паузу шага и поставить на паузу Push-уведомление (StepNotification)
     pauseNotification: async (courseId, day, stepIndex) => {
       try {
-        await pauseNotificationClient({ courseId, day, stepIndex });
+        const { useStepStore } = await import("@shared/stores/stepStore");
+        const stepStore = useStepStore.getState();
+        const stepKey = `${courseId}-${day}-${stepIndex}`;
+        const stepState = stepStore.stepStates[stepKey];
+        const timeLeft = stepState?.timeLeft || 0;
+        // 1) Пишем паузу шага в UserStep
+        // 2) Ставим на паузу StepNotification
+        await Promise.allSettled([
+          pauseUserStepServerAction(courseId, day, stepIndex, timeLeft),
+          pauseNotificationClient({ courseId, day, stepIndex }),
+        ]);
       } catch (error) {
-        console.error("Failed to pause notification:", error);
+        console.error("Failed to pause step on server:", error);
         throw error;
       }
     },
 
-    // Возобновляет уведомление (создает новую задачу в очереди)
+    // Сервер: снять паузу шага и возобновить Push-уведомление (StepNotification)
     resumeNotification: async (courseId, day, stepIndex, durationSec) => {
       try {
-        await resumeNotificationClient({ courseId, day, stepIndex, durationSec });
+        await Promise.allSettled([
+          resumeUserStepServerAction(courseId, day, stepIndex),
+          resumeNotificationClient({ courseId, day, stepIndex, durationSec }),
+        ]);
       } catch (error) {
-        console.error("Failed to resume notification:", error);
+        console.error("Failed to resume step on server:", error);
         throw error;
       }
     },

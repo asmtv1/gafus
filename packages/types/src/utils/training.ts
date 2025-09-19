@@ -19,6 +19,9 @@ export interface TrainingStep {
   durationSec: number;
   status: TrainingStatus;
   order: number;
+  // Доп. поля с серверной паузой (не влияют на TrainingStatus)
+  isPausedOnServer?: boolean;
+  remainingSecOnServer?: number;
 }
 
 /** Полная информация о тренировочном дне + шаги + статус пользователя */

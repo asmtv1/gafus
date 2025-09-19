@@ -87,15 +87,32 @@ export async function getTrainingDayWithUserSteps(
 
   // Получаем статусы UserStep для каждого stepOnDayId
   let stepStatuses: Record<string, TrainingStatus> = {};
+  let pausedByStepId: Record<string, boolean> = {};
+  let remainingByStepId: Record<string, number | undefined> = {};
   if (userTrainingId) {
-    const userSteps = await prisma.userStep.findMany({
+    // Обратная совместимость до обновления Prisma Client типов
+    type UserStepLite = { stepOnDayId: string; status: string; paused?: boolean; remainingSec?: number | null };
+    const userStepsRaw = (await (prisma as unknown as { userStep: { findMany: (args: unknown) => Promise<unknown> } }).userStep.findMany({
       where: { userTrainingId },
-      select: { stepOnDayId: true, status: true },
-    });
+      select: { stepOnDayId: true, status: true, paused: true, remainingSec: true },
+    })) as unknown;
+    const userSteps = userStepsRaw as UserStepLite[];
     stepStatuses = Object.fromEntries(
-      userSteps.map(({ stepOnDayId, status }: { stepOnDayId: string; status: string }) => [
-        stepOnDayId,
-        TrainingStatus[status as keyof typeof TrainingStatus],
+      userSteps.map((record) => [
+        record.stepOnDayId,
+        TrainingStatus[record.status as keyof typeof TrainingStatus],
+      ]),
+    );
+    pausedByStepId = Object.fromEntries(
+      userSteps.map((record) => [
+        record.stepOnDayId,
+        Boolean(record.paused),
+      ]),
+    );
+    remainingByStepId = Object.fromEntries(
+      userSteps.map((record) => [
+        record.stepOnDayId,
+        record.remainingSec ?? undefined,
       ]),
     );
   }
@@ -128,6 +145,9 @@ export async function getTrainingDayWithUserSteps(
       pdfUrls: step.pdfUrls,
       status: stepStatuses[stepOnDayId] ?? TrainingStatus.NOT_STARTED,
       order: order,
+      // Серверные поля паузы
+      isPausedOnServer: pausedByStepId[stepOnDayId] ?? false,
+      remainingSecOnServer: remainingByStepId[stepOnDayId] ?? undefined,
     }),
   );
 

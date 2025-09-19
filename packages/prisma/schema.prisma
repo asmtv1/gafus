@@ -147,6 +147,9 @@ model UserStep {
   userTrainingId  String
   stepOnDayId     String
   status          TrainingStatus @default(NOT_STARTED)
+  // Флажок паузы и оставшееся время шага в секундах для серверного хранения
+  paused          Boolean        @default(false)
+  remainingSec    Int?
 
   userTraining    UserTraining   @relation(fields: [userTrainingId], references: [id], onDelete: Cascade)
   stepOnDay       StepOnDay      @relation(fields: [stepOnDayId], references: [id], onDelete: Cascade)
