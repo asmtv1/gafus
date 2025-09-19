@@ -209,12 +209,6 @@
     margin-top: -40px;
   }
   
- 
-  
-  .speechBubble::after {
-    top: 27%;
-    left: 312px;
-  }
   
   .button_register,
   .button_login {
