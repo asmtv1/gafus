@@ -3,7 +3,6 @@
 import { useData, useMutate, useQueryClient } from "@gafus/react-query";
 import { getUserPreferences } from "@shared/lib/user/getUserPreferences";
 import { getUserProfile } from "@shared/lib/user/getUserProfile";
-import { updateUserPreferences } from "@shared/lib/user/updateUserPreferences";
 import { updateUserProfile } from "@shared/lib/user/updateUserProfile";
 
 import type { UserProfile, UserPreferences } from "@gafus/types";
