@@ -9,6 +9,20 @@ import { getFavoritesCourses } from "@shared/lib/course/getFavoritesCourses";
 
 import type { FavoriteToggleData, CourseWithProgressData } from "@gafus/types";
 
+// Локальный хелпер быстрого таймаута для сетевых вызовов в избранном
+async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timeout")), ms);
+    p.then((v) => {
+      clearTimeout(t);
+      resolve(v);
+    }).catch((e) => {
+      clearTimeout(t);
+      reject(e);
+    });
+  });
+}
+
 interface FavoritesState {
   favoriteIds: Set<string>;
   initialized: boolean;
@@ -129,17 +143,33 @@ export const useFavoritesStore = create<FavoritesState>()(
         // локально сразу
         get().addFavoriteLocal(courseId);
 
-        // онлайн — пробуем отправить сразу, офлайн — кладем в очередь
-        try {
-          if (isOnline) {
-            const { addFavoriteCourse } = await import("@shared/lib/course/addtoFavorite");
-            await addFavoriteCourse(courseId);
-          } else {
-            const data: FavoriteToggleData = { courseId, action: "add" };
-            addToSyncQueue({ type: "favorite-toggle", data, maxRetries: 3 });
+        const doRequest = async () => {
+          const { addFavoriteCourse } = await import("@shared/lib/course/addtoFavorite");
+          await addFavoriteCourse(courseId);
+        };
+
+        // онлайн — шлём с увеличенным таймаутом и мягким ретраем, офлайн — в очередь
+        if (isOnline) {
+          try {
+            await withTimeout(doRequest(), 2500);
+          } catch (e) {
+            // Не кидаем сразу в офлайн-очередь — пробуем фоновые ретраи
+            console.warn("addFavorite online attempt failed, retrying in background", e);
+            (async () => {
+              for (let i = 0; i < 2; i++) {
+                try {
+                  await withTimeout(doRequest(), 2500);
+                  return;
+                } catch (err) {
+                  console.warn("addFavorite retry failed", err);
+                }
+              }
+              // Если так и не удалось — только тогда кладём в очередь
+              const data: FavoriteToggleData = { courseId, action: "add" };
+              addToSyncQueue({ type: "favorite-toggle", data, maxRetries: 3 });
+            })();
           }
-        } catch {
-          // в случае ошибки — добавляем в очередь на синк
+        } else {
           const data: FavoriteToggleData = { courseId, action: "add" };
           addToSyncQueue({ type: "favorite-toggle", data, maxRetries: 3 });
         }
@@ -150,15 +180,30 @@ export const useFavoritesStore = create<FavoritesState>()(
         // локально сразу
         get().removeFavoriteLocal(courseId);
 
-        try {
-          if (isOnline) {
-            const { removeFavoriteCourse } = await import("@shared/lib/course/addtoFavorite");
-            await removeFavoriteCourse(courseId);
-          } else {
-            const data: FavoriteToggleData = { courseId, action: "remove" };
-            addToSyncQueue({ type: "favorite-toggle", data, maxRetries: 3 });
+        const doRequest = async () => {
+          const { removeFavoriteCourse } = await import("@shared/lib/course/addtoFavorite");
+          await removeFavoriteCourse(courseId);
+        };
+
+        if (isOnline) {
+          try {
+            await withTimeout(doRequest(), 2500);
+          } catch (e) {
+            console.warn("removeFavorite online attempt failed, retrying in background", e);
+            (async () => {
+              for (let i = 0; i < 2; i++) {
+                try {
+                  await withTimeout(doRequest(), 2500);
+                  return;
+                } catch (err) {
+                  console.warn("removeFavorite retry failed", err);
+                }
+              }
+              const data: FavoriteToggleData = { courseId, action: "remove" };
+              addToSyncQueue({ type: "favorite-toggle", data, maxRetries: 3 });
+            })();
           }
-        } catch {
+        } else {
           const data: FavoriteToggleData = { courseId, action: "remove" };
           addToSyncQueue({ type: "favorite-toggle", data, maxRetries: 3 });
         }
