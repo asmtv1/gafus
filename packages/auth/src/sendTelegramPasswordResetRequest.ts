@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
+import { randomUUID } from "crypto";
 
 export async function sendTelegramPasswordResetRequest(username: string, phone: string) {
   const user = await prisma.user.findUnique({
@@ -30,7 +31,7 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
   });
 
   // Генерация токена и сохранение в базу
-  const token = crypto.randomUUID();
+  const token = randomUUID();
 
   await prisma.passwordResetToken.create({
     data: {
@@ -46,11 +47,11 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
     return;
   }
 
-  // Замените на новый домен!!!
-  const resetLink = `http://localhost:3000/reset-password?token=${token}`;
+  const appBaseUrl = process.env.NEXTAUTH_URL || process.env.APP_BASE_URL || "http://localhost:3000";
+  const resetLink = `${appBaseUrl.replace(/\/$/, "")}/reset-password?token=${token}`;
   const message = `🔐 Запрос на сброс пароля:\n👤 Логин: ${username}\n📞 Телефон: ${phone}\n\n👉 Для сброса пароля перейдите по ссылке:\n${resetLink}`;
 
-  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -60,4 +61,10 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
       text: message,
     }),
   });
+
+  if (!response.ok) {
+    const body = await response.text();
+    console.error(`❌ Не удалось отправить сообщение в Telegram: ${response.status} ${response.statusText} — ${body}`);
+    throw new Error("Не удалось отправить сообщение в Telegram");
+  }
 }
