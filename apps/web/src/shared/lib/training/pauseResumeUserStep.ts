@@ -54,24 +54,26 @@ export async function pauseUserStepServerAction(
         where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
       });
 
+      const remaining = Math.max(Math.floor(Number(timeLeftSec) || 0), 0);
+
       if (existing) {
-        await ((tx as unknown) as { userStep: { update: (args: unknown) => Promise<unknown> } }).userStep.update({
+        await tx.userStep.update({
           where: { id: existing.id },
-          data: ({} as unknown) as unknown,
+          data: {
+            paused: true,
+            remainingSec: remaining,
+            updatedAt: new Date(),
+          },
         });
-        // Обновляем поля паузы через raw, чтобы избежать несовпадения типов клиента до генерации
-        await tx.$executeRaw`UPDATE "UserStep" SET "paused" = true, "remainingSec" = ${Math.max(Math.floor(Number(timeLeftSec) || 0), 0)}, "updatedAt" = NOW() WHERE "id" = ${existing.id}`;
       } else {
-        // Создаем запись UserStep стандартным путём без новых полей
-        await ((tx as unknown) as { userStep: { create: (args: unknown) => Promise<unknown> } }).userStep.create({
-          data: ({
+        await tx.userStep.create({
+          data: {
             userTrainingId: userTraining.id,
             stepOnDayId: stepLink.id,
-            status: 'IN_PROGRESS',
-          } as unknown) as unknown,
+            paused: true,
+            remainingSec: remaining,
+          },
         });
-        // Затем выставляем паузу и оставшееся время
-        await tx.$executeRaw`UPDATE "UserStep" SET "paused" = true, "remainingSec" = ${Math.max(Math.floor(Number(timeLeftSec) || 0), 0)}, "updatedAt" = NOW() WHERE "userTrainingId" = ${userTraining.id} AND "stepOnDayId" = ${stepLink.id}`;
       }
     });
 
@@ -135,11 +137,14 @@ export async function resumeUserStepServerAction(
       });
 
       if (existing) {
-        await ((tx as unknown) as { userStep: { update: (args: unknown) => Promise<unknown> } }).userStep.update({
+        await tx.userStep.update({
           where: { id: existing.id },
-          data: ({} as unknown) as unknown,
+          data: {
+            paused: false,
+            remainingSec: null,
+            updatedAt: new Date(),
+          },
         });
-        await tx.$executeRaw`UPDATE "UserStep" SET "paused" = false, "remainingSec" = NULL, "updatedAt" = NOW() WHERE "id" = ${existing.id}`;
       }
     });
 
