@@ -74,33 +74,8 @@ export function useAchievementsMutation() {
     mutate("user:achievements");
   };
   
-  /**
-   * Обновляет данные достижений
-   */
-  const updateAchievements = async (newData?: AchievementData) => {
-    if (newData) {
-      // Обновляем кэш новыми данными
-      mutate("user:achievements");
-    } else {
-      // Принудительно обновляем данные
-      mutate("user:achievements");
-    }
-  };
-  
-  /**
-   * Инвалидирует все связанные данные
-   */
-  const invalidateAllUserData = () => {
-    mutate("user:achievements");
-    mutate("user:profile");
-    mutate("user:with-trainings");
-    // courses:all больше не используется - данные в courseStore
-  };
-  
   return {
     invalidateAchievements,
-    updateAchievements,
-    invalidateAllUserData,
   };
 }
 

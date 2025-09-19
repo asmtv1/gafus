@@ -16,9 +16,5 @@ export function useErrorFilters() {
 export function useMutateErrorFilters() {
   const { mutate } = useMutate();
 
-  const invalidateFilters = () => {
-    mutate("error-filters");
-  };
-
-  return { invalidateFilters };
+  return {};
 }

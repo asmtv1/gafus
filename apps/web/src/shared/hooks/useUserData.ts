@@ -121,30 +121,7 @@ export function useUserMutations() {
     }
   };
 
-  const updatePreferences = async (data: Partial<UserPreferences>) => {
-    try {
-      const updatedPreferences = await updateUserPreferences(data);
-      queryClient.setQueryData(["user:preferences"], updatedPreferences);
-      return { success: true, data: updatedPreferences };
-    } catch (error) {
-      console.error("Ошибка обновления настроек:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Неизвестная ошибка",
-      };
-    }
-  };
-
-  const invalidateUserData = () => {
-    mutate("user:profile");
-    mutate("user:preferences");
-    // Инвалидируем достижения при изменении пользовательских данных
-    mutate("user:achievements");
-  };
-
   return {
     updateProfile,
-    updatePreferences,
-    invalidateUserData,
   };
 }

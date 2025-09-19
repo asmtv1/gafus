@@ -262,8 +262,3 @@ export function useCSRFToken() {
   };
 }
 
-// ===== ДЕПРЕКЕЙТЕД ФУНКЦИИ =====
-/**
- * @deprecated Используйте useCSRFStore вместо useCSRFToken
- */
-export const useCSRFTokenDeprecated = useCSRFToken;

@@ -53,16 +53,6 @@ export default function CoursesClient({
     };
   }, [forceRefreshFavorites]);
 
-  // Функция обновления курсов
-  const handleCoursesRefresh = async () => {
-    try {
-      // Обновляем store
-      await fetchAllCourses();
-    } catch (error) {
-      console.error("❌ Ошибка обновления курсов:", error);
-      throw error;
-    }
-  };
 
   // Показываем скелетон во время загрузки
   if (loading.all) {

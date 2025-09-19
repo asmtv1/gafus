@@ -44,13 +44,7 @@ export function useErrorsMutation() {
     mutate(cacheKey, undefined);
   };
 
-  const invalidateAllErrors = () => {
-    // Инвалидируем все возможные ключи ошибок
-    mutate("errors:", undefined);
-  };
-
   return {
     invalidateErrors,
-    invalidateAllErrors,
   };
 }

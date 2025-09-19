@@ -44,24 +44,5 @@ export function useUserWithTrainings() {
 export function useProfileMutation() {
   const { mutate } = useMutate();
 
-  const invalidateProfile = () => {
-    mutate("user:profile");
-  };
-
-  const invalidateUserWithTrainings = () => {
-    mutate("user:with-trainings");
-  };
-
-  const invalidateAllUserData = () => {
-    mutate("user:profile");
-    mutate("user:with-trainings");
-    // Инвалидируем достижения при изменении профиля
-    mutate("user:achievements");
-  };
-
-  return {
-    invalidateProfile,
-    invalidateUserWithTrainings,
-    invalidateAllUserData,
-  };
+  return {};
 }
