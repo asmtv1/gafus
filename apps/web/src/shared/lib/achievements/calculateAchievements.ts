@@ -141,7 +141,7 @@ const ACHIEVEMENTS_CONFIG = [
  * Вычисляет статистику пользователя на основе его курсов
  */
 function calculateUserStatistics(user: UserWithTrainings): AchievementStats {
-  const courses = user.courses || [];
+  const courses = user?.courses || [];
   
   const totalCourses = courses.length;
   const completedCourses = courses.filter(course => course.completedAt).length;
@@ -150,7 +150,7 @@ function calculateUserStatistics(user: UserWithTrainings): AchievementStats {
   ).length;
   
   const totalCompletedDays = courses.reduce(
-    (sum, course) => sum + course.completedDays.length,
+    (sum, course) => sum + (course.completedDays?.length || 0),
     0
   );
   
@@ -165,7 +165,7 @@ function calculateUserStatistics(user: UserWithTrainings): AchievementStats {
   
   // Вычисляем время обучения (примерная оценка)
   const totalTrainingTime = courses.reduce((sum, course) => {
-    const completedDays = course.completedDays.length;
+    const completedDays = course.completedDays?.length || 0;
     const estimatedMinutesPerDay = 30; // Примерно 30 минут в день
     return sum + (completedDays * estimatedMinutesPerDay);
   }, 0);
@@ -174,7 +174,7 @@ function calculateUserStatistics(user: UserWithTrainings): AchievementStats {
   const averageCourseProgress = totalCourses > 0
     ? Math.round(courses.reduce((sum, course) => {
         const courseProgress = course.totalDays > 0 
-          ? (course.completedDays.length / course.totalDays) * 100
+          ? ((course.completedDays?.length || 0) / course.totalDays) * 100
           : 0;
         return sum + courseProgress;
       }, 0) / totalCourses)
@@ -222,6 +222,10 @@ function calculateCurrentStreak(courses: UserWithTrainings['courses']): number {
  * Вычисляет достижения на основе статистики
  */
 function calculateAchievements(stats: AchievementStats): Achievement[] {
+  if (!stats) {
+    return [];
+  }
+  
   return ACHIEVEMENTS_CONFIG.map(config => {
     const unlocked = config.condition(stats);
     const progress = calculateAchievementProgress(config, stats);
@@ -299,12 +303,42 @@ export async function calculateAchievementsData(
  * Создает финальные данные достижений для SWR
  */
 export async function createAchievementData(user: UserWithTrainings): Promise<AchievementData> {
+  // Добавляем логирование для отладки
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[createAchievementData] User data:', {
+      hasUser: !!user,
+      hasCourses: !!user?.courses,
+      coursesLength: user?.courses?.length,
+      coursesData: user?.courses?.map(c => ({
+        courseId: c.courseId,
+        courseName: c.courseName,
+        completedAt: !!c.completedAt,
+        completedDaysLength: c.completedDays?.length,
+        totalDays: c.totalDays
+      }))
+    });
+  }
+  
   const result = await calculateAchievementsData({ user });
   
-  return {
+  const achievementData = {
     ...result.statistics,
     achievements: result.achievements,
     lastUpdated: new Date(),
     version: "1.0.0",
   };
+  
+  // Добавляем логирование результата
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[createAchievementData] Result:', {
+      totalCourses: achievementData.totalCourses,
+      completedCourses: achievementData.completedCourses,
+      totalCompletedDays: achievementData.totalCompletedDays,
+      totalDays: achievementData.totalDays,
+      overallProgress: achievementData.overallProgress,
+      achievementsLength: achievementData.achievements.length
+    });
+  }
+  
+  return achievementData;
 }

@@ -18,7 +18,12 @@ export default function UserCoursesStatistics() {
   const { data: courses, error, isLoading } = useUserStartedCourses();
   
   // Получаем ID курсов для загрузки прогресса
-  const courseIds = useMemo(() => courses?.map(course => course.id) || [], [courses]);
+  const courseIds = useMemo(() => {
+    if (!courses || !Array.isArray(courses)) {
+      return [];
+    }
+    return courses.map(course => course.id);
+  }, [courses]);
   
   // Загружаем детальный прогресс для всех курсов
   const { data: progressMap, isLoading: progressLoading } = useUserProgressForCourses(courseIds);
@@ -58,7 +63,9 @@ export default function UserCoursesStatistics() {
   return (
     <div className={styles.coursesList}>
       {courses.map((course) => {
-        const userProgress = progressMap?.get(course.id);
+        const userProgress = progressMap && typeof progressMap.get === 'function' 
+          ? progressMap.get(course.id) 
+          : null;
         return (
           <CourseStatisticsCard 
             key={course.id} 
@@ -79,8 +86,8 @@ function CourseStatisticsCard({
   userProgress?: UserDetailedProgress | null;
 }) {
   // Вычисляем общее количество дней и шагов
-  const totalDays = course.dayLinks.length;
-  const totalSteps = course.dayLinks.reduce((sum, dayLink) => sum + dayLink.day.stepLinks.length, 0);
+  const totalDays = course.dayLinks?.length || 0;
+  const totalSteps = course.dayLinks?.reduce((sum, dayLink) => sum + (dayLink.day?.stepLinks?.length || 0), 0) || 0;
   
   // Вычисляем реальный прогресс на основе userProgress
   const completedDays = userProgress?.days?.filter((day) => day.status === TrainingStatus.COMPLETED).length || 0;

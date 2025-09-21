@@ -81,7 +81,12 @@ export function useCacheManager() {
       : calcDay(courseId, day, currentStepStates);
 
     // 4. Вычисляем новый статус курса на основе всех дней
-    const newCourseStatus = calcCourse(courseId, currentStepStates);
+    // Получаем общее количество дней из данных курса
+    const courseStore = useCourseStore.getState();
+    const allCourses = courseStore.allCourses?.data || [];
+    const serverCourse = allCourses.find(c => c.id === courseId);
+    const totalDays = serverCourse?.dayLinks?.length;
+    const newCourseStatus = calcCourse(courseId, currentStepStates, totalDays);
 
     // 5. Обновляем кэш курсов в courseStore
     updateCoursesCache(courseId, newCourseStatus, day, stepIndex, stepStatus as 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED');
@@ -99,8 +104,12 @@ export function useCacheManager() {
   /**
    * Вычисляет статус курса на основе статусов всех дней
    */
-  const calculateCourseStatus = (courseId: string, stepStates: Record<string, { status?: string }>) => {
-    return calcCourse(courseId, stepStates);
+  const calculateCourseStatus = (
+    courseId: string,
+    stepStates: Record<string, { status?: string }>,
+    totalDays?: number,
+  ) => {
+    return calcCourse(courseId, stepStates, totalDays);
   };
 
   /**
@@ -203,7 +212,10 @@ export function useCacheManager() {
 
     // Обновляем каждый курс на основе актуальных stepStates
     courseIds.forEach((courseId) => {
-      const courseStatus = calculateCourseStatus(courseId, allStepStates);
+      const allCourses = courseStore.allCourses?.data || [];
+      const serverCourse = allCourses.find(c => c.id === courseId);
+      const totalDays = serverCourse?.dayLinks?.length;
+      const courseStatus = calculateCourseStatus(courseId, allStepStates, totalDays);
       
       // Обновляем allCourses если есть
       if (courseStore.allCourses?.data) {
@@ -289,7 +301,10 @@ export async function syncCourseStoreWithStepStates() {
 
   // Обновляем каждый курс на основе актуальных stepStates
   courseIds.forEach((courseId) => {
-    const courseStatus = calcCourse(courseId, stepStates as Record<string, { status?: string }>);
+    const allCourses = courseStore.allCourses?.data || [];
+    const serverCourse = allCourses.find((c: CourseWithProgressData) => c.id === courseId);
+    const totalDays = serverCourse?.dayLinks?.length as number | undefined;
+    const courseStatus = calcCourse(courseId, stepStates as Record<string, { status?: string }>, totalDays);
     
     // Обновляем allCourses если есть
     if (courseStore.allCourses?.data) {
@@ -342,4 +357,3 @@ export async function syncCourseStoreWithStepStates() {
     }
   });
 }
-

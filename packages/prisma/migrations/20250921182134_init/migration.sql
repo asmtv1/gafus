@@ -100,6 +100,8 @@ CREATE TABLE "public"."UserStep" (
     "userTrainingId" TEXT NOT NULL,
     "stepOnDayId" TEXT NOT NULL,
     "status" "public"."TrainingStatus" NOT NULL DEFAULT 'NOT_STARTED',
+    "paused" BOOLEAN NOT NULL DEFAULT false,
+    "remainingSec" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

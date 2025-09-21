@@ -24,6 +24,10 @@ export async function getUserProgressForMultipleCourses(courseIds: string[]) {
   try {
     const userId = await getCurrentUserId();
     
+    if (!courseIds || courseIds.length === 0) {
+      return new Map();
+    }
+    
     const progressPromises = courseIds.map(courseId => getUserProgress(courseId, userId));
     const results = await Promise.all(progressPromises);
     
