@@ -81,13 +81,17 @@ export async function getUserProgress(
       });
 
       if (userTrainings.length > 0) {
-        const totalDays = userTrainings.length;
+        // Получаем реальное количество дней в курсе
+        const courseDays = await prisma.dayOnCourse.count({
+          where: { courseId },
+        });
+        
         const completedDays = userTrainings.filter(
           (t: { status: string }) => t.status === "COMPLETED",
         ).length;
 
-        // Если все дни завершены, но курс не помечен как завершенный
-        if (completedDays === totalDays && totalDays > 0 && userProgress.status !== "COMPLETED") {
+        // Если все дни курса завершены, но курс не помечен как завершенный
+        if (completedDays === courseDays && courseDays > 0 && userProgress.status !== "COMPLETED") {
           // Устанавливаем completedAt только если он еще не был установлен
           if (!userProgress.completedAt) {
             completedAt = new Date();
@@ -185,12 +189,14 @@ export async function getUserProgress(
 
       if (userTrainings.length > 0) {
         startedAt = userTrainings[0].createdAt;
-        // Проверяем, завершены ли все дни
-        const totalDays = userTrainings.length;
+        // Проверяем, завершены ли все дни курса
+        const courseDays = await prisma.dayOnCourse.count({
+          where: { courseId },
+        });
         const completedDays = userTrainings.filter(
           (t: { status: string }) => t.status === "COMPLETED",
         ).length;
-        if (completedDays === totalDays && totalDays > 0) {
+        if (completedDays === courseDays && courseDays > 0) {
           completedAt = new Date();
         }
       }

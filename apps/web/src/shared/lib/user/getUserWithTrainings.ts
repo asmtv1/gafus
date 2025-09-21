@@ -68,11 +68,11 @@ export async function getUserWithTrainings(): Promise<UserWithTrainings | null> 
 
     if (!user) return null;
 
-    const courses = user.userCourses.map((uc: { courseId: string; startedAt: Date | null; completedAt: Date | null; course: { id: string; name: string; dayLinks: { id: string }[] } }) => {
+    const courses = user.userCourses?.map((uc: { courseId: string; startedAt: Date | null; completedAt: Date | null; course: { id: string; name: string; dayLinks: { id: string }[] } }) => {
       // Фильтруем userTrainings, которые относятся к этому курсу
-      const trainingsForCourse = user.userTrainings.filter(
+      const trainingsForCourse = user.userTrainings?.filter(
         (ut: { dayOnCourse: { course: { id: string } } }) => ut.dayOnCourse.course.id === uc.courseId,
-      );
+      ) || [];
 
       // Список номеров дней, которые пользователь уже закончил
       const completedDays = trainingsForCourse
@@ -85,17 +85,36 @@ export async function getUserWithTrainings(): Promise<UserWithTrainings | null> 
         courseName: uc.course.name,
         startedAt: uc.startedAt,
         completedAt: uc.completedAt,
-        completedDays: uc.completedAt ? [] : completedDays,
-        totalDays: uc.course.dayLinks.length, // Кол-во дней в курсе
+        completedDays: uc.completedAt 
+          ? Array.from({ length: uc.course.dayLinks?.length || 0 }, (_, i) => i + 1) // Если курс завершен, все дни завершены
+          : completedDays, // Иначе используем реально завершенные дни
+        totalDays: uc.course.dayLinks?.length || 0, // Кол-во дней в курсе
       };
-    });
+    }) || [];
 
-    return {
+    const result = {
       id: user.id,
       username: user.username,
       phone: user.phone,
       courses,
     };
+    
+    // Добавляем логирование для отладки
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[getUserWithTrainings] Result:', {
+        hasUser: !!result,
+        coursesLength: result.courses?.length,
+        coursesData: result.courses?.map(c => ({
+          courseId: c.courseId,
+          courseName: c.courseName,
+          completedAt: !!c.completedAt,
+          completedDaysLength: c.completedDays?.length,
+          totalDays: c.totalDays
+        }))
+      });
+    }
+    
+    return result;
   } catch (error) {
     console.error("Ошибка в getUserWithTrainings:", error);
     throw new Error("Не удалось загрузить данные пользователя с тренировками");

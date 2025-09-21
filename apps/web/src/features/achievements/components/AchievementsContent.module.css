@@ -25,6 +25,27 @@
   text-align: center;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refreshButton {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.refreshButton:hover {
+  background: #0056b3;
+}
+
 .title {
   color: #352e2e;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;

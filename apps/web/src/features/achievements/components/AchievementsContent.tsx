@@ -53,6 +53,15 @@ export function AchievementsContent() {
               Ваш прогресс в обучении и достигнутые результаты
             </p>
           </div>
+          <div className={styles.headerActions}>
+            <button 
+              onClick={refreshData}
+              className={styles.refreshButton}
+              title="Обновить достижения"
+            >
+              🔄
+            </button>
+          </div>
         </div>
       </header>
       
@@ -63,25 +72,25 @@ export function AchievementsContent() {
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
             <div className={styles.statIcon}>📚</div>
-            <div className={styles.statValue}>{data.totalCourses}</div>
+            <div className={styles.statValue}>{data?.totalCourses || 0}</div>
             <div className={styles.statLabel}>Всего курсов</div>
           </div>
           
           <div className={styles.statCard}>
             <div className={styles.statIcon}>✅</div>
-            <div className={styles.statValue}>{data.completedCourses}</div>
+            <div className={styles.statValue}>{data?.completedCourses || 0}</div>
             <div className={styles.statLabel}>Завершено</div>
           </div>
           
           <div className={styles.statCard}>
             <div className={styles.statIcon}>🔄</div>
-            <div className={styles.statValue}>{data.inProgressCourses}</div>
+            <div className={styles.statValue}>{data?.inProgressCourses || 0}</div>
             <div className={styles.statLabel}>В процессе</div>
           </div>
           
           <div className={styles.statCard}>
             <div className={styles.statIcon}>📅</div>
-            <div className={styles.statValue}>{data.totalCompletedDays}</div>
+            <div className={styles.statValue}>{data?.totalCompletedDays || 0}</div>
             <div className={styles.statLabel}>Дней пройдено</div>
           </div>
         </div>

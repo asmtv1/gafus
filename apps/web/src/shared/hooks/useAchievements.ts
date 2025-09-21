@@ -5,7 +5,7 @@ import { getUserWithTrainings } from "@shared/lib/user/getUserWithTrainings";
 import { createAchievementData } from "@shared/lib/achievements/calculateAchievements";
 import { isOnline } from "@shared/utils/offlineCacheUtils";
 
-import type { AchievementData } from "@gafus/types";
+import type { AchievementData, Achievement } from "@gafus/types";
 
 /**
  * Хук для получения данных достижений с оптимизированным кэшированием
@@ -56,7 +56,16 @@ export function useAchievements() {
       retryDelay: 5000,
       
       // Кэш
-      placeholderData: (previousData) => previousData, // Показываем старые данные во время обновления
+      placeholderData: (previousData) => {
+        // Добавляем логирование для отладки
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useAchievements] placeholderData:', {
+            hasPreviousData: !!previousData,
+            previousDataValid: previousData && previousData.achievements && Array.isArray(previousData.achievements)
+          });
+        }
+        return previousData; // Показываем старые данные во время обновления
+      },
     }
   );
 }
@@ -85,16 +94,32 @@ export function useAchievementsMutation() {
 export function useAchievementsByCategory() {
   const { data, error, isLoading } = useAchievements();
   
-  const achievementsByCategory = data?.achievements.reduce((acc, achievement) => {
+  // Добавляем логирование для отладки
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[useAchievementsByCategory] Data state:', { 
+      hasData: !!data, 
+      hasAchievements: !!data?.achievements, 
+      achievementsLength: data?.achievements?.length,
+      isLoading,
+      error: !!error 
+    });
+  }
+  
+  const achievementsByCategory = data?.achievements?.reduce((acc, achievement) => {
+    if (!achievement || !achievement.category) {
+      console.warn('[useAchievementsByCategory] Invalid achievement:', achievement);
+      return acc;
+    }
+    
     if (!acc[achievement.category]) {
       acc[achievement.category] = [];
     }
     acc[achievement.category].push(achievement);
     return acc;
-  }, {} as Record<string, typeof data.achievements>) || {};
+  }, {} as Record<string, Achievement[]>) || {};
   
-  const unlockedCount = data?.achievements.filter(a => a.unlocked).length || 0;
-  const totalCount = data?.achievements.length || 0;
+  const unlockedCount = data?.achievements?.filter(a => a?.unlocked === true).length || 0;
+  const totalCount = data?.achievements?.length || 0;
   const completionPercentage = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
   
   return {
@@ -130,9 +155,9 @@ export function useAchievementsStats() {
     overallProgress: data.overallProgress,
     
     // Статистика достижений
-    totalAchievements: data.achievements.length,
-    unlockedAchievements: data.achievements.filter(a => a.unlocked).length,
-    completionPercentage: Math.round((data.achievements.filter(a => a.unlocked).length / data.achievements.length) * 100),
+    totalAchievements: data.achievements?.length || 0,
+    unlockedAchievements: data.achievements?.filter(a => a.unlocked).length || 0,
+    completionPercentage: data.achievements?.length ? Math.round((data.achievements.filter(a => a.unlocked).length / data.achievements.length) * 100) : 0,
     
     // Дополнительная статистика
     totalTrainingTime: data.totalTrainingTime,

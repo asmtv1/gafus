@@ -41,7 +41,11 @@ export function calculateDayStatus(courseId: string, day: number, stepStates: St
   return TrainingStatus.NOT_STARTED;
 }
 
-export function calculateCourseStatus(courseId: string, stepStates: StepStates): TrainingStatus {
+export function calculateCourseStatus(
+  courseId: string,
+  stepStates: StepStates,
+  totalDays?: number,
+): TrainingStatus {
   const dayKeys = new Set<string>();
   Object.keys(stepStates).forEach((key) => {
     if (key.startsWith(`${courseId}-`)) {
@@ -52,10 +56,23 @@ export function calculateCourseStatus(courseId: string, stepStates: StepStates):
     }
   });
 
-  if (dayKeys.size === 0) return TrainingStatus.NOT_STARTED;
+  // Если знаем реальное количество дней курса, используем его,
+  // иначе опираемся на фактически встреченные дни в локальном состоянии
+  const effectiveTotalDays = typeof totalDays === 'number' && totalDays > 0
+    ? totalDays
+    : dayKeys.size;
 
-  const dayNumbers = Array.from(dayKeys).map((dayKey) => parseInt(dayKey.split('-')[1])).sort((a, b) => a - b);
-  const maxDay = Math.max(...dayNumbers);
+  if (effectiveTotalDays === 0) return TrainingStatus.NOT_STARTED;
+
+  let maxDay: number;
+  if (typeof totalDays === 'number' && totalDays > 0) {
+    maxDay = totalDays;
+  } else {
+    const dayNumbers = Array.from(dayKeys)
+      .map((dayKey) => parseInt(dayKey.split('-')[1]))
+      .sort((a, b) => a - b);
+    maxDay = Math.max(...dayNumbers);
+  }
 
   const dayStatuses: TrainingStatus[] = [];
   for (let day = 1; day <= maxDay; day++) {
@@ -83,5 +100,3 @@ export function calculateDayStatusFromStatuses(statuses: (string | TrainingStatu
   }
   return TrainingStatus.NOT_STARTED;
 }
-
-
