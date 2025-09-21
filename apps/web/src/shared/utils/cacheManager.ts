@@ -104,12 +104,8 @@ export function useCacheManager() {
   /**
    * Вычисляет статус курса на основе статусов всех дней
    */
-  const calculateCourseStatus = (
-    courseId: string,
-    stepStates: Record<string, { status?: string }>,
-    totalDays?: number,
-  ) => {
-    return calcCourse(courseId, stepStates, totalDays);
+  const calculateCourseStatus = (courseId: string, stepStates: Record<string, { status?: string }>, totalDaysInCourse?: number) => {
+    return calcCourse(courseId, stepStates, totalDaysInCourse);
   };
 
   /**
@@ -210,63 +206,87 @@ export function useCacheManager() {
       }
     });
 
-    // Обновляем каждый курс на основе актуальных stepStates
-    courseIds.forEach((courseId) => {
-      const allCourses = courseStore.allCourses?.data || [];
-      const serverCourse = allCourses.find(c => c.id === courseId);
-      const totalDays = serverCourse?.dayLinks?.length;
-      const courseStatus = calculateCourseStatus(courseId, allStepStates, totalDays);
+  // Обновляем каждый курс на основе актуальных stepStates
+  courseIds.forEach((courseId) => {
+    // Получаем информацию о курсе для определения количества дней
+    let totalDaysInCourse: number | undefined;
+    
+    // Ищем курс в allCourses
+    if (courseStore.allCourses?.data) {
+      const course = courseStore.allCourses.data.find(c => c.id === courseId);
+      if (course) {
+        totalDaysInCourse = course.dayLinks.length;
+      }
+    }
+    
+    // Если не нашли в allCourses, ищем в favorites
+    if (!totalDaysInCourse && courseStore.favorites?.data) {
+      const course = courseStore.favorites.data.find(c => c.id === courseId);
+      if (course) {
+        totalDaysInCourse = course.dayLinks.length;
+      }
+    }
+    
+    // Если не нашли в favorites, ищем в authored
+    if (!totalDaysInCourse && courseStore.authored) {
+      const course = courseStore.authored.find(c => c.id === courseId);
+      if (course) {
+        totalDaysInCourse = course.dayLinks.length;
+      }
+    }
+    
+    const courseStatus = calculateCourseStatus(courseId, allStepStates, totalDaysInCourse);
+    
+    // Обновляем allCourses если есть
+    if (courseStore.allCourses?.data) {
+      const updatedCourses = courseStore.allCourses.data.map(course => {
+        if (course.id !== courseId) return course;
+        
+        return {
+          ...course,
+          userStatus: courseStatus,
+          // Обновляем startedAt если курс в процессе или завершен
+          startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
+          // Обновляем completedAt если курс завершен
+          completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
+        };
+      });
       
-      // Обновляем allCourses если есть
-      if (courseStore.allCourses?.data) {
-        const updatedCourses = courseStore.allCourses.data.map(course => {
-          if (course.id !== courseId) return course;
-          
-          return {
-            ...course,
-            userStatus: courseStatus,
-            // Обновляем startedAt если курс в процессе или завершен
-            startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
-            // Обновляем completedAt если курс завершен
-            completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
-          };
-        });
-        
-        courseStore.setAllCourses(updatedCourses, courseStore.allCourses.type);
-      }
+      courseStore.setAllCourses(updatedCourses, courseStore.allCourses.type);
+    }
 
-      // Обновляем favorites если есть
-      if (courseStore.favorites?.data) {
-        const updatedFavorites = courseStore.favorites.data.map(course => {
-          if (course.id !== courseId) return course;
-          
-          return {
-            ...course,
-            userStatus: courseStatus,
-            startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
-            completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
-          };
-        });
+    // Обновляем favorites если есть
+    if (courseStore.favorites?.data) {
+      const updatedFavorites = courseStore.favorites.data.map(course => {
+        if (course.id !== courseId) return course;
         
-        courseStore.setFavorites(updatedFavorites);
-      }
+        return {
+          ...course,
+          userStatus: courseStatus,
+          startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
+          completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
+        };
+      });
+      
+      courseStore.setFavorites(updatedFavorites);
+    }
 
-      // Обновляем authored если есть
-      if (courseStore.authored) {
-        const updatedAuthored = courseStore.authored.map(course => {
-          if (course.id !== courseId) return course;
-          
-          return {
-            ...course,
-            userStatus: courseStatus,
-            startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
-            completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
-          };
-        });
+    // Обновляем authored если есть
+    if (courseStore.authored) {
+      const updatedAuthored = courseStore.authored.map(course => {
+        if (course.id !== courseId) return course;
         
-        courseStore.setAuthored(updatedAuthored);
-      }
-    });
+        return {
+          ...course,
+          userStatus: courseStatus,
+          startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
+          completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
+        };
+      });
+      
+      courseStore.setAuthored(updatedAuthored);
+    }
+  });
   };
 
   return {
@@ -286,6 +306,7 @@ export async function syncCourseStoreWithStepStates() {
   const { useStepStore } = await import("@shared/stores/stepStore");
   const { useCourseStore } = await import("@shared/stores/courseStore");
   const { TrainingStatus } = await import("@gafus/types");
+  const { calculateCourseStatus } = await import("@shared/utils/trainingCalculations");
   
   const stepStates = useStepStore.getState().stepStates;
   const courseStore = useCourseStore.getState();
@@ -301,10 +322,34 @@ export async function syncCourseStoreWithStepStates() {
 
   // Обновляем каждый курс на основе актуальных stepStates
   courseIds.forEach((courseId) => {
-    const allCourses = courseStore.allCourses?.data || [];
-    const serverCourse = allCourses.find((c: CourseWithProgressData) => c.id === courseId);
-    const totalDays = serverCourse?.dayLinks?.length as number | undefined;
-    const courseStatus = calcCourse(courseId, stepStates as Record<string, { status?: string }>, totalDays);
+    // Получаем информацию о курсе для определения количества дней
+    let totalDaysInCourse: number | undefined;
+    
+    // Ищем курс в allCourses
+    if (courseStore.allCourses?.data) {
+      const course = courseStore.allCourses.data.find(c => c.id === courseId);
+      if (course) {
+        totalDaysInCourse = course.dayLinks.length;
+      }
+    }
+    
+    // Если не нашли в allCourses, ищем в favorites
+    if (!totalDaysInCourse && courseStore.favorites?.data) {
+      const course = courseStore.favorites.data.find(c => c.id === courseId);
+      if (course) {
+        totalDaysInCourse = course.dayLinks.length;
+      }
+    }
+    
+    // Если не нашли в favorites, ищем в authored
+    if (!totalDaysInCourse && courseStore.authored) {
+      const course = courseStore.authored.find(c => c.id === courseId);
+      if (course) {
+        totalDaysInCourse = course.dayLinks.length;
+      }
+    }
+    
+    const courseStatus = calculateCourseStatus(courseId, stepStates as Record<string, { status?: string }>, totalDaysInCourse);
     
     // Обновляем allCourses если есть
     if (courseStore.allCourses?.data) {
