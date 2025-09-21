@@ -28,12 +28,12 @@ export function useUserProgressForCourses(courseIds: string[]) {
     `user:progress:multiple:${courseIds.join(",")}`,
     async () => {
       if (!courseIds || courseIds.length === 0) {
-        return new Map();
+        return {};
       }
       
       const result = await getUserProgressForMultipleCourses(courseIds);
-      // Убеждаемся, что возвращаем Map объект
-      return result instanceof Map ? result : new Map();
+      // Возвращаем обычный объект
+      return result || {};
     },
     {
       refetchOnWindowFocus: false,
