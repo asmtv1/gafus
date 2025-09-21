@@ -54,6 +54,7 @@ export function useCourseProgressSync() {
       // Если есть кэшированные данные, проверяем прогресс
       if (cachedData?.data?.trainingDays) {
         const completedDays = cachedData.data.trainingDays.filter(
+
           (day) => day.userStatus === TrainingStatus.COMPLETED
         ).length;
         
@@ -76,6 +77,13 @@ export function useCourseProgressSync() {
             startedAt: course.startedAt || new Date()
           };
         }
+      }
+      
+      // Если курс уже помечен как завершенный, но кэшированные данные показывают 0 завершенных дней,
+      // доверяем статусу курса (возможно, кэш устарел)
+      if (course.userStatus === TrainingStatus.COMPLETED && (!cachedData?.data?.trainingDays || 
+          cachedData.data.trainingDays.filter(day => day.userStatus === TrainingStatus.COMPLETED).length === 0)) {
+        return course; // Возвращаем курс как есть, доверяя его статусу
       }
 
       return course;

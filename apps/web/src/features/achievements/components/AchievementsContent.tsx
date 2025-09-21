@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { useAchievements, useAchievementsByCategory } from "@shared/hooks/useAchievements";
+import { useAchievementsFromStores, useAchievementsByCategoryFromStores } from "@shared/hooks/useAchievementsFromStores";
 import { AchievementsSkeleton } from "@shared/components/ui/AchievementsSkeleton";
 import { AchievementsError } from "@shared/components/ui/AchievementsError";
 import UserCoursesStatistics from "./UserCoursesStatistics";
@@ -14,8 +14,8 @@ import styles from "./AchievementsContent.module.css";
  * Основной компонент для отображения достижений
  */
 export function AchievementsContent() {
-  const { data, error, isLoading } = useAchievements();
-  const { achievementsByCategory, unlockedCount, totalCount, completionPercentage } = useAchievementsByCategory();
+  const { data, error, isLoading } = useAchievementsFromStores();
+  const { achievementsByCategory, unlockedCount, totalCount, completionPercentage } = useAchievementsByCategoryFromStores();
   
   // Состояние загрузки
   if (isLoading) {
