@@ -175,6 +175,19 @@ function CourseStatisticsCard({
       (day) => day.userStatus === TrainingStatus.COMPLETED
     ).length;
     
+    // Если курс завершен, но в кэше нет данных о завершенных днях, 
+    // считаем все дни завершенными
+    let finalCompletedDays = completedDaysFromCache;
+    if (course.userStatus === TrainingStatus.COMPLETED && completedDaysFromCache === 0 && totalDays > 0) {
+      finalCompletedDays = totalDays;
+    }
+    
+    // Дополнительная проверка: если курс завершен, но кэш показывает меньше дней,
+    // чем общее количество, используем общее количество
+    if (course.userStatus === TrainingStatus.COMPLETED && completedDaysFromCache < totalDays && totalDays > 0) {
+      finalCompletedDays = totalDays;
+    }
+    
     // Подсчитываем реальные завершенные шаги из stepStore
     let completedStepsFromStepStore = 0;
     if (course.dayLinks) {
@@ -194,7 +207,7 @@ function CourseStatisticsCard({
     
     
     return {
-      completedDays: completedDaysFromCache,
+      completedDays: finalCompletedDays,
       completedSteps: completedStepsFromStepStore
     };
   }, [cachedTrainingData, course.id, course.dayLinks, stepStates, getStepKey]);
@@ -249,8 +262,15 @@ function CourseStatisticsCard({
               (day) => day.day === dayNumber
             );
             
-            const isCompleted = dayProgress?.status === TrainingStatus.COMPLETED || 
+            // Используем ту же логику, что и для подсчета завершенных дней
+            let isCompleted = dayProgress?.status === TrainingStatus.COMPLETED || 
               cachedDay?.userStatus === TrainingStatus.COMPLETED;
+            
+            // Если курс завершен, но кэш не показывает завершенный день, считаем день завершенным
+            if (course.userStatus === TrainingStatus.COMPLETED && !isCompleted) {
+              isCompleted = true;
+            }
+            
             const isInProgress = dayProgress?.status === TrainingStatus.IN_PROGRESS ||
               cachedDay?.userStatus === TrainingStatus.IN_PROGRESS;
             

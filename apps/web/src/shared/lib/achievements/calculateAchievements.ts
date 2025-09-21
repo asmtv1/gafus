@@ -1,11 +1,12 @@
-"use server";
+"use client";
 
 import type { 
   Achievement, 
   AchievementData, 
   AchievementCalculationParams, 
   AchievementCalculationResult,
-  UserWithTrainings 
+  UserWithTrainings,
+  CourseWithProgressData
 } from "@gafus/types";
 
 // Тип для статистики достижений
@@ -296,6 +297,123 @@ export async function calculateAchievementsData(
   return {
     achievements,
     statistics,
+  };
+}
+
+/**
+ * Вычисляет статистику достижений из данных stores
+ */
+export function calculateAchievementsFromStores(
+  courses: CourseWithProgressData[],
+  stepStates: Record<string, { status: string; isFinished: boolean; timeLeft: number; isPaused: boolean }>,
+  getStepKey: (courseId: string, day: number, stepIndex: number) => string,
+  cachedTrainingData?: Record<string, {
+    trainingDays: {
+      day: number;
+      title: string;
+      type: string;
+      courseId: string;
+      userStatus: string;
+    }[];
+    courseDescription: string | null;
+    courseId: string | null;
+    courseVideoUrl: string | null;
+  }>
+): AchievementData {
+  // Фильтруем курсы, которые не в статусе NOT_STARTED
+  const activeCourses = courses.filter(course => course.userStatus !== "NOT_STARTED");
+  
+  const totalCourses = activeCourses.length;
+  const completedCourses = activeCourses.filter(course => course.userStatus === "COMPLETED").length;
+  const inProgressCourses = activeCourses.filter(course => course.userStatus === "IN_PROGRESS").length;
+  
+  // Подсчитываем завершенные дни и шаги
+  let totalCompletedDays = 0;
+  let totalDays = 0;
+  let _totalCompletedSteps = 0;
+  let _totalSteps = 0;
+  
+  activeCourses.forEach(course => {
+    // Подсчитываем дни
+    const courseDays = course.dayLinks?.length || 0;
+    totalDays += courseDays;
+    
+    // Подсчитываем завершенные дни из кэша trainingStore
+    if (course.userStatus === "COMPLETED") {
+      totalCompletedDays += courseDays;
+    } else if (cachedTrainingData && cachedTrainingData[course.id]) {
+      // Используем данные из trainingStore для точного подсчета
+      const courseTrainingData = cachedTrainingData[course.id];
+      const completedDaysFromCache = courseTrainingData.trainingDays.filter(
+        day => day.userStatus === "COMPLETED"
+      ).length;
+      totalCompletedDays += completedDaysFromCache;
+    } else {
+      // Fallback: для незавершенных курсов считаем примерное количество завершенных дней
+      totalCompletedDays += Math.floor(courseDays * 0.3); // Примерно 30% завершено
+    }
+    
+    // Подсчитываем шаги
+    if (course.dayLinks) {
+      course.dayLinks.forEach((dayLink, dayIndex) => {
+        if (dayLink.day?.stepLinks) {
+            const daySteps = dayLink.day.stepLinks.length;
+            _totalSteps += daySteps;
+            
+            // Подсчитываем завершенные шаги из stepStore
+            dayLink.day.stepLinks.forEach((stepLink, stepIndex) => {
+              const stepKey = getStepKey(course.id, dayIndex + 1, stepIndex);
+              const stepState = stepStates[stepKey];
+              if (stepState && stepState.status === "COMPLETED") {
+                _totalCompletedSteps++;
+              }
+            });
+        }
+      });
+    }
+  });
+  
+  const overallProgress = totalDays > 0 
+    ? Math.round((totalCompletedDays / totalDays) * 100) 
+    : 0;
+  
+  // Вычисляем время обучения (примерная оценка)
+  const totalTrainingTime = totalCompletedDays * 30; // 30 минут в день
+  
+  // Средний прогресс по курсам
+  const averageCourseProgress = totalCourses > 0
+    ? Math.round(activeCourses.reduce((sum, course) => {
+        const courseProgress = course.dayLinks?.length ? 
+          Math.round((totalCompletedDays / totalDays) * 100) : 0;
+        return sum + courseProgress;
+      }, 0) / totalCourses)
+    : 0;
+  
+  // Упрощенные серии
+  const longestStreak = Math.min(completedCourses * 2, 30);
+  const currentStreak = Math.min(inProgressCourses, 7);
+  
+  const stats: AchievementStats = {
+    totalCourses,
+    completedCourses,
+    inProgressCourses,
+    totalCompletedDays,
+    totalDays,
+    overallProgress,
+    totalTrainingTime,
+    averageCourseProgress,
+    longestStreak,
+    currentStreak,
+  };
+  
+  // Вычисляем достижения
+  const achievements = calculateAchievements(stats);
+  
+  return {
+    ...stats,
+    achievements,
+    lastUpdated: new Date(),
+    version: "1.0.0",
   };
 }
 
