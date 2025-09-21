@@ -256,6 +256,12 @@
   border: 2px solid #dee2e6;
 }
 
+.dayCircle.inProgress {
+  background: #fff3cd;
+  color: #856404;
+  border: 2px solid #ffeaa7;
+}
+
 .checkmark {
   font-size: 1.1rem;
   font-weight: bold;

@@ -365,7 +365,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         (async () => {
           try {
             await withTimeout(get().pauseNotification(courseId, day, stepIndex), SERVER_ACTION_TIMEOUT_MS);
-          } catch (error) {
+          } catch {
             try {
               const { useOfflineStore } = await import("@shared/stores/offlineStore");
               const offlineStore = useOfflineStore.getState();
@@ -407,7 +407,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         (async () => {
           try {
             await withTimeout(get().resumeNotification(courseId, day, stepIndex, durationSec), SERVER_ACTION_TIMEOUT_MS);
-          } catch (error) {
+          } catch {
             try {
               const { useOfflineStore } = await import("@shared/stores/offlineStore");
               const offlineStore = useOfflineStore.getState();
