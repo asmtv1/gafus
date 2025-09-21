@@ -1,7 +1,8 @@
 "use client";
 
 import { useCourseStore, useCourseStoreActions } from "@shared/stores/courseStore";
-import { useUserProgressForCourses } from "@shared/hooks/useUserProgress";
+import { useStepStore } from "@shared/stores/stepStore";
+import { useCourseProgressSync } from "@shared/hooks/useCourseProgressSync";
 import { TrainingStatus, type CourseWithProgressData } from "@gafus/types";
 import { type UserDetailedProgress } from "@shared/lib/user/getUserProgress";
 import Link from "next/link";
@@ -17,20 +18,49 @@ import styles from "./UserCoursesStatistics.module.css";
 export default function UserCoursesStatistics() {
   const { allCourses, loading, errors } = useCourseStore();
   const { fetchAllCourses } = useCourseStoreActions();
+  const { syncedCourses, isAssigned, getCachedData } = useCourseProgressSync();
   
-  // Получаем курсы с прогрессом из стора
+  // Получаем курсы с прогрессом из стора (используем синхронизированные данные)
   const courses = useMemo(() => {
-    if (!allCourses?.data) return [];
-    return allCourses.data.filter(course => course.userStatus !== "NOT_STARTED");
-  }, [allCourses?.data]);
+    const coursesData = syncedCourses || allCourses?.data;
+    if (!coursesData) return [];
+    return coursesData.filter(course => course.userStatus !== "NOT_STARTED");
+  }, [syncedCourses, allCourses?.data]);
   
-  // Получаем ID курсов для загрузки детального прогресса
-  const courseIds = useMemo(() => {
+  // Получаем ID курсов для загрузки детального прогресса (не используется, но оставляем для совместимости)
+  const _courseIds = useMemo(() => {
     return courses.map(course => course.id);
   }, [courses]);
   
-  // Загружаем детальный прогресс для всех курсов
-  const { data: progressMap, isLoading: progressLoading } = useUserProgressForCourses(courseIds);
+  // Убираем загрузку с сервера - используем только данные из stores
+  
+  
+  // Получаем данные из stepStore для подсчета завершенных шагов
+  const stepStates = useStepStore((state) => state.stepStates);
+  const getStepKey = useStepStore((state) => state.getStepKey);
+  
+  // Получаем кэшированные данные дней тренировок из trainingStore
+  const cachedTrainingData = useMemo(() => {
+    const data: Record<string, {
+      trainingDays: {
+        day: number;
+        title: string;
+        type: string;
+        courseId: string;
+        userStatus: string;
+      }[];
+      courseDescription: string | null;
+      courseId: string | null;
+      courseVideoUrl: string | null;
+    }> = {};
+    courses.forEach(course => {
+      const cached = getCachedData(course.type);
+      if (cached.data && !cached.isExpired) {
+        data[course.id] = cached.data;
+      }
+    });
+    return data;
+  }, [courses, getCachedData]);
   
   // Загружаем данные при первом рендере, если их нет в кэше
   useEffect(() => {
@@ -40,7 +70,7 @@ export default function UserCoursesStatistics() {
   }, [allCourses?.data, loading.all, fetchAllCourses]);
   
   // Состояние загрузки и ошибок
-  const isLoading = loading.all || progressLoading;
+  const isLoading = loading.all;
   const error = errors.all;
 
   if (isLoading) {
@@ -78,15 +108,21 @@ export default function UserCoursesStatistics() {
   return (
     <div className={styles.coursesList}>
       {courses.map((course) => {
-        // Получаем реальные данные прогресса для каждого курса
-        const userProgress = progressMap && typeof progressMap.get === 'function' 
-          ? progressMap.get(course.id) 
-          : null;
+        // Используем только данные из кэшированного trainingStore
+        const userProgress = null; // Не используем данные с сервера
+        
+        // Получаем кэшированные данные дней тренировок
+        const cachedData = cachedTrainingData[course.id];
+        
         return (
           <CourseStatisticsCard 
             key={course.id} 
-            course={course} 
+            course={course as CourseWithProgressData} 
             userProgress={userProgress}
+            cachedTrainingData={cachedData}
+            isAssigned={isAssigned(course.id)}
+            stepStates={stepStates}
+            getStepKey={getStepKey}
           />
         );
       })}
@@ -96,24 +132,80 @@ export default function UserCoursesStatistics() {
 
 function CourseStatisticsCard({ 
   course,
-  userProgress 
+  userProgress,
+  cachedTrainingData,
+  isAssigned,
+  stepStates,
+  getStepKey
 }: { 
   course: CourseWithProgressData;
   userProgress?: UserDetailedProgress | null;
+  cachedTrainingData?: {
+    trainingDays: {
+      day: number;
+      title: string;
+      type: string;
+      courseId: string;
+      userStatus: string;
+    }[];
+    courseDescription: string | null;
+    courseId: string | null;
+    courseVideoUrl: string | null;
+  };
+  isAssigned?: boolean;
+  stepStates: Record<string, { status: string; isFinished: boolean; timeLeft: number; isPaused: boolean }>;
+  getStepKey: (courseId: string, day: number, stepIndex: number) => string;
 }) {
   // Вычисляем общее количество дней и шагов
   const totalDays = course.dayLinks?.length || 0;
   const totalSteps = course.dayLinks?.reduce((sum, dayLink) => sum + (dayLink.day?.stepLinks?.length || 0), 0) || 0;
   
-  // Вычисляем реальный прогресс на основе userProgress
-  const completedDays = userProgress?.days?.filter((day) => day.status === TrainingStatus.COMPLETED).length || 0;
-  const completedSteps = userProgress?.days?.reduce((sum: number, day) => {
-    return sum + (day.steps?.filter((step) => step.status === TrainingStatus.COMPLETED).length || 0);
-  }, 0) || 0;
+  // Используем только кэшированные данные из trainingStore
+  const completedDaysFromUserProgress = 0; // Не используем данные с сервера
+  const completedStepsFromUserProgress = 0; // Не используем данные с сервера
   
-  const progressPercentage = totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
+  // Используем данные из stepStore для точного подсчета завершенных шагов
+  const cachedProgress = useMemo(() => {
+    if (!cachedTrainingData?.trainingDays) return { 
+      completedDays: 0, 
+      completedSteps: 0 
+    };
+    
+    const completedDaysFromCache = cachedTrainingData.trainingDays.filter(
+      (day) => day.userStatus === TrainingStatus.COMPLETED
+    ).length;
+    
+    // Подсчитываем реальные завершенные шаги из stepStore
+    let completedStepsFromStepStore = 0;
+    if (course.dayLinks) {
+      course.dayLinks.forEach((dayLink, dayIndex) => {
+        if (dayLink.day?.stepLinks) {
+          dayLink.day.stepLinks.forEach((stepLink, stepIndex) => {
+            // Используем dayIndex + 1 вместо parseInt(dayLink.day!.id)
+            const stepKey = getStepKey(course.id, dayIndex + 1, stepIndex);
+            const stepState = stepStates[stepKey];
+            if (stepState && stepState.status === TrainingStatus.COMPLETED) {
+              completedStepsFromStepStore++;
+            }
+          });
+        }
+      });
+    }
+    
+    
+    return {
+      completedDays: completedDaysFromCache,
+      completedSteps: completedStepsFromStepStore
+    };
+  }, [cachedTrainingData, course.id, course.dayLinks, stepStates, getStepKey]);
+  
+  const finalCompletedDays = cachedProgress.completedDays;
+  const finalCompletedSteps = cachedProgress.completedSteps;
+  
+  
+  const progressPercentage = totalDays > 0 ? Math.round((finalCompletedDays / totalDays) * 100) : 0;
   const isCompleted = course.userStatus === TrainingStatus.COMPLETED;
-  const isInProgress = course.userStatus === TrainingStatus.IN_PROGRESS;
+  const isInProgress = course.userStatus === TrainingStatus.IN_PROGRESS || isAssigned;
 
   return (
     <div className={`${styles.courseCard} ${isCompleted ? styles.completed : ''} ${isInProgress ? styles.inProgress : ''}`}>
@@ -127,7 +219,7 @@ function CourseStatisticsCard({
           <span className={styles.status}>
             {isCompleted && "✅ Завершен"}
             {isInProgress && "🔄 В процессе"}
-            {course.userStatus === TrainingStatus.NOT_STARTED && "⏸️ Не начат"}
+            {!isCompleted && !isInProgress && course.userStatus === TrainingStatus.NOT_STARTED && "⏸️ Не начат"}
           </span>
         </div>
       </div>
@@ -151,8 +243,16 @@ function CourseStatisticsCard({
           {Array.from({ length: totalDays }, (_, index) => {
             const dayNumber = index + 1;
             const dayProgress = userProgress?.days?.find((day) => day.dayOrder === dayNumber);
-            const isCompleted = dayProgress?.status === TrainingStatus.COMPLETED;
-            const isInProgress = dayProgress?.status === TrainingStatus.IN_PROGRESS;
+            
+            // Проверяем также кэшированные данные
+            const cachedDay = cachedTrainingData?.trainingDays?.find(
+              (day) => day.day === dayNumber
+            );
+            
+            const isCompleted = dayProgress?.status === TrainingStatus.COMPLETED || 
+              cachedDay?.userStatus === TrainingStatus.COMPLETED;
+            const isInProgress = dayProgress?.status === TrainingStatus.IN_PROGRESS ||
+              cachedDay?.userStatus === TrainingStatus.IN_PROGRESS;
             
             return (
               <div 
@@ -178,13 +278,13 @@ function CourseStatisticsCard({
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Прогресс:</span>
           <span className={styles.statValue}>
-            {completedDays} из {totalDays} дней
+            {finalCompletedDays} из {totalDays} дней
           </span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>Шагов пройдено:</span>
           <span className={styles.statValue}>
-            {completedSteps} из {totalSteps}
+            {finalCompletedSteps} из {totalSteps}
           </span>
         </div>
         <div className={styles.statItem}>

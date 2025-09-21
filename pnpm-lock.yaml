@@ -130,10 +130,10 @@ importers:
     dependencies:
       '@bull-board/api':
         specifier: ^6.10.1
-        version: 6.12.7(@bull-board/ui@6.12.7)
+        version: 6.13.0(@bull-board/ui@6.13.0)
       '@bull-board/express':
         specifier: ^6.10.1
-        version: 6.12.7
+        version: 6.13.0
       '@gafus/queues':
         specifier: workspace:*
         version: link:../../packages/queues
@@ -1308,16 +1308,16 @@ packages:
   '@braintree/sanitize-url@7.1.1':
     resolution: {integrity: sha512-i1L7noDNxtFyL5DmZafWy1wRVhGehQmzZaz1HiN5e7iylJMSZR7ekOV7NsIqa5qBldlLrsKv4HbgFUVlQrz8Mw==}
 
-  '@bull-board/api@6.12.7':
-    resolution: {integrity: sha512-mI/akvhI937/IPB9+l2NN18Vd+RivCoNLIJ3h3ZxNrp3xetjX5R90l/wuHt5SG837sLkChgMhRVA2mJAiGypJA==}
+  '@bull-board/api@6.13.0':
+    resolution: {integrity: sha512-GZ0On0VeL5uZVS1x7UdU90F9GV1kdmHa1955hW3Ow1PmslCY/2YwmvnapVdbvCUSVBqluTfbVZsE9X3h79r1kw==}
     peerDependencies:
-      '@bull-board/ui': 6.12.7
+      '@bull-board/ui': 6.13.0
 
-  '@bull-board/express@6.12.7':
-    resolution: {integrity: sha512-KPzOQSk8HRg5sTO2zuAl8b55YBy4ljxZDs+vMBEE8J2yhER0Kx09sZwWfj8DfIK58+qSriEzgfNWn7loFTawTg==}
+  '@bull-board/express@6.13.0':
+    resolution: {integrity: sha512-PAbzD3dplV2NtN8ETs00bp++pBOD+cVb1BEYltXrjyViA2WluDBVKdlh/2wM+sHbYO2TAMNg8bUtKxGNCmxG7w==}
 
-  '@bull-board/ui@6.12.7':
-    resolution: {integrity: sha512-EJvS84Ob661ASIjGH58RpKLb7upPM+kS9I7PdezS67Dtab1V8cq10E+Sb2WIvXVLaGgQU8eITiLBjgWze2uWsg==}
+  '@bull-board/ui@6.13.0':
+    resolution: {integrity: sha512-63I6b3nZnKWI5ok6mw/Tk2rIObuzMTY/tLGyO51p0GW4rAImdXxrK6mT7j4SgEuP2B+tt/8L1jU7sLu8MMcCNw==}
 
   '@chevrotain/cst-dts-gen@11.0.3':
     resolution: {integrity: sha512-BvIKpRLeS/8UbfxXxgC33xOumsacaeCKAjAeLyOn7Pcp95HiRbrpl14S+9vaZLolnbssPIUuiUd8IvgkRyt6NQ==}
@@ -4991,8 +4991,8 @@ packages:
     resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
     engines: {node: '>=16 || 14 >=14.17'}
 
-  minizlib@3.0.2:
-    resolution: {integrity: sha512-oG62iEk+CYt5Xj2YqI5Xi9xWUeZhDI8jjQmC5oThVH5JGCTgIjr7ciJDzC7MBzYd//WvR1OTmP5Q38Q8ShQtVA==}
+  minizlib@3.1.0:
+    resolution: {integrity: sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==}
     engines: {node: '>= 18'}
 
   mitt@3.0.1:
@@ -7328,23 +7328,23 @@ snapshots:
 
   '@braintree/sanitize-url@7.1.1': {}
 
-  '@bull-board/api@6.12.7(@bull-board/ui@6.12.7)':
+  '@bull-board/api@6.13.0(@bull-board/ui@6.13.0)':
     dependencies:
-      '@bull-board/ui': 6.12.7
+      '@bull-board/ui': 6.13.0
       redis-info: 3.1.0
 
-  '@bull-board/express@6.12.7':
+  '@bull-board/express@6.13.0':
     dependencies:
-      '@bull-board/api': 6.12.7(@bull-board/ui@6.12.7)
-      '@bull-board/ui': 6.12.7
+      '@bull-board/api': 6.13.0(@bull-board/ui@6.13.0)
+      '@bull-board/ui': 6.13.0
       ejs: 3.1.10
       express: 5.1.0
     transitivePeerDependencies:
       - supports-color
 
-  '@bull-board/ui@6.12.7':
+  '@bull-board/ui@6.13.0':
     dependencies:
-      '@bull-board/api': 6.12.7(@bull-board/ui@6.12.7)
+      '@bull-board/api': 6.13.0(@bull-board/ui@6.13.0)
 
   '@chevrotain/cst-dts-gen@11.0.3':
     dependencies:
@@ -11455,7 +11455,7 @@ snapshots:
 
   minipass@7.1.2: {}
 
-  minizlib@3.0.2:
+  minizlib@3.1.0:
     dependencies:
       minipass: 7.1.2
 
@@ -12668,7 +12668,7 @@ snapshots:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
       minipass: 7.1.2
-      minizlib: 3.0.2
+      minizlib: 3.1.0
       mkdirp: 3.0.1
       yallist: 5.0.0
 
