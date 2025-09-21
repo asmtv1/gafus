@@ -3,7 +3,6 @@
 import Link from "next/link";
 
 import { useAchievements, useAchievementsByCategory } from "@shared/hooks/useAchievements";
-import { useRefreshData } from "@shared/hooks/useRefreshData";
 import { AchievementsSkeleton } from "@shared/components/ui/AchievementsSkeleton";
 import { AchievementsError } from "@shared/components/ui/AchievementsError";
 import UserCoursesStatistics from "./UserCoursesStatistics";
@@ -17,7 +16,6 @@ import styles from "./AchievementsContent.module.css";
 export function AchievementsContent() {
   const { data, error, isLoading } = useAchievements();
   const { achievementsByCategory, unlockedCount, totalCount, completionPercentage } = useAchievementsByCategory();
-  const { refreshData } = useRefreshData("achievements");
   
   // Состояние загрузки
   if (isLoading) {
@@ -52,15 +50,6 @@ export function AchievementsContent() {
             <p className={styles.subtitle}>
               Ваш прогресс в обучении и достигнутые результаты
             </p>
-          </div>
-          <div className={styles.headerActions}>
-            <button 
-              onClick={refreshData}
-              className={styles.refreshButton}
-              title="Обновить достижения"
-            >
-              🔄
-            </button>
           </div>
         </div>
       </header>

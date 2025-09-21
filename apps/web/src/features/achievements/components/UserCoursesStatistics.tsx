@@ -1,13 +1,13 @@
 "use client";
 
-import { useUserStartedCourses } from "@shared/hooks/useUserCourses";
+import { useCourseStore, useCourseStoreActions } from "@shared/stores/courseStore";
 import { useUserProgressForCourses } from "@shared/hooks/useUserProgress";
 import { TrainingStatus, type CourseWithProgressData } from "@gafus/types";
 import { type UserDetailedProgress } from "@shared/lib/user/getUserProgress";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 
 import styles from "./UserCoursesStatistics.module.css";
 
@@ -15,20 +15,35 @@ import styles from "./UserCoursesStatistics.module.css";
  * Компонент для отображения детальной статистики по курсам пользователя
  */
 export default function UserCoursesStatistics() {
-  const { data: courses, error, isLoading } = useUserStartedCourses();
+  const { allCourses, loading, errors } = useCourseStore();
+  const { fetchAllCourses } = useCourseStoreActions();
   
-  // Получаем ID курсов для загрузки прогресса
+  // Получаем курсы с прогрессом из стора
+  const courses = useMemo(() => {
+    if (!allCourses?.data) return [];
+    return allCourses.data.filter(course => course.userStatus !== "NOT_STARTED");
+  }, [allCourses?.data]);
+  
+  // Получаем ID курсов для загрузки детального прогресса
   const courseIds = useMemo(() => {
-    if (!courses || !Array.isArray(courses)) {
-      return [];
-    }
     return courses.map(course => course.id);
   }, [courses]);
   
   // Загружаем детальный прогресс для всех курсов
   const { data: progressMap, isLoading: progressLoading } = useUserProgressForCourses(courseIds);
+  
+  // Загружаем данные при первом рендере, если их нет в кэше
+  useEffect(() => {
+    if (!allCourses?.data && !loading.all) {
+      fetchAllCourses("with-progress");
+    }
+  }, [allCourses?.data, loading.all, fetchAllCourses]);
+  
+  // Состояние загрузки и ошибок
+  const isLoading = loading.all || progressLoading;
+  const error = errors.all;
 
-  if (isLoading || progressLoading) {
+  if (isLoading) {
     return (
       <div className={styles.loading}>
         <div className={styles.loadingSpinner}></div>
@@ -63,6 +78,7 @@ export default function UserCoursesStatistics() {
   return (
     <div className={styles.coursesList}>
       {courses.map((course) => {
+        // Получаем реальные данные прогресса для каждого курса
         const userProgress = progressMap && typeof progressMap.get === 'function' 
           ? progressMap.get(course.id) 
           : null;
@@ -79,7 +95,7 @@ export default function UserCoursesStatistics() {
 }
 
 function CourseStatisticsCard({ 
-  course, 
+  course,
   userProgress 
 }: { 
   course: CourseWithProgressData;
