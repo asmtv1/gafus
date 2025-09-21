@@ -80,18 +80,22 @@ export async function getUserProgress(
         },
       });
 
+      // Получаем общее количество дней в курсе для правильной проверки завершения
+      const totalDaysInCourse = await prisma.dayOnCourse.count({
+        where: { courseId },
+      });
+
       if (userTrainings.length > 0) {
-        // Получаем реальное количество дней в курсе
-        const courseDays = await prisma.dayOnCourse.count({
-          where: { courseId },
-        });
-        
+        const userTrainingCount = userTrainings.length;
         const completedDays = userTrainings.filter(
           (t: { status: string }) => t.status === "COMPLETED",
         ).length;
 
-        // Если все дни курса завершены, но курс не помечен как завершенный
-        if (completedDays === courseDays && courseDays > 0 && userProgress.status !== "COMPLETED") {
+        // ВАЖНО: Проверяем что пользователь завершил ВСЕ дни курса, а не только те, что у него есть
+        // Курс завершен только если:
+        // 1. У пользователя есть тренировки для ВСЕХ дней курса (userTrainingCount === totalDaysInCourse)
+        // 2. ВСЕ эти тренировки завершены (completedDays === totalDaysInCourse)
+        if (userTrainingCount === totalDaysInCourse && completedDays === totalDaysInCourse && totalDaysInCourse > 0 && userProgress.status !== "COMPLETED") {
           // Устанавливаем completedAt только если он еще не был установлен
           if (!userProgress.completedAt) {
             completedAt = new Date();
@@ -189,16 +193,8 @@ export async function getUserProgress(
 
       if (userTrainings.length > 0) {
         startedAt = userTrainings[0].createdAt;
-        // Проверяем, завершены ли все дни курса
-        const courseDays = await prisma.dayOnCourse.count({
-          where: { courseId },
-        });
-        const completedDays = userTrainings.filter(
-          (t: { status: string }) => t.status === "COMPLETED",
-        ).length;
-        if (completedDays === courseDays && courseDays > 0) {
-          completedAt = new Date();
-        }
+        // НЕ устанавливаем completedAt здесь - это должно происходить только в checkAndCompleteCourse
+        // после проверки всех дней курса
       }
     }
 

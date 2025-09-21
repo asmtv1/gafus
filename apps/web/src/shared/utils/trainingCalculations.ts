@@ -41,11 +41,7 @@ export function calculateDayStatus(courseId: string, day: number, stepStates: St
   return TrainingStatus.NOT_STARTED;
 }
 
-export function calculateCourseStatus(
-  courseId: string,
-  stepStates: StepStates,
-  totalDays?: number,
-): TrainingStatus {
+export function calculateCourseStatus(courseId: string, stepStates: StepStates, totalDaysInCourse?: number): TrainingStatus {
   const dayKeys = new Set<string>();
   Object.keys(stepStates).forEach((key) => {
     if (key.startsWith(`${courseId}-`)) {
@@ -58,15 +54,15 @@ export function calculateCourseStatus(
 
   // Если знаем реальное количество дней курса, используем его,
   // иначе опираемся на фактически встреченные дни в локальном состоянии
-  const effectiveTotalDays = typeof totalDays === 'number' && totalDays > 0
-    ? totalDays
+  const effectiveTotalDays = typeof totalDaysInCourse === 'number' && totalDaysInCourse > 0
+    ? totalDaysInCourse
     : dayKeys.size;
 
   if (effectiveTotalDays === 0) return TrainingStatus.NOT_STARTED;
 
   let maxDay: number;
-  if (typeof totalDays === 'number' && totalDays > 0) {
-    maxDay = totalDays;
+  if (typeof totalDaysInCourse === 'number' && totalDaysInCourse > 0) {
+    maxDay = totalDaysInCourse;
   } else {
     const dayNumbers = Array.from(dayKeys)
       .map((dayKey) => parseInt(dayKey.split('-')[1]))
@@ -74,13 +70,19 @@ export function calculateCourseStatus(
     maxDay = Math.max(...dayNumbers);
   }
 
+  // Если передан totalDaysInCourse, проверяем все дни курса
+  const daysToCheck = totalDaysInCourse ? totalDaysInCourse : maxDay;
+  
   const dayStatuses: TrainingStatus[] = [];
-  for (let day = 1; day <= maxDay; day++) {
+  for (let day = 1; day <= daysToCheck; day++) {
     dayStatuses.push(calculateDayStatus(courseId, day, stepStates));
   }
 
-  if (dayStatuses.every((status) => status === TrainingStatus.COMPLETED)) {
-    return TrainingStatus.COMPLETED;
+  // Если есть информация о общем количестве дней, проверяем что все дни завершены
+  if (totalDaysInCourse && dayStatuses.length === totalDaysInCourse) {
+    if (dayStatuses.every((status) => status === TrainingStatus.COMPLETED)) {
+      return TrainingStatus.COMPLETED;
+    }
   }
 
   if (dayStatuses.some((status) => status === TrainingStatus.IN_PROGRESS || status === TrainingStatus.COMPLETED)) {
