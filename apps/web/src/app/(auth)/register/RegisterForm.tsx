@@ -2,51 +2,40 @@
 
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
-import { commonValidationRules } from "@shared/hooks/useFormValidation";
+import { useZodForm } from "@shared/hooks/useZodForm";
 import { registerUserAction } from "@shared/lib/auth/login-utils";
+import { registerFormSchema } from "@shared/lib/validation/authSchemas";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
 
 import styles from "./register.module.css";
 
-import type { RegisterFormData as FormData } from "@gafus/types";
+import type { RegisterFormSchema } from "@shared/lib/validation/authSchemas";
 
 export function RegisterForm() {
   const router = useRouter();
 
-  const form = useForm<FormData>({
-    mode: "onBlur",
-    defaultValues: {
+  const { form, handleSubmit, setError, formState: { errors, isValid } } = useZodForm(
+    registerFormSchema,
+    {
       name: "",
       phone: "",
       password: "",
       confirmPassword: "",
-    },
-  });
-
-  const {
-    handleSubmit,
-    setError,
-    getValues,
-    formState: { errors, isValid },
-  } = form;
+    }
+  );
 
   const [isPending, setIsPending] = useState(false);
   const [caughtError, setCaughtError] = useState<Error | null>(null);
 
-  // Функция валидации телефона
-  const validatePhone = (value: string): boolean | string => {
-    const phoneNumber = parsePhoneNumberFromString(value, "RU");
-    return phoneNumber?.isValid() || "Неверный номер телефона";
-  };
+  // Валидация телефона теперь обрабатывается Zod схемой
 
   if (caughtError) {
     throw caughtError;
   }
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: RegisterFormSchema) => {
     const phoneNumber = parsePhoneNumberFromString(data.phone, "RU");
 
     if (!phoneNumber || !phoneNumber.isValid()) {
@@ -89,14 +78,7 @@ export function RegisterForm() {
         className={styles.input}
         form={form}
         errorClassName={styles.errorText}
-        rules={{
-          ...commonValidationRules.name,
-          required: "Введите имя пользователя",
-          pattern: {
-            value: /^[A-Za-z0-9_]+$/,
-            message: "Только английские буквы, цифры или _",
-          },
-        }}
+        // Валидация теперь через Zod схему
       />
 
       <FormField
@@ -109,10 +91,7 @@ export function RegisterForm() {
         type="tel"
         placeholder="+7XXXXXXXXXX"
         form={form}
-        rules={{
-          required: "Введите номер телефона",
-          validate: validatePhone,
-        }}
+        // Валидация теперь через Zod схему
       />
 
       <p className={styles.info}>Требуется Подтверждение через Telegram</p>
@@ -123,15 +102,7 @@ export function RegisterForm() {
         visuallyHiddenLabel
         placeholder="Пароль"
         autoComplete="new-password"
-        {...form.register("password", {
-          ...commonValidationRules.password,
-          required: "Введите пароль",
-          maxLength: { value: 12, message: "Максимум 12 символов" },
-          pattern: {
-            value: /^[A-Za-z0-9]+$/,
-            message: "Только английские буквы или цифры",
-          },
-        })}
+        {...form.register("password")}
         error={errors.password?.message}
         errorClassName={styles.errorText}
       />
@@ -141,10 +112,7 @@ export function RegisterForm() {
         label="Повторите пароль"
         placeholder="Повторите пароль"
         visuallyHiddenLabel
-        {...form.register("confirmPassword", {
-          required: "Повторите пароль",
-          validate: (value) => value === getValues("password") || "Пароли не совпадают",
-        })}
+        {...form.register("confirmPassword")}
         error={errors.confirmPassword?.message}
         errorClassName={styles.errorText}
       />

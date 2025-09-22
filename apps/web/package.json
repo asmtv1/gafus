@@ -16,9 +16,9 @@
     "@ducanh2912/next-pwa": "^10.2.9",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.0",
+    "@gafus/auth": "workspace:*",
     "@gafus/csrf": "workspace:*",
     "@gafus/error-handling": "workspace:*",
-    "@gafus/auth": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
     "@gafus/react-query": "workspace:*",
@@ -41,16 +41,19 @@
     "react-hook-form": "7.58.1",
     "react-markdown": "10.1.0",
     "sharp": "0.34.3",
+    "zod": "^3.24.1",
     "zustand": "5.0.7"
   },
   "devDependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.1.0",
     "@eslint/eslintrc": "3.3.1",
     "@next/bundle-analyzer": "15.3.4",
     "@types/bcrypt": "5.0.2",
     "@types/react": "19.1.9",
     "@types/react-dom": "19.1.7",
     "copy-webpack-plugin": "^13.0.1",
-    "eslint-config-next": "15.4.5"
+    "eslint-config-next": "15.4.5",
+    "swagger-ui-react": "^5.29.0"
   },
   "turbo": {
     "outputs": [

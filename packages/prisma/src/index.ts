@@ -7,7 +7,6 @@ export type {
   ErrorReport,
   FavoriteCourse,
   Pet,
-  PetType,
   Prisma,
   PrismaClient,
   PushSubscription,
@@ -24,6 +23,9 @@ export type {
   UserStep,
   UserTraining,
 } from "@prisma/client";
+
+// Экспортируем enum как значение для использования в zod схемах
+export { PetType } from "@prisma/client";
 
 // Импортируем PrismaClient для использования в типах
 import type { PrismaClient } from "@prisma/client";

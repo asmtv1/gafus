@@ -1,14 +1,25 @@
 "use server";
 
+import { z } from "zod";
+
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 
 import { getCurrentUserId } from "@/utils";
 
+const courseRatingSchema = z.object({
+  courseId: z.string().trim().min(1, "courseId обязателен"),
+  rating: z.number().min(1, "Рейтинг должен быть не меньше 1").max(5, "Рейтинг должен быть не больше 5"),
+});
+
 export async function updateCourseRatingAction(
   courseId: string,
   rating: number,
 ): Promise<{ success: boolean; error?: string }> {
+  const { courseId: safeCourseId, rating: safeRating } = courseRatingSchema.parse({
+    courseId,
+    rating,
+  });
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
@@ -17,7 +28,7 @@ export async function updateCourseRatingAction(
 
     // Проверяем, что курс существует
     const course = await prisma.course.findUnique({
-      where: { id: courseId },
+      where: { id: safeCourseId },
     });
 
     if (!course) {
@@ -29,7 +40,7 @@ export async function updateCourseRatingAction(
       where: {
         userId_courseId: {
           userId,
-          courseId,
+          courseId: safeCourseId,
         },
       },
     });
@@ -43,24 +54,24 @@ export async function updateCourseRatingAction(
       where: {
         userId_courseId: {
           userId,
-          courseId,
+          courseId: safeCourseId,
         },
       },
       update: {
-        rating,
+        rating: safeRating,
         updatedAt: new Date(),
       },
       create: {
         userId,
-        courseId,
-        rating,
+        courseId: safeCourseId,
+        rating: safeRating,
         comment: null,
       },
     });
 
     // Обновляем средний рейтинг курса
     const reviews = await prisma.courseReview.findMany({
-      where: { courseId },
+      where: { courseId: safeCourseId },
       select: { rating: true },
     });
 
@@ -73,7 +84,7 @@ export async function updateCourseRatingAction(
         : null;
 
     await prisma.course.update({
-      where: { id: courseId },
+      where: { id: safeCourseId },
       data: { avgRating },
     });
 
@@ -88,8 +99,8 @@ export async function updateCourseRatingAction(
       environment: process.env.NODE_ENV || "development",
       additionalContext: {
         action: "updateCourseRatingAction",
-        courseId,
-        rating,
+        courseId: safeCourseId,
+        rating: safeRating,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
       },
       tags: ["course", "rating", "server-action"],

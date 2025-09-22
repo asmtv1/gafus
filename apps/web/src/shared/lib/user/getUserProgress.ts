@@ -3,6 +3,9 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
+import { z } from "zod";
+
+import { courseIdSchema, userIdSchema } from "../validation/schemas";
 
 export interface UserDayProgress {
   dayOrder: number;
@@ -26,16 +29,25 @@ export interface UserDetailedProgress {
   days: UserDayProgress[];
 }
 
+const userCourseProgressSchema = z.object({
+  courseId: courseIdSchema,
+  userId: userIdSchema,
+});
+
 export async function getUserProgress(
   courseId: string,
   userId: string,
 ): Promise<UserDetailedProgress | null> {
+  const { courseId: safeCourseId, userId: safeUserId } = userCourseProgressSchema.parse({
+    courseId,
+    userId,
+  });
   try {
     // Сначала пытаемся получить информацию из userCourse
     const userProgress = await prisma.userCourse.findFirst({
       where: {
-        courseId,
-        userId,
+        courseId: safeCourseId,
+        userId: safeUserId,
       },
       include: {
         user: {
@@ -70,9 +82,9 @@ export async function getUserProgress(
       // Синхронизируем статус курса с реальным прогрессом
       const userTrainings = await prisma.userTraining.findMany({
         where: {
-          userId,
+          userId: safeUserId,
           dayOnCourse: {
-            courseId,
+            courseId: safeCourseId,
           },
         },
         select: {
@@ -82,7 +94,7 @@ export async function getUserProgress(
 
       // Получаем общее количество дней в курсе для правильной проверки завершения
       const totalDaysInCourse = await prisma.dayOnCourse.count({
-        where: { courseId },
+        where: { courseId: safeCourseId },
       });
 
       if (userTrainings.length > 0) {
@@ -107,8 +119,8 @@ export async function getUserProgress(
             await prisma.userCourse.update({
               where: {
                 userId_courseId: {
-                  userId,
-                  courseId,
+                  userId: safeUserId,
+                  courseId: safeCourseId,
                 },
               },
               data: {
@@ -136,8 +148,8 @@ export async function getUserProgress(
             await prisma.userCourse.update({
               where: {
                 userId_courseId: {
-                  userId,
-                  courseId,
+                  userId: safeUserId,
+                  courseId: safeCourseId,
                 },
               },
               data: {
@@ -153,7 +165,7 @@ export async function getUserProgress(
     } else {
       // Получаем информацию о пользователе
       const user = await prisma.user.findUnique({
-        where: { id: userId },
+        where: { id: safeUserId },
         select: {
           username: true,
           profile: {
@@ -176,9 +188,9 @@ export async function getUserProgress(
       // Определяем даты на основе userTraining
       const userTrainings = await prisma.userTraining.findMany({
         where: {
-          userId,
+          userId: safeUserId,
           dayOnCourse: {
-            courseId,
+            courseId: safeCourseId,
           },
         },
         select: {
@@ -204,7 +216,7 @@ export async function getUserProgress(
 
     // Получаем все дни курса с их шагами
     const courseDays = await prisma.dayOnCourse.findMany({
-      where: { courseId },
+      where: { courseId: safeCourseId },
       orderBy: { order: "asc" },
       include: {
         day: {
@@ -227,9 +239,9 @@ export async function getUserProgress(
     // Получаем все userTrainings для этого пользователя по этому курсу
     const userTrainings = await prisma.userTraining.findMany({
       where: {
-        userId,
+        userId: safeUserId,
         dayOnCourse: {
-          courseId,
+          courseId: safeCourseId,
         },
       },
       include: {
@@ -347,7 +359,7 @@ export async function getUserProgress(
     );
 
     const result = {
-      userId,
+      userId: safeUserId,
       username: userInfo.username,
       avatarUrl: userInfo.avatarUrl,
       startedAt,

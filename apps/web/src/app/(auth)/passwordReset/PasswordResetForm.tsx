@@ -1,47 +1,36 @@
 "use client";
 
 import { FormField, TextField } from "@shared/components/ui/FormField";
-import { commonValidationRules } from "@shared/hooks/useFormValidation";
+import { useZodForm } from "@shared/hooks/useZodForm";
 import { checkPhoneMatchesUsername, sendPasswordResetRequest } from "@shared/lib/auth/login-utils";
+import { passwordResetFormSchema } from "@shared/lib/validation/authSchemas";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
 
 import styles from "./passwordReset.module.css";
 
-import type { PasswordResetFormData as FormData } from "@gafus/types";
+import type { PasswordResetFormSchema } from "@shared/lib/validation/authSchemas";
 
 export function PasswordResetForm() {
-  const form = useForm<FormData>({
-    mode: "onBlur",
-    defaultValues: {
+  const { form, handleSubmit, setError, clearErrors, formState: { isValid } } = useZodForm(
+    passwordResetFormSchema,
+    {
       username: "",
       phone: "",
-    },
-  });
-
-  const {
-    handleSubmit,
-    setError,
-    clearErrors,
-    formState: { isValid },
-  } = form;
+    }
+  );
 
   const [isPending, setIsPending] = useState(false);
   const [status, setStatus] = useState("");
   const [caughtError, setCaughtError] = useState<Error | null>(null);
 
-  // Функция валидации телефона
-  const validatePhone = (value: string): boolean | string => {
-    const phoneNumber = parsePhoneNumberFromString(value, "RU");
-    return phoneNumber?.isValid() || "Неверный номер телефона";
-  };
+  // Валидация телефона теперь обрабатывается Zod схемой
 
   if (caughtError) {
     throw caughtError;
   }
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: PasswordResetFormSchema) => {
     const phoneNumberObj = parsePhoneNumberFromString(data.phone, "RU");
 
     if (!phoneNumberObj?.isValid()) {
@@ -82,14 +71,7 @@ export function PasswordResetForm() {
         className={styles.input}
         form={form}
         errorClassName={styles.errorText}
-        rules={{
-          ...commonValidationRules.name,
-          required: "Введите логин",
-          pattern: {
-            value: /^[A-Za-z0-9_]+$/,
-            message: "Только английские буквы, цифры или _",
-          },
-        }}
+        // Валидация теперь через Zod схему
       />
 
       <FormField
@@ -102,10 +84,7 @@ export function PasswordResetForm() {
         type="tel"
         placeholder="+7XXXXXXXXXX"
         form={form}
-        rules={{
-          required: "Введите номер телефона",
-          validate: validatePhone,
-        }}
+        // Валидация теперь через Zod схему
       />
 
       <button className={styles.button} type="submit" disabled={isPending || !isValid}>

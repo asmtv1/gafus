@@ -7,6 +7,10 @@ import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculatio
 import type { TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+import { dayNumberSchema, trainingTypeSchema } from "../validation/schemas";
+
+const courseTypeSchema = trainingTypeSchema;
+const dayOrderSchema = dayNumberSchema;
 
 /** Находим день курса + userTraining */
 async function findTrainingDayWithUserTraining(
@@ -71,8 +75,10 @@ export async function getTrainingDayWithUserSteps(
   courseType: string,
   dayOrder: number,
 ): Promise<TrainingDetail | null> {
+  const safeCourseType = courseTypeSchema.parse(courseType);
+  const safeDayOrder = dayOrderSchema.parse(dayOrder);
   const userId = await getCurrentUserId();
-  const found = await findTrainingDayWithUserTraining(courseType, dayOrder, userId);
+  const found = await findTrainingDayWithUserTraining(safeCourseType, safeDayOrder, userId);
   if (!found) return null;
 
   const {
@@ -172,7 +178,7 @@ export async function getTrainingDayWithUserSteps(
 
   return {
     trainingDayId,
-    day: dayOrder,
+    day: safeDayOrder,
     title,
     type,
     courseId,

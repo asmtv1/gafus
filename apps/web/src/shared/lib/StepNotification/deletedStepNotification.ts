@@ -2,8 +2,16 @@
 
 import { prisma } from "@gafus/prisma";
 import { pushQueue } from "@gafus/queues";
+import { z } from "zod";
 
 import { getCurrentUserId } from "@/utils";
+import { dayNumberSchema, stepIndexSchema } from "../validation/schemas";
+
+const deleteSchema = z.object({
+  day: dayNumberSchema,
+  stepIndex: stepIndexSchema,
+  deleted: z.boolean(),
+});
 
 /**
  * Приостанавливает отправку push-уведомления по шагу тренировки
@@ -15,14 +23,19 @@ import { getCurrentUserId } from "@/utils";
  * @param jobId - ID задачи в очереди (если известен)
  */
 export async function deletedStepNotification(day: number, stepIndex: number, deleted: boolean) {
+  const { day: safeDay, stepIndex: safeStepIndex, deleted: isDeleted } = deleteSchema.parse({
+    day,
+    stepIndex,
+    deleted,
+  });
   const userId = await getCurrentUserId();
 
   // Находим активное уведомление
   const notif = await prisma.stepNotification.findFirst({
     where: {
       userId,
-      day,
-      stepIndex,
+      day: safeDay,
+      stepIndex: safeStepIndex,
       sent: false,
     },
   });
@@ -31,7 +44,7 @@ export async function deletedStepNotification(day: number, stepIndex: number, de
     return { success: false, error: "Notification not found" };
   }
 
-  if (deleted) {
+  if (isDeleted) {
     // Удаляем задачу из очереди
     const jobToRemoveId = notif.jobId;
     if (jobToRemoveId) {

@@ -1,11 +1,16 @@
 "use server";
 
+import { z } from "zod";
+
 import { prisma } from "@gafus/prisma";
 
 import { getCurrentUserId } from "@/utils";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
+const courseIdSchema = z.string().trim().min(1, "courseId обязателен");
+
 export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
+  const safeCourseId = courseIdSchema.parse(courseId);
   try {
     const userId = await getCurrentUserId();
 
@@ -13,7 +18,7 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
       where: {
         userId_courseId: {
           userId,
-          courseId,
+          courseId: safeCourseId,
         },
       },
     });
@@ -25,7 +30,7 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
         where: {
           userId_courseId: {
             userId,
-            courseId,
+            courseId: safeCourseId,
           },
         },
       });
@@ -34,7 +39,7 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
       await prisma.favoriteCourse.create({
         data: {
           userId,
-          courseId,
+          courseId: safeCourseId,
         },
       });
       isFavorite = true; // теперь в избранном

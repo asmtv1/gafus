@@ -2,17 +2,21 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
+import { z } from "zod";
 
 import type { Course, CourseAccess, CourseReview, FavoriteCourse } from "@gafus/prisma";
 import type { CourseWithProgressData } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 
+const optionalUserIdSchema = z.string().trim().min(1).optional();
+
 export async function getFavoritesCourses(userId?: string): Promise<{
   data: CourseWithProgressData[];
   favoriteIds: string[];
 }> {
-  const currentUserId = userId || await getCurrentUserId();
+  const safeUserId = optionalUserIdSchema.parse(userId);
+  const currentUserId = safeUserId ?? (await getCurrentUserId());
 
   try {
     const userFavorites = await prisma.favoriteCourse.findMany({

@@ -3,13 +3,19 @@
 import { getUserProgress } from "@shared/lib/user/getUserProgress";
 import { getCurrentUserId } from "@/utils";
 
+import { courseIdSchema } from "../validation/schemas";
+import { z } from "zod";
+
+const courseIdsSchema = z.array(courseIdSchema).optional();
+
 /**
  * Серверное действие для получения прогресса текущего пользователя по курсу
  */
 export async function getUserProgressForCurrentUser(courseId: string) {
+  const safeCourseId = courseIdSchema.parse(courseId);
   try {
     const userId = await getCurrentUserId();
-    const result = await getUserProgress(courseId, userId);
+    const result = await getUserProgress(safeCourseId, userId);
     return result;
   } catch (error) {
     console.error("Ошибка при получении прогресса пользователя:", error);
@@ -21,11 +27,12 @@ export async function getUserProgressForCurrentUser(courseId: string) {
  * Серверное действие для получения прогресса текущего пользователя по нескольким курсам
  */
 export async function getUserProgressForMultipleCourses(courseIds: string[]) {
+  const safeCourseIds = courseIdsSchema.parse(courseIds) ?? [];
   try {
     const userId = await getCurrentUserId();
-    console.log('getUserProgressForMultipleCourses - userId:', userId, 'courseIds:', courseIds);
+    console.log('getUserProgressForMultipleCourses - userId:', userId, 'courseIds:', safeCourseIds);
     
-    if (!courseIds || courseIds.length === 0) {
+    if (safeCourseIds.length === 0) {
       console.log('No course IDs provided, returning empty map');
       return new Map();
     }
@@ -35,12 +42,12 @@ export async function getUserProgressForMultipleCourses(courseIds: string[]) {
       return new Map();
     }
     
-    const progressPromises = courseIds.map(courseId => getUserProgress(courseId, userId));
+    const progressPromises = safeCourseIds.map((courseId) => getUserProgress(courseId, userId));
     const results = await Promise.all(progressPromises);
     
     // Создаем объект курсId -> прогресс (Map не сериализуется в JSON)
     const progressMap: Record<string, unknown> = {};
-    courseIds.forEach((courseId, index) => {
+    safeCourseIds.forEach((courseId, index) => {
       progressMap[courseId] = results[index];
     });
     

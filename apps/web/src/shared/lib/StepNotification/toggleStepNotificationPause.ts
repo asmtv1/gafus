@@ -2,8 +2,16 @@
 
 import { prisma } from "@gafus/prisma";
 import { pushQueue } from "@gafus/queues";
+import { z } from "zod";
 
 import { getCurrentUserId } from "@/utils";
+import { dayNumberSchema, stepIndexSchema } from "../validation/schemas";
+
+const toggleSchema = z.object({
+  day: dayNumberSchema,
+  stepIndex: stepIndexSchema,
+  pause: z.boolean(),
+});
 
 /**
  * Приостанавливает или возобновляет отправку push-уведомления по шагу тренировки.
@@ -14,6 +22,11 @@ import { getCurrentUserId } from "@/utils";
  * @param jobId -  ID задачи в очереди
  */
 export async function toggleStepNotificationPause(day: number, stepIndex: number, pause: boolean) {
+  const { day: safeDay, stepIndex: safeStepIndex, pause: safePause } = toggleSchema.parse({
+    day,
+    stepIndex,
+    pause,
+  });
   const userId = await getCurrentUserId();
   const now = Math.floor(Date.now() / 1000);
 
@@ -21,8 +34,8 @@ export async function toggleStepNotificationPause(day: number, stepIndex: number
   const notif = await prisma.stepNotification.findFirst({
     where: {
       userId,
-      day,
-      stepIndex,
+      day: safeDay,
+      stepIndex: safeStepIndex,
       sent: false,
     },
   });
@@ -31,7 +44,7 @@ export async function toggleStepNotificationPause(day: number, stepIndex: number
     return { success: false, error: "Notification not found" };
   }
 
-  if (pause) {
+  if (safePause) {
     // Пауза: удаляем задачу из очереди и сохраняем оставшееся время
     const remaining = Math.max(notif.endTs - now, 0);
 

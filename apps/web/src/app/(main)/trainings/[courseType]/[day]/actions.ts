@@ -6,16 +6,25 @@ import {
   resetStepNotification,
   resumeStepNotification,
 } from "@shared/lib/StepNotification/manageStepNotification";
+import { courseIdSchema, dayNumberSchema, stepIndexSchema, positiveDurationSchema } from "@shared/lib/validation/schemas";
+import { z } from "zod";
+
+const notificationKeySchema = z.object({
+  courseId: courseIdSchema,
+  day: dayNumberSchema,
+  stepIndex: stepIndexSchema,
+});
+
+const resumeNotificationSchema = notificationKeySchema.extend({
+  durationSec: positiveDurationSchema,
+});
 
 export async function pauseNotificationAction(courseId: string, day: number, stepIndex: number) {
+  const parsed = notificationKeySchema.parse({ courseId, day, stepIndex });
   try {
     const userId = await getCurrentUserId();
 
-    if (!courseId || day === undefined || stepIndex === undefined) {
-      throw new Error("Missing required fields: courseId, day, stepIndex");
-    }
-
-    await pauseStepNotification(userId, day, stepIndex);
+    await pauseStepNotification(userId, parsed.day, parsed.stepIndex);
     return { success: true };
   } catch (error) {
     console.error("Failed to pause notification:", error);
@@ -24,14 +33,11 @@ export async function pauseNotificationAction(courseId: string, day: number, ste
 }
 
 export async function resetNotificationAction(courseId: string, day: number, stepIndex: number) {
+  const parsed = notificationKeySchema.parse({ courseId, day, stepIndex });
   try {
     const userId = await getCurrentUserId();
 
-    if (!courseId || day === undefined || stepIndex === undefined) {
-      throw new Error("Missing required fields: courseId, day, stepIndex");
-    }
-
-    await resetStepNotification(userId, day, stepIndex);
+    await resetStepNotification(userId, parsed.day, parsed.stepIndex);
     return { success: true };
   } catch (error) {
     console.error("Failed to reset notification:", error);
@@ -45,14 +51,11 @@ export async function resumeNotificationAction(
   stepIndex: number,
   durationSec: number,
 ) {
+  const parsed = resumeNotificationSchema.parse({ courseId, day, stepIndex, durationSec });
   try {
     const userId = await getCurrentUserId();
 
-    if (!courseId || day === undefined || stepIndex === undefined || !durationSec) {
-      throw new Error("Missing required fields: courseId, day, stepIndex, durationSec");
-    }
-
-    await resumeStepNotification(userId, day, stepIndex, durationSec);
+    await resumeStepNotification(userId, parsed.day, parsed.stepIndex, parsed.durationSec);
     return { success: true };
   } catch (error) {
     console.error("Failed to resume notification:", error);

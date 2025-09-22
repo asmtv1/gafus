@@ -1,22 +1,31 @@
 "use server";
 import { prisma } from "@gafus/prisma";
+import { z } from "zod";
 
 import { getCurrentUserId } from "@/utils";
+
+const endpointSchema = z.string().trim().min(1, "endpoint обязателен");
 
 /**
  * Удаляет конкретную push-подписку по endpoint
  * Используется только когда пользователь явно отключает уведомления на конкретном устройстве
  */
 export async function deletePushSubscriptionByEndpoint(endpoint: string) {
+  const safeEndpoint = endpointSchema.parse(endpoint);
   try {
     const userId = await getCurrentUserId();
-    console.warn("Удаление подписки для пользователя:", userId, "endpoint:", endpoint.substring(0, 50) + "...");
+    console.warn(
+      "Удаление подписки для пользователя:",
+      userId,
+      "endpoint:",
+      safeEndpoint.substring(0, 50) + "...",
+    );
 
     // Удаляем только конкретную подписку по endpoint
     const result = await prisma.pushSubscription.deleteMany({
       where: { 
         userId,
-        endpoint: endpoint
+        endpoint: safeEndpoint,
       },
     });
 

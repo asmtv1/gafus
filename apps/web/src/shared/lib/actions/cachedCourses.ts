@@ -10,6 +10,11 @@ import { getAuthoredCourses } from "../course/getAuthoredCourses";
 import { getCoursesWithProgress } from "../course/getCourses";
 import { getFavoritesCourses } from "../course/getFavoritesCourses";
 import { getTrainingDays } from "../training/getTrainingDays";
+import {
+  dayIdSchema,
+  optionalTrainingTypeSchema,
+  optionalUserIdSchema,
+} from "../validation/schemas";
 
 // Типы для прогресса пользователя
 interface UserCourseProgress {
@@ -172,18 +177,20 @@ export const getAllCoursesCached = unstable_cache(
 
 // Кэшированная версия получения только прогресса пользователя по курсам
 export async function getUserCoursesProgressCached(userId?: string) {
+  const safeUserId = optionalUserIdSchema.parse(userId);
+  const cacheKeyUserId = safeUserId ?? "anonymous";
   const cachedFunction = unstable_cache(
     async () => {
       try {
-        console.warn("[React Cache] Fetching user courses progress for user:", userId);
+        console.warn("[React Cache] Fetching user courses progress for user:", safeUserId);
         
-        if (!userId) {
+        if (!safeUserId) {
           return { success: true, data: [] };
         }
 
         // Получаем только прогресс пользователя по курсам
         const userCourses = await prisma.userCourse.findMany({
-          where: { userId },
+          where: { userId: safeUserId },
           select: {
             courseId: true,
             status: true,
@@ -193,7 +200,7 @@ export async function getUserCoursesProgressCached(userId?: string) {
         });
 
         const userFavorites = await prisma.favoriteCourse.findMany({
-          where: { userId },
+          where: { userId: safeUserId },
           select: { courseId: true },
         });
 
@@ -213,13 +220,16 @@ export async function getUserCoursesProgressCached(userId?: string) {
 
         const favorites = Array.from(favoriteCourseIds);
 
-        console.warn(`[React Cache] Cached progress for ${data.length} courses and ${favorites.length} favorites for user:`, userId);
-        return { 
-          success: true, 
+        console.warn(
+          `[React Cache] Cached progress for ${data.length} courses and ${favorites.length} favorites for user:`,
+          safeUserId,
+        );
+        return {
+          success: true,
           data: {
             userCourses: data,
             favoriteCourseIds: favorites,
-          } as UserProgressData
+          } as UserProgressData,
         };
       } catch (error) {
         console.error("❌ Error in getUserCoursesProgressCached:", error);
@@ -233,7 +243,7 @@ export async function getUserCoursesProgressCached(userId?: string) {
           additionalContext: {
             action: "getUserCoursesProgressCached",
             errorType: error instanceof Error ? error.constructor.name : typeof error,
-            userId,
+            userId: safeUserId,
           },
           tags: ["courses", "cache", "server-action"],
         });
@@ -241,10 +251,10 @@ export async function getUserCoursesProgressCached(userId?: string) {
         return { success: false, error: "Что-то пошло не так при получении прогресса курсов" };
       }
     },
-    ["user-courses-progress", userId || "anonymous"], // Включаем userId в ключ кэша
+    ["user-courses-progress", cacheKeyUserId], // Включаем userId в ключ кэша
     {
       revalidate: false, // НЕ инвалидируется по времени - только вручную при изменении прогресса
-      tags: ["courses", "user-progress", `user-${userId || "anonymous"}`], // Включаем userId в теги
+      tags: ["courses", "user-progress", `user-${cacheKeyUserId}`], // Включаем userId в теги
     },
   );
 
@@ -253,12 +263,17 @@ export async function getUserCoursesProgressCached(userId?: string) {
 
 // Кэшированная версия получения всех курсов с прогрессом пользователя (для обратной совместимости)
 export async function getCoursesWithProgressCached(userId?: string) {
+  const safeUserId = optionalUserIdSchema.parse(userId);
+  const cacheKeyUserId = safeUserId ?? "anonymous";
   const cachedFunction = unstable_cache(
     async () => {
       try {
-        console.warn("[React Cache] Fetching all courses with progress for user:", userId);
-        const result = await getCoursesWithProgress(userId);
-        console.warn(`[React Cache] Cached ${result.data.length} courses successfully for user:`, userId);
+        console.warn("[React Cache] Fetching all courses with progress for user:", safeUserId);
+        const result = await getCoursesWithProgress(safeUserId);
+        console.warn(
+          `[React Cache] Cached ${result.data.length} courses successfully for user:`,
+          safeUserId,
+        );
         return { success: true, data: result.data };
       } catch (error) {
         console.error("❌ Error in getCoursesWithProgressCached:", error);
@@ -272,7 +287,7 @@ export async function getCoursesWithProgressCached(userId?: string) {
           additionalContext: {
             action: "getCoursesWithProgressCached",
             errorType: error instanceof Error ? error.constructor.name : typeof error,
-            userId,
+            userId: safeUserId,
           },
           tags: ["courses", "cache", "server-action"],
         });
@@ -280,10 +295,10 @@ export async function getCoursesWithProgressCached(userId?: string) {
         return { success: false, error: "Что-то пошло не так при получении курсов" };
       }
     },
-    ["courses-all", userId || "anonymous"], // Включаем userId в ключ кэша
+    ["courses-all", cacheKeyUserId], // Включаем userId в ключ кэша
     {
       revalidate: 60, // 60 секунд - синхронизируем с revalidate страницы
-      tags: ["courses", "courses-all", `user-${userId || "anonymous"}`], // Включаем userId в теги
+      tags: ["courses", "courses-all", `user-${cacheKeyUserId}`], // Включаем userId в теги
     },
   );
 
@@ -292,8 +307,9 @@ export async function getCoursesWithProgressCached(userId?: string) {
 
 // Функция для объединения всех курсов с прогрессом пользователя
 export async function getCoursesWithUserProgressCached(userId?: string) {
+  const safeUserId = optionalUserIdSchema.parse(userId);
   try {
-    console.warn("[React Cache] Combining all courses with user progress for user:", userId);
+    console.warn("[React Cache] Combining all courses with user progress for user:", safeUserId);
     
     // Получаем все курсы (из постоянного кэша)
     const allCoursesResult = await getAllCoursesCached();
@@ -302,7 +318,7 @@ export async function getCoursesWithUserProgressCached(userId?: string) {
     }
 
     // Получаем прогресс пользователя
-    const userProgressResult = await getUserCoursesProgressCached(userId);
+    const userProgressResult = await getUserCoursesProgressCached(safeUserId);
     if (!userProgressResult.success) {
       return userProgressResult;
     }
@@ -328,8 +344,8 @@ export async function getCoursesWithUserProgressCached(userId?: string) {
       }
       
       // Приватные курсы доступны только пользователям с доступом
-      if (userId && course.access) {
-        return course.access.some((access: { user: { id: string } }) => access.user.id === userId);
+      if (safeUserId && course.access) {
+        return course.access.some((access: { user: { id: string } }) => access.user.id === safeUserId);
       }
       
       return false;
@@ -364,7 +380,7 @@ export async function getCoursesWithUserProgressCached(userId?: string) {
       additionalContext: {
         action: "getCoursesWithUserProgressCached",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-        userId,
+        userId: safeUserId,
       },
       tags: ["courses", "cache", "server-action"],
     });
@@ -376,9 +392,10 @@ export async function getCoursesWithUserProgressCached(userId?: string) {
 // Кэшированная версия получения избранных курсов
 export const getFavoritesCoursesCached = unstable_cache(
   async (userId?: string) => {
+    const safeUserId = optionalUserIdSchema.parse(userId);
     try {
       console.warn("[React Cache] Fetching favorite courses");
-      const result = await getFavoritesCourses(userId);
+      const result = await getFavoritesCourses(safeUserId);
       console.warn(`[React Cache] Cached ${result.data.length} favorite courses successfully`);
       return { success: true, data: result.data };
     } catch (error) {
@@ -444,9 +461,11 @@ export const getAuthoredCoursesCached = unstable_cache(
 // Кэшированная версия получения дней тренировок
 export const getTrainingDaysCached = unstable_cache(
   async (typeParam?: string, userId?: string) => {
+    const safeType = optionalTrainingTypeSchema.parse(typeParam);
+    const safeUserId = optionalUserIdSchema.parse(userId);
     try {
-      console.warn("[React Cache] Fetching training days for type:", typeParam, "userId:", userId);
-      const result = await getTrainingDays(typeParam, userId);
+      console.warn("[React Cache] Fetching training days for type:", safeType, "userId:", safeUserId);
+      const result = await getTrainingDays(safeType, safeUserId);
       console.warn(`[React Cache] Cached ${result.trainingDays.length} training days successfully`);
       return { success: true, data: result };
     } catch (error) {
@@ -454,7 +473,7 @@ export const getTrainingDaysCached = unstable_cache(
       console.error("❌ Error details:", {
         message: error instanceof Error ? error.message : "Unknown error",
         stack: error instanceof Error ? error.stack : undefined,
-        typeParam,
+        typeParam: safeType,
       });
 
       await reportErrorToDashboard({
@@ -466,7 +485,7 @@ export const getTrainingDaysCached = unstable_cache(
         additionalContext: {
           action: "getTrainingDaysCached",
           errorType: error instanceof Error ? error.constructor.name : typeof error,
-          typeParam,
+          typeParam: safeType,
         },
         tags: ["training", "days", "cache", "server-action"],
       });
@@ -496,11 +515,13 @@ export const getTrainingDaysCached = unstable_cache(
 // Кэшированная версия получения отдельного дня курса
 export const getTrainingDayCached = unstable_cache(
   async (dayId: string, userId?: string) => {
+    const safeDayId = dayIdSchema.parse(dayId);
+    const safeUserId = optionalUserIdSchema.parse(userId);
     try {
-      console.warn("[React Cache] Fetching training day:", dayId, "userId:", userId);
+      console.warn("[React Cache] Fetching training day:", safeDayId, "userId:", safeUserId);
       
       const day = await prisma.trainingDay.findUnique({
-        where: { id: dayId },
+        where: { id: safeDayId },
         select: {
           id: true,
           title: true,
@@ -532,7 +553,7 @@ export const getTrainingDayCached = unstable_cache(
 
       // Получаем курсы, которые используют этот день
       const courses = await prisma.dayOnCourse.findMany({
-        where: { dayId },
+        where: { dayId: safeDayId },
         select: {
           course: {
             select: {
@@ -567,7 +588,7 @@ export const getTrainingDayCached = unstable_cache(
         estimatedDuration: day.stepLinks.reduce((total: number, link: { step: { durationSec: number } }) => total + link.step.durationSec, 0)
       };
 
-      console.warn(`[React Cache] Cached training day ${dayId} successfully`);
+      console.warn(`[React Cache] Cached training day ${safeDayId} successfully`);
       return { success: true, data: result };
     } catch (error) {
       console.error("❌ Error in getTrainingDayCached:", error);
@@ -579,7 +600,7 @@ export const getTrainingDayCached = unstable_cache(
         additionalContext: {
           action: "getTrainingDayCached",
           errorType: error instanceof Error ? error.constructor.name : typeof error,
-          dayId,
+          dayId: safeDayId,
         },
         tags: ["training", "day", "cache", "server-action"],
       });

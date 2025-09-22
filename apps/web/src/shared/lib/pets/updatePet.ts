@@ -7,14 +7,17 @@ import type { UpdatePetInput } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 
+import { updatePetSchema } from "../validation/petSchemas";
+
 export async function updatePet(data: UpdatePetInput) {
+  const validatedData = updatePetSchema.parse(data);
   try {
     const userId = await getCurrentUserId();
 
     // Проверяем, что питомец принадлежит пользователю
     const existingPet = await prisma.pet.findFirst({
       where: {
-        id: data.id,
+        id: validatedData.id,
         ownerId: userId,
       },
     });
@@ -25,17 +28,21 @@ export async function updatePet(data: UpdatePetInput) {
 
     const updateData: Prisma.PetUpdateInput = {};
 
-    if (data.name !== undefined) updateData.name = data.name;
-    if (data.type !== undefined) updateData.type = data.type as PetType;
-    if (data.breed !== undefined) updateData.breed = data.breed;
-    if (data.birthDate !== undefined) updateData.birthDate = new Date(data.birthDate);
-    if (data.heightCm !== undefined) updateData.heightCm = data.heightCm;
-    if (data.weightKg !== undefined) updateData.weightKg = data.weightKg;
-    if (data.photoUrl !== undefined) updateData.photoUrl = data.photoUrl;
-    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (validatedData.name !== undefined) updateData.name = validatedData.name;
+    if (validatedData.type !== undefined) updateData.type = validatedData.type as PetType;
+    if (validatedData.breed !== undefined) updateData.breed = validatedData.breed;
+    if (validatedData.birthDate !== undefined)
+      updateData.birthDate = new Date(validatedData.birthDate);
+    if (validatedData.heightCm !== undefined)
+      updateData.heightCm = validatedData.heightCm ?? null;
+    if (validatedData.weightKg !== undefined)
+      updateData.weightKg = validatedData.weightKg ?? null;
+    if (validatedData.photoUrl !== undefined)
+      updateData.photoUrl = validatedData.photoUrl || null;
+    if (validatedData.notes !== undefined) updateData.notes = validatedData.notes ?? null;
 
     const pet = await prisma.pet.update({
-      where: { id: data.id },
+      where: { id: validatedData.id },
       data: updateData,
       include: {
         awards: true,

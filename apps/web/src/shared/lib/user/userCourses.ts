@@ -2,11 +2,19 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
+import { z } from "zod";
 
 import { getCurrentUserId } from "@/utils";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
+import { courseIdSchema } from "../validation/schemas";
+const trainingDayStatusesSchema = z.array(
+  z.object({
+    userStatus: z.string().trim().min(1, "userStatus обязателен"),
+  }),
+);
 
 export async function assignCoursesToUser(courseId: string) {
+  const safeCourseId = courseIdSchema.parse(courseId);
   try {
     const userId = await getCurrentUserId();
 
@@ -14,13 +22,13 @@ export async function assignCoursesToUser(courseId: string) {
       where: {
         userId_courseId: {
           userId,
-          courseId,
+          courseId: safeCourseId,
         },
       },
       update: {},
       create: {
         userId,
-        courseId,
+        courseId: safeCourseId,
         status: TrainingStatus.IN_PROGRESS,
         startedAt: new Date(),
       },
@@ -41,6 +49,7 @@ export async function assignCoursesToUser(courseId: string) {
 }
 
 export async function completeUserCourse(courseId: string) {
+  const safeCourseId = courseIdSchema.parse(courseId);
   try {
     const userId = await getCurrentUserId();
 
@@ -48,7 +57,7 @@ export async function completeUserCourse(courseId: string) {
       where: {
         userId_courseId: {
           userId,
-          courseId,
+          courseId: safeCourseId,
         },
       },
     });
@@ -64,7 +73,7 @@ export async function completeUserCourse(courseId: string) {
           where: {
             userId_courseId: {
               userId,
-              courseId,
+              courseId: safeCourseId,
             },
           },
           data: {
@@ -77,7 +86,7 @@ export async function completeUserCourse(courseId: string) {
       result = await prisma.userCourse.create({
         data: {
           userId,
-          courseId,
+          courseId: safeCourseId,
           status: TrainingStatus.COMPLETED,
           completedAt: new Date(),
         },
@@ -113,26 +122,28 @@ export async function checkAndCompleteCourse(
   courseIdParam?: string | null,
 ): Promise<{ success: boolean; reason?: string }> {
   let courseId: string;
+  let parsedTrainingDays: { userStatus: string }[] | undefined;
 
   // Поддержка двух вариантов вызова:
   // 1. checkAndCompleteCourse(courseId) - для вызова из updateUserStepStatus
   // 2. checkAndCompleteCourse(trainingDays, courseId) - для вызова со страницы тренировок
   if (typeof courseIdOrTrainingDays === "string") {
-    courseId = courseIdOrTrainingDays;
+    courseId = courseIdSchema.parse(courseIdOrTrainingDays);
   } else {
-    courseId = courseIdParam || "";
+    courseId = courseIdSchema.parse(courseIdParam ?? "");
+    parsedTrainingDays = trainingDayStatusesSchema.parse(courseIdOrTrainingDays);
+
     if (!courseId) {
       return { success: false, reason: "CourseId not provided" };
     }
 
     // Если переданы trainingDays, проверяем их статус
-    const trainingDays = courseIdOrTrainingDays;
-    if (trainingDays.length === 0) {
+    if (parsedTrainingDays.length === 0) {
       return { success: false, reason: "No training days provided" };
     }
 
     // Проверяем, что все переданные дни завершены
-    const allCompleted = trainingDays.every((day) => day.userStatus === "COMPLETED");
+    const allCompleted = parsedTrainingDays.every((day) => day.userStatus === "COMPLETED");
     if (!allCompleted) {
       return { success: false, reason: "Not all training days completed" };
     }
@@ -149,7 +160,7 @@ export async function checkAndCompleteCourse(
 
       // Если количество завершенных дней равно общему количеству дней в курсе
       // и у пользователя есть тренировки для всех дней, то курс завершен
-      if (trainingDays.length === totalDaysInCourse) {
+      if (parsedTrainingDays.length === totalDaysInCourse) {
         await completeUserCourse(courseId);
         return { success: true };
       } else {

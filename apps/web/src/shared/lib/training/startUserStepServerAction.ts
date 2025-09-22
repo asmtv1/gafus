@@ -3,12 +3,24 @@
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createStepNotificationsForUserStep } from "@shared/lib/StepNotification/createStepNotification";
+import { z } from "zod";
 
 import { TrainingStatus } from "@gafus/types";
 import { updateUserStepStatus } from "./updateUserStepStatus";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
+import { courseIdSchema, dayNumberSchema, stepIndexSchema } from "../validation/schemas";
+
+const startStepSchema = z.object({
+  courseId: courseIdSchema,
+  day: dayNumberSchema,
+  stepIndex: stepIndexSchema,
+  status: z.nativeEnum(TrainingStatus, {
+    errorMap: () => ({ message: "Некорректный статус шага" }),
+  }),
+  durationSec: z.number().min(0, "Продолжительность должна быть неотрицательной"),
+});
 
 export async function startUserStepServerAction(
   courseId: string,
@@ -17,6 +29,7 @@ export async function startUserStepServerAction(
   status: TrainingStatus,
   durationSec: number,
 ): Promise<{ success: boolean }> {
+  const safeInput = startStepSchema.parse({ courseId, day, stepIndex, status, durationSec });
   try {
     const userId = await getCurrentUserId();
 
@@ -25,7 +38,7 @@ export async function startUserStepServerAction(
     const stepInfo = await prisma.$transaction(
       async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
         const dayOnCourse = await tx.dayOnCourse.findFirst({
-          where: { courseId, order: day },
+          where: { courseId: safeInput.courseId, order: safeInput.day },
           include: {
             day: {
               include: {
@@ -44,7 +57,7 @@ export async function startUserStepServerAction(
         }
 
         // Берём шаг по индексу массива (stepIndex — это 0-based индекс в UI)
-        const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+        const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
         if (!stepLink?.step) {
           throw new Error("Step not found");
         }
@@ -53,7 +66,7 @@ export async function startUserStepServerAction(
           step: stepLink.step,
           stepTitle: stepLink.step.title,
           stepOrder: stepLink.order,
-          trainingUrl: `/trainings/${courseId}/${day}`,
+          trainingUrl: `/trainings/${safeInput.courseId}/${safeInput.day}`,
         };
       },
     );
@@ -62,22 +75,22 @@ export async function startUserStepServerAction(
 
     await updateUserStepStatus(
       userId,
-      courseId,
-      day,
-      stepIndex,
-      status,
+      safeInput.courseId,
+      safeInput.day,
+      safeInput.stepIndex,
+      safeInput.status,
       stepInfo.stepTitle,
       stepInfo.stepOrder,
     );
 
     // Устанавливаем статус курса в IN_PROGRESS при первом шаге
-    if (status === TrainingStatus.IN_PROGRESS) {
+    if (safeInput.status === TrainingStatus.IN_PROGRESS) {
       try {
         await prisma.userCourse.upsert({
           where: {
             userId_courseId: {
               userId,
-              courseId,
+              courseId: safeInput.courseId,
             },
           },
           update: {
@@ -86,7 +99,7 @@ export async function startUserStepServerAction(
           },
           create: {
             userId,
-            courseId,
+            courseId: safeInput.courseId,
             status: TrainingStatus.IN_PROGRESS,
             startedAt: new Date(),
           },
@@ -102,10 +115,10 @@ export async function startUserStepServerAction(
     try {
       await createStepNotificationsForUserStep({
         userId,
-        day,
-        stepIndex,
+        day: safeInput.day,
+        stepIndex: safeInput.stepIndex,
         stepTitle: stepInfo.stepTitle,
-        durationSec,
+        durationSec: safeInput.durationSec,
         maybeUrl: stepInfo.trainingUrl,
       });
     } catch (notificationError) {
@@ -132,11 +145,11 @@ export async function startUserStepServerAction(
       environment: process.env.NODE_ENV || "development",
       additionalContext: {
         action: "startUserStepServerAction",
-        courseId,
-        day,
-        stepIndex,
-        status,
-        durationSec,
+        courseId: safeInput.courseId,
+        day: safeInput.day,
+        stepIndex: safeInput.stepIndex,
+        status: safeInput.status,
+        durationSec: safeInput.durationSec,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
       },
       tags: ["training", "step-start", "server-action", "transaction"],

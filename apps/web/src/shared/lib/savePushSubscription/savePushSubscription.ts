@@ -2,11 +2,20 @@
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
 import type { NextAuthOptions } from "next-auth";
+import { z } from "zod";
 
 import type { PushSubscriptionJSON } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 import { authOptions } from "@gafus/auth";
+
+const pushSubscriptionSchema = z.object({
+  endpoint: z.string().trim().min(1, "endpoint обязателен"),
+  keys: z.object({
+    p256dh: z.string().trim().min(1, "p256dh обязателен"),
+    auth: z.string().trim().min(1, "auth обязателен"),
+  }),
+});
 
 /**
  * Сохраняет подписку в БД. Если запись с таким endpoint уже есть,
@@ -14,6 +23,7 @@ import { authOptions } from "@gafus/auth";
  */
 
 export async function savePushSubscription(subscription: PushSubscriptionJSON) {
+  const validatedSubscription = pushSubscriptionSchema.parse(subscription);
   const userId = await getCurrentUserId();
   
 
@@ -41,7 +51,7 @@ export async function savePushSubscription(subscription: PushSubscriptionJSON) {
         
         // Проверяем существование подписки по endpoint
         const existingSubscription = await prisma.pushSubscription.findFirst({
-          where: { endpoint: subscription.endpoint },
+          where: { endpoint: validatedSubscription.endpoint },
         });
         
         if (existingSubscription) {
@@ -49,7 +59,7 @@ export async function savePushSubscription(subscription: PushSubscriptionJSON) {
           return prisma.pushSubscription.update({
             where: { id: existingSubscription.id },
             data: {
-              keys: subscription.keys as { p256dh: string; auth: string },
+              keys: validatedSubscription.keys,
               userId: correctUserId,
               updatedAt: new Date(),
             },
@@ -58,8 +68,8 @@ export async function savePushSubscription(subscription: PushSubscriptionJSON) {
           // Создаем новую подписку
           return prisma.pushSubscription.create({
             data: {
-              endpoint: subscription.endpoint,
-              keys: subscription.keys as { p256dh: string; auth: string },
+              endpoint: validatedSubscription.endpoint,
+              keys: validatedSubscription.keys,
               userId: correctUserId,
             },
           });
@@ -72,7 +82,7 @@ export async function savePushSubscription(subscription: PushSubscriptionJSON) {
 
   // Проверяем существование подписки по endpoint
   const existingSubscription = await prisma.pushSubscription.findFirst({
-    where: { endpoint: subscription.endpoint },
+    where: { endpoint: validatedSubscription.endpoint },
   });
   
   if (existingSubscription) {
@@ -80,7 +90,7 @@ export async function savePushSubscription(subscription: PushSubscriptionJSON) {
     return prisma.pushSubscription.update({
       where: { id: existingSubscription.id },
       data: {
-        keys: subscription.keys as { p256dh: string; auth: string },
+        keys: validatedSubscription.keys,
         userId,
         updatedAt: new Date(),
       },
@@ -89,8 +99,8 @@ export async function savePushSubscription(subscription: PushSubscriptionJSON) {
     // Создаем новую подписку
     return prisma.pushSubscription.create({
       data: {
-        endpoint: subscription.endpoint,
-        keys: subscription.keys as { p256dh: string; auth: string },
+        endpoint: validatedSubscription.endpoint,
+        keys: validatedSubscription.keys,
         userId,
       },
     });
