@@ -4,14 +4,17 @@ import { prisma } from "@gafus/prisma";
 
 import { getCurrentUserId } from "@/utils";
 
+import { petIdSchema } from "../validation/petSchemas";
+
 export async function deletePet(petId: string) {
+  const safePetId = petIdSchema.parse(petId);
   try {
     const userId = await getCurrentUserId();
 
     // Проверяем, что питомец принадлежит пользователю
     const existingPet = await prisma.pet.findFirst({
       where: {
-        id: petId,
+        id: safePetId,
         ownerId: userId,
       },
     });
@@ -21,7 +24,7 @@ export async function deletePet(petId: string) {
     }
 
     await prisma.pet.delete({
-      where: { id: petId },
+      where: { id: safePetId },
     });
   } catch (error) {
     console.error("Ошибка при удалении питомца:", error);

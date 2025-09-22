@@ -2,9 +2,25 @@
 
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
+import { z } from "zod";
+
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
+import { courseIdSchema, dayNumberSchema, stepIndexSchema } from "../validation/schemas";
+
+const pauseSchema = z.object({
+  courseId: courseIdSchema,
+  day: dayNumberSchema,
+  stepIndex: stepIndexSchema,
+  timeLeftSec: z.number().min(0, "Оставшееся время должно быть неотрицательным"),
+});
+
+const resumeSchema = z.object({
+  courseId: courseIdSchema,
+  day: dayNumberSchema,
+  stepIndex: stepIndexSchema,
+});
 
 async function findDayOnCourse(courseId: string, day: number) {
   return prisma.dayOnCourse.findFirst({
@@ -28,14 +44,15 @@ export async function pauseUserStepServerAction(
   stepIndex: number,
   timeLeftSec: number,
 ): Promise<{ success: boolean }> {
+  const safeInput = pauseSchema.parse({ courseId, day, stepIndex, timeLeftSec });
   const userId = await getCurrentUserId();
 
   try {
     await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-      const dayOnCourse = await findDayOnCourse(courseId, day);
+      const dayOnCourse = await findDayOnCourse(safeInput.courseId, safeInput.day);
       if (!dayOnCourse?.day) throw new Error("DayOnCourse or day not found");
 
-      const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+      const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
       if (!stepLink) throw new Error("Step not found by index");
 
       // Найти/создать UserTraining
@@ -54,7 +71,7 @@ export async function pauseUserStepServerAction(
         where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
       });
 
-      const remaining = Math.max(Math.floor(Number(timeLeftSec) || 0), 0);
+      const remaining = Math.max(Math.floor(Number(safeInput.timeLeftSec) || 0), 0);
 
       if (existing) {
         await tx.userStep.update({
@@ -87,18 +104,18 @@ export async function pauseUserStepServerAction(
     return { success: true };
   } catch (error) {
     try {
-      await reportErrorToDashboard({
-        message: error instanceof Error ? error.message : String(error),
-        appName: "web",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
-          action: "pauseUserStepServerAction",
-          courseId,
-          day,
-          stepIndex,
-          timeLeftSec,
-        },
-        tags: ["training", "step-pause", "server-action"],
+    await reportErrorToDashboard({
+      message: error instanceof Error ? error.message : String(error),
+      appName: "web",
+      environment: process.env.NODE_ENV || "development",
+      additionalContext: {
+        action: "pauseUserStepServerAction",
+        courseId: safeInput.courseId,
+        day: safeInput.day,
+        stepIndex: safeInput.stepIndex,
+        timeLeftSec: safeInput.timeLeftSec,
+      },
+      tags: ["training", "step-pause", "server-action"],
       });
     } catch (e) {
       console.warn("pauseUserStepServerAction: failed to report error", e);
@@ -112,14 +129,15 @@ export async function resumeUserStepServerAction(
   day: number,
   stepIndex: number,
 ): Promise<{ success: boolean }> {
+  const safeInput = resumeSchema.parse({ courseId, day, stepIndex });
   const userId = await getCurrentUserId();
 
   try {
     await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-      const dayOnCourse = await findDayOnCourse(courseId, day);
+      const dayOnCourse = await findDayOnCourse(safeInput.courseId, safeInput.day);
       if (!dayOnCourse?.day) throw new Error("DayOnCourse or day not found");
 
-      const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+      const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
       if (!stepLink) throw new Error("Step not found by index");
 
       const userTraining = await tx.userTraining.findFirst({
@@ -163,9 +181,9 @@ export async function resumeUserStepServerAction(
         environment: process.env.NODE_ENV || "development",
         additionalContext: {
           action: "resumeUserStepServerAction",
-          courseId,
-          day,
-          stepIndex,
+          courseId: safeInput.courseId,
+          day: safeInput.day,
+          stepIndex: safeInput.stepIndex,
         },
         tags: ["training", "step-resume", "server-action"],
       });
@@ -175,5 +193,3 @@ export async function resumeUserStepServerAction(
     throw error;
   }
 }
-
-

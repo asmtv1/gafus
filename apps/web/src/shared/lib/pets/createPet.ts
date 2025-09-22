@@ -1,37 +1,30 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
-import { validatePetForm } from "@shared/lib/validation/serverValidation";
 
 import type { PetType } from "@gafus/prisma";
 import type { CreatePetInput } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 
-export async function createPet(data: CreatePetInput) {
-  try {
-    // Серверная валидация
-    const validation = validatePetForm({
-      id: "",
-      ...data,
-    });
-    if (!validation.isValid) {
-      throw new Error(`Ошибка валидации: ${Object.values(validation.errors).join(", ")}`);
-    }
+import { createPetSchema } from "../validation/petSchemas";
 
+export async function createPet(data: CreatePetInput) {
+  const validatedData = createPetSchema.parse(data);
+  try {
     const userId = await getCurrentUserId();
 
     const pet = await prisma.pet.create({
       data: {
         ownerId: userId,
-        name: data.name,
-        type: data.type as PetType,
-        breed: data.breed,
-        birthDate: new Date(data.birthDate),
-        heightCm: data.heightCm || null,
-        weightKg: data.weightKg || null,
-        photoUrl: data.photoUrl || null,
-        notes: data.notes || null,
+        name: validatedData.name,
+        type: validatedData.type as PetType,
+        breed: validatedData.breed,
+        birthDate: new Date(validatedData.birthDate),
+        heightCm: validatedData.heightCm ?? null,
+        weightKg: validatedData.weightKg ?? null,
+        photoUrl: validatedData.photoUrl ? validatedData.photoUrl : null,
+        notes: validatedData.notes ?? null,
       },
       include: {
         awards: true,

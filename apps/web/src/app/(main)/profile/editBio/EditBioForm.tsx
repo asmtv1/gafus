@@ -1,15 +1,17 @@
 "use client";
 
 import { FormField } from "@shared/components/ui/FormField";
+import { useZodForm } from "@shared/hooks/useZodForm";
+import { userProfileFormSchema } from "@shared/lib/validation/authSchemas";
 import { useUserStore } from "@shared/stores";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
 
 import styles from "./EditBioForm.module.css";
 
-import type { BioFormData, UserProfile } from "@gafus/types";
+import type { BioFormData, UserProfile, UpdateUserProfileInput } from "@gafus/types";
+import type { UserProfileFormSchema } from "@shared/lib/validation/authSchemas";
 
 function mapProfileToForm(profile: UserProfile): Omit<BioFormData, "userId"> {
   return {
@@ -26,8 +28,7 @@ export default function EditBioForm() {
   const [caughtError, setCaughtError] = useState<Error | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  const form = useForm<BioFormData>();
-  const { reset, handleSubmit } = form;
+  const { form, handleSubmit, reset } = useZodForm(userProfileFormSchema);
 
   const { profile, isLoading, error, fetchProfile, updateProfile } = useUserStore();
   const router = useRouter();
@@ -91,9 +92,18 @@ export default function EditBioForm() {
     );
   }
 
-  const onSubmit = async (data: BioFormData) => {
+  const onSubmit = async (data: UserProfileFormSchema) => {
     try {
-      await updateProfile(data);
+      // Преобразуем данные в формат, ожидаемый updateProfile
+      const updateData: UpdateUserProfileInput = {
+        fullName: data.fullName || "",
+        about: data.about || "",
+        telegram: data.telegram || "",
+        instagram: data.instagram || "",
+        website: data.website || "",
+        birthDate: data.birthDate || "",
+      };
+      await updateProfile(updateData);
       reset(data);
       // Используем router.push вместо window.history.back() для надежности
       // Сохраняем параметр username при редиректе
@@ -120,14 +130,8 @@ export default function EditBioForm() {
             label="Имя и фамилия"
             type="text"
             placeholder="Имя и фамилия"
-            rules={{
-              pattern: {
-                value: /^[А-Яа-яЁё\s]+$/,
-                message: "Только русские буквы",
-              },
-              maxLength: { value: 60, message: "Не более 60 символов" },
-            }}
             form={form}
+            // Валидация теперь через Zod схему
           />
 
           <FormField
@@ -135,11 +139,8 @@ export default function EditBioForm() {
             name="birthDate"
             label="Дата рождения"
             type="date"
-            rules={{
-              validate: (value: string) =>
-                !value || new Date(value) <= new Date() || "Дата не может быть в будущем",
-            }}
             form={form}
+            // Валидация теперь через Zod схему
           />
 
           <FormField
@@ -148,10 +149,8 @@ export default function EditBioForm() {
             label="Заметки о себе"
             as="textarea"
             placeholder="О себе"
-            rules={{
-              maxLength: { value: 300, message: "Не более 300 символов" },
-            }}
             form={form}
+            // Валидация теперь через Zod схему
           />
         </div>
 
@@ -163,8 +162,8 @@ export default function EditBioForm() {
             name="telegram"
             label="Telegram для связи"
             placeholder="Telegram username"
-            rules={{ maxLength: { value: 50, message: "Не более 50 символов" } }}
             form={form}
+            // Валидация теперь через Zod схему
           />
 
           <FormField
@@ -172,8 +171,8 @@ export default function EditBioForm() {
             name="instagram"
             label="Ваш Instagram"
             placeholder="Instagram username"
-            rules={{ maxLength: { value: 50, message: "Не более 50 символов" } }}
             form={form}
+            // Валидация теперь через Zod схему
           />
 
           <FormField
@@ -182,8 +181,8 @@ export default function EditBioForm() {
             label="YouTube или сайт"
             type="url"
             placeholder="Website URL"
-            rules={{ maxLength: { value: 50, message: "Не более 50 символов" } }}
             form={form}
+            // Валидация теперь через Zod схему
           />
         </div>
 

@@ -3,33 +3,34 @@
 import { useCSRFStore } from "@gafus/csrf";
 import { FormField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
+import { useZodForm } from "@shared/hooks/useZodForm";
+import { loginFormSchema } from "@shared/lib/validation/authSchemas";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
 
 import styles from "./login.module.css";
 
-import type { LoginFormData as FormData } from "@gafus/types";
-
-import { commonValidationRules } from "@/shared/hooks/useFormValidation";
+import type { LoginFormSchema } from "@shared/lib/validation/authSchemas";
 
 export default function LoginForm() {
   const [caughtError, setCaughtError] = useState<Error | null>(null);
   const { token: csrfToken, loading: csrfLoading, error: csrfError } = useCSRFStore();
-  const form = useForm<FormData>({ mode: "onBlur" });
+  const { form, handleSubmit, formState: { errors } } = useZodForm(
+    loginFormSchema,
+    {
+      username: "",
+      password: "",
+    }
+  );
   const router = useRouter();
-  const {
-    handleSubmit,
-    formState: { errors },
-  } = form;
 
   if (caughtError) {
     throw caughtError;
   }
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: LoginFormSchema) => {
     if (csrfLoading || !csrfToken) {
       alert("Загрузка... Попробуйте снова");
       return;
@@ -69,14 +70,7 @@ export default function LoginForm() {
         errorClassName={styles.errorText}
         placeholder="Имя пользователя"
         form={form}
-        rules={{
-          ...commonValidationRules.name,
-          required: "Введите имя пользователя",
-          pattern: {
-            value: /^[A-Za-z0-9_]+$/,
-            message: "Только английские буквы, цифры или _",
-          },
-        }}
+        // Валидация теперь через Zod схему
       />
 
       <PasswordInput
@@ -86,14 +80,7 @@ export default function LoginForm() {
         className={styles.input}
         errorClassName={styles.errorText}
         autoComplete="current-password"
-        {...form.register("password", {
-          required: "Введите пароль",
-          maxLength: { value: 12, message: "Максимум 12 символов" },
-          pattern: {
-            value: /^[A-Za-z0-9]+$/,
-            message: "Только английские буквы или цифры",
-          },
-        })}
+        {...form.register("password")}
         error={errors.password?.message}
       />
 

@@ -2,12 +2,13 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
-import { validatePetForm } from "@shared/lib/validation/serverValidation";
 
 import type { Prisma, PetType } from "@gafus/prisma";
 import type { UpdatePetInput } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+
+import { createPetSchema, updatePetSchema } from "../validation/petSchemas";
 
 export async function savePet({
   id,
@@ -23,48 +24,32 @@ export async function savePet({
     const ownerId = await getCurrentUserId();
     console.warn("Получен ownerId:", ownerId);
 
-    if (!id && !ownerId) {
+    const trimmedId = id?.trim();
+
+    if (!trimmedId && !ownerId) {
       throw new Error("Поле ownerId обязательно при создании");
     }
 
-    // Обработка пустых значений для необязательных числовых полей
-    
-    const processedHeightCm = heightCm === undefined ? undefined : heightCm;
-    const processedWeightKg = weightKg === undefined ? undefined : weightKg;
-  
-
-    // Серверная валидация
-    const validationData = {
-      id: id || "",
-      name,
-      type,
-      breed: breed || "",
-      birthDate: birthDate || "",
-      heightCm: processedHeightCm,
-      weightKg: processedWeightKg,
-      notes,
-    };
-    console.warn("Данные для валидации:", validationData);
-    
-    const validation = validatePetForm(validationData);
-    console.warn("Результат валидации:", validation);
-
-    if (!validation.isValid) {
-      console.error("Ошибки валидации:", validation.errors);
-      throw new Error(`Ошибка валидации: ${Object.values(validation.errors).join(", ")}`);
-    }
-
-    const parsedDate = birthDate && birthDate !== "" ? new Date(birthDate) : undefined;
-
-    if (!id) {
+    if (!trimmedId) {
+      const validatedData = createPetSchema.parse({
+        name,
+        type,
+        breed,
+        birthDate,
+        heightCm,
+        weightKg,
+        notes,
+        photoUrl: undefined,
+      });
+      const parsedDate = new Date(validatedData.birthDate);
       const createData: Prisma.PetCreateInput = {
-        name: name || "",
-        type: type as PetType,
-        breed: breed || "",
-        heightCm: processedHeightCm !== undefined ? processedHeightCm : undefined,
-        weightKg: processedWeightKg !== undefined ? processedWeightKg : undefined,
-        notes: notes !== undefined ? notes : undefined,
-        birthDate: parsedDate ?? new Date(),
+        name: validatedData.name,
+        type: validatedData.type as PetType,
+        breed: validatedData.breed,
+        heightCm: validatedData.heightCm ?? undefined,
+        weightKg: validatedData.weightKg ?? undefined,
+        notes: validatedData.notes ?? undefined,
+        birthDate: parsedDate,
         owner: { connect: { id: ownerId! } },
       };
       console.warn("Создание питомца с данными:", createData);
@@ -74,17 +59,37 @@ export async function savePet({
       console.warn("Питомец создан успешно:", result);
       return result;
     } else {
+      const validatedData = updatePetSchema.parse({
+        id: trimmedId,
+        name,
+        type,
+        breed,
+        birthDate,
+        heightCm,
+        weightKg,
+        notes,
+      });
+      const parsedDate = validatedData.birthDate ? new Date(validatedData.birthDate) : undefined;
       const updateData: Prisma.PetUpdateInput = {
-        name: { set: name || "" },
-        type: { set: type as PetType },
-        breed: breed !== undefined ? { set: breed } : undefined,
-        heightCm: processedHeightCm !== undefined ? { set: processedHeightCm } : { set: null },
-        weightKg: processedWeightKg !== undefined ? { set: processedWeightKg } : { set: null },
-        notes: notes !== undefined ? { set: notes } : undefined,
+        name: validatedData.name !== undefined ? { set: validatedData.name } : undefined,
+        type: validatedData.type !== undefined ? { set: validatedData.type as PetType } : undefined,
+        breed: validatedData.breed !== undefined ? { set: validatedData.breed } : undefined,
+        heightCm:
+          validatedData.heightCm !== undefined
+            ? { set: validatedData.heightCm ?? null }
+            : undefined,
+        weightKg:
+          validatedData.weightKg !== undefined
+            ? { set: validatedData.weightKg ?? null }
+            : undefined,
+        notes:
+          validatedData.notes !== undefined
+            ? { set: validatedData.notes ?? null }
+            : undefined,
         birthDate: parsedDate !== undefined ? { set: parsedDate } : undefined,
       };
       return await prisma.pet.update({
-        where: { id },
+        where: { id: validatedData.id },
         data: updateData,
       });
     }

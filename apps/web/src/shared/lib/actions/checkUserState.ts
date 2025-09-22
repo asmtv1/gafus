@@ -1,18 +1,24 @@
 "use server";
 
+import { z } from "zod";
+
 import { checkUserState } from "@shared/lib/auth/login-utils";
+
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(1, "Некорректное имя пользователя")
+  .max(100, "Некорректное имя пользователя")
+  .transform((value) => value.toLowerCase());
 
 export async function checkUserStateAction(username: string) {
   try {
+    const normalizedUsername = usernameSchema.parse(username);
+
     console.warn("🔍 checkUserState server action called");
-    console.warn("👤 Username:", username);
+    console.warn("👤 Username:", normalizedUsername);
 
-    if (typeof username !== "string" || !username.trim()) {
-      console.error("❌ Invalid username:", username);
-      throw new Error("Некорректное имя пользователя");
-    }
-
-    const state = await checkUserState(username.toLowerCase().trim());
+    const state = await checkUserState(normalizedUsername);
     console.warn("✅ User state:", state);
 
     return state;

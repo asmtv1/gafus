@@ -1,8 +1,31 @@
 "use server";
 
+import { z } from "zod";
+
 import { deletePushSubscriptionByEndpoint, deleteAllPushSubscriptions } from "@shared/lib/savePushSubscription/deletePushSubscription";
 
 import { savePushSubscription } from "@shared/lib/savePushSubscription/savePushSubscription";
+
+const pushSubscriptionSchema = z
+  .object({
+    id: z
+      .string()
+      .optional()
+      .transform((value) => (value?.trim() ? value.trim() : undefined)),
+    userId: z.string().trim().min(1, "userId обязателен"),
+    endpoint: z.string().trim().min(1, "endpoint обязателен"),
+    p256dh: z.string().trim().min(1, "p256dh обязателен"),
+    auth: z.string().trim().min(1, "auth обязателен"),
+    keys: z.object({
+      p256dh: z.string().trim().min(1, "keys.p256dh обязателен"),
+      auth: z.string().trim().min(1, "keys.auth обязателен"),
+    }),
+  })
+  .strict();
+
+const deleteSubscriptionSchema = z.object({
+  endpoint: z.string().trim().min(1, "endpoint обязателен").optional(),
+});
 
 export async function updateSubscriptionAction(subscription: {
   id: string;
@@ -12,8 +35,9 @@ export async function updateSubscriptionAction(subscription: {
   auth: string;
   keys: { p256dh: string; auth: string };
 }) {
+  const parsedSubscription = pushSubscriptionSchema.parse(subscription);
   try {
-    await savePushSubscription(subscription);
+    await savePushSubscription(parsedSubscription);
     return { success: true };
   } catch (error) {
     console.error("Ошибка при сохранении подписки:", error);
@@ -22,10 +46,11 @@ export async function updateSubscriptionAction(subscription: {
 }
 
 export async function deleteSubscriptionAction(endpoint?: string) {
+  const { endpoint: parsedEndpoint } = deleteSubscriptionSchema.parse({ endpoint });
   try {
-    if (endpoint) {
+    if (parsedEndpoint) {
       // Удаляем конкретную подписку по endpoint (для конкретного устройства)
-      await deletePushSubscriptionByEndpoint(endpoint);
+      await deletePushSubscriptionByEndpoint(parsedEndpoint);
     } else {
       // Удаляем все подписки пользователя (только в крайних случаях)
       await deleteAllPushSubscriptions();

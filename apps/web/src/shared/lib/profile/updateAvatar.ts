@@ -3,22 +3,26 @@
 import { prisma } from "@gafus/prisma";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
+import { z } from "zod";
 
 import { getCurrentUserId } from "@/utils";
 
+const fileSchema = z.instanceof(File, { message: "Файл обязателен" });
+
 export async function updateAvatar(file: File): Promise<string> {
+  const validFile = fileSchema.parse(file);
   try {
     // 1. Определяем расширение
     const userId = await getCurrentUserId();
-    const ext = file.name.split(".").pop();
+    const ext = validFile.name.split(".").pop();
     if (!ext) throw new Error("Не удалось определить расширение файла");
-    console.warn("file name:", file.name);
-    console.warn("file size:", file.size);
-    console.warn("file type:", file.type);
-    console.warn("file has arrayBuffer:", typeof file.arrayBuffer === "function");
+    console.warn("file name:", validFile.name);
+    console.warn("file size:", validFile.size);
+    console.warn("file type:", validFile.type);
+    console.warn("file has arrayBuffer:", typeof validFile.arrayBuffer === "function");
     
     // 2. Конвертируем File → Uint8Array
-    const arrayBuffer = await file.arrayBuffer();
+    const arrayBuffer = await validFile.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
 
     // 3. Формируем папку и имя файла

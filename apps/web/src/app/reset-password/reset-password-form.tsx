@@ -1,21 +1,31 @@
 "use client";
 
+import { FormField } from "@shared/components/ui/FormField";
+import { useZodForm } from "@shared/hooks/useZodForm";
 import resetPasswordByToken from "@shared/lib/auth/login-utils";
+import { resetPasswordFormSchema } from "@shared/lib/validation/authSchemas";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
+
+import type { ResetPasswordFormSchema } from "@shared/lib/validation/authSchemas";
 
 export default function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const router = useRouter();
 
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const { form, handleSubmit } = useZodForm(
+    resetPasswordFormSchema,
+    {
+      password: "",
+      confirmPassword: "",
+    }
+  );
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: ResetPasswordFormSchema) => {
     setError("");
 
     if (!token) {
@@ -23,13 +33,8 @@ export default function ResetPasswordForm() {
       return;
     }
 
-    if (password !== confirm) {
-      setError("Пароли не совпадают");
-      return;
-    }
-
     try {
-      await resetPasswordByToken(token, password);
+      await resetPasswordByToken(token, data.password);
       setSuccess(true);
       setTimeout(() => router.push("/login"), 3000);
     } catch (err: unknown) {
@@ -41,27 +46,25 @@ export default function ResetPasswordForm() {
     <main style={{ maxWidth: 400, margin: "0 auto", padding: "2rem" }}>
       <h1>Новый пароль</h1>
       {!success ? (
-        <form onSubmit={handleSubmit}>
-          <label>
-            Новый пароль:
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ width: "100%", marginBottom: "1rem" }}
-            />
-          </label>
-          <label>
-            Повторите пароль:
-            <input
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
-              style={{ width: "100%", marginBottom: "1rem" }}
-            />
-          </label>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <FormField
+            id="password"
+            label="Новый пароль"
+            name="password"
+            type="password"
+            placeholder="Новый пароль"
+            form={form}
+            className="w-full mb-4"
+          />
+          <FormField
+            id="confirmPassword"
+            label="Повторите пароль"
+            name="confirmPassword"
+            type="password"
+            placeholder="Повторите пароль"
+            form={form}
+            className="w-full mb-4"
+          />
           <button type="submit">Сохранить</button>
           {error && <p style={{ color: "red", marginTop: "1rem" }}>{error}</p>}
         </form>

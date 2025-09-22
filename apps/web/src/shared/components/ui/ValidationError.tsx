@@ -8,7 +8,11 @@ interface ValidationErrorProps {
 export function ValidationError({ error, className = "" }: ValidationErrorProps) {
   if (!error) return null;
 
-  return <p className={`${className}`}>{error}</p>;
+  return (
+    <p className={`text-[9px] text-red-500 mt-1 font-montserrat leading-tight ${className}`}>
+      {error}
+    </p>
+  );
 }
 
 // Компонент для отображения множественных ошибок

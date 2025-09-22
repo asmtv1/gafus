@@ -9,14 +9,22 @@ import {
   registerUser,
 } from "@gafus/auth";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
-import parsePhoneNumberFromString from "libphonenumber-js";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+
+import {
+  phoneSchema,
+  registerUserSchema,
+  resetPasswordSchema,
+  usernameSchema,
+} from "@shared/lib/validation/authSchemas";
 
 // Проверка статуса подтверждения по имени пользователя
 export async function checkUserState(username: string) {
   try {
+    const safeUsername = usernameSchema.parse(username);
     console.warn("🔍 checkUserState started for username:", username);
 
-    const phone = await getUserPhoneByUsername(username);
+    const phone = await getUserPhoneByUsername(safeUsername);
     console.warn("📱 Found phone:", phone);
 
     if (!phone) {
@@ -50,12 +58,17 @@ export async function checkUserState(username: string) {
 }
 // Проверка подтверждения по телефону
 export async function serverCheckUserConfirmed(phone: string) {
-  return checkUserConfirmed(phone);
+  const safePhone = phoneSchema.parse(phone);
+  return checkUserConfirmed(safePhone);
 }
 // Запрос на сброс пароля через Telegram
 export async function sendPasswordResetRequest(username: string, phone: string) {
   try {
-    return await sendTelegramPasswordResetRequest(username, phone);
+    const { name: safeUsername, phone: safePhone } = registerUserSchema
+      .pick({ name: true, phone: true })
+      .parse({ name: username, phone });
+
+    return await sendTelegramPasswordResetRequest(safeUsername, safePhone);
   } catch (error) {
     console.error("❌ Error in sendPasswordResetRequest:", error);
 
@@ -79,44 +92,14 @@ export async function sendPasswordResetRequest(username: string, phone: string) 
 // Регистрация нового пользователя
 export async function registerUserAction(name: string, phone: string, password: string) {
   try {
-    // Серверная валидация
-    const errors: string[] = [];
+    const result = registerUserSchema.safeParse({ name, phone, password });
 
-    // Валидация имени пользователя
-    if (!name || name.trim().length === 0) {
-      errors.push("Имя пользователя обязательно");
-    } else if (name.length < 3) {
-      errors.push("Имя пользователя должно содержать минимум 3 символа");
-    } else if (name.length > 50) {
-      errors.push("Имя пользователя не может быть длиннее 50 символов");
-    } else if (!/^[A-Za-z0-9_]+$/.test(name)) {
-      errors.push("Имя пользователя может содержать только английские буквы, цифры и _");
+    if (!result.success) {
+      const message = result.error.errors.map((issue) => issue.message).join(", ");
+      throw new Error(`Ошибка валидации: ${message}`);
     }
 
-    // Валидация пароля
-    if (!password || password.length === 0) {
-      errors.push("Пароль обязателен");
-    } else if (password.length < 6) {
-      errors.push("Пароль должен содержать минимум 6 символов");
-    } else if (password.length > 100) {
-      errors.push("Пароль не может быть длиннее 100 символов");
-    }
-
-    // Валидация телефона
-    if (!phone || phone.trim().length === 0) {
-      errors.push("Номер телефона обязателен");
-    } else {
-      const phoneNumber = parsePhoneNumberFromString(phone, "RU");
-      if (!phoneNumber || !phoneNumber.isValid()) {
-        errors.push("Неверный формат номера телефона");
-      }
-    }
-
-    if (errors.length > 0) {
-      throw new Error(`Ошибка валидации: ${errors.join(", ")}`);
-    }
-
-    return await registerUser(name, phone, password);
+    return await registerUser(result.data.name, result.data.phone, result.data.password);
   } catch (error) {
     console.error("❌ Error in registerUserAction:", error);
 
@@ -140,7 +123,8 @@ export async function registerUserAction(name: string, phone: string, password: 
 // Сброс пароля по токену
 export default async function resetPassword(token: string, password: string) {
   try {
-    await resetPasswordByToken(token, password);
+    const { token: safeToken, password: safePassword } = resetPasswordSchema.parse({ token, password });
+    await resetPasswordByToken(safeToken, safePassword);
   } catch (error) {
     console.error("❌ Error in resetPassword:", error);
 
@@ -163,11 +147,14 @@ export default async function resetPassword(token: string, password: string) {
 // Проверка совпадения номера из формы с номером в базе
 export async function checkPhoneMatchesUsername(username: string, phone: string) {
   try {
-    const dbPhone = await getUserPhoneByUsername(username);
+    const safeUsername = usernameSchema.parse(username);
+    const safePhone = phoneSchema.parse(phone);
+
+    const dbPhone = await getUserPhoneByUsername(safeUsername);
     if (!dbPhone) return false;
 
     // Нормализуем оба номера
-    const inputPhone = parsePhoneNumberFromString(phone, "RU")?.format("E.164");
+    const inputPhone = parsePhoneNumberFromString(safePhone, "RU")?.format("E.164");
     const storedPhone = parsePhoneNumberFromString(dbPhone, "RU")?.format("E.164");
 
     return inputPhone === storedPhone;

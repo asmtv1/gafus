@@ -3,15 +3,22 @@
 import { prisma } from "@gafus/prisma";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
+import { z } from "zod";
+
+import { petIdSchema } from "../validation/petSchemas";
+
+const fileSchema = z.instanceof(File, { message: "Файл обязателен" });
 
 export async function updatePetAvatar(file: File, petId: string): Promise<string> {
+  const validFile = fileSchema.parse(file);
+  const safePetId = petIdSchema.parse(petId);
   try {
     // 1. Определяем расширение
-    const ext = file.name.split(".").pop();
+    const ext = validFile.name.split(".").pop();
     if (!ext) throw new Error("Не удалось определить расширение файла");
 
     // 2. Конвертируем File → Uint8Array
-    const arrayBuffer = await file.arrayBuffer();
+    const arrayBuffer = await validFile.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
 
     // 3. Формируем папку и имя файла
@@ -32,14 +39,14 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
     await mkdir(uploadDir, { recursive: true });
 
     const timestamp = Date.now();
-    const fileName = `pet-${petId}-${timestamp}.${ext}`;
+    const fileName = `pet-${safePetId}-${timestamp}.${ext}`;
     const uploadPath = path.join(uploadDir, fileName);
     
     console.warn("Upload path:", uploadPath);
 
     // 4. Получаем из базы текущий photoUrl, чтобы удалить старый файл
     const existingPet = await prisma.pet.findUnique({
-      where: { id: petId },
+      where: { id: safePetId },
       select: { photoUrl: true },
     });
     if (existingPet?.photoUrl) {
@@ -70,7 +77,7 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
 
     // 7. Сохраняем photoUrl в базе
     await prisma.pet.update({
-      where: { id: petId },
+      where: { id: safePetId },
       data: { photoUrl },
     });
 

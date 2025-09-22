@@ -3,12 +3,34 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
+import { z } from "zod";
 
 import { checkAndCompleteCourse } from "../user/userCourses";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
 import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
+import {
+  courseIdSchema,
+  dayNumberSchema,
+  stepIndexSchema,
+  userIdSchema,
+} from "../validation/schemas";
+const statusSchema = z.nativeEnum(TrainingStatus, {
+  errorMap: () => ({ message: "Некорректный статус шага" }),
+});
+
+const updateUserStepStatusSchema = z.object({
+  userId: userIdSchema,
+  courseId: courseIdSchema,
+  day: dayNumberSchema,
+  stepIndex: stepIndexSchema,
+  status: statusSchema,
+  stepTitle: z.string().trim().optional(),
+  stepOrder: z.number().int().min(0).optional(),
+});
+
+const updateStepStatusActionSchema = updateUserStepStatusSchema.omit({ userId: true });
 
 // Вспомогательные функции для работы с транзакциями
 async function findOrCreateUserTrainingWithTx(
@@ -114,13 +136,30 @@ export async function updateUserStepStatus(
   stepTitle?: string,
   stepOrder?: number,
 ): Promise<{ success: boolean }> {
+  const {
+    userId: safeUserId,
+    courseId: safeCourseId,
+    day: safeDay,
+    stepIndex: safeStepIndex,
+    status: safeStatus,
+    stepTitle: safeStepTitle,
+    stepOrder: safeStepOrder,
+  } = updateUserStepStatusSchema.parse({
+    userId,
+    courseId,
+    day,
+    stepIndex,
+    status,
+    stepTitle,
+    stepOrder,
+  });
   try {
     // ВСЕ операции выполняются в одной транзакции
     const result = await prisma.$transaction(
       async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
         // 1. Получаем данные о дне
         const dayOnCourse = await tx.dayOnCourse.findFirst({
-          where: { courseId, order: day },
+          where: { courseId: safeCourseId, order: safeDay },
           include: {
             day: {
               include: {
@@ -144,15 +183,15 @@ export async function updateUserStepStatus(
         }
 
         // 2. Создаем/находим UserTraining
-        const userTraining = await findOrCreateUserTrainingWithTx(tx, userId, dayOnCourse.id);
+        const userTraining = await findOrCreateUserTrainingWithTx(tx, safeUserId, dayOnCourse.id);
 
         // 3. Ищем шаг строго по индексу массива (UI передает 0-based индекс)
-        const stepLink = trainingDay.stepLinks[stepIndex];
+        const stepLink = trainingDay.stepLinks[safeStepIndex];
 
         if (!stepLink) {
           console.error("Step not found by index after ordering", {
-            stepIndex,
-            stepOrder,
+            stepIndex: safeStepIndex,
+            stepOrder: safeStepOrder,
             total: trainingDay.stepLinks.length,
             orders: trainingDay.stepLinks.map((s: { order: number }) => s.order),
           });
@@ -160,7 +199,7 @@ export async function updateUserStepStatus(
         }
 
         // 4. Создаем/обновляем UserStep
-        await findOrCreateUserStepWithTx(tx, userTraining.id, stepLink.id, status);
+        await findOrCreateUserStepWithTx(tx, userTraining.id, stepLink.id, safeStatus);
 
         // 5. Обновляем статус дня
         const stepOnDayIds = trainingDay.stepLinks.map((link: { id: string }) => link.id);
@@ -177,7 +216,7 @@ export async function updateUserStepStatus(
           allCompleted,
           courseId: dayOnCourse.courseId,
           stepTitle: stepLink.step?.title ?? "Шаг",
-          trainingUrl: `/trainings/${dayOnCourse.courseId}/${day}`,
+          trainingUrl: `/trainings/${dayOnCourse.courseId}/${safeDay}`,
         };
       },
     );
@@ -196,10 +235,10 @@ export async function updateUserStepStatus(
 
     // Инвалидируем кэш прогресса пользователя при изменении статуса шага
     // Используем офлайн-безопасную инвалидацию (не принудительную)
-    const cacheResult = await invalidateUserProgressCache(userId, false);
+    const cacheResult = await invalidateUserProgressCache(safeUserId, false);
     
     if (cacheResult.skipped) {
-      console.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`);
+      console.warn(`[Cache] Cache invalidation skipped for user ${safeUserId} - offline mode`);
     }
 
     return { success: true };
@@ -214,13 +253,13 @@ export async function updateUserStepStatus(
         environment: process.env.NODE_ENV || "development",
         additionalContext: {
           action: "updateUserStepStatus",
-          userId,
-          courseId,
-          day,
-          stepIndex,
-          status,
-          stepTitle,
-          stepOrder,
+          userId: safeUserId,
+          courseId: safeCourseId,
+          day: safeDay,
+          stepIndex: safeStepIndex,
+          status: safeStatus,
+          stepTitle: safeStepTitle,
+          stepOrder: safeStepOrder,
         },
         tags: ["training", "step-update", "server-action"],
       });
@@ -240,6 +279,22 @@ export async function updateStepStatusServerAction(
   stepTitle?: string,
   stepOrder?: number,
 ): Promise<{ success: boolean }> {
+  const parsedInput = updateStepStatusActionSchema.parse({
+    courseId,
+    day,
+    stepIndex,
+    status,
+    stepTitle,
+    stepOrder,
+  });
   const userId = await getCurrentUserId();
-  return updateUserStepStatus(userId, courseId, day, stepIndex, status, stepTitle, stepOrder);
+  return updateUserStepStatus(
+    userId,
+    parsedInput.courseId,
+    parsedInput.day,
+    parsedInput.stepIndex,
+    parsedInput.status,
+    parsedInput.stepTitle,
+    parsedInput.stepOrder,
+  );
 }

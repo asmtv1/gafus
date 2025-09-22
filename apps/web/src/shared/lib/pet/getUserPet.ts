@@ -1,12 +1,15 @@
 "use server";
 import { prisma } from "@gafus/prisma";
+import { z } from "zod";
+
+const ownerIdSchema = z.string().trim().min(1, "Не удалось получить профиль пользователя");
 
 export async function getUserPet(ownerId: string | null) {
-  if (!ownerId) throw new Error("Не удалось получить профиль пользователя");
+  const safeOwnerId = ownerIdSchema.parse(ownerId);
 
   try {
     const pets = await prisma.pet.findMany({
-      where: { ownerId },
+      where: { ownerId: safeOwnerId },
       orderBy: { createdAt: "asc" },
       select: {
         id: true,

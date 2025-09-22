@@ -2,13 +2,17 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
+import { z } from "zod";
 
 import type { CourseWithExtras, CourseWithProgressData } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
 
+const optionalUserIdSchema = z.string().trim().min(1).optional();
+
 export async function getCoursesWithProgress(userId?: string): Promise<{ data: CourseWithProgressData[] }> {
-  const currentUserId = userId || await getCurrentUserId();
+  const safeUserId = optionalUserIdSchema.parse(userId);
+  const currentUserId = safeUserId ?? (await getCurrentUserId());
 
   try {
     const allCourses: CourseWithExtras[] = await prisma.course.findMany({

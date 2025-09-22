@@ -8,6 +8,7 @@ import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculatio
 import type { TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+import { optionalTrainingTypeSchema, optionalUserIdSchema } from "../validation/schemas";
 
 export async function getTrainingDays(typeParam?: string, userId?: string): Promise<{
   trainingDays: (Pick<TrainingDetail, "trainingDayId" | "day" | "title" | "type" | "courseId" | "userStatus"> & { estimatedDuration: number; equipment: string })[];
@@ -19,15 +20,17 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
 }> {
   try {
     // Если userId не передан, получаем его
-    const currentUserId = userId || await getCurrentUserId();
+    const safeUserId = optionalUserIdSchema.parse(userId);
+    const currentUserId = safeUserId ?? (await getCurrentUserId());
+    const safeType = optionalTrainingTypeSchema.parse(typeParam);
     
     if (!currentUserId) {
       console.error("getTrainingDays: userId is null or undefined");
       throw new Error("Пользователь не авторизован");
     }
     
-    console.warn("getTrainingDays: userId =", currentUserId, "typeParam =", typeParam);
-    const courseWhere = typeParam ? { type: typeParam } : {};
+    console.warn("getTrainingDays: userId =", currentUserId, "typeParam =", safeType);
+    const courseWhere = safeType ? { type: safeType } : {};
 
     const firstCourse = await prisma.course.findFirst({
       where: courseWhere,

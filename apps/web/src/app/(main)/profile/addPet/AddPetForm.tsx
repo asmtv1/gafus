@@ -7,13 +7,13 @@ import {
   TextAreaField,
   SelectField,
 } from "@shared/components/ui/FormField";
-import { usePetFormWithValidation, getPetValidationRules } from "@shared/hooks/usePetForm";
+import { usePetZodForm } from "@shared/hooks/usePetZodForm";
 import { savePet } from "@shared/lib/pet/savePet";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 
-import type { PetFormData } from "@gafus/types";
+import type { PetFormSchema } from "@shared/lib/validation/petSchemas";
 import styles from "./AddPetForm.module.css";
 
 export default function AddPetForm() {
@@ -31,8 +31,7 @@ export default function AddPetForm() {
   const router = useRouter();
   const { data: session } = useSession();
 
-  const form = usePetFormWithValidation({});
-  const validationRules = getPetValidationRules();
+  const { form, handleSubmit } = usePetZodForm();
 
   // Показываем загрузку до завершения гидратации
   if (!isMounted) {
@@ -46,7 +45,7 @@ export default function AddPetForm() {
     );
   }
 
-  const onSubmit = async (data: PetFormData) => {
+  const onSubmit = async (data: PetFormSchema) => {
     setIsSubmitting(true);
     try {
       const { photoUrl: _photoUrl, ...petData } = data;
@@ -75,7 +74,7 @@ export default function AddPetForm() {
       <h1 className={styles.title}>Добавить питомца</h1>
 
       <div className={styles.form_container}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className={styles.form}>
+        <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
         
         {/* Основная информация */}
         <div className={styles.pet_info_section}>
@@ -86,7 +85,7 @@ export default function AddPetForm() {
             name="name"
             placeholder="Введите имя питомца"
             form={form}
-            rules={validationRules.name}
+            // Валидация теперь через Zod схему
           />
 
           <SelectField
@@ -98,7 +97,7 @@ export default function AddPetForm() {
               { value: "DOG", label: "Собака" },
               { value: "CAT", label: "Кошка" },
             ]}
-            rules={validationRules.type}
+            // Валидация теперь через Zod схему
           />
 
           <TextField
@@ -107,7 +106,7 @@ export default function AddPetForm() {
             name="breed"
             placeholder="Введите породу"
             form={form}
-            rules={validationRules.breed}
+            // Валидация теперь через Zod схему
           />
 
           <DateField
@@ -115,7 +114,7 @@ export default function AddPetForm() {
             label="Дата рождения"
             name="birthDate"
             form={form}
-            rules={validationRules.birthDate}
+            // Валидация теперь через Zod схему
           />
         </div>
 
@@ -128,7 +127,7 @@ export default function AddPetForm() {
             name="heightCm"
             placeholder="Введите рост"
             form={form}
-            rules={validationRules.heightCm}
+            // Валидация теперь через Zod схему
           />
 
           <NumberField
@@ -137,7 +136,7 @@ export default function AddPetForm() {
             name="weightKg"
             placeholder="Введите вес"
             form={form}
-            rules={validationRules.weightKg}
+            // Валидация теперь через Zod схему
           />
         </div>
 
@@ -150,7 +149,7 @@ export default function AddPetForm() {
             name="notes"
             placeholder="Дополнительная информация о питомце"
             form={form}
-            rules={validationRules.notes}
+            // Валидация теперь через Zod схему
           />
         </div>
 
@@ -178,7 +177,7 @@ export default function AddPetForm() {
             <ul className="space-y-1 text-sm text-red-700">
               {Object.entries(form.formState.errors).map(([field, error]) => (
                 <li key={field}>
-                  <strong>{field}:</strong> {error?.message}
+                  <strong>{field}:</strong> {(error as { message?: string })?.message}
                 </li>
               ))}
             </ul>

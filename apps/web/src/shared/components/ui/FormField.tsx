@@ -48,7 +48,7 @@ export function FormField<T extends FieldValues>({
   };
 
   return (
-    <div className="mb-4">
+    <div className="flex flex-col">
       {hasLabel && (
         <label
           htmlFor={id}

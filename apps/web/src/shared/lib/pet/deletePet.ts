@@ -5,10 +5,13 @@ import { unlink } from "fs/promises";
 import { revalidatePath } from "next/cache";
 import path from "path";
 
+import { petIdSchema } from "../validation/petSchemas";
+
 export async function deletePet(petId: string, pathToRevalidate = "/") {
+  const safePetId = petIdSchema.parse(petId);
   try {
     const pet = await prisma.pet.findUnique({
-      where: { id: petId },
+      where: { id: safePetId },
       select: { photoUrl: true },
     });
 
@@ -21,7 +24,7 @@ export async function deletePet(petId: string, pathToRevalidate = "/") {
     }
 
     await prisma.pet.delete({
-      where: { id: petId },
+      where: { id: safePetId },
     });
 
     revalidatePath(pathToRevalidate);

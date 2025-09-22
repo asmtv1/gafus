@@ -1,6 +1,12 @@
 "use server";
 
 import { revalidateTag } from "next/cache";
+import { z } from "zod";
+
+const invalidateUserProgressSchema = z.object({
+  userId: z.string().trim().min(1, "userId обязателен"),
+  force: z.boolean().optional(),
+});
 
 /**
  * Инвалидирует кэш прогресса конкретного пользователя
@@ -12,6 +18,10 @@ import { revalidateTag } from "next/cache";
  * @returns Результат операции с информацией о статусе
  */
 export async function invalidateUserProgressCache(userId: string, force: boolean = false) {
+  const { userId: safeUserId, force: safeForce = false } = invalidateUserProgressSchema.parse({
+    userId,
+    force,
+  });
   try {
     // Проверяем онлайн статус через офлайн-store (если на клиенте)
     let isOnline = true;
@@ -24,8 +34,8 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
       }
     }
     
-    if (!force && !isOnline) {
-      console.warn(`[Cache] Skipping cache invalidation - user is offline (userId: ${userId})`);
+    if (!safeForce && !isOnline) {
+      console.warn(`[Cache] Skipping cache invalidation - user is offline (userId: ${safeUserId})`);
       
       // Добавляем действие в очередь синхронизации для выполнения при восстановлении соединения
       try {
@@ -33,8 +43,8 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
           "@shared/utils/offlineCacheUtils"
         );
         
-        const action = createCacheInvalidationAction(userId, [
-          `user-${userId}`,
+        const action = createCacheInvalidationAction(safeUserId, [
+          `user-${safeUserId}`,
           "user-progress", 
           "training", 
           "days",
@@ -43,7 +53,7 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
         ]);
         
         addToSyncQueue(action);
-        console.warn(`[Cache] Cache invalidation action queued for offline sync (userId: ${userId})`);
+      console.warn(`[Cache] Cache invalidation action queued for offline sync (userId: ${safeUserId})`);
       } catch (error) {
         console.warn("[Cache] Failed to queue cache invalidation action:", error);
       }
@@ -56,16 +66,16 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
       };
     }
     
-    console.warn(`[Cache] Invalidating user progress cache for user: ${userId} (force: ${force}, online: ${isOnline})`);
-    
-    revalidateTag(`user-${userId}`);
+    console.warn(`[Cache] Invalidating user progress cache for user: ${safeUserId} (force: ${safeForce}, online: ${isOnline})`);
+
+    revalidateTag(`user-${safeUserId}`);
     revalidateTag("user-progress");
     revalidateTag("training"); // Инвалидируем кэш дней тренировок
     revalidateTag("days"); // Инвалидируем кэш дней тренировок
     revalidateTag("courses-favorites"); // Инвалидируем кэш избранных курсов
     revalidateTag("courses"); // Инвалидируем общий кэш курсов
     
-    console.warn(`[Cache] User progress cache invalidated successfully for user: ${userId}`);
+    console.warn(`[Cache] User progress cache invalidated successfully for user: ${safeUserId}`);
     return { success: true };
   } catch (error) {
     console.error("❌ Error invalidating user progress cache:", error);
@@ -75,4 +85,3 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
     };
   }
 }
-
