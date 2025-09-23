@@ -42,7 +42,7 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
           if (res.success) setData(res.data);
           else setError(res.error || "Ошибка загрузки");
         }
-      } catch (_e) {
+      } catch {
         if (!cancelled) setError("Ошибка загрузки");
       } finally {
         if (!cancelled) setLoading(false);
@@ -198,5 +198,3 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
     </Dialog>
   );
 }
-
-

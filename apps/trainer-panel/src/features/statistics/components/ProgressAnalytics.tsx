@@ -22,7 +22,7 @@ export default function ProgressAnalytics({ progressAnalytics }: ProgressAnalyti
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom color="text.primary">
         Прогресс и достижения
       </Typography>
 
@@ -32,7 +32,7 @@ export default function ProgressAnalytics({ progressAnalytics }: ProgressAnalyti
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <Speed sx={{ color: "primary.main", mr: 1 }} />
-              <Typography variant="h5" color="primary" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {averageCompletionTime}
               </Typography>
             </Box>
@@ -47,7 +47,7 @@ export default function ProgressAnalytics({ progressAnalytics }: ProgressAnalyti
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <TrendingDown sx={{ color: "error.main", mr: 1 }} />
-              <Typography variant="h5" color="error" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {criticalDropoutPoint ? `День ${criticalDropoutPoint.dayOrder}` : "Нет данных"}
               </Typography>
             </Box>
@@ -69,7 +69,7 @@ export default function ProgressAnalytics({ progressAnalytics }: ProgressAnalyti
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <Repeat sx={{ color: "secondary.main", mr: 1 }} />
-              <Typography variant="h5" color="secondary" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {repeatUsers}
               </Typography>
             </Box>
@@ -84,7 +84,7 @@ export default function ProgressAnalytics({ progressAnalytics }: ProgressAnalyti
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <EmojiEvents sx={{ color: "warning.main", mr: 1 }} />
-              <Typography variant="h5" color="warning" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {achievements.length}
               </Typography>
             </Box>
@@ -97,7 +97,7 @@ export default function ProgressAnalytics({ progressAnalytics }: ProgressAnalyti
       </Box>
 
       {/* Точки отсева */}
-      <Typography variant="subtitle1" gutterBottom>
+      <Typography variant="subtitle1" gutterBottom color="text.primary">
         Анализ точек отсева
       </Typography>
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -142,7 +142,7 @@ export default function ProgressAnalytics({ progressAnalytics }: ProgressAnalyti
       </Paper>
 
       {/* Достижения */}
-      <Typography variant="subtitle1" gutterBottom>
+      <Typography variant="subtitle1" gutterBottom color="text.primary">
         Достижения пользователей
       </Typography>
       <Paper sx={{ p: 2 }}>
@@ -154,7 +154,7 @@ export default function ProgressAnalytics({ progressAnalytics }: ProgressAnalyti
                   sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}
                 >
                   <EmojiEvents sx={{ color: "warning.main", mr: 1 }} />
-                  <Typography variant="h6" color="warning.main" fontWeight="bold">
+                  <Typography variant="h6" color="text.primary" fontWeight="bold">
                     {achievement.count}
                   </Typography>
                 </Box>

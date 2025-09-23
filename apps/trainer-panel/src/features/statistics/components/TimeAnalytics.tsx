@@ -22,7 +22,7 @@ export default function TimeAnalytics({ timeAnalytics }: TimeAnalyticsProps) {
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom color="text.primary">
         Временная аналитика
       </Typography>
 
@@ -32,7 +32,7 @@ export default function TimeAnalytics({ timeAnalytics }: TimeAnalyticsProps) {
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <CalendarToday sx={{ color: "primary.main", mr: 1 }} />
-              <Typography variant="h5" color="primary" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {peakDay[0]}
               </Typography>
             </Box>
@@ -52,7 +52,7 @@ export default function TimeAnalytics({ timeAnalytics }: TimeAnalyticsProps) {
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <AccessTime sx={{ color: "secondary.main", mr: 1 }} />
-              <Typography variant="h5" color="secondary" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {peakHour[0]}:00
               </Typography>
             </Box>
@@ -72,7 +72,7 @@ export default function TimeAnalytics({ timeAnalytics }: TimeAnalyticsProps) {
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <Schedule sx={{ color: "info.main", mr: 1 }} />
-              <Typography variant="h5" color="info" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {averageTimeBetweenSessions}
               </Typography>
             </Box>
@@ -85,7 +85,7 @@ export default function TimeAnalytics({ timeAnalytics }: TimeAnalyticsProps) {
       </Box>
 
       {/* Активность по дням недели */}
-      <Typography variant="subtitle1" gutterBottom>
+      <Typography variant="subtitle1" gutterBottom color="text.primary">
         Активность по дням недели
       </Typography>
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -93,7 +93,7 @@ export default function TimeAnalytics({ timeAnalytics }: TimeAnalyticsProps) {
           {Object.entries(activityByDayOfWeek).map(([day, count]) => (
             <Box key={day} sx={{ flex: "1 1 120px", minWidth: 0 }}>
               <Box sx={{ textAlign: "center", p: 1 }}>
-                <Typography variant="h6" color="primary" fontWeight="bold">
+                <Typography variant="h6" color="text.primary" fontWeight="bold">
                   {count}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -106,7 +106,7 @@ export default function TimeAnalytics({ timeAnalytics }: TimeAnalyticsProps) {
       </Paper>
 
       {/* Активность по часам */}
-      <Typography variant="subtitle1" gutterBottom>
+      <Typography variant="subtitle1" gutterBottom color="text.primary">
         Активность по времени суток
       </Typography>
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -114,7 +114,7 @@ export default function TimeAnalytics({ timeAnalytics }: TimeAnalyticsProps) {
           {Object.entries(activityByHour).map(([hour, count]) => (
             <Box key={hour} sx={{ flex: "1 1 80px", minWidth: 0 }}>
               <Box sx={{ textAlign: "center", p: 1 }}>
-                <Typography variant="h6" color="secondary" fontWeight="bold">
+                <Typography variant="h6" color="text.primary" fontWeight="bold">
                   {count}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -127,7 +127,7 @@ export default function TimeAnalytics({ timeAnalytics }: TimeAnalyticsProps) {
       </Paper>
 
       {/* Активность по месяцам */}
-      <Typography variant="subtitle1" gutterBottom>
+      <Typography variant="subtitle1" gutterBottom color="text.primary">
         Сезонная активность
       </Typography>
       <Paper sx={{ p: 2 }}>
@@ -135,7 +135,7 @@ export default function TimeAnalytics({ timeAnalytics }: TimeAnalyticsProps) {
           {Object.entries(activityByMonth).map(([month, count]) => (
             <Box key={month} sx={{ flex: "1 1 120px", minWidth: 0 }}>
               <Box sx={{ textAlign: "center", p: 1 }}>
-                <Typography variant="h6" color="success.main" fontWeight="bold">
+                <Typography variant="h6" color="text.primary" fontWeight="bold">
                   {count}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">

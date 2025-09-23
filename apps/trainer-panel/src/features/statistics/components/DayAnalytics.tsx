@@ -35,7 +35,7 @@ export default function DayAnalytics({ dayAnalytics }: DayAnalyticsProps) {
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom color="text.primary">
         Аналитика по дням
       </Typography>
 
@@ -99,7 +99,7 @@ export default function DayAnalytics({ dayAnalytics }: DayAnalyticsProps) {
       </Box>
 
       {/* Детальная статистика по дням */}
-      <Typography variant="subtitle1" gutterBottom>
+      <Typography variant="subtitle1" gutterBottom color="text.primary">
         Детальная статистика по дням
       </Typography>
       <Box sx={{ maxHeight: 400, overflowY: "auto" }}>
@@ -114,7 +114,7 @@ export default function DayAnalytics({ dayAnalytics }: DayAnalyticsProps) {
               }}
             >
               <Box>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h6" gutterBottom color="text.primary">
                   День {day.dayOrder}: {day.dayTitle}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -164,7 +164,7 @@ export default function DayAnalytics({ dayAnalytics }: DayAnalyticsProps) {
                     sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}
                   >
                     <Speed sx={{ color: "info.main", mr: 1 }} />
-                    <Typography variant="h6" color="info.main" fontWeight="bold">
+                    <Typography variant="h6" color="text.primary" fontWeight="bold">
                       {day.averageTimePerStep}
                     </Typography>
                   </Box>
