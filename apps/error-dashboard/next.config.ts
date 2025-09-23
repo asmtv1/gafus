@@ -1,5 +1,13 @@
 import type { NextConfig } from "next";
 
+interface WebpackConfig {
+  resolve: {
+    alias: Record<string, string>;
+  };
+  externals?: any[];
+  plugins?: any[];
+}
+
 const nextConfig: NextConfig = {
   // Включаем standalone режим для Docker
   output: 'standalone',
@@ -32,6 +40,24 @@ const nextConfig: NextConfig = {
   assetPrefix: undefined,
   basePath: "",
   trailingSlash: false,
+
+  // Webpack конфигурация для создания dummy файла worker.js
+  webpack: (config: WebpackConfig, { isServer }: { isServer: boolean }) => {
+    // Webpack плагин для создания dummy файла lib/worker.js
+    config.plugins = config.plugins || [];
+    config.plugins.push({
+      apply: (compiler: any) => {
+        compiler.hooks.emit.tap('CreateWorkerFile', (compilation: any) => {
+          compilation.assets['lib/worker.js'] = {
+            source: () => 'module.exports = {};',
+            size: () => 20,
+          };
+        });
+      },
+    });
+
+    return config;
+  },
 };
 
 export default nextConfig;

@@ -108,24 +108,24 @@ export function useNotificationInitializer() {
     ensureActiveSubscription,
   } = useNotificationComposite();
 
-  // Инициализируем при монтировании
+  // Инициализируем при монтировании (только один раз)
   useEffect(() => {
     initializePermission();
-  }, [initializePermission]);
+  }, []); // Убираем initializePermission из зависимостей
 
   // Проверяем серверную подписку при изменении разрешения
   useEffect(() => {
     if (permissionState === "granted") {
       checkServerSubscription();
     }
-  }, [permissionState, checkServerSubscription]);
+  }, [permissionState]); // Убираем checkServerSubscription из зависимостей
 
   // Если разрешение есть, но серверной подписки нет — пытаемся автоматически восстановить
   useEffect(() => {
     if (permissionState === "granted" && hasServerSubscription === false) {
       ensureActiveSubscription();
     }
-  }, [permissionState, hasServerSubscription, ensureActiveSubscription]);
+  }, [permissionState, hasServerSubscription]); // Убираем ensureActiveSubscription из зависимостей
 
   return { checkServerSubscription };
 }

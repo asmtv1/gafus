@@ -4,6 +4,7 @@ interface WebpackConfig {
     alias: Record<string, string>;
   };
   externals?: any[];
+  plugins?: any[];
 }
 
 const _path = require("path");
@@ -56,6 +57,7 @@ const nextConfig = {
       "@emotion/react",
       "@emotion/styled",
     ],
+    workerThreads: false, // Отключаем worker threads
   },
 
   // Webpack конфигурация для workspace зависимостей
@@ -80,6 +82,19 @@ const nextConfig = {
         'sharp': 'commonjs sharp',
       });
     }
+
+    // Webpack плагин для создания dummy файла lib/worker.js
+    config.plugins = config.plugins || [];
+    config.plugins.push({
+      apply: (compiler: any) => {
+        compiler.hooks.emit.tap('CreateWorkerFile', (compilation: any) => {
+          compilation.assets['lib/worker.js'] = {
+            source: () => 'module.exports = {};',
+            size: () => 20,
+          };
+        });
+      },
+    });
 
     return config;
   },

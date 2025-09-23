@@ -160,7 +160,7 @@ export class DeviceSubscriptionManager {
     
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey,
+      applicationServerKey: applicationServerKey as BufferSource,
     });
 
     const p256dh = subscription.getKey ? subscription.getKey("p256dh") : null;
@@ -327,7 +327,7 @@ export class DeviceSubscriptionManager {
     for (let i = 0; i < rawData.length; ++i) {
       outputArray[i] = rawData.charCodeAt(i);
     }
-    return outputArray;
+    return outputArray as Uint8Array;
   }
 
   /**

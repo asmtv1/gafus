@@ -7,6 +7,17 @@ import type { NextRequest } from "next/server";
 // Создаем логгер для error-dashboard (отключена отправка в error-dashboard)
 const logger = createErrorDashboardLogger('error-dashboard-report');
 
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   let body = null;
   try {
@@ -36,7 +47,14 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json(
           { error: `Отсутствует обязательное поле: ${field}` },
-          { status: 400 },
+          { 
+            status: 400,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
+          },
         );
       }
     }
@@ -56,10 +74,22 @@ export async function POST(request: NextRequest) {
       tags: body.tags || [],
     });
 
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    };
+
     if (result.success) {
-      return NextResponse.json({ success: true, errorId: result.errorId }, { status: 200 });
+      return NextResponse.json({ success: true, errorId: result.errorId }, { 
+        status: 200,
+        headers: corsHeaders,
+      });
     } else {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+      return NextResponse.json({ error: result.error }, { 
+        status: 500,
+        headers: corsHeaders,
+      });
     }
   } catch (error) {
     logger.error("Ошибка при обработке отчета об ошибке", error as Error, {
@@ -67,17 +97,13 @@ export async function POST(request: NextRequest) {
       hasBody: !!body,
       bodyKeys: body ? Object.keys(body) : []
     });
-    return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
+    return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { 
+      status: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    });
   }
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    },
-  });
 }
