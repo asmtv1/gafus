@@ -4,6 +4,10 @@ import { TrainingStatus, type CourseWithProgressData } from "@gafus/types";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useCourseStore } from "@shared/stores/courseStore";
 import { calculateDayStatus as calcDay, calculateCourseStatus as calcCourse } from "@shared/utils/trainingCalculations";
+import { createWebLogger } from "@gafus/logger";
+
+// Создаем логгер для cache manager
+const logger = createWebLogger('web-cache-manager');
 
 // Утилиты для работы с временем
 const nowSec = () => Math.floor(Date.now() / 1000);
@@ -31,7 +35,13 @@ export function useCacheManager() {
     durationSec?: number,
     totalSteps?: number
   ) => {
-    console.warn(`[CacheManager] Updating step progress: ${courseId}-${day}-${stepIndex} -> ${stepStatus}`);
+    logger.info(`[CacheManager] Updating step progress`, {
+      operation: 'update_step_progress',
+      courseId: courseId,
+      day: day,
+      stepIndex: stepIndex,
+      stepStatus: stepStatus
+    });
 
     // 1. Обновляем локальный стейт шага
     if (stepStatus === 'IN_PROGRESS' && durationSec) {
@@ -91,7 +101,11 @@ export function useCacheManager() {
     // 5. Обновляем кэш курсов в courseStore
     updateCoursesCache(courseId, newCourseStatus, day, stepIndex, stepStatus as 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED');
 
-    console.warn(`[CacheManager] Updated: day=${newDayStatus}, course=${newCourseStatus}`);
+    logger.info(`[CacheManager] Updated`, {
+      operation: 'cache_manager_updated',
+      day: newDayStatus,
+      course: newCourseStatus
+    });
   };
 
   /**
@@ -118,15 +132,31 @@ export function useCacheManager() {
     stepIndex: number,
     stepStatus: string
   ) => {
-    console.warn(`[CacheManager] updateCoursesCache: courseId=${courseId}, courseStatus=${courseStatus}, day=${day}, stepIndex=${stepIndex}, stepStatus=${stepStatus}`);
+    logger.info(`[CacheManager] updateCoursesCache`, {
+      operation: 'update_courses_cache',
+      courseId: courseId,
+      courseStatus: courseStatus,
+      day: day,
+      stepIndex: stepIndex,
+      stepStatus: stepStatus
+    });
     
     // Обновляем все курсы в courseStore
     if (courseStore.allCourses?.data) {
-      console.warn(`[CacheManager] Updating allCourses, found ${courseStore.allCourses.data.length} courses`);
+      logger.info(`[CacheManager] Updating allCourses`, {
+        operation: 'updating_all_courses',
+        coursesCount: courseStore.allCourses.data.length
+      });
       const updatedCourses = courseStore.allCourses.data.map(course => {
         if (course.id !== courseId) return course;
         
-        console.warn(`[CacheManager] Updating course ${courseId}: ${course.name} from ${course.userStatus} to ${courseStatus}`);
+        logger.info(`[CacheManager] Updating course`, {
+          operation: 'updating_course',
+          courseId: courseId,
+          courseName: course.name,
+          oldStatus: course.userStatus,
+          newStatus: courseStatus
+        });
         return {
           ...course,
           userStatus: courseStatus,
@@ -138,18 +168,31 @@ export function useCacheManager() {
       });
       
       courseStore.setAllCourses(updatedCourses, courseStore.allCourses.type);
-      console.warn(`[CacheManager] Updated allCourses successfully`);
+      logger.info(`[CacheManager] Updated allCourses successfully`, {
+        operation: 'updated_all_courses_successfully'
+      });
     } else {
-      console.warn(`[CacheManager] No allCourses data to update`);
+      logger.warn(`[CacheManager] No allCourses data to update`, {
+        operation: 'no_all_courses_data'
+      });
     }
 
     // Обновляем избранные курсы в courseStore
     if (courseStore.favorites?.data) {
-      console.warn(`[CacheManager] Updating favorites, found ${courseStore.favorites.data.length} courses`);
+      logger.info(`[CacheManager] Updating favorites`, {
+        operation: 'updating_favorites',
+        favoritesCount: courseStore.favorites.data.length
+      });
       const updatedFavorites = courseStore.favorites.data.map(course => {
         if (course.id !== courseId) return course;
         
-        console.warn(`[CacheManager] Updating favorite course ${courseId}: ${course.name} from ${course.userStatus} to ${courseStatus}`);
+        logger.info(`[CacheManager] Updating favorite course`, {
+          operation: 'updating_favorite_course',
+          courseId: courseId,
+          courseName: course.name,
+          oldStatus: course.userStatus,
+          newStatus: courseStatus
+        });
         return {
           ...course,
           userStatus: courseStatus,
@@ -159,18 +202,31 @@ export function useCacheManager() {
       });
       
       courseStore.setFavorites(updatedFavorites);
-      console.warn(`[CacheManager] Updated favorites successfully`);
+      logger.info(`[CacheManager] Updated favorites successfully`, {
+        operation: 'updated_favorites_successfully'
+      });
     } else {
-      console.warn(`[CacheManager] No favorites data to update`);
+      logger.warn(`[CacheManager] No favorites data to update`, {
+        operation: 'no_favorites_data'
+      });
     }
 
     // Обновляем созданные курсы в courseStore
     if (courseStore.authored) {
-      console.warn(`[CacheManager] Updating authored, found ${courseStore.authored.length} courses`);
+      logger.info(`[CacheManager] Updating authored`, {
+        operation: 'updating_authored',
+        authoredCount: courseStore.authored.length
+      });
       const updatedAuthored = courseStore.authored.map(course => {
         if (course.id !== courseId) return course;
         
-        console.warn(`[CacheManager] Updating authored course ${courseId}: ${course.name} from ${course.userStatus} to ${courseStatus}`);
+        logger.info(`[CacheManager] Updating authored course`, {
+          operation: 'updating_authored_course',
+          courseId: courseId,
+          courseName: course.name,
+          oldStatus: course.userStatus,
+          newStatus: courseStatus
+        });
         return {
           ...course,
           userStatus: courseStatus,
@@ -180,9 +236,13 @@ export function useCacheManager() {
       });
       
       courseStore.setAuthored(updatedAuthored);
-      console.warn(`[CacheManager] Updated authored successfully`);
+      logger.info(`[CacheManager] Updated authored successfully`, {
+        operation: 'updated_authored_successfully'
+      });
     } else {
-      console.warn(`[CacheManager] No authored data to update`);
+      logger.warn(`[CacheManager] No authored data to update`, {
+        operation: 'no_authored_data'
+      });
     }
 
     // Инвалидация React Query кэша теперь происходит в server actions

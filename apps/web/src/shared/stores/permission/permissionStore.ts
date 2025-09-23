@@ -2,6 +2,10 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createWebLogger } from "@gafus/logger";
+
+// Создаем логгер для permission store
+const logger = createWebLogger('web-permission-store');
 
 interface PermissionState {
   permission: NotificationPermission | null;
@@ -44,22 +48,33 @@ export const usePermissionStore = create<PermissionState>()(
       },
 
       requestPermission: async () => {
-        console.log("🚀 requestPermission: Начинаем запрос разрешения на уведомления");
+        logger.info("🚀 requestPermission: Начинаем запрос разрешения на уведомления", {
+          operation: 'start_permission_request'
+        });
         
         if (!isNotificationSupported()) {
-          console.log("❌ requestPermission: Уведомления не поддерживаются");
+          logger.warn("❌ requestPermission: Уведомления не поддерживаются", {
+            operation: 'notifications_not_supported'
+          });
           set({ error: "Этот браузер не поддерживает уведомления" });
           return "denied";
         }
 
-        console.log("✅ requestPermission: Уведомления поддерживаются, запрашиваем разрешение");
+        logger.info("✅ requestPermission: Уведомления поддерживаются, запрашиваем разрешение", {
+          operation: 'notifications_supported'
+        });
         set({ isLoading: true, error: null });
 
         try {
           // Простой запрос разрешения без таймаута
-          console.log("🔧 requestPermission: Запрашиваем разрешение");
+          logger.info("🔧 requestPermission: Запрашиваем разрешение", {
+            operation: 'request_permission'
+          });
           const result = await Notification.requestPermission();
-          console.log("✅ requestPermission: Разрешение получено:", result);
+          logger.success("✅ requestPermission: Разрешение получено", {
+            operation: 'permission_granted',
+            result: result
+          });
           
           set({
             permission: result,
@@ -67,7 +82,9 @@ export const usePermissionStore = create<PermissionState>()(
           });
           return result;
         } catch (error) {
-          console.error("❌ requestPermission: Ошибка запроса разрешения уведомлений:", error);
+          logger.error("❌ requestPermission: Ошибка запроса разрешения уведомлений", error as Error, {
+            operation: 'permission_request_failed'
+          });
           set({
             error: "Не удалось запросить разрешение",
             isLoading: false,

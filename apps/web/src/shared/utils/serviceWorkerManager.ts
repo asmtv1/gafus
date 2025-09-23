@@ -1,6 +1,11 @@
 // Универсальный менеджер Service Worker для всех браузеров
 // Кардинальное решение проблем с PWA и Safari
 
+import { createWebLogger } from "@gafus/logger";
+
+// Создаем логгер для service worker
+const logger = createWebLogger('web-service-worker');
+
 interface ServiceWorkerManager {
   isSupported(): boolean;
   register(): Promise<ServiceWorkerRegistration>;
@@ -32,7 +37,10 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
       return this.registration;
     }
 
-    console.warn('🚀 SW Manager: Starting service worker registration...');
+    logger.info('🚀 SW Manager: Starting service worker registration', {
+      operation: 'start_service_worker_registration',
+      supported: this.isSupported()
+    });
 
     this.registrationPromise = this.performRegistration();
     
@@ -46,7 +54,9 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
   }
 
   private async performRegistration(): Promise<ServiceWorkerRegistration> {
-    console.warn('🔧 SW Manager: Registering service worker...');
+    logger.info('🔧 SW Manager: Registering service worker', {
+      operation: 'perform_service_worker_registration'
+    });
 
     try {
       // Очищаем старые регистрации перед новой регистрацией
@@ -59,11 +69,16 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
         updateViaCache: 'none'
       });
 
-      console.warn('✅ SW Manager: SW registered successfully');
+      logger.success('✅ SW Manager: SW registered successfully', {
+        operation: 'service_worker_registered',
+        scope: registration.scope
+      });
       return registration;
 
     } catch (error) {
-      console.error('❌ SW Manager: Registration failed:', error);
+      logger.error('❌ SW Manager: Registration failed', error as Error, {
+        operation: 'service_worker_registration_failed'
+      });
       throw new Error('Service Worker registration failed');
     }
   }
@@ -80,10 +95,16 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
       
       if (cleanupPromises.length > 0) {
         await Promise.all(cleanupPromises);
-        console.warn(`🧹 SW Manager: Cleaned up ${cleanupPromises.length} old registrations`);
+        logger.info(`🧹 SW Manager: Cleaned up ${cleanupPromises.length} old registrations`, {
+          operation: 'cleanup_old_registrations',
+          cleanedCount: cleanupPromises.length
+        });
       }
     } catch (error) {
-      console.warn('⚠️ SW Manager: Failed to cleanup old registrations:', error);
+      logger.warn('⚠️ SW Manager: Failed to cleanup old registrations', {
+        operation: 'cleanup_old_registrations_failed',
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
@@ -101,7 +122,9 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
     try {
       return await this.register();
     } catch {
-      console.error('SW Manager: Failed to get registration');
+      logger.error('SW Manager: Failed to get registration', new Error('Registration failed'), {
+        operation: 'get_registration_failed'
+      });
       return null;
     }
   }

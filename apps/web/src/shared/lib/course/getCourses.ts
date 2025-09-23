@@ -3,10 +3,14 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
 
 import type { CourseWithExtras, CourseWithProgressData } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
+
+// Создаем логгер для getCourses
+const logger = createWebLogger('web-get-courses');
 
 const optionalUserIdSchema = z.string().trim().min(1).optional();
 
@@ -176,7 +180,9 @@ export async function getCoursesWithProgress(userId?: string): Promise<{ data: C
 
     return { data };
   } catch (error) {
-    console.error("Ошибка в getCoursesWithProgress:", error);
+    logger.error("Ошибка в getCoursesWithProgress", error as Error, {
+      operation: 'get_courses_with_progress_error'
+    });
     throw new Error("Не удалось загрузить курсы с прогрессом");
   }
 }

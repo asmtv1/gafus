@@ -2,6 +2,11 @@
  * Утилиты для ретраев с экспоненциальной задержкой
  */
 
+import { createWebLogger } from "@gafus/logger";
+
+// Создаем логгер для retry утилит
+const logger = createWebLogger('web-retry-utils');
+
 export interface RetryOptions {
   maxRetries?: number;
   baseDelay?: number;
@@ -32,14 +37,24 @@ export async function retryWithBackoff<T>(
       lastError = error as Error;
       
       if (attempt === maxRetries) {
-        console.error(`❌ Все ${maxRetries} попыток исчерпаны:`, lastError);
+        logger.error(`❌ Все ${maxRetries} попыток исчерпаны`, lastError, {
+          operation: 'retry_exhausted',
+          maxRetries: maxRetries,
+          attempt: attempt
+        });
         throw lastError;
       }
 
       // Вычисляем задержку с экспоненциальным ростом
       const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
       
-      console.warn(`⚠️ Попытка ${attempt}/${maxRetries} не удалась, повтор через ${delay}ms:`, error);
+      logger.warn(`⚠️ Попытка ${attempt}/${maxRetries} не удалась, повтор через ${delay}ms`, {
+        operation: 'retry_attempt_failed',
+        attempt: attempt,
+        maxRetries: maxRetries,
+        delay: delay,
+        error: error instanceof Error ? error.message : String(error)
+      });
       
       if (onRetry) {
         onRetry(attempt, lastError);
@@ -66,7 +81,12 @@ export async function retryServerAction<T>(
     baseDelay: 1000,
     maxDelay: 10000,
     onRetry: (attempt, error) => {
-      console.warn(`🔄 ${actionName}: попытка ${attempt} не удалась:`, error.message);
+      logger.warn(`🔄 ${actionName}: попытка ${attempt} не удалась`, {
+        operation: 'retry_with_action_failed',
+        actionName: actionName,
+        attempt: attempt,
+        error: error.message
+      });
     },
     ...options
   });

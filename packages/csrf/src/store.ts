@@ -3,6 +3,10 @@
 import React from "react"; // Added missing import for React
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createWebLogger } from "@gafus/logger";
+
+// Создаем логгер для CSRF Store
+const logger = createWebLogger('csrf-store');
 // Типы для CSRF Store
 interface CSRFState {
   token: string | null;
@@ -113,7 +117,10 @@ export const useCSRFStore = create<CSRFState>()(
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Неизвестная ошибка";
-          console.error("❌ Ошибка при получении CSRF токена:", errorMessage);
+          logger.error("Ошибка при получении CSRF токена", new Error(errorMessage), {
+            retryCount: get().retryCount,
+            lastFetched: get().lastFetched
+          });
 
           const newRetryCount = state.retryCount + 1;
 
@@ -215,7 +222,10 @@ export function createCSRFFetch(token: string) {
   return async (url: string, options: RequestInit = {}) => {
     // Проверяем валидность токена
     if (!token || token === "temp-token") {
-      console.warn("⚠️ Invalid CSRF token, request may fail");
+      logger.warn("Invalid CSRF token, request may fail", {
+        tokenLength: token.length,
+        tokenValue: token === "temp-token" ? "temp-token" : "invalid"
+      });
     }
 
     const headers = {

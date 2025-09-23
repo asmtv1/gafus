@@ -108,7 +108,6 @@ export function AccordionStep({
                 try {
                   await finishStepWithServer(courseId, day, stepIndex, stepTitle, stepOrder);
                 } catch (error) {
-                  console.error("Ошибка при обновлении статуса шага на сервере:", error);
                   // Не показываем ошибку пользователя, так как действие добавлено в очередь синхронизации
                 }
 
@@ -117,9 +116,7 @@ export function AccordionStep({
               true, // isRestore = true
             );
           } else {
-            if (process.env.NODE_ENV === "development") {
-              console.warn(`⏭️ Timer already exists for step: ${stepIndex}, skipping restoration`);
-            }
+            // Timer already exists, skipping restoration
           }
         }, 500); // Увеличиваем задержку для полной инициализации
 
@@ -176,7 +173,6 @@ export function AccordionStep({
             finishSync(true);
             removePendingChange();
           } catch (error) {
-            console.error("Ошибка при обновлении статуса шага на сервере:", error);
             finishSync(false);
             // При ошибке добавляем в очередь синхронизации (уже обработано в finishStepWithServer)
           }
@@ -233,7 +229,6 @@ export function AccordionStep({
         return;
       }
     } catch (error) {
-      console.error("Ошибка при запуске шага:", error);
       // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
       
       // Все равно выполняем локальный запуск
@@ -267,7 +262,6 @@ export function AccordionStep({
           pauseStep(courseId, day, stepIndex);
           updateStepProgress(courseId, day, stepIndex, 'PAUSED', undefined, totalSteps);
         } catch (error) {
-          console.error("Ошибка при постановке на паузу:", error);
           // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
         } finally {
           setIsPausing(false);
@@ -287,7 +281,6 @@ export function AccordionStep({
           updateStepProgress(courseId, day, stepIndex, 'IN_PROGRESS', undefined, totalSteps);
           startStepTimer(true);
         } catch (error) {
-          console.error("Ошибка при возобновлении:", error);
           // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
         } finally {
           setIsPausing(false);
@@ -308,7 +301,6 @@ export function AccordionStep({
         updateStepProgress(courseId, day, stepIndex, 'IN_PROGRESS', undefined, totalSteps);
         startStepTimer(true);
       } catch (error) {
-        console.error("Ошибка при возобновлении:", error);
         // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
       } finally {
         setIsPausing(false);
@@ -330,7 +322,6 @@ export function AccordionStep({
       // Уведомляем родителя
       onReset(stepIndex);
     } catch (error) {
-      console.error("Ошибка при сбросе шага:", error);
       // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
       
       // Все равно выполняем локальный сброс

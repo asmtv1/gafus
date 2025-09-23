@@ -1,6 +1,10 @@
 import { reportErrorToDashboard } from "./actions/reportError";
+import { createWebLogger } from "@gafus/logger";
 
 import type { ErrorInfo, ErrorBoundaryConfig, ErrorReportData } from "@gafus/types";
+
+// Создаем логгер для ErrorReporter
+const logger = createWebLogger('web-error-reporter');
 
 /**
  * Базовый класс для отчетности об ошибках
@@ -34,7 +38,11 @@ export class ErrorReporter {
 
       return true;
     } catch (reportingError) {
-      console.error("Ошибка при отправке отчета об ошибке:", reportingError);
+      logger.error("Ошибка при отправке отчета об ошибке", reportingError as Error, {
+        operation: 'send_error_report_failed',
+        appName: this.config.appName,
+        environment: this.config.environment
+      });
       return false;
     }
   }
@@ -96,10 +104,21 @@ export class ErrorReporter {
    * Логирование в консоль
    */
   private logToConsole(error: Error, errorInfo: ErrorInfo): void {
-    console.warn(`🚨 Ошибка в ${this.config.appName}`);
-    console.error("Ошибка:", error);
-    console.error("Информация:", errorInfo);
-    console.warn();
+    logger.warn(`🚨 Ошибка в ${this.config.appName}`, {
+      operation: 'log_error_to_console',
+      appName: this.config.appName,
+      errorMessage: error.message,
+      errorStack: error.stack
+    });
+    logger.error("Ошибка:", error, {
+      operation: 'log_error_details',
+      appName: this.config.appName
+    });
+    logger.error("Информация:", new Error("Error info"), {
+      operation: 'log_error_info',
+      appName: this.config.appName,
+      errorInfo: errorInfo
+    });
   }
 
   /**
@@ -126,17 +145,23 @@ export class ErrorReporter {
 
       if (this.config.logToConsole) {
         if (result.success) {
-          console.group("✅ Ошибка отправлена в дашборд");
-          console.warn("Error ID:", result.errorId);
-          console.groupEnd();
+          logger.success('✅ Ошибка отправлена в дашборд', {
+            operation: 'error_sent_to_dashboard',
+            errorId: result.errorId,
+            appName: this.config.appName
+          });
         } else {
-          console.group("❌ Ошибка отправки в дашборд");
-          console.error("Failed to save error report");
-          console.groupEnd();
+          logger.error('❌ Ошибка отправки в дашборд', new Error('Failed to save error report'), {
+            operation: 'error_dashboard_send_failed',
+            appName: this.config.appName
+          });
         }
       }
     } catch (dashboardError) {
-      console.error("Ошибка отправки в дашборд:", dashboardError);
+      logger.error("Ошибка отправки в дашборд", dashboardError as Error, {
+        operation: 'dashboard_send_error',
+        appName: this.config.appName
+      });
     }
   }
 

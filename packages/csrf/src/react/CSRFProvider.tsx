@@ -1,8 +1,12 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { createWebLogger } from "@gafus/logger";
 
 import { useCSRFStore } from "../store";
+
+// Создаем логгер для CSRF Provider
+const logger = createWebLogger('csrf-provider');
 
 // ===== ТИПЫ =====
 interface CSRFContextType {
@@ -74,7 +78,10 @@ export function CSRFProvider({
       setErrorMessage(message);
 
       if (logErrors) {
-        console.error("❌ CSRF Provider retry failed:", message);
+        logger.error("CSRF Provider retry failed", new Error(message), {
+          retryCount: retryCount,
+          maxRetries: maxRetries
+        });
       }
     }
   };
@@ -102,7 +109,10 @@ export function CSRFProvider({
         setErrorMessage(message);
 
         if (logErrors) {
-          console.error("❌ CSRF Provider initialization failed:", message);
+          logger.error("CSRF Provider initialization failed", new Error(message), {
+            retryCount: retryCount,
+            maxRetries: maxRetries
+          });
         }
       }
     };
@@ -117,7 +127,10 @@ export function CSRFProvider({
       setErrorMessage(error);
 
       if (logErrors) {
-        console.error("❌ CSRF Store error:", error);
+        logger.error("CSRF Store error", new Error(error), {
+          retryCount: retryCount,
+          maxRetries: maxRetries
+        });
       }
     } else if (!error && hasError) {
       setHasError(false);
@@ -143,7 +156,7 @@ export function CSRFProvider({
   // Логирование состояния в development
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
-      console.warn("🔒 CSRF Provider state:", {
+      logger.warn("CSRF Provider state", {
         isInitialized,
         isReady,
         hasToken: !!token,

@@ -4,6 +4,11 @@
  * Следует лучшим практикам для multi-device push-уведомлений
  */
 
+import { createWorkerLogger } from "@gafus/logger";
+
+// Создаем логгер для device-manager
+const logger = createWorkerLogger('device-manager');
+
 export interface DeviceSubscription {
   id: string;
   userId: string;
@@ -169,9 +174,15 @@ export class DeviceSubscriptionManager {
     if (deviceInfo.type === 'safari') {
       const isAPNSEndpoint = subscription.endpoint.includes('web.push.apple.com');
       if (!isAPNSEndpoint) {
-        console.warn("⚠️ Safari создал FCM endpoint вместо APNS. Возможно, нужна перезагрузка в PWA режиме.");
+        logger.warn("Safari создал FCM endpoint вместо APNS. Возможно, нужна перезагрузка в PWA режиме.", {
+          endpoint: subscription.endpoint,
+          deviceType: deviceInfo.type
+        });
       } else {
-        console.log("✅ Safari создал правильный APNS endpoint");
+        logger.info("Safari создал правильный APNS endpoint", {
+          endpoint: subscription.endpoint,
+          deviceType: deviceInfo.type
+        });
       }
     }
 
@@ -196,11 +207,12 @@ export class DeviceSubscriptionManager {
     this.deviceSubscriptions.set(deviceInfo.id, deviceSubscription);
     this.saveToLocalStorage();
 
-    console.log("✅ Device subscription created successfully");
-    console.log(`🔗 Endpoint: ${subscription.endpoint.substring(0, 50)}...`);
-    console.log(`📱 Device Type: ${deviceInfo.type}`);
-    console.log(`🆔 Device ID: ${deviceInfo.id}`);
-    console.log(`🌍 Platform: ${deviceInfo.platform}`);
+    logger.success("Device subscription created successfully", {
+      deviceId: deviceInfo.id,
+      deviceType: deviceInfo.type,
+      platform: deviceInfo.platform,
+      endpoint: subscription.endpoint.substring(0, 50) + '...'
+    });
 
     return deviceSubscription;
   }
@@ -213,7 +225,7 @@ export class DeviceSubscriptionManager {
       const registration = await navigator.serviceWorker.ready;
       return await registration.pushManager.getSubscription();
     } catch (error) {
-      console.warn("Failed to get existing subscription:", error);
+      logger.warn("Failed to get existing subscription", { error: error as Error, deviceId: 'unknown' });
       return null;
     }
   }
@@ -234,9 +246,9 @@ export class DeviceSubscriptionManager {
         await subscription.unsubscribe();
       }
 
-      console.log(`✅ Device subscription ${deviceId} removed successfully`);
+      logger.success("Device subscription removed successfully", { deviceId });
     } catch (error) {
-      console.error(`❌ Failed to remove device subscription ${deviceId}:`, error);
+      logger.error("Failed to remove device subscription", error as Error, { deviceId });
       throw error;
     }
   }
@@ -249,7 +261,7 @@ export class DeviceSubscriptionManager {
     if (subscription) {
       subscription.lastUsed = new Date();
       this.saveToLocalStorage();
-      console.log(`✅ Device subscription ${deviceId} refreshed`);
+      logger.success("Device subscription refreshed", { deviceId });
     }
   }
 
@@ -342,7 +354,7 @@ export class DeviceSubscriptionManager {
       };
       localStorage.setItem('device-subscriptions', JSON.stringify(data));
     } catch (error) {
-      console.warn('Failed to save to localStorage:', error);
+      logger.warn("Failed to save to localStorage", { error: error as Error, operation: 'save' });
     }
   }
 
@@ -363,10 +375,12 @@ export class DeviceSubscriptionManager {
           subscription.lastUsed = new Date(subscription.lastUsed);
         }
         
-        console.log(`✅ Loaded ${this.deviceSubscriptions.size} device subscriptions from localStorage`);
+        logger.info("Loaded device subscriptions from localStorage", { 
+          count: this.deviceSubscriptions.size 
+        });
       }
     } catch (error) {
-      console.warn('Failed to load from localStorage:', error);
+      logger.warn("Failed to load from localStorage", { error: error as Error, operation: 'load' });
     }
   }
 
@@ -377,7 +391,7 @@ export class DeviceSubscriptionManager {
     this.deviceSubscriptions.clear();
     this.currentDeviceId = null;
     localStorage.removeItem('device-subscriptions');
-    console.log('✅ Device subscription manager cleared');
+    logger.info("Device subscription manager cleared");
   }
 }
 

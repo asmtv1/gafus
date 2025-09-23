@@ -1,67 +1,58 @@
 // Профессиональный логгер для проекта
+// Теперь использует единый логгер @gafus/logger
 
-export type LogMeta = Record<string, unknown>;
+import { 
+  createWebLogger, 
+  createTrainerPanelLogger, 
+  createErrorDashboardLogger,
+  createTelegramBotLogger,
+  createWorkerLogger,
+  createBullBoardLogger,
+  type Logger,
+  type LogMeta
+} from "@gafus/logger";
 
-export interface Logger {
-  info: (message: string, meta?: LogMeta) => void;
-  warn: (message: string, meta?: LogMeta) => void;
-  error: (message: string, meta?: LogMeta) => void;
-  debug: (message: string, meta?: LogMeta) => void;
-  success: (message: string, meta?: LogMeta) => void;
-}
+// Экспортируем типы для обратной совместимости
+export type { LogMeta, Logger };
 
 /**
  * Создает логгер с контекстом
- * В production режиме отключает debug логи и уменьшает вербозность
+ * Автоматически определяет тип приложения по контексту
+ * В production режиме отправляет ошибки в error-dashboard
  */
 export function createLogger(context: string): Logger {
-  const isProduction = process.env.NODE_ENV === "production";
-  const isDevelopment = process.env.NODE_ENV === "development";
-
-  const formatMessage = (level: string, message: string, meta?: LogMeta): string => {
-    const timestamp = new Date().toISOString();
-    const prefix = `[${timestamp}] [${context}] ${level}:`;
-
-    if (meta && Object.keys(meta).length > 0) {
-      return `${prefix} ${message} ${JSON.stringify(meta)}`;
-    }
-
-    return `${prefix} ${message}`;
-  };
-
-  return {
-    info: (message: string, meta?: LogMeta) => {
-      console.log(formatMessage("INFO", message, meta));
-    },
-
-    warn: (message: string, meta?: LogMeta) => {
-      console.warn(formatMessage("WARN", message, meta));
-    },
-
-    error: (message: string, meta?: LogMeta) => {
-      console.error(formatMessage("ERROR", message, meta));
-    },
-
-    debug: (message: string, meta?: LogMeta) => {
-      // В production не выводим debug логи
-      if (!isProduction) {
-        console.log(formatMessage("DEBUG", message, meta));
-      }
-    },
-
-    success: (message: string, meta?: LogMeta) => {
-      // В production только записываем в консоль без эмодзи
-      if (isProduction) {
-        console.log(formatMessage("SUCCESS", message, meta));
-      } else if (isDevelopment) {
-        console.log(formatMessage("✅ SUCCESS", message, meta));
-      }
-    },
-  };
+  // Определяем тип приложения по контексту
+  if (context.includes('web') || context.includes('client')) {
+    return createWebLogger(context);
+  }
+  
+  if (context.includes('trainer') || context.includes('panel')) {
+    return createTrainerPanelLogger(context);
+  }
+  
+  if (context.includes('error-dashboard') || context.includes('dashboard')) {
+    return createErrorDashboardLogger(context);
+  }
+  
+  if (context.includes('telegram') || context.includes('bot')) {
+    return createTelegramBotLogger(context);
+  }
+  
+  if (context.includes('worker') || context.includes('queue') || context.includes('redis')) {
+    return createWorkerLogger(context);
+  }
+  
+  if (context.includes('bull') || context.includes('board')) {
+    return createBullBoardLogger(context);
+  }
+  
+  // По умолчанию используем web логгер
+  return createWebLogger(context);
 }
 
 /**
  * Логгер-заглушка для тестов или случаев когда логирование не нужно
+ * Теперь использует silent логгер из @gafus/logger
  */
 export const silentLogger: Logger = {
   info: () => {},
@@ -69,10 +60,13 @@ export const silentLogger: Logger = {
   error: () => {},
   debug: () => {},
   success: () => {},
+  fatal: () => {},
+  dev: () => {},
 };
 
 /**
  * Проверяет, нужно ли логировать на определенном уровне
+ * Теперь использует логику из @gafus/logger
  */
 export function shouldLog(level: "debug" | "info" | "warn" | "error"): boolean {
   const isProduction = process.env.NODE_ENV === "production";

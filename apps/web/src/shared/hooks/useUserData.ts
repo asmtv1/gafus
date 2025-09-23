@@ -4,8 +4,12 @@ import { useData, useMutate, useQueryClient } from "@gafus/react-query";
 import { getUserPreferences } from "@shared/lib/user/getUserPreferences";
 import { getUserProfile } from "@shared/lib/user/getUserProfile";
 import { updateUserProfile } from "@shared/lib/user/updateUserProfile";
+import { createWebLogger } from "@gafus/logger";
 
 import type { UserProfile, UserPreferences } from "@gafus/types";
+
+// Создаем логгер для useUserData hooks
+const logger = createWebLogger('web-use-user-data');
 
 export function useUserProfile() {
   return useData<UserProfile | null>(
@@ -14,7 +18,9 @@ export function useUserProfile() {
       try {
         return await getUserProfile();
       } catch (error) {
-        console.error("Ошибка загрузки профиля:", error);
+        logger.error("Ошибка загрузки профиля", error as Error, {
+          operation: 'load_user_profile_error'
+        });
         return null;
       }
     },
@@ -58,7 +64,9 @@ export function useUserPreferences() {
           }
         );
       } catch (error) {
-        console.error("Ошибка загрузки настроек:", error);
+        logger.error("Ошибка загрузки настроек", error as Error, {
+          operation: 'load_user_preferences_error'
+        });
         return {
           notifications: {
             push: true,
@@ -112,7 +120,10 @@ export function useUserMutations() {
       queryClient.setQueryData(["user:profile"], updatedProfile);
       return { success: true, data: updatedProfile };
     } catch (error) {
-      console.error("Ошибка обновления профиля:", error);
+      logger.error("Ошибка обновления профиля", error as Error, {
+        operation: 'update_user_profile_error',
+        profileData: data
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : "Неизвестная ошибка",

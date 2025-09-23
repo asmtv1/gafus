@@ -2,7 +2,11 @@
 
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { unstable_cache } from "next/cache";
+
+// Создаем логгер для searchUsersByUsername
+const logger = createTrainerPanelLogger('trainer-panel-search-users');
 
 export const searchUsersByUsername = unstable_cache(
   async (search: string) => {
@@ -19,7 +23,10 @@ export const searchUsersByUsername = unstable_cache(
         select: { id: true, username: true },
       });
     } catch (error) {
-      console.error("❌ Error in searchUsersByUsername:", error);
+      logger.error("❌ Error in searchUsersByUsername", error as Error, {
+        operation: 'search_users_by_username_error',
+        search: search
+      });
 
       await reportErrorToDashboard({
         message: error instanceof Error ? error.message : "Unknown error in searchUsersByUsername",

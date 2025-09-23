@@ -1,7 +1,7 @@
 "use client";
 
 import { useData } from "@gafus/react-query";
-import { getErrorStats } from "@shared/lib/actions/errorStats";
+import { getErrorStats } from "@shared/lib/actions/errors";
 
 export function useErrorStats() {
   return useData("error-stats", getErrorStats, {

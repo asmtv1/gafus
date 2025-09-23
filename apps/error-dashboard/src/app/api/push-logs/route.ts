@@ -1,7 +1,11 @@
 import { reportError } from "@shared/lib/actions/errors";
+import { createErrorDashboardLogger } from "@gafus/logger";
 import { NextResponse } from "next/server";
 
 import type { NextRequest } from "next/server";
+
+// Создаем логгер для error-dashboard (отключена отправка в error-dashboard)
+const logger = createErrorDashboardLogger('error-dashboard-push-logs');
 
 interface PushSpecificContext {
   context: string;
@@ -18,16 +22,30 @@ interface PushLogAdditionalContext {
 }
 
 export async function POST(request: NextRequest) {
+  let body = null;
   try {
-    const body = await request.json();
+    body = await request.json();
 
-    console.warn("Received push log:", body);
+    logger.info("Received push log", {
+      context: body.context,
+      service: body.service,
+      level: body.level,
+      message: body.message?.substring(0, 100),
+      hasAdditionalContext: !!body.additionalContext,
+      operation: 'receive_push_log'
+    });
 
     // Валидация обязательных полей для push-логов
     const requiredFields = ["message", "context", "service"];
     for (const field of requiredFields) {
       if (!body[field]) {
-        console.warn(`Missing required field: ${field}`);
+        logger.warn(`Missing required field: ${field}`, {
+          field: field,
+          hasMessage: !!body.message,
+          hasContext: !!body.context,
+          hasService: !!body.service,
+          operation: 'validate_push_log'
+        });
         return NextResponse.json(
           { error: `Отсутствует обязательное поле: ${field}` },
           {
@@ -100,7 +118,11 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error("Ошибка при обработке push-лога:", error);
+    logger.error("Ошибка при обработке push-лога", error as Error, {
+      operation: 'process_push_log',
+      hasBody: !!body,
+      bodyKeys: body ? Object.keys(body) : []
+    });
     return NextResponse.json(
       { error: "Внутренняя ошибка сервера" },
       {
@@ -186,7 +208,10 @@ export async function GET(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error("Ошибка при получении push-логов:", error);
+    logger.error("Ошибка при получении push-логов", error as Error, {
+      operation: 'get_push_logs',
+      hasSearchParams: !!request.nextUrl.searchParams
+    });
     return NextResponse.json(
       { error: "Внутренняя ошибка сервера" },
       {

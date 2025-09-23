@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-console.warn("🟢 [Worker] Bootstrapping...");
+import { createWorkerLogger } from "@gafus/logger";
+
+const logger = createWorkerLogger('bootstrap');
+logger.info("Bootstrapping...");
 
 // Импортируем основную логику воркера
 import "./push-worker";
 
-console.warn("🟢 [Worker] Worker is up and running 🚀");
+logger.success("Worker is up and running 🚀");

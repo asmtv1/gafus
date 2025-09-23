@@ -2,6 +2,7 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
+import { createWebLogger } from "@gafus/logger";
 
 import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
 
@@ -9,6 +10,9 @@ import type { TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 import { optionalTrainingTypeSchema, optionalUserIdSchema } from "../validation/schemas";
+
+// Создаем логгер для getTrainingDays
+const logger = createWebLogger('web-get-training-days');
 
 export async function getTrainingDays(typeParam?: string, userId?: string): Promise<{
   trainingDays: (Pick<TrainingDetail, "trainingDayId" | "day" | "title" | "type" | "courseId" | "userStatus"> & { estimatedDuration: number; equipment: string })[];
@@ -25,11 +29,17 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
     const safeType = optionalTrainingTypeSchema.parse(typeParam);
     
     if (!currentUserId) {
-      console.error("getTrainingDays: userId is null or undefined");
+      logger.error("getTrainingDays: userId is null or undefined", new Error("User not authenticated"), {
+        operation: 'get_training_days_user_not_authenticated'
+      });
       throw new Error("Пользователь не авторизован");
     }
     
-    console.warn("getTrainingDays: userId =", currentUserId, "typeParam =", safeType);
+    logger.info("getTrainingDays: userId and typeParam", {
+      operation: 'get_training_days_params',
+      userId: currentUserId,
+      typeParam: safeType
+    });
     const courseWhere = safeType ? { type: safeType } : {};
 
     const firstCourse = await prisma.course.findFirst({
@@ -144,7 +154,9 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
       courseTrainingLevel: firstCourse.trainingLevel,
     };
   } catch (error) {
-    console.error("Ошибка в getTrainingDays:", error);
+    logger.error("Ошибка в getTrainingDays", error as Error, {
+      operation: 'get_training_days_error'
+    });
     throw new Error("Не удалось загрузить Тренировки");
   }
 }

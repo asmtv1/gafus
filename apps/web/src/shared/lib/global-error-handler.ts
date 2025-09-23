@@ -1,8 +1,12 @@
 "use client";
 
 import { ErrorReporter } from "./ErrorReporter";
+import { createWebLogger } from "@gafus/logger";
 
 import type { ErrorBoundaryConfig } from "@gafus/types";
+
+// Создаем логгер для клиентской части
+const logger = createWebLogger('web-global-error-handler');
 
 let globalErrorReporter: ErrorReporter | null = null;
 
@@ -29,7 +33,13 @@ export function setupGlobalErrorHandling(config?: Partial<ErrorBoundaryConfig>) 
   // Отлов необработанных ошибок JavaScript
   window.onerror = (message, source, lineno, colno, error) => {
     if (error && globalErrorReporter) {
-      console.error("Глобальная ошибка JS:", error);
+      logger.error("Глобальная ошибка JS", error, {
+        operation: 'global_js_error',
+        source: source,
+        lineno: lineno,
+        colno: colno,
+        message: message
+      });
       globalErrorReporter.reportError(error, {
         componentStack: `Global (window.onerror) - ${source}:${lineno}:${colno}`,
         errorBoundaryName: "GlobalErrorHandler",
@@ -45,7 +55,10 @@ export function setupGlobalErrorHandling(config?: Partial<ErrorBoundaryConfig>) 
   // Отлов необработанных Promise rejections
   window.onunhandledrejection = (event) => {
     if (event.reason instanceof Error && globalErrorReporter) {
-      console.error("Необработанный Promise rejection:", event.reason);
+      logger.error("Необработанный Promise rejection", event.reason, {
+        operation: 'unhandled_promise_rejection',
+        reason: event.reason.toString()
+      });
       globalErrorReporter.reportError(event.reason, {
         componentStack: `Global (unhandledrejection)`,
         errorBoundaryName: "GlobalPromiseHandler",
@@ -57,6 +70,10 @@ export function setupGlobalErrorHandling(config?: Partial<ErrorBoundaryConfig>) 
     } else if (globalErrorReporter) {
       // Если причина не Error, создаем искусственную ошибку
       const syntheticError = new Error(`Unhandled rejection: ${event.reason}`);
+      logger.error("Необработанный Promise rejection (не Error)", syntheticError, {
+        operation: 'unhandled_promise_rejection_non_error',
+        reason: String(event.reason)
+      });
       globalErrorReporter.reportError(syntheticError, {
         componentStack: `Global (unhandledrejection)`,
         errorBoundaryName: "GlobalPromiseHandler",
@@ -69,7 +86,11 @@ export function setupGlobalErrorHandling(config?: Partial<ErrorBoundaryConfig>) 
   };
 
   if (mergedConfig.logToConsole) {
-    console.warn("✅ Глобальный отлов ошибок настроен.");
+    logger.info("✅ Глобальный отлов ошибок настроен", {
+      operation: 'setup_global_error_handling',
+      appName: mergedConfig.appName,
+      environment: mergedConfig.environment
+    });
   }
 }
 

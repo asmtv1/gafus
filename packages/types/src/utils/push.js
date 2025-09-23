@@ -1,2 +1,4 @@
+"use strict";
 // Типы для push-воркера
-export {};
+Object.defineProperty(exports, "__esModule", { value: true });
+//# sourceMappingURL=push.js.map

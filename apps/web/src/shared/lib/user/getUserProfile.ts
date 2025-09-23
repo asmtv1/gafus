@@ -2,12 +2,17 @@
 "use server";
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
+import { createWebLogger } from "@gafus/logger";
 
 import { getCurrentUserId } from "@/utils";
 
+// Создаем логгер для getUserProfile
+const logger = createWebLogger('web-get-user-profile');
+
 export async function getUserProfile() {
+  let userId: string | null = null;
   try {
-    const userId = await getCurrentUserId();
+    userId = await getCurrentUserId();
     if (!userId) throw new Error("Не удалось получить профиль пользователя");
 
     const profile = await prisma.userProfile.findUnique({
@@ -15,7 +20,10 @@ export async function getUserProfile() {
     });
     return profile;
   } catch (error) {
-    console.error("Ошибка в getUserProfile:", error);
+    logger.error("Ошибка в getUserProfile", error as Error, {
+      operation: 'get_user_profile_error',
+      hasUserId: !!userId
+    });
 
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error in getUserProfile",

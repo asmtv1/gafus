@@ -3,6 +3,7 @@
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createStepNotificationsForUserStep } from "@shared/lib/StepNotification/createStepNotification";
+import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
 import { TrainingStatus } from "@gafus/types";
@@ -11,6 +12,9 @@ import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
 import { courseIdSchema, dayNumberSchema, stepIndexSchema } from "../validation/schemas";
+
+// Создаем логгер для startUserStepServerAction
+const logger = createWebLogger('web-start-user-step-server-action');
 
 const startStepSchema = z.object({
   courseId: courseIdSchema,
@@ -30,8 +34,9 @@ export async function startUserStepServerAction(
   durationSec: number,
 ): Promise<{ success: boolean }> {
   const safeInput = startStepSchema.parse({ courseId, day, stepIndex, status, durationSec });
+  let userId: string | null = null;
   try {
-    const userId = await getCurrentUserId();
+    userId = await getCurrentUserId();
 
     // Получаем информацию о шаге для уведомления в транзакции
 
@@ -105,7 +110,12 @@ export async function startUserStepServerAction(
           },
         });
       } catch (courseError) {
-        console.error("Failed to update course status:", courseError);
+        logger.error("Failed to update course status", courseError as Error, {
+          operation: 'update_course_status_error',
+          courseId: courseId,
+          userId: userId,
+          status: "IN_PROGRESS"
+        });
         // Не прерываем выполнение, если обновление курса не удалось
       }
     }
@@ -122,7 +132,13 @@ export async function startUserStepServerAction(
         maybeUrl: stepInfo.trainingUrl,
       });
     } catch (notificationError) {
-      console.error("❌ Failed to create step notifications:", notificationError);
+      logger.error("❌ Failed to create step notifications", notificationError as Error, {
+        operation: 'create_step_notifications_error',
+        courseId: courseId,
+        day: day,
+        stepIndex: stepIndex,
+        userId: userId
+      });
       // Не прерываем выполнение, если уведомления не создались
     }
 
@@ -130,12 +146,21 @@ export async function startUserStepServerAction(
     const cacheResult = await invalidateUserProgressCache(userId, false);
     
     if (cacheResult.skipped) {
-      console.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`);
+      logger.info(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`, {
+        operation: 'cache_invalidation_skipped_offline',
+        userId: userId
+      });
     }
 
     return { success: true };
   } catch (error) {
-    console.error("💥 startUserStepServerAction failed:", error);
+    logger.error("💥 startUserStepServerAction failed", error as Error, {
+      operation: 'start_user_step_server_action_failed',
+      courseId: courseId,
+      day: day,
+      stepIndex: stepIndex,
+      userId: userId
+    });
 
     await reportErrorToDashboard({
       message:

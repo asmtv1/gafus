@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import { useData } from "./useData";
+import { createWebLogger } from "@gafus/logger";
 
 import type { UseQueryOptions } from "@tanstack/react-query";
+
+// Создаем логгер для react-query
+const logger = createWebLogger('react-query-optimized');
 
 // Типы данных для оптимизации
 interface CourseData {
@@ -80,7 +84,12 @@ export function useCoursesData<T extends CourseData>(
 
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
-    console.warn(`📚 Courses loaded: ${key}`);
+    logger.info(`Courses loaded: ${key}`, {
+      dataType: 'courses',
+      key: key,
+      hasData: !!result.data,
+      strategy: 'courses'
+    });
   }
 
   return result;
@@ -99,7 +108,12 @@ export function useUserProfileData<T extends UserProfileData>(
 
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
-    console.warn(`👤 User profile loaded: ${key}`);
+    logger.info(`User profile loaded: ${key}`, {
+      dataType: 'user-profile',
+      key: key,
+      hasData: !!result.data,
+      strategy: 'user-profile'
+    });
   }
 
   return result;
@@ -118,7 +132,12 @@ export function useStatisticsData<T extends StatisticsData>(
 
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
-    console.warn(`📊 Statistics loaded: ${key}`);
+    logger.info(`Statistics loaded: ${key}`, {
+      dataType: 'statistics',
+      key: key,
+      hasData: !!result.data,
+      strategy: 'statistics'
+    });
   }
 
   return result;
@@ -137,7 +156,12 @@ export function useSearchData<T>(
 
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
-    console.warn(`🔍 Search data loaded: ${key}`);
+    logger.info(`Search data loaded: ${key}`, {
+      dataType: 'search',
+      key: key,
+      hasData: !!result.data,
+      strategy: 'search'
+    });
   }
 
   return result;
@@ -156,7 +180,12 @@ export function useRealTimeData<T>(
 
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
-    console.warn(`⚡ Real-time data loaded: ${key}`);
+    logger.info(`Real-time data loaded: ${key}`, {
+      dataType: 'real-time',
+      key: key,
+      hasData: !!result.data,
+      strategy: 'real-time'
+    });
   }
 
   return result;
@@ -176,7 +205,12 @@ export function useOptimizedData<T>(
 
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
-    console.warn(`📦 Data loaded with ${strategy} strategy: ${key}`);
+    logger.info(`Data loaded with ${strategy} strategy: ${key}`, {
+      dataType: 'optimized',
+      key: key,
+      hasData: !!result.data,
+      strategy: strategy
+    });
   }
 
   return result;

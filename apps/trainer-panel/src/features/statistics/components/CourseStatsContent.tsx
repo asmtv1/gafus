@@ -13,15 +13,17 @@ import {
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { createTrainerPanelLogger } from "@gafus/logger";
 
 import DayAnalytics from "./DayAnalytics";
 import ProgressAnalytics from "./ProgressAnalytics";
 import SocialAnalytics from "./SocialAnalytics";
 import TimeAnalytics from "./TimeAnalytics";
 import UserPublicModal from "./UserPublicModal";
-
 import { Toast, useToast } from "@shared/components/ui/Toast";
 import { deleteCourseServerAction } from "@shared/lib/actions/courses";
+// Создаем логгер для CourseStatsContent
+const logger = createTrainerPanelLogger('trainer-panel-course-stats');
 
 import {
   Avatar,
@@ -106,7 +108,10 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
       }
       showToast("Курс удалён", "success");
     } catch (e) {
-      console.error(e);
+      logger.error("Ошибка удаления курса", e as Error, {
+        operation: 'delete_course_error',
+        courseId: course.id
+      });
       showToast("Ошибка удаления курса", "error");
     }
   };

@@ -11,103 +11,10 @@ interface PushSubscriptionJSON {
 }
 
 import webpush from "web-push";
-import type { PushLogEntry } from "./types";
+import { createWorkerLogger } from "@gafus/logger";
 
-// Функция для отправки логов в error-dashboard
-const sendToErrorDashboard = async (logEntry: PushLogEntry): Promise<void> => {
-  try {
-    const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || "http://gafus-error-dashboard:3005";
-
-    const errorReport = {
-      message: logEntry.message,
-      stack:
-        logEntry.error && typeof logEntry.error === "object" && "stack" in logEntry.error
-          ? (logEntry.error as { stack?: string }).stack || null
-          : null,
-      appName: "push-notifications",
-      environment: process.env.NODE_ENV || "development",
-      url: `${errorDashboardUrl}/push-logs`,
-      userAgent: "push-service",
-      userId: logEntry.userId || null,
-      sessionId: null,
-      componentStack: null,
-      additionalContext: {
-        context: logEntry.context,
-        service: logEntry.service,
-        notificationId: logEntry.notificationId,
-        endpoint: logEntry.endpoint,
-        timestamp: logEntry.timestamp,
-        level: logEntry.level,
-        ...logEntry.meta,
-      },
-      tags: ["push-notifications", logEntry.level, logEntry.context],
-    };
-
-    const response = await fetch(`${errorDashboardUrl}/api/report`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(errorReport),
-    });
-
-    if (!response.ok) {
-      // не кидаем исключение — логируем локально
-      console.error(
-        `Failed to send log to error-dashboard: ${response.status} ${response.statusText}`,
-      );
-    }
-  } catch (error) {
-    console.error("Failed to send log to error-dashboard:", error);
-  }
-};
-
-// Logger
-interface PushLogger {
-  info(message: string, meta?: Record<string, unknown>): void;
-  warn(message: string, meta?: Record<string, unknown>): void;
-  error(message: string, error?: unknown, meta?: Record<string, unknown>): void;
-  debug(message: string, meta?: Record<string, unknown>): void;
-}
-
-const createPushLogger = (context: string): PushLogger => {
-  const logToErrorDashboard = (
-    level: string,
-    message: string,
-    error?: unknown,
-    meta?: Record<string, unknown>,
-  ) => {
-    const logEntry: PushLogEntry = {
-      timestamp: new Date().toISOString(),
-      level: level as PushLogEntry["level"],
-      context,
-      message,
-      error:
-        error instanceof Error
-          ? { name: error.name, message: error.message, stack: error.stack }
-          : error,
-      meta,
-      service: "push-notifications",
-    };
-
-    // Fire-and-forget: не блокируем основной поток отправкой логов
-    void sendToErrorDashboard(logEntry);
-
-    if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
-      console.log(`[${context}] ${level.toUpperCase()}: ${message}`, { error, meta });
-    }
-  };
-
-  return {
-    info: (message, meta) => logToErrorDashboard("info", message, undefined, meta),
-    warn: (message, meta) => logToErrorDashboard("warn", message, undefined, meta),
-    error: (message, error, meta) => logToErrorDashboard("error", message, error, meta),
-    debug: (message, meta) => logToErrorDashboard("debug", message, undefined, meta),
-  };
-};
-
-const logger = createPushLogger("webpush-service");
+// Создаем логгер для webpush сервиса
+const logger = createWorkerLogger('webpush-service');
 
 // Валидация
 const validateVapidPublicKey = (key: string) => !!key && key.length >= 20;

@@ -2,10 +2,14 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { createWebLogger } from "@gafus/logger";
 
 import type { OptimizedImageProps } from "@gafus/types";
 
 import { shouldUseLazyLoading, shouldUsePriority } from "@/utils/imageLoading";
+
+// Создаем логгер для изображений
+const logger = createWebLogger('web-optimized-image');
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
@@ -44,7 +48,12 @@ export default function OptimizedImage({
   const finalSrc = imgError || !src ? placeholder : src;
 
   const handleError = () => {
-    console.warn(`❌ OptimizedImage: Ошибка загрузки изображения в Safari: ${src}`);
+    logger.warn(`❌ OptimizedImage: Ошибка загрузки изображения в Safari`, {
+      operation: 'image_load_error_safari',
+      src: src,
+      retryCount: retryCount,
+      isSafariBrowser: isSafariBrowser
+    });
     
     // В Safari попробуем перезагрузить изображение несколько раз
     if (isSafariBrowser && retryCount < 2) {
@@ -67,7 +76,10 @@ export default function OptimizedImage({
         // Изображение загружено успешно
       };
       img.onerror = () => {
-        console.warn(`⚠️ OptimizedImage: Safari - изображение не загрузилось: ${src}`);
+        logger.warn(`⚠️ OptimizedImage: Safari - изображение не загрузилось`, {
+          operation: 'safari_image_load_failed',
+          src: src
+        });
         // Не устанавливаем ошибку сразу, даем шанс Next.js Image
       };
       img.src = src;

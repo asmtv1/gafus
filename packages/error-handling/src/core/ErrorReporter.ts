@@ -18,6 +18,8 @@ interface ErrorReporterConfig {
   showErrorDetails?: boolean;
 }
 
+import { createLogger } from './logger';
+
 /**
  * Базовый класс для отчетности об ошибках
  * Может использоваться в любых приложениях (React, Node.js, etc.)
@@ -25,11 +27,14 @@ interface ErrorReporterConfig {
 export class ErrorReporter {
   private config: ErrorReporterConfig;
   private dashboardUrl: string;
+  private logger: ReturnType<typeof createLogger>;
 
   constructor(config: ErrorReporterConfig) {
     this.config = config;
     // URL дашборда ошибок - можно настроить через переменные окружения
     this.dashboardUrl = process.env.ERROR_DASHBOARD_URL || "http://errors.gafus.localhost";
+    // Создаем логгер для error-handling
+    this.logger = createLogger(`error-handling-${config.appName}`, config.environment);
   }
 
   /**
@@ -60,7 +65,11 @@ export class ErrorReporter {
 
       return true;
     } catch (reportingError) {
-      console.error("Ошибка при отправке отчета об ошибке:", reportingError);
+      this.logger.error("Ошибка при отправке отчета об ошибке", reportingError as Error, {
+        originalError: error.message,
+        errorInfo: errorInfo,
+        additionalContext: additionalContext
+      });
       return false;
     }
   }
@@ -122,10 +131,14 @@ export class ErrorReporter {
    * Логирование в консоль
    */
   private logToConsole(error: Error, errorInfo: ErrorInfo): void {
-    console.group(`🚨 Ошибка в ${this.config.appName}`);
-    console.error("Ошибка:", error);
-    console.error("Информация:", errorInfo);
-    console.groupEnd();
+    this.logger.error(`Ошибка в ${this.config.appName}`, error, {
+      componentStack: errorInfo.componentStack,
+      errorBoundaryName: errorInfo.errorBoundaryName,
+      url: errorInfo.url,
+      userAgent: errorInfo.userAgent,
+      userId: errorInfo.userId,
+      sessionId: errorInfo.sessionId
+    });
   }
 
   /**
@@ -156,7 +169,12 @@ export class ErrorReporter {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (fetchError) {
-      console.error("Не удалось отправить ошибку в дашборд:", fetchError);
+      this.logger.error("Не удалось отправить ошибку в дашборд", fetchError as Error, {
+        dashboardUrl: this.dashboardUrl,
+        errorName: error.name,
+        errorMessage: error.message,
+        appName: this.config.appName
+      });
     }
   }
 }

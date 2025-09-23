@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gafus/logger": "workspace:*",
     "react-hook-form": "^7.53.2"
   },
   "devDependencies": {

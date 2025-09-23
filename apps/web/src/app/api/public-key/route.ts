@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getPublicKeyAction } from '@shared/lib/actions/publicKey';
+import { createWebLogger } from '@gafus/logger';
+
+// Создаем логгер для web API
+const logger = createWebLogger('web-api-public-key');
 
 export async function GET() {
   try {
@@ -25,7 +29,10 @@ export async function GET() {
     });
     
   } catch (error) {
-    console.error('Error getting public key:', error);
+    logger.error('Error getting public key', error as Error, {
+      operation: 'get_public_key',
+      endpoint: '/api/public-key'
+    });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
