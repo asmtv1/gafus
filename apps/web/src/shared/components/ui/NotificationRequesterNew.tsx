@@ -46,16 +46,24 @@ export default function NotificationRequesterNew() {
           setVapidKey(publicKey ?? null);
         }
         
-        // Устанавливаем userId для push-уведомлений
-        if (session?.user?.id) {
+        // Устанавливаем userId для push-уведомлений только если сессия загружена
+        if (status === "authenticated" && session?.user?.id) {
           setUserId(session.user.id);
           
           // Проверяем серверную подписку только после установки userId
           setTimeout(() => {
             checkServerSubscription();
           }, 100);
+        } else if (status === "loading") {
+          // Сессия еще загружается, не логируем предупреждение
+          return;
         } else {
-          logger.warn("⚠️ NotificationRequesterNew: No user ID found in session", { operation: 'warn' });
+          logger.warn("⚠️ NotificationRequesterNew: No user ID found in session", { 
+            operation: 'warn',
+            status,
+            hasSession: !!session,
+            hasUserId: !!session?.user?.id
+          });
         }
       } catch (e) {
         if (!cancelled) {
@@ -68,7 +76,7 @@ export default function NotificationRequesterNew() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id, setUserId, checkServerSubscription]);
+  }, [status, session?.user?.id, setUserId, checkServerSubscription]);
 
   // Показываем SweetAlert2 модальное окно
   useEffect(() => {
