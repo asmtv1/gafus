@@ -122,5 +122,3 @@ export async function getPublicProfileAction(
     return { success: false, error: "Не удалось получить профиль пользователя" };
   }
 }
-
-

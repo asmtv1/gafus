@@ -538,5 +538,3 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
     </Box>
   );
 }
-
-

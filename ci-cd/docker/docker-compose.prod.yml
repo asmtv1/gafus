@@ -187,12 +187,14 @@ services:
     command: >
       sh -c "
         # Копируем статические файлы в volume, если их там нет
-        if [ ! -f /var/www/uploads/avatar.svg ]; then
+        if [ ! -d /var/www/uploads ] || [ -z \"$(ls -A /var/www/uploads 2>/dev/null)\" ]; then
+          echo 'Копируем файлы из public-assets в uploads...'
           cp -r /var/www/public-assets/uploads/* /var/www/uploads/ 2>/dev/null || true
         fi &&
         # Создаем симлинк для совместимости с приложениями
         rm -rf /var/www/public-assets/uploads &&
         ln -sf /var/www/uploads /var/www/public-assets/uploads &&
+        echo 'Запускаем nginx...' &&
         nginx -g 'daemon off;'
       "
     restart: unless-stopped

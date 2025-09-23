@@ -38,7 +38,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom color="text.primary">
         Социальная аналитика
       </Typography>
 
@@ -48,7 +48,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <Star sx={{ color: "warning.main", mr: 1 }} />
-              <Typography variant="h5" color="warning" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {averageRating.toFixed(1)}
               </Typography>
             </Box>
@@ -68,7 +68,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <Favorite sx={{ color: "error.main", mr: 1 }} />
-              <Typography variant="h5" color="error" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {favoriteCount}
               </Typography>
             </Box>
@@ -83,7 +83,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <ThumbUp sx={{ color: "success.main", mr: 1 }} />
-              <Typography variant="h5" color="success" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {totalSentiment > 0
                   ? Math.round((reviewSentiment.positive / totalSentiment) * 100)
                   : 0}
@@ -106,7 +106,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
               <TrendingUp sx={{ color: "info.main", mr: 1 }} />
-              <Typography variant="h5" color="info" fontWeight="bold">
+              <Typography variant="h5" color="text.primary" fontWeight="bold">
                 {recommendationEffectiveness}%
               </Typography>
             </Box>
@@ -119,7 +119,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
       </Box>
 
       {/* Распределение рейтингов */}
-      <Typography variant="subtitle1" gutterBottom>
+      <Typography variant="subtitle1" gutterBottom color="text.primary">
         Распределение рейтингов
       </Typography>
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -134,7 +134,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
                     <Star key={i} sx={{ color: "warning.main", fontSize: 16 }} />
                   ))}
                 </Box>
-                <Typography variant="h6" color="warning.main" fontWeight="bold">
+                <Typography variant="h6" color="text.primary" fontWeight="bold">
                   {count}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -152,7 +152,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
       </Paper>
 
       {/* Анализ тональности */}
-      <Typography variant="subtitle1" gutterBottom>
+      <Typography variant="subtitle1" gutterBottom color="text.primary">
         Анализ тональности отзывов
       </Typography>
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -161,7 +161,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
             <Box sx={{ textAlign: "center", p: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
                 <ThumbUp sx={{ color: "success.main", mr: 1 }} />
-                <Typography variant="h6" color="success.main" fontWeight="bold">
+                <Typography variant="h6" color="text.primary" fontWeight="bold">
                   {reviewSentiment.positive}
                 </Typography>
               </Box>
@@ -191,7 +191,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
             <Box sx={{ textAlign: "center", p: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
                 <SentimentSatisfied sx={{ color: "warning.main", mr: 1 }} />
-                <Typography variant="h6" color="warning.main" fontWeight="bold">
+                <Typography variant="h6" color="text.primary" fontWeight="bold">
                   {reviewSentiment.neutral}
                 </Typography>
               </Box>
@@ -221,7 +221,7 @@ export default function SocialAnalytics({ socialAnalytics }: SocialAnalyticsProp
             <Box sx={{ textAlign: "center", p: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
                 <ThumbDown sx={{ color: "error.main", mr: 1 }} />
-                <Typography variant="h6" color="error.main" fontWeight="bold">
+                <Typography variant="h6" color="text.primary" fontWeight="bold">
                   {reviewSentiment.negative}
                 </Typography>
               </Box>
