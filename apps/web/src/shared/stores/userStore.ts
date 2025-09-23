@@ -8,8 +8,12 @@ import {
 import { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createWebLogger } from "@gafus/logger";
 
 import type { UserState } from "@gafus/types";
+
+// Создаем логгер для user store
+const logger = createWebLogger('web-user-store');
 
 // Утилиты для проверки кэша
 const isStale = (timestamp: number, maxAge: number = CACHE_DURATION) => {
@@ -65,9 +69,14 @@ export const useUserStore = create<UserState>()(
         set({ isLoading: true, profileError: null });
 
         try {
-          console.warn("🔄 Получаем профиль через server action...");
+          logger.info("🔄 Получаем профиль через server action", {
+            operation: 'fetch_profile_start'
+          });
           const profile = await getUserProfile();
-          console.warn("✅ Профиль получен:", profile);
+          logger.success("✅ Профиль получен", {
+            operation: 'fetch_profile_success',
+            profile: profile
+          });
 
           set({
             profile,
@@ -80,7 +89,9 @@ export const useUserStore = create<UserState>()(
             profileError: errorMessage,
             isLoading: false,
           });
-          console.error("Ошибка загрузки профиля:", error);
+          logger.error("Ошибка загрузки профиля", error as Error, {
+            operation: 'fetch_profile_error'
+          });
         }
       },
 
@@ -95,7 +106,9 @@ export const useUserStore = create<UserState>()(
         set({ isUpdatingPreferences: true, preferencesError: null });
 
         try {
-          console.warn("🔄 Получаем настройки через server action...");
+          logger.info("🔄 Получаем настройки через server action", {
+            operation: 'fetch_preferences_start'
+          });
           const preferences = await getUserPreferences();
 
           if (preferences) {
@@ -111,7 +124,9 @@ export const useUserStore = create<UserState>()(
             preferencesError: errorMessage,
             isUpdatingPreferences: false,
           });
-          console.error("Ошибка загрузки настроек:", error);
+          logger.error("Ошибка загрузки настроек", error as Error, {
+            operation: 'fetch_preferences_error'
+          });
         }
       },
 
@@ -119,9 +134,14 @@ export const useUserStore = create<UserState>()(
         set({ isUpdating: true, profileError: null });
 
         try {
-          console.warn("🔄 Обновляем профиль через server action...");
+          logger.info("🔄 Обновляем профиль через server action", {
+            operation: 'update_profile_start'
+          });
           const updatedProfile = await updateUserProfile(data);
-          console.warn("✅ Профиль обновлен:", updatedProfile);
+          logger.success("✅ Профиль обновлен", {
+            operation: 'update_profile_success',
+            updatedProfile: updatedProfile
+          });
 
           set({
             profile: updatedProfile,
@@ -134,7 +154,9 @@ export const useUserStore = create<UserState>()(
             profileError: errorMessage,
             isUpdating: false,
           });
-          console.error("Ошибка обновления профиля:", error);
+          logger.error("Ошибка обновления профиля", error as Error, {
+            operation: 'update_profile_error'
+          });
           throw error;
         }
       },
@@ -143,7 +165,9 @@ export const useUserStore = create<UserState>()(
         set({ isUpdatingPreferences: true, preferencesError: null });
 
         try {
-          console.warn("🔄 Обновляем настройки через server action...");
+          logger.info("🔄 Обновляем настройки через server action", {
+            operation: 'update_preferences_start'
+          });
           const updatedPreferences = await updateUserPreferences(prefs);
 
           if (updatedPreferences) {
@@ -160,7 +184,9 @@ export const useUserStore = create<UserState>()(
             preferencesError: errorMessage,
             isUpdatingPreferences: false,
           });
-          console.error("Ошибка обновления настроек:", error);
+          logger.error("Ошибка обновления настроек", error as Error, {
+            operation: 'update_preferences_error'
+          });
           throw error;
         }
       },

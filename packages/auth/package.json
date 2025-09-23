@@ -20,6 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "bcryptjs": "^3.0.2",
     "libphonenumber-js": "1.12.8",

@@ -1,19 +1,39 @@
 import { reportError } from "@shared/lib/actions/errors";
+import { createErrorDashboardLogger } from "@gafus/logger";
 import { NextResponse } from "next/server";
 
 import type { NextRequest } from "next/server";
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
+// Создаем логгер для error-dashboard (отключена отправка в error-dashboard)
+const logger = createErrorDashboardLogger('error-dashboard-report');
 
-    console.warn("Received error report:", body);
+export async function POST(request: NextRequest) {
+  let body = null;
+  try {
+    body = await request.json();
+
+    logger.info("Received error report", {
+      appName: body.appName,
+      environment: body.environment,
+      message: body.message?.substring(0, 100),
+      hasStack: !!body.stack,
+      hasAdditionalContext: !!body.additionalContext,
+      operation: 'receive_error_report'
+    });
 
     // Валидация обязательных полей
     const requiredFields = ["message", "appName", "environment", "url", "userAgent"];
     for (const field of requiredFields) {
       if (!body[field]) {
-        console.warn(`Missing required field: ${field}`);
+        logger.warn(`Missing required field: ${field}`, {
+          field: field,
+          hasMessage: !!body.message,
+          hasAppName: !!body.appName,
+          hasEnvironment: !!body.environment,
+          hasUrl: !!body.url,
+          hasUserAgent: !!body.userAgent,
+          operation: 'validate_error_report'
+        });
         return NextResponse.json(
           { error: `Отсутствует обязательное поле: ${field}` },
           { status: 400 },
@@ -42,7 +62,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }
   } catch (error) {
-    console.error("Ошибка при обработке отчета об ошибке:", error);
+    logger.error("Ошибка при обработке отчета об ошибке", error as Error, {
+      operation: 'process_error_report',
+      hasBody: !!body,
+      bodyKeys: body ? Object.keys(body) : []
+    });
     return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
   }
 }

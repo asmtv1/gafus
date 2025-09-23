@@ -1,5 +1,9 @@
 import { prisma } from "@gafus/prisma";
+import { createErrorDashboardLogger } from "@gafus/logger";
 import { NextResponse } from "next/server";
+
+// Создаем логгер для error-dashboard (отключена отправка в error-dashboard)
+const logger = createErrorDashboardLogger('error-dashboard-debug');
 
 export async function GET() {
   try {
@@ -25,7 +29,10 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    console.error("Debug API error:", error);
+    logger.error("Debug API error", error as Error, {
+      operation: 'debug_api',
+      endpoint: '/api/debug'
+    });
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

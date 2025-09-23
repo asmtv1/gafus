@@ -6,8 +6,12 @@ import {
   updateSubscriptionAction,
 } from "@shared/lib/actions/subscription";
 import serviceWorkerManager from "@shared/utils/serviceWorkerManager";
+import { createWebLogger } from "@gafus/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+
+// Создаем логгер для push store
+const logger = createWebLogger('web-push-store');
 
 interface PushState {
   subscription: PushSubscription | null;
@@ -72,9 +76,10 @@ export const usePushStore = create<PushState>()(
 
         set({ isLoading: true, error: null });
 
+        let registration: ServiceWorkerRegistration | null = null;
         try {
           // Используем универсальный менеджер SW
-          const registration = await serviceWorkerManager.register();
+          registration = await serviceWorkerManager.register();
 
           // Проверяем доступность pushManager
           if (!registration.pushManager) {
@@ -86,7 +91,10 @@ export const usePushStore = create<PushState>()(
           try {
             existingSubscription = await registration.pushManager.getSubscription();
           } catch (error) {
-            console.warn("⚠️ Не удалось получить существующую подписку:", error);
+            logger.warn("⚠️ Не удалось получить существующую подписку", {
+              operation: 'get_existing_subscription_error',
+              error: error instanceof Error ? error.message : String(error)
+            });
           }
 
           // Если подписка уже существует, проверяем есть ли она в БД
@@ -146,7 +154,10 @@ export const usePushStore = create<PushState>()(
                 return;
               }
             } catch (error) {
-              console.warn("Ошибка проверки БД, продолжаем создание новой подписки:", error);
+              logger.warn("Ошибка проверки БД, продолжаем создание новой подписки", {
+                operation: 'check_db_error_continue_subscription',
+                error: error instanceof Error ? error.message : String(error)
+              });
             }
           }
 
@@ -195,7 +206,11 @@ export const usePushStore = create<PushState>()(
 
           
         } catch (error) {
-          console.error("Push subscription setup failed:", error);
+          logger.error("Push subscription setup failed", error as Error, {
+            operation: 'push_subscription_setup_failed',
+            publicKey: vapidPublicKey,
+            hasRegistration: !!registration
+          });
           
           let errorMessage = "Unknown error occurred";
           
@@ -239,7 +254,10 @@ export const usePushStore = create<PushState>()(
                 hasLocalSubscription = false;
               }
             } catch (error) {
-              console.warn("Не удалось проверить локальную подписку:", error);
+              logger.warn("Не удалось проверить локальную подписку", {
+                operation: 'check_local_subscription_error',
+                error: error instanceof Error ? error.message : String(error)
+              });
               hasLocalSubscription = false;
             }
           }
@@ -272,13 +290,18 @@ export const usePushStore = create<PushState>()(
             set({ hasServerSubscription: isSynced });
             
           } catch (error) {
-            console.error("Ошибка проверки БД:", error);
+            logger.error("Ошибка проверки БД", error as Error, {
+              operation: 'check_db_error',
+              hasLocalSubscription: hasLocalSubscription
+            });
             // В случае ошибки БД, полагаемся только на локальную подписку
             set({ hasServerSubscription: hasLocalSubscription });
           }
           
         } catch (error) {
-          console.error("Unexpected error in checkServerSubscription:", error);
+          logger.error("Unexpected error in checkServerSubscription", error as Error, {
+            operation: 'check_server_subscription_unexpected_error'
+          });
           set({ hasServerSubscription: false });
         }
       },
@@ -305,7 +328,10 @@ export const usePushStore = create<PushState>()(
                 }
               }
             } catch (error) {
-              console.warn("Failed to get existing subscription:", error);
+              logger.warn("Failed to get existing subscription", {
+                operation: 'get_existing_subscription_failed',
+                error: error instanceof Error ? error.message : String(error)
+              });
             }
           }
 
@@ -315,15 +341,24 @@ export const usePushStore = create<PushState>()(
             try {
               await deleteSubscriptionAction(endpoint);
             } catch (error) {
-              console.warn("Failed to delete from database:", error);
+              logger.warn("Failed to delete from database", {
+                operation: 'delete_from_database_failed',
+                endpoint: endpoint,
+                error: error instanceof Error ? error.message : String(error)
+              });
             }
           } else {
             // Fallback: удаляем все подписки если не можем определить endpoint
             try {
-              console.warn("Endpoint not found, removing all subscriptions as fallback");
+              logger.warn("Endpoint not found, removing all subscriptions as fallback", {
+                operation: 'endpoint_not_found_fallback'
+              });
               await deleteSubscriptionAction();
             } catch (error) {
-              console.warn("Failed to delete all subscriptions:", error);
+              logger.warn("Failed to delete all subscriptions", {
+                operation: 'delete_all_subscriptions_failed',
+                error: error instanceof Error ? error.message : String(error)
+              });
             }
           }
 
@@ -332,7 +367,10 @@ export const usePushStore = create<PushState>()(
             try {
               await get().subscription!.unsubscribe();
             } catch (error) {
-              console.warn("Failed to unsubscribe from store:", error);
+              logger.warn("Failed to unsubscribe from store", {
+                operation: 'unsubscribe_from_store_failed',
+                error: error instanceof Error ? error.message : String(error)
+              });
             }
           }
 
@@ -347,7 +385,10 @@ export const usePushStore = create<PushState>()(
                 }
               }
             } catch (error) {
-              console.warn("Failed to unsubscribe from service worker:", error);
+              logger.warn("Failed to unsubscribe from service worker", {
+                operation: 'unsubscribe_from_service_worker_failed',
+                error: error instanceof Error ? error.message : String(error)
+              });
             }
           }
 
@@ -361,7 +402,9 @@ export const usePushStore = create<PushState>()(
 
           
         } catch (error) {
-          console.error("Ошибка при удалении подписки:", error);
+          logger.error("Ошибка при удалении подписки", error as Error, {
+            operation: 'delete_subscription_error'
+          });
           
           let errorMessage = "Не удалось удалить подписку";
           
@@ -383,6 +426,7 @@ export const usePushStore = create<PushState>()(
       },
 
       ensureActiveSubscription: async () => {
+        let publicKey: string | null = null; // Moved declaration outside try block
         try {
           if (!serviceWorkerManager.isSupported() || !isNotificationSupported()) return;
 
@@ -447,19 +491,26 @@ export const usePushStore = create<PushState>()(
                 }
               }
             } catch (error) {
-              console.warn("Ошибка проверки локальной подписки:", error);
+              logger.warn("Ошибка проверки локальной подписки", {
+                operation: 'check_local_subscription_error_ensure',
+                error: error instanceof Error ? error.message : String(error)
+              });
             }
           }
 
           // Если локальной подписки нет или она не синхронизирована, создаем новую
           const { getPublicKeyAction } = await import("@shared/lib/actions/publicKey");
-          const { publicKey } = await getPublicKeyAction();
+          const { publicKey: key } = await getPublicKeyAction();
+          publicKey = key;
 
           if (publicKey) {
             await get().setupPushSubscription(publicKey);
           }
         } catch (error) {
-          console.error("Failed to ensure active subscription:", error);
+          logger.error("Failed to ensure active subscription", error as Error, {
+            operation: 'ensure_active_subscription_failed',
+            publicKey: publicKey
+          });
         }
       },
 

@@ -1,3 +1,21 @@
+// Профессиональный логгер для обработки ошибок
+// Теперь использует единый логгер @gafus/logger
+
+import { 
+  createErrorDashboardLogger,
+  createWebLogger,
+  createTrainerPanelLogger,
+  createTelegramBotLogger,
+  createWorkerLogger,
+  createBullBoardLogger,
+  type Logger,
+  type LogMeta
+} from "@gafus/logger";
+
+// Экспортируем типы для обратной совместимости
+export type { LogMeta, Logger };
+
+// Маппинг уровней логов для обратной совместимости
 export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
@@ -12,66 +30,37 @@ export interface LoggerConfig {
   enableConsole: boolean;
 }
 
-export class Logger {
-  private config: LoggerConfig;
-
-  constructor(config: LoggerConfig) {
-    this.config = config;
-  }
-
-  private shouldLog(level: LogLevel): boolean {
-    return level >= this.config.level;
-  }
-
-  private formatMessage(level: string, message: string, context?: Record<string, unknown>): string {
-    const timestamp = new Date().toISOString();
-    const contextStr = context ? ` ${JSON.stringify(context)}` : "";
-    return `[${timestamp}] [${level}] [${this.config.appName}] ${message}${contextStr}`;
-  }
-
-  debug(message: string, context?: Record<string, unknown>): void {
-    if (this.shouldLog(LogLevel.DEBUG) && this.config.enableConsole) {
-      console.debug(this.formatMessage("DEBUG", message, context));
-    }
-  }
-
-  info(message: string, context?: Record<string, unknown>): void {
-    if (this.shouldLog(LogLevel.INFO) && this.config.enableConsole) {
-      console.info(this.formatMessage("INFO", message, context));
-    }
-  }
-
-  warn(message: string, context?: Record<string, unknown>): void {
-    if (this.shouldLog(LogLevel.WARN) && this.config.enableConsole) {
-      console.warn(this.formatMessage("WARN", message, context));
-    }
-  }
-
-  error(message: string, error?: Error, context?: Record<string, unknown>): void {
-    if (this.shouldLog(LogLevel.ERROR) && this.config.enableConsole) {
-      console.error(this.formatMessage("ERROR", message, context));
-      if (error) {
-        console.error(error);
-      }
-    }
-  }
-
-  // Метод для логирования только в development
-  dev(message: string, context?: Record<string, unknown>): void {
-    if (this.config.environment === "development" && this.config.enableConsole) {
-      console.warn(`[DEV] ${message}`, context);
-    }
-  }
-}
-
-// Создаем глобальный логгер
+/**
+ * Создает логгер с контекстом
+ * Автоматически определяет тип приложения по имени
+ * В production режиме отправляет ошибки в error-dashboard
+ */
 export const createLogger = (appName: string, environment = "development"): Logger => {
-  const level = environment === "production" ? LogLevel.WARN : LogLevel.DEBUG;
-
-  return new Logger({
-    level,
-    appName,
-    environment,
-    enableConsole: true,
-  });
+  // Определяем тип приложения по имени
+  if (appName.includes('error-dashboard') || appName.includes('dashboard')) {
+    return createErrorDashboardLogger(appName);
+  }
+  
+  if (appName.includes('web') || appName.includes('client')) {
+    return createWebLogger(appName);
+  }
+  
+  if (appName.includes('trainer') || appName.includes('panel')) {
+    return createTrainerPanelLogger(appName);
+  }
+  
+  if (appName.includes('telegram') || appName.includes('bot')) {
+    return createTelegramBotLogger(appName);
+  }
+  
+  if (appName.includes('worker') || appName.includes('queue') || appName.includes('redis')) {
+    return createWorkerLogger(appName);
+  }
+  
+  if (appName.includes('bull') || appName.includes('board')) {
+    return createBullBoardLogger(appName);
+  }
+  
+  // По умолчанию используем error-dashboard логгер (но без отправки в себя)
+  return createErrorDashboardLogger(appName);
 };

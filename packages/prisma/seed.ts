@@ -1,11 +1,20 @@
 import bcrypt from "bcrypt";
+import { createWebLogger } from "@gafus/logger";
 
 import { prisma } from "./src/index";
+
+// Создаем логгер для prisma seed
+const logger = createWebLogger('prisma-seed');
 
 const prismaClient = prisma;
 
 async function main() {
-  console.warn("💡 Начинаем сидирование базы данных...");
+  const startTime = Date.now();
+  
+  logger.info("Начинаем сидирование базы данных", {
+    environment: process.env.NODE_ENV || 'development',
+    databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
+  });
 
   const hashedPassword = await bcrypt.hash("2407041", 10);
 
@@ -20,7 +29,12 @@ async function main() {
       isConfirmed: true,
     },
   });
-  console.warn("✅ Админ создан или найден");
+  logger.success("Админ создан или найден", {
+    username: admin.username,
+    phone: admin.phone,
+    role: admin.role,
+    isConfirmed: admin.isConfirmed
+  });
 
   const [homeCourse, streetCourse, puppyCourse, authorCourse] = await prismaClient.$transaction([
     prismaClient.course.upsert({
@@ -84,7 +98,10 @@ async function main() {
       },
     }),
   ]);
-  console.warn("✅ Курсы созданы");
+  logger.success("Курсы созданы", {
+    courseCount: 4,
+    courseTypes: ["home", "street", "puppy", "author"]
+  });
 
   const [stepA, stepB, stepC] = await prismaClient.$transaction([
     prismaClient.step.create({
@@ -112,7 +129,10 @@ async function main() {
       },
     }),
   ]);
-  console.warn("✅ Базовые шаги созданы");
+  logger.success("Базовые шаги созданы", {
+    stepCount: steps.length,
+    stepTypes: steps.map(s => s.type)
+  });
 
   const baseDay = await prismaClient.trainingDay.create({
     data: {
@@ -129,7 +149,10 @@ async function main() {
       { dayId: baseDay.id, stepId: stepC.id, order: 3 },
     ],
   });
-  console.warn("✅ Связка шагов с базовым днём выполнена");
+  logger.success("Связка шагов с базовым днём выполнена", {
+    dayId: baseDay.id,
+    stepCount: steps.length
+  });
 
   for (let i = 1; i <= 14; i++) {
     await prismaClient.dayOnCourse.createMany({
@@ -139,7 +162,11 @@ async function main() {
       ],
     });
   }
-  console.warn("✅ Базовый день добавлен в курсы на 14 дней");
+  logger.success("Базовый день добавлен в курсы на 14 дней", {
+    dayId: baseDay.id,
+    courseCount: 4,
+    durationDays: 14
+  });
 
   const puppyDay = await prismaClient.trainingDay.create({
     data: {
@@ -176,7 +203,11 @@ async function main() {
   await prismaClient.dayOnCourse.create({
     data: { courseId: puppyCourse.id, dayId: puppyDay.id, order: 1 },
   });
-  console.warn("✅ Щенячий день добавлен в курс");
+  logger.success("Щенячий день добавлен в курс", {
+    dayId: puppyDay.id,
+    courseType: "puppy",
+    stepCount: puppySteps.length
+  });
 
   const authorDay = await prismaClient.trainingDay.create({
     data: {
@@ -200,7 +231,11 @@ async function main() {
   await prismaClient.dayOnCourse.create({
     data: { courseId: authorCourse.id, dayId: authorDay.id, order: 1 },
   });
-  console.warn("✅ Авторский день добавлен в курс");
+  logger.success("Авторский день добавлен в курс", {
+    dayId: authorDay.id,
+    courseType: "author",
+    stepCount: authorSteps.length
+  });
 
   await prismaClient.favoriteCourse.createMany({
     data: [
@@ -209,7 +244,11 @@ async function main() {
     ],
     skipDuplicates: true,
   });
-  console.warn("⭐ Курсы добавлены в избранное");
+  logger.success("Курсы добавлены в избранное", {
+    userId: admin.id,
+    favoriteCount: 4,
+    courseTypes: ["home", "street", "puppy", "author"]
+  });
 
   await prismaClient.courseReview.createMany({
     data: [
@@ -228,7 +267,10 @@ async function main() {
     ],
     skipDuplicates: true,
   });
-  console.warn("✅ Отзывы добавлены");
+  logger.success("Отзывы добавлены", {
+    reviewCount: reviews.length,
+    averageRating: reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+  });
 
   const allCourses = await prismaClient.course.findMany({
     include: { reviews: true },
@@ -246,7 +288,10 @@ async function main() {
       data: { avgRating: avg },
     });
   }
-  console.warn("📊 Средние рейтинги обновлены");
+  logger.success("Средние рейтинги обновлены", {
+    courseCount: 4,
+    averageRatings: courses.map(c => ({ id: c.id, rating: c.averageRating }))
+  });
   const hashedTrainerPassword = await bcrypt.hash("trainer123", 10);
 
   const trainer = await prismaClient.user.upsert({
@@ -260,7 +305,12 @@ async function main() {
       isConfirmed: true,
     },
   });
-  console.warn("👨‍🏫 Тренер создан");
+  logger.success("Тренер создан", {
+    trainerId: trainer.id,
+    username: trainer.username,
+    phone: trainer.phone,
+    role: trainer.role
+  });
 
   const [trainerStep1, trainerStep2] = await prismaClient.$transaction([
     prismaClient.step.create({
@@ -280,7 +330,11 @@ async function main() {
       },
     }),
   ]);
-  console.warn("✅ Шаги тренера созданы");
+  logger.success("Шаги тренера созданы", {
+    trainerId: trainer.id,
+    stepCount: trainerSteps.length,
+    stepTypes: trainerSteps.map(s => s.type)
+  });
 
   const [trainerDay1, trainerDay2] = await prismaClient.$transaction([
     prismaClient.trainingDay.create({
@@ -309,7 +363,11 @@ async function main() {
       { dayId: trainerDay2.id, stepId: trainerStep1.id, order: 2 },
     ],
   });
-  console.warn("✅ Дни тренера со связанными шагами созданы");
+  logger.success("Дни тренера со связанными шагами созданы", {
+    trainerId: trainer.id,
+    dayCount: trainerDays.length,
+    totalSteps: trainerDays.reduce((sum, day) => sum + day.steps.length, 0)
+  });
 
   const [trainerCourse1, trainerCourse2] = await prismaClient.$transaction([
     prismaClient.course.create({
@@ -350,13 +408,24 @@ async function main() {
     ],
   });
 
-  console.warn("✅ Курсы тренера созданы и дни добавлены в них");
-  console.warn("✅ Seed успешно выполнен");
+  logger.success("Курсы тренера созданы и дни добавлены в них", {
+    trainerId: trainer.id,
+    courseCount: trainerCourses.length,
+    totalDays: trainerCourses.reduce((sum, course) => sum + course.days.length, 0)
+  });
+  logger.success("Seed успешно выполнен", {
+    totalOperations: 15,
+    duration: Date.now() - startTime,
+    environment: process.env.NODE_ENV || 'development'
+  });
 }
 
 main()
   .then(() => prismaClient.$disconnect())
   .catch((e) => {
-    console.error("❌ Ошибка при сидировании", e);
+    logger.error("Ошибка при сидировании", e as Error, {
+      environment: process.env.NODE_ENV || 'development',
+      databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
+    });
     prismaClient.$disconnect().finally(() => process.exit(1));
   });

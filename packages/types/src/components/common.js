@@ -1,2 +1,4 @@
+"use strict";
 // Общие типы для компонентов
-export {};
+Object.defineProperty(exports, "__esModule", { value: true });
+//# sourceMappingURL=common.js.map

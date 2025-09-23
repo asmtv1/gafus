@@ -10,6 +10,7 @@ import {
 } from "@gafus/auth";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { createWebLogger } from "@gafus/logger";
 
 import {
   phoneSchema,
@@ -18,26 +19,45 @@ import {
   usernameSchema,
 } from "@shared/lib/validation/authSchemas";
 
+// Создаем логгер для login-utils
+const logger = createWebLogger('web-login-utils');
+
 // Проверка статуса подтверждения по имени пользователя
 export async function checkUserState(username: string) {
   try {
     const safeUsername = usernameSchema.parse(username);
-    console.warn("🔍 checkUserState started for username:", username);
+    logger.info("🔍 checkUserState started for username", {
+      operation: 'check_user_state_start',
+      username: username
+    });
 
     const phone = await getUserPhoneByUsername(safeUsername);
-    console.warn("📱 Found phone:", phone);
+    logger.info("📱 Found phone", {
+      operation: 'found_phone',
+      phone: phone
+    });
 
     if (!phone) {
-      console.warn("❌ No phone found for user");
+      logger.warn("❌ No phone found for user", {
+        operation: 'no_phone_found',
+        username: username
+      });
       return { confirmed: false, phone: null };
     }
 
     const confirmed = await checkUserConfirmed(phone);
-    console.warn("✅ User confirmed status:", confirmed);
+    logger.info("✅ User confirmed status", {
+      operation: 'user_confirmed_status',
+      confirmed: confirmed,
+      phone: phone
+    });
 
     return { confirmed, phone };
   } catch (error) {
-    console.error("❌ Error in checkUserState:", error);
+    logger.error("❌ Error in checkUserState", error as Error, {
+      operation: 'check_user_state_error',
+      username: username
+    });
 
     // Отправляем ошибку в дашборд
     await reportErrorToDashboard({
@@ -70,7 +90,11 @@ export async function sendPasswordResetRequest(username: string, phone: string) 
 
     return await sendTelegramPasswordResetRequest(safeUsername, safePhone);
   } catch (error) {
-    console.error("❌ Error in sendPasswordResetRequest:", error);
+    logger.error("❌ Error in sendPasswordResetRequest", error as Error, {
+      operation: 'send_password_reset_request_error',
+      username: username,
+      phone: phone
+    });
 
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error in sendPasswordResetRequest",
@@ -101,7 +125,11 @@ export async function registerUserAction(name: string, phone: string, password: 
 
     return await registerUser(result.data.name, result.data.phone, result.data.password);
   } catch (error) {
-    console.error("❌ Error in registerUserAction:", error);
+    logger.error("❌ Error in registerUserAction", error as Error, {
+      operation: 'register_user_action_error',
+      name,
+      phone
+    });
 
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error in registerUserAction",
@@ -126,7 +154,11 @@ export default async function resetPassword(token: string, password: string) {
     const { token: safeToken, password: safePassword } = resetPasswordSchema.parse({ token, password });
     await resetPasswordByToken(safeToken, safePassword);
   } catch (error) {
-    console.error("❌ Error in resetPassword:", error);
+    logger.error("❌ Error in resetPassword", error as Error, {
+      operation: 'reset_password_error',
+      token: token,
+      password: password
+    });
 
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error in resetPassword",
@@ -159,7 +191,11 @@ export async function checkPhoneMatchesUsername(username: string, phone: string)
 
     return inputPhone === storedPhone;
   } catch (error) {
-    console.error("❌ Error in checkPhoneMatchesUsername:", error);
+    logger.error("❌ Error in checkPhoneMatchesUsername", error as Error, {
+      operation: 'check_phone_matches_username_error',
+      username: username,
+      phone: phone
+    });
 
     await reportErrorToDashboard({
       message:

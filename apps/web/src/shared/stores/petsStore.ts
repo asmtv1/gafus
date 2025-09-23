@@ -1,9 +1,13 @@
 import { CACHE_DURATION } from "@gafus/types";
 import { createPet, deletePet, getUserPets, updatePet } from "@shared/lib/pets";
+import { createWebLogger } from "@gafus/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import type { PetsState, UpdatePetInput } from "@gafus/types";
+
+// Создаем логгер для pets store
+const logger = createWebLogger('web-pets-store');
 
 // Утилиты для проверки кэша
 const isStale = (timestamp: number, maxAge: number = CACHE_DURATION) => {
@@ -65,7 +69,9 @@ export const usePetsStore = create<PetsState>()(
             error: errorMessage,
             isLoading: false,
           });
-          console.error("Ошибка загрузки питомцев:", error);
+          logger.error("Ошибка загрузки питомцев", error as Error, {
+            operation: 'load_pets_error'
+          });
         }
       },
 
@@ -86,7 +92,10 @@ export const usePetsStore = create<PetsState>()(
             error: errorMessage,
             isCreating: false,
           });
-          console.error("Ошибка создания питомца:", error);
+          logger.error("Ошибка создания питомца", error as Error, {
+            operation: 'create_pet_error',
+            petData: data
+          });
           throw error;
         }
       },
@@ -108,7 +117,11 @@ export const usePetsStore = create<PetsState>()(
             error: errorMessage,
             isUpdating: false,
           });
-          console.error("Ошибка обновления питомца:", error);
+          logger.error("Ошибка обновления питомца", error as Error, {
+            operation: 'update_pet_error',
+            petId: data.id,
+            updateData: data
+          });
           throw error;
         }
       },
@@ -130,7 +143,10 @@ export const usePetsStore = create<PetsState>()(
             error: errorMessage,
             isDeleting: false,
           });
-          console.error("Ошибка удаления питомца:", error);
+          logger.error("Ошибка удаления питомца", error as Error, {
+            operation: 'delete_pet_error',
+            petId: petId
+          });
           throw error;
         }
       },

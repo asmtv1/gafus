@@ -4,8 +4,12 @@ import { useData, useMutate } from "@gafus/react-query";
 import { getUserWithTrainings } from "@shared/lib/user/getUserWithTrainings";
 import { createAchievementData } from "@shared/lib/achievements/calculateAchievements";
 import { isOnline } from "@shared/utils/offlineCacheUtils";
+import { createWebLogger } from "@gafus/logger";
 
 import type { AchievementData, Achievement } from "@gafus/types";
+
+// Создаем логгер для достижений
+const logger = createWebLogger('web-achievements');
 
 /**
  * Хук для получения данных достижений с оптимизированным кэшированием
@@ -20,9 +24,10 @@ export function useAchievements() {
   return useData<AchievementData>(
     "user:achievements",
     async () => {
+      let user = null;
       try {
         // Получаем данные пользователя
-        const user = await getUserWithTrainings();
+        user = await getUserWithTrainings();
         
         if (!user) {
           throw new Error("Пользователь не найден");
@@ -33,7 +38,10 @@ export function useAchievements() {
         
         return achievementData;
       } catch (error) {
-        console.error("Ошибка загрузки достижений:", error);
+        logger.error("Ошибка загрузки достижений", error as Error, {
+          operation: 'load_achievements',
+          hasUser: !!user
+        });
         throw error;
       }
     },
@@ -59,7 +67,8 @@ export function useAchievements() {
       placeholderData: (previousData: AchievementData | undefined) => {
         // Добавляем логирование для отладки
         if (process.env.NODE_ENV === 'development') {
-          console.warn('[useAchievements] placeholderData:', {
+          logger.info('[useAchievements] placeholderData', {
+            operation: 'achievements_placeholder_data',
             hasPreviousData: !!previousData,
             previousDataValid: previousData && previousData.achievements && Array.isArray(previousData.achievements)
           });
@@ -96,18 +105,22 @@ export function useAchievementsByCategory() {
   
   // Добавляем логирование для отладки
   if (process.env.NODE_ENV === 'development') {
-    console.warn('[useAchievementsByCategory] Data state:', { 
+    logger.info('[useAchievementsByCategory] Data state', { 
+      operation: 'achievements_by_category_data_state',
       hasData: !!data, 
       hasAchievements: !!data?.achievements, 
       achievementsLength: data?.achievements?.length,
       isLoading,
-      error: !!error 
+      error: !!error
     });
   }
   
   const achievementsByCategory = data?.achievements?.reduce((acc: Record<string, Achievement[]>, achievement: Achievement) => {
     if (!achievement || !achievement.category) {
-      console.warn('[useAchievementsByCategory] Invalid achievement:', achievement);
+      logger.warn('[useAchievementsByCategory] Invalid achievement', {
+        operation: 'invalid_achievement',
+        achievement: achievement
+      });
       return acc;
     }
     

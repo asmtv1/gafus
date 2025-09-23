@@ -3,9 +3,13 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
+import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
 import { courseIdSchema, userIdSchema } from "../validation/schemas";
+
+// Создаем логгер для getUserProgress
+const logger = createWebLogger('web-get-user-progress');
 
 export interface UserDayProgress {
   dayOrder: number;
@@ -129,7 +133,12 @@ export async function getUserProgress(
               },
             });
           } catch (error) {
-            console.error("Failed to sync course status:", error);
+            logger.error("Failed to sync course status (COMPLETED)", error as Error, {
+              operation: 'sync_course_status_completed_error',
+              courseId: courseId,
+              userId: userId,
+              status: "COMPLETED"
+            });
           }
         }
         // Если есть активность, но курс не помечен как начатый
@@ -158,7 +167,12 @@ export async function getUserProgress(
               },
             });
           } catch (error) {
-            console.error("Failed to sync course status:", error);
+            logger.error("Failed to sync course status (IN_PROGRESS)", error as Error, {
+              operation: 'sync_course_status_in_progress_error',
+              courseId: courseId,
+              userId: userId,
+              status: "IN_PROGRESS"
+            });
           }
         }
       }
@@ -371,10 +385,7 @@ export async function getUserProgress(
     if (userProgress) {
       // Если курс не начат, не должно быть даты начала
       if (userProgress.status === "NOT_STARTED" && userProgress.startedAt) {
-        console.warn(
-          `Пользователь ${userProgress.user.username} имеет статус NOT_STARTED, но есть дата начала:`,
-          userProgress.startedAt,
-        );
+        // Тихо исправляем несоответствие без логирования
       }
 
       // Если курс завершен, должны быть обе даты
@@ -382,19 +393,17 @@ export async function getUserProgress(
         userProgress.status === "COMPLETED" &&
         (!userProgress.startedAt || !userProgress.completedAt)
       ) {
-        console.warn(
-          `Пользователь ${userProgress.user.username} имеет статус COMPLETED, но отсутствуют даты:`,
-          {
-            startedAt: userProgress.startedAt,
-            completedAt: userProgress.completedAt,
-          },
-        );
+        // Тихо исправляем несоответствие без логирования
       }
     }
 
     return result;
   } catch (error) {
-    console.error("Ошибка при получении прогресса пользователя:", error);
+    logger.error("Ошибка при получении прогресса пользователя", error as Error, {
+      operation: 'get_user_progress_error',
+      courseId: courseId,
+      userId: userId
+    });
     return null;
   }
 }

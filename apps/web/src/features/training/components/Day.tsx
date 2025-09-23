@@ -95,11 +95,9 @@ export function Day({ training }: DayProps) {
 
   // Инициализация состояния при монтировании
   useEffect(() => {
-    console.warn(`[Day] Initializing day ${training.day} with ${training.steps.length} steps`);
     // Инициализируем все шаги дня, чтобы корректно считать статус дня офлайн
     try {
       training.steps.forEach((step, index) => {
-        console.warn(`[Day] Initializing step ${index}: ${step.title} with status ${step.status}`);
         initializeStep(
           training.courseId,
           training.day,

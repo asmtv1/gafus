@@ -1,2 +1,4 @@
+"use strict";
 // Типы для работы с пользователями
-export {};
+Object.defineProperty(exports, "__esModule", { value: true });
+//# sourceMappingURL=user.js.map

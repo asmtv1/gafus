@@ -2,10 +2,14 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
+import { createWebLogger } from "@gafus/logger";
 
 import type { UserWithTrainings } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+
+// Создаем логгер для getUserWithTrainings
+const logger = createWebLogger('web-get-user-with-trainings');
 
 export async function getUserWithTrainings(): Promise<UserWithTrainings | null> {
   try {
@@ -101,7 +105,8 @@ export async function getUserWithTrainings(): Promise<UserWithTrainings | null> 
     
     // Добавляем логирование для отладки
     if (process.env.NODE_ENV === 'development') {
-      console.log('[getUserWithTrainings] Result:', {
+      logger.info('[getUserWithTrainings] Result', {
+        operation: 'get_user_with_trainings_result',
         hasUser: !!result,
         coursesLength: result.courses?.length,
         coursesData: result.courses?.map(c => ({
@@ -116,7 +121,9 @@ export async function getUserWithTrainings(): Promise<UserWithTrainings | null> 
     
     return result;
   } catch (error) {
-    console.error("Ошибка в getUserWithTrainings:", error);
+    logger.error("Ошибка в getUserWithTrainings", error as Error, {
+      operation: 'get_user_with_trainings_error'
+    });
     throw new Error("Не удалось загрузить данные пользователя с тренировками");
   }
 }

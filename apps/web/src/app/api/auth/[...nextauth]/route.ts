@@ -1,15 +1,19 @@
 import { authOptions } from "@gafus/auth";
+import { createWebLogger } from "@gafus/logger";
 import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
+
+// Создаем логгер для NextAuth
+const logger = createWebLogger('web-nextauth');
 
 let handler;
 
 try {
-  console.warn("Инициализация NextAuth...");
   handler = NextAuth(authOptions as NextAuthOptions);
-  console.warn("NextAuth инициализирован успешно");
 } catch (err) {
-  console.error("Ошибка инициализации authOptions:", err);
+  logger.error("Ошибка инициализации authOptions", err as Error, {
+    operation: 'nextauth_initialization_error'
+  });
   throw err;
 }
 

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createWebLogger } from "@gafus/logger";
 
 import type {
   CommentData,
@@ -15,6 +16,9 @@ import type {
   FavoriteToggleData,
 } from "@gafus/types";
 
+// Создаем логгер для offline store
+const logger = createWebLogger('web-offline-store');
+
 export const useOfflineStore = create<OfflineState>()(
   persist(
     (set, get) => ({
@@ -29,10 +33,6 @@ export const useOfflineStore = create<OfflineState>()(
 
       // Установка статуса онлайн/офлайн - только navigator.onLine
       setOnlineStatus: (isOnline: boolean) => {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn(`🌐 Setting online status: ${isOnline}`);
-        }
-
         set({ isOnline });
 
         // Если стали онлайн, пытаемся синхронизировать очередь
@@ -45,7 +45,10 @@ export const useOfflineStore = create<OfflineState>()(
                 try {
                   get().syncOfflineActions();
                 } catch (error) {
-                  console.warn("Failed to sync offline actions:", error);
+                  logger.warn("Failed to sync offline actions (online)", {
+                    operation: 'sync_offline_actions_online_error',
+                    error: error instanceof Error ? error.message : String(error)
+                  });
                 }
               }, 1000);
             }
@@ -77,13 +80,20 @@ export const useOfflineStore = create<OfflineState>()(
                 try {
                   get().syncOfflineActions();
                 } catch (error) {
-                  console.warn("Failed to sync offline actions:", error);
+                  logger.warn("Failed to sync offline actions (retry)", {
+                    operation: 'sync_offline_actions_retry_error',
+                    error: error instanceof Error ? error.message : String(error)
+                  });
                 }
               }, 100);
             }
           }
         } catch (error) {
-          console.warn("Failed to add action to sync queue:", error);
+          logger.warn("Failed to add action to sync queue", {
+            operation: 'add_action_to_sync_queue_error',
+            actionType: action.type,
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       },
 
@@ -128,10 +138,6 @@ export const useOfflineStore = create<OfflineState>()(
 
           // Проверяем таймаут между попытками синхронизации
           if (state.lastSyncAttempt && (now - state.lastSyncAttempt) < state.syncCooldown) {
-            const remainingTime = Math.ceil((state.syncCooldown - (now - state.lastSyncAttempt)) / 1000);
-            if (process.env.NODE_ENV !== "production") {
-              console.warn(`⏰ Sync cooldown active, waiting ${remainingTime}s before next attempt`);
-            }
             return;
           }
 
@@ -145,12 +151,13 @@ export const useOfflineStore = create<OfflineState>()(
               await syncAction(action);
               // Удаляем успешно синхронизированное действие
               get().removeFromSyncQueue(action.id);
-              
-              if (process.env.NODE_ENV !== "production") {
-                console.warn(`✅ Successfully synced action: ${action.type}`);
-              }
             } catch (error) {
-              console.warn(`❌ Failed to sync action ${action.type}:`, error);
+              logger.warn(`❌ Failed to sync action ${action.type}`, {
+                operation: 'sync_action_failed',
+                actionType: action.type,
+                actionId: action.id,
+                error: error instanceof Error ? error.message : String(error)
+              });
               
               // Увеличиваем счетчик попыток
               const updatedAction = { ...action, retryCount: action.retryCount + 1 };
@@ -158,7 +165,11 @@ export const useOfflineStore = create<OfflineState>()(
               // Если превышено максимальное количество попыток, удаляем действие
               if (updatedAction.retryCount >= state.maxRetries) {
                 get().removeFromSyncQueue(action.id);
-                console.warn(`🗑️ Removed action ${action.type} after ${state.maxRetries} failed attempts`);
+                logger.warn(`🗑️ Removed action ${action.type} after ${state.maxRetries} failed attempts`, {
+                  operation: 'action_removed_after_max_retries',
+                  actionType: action.type,
+                  maxRetries: state.maxRetries
+                });
               }
             }
           }
@@ -167,7 +178,10 @@ export const useOfflineStore = create<OfflineState>()(
           set({ lastSyncTime: now });
           
         } catch (error) {
-          console.warn("Failed to sync offline actions:", error);
+          logger.warn("Failed to sync offline actions (main)", {
+            operation: 'sync_offline_actions_main_error',
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       },
     }),
@@ -271,7 +285,13 @@ async function syncStepStatusUpdate(data: StepStatusUpdateData): Promise<void> {
       data.stepTitle
     );
   } catch (error) {
-    console.warn("Failed to sync step status update:", error);
+    logger.warn("Failed to sync step status update", {
+      operation: 'sync_step_status_update_error',
+      courseId: data.courseId,
+      day: data.day,
+      stepIndex: data.stepIndex,
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 }
@@ -288,7 +308,13 @@ async function syncStepPause(data: StepPauseData): Promise<void> {
       pauseNotificationClient({ courseId: data.courseId, day: data.day, stepIndex: data.stepIndex }),
     ]);
   } catch (error) {
-    console.warn("Failed to sync step pause:", error);
+    logger.warn("Failed to sync step pause", {
+      operation: 'sync_step_pause_error',
+      courseId: data.courseId,
+      day: data.day,
+      stepIndex: data.stepIndex,
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 }
@@ -305,7 +331,13 @@ async function syncStepResume(data: StepResumeData): Promise<void> {
       resumeNotificationClient({ courseId: data.courseId, day: data.day, stepIndex: data.stepIndex, durationSec: data.timeLeft }),
     ]);
   } catch (error) {
-    console.warn("Failed to sync step resume:", error);
+    logger.warn("Failed to sync step resume", {
+      operation: 'sync_step_resume_error',
+      courseId: data.courseId,
+      day: data.day,
+      stepIndex: data.stepIndex,
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 }
@@ -321,9 +353,16 @@ async function syncCacheInvalidation(data: { userId: string; cacheKeys: string[]
     // Принудительно инвалидируем кэш (force = true)
     await invalidateUserProgressCache(data.userId, true);
     
-    console.warn(`[OfflineStore] Cache invalidation synced for user ${data.userId}`);
+    logger.info(`[OfflineStore] Cache invalidation synced for user ${data.userId}`, {
+      operation: 'cache_invalidation_synced',
+      userId: data.userId
+    });
   } catch (error) {
-    console.warn("Failed to sync cache invalidation:", error);
+    logger.warn("Failed to sync cache invalidation", {
+      operation: 'sync_cache_invalidation_error',
+      userId: data.userId,
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 }
@@ -338,10 +377,13 @@ async function syncFavoriteToggle(data: FavoriteToggleData): Promise<void> {
 
     // Вызываем серверное действие для переключения избранного
     await toggleFavoriteCourse(data.courseId);
-    
-    console.warn(`[OfflineStore] Favorite ${data.action} synced for course ${data.courseId}`);
   } catch (error) {
-    console.warn("Failed to sync favorite toggle:", error);
+    logger.warn("Failed to sync favorite toggle", {
+      operation: 'sync_favorite_toggle_error',
+      courseId: data.courseId,
+      action: data.action,
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 }
@@ -350,22 +392,12 @@ async function syncFavoriteToggle(data: FavoriteToggleData): Promise<void> {
 export function initializeOfflineStore() {
   if (typeof window === "undefined") return;
 
-  if (process.env.NODE_ENV === "development") {
-    console.warn("🔧 Initializing simplified offline store...");
-  }
-
   // Добавляем слушатели событий сети - только navigator.onLine
   window.addEventListener("online", () => {
-    if (process.env.NODE_ENV === "development") {
-      console.warn("🌐 Browser went online");
-    }
     useOfflineStore.getState().setOnlineStatus(true);
   });
 
   window.addEventListener("offline", () => {
-    if (process.env.NODE_ENV === "development") {
-      console.warn("🌐 Browser went offline");
-    }
     useOfflineStore.getState().setOnlineStatus(false);
   });
 
@@ -400,7 +432,10 @@ export function initializeOfflineStore() {
       }
     };
   } catch (error) {
-    console.warn("Error setting up fetch interceptor:", error);
+    logger.warn("Error setting up fetch interceptor", {
+      operation: 'setup_fetch_interceptor_error',
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 
   // Инициализируем статус на основе navigator.onLine

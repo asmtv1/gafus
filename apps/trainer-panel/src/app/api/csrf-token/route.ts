@@ -1,5 +1,9 @@
 import { getCSRFTokenForClient } from "@gafus/csrf";
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { NextResponse } from "next/server";
+
+// Создаем логгер для trainer-panel API
+const logger = createTrainerPanelLogger('trainer-panel-api-csrf');
 
 /**
  * API маршрут для получения CSRF токена клиентом
@@ -10,7 +14,10 @@ export async function GET() {
 
     return NextResponse.json({ token });
   } catch (error) {
-    console.error("❌ Ошибка при генерации CSRF токена:", error);
+    logger.error("Ошибка при генерации CSRF токена", error as Error, {
+      operation: 'generate_csrf_token',
+      endpoint: '/api/csrf-token'
+    });
     return NextResponse.json({ error: "Не удалось сгенерировать CSRF токен" }, { status: 500 });
   }
 }

@@ -1,2 +1,4 @@
+"use strict";
 // Типы для CSRF Store
-export {};
+Object.defineProperty(exports, "__esModule", { value: true });
+//# sourceMappingURL=csrf.js.map

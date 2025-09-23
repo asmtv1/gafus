@@ -1,5 +1,9 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { createErrorDashboardLogger } from "@gafus/logger";
+
+// Создаем логгер для error-dashboard (отключена отправка в error-dashboard)
+const logger = createErrorDashboardLogger('error-dashboard-middleware');
 
 // Роли, которым разрешен доступ к error-dashboard
 const ALLOWED_ROLES = ["ADMIN", "MODERATOR"];
@@ -25,20 +29,32 @@ export default async function middleware(req: NextRequest) {
   const { nextUrl, url } = req;
   const pathname = nextUrl.pathname;
     
-  console.log(`=== MIDDLEWARE START for ${pathname} ===`);
-  console.log(`Request URL: ${url}`);
-  console.log(`Request method: ${req.method}`);
+  logger.info(`MIDDLEWARE START for ${pathname}`, {
+    pathname: pathname,
+    url: url,
+    method: req.method,
+    operation: 'middleware_start'
+  });
   
-  // Логируем все заголовки
-  console.log(`Request headers:`, Object.fromEntries(req.headers.entries()));
+  logger.info('Request headers logged', {
+    hasAuth: req.headers.has('authorization'),
+    hasUserAgent: req.headers.has('user-agent'),
+    operation: 'log_headers'
+  });
   
   // Логируем cookies для отладки
   const cookies = req.cookies;
-  console.log(`Cookies for ${pathname}:`, Object.keys(cookies));
-  console.log(`All cookies:`, cookies);
+  logger.info('Cookies logged', {
+    cookieCount: Object.keys(cookies).length,
+    hasSessionToken: cookies.has('next-auth.session-token'),
+    operation: 'log_cookies'
+  });
   
-  console.log(`NEXTAUTH_SECRET exists:`, !!process.env.NEXTAUTH_SECRET);
-  console.log(`NODE_ENV:`, process.env.NODE_ENV);
+  logger.info('Environment variables checked', {
+    hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
+    nodeEnv: process.env.NODE_ENV,
+    operation: 'check_env'
+  });
   
   const token = await getToken({ 
     req, 
@@ -47,14 +63,19 @@ export default async function middleware(req: NextRequest) {
     cookieName: "next-auth.session-token"
   });
   
-  console.log(`Token result:`, token);
+  logger.info('Token retrieved', {
+    hasToken: !!token,
+    tokenEmail: token?.email,
+    tokenRole: token?.role,
+    operation: 'get_token'
+  });
   if (token) {
-    console.log(`Token details:`, {
-      id: token.id,
-      username: token.username,
-      role: token.role,
-      exp: token.exp,
-      iat: token.iat
+    logger.info('Token details logged', {
+      hasToken: !!token,
+      tokenId: token?.id,
+      tokenUsername: token?.username,
+      tokenRole: token?.role,
+      operation: 'log_token_details'
     });
   }
 
@@ -76,32 +97,39 @@ export default async function middleware(req: NextRequest) {
 
   // Проверяем авторизацию
   if (!token) {
-    console.warn(`=== REDIRECTING TO LOGIN ===`);
-    console.warn(`Path: ${pathname}`);
-    console.warn(`Token:`, token);
-    console.warn(`Redirecting to: /login`);
+    logger.warn('Redirecting to login - no token', {
+      pathname: pathname,
+      hasToken: !!token,
+      operation: 'redirect_no_token'
+    });
     return NextResponse.redirect(new URL("/login", url));
   }
 
-  console.log(`Token found for path ${pathname}:`, { 
-    id: token.id, 
-    username: token.username, 
-    role: token.role 
+  logger.info(`Token found for path ${pathname}`, {
+    pathname: pathname,
+    tokenId: token.id,
+    tokenUsername: token.username,
+    tokenRole: token.role,
+    operation: 'token_found'
   });
 
   // Проверяем роль пользователя
   const userRole = token.role as string;
   if (!ALLOWED_ROLES.includes(userRole)) {
-    console.warn(`=== REDIRECTING BY ROLE ===`);
-    console.warn(`Path: ${pathname}`);
-    console.warn(`User role: ${userRole}`);
-    console.warn(`Allowed roles:`, ALLOWED_ROLES);
-    console.warn(`Redirecting to: /login`);
+    logger.warn('Redirecting to login - insufficient role', {
+      pathname: pathname,
+      userRole: userRole,
+      allowedRoles: ALLOWED_ROLES,
+      operation: 'redirect_insufficient_role'
+    });
     return NextResponse.redirect(new URL("/login", url));
   }
 
-  console.log(`=== MIDDLEWARE SUCCESS for ${pathname} ===`);
-  console.log(`User authorized with role: ${userRole}`);
+  logger.success(`MIDDLEWARE SUCCESS for ${pathname}`, {
+    pathname: pathname,
+    userRole: userRole,
+    operation: 'middleware_success'
+  });
   return NextResponse.next();
 }
 

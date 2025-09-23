@@ -14,8 +14,6 @@ export async function reportError(
   >,
 ) {
   try {
-    console.warn("Saving error report:", errorData);
-
     const error = await prisma.errorReport.create({
       data: {
         message: errorData.message,
@@ -35,11 +33,9 @@ export async function reportError(
       },
     });
 
-    console.warn("Error saved with ID:", error.id);
     revalidatePath("/");
     return { success: true, errorId: error.id };
   } catch (error) {
-    console.error("Ошибка при сохранении отчета об ошибке:", error);
     return { success: false, error: "Не удалось сохранить ошибку" };
   }
 }
@@ -75,7 +71,6 @@ export async function getErrors(filters?: {
 
     return { success: true, errors };
   } catch (error) {
-    console.error("Ошибка при получении ошибок:", error);
     return { success: false, error: "Не удалось получить ошибки" };
   }
 }
@@ -142,3 +137,4 @@ export async function getErrorStats() {
     return { success: false, error: "Не удалось получить статистику" };
   }
 }
+

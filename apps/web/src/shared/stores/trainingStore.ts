@@ -1,8 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createWebLogger } from "@gafus/logger";
 
 import type { TrainingState } from "@gafus/types";
 import { toggleStepNotificationPause } from "@shared/lib/StepNotification/toggleStepNotificationPause";
+
+// Создаем логгер для training store
+const logger = createWebLogger('web-training-store');
 
 // ===== STORE =====
 export const useTrainingStore = create<TrainingState>()(
@@ -134,7 +138,12 @@ export const useTrainingStore = create<TrainingState>()(
         try {
           await toggleStepNotificationPause(day, stepIndex, true);
         } catch (error) {
-          console.error(`togglePauseWithServer error:`, error);
+          logger.error(`togglePauseWithServer error`, error as Error, {
+            operation: 'toggle_pause_with_server_error',
+            courseId: courseId,
+            day: day,
+            stepIndex: stepIndex
+          });
           throw error;
         }
       },
@@ -143,7 +152,12 @@ export const useTrainingStore = create<TrainingState>()(
         try {
           await toggleStepNotificationPause(day, stepIndex, false);
         } catch (error) {
-          console.error(`resumeNotificationWithServer error:`, error);
+          logger.error(`resumeNotificationWithServer error`, error as Error, {
+            operation: 'resume_notification_with_server_error',
+            courseId: courseId,
+            day: day,
+            stepIndex: stepIndex
+          });
           throw error;
         }
       },

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { createWebLogger } from "@gafus/logger";
 
 import { verifyCSRFToken } from "./utils";
 
 import type { NextRequest } from "next/server";
+
+// Создаем логгер для CSRF Middleware
+const logger = createWebLogger('csrf-middleware');
 
 // Конфигурация CSRF защиты
 const CSRF_CONFIG = {
@@ -67,7 +71,15 @@ function logCSRFAttack(req: NextRequest, reason: string, token?: string): void {
     ip: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "Unknown",
   };
 
-  console.warn("🚨 CSRF Attack Attempt:", JSON.stringify(logData, null, 2));
+  logger.warn("CSRF Attack Attempt", {
+    ip: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "Unknown",
+    userAgent: req.headers.get('user-agent') || 'unknown',
+    method: req.method,
+    url: req.url,
+    reason: reason,
+    token: token ? 'present' : 'missing',
+    timestamp: new Date().toISOString()
+  });
 }
 
 /**
@@ -105,7 +117,11 @@ export function withCSRFProtection(
           { status: 403 },
         );
       } else {
-        console.warn("⚠️ CSRF token missing, but allowing in non-strict mode");
+        logger.warn("CSRF token missing, but allowing in non-strict mode", {
+          method: req.method,
+          url: req.url,
+          strictMode: CSRF_CONFIG.strictMode
+        });
         return handler(req);
       }
     }
@@ -123,7 +139,12 @@ export function withCSRFProtection(
           { status: 403 },
         );
       } else {
-        console.warn("⚠️ Invalid CSRF token format, but allowing in non-strict mode");
+        logger.warn("Invalid CSRF token format, but allowing in non-strict mode", {
+          method: req.method,
+          url: req.url,
+          tokenLength: csrfToken.length,
+          strictMode: CSRF_CONFIG.strictMode
+        });
         return handler(req);
       }
     }
@@ -144,17 +165,29 @@ export function withCSRFProtection(
             { status: 403 },
           );
         } else {
-          console.warn("⚠️ Invalid CSRF token, but allowing in non-strict mode");
+          logger.warn("Invalid CSRF token, but allowing in non-strict mode", {
+            method: req.method,
+            url: req.url,
+            strictMode: CSRF_CONFIG.strictMode
+          });
           return handler(req);
         }
       }
 
       // Токен валиден, логируем успешную проверку в development
       if (process.env.NODE_ENV === "development") {
-        console.warn("✅ CSRF token validated successfully");
+        logger.success("CSRF token validated successfully", {
+          method: req.method,
+          url: req.url,
+          tokenLength: csrfToken.length
+        });
       }
     } catch (error) {
-      console.error("❌ Error verifying CSRF token:", error);
+      logger.error("Error verifying CSRF token", error as Error, {
+        method: req.method,
+        url: req.url,
+        tokenLength: csrfToken.length
+      });
       logCSRFAttack(req, "CSRF verification error", csrfToken);
 
       if (CSRF_CONFIG.strictMode) {
@@ -166,7 +199,12 @@ export function withCSRFProtection(
           { status: 500 },
         );
       } else {
-        console.warn("⚠️ CSRF verification error, but allowing in non-strict mode");
+        logger.warn("CSRF verification error, but allowing in non-strict mode", {
+          method: req.method,
+          url: req.url,
+          strictMode: CSRF_CONFIG.strictMode,
+          error: error instanceof Error ? error.message : String(error)
+        });
         return handler(req);
       }
     }

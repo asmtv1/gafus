@@ -1,11 +1,15 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
 import type { ErrorReportData } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+
+// Создаем логгер для reportError
+const logger = createWebLogger('web-report-error');
 
 const errorReportSchema = z
   .object({
@@ -57,7 +61,12 @@ export async function reportErrorToDashboard(
 
     return { success: true, errorId: errorReport.id };
   } catch (error) {
-    console.error("Ошибка при сохранении отчета об ошибке:", error);
+    logger.error("Ошибка при сохранении отчета об ошибке", error as Error, {
+      operation: 'save_error_report_failed',
+      appName: errorData.appName,
+      environment: errorData.environment,
+      message: errorData.message
+    });
     return { success: false };
   }
 }

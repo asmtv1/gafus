@@ -1,13 +1,19 @@
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 import type { NextRequest } from "next/server";
 
+// Создаем логгер для trainer-panel API
+const logger = createTrainerPanelLogger('trainer-panel-api-users');
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  let id: string | undefined;
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+    id = resolvedParams.id;
     const session = (await getServerSession(authOptions)) as {
       user: { id: string; username: string; role: string };
     } | null;
@@ -40,7 +46,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {
-    console.error("Ошибка при обновлении пользователя:", error);
+    logger.error("Ошибка при обновлении пользователя", error as Error, {
+      userId: id,
+      operation: 'update_user',
+      endpoint: '/api/users/[id]'
+    });
     return NextResponse.json({ error: "Не удалось обновить пользователя" }, { status: 500 });
   }
 }

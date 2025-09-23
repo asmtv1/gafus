@@ -1,0 +1,24 @@
+{
+  "name": "@gafus/logger",
+  "version": "1.0.0",
+  "description": "Единый логгер для всех приложений Gafus с интеграцией в error-dashboard",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "rimraf": "5.0.1",
+    "typescript": "5.8.3"
+  },
+  "peerDependencies": {
+    "@gafus/error-handling": "workspace:*"
+  }
+}

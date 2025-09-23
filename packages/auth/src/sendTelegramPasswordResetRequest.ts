@@ -1,7 +1,11 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 import { randomUUID } from "crypto";
+
+// Создаем логгер для auth
+const logger = createWebLogger('auth-telegram');
 
 export async function sendTelegramPasswordResetRequest(username: string, phone: string) {
   const user = await prisma.user.findUnique({
@@ -14,14 +18,22 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
   });
 
   if (!user?.telegramId) {
-    console.error(`❌ Telegram ID не найден для пользователя ${username}`);
+    logger.error("Telegram ID не найден для пользователя", new Error("User not found"), {
+      username: username,
+      hasUser: !!user,
+      hasTelegramId: !!user?.telegramId
+    });
     return;
   }
 
   const now = new Date();
   const lastRequest = user.passwordResetRequestedAt;
   if (lastRequest && now.getTime() - lastRequest.getTime() < 60 * 1000) {
-    console.warn(`⏱ Повторный запрос слишком рано для ${username}`);
+    logger.warn("Повторный запрос слишком рано", {
+      username: username,
+      timeSinceLastRequest: now.getTime() - lastRequest.getTime(),
+      minInterval: 60 * 1000
+    });
     return;
   }
 
@@ -43,7 +55,10 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
 
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) {
-    console.error("❌ TELEGRAM_BOT_TOKEN не задан");
+    logger.error("TELEGRAM_BOT_TOKEN не задан", new Error("Missing bot token"), {
+      hasBotToken: !!botToken,
+      environment: process.env.NODE_ENV
+    });
     return;
   }
 
@@ -64,7 +79,13 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
 
   if (!response.ok) {
     const body = await response.text();
-    console.error(`❌ Не удалось отправить сообщение в Telegram: ${response.status} ${response.statusText} — ${body}`);
+    logger.error("Не удалось отправить сообщение в Telegram", new Error(`HTTP ${response.status}: ${response.statusText}`), {
+      status: response.status,
+      statusText: response.statusText,
+      responseBody: body,
+      username: username,
+      telegramId: user.telegramId
+    });
     throw new Error("Не удалось отправить сообщение в Telegram");
   }
 }

@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createWebLogger } from "@gafus/logger";
 
 import type { StepStore } from "@gafus/types";
+
+// Создаем логгер для step store
+const logger = createWebLogger('web-step-store');
 
 // ===== УТИЛИТЫ =====
 const nowSec = () => Math.floor(Date.now() / 1000);
@@ -285,7 +289,13 @@ export const useStepStore = create<StepStore>()(
               status: "PAUSED" as const,
             };
           } catch (error) {
-            console.warn("Failed to parse pause data:", error);
+            logger.warn("Failed to parse pause data", {
+              operation: 'parse_pause_data_error',
+              courseId: courseId,
+              day: day,
+              stepIndex: stepIndex,
+              error: error instanceof Error ? error.message : String(error)
+            });
             localStorage.removeItem(PAUSE_KEY);
           }
         }

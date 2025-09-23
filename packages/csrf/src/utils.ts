@@ -2,6 +2,10 @@
 
 import { randomBytes, createHash, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
+import { createWebLogger } from "@gafus/logger";
+
+// Создаем логгер для CSRF
+const logger = createWebLogger('csrf-utils');
 
 const CSRF_TOKEN_NAME = "csrf-token";
 const CSRF_SECRET_NAME = "csrf-secret";
@@ -107,7 +111,10 @@ export async function generateCSRFToken(): Promise<string> {
 
     return token;
   } catch (error) {
-    console.error("❌ Error generating CSRF token:", error);
+    logger.error("Error generating CSRF token", error as Error, {
+      secretSize: SECURITY_CONFIG.secretSize,
+      saltSize: SECURITY_CONFIG.saltSize
+    });
 
     // В случае ошибки генерируем fallback токен
     // Это менее безопасно, но обеспечивает работоспособность
@@ -124,7 +131,10 @@ export async function verifyCSRFToken(token: string): Promise<boolean> {
   try {
     // Проверяем формат токена
     if (!isValidTokenFormat(token)) {
-      console.warn("⚠️ Invalid CSRF token format");
+      logger.warn("Invalid CSRF token format", {
+        tokenLength: token.length,
+        expectedFormat: "base64.base64"
+      });
       return false;
     }
 
@@ -134,32 +144,46 @@ export async function verifyCSRFToken(token: string): Promise<boolean> {
     const storedToken = cookiesStore.get(CSRF_TOKEN_NAME)?.value;
 
     if (!secret || !storedToken) {
-      console.warn("⚠️ Missing CSRF secret or stored token");
+      logger.warn("Missing CSRF secret or stored token", {
+        hasSecret: !!secret,
+        hasStoredToken: !!storedToken
+      });
       return false;
     }
 
     // Проверяем, что токены совпадают
     if (!safeTokenCompare(storedToken, token)) {
-      console.warn("⚠️ CSRF token mismatch");
+      logger.warn("CSRF token mismatch", {
+        tokenLength: token.length,
+        storedTokenLength: storedToken.length
+      });
       return false;
     }
 
     const [salt, hash] = token.split(".");
     if (!salt || !hash) {
-      console.warn("⚠️ Invalid CSRF token structure");
+      logger.warn("Invalid CSRF token structure", {
+        tokenParts: token.split('.').length,
+        expectedParts: 2
+      });
       return false;
     }
 
     // Проверяем хеш токена
     const expectedHash = createTokenHash(secret, salt);
     if (!safeTokenCompare(hash, expectedHash)) {
-      console.warn("⚠️ CSRF token hash mismatch");
+      logger.warn("CSRF token hash mismatch", {
+        tokenHash: hash,
+        expectedHash: expectedHash
+      });
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error("❌ Error verifying CSRF token:", error);
+    logger.error("Error verifying CSRF token", error as Error, {
+      tokenLength: token.length
+    });
     return false;
   }
 }
@@ -184,7 +208,7 @@ export async function getCSRFTokenForClient(): Promise<string> {
     // Если токен невалиден, генерируем новый
     return await generateCSRFToken();
   } catch (error) {
-    console.error("❌ Error getting CSRF token for client:", error);
+    logger.error("Error getting CSRF token for client", error as Error);
     // Fallback: генерируем новый токен
     return await generateCSRFToken();
   }
@@ -203,7 +227,7 @@ export async function refreshCSRFToken(): Promise<string> {
     // Генерируем новый токен
     return await generateCSRFToken();
   } catch (error) {
-    console.error("❌ Error refreshing CSRF token:", error);
+    logger.error("Error refreshing CSRF token", error as Error);
     return await generateCSRFToken();
   }
 }
@@ -221,7 +245,7 @@ export async function isCSRFTokenExpired(): Promise<boolean> {
     // Проверяем валидность токена
     return !(await verifyCSRFToken(token.value));
   } catch (error) {
-    console.error("❌ Error checking CSRF token expiration:", error);
+    logger.error("Error checking CSRF token expiration", error as Error);
     return true;
   }
 }
@@ -261,7 +285,7 @@ export async function getCSRFTokenInfo(): Promise<{
       tokenAge,
     };
   } catch (error) {
-    console.error("❌ Error getting CSRF token info:", error);
+    logger.error("Error getting CSRF token info", error as Error);
     return {
       hasToken: false,
       hasSecret: false,

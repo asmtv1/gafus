@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gafus/logger": "workspace:*",
     "@gafus/auth": "workspace:*",
     "@gafus/csrf": "workspace:*",
     "@gafus/error-handling": "workspace:*",

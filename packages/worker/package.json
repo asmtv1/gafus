@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
     "bullmq": "5.2.0",

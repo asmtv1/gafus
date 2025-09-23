@@ -1,5 +1,6 @@
 import { prisma } from "@gafus/prisma";
 import { connection } from "@gafus/queues";
+import { createWorkerLogger } from "@gafus/logger";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 
@@ -13,19 +14,9 @@ interface PushSubscriptionJSON {
     auth: string;
   };
 }
-// Временное решение - используем console вместо createLogger
-const createLogger = (context: string) => ({
-  info: (msg: string, meta?: Record<string, unknown>) =>
-    console.log(`[${context}] INFO:`, msg, meta),
-  warn: (msg: string, meta?: Record<string, unknown>) =>
-    console.warn(`[${context}] WARN:`, msg, meta),
-  error: (msg: string, meta?: Record<string, unknown>) =>
-    console.error(`[${context}] ERROR:`, msg, meta),
-  debug: (msg: string, meta?: Record<string, unknown>) =>
-    console.log(`[${context}] DEBUG:`, msg, meta),
-  success: (msg: string, meta?: Record<string, unknown>) =>
-    console.log(`[${context}] SUCCESS:`, msg, meta),
-});
+// Создаем логгеры для разных компонентов
+const notificationLogger = createWorkerLogger('notification-processor');
+const workerLogger = createWorkerLogger('push-worker');
 
 // Конфигурация
 const config = {
@@ -45,7 +36,7 @@ const pushService = PushNotificationService.fromEnvironment();
 
 // Сервис для обработки уведомлений
 class NotificationProcessor {
-  private logger = createLogger("NotificationProcessor");
+  private logger = notificationLogger;
 
   async process(notificationId: string): Promise<void> {
     this.logger.info("Processing notification", { notificationId });
@@ -107,7 +98,7 @@ class NotificationProcessor {
 
       return notification;
     } catch (error) {
-      this.logger.error("Failed to fetch notification", { notificationId, error });
+      this.logger.error("Failed to fetch notification", error as Error, { notificationId });
       throw error;
     }
   }
@@ -126,7 +117,7 @@ class NotificationProcessor {
 
       return subscriptions;
     } catch (error) {
-      this.logger.error("Failed to fetch subscriptions", { userId, error });
+      this.logger.error("Failed to fetch subscriptions", error as Error, { userId });
       throw error;
     }
   }
@@ -187,9 +178,8 @@ class NotificationProcessor {
         endpoint: endpoint.substring(0, 50) + "...",
       });
     } catch (error) {
-      this.logger.error("Failed to handle subscription failure", {
+      this.logger.error("Failed to handle subscription failure", error as Error, {
         endpoint: endpoint.substring(0, 50) + "...",
-        error,
       });
     }
   }
@@ -203,7 +193,7 @@ class NotificationProcessor {
 
       this.logger.success("Notification status updated", { notificationId, sent });
     } catch (error) {
-      this.logger.error("Failed to update notification status", { notificationId, error });
+      this.logger.error("Failed to update notification status", error as Error, { notificationId });
       throw error;
     }
   }
@@ -213,7 +203,7 @@ class NotificationProcessor {
 class PushWorker {
   private worker: Worker;
   private notificationProcessor: NotificationProcessor;
-  private logger = createLogger("PushWorker");
+  private logger = workerLogger;
 
   constructor() {
     this.notificationProcessor = new NotificationProcessor();
@@ -289,9 +279,8 @@ class PushWorker {
 
       this.logger.success("Job completed successfully", { jobId: job.id });
     } catch (error) {
-      this.logger.error("Job processing failed", {
+      this.logger.error("Job processing failed", error as Error, {
         jobId: job.id,
-        error: error instanceof Error ? error.message : String(error),
       });
       throw error; // BullMQ автоматически retry
     }
@@ -303,16 +292,13 @@ class PushWorker {
     });
 
     this.worker.on("failed", (job, err) => {
-      this.logger.error("Job failed", {
+      this.logger.error("Job failed", err as Error, {
         jobId: job?.id,
-        error: err instanceof Error ? err.message : String(err),
       });
     });
 
     this.worker.on("error", (err) => {
-      this.logger.error("Worker error", {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.error("Worker error", err as Error);
     });
 
     this.worker.on("stalled", (jobId) => {
@@ -330,12 +316,13 @@ class PushWorker {
 }
 
 // Запуск worker'а
-console.log("🟢 [Worker] Starting push-worker process...");
+const startupLogger = createWorkerLogger('startup');
+startupLogger.info("Starting push-worker process...");
 
 try {
   const worker = new PushWorker();
   worker.start();
 } catch (error) {
-  console.error("❌ [Worker] Failed to start push-worker:", error);
+  startupLogger.error("Failed to start push-worker", error as Error);
   process.exit(1);
 }

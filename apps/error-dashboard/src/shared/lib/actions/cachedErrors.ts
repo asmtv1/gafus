@@ -2,9 +2,7 @@
 
 import { unstable_cache } from "next/cache";
 
-import { getErrors } from "./errors";
-import { getErrorStats } from "./errorStats";
-import { reportErrorToDashboard } from "./reportError";
+import { getErrors, getErrorStats, reportError } from "./errors";
 
 // Кэшированная версия получения ошибок
 export const getErrorsCached = unstable_cache(
@@ -23,7 +21,7 @@ export const getErrorsCached = unstable_cache(
     } catch (error) {
       console.error("❌ Error in getErrorsCached:", error);
 
-      await reportErrorToDashboard({
+      await reportError({
         message: error instanceof Error ? error.message : "Unknown error in getErrorsCached",
         stack: error instanceof Error ? error.stack || null : null,
         appName: "error-dashboard",
@@ -62,7 +60,7 @@ export const getErrorStatsCached = unstable_cache(
     } catch (error) {
       console.error("❌ Error in getErrorStatsCached:", error);
 
-      await reportErrorToDashboard({
+      await reportError({
         message: error instanceof Error ? error.message : "Unknown error in getErrorStatsCached",
         stack: error instanceof Error ? error.stack || null : null,
         appName: "error-dashboard",
