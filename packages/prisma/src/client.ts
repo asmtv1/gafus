@@ -1,7 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 
-console.warn("⛳DATABASE_URL=", process.env.DATABASE_URL);
-
 declare global {
   // Чтобы TypeScript не ругался на расширение globalThis
   var prisma: PrismaClient | undefined;

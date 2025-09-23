@@ -10,7 +10,6 @@ import { Redis } from "ioredis";
  * REDIS_URL должен быть задан в .env, например:
  * REDIS_URL=redis://localhost:6379
  */
-console.warn("⛳ REDIS_URL=", process.env.REDIS_URL);
 if (!process.env.REDIS_URL) {
   console.error("❌ REDIS_URL is not set in environment variables");
   console.error("Available environment variables:", Object.keys(process.env).filter(key => key.includes('REDIS')));
