@@ -46,7 +46,7 @@ export function useAchievements() {
       networkMode: "offlineFirst", // Сначала используем кэш, потом сеть
       
       // Повторные попытки
-      retry: (failureCount, error) => {
+      retry: (failureCount: number, error: unknown) => {
         if (!isOnline()) return false;
         if (error instanceof Error && error.message.includes('fetch')) {
           return failureCount < 2;
@@ -56,7 +56,7 @@ export function useAchievements() {
       retryDelay: 5000,
       
       // Кэш
-      placeholderData: (previousData) => {
+      placeholderData: (previousData: AchievementData | undefined) => {
         // Добавляем логирование для отладки
         if (process.env.NODE_ENV === 'development') {
           console.warn('[useAchievements] placeholderData:', {
@@ -105,7 +105,7 @@ export function useAchievementsByCategory() {
     });
   }
   
-  const achievementsByCategory = data?.achievements?.reduce((acc, achievement) => {
+  const achievementsByCategory = data?.achievements?.reduce((acc: Record<string, Achievement[]>, achievement: Achievement) => {
     if (!achievement || !achievement.category) {
       console.warn('[useAchievementsByCategory] Invalid achievement:', achievement);
       return acc;
@@ -118,7 +118,7 @@ export function useAchievementsByCategory() {
     return acc;
   }, {} as Record<string, Achievement[]>) || {};
   
-  const unlockedCount = data?.achievements?.filter(a => a?.unlocked === true).length || 0;
+  const unlockedCount = data?.achievements?.filter((a: Achievement) => a?.unlocked === true).length || 0;
   const totalCount = data?.achievements?.length || 0;
   const completionPercentage = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
   
@@ -156,8 +156,8 @@ export function useAchievementsStats() {
     
     // Статистика достижений
     totalAchievements: data.achievements?.length || 0,
-    unlockedAchievements: data.achievements?.filter(a => a.unlocked).length || 0,
-    completionPercentage: data.achievements?.length ? Math.round((data.achievements.filter(a => a.unlocked).length / data.achievements.length) * 100) : 0,
+    unlockedAchievements: data.achievements?.filter((a: Achievement) => a.unlocked).length || 0,
+    completionPercentage: data.achievements?.length ? Math.round((data.achievements.filter((a: Achievement) => a.unlocked).length / data.achievements.length) * 100) : 0,
     
     // Дополнительная статистика
     totalTrainingTime: data.totalTrainingTime,
