@@ -86,21 +86,6 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
-      } else if (token && typeof (token as any).username === "string") {
-        // Проверяем, что ID пользователя в токене актуален
-        try {
-          const currentUser = await prisma.user.findUnique({
-            where: { username: (token as any).username as string },
-            select: { id: true },
-          });
-          
-          if (currentUser && currentUser.id !== token.id) {
-            // Обновляем ID пользователя в токене
-            token.id = currentUser.id;
-          }
-        } catch (error) {
-          // Игнорируем ошибки при проверке
-        }
       }
       return token;
     },
@@ -124,7 +109,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
   },
-  debug: true,
+  debug: false,
   cookies: {
     sessionToken: {
       name: "next-auth.session-token",
