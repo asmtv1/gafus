@@ -3,6 +3,7 @@ interface WebpackConfig {
   resolve: {
     alias: Record<string, string>;
   };
+  externals?: any[];
 }
 
 const _path = require("path");
@@ -25,6 +26,9 @@ const nextConfig = {
   reactStrictMode: true,
   // Включаем standalone режим для Docker
   output: 'standalone',
+  // Исправляем проблемы с standalone сборкой
+  trailingSlash: false,
+  skipTrailingSlashRedirect: true,
   // Переменные окружения для клиентской части
   env: {
     NEXT_PUBLIC_TRAINER_PANEL_URL: process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || 'https://trainer-panel.gafus.ru',
@@ -55,7 +59,7 @@ const nextConfig = {
   },
 
   // Webpack конфигурация для workspace зависимостей
-  webpack: (config: WebpackConfig, { isServer: _isServer }: { isServer: boolean }) => {
+  webpack: (config: WebpackConfig, { isServer }: { isServer: boolean }) => {
     // Разрешаем workspace зависимости
     config.resolve.alias = {
       ...config.resolve.alias,
@@ -68,6 +72,14 @@ const nextConfig = {
       "@gafus/prisma": _path.resolve(__dirname, "../../packages/prisma/dist"),
       "@gafus/webpush": _path.resolve(__dirname, "../../packages/webpush/dist"),
     };
+
+    // Исправляем проблемы с standalone сборкой
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        'sharp': 'commonjs sharp',
+      });
+    }
 
     return config;
   },
