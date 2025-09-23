@@ -63,7 +63,9 @@ export default function OptimizedImage({
       
       // В Safari иногда нужно принудительно перезагрузить изображение
       const img = new window.Image();
-      img.onload = () => {};
+      img.onload = () => {
+        // Изображение загружено успешно
+      };
       img.onerror = () => {
         console.warn(`⚠️ OptimizedImage: Safari - изображение не загрузилось: ${src}`);
         // Не устанавливаем ошибку сразу, даем шанс Next.js Image
