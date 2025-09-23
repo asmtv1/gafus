@@ -3,11 +3,15 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
 
 import type { Course, CourseAccess, CourseReview, FavoriteCourse } from "@gafus/prisma";
 import type { CourseWithProgressData } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+
+// Создаем логгер для getFavoritesCourses
+const logger = createWebLogger('web-get-favorites-courses');
 
 const optionalUserIdSchema = z.string().trim().min(1).optional();
 
@@ -107,7 +111,7 @@ export async function getFavoritesCourses(userId?: string): Promise<{
       favoriteIds: favoriteCourseIds,
     };
   } catch (error) {
-    console.error("Ошибка в getFavoritesCourses:", error);
+    logger.error("Ошибка в getFavoritesCourses:", error as Error, { operation: 'error' });
     throw new Error("Не удалось загрузить избранные курсы");
   }
 }

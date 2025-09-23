@@ -2,12 +2,16 @@
 
 import EditIcon from "@mui/icons-material/Edit";
 import { updateAvatar } from "@shared/lib/profile/updateAvatar";
+import { createWebLogger } from "@gafus/logger";
 import imageCompression from "browser-image-compression";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useRef, useState, useEffect } from "react";
 
 import { Avatar, Box, IconButton, Tooltip } from "@/utils/muiImports";
+
+// Создаем логгер для EditableAvatar
+const logger = createWebLogger('web-editable-avatar');
 
 export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null }) {
   const router = useRouter();
@@ -24,7 +28,6 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !session?.user?.id) return;
-    console.warn("Загрузка начинается:", file.name, file.size);
     if (file.size > MAX_FILE_SIZE) {
       alert("Файл слишком большой. Максимальный размер — 5 МБ.");
       return;
@@ -48,7 +51,10 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
       router.refresh();
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error("Unknown error");
-      console.error("Ошибка при сохранении avatar:", errorObj);
+      logger.error("Ошибка при сохранении avatar", errorObj, {
+        operation: 'save_avatar_error',
+        userId: session?.user?.id
+      });
       setError(errorObj);
     }
   };

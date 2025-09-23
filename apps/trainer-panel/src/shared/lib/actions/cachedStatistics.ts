@@ -1,22 +1,28 @@
 "use server";
 
+
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { getCourseStatistics } from "@features/statistics/lib/statistics";
 import { unstable_cache } from "next/cache";
 
 import { reportErrorToDashboard } from "./reportError";
 
+// Создаем логгер для cachedStatistics
+const logger = createTrainerPanelLogger('trainer-panel-cached-statistics');
+
 // Кэшированная версия getCourseStatistics
 export const getCourseStatisticsCached = unstable_cache(
   async (userId: string, isElevated: boolean) => {
     try {
-      console.warn(
+      logger.warn(
         `[React Cache] Fetching statistics for user: ${userId}, elevated: ${isElevated}`,
+        { operation: 'warn' }
       );
       const result = await getCourseStatistics(userId, isElevated);
-      console.warn(`[React Cache] Statistics cached successfully for user: ${userId}`);
+      logger.warn(`[React Cache] Statistics cached successfully for user: ${userId}`, { operation: 'warn' });
       return { success: true, data: result };
     } catch (error) {
-      console.error("❌ Error in getCourseStatisticsCached:", error);
+      logger.error("❌ Error in getCourseStatisticsCached:", error as Error, { operation: 'error' });
 
       await reportErrorToDashboard({
         message:
@@ -47,7 +53,7 @@ export const getCourseStatisticsCached = unstable_cache(
 export const searchUsersByUsernameCached = unstable_cache(
   async (search: string) => {
     try {
-      console.warn(`[React Cache] Searching users with query: ${search}`);
+      logger.warn(`[React Cache] Searching users with query: ${search}`, { operation: 'warn' });
 
       if (!search.trim()) return { success: true, data: [] };
 
@@ -63,10 +69,10 @@ export const searchUsersByUsernameCached = unstable_cache(
         select: { id: true, username: true },
       });
 
-      console.warn(`[React Cache] Found ${users.length} users for query: ${search}`);
+      logger.warn(`[React Cache] Found ${users.length} users for query: ${search}`, { operation: 'warn' });
       return { success: true, data: users };
     } catch (error) {
-      console.error("❌ Error in searchUsersByUsernameCached:", error);
+      logger.error("❌ Error in searchUsersByUsernameCached:", error as Error, { operation: 'error' });
 
       await reportErrorToDashboard({
         message:

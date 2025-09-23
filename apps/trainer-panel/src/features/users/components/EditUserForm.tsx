@@ -1,5 +1,7 @@
 "use client";
 
+
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { FormField, SelectField } from "@shared/components/ui/FormField";
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
 import { useRouter } from "next/navigation";
@@ -7,6 +9,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Box, Button, Dialog, DialogContent, DialogTitle, Typography } from "@/utils/muiImports";
+
+// Создаем логгер для edit-user-form
+const logger = createTrainerPanelLogger('trainer-panel-edit-user-form');
 
 interface User {
   id: string;
@@ -47,11 +52,12 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
     setFormState({});
 
     try {
-      console.warn("Отправляем данные:", {
+      logger.warn("Отправляем данные:", {
         id: user.id,
         username: data.username,
         phone: data.phone,
         role: data.role,
+        operation: 'warn'
       });
 
       const response = await fetch(`/api/users/${user.id}`, {
@@ -67,7 +73,10 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
       });
 
       const result = await response.json();
-      console.warn("Результат обновления:", result);
+      logger.warn("Результат обновления:", {
+        result: result,
+        operation: 'warn'
+      });
 
       if (result.success) {
         setFormState({ success: true });
@@ -79,7 +88,7 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
         setFormState({ error: result.error || "Неизвестная ошибка" });
       }
     } catch (error) {
-      console.error("Ошибка в handleSubmit:", error);
+      logger.error("Ошибка в handleSubmit:", error as Error, { operation: 'error' });
       setFormState({
         error: `Произошла ошибка при обновлении: ${error instanceof Error ? error.message : String(error)}`,
       });

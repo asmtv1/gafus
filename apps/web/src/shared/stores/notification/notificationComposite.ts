@@ -3,9 +3,12 @@
 
 import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
 import { useEffect } from "react";
+import { createWebLogger } from "@gafus/logger";
 import { usePermissionStore } from "../permission/permissionStore";
 import { usePushStore } from "../push/pushStore";
 import { useNotificationUIStore } from "../ui/notificationUIStore";
+
+const logger = createWebLogger('web');
 
 /**
  * Главный хук для работы с уведомлениями
@@ -45,7 +48,7 @@ export function useNotificationComposite() {
               permission.setError("VAPID key not available for push subscription");
             }
           } catch (e) {
-            console.error("Failed to get VAPID key:", e);
+            logger.error("Failed to get VAPID key:", e as Error, { operation: 'error' });
             permission.setError("VAPID key not available for push subscription");
           }
         }
@@ -141,7 +144,7 @@ export function useNotificationModal() {
         stores.push.setDisabledByUser(true);
       }
     } catch (error) {
-      console.warn("Failed to get localStorage item:", error);
+      logger.warn("Failed to get localStorage item:", { error, operation: 'warn' });
     }
   }, [stores.push]);
 

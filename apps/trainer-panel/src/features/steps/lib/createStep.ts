@@ -1,5 +1,7 @@
 "use server";
 
+
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
@@ -8,6 +10,9 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 
 import type { ActionResult } from "@gafus/types";
+
+// Создаем логгер для create-step
+const logger = createTrainerPanelLogger('trainer-panel-create-step');
 
 export async function createStep(
   prevState: ActionResult,
@@ -91,7 +96,7 @@ export async function createStep(
 
     return { success: true };
   } catch (error) {
-    console.error("Ошибка при создании шага:", error);
+    logger.error("Ошибка при создании шага:", error as Error, { operation: 'error' });
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,

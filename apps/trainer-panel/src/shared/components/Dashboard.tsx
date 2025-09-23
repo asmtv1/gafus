@@ -1,5 +1,7 @@
 "use client";
 
+
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { 
   Assessment, 
   FitnessCenter, 
@@ -22,6 +24,9 @@ import {
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useCourseStatistics, useStepStatistics } from "@shared/hooks/useStatistics";
+
+// Создаем логгер для dashboard
+const logger = createTrainerPanelLogger('trainer-panel-dashboard');
 
 interface _DashboardStats {
   totalCourses: number;
@@ -64,7 +69,7 @@ export default function Dashboard() {
   const totalUserEnrollments = courses.reduce((acc, course) => acc + course.totalUsers, 0);
 
   // Отладочная информация
-  console.warn("Dashboard Debug:", {
+  logger.warn("Dashboard Debug:", {
     userId,
     isElevated,
     statsData,
@@ -73,7 +78,8 @@ export default function Dashboard() {
     stepsLoading,
     totalUniqueUsers,
     totalUserEnrollments,
-    coursesCount: courses.length
+    coursesCount: courses.length,
+    operation: 'warn'
   });
 
   const statsCards = [

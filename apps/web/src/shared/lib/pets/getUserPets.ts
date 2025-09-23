@@ -1,8 +1,12 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 
 import { getCurrentUserId } from "@/utils";
+
+// Создаем логгер для getUserPets
+const logger = createWebLogger('web-get-user-pets');
 
 export async function getUserPets() {
   try {
@@ -24,7 +28,7 @@ export async function getUserPets() {
 
     return pets;
   } catch (error) {
-    console.error("Ошибка при получении питомцев:", error);
+    logger.error("Ошибка при получении питомцев:", error as Error, { operation: 'error' });
     // Безопасно возвращаем пустой список для неавторизованных/ошибочных кейсов,
     // чтобы не ломать страницы до логина
     return [];

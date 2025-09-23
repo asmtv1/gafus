@@ -1,6 +1,10 @@
 "use server";
 import { prisma } from "@gafus/prisma";
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
+
+// Создаем логгер для getUserPet
+const logger = createWebLogger('web-get-user-pet');
 
 const ownerIdSchema = z.string().trim().min(1, "Не удалось получить профиль пользователя");
 
@@ -37,7 +41,7 @@ export async function getUserPet(ownerId: string | null) {
 
     return pets;
   } catch (error) {
-    console.error("Ошибка в getUserPet:", error);
+    logger.error("Ошибка в getUserPet:", error as Error, { operation: 'error' });
     throw new Error("Не удалось получить питомцев пользователя");
   }
 }

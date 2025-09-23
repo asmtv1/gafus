@@ -1,5 +1,7 @@
 "use client";
 
+
+import { createWebLogger } from "@gafus/logger";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import { deletePet } from "@shared/lib/pet/deletePet";
@@ -19,6 +21,9 @@ type PetFromPublicProfile = PublicProfile['pets'][0];
 import { getAgeWithMonths, declOfNum } from "@/utils";
 import { Avatar, IconButton } from "@/utils/muiImports";
 import { getPetTypeLabel } from "@/utils/petType";
+
+// Создаем логгер для pet-list
+const logger = createWebLogger('web-pet-list');
 
 const handleDelete = async (
   petId: string,
@@ -58,13 +63,13 @@ const handleDelete = async (
           await showSuccessAlert(`Питомец "${petName}" успешно удален!`);
           router.refresh();
         } catch {
-          console.error("Ошибка при удалении питомца");
+          logger.error("Ошибка при удалении питомца");
           await showErrorAlert("Произошла ошибка при удалении питомца");
         }
       });
     }
   } catch (error) {
-    console.error("Ошибка при показе диалога удаления:", error);
+    logger.error("Ошибка при показе диалога удаления", error as Error, { operation: 'show_delete_dialog_error' });
   }
 };
 
@@ -96,13 +101,13 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
             await showSuccessAlert(`Питомец "${updatedPetData.name}" успешно обновлен!`);
             router.refresh();
           } catch (error) {
-            console.error("Ошибка при обновлении питомца:", error);
+            logger.error("Ошибка при обновлении питомца:", error as Error, { operation: 'error' });
             await showErrorAlert("Произошла ошибка при обновлении питомца");
           }
         });
       }
     } catch (error) {
-      console.error("Ошибка при открытии формы редактирования:", error);
+      logger.error("Ошибка при открытии формы редактирования:", error as Error, { operation: 'error' });
     }
   };
 

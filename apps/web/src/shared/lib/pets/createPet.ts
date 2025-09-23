@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 
 import type { PetType } from "@gafus/prisma";
 import type { CreatePetInput } from "@gafus/types";
@@ -8,6 +9,9 @@ import type { CreatePetInput } from "@gafus/types";
 import { getCurrentUserId } from "@/utils";
 
 import { createPetSchema } from "../validation/petSchemas";
+
+// Создаем логгер для createPet
+const logger = createWebLogger('web-create-pet');
 
 export async function createPet(data: CreatePetInput) {
   const validatedData = createPetSchema.parse(data);
@@ -33,7 +37,7 @@ export async function createPet(data: CreatePetInput) {
 
     return pet;
   } catch (error) {
-    console.error("Ошибка при создании питомца:", error);
+    logger.error("Ошибка при создании питомца:", error as Error, { operation: 'error' });
     throw new Error("Не удалось создать питомца");
   }
 }

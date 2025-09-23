@@ -3,11 +3,14 @@
 
 import { prisma } from "@gafus/prisma";
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
 
 import type { Prisma } from "@gafus/prisma";
 import type { UpdateUserProfileInput } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+
+const logger = createWebLogger('web');
 
 const updateUserProfileSchema = z.object({
   fullName: z.string().trim().max(120).optional(),
@@ -80,12 +83,12 @@ export async function updateUserProfile({
     });
     return result;
   } catch (error) {
-    console.error("❌ Ошибка в updateUserProfile:", error);
-    console.error("📋 Детали ошибки:", {
+    logger.error("❌ Ошибка в updateUserProfile:", error as Error, { operation: 'error' });
+    logger.error("📋 Детали ошибки:", {
       name: error instanceof Error ? error.name : "Unknown",
       message: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : "No stack",
-    });
+    } as Error, { operation: 'error' });
     throw new Error("Ошибка при обновлении профиля. Попробуйте перезагрузить страницу.");
   }
 }

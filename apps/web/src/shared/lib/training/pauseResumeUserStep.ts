@@ -3,11 +3,14 @@
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
 
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
 import { courseIdSchema, dayNumberSchema, stepIndexSchema } from "../validation/schemas";
+
+const logger = createWebLogger('web');
 
 const pauseSchema = z.object({
   courseId: courseIdSchema,
@@ -98,7 +101,7 @@ export async function pauseUserStepServerAction(
     try {
       await invalidateUserProgressCache(userId, false);
     } catch (e) {
-      console.warn("pauseUserStepServerAction: cache invalidation skipped", e);
+      logger.warn("pauseUserStepServerAction: cache invalidation skipped", { error: e, operation: 'warn' });
     }
 
     return { success: true };
@@ -118,7 +121,7 @@ export async function pauseUserStepServerAction(
       tags: ["training", "step-pause", "server-action"],
       });
     } catch (e) {
-      console.warn("pauseUserStepServerAction: failed to report error", e);
+      logger.warn("pauseUserStepServerAction: failed to report error", { error: e, operation: 'warn' });
     }
     throw error;
   }
@@ -169,7 +172,7 @@ export async function resumeUserStepServerAction(
     try {
       await invalidateUserProgressCache(userId, false);
     } catch (e) {
-      console.warn("resumeUserStepServerAction: cache invalidation skipped", e);
+      logger.warn("resumeUserStepServerAction: cache invalidation skipped", { error: e, operation: 'warn' });
     }
 
     return { success: true };
@@ -188,7 +191,7 @@ export async function resumeUserStepServerAction(
         tags: ["training", "step-resume", "server-action"],
       });
     } catch (e) {
-      console.warn("resumeUserStepServerAction: failed to report error", e);
+      logger.warn("resumeUserStepServerAction: failed to report error", { error: e, operation: 'warn' });
     }
     throw error;
   }

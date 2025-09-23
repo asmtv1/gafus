@@ -1,7 +1,11 @@
+import { createTrainerPanelLogger } from "@gafus/logger";
 
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
+
+// Создаем логгер для update-user
+const logger = createTrainerPanelLogger('trainer-panel-update-user');
 
 
 
@@ -47,7 +51,7 @@ export async function updateUser(
 
     return { success: true };
   } catch (error) {
-    console.error("Ошибка при обновлении пользователя:", error);
+    logger.error("Ошибка при обновлении пользователя:", error as Error, { operation: 'error' });
 
     // Проверяем, является ли ошибка связанной с контекстом
     if (

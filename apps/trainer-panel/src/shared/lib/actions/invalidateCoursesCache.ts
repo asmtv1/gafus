@@ -1,6 +1,11 @@
 "use server";
 
+
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { revalidateTag } from "next/cache";
+
+// Создаем логгер для invalidate-courses-cache
+const logger = createTrainerPanelLogger('trainer-panel-invalidate-courses-cache');
 
 /**
  * Инвалидирует кэш всех курсов
@@ -8,7 +13,7 @@ import { revalidateTag } from "next/cache";
  */
 export async function invalidateCoursesCache() {
   try {
-    console.warn("[Cache] Invalidating courses cache...");
+    logger.warn("[Cache] Invalidating courses cache...", { operation: 'warn' });
     
     // Инвалидируем все теги, связанные с курсами
     revalidateTag("courses");
@@ -17,10 +22,10 @@ export async function invalidateCoursesCache() {
     revalidateTag("courses-favorites");
     revalidateTag("courses-authored");
     
-    console.warn("[Cache] Courses cache invalidated successfully");
+    logger.warn("[Cache] Courses cache invalidated successfully", { operation: 'warn' });
     return { success: true };
   } catch (error) {
-    console.error("❌ Error invalidating courses cache:", error);
+    logger.error("❌ Error invalidating courses cache:", error as Error, { operation: 'error' });
     return { 
       success: false, 
       error: error instanceof Error ? error.message : "Unknown error" 
@@ -34,14 +39,14 @@ export async function invalidateCoursesCache() {
  */
 export async function invalidateBaseCoursesCache() {
   try {
-    console.warn("[Cache] Invalidating base courses cache...");
+    logger.warn("[Cache] Invalidating base courses cache...", { operation: 'warn' });
     
     revalidateTag("courses-all-permanent");
     
-    console.warn("[Cache] Base courses cache invalidated successfully");
+    logger.warn("[Cache] Base courses cache invalidated successfully", { operation: 'warn' });
     return { success: true };
   } catch (error) {
-    console.error("❌ Error invalidating base courses cache:", error);
+    logger.error("❌ Error invalidating base courses cache:", error as Error, { operation: 'error' });
     return { 
       success: false, 
       error: error instanceof Error ? error.message : "Unknown error" 

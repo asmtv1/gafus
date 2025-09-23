@@ -25,10 +25,7 @@ export interface DetailedStepStats extends StepStats {
 }
 
 export async function getStepStatistics(userId: string, isElevated: boolean) {
-  console.warn("getStepStatistics called with:", { userId, isElevated });
-  
   const whereCondition = isElevated ? {} : { authorId: userId };
-  console.warn("Where condition:", whereCondition);
   
   const steps = await prisma.step.findMany({
     where: whereCondition,
@@ -50,8 +47,6 @@ export async function getStepStatistics(userId: string, isElevated: boolean) {
     },
   });
   
-  console.warn("Raw steps from DB:", steps.length);
-
   const stats: StepStats[] = steps.map(
     (step: {
       id: string;
@@ -81,8 +76,7 @@ export async function getStepStatistics(userId: string, isElevated: boolean) {
       };
     },
   );
-
-  console.warn("Found steps:", steps.length, "totalSteps:", stats.length);
+  
   return { steps: stats, totalSteps: stats.length };
 }
 

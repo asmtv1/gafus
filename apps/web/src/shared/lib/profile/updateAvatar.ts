@@ -1,11 +1,15 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import { z } from "zod";
 
 import { getCurrentUserId } from "@/utils";
+
+// Создаем логгер для updateAvatar
+const logger = createWebLogger('web-update-avatar');
 
 const fileSchema = z.instanceof(File, { message: "Файл обязателен" });
 
@@ -16,10 +20,10 @@ export async function updateAvatar(file: File): Promise<string> {
     const userId = await getCurrentUserId();
     const ext = validFile.name.split(".").pop();
     if (!ext) throw new Error("Не удалось определить расширение файла");
-    console.warn("file name:", validFile.name);
-    console.warn("file size:", validFile.size);
-    console.warn("file type:", validFile.type);
-    console.warn("file has arrayBuffer:", typeof validFile.arrayBuffer === "function");
+    logger.warn("file name:", { fileName: validFile.name, operation: 'warn' });
+    logger.warn("file size:", { fileSize: validFile.size, operation: 'warn' });
+    logger.warn("file type:", { fileType: validFile.type, operation: 'warn' });
+    logger.warn("file has arrayBuffer:", { hasArrayBuffer: typeof validFile.arrayBuffer === "function", operation: 'warn' });
     
     // 2. Конвертируем File → Uint8Array
     const arrayBuffer = await validFile.arrayBuffer();
@@ -37,7 +41,7 @@ export async function updateAvatar(file: File): Promise<string> {
       uploadDir = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", "uploads", "avatars");
     }
     
-    console.warn("Upload directory:", uploadDir);
+    logger.warn("Upload directory:", { uploadDir, operation: 'warn' });
     
     // Если папки нет, создаём её
     await mkdir(uploadDir, { recursive: true });
@@ -46,7 +50,7 @@ export async function updateAvatar(file: File): Promise<string> {
     const fileName = `avatar-${userId}-${timestamp}.${ext}`;
     const uploadPath = path.join(uploadDir, fileName);
     
-    console.warn("Upload path:", uploadPath);
+    logger.warn("Upload path:", { uploadPath, operation: 'warn' });
 
     // 4. Получаем из базы текущий avatarUrl, чтобы удалить старый файл
     const existingProfile = await prisma.userProfile.findUnique({
@@ -66,16 +70,16 @@ export async function updateAvatar(file: File): Promise<string> {
       
       try {
         await unlink(oldFilePath);
-        console.warn("Old avatar file deleted:", oldFilePath);
+        logger.warn("Old avatar file deleted:", { oldFilePath, operation: 'warn' });
       } catch {
         // Если файл не найден или ошибка удаления — игнорируем
-        console.warn("Could not delete old avatar file:", oldFilePath);
+        logger.warn("Could not delete old avatar file:", { oldFilePath, operation: 'warn' });
       }
     }
 
     // 5. Сохраняем (перезаписываем) файл
     await writeFile(uploadPath, uint8Array);
-    console.warn("Avatar file saved successfully:", uploadPath);
+    logger.warn("Avatar file saved successfully:", { uploadPath, operation: 'warn' });
 
     // 6. Формируем URL, который будет ссылаться на этот файл
     const avatarUrl = `/uploads/avatars/${fileName}`;
@@ -90,10 +94,10 @@ export async function updateAvatar(file: File): Promise<string> {
       },
     });
 
-    console.warn("Avatar URL saved to database:", avatarUrl);
+    logger.warn("Avatar URL saved to database:", { avatarUrl, operation: 'warn' });
     return avatarUrl;
   } catch (error) {
-    console.error("Ошибка в updateAvatar:", error);
+    logger.error("Ошибка в updateAvatar:", error as Error, { operation: 'error' });
     throw new Error("Ошибка при обновлении аватара. Попробуйте перезагрузить страницу.");
   }
 }

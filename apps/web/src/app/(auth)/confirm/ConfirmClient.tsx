@@ -1,8 +1,12 @@
 "use client";
 
 import { serverCheckUserConfirmed } from "@shared/lib/auth/login-utils";
+import { createWebLogger } from "@gafus/logger";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+
+// Создаем логгер для ConfirmClient
+const logger = createWebLogger('web-confirm-client');
 
 export default function ConfirmClient() {
   const searchParams = useSearchParams();
@@ -23,7 +27,10 @@ export default function ConfirmClient() {
             window.location.href = "/login";
           }
         } catch (error) {
-          console.error("Ошибка при проверке подтверждения номера:", error);
+          logger.error("Ошибка при проверке подтверждения номера", error as Error, {
+            operation: 'confirm_phone_check_error',
+            phone: phone
+          });
           setCaughtError(error as Error);
         }
       });

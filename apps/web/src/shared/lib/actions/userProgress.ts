@@ -1,10 +1,13 @@
 "use server";
 
+import { createWebLogger } from "@gafus/logger";
 import { getUserProgress } from "@shared/lib/user/getUserProgress";
 import { getCurrentUserId } from "@/utils";
 
 import { courseIdSchema } from "../validation/schemas";
 import { z } from "zod";
+
+const logger = createWebLogger('web-user-progress-action');
 
 const courseIdsSchema = z.array(courseIdSchema).optional();
 
@@ -18,7 +21,7 @@ export async function getUserProgressForCurrentUser(courseId: string) {
     const result = await getUserProgress(safeCourseId, userId);
     return result;
   } catch (error) {
-    console.error("Ошибка при получении прогресса пользователя:", error);
+    logger.error("Ошибка при получении прогресса пользователя:", error as Error, { operation: 'error' });
     return null;
   }
 }
@@ -30,15 +33,15 @@ export async function getUserProgressForMultipleCourses(courseIds: string[]) {
   const safeCourseIds = courseIdsSchema.parse(courseIds) ?? [];
   try {
     const userId = await getCurrentUserId();
-    console.log('getUserProgressForMultipleCourses - userId:', userId, 'courseIds:', safeCourseIds);
+    logger.info('getUserProgressForMultipleCourses - userId:', { userId, courseIds: safeCourseIds, operation: 'info' });
     
     if (safeCourseIds.length === 0) {
-      console.log('No course IDs provided, returning empty map');
+      logger.info('No course IDs provided, returning empty map', { operation: 'info' });
       return new Map();
     }
     
     if (!userId) {
-      console.log('No user ID found, returning empty map');
+      logger.info('No user ID found, returning empty map', { operation: 'info' });
       return new Map();
     }
     
@@ -51,12 +54,12 @@ export async function getUserProgressForMultipleCourses(courseIds: string[]) {
       progressMap[courseId] = results[index];
     });
     
-    console.log('getUserProgressForMultipleCourses - results:', results);
-    console.log('getUserProgressForMultipleCourses - progressMap:', progressMap);
+    logger.info('getUserProgressForMultipleCourses - results:', { results, operation: 'info' });
+    logger.info('getUserProgressForMultipleCourses - progressMap:', { progressMap, operation: 'info' });
     
     return progressMap;
   } catch (error) {
-    console.error("Ошибка при получении прогресса по нескольким курсам:", error);
+    logger.error("Ошибка при получении прогресса по нескольким курсам:", error as Error, { operation: 'error' });
     return {};
   }
 }

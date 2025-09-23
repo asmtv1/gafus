@@ -1,11 +1,15 @@
 "use server";
 
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
 
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 
 import { getCurrentUserId } from "@/utils";
+
+// Создаем логгер для updateCourseRating
+const logger = createWebLogger('web-update-course-rating');
 
 const courseRatingSchema = z.object({
   courseId: z.string().trim().min(1, "courseId обязателен"),
@@ -90,7 +94,7 @@ export async function updateCourseRatingAction(
 
     return { success: true };
   } catch (error) {
-    console.error("Ошибка в updateCourseRatingAction:", error);
+    logger.error("Ошибка в updateCourseRatingAction:", error as Error, { operation: 'error' });
 
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error in updateCourseRatingAction",

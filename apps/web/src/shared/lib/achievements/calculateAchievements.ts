@@ -1,5 +1,6 @@
 "use client";
 
+import { createWebLogger } from "@gafus/logger";
 import type { 
   Achievement, 
   AchievementData, 
@@ -8,6 +9,9 @@ import type {
   UserWithTrainings,
   CourseWithProgressData
 } from "@gafus/types";
+
+// Создаем логгер для calculate-achievements
+const logger = createWebLogger('web-calculate-achievements');
 
 // Тип для статистики достижений
 interface AchievementStats {
@@ -423,7 +427,7 @@ export function calculateAchievementsFromStores(
 export async function createAchievementData(user: UserWithTrainings): Promise<AchievementData> {
   // Добавляем логирование для отладки
   if (process.env.NODE_ENV === 'development') {
-    console.log('[createAchievementData] User data:', {
+    logger.info('[createAchievementData] User data:', {
       hasUser: !!user,
       hasCourses: !!user?.courses,
       coursesLength: user?.courses?.length,
@@ -448,13 +452,14 @@ export async function createAchievementData(user: UserWithTrainings): Promise<Ac
   
   // Добавляем логирование результата
   if (process.env.NODE_ENV === 'development') {
-    console.log('[createAchievementData] Result:', {
+    logger.info('[createAchievementData] Result:', {
       totalCourses: achievementData.totalCourses,
       completedCourses: achievementData.completedCourses,
       totalCompletedDays: achievementData.totalCompletedDays,
       totalDays: achievementData.totalDays,
       overallProgress: achievementData.overallProgress,
-      achievementsLength: achievementData.achievements.length
+      achievementsLength: achievementData.achievements.length,
+      operation: 'info'
     });
   }
   

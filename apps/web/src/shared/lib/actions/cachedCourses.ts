@@ -5,6 +5,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@gafus/prisma";
 import type { Prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
+import { createWebLogger } from "@gafus/logger";
 import { reportErrorToDashboard } from "../actions/reportError";
 import { getAuthoredCourses } from "../course/getAuthoredCourses";
 import { getCoursesWithProgress } from "../course/getCourses";
@@ -29,12 +30,15 @@ interface UserProgressData {
   favoriteCourseIds: string[];
 }
 
+// Создаем логгер для cached-courses
+const logger = createWebLogger('web-cached-courses');
+
 // Базовый список всех курсов (постоянное кэширование)
 // ВАЖНО: Эта функция кэширует ВСЕ курсы (публичные + приватные) без пользовательских данных
 export const getAllCoursesCached = unstable_cache(
   async () => {
     try {
-      console.warn("[React Cache] Fetching all courses (permanent cache)");
+      logger.warn("[React Cache] Fetching all courses (permanent cache, { operation: 'warn' })");
       
       // Получаем ВСЕ курсы (публичные + приватные) без пользовательских данных
       type CourseWithRelations = Prisma.CourseGetPayload<{
@@ -147,10 +151,10 @@ export const getAllCoursesCached = unstable_cache(
         })),
       }));
 
-      console.warn(`[React Cache] Cached ${data.length} courses (public + private) permanently`);
+      logger.warn(`[React Cache] Cached ${data.length} courses (public + private, { operation: 'warn' }) permanently`);
       return { success: true, data };
     } catch (error) {
-      console.error("❌ Error in getAllCoursesCached:", error);
+      logger.error("❌ Error in getAllCoursesCached:", error as Error, { operation: 'error' });
 
       await reportErrorToDashboard({
         message:
@@ -182,7 +186,7 @@ export async function getUserCoursesProgressCached(userId?: string) {
   const cachedFunction = unstable_cache(
     async () => {
       try {
-        console.warn("[React Cache] Fetching user courses progress for user:", safeUserId);
+        logger.warn("[React Cache] Fetching user courses progress for user:", { safeUserId, operation: 'warn' });
         
         if (!safeUserId) {
           return { success: true, data: [] };
@@ -220,9 +224,9 @@ export async function getUserCoursesProgressCached(userId?: string) {
 
         const favorites = Array.from(favoriteCourseIds);
 
-        console.warn(
-          `[React Cache] Cached progress for ${data.length} courses and ${favorites.length} favorites for user:`,
-          safeUserId,
+        logger.warn(
+          `[React Cache] Cached progress for ${data.length} courses and ${favorites.length} favorites for user: ${safeUserId}`,
+          { operation: 'warn' }
         );
         return {
           success: true,
@@ -232,7 +236,7 @@ export async function getUserCoursesProgressCached(userId?: string) {
           } as UserProgressData,
         };
       } catch (error) {
-        console.error("❌ Error in getUserCoursesProgressCached:", error);
+        logger.error("❌ Error in getUserCoursesProgressCached:", error as Error, { operation: 'error' });
 
         await reportErrorToDashboard({
           message:
@@ -268,15 +272,15 @@ export async function getCoursesWithProgressCached(userId?: string) {
   const cachedFunction = unstable_cache(
     async () => {
       try {
-        console.warn("[React Cache] Fetching all courses with progress for user:", safeUserId);
+        logger.warn("[React Cache] Fetching all courses with progress for user:", { safeUserId, operation: 'warn' });
         const result = await getCoursesWithProgress(safeUserId);
-        console.warn(
-          `[React Cache] Cached ${result.data.length} courses successfully for user:`,
-          safeUserId,
+        logger.warn(
+          `[React Cache] Cached ${result.data.length} courses successfully for user: ${safeUserId}`,
+          { operation: 'warn' }
         );
         return { success: true, data: result.data };
       } catch (error) {
-        console.error("❌ Error in getCoursesWithProgressCached:", error);
+        logger.error("❌ Error in getCoursesWithProgressCached:", error as Error, { operation: 'error' });
 
         await reportErrorToDashboard({
           message:
@@ -309,7 +313,7 @@ export async function getCoursesWithProgressCached(userId?: string) {
 export async function getCoursesWithUserProgressCached(userId?: string) {
   const safeUserId = optionalUserIdSchema.parse(userId);
   try {
-    console.warn("[React Cache] Combining all courses with user progress for user:", safeUserId);
+    logger.warn("[React Cache] Combining all courses with user progress for user:", { safeUserId, operation: 'warn' });
     
     // Получаем все курсы (из постоянного кэша)
     const allCoursesResult = await getAllCoursesCached();
@@ -366,10 +370,10 @@ export async function getCoursesWithUserProgressCached(userId?: string) {
       };
     });
 
-    console.warn(`[React Cache] Combined ${coursesWithProgress.length} accessible courses with user progress`);
+    logger.warn(`[React Cache] Combined ${coursesWithProgress.length} accessible courses with user progress`, { operation: 'warn' });
     return { success: true, data: coursesWithProgress };
   } catch (error) {
-    console.error("❌ Error in getCoursesWithUserProgressCached:", error);
+    logger.error("❌ Error in getCoursesWithUserProgressCached:", error as Error, { operation: 'error' });
 
     await reportErrorToDashboard({
       message:
@@ -394,12 +398,12 @@ export const getFavoritesCoursesCached = unstable_cache(
   async (userId?: string) => {
     const safeUserId = optionalUserIdSchema.parse(userId);
     try {
-      console.warn("[React Cache] Fetching favorite courses");
+      logger.warn("[React Cache] Fetching favorite courses", { operation: 'warn' });
       const result = await getFavoritesCourses(safeUserId);
-      console.warn(`[React Cache] Cached ${result.data.length} favorite courses successfully`);
+      logger.warn(`[React Cache] Cached ${result.data.length} favorite courses successfully`, { operation: 'warn' });
       return { success: true, data: result.data };
     } catch (error) {
-      console.error("❌ Error in getFavoritesCoursesCached:", error);
+      logger.error("❌ Error in getFavoritesCoursesCached:", error as Error, { operation: 'error' });
 
       await reportErrorToDashboard({
         message:
@@ -428,12 +432,12 @@ export const getFavoritesCoursesCached = unstable_cache(
 export const getAuthoredCoursesCached = unstable_cache(
   async () => {
     try {
-      console.warn("[React Cache] Fetching authored courses");
+      logger.warn("[React Cache] Fetching authored courses", { operation: 'warn' });
       const result = await getAuthoredCourses();
-      console.warn(`[React Cache] Cached ${result.length} authored courses successfully`);
+      logger.warn(`[React Cache] Cached ${result.length} authored courses successfully`, { operation: 'warn' });
       return { success: true, data: result };
     } catch (error) {
-      console.error("❌ Error in getAuthoredCoursesCached:", error);
+      logger.error("❌ Error in getAuthoredCoursesCached:", error as Error, { operation: 'error' });
 
       await reportErrorToDashboard({
         message:
@@ -464,16 +468,18 @@ export const getTrainingDaysCached = unstable_cache(
     const safeType = optionalTrainingTypeSchema.parse(typeParam);
     const safeUserId = optionalUserIdSchema.parse(userId);
     try {
-      console.warn("[React Cache] Fetching training days for type:", safeType, "userId:", safeUserId);
+      logger.warn("[React Cache] Fetching training days for type:", { safeType, safeUserId, operation: 'warn' });
       const result = await getTrainingDays(safeType, safeUserId);
-      console.warn(`[React Cache] Cached ${result.trainingDays.length} training days successfully`);
+      logger.warn(`[React Cache] Cached ${result.trainingDays.length} training days successfully`, { operation: 'warn' });
       return { success: true, data: result };
     } catch (error) {
-      console.error("❌ Error in getTrainingDaysCached:", error);
-      console.error("❌ Error details:", {
+      logger.error("❌ Error in getTrainingDaysCached:", error as Error, { operation: 'error' });
+      logger.error("❌ Error details:", new Error(`Error in getTrainingDaysCached: ${error instanceof Error ? error.message : "Unknown error"}`), {
         message: error instanceof Error ? error.message : "Unknown error",
         stack: error instanceof Error ? error.stack : undefined,
         typeParam: safeType,
+        userId: safeUserId,
+        operation: 'error'
       });
 
       await reportErrorToDashboard({
@@ -518,7 +524,7 @@ export const getTrainingDayCached = unstable_cache(
     const safeDayId = dayIdSchema.parse(dayId);
     const safeUserId = optionalUserIdSchema.parse(userId);
     try {
-      console.warn("[React Cache] Fetching training day:", safeDayId, "userId:", safeUserId);
+      logger.warn("[React Cache] Fetching training day:", { safeDayId, safeUserId, operation: 'warn' });
       
       const day = await prisma.trainingDay.findUnique({
         where: { id: safeDayId },
@@ -588,10 +594,10 @@ export const getTrainingDayCached = unstable_cache(
         estimatedDuration: day.stepLinks.reduce((total: number, link: { step: { durationSec: number } }) => total + link.step.durationSec, 0)
       };
 
-      console.warn(`[React Cache] Cached training day ${safeDayId} successfully`);
+      logger.warn(`[React Cache] Cached training day ${safeDayId} successfully`, { operation: 'warn' });
       return { success: true, data: result };
     } catch (error) {
-      console.error("❌ Error in getTrainingDayCached:", error);
+      logger.error("❌ Error in getTrainingDayCached:", error as Error, { operation: 'error' });
       await reportErrorToDashboard({
         message: error instanceof Error ? error.message : "Unknown error in getTrainingDayCached",
         stack: error instanceof Error ? error.stack : undefined,

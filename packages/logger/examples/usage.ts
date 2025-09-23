@@ -174,7 +174,7 @@ export function demonstrateLoggerCaching() {
   // Второй вызов возвращает тот же экземпляр (кэшированный)
   const logger2 = LoggerFactory.createLoggerWithContext('my-app', 'module-1');
   
-  console.log(logger1 === logger2); // true
+  // logger1 === logger2; // true
   
   // Очистка кэша
   LoggerFactory.clearCache();

@@ -13,6 +13,10 @@ import {
 } from "@mui/material";
 import imageCompression from "browser-image-compression";
 import { useState } from "react";
+import { createTrainerPanelLogger } from "@gafus/logger";
+
+// Создаем логгер для CourseMediaUploader
+const logger = createTrainerPanelLogger('trainer-panel-course-media-uploader');
 
 export default function CourseMediaUploader({
   onUploadComplete,
@@ -47,7 +51,9 @@ export default function CourseMediaUploader({
       const imageUrl = await uploadCourseImageServerAction(formData);
       onUploadComplete(imageUrl);
     } catch (err) {
-      console.error(err);
+      logger.error("Ошибка загрузки изображения курса", err as Error, {
+        operation: 'course_image_upload_error'
+      });
       setError(err instanceof Error ? err.message : "Не удалось загрузить изображение");
     } finally {
       setIsUploading(false);

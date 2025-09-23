@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 
 import type { Prisma, PetType } from "@gafus/prisma";
 import type { UpdatePetInput } from "@gafus/types";
@@ -8,6 +9,9 @@ import type { UpdatePetInput } from "@gafus/types";
 import { getCurrentUserId } from "@/utils";
 
 import { updatePetSchema } from "../validation/petSchemas";
+
+// Создаем логгер для updatePet
+const logger = createWebLogger('web-update-pet');
 
 export async function updatePet(data: UpdatePetInput) {
   const validatedData = updatePetSchema.parse(data);
@@ -32,7 +36,7 @@ export async function updatePet(data: UpdatePetInput) {
     if (validatedData.type !== undefined) updateData.type = validatedData.type as PetType;
     if (validatedData.breed !== undefined) updateData.breed = validatedData.breed;
     if (validatedData.birthDate !== undefined)
-      updateData.birthDate = new Date(validatedData.birthDate);
+      updateData.birthDate = new Date(validatedData.birthDate as string);
     if (validatedData.heightCm !== undefined)
       updateData.heightCm = validatedData.heightCm ?? null;
     if (validatedData.weightKg !== undefined)
@@ -51,7 +55,7 @@ export async function updatePet(data: UpdatePetInput) {
 
     return pet;
   } catch (error) {
-    console.error("Ошибка при обновлении питомца:", error);
+    logger.error("Ошибка при обновлении питомца:", error as Error, { operation: 'error' });
     throw new Error("Не удалось обновить питомца");
   }
 }

@@ -1,11 +1,16 @@
 "use client";
 
+
+import { createWebLogger } from "@gafus/logger";
 import { useMemo } from "react";
 import { useCourseStore } from "@shared/stores/courseStore";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useCourseProgressSync } from "@shared/hooks/useCourseProgressSync";
 import { calculateAchievementsFromStores } from "@shared/lib/achievements/calculateAchievements";
 import type { AchievementData } from "@gafus/types";
+
+// Создаем логгер для use-achievements-from-stores
+const logger = createWebLogger('web-use-achievements-from-stores');
 
 /**
  * Хук для получения данных достижений из локальных stores
@@ -51,7 +56,7 @@ export function useAchievementsFromStores() {
     
     // Добавляем логирование для отладки
     if (process.env.NODE_ENV === 'development') {
-      console.log('[useAchievementsFromStores] Calculated data:', {
+      logger.info('[useAchievementsFromStores] Calculated data:', {
         totalCourses: data.totalCourses,
         completedCourses: data.completedCourses,
         inProgressCourses: data.inProgressCourses,
@@ -59,7 +64,7 @@ export function useAchievementsFromStores() {
         totalDays: data.totalDays,
         overallProgress: data.overallProgress,
         achievementsLength: data.achievements.length,
-        unlockedAchievements: data.achievements.filter(a => a.unlocked).length
+        unlockedAchievements: data.achievements.filter(a => a.unlocked, { operation: 'info' }).length
       });
     }
     

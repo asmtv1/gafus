@@ -1,7 +1,11 @@
 "use server";
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 
 import { getCurrentUserId } from "@/utils";
+
+// Создаем логгер для getUserSubscriptionStatus
+const logger = createWebLogger('web-get-user-subscription-status');
 
 /**
  * Проверяет, есть ли у пользователя активная push-подписка
@@ -20,7 +24,7 @@ export async function getUserSubscriptionStatus() {
     return { hasSubscription };
     
   } catch (error) {
-    console.error("❌ getUserSubscriptionStatus: Ошибка:", error);
+    logger.error("❌ getUserSubscriptionStatus: Ошибка:", error as Error, { operation: 'error' });
     return { hasSubscription: false };
   }
 }
@@ -38,7 +42,7 @@ export async function getUserSubscriptionCount() {
 
     return { subscriptionCount: count };
   } catch (error) {
-    console.error("Ошибка при получении количества подписок:", error);
+    logger.error("Ошибка при получении количества подписок:", error as Error, { operation: 'error' });
     return { subscriptionCount: 0 };
   }
 }
@@ -63,7 +67,7 @@ export async function getUserSubscriptions() {
 
     return { subscriptions };
   } catch (error) {
-    console.error("Ошибка при получении списка подписок:", error);
+    logger.error("Ошибка при получении списка подписок:", error as Error, { operation: 'error' });
     return { subscriptions: [] };
   }
 }

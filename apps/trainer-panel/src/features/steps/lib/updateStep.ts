@@ -1,11 +1,16 @@
 "use server";
 
+
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { validateForm } from "@shared/lib/validation/serverValidation";
 import { revalidatePath } from "next/cache";
 
 import type { ActionResult } from "@gafus/types";
+
+// Создаем логгер для update-step
+const logger = createTrainerPanelLogger('trainer-panel-update-step');
 
 export async function updateStep(
   prevState: ActionResult,
@@ -86,7 +91,7 @@ export async function updateStep(
 
     return { success: true };
   } catch (error) {
-    console.error("Ошибка при обновлении шага:", error);
+    logger.error("Ошибка при обновлении шага:", error as Error, { operation: 'error' });
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,

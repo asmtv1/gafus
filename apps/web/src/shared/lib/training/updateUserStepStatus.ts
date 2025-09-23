@@ -4,6 +4,7 @@ import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
 
 import { checkAndCompleteCourse } from "../user/userCourses";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
@@ -16,6 +17,8 @@ import {
   stepIndexSchema,
   userIdSchema,
 } from "../validation/schemas";
+
+const logger = createWebLogger('web');
 const statusSchema = z.nativeEnum(TrainingStatus, {
   errorMap: () => ({ message: "Некорректный статус шага" }),
 });
@@ -178,7 +181,7 @@ export async function updateUserStepStatus(
 
         const trainingDay = dayOnCourse.day;
         if (!trainingDay) {
-          console.error("Training Day not found", { dayOnCourse });
+          logger.error("Training Day not found", new Error("Training Day not found"), { dayOnCourse, operation: 'error' });
           throw new Error("Training Day not found");
         }
 
@@ -189,7 +192,7 @@ export async function updateUserStepStatus(
         const stepLink = trainingDay.stepLinks[safeStepIndex];
 
         if (!stepLink) {
-          console.error("Step not found by index after ordering", {
+          logger.error("Step not found by index after ordering", new Error("Step not found"), {
             stepIndex: safeStepIndex,
             stepOrder: safeStepOrder,
             total: trainingDay.stepLinks.length,
@@ -228,7 +231,7 @@ export async function updateUserStepStatus(
       try {
         await checkAndCompleteCourse(result.courseId);
       } catch (courseError) {
-        console.error("Failed to check course completion:", courseError);
+        logger.error("Failed to check course completion:", courseError as Error, { operation: 'error' });
         // Не прерываем выполнение, если проверка курса не удалась
       }
     }
@@ -238,12 +241,12 @@ export async function updateUserStepStatus(
     const cacheResult = await invalidateUserProgressCache(safeUserId, false);
     
     if (cacheResult.skipped) {
-      console.warn(`[Cache] Cache invalidation skipped for user ${safeUserId} - offline mode`);
+      logger.warn(`[Cache] Cache invalidation skipped for user ${safeUserId} - offline mode`, { operation: 'warn' });
     }
 
     return { success: true };
   } catch (error) {
-    console.error("❌ Error in updateUserStepStatus:", error);
+    logger.error("❌ Error in updateUserStepStatus:", error as Error, { operation: 'error' });
 
     // Отправляем ошибку в dashboard для мониторинга
     try {
@@ -264,7 +267,7 @@ export async function updateUserStepStatus(
         tags: ["training", "step-update", "server-action"],
       });
     } catch (reportError) {
-      console.error("Failed to report error to dashboard:", reportError);
+      logger.error("Failed to report error to dashboard:", reportError as Error, { operation: 'error' });
     }
 
     return { success: false };

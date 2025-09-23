@@ -2,6 +2,7 @@
 "use client";
 
 import { updateCourseRatingAction } from "@shared/lib/course/updateCourseRating";
+import { createWebLogger } from "@gafus/logger";
 import { useState } from "react";
 
 import type {
@@ -14,6 +15,9 @@ import { FavoriteIcon, FavoriteBorderIcon } from "@/utils/muiImports";
 import { Rating } from "@/utils/muiImports";
 import { showCourseRatingAlert, showErrorAlert, showSuccessAlert } from "@shared/utils/sweetAlert";
 import styles from "./CourseRating.module.css";
+
+// Создаем логгер для CourseRating
+const logger = createWebLogger('web-course-rating');
 
 // StyledRating теперь использует CSS модуль
 
@@ -44,11 +48,19 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
         setRating(newValue);
         await showSuccessAlert("Рейтинг сохранен");
       } else {
-        console.error("Ошибка при сохранении рейтинга:", result.error);
+        logger.error("Ошибка при сохранении рейтинга", new Error(result.error || "Unknown error"), {
+          operation: 'save_rating_error',
+          courseId: courseId,
+          rating: newValue
+        });
         await showErrorAlert(result.error || "Ошибка при сохранении рейтинга");
       }
     } catch (error) {
-      console.error("Ошибка при сохранении рейтинга:", error);
+      logger.error("Ошибка при сохранении рейтинга", error as Error, {
+        operation: 'save_rating_exception',
+        courseId: courseId,
+        rating: newValue
+      });
       await showErrorAlert("Ошибка при сохранении рейтинга");
     } finally {
       setIsSubmitting(false);
@@ -130,11 +142,19 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
         setRating(newValue);
         await showSuccessAlert("Рейтинг сохранен");
       } else {
-        console.error("Ошибка при сохранении рейтинга:", result.error);
+        logger.error("Ошибка при сохранении рейтинга", new Error(result.error || "Unknown error"), {
+          operation: 'save_rating_error',
+          courseId: courseId,
+          rating: newValue
+        });
         await showErrorAlert(result.error || "Ошибка при сохранении рейтинга");
       }
     } catch (error) {
-      console.error("Ошибка при сохранении рейтинга:", error);
+      logger.error("Ошибка при сохранении рейтинга", error as Error, {
+        operation: 'save_rating_exception',
+        courseId: courseId,
+        rating: newValue
+      });
       await showErrorAlert("Ошибка при сохранении рейтинга");
     } finally {
       setIsSubmitting(false);

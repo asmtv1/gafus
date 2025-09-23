@@ -5,6 +5,10 @@
 
 import { useEffect, useCallback } from 'react';
 import { useOfflineStore } from '@shared/stores/offlineStore';
+import { createWebLogger } from "@gafus/logger";
+
+// Создаем логгер для useServiceWorker
+const logger = createWebLogger('web-service-worker-hook');
 
 export function useServiceWorker() {
   const { 
@@ -75,7 +79,7 @@ export function useServiceWorker() {
       const response = await getMessageFromSW('CACHE_STATUS_RESPONSE');
       return response.status;
     } catch (error) {
-      console.warn('Failed to get cache status:', error);
+      logger.warn('Failed to get cache status:', { error, operation: 'warn' });
       return null;
     }
   }, [getMessageFromSW]);

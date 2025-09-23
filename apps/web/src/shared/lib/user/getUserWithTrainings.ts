@@ -109,7 +109,7 @@ export async function getUserWithTrainings(): Promise<UserWithTrainings | null> 
         operation: 'get_user_with_trainings_result',
         hasUser: !!result,
         coursesLength: result.courses?.length,
-        coursesData: result.courses?.map(c => ({
+        coursesData: result.courses?.map((c: { courseId: string; courseName: string; completedAt: Date | null; completedDays: number[]; totalDays: number }) => ({
           courseId: c.courseId,
           courseName: c.courseName,
           completedAt: !!c.completedAt,

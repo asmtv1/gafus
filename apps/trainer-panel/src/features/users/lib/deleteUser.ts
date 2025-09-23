@@ -1,7 +1,11 @@
+import { createTrainerPanelLogger } from "@gafus/logger";
 
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
+
+// Создаем логгер для delete-user
+const logger = createTrainerPanelLogger('trainer-panel-delete-user');
 
 export async function deleteUser(
   prevState: Record<string, unknown>,
@@ -31,7 +35,7 @@ export async function deleteUser(
 
     return { success: true };
   } catch (error) {
-    console.error("Ошибка при удалении пользователя:", error);
+    logger.error("Ошибка при удалении пользователя:", error as Error, { operation: 'error' });
     return { success: false, error: "Не удалось удалить пользователя" };
   }
 }
