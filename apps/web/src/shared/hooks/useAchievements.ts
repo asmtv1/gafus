@@ -59,7 +59,7 @@ export function useAchievements() {
       placeholderData: (previousData) => {
         // Добавляем логирование для отладки
         if (process.env.NODE_ENV === 'development') {
-          console.log('[useAchievements] placeholderData:', {
+          console.warn('[useAchievements] placeholderData:', {
             hasPreviousData: !!previousData,
             previousDataValid: previousData && previousData.achievements && Array.isArray(previousData.achievements)
           });
@@ -96,7 +96,7 @@ export function useAchievementsByCategory() {
   
   // Добавляем логирование для отладки
   if (process.env.NODE_ENV === 'development') {
-    console.log('[useAchievementsByCategory] Data state:', { 
+    console.warn('[useAchievementsByCategory] Data state:', { 
       hasData: !!data, 
       hasAchievements: !!data?.achievements, 
       achievementsLength: data?.achievements?.length,

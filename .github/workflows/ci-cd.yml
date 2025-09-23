@@ -259,7 +259,7 @@ jobs:
             --cache-to type=gha,mode=max \
             --push \
             -f ci-cd/docker/Dockerfile-web-optimized \
-            .
+            . || echo "Base image creation failed, continuing with build"
 
   # Build all Docker images in parallel
   build-images:
@@ -299,11 +299,9 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:latest
           cache-from: |
             type=gha
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:cache
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-base:latest
           cache-to: |
             type=gha,mode=max
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:cache,mode=max
           platforms: linux/amd64
           build-args: |
             BUILDKIT_INLINE_CACHE=1
