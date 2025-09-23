@@ -1,11 +1,15 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import { z } from "zod";
 
 import { petIdSchema } from "../validation/petSchemas";
+
+// Создаем логгер для updatePetAvatar
+const logger = createWebLogger('web-update-pet-avatar');
 
 const fileSchema = z.instanceof(File, { message: "Файл обязателен" });
 
@@ -33,7 +37,7 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
       uploadDir = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", "uploads", "pets");
     }
     
-    console.warn("Upload directory:", uploadDir);
+    logger.warn("Upload directory:", { uploadDir, operation: 'warn' });
     
     // Если папки нет, создаём её
     await mkdir(uploadDir, { recursive: true });
@@ -42,7 +46,7 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
     const fileName = `pet-${safePetId}-${timestamp}.${ext}`;
     const uploadPath = path.join(uploadDir, fileName);
     
-    console.warn("Upload path:", uploadPath);
+    logger.warn("Upload path:", { uploadPath, operation: 'warn' });
 
     // 4. Получаем из базы текущий photoUrl, чтобы удалить старый файл
     const existingPet = await prisma.pet.findUnique({
@@ -61,16 +65,16 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
       
       try {
         await unlink(oldFilePath);
-        console.warn("Old pet photo deleted:", oldFilePath);
+        logger.warn("Old pet photo deleted:", { oldFilePath, operation: 'warn' });
       } catch {
         // Если файл не найден или ошибка удаления — игнорируем
-        console.warn("Could not delete old pet photo:", oldFilePath);
+        logger.warn("Could not delete old pet photo:", { oldFilePath, operation: 'warn' });
       }
     }
 
     // 5. Сохраняем файл
     await writeFile(uploadPath, uint8Array);
-    console.warn("Pet photo saved successfully:", uploadPath);
+    logger.warn("Pet photo saved successfully:", { uploadPath, operation: 'warn' });
 
     // 6. Формируем URL для веба
     const photoUrl = `/uploads/pets/${fileName}`;
@@ -81,10 +85,10 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
       data: { photoUrl },
     });
 
-    console.warn("Pet photo URL saved to database:", photoUrl);
+    logger.warn("Pet photo URL saved to database:", { photoUrl, operation: 'warn' });
     return photoUrl;
   } catch (error) {
-    console.error("Ошибка в updatePetAvatar:", error);
+    logger.error("Ошибка в updatePetAvatar:", error as Error, { operation: 'error' });
     throw new Error("Ошибка при обновлении фото питомца. Попробуйте перезагрузить страницу.");
   }
 }

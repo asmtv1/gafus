@@ -1,7 +1,12 @@
 "use client";
 
+
+import { createWebLogger } from "@gafus/logger";
 import { initializeOfflineStore } from "@shared/stores/offlineStore";
 import { useEffect } from "react";
+
+// Создаем логгер для offline-store-initializer
+const logger = createWebLogger('web-offline-store-initializer');
 
 
 export default function OfflineStoreInitializer() {
@@ -10,7 +15,7 @@ export default function OfflineStoreInitializer() {
     try {
       initializeOfflineStore();
     } catch (error) {
-      console.warn("Failed to initialize offline store:", error);
+      logger.warn("Failed to initialize offline store:", { error, operation: 'warn' });
     }
   }, []);
 

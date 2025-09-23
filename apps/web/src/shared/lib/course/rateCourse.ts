@@ -1,10 +1,14 @@
 "use server";
 
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
 
 import { prisma } from "@gafus/prisma";
 
 import { getCurrentUserId } from "@/utils";
+
+// Создаем логгер для rateCourse
+const logger = createWebLogger('web-rate-course');
 
 const rateCourseSchema = z.object({
   courseId: z.string().trim().min(1, "courseId обязателен"),
@@ -55,7 +59,7 @@ export async function rateCourse(courseId: string, rating: number | null) {
       },
     });
   } catch (error) {
-    console.error("Ошибка при выставлении рейтинга:", error);
+    logger.error("Ошибка при выставлении рейтинга:", error as Error, { operation: 'error' });
     throw new Error("Ошибка при выставлении рейтинга");
   }
 }

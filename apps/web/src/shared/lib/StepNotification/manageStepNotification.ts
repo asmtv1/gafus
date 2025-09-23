@@ -1,5 +1,9 @@
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 import { pushQueue } from "@gafus/queues";
+
+// Создаем логгер для manageStepNotification
+const logger = createWebLogger('web-manage-step-notification');
 
 /**
  * Приостанавливает уведомление (удаляет из очереди, но оставляет в БД)
@@ -25,16 +29,16 @@ export async function pauseStepNotification(
     });
 
     if (!notification || !notification.jobId) {
-      console.warn(`No active notification found for user ${userId}, day ${day}, step ${stepIndex}`);
+      logger.warn(`No active notification found for user ${userId}, day ${day}, step ${stepIndex}`, { operation: 'warn' });
       return; // Уведомление не найдено или уже отправлено
     }
 
     // Удаляем задачу из очереди
     try {
       await pushQueue.remove(notification.jobId.toString());
-      console.warn(`Job ${notification.jobId} removed from queue`);
+      logger.warn(`Job ${notification.jobId} removed from queue`, { operation: 'warn' });
     } catch (error) {
-      console.warn("Failed to remove job from queue:", error);
+      logger.warn("Failed to remove job from queue:", { error, operation: 'warn' });
     }
 
     // АТОМАРНАЯ операция: обновляем статус и очищаем jobId
@@ -54,11 +58,12 @@ export async function pauseStepNotification(
       },
     });
 
-    console.warn(
+    logger.warn(
       `Notification paused for user ${userId}, day ${day}, step ${stepIndex}, jobId cleared, paused: true`,
+      { operation: 'warn' }
     );
   } catch (error) {
-    console.error("Failed to pause step notification:", error);
+    logger.error("Failed to pause step notification:", error as Error, { operation: 'error' });
     throw error;
   }
 }
@@ -87,7 +92,7 @@ export async function resetStepNotification(
     });
 
     if (!notification) {
-      console.warn(`No active notification found for user ${userId}, day ${day}, step ${stepIndex}`);
+      logger.warn(`No active notification found for user ${userId}, day ${day}, step ${stepIndex}`, { operation: 'warn' });
       return; // Уведомление не найдено
     }
 
@@ -95,9 +100,9 @@ export async function resetStepNotification(
     if (notification.jobId) {
       try {
         await pushQueue.remove(notification.jobId.toString());
-        console.warn(`Job ${notification.jobId} removed from queue`);
+        logger.warn(`Job ${notification.jobId} removed from queue`, { operation: 'warn' });
       } catch (error) {
-        console.warn("Failed to remove job from queue:", error);
+        logger.warn("Failed to remove job from queue:", { error, operation: 'warn' });
       }
     }
 
@@ -106,9 +111,9 @@ export async function resetStepNotification(
       where: { id: notification.id },
     });
 
-    console.warn(`Notification reset for user ${userId}, day ${day}, step ${stepIndex}`);
+    logger.warn(`Notification reset for user ${userId}, day ${day}, step ${stepIndex}`, { operation: 'warn' });
   } catch (error) {
-    console.error("Failed to reset step notification:", error);
+    logger.error("Failed to reset step notification:", error as Error, { operation: 'error' });
     throw error;
   }
 }
@@ -170,7 +175,7 @@ export async function resumeStepNotification(
         data: { jobId: job.id, paused: false },
       });
 
-      console.warn(`Notification created on resume for user ${userId}, day ${day}, step ${stepIndex}, jobId: ${job.id}`);
+      logger.warn(`Notification created on resume for user ${userId}, day ${day}, step ${stepIndex}, jobId: ${job.id}`, { operation: 'warn' });
       return;
     }
 
@@ -191,7 +196,7 @@ export async function resumeStepNotification(
       await prisma.stepNotification.delete({
         where: { id: notification.id },
       });
-      console.warn(`Notification expired for user ${userId}, day ${day}, step ${stepIndex}`);
+      logger.warn(`Notification expired for user ${userId}, day ${day}, step ${stepIndex}`, { operation: 'warn' });
       return;
     }
 
@@ -214,9 +219,9 @@ export async function resumeStepNotification(
       data: { jobId: job.id, paused: false },
     });
 
-    console.warn(`Notification resumed for user ${userId}, day ${day}, step ${stepIndex}, remaining: ${remainingSec}s, jobId: ${job.id}`);
+    logger.warn(`Notification resumed for user ${userId}, day ${day}, step ${stepIndex}, remaining: ${remainingSec}s, jobId: ${job.id}`, { operation: 'warn' });
   } catch (error) {
-    console.error("Failed to resume step notification:", error);
+    logger.error("Failed to resume step notification:", error as Error, { operation: 'error' });
     throw error;
   }
 }

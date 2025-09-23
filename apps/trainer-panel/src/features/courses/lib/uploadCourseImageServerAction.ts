@@ -1,9 +1,13 @@
 "use server";
 
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { randomUUID } from "crypto";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+
+// Создаем логгер для uploadCourseImageServerAction
+const logger = createTrainerPanelLogger('trainer-panel-upload-course-image');
 
 export async function uploadCourseImageServerAction(formData: FormData) {
   let file: File | null = null;
@@ -44,20 +48,20 @@ export async function uploadCourseImageServerAction(formData: FormData) {
       uploadDir = path.join(process.cwd(), "../../packages/public-assets/public/uploads/courses");
     }
     
-    console.warn("Upload directory:", uploadDir);
-    
     // Если папки нет, создаём её
     await mkdir(uploadDir, { recursive: true });
     
     const filePath = path.join(uploadDir, fileName);
-    console.warn("Upload path:", filePath);
 
     await writeFile(filePath, uint8Array);
-    console.warn("Course image saved successfully:", filePath);
 
     return `/uploads/courses/${fileName}`;
   } catch (error) {
-    console.error("❌ Error in uploadCourseImageServerAction:", error);
+    logger.error("❌ Error in uploadCourseImageServerAction", error as Error, {
+      operation: 'upload_course_image_error',
+      fileName: file?.name,
+      fileSize: file?.size
+    });
     
     // Отправляем ошибку в error dashboard
     if (file) {

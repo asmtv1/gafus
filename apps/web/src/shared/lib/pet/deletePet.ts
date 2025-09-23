@@ -4,8 +4,12 @@ import { prisma } from "@gafus/prisma";
 import { unlink } from "fs/promises";
 import { revalidatePath } from "next/cache";
 import path from "path";
+import { createWebLogger } from "@gafus/logger";
 
 import { petIdSchema } from "../validation/petSchemas";
+
+// Создаем логгер для deletePet
+const logger = createWebLogger('web-delete-pet');
 
 export async function deletePet(petId: string, pathToRevalidate = "/") {
   const safePetId = petIdSchema.parse(petId);
@@ -19,7 +23,7 @@ export async function deletePet(petId: string, pathToRevalidate = "/") {
       const fileName = path.basename(pet.photoUrl);
       const filePath = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", "uploads", "pets", fileName);
       await unlink(filePath).catch(() => {
-        console.warn("Не удалось удалить аватарку питомца:", fileName);
+        logger.warn("Не удалось удалить аватарку питомца", { fileName, operation: 'warn' });
       });
     }
 
@@ -29,7 +33,7 @@ export async function deletePet(petId: string, pathToRevalidate = "/") {
 
     revalidatePath(pathToRevalidate);
   } catch (error) {
-    console.error("Ошибка в deletePet:", error);
+    logger.error("Ошибка в deletePet:", error as Error, { operation: 'error' });
     throw new Error("Не удалось удалить питомцев пользователя");
   }
 }

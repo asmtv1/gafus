@@ -1,7 +1,12 @@
 "use server";
 
+
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { getCurrentUserId } from "@gafus/auth/server";
 import { prisma } from "@gafus/prisma";
+
+// Создаем логгер для report-error
+const logger = createTrainerPanelLogger('trainer-panel-report-error');
 
 export interface ErrorReportData {
   message: string;
@@ -51,7 +56,7 @@ export async function reportErrorToDashboard(
 
     return { success: true, errorId: errorReport.id };
   } catch (error) {
-    console.error("Ошибка при сохранении отчета об ошибке:", error);
+    logger.error("Ошибка при сохранении отчета об ошибке:", error as Error, { operation: 'error' });
     return { success: false };
   }
 }

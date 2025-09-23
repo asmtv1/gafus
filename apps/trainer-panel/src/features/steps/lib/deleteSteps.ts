@@ -1,10 +1,15 @@
 "use server";
 
+
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { revalidatePath } from "next/cache";
 
 import type { ActionResult } from "@gafus/types";
+
+// Создаем логгер для delete-steps
+const logger = createTrainerPanelLogger('trainer-panel-delete-steps');
 
 export async function deleteSteps(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   try {
@@ -19,7 +24,7 @@ export async function deleteSteps(_prev: ActionResult, formData: FormData): Prom
 
     return { success: true, message: `Удалено: ${result.count}` } as { success: boolean; message: string };
   } catch (error) {
-    console.error("Ошибка при удалении шагов:", error);
+    logger.error("Ошибка при удалении шагов:", error as Error, { operation: 'error' });
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,

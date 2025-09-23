@@ -1,11 +1,14 @@
 "use server";
 
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
 
 import { prisma } from "@gafus/prisma";
 
 import { getCurrentUserId } from "@/utils";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
+
+const logger = createWebLogger('web-add-to-favorite');
 
 const courseIdSchema = z.string().trim().min(1, "courseId обязателен");
 
@@ -49,13 +52,13 @@ export async function toggleFavoriteCourse(courseId: string): Promise<boolean> {
     const cacheResult = await invalidateUserProgressCache(userId, false);
     
     if (cacheResult.skipped) {
-      console.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`);
+      logger.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`, { operation: 'warn' });
     }
     
     return isFavorite;
     
   } catch (error) {
-    console.error("Ошибка в toggleFavoriteCourse:", error);
+    logger.error("Ошибка в toggleFavoriteCourse:", error as Error, { operation: 'error' });
     throw new Error("Ошибка при изменении избранного курса. Попробуйте перезагрузить страницу.");
   }
 }

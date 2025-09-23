@@ -1,8 +1,11 @@
 "use server";
 
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
 
 import { checkUserState } from "@shared/lib/auth/login-utils";
+
+const logger = createWebLogger('web-check-user-state');
 
 const usernameSchema = z
   .string()
@@ -15,15 +18,15 @@ export async function checkUserStateAction(username: string) {
   try {
     const normalizedUsername = usernameSchema.parse(username);
 
-    console.warn("🔍 checkUserState server action called");
-    console.warn("👤 Username:", normalizedUsername);
+    logger.warn("🔍 checkUserState server action called", { operation: 'warn' });
+    logger.warn("👤 Username:", { normalizedUsername, operation: 'warn' });
 
     const state = await checkUserState(normalizedUsername);
-    console.warn("✅ User state:", state);
+    logger.warn("✅ User state:", { state, operation: 'warn' });
 
     return state;
   } catch (error) {
-    console.error("❌ Ошибка в checkUserStateAction:", error);
+    logger.error("❌ Ошибка в checkUserStateAction:", error as Error, { operation: 'error' });
     throw new Error("Внутренняя ошибка сервера");
   }
 }

@@ -1,10 +1,15 @@
 "use client";
 
+
+import { createWebLogger } from "@gafus/logger";
 import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
 import { useNotificationComposite, useNotificationInitializer } from "@shared/stores";
 import { showNotificationPermissionAlert } from "@shared/utils/sweetAlert";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+
+// Создаем логгер для notification-requester-new
+const logger = createWebLogger('web-notification-requester-new');
 
 export default function NotificationRequesterNew() {
   const { data: session, status } = useSession();
@@ -50,12 +55,12 @@ export default function NotificationRequesterNew() {
             checkServerSubscription();
           }, 100);
         } else {
-          console.warn("⚠️ NotificationRequesterNew: No user ID found in session");
+          logger.warn("⚠️ NotificationRequesterNew: No user ID found in session", { operation: 'warn' });
         }
       } catch (e) {
         if (!cancelled) {
           setVapidKey(null);
-          console.error("❌ NotificationRequesterNew: Failed to fetch VAPID public key", e);
+          logger.error("❌ NotificationRequesterNew: Failed to fetch VAPID public key", e as Error, { operation: 'error' });
         }
       }
     })();
@@ -87,7 +92,7 @@ export default function NotificationRequesterNew() {
         await requestPermission(vapidKey);
         dismissModal();
       } else {
-        console.error("❌ NotificationRequesterNew: VAPID key not available");
+        logger.error("❌ NotificationRequesterNew: VAPID key not available");
       }
     };
 
@@ -98,8 +103,7 @@ export default function NotificationRequesterNew() {
 
     // Показываем SweetAlert2 модальное окно
     showNotificationPermissionAlert(
-      handleAllowNotifications,
-      handleDenyNotifications,
+      handleAllowNotifications, handleDenyNotifications,
       isLoading,
       error
     );

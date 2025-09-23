@@ -140,7 +140,6 @@ export default function MyCreatedCoursesContent({
                         typeof rev.rating === "string" ? parseFloat(rev.rating) : rev.rating;
 
                       if (isNaN(rating) || rating < 1 || rating > 5) {
-                        console.warn("Invalid rating value:", rev.rating);
                         return null;
                       }
 

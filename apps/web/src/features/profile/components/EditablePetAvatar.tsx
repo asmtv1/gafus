@@ -2,11 +2,15 @@
 
 import EditIcon from "@mui/icons-material/Edit";
 import { updatePetAvatar } from "@shared/lib/pet/updatePetAvatar";
+import { createWebLogger } from "@gafus/logger";
 import imageCompression from "browser-image-compression";
 import { useSession } from "next-auth/react";
 import { useRef, useState, useEffect } from "react";
 
 import { Avatar, Box, IconButton, Tooltip } from "@/utils/muiImports";
+
+// Создаем логгер для EditablePetAvatar
+const logger = createWebLogger('web-editable-pet-avatar');
 
 export default function EditablePetAvatar({
   petId,
@@ -53,7 +57,10 @@ export default function EditablePetAvatar({
       setCacheBuster(Date.now().toString());
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error("Unknown error");
-      console.error("Ошибка при сохранении avatar питомца:", errorObj);
+      logger.error("Ошибка при сохранении avatar питомца", errorObj, {
+        operation: 'save_pet_avatar_error',
+        petId: petId
+      });
       setError(errorObj);
     }
   };

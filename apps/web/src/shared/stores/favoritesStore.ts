@@ -1,5 +1,7 @@
 "use client";
 
+
+import { createWebLogger } from "@gafus/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -8,6 +10,8 @@ import { useCourseStore } from "@shared/stores/courseStore";
 import { getFavoritesCourses } from "@shared/lib/course/getFavoritesCourses";
 
 import type { FavoriteToggleData, CourseWithProgressData } from "@gafus/types";
+
+const logger = createWebLogger('web');
 
 // Локальный хелпер быстрого таймаута для сетевых вызовов в избранном
 async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
@@ -154,14 +158,14 @@ export const useFavoritesStore = create<FavoritesState>()(
             await withTimeout(doRequest(), 2500);
           } catch (e) {
             // Не кидаем сразу в офлайн-очередь — пробуем фоновые ретраи
-            console.warn("addFavorite online attempt failed, retrying in background", e);
+            logger.warn("addFavorite online attempt failed, retrying in background", { error: e, operation: 'warn' });
             (async () => {
               for (let i = 0; i < 2; i++) {
                 try {
                   await withTimeout(doRequest(), 2500);
                   return;
                 } catch (err) {
-                  console.warn("addFavorite retry failed", err);
+                  logger.warn("addFavorite retry failed", { error: err, operation: 'warn' });
                 }
               }
               // Если так и не удалось — только тогда кладём в очередь
@@ -182,6 +186,9 @@ export const useFavoritesStore = create<FavoritesState>()(
 
         const doRequest = async () => {
           const { removeFavoriteCourse } = await import("@shared/lib/course/addtoFavorite");
+
+// Создаем логгер для favorites-store
+const logger = createWebLogger('web-favorites-store');
           await removeFavoriteCourse(courseId);
         };
 
@@ -189,14 +196,14 @@ export const useFavoritesStore = create<FavoritesState>()(
           try {
             await withTimeout(doRequest(), 2500);
           } catch (e) {
-            console.warn("removeFavorite online attempt failed, retrying in background", e);
+            logger.warn("removeFavorite online attempt failed, retrying in background", { error: e, operation: 'warn' });
             (async () => {
               for (let i = 0; i < 2; i++) {
                 try {
                   await withTimeout(doRequest(), 2500);
                   return;
                 } catch (err) {
-                  console.warn("removeFavorite retry failed", err);
+                  logger.warn("removeFavorite retry failed", { error: err, operation: 'warn' });
                 }
               }
               const data: FavoriteToggleData = { courseId, action: "remove" };

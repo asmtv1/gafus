@@ -1,4 +1,8 @@
 import { useCallback, useEffect } from "react";
+import { createWebLogger } from "@gafus/logger";
+
+// Создаем логгер для usePreloadComponents
+const logger = createWebLogger('web-preload-components');
 
 // Типы для предзагрузки
 export interface PreloadConfig {
@@ -20,11 +24,11 @@ export function usePreloadComponents(configs: PreloadConfig[]) {
       await config.component();
 
       if (process.env.NODE_ENV === "development") {
-        console.warn(`✅ Preloaded component with ${config.priority} priority`);
+        logger.warn(`✅ Preloaded component with ${config.priority} priority`, { operation: 'warn' });
       }
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-        console.warn(`⚠️ Failed to preload component:`, error);
+        logger.warn(`⚠️ Failed to preload component:`, { error, operation: 'warn' });
       }
     }
   }, []);
@@ -56,11 +60,11 @@ export function useInteractionPreload() {
       await config.component();
 
       if (process.env.NODE_ENV === "development") {
-        console.warn(`✅ Preloaded component on interaction`);
+        logger.warn(`✅ Preloaded component on interaction`, { operation: 'warn' });
       }
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-        console.warn(`⚠️ Failed to preload component:`, error);
+        logger.warn(`⚠️ Failed to preload component:`, { error, operation: 'warn' });
       }
     }
   }, []);
@@ -93,11 +97,11 @@ export function useVisibilityPreload() {
       await config.component();
 
       if (process.env.NODE_ENV === "development") {
-        console.warn(`✅ Preloaded component on visibility`);
+        logger.warn(`✅ Preloaded component on visibility`, { operation: 'warn' });
       }
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-        console.warn(`⚠️ Failed to preload component:`, error);
+        logger.warn(`⚠️ Failed to preload component:`, { error, operation: 'warn' });
       }
     }
   }, []);

@@ -3,10 +3,13 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
 
 import { getCurrentUserId } from "@/utils";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 import { courseIdSchema } from "../validation/schemas";
+
+const logger = createWebLogger('web');
 const trainingDayStatusesSchema = z.array(
   z.object({
     userStatus: z.string().trim().min(1, "userStatus обязателен"),
@@ -38,12 +41,12 @@ export async function assignCoursesToUser(courseId: string) {
     const cacheResult = await invalidateUserProgressCache(userId, false);
     
     if (cacheResult.skipped) {
-      console.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`);
+      logger.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`, { operation: 'warn' });
     }
 
     return { success: true, data: createdUserCourse };
   } catch (error) {
-    console.error("Ошибка в assignCoursesToUser:", error);
+    logger.error("Ошибка в assignCoursesToUser:", error as Error, { operation: 'error' });
     throw new Error("Ошибка при назначении курса. Попробуйте перезагрузить страницу.");
   }
 }
@@ -97,12 +100,12 @@ export async function completeUserCourse(courseId: string) {
     const cacheResult = await invalidateUserProgressCache(userId, false);
     
     if (cacheResult.skipped) {
-      console.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`);
+      logger.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`, { operation: 'warn' });
     }
 
     return { success: true, data: result };
   } catch (error) {
-    console.error("Ошибка в completeUserCourse:", error);
+    logger.error("Ошибка в completeUserCourse:", error as Error, { operation: 'error' });
     throw new Error("Ошибка при завершении курса. Попробуйте перезагрузить страницу.");
   }
 }
@@ -167,7 +170,7 @@ export async function checkAndCompleteCourse(
         return { success: false, reason: "Not all course days have trainings" };
       }
     } catch (error) {
-      console.error("Ошибка при проверке завершения курса:", error);
+      logger.error("Ошибка при проверке завершения курса:", error as Error, { operation: 'error' });
       return { success: false, reason: "Error checking course completion" };
     }
   }
@@ -245,7 +248,7 @@ export async function checkAndCompleteCourse(
 
     return { success: false, reason: "Not all days completed" };
   } catch (error) {
-    console.error("Ошибка в checkAndCompleteCourse:", error);
+    logger.error("Ошибка в checkAndCompleteCourse:", error as Error, { operation: 'error' });
     throw new Error("Ошибка при проверке завершения курса. Попробуйте перезагрузить страницу.");
   }
 }

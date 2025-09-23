@@ -1,10 +1,13 @@
 "use server";
 
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
+import { createWebLogger } from "@gafus/logger";
 
 import type { UserPreferences } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+
+const logger = createWebLogger('web');
 
 export async function getUserPreferences(): Promise<UserPreferences | null> {
   try {
@@ -38,7 +41,7 @@ export async function getUserPreferences(): Promise<UserPreferences | null> {
       },
     };
   } catch (error) {
-    console.error("Ошибка в getUserPreferences:", error);
+    logger.error("Ошибка в getUserPreferences:", error as Error, { operation: 'error' });
 
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error in getUserPreferences",

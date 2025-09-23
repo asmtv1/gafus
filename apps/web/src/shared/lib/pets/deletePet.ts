@@ -1,10 +1,14 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 
 import { getCurrentUserId } from "@/utils";
 
 import { petIdSchema } from "../validation/petSchemas";
+
+// Создаем логгер для deletePet
+const logger = createWebLogger('web-delete-pet');
 
 export async function deletePet(petId: string) {
   const safePetId = petIdSchema.parse(petId);
@@ -27,7 +31,7 @@ export async function deletePet(petId: string) {
       where: { id: safePetId },
     });
   } catch (error) {
-    console.error("Ошибка при удалении питомца:", error);
+    logger.error("Ошибка при удалении питомца:", error as Error, { operation: 'error' });
     throw new Error("Не удалось удалить питомца");
   }
 }

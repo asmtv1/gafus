@@ -1,6 +1,10 @@
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 import { pushQueue } from "@gafus/queues";
 import type { PushSubscription as DbPushSubscription } from "@gafus/prisma";
+
+// Создаем логгер для createStepNotification
+const logger = createWebLogger('web-create-step-notification');
 
 // Функция для логирования в error-dashboard
 async function logToErrorDashboard(
@@ -29,7 +33,7 @@ async function logToErrorDashboard(
     });
   } catch {
     // Fallback на console если error-dashboard недоступен
-    console.warn(`[${level.toUpperCase()}] ${message}`, meta);
+    logger.warn(`[${level.toUpperCase()}] ${message}`, meta);
   }
 }
 
@@ -144,7 +148,7 @@ export async function createStepNotificationsForUserStep({
       timestamp: new Date().toISOString(),
     });
 
-    console.error("Error adding job to queue:", err);
+    logger.error("Error adding job to queue:", err as Error, { operation: 'error' });
     throw err;
   }
 }

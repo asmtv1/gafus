@@ -1,11 +1,16 @@
 "use client";
 
+
+import { createWebLogger } from "@gafus/logger";
 import { useCallback, useEffect, useState } from "react";
 
 import { getTrainingDaysCached } from "../lib/actions/cachedCourses";
 import { getTrainingDays } from "../lib/training/getTrainingDays";
 import { useTrainingStore } from "../stores/trainingStore";
 import { getCurrentUserId } from "@/utils";
+
+// Создаем логгер для use-cached-training-days
+const logger = createWebLogger('web-use-cached-training-days');
 
 interface TrainingDaysData {
   trainingDays: {
@@ -79,7 +84,7 @@ export function useCachedTrainingDays(
         const userId = await getCurrentUserId();
         result = await getTrainingDaysCached(courseType, userId);
       } catch (cachedError) {
-        console.warn("[Cache] Cached function failed, trying direct function:", cachedError);
+        logger.warn("[Cache] Cached function failed, trying direct function:", { cachedError, operation: 'warn' });
         // Fallback на прямую функцию
         const directResult = await getTrainingDays(courseType);
         result = { success: true, data: directResult };
@@ -93,7 +98,7 @@ export function useCachedTrainingDays(
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Неизвестная ошибка";
-      console.error("[Cache] Error fetching training days:", errorMessage);
+      logger.error("[Cache] Error fetching training days:", err instanceof Error ? err : new Error(errorMessage), { operation: 'error' });
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -121,7 +126,7 @@ export function useCachedTrainingDays(
       data = cached.data as TrainingDaysData;
     } else {
       // Если данные в старом формате, очищаем кэш и загружаем заново
-      console.warn("[Cache] Cached data is in old format, clearing cache");
+      logger.warn("[Cache] Cached data is in old format, clearing cache", { operation: 'warn' });
       useTrainingStore.getState().clearCachedTrainingDays(courseType);
     }
   }

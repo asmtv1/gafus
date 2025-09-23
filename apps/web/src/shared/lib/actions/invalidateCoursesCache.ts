@@ -2,6 +2,9 @@
 
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
+import { createWebLogger } from "@gafus/logger";
+
+const logger = createWebLogger('web-invalidate-courses-cache');
 
 const invalidateUserProgressSchema = z.object({
   userId: z.string().trim().min(1, "userId обязателен"),
@@ -35,7 +38,7 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
     }
     
     if (!safeForce && !isOnline) {
-      console.warn(`[Cache] Skipping cache invalidation - user is offline (userId: ${safeUserId})`);
+      logger.warn(`[Cache] Skipping cache invalidation - user is offline (userId: ${safeUserId}, { operation: 'warn' })`);
       
       // Добавляем действие в очередь синхронизации для выполнения при восстановлении соединения
       try {
@@ -53,9 +56,9 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
         ]);
         
         addToSyncQueue(action);
-      console.warn(`[Cache] Cache invalidation action queued for offline sync (userId: ${safeUserId})`);
+      logger.warn(`[Cache] Cache invalidation action queued for offline sync (userId: ${safeUserId}, { operation: 'warn' })`);
       } catch (error) {
-        console.warn("[Cache] Failed to queue cache invalidation action:", error);
+        logger.warn("[Cache] Failed to queue cache invalidation action:", { error, operation: 'warn' });
       }
       
       return { 
@@ -66,7 +69,7 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
       };
     }
     
-    console.warn(`[Cache] Invalidating user progress cache for user: ${safeUserId} (force: ${safeForce}, online: ${isOnline})`);
+    logger.warn(`[Cache] Invalidating user progress cache for user: ${safeUserId} (force: ${safeForce}, online: ${isOnline}, { operation: 'warn' })`);
 
     revalidateTag(`user-${safeUserId}`);
     revalidateTag("user-progress");
@@ -75,10 +78,10 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
     revalidateTag("courses-favorites"); // Инвалидируем кэш избранных курсов
     revalidateTag("courses"); // Инвалидируем общий кэш курсов
     
-    console.warn(`[Cache] User progress cache invalidated successfully for user: ${safeUserId}`);
+    logger.warn(`[Cache] User progress cache invalidated successfully for user: ${safeUserId}`, { operation: 'warn' });
     return { success: true };
   } catch (error) {
-    console.error("❌ Error invalidating user progress cache:", error);
+    logger.error("❌ Error invalidating user progress cache:", error as Error, { operation: 'error' });
     return { 
       success: false, 
       error: error instanceof Error ? error.message : "Unknown error" 

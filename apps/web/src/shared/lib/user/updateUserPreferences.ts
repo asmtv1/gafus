@@ -3,10 +3,13 @@
 import { z } from "zod";
 
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
+import { createWebLogger } from "@gafus/logger";
 
 import type { UserPreferences } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+
+const logger = createWebLogger('web');
 
 const userPreferencesSchema = z.object({
   notifications: z
@@ -51,7 +54,7 @@ export async function updateUserPreferences(
 
     // Пока что просто возвращаем обновленные настройки
     // В будущем можно добавить сохранение в БД
-    console.warn("Обновление настроек пользователя:", safePreferences);
+    logger.warn("Обновление настроек пользователя:", { preferences: safePreferences, operation: 'warn' });
 
     // Возвращаем обновленные настройки
     return {
@@ -83,7 +86,7 @@ export async function updateUserPreferences(
       },
     };
   } catch (error) {
-    console.error("Ошибка в updateUserPreferences:", error);
+    logger.error("Ошибка в updateUserPreferences:", error as Error, { operation: 'error' });
 
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error in updateUserPreferences",

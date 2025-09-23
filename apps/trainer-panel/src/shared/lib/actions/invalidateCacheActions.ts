@@ -1,8 +1,13 @@
 "use server";
 
+
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
 import { getServerSession } from "next-auth";
 import { invalidateCoursesCache } from "./invalidateCoursesCache";
+
+// Создаем логгер для invalidate-cache-actions
+const logger = createTrainerPanelLogger('trainer-panel-invalidate-cache-actions');
 
 export interface InvalidateCacheResult {
   success: boolean;
@@ -49,7 +54,7 @@ export async function invalidateCoursesCacheAction(): Promise<InvalidateCacheRes
       };
     }
   } catch (error) {
-    console.error("Error in invalidateCoursesCacheAction:", error);
+    logger.error("Error in invalidateCoursesCacheAction:", error as Error, { operation: 'error' });
     return {
       success: false,
       error: error instanceof Error ? error.message : "Неизвестная ошибка"

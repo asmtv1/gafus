@@ -1,5 +1,7 @@
 "use client";
 
+
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { useData, useMutate } from "@gafus/react-query";
 
 import { getCourseStatisticsCached } from "../lib/actions/cachedStatistics";
@@ -7,6 +9,9 @@ import { getStepStatisticsAction } from "../lib/actions/statistics";
 
 import type { StatisticsData } from "../types/statistics";
 import type { StepStats } from "@features/statistics/lib/statistics-steps";
+
+// Создаем логгер для use-statistics
+const logger = createTrainerPanelLogger('trainer-panel-use-statistics');
 
 export function useCourseStatistics(userId: string, isElevated: boolean) {
   const cacheKey = `statistics:${userId}:${isElevated}`;
@@ -39,20 +44,20 @@ export function useStepStatistics(userId: string, isElevated: boolean) {
     cacheKey,
     async () => {
       if (!userId) {
-        console.warn("useStepStatistics: no userId, returning empty");
+        logger.warn("useStepStatistics: no userId, returning empty", { operation: 'warn' });
         return { steps: [], totalSteps: 0 };
       }
 
-      console.warn("useStepStatistics: calling getStepStatisticsAction");
+      logger.warn("useStepStatistics: calling getStepStatisticsAction", { operation: 'warn' });
       try {
         const result = await getStepStatisticsAction(userId, isElevated);
-        console.warn("useStepStatistics: result received:", result);
+        logger.warn("useStepStatistics: result received:", { result, operation: 'warn' });
         if (!result.success) {
           throw new Error(result.error);
         }
         return result.data || { steps: [], totalSteps: 0 };
       } catch (error) {
-        console.error("useStepStatistics: error:", error);
+        logger.error("useStepStatistics: error:", error as Error, { operation: 'error' });
         throw error;
       }
     },

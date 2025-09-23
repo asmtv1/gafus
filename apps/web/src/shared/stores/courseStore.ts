@@ -4,9 +4,12 @@ import { getFavoritesCourses } from "@shared/lib/course/getFavoritesCourses";
 import { useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createWebLogger } from "@gafus/logger";
 
 import type { CourseReview, CourseState, CourseWithProgressData } from "@gafus/types";
 import { TrainingStatus } from "@gafus/types";
+
+const logger = createWebLogger('web');
 
 // ===== КОНСТАНТЫ =====
 const CACHE_DURATION = 10 * 60 * 1000; // 10 минут для курсов
@@ -348,7 +351,7 @@ export const useCourseStore = create<CourseState>()(
               const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
               await syncCourseStoreWithStepStates();
             } catch (error) {
-              console.warn("Failed to sync courseStore with stepStates:", error);
+              logger.warn("Failed to sync courseStore with stepStates:", { error, operation: 'warn' });
             }
           }, 100);
         }
@@ -386,7 +389,7 @@ export const useCourseStoreActions = () => {
             const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
             await syncCourseStoreWithStepStates();
           } catch (error) {
-            console.warn("Failed to sync courseStore with stepStates after fetch:", error);
+            logger.warn("Failed to sync courseStore with stepStates after fetch:", { error, operation: 'warn' });
           }
         }, 50);
         
@@ -427,7 +430,7 @@ export const useCourseStoreActions = () => {
           const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
           await syncCourseStoreWithStepStates();
         } catch (error) {
-          console.warn("Failed to sync courseStore with stepStates after fetchFavorites:", error);
+          logger.warn("Failed to sync courseStore with stepStates after fetchFavorites:", { error, operation: 'warn' });
         }
       }, 50);
 
@@ -511,7 +514,7 @@ export const useCourseStoreActions = () => {
           const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
           await syncCourseStoreWithStepStates();
         } catch (error) {
-          console.warn("Failed to sync courseStore with stepStates after fetchAuthored:", error);
+          logger.warn("Failed to sync courseStore with stepStates after fetchAuthored:", { error, operation: 'warn' });
         }
       }, 50);
       

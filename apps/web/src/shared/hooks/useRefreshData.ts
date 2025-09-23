@@ -2,6 +2,10 @@ import { useCallback } from "react";
 import { useQueryClient } from "@gafus/react-query";
 import { useCourseStoreActions } from "@shared/stores/courseStore";
 import { isOnline } from "@shared/utils/offlineCacheUtils";
+import { createWebLogger } from "@gafus/logger";
+
+// Создаем логгер для useRefreshData
+const logger = createWebLogger('web-refresh-data');
 
 // Типы для разных страниц
 export type RefreshPageType = "home" | "courses" | "trainings" | "profile" | "achievements";
@@ -41,7 +45,7 @@ export function useRefreshData(pageType: RefreshPageType) {
       throw new Error(`Неизвестный тип страницы: ${pageType}`);
     }
 
-    console.warn(`🔄 ${config.message}`);
+    logger.warn(`🔄 ${config.message}`, { operation: 'warn' });
 
     // Если офлайн — не дергаем сеть, аккуратно выходим
     if (!isOnline()) {
@@ -77,7 +81,7 @@ export function useRefreshData(pageType: RefreshPageType) {
       // Выполняем все обновления параллельно
       await Promise.all([...courseUpdatePromises, ...userUpdatePromises]);
 
-      console.warn(`✅ ${pageType} обновлен успешно`);
+      logger.warn(`✅ ${pageType} обновлен успешно`, { operation: 'warn' });
 
       // Возвращаем информацию об обновлении
       return {
@@ -86,7 +90,7 @@ export function useRefreshData(pageType: RefreshPageType) {
         updatedKeys: queryKeys,
       };
     } catch (error) {
-      console.error(`❌ Ошибка обновления ${pageType}:`, error);
+      logger.error(`❌ Ошибка обновления ${pageType}:`, error as Error, { operation: 'error' });
       throw error;
     }
   }, [pageType, queryClient, fetchAllCourses, fetchFavorites, fetchAuthored]);
