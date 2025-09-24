@@ -2,6 +2,7 @@
 
 import { useData, useMutate } from "@gafus/react-query";
 import { getErrorsCached } from "@shared/lib/actions/cachedErrors";
+import { resolveErrorAction, unresolveErrorAction } from "@shared/lib/actions/resolveError";
 
 import type { ErrorDashboardReport } from "@gafus/types";
 
@@ -44,7 +45,31 @@ export function useErrorsMutation() {
     mutate(cacheKey, undefined);
   };
 
+  const resolveError = async (errorId: string) => {
+    const result = await resolveErrorAction(errorId);
+    if (result.success) {
+      // Инвалидируем кэш после успешного разрешения
+      invalidateErrors();
+      return result;
+    } else {
+      throw new Error(typeof result.error === 'string' ? result.error : 'Неизвестная ошибка');
+    }
+  };
+
+  const unresolveError = async (errorId: string) => {
+    const result = await unresolveErrorAction(errorId);
+    if (result.success) {
+      // Инвалидируем кэш после успешного изменения статуса
+      invalidateErrors();
+      return result;
+    } else {
+      throw new Error(typeof result.error === 'string' ? result.error : 'Неизвестная ошибка');
+    }
+  };
+
   return {
     invalidateErrors,
+    resolveError,
+    unresolveError,
   };
 }

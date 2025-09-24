@@ -1,11 +1,15 @@
 "use client";
 
+import { createWebLogger } from "@gafus/logger";
 import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
 import { useNotificationComposite, useNotificationInitializer } from "@shared/stores";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 import styles from "./NotificationStatus.module.css";
+
+// Создаем логгер для NotificationStatus
+const logger = createWebLogger('web-notification-status');
 
 export default function NotificationStatus() {
   const { data: session, status } = useSession();
@@ -48,7 +52,12 @@ export default function NotificationStatus() {
       if (isIOS && !isStandalone) {
         // Проверяем поддержку push в браузере
         if (!('PushManager' in window) || !('serviceWorker' in navigator)) {
-          console.warn("⚠️ Old iOS Safari: PWA mode required for push notifications");
+          logger.warn("⚠️ Old iOS Safari: PWA mode required for push notifications", {
+            operation: 'warn',
+            userAgent: navigator.userAgent,
+            hasPushManager: 'PushManager' in window,
+            hasServiceWorker: 'serviceWorker' in navigator
+          });
           alert("На данной версии iOS для push-уведомлений добавьте сайт на главный экран и запустите как приложение");
           return;
         }
@@ -75,11 +84,19 @@ export default function NotificationStatus() {
           
           // В Safari часто бывают таймауты, показываем пользователю
           if (error instanceof Error && error.message.includes("timeout")) {
-            console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
+            logger.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально", {
+              operation: 'warn',
+              error: error.message,
+              userAgent: navigator.userAgent
+            });
             // Показываем пользователю информацию о таймауте
             alert("В Safari может потребоваться больше времени для настройки уведомлений. Попробуйте еще раз через несколько секунд.");
           } else if (error instanceof Error && error.message.includes("SW not available")) {
-            console.warn("⚠️ NotificationStatus: Service Worker недоступен в Safari");
+            logger.warn("⚠️ NotificationStatus: Service Worker недоступен в Safari", {
+              operation: 'warn',
+              error: error.message,
+              userAgent: navigator.userAgent
+            });
             alert("В Safari push-уведомления могут работать нестабильно. Добавьте сайт в главный экран для лучшей работы.");
           }
         }
@@ -110,10 +127,20 @@ export default function NotificationStatus() {
       console.error("❌ NotificationStatus: Ошибка при удалении подписки:", error);
       // В Safari часто бывают таймауты, показываем пользователю
       if (error instanceof Error && error.message.includes("timeout")) {
-        console.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально");
+        logger.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально", {
+          operation: 'warn',
+          error: error.message,
+          userAgent: navigator.userAgent,
+          action: 'removeSubscription'
+        });
         alert("В Safari может потребоваться больше времени для удаления подписки. Попробуйте еще раз через несколько секунд.");
       } else if (error instanceof Error && error.message.includes("SW not available")) {
-        console.warn("⚠️ NotificationStatus: Service Worker недоступен в Safari");
+        logger.warn("⚠️ NotificationStatus: Service Worker недоступен в Safari", {
+          operation: 'warn',
+          error: error.message,
+          userAgent: navigator.userAgent,
+          action: 'removeSubscription'
+        });
         alert("В Safari push-уведомления могут работать нестабильно. Добавьте сайт в главный экран для лучшей работы.");
       }
     }
@@ -145,7 +172,12 @@ export default function NotificationStatus() {
             checkServerSubscription();
           }, 100);
         } else {
-          console.warn("⚠️ NotificationStatus: No user ID found in session");
+          logger.warn("⚠️ NotificationStatus: No user ID found in session", {
+            operation: 'warn',
+            status,
+            hasSession: !!session,
+            hasUserId: !!session?.user?.id
+          });
         }
       } catch {
         if (!cancelled) {
