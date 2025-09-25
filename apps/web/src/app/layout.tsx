@@ -68,8 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         Здесь оставляем дефолтную тему для всего приложения:
       */}
         <meta name="theme-color" content="#DAD3C1" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="mobile-web-app-capable" content="black-translucent" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon180.png" />
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon512_rounded.png" />

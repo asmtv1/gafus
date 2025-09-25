@@ -50,6 +50,7 @@ model Course {
   duration       String
   logoImg        String
   isPrivate      Boolean            @default(false)
+  isPaid         Boolean            @default(false)
 
   authorId       String
   author         User               @relation(fields: [authorId], references: [id])

@@ -56,6 +56,7 @@ export default async function EditCoursePage({ params }: PageProps) {
     videoUrl: course.videoUrl ?? "",
     logoImg: course.logoImg,
     isPublic: !course.isPrivate,
+    isPaid: course.isPaid ?? false,
     trainingDays: course.dayLinks.map((dl: { day: { id: string } }) => dl.day.id),
     allowedUsers: course.isPrivate ? course.access.map((a: { userId: string }) => a.userId) : [],
     equipment: course.equipment,

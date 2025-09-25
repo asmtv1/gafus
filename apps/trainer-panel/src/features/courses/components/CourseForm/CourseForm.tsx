@@ -22,7 +22,6 @@ import {
   FormControlLabel,
   Radio,
   RadioGroup,
-  Switch,
   Typography,
 } from "../../../../utils/muiImports";
 import CourseMediaUploader from "./CourseMediaUploader";
@@ -67,6 +66,7 @@ export default function CourseForm({
       videoUrl: "",
       logoImg: "",
       isPublic: true,
+      isPaid: false,
       trainingDays: [],
       allowedUsers: [],
       equipment: "",
@@ -85,6 +85,7 @@ export default function CourseForm({
         videoUrl: initialValues.videoUrl ?? "",
         logoImg: initialValues.logoImg ?? "",
         isPublic: initialValues.isPublic ?? true,
+        isPaid: initialValues.isPaid ?? false,
         trainingDays: initialValues.trainingDays ?? [],
         allowedUsers: initialValues.allowedUsers ?? [],
         equipment: initialValues.equipment ?? "",
@@ -117,6 +118,7 @@ export default function CourseForm({
           videoUrl: data.videoUrl,
           logoImg: data.logoImg,
           isPublic: data.isPublic,
+          isPaid: data.isPaid,
           trainingDays: data.trainingDays,
           allowedUsers: data.allowedUsers,
           equipment: data.equipment,
@@ -133,6 +135,7 @@ export default function CourseForm({
           videoUrl: data.videoUrl,
           logoImg: data.logoImg,
           isPublic: data.isPublic,
+          isPaid: data.isPaid,
           trainingDays: data.trainingDays,
           allowedUsers: data.allowedUsers,
           equipment: data.equipment,
@@ -264,27 +267,66 @@ export default function CourseForm({
         </FormSection>
 
         <FormSection title="Доступ">
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.watch("isPublic")}
-                onChange={(e) => {
-                  const value = e.target.checked;
-                  form.setValue("isPublic", value);
-                  if (value) {
-                    // Если курс становится публичным — очищаем список разрешённых
-                    setSelectedUsers([]);
-                    form.setValue("allowedUsers", []);
-                  }
-                }}
+          <FormControl component="fieldset" className={sharedStyles.formField}>
+            <Typography className={sharedStyles.formLabel}>
+              Тип курса
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              • <strong>Публичный курс</strong> — доступен всем пользователям бесплатно<br/>
+              • <strong>Приватный курс</strong> — доступен только выбранным пользователям<br/>
+              • <strong>Платный курс</strong> — доступен всем пользователям за плату
+            </Typography>
+            <RadioGroup
+              value={(() => {
+                const isPublic = form.watch("isPublic");
+                const isPaid = form.watch("isPaid");
+                if (isPublic && !isPaid) return "public";
+                if (!isPublic && !isPaid) return "private";
+                if (isPaid) return "paid";
+                return "public";
+              })()}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "public") {
+                  form.setValue("isPublic", true);
+                  form.setValue("isPaid", false);
+                  // Очищаем список разрешённых пользователей
+                  setSelectedUsers([]);
+                  form.setValue("allowedUsers", []);
+                } else if (value === "private") {
+                  form.setValue("isPublic", false);
+                  form.setValue("isPaid", false);
+                } else if (value === "paid") {
+                  form.setValue("isPublic", true);
+                  form.setValue("isPaid", true);
+                  // Очищаем список разрешённых пользователей
+                  setSelectedUsers([]);
+                  form.setValue("allowedUsers", []);
+                }
+              }}
+              row
+            >
+              <FormControlLabel
+                value="public"
+                control={<Radio />}
+                label="Публичный курс"
               />
-            }
-            label="Публичный курс"
-          />
+              <FormControlLabel
+                value="private"
+                control={<Radio />}
+                label="Приватный курс"
+              />
+              <FormControlLabel
+                value="paid"
+                control={<Radio />}
+                label="Платный курс"
+              />
+            </RadioGroup>
+          </FormControl>
         </FormSection>
 
         {/* Блок выбора пользователей для приватного курса */}
-        {!form.watch("isPublic") && (
+        {!form.watch("isPublic") && !form.watch("isPaid") && (
           <FormSection title="Доступ к курсу">
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               Выберите пользователей, которым будет доступен этот курс

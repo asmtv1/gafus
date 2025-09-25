@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { createWebLogger } from "@gafus/logger";
+import { addPassiveEventListener, removePassiveEventListener } from "../utils/eventListeners";
 
 // Создаем логгер для usePreloadComponents
 const logger = createWebLogger('web-preload-components');
@@ -74,15 +75,15 @@ export function useInteractionPreload() {
       const handleInteraction = () => {
         preloadComponent(config);
         // Удаляем обработчики после первого взаимодействия
-        document.removeEventListener("mousemove", handleInteraction);
-        document.removeEventListener("scroll", handleInteraction);
-        document.removeEventListener("click", handleInteraction);
+        removePassiveEventListener(document, "mousemove", handleInteraction);
+        removePassiveEventListener(document, "scroll", handleInteraction);
+        removePassiveEventListener(document, "click", handleInteraction);
       };
 
-      // Добавляем обработчики событий
-      document.addEventListener("mousemove", handleInteraction, { once: true });
-      document.addEventListener("scroll", handleInteraction, { once: true });
-      document.addEventListener("click", handleInteraction, { once: true });
+      // Добавляем обработчики событий с пассивными слушателями для лучшей производительности
+      addPassiveEventListener(document, "mousemove", handleInteraction, { once: true });
+      addPassiveEventListener(document, "scroll", handleInteraction, { once: true });
+      addPassiveEventListener(document, "click", handleInteraction, { once: true });
     },
     [preloadComponent],
   );
