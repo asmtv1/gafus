@@ -14,6 +14,7 @@ export interface TrainerCourseFormData {
     videoUrl: string;
     logoImg: string;
     isPublic: boolean;
+    isPaid: boolean;
     trainingDays: string[];
     allowedUsers: string[];
     equipment: string;

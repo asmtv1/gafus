@@ -3,6 +3,7 @@
 import { TrainingStatus, type CourseWithProgressData } from "@gafus/types";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useCourseStore } from "@shared/stores/courseStore";
+import { useUserStore } from "@shared/stores/userStore";
 import { calculateDayStatus as calcDay, calculateCourseStatus as calcCourse } from "@shared/utils/trainingCalculations";
 import { createWebLogger } from "@gafus/logger";
 
@@ -23,6 +24,7 @@ const makeEndKey = (courseId: string, day: number, idx: number) =>
 export function useCacheManager() {
   const { stepStates, updateStepStatus } = useStepStore();
   const courseStore = useCourseStore();
+  const { user } = useUserStore();
 
   /**
    * Обновляет кэш на всех уровнях при изменении статуса шага
@@ -172,7 +174,7 @@ export function useCacheManager() {
         operation: 'updated_all_courses_successfully'
       });
     } else {
-      logger.warn(`[CacheManager] No allCourses data to update`, {
+      logger.info(`[CacheManager] No allCourses data to update`, {
         operation: 'no_all_courses_data'
       });
     }
@@ -206,12 +208,12 @@ export function useCacheManager() {
         operation: 'updated_favorites_successfully'
       });
     } else {
-      logger.warn(`[CacheManager] No favorites data to update`, {
+      logger.info(`[CacheManager] No favorites data to update`, {
         operation: 'no_favorites_data'
       });
     }
 
-    // Обновляем созданные курсы в courseStore
+    // Обновляем созданные курсы в courseStore (только для тренеров)
     if (courseStore.authored) {
       logger.info(`[CacheManager] Updating authored`, {
         operation: 'updating_authored',
@@ -240,9 +242,13 @@ export function useCacheManager() {
         operation: 'updated_authored_successfully'
       });
     } else {
-      logger.warn(`[CacheManager] No authored data to update`, {
-        operation: 'no_authored_data'
-      });
+      // Показываем предупреждение только для тренеров
+      if (user?.role === 'TRAINER') {
+        logger.info(`[CacheManager] No authored data to update`, {
+          operation: 'no_authored_data',
+          userRole: user.role
+        });
+      }
     }
 
     // Инвалидация React Query кэша теперь происходит в server actions

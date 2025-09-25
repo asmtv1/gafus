@@ -83,6 +83,7 @@ export async function getFavoritesCourses(userId?: string): Promise<{
           duration: course.duration,
           logoImg: course.logoImg,
           isPrivate: course.isPrivate,
+          isPaid: course.isPaid,
           avgRating: course.avgRating,
           trainingLevel: course.trainingLevel,
           createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),

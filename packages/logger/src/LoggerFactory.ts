@@ -139,7 +139,7 @@ export class LoggerFactory {
 export function createWebLogger(context?: string): Logger {
   return LoggerFactory.createLoggerWithContext('web', context || 'web-app', {
     enableErrorDashboard: true,
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3001/api',
+    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3005/api',
   });
 }
 
@@ -149,7 +149,7 @@ export function createWebLogger(context?: string): Logger {
 export function createTrainerPanelLogger(context?: string): Logger {
   return LoggerFactory.createLoggerWithContext('trainer-panel', context || 'trainer-panel', {
     enableErrorDashboard: true,
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3001/api',
+    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3005/api',
   });
 }
 
@@ -168,7 +168,7 @@ export function createErrorDashboardLogger(context?: string): Logger {
 export function createTelegramBotLogger(context?: string): Logger {
   return LoggerFactory.createLoggerWithContext('telegram-bot', context || 'telegram-bot', {
     enableErrorDashboard: true,
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3001/api',
+    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3005/api',
   });
 }
 
@@ -178,7 +178,7 @@ export function createTelegramBotLogger(context?: string): Logger {
 export function createWorkerLogger(context?: string): Logger {
   return LoggerFactory.createLoggerWithContext('worker', context || 'worker', {
     enableErrorDashboard: true,
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3001/api',
+    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3005/api',
   });
 }
 

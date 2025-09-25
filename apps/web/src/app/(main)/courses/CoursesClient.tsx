@@ -1,11 +1,13 @@
 "use client";
 import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
 import { useCourseStoreActions } from "@shared/stores";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { CourseWithProgressData } from "@gafus/types";
 
 import styles from "./courses.module.css";
 import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
+import CourseTabs, { type CourseTabType } from "@/features/courses/components/CourseTabs/CourseTabs";
+import { filterCoursesByTab } from "@/features/courses/utils/courseFilters";
 
 interface CoursesClientProps {
   initialCourses?: CourseWithProgressData[] | null;
@@ -18,6 +20,7 @@ export default function CoursesClient({
   initialError, 
   userId 
 }: CoursesClientProps) {
+  const [activeTab, setActiveTab] = useState<CourseTabType>("free");
   const { allCourses, loading, errors, fetchAllCourses, forceRefreshFavorites, setAllCourses } =
     useCourseStoreActions();
 
@@ -68,15 +71,25 @@ export default function CoursesClient({
     );
   }
 
-  const courses = allCourses?.data || [];
+  const allCoursesData = allCourses?.data || [];
+  const filteredCourses = filterCoursesByTab(allCoursesData, activeTab);
 
   return (
     <div className={styles.container}>
+      <CourseTabs 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+      />
       <ul className={styles.courseList}>
-        {courses.map((course, index) => (
+        {filteredCourses.map((course, index) => (
           <CourseCard key={course.id} {...course} index={index} />
         ))}
       </ul>
+      {filteredCourses.length === 0 && (
+        <div className={styles.emptyState}>
+          <p>В этой категории пока нет курсов</p>
+        </div>
+      )}
     </div>
   );
 }

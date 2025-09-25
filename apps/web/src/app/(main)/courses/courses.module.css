@@ -25,3 +25,15 @@
     flex-wrap: wrap;
     justify-content: space-evenly;
 }
+
+.emptyState {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+    font-family: var(--font-montserrat), system-ui, sans-serif;
+    font-size: 16px;
+}
+
+.emptyState p {
+    margin: 0;
+}
