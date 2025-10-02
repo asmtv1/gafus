@@ -61,8 +61,10 @@ COPY --from=base /app/apps/web/public ./apps/web/public
 # Копируем Prisma client и Query Engine (оставляем .pnpm из standalone)
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
-# Дублируем Prisma client рядом с приложением (для поиска движка рантаймом)
+# Копируем Prisma client в несколько мест для поиска движка рантаймом
 RUN mkdir -p ./apps/web/.prisma && cp -r ./node_modules/.prisma/client ./apps/web/.prisma/client
+RUN mkdir -p ./apps/web/node_modules/.prisma && cp -r ./node_modules/.prisma/client ./apps/web/node_modules/.prisma/client
+RUN mkdir -p ./apps/web/node_modules/@prisma && cp -r ./node_modules/.prisma/client ./apps/web/node_modules/@prisma/client
 
 # Устанавливаем права доступа
 RUN chown -R nextjs:nodejs /app

@@ -27,7 +27,7 @@ RUN cd packages/prisma \
   && mv schema.prisma.bak schema.prisma
 
 # Собираем все пакеты
-RUN pnpm build --filter @gafus/worker --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/types
+RUN pnpm build --filter @gafus/worker --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/types --filter @gafus/logger
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
@@ -47,6 +47,7 @@ COPY --from=base /app/packages/prisma/dist ./packages/prisma/dist
 COPY --from=base /app/packages/queues/dist ./packages/queues/dist
 COPY --from=base /app/packages/webpush/dist ./packages/webpush/dist
 COPY --from=base /app/packages/types/dist ./packages/types/dist
+COPY --from=base /app/packages/logger/dist ./packages/logger/dist
 
 # Копируем только package.json файлы
 COPY --from=base /app/packages/worker/package.json ./packages/worker/package.json
@@ -54,6 +55,7 @@ COPY --from=base /app/packages/prisma/package.json ./packages/prisma/package.jso
 COPY --from=base /app/packages/queues/package.json ./packages/queues/package.json
 COPY --from=base /app/packages/webpush/package.json ./packages/webpush/package.json
 COPY --from=base /app/packages/types/package.json ./packages/types/package.json
+COPY --from=base /app/packages/logger/package.json ./packages/logger/package.json
 
 # Устанавливаем только production зависимости
 RUN npm init -y && \
@@ -75,7 +77,8 @@ RUN mkdir -p /app/node_modules/@gafus \
   && ln -s /app/packages/prisma /app/node_modules/@gafus/prisma \
   && ln -s /app/packages/queues /app/node_modules/@gafus/queues \
   && ln -s /app/packages/webpush /app/node_modules/@gafus/webpush \
-  && ln -s /app/packages/types /app/node_modules/@gafus/types
+  && ln -s /app/packages/types /app/node_modules/@gafus/types \
+  && ln -s /app/packages/logger /app/node_modules/@gafus/logger
 
 # Устанавливаем права доступа
 RUN chown -R worker:nodejs /app
