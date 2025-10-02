@@ -4,13 +4,12 @@ services:
     image: postgres:15-alpine
     container_name: gafus-postgres
     environment:
-      - POSTGRES_DB=gafus
-      - POSTGRES_USER=gafus
-      - POSTGRES_PASSWORD=gafus_password
+      - POSTGRES_DB=${POSTGRES_DB:-gafus}
+      - POSTGRES_USER=${POSTGRES_USER:-gafus}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # Убрали открытые порты - доступ только внутри Docker сети
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U gafus -d gafus"]
@@ -23,8 +22,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: gafus-redis
-    ports:
-      - "6379:6379"
+    # Убрали открытые порты - доступ только внутри Docker сети
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -40,19 +38,25 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
-      - REDIS_URL=redis://redis:6379
-      - TELEGRAM_BOT_TOKEN=7882612913:AAGGrYg0NYG_cq9pAQ8ocaSdLqmQB-mI-as
-      - NEXTAUTH_SECRET=bh3r4xw2GbKDrizNREjAEDpSSi2hwrMFl8BPQ2nYHSs=
-      - NEXTAUTH_URL=https://gafus.ru
-      - AUTH_COOKIE_DOMAIN=.gafus.ru
-      - NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer-panel.gafus.ru
-      - VAPID_PUBLIC_KEY=BPmb6CQrFMWqBD3sNNE9AZ0iBoKHXNZMSiXQh4t_PJ9qxpH97GT1iIbnrPnnDiMx3dsMQFJSlOIuw8kkhwAeZXU
-      - VAPID_SUBJECT=mailto:admin@gafus.ru
+      - DISABLE_CONSOLE_LOGGING=${DISABLE_CONSOLE_LOGGING:-false}
+      - ANALYZE=${ANALYZE:-false}
+      - CSRF_STRICT=${CSRF_STRICT:-false}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://gafus.ru}
+      - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://gafus.ru}
+      - NEXT_PUBLIC_TRAINER_PANEL_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL:-https://trainer.gafus.ru}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@gafus.ru}
+      # Yandex Cloud CDN credentials
+      - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
+      - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
     volumes:
       - uploads_data:/var/www/public-assets/uploads
-    ports:
-      - "3000:3000"
+    # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/ping"]
@@ -72,15 +76,19 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
-      - REDIS_URL=redis://redis:6379
-      - NEXTAUTH_SECRET=bh3r4xw2GbKDrizNREjAEDpSSi2hwrMFl8BPQ2nYHSs=
-      - NEXTAUTH_URL=https://trainer-panel.gafus.ru
-      - AUTH_COOKIE_DOMAIN=.gafus.ru
+      - DISABLE_CONSOLE_LOGGING=${DISABLE_CONSOLE_LOGGING:-false}
+      - CSRF_STRICT=${CSRF_STRICT:-false}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${TRAINER_PANEL_URL:-https://trainer-panel.gafus.ru}
+      - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
+      # Yandex Cloud CDN credentials
+      - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
+      - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
     volumes:
       - uploads_data:/var/www/public-assets/uploads
-    ports:
-      - "3001:3001"
+    # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
 
     depends_on:
@@ -94,13 +102,14 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3005
-      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
-      - REDIS_URL=redis://redis:6379
-      - NEXTAUTH_SECRET=bh3r4xw2GbKDrizNREjAEDpSSi2hwrMFl8BPQ2nYHSs=
-      - NEXTAUTH_URL=https://monitor.gafus.ru
-      - AUTH_COOKIE_DOMAIN=.gafus.ru
-    ports:
-      - "3005:3005"
+      - DISABLE_CONSOLE_LOGGING=${DISABLE_CONSOLE_LOGGING:-false}
+      - CSRF_STRICT=${CSRF_STRICT:-false}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${ERROR_DASHBOARD_URL:-https://monitor.gafus.ru}
+      - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
+    # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
     depends_on:
       - postgres
@@ -112,7 +121,7 @@ services:
     container_name: gafus-prisma
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
+      - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped
     depends_on:
       - postgres
@@ -123,12 +132,12 @@ services:
     container_name: gafus-worker
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
-      - REDIS_URL=redis://redis:6379
-      - ERROR_DASHBOARD_URL=http://gafus-error-dashboard:3005
-      - VAPID_PUBLIC_KEY=BPmb6CQrFMWqBD3sNNE9AZ0iBoKHXNZMSiXQh4t_PJ9qxpH97GT1iIbnrPnnDiMx3dsMQFJSlOIuw8kkhwAeZXU
-      - VAPID_PRIVATE_KEY=ya6wNdROtdwiJ2rM8pRc1azoLiC-NtsCRUsHY7OhtdE
-      - VAPID_SUBJECT=mailto:admin@gafus.ru
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - ERROR_DASHBOARD_URL=${ERROR_DASHBOARD_INTERNAL_URL:-http://gafus-error-dashboard:3005}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@gafus.ru}
     restart: unless-stopped
     depends_on:
       - postgres
@@ -142,8 +151,7 @@ services:
       - NODE_ENV=production
       - PORT=3002
       - REDIS_URL=redis://redis:6379
-    ports:
-      - "3002:3002"
+    # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3002/health"]
@@ -161,9 +169,9 @@ services:
     container_name: gafus-telegram-bot
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
-      - REDIS_URL=redis://redis:6379
-      - TELEGRAM_BOT_TOKEN=7882612913:AAGGrYg0NYG_cq9pAQ8ocaSdLqmQB-mI-as
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     restart: unless-stopped
     depends_on:
       - postgres

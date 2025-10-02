@@ -418,6 +418,60 @@ jobs:
             echo "🔗 Git remote:"
             git remote -v || echo "Git remote check failed"
 
+            # Create .env file from GitHub Secrets
+            echo "🔐 Creating .env file from GitHub Secrets..."
+            cat > ci-cd/docker/.env << EOF
+# Database
+POSTGRES_DB=gafus
+POSTGRES_USER=gafus
+POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+DATABASE_URL=postgresql://gafus:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/gafus
+
+# Redis
+REDIS_URL=redis://redis:6379
+
+# Telegram Bot
+TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+
+# NextAuth секреты
+NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+
+# URLs приложений
+NEXTAUTH_URL=https://gafus.ru
+TRAINER_PANEL_URL=https://trainer-panel.gafus.ru
+ERROR_DASHBOARD_URL=https://monitor.gafus.ru
+ERROR_DASHBOARD_INTERNAL_URL=http://gafus-error-dashboard:3005
+
+# Cookie домен
+AUTH_COOKIE_DOMAIN=.gafus.ru
+
+# VAPID ключи для Push уведомлений
+VAPID_PUBLIC_KEY=${{ secrets.VAPID_PUBLIC_KEY }}
+VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}
+VAPID_SUBJECT=mailto:admin@gafus.ru
+
+# Yandex Cloud CDN
+YC_ACCESS_KEY_ID=${{ secrets.YC_ACCESS_KEY_ID }}
+YC_SECRET_ACCESS_KEY=${{ secrets.YC_SECRET_ACCESS_KEY }}
+
+# Логирование
+DISABLE_CONSOLE_LOGGING=true
+
+# Next.js публичные переменные
+NEXT_PUBLIC_SITE_URL=https://gafus.ru
+NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer.gafus.ru
+
+# Анализ бандла (только для разработки)
+ANALYZE=false
+
+# CSRF защита
+CSRF_STRICT=false
+EOF
+
+            # Set secure permissions for .env file
+            chmod 600 ci-cd/docker/.env
+            echo "✅ .env file created with secure permissions"
+
             # Create uploads directories if they don't exist
             mkdir -p packages/public-assets/public/uploads/avatars
             mkdir -p packages/public-assets/public/uploads/pets
