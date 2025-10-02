@@ -2,8 +2,7 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import path from "path";
+import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
 import { z } from "zod";
 
 import { petIdSchema } from "../validation/petSchemas";
@@ -17,69 +16,35 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
   const validFile = fileSchema.parse(file);
   const safePetId = petIdSchema.parse(petId);
   try {
-    // 1. Определяем расширение
+    // 1. Определяем расширение и формируем имя файла
     const ext = validFile.name.split(".").pop();
     if (!ext) throw new Error("Не удалось определить расширение файла");
 
-    // 2. Конвертируем File → Uint8Array
-    const arrayBuffer = await validFile.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-
-    // 3. Формируем папку и имя файла
-    // В production (Docker) используем абсолютный путь к папке uploads
-    let uploadDir: string;
-    
-    if (process.env.NODE_ENV === "production") {
-      // В production используем путь к папке uploads в nginx контейнере
-      uploadDir = "/var/www/public-assets/uploads/pets";
-    } else {
-      // В development используем относительный путь
-      uploadDir = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", "uploads", "pets");
-    }
-    
-    logger.warn("Upload directory:", { uploadDir, operation: 'warn' });
-    
-    // Если папки нет, создаём её
-    await mkdir(uploadDir, { recursive: true });
-
     const timestamp = Date.now();
     const fileName = `pet-${safePetId}-${timestamp}.${ext}`;
-    const uploadPath = path.join(uploadDir, fileName);
-    
-    logger.warn("Upload path:", { uploadPath, operation: 'warn' });
+    const relativePath = `pets/${fileName}`;
 
-    // 4. Получаем из базы текущий photoUrl, чтобы удалить старый файл
+    // 2. Получаем старый photoUrl для удаления
     const existingPet = await prisma.pet.findUnique({
       where: { id: safePetId },
       select: { photoUrl: true },
     });
+
+    // 3. Загружаем новый файл в CDN
+    const photoUrl = await uploadFileToCDN(validFile, relativePath);
+
+    // 4. Удаляем старый файл из CDN (если есть)
     if (existingPet?.photoUrl) {
-      const relativePath = existingPet.photoUrl.split("?")[0];
-      let oldFilePath: string;
-      
-      if (process.env.NODE_ENV === "production") {
-        oldFilePath = path.join("/var/www/public-assets", relativePath);
-      } else {
-        oldFilePath = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", relativePath);
-      }
-      
+      const oldRelativePath = existingPet.photoUrl.replace('/uploads/', '');
       try {
-        await unlink(oldFilePath);
-        logger.warn("Old pet photo deleted:", { oldFilePath, operation: 'warn' });
-      } catch {
-        // Если файл не найден или ошибка удаления — игнорируем
-        logger.warn("Could not delete old pet photo:", { oldFilePath, operation: 'warn' });
+        await deleteFileFromCDN(oldRelativePath);
+        logger.info(`🗑️ Старое фото питомца удалено из CDN: ${oldRelativePath}`);
+      } catch (error) {
+        logger.warn(`⚠️ Не удалось удалить старое фото питомца: ${error}`);
       }
     }
 
-    // 5. Сохраняем файл
-    await writeFile(uploadPath, uint8Array);
-    logger.warn("Pet photo saved successfully:", { uploadPath, operation: 'warn' });
-
-    // 6. Формируем URL для веба
-    const photoUrl = `/uploads/pets/${fileName}`;
-
-    // 7. Сохраняем photoUrl в базе
+    // 5. Сохраняем новый photoUrl в базе
     await prisma.pet.update({
       where: { id: safePetId },
       data: { photoUrl },
@@ -88,7 +53,10 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
     logger.warn("Pet photo URL saved to database:", { photoUrl, operation: 'warn' });
     return photoUrl;
   } catch (error) {
-    logger.error("Ошибка в updatePetAvatar:", error as Error, { operation: 'error' });
-    throw new Error("Ошибка при обновлении фото питомца. Попробуйте перезагрузить страницу.");
+    logger.error("Ошибка в updatePetAvatar:", error as Error, {
+      operation: 'update_pet_avatar_error',
+      petId: safePetId
+    });
+    throw error;
   }
 }

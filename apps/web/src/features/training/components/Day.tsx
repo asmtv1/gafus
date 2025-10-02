@@ -213,8 +213,16 @@ export function Day({ training }: DayProps) {
                   totalSteps={training.steps.length}
                   initialStatus={step.status}
                   videoUrl={step.videoUrl}
+                  imageUrls={step.imageUrls}
                   onRun={handleStepStart}
                   onReset={handleReset}
+                  type={step.type}
+                  checklist={step.checklist}
+                  requiresVideoReport={step.requiresVideoReport}
+                  requiresWrittenFeedback={step.requiresWrittenFeedback}
+                  hasTestQuestions={step.hasTestQuestions}
+                  userStepId={step.userStepId}
+                  stepId={step.id}
                 />
               </div>
             )}

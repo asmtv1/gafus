@@ -394,39 +394,44 @@ export async function getCoursesWithUserProgressCached(userId?: string) {
 }
 
 // Кэшированная версия получения избранных курсов
-export const getFavoritesCoursesCached = unstable_cache(
-  async (userId?: string) => {
-    const safeUserId = optionalUserIdSchema.parse(userId);
-    try {
-      logger.warn("[React Cache] Fetching favorite courses", { operation: 'warn' });
-      const result = await getFavoritesCourses(safeUserId);
-      logger.warn(`[React Cache] Cached ${result.data.length} favorite courses successfully`, { operation: 'warn' });
-      return { success: true, data: result.data };
-    } catch (error) {
-      logger.error("❌ Error in getFavoritesCoursesCached:", error as Error, { operation: 'error' });
+export async function getFavoritesCoursesCached(userId?: string) {
+  const safeUserId = optionalUserIdSchema.parse(userId);
+  const cacheKeyUserId = safeUserId ?? "anonymous";
+  const cachedFunction = unstable_cache(
+    async () => {
+      try {
+        logger.warn("[React Cache] Fetching favorite courses", { operation: 'warn' });
+        const result = await getFavoritesCourses(safeUserId);
+        logger.warn(`[React Cache] Cached ${result.data.length} favorite courses successfully`, { operation: 'warn' });
+        return { success: true, data: result.data };
+      } catch (error) {
+        logger.error("❌ Error in getFavoritesCoursesCached:", error as Error, { operation: 'error' });
 
-      await reportErrorToDashboard({
-        message:
-          error instanceof Error ? error.message : "Unknown error in getFavoritesCoursesCached",
-        stack: error instanceof Error ? error.stack : undefined,
-        appName: "web",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
-          action: "getFavoritesCoursesCached",
-          errorType: error instanceof Error ? error.constructor.name : typeof error,
-        },
-        tags: ["courses", "favorites", "cache", "server-action"],
-      });
+        await reportErrorToDashboard({
+          message:
+            error instanceof Error ? error.message : "Unknown error in getFavoritesCoursesCached",
+          stack: error instanceof Error ? error.stack : undefined,
+          appName: "web",
+          environment: process.env.NODE_ENV || "development",
+          additionalContext: {
+            action: "getFavoritesCoursesCached",
+            errorType: error instanceof Error ? error.constructor.name : typeof error,
+          },
+          tags: ["courses", "favorites", "cache", "server-action"],
+        });
 
-      return { success: false, error: "Что-то пошло не так при получении избранных курсов" };
-    }
-  },
-  ["courses-favorites"],
-  {
-    revalidate: 60, // 60 секунд - синхронизируем с revalidate страницы
-    tags: ["courses", "courses-favorites"],
-  },
-);
+        return { success: false, error: "Что-то пошло не так при получении избранных курсов" };
+      }
+    },
+    ["courses-favorites", cacheKeyUserId],
+    {
+      revalidate: 60, // 60 секунд - синхронизируем с revalidate страницы
+      tags: ["courses", "courses-favorites", `user-${cacheKeyUserId}`],
+    },
+  );
+
+  return await cachedFunction();
+}
 
 // Кэшированная версия получения созданных курсов
 export const getAuthoredCoursesCached = unstable_cache(
@@ -583,15 +588,15 @@ export const getTrainingDayCached = unstable_cache(
         courseVideoUrl: courses[0]?.course.videoUrl || null,
         equipment: day.equipment,
         description: day.description,
-        steps: day.stepLinks.map((link: { order: number; step: { id: string; title: string; description: string; durationSec: number; videoUrl: string | null } }) => ({
+        steps: day.stepLinks.map((link: { order: number; step: { id: string; title: string; description: string; durationSec: number | null; videoUrl: string | null } }) => ({
           id: link.step.id,
           title: link.step.title,
           description: link.step.description,
-          durationSec: link.step.durationSec,
+          durationSec: link.step.durationSec ?? 0,
           videoUrl: link.step.videoUrl,
           order: link.order
         })),
-        estimatedDuration: day.stepLinks.reduce((total: number, link: { step: { durationSec: number } }) => total + link.step.durationSec, 0)
+        estimatedDuration: day.stepLinks.reduce((total: number, link: { step: { durationSec: number | null } }) => total + (link.step.durationSec ?? 0), 0)
       };
 
       logger.warn(`[React Cache] Cached training day ${safeDayId} successfully`, { operation: 'warn' });

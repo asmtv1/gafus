@@ -258,7 +258,10 @@ export default function CourseForm({
         </FormSection>
 
         <FormSection title="Медиа">
-          <CourseMediaUploader onUploadComplete={(url) => form.setValue("logoImg", url)} />
+          <CourseMediaUploader 
+            onUploadComplete={(url) => form.setValue("logoImg", url)} 
+            courseId={courseId}
+          />
           {form.formState.errors.logoImg && (
             <Alert severity="error" className={sharedStyles.formAlert}>
               {form.formState.errors.logoImg.message}

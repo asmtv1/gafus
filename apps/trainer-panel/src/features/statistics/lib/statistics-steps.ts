@@ -3,7 +3,7 @@ import { prisma } from "@gafus/prisma";
 export interface StepStats {
   id: string;
   title: string;
-  durationSec: number;
+  durationSec: number | null;
   usedInDaysCount: number;
   usedInCoursesCount: number;
   totalUsers: number;
@@ -51,7 +51,7 @@ export async function getStepStatistics(userId: string, isElevated: boolean) {
     (step: {
       id: string;
       title: string;
-      durationSec: number;
+      durationSec: number | null;
       stepLinks: { dayId: string; day: { dayLinks: { courseId: string }[] } }[];
     }) => {
       const dayIds = new Set(step.stepLinks.map((sl: { dayId: string }) => sl.dayId));

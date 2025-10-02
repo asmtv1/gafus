@@ -9,16 +9,29 @@ import { useForm } from "react-hook-form";
 
 import sharedStyles from "@shared/styles/FormLayout.module.css";
 import FormSection from "@shared/components/FormSection";
+import ChecklistEditor from "./ChecklistEditor";
+import StepImageUploader from "./StepImageUploader";
 
 import type { ActionResult } from "@gafus/types";
 
-import { Alert, Box, Button, Typography } from "@/utils/muiImports";
+import { Alert, Box, Button, Typography, FormControlLabel, Checkbox, FormGroup } from "@/utils/muiImports";
+
+interface ChecklistQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+}
 
 interface StepFormData {
   title: string;
   description: string;
   duration: string;
   videoUrl: string;
+  type: string;
+  requiresVideoReport: boolean;
+  requiresWrittenFeedback: boolean;
+  hasTestQuestions: boolean;
 }
 
 interface StepInitialData {
@@ -27,8 +40,13 @@ interface StepInitialData {
   description?: string;
   durationSec?: number;
   videoUrl?: string | null;
+  type?: string;
   imageUrls?: string[];
   pdfUrls?: string[];
+  checklist?: ChecklistQuestion[];
+  requiresVideoReport?: boolean;
+  requiresWrittenFeedback?: boolean;
+  hasTestQuestions?: boolean;
 }
 
 type ServerAction = (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
@@ -46,8 +64,13 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
   const [formState, setFormState] = useState<ActionResult>({});
   const [isPending, setIsPending] = useState(false);
 
-  const [imageUrls, setImageUrls] = useState<string[]>(initialData?.imageUrls ?? []);
+  const [imageFiles, setImageFiles] = useState<File[]>([]); // Новое состояние для файлов
+  const [deletedImages, setDeletedImages] = useState<string[]>([]); // Состояние для удаленных изображений
+  const [isUploadingRemaining, setIsUploadingRemaining] = useState(false); // Состояние для отслеживания загрузки оставшихся файлов
   const [pdfUrls, setPdfUrls] = useState<string[]>(initialData?.pdfUrls ?? []);
+  
+  const maxFilesPerRequest = 5; // Максимальное количество файлов за один запрос
+  const [checklist, setChecklist] = useState<ChecklistQuestion[]>(initialData?.checklist ?? []);
   const [_imagePreviews, _setImagePreviews] = useState<string[]>([]);
   const [_pdfNames, _setPdfNames] = useState<string[]>([]);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -63,6 +86,10 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
       description: initialData?.description ?? "",
       duration: initialData?.durationSec != null ? String(initialData.durationSec) : "",
       videoUrl: initialData?.videoUrl ?? "",
+      type: initialData?.type ?? "TRAINING",
+      requiresVideoReport: initialData?.requiresVideoReport ?? false,
+      requiresWrittenFeedback: initialData?.requiresWrittenFeedback ?? false,
+      hasTestQuestions: initialData?.hasTestQuestions ?? false,
     },
   });
 
@@ -74,9 +101,14 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
         description: initialData.description ?? "",
         duration: initialData.durationSec != null ? String(initialData.durationSec) : "",
         videoUrl: initialData.videoUrl ?? "",
+        type: initialData.type ?? "TRAINING",
+        requiresVideoReport: initialData.requiresVideoReport ?? false,
+        requiresWrittenFeedback: initialData.requiresWrittenFeedback ?? false,
+        hasTestQuestions: initialData.hasTestQuestions ?? false,
       });
-      setImageUrls(initialData.imageUrls ?? []);
+      setImageFiles([]);
       setPdfUrls(initialData.pdfUrls ?? []);
+      setChecklist(initialData.checklist ?? []);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData?.id]);
@@ -89,20 +121,37 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
       maxLength: { value: 100, message: "Максимум 100 символов" },
     },
     duration: {
-      required: "Длительность обязательна",
-      validate: (value: string) => {
-        if (!value) return "Введите длительность";
-        const num = parseInt(value);
+      validate: (value: string | boolean) => {
+        const strValue = String(value);
+        // Для экзаменационных шагов длительность не обязательна
+        if (!strValue) return true;
+        const num = parseInt(strValue);
         if (isNaN(num) || num <= 0) return "Длительность должна быть положительным числом";
         if (num > 1000) return "Длительность не может быть больше 1000";
         return true;
       },
     },
     videoUrl: {
-      validate: (value: string) => {
-        if (!value) return true; // Необязательное поле
+      validate: (value: string | boolean) => {
+        const strValue = String(value);
+        if (!strValue) return true; // Необязательное поле
         const urlPattern = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com)\/.+/;
-        return urlPattern.test(value) || "Неверный формат ссылки на видео";
+        return urlPattern.test(strValue) || "Неверный формат ссылки на видео";
+      },
+    },
+    hasTestQuestions: {
+      validate: (value: string | boolean) => {
+        const boolValue = Boolean(value);
+        const type = form.watch("type");
+        if (type === "EXAMINATION") {
+          const requiresVideoReport = form.watch("requiresVideoReport");
+          const requiresWrittenFeedback = form.watch("requiresWrittenFeedback");
+          
+          if (!boolValue && !requiresVideoReport && !requiresWrittenFeedback) {
+            return "Выберите хотя бы один тип экзамена";
+          }
+        }
+        return true;
       },
     },
   };
@@ -115,14 +164,109 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
       if (initialData?.id) formData.append("id", initialData.id);
       formData.append("title", data.title);
       formData.append("description", data.description);
-      formData.append("duration", data.duration);
-      if (data.videoUrl) formData.append("videoUrl", data.videoUrl);
-
-      imageUrls.forEach((url) => formData.append("imageUrls", url));
-      pdfUrls.forEach((url) => formData.append("pdfUrls", url));
+      formData.append("type", data.type);
+      
+      // Для тренировочных шагов добавляем длительность и видео
+      if (data.type === "TRAINING") {
+        formData.append("duration", data.duration || "");
+        if (data.videoUrl) formData.append("videoUrl", data.videoUrl);
+        // Добавляем файлы изображений (максимум 5 файлов за раз для избежания 413 ошибки)
+        const filesToUpload = imageFiles.slice(0, maxFilesPerRequest);
+        
+        filesToUpload.forEach((file, index) => {
+          const extension = file.name.split('.').pop() || 'jpg';
+          const fileName = `image_${Date.now()}_${index}.${extension}`;
+          formData.append("images", file, fileName);
+        });
+        
+        // Файлы будут обработаны после успешного сохранения
+        // Добавляем удаленные изображения
+        deletedImages.forEach((imageUrl) => {
+          formData.append("deletedImages", imageUrl);
+        });
+        pdfUrls.forEach((url) => formData.append("pdfUrls", url));
+      }
+      
+      // Для экзаменационных шагов добавляем чек-лист и типы экзамена
+      if (data.type === "EXAMINATION") {
+        formData.append("checklist", JSON.stringify(checklist));
+        formData.append("requiresVideoReport", String(data.requiresVideoReport));
+        formData.append("requiresWrittenFeedback", String(data.requiresWrittenFeedback));
+        formData.append("hasTestQuestions", String(data.hasTestQuestions));
+      }
 
       const result = await serverAction({}, formData);
       setFormState(result);
+
+      // Если сохранение прошло успешно и есть оставшиеся файлы, загружаем их
+      if (result.success && imageFiles.length > maxFilesPerRequest) {
+        const remainingFiles = imageFiles.slice(maxFilesPerRequest);
+        setImageFiles(remainingFiles);
+        setIsUploadingRemaining(true);
+        
+        // Показываем уведомление о продолжении загрузки
+        setFormState({ 
+          success: true,
+          error: `Загружено ${maxFilesPerRequest} изображений. Загружаем оставшиеся ${remainingFiles.length}...` 
+        });
+        
+        // Автоматически сохраняем оставшиеся файлы
+        setTimeout(async () => {
+          try {
+            const remainingFormData = new FormData();
+            if (initialData?.id) remainingFormData.append("id", initialData.id);
+            remainingFormData.append("title", data.title);
+            remainingFormData.append("description", data.description);
+            remainingFormData.append("type", data.type);
+            
+            if (data.type === "TRAINING") {
+              remainingFormData.append("duration", data.duration || "");
+              if (data.videoUrl) remainingFormData.append("videoUrl", data.videoUrl);
+              
+              // Добавляем оставшиеся файлы
+              remainingFiles.forEach((file, index) => {
+                const extension = file.name.split('.').pop() || 'jpg';
+                const fileName = `image_${Date.now()}_${index + maxFilesPerRequest}.${extension}`;
+                remainingFormData.append("images", file, fileName);
+              });
+              
+              // Добавляем удаленные изображения (если есть)
+              deletedImages.forEach((imageUrl) => {
+                remainingFormData.append("deletedImages", imageUrl);
+              });
+              pdfUrls.forEach((url) => remainingFormData.append("pdfUrls", url));
+            }
+            
+            if (data.type === "EXAMINATION") {
+              remainingFormData.append("checklist", JSON.stringify(checklist));
+              remainingFormData.append("requiresVideoReport", String(data.requiresVideoReport));
+              remainingFormData.append("requiresWrittenFeedback", String(data.requiresWrittenFeedback));
+              remainingFormData.append("hasTestQuestions", String(data.hasTestQuestions));
+            }
+
+            const remainingResult = await serverAction({}, remainingFormData);
+            setFormState(remainingResult);
+            
+            // Очищаем состояние файлов после успешной загрузки
+            if (remainingResult.success) {
+              setImageFiles([]);
+              setFormState({ 
+                success: true,
+                error: `Все ${imageFiles.length + maxFilesPerRequest} изображений успешно загружены!` 
+              });
+            }
+          } catch (error) {
+            setFormState({ 
+              error: `Ошибка загрузки оставшихся файлов: ${error instanceof Error ? error.message : "Неизвестная ошибка"}` 
+            });
+          } finally {
+            setIsUploadingRemaining(false);
+          }
+        }, 1000); // Небольшая задержка для лучшего UX
+      } else if (result.success) {
+        // Если все файлы загружены, очищаем состояние
+        setImageFiles([]);
+      }
     } catch (error) {
       setFormState({ error: error instanceof Error ? error.message : "Произошла ошибка" });
     } finally {
@@ -154,7 +298,7 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
 
         // Очищаем форму сразу после успешного создания
         form.reset();
-        setImageUrls([]);
+        setImageFiles([]);
         setPdfUrls([]);
         _setImagePreviews([]);
         _setPdfNames([]);
@@ -204,6 +348,19 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
             rules={validationRules.title}
           />
 
+          <FormField
+            id="type"
+            label="Тип шага *"
+            name="type"
+            as="select"
+            form={form}
+            rules={{ required: "Выберите тип шага" }}
+            options={[
+              { value: "TRAINING", label: "Тренировочный" },
+              { value: "EXAMINATION", label: "Экзаменационный" }
+            ]}
+          />
+
           <Box className={sharedStyles.formField}>
             <Typography className={sharedStyles.formLabel}>Описание *</Typography>
             <MarkdownInput
@@ -216,31 +373,104 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
               </Alert>
             )}
           </Box>
-
-          <NumberField
-            id="duration"
-            label="Длительность (секунды) *"
-            name="duration"
-            placeholder="Введите длительность"
-            form={form}
-            rules={validationRules.duration}
-          />
-
-          <FormField
-            id="videoUrl"
-            label="Ссылка на видео"
-            name="videoUrl"
-            placeholder="https://youtube.com/..."
-            form={form}
-            rules={validationRules.videoUrl}
-          />
         </FormSection>
 
-        <FormSection title="Медиа файлы">
-          <Typography variant="body2" color="text.secondary">
-            Функция загрузки файлов будет добавлена позже
-          </Typography>
-        </FormSection>
+        {/* Условное отображение полей в зависимости от типа шага */}
+        {form.watch("type") === "TRAINING" ? (
+          <>
+            <FormSection title="Параметры тренировки">
+              <NumberField
+                id="duration"
+                label="Длительность (секунды) *"
+                name="duration"
+                placeholder="Введите длительность"
+                form={form}
+                rules={validationRules.duration}
+              />
+
+              <FormField
+                id="videoUrl"
+                label="Ссылка на видео"
+                name="videoUrl"
+                placeholder="https://youtube.com/..."
+                form={form}
+                rules={validationRules.videoUrl}
+              />
+            </FormSection>
+
+            <FormSection title="Медиа файлы">
+              <StepImageUploader
+                onImagesChange={setImageFiles}
+                onDeletedImagesChange={setDeletedImages}
+                initialImages={initialData?.imageUrls || []}
+                _stepId={initialData?.id}
+                maxImages={10}
+              />
+            </FormSection>
+          </>
+        ) : (
+          <>
+            <FormSection title="Типы экзамена">
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Выберите, что должен предоставить пользователь для прохождения экзамена:
+              </Typography>
+              
+              <FormGroup>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={form.watch("hasTestQuestions")}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        form.setValue("hasTestQuestions", e.target.checked);
+                        form.trigger("hasTestQuestions");
+                      }}
+                    />
+                  }
+                  label="Тестовые вопросы"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={form.watch("requiresVideoReport")}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        form.setValue("requiresVideoReport", e.target.checked);
+                        form.trigger("hasTestQuestions");
+                      }}
+                    />
+                  }
+                  label="Видео отчёт о работе"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={form.watch("requiresWrittenFeedback")}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        form.setValue("requiresWrittenFeedback", e.target.checked);
+                        form.trigger("hasTestQuestions");
+                      }}
+                    />
+                  }
+                  label="Письменная обратная связь"
+                />
+              </FormGroup>
+              
+              {form.formState.errors.hasTestQuestions && (
+                <Alert severity="error" className={sharedStyles.formAlert}>
+                  {form.formState.errors.hasTestQuestions.message}
+                </Alert>
+              )}
+            </FormSection>
+
+            {form.watch("hasTestQuestions") && (
+              <FormSection title="Тестовые вопросы">
+                <ChecklistEditor
+                  checklist={checklist}
+                  onChange={setChecklist}
+                />
+              </FormSection>
+            )}
+          </>
+        )}
 
         <ValidationErrors
           errors={Object.fromEntries(
@@ -255,13 +485,15 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
           <Button
             type="submit"
             variant="contained"
-            disabled={isPending || !form.formState.isValid}
+            disabled={isPending || isUploadingRemaining || !form.formState.isValid}
             className={sharedStyles.formButton}
           >
             {isPending
               ? hasInitial
                 ? "Сохранение..."
                 : "Создание..."
+              : isUploadingRemaining
+              ? "Загрузка оставшихся файлов..."
               : hasInitial
                 ? "Сохранить изменения"
                 : "Создать шаг"}

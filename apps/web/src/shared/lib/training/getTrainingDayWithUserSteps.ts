@@ -3,11 +3,19 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
+import type { JsonValue } from "@prisma/client/runtime/library";
 
 import type { TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 import { dayNumberSchema, trainingTypeSchema } from "../validation/schemas";
+
+interface ChecklistQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+}
 
 const courseTypeSchema = trainingTypeSchema;
 const dayOrderSchema = dayNumberSchema;
@@ -51,6 +59,11 @@ async function findTrainingDayWithUserTraining(
                   videoUrl: true,
                   imageUrls: true,
                   pdfUrls: true,
+                  type: true,
+                  checklist: true,
+                  requiresVideoReport: true,
+                  requiresWrittenFeedback: true,
+                  hasTestQuestions: true,
                 },
               },
             },
@@ -95,23 +108,24 @@ export async function getTrainingDayWithUserSteps(
   let stepStatuses: Record<string, TrainingStatus> = {};
   let pausedByStepId: Record<string, boolean> = {};
   let remainingByStepId: Record<string, number | undefined> = {};
+  let userStepIds: Record<string, string> = {};
   if (userTrainingId) {
     // Обратная совместимость: если колонок paused/remainingSec ещё нет в БД/клиенте, не падаем
-    type UserStepWithPause = { stepOnDayId: string; status: string; paused?: boolean; remainingSec?: number | null };
+    type UserStepWithPause = { id: string; stepOnDayId: string; status: string; paused?: boolean; remainingSec?: number | null };
     let withPause = false;
     let userSteps: UserStepWithPause[] = [];
     try {
       const res = (await (prisma as unknown as { userStep: { findMany: (args: unknown) => Promise<unknown> } }).userStep.findMany({
         where: { userTrainingId },
-        select: { stepOnDayId: true, status: true, paused: true, remainingSec: true },
+        select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
       })) as unknown;
       userSteps = res as UserStepWithPause[];
       withPause = true;
     } catch {
       const res = (await prisma.userStep.findMany({
         where: { userTrainingId },
-        select: { stepOnDayId: true, status: true },
-      })) as unknown as { stepOnDayId: string; status: string }[];
+        select: { id: true, stepOnDayId: true, status: true },
+      })) as unknown as { id: string; stepOnDayId: string; status: string }[];
       userSteps = res;
       withPause = false;
     }
@@ -121,6 +135,10 @@ export async function getTrainingDayWithUserSteps(
         record.stepOnDayId,
         TrainingStatus[(record.status as string) as keyof typeof TrainingStatus],
       ]),
+    );
+
+    userStepIds = Object.fromEntries(
+      userSteps.map((record) => [record.stepOnDayId, record.id]),
     );
 
     if (withPause) {
@@ -145,17 +163,22 @@ export async function getTrainingDayWithUserSteps(
         id: string;
         title: string;
         description: string;
-        durationSec: number;
+        durationSec: number | null;
         videoUrl: string | null;
         imageUrls: string[];
         pdfUrls: string[];
+        type: string | null;
+        checklist: JsonValue;
+        requiresVideoReport: boolean;
+        requiresWrittenFeedback: boolean;
+        hasTestQuestions: boolean;
       };
       order: number;
     }) => ({
       id: step.id,
       title: step.title,
       description: step.description,
-      durationSec: step.durationSec,
+      durationSec: step.durationSec ?? 0,
       videoUrl: step.videoUrl ?? "",
       imageUrls: step.imageUrls,
       pdfUrls: step.pdfUrls,
@@ -164,6 +187,14 @@ export async function getTrainingDayWithUserSteps(
       // Серверные поля паузы
       isPausedOnServer: pausedByStepId[stepOnDayId] ?? false,
       remainingSecOnServer: remainingByStepId[stepOnDayId] ?? undefined,
+      // Новые поля для типов экзамена
+      type: step.type as "TRAINING" | "EXAMINATION" | undefined,
+      checklist: step.checklist,
+      requiresVideoReport: step.requiresVideoReport,
+      requiresWrittenFeedback: step.requiresWrittenFeedback,
+      hasTestQuestions: step.hasTestQuestions,
+      // ID пользовательского шага для экзаменов
+      userStepId: userStepIds[stepOnDayId],
     }),
   );
 

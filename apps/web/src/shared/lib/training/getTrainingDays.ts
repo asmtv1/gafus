@@ -110,7 +110,7 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
           title: string; 
           type: string;
           equipment: string; // Added equipment to the type
-          stepLinks: { id: string; order: number; step: { durationSec: number } }[];
+          stepLinks: { id: string; order: number; step: { durationSec: number | null } }[];
         };
         userTrainings: { 
           status: string; 
@@ -129,7 +129,7 @@ export async function getTrainingDays(typeParam?: string, userId?: string): Prom
         const computed = calculateDayStatusFromStatuses(allStepStatuses);
         const userStatus = ut ? computed : TrainingStatus.NOT_STARTED;
 
-        const totalSeconds = link.day.stepLinks.reduce((sum, sl) => sum + sl.step.durationSec, 0);
+        const totalSeconds = link.day.stepLinks.reduce((sum, sl) => sum + (sl.step.durationSec ?? 0), 0);
         const estimatedDuration = Math.ceil(totalSeconds / 60);
 
         return {

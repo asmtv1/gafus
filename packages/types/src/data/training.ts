@@ -12,6 +12,13 @@ export interface Step {
   authorId: string;
   createdAt: Date;
   updatedAt: Date;
+  
+  // Новые поля для типов экзамена
+  type?: "TRAINING" | "EXAMINATION";
+  checklist?: any; // JSON с тестовыми вопросами
+  requiresVideoReport?: boolean;
+  requiresWrittenFeedback?: boolean;
+  hasTestQuestions?: boolean;
 }
 
 export interface TrainingDay {

@@ -1,0 +1,395 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
+}
+
+// generator erd {
+//   provider = "node ./node_modules/prisma-erd-generator"
+//   output   = "./erd.svg"
+// }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TrainingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum UserRole {
+  USER
+  TRAINER
+  ADMIN
+  MODERATOR
+  PREMIUM
+}
+
+enum PetType {
+  DOG
+  CAT
+}
+
+enum TrainingLevel {
+  BEGINNER      // Начальный
+  INTERMEDIATE  // Средний
+  ADVANCED      // Продвинутый
+  EXPERT        // Экспертный
+}
+
+enum StepType {
+  TRAINING      // Тренировочный
+  EXAMINATION   // Экзаменационный
+}
+
+model Course {
+  id             String             @id @default(cuid())
+  name           String
+  type           String             @db.VarChar(50) @unique
+  description    String             @default("")
+  equipment      String             @default("")
+  trainingLevel  TrainingLevel      
+  shortDesc      String             @default("")
+  duration       String
+  logoImg        String
+  isPrivate      Boolean            @default(false)
+  isPaid         Boolean            @default(false)
+
+  authorId       String
+  author         User               @relation(fields: [authorId], references: [id])
+
+  dayLinks       DayOnCourse[]
+  access         CourseAccess[]
+  userCourses    UserCourse[]
+  favoritedBy    FavoriteCourse[]
+  reviews        CourseReview[]
+  avgRating      Float?
+  videoUrl       String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model TrainingDay {
+  id             String            @id @default(cuid())
+  title          String
+  equipment      String             @default("")
+  description    String             @default("")
+  type           String             @default("regular")
+  stepLinks      StepOnDay[]
+  dayLinks       DayOnCourse[]
+  authorId       String
+  author         User          @relation(fields: [authorId], references: [id])
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model Step {
+  id             String           @id @default(cuid())
+  title          String
+  description    String           @default("")
+  durationSec    Int?
+  type           StepType         @default(TRAINING)
+  imageUrls      String[]         @default([])
+  pdfUrls        String[]         @default([])
+  videoUrl       String?
+  checklist      Json?            // Для экзаменационных шагов: массив вопросов с вариантами ответов
+  
+  // Поля для типов экзамена (только для EXAMINATION)
+  requiresVideoReport    Boolean  @default(false)  // Требуется видео отчёт
+  requiresWrittenFeedback Boolean @default(false)  // Требуется письменная обратная связь
+  hasTestQuestions       Boolean @default(false)   // Есть тестовые вопросы
+  
+  stepLinks      StepOnDay[]
+
+  authorId       String
+  author         User          @relation(fields: [authorId], references: [id])
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @default(now())
+}
+
+model DayOnCourse {
+  id             String            @id @default(cuid())
+  courseId       String
+  dayId          String
+  order          Int
+
+  course   Course @relation(fields: [courseId], references: [id])
+  day      TrainingDay @relation(fields: [dayId], references: [id])
+
+  userTrainings  UserTraining[]
+
+  @@unique([courseId, order]) // порядок уникален в курсе
+  @@index([courseId, order])
+}
+
+model StepOnDay {
+  id             String             @id @default(cuid())
+  dayId          String
+  stepId         String
+  order          Int
+
+  day            TrainingDay        @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  step           Step               @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  userSteps      UserStep[]
+
+  @@unique([dayId, order]) // порядок уникален в дне
+  @@index([dayId, order])
+}
+
+model UserTraining {
+  id               String         @id @default(cuid())
+  userId           String
+  dayOnCourseId    String
+  status           TrainingStatus @default(NOT_STARTED)
+  currentStepIndex Int?           @default(0)
+
+  user             User           @relation(fields: [userId], references: [id])
+  dayOnCourse      DayOnCourse    @relation(fields: [dayOnCourseId], references: [id], onDelete: Cascade)
+  steps            UserStep[]
+
+  @@unique([userId, dayOnCourseId])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @default(now())
+}
+
+model UserStep {
+  id              String         @id @default(cuid())
+  userTrainingId  String
+  stepOnDayId     String
+  status          TrainingStatus @default(NOT_STARTED)
+  // Флажок паузы и оставшееся время шага в секундах для серверного хранения
+  paused          Boolean        @default(false)
+  remainingSec    Int?
+
+  userTraining    UserTraining   @relation(fields: [userTrainingId], references: [id], onDelete: Cascade)
+  stepOnDay       StepOnDay      @relation(fields: [stepOnDayId], references: [id], onDelete: Cascade)
+
+  @@unique([userTrainingId, stepOnDayId])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now())
+}
+
+model User {
+  id                       String               @id @default(cuid())
+  username                 String               @unique
+  phone                    String               @unique
+  password                 String
+  telegramId               String?              @unique
+  isConfirmed              Boolean              @default(false)
+  role                     UserRole             @default(USER)
+
+  profile                  UserProfile?
+  diplomas                 Diploma[]
+  trainings                Training[]
+  trainingAccesses         TrainingAccess[]
+  courseAccesses           CourseAccess[]
+  authoredCourses          Course[]
+  createdSteps             Step[]
+  createdDays              TrainingDay[]
+  userTrainings            UserTraining[]
+  userCourses              UserCourse[]
+  pets                     Pet[]
+  favoriteCourses          FavoriteCourse[]
+  courseReviews            CourseReview[]
+  passwordResetTokens      PasswordResetToken[]
+  pushSubscriptions        PushSubscription[]
+  stepNotifications        StepNotification[]
+  passwordResetRequestedAt DateTime?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @default(now())
+}
+
+model UserProfile {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName   String?
+  birthDate  DateTime?
+  about      String?
+  telegram   String?
+  instagram  String?
+  website    String?
+  avatarUrl  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now())
+}
+
+model Diploma {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  issuedBy   String?
+  issuedAt   DateTime?
+  url        String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  @@index([userId])
+}
+
+model Training {
+  id         String        @id @default(cuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  isPrivate  Boolean       @default(false)
+  access     TrainingAccess[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @default(now())
+}
+
+model UserCourse {
+  userId        String
+  courseId      String
+  status        TrainingStatus @default(NOT_STARTED)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  @@id([userId, courseId])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+}
+
+model Pet {
+  id            String         @id @default(cuid())
+  ownerId       String
+  name          String
+  type          PetType
+  breed         String
+  birthDate     DateTime
+  heightCm      Float?
+  weightKg      Float?
+  photoUrl      String?
+  notes         String?
+  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  awards        Award[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+}
+
+model Award {
+  id            String         @id @default(cuid())
+  petId         String
+  title         String
+  event         String?
+  date          DateTime?
+  rank          String?
+  pet           Pet            @relation(fields: [petId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+  @@index([petId])
+}
+
+model TrainingAccess {
+  trainingId    String
+  userId        String
+  training      Training       @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([trainingId, userId])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+}
+
+model CourseAccess {
+  courseId      String
+  userId        String
+  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([courseId, userId])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+}
+
+model FavoriteCourse {
+  userId        String
+  courseId      String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  @@id([userId, courseId])
+  createdAt     DateTime       @default(now())
+}
+
+model CourseReview {
+  id            String         @id @default(cuid())
+  userId        String
+  courseId      String
+  rating        Float?
+  comment       String?
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  @@unique([userId, courseId])
+  @@index([courseId, userId], name: "idx_rating_course_user")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+}
+
+model PasswordResetToken {
+  id            String         @id @default(cuid())
+  token         String         @unique
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt     DateTime
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+}
+
+model PushSubscription {
+  id            String         @id @default(cuid())
+  userId        String
+  endpoint      String         @unique
+  keys          Json
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+  @@index([userId])
+}
+
+model StepNotification {
+  id            String   @id @default(uuid())
+  userId        String
+  day           Int
+  stepIndex     Int
+  endTs         Int
+  sent          Boolean  @default(false)
+  subscription  Json
+  url           String?
+  jobId         String?
+  paused        Boolean  @default(false)
+  remainingSec  Int?
+  stepTitle     String?  // Название шага
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([userId])
+  @@index([day, stepIndex])
+}
+
+model ErrorReport {
+  id                String   @id @default(cuid())
+  message           String
+  stack             String?
+  appName           String
+  environment       String
+  url               String
+  userAgent         String
+  userId            String?
+  sessionId         String?
+  componentStack    String?
+  additionalContext Json?
+  tags              String[] @default([])
+  resolved          Boolean  @default(false)
+  resolvedAt        DateTime?
+  resolvedBy        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([appName])
+  @@index([environment])
+  @@index([resolved])
+  @@index([createdAt])
+}

@@ -23,7 +23,19 @@ export async function getVisibleSteps() {
 
   return prisma.step.findMany({
     where,
-    include: {
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      durationSec: true,
+      type: true,
+      videoUrl: true,
+      imageUrls: true,
+      pdfUrls: true,
+      checklist: true,
+      authorId: true,
+      createdAt: true,
+      updatedAt: true,
       stepLinks: {
         include: {
           day: {

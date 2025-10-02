@@ -22,6 +22,16 @@ export interface TrainingStep {
   // Доп. поля с серверной паузой (не влияют на TrainingStatus)
   isPausedOnServer?: boolean;
   remainingSecOnServer?: number;
+  
+  // Новые поля для типов экзамена
+  type?: "TRAINING" | "EXAMINATION";
+  checklist?: any; // JSON с тестовыми вопросами
+  requiresVideoReport?: boolean;
+  requiresWrittenFeedback?: boolean;
+  hasTestQuestions?: boolean;
+  
+  // ID пользовательского шага для экзаменов
+  userStepId?: string;
 }
 
 /** Полная информация о тренировочном дне + шаги + статус пользователя */

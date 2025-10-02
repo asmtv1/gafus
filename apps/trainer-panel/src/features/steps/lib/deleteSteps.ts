@@ -5,6 +5,7 @@ import { createTrainerPanelLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { revalidatePath } from "next/cache";
+import { deleteFileFromCDN } from "@gafus/cdn-upload";
 
 import type { ActionResult } from "@gafus/types";
 
@@ -16,6 +17,27 @@ export async function deleteSteps(_prev: ActionResult, formData: FormData): Prom
     const ids = formData.getAll("ids").map(String).filter(Boolean);
     if (ids.length === 0) {
       return { error: "Не указаны шаги для удаления" };
+    }
+
+    // Получаем изображения всех удаляемых шагов
+    const stepsToDelete = await prisma.step.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, imageUrls: true },
+    });
+
+    // Удаляем изображения из CDN
+    for (const step of stepsToDelete) {
+      if (step.imageUrls.length > 0) {
+        for (const imageUrl of step.imageUrls) {
+          const relativePath = imageUrl.replace('/uploads/', '');
+          try {
+            await deleteFileFromCDN(relativePath);
+            logger.info(`🗑️ Изображение шага удалено из CDN: ${relativePath}`);
+          } catch (error) {
+            logger.warn(`⚠️ Не удалось удалить изображение шага из CDN: ${relativePath}`, { error });
+          }
+        }
+      }
     }
 
     const result = await prisma.step.deleteMany({ where: { id: { in: ids } } });

@@ -1,9 +1,8 @@
 "use server";
 
+import { deleteFileFromCDN } from "@gafus/cdn-upload";
 import { prisma } from "@gafus/prisma";
-import { unlink } from "fs/promises";
 import { revalidatePath } from "next/cache";
-import path from "path";
 import { createWebLogger } from "@gafus/logger";
 
 import { petIdSchema } from "../validation/petSchemas";
@@ -20,11 +19,13 @@ export async function deletePet(petId: string, pathToRevalidate = "/") {
     });
 
     if (pet?.photoUrl) {
-      const fileName = path.basename(pet.photoUrl);
-      const filePath = path.join(process.cwd(), "..", "..", "packages", "public-assets", "public", "uploads", "pets", fileName);
-      await unlink(filePath).catch(() => {
-        logger.warn("Не удалось удалить аватарку питомца", { fileName, operation: 'warn' });
-      });
+      const relativePath = pet.photoUrl.replace('/uploads/', '');
+      try {
+        await deleteFileFromCDN(relativePath);
+        logger.info(`🗑️ Фото питомца удалено из CDN: ${relativePath}`);
+      } catch (error) {
+        logger.warn(`⚠️ Не удалось удалить фото питомца из CDN: ${error}`);
+      }
     }
 
     await prisma.pet.delete({

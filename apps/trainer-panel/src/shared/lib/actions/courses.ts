@@ -1,5 +1,6 @@
 "use server";
 
+import { deleteFileFromCDN } from "@gafus/cdn-upload";
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
@@ -142,6 +143,23 @@ export async function deleteCourseServerAction(courseId: string) {
     user: { id: string; username: string; role: string };
   } | null;
   if (!session?.user?.id) return { success: false, error: "Не авторизован" };
+
+  // Получаем информацию о курсе для удаления изображения
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { logoImg: true },
+  });
+
+  // Удаляем изображение курса из CDN (если есть)
+  if (course?.logoImg) {
+    const relativePath = course.logoImg.replace('/uploads/', '');
+    try {
+      await deleteFileFromCDN(relativePath);
+      console.log(`🗑️ Изображение курса удалено из CDN: ${relativePath}`);
+    } catch (error) {
+      console.warn(`⚠️ Не удалось удалить изображение курса из CDN: ${error}`);
+    }
+  }
 
   // Удаляем зависимые записи
   await prisma.courseAccess.deleteMany({ where: { courseId } });

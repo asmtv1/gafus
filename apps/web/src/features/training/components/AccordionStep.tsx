@@ -10,6 +10,17 @@ import { useSyncStatus } from "@shared/hooks/useSyncStatus";
 import styles from "./AccordionStep.module.css";
 import { AccessTimeIcon, PauseIcon, PlayArrowIcon, ReplayIcon } from "@/utils/muiImports";
 import { getEmbeddedVideoInfo } from "@/utils";
+import { TestQuestions } from "./TestQuestions";
+import { WrittenFeedback } from "./WrittenFeedback";
+import { VideoReport } from "./VideoReport";
+import ImageViewer from "@shared/components/ui/ImageViewer";
+
+interface ChecklistQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+}
 
 interface AccordionStepProps {
   courseId: string;
@@ -22,8 +33,18 @@ interface AccordionStepProps {
   totalSteps: number;
   initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
   videoUrl?: string | null;
+  imageUrls?: string[];
   onRun: (stepIndex: number) => void;
   onReset: (stepIndex: number) => void;
+  
+  // Новые поля для типов экзамена
+  type?: "TRAINING" | "EXAMINATION";
+  checklist?: ChecklistQuestion[];
+  requiresVideoReport?: boolean;
+  requiresWrittenFeedback?: boolean;
+  hasTestQuestions?: boolean;
+  userStepId?: string;
+  stepId: string;
 }
 
 export function AccordionStep({
@@ -37,8 +58,16 @@ export function AccordionStep({
   totalSteps,
   initialStatus,
   videoUrl,
+  imageUrls,
   onRun,
   onReset,
+  type,
+  checklist,
+  requiresVideoReport,
+  requiresWrittenFeedback,
+  hasTestQuestions,
+  userStepId,
+  stepId,
 }: AccordionStepProps) {
   // Состояние для отслеживания загрузки
   const [isPausing, setIsPausing] = useState(false);
@@ -336,40 +365,51 @@ export function AccordionStep({
 
   return (
     <div className={styles.stepContainer}>
-
-      <div className={styles.timerCard}>
-        <div className={styles.timerHeader}>
-          <AccessTimeIcon fontSize="small" />
-          <span>Начните занятие!</span>
-        </div>
-        <div className={styles.controlRow}>
-        <div className={styles.timerDisplay}>
-          {`${Math.floor(stepState.timeLeft / 60)}:${(stepState.timeLeft % 60)
-            .toString()
-            .padStart(2, "0")}`}
-        </div>
-          {stepState.status === "NOT_STARTED" && (
-            <button onClick={handleStart} className={styles.circleBtn} aria-label="start">
-              <PlayArrowIcon />
+      {/* Таймер только для тренировочных шагов */}
+      {type !== "EXAMINATION" && (
+        <div className={styles.timerCard}>
+          <div className={styles.timerHeader}>
+            <AccessTimeIcon fontSize="small" />
+            <span>Начните занятие!</span>
+          </div>
+          <div className={styles.controlRow}>
+          <div className={styles.timerDisplay}>
+            {`${Math.floor(stepState.timeLeft / 60)}:${(stepState.timeLeft % 60)
+              .toString()
+              .padStart(2, "0")}`}
+          </div>
+            {stepState.status === "NOT_STARTED" && (
+              <button onClick={handleStart} className={styles.circleBtn} aria-label="start">
+                <PlayArrowIcon />
+              </button>
+            )}
+            {stepState.status === "IN_PROGRESS" && isActuallyRunning && (
+              <button onClick={togglePause} disabled={isPausing} className={styles.circleBtn} aria-label="pause">
+                <PauseIcon />
+              </button>
+            )}
+            {(stepState.status === "IN_PROGRESS" && !isActuallyRunning) || stepState.status === "PAUSED" ? (
+              <button onClick={togglePause} disabled={isPausing} className={styles.circleBtn} aria-label="resume">
+                <PlayArrowIcon />
+              </button>
+            ) : null}
+            <button onClick={handleReset} className={styles.circleBtnReset} aria-label="reset">
+              <ReplayIcon />
             </button>
-          )}
-          {stepState.status === "IN_PROGRESS" && isActuallyRunning && (
-            <button onClick={togglePause} disabled={isPausing} className={styles.circleBtn} aria-label="pause">
-              <PauseIcon />
-            </button>
-          )}
-          {(stepState.status === "IN_PROGRESS" && !isActuallyRunning) || stepState.status === "PAUSED" ? (
-            <button onClick={togglePause} disabled={isPausing} className={styles.circleBtn} aria-label="resume">
-              <PlayArrowIcon />
-            </button>
-          ) : null}
-          <button onClick={handleReset} className={styles.circleBtnReset} aria-label="reset">
-            <ReplayIcon />
-          </button>
+           
+          </div>
          
         </div>
-       
-      </div>
+      )}
+
+      {/* Для экзаменационных шагов показываем заголовок */}
+      {type === "EXAMINATION" && (
+        <div className={styles.timerCard}>
+          <div className={styles.timerHeader}>
+            <span>Экзаменационный шаг</span>
+          </div>
+        </div>
+      )}
 
       {stepDescription && (
         <div className={styles.stepInfo}>
@@ -377,6 +417,80 @@ export function AccordionStep({
             <div className={styles.sectionTitle}>Описание:</div>
             <div className={`${styles.cardSection} ${styles.markdownContent}`}>
               <ReactMarkdown>{stepDescription}</ReactMarkdown>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Изображения шага */}
+      {imageUrls && imageUrls.length > 0 && (
+        <div className={styles.stepInfo}>
+          <div>
+            <div className={styles.sectionTitle}>Изображения:</div>
+            <div className={styles.imagesGrid}>
+              {imageUrls.map((imageUrl, index) => (
+                <ImageViewer
+                  key={index}
+                  src={imageUrl}
+                  alt={`Изображение ${index + 1} для шага "${stepTitle}"`}
+                  width={300}
+                  height={200}
+                  className={styles.stepImage}
+                  thumbnailClassName={styles.imageContainer}
+                  priority={index === 0} // Первое изображение загружаем с приоритетом
+                  loading={index === 0 ? "eager" : "lazy"}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Экзаменационные компоненты */}
+      {type === "EXAMINATION" && (
+        <div className={styles.stepInfo}>
+          <div>
+            <div className={styles.sectionTitle}>Экзамен:</div>
+            <div className={styles.cardSection}>
+              {hasTestQuestions && checklist && userStepId && (
+                <TestQuestions
+                  checklist={checklist}
+                  userStepId={userStepId}
+                  stepId={stepId}
+                  onComplete={(answers) => {
+                    // Результаты сохраняются в компоненте
+                  }}
+                  onReset={() => {
+                    // Сброс выполняется в компоненте
+                  }}
+                />
+              )}
+              
+              {requiresWrittenFeedback && userStepId && (
+                <WrittenFeedback
+                  userStepId={userStepId}
+                  stepId={stepId}
+                  onComplete={(feedback) => {
+                    // Результаты сохраняются в компоненте
+                  }}
+                  onReset={() => {
+                    // Сброс выполняется в компоненте
+                  }}
+                />
+              )}
+              
+              {requiresVideoReport && userStepId && (
+                <VideoReport
+                  userStepId={userStepId}
+                  stepId={stepId}
+                  onComplete={(videoBlob) => {
+                    // Результаты сохраняются в компоненте
+                  }}
+                  onReset={() => {
+                    // Сброс выполняется в компоненте
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>

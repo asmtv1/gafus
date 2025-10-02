@@ -20,8 +20,10 @@ const logger = createTrainerPanelLogger('trainer-panel-course-media-uploader');
 
 export default function CourseMediaUploader({
   onUploadComplete,
+  courseId,
 }: {
   onUploadComplete: (url: string) => void;
+  courseId?: string;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,19 +38,39 @@ export default function CourseMediaUploader({
     setIsUploading(true);
 
     try {
-      const compressed = await imageCompression(file, {
-        maxSizeMB: 0.6,
-        maxWidthOrHeight: 800,
-        useWebWorker: true,
-      });
+      // Проверяем размер файла (максимум 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error("Файл слишком большой. Максимальный размер: 10MB");
+      }
 
-      const preview = URL.createObjectURL(compressed);
+      let processedFile = file;
+      
+      // Для WebP файлов применяем легкое сжатие
+      if (file.type === "image/webp") {
+        processedFile = await imageCompression(file, {
+          maxSizeMB: 2.0, // Больше для WebP
+          maxWidthOrHeight: 1200, // Больше разрешение для WebP
+          useWebWorker: true,
+        });
+      } else {
+        // Для JPG/PNG применяем стандартное сжатие
+        processedFile = await imageCompression(file, {
+          maxSizeMB: 1.0, // Увеличиваем до 1MB
+          maxWidthOrHeight: 1000, // Увеличиваем разрешение
+          useWebWorker: true,
+        });
+      }
+
+      const preview = URL.createObjectURL(processedFile);
       setPreviewUrl(preview);
 
       const formData = new FormData();
-      formData.append("image", compressed, file.name);
+      // Сохраняем оригинальное расширение файла
+      const extension = file.name.split('.').pop() || 'jpg';
+      const fileName = `course_${Date.now()}.${extension}`;
+      formData.append("image", processedFile, fileName);
 
-      const imageUrl = await uploadCourseImageServerAction(formData);
+          const imageUrl = await uploadCourseImageServerAction(formData, courseId);
       onUploadComplete(imageUrl);
     } catch (err) {
       logger.error("Ошибка загрузки изображения курса", err as Error, {

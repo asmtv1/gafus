@@ -10,6 +10,11 @@ export interface Step {
     authorId: string;
     createdAt: Date;
     updatedAt: Date;
+    type?: "TRAINING" | "EXAMINATION";
+    checklist?: any;
+    requiresVideoReport?: boolean;
+    requiresWrittenFeedback?: boolean;
+    hasTestQuestions?: boolean;
 }
 export interface TrainingDay {
     id: string;

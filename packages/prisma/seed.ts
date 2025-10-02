@@ -130,6 +130,7 @@ async function main() {
 - Лакомства
 - Поводок`,
         durationSec: 60,
+        type: "TRAINING",
         videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
         authorId: admin.id,
       },
@@ -155,6 +156,7 @@ async function main() {
 - Поводок длиной 1.5-2 метра
 - Ошейник или шлейка`,
         durationSec: 90,
+        type: "TRAINING",
         videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
         authorId: admin.id,
       },
@@ -181,6 +183,7 @@ async function main() {
 - Лакомства для поощрения
 - Игрушки для отвлечения`,
         durationSec: 120,
+        type: "TRAINING",
         videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
         authorId: admin.id,
       },
@@ -308,6 +311,7 @@ async function main() {
 
 `,
         durationSec: 30,
+        type: "TRAINING",
         videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
         authorId: admin.id,
       },
@@ -336,6 +340,7 @@ async function main() {
 
 `,
         durationSec: 30,
+        type: "TRAINING",
         videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
         authorId: admin.id,
       },
@@ -425,6 +430,7 @@ async function main() {
 
 `,
         durationSec: 120,
+        type: "EXAMINATION",
         videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
         authorId: admin.id,
     },
@@ -539,6 +545,7 @@ async function main() {
 
 `,
         durationSec: 45,
+        type: "TRAINING",
         videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
         authorId: trainer.id,
       },
@@ -568,6 +575,7 @@ async function main() {
 
 `,
         durationSec: 90,
+        type: "EXAMINATION",
         videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
         authorId: trainer.id,
       },

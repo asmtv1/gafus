@@ -10,6 +10,9 @@ CREATE TYPE "public"."PetType" AS ENUM ('DOG', 'CAT');
 -- CreateEnum
 CREATE TYPE "public"."TrainingLevel" AS ENUM ('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT');
 
+-- CreateEnum
+CREATE TYPE "public"."StepType" AS ENUM ('TRAINING', 'EXAMINATION');
+
 -- CreateTable
 CREATE TABLE "public"."Course" (
     "id" TEXT NOT NULL,
@@ -51,10 +54,15 @@ CREATE TABLE "public"."Step" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "description" TEXT NOT NULL DEFAULT '',
-    "durationSec" INTEGER NOT NULL,
+    "durationSec" INTEGER,
+    "type" "public"."StepType" NOT NULL DEFAULT 'TRAINING',
     "imageUrls" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "pdfUrls" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "videoUrl" TEXT,
+    "checklist" JSONB,
+    "requiresVideoReport" BOOLEAN NOT NULL DEFAULT false,
+    "requiresWrittenFeedback" BOOLEAN NOT NULL DEFAULT false,
+    "hasTestQuestions" BOOLEAN NOT NULL DEFAULT false,
     "authorId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -207,6 +215,9 @@ CREATE TABLE "public"."Award" (
     "event" TEXT,
     "date" TIMESTAMP(3),
     "rank" TEXT,
+    "examType" TEXT,
+    "examScore" INTEGER,
+    "courseId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -296,6 +307,24 @@ CREATE TABLE "public"."StepNotification" (
 );
 
 -- CreateTable
+CREATE TABLE "public"."ExamResult" (
+    "id" TEXT NOT NULL,
+    "userStepId" TEXT NOT NULL,
+    "stepId" TEXT NOT NULL,
+    "testAnswers" JSONB,
+    "testScore" INTEGER,
+    "testMaxScore" INTEGER,
+    "videoReportUrl" TEXT,
+    "writtenFeedback" TEXT,
+    "overallScore" INTEGER,
+    "isPassed" BOOLEAN,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ExamResult_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "public"."ErrorReport" (
     "id" TEXT NOT NULL,
     "message" TEXT NOT NULL,
@@ -358,6 +387,9 @@ CREATE INDEX "Diploma_userId_idx" ON "public"."Diploma"("userId");
 CREATE INDEX "Award_petId_idx" ON "public"."Award"("petId");
 
 -- CreateIndex
+CREATE INDEX "Award_courseId_idx" ON "public"."Award"("courseId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "TrainingAccess_trainingId_userId_key" ON "public"."TrainingAccess"("trainingId", "userId");
 
 -- CreateIndex
@@ -383,6 +415,15 @@ CREATE INDEX "StepNotification_userId_idx" ON "public"."StepNotification"("userI
 
 -- CreateIndex
 CREATE INDEX "StepNotification_day_stepIndex_idx" ON "public"."StepNotification"("day", "stepIndex");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ExamResult_userStepId_key" ON "public"."ExamResult"("userStepId");
+
+-- CreateIndex
+CREATE INDEX "ExamResult_userStepId_idx" ON "public"."ExamResult"("userStepId");
+
+-- CreateIndex
+CREATE INDEX "ExamResult_stepId_idx" ON "public"."ExamResult"("stepId");
 
 -- CreateIndex
 CREATE INDEX "ErrorReport_appName_idx" ON "public"."ErrorReport"("appName");
@@ -451,6 +492,9 @@ ALTER TABLE "public"."Pet" ADD CONSTRAINT "Pet_ownerId_fkey" FOREIGN KEY ("owner
 ALTER TABLE "public"."Award" ADD CONSTRAINT "Award_petId_fkey" FOREIGN KEY ("petId") REFERENCES "public"."Pet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "public"."Award" ADD CONSTRAINT "Award_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "public"."Course"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "public"."TrainingAccess" ADD CONSTRAINT "TrainingAccess_trainingId_fkey" FOREIGN KEY ("trainingId") REFERENCES "public"."Training"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -482,3 +526,9 @@ ALTER TABLE "public"."PushSubscription" ADD CONSTRAINT "PushSubscription_userId_
 
 -- AddForeignKey
 ALTER TABLE "public"."StepNotification" ADD CONSTRAINT "StepNotification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."ExamResult" ADD CONSTRAINT "ExamResult_userStepId_fkey" FOREIGN KEY ("userStepId") REFERENCES "public"."UserStep"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."ExamResult" ADD CONSTRAINT "ExamResult_stepId_fkey" FOREIGN KEY ("stepId") REFERENCES "public"."Step"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -18,6 +18,12 @@ export interface TrainingStep {
     order: number;
     isPausedOnServer?: boolean;
     remainingSecOnServer?: number;
+    type?: "TRAINING" | "EXAMINATION";
+    checklist?: any;
+    requiresVideoReport?: boolean;
+    requiresWrittenFeedback?: boolean;
+    hasTestQuestions?: boolean;
+    userStepId?: string;
 }
 /** Полная информация о тренировочном дне + шаги + статус пользователя */
 export interface TrainingDetail {

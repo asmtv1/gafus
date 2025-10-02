@@ -8,7 +8,8 @@ import {
   Add,
   People,
   AdminPanelSettings,
-  TrendingUp
+  TrendingUp,
+  Assignment
 } from "@mui/icons-material";
 
 import styles from "./main-panel.module.css";
@@ -46,6 +47,10 @@ export default async function MainPanelLayout({ children }: { children: React.Re
         <Link href="/main-panel/days" className={styles.button}>
           <Schedule sx={{ mr: 1.5, fontSize: 20 }} />
           Созданные дни
+        </Link>
+        <Link href="/main-panel/exam-results" className={styles.button}>
+          <Assignment sx={{ mr: 1.5, fontSize: 20 }} />
+          Результаты экзаменов
         </Link>
         
         <div className={styles.divider}></div>

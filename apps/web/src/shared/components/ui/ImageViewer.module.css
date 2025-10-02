@@ -1,0 +1,305 @@
+/* Контейнер миниатюры */
+.thumbnailContainer {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background-color: #f5f5f5;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.thumbnailContainer:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.thumbnailContainer:focus {
+  outline: 2px solid #636128;
+  outline-offset: 2px;
+}
+
+/* Миниатюра изображения */
+.thumbnailImage {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.2s ease;
+}
+
+.thumbnailContainer:hover .thumbnailImage {
+  transform: scale(1.02);
+}
+
+/* Overlay с иконкой увеличения */
+.thumbnailOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.thumbnailContainer:hover .thumbnailOverlay {
+  opacity: 1;
+}
+
+.zoomIcon {
+  color: white;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.thumbnailContainer:hover .zoomIcon {
+  transform: scale(1.1);
+}
+
+/* Модальное окно */
+.modalBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modalContent {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Кнопка закрытия */
+.closeButton {
+  position: absolute;
+  top: -50px;
+  right: 0;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #333;
+  z-index: 1001;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+}
+
+.closeButton:focus {
+  outline: 2px solid #636128;
+  outline-offset: 2px;
+}
+
+/* Контейнер изображения в модальном окне */
+.modalImageContainer {
+  position: relative;
+  width: 100%;
+  height: 70vh;
+  min-height: 300px;
+  max-height: 80vh;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalImage {
+  width: 100%;
+  height: 100%;
+}
+
+/* Подпись к изображению */
+.modalCaption {
+  color: white;
+  text-align: center;
+  font-size: 14px;
+  max-width: 100%;
+  word-wrap: break-word;
+  padding: 0 20px;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .thumbnailContainer {
+    min-height: 100px;
+  }
+  
+  .modalBackdrop {
+    padding: 10px;
+  }
+  
+  .modalContent {
+    max-width: 95vw;
+    max-height: 95vh;
+  }
+  
+  .modalImageContainer {
+    height: 60vh;
+    min-height: 250px;
+  }
+  
+  .closeButton {
+    top: -40px;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .modalCaption {
+    font-size: 12px;
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .thumbnailContainer {
+    min-height: 80px;
+  }
+  
+  .modalBackdrop {
+    padding: 5px;
+  }
+  
+  .modalContent {
+    max-width: 98vw;
+    max-height: 98vh;
+  }
+  
+  .modalImageContainer {
+    height: 50vh;
+    min-height: 200px;
+  }
+  
+  .closeButton {
+    top: -35px;
+    width: 32px;
+    height: 32px;
+  }
+  
+  .modalCaption {
+    font-size: 11px;
+    padding: 0 5px;
+  }
+}
+
+/* Landscape режим на мобильных */
+@media (max-width: 768px) and (orientation: landscape) {
+  .modalImageContainer {
+    height: 80vh;
+    min-height: 200px;
+  }
+  
+  .closeButton {
+    top: -45px;
+  }
+}
+
+/* Поддержка PWA - улучшения для touch устройств */
+@media (hover: none) and (pointer: coarse) {
+  .thumbnailOverlay {
+    opacity: 0.7; /* Показываем overlay на touch устройствах */
+  }
+  
+  .thumbnailContainer:active {
+    transform: scale(0.98);
+  }
+  
+  .closeButton:active {
+    transform: scale(0.9);
+  }
+}
+
+/* Улучшения для темной темы */
+@media (prefers-color-scheme: dark) {
+  .thumbnailContainer {
+    background-color: #2a2a2a;
+  }
+  
+  .modalImageContainer {
+    background: #2a2a2a;
+  }
+  
+  .closeButton {
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+  }
+  
+  .closeButton:hover {
+    background: rgba(0, 0, 0, 0.9);
+  }
+}
+
+/* Анимации для плавного появления */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modalBackdrop {
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+/* Улучшения доступности */
+@media (prefers-reduced-motion: reduce) {
+  .thumbnailContainer,
+  .thumbnailImage,
+  .thumbnailOverlay,
+  .zoomIcon,
+  .closeButton,
+  .modalBackdrop {
+    transition: none;
+    animation: none;
+  }
+  
+  .thumbnailContainer:hover {
+    transform: none;
+  }
+  
+  .thumbnailContainer:hover .thumbnailImage {
+    transform: none;
+  }
+  
+  .thumbnailContainer:hover .zoomIcon {
+    transform: none;
+  }
+}

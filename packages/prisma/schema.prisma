@@ -39,6 +39,11 @@ enum TrainingLevel {
   EXPERT        // Экспертный
 }
 
+enum StepType {
+  TRAINING      // Тренировочный
+  EXAMINATION   // Экзаменационный
+}
+
 model Course {
   id             String             @id @default(cuid())
   name           String
@@ -60,6 +65,7 @@ model Course {
   userCourses    UserCourse[]
   favoritedBy    FavoriteCourse[]
   reviews        CourseReview[]
+  awards         Award[]
   avgRating      Float?
   videoUrl       String?
   createdAt      DateTime           @default(now())
@@ -84,11 +90,20 @@ model Step {
   id             String           @id @default(cuid())
   title          String
   description    String           @default("")
-  durationSec    Int
+  durationSec    Int?
+  type           StepType         @default(TRAINING)
   imageUrls      String[]         @default([])
   pdfUrls        String[]         @default([])
   videoUrl       String?
+  checklist      Json?            // Для экзаменационных шагов: массив вопросов с вариантами ответов
+  
+  // Поля для типов экзамена (только для EXAMINATION)
+  requiresVideoReport    Boolean  @default(false)  // Требуется видео отчёт
+  requiresWrittenFeedback Boolean @default(false)  // Требуется письменная обратная связь
+  hasTestQuestions       Boolean @default(false)   // Есть тестовые вопросы
+  
   stepLinks      StepOnDay[]
+  examResults    ExamResult[]
 
   authorId       String
   author         User          @relation(fields: [authorId], references: [id])
@@ -151,6 +166,9 @@ model UserStep {
   // Флажок паузы и оставшееся время шага в секундах для серверного хранения
   paused          Boolean        @default(false)
   remainingSec    Int?
+
+  // Связь с результатами экзаменов
+  examResult      ExamResult?
 
   userTraining    UserTraining   @relation(fields: [userTrainingId], references: [id], onDelete: Cascade)
   stepOnDay       StepOnDay      @relation(fields: [stepOnDayId], references: [id], onDelete: Cascade)
@@ -266,10 +284,19 @@ model Award {
   event         String?
   date          DateTime?
   rank          String?
+  
+  // Новые поля для экзаменационных достижений
+  examType      String?        // Тип экзамена (TEST, VIDEO, WRITTEN)
+  examScore     Int?           // Балл за экзамен
+  courseId      String?        // Связь с курсом
+  
   pet           Pet            @relation(fields: [petId], references: [id], onDelete: Cascade)
+  course        Course?        @relation(fields: [courseId], references: [id])
+  
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @default(now())
   @@index([petId])
+  @@index([courseId])
 }
 
 model TrainingAccess {
@@ -354,6 +381,36 @@ model StepNotification {
   updatedAt     DateTime @updatedAt
   @@index([userId])
   @@index([day, stepIndex])
+}
+
+model ExamResult {
+  id                    String         @id @default(cuid())
+  userStepId           String         @unique
+  stepId               String
+  
+  // Результаты тестовых вопросов
+  testAnswers          Json?           // Ответы пользователя на тестовые вопросы
+  testScore            Int?            // Количество правильных ответов
+  testMaxScore         Int?            // Максимально возможное количество баллов
+  
+  // Видео отчёт
+  videoReportUrl       String?         // Ссылка на загруженное видео
+  
+  // Письменная обратная связь
+  writtenFeedback      String?         // Текст обратной связи от пользователя
+  
+  // Общая оценка экзамена
+  overallScore         Int?            // Общая оценка (например, процент)
+  isPassed             Boolean?       // Прошёл ли экзамен
+  
+  userStep             UserStep        @relation(fields: [userStepId], references: [id], onDelete: Cascade)
+  step                 Step            @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  
+  @@index([userStepId])
+  @@index([stepId])
 }
 
 model ErrorReport {

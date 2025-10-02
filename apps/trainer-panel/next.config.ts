@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
     dirs: ["src"],
   },
 
+  // Внешние пакеты для server components
+  serverExternalPackages: ['@aws-sdk/client-s3'],
+
   // Конфигурация для изображений
   images: {
     // Разрешаем загрузку изображений с любых доменов

@@ -3,13 +3,12 @@
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { randomUUID } from "crypto";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
 
 // Создаем логгер для uploadCourseImageServerAction
 const logger = createTrainerPanelLogger('trainer-panel-upload-course-image');
 
-export async function uploadCourseImageServerAction(formData: FormData) {
+export async function uploadCourseImageServerAction(formData: FormData, courseId?: string) {
   let file: File | null = null;
 
   try {
@@ -25,37 +24,42 @@ export async function uploadCourseImageServerAction(formData: FormData) {
       throw new Error("Неподдерживаемый тип файла. Разрешены только JPEG, PNG и WebP");
     }
 
-    // Валидация размера файла (максимум 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // Валидация размера файла (максимум 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      throw new Error("Файл слишком большой. Максимальный размер: 5MB");
+      throw new Error("Файл слишком большой. Максимальный размер: 10MB");
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
+        const ext = file.name.split(".").pop();
+        const fileName = `${randomUUID()}.${ext}`;
+        const relativePath = `courses/${fileName}`;
 
-    const ext = file.name.split(".").pop();
-    const fileName = `${randomUUID()}.${ext}`;
-    
-    // В production (Docker) используем абсолютный путь к папке uploads
-    let uploadDir: string;
-    
-    if (process.env.NODE_ENV === "production") {
-      // В production используем путь к папке uploads в nginx контейнере
-      uploadDir = "/var/www/public-assets/uploads/courses";
-    } else {
-      // В development используем относительный путь
-      uploadDir = path.join(process.cwd(), "../../packages/public-assets/public/uploads/courses");
-    }
-    
-    // Если папки нет, создаём её
-    await mkdir(uploadDir, { recursive: true });
-    
-    const filePath = path.join(uploadDir, fileName);
+        // Получаем старое изображение курса для удаления (если обновляем существующий курс)
+        let oldImageUrl: string | null = null;
+        if (courseId) {
+          const { prisma } = await import("@gafus/prisma");
+          const existingCourse = await prisma.course.findUnique({
+            where: { id: courseId },
+            select: { logoImg: true },
+          });
+          oldImageUrl = existingCourse?.logoImg || null;
+        }
 
-    await writeFile(filePath, uint8Array);
+        // Загружаем новый файл в CDN
+        const fileUrl = await uploadFileToCDN(file, relativePath);
 
-    return `/uploads/courses/${fileName}`;
+        // Удаляем старое изображение из CDN (если есть)
+        if (oldImageUrl) {
+          const oldRelativePath = oldImageUrl.replace('/uploads/', '');
+          try {
+            await deleteFileFromCDN(oldRelativePath);
+            logger.info(`🗑️ Старое изображение курса удалено из CDN: ${oldRelativePath}`);
+          } catch (error) {
+            logger.warn(`⚠️ Не удалось удалить старое изображение курса: ${error}`);
+          }
+        }
+
+    return fileUrl;
   } catch (error) {
     logger.error("❌ Error in uploadCourseImageServerAction", error as Error, {
       operation: 'upload_course_image_error',

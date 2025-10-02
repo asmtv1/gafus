@@ -122,6 +122,10 @@ export const useFavoritesStore = create<FavoritesState>()(
       loadFromServer: async () => {
         // загружаем ids с сервера один раз или по требованию
         if (get().loading) return;
+        
+        // Проверяем, что мы в браузере и роутер инициализирован
+        if (typeof window === 'undefined') return;
+        
         set({ loading: true, error: null });
         try {
           const { data, favoriteIds } = await getFavoritesCourses();
@@ -246,13 +250,22 @@ const logger = createWebLogger('web-favorites-store');
           );
         }
         // после ре-гидратации подгружаем актуальные данные с сервера в фоне
-        setTimeout(() => {
+        // Используем requestIdleCallback для отложенной загрузки после инициализации роутера
+        const loadWhenReady = () => {
           try {
             useFavoritesStore.getState().loadFromServer();
           } catch (e) {
             // noop
           }
-        }, 100);
+        };
+
+        if (typeof window !== 'undefined') {
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(loadWhenReady, { timeout: 1000 });
+          } else {
+            setTimeout(loadWhenReady, 500);
+          }
+        }
       },
     },
   ),
