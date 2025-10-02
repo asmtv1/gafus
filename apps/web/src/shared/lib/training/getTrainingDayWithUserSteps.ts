@@ -3,7 +3,6 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
-import type { JsonValue } from "@prisma/client/runtime/library";
 
 import type { TrainingDetail } from "@gafus/types";
 
@@ -168,7 +167,7 @@ export async function getTrainingDayWithUserSteps(
         imageUrls: string[];
         pdfUrls: string[];
         type: string | null;
-        checklist: JsonValue;
+        checklist: unknown;
         requiresVideoReport: boolean;
         requiresWrittenFeedback: boolean;
         hasTestQuestions: boolean;
