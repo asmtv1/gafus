@@ -36,11 +36,11 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 # Копируем Prisma Query Engine
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/ \;
 
-# Собираем приложение (включая logger для seed)
-RUN pnpm build --filter @gafus/prisma --filter @gafus/logger
+# Собираем приложение
+RUN pnpm build --filter @gafus/prisma
 
-# Готовим минимальный продовый пакет для prisma (включая prisma CLI и devDependencies для seed)
-RUN pnpm deploy --legacy --filter @gafus/prisma --prod /app/deploy
+# Готовим минимальный продовый пакет для prisma (включая prisma CLI)
+RUN pnpm deploy --legacy --filter @gafus/prisma --prod --no-optional /app/deploy
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
@@ -58,15 +58,6 @@ RUN apk add --no-cache curl postgresql-client \
 
 # Копируем минимальный деплой-пакет (с node_modules)
 COPY --from=base /app/deploy/ ./
-
-# Копируем пакет logger для seed.ts
-COPY --from=base /app/packages/logger/dist ./packages/logger/dist
-COPY --from=base /app/packages/logger/package.json ./packages/logger/package.json
-
-# Устанавливаем tsx для запуска seed.ts и необходимые зависимости
-RUN npm install -g tsx && \
-    npm install bcrypt && \
-    ln -s /app/packages/logger /app/node_modules/@gafus/logger
 
 # Устанавливаем права доступа
 RUN chown -R prisma:nodejs /app

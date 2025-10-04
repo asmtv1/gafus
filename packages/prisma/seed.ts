@@ -1,17 +1,13 @@
 import bcrypt from "bcrypt";
-import { createWebLogger } from "@gafus/logger";
 
 import { prisma } from "./src/index";
-
-// Создаем логгер для prisma seed
-const logger = createWebLogger('prisma-seed');
 
 const prismaClient = prisma;
 
 async function main() {
   const startTime = Date.now();
   
-  logger.info("Начинаем сидирование базы данных", {
+  console.log("Начинаем сидирование базы данных", {
     environment: process.env.NODE_ENV || 'development',
     databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
   });
@@ -29,7 +25,7 @@ async function main() {
       isConfirmed: true,
     },
   });
-  logger.success("Админ создан или найден", {
+  console.log("Админ создан или найден", {
     username: admin.username,
     phone: admin.phone,
     role: admin.role,
@@ -103,7 +99,7 @@ async function main() {
       },
     }),
   ]);
-  logger.success("Курсы созданы", {
+  console.log("Курсы созданы", {
     courseCount: 4,
     courseTypes: ["home", "street", "puppy", "author"]
   });
@@ -189,7 +185,7 @@ async function main() {
       },
     }),
   ]);
-  logger.success("Базовые шаги созданы", {
+  console.log("Базовые шаги созданы", {
     stepCount: 3,
     stepTitles: ["Базовые команды", "Работа с поводком", "Социализация"]
   });
@@ -232,7 +228,7 @@ async function main() {
       { dayId: baseDay.id, stepId: stepC.id, order: 3 },
     ],
   });
-  logger.success("Связка шагов с базовым днём выполнена", {
+  console.log("Связка шагов с базовым днём выполнена", {
     dayId: baseDay.id,
     stepCount: 3
   });
@@ -245,7 +241,7 @@ async function main() {
       ],
     });
   }
-  logger.success("Базовый день добавлен в курсы на 14 дней", {
+  console.log("Базовый день добавлен в курсы на 14 дней", {
     dayId: baseDay.id,
     courseCount: 4,
     durationDays: 14
@@ -355,7 +351,7 @@ async function main() {
   await prismaClient.dayOnCourse.create({
     data: { courseId: puppyCourse.id, dayId: puppyDay.id, order: 1 },
   });
-  logger.success("Щенячий день добавлен в курс", {
+  console.log("Щенячий день добавлен в курс", {
     dayId: puppyDay.id,
     courseType: "puppy",
     stepCount: 2
@@ -441,7 +437,7 @@ async function main() {
   await prismaClient.dayOnCourse.create({
     data: { courseId: authorCourse.id, dayId: authorDay.id, order: 1 },
   });
-  logger.success("Авторский день добавлен в курс", {
+  console.log("Авторский день добавлен в курс", {
     dayId: authorDay.id,
     courseType: "author",
     stepCount: 1
@@ -454,7 +450,7 @@ async function main() {
     ],
     skipDuplicates: true,
   });
-  logger.success("Курсы добавлены в избранное", {
+  console.log("Курсы добавлены в избранное", {
     userId: admin.id,
     favoriteCount: 4,
     courseTypes: ["home", "street", "puppy", "author"]
@@ -477,7 +473,7 @@ async function main() {
     ],
     skipDuplicates: true,
   });
-  logger.success("Отзывы добавлены", {
+  console.log("Отзывы добавлены", {
     reviewCount: 2,
     averageRating: 4.5
   });
@@ -498,7 +494,7 @@ async function main() {
       data: { avgRating: avg },
     });
   }
-  logger.success("Средние рейтинги обновлены", {
+  console.log("Средние рейтинги обновлены", {
     courseCount: allCourses.length,
     averageRatings: allCourses.map(c => ({ id: c.id, rating: c.avgRating }))
   });
@@ -515,7 +511,7 @@ async function main() {
       isConfirmed: true,
     },
   });
-  logger.success("Тренер создан", {
+  console.log("Тренер создан", {
     trainerId: trainer.id,
     username: trainer.username,
     phone: trainer.phone,
@@ -581,7 +577,7 @@ async function main() {
       },
     }),
   ]);
-  logger.success("Шаги тренера созданы", {
+  console.log("Шаги тренера созданы", {
     trainerId: trainer.id,
     stepCount: 2,
     stepTitles: ["Подготовительная разминка", "Обучение аппортировке"]
@@ -678,7 +674,7 @@ async function main() {
       { dayId: trainerDay2.id, stepId: trainerStep1.id, order: 2 },
     ],
   });
-  logger.success("Дни тренера со связанными шагами созданы", {
+  console.log("Дни тренера со связанными шагами созданы", {
     trainerId: trainer.id,
     dayCount: 2,
     totalSteps: 4
@@ -723,12 +719,12 @@ async function main() {
     ],
   });
 
-  logger.success("Курсы тренера созданы и дни добавлены в них", {
+  console.log("Курсы тренера созданы и дни добавлены в них", {
     trainerId: trainer.id,
     courseCount: 2,
     totalDays: 4
   });
-  logger.success("Seed успешно выполнен", {
+  console.log("Seed успешно выполнен", {
     totalOperations: 15,
     duration: Date.now() - startTime,
     environment: process.env.NODE_ENV || 'development'
@@ -738,7 +734,7 @@ async function main() {
 main()
   .then(() => prismaClient.$disconnect())
   .catch((e) => {
-    logger.error("Ошибка при сидировании", e as Error, {
+    console.error("Ошибка при сидировании", e as Error, {
       environment: process.env.NODE_ENV || 'development',
       databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
     });
