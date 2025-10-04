@@ -63,7 +63,8 @@ RUN npm init -y && \
     bullmq@5.2.0 \
     ioredis@5.3.2 \
     web-push@3.6.6 \
-    @prisma/client@6.10.1
+    @prisma/client@6.10.1 \
+    pino@8.16.2
 
 # Копируем весь сгенерированный Prisma client из base stage (включая runtime файлы)
 COPY --from=base /app/node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/.prisma ./node_modules/.prisma
