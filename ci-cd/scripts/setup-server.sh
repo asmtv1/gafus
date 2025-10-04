@@ -70,7 +70,7 @@ if [ ! -f ".env" ]; then
 # Database
 POSTGRES_DB=gafus
 POSTGRES_USER=gafus
-POSTGRES_PASSWORD=gafus_password
+POSTGRES_PASSWORD=9BjtkxP7v7zudAz1hm7gcxPSHnHrJWRTcOUdzrpojgo=
 
 # Redis
 REDIS_URL=redis://localhost:6379
@@ -85,7 +85,7 @@ ERROR_DASHBOARD_PORT=3005
 BULL_BOARD_PORT=3002
 
 # Database URL for applications
-DATABASE_URL=postgresql://gafus:gafus_password@postgres:5432/gafus
+DATABASE_URL=postgresql://gafus:9BjtkxP7v7zudAz1hm7gcxPSHnHrJWRTcOUdzrpojgo=@postgres:5432/gafus
 
 # Telegram Bot
 BOT_TOKEN=7882612913:AAGGrYg0NYG_cq9pAQ8ocaSdLqmQB-mI-as
