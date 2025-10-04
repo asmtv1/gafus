@@ -26,7 +26,7 @@ RUN cd packages/prisma \
   && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
   && mv schema.prisma.bak schema.prisma
 
-# Собираем все пакеты
+# Собираем все пакеты (включая logger для worker)
 RUN pnpm build --filter @gafus/worker --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/types --filter @gafus/logger
 
 # Production stage - только runtime
