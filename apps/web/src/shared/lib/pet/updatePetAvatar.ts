@@ -35,13 +35,16 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
 
     // 4. Удаляем старый файл из CDN (если есть)
     if (existingPet?.photoUrl) {
-      const oldRelativePath = existingPet.photoUrl.replace('/uploads/', '');
+      const oldRelativePath = existingPet.photoUrl.replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
+      logger.info(`🔍 Найден старое фото питомца для удаления: ${existingPet.photoUrl} -> ${oldRelativePath}`);
       try {
         await deleteFileFromCDN(oldRelativePath);
         logger.info(`🗑️ Старое фото питомца удалено из CDN: ${oldRelativePath}`);
       } catch (error) {
-        logger.warn(`⚠️ Не удалось удалить старое фото питомца: ${error}`);
+        logger.error(`❌ Не удалось удалить старое фото питомца: ${error}`, error as Error);
       }
+    } else {
+      logger.info(`ℹ️ Старое фото питомца не найдено, пропускаем удаление`);
     }
 
     // 5. Сохраняем новый photoUrl в базе

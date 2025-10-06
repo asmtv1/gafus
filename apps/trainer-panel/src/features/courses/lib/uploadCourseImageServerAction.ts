@@ -50,13 +50,16 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
 
         // Удаляем старое изображение из CDN (если есть)
         if (oldImageUrl) {
-          const oldRelativePath = oldImageUrl.replace('/uploads/', '');
+          const oldRelativePath = oldImageUrl.replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
+          logger.info(`🔍 Найдено старое изображение курса для удаления: ${oldImageUrl} -> ${oldRelativePath}`);
           try {
             await deleteFileFromCDN(oldRelativePath);
             logger.info(`🗑️ Старое изображение курса удалено из CDN: ${oldRelativePath}`);
           } catch (error) {
-            logger.warn(`⚠️ Не удалось удалить старое изображение курса: ${error}`);
+            logger.error(`❌ Не удалось удалить старое изображение курса: ${error}`, error as Error);
           }
+        } else {
+          logger.info(`ℹ️ Старое изображение курса не найдено, пропускаем удаление`);
         }
 
     return fileUrl;

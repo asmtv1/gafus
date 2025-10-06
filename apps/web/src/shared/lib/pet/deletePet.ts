@@ -19,13 +19,16 @@ export async function deletePet(petId: string, pathToRevalidate = "/") {
     });
 
     if (pet?.photoUrl) {
-      const relativePath = pet.photoUrl.replace('/uploads/', '');
+      const relativePath = pet.photoUrl.replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
+      logger.info(`🔍 Найдено фото питомца для удаления: ${pet.photoUrl} -> ${relativePath}`);
       try {
         await deleteFileFromCDN(relativePath);
         logger.info(`🗑️ Фото питомца удалено из CDN: ${relativePath}`);
       } catch (error) {
-        logger.warn(`⚠️ Не удалось удалить фото питомца из CDN: ${error}`);
+        logger.error(`❌ Не удалось удалить фото питомца из CDN: ${error}`, error as Error);
       }
+    } else {
+      logger.info(`ℹ️ Фото питомца не найдено, пропускаем удаление`);
     }
 
     await prisma.pet.delete({

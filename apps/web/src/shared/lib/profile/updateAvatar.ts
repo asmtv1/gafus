@@ -35,13 +35,16 @@ export async function updateAvatar(file: File): Promise<string> {
 
     // 4. Удаляем старый файл из CDN (если есть)
     if (existingProfile?.avatarUrl) {
-      const oldRelativePath = existingProfile.avatarUrl.replace('/uploads/', '');
+      const oldRelativePath = existingProfile.avatarUrl.replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
+      logger.info(`🔍 Найден старый аватар для удаления: ${existingProfile.avatarUrl} -> ${oldRelativePath}`);
       try {
         await deleteFileFromCDN(oldRelativePath);
         logger.info(`🗑️ Старый аватар удален из CDN: ${oldRelativePath}`);
       } catch (error) {
-        logger.warn(`⚠️ Не удалось удалить старый аватар: ${error}`);
+        logger.error(`❌ Не удалось удалить старый аватар: ${error}`, error as Error);
       }
+    } else {
+      logger.info(`ℹ️ Старый аватар не найден, пропускаем удаление`);
     }
 
     // 5. Сохраняем новый avatarUrl в базе (таблица userProfile)
