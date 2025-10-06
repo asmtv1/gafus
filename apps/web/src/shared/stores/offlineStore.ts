@@ -23,7 +23,7 @@ export const useOfflineStore = create<OfflineState>()(
   persist(
     (set, get) => ({
       // Упрощенное состояние - только navigator.onLine
-      isOnline: typeof window !== "undefined" ? navigator.onLine : true,
+      isOnline: true, // По умолчанию онлайн, обновится на клиенте
       syncQueue: [],
       lastSyncTime: null,
       syncErrors: [],
@@ -33,6 +33,19 @@ export const useOfflineStore = create<OfflineState>()(
 
       // Установка статуса онлайн/офлайн - только navigator.onLine
       setOnlineStatus: (isOnline: boolean) => {
+        const currentState = get();
+        
+        // В dev режиме более консервативно обновляем статус
+        if (process.env.NODE_ENV === 'development') {
+          // Если пытаемся установить offline, но браузер говорит что онлайн - не делаем этого
+          if (!isOnline && navigator.onLine) {
+            logger.info("Dev mode: ignoring offline status while navigator.onLine is true", {
+              operation: 'dev_mode_offline_ignore'
+            });
+            return;
+          }
+        }
+        
         set({ isOnline });
 
         // Если стали онлайн, пытаемся синхронизировать очередь
@@ -407,9 +420,10 @@ export function initializeOfflineStore() {
     
     window.fetch = async (...args) => {
       try {
-        // Добавляем таймаут для всех запросов
+        // В dev режиме используем более длинный таймаут, в prod - стандартный
+        const timeoutMs = process.env.NODE_ENV === 'development' ? 3000 : 5000;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 секунда таймаут
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         
         const fetchPromise = originalFetch(args[0], {
           ...args[1],

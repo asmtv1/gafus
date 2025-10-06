@@ -1202,9 +1202,30 @@ self.addEventListener('push', (event) => {
   
   let data = {};
   try {
-    data = event.data ? event.data.json() : {};
+    if (event.data) {
+      // Сначала пробуем распарсить как JSON
+      try {
+        data = event.data.json();
+      } catch (jsonError) {
+        // Если не JSON, пробуем получить как текст
+        try {
+          const textData = event.data.text();
+          console.log('🦁 SW Custom: Получены текстовые данные:', textData);
+          // Если это простой текст, создаем объект уведомления
+          data = {
+            title: 'Gafus',
+            body: textData || 'Новое уведомление'
+          };
+        } catch (textError) {
+          console.warn('⚠️ SW Custom: Не удалось получить данные как текст:', textError);
+          data = { title: 'Gafus', body: 'Новое уведомление' };
+        }
+      }
+    } else {
+      data = { title: 'Gafus', body: 'Новое уведомление' };
+    }
   } catch (error) {
-    console.warn('⚠️ SW Custom: Не удалось распарсить push данные:', error);
+    console.warn('⚠️ SW Custom: Не удалось обработать push данные:', error);
     data = { title: 'Gafus', body: 'Новое уведомление' };
   }
   

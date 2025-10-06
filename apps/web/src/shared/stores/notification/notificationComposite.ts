@@ -2,7 +2,7 @@
 // Объединяет функциональность нескольких специализированных stores
 
 import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { createWebLogger } from "@gafus/logger";
 import { usePermissionStore } from "../permission/permissionStore";
 import { usePushStore } from "../push/pushStore";
@@ -19,6 +19,45 @@ export function useNotificationComposite() {
   const push = usePushStore();
   const ui = useNotificationUIStore();
 
+  // Мемоизируем функции для предотвращения бесконечных циклов
+  const checkServerSubscription = useCallback(() => {
+    return push.checkServerSubscription();
+  }, [push.checkServerSubscription]);
+
+  const ensureActiveSubscription = useCallback(() => {
+    return push.ensureActiveSubscription();
+  }, [push.ensureActiveSubscription]);
+
+  const setUserId = useCallback((userId: string) => {
+    return push.setUserId(userId);
+  }, [push.setUserId]);
+
+  const requestPermission = useCallback(async (vapidPublicKey?: string) => {
+    const result = await permission.requestPermission();
+
+    if (result === "granted") {
+      ui.markModalAsShown();
+
+      if (vapidPublicKey) {
+        await push.setupPushSubscription(vapidPublicKey);
+      } else {
+        try {
+          const { publicKey } = await getPublicKeyAction();
+          if (publicKey) {
+            await push.setupPushSubscription(publicKey);
+          } else {
+            permission.setError("VAPID key not available for push subscription");
+          }
+        } catch (e) {
+          logger.error("Failed to get VAPID key:", e as Error, { operation: 'error' });
+          permission.setError("VAPID key not available for push subscription");
+        }
+      }
+    } else {
+      permission.setError("Пользователь не разрешил уведомления");
+    }
+  }, [permission.requestPermission, ui.markModalAsShown, push.setupPushSubscription, permission.setError]);
+
   return {
     // Состояние
     permission: permission.permission,
@@ -31,37 +70,13 @@ export function useNotificationComposite() {
 
     // Действия разрешений
     initializePermission: permission.initializePermission,
-    requestPermission: async (vapidPublicKey?: string) => {
-      const result = await permission.requestPermission();
-
-      if (result === "granted") {
-        ui.markModalAsShown();
-
-        if (vapidPublicKey) {
-          await push.setupPushSubscription(vapidPublicKey);
-        } else {
-          try {
-            const { publicKey } = await getPublicKeyAction();
-            if (publicKey) {
-              await push.setupPushSubscription(publicKey);
-            } else {
-              permission.setError("VAPID key not available for push subscription");
-            }
-          } catch (e) {
-            logger.error("Failed to get VAPID key:", e as Error, { operation: 'error' });
-            permission.setError("VAPID key not available for push subscription");
-          }
-        }
-      } else {
-        permission.setError("Пользователь не разрешил уведомления");
-      }
-    },
+    requestPermission,
 
     // Действия push-подписок
     setupPushSubscription: push.setupPushSubscription,
-    checkServerSubscription: push.checkServerSubscription,
+    checkServerSubscription,
     removePushSubscription: push.removePushSubscription,
-    ensureActiveSubscription: push.ensureActiveSubscription,
+    ensureActiveSubscription,
 
     // Действия UI
     dismissModal: ui.dismissModal,
@@ -79,7 +94,7 @@ export function useNotificationComposite() {
       push.setError(null);
     },
     setDisabledByUser: push.setDisabledByUser,
-    setUserId: push.setUserId,
+    setUserId,
 
     // Утилиты
     isSupported: () => permission.isSupported() && push.isSupported(),

@@ -51,7 +51,6 @@ try {
   fs.writeFileSync(envPath, envTemplate);
   console.warn("✅ Файл .env создан успешно!");
   console.warn("📝 Теперь отредактируйте файл .env и заполните необходимые значения.");
-  console.warn("📖 Подробные инструкции: ENV_SETUP.md");
 } catch (error) {
   console.error("❌ Ошибка при создании файла .env:", error.message);
   process.exit(1);

@@ -1,6 +1,5 @@
 "use client";
 
-
 import { createWebLogger } from "@gafus/logger";
 import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
 import { useNotificationComposite, useNotificationInitializer } from "@shared/stores";

@@ -1,114 +1,123 @@
-# Types Package - Общие TypeScript типы
+# @gafus/types - Общие типы TypeScript
 
-## 📝 Описание
+## 📋 Обзор
 
-Пакет `@gafus/types` содержит все общие TypeScript типы, интерфейсы и утилиты для всей экосистемы Gafus. Обеспечивает типобезопасность и консистентность типов между всеми приложениями и пакетами.
+Пакет `@gafus/types` содержит все общие TypeScript типы, интерфейсы и утилиты, используемые во всей экосистеме GAFUS для обеспечения типобезопасности и единообразия.
 
 ## 🎯 Основные функции
 
-### Централизованные типы
-- Общие интерфейсы для всех приложений
-- Типы для API запросов и ответов
-- Типы для компонентов UI
-- Типы для состояния приложений
-
 ### Типобезопасность
-- Строгая типизация всех данных
-- Валидация типов на этапе компиляции
-- IntelliSense поддержка
-- Автокомплит в IDE
+- **Общие интерфейсы** для всех приложений
+- **Валидация типов** на этапе компиляции
+- **Единообразные типы** для API и компонентов
+- **Утилиты типов** для сложных операций
 
-### Переиспользование
-- Общие типы для всех пакетов
-- Консистентность между приложениями
-- Единый источник истины для типов
-- Версионирование типов
+### Категории типов
+- **Auth** - Типы аутентификации и авторизации
+- **Components** - Типы для React компонентов
+- **Data** - Типы данных и API
+- **Stores** - Типы для управления состоянием
+- **Utils** - Утилитарные типы
+- **Error Handling** - Типы обработки ошибок
 
-## 🏗️ Архитектура
+## 📦 Установка и использование
 
-### Структура пакета
-
+### Установка
+```bash
+pnpm add @gafus/types
 ```
-packages/types/
-├── src/
-│   ├── auth/                    # Типы аутентификации
-│   │   ├── user.ts             # Типы пользователей
-│   │   ├── session.ts          # Типы сессий
-│   │   ├── permissions.ts      # Типы прав доступа
-│   │   └── ...
-│   ├── components/              # Типы UI компонентов
-│   │   ├── button.ts           # Типы кнопок
-│   │   ├── form.ts             # Типы форм
-│   │   ├── modal.ts            # Типы модальных окон
-│   │   └── ...
-│   ├── data/                    # Типы данных
-│   │   ├── course.ts           # Типы курсов
-│   │   ├── training.ts         # Типы тренировок
-│   │   ├── achievement.ts      # Типы достижений
-│   │   └── ...
-│   ├── stores/                  # Типы состояний
-│   │   ├── user-store.ts       # Типы пользовательского состояния
-│   │   ├── training-store.ts   # Типы состояния тренировок
-│   │   └── ...
-│   ├── utils/                   # Утилитарные типы
-│   │   ├── api.ts              # Типы API
-│   │   ├── validation.ts       # Типы валидации
-│   │   ├── common.ts           # Общие типы
-│   │   └── ...
-│   ├── pages/                   # Типы страниц
-│   │   ├── home.ts             # Типы главной страницы
-│   │   ├── profile.ts          # Типы профиля
-│   │   └── ...
-│   └── index.ts                 # Главный экспорт
-├── dist/                        # Скомпилированные типы
-└── package.json                 # Зависимости
+
+### Базовое использование
+```typescript
+import { User, Pet, Course } from '@gafus/types';
+
+const user: User = {
+  id: '123',
+  username: 'john_doe',
+  role: 'USER'
+};
 ```
 
 ## 🔧 API Reference
 
-### Основные категории типов
+### Auth типы
 
-#### Auth типы
+#### `User`
+Основной тип пользователя.
+
 ```typescript
-// Типы пользователей
-export interface User {
+interface User {
   id: string;
-  email: string;
-  name?: string;
-  phone?: string;
-  telegramId?: string;
-  isConfirmed: boolean;
+  username: string;
+  phone: string;
   role: UserRole;
-  petType?: PetType;
-  petName?: string;
-  petAge?: number;
-  petWeight?: number;
+  isConfirmed: boolean;
+  telegramId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
+```
 
-// Роли пользователей
-export enum UserRole {
-  USER = 'USER',
-  TRAINER = 'TRAINER',
-  ADMIN = 'ADMIN',
-  MODERATOR = 'MODERATOR',
-  PREMIUM = 'PREMIUM'
-}
+#### `UserRole`
+Роли пользователей в системе.
 
-// Типы сессий
-export interface Session {
-  user: User;
-  expires: string;
-  accessToken?: string;
-  refreshToken?: string;
+```typescript
+type UserRole = 'USER' | 'TRAINER' | 'ADMIN' | 'MODERATOR' | 'PREMIUM';
+```
+
+#### `UserProfile`
+Профиль пользователя.
+
+```typescript
+interface UserProfile {
+  id: string;
+  userId: string;
+  fullName?: string;
+  birthDate?: Date;
+  about?: string;
+  telegram?: string;
+  instagram?: string;
+  website?: string;
+  avatarUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
-#### Data типы
+### Data типы
+
+#### `Pet`
+Тип домашнего животного.
+
 ```typescript
-// Типы курсов
-export interface Course {
+interface Pet {
+  id: string;
+  ownerId: string;
+  name: string;
+  type: PetType;
+  breed: string;
+  birthDate: Date;
+  heightCm?: number;
+  weightKg?: number;
+  photoUrl?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### `PetType`
+Типы домашних животных.
+
+```typescript
+type PetType = 'DOG' | 'CAT';
+```
+
+#### `Course`
+Тип курса обучения.
+
+```typescript
+interface Course {
   id: string;
   name: string;
   type: string;
@@ -117,433 +126,461 @@ export interface Course {
   trainingLevel: TrainingLevel;
   shortDesc: string;
   duration: string;
-  isPublished: boolean;
+  logoImg: string;
+  isPrivate: boolean;
+  isPaid: boolean;
+  authorId: string;
+  avgRating?: number;
+  videoUrl?: string;
   createdAt: Date;
   updatedAt: Date;
-  days?: CourseDay[];
 }
+```
 
-// Типы тренировок
-export interface Training {
+#### `TrainingLevel`
+Уровни сложности тренировок.
+
+```typescript
+type TrainingLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
+```
+
+#### `Step`
+Тип шага тренировки.
+
+```typescript
+interface Step {
   id: string;
-  userId: string;
-  courseId: string;
-  status: TrainingStatus;
-  startedAt?: Date;
-  completedAt?: Date;
+  title: string;
+  description: string;
+  durationSec?: number;
+  type: StepType;
+  imageUrls: string[];
+  pdfUrls: string[];
+  videoUrl?: string;
+  checklist?: any; // JSON для экзаменационных шагов
+  requiresVideoReport: boolean;
+  requiresWrittenFeedback: boolean;
+  hasTestQuestions: boolean;
+  authorId: string;
   createdAt: Date;
   updatedAt: Date;
-  user?: User;
-  course?: Course;
-  steps?: TrainingStep[];
-}
-
-// Статусы тренировок
-export enum TrainingStatus {
-  NOT_STARTED = 'NOT_STARTED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED'
 }
 ```
 
-#### Component типы
+#### `StepType`
+Типы шагов тренировок.
+
 ```typescript
-// Типы кнопок
-export interface ButtonProps {
-  variant?: 'primary' | 'secondary' | 'danger';
-  size?: 'small' | 'medium' | 'large';
-  disabled?: boolean;
-  loading?: boolean;
-  children: React.ReactNode;
-  onClick?: () => void;
-}
-
-// Типы форм
-export interface FormProps<T> {
-  initialValues: T;
-  validationSchema?: ValidationSchema<T>;
-  onSubmit: (values: T) => void | Promise<void>;
-  children: React.ReactNode;
-}
-
-// Типы модальных окон
-export interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title?: string;
-  children: React.ReactNode;
-  size?: 'small' | 'medium' | 'large';
-}
+type StepType = 'TRAINING' | 'EXAMINATION';
 ```
 
-#### Store типы
+#### `TrainingStatus`
+Статусы тренировок.
+
 ```typescript
-// Типы пользовательского состояния
-export interface UserState {
+type TrainingStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+```
+
+### Store типы
+
+#### `UserState`
+Состояние пользователя в store.
+
+```typescript
+interface UserState {
   user: User | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  preferences: UserPreferences;
 }
+```
 
-// Действия пользовательского состояния
-export interface UserActions {
-  setUser: (user: User | null) => void;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-  login: (credentials: LoginCredentials) => Promise<void>;
-  logout: () => void;
+#### `UserPreferences`
+Настройки пользователя.
+
+```typescript
+interface UserPreferences {
+  notifications: boolean;
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  language: string;
+  theme: 'light' | 'dark';
 }
+```
 
-// Типы состояния тренировок
-export interface TrainingState {
-  trainings: Training[];
-  currentTraining: Training | null;
+#### `PetsState`
+Состояние питомцев в store.
+
+```typescript
+interface PetsState {
+  pets: Pet[];
+  currentPet: Pet | null;
   isLoading: boolean;
   error: string | null;
 }
 ```
 
-#### API типы
+#### `CreatePetInput`
+Входные данные для создания питомца.
+
 ```typescript
-// Базовые типы API
-export interface ApiResponse<T> {
+interface CreatePetInput {
+  name: string;
+  type: PetType;
+  breed: string;
+  birthDate: Date;
+  heightCm?: number;
+  weightKg?: number;
+  photoUrl?: string;
+  notes?: string;
+}
+```
+
+### Component типы
+
+#### `FormField`
+Тип для полей форм.
+
+```typescript
+interface FormField {
+  name: string;
+  label: string;
+  type: 'text' | 'email' | 'password' | 'number' | 'date' | 'file';
+  required: boolean;
+  placeholder?: string;
+  validation?: ValidationRule[];
+}
+```
+
+#### `ValidationRule`
+Правила валидации.
+
+```typescript
+interface ValidationRule {
+  type: 'required' | 'minLength' | 'maxLength' | 'pattern' | 'custom';
+  value?: any;
+  message: string;
+}
+```
+
+### Error Handling типы
+
+#### `ErrorInfo`
+Информация об ошибке.
+
+```typescript
+interface ErrorInfo {
+  message: string;
+  stack?: string;
+  componentStack?: string;
+  errorBoundary?: string;
+  errorId?: string;
+  timestamp: Date;
+}
+```
+
+#### `ErrorBoundaryConfig`
+Конфигурация для Error Boundary.
+
+```typescript
+interface ErrorBoundaryConfig {
+  fallback?: React.ComponentType<ErrorFallbackProps>;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
+  reportError?: boolean;
+}
+```
+
+### Utility типы
+
+#### `ApiResponse<T>`
+Стандартный ответ API.
+
+```typescript
+interface ApiResponse<T> {
   data: T;
   success: boolean;
   message?: string;
   error?: string;
 }
-
-export interface ApiError {
-  message: string;
-  code: string;
-  details?: Record<string, any>;
-}
-
-// Типы запросов
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  name: string;
-  phone?: string;
-}
-
-// Типы ответов
-export interface LoginResponse {
-  user: User;
-  session: Session;
-  accessToken: string;
-  refreshToken: string;
-}
 ```
 
-#### Validation типы
+#### `PaginatedResponse<T>`
+Пагинированный ответ API.
+
 ```typescript
-// Схемы валидации
-export interface ValidationSchema<T> {
-  [K in keyof T]: ValidationRule<T[K]>;
-}
-
-export interface ValidationRule<T> {
-  required?: boolean;
-  min?: number;
-  max?: number;
-  pattern?: RegExp;
-  custom?: (value: T) => string | null;
-}
-
-// Типы ошибок валидации
-export interface ValidationError {
-  field: string;
-  message: string;
-  code: string;
-}
-```
-
-## 🚀 Использование
-
-### Установка
-```bash
-# В package.json приложения
-{
-  "dependencies": {
-    "@gafus/types": "workspace:*"
-  }
-}
-```
-
-### Импорт типов
-```typescript
-// Импорт конкретных типов
-import { User, UserRole, Training, TrainingStatus } from "@gafus/types";
-
-// Импорт всех типов
-import * as Types from "@gafus/types";
-
-// Импорт типов по категориям
-import { User, Session } from "@gafus/types/auth";
-import { Course, Training } from "@gafus/types/data";
-import { ButtonProps, FormProps } from "@gafus/types/components";
-```
-
-### Использование в компонентах
-```typescript
-import React from 'react';
-import { User, ButtonProps } from "@gafus/types";
-
-interface UserProfileProps {
-  user: User;
-  onEdit: (user: User) => void;
-}
-
-const UserProfile: React.FC<UserProfileProps> = ({ user, onEdit }) => {
-  return (
-    <div>
-      <h1>{user.name}</h1>
-      <p>{user.email}</p>
-      <button onClick={() => onEdit(user)}>
-        Редактировать
-      </button>
-    </div>
-  );
-};
-```
-
-### Использование в API
-```typescript
-import { ApiResponse, User, LoginRequest } from "@gafus/types";
-
-export async function loginUser(
-  credentials: LoginRequest
-): Promise<ApiResponse<User>> {
-  try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials)
-    });
-    
-    return await response.json();
-  } catch (error) {
-    return {
-      data: null as any,
-      success: false,
-      error: error.message
-    };
-  }
-}
-```
-
-### Использование в формах
-```typescript
-import { useForm } from 'react-hook-form';
-import { User, ValidationSchema } from "@gafus/types";
-
-const userValidationSchema: ValidationSchema<Partial<User>> = {
-  email: {
-    required: true,
-    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  },
-  name: {
-    required: true,
-    min: 2,
-    max: 50
-  }
-};
-
-function UserForm() {
-  const { register, handleSubmit, formState: { errors } } = useForm<Partial<User>>();
-  
-  const onSubmit = (data: Partial<User>) => {
-    console.log(data);
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
   };
-  
-  return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <input {...register('email')} placeholder="Email" />
-      {errors.email && <span>Неверный email</span>}
-      
-      <input {...register('name')} placeholder="Имя" />
-      {errors.name && <span>Имя обязательно</span>}
-      
-      <button type="submit">Сохранить</button>
-    </form>
-  );
+}
+```
+
+#### `FormState<T>`
+Состояние формы.
+
+```typescript
+interface FormState<T> {
+  values: T;
+  errors: Partial<Record<keyof T, string>>;
+  touched: Partial<Record<keyof T, boolean>>;
+  isSubmitting: boolean;
+  isValid: boolean;
+}
+```
+
+## 🎯 Специализированные типы
+
+### Training типы
+
+#### `UserTraining`
+Тренировка пользователя.
+
+```typescript
+interface UserTraining {
+  id: string;
+  userId: string;
+  dayOnCourseId: string;
+  status: TrainingStatus;
+  currentStepIndex: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### `UserStep`
+Шаг тренировки пользователя.
+
+```typescript
+interface UserStep {
+  id: string;
+  userTrainingId: string;
+  stepOnDayId: string;
+  status: TrainingStatus;
+  paused: boolean;
+  remainingSec?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Exam типы
+
+#### `ExamResult`
+Результат экзамена.
+
+```typescript
+interface ExamResult {
+  id: string;
+  userStepId: string;
+  stepId: string;
+  testAnswers?: any; // JSON
+  testScore?: number;
+  testMaxScore?: number;
+  videoReportUrl?: string;
+  writtenFeedback?: string;
+  overallScore?: number;
+  isPassed?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Notification типы
+
+#### `PushSubscription`
+Push подписка.
+
+```typescript
+interface PushSubscription {
+  id: string;
+  userId: string;
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### `StepNotification`
+Уведомление о шаге.
+
+```typescript
+interface StepNotification {
+  id: string;
+  userId: string;
+  day: number;
+  stepIndex: number;
+  endTs: number;
+  sent: boolean;
+  subscription: any; // JSON
+  url?: string;
+  jobId?: string;
+  paused: boolean;
+  remainingSec?: number;
+  stepTitle?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
 ## 🔧 Утилитарные типы
 
 ### Generic типы
-```typescript
-// Утилитарные типы
-export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-export type Required<T, K extends keyof T> = T & { [P in K]-?: T[P] };
-export type PartialExcept<T, K extends keyof T> = Partial<T> & Pick<T, K>;
 
-// Примеры использования
-type CreateUserRequest = Optional<User, 'id' | 'createdAt' | 'updatedAt'>;
-type UpdateUserRequest = PartialExcept<User, 'id'>;
+#### `Optional<T, K extends keyof T>`
+Делает указанные поля необязательными.
+
+```typescript
+type PartialUser = Optional<User, 'telegramId' | 'isConfirmed'>;
 ```
 
-### Union типы
+#### `RequiredFields<T, K extends keyof T>`
+Делает указанные поля обязательными.
+
 ```typescript
-// Состояния загрузки
-export type LoadingState = 'idle' | 'loading' | 'success' | 'error';
-
-// Размеры компонентов
-export type ComponentSize = 'small' | 'medium' | 'large';
-
-// Варианты кнопок
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'success';
+type RequiredUser = RequiredFields<User, 'telegramId'>;
 ```
 
-### Conditional типы
-```typescript
-// Условные типы
-export type ApiEndpoint<T> = T extends 'user' ? '/api/users' : 
-                           T extends 'course' ? '/api/courses' : 
-                           T extends 'training' ? '/api/trainings' : 
-                           never;
+#### `PickByType<T, U>`
+Выбирает поля определенного типа.
 
-// Типы на основе ролей
-export type UserPermissions<T extends UserRole> = 
-  T extends 'ADMIN' ? 'all' :
-  T extends 'TRAINER' ? 'manage_courses' | 'view_users' :
-  T extends 'USER' ? 'view_own_data' :
-  'none';
+```typescript
+type StringFields = PickByType<User, string>;
 ```
 
-## 🧪 Тестирование типов
+### Validation типы
 
-### Type tests
+#### `ValidationSchema<T>`
+Схема валидации для типа.
+
 ```typescript
-// Тестирование типов
-import { User, UserRole, Training } from "@gafus/types";
-
-// Проверка структуры User
-type UserTest = {
-  id: string;
-  email: string;
-  role: UserRole;
-} extends User ? true : false; // должно быть true
-
-// Проверка обязательных полей
-type RequiredFieldsTest = {
-  id: string;
-  email: string;
-} extends Pick<User, 'id' | 'email'> ? true : false; // должно быть true
+type ValidationSchema<T> = {
+  [K in keyof T]: ValidationRule[];
+};
 ```
 
-### Runtime валидация
+#### `FormErrors<T>`
+Ошибки формы для типа.
+
 ```typescript
-import { z } from 'zod';
-import { User, UserRole } from "@gafus/types";
-
-// Схема валидации для User
-const UserSchema = z.object({
-  id: z.string(),
-  email: z.string().email(),
-  name: z.string().optional(),
-  role: z.nativeEnum(UserRole),
-  isConfirmed: z.boolean()
-});
-
-// Валидация во время выполнения
-function validateUser(data: unknown): User {
-  return UserSchema.parse(data);
-}
+type FormErrors<T> = Partial<Record<keyof T, string>>;
 ```
 
-## 📊 Производительность
+## 🧪 Тестирование
 
-### Оптимизация импортов
+### Мокирование типов
 ```typescript
-// Плохо - импорт всего пакета
-import * as Types from "@gafus/types";
+import { User, Pet, Course } from '@gafus/types';
 
-// Хорошо - импорт только нужных типов
-import { User, Training } from "@gafus/types";
+const mockUser: User = {
+  id: '1',
+  username: 'test_user',
+  phone: '+79123456789',
+  role: 'USER',
+  isConfirmed: true,
+  createdAt: new Date(),
+  updatedAt: new Date()
+};
+
+const mockPet: Pet = {
+  id: '1',
+  ownerId: '1',
+  name: 'Buddy',
+  type: 'DOG',
+  breed: 'Golden Retriever',
+  birthDate: new Date(),
+  createdAt: new Date(),
+  updatedAt: new Date()
+};
 ```
 
-### Tree shaking
-- Типы не влияют на размер бандла
-- TypeScript компилятор удаляет неиспользуемые типы
-- Оптимизация импортов для лучшей производительности
-
-## 🔄 Версионирование
-
-### Semantic Versioning
-- **Major** - breaking changes в типах
-- **Minor** - новые типы, обратно совместимые
-- **Patch** - исправления типов
-
-### Миграция типов
+### Type Guards
 ```typescript
-// Старая версия
-interface OldUser {
-  id: string;
-  name: string;
+import { User, Pet } from '@gafus/types';
+
+function isUser(obj: any): obj is User {
+  return obj && typeof obj.id === 'string' && typeof obj.username === 'string';
 }
 
-// Новая версия с обратной совместимостью
-interface NewUser {
-  id: string;
-  name: string;
-  email: string; // новое поле
+function isPet(obj: any): obj is Pet {
+  return obj && typeof obj.id === 'string' && typeof obj.name === 'string' && ['DOG', 'CAT'].includes(obj.type);
 }
-
-// Тип для миграции
-type MigratedUser = OldUser & { email?: string };
-```
-
-## 🚀 Развертывание
-
-### Сборка
-```bash
-pnpm build
-```
-
-### Проверка типов
-```bash
-pnpm typecheck
-```
-
-### Очистка
-```bash
-pnpm clean
 ```
 
 ## 🔧 Разработка
 
-### Добавление новых типов
-1. Создать файл в соответствующей категории
-2. Определить типы и интерфейсы
-3. Экспортировать из index.ts
-4. Обновить документацию
-5. Добавить тесты типов
+### Структура пакета
+```
+packages/types/
+├── src/
+│   ├── auth.ts              # Типы аутентификации
+│   ├── components.ts        # Типы компонентов
+│   ├── data.ts             # Типы данных
+│   ├── stores/
+│   │   ├── csrf.ts         # CSRF store
+│   │   ├── notification.ts # Notification store
+│   │   ├── petsStore.ts    # Pets store
+│   │   ├── step.ts         # Step store
+│   │   ├── timer.ts        # Timer store
+│   │   ├── training.ts     # Training store
+│   │   └── userStore.ts    # User store
+│   ├── utils/
+│   │   ├── logger.ts       # Logger утилиты
+│   │   └── validation.ts   # Validation утилиты
+│   ├── pages.ts            # Типы страниц
+│   ├── error-handling.ts   # Обработка ошибок
+│   ├── offline.ts          # Офлайн типы
+│   ├── error-reporting.ts  # Отчеты об ошибках
+│   ├── swr.ts             # SWR типы
+│   ├── types.ts           # Основные типы
+│   └── index.ts           # Главный экспорт
+├── package.json
+└── tsconfig.json
+```
 
-### Структура нового типа
+### Зависимости
+- `react-hook-form` - Типы для форм
+- `@gafus/logger` - Логирование
+
+## 🚀 Использование в проектах
+
+### В веб-приложении
 ```typescript
-// src/data/new-entity.ts
-export interface NewEntity {
-  id: string;
-  name: string;
-  createdAt: Date;
-  updatedAt: Date;
+import { User, Pet, Course, TrainingStatus } from '@gafus/types';
+
+function UserDashboard({ user }: { user: User }) {
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  
+  // Типобезопасное использование
 }
-
-export type CreateNewEntityRequest = Omit<NewEntity, 'id' | 'createdAt' | 'updatedAt'>;
-export type UpdateNewEntityRequest = Partial<CreateNewEntityRequest>;
 ```
 
-### Экспорт из index.ts
+### В панели тренера
 ```typescript
-// src/index.ts
-export * from './data/new-entity';
+import { User, Course, TrainingLevel } from '@gafus/types';
+
+function CourseEditor({ course }: { course: Course }) {
+  // Типобезопасное редактирование курса
+}
 ```
+
+### В API routes
+```typescript
+import { ApiResponse, User, CreatePetInput } from '@gafus/types';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse<User>>) {
+  // Типобезопасные API endpoints
+}
+```
+
+---
+
+*Пакет @gafus/types обеспечивает типобезопасность и единообразие типов во всей экосистеме GAFUS.*

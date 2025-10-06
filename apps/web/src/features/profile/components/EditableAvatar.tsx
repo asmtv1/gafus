@@ -19,6 +19,7 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
   const { data: session } = useSession();
 
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(avatarUrl);
+  const [imageError, setImageError] = useState(false);
 
   const [cacheBuster, setCacheBuster] = useState("");
   const [_error, setError] = useState<Error | null>(null);
@@ -65,11 +66,24 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
     }
   }, [currentAvatarUrl]);
 
-  const displayedUrl = currentAvatarUrl
+  const displayedUrl = currentAvatarUrl && !imageError
     ? cacheBuster
       ? `${currentAvatarUrl}?cb=${cacheBuster}`
       : currentAvatarUrl
-            : "/uploads/avatar.svg";
+    : "/uploads/avatar.svg";
+
+  const handleImageError = () => {
+    logger.warn("Ошибка загрузки аватара", {
+      operation: 'avatar_load_error',
+      avatarUrl: currentAvatarUrl,
+      displayedUrl
+    });
+    setImageError(true);
+  };
+
+  const handleImageLoad = () => {
+    setImageError(false);
+  };
 
   return (
     <>
@@ -81,7 +95,15 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
           height: 120,
         }}
       >
-        <Avatar alt="Аватар" src={displayedUrl} sx={{ width: 120, height: 120 }} />
+        <Avatar 
+          alt="Аватар" 
+          src={displayedUrl} 
+          sx={{ width: 120, height: 120 }}
+          imgProps={{
+            onError: handleImageError,
+            onLoad: handleImageLoad,
+          }}
+        />
         <Tooltip title="Изменить аватар">
           <IconButton
             onClick={() => fileInputRef.current?.click()}

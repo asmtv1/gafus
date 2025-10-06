@@ -148,29 +148,26 @@ export default function NotificationStatus() {
 
   // Получаем публичный VAPID ключ и инициализируем push-уведомления при монтировании
   useEffect(() => {
-   
     let cancelled = false;
     
     (async () => {
       try {
-        
         const { publicKey } = await getPublicKeyAction();
         if (!cancelled) {
           setVapidKey(publicKey ?? null);
-          
         }
         
-        // Устанавливаем userId для push-уведомлений
-        if (session?.user?.id) {
-          
+        // Устанавливаем userId для push-уведомлений только если сессия загружена
+        if (status === "authenticated" && session?.user?.id) {
           setUserId(session.user.id);
           
           // Проверяем серверную подписку только после установки userId
-          
           setTimeout(() => {
-           
             checkServerSubscription();
           }, 100);
+        } else if (status === "loading") {
+          // Сессия еще загружается, не логируем предупреждение
+          return;
         } else {
           logger.warn("⚠️ NotificationStatus: No user ID found in session", {
             operation: 'warn',
@@ -189,7 +186,7 @@ export default function NotificationStatus() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id, setUserId, checkServerSubscription]);
+  }, [status, session?.user?.id, setUserId, checkServerSubscription]);
 
   // Если пользователь не авторизован, не показываем ничего
   if (status !== "authenticated" || !session?.user) {

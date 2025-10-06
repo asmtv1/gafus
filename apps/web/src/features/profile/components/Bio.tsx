@@ -60,6 +60,13 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
               alt="Profile picture"
               src={profile?.avatarUrl || "/uploads/avatar.svg"}
               sx={{ width: 80, height: 80 }}
+              imgProps={{
+                onError: (e) => {
+                  console.warn("Ошибка загрузки аватара:", e);
+                  // Fallback на заглушку при ошибке
+                  e.currentTarget.src = "/uploads/avatar.svg";
+                }
+              }}
             />
           )}
         </div>

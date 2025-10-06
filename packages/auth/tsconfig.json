@@ -21,16 +21,17 @@
 
     "skipLibCheck": true,
     "typeRoots": [
-      "../../node_modules/@types",
-      "../../packages/prisma/dist"
+      "../../node_modules/@types"
     ],
 
     "baseUrl": ".",
     "paths": {
       "@gafus/prisma": ["../../packages/prisma/dist/index.d.ts"],
-      "@gafus/prisma/*": ["../../packages/prisma/dist/*"]
+      "@gafus/prisma/*": ["../../packages/prisma/dist/*"],
+      "@gafus/types": ["../../packages/types/src/index.ts"],
+      "@gafus/types/*": ["../../packages/types/src/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

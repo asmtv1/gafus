@@ -21,6 +21,12 @@ export default function OfflineStatus() {
     useSyncQueue();
   const [showDetails, setShowDetails] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Предотвращаем hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Автоматически скрываем детали через 5 секунд
   useEffect(() => {
@@ -42,6 +48,11 @@ export default function OfflineStatus() {
       setIsChecking(false);
     }
   };
+
+  // Предотвращаем hydration mismatch - не рендерим до монтирования
+  if (!mounted) {
+    return null;
+  }
 
   // Если нет pending действий и мы онлайн, не показываем компонент
   if (!hasPendingActions && isOnline) {

@@ -1,302 +1,491 @@
-# Bull Board - Управление очередями задач
+# Bull Board (@gafus/bull-board)
 
-## ⚙️ Описание
+## 📋 Обзор
 
-Bull Board - это Express.js приложение для визуального управления очередями задач в системе Gafus. Предоставляет веб-интерфейс для мониторинга, управления и отладки фоновых задач, использующих BullMQ.
+Bull Board - это веб-интерфейс для мониторинга и управления очередями задач (Bull Queues) в экосистеме GAFUS. Предоставляет инструменты для просмотра, управления и отладки фоновых задач.
 
 ## 🎯 Основные функции
 
 ### Мониторинг очередей
-- Просмотр всех очередей в реальном времени
-- Статистика по задачам (ожидающие, активные, завершенные, неудачные)
-- Детальная информация о каждой задаче
-- История выполнения задач
+- **📊 Просмотр очередей** и их статусов
+- **🔍 Детальная информация** о задачах
+- **⏱️ Мониторинг производительности** выполнения
+- **📈 Статистика** очередей и задач
 
 ### Управление задачами
-- Просмотр деталей задачи (данные, параметры, результат)
-- Повторный запуск неудачных задач
-- Удаление задач из очереди
-- Очистка завершенных задач
+- **⏸️ Пауза/возобновление** задач
+- **🔄 Повторное выполнение** неудачных задач
+- **🗑️ Удаление** задач из очередей
+- **📝 Просмотр логов** выполнения
 
-### Отладка и анализ
-- Логи выполнения задач
-- Stack trace для ошибок
-- Время выполнения задач
-- Анализ производительности
-
-### Административные функции
-- Пауза/возобновление очередей
-- Очистка очередей
-- Экспорт данных
-- Настройка мониторинга
+### Отладка
+- **🔍 Детальный просмотр** данных задач
+- **📊 Анализ ошибок** выполнения
+- **⏱️ Профилирование** времени выполнения
+- **📈 Мониторинг** использования ресурсов
 
 ## 🏗️ Архитектура
 
-### Технологический стек
-- **Express.js** - веб-сервер
-- **TypeScript** - типизированный JavaScript
-- **@bull-board/api** - API для управления очередями
-- **@bull-board/express** - Express адаптер
-- **BullMQ** - система очередей
-- **Redis** - брокер сообщений
-
-### Структура проекта
-
+### Структура приложения
 ```
 apps/bull-board/
-├── bull-board.ts             # Основной файл приложения
-├── package.json              # Зависимости и скрипты
-├── tsconfig.json             # Конфигурация TypeScript
-└── dist/                     # Скомпилированный код
-    └── bull-board.js         # Скомпилированное приложение
+├── bull-board.ts           # Основной файл конфигурации
+├── package.json
+└── tsconfig.json
 ```
 
-## 🔧 Конфигурация
-
-### Переменные окружения
-```env
-# Порт приложения
-PORT=3004
-
-# Redis подключение (через @gafus/queues)
-REDIS_URL="redis://localhost:6379"
-
-# Настройки очередей
-QUEUE_CONCURRENCY=5
-QUEUE_RETRY_ATTEMPTS=3
-```
-
-### Bull Board настройки
-- **Base Path** - `/admin/queues`
-- **Error Handling** - централизованная обработка ошибок
-- **Health Check** - endpoint для проверки состояния
-- **Fallback** - резервный роут при ошибках
-
-## 🚀 Запуск и разработка
-
-### Команды
-```bash
-# Разработка
-pnpm dev                    # Запуск на порту 3004
-pnpm start                  # Продакшн запуск
-
-# Сборка
-pnpm build                  # Компиляция TypeScript
-
-# Типизация
-pnpm typecheck             # Проверка типов
-```
-
-### Доступ к интерфейсу
-- **URL**: `http://localhost:3004/admin/queues`
-- **Health Check**: `http://localhost:3004/health`
-
-## 📊 Мониторинг очередей
-
-### Типы очередей
-- **Push Queue** - очередь push-уведомлений
-- **Email Queue** - очередь email уведомлений
-- **Telegram Queue** - очередь Telegram сообщений
-- **Data Processing Queue** - очередь обработки данных
-- **Cleanup Queue** - очередь очистки данных
-
-### Статистика задач
-- **Waiting** - ожидающие выполнения
-- **Active** - выполняющиеся в данный момент
-- **Completed** - успешно завершенные
-- **Failed** - неудачные задачи
-- **Delayed** - отложенные задачи
-- **Paused** - приостановленные
-
-### Метрики производительности
-- **Throughput** - количество обработанных задач в минуту
-- **Latency** - среднее время выполнения задачи
-- **Error Rate** - процент неудачных задач
-- **Queue Length** - длина очереди
-- **Processing Time** - время обработки
-
-## 🔍 Управление задачами
-
-### Просмотр задач
-- **Список задач** - таблица всех задач в очереди
-- **Фильтрация** - по статусу, типу, времени
-- **Поиск** - по ID задачи или содержимому
-- **Сортировка** - по времени создания, приоритету
-
-### Детали задачи
-- **Job Data** - данные задачи
-- **Job Options** - параметры выполнения
-- **Progress** - прогресс выполнения
-- **Result** - результат выполнения
-- **Error** - информация об ошибке
-- **Logs** - логи выполнения
-
-### Действия с задачами
-- **Retry** - повторный запуск неудачной задачи
-- **Remove** - удаление задачи из очереди
-- **Clean** - очистка завершенных задач
-- **Pause/Resume** - приостановка/возобновление очереди
-
-## 🛠️ Отладка и анализ
-
-### Логирование
-- **Job Logs** - логи выполнения конкретной задачи
-- **Error Logs** - логи ошибок
-- **Performance Logs** - логи производительности
-- **System Logs** - системные логи
-
-### Анализ ошибок
-- **Stack Trace** - трассировка стека для ошибок
-- **Error Context** - контекст возникновения ошибки
-- **Retry History** - история повторных попыток
-- **Error Patterns** - паттерны ошибок
-
-### Профилирование
-- **Execution Time** - время выполнения задач
-- **Memory Usage** - использование памяти
-- **CPU Usage** - использование процессора
-- **Resource Consumption** - потребление ресурсов
-
-## 🔐 Безопасность
-
-### Доступ
-- **Authentication** - аутентификация пользователей
-- **Authorization** - проверка прав доступа
-- **IP Whitelist** - ограничение по IP адресам
-- **Rate Limiting** - ограничение запросов
-
-### Защита данных
-- **Data Masking** - маскирование чувствительных данных
-- **Encryption** - шифрование данных задач
-- **Access Logs** - логирование доступа
-- **Audit Trail** - аудит действий
-
-## 📱 Веб-интерфейс
-
-### Дашборд
-- **Overview** - общий обзор всех очередей
-- **Real-time Updates** - обновления в реальном времени
-- **Quick Actions** - быстрые действия
-- **Status Indicators** - индикаторы состояния
-
-### Навигация
-- **Queue List** - список всех очередей
-- **Job Details** - детали конкретной задачи
-- **Statistics** - статистика и метрики
-- **Settings** - настройки интерфейса
-
-### Фильтры и поиск
-- **Status Filter** - фильтр по статусу задач
-- **Type Filter** - фильтр по типу задач
-- **Date Range** - фильтр по дате
-- **Text Search** - текстовый поиск
-
-## 🔄 Интеграция с системой
-
-### Подключение очередей
+### Интеграция с очередями
 ```typescript
-import { pushQueue } from "@gafus/queues";
+// bull-board.ts - Конфигурация Bull Board
+import { createBullBoard } from '@bull-board/api';
+import { BullAdapter } from '@bull-board/api/bullAdapter';
+import { ExpressAdapter } from '@bull-board/express';
+import { Queue } from 'bull';
+import { logger } from '@gafus/logger';
+
+// Инициализация очередей
+const emailQueue = new Queue('email', process.env.REDIS_URL!);
+const notificationQueue = new Queue('notification', process.env.REDIS_URL!);
+const imageProcessingQueue = new Queue('image-processing', process.env.REDIS_URL!);
+
+// Создание Bull Board
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/admin/queues');
 
 createBullBoard({
   queues: [
-    new BullMQAdapter(pushQueue),
-    // Другие очереди...
+    new BullAdapter(emailQueue),
+    new BullAdapter(notificationQueue),
+    new BullAdapter(imageProcessingQueue)
   ],
-  serverAdapter,
+  serverAdapter
+});
+
+export { serverAdapter };
+```
+
+## 🔧 Технические особенности
+
+### Настройка Express сервера
+```typescript
+// Интеграция с Express
+import express from 'express';
+import { serverAdapter } from './bull-board';
+
+const app = express();
+
+// Middleware для аутентификации
+app.use('/admin/queues', authenticateAdmin);
+
+// Подключение Bull Board
+app.use('/admin/queues', serverAdapter.getRouter());
+
+const PORT = process.env.BULL_BOARD_PORT || 3003;
+app.listen(PORT, () => {
+  logger.info(`Bull Board running on port ${PORT}`);
 });
 ```
 
-### Мониторинг
-- **Health Checks** - проверка состояния очередей
-- **Metrics Collection** - сбор метрик
-- **Alert System** - система уведомлений
-- **Integration** - интеграция с внешними системами
+### Аутентификация
+```typescript
+// Middleware для защиты Bull Board
+function authenticateAdmin(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    res.status(401).send('Authentication required');
+    return;
+  }
+  
+  const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
+  const [username, password] = credentials.split(':');
+  
+  if (username === process.env.BULL_BOARD_USERNAME && 
+      password === process.env.BULL_BOARD_PASSWORD) {
+    next();
+  } else {
+    res.status(401).send('Invalid credentials');
+  }
+}
+```
 
-### API
-- **REST API** - для внешних систем
-- **WebSocket** - для real-time обновлений
-- **Webhook** - для уведомлений
-- **GraphQL** - для сложных запросов
+### Кастомные действия
+```typescript
+// Добавление кастомных действий для очередей
+serverAdapter.addAction('retry-failed', async (req, res) => {
+  const { queueName, jobId } = req.params;
+  const queue = getQueueByName(queueName);
+  
+  try {
+    const job = await queue.getJob(jobId);
+    if (job) {
+      await job.retry();
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Job not found' });
+    }
+  } catch (error) {
+    logger.error('Failed to retry job', { queueName, jobId, error });
+    res.status(500).json({ error: 'Failed to retry job' });
+  }
+});
+```
 
-## 🧪 Тестирование
+## 📊 Мониторинг и аналитика
 
-### Типы тестов
-- **Unit тесты** - для утилит и функций
-- **Integration тесты** - для интеграции с очередями
-- **E2E тесты** - для веб-интерфейса
-- **Load тесты** - для производительности
+### Статистика очередей
+```typescript
+// Получение статистики очередей
+async function getQueueStats() {
+  const stats = await Promise.all([
+    emailQueue.getJobCounts(),
+    notificationQueue.getJobCounts(),
+    imageProcessingQueue.getJobCounts()
+  ]);
 
-### Тестовые данные
-- **Mock Queues** - симуляция очередей
-- **Test Jobs** - тестовые задачи
-- **Error Scenarios** - сценарии ошибок
-- **Performance Tests** - тесты производительности
+  return {
+    email: stats[0],
+    notification: stats[1],
+    imageProcessing: stats[2],
+    timestamp: new Date().toISOString()
+  };
+}
 
-## 📈 Производительность
+// API endpoint для статистики
+app.get('/api/queue-stats', async (req, res) => {
+  try {
+    const stats = await getQueueStats();
+    res.json(stats);
+  } catch (error) {
+    logger.error('Failed to get queue stats', { error });
+    res.status(500).json({ error: 'Failed to get statistics' });
+  }
+});
+```
 
-### Оптимизация
-- **Connection Pooling** - пул соединений с Redis
-- **Caching** - кэширование данных
-- **Lazy Loading** - ленивая загрузка
-- **Pagination** - постраничная загрузка
+### Мониторинг производительности
+```typescript
+// Отслеживание времени выполнения задач
+emailQueue.on('completed', async (job, result) => {
+  const duration = Date.now() - job.processedOn!;
+  
+  logger.info('Job completed', {
+    queueName: 'email',
+    jobId: job.id,
+    jobName: job.name,
+    duration,
+    result
+  });
 
-### Масштабирование
-- **Horizontal Scaling** - горизонтальное масштабирование
-- **Load Balancing** - балансировка нагрузки
-- **Redis Clustering** - кластеризация Redis
-- **Queue Sharding** - шардирование очередей
+  // Сохранение метрик
+  await saveJobMetrics({
+    queueName: 'email',
+    jobName: job.name,
+    duration,
+    status: 'completed',
+    timestamp: new Date()
+  });
+});
+
+emailQueue.on('failed', async (job, error) => {
+  const duration = Date.now() - job.processedOn!;
+  
+  logger.error('Job failed', {
+    queueName: 'email',
+    jobId: job.id,
+    jobName: job.name,
+    duration,
+    error: error.message
+  });
+
+  // Сохранение метрик ошибки
+  await saveJobMetrics({
+    queueName: 'email',
+    jobName: job.name,
+    duration,
+    status: 'failed',
+    error: error.message,
+    timestamp: new Date()
+  });
+});
+```
+
+### Алертинг
+```typescript
+// Система алертинга для критических ситуаций
+async function checkQueueHealth() {
+  const emailStats = await emailQueue.getJobCounts();
+  const notificationStats = await notificationQueue.getJobCounts();
+  
+  // Алерт при большом количестве неудачных задач
+  if (emailStats.failed > 100) {
+    await sendAlert({
+      type: 'queue_health',
+      message: `High failure rate in email queue: ${emailStats.failed} failed jobs`,
+      severity: 'high',
+      queueName: 'email'
+    });
+  }
+  
+  // Алерт при застое в очереди
+  if (notificationStats.waiting > 1000) {
+    await sendAlert({
+      type: 'queue_stall',
+      message: `Queue stall detected in notification queue: ${notificationStats.waiting} waiting jobs`,
+      severity: 'critical',
+      queueName: 'notification'
+    });
+  }
+}
+
+// Проверка каждые 5 минут
+setInterval(checkQueueHealth, 5 * 60 * 1000);
+```
+
+## 🔧 Управление задачами
+
+### Повторное выполнение задач
+```typescript
+// API для повторного выполнения неудачных задач
+app.post('/api/queues/:queueName/retry-failed', async (req, res) => {
+  const { queueName } = req.params;
+  const queue = getQueueByName(queueName);
+  
+  try {
+    const failedJobs = await queue.getFailed();
+    let retriedCount = 0;
+    
+    for (const job of failedJobs) {
+      try {
+        await job.retry();
+        retriedCount++;
+      } catch (error) {
+        logger.error('Failed to retry job', { jobId: job.id, error });
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      retriedCount,
+      totalFailed: failedJobs.length 
+    });
+  } catch (error) {
+    logger.error('Failed to retry failed jobs', { queueName, error });
+    res.status(500).json({ error: 'Failed to retry jobs' });
+  }
+});
+```
+
+### Очистка очередей
+```typescript
+// API для очистки завершенных задач
+app.delete('/api/queues/:queueName/clean', async (req, res) => {
+  const { queueName } = req.params;
+  const { olderThan } = req.body; // в часах
+  const queue = getQueueByName(queueName);
+  
+  try {
+    const completedJobs = await queue.getCompleted();
+    const failedJobs = await queue.getFailed();
+    
+    const cutoffTime = Date.now() - (olderThan * 60 * 60 * 1000);
+    
+    let cleanedCount = 0;
+    
+    // Очистка завершенных задач
+    for (const job of completedJobs) {
+      if (job.finishedOn && job.finishedOn < cutoffTime) {
+        await job.remove();
+        cleanedCount++;
+      }
+    }
+    
+    // Очистка неудачных задач
+    for (const job of failedJobs) {
+      if (job.finishedOn && job.finishedOn < cutoffTime) {
+        await job.remove();
+        cleanedCount++;
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      cleanedCount,
+      olderThan 
+    });
+  } catch (error) {
+    logger.error('Failed to clean queue', { queueName, error });
+    res.status(500).json({ error: 'Failed to clean queue' });
+  }
+});
+```
+
+### Пауза/возобновление очередей
+```typescript
+// API для управления состоянием очередей
+app.post('/api/queues/:queueName/pause', async (req, res) => {
+  const { queueName } = req.params;
+  const queue = getQueueByName(queueName);
+  
+  try {
+    await queue.pause();
+    logger.info('Queue paused', { queueName });
+    res.json({ success: true, status: 'paused' });
+  } catch (error) {
+    logger.error('Failed to pause queue', { queueName, error });
+    res.status(500).json({ error: 'Failed to pause queue' });
+  }
+});
+
+app.post('/api/queues/:queueName/resume', async (req, res) => {
+  const { queueName } = req.params;
+  const queue = getQueueByName(queueName);
+  
+  try {
+    await queue.resume();
+    logger.info('Queue resumed', { queueName });
+    res.json({ success: true, status: 'resumed' });
+  } catch (error) {
+    logger.error('Failed to resume queue', { queueName, error });
+    res.status(500).json({ error: 'Failed to resume queue' });
+  }
+});
+```
+
+## 🔍 Отладка и диагностика
+
+### Просмотр деталей задач
+```typescript
+// API для получения детальной информации о задаче
+app.get('/api/queues/:queueName/jobs/:jobId', async (req, res) => {
+  const { queueName, jobId } = req.params;
+  const queue = getQueueByName(queueName);
+  
+  try {
+    const job = await queue.getJob(jobId);
+    
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    const jobData = {
+      id: job.id,
+      name: job.name,
+      data: job.data,
+      opts: job.opts,
+      progress: job.progress(),
+      returnValue: job.returnvalue,
+      failedReason: job.failedReason,
+      stacktrace: job.stacktrace,
+      processedOn: job.processedOn,
+      finishedOn: job.finishedOn,
+      attemptsMade: job.attemptsMade,
+      delay: job.delay,
+      timestamp: job.timestamp
+    };
+    
+    res.json(jobData);
+  } catch (error) {
+    logger.error('Failed to get job details', { queueName, jobId, error });
+    res.status(500).json({ error: 'Failed to get job details' });
+  }
+});
+```
+
+### Логирование выполнения
+```typescript
+// Расширенное логирование для отладки
+emailQueue.on('active', (job) => {
+  logger.info('Job started', {
+    queueName: 'email',
+    jobId: job.id,
+    jobName: job.name,
+    data: job.data,
+    timestamp: new Date().toISOString()
+  });
+});
+
+emailQueue.on('progress', (job, progress) => {
+  logger.debug('Job progress', {
+    queueName: 'email',
+    jobId: job.id,
+    progress,
+    timestamp: new Date().toISOString()
+  });
+});
+```
 
 ## 🚀 Развертывание
+
+### Переменные окружения
+```env
+# Bull Board
+BULL_BOARD_PORT=3003
+BULL_BOARD_USERNAME=admin
+BULL_BOARD_PASSWORD=secure-password
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# Monitoring
+ENABLE_QUEUE_MONITORING=true
+ALERT_EMAIL=admin@gafus.ru
+```
 
 ### Docker
 ```dockerfile
 FROM node:18-alpine
+
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci --only=production
+
 COPY . .
 RUN npm run build
-CMD ["npm", "start"]
+
+EXPOSE 3003
+CMD ["node", "dist/bull-board.js"]
 ```
 
-### Переменные окружения
-- `PORT` - порт приложения
-- `REDIS_URL` - строка подключения к Redis
-- `QUEUE_CONCURRENCY` - количество параллельных задач
-- `NODE_ENV` - окружение (development/production)
+### Nginx конфигурация
+```nginx
+server {
+    listen 80;
+    server_name queues.gafus.ru;
 
-### Мониторинг
-- **Health Checks** - проверка состояния
-- **Logs** - централизованное логирование
-- **Metrics** - метрики производительности
-- **Alerts** - уведомления о проблемах
-
-## 🔧 Разработка и расширение
-
-### Добавление новых очередей
-```typescript
-import { newQueue } from "@gafus/queues";
-
-createBullBoard({
-  queues: [
-    new BullMQAdapter(pushQueue),
-    new BullMQAdapter(newQueue), // Новая очередь
-  ],
-  serverAdapter,
-});
-```
-
-### Кастомные адаптеры
-```typescript
-class CustomAdapter extends BullMQAdapter {
-  // Кастомная логика
+    location / {
+        proxy_pass http://localhost:3003;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 ```
 
-### Middleware
-```typescript
-app.use((req, res, next) => {
-  // Кастомная логика
-  next();
-});
+## 🔧 Разработка
+
+### Команды разработки
+```bash
+# Разработка
+pnpm dev                    # Запуск в режиме разработки
+pnpm build                  # Сборка TypeScript
+pnpm start                  # Запуск продакшен версии
+
+# Тестирование
+pnpm test                   # Запуск тестов
 ```
+
+### Структура проекта
+```typescript
+// Основные модули
+bull-board.ts              # Главный файл конфигурации
+├── queues/                # Конфигурация очередей
+├── middleware/            # Middleware для аутентификации
+├── api/                   # API endpoints
+└── monitoring/            # Мониторинг и алертинг
+```
+
+---
+
+*Bull Board обеспечивает полный контроль над очередями задач и их мониторинг в экосистеме GAFUS.*
