@@ -3,6 +3,16 @@ import { createTrainerPanelLogger } from "@gafus/logger";
 
 const logger = createTrainerPanelLogger('cdn-upload');
 
+// Функция для очистки имени файла от недопустимых символов
+function sanitizeFileName(fileName: string): string {
+  // Убираем недопустимые символы для HTTP заголовков
+  // Разрешены только: A-Z, a-z, 0-9, дефис, подчеркивание, точка
+  return fileName
+    .replace(/[^a-zA-Z0-9\-_.]/g, '_') // Заменяем недопустимые символы на подчеркивание
+    .replace(/_{2,}/g, '_') // Убираем множественные подчеркивания
+    .substring(0, 100); // Ограничиваем длину
+}
+
 // Конфигурация для Yandex Object Storage (S3-совместимый)
 const s3Client = new S3Client({
   endpoint: "https://storage.yandexcloud.net",
@@ -35,7 +45,7 @@ export async function uploadFileToCDN(file: File, relativePath: string): Promise
       // Настройки кэширования
       CacheControl: "public, max-age=31536000", // 1 год
       Metadata: {
-        "original-name": file.name,
+        "original-name": sanitizeFileName(file.name),
         "upload-timestamp": Date.now().toString(),
       },
     });
