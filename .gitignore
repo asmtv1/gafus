@@ -112,3 +112,6 @@ tsconfig.tsbuildinfo
 # Next.js cache
 .next/cache/
 .next/cache/**/*
+
+# Uploads directory (files are stored in CDN)
+packages/public-assets/public/uploads/
