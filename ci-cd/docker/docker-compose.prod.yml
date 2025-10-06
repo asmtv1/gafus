@@ -55,8 +55,7 @@ services:
       # Yandex Cloud CDN credentials
       - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
-    volumes:
-      - uploads_data:/var/www/public-assets/uploads
+    # Uploads handled by CDN - no local volume needed
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
     healthcheck:
@@ -87,8 +86,7 @@ services:
       # Yandex Cloud CDN credentials
       - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
-    volumes:
-      - uploads_data:/var/www/public-assets/uploads
+    # Uploads handled by CDN - no local volume needed
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
 
@@ -188,22 +186,11 @@ services:
     volumes:
       - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../nginx/conf.d:/etc/nginx/conf.d:ro
-      - uploads_data:/var/www/uploads
-      - ./packages/public-assets/public:/var/www/public-assets
-      - ../../apps/web/public:/var/www/web-public:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
     command: >
       sh -c "
-        # Копируем статические файлы в volume, если их там нет
-        if [ ! -d /var/www/uploads ] || [ -z \"$(ls -A /var/www/uploads 2>/dev/null)\" ]; then
-          echo 'Копируем файлы из public-assets в uploads...'
-          cp -r /var/www/public-assets/uploads/* /var/www/uploads/ 2>/dev/null || true
-        fi &&
-        # Создаем симлинк для совместимости с приложениями
-        rm -rf /var/www/public-assets/uploads &&
-        ln -sf /var/www/uploads /var/www/public-assets/uploads &&
-        echo 'Запускаем nginx...' &&
+        echo 'Starting nginx with CDN configuration...' &&
         nginx -g 'daemon off;'
       "
     restart: unless-stopped
@@ -226,4 +213,3 @@ services:
 
 volumes:
   postgres_data:
-  uploads_data:

@@ -472,12 +472,7 @@ jobs:
             chmod 600 ci-cd/docker/.env
             echo "✅ .env file created with secure permissions"
 
-            # Create uploads directories if they don't exist
-            mkdir -p packages/public-assets/public/uploads/avatars
-            mkdir -p packages/public-assets/public/uploads/pets
-            mkdir -p packages/public-assets/public/uploads/courses
-            mkdir -p packages/public-assets/public/uploads/shared
-            chmod -R 755 packages/public-assets/public/uploads/
+            # Uploads directories are handled by CDN - no local directories needed
 
             # Infrastructure cleanup - best practice: remove everything and start fresh
             echo "🧹 Cleaning up infrastructure..."
@@ -572,48 +567,29 @@ jobs:
             # SSL Certificate Management - best practice: automatic certificate generation
             echo "🔐 Setting up SSL certificates..."
 
-            # Create temporary HTTP-only nginx config for certbot
-            cat > ci-cd/nginx/conf.d/gafus.ru.temp.conf << 'EOF'
-            server {
-                listen 80;
-                server_name gafus.ru www.gafus.ru *.gafus.ru;
-                location /.well-known/acme-challenge/ {
-                    root /var/www/certbot;
-                }
-                location / {
-                    return 200 "SSL certificates are being generated...";
-                    add_header Content-Type text/plain;
-                }
-            }
-            EOF
+            # Use HTTP-only config for SSL certificate generation
+            echo "📋 Switching to HTTP-only config for SSL certificate generation..."
+            cp ci-cd/nginx/conf.d/gafus.ru.http-only.conf ci-cd/nginx/conf.d/gafus.ru.conf
 
-            # Stop nginx temporarily
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml stop nginx
+            # Restart nginx with HTTP-only config
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml restart nginx
+            echo "⏳ Waiting for nginx to restart with HTTP-only config..."
+            sleep 10
 
-            # Start temporary nginx for certbot
-            docker run -d --name temp-nginx --network docker_default -p 80:80 \
-                -v /root/gafus/certbot/www:/var/www/certbot \
-                -v /root/gafus/ci-cd/nginx/conf.d/gafus.ru.temp.conf:/etc/nginx/conf.d/default.conf \
-                nginx:alpine
-
-            # Wait for temporary nginx
-            sleep 5
-
-            # Generate SSL certificates
+            # Generate SSL certificates using HTTP-only config
+            echo "🔐 Generating SSL certificates..."
             docker-compose -f ci-cd/docker/docker-compose.prod.yml run --rm certbot certonly \
                 --webroot --webroot-path=/var/www/certbot \
                 --email admin@gafus.ru --agree-tos --no-eff-email \
                 -d gafus.ru -d www.gafus.ru -d api.gafus.ru \
                 -d trainer-panel.gafus.ru -d monitor.gafus.ru -d queues.gafus.ru || true
 
-            # Clean up temporary nginx
-            docker stop temp-nginx && docker rm temp-nginx
+            # Switch back to HTTPS config
+            echo "🔄 Switching back to HTTPS config..."
+            git checkout ci-cd/nginx/conf.d/gafus.ru.conf
 
-            # Restore original nginx config
-            rm ci-cd/nginx/conf.d/gafus.ru.temp.conf
-
-            # Start nginx with HTTPS config
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d nginx
+            # Restart nginx with HTTPS config
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml restart nginx
             echo "⏳ Waiting for nginx to be ready with SSL..."
             sleep 15
 
