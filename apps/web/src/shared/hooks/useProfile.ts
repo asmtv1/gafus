@@ -42,7 +42,6 @@ export function useUserWithTrainings() {
 }
 
 export function useProfileMutation() {
-  const { mutate } = useMutate();
-
+  const { mutate: _mutate } = useMutate();
   return {};
 }

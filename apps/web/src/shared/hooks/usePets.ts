@@ -24,7 +24,6 @@ export function useUserPets() {
 }
 
 export function usePetsMutation() {
-  const { mutate } = useMutate();
-
+  const { mutate: _mutate } = useMutate();
   return {};
 }

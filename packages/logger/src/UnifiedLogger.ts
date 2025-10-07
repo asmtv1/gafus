@@ -27,10 +27,14 @@ export class UnifiedLogger implements Logger {
    * Создает экземпляр Pino логгера
    */
   private createPinoLogger(): PinoLogger {
-    const transports = [];
+    const transports: Array<Record<string, unknown>> = [];
 
-    // Консольный транспорт для development
-    if (this.config.enableConsole) {
+    // По умолчанию отключаем worker-базированные транспорты (pino-pretty/pino/file),
+    // т.к. они используют worker_threads и могут падать в Next.js окружении ("the worker has exited").
+    // Включить можно явно через PINO_USE_WORKER_TRANSPORTS=true
+    const allowWorkerTransports = process.env.PINO_USE_WORKER_TRANSPORTS === 'true';
+
+    if (allowWorkerTransports && this.config.enableConsole) {
       if (this.config.environment === 'development') {
         transports.push({
           target: 'pino-pretty',
@@ -56,6 +60,7 @@ export class UnifiedLogger implements Logger {
         app: this.config.appName,
         context: this.config.context,
       },
+      // Транспорты выключены по умолчанию, чтобы избежать worker_threads
       transport: transports.length > 0 ? { targets: transports } : undefined,
     });
   }

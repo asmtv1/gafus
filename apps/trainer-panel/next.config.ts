@@ -5,6 +5,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Включаем standalone режим для Docker
   output: 'standalone',
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
   eslint: {
     // ESLint проверки включены для качества кода
     ignoreDuringBuilds: false,
@@ -12,7 +16,7 @@ const nextConfig: NextConfig = {
   },
 
   // Внешние пакеты для server components
-  serverExternalPackages: ['@aws-sdk/client-s3'],
+  serverExternalPackages: ['@aws-sdk/client-s3', 'bcrypt'],
 
   // Конфигурация для изображений
   images: {
@@ -45,8 +49,27 @@ const nextConfig: NextConfig = {
       "@gafus/csrf": path.resolve(__dirname, "../../packages/csrf/src"),
       "@gafus/error-handling": path.resolve(__dirname, "../../packages/error-handling/src"),
       "@gafus/prisma": path.resolve(__dirname, "../../packages/prisma/src"),
+      "@gafus/logger": path.resolve(__dirname, "../../packages/logger/src"),
       "@gafus/ui-components": path.resolve(__dirname, "../../packages/ui-components/src"),
     };
+
+    // Создаем dummy-файл lib/worker.js, чтобы подавить попытки загрузки thread-stream/worker
+    // в окружении Next.js (исправляет "the worker has exited").
+    // При необходимости можно отключить этот трюк, удалив плагин.
+    // Он не влияет на прод, т.к. prod собирается в standalone.
+    // Аналогичный трюк используется в @gafus/web.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (config.plugins = config.plugins || []).push({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      apply: (compiler: any) => {
+        compiler.hooks.emit.tap('CreateWorkerFile', (compilation: any) => {
+          compilation.assets['lib/worker.js'] = {
+            source: () => 'module.exports = {};',
+            size: () => 20,
+          };
+        });
+      },
+    });
 
     return config;
   },

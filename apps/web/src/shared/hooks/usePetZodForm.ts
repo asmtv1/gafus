@@ -1,4 +1,4 @@
-import { z } from "zod";
+import type { z } from "zod";
 import { useZodForm } from "./useZodForm";
 import { petFormSchema } from "@shared/lib/validation/petSchemas";
 

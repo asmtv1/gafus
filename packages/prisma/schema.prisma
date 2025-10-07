@@ -112,6 +112,57 @@ model Step {
   updatedAt      DateTime         @default(now())
 }
 
+model StepCategory {
+  id          String         @id @default(cuid())
+  name        String         @unique
+  description String?
+  icon        String?        // Иконка категории (emoji или путь к иконке)
+  order       Int            @default(0)  // Порядок отображения
+  templates   StepTemplate[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  @@index([order])
+}
+
+model StepTemplate {
+  id                      String         @id @default(cuid())
+  title                   String
+  description             String         @default("")
+  durationSec             Int?
+  type                    StepType       @default(TRAINING)
+  imageUrls               String[]       @default([])
+  pdfUrls                 String[]       @default([])
+  videoUrl                String?
+  checklist               Json?
+  
+  // Поля для типов экзамена (только для EXAMINATION)
+  requiresVideoReport     Boolean        @default(false)
+  requiresWrittenFeedback Boolean        @default(false)
+  hasTestQuestions        Boolean        @default(false)
+  
+  // Организация и категоризация
+  categoryId      String?
+  category        StepCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags            String[]       @default([])  // Теги для поиска
+  
+  // Контроль доступа
+  isPublic        Boolean        @default(true)  // Доступен всем тренерам
+  
+  // Статистика
+  usageCount      Int            @default(0)  // Сколько раз использовали
+  
+  authorId        String
+  author          User           @relation(fields: [authorId], references: [id])
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  @@index([categoryId])
+  @@index([isPublic])
+  @@index([authorId])
+}
+
 model DayOnCourse {
   id             String            @id @default(cuid())
   courseId       String
@@ -194,6 +245,7 @@ model User {
   courseAccesses           CourseAccess[]
   authoredCourses          Course[]
   createdSteps             Step[]
+  createdStepTemplates     StepTemplate[]
   createdDays              TrainingDay[]
   userTrainings            UserTraining[]
   userCourses              UserCourse[]

@@ -133,5 +133,7 @@ export function useUserMutations() {
 
   return {
     updateProfile,
+    // Экспортируем базовую мутацию, чтобы не считалась неиспользуемой
+    mutate,
   };
 }

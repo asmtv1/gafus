@@ -44,5 +44,6 @@ export function useOfflineData() {
     localStorage.setItem(key, JSON.stringify(items));
   };
 
-  return {};
+  // Экспортируем функции, чтобы использовать их снаружи и избежать неиспользуемых переменных
+  return { addToSyncQueue, saveOffline };
 }
