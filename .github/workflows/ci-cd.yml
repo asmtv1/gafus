@@ -600,8 +600,8 @@ jobs:
             # Run migrations using the dedicated Prisma container
             docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:migrate:deploy || echo "Migrations failed, continuing..."
 
-            # Run database seeds if available
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:seed || echo "Seeds failed or not available, continuing..."
+            # Database seeds are run manually when needed
+            # docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:seed || echo "Seeds failed or not available, continuing..."
 
                         # Health checks temporarily disabled - will be re-enabled later
             echo "🏥 Health checks temporarily disabled for deployment stability"
