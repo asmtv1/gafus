@@ -9,8 +9,6 @@ import type { TrainingDetail } from "@gafus/types";
 import { getCurrentUserId } from "@/utils";
 import { dayNumberSchema, trainingTypeSchema } from "../validation/schemas";
 
-// Тип объявлен, но не используется — удаляем, чтобы не вызывать предупреждения линтера
-
 const courseTypeSchema = trainingTypeSchema;
 const dayOrderSchema = dayNumberSchema;
 
