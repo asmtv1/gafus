@@ -13,7 +13,11 @@ async function logToErrorDashboard(
   meta?: Record<string, unknown>,
 ) {
   try {
-    const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || "http://errors.gafus.localhost:3005";
+    // В production используем HTTPS URL, в dev - localhost
+    const defaultUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://monitor.gafus.ru'
+      : 'http://errors.gafus.localhost:3005';
+    const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || defaultUrl;
 
     const logEntry = {
       message,

@@ -58,6 +58,7 @@ export { default as AnalyticsIcon } from "@mui/icons-material/Analytics";
 export { default as AssessmentIcon } from "@mui/icons-material/Assessment";
 export { default as CalendarTodayIcon } from "@mui/icons-material/CalendarToday";
 export { default as CategoryIcon } from "@mui/icons-material/Category";
+export { default as CheckCircleIcon } from "@mui/icons-material/CheckCircle";
 export { default as DeleteIcon } from "@mui/icons-material/Delete";
 export { default as EditIcon } from "@mui/icons-material/Edit";
 export { default as ExpandMoreIcon } from "@mui/icons-material/ExpandMore";

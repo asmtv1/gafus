@@ -137,9 +137,14 @@ export class LoggerFactory {
  * Создает логгер для веб-приложения
  */
 export function createWebLogger(context?: string): Logger {
+  // В production используем относительный URL, в dev - localhost
+  const defaultUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://monitor.gafus.ru/api'
+    : 'http://localhost:3005/api';
+    
   return LoggerFactory.createLoggerWithContext('web', context || 'web-app', {
     enableErrorDashboard: true,
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3005/api',
+    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
   });
 }
 
@@ -147,9 +152,14 @@ export function createWebLogger(context?: string): Logger {
  * Создает логгер для панели тренера
  */
 export function createTrainerPanelLogger(context?: string): Logger {
+  // В production используем относительный URL, в dev - localhost
+  const defaultUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://monitor.gafus.ru/api'
+    : 'http://localhost:3005/api';
+    
   return LoggerFactory.createLoggerWithContext('trainer-panel', context || 'trainer-panel', {
     enableErrorDashboard: true,
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3005/api',
+    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
   });
 }
 
@@ -166,9 +176,14 @@ export function createErrorDashboardLogger(context?: string): Logger {
  * Создает логгер для telegram-bot
  */
 export function createTelegramBotLogger(context?: string): Logger {
+  // В production используем относительный URL, в dev - localhost
+  const defaultUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://monitor.gafus.ru/api'
+    : 'http://localhost:3005/api';
+    
   return LoggerFactory.createLoggerWithContext('telegram-bot', context || 'telegram-bot', {
     enableErrorDashboard: true,
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3005/api',
+    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
   });
 }
 
@@ -176,9 +191,14 @@ export function createTelegramBotLogger(context?: string): Logger {
  * Создает логгер для worker
  */
 export function createWorkerLogger(context?: string): Logger {
+  // В production используем относительный URL, в dev - localhost
+  const defaultUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://monitor.gafus.ru/api'
+    : 'http://localhost:3005/api';
+    
   return LoggerFactory.createLoggerWithContext('worker', context || 'worker', {
     enableErrorDashboard: true,
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || 'http://localhost:3005/api',
+    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
   });
 }
 

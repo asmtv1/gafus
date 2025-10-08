@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button, Card, CardContent, TextField, Typography, Alert, CircularProgress } from "@mui/material";
 import { submitExamResult } from "@/shared/lib/actions/submitExamResult";
+import { getExamResult } from "@/shared/lib/actions/getExamResult";
 
 interface WrittenFeedbackProps {
   userStepId: string;
@@ -16,6 +17,25 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Загружаем существующую обратную связь при монтировании компонента
+  useEffect(() => {
+    async function loadExistingData() {
+      try {
+        const examResult = await getExamResult(userStepId);
+        if (examResult?.writtenFeedback) {
+          setFeedback(examResult.writtenFeedback);
+          setIsSubmitted(true);
+        }
+      } catch (error) {
+        console.error("Ошибка при загрузке данных экзамена:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadExistingData();
+  }, [userStepId]);
 
   const handleSubmit = async () => {
     if (feedback.trim().length < 10) {
@@ -50,6 +70,18 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
     onReset();
   };
 
+  // Показываем индикатор загрузки
+  if (isLoading) {
+    return (
+      <div style={{ padding: "16px", textAlign: "center" }}>
+        <CircularProgress />
+        <Typography variant="body2" sx={{ mt: 2 }}>
+          Загрузка данных...
+        </Typography>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: "16px" }}>
       <Typography variant="h6" gutterBottom>
@@ -60,6 +92,12 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
         Пожалуйста, напишите ваши мысли о пройденном материале, что вы поняли, 
         какие у вас есть вопросы или комментарии.
       </Typography>
+
+      {isSubmitted && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Ваша обратная связь сохранена. Ожидайте проверки тренером.
+        </Alert>
+      )}
 
       <Card>
         <CardContent>

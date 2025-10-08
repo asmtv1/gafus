@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import { 
   Box, 
   Card, 
@@ -14,10 +14,13 @@ import {
   Tab,
   Button,
   Divider,
-  Alert
+  Alert,
+  CircularProgress
 } from "@/utils/muiImports";
-import { ExpandMoreIcon, VideoFileIcon, QuizIcon, EditIcon } from "@/utils/muiImports";
+import { ExpandMoreIcon, VideoFileIcon, QuizIcon, EditIcon, CheckCircleIcon } from "@/utils/muiImports";
 import type { ExamResultWithDetails } from "../lib/getExamResults";
+import { reviewExamResult } from "../lib/reviewExamResult";
+import { useRouter } from "next/navigation";
 
 interface ChecklistQuestion {
   id: string;
@@ -59,6 +62,9 @@ function TabPanel(props: TabPanelProps) {
 export function ExamResultsList({ examResults }: ExamResultsListProps) {
   const [expandedResult, setExpandedResult] = useState<string | false>(false);
   const [tabValue, setTabValue] = useState<Record<string, number>>({});
+  const [isPending, startTransition] = useTransition();
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleAccordionChange = (resultId: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
     setExpandedResult(isExpanded ? resultId : false);
@@ -66,6 +72,29 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
 
   const handleTabChange = (resultId: string) => (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(prev => ({ ...prev, [resultId]: newValue }));
+  };
+
+  const handleApproveExam = async (userStepId: string) => {
+    setProcessingId(userStepId);
+    const formData = new FormData();
+    formData.append("userStepId", userStepId);
+    formData.append("action", "approve");
+
+    startTransition(async () => {
+      try {
+        const result = await reviewExamResult({}, formData);
+        if (result.success) {
+          // Перезагружаем страницу для обновления данных
+          router.refresh();
+        } else {
+          alert(result.error || "Ошибка при утверждении экзамена");
+        }
+      } catch (error) {
+        alert("Ошибка при утверждении экзамена");
+      } finally {
+        setProcessingId(null);
+      }
+    });
   };
 
   const getExamTypeChips = (result: ExamResultWithDetails) => {
@@ -112,12 +141,17 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
   };
 
   const getStatusChip = (result: ExamResultWithDetails) => {
-    if (result.isPassed === null) {
-      return <Chip label="В процессе" color="warning" size="small" />;
+    const status = result.userStep.status;
+    
+    if (status === "COMPLETED") {
+      return <Chip label="Сдан" color="success" size="small" />;
     }
-    return result.isPassed ? 
-      <Chip label="Сдан" color="success" size="small" /> : 
-      <Chip label="Не сдан" color="error" size="small" />;
+    
+    if (status === "IN_PROGRESS") {
+      return <Chip label="Ожидает проверки" color="warning" size="small" />;
+    }
+    
+    return <Chip label="Не начат" color="default" size="small" />;
   };
 
   if (examResults.length === 0) {
@@ -299,14 +333,30 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
 
                 <Divider sx={{ my: 2 }} />
                 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
                   <Typography variant="body2" color="text.secondary">
                     Отправлено: {new Date(result.createdAt).toLocaleString('ru-RU')}
                   </Typography>
-                  {result.overallScore !== null && (
-                    <Typography variant="h6" color="primary">
-                      Общая оценка: {result.overallScore}%
-                    </Typography>
+                  
+                  {result.userStep.status === "IN_PROGRESS" && (
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={processingId === result.userStep.id ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+                      onClick={() => handleApproveExam(result.userStep.id)}
+                      disabled={processingId === result.userStep.id || isPending}
+                    >
+                      {processingId === result.userStep.id ? "Обработка..." : "Зачесть"}
+                    </Button>
+                  )}
+                  
+                  {result.userStep.status === "COMPLETED" && (
+                    <Chip 
+                      icon={<CheckCircleIcon />} 
+                      label="Зачтено" 
+                      color="success" 
+                      variant="outlined"
+                    />
                   )}
                 </Box>
               </Box>

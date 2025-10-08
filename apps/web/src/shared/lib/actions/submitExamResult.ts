@@ -79,13 +79,14 @@ export async function submitExamResult(data: ExamSubmissionData) {
       }
     });
 
-    // Обновляем статус шага на COMPLETED
+    // Обновляем статус шага на IN_PROGRESS
+    // Статус будет изменен на COMPLETED только после проверки тренером
     await prisma.userStep.update({
       where: {
         id: data.userStepId
       },
       data: {
-        status: "COMPLETED"
+        status: "IN_PROGRESS"
       }
     });
 

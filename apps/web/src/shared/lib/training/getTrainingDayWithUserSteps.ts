@@ -94,53 +94,89 @@ export async function getTrainingDayWithUserSteps(
   } = found;
 
   const userTraining = userTrainings[0];
-  const userTrainingId = userTraining?.id;
+  let userTrainingId = userTraining?.id;
+
+  // Если UserTraining нет, создаем его
+  if (!userTrainingId) {
+    const newUserTraining = await prisma.userTraining.create({
+      data: {
+        userId,
+        dayOnCourseId: found.id,
+        status: TrainingStatus.NOT_STARTED,
+      },
+    });
+    userTrainingId = newUserTraining.id;
+  }
 
   // Получаем статусы UserStep для каждого stepOnDayId
   let stepStatuses: Record<string, TrainingStatus> = {};
   let pausedByStepId: Record<string, boolean> = {};
   let remainingByStepId: Record<string, number | undefined> = {};
   let userStepIds: Record<string, string> = {};
-  if (userTrainingId) {
-    // Обратная совместимость: если колонок paused/remainingSec ещё нет в БД/клиенте, не падаем
-    type UserStepWithPause = { id: string; stepOnDayId: string; status: string; paused?: boolean; remainingSec?: number | null };
-    let withPause = false;
-    let userSteps: UserStepWithPause[] = [];
-    try {
-      const res = (await (prisma as unknown as { userStep: { findMany: (args: unknown) => Promise<unknown> } }).userStep.findMany({
-        where: { userTrainingId },
-        select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
-      })) as unknown;
-      userSteps = res as UserStepWithPause[];
-      withPause = true;
-    } catch {
-      const res = (await prisma.userStep.findMany({
-        where: { userTrainingId },
-        select: { id: true, stepOnDayId: true, status: true },
-      })) as unknown as { id: string; stepOnDayId: string; status: string }[];
-      userSteps = res;
-      withPause = false;
-    }
+  
+  // Обратная совместимость: если колонок paused/remainingSec ещё нет в БД/клиенте, не падаем
+  type UserStepWithPause = { id: string; stepOnDayId: string; status: string; paused?: boolean; remainingSec?: number | null };
+  let withPause = false;
+  let userSteps: UserStepWithPause[] = [];
+  try {
+    const res = (await (prisma as unknown as { userStep: { findMany: (args: unknown) => Promise<unknown> } }).userStep.findMany({
+      where: { userTrainingId },
+      select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
+    })) as unknown;
+    userSteps = res as UserStepWithPause[];
+    withPause = true;
+  } catch {
+    const res = (await prisma.userStep.findMany({
+      where: { userTrainingId },
+      select: { id: true, stepOnDayId: true, status: true },
+    })) as unknown as { id: string; stepOnDayId: string; status: string }[];
+    userSteps = res;
+    withPause = false;
+  }
 
-    stepStatuses = Object.fromEntries(
-      userSteps.map((record) => [
-        record.stepOnDayId,
-        TrainingStatus[(record.status as string) as keyof typeof TrainingStatus],
-      ]),
+  // Создаем недостающие UserStep записи для всех шагов дня
+  // Это необходимо для экзаменационных шагов, которым нужен userStepId для сохранения результатов
+  const existingStepOnDayIds = new Set(userSteps.map(us => us.stepOnDayId));
+  const allStepOnDayIds = stepLinks.map(link => link.id);
+  const missingStepOnDayIds = allStepOnDayIds.filter(id => !existingStepOnDayIds.has(id));
+
+  if (missingStepOnDayIds.length > 0) {
+    // Создаем недостающие UserStep записи
+    const newUserSteps = await prisma.$transaction(
+      missingStepOnDayIds.map(stepOnDayId =>
+        prisma.userStep.create({
+          data: {
+            userTrainingId,
+            stepOnDayId,
+            status: TrainingStatus.NOT_STARTED,
+          },
+          select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
+        })
+      )
     );
 
-    userStepIds = Object.fromEntries(
-      userSteps.map((record) => [record.stepOnDayId, record.id]),
-    );
+    // Добавляем новые записи к существующим
+    userSteps = [...userSteps, ...newUserSteps as UserStepWithPause[]];
+  }
 
-    if (withPause) {
-      pausedByStepId = Object.fromEntries(
-        userSteps.map((record) => [record.stepOnDayId, Boolean(record.paused)]),
-      );
-      remainingByStepId = Object.fromEntries(
-        userSteps.map((record) => [record.stepOnDayId, record.remainingSec ?? undefined]),
-      );
-    }
+  stepStatuses = Object.fromEntries(
+    userSteps.map((record) => [
+      record.stepOnDayId,
+      TrainingStatus[(record.status as string) as keyof typeof TrainingStatus],
+    ]),
+  );
+
+  userStepIds = Object.fromEntries(
+    userSteps.map((record) => [record.stepOnDayId, record.id]),
+  );
+
+  if (withPause) {
+    pausedByStepId = Object.fromEntries(
+      userSteps.map((record) => [record.stepOnDayId, Boolean(record.paused)]),
+    );
+    remainingByStepId = Object.fromEntries(
+      userSteps.map((record) => [record.stepOnDayId, record.remainingSec ?? undefined]),
+    );
   }
 
   // Собираем финальный массив шагов

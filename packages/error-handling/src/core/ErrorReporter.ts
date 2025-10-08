@@ -32,7 +32,11 @@ export class ErrorReporter {
   constructor(config: ErrorReporterConfig) {
     this.config = config;
     // URL дашборда ошибок - можно настроить через переменные окружения
-    this.dashboardUrl = process.env.ERROR_DASHBOARD_URL || "http://errors.gafus.localhost";
+    // В production используем HTTPS URL, в dev - localhost
+    const defaultUrl = config.environment === 'production'
+      ? 'https://monitor.gafus.ru'
+      : 'http://errors.gafus.localhost';
+    this.dashboardUrl = process.env.ERROR_DASHBOARD_URL || defaultUrl;
     // Создаем логгер для error-handling
     this.logger = createLogger(`error-handling-${config.appName}`, config.environment);
   }

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button, Card, CardContent, FormControl, FormControlLabel, Radio, RadioGroup, Typography, Alert, CircularProgress } from "@mui/material";
 import { submitExamResult } from "@/shared/lib/actions/submitExamResult";
+import { getExamResult } from "@/shared/lib/actions/getExamResult";
 
 interface ChecklistQuestion {
   id: string;
@@ -25,6 +26,26 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
   const [showResults, setShowResults] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Загружаем существующие ответы при монтировании компонента
+  useEffect(() => {
+    async function loadExistingData() {
+      try {
+        const examResult = await getExamResult(userStepId);
+        if (examResult?.testAnswers) {
+          setAnswers(examResult.testAnswers);
+          setIsSubmitted(true);
+          setShowResults(true);
+        }
+      } catch (error) {
+        console.error("Ошибка при загрузке данных экзамена:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadExistingData();
+  }, [userStepId]);
 
   const handleAnswerChange = (questionId: string, answerIndex: number) => {
     setAnswers(prev => ({
@@ -82,11 +103,29 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
 
   const score = getScore();
 
+  // Показываем индикатор загрузки
+  if (isLoading) {
+    return (
+      <div style={{ padding: "16px", textAlign: "center" }}>
+        <CircularProgress />
+        <Typography variant="body2" sx={{ mt: 2 }}>
+          Загрузка данных...
+        </Typography>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: "16px" }}>
       <Typography variant="h6" gutterBottom>
         Тестовые вопросы
       </Typography>
+      
+      {isSubmitted && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Ваши ответы сохранены. Ожидайте проверки тренером.
+        </Alert>
+      )}
       
       {checklist.map((question, index) => (
         <Card key={question.id} sx={{ mb: 2 }}>
