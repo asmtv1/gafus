@@ -57,7 +57,11 @@ export interface ExamResultWithDetails {
   };
 }
 
-export async function getExamResults(): Promise<ExamResultWithDetails[]> {
+export interface GetExamResultsOptions {
+  hideCompleted?: boolean;
+}
+
+export async function getExamResults(options?: GetExamResultsOptions): Promise<ExamResultWithDetails[]> {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -68,6 +72,10 @@ export async function getExamResults(): Promise<ExamResultWithDetails[]> {
   const examResults = await prisma.examResult.findMany({
     where: {
       userStep: {
+        // Фильтруем по статусу, если включён фильтр
+        ...(options?.hideCompleted && {
+          status: "IN_PROGRESS"
+        }),
         userTraining: {
           dayOnCourse: {
             course: {

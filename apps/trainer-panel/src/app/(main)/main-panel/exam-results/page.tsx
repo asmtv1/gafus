@@ -1,22 +1,26 @@
 import { Suspense } from "react";
 import { Box, Typography, CircularProgress, Alert } from "@/utils/muiImports";
 import { getExamResults } from "@/features/exam-results/lib/getExamResults";
-import { ExamResultsList } from "@/features/exam-results/components/ExamResultsList";
+import { ExamResultsListWithFilter } from "@/features/exam-results/components/ExamResultsListWithFilter";
 
-async function ExamResultsContent() {
+async function ExamResultsContent({ hideCompleted }: { hideCompleted: boolean }) {
   try {
-    const examResults = await getExamResults();
+    // Всегда загружаем ВСЕ результаты, фильтрация на клиенте
+    const examResults = await getExamResults({ hideCompleted: false });
     
     return (
       <Box>
-        <Typography variant="h4" gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{ color: 'text.primary' }}>
           Результаты экзаменов
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
           Просмотр результатов экзаменов по вашим курсам
         </Typography>
         
-        <ExamResultsList examResults={examResults} />
+        <ExamResultsListWithFilter 
+          initialExamResults={examResults} 
+          initialHideCompleted={hideCompleted}
+        />
       </Box>
     );
   } catch (error) {
@@ -28,7 +32,17 @@ async function ExamResultsContent() {
   }
 }
 
-export default function ExamResultsPage() {
+export default async function ExamResultsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ hideCompleted?: string }>;
+}) {
+  const params = await searchParams;
+  // По умолчанию фильтр включён (hideCompleted = true)
+  const hideCompleted = params.hideCompleted !== undefined 
+    ? params.hideCompleted === 'true' 
+    : true;
+
   return (
     <Box sx={{ p: 3 }}>
       <Suspense fallback={
@@ -36,7 +50,7 @@ export default function ExamResultsPage() {
           <CircularProgress />
         </Box>
       }>
-        <ExamResultsContent />
+        <ExamResultsContent hideCompleted={hideCompleted} />
       </Suspense>
     </Box>
   );
