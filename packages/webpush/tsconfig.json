@@ -5,6 +5,7 @@
     /* пути и алиасы наследуются из корневого tsconfig */
     "typeRoots": ["../../node_modules/@types"],
     "outDir": "dist",
+    "declaration": true,
     "noEmit": false
   },
   "include": ["src"]

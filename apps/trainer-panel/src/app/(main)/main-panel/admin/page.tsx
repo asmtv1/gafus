@@ -3,6 +3,8 @@ import { authOptions } from "@gafus/auth";
 import { redirect } from "next/navigation";
 
 import CacheManagement from "@features/admin/components/CacheManagement";
+import StorageManagement from "@features/admin/components/StorageManagement";
+import { getStorageStats } from "@features/admin/lib/getStorageStats";
 import PageLayout from "@shared/components/PageLayout";
 
 export default async function AdminPage() {
@@ -13,37 +15,33 @@ export default async function AdminPage() {
     redirect("/main-panel");
   }
 
+  // Загружаем статистику хранилища (только для ADMIN)
+  let storageStats = null;
+  if (session.user.role === "ADMIN") {
+    try {
+      storageStats = await getStorageStats();
+    } catch (error) {
+      console.error("Ошибка загрузки статистики хранилища:", error);
+    }
+  }
+
   return (
     <PageLayout 
       title="Администрирование" 
       subtitle="Управление системой и кэшированием данных"
     >
       <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-        gap: '1.5rem' 
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2rem'
       }}>
+        {/* Управление хранилищем (только для ADMIN) */}
+        {storageStats && (
+          <StorageManagement stats={storageStats} />
+        )}
+
+        {/* Управление кэшем */}
         <CacheManagement />
-        
-        {/* Можно добавить другие административные компоненты */}
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-          padding: '1.5rem'
-        }}>
-          <h3 style={{ 
-            fontSize: '1.125rem', 
-            fontWeight: '600', 
-            marginBottom: '1rem',
-            color: '#2c3e50'
-          }}>
-            Статистика системы
-          </h3>
-          <p style={{ color: '#6c757d' }}>
-            Здесь будет отображаться статистика системы, метрики производительности и другая информация.
-          </p>
-        </div>
       </div>
     </PageLayout>
   );

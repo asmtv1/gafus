@@ -1,0 +1,100 @@
+---
+alwaysApply: true
+---
+
+# Error Handling Best Practices
+
+## Error Handling Strategy
+- Use try-catch for all async operations
+- Return structured errors: `{ success: false, error: string }`
+- Log errors with `@gafus/logger`
+- Report critical errors to error dashboard
+
+## Logger Usage
+```typescript
+import { createWebLogger } from "@gafus/logger";
+
+const logger = createWebLogger('feature-name');
+
+// Log levels
+logger.info("Operation started", { userId });
+logger.success("Operation completed", { result });
+logger.warn("Potential issue", { details });
+logger.error("Operation failed", error as Error, { context });
+```
+
+## Server Actions Error Handling
+```typescript
+"use server";
+
+import { createWebLogger } from "@gafus/logger";
+import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
+
+const logger = createWebLogger('action-name');
+
+export async function myAction(data: FormData) {
+  try {
+    // ... operation
+    logger.success("Action completed");
+    return { success: true };
+  } catch (error) {
+    logger.error("Action failed", error as Error);
+    
+    await reportErrorToDashboard({
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+      appName: "web",
+      environment: process.env.NODE_ENV || "development",
+      additionalContext: { action: "myAction" },
+      tags: ["server-action"],
+    });
+    
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    };
+  }
+}
+```
+
+## Client-Side Error Handling
+```typescript
+"use client";
+
+import { useState } from "react";
+
+export function MyComponent() {
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    try {
+      setError(null);
+      const result = await myAction(formData);
+      
+      if (!result.success) {
+        setError(result.error || "Unknown error");
+        return;
+      }
+      
+      // Success handling
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unknown error");
+      console.error("Unexpected error:", error);
+    }
+  };
+
+  return (
+    <>
+      {error && <Alert severity="error">{error}</Alert>}
+      {/* ... component UI */}
+    </>
+  );
+}
+```
+
+## Best Practices
+- Never expose internal error details to users
+- Always log errors with context
+- Use specific error messages for debugging
+- Handle network errors gracefully
+- Provide user-friendly error messages

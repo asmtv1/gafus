@@ -1,0 +1,68 @@
+---
+alwaysApply: true
+---
+
+# Database & Prisma Best Practices
+
+## Prisma Usage
+- Use `@gafus/prisma` package for all database access
+- Import: `import { prisma } from "@gafus/prisma"`
+- Never create multiple Prisma Client instances
+- Use transactions for multiple related operations
+
+## Schema Design
+- Use descriptive model and field names
+- Add indexes for frequently queried fields
+- Use `@default()` for default values
+- Use `@updatedAt` for automatic timestamp updates
+- Document complex relationships with comments
+
+## Queries
+- Use `select` to fetch only needed fields
+- Use `include` for relations (avoid N+1 queries)
+- Use `where` with indexed fields for performance
+- Use `take` and `skip` for pagination
+- Use `orderBy` for sorting
+
+## Migrations
+- Create migrations with descriptive names
+- Never edit existing migrations
+- Test migrations on staging before production
+- Include both `up` and `down` logic when possible
+
+## Type Safety
+- Use generated Prisma types
+- Extend types when needed: `Prisma.UserGetPayload<{ include: { posts: true } }>`
+- Use `Prisma.validator()` for reusable query options
+
+## Example: Efficient Query
+```typescript
+// ✅ Good - Select only needed fields
+const user = await prisma.user.findUnique({
+  where: { id: userId },
+  select: {
+    id: true,
+    name: true,
+    email: true,
+    posts: {
+      select: { id: true, title: true }
+    }
+  }
+});
+
+// ❌ Bad - Fetches all fields
+const user = await prisma.user.findUnique({
+  where: { id: userId },
+  include: { posts: true }
+});
+```
+
+## Discriminated Union in Schema
+```prisma
+model StepNotification {
+  id       String @id @default(uuid())
+  type     String @default("step") // "step" | "immediate"
+  // ... other fields
+  @@index([type]) // Index for type-based queries
+}
+```

@@ -6,6 +6,7 @@ import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
+import { sendImmediatePushNotification } from "@gafus/webpush";
 
 import type { ActionResult } from "@gafus/types";
 
@@ -42,17 +43,23 @@ export async function reviewExamResult(
       return { error: "Некорректное действие" };
     }
 
-    // Получаем userStep с информацией о курсе
+    // Получаем userStep с информацией о курсе и шаге
     const userStep = await prisma.userStep.findUnique({
       where: { id: userStepId },
       include: {
         userTraining: {
           include: {
+            user: true, // Для получения userId
             dayOnCourse: {
               include: {
-                course: true
+                course: true // Для типа курса и order дня
               }
             }
+          }
+        },
+        stepOnDay: {
+          include: {
+            step: true // Для названия шага
           }
         },
         examResult: true
@@ -94,6 +101,40 @@ export async function reviewExamResult(
 
     // Логируем действие
     logger.info(`Тренер ${session.user.username} ${action === "approve" ? "утвердил" : "отклонил"} экзамен для userStep ${userStepId}`);
+
+    // Отправляем пуш-уведомление пользователю при зачёте экзамена
+    if (action === "approve") {
+      try {
+        const stepTitle = userStep.stepOnDay.step.title;
+        const courseType = userStep.userTraining.dayOnCourse.course.type;
+        const dayOrder = userStep.userTraining.dayOnCourse.order; // Используем order вместо dayNumber
+        const userId = userStep.userTraining.userId;
+
+        const pushResult = await sendImmediatePushNotification({
+          userId,
+          title: `"${stepTitle}" зачтён! ✅`,
+          body: `Тренер проверил ваш экзамен. Можете переходить к следующему шагу.`,
+          url: `/trainings/${courseType}/${dayOrder}`,
+          icon: "/icons/icon192.png",
+          badge: "/icons/badge-72.png"
+        });
+
+        if (pushResult.success) {
+          logger.success(`Пуш-уведомление отправлено пользователю ${userId}`, {
+            notificationId: pushResult.notificationId
+          });
+        } else {
+          logger.warn(`Не удалось отправить пуш-уведомление: ${pushResult.error}`, {
+            userId
+          });
+        }
+      } catch (pushError) {
+        // Ошибка отправки пуша не должна блокировать основную логику
+        logger.error("Ошибка при отправке пуш-уведомления (не критично)", pushError as Error, {
+          userStepId
+        });
+      }
+    }
 
     revalidatePath("/main-panel/exam-results");
     

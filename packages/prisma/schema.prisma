@@ -428,11 +428,13 @@ model StepNotification {
   paused        Boolean  @default(false)
   remainingSec  Int?
   stepTitle     String?  // Название шага
+  type          String   @default("step") // "step" | "immediate" - тип уведомления
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   @@index([userId])
   @@index([day, stepIndex])
+  @@index([type]) // Индекс для быстрого поиска по типу
 }
 
 model ExamResult {
@@ -447,6 +449,8 @@ model ExamResult {
   
   // Видео отчёт
   videoReportUrl       String?         // Ссылка на загруженное видео
+  videoDeletedAt       DateTime?       // Когда видео было удалено
+  videoDeleteReason    String?         // Причина удаления: replaced | auto_cleanup_completed | auto_cleanup_pending
   
   // Письменная обратная связь
   writtenFeedback      String?         // Текст обратной связи от пользователя
@@ -463,6 +467,7 @@ model ExamResult {
   
   @@index([userStepId])
   @@index([stepId])
+  @@index([videoDeletedAt])
 }
 
 model ErrorReport {

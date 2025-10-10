@@ -353,6 +353,8 @@ CREATE TABLE "ExamResult" (
     "testScore" INTEGER,
     "testMaxScore" INTEGER,
     "videoReportUrl" TEXT,
+    "videoDeletedAt" TIMESTAMP(3),
+    "videoDeleteReason" TEXT,
     "writtenFeedback" TEXT,
     "overallScore" INTEGER,
     "isPassed" BOOLEAN,
@@ -477,6 +479,9 @@ CREATE INDEX "ExamResult_userStepId_idx" ON "ExamResult"("userStepId");
 
 -- CreateIndex
 CREATE INDEX "ExamResult_stepId_idx" ON "ExamResult"("stepId");
+
+-- CreateIndex
+CREATE INDEX "ExamResult_videoDeletedAt_idx" ON "ExamResult"("videoDeletedAt");
 
 -- CreateIndex
 CREATE INDEX "ErrorReport_appName_idx" ON "ErrorReport"("appName");

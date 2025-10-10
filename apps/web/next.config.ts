@@ -30,6 +30,15 @@ const nextConfig = {
   // Исправляем проблемы с standalone сборкой
   trailingSlash: false,
   skipTrailingSlashRedirect: true,
+  // Настройки для больших файлов (видео)
+  serverRuntimeConfig: {
+    // Максимальный размер body для API routes
+    maxFileSize: 100 * 1024 * 1024, // 100MB
+  },
+  // Настройки для клиентской части
+  publicRuntimeConfig: {
+    maxFileSize: 100 * 1024 * 1024, // 100MB
+  },
   // Переменные окружения для клиентской части
   env: {
     NEXT_PUBLIC_TRAINER_PANEL_URL: process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || 'https://trainer-panel.gafus.ru',
@@ -58,6 +67,9 @@ const nextConfig = {
       "@emotion/styled",
     ],
     workerThreads: false, // Отключаем worker threads
+    serverActions: {
+      bodySizeLimit: '100mb', // Лимит для Server Actions (для загрузки видео)
+    },
   },
 
   // Webpack конфигурация для workspace зависимостей

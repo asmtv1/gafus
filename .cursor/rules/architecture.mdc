@@ -1,0 +1,46 @@
+---
+alwaysApply: true
+---
+
+# Project Architecture Rules
+
+## Monorepo Structure
+- This is a **pnpm workspace** monorepo with Turborepo
+- Apps: `apps/` (web, trainer-panel, error-dashboard, telegram-bot, bull-board)
+- Packages: `packages/` (shared libraries)
+- Always use workspace protocol: `"@gafus/package": "workspace:*"`
+
+## Package Organization
+```
+packages/
+├── auth/           # Authentication & authorization
+├── prisma/         # Database & ORM
+├── logger/         # Logging system
+├── error-handling/ # Error reporting
+├── queues/         # BullMQ queues
+├── webpush/        # Push notifications
+├── worker/         # Background jobs
+└── types/          # Shared TypeScript types
+```
+
+## App Structure (Next.js 15 App Router)
+```
+src/
+├── app/            # Next.js App Router pages
+├── features/       # Feature modules (FSD-like)
+│   └── [feature]/
+│       ├── components/  # Feature-specific components
+│       ├── lib/         # Feature-specific logic
+│       └── types/       # Feature-specific types
+├── shared/         # Shared across features
+│   ├── components/ # Reusable UI components
+│   ├── lib/        # Utilities & helpers
+│   └── hooks/      # Custom React hooks
+└── middleware.ts   # Next.js middleware
+```
+
+## Best Practices
+- Keep features isolated and self-contained
+- Shared code goes in `shared/` or workspace packages
+- Server actions in `lib/` directory with "use server" directive
+- Client components explicitly marked with "use client"

@@ -1,0 +1,96 @@
+---
+alwaysApply: true
+---
+
+# GAFUS Project Rules
+
+## Project Overview
+This is a **fitness training management system** built with:
+- **Next.js 15** (App Router)
+- **TypeScript 5.8+**
+- **Prisma** (PostgreSQL)
+- **Material-UI**
+- **BullMQ** (Background jobs)
+- **Turborepo** (Monorepo)
+
+## Language
+- **All code comments, documentation, and user-facing text in Russian**
+- Variable/function names in English
+- Git commits in Russian
+
+## Core Principles
+1. **Type Safety First** - Use Discriminated Unions, avoid `any`
+2. **Server-First** - Prefer Server Components and Server Actions
+3. **Performance** - Cache aggressively, optimize queries
+4. **Security** - Validate input, check auth, protect routes
+5. **Error Handling** - Log everything, report critical errors
+6. **Documentation** - Keep docs updated with every change
+
+## Quick Reference
+- TypeScript: Use Discriminated Unions for variants
+- Next.js: Server Components by default, mark Client with "use client"
+- Prisma: Select only needed fields, use indexes
+- React: Functional components, hooks at top level
+- Errors: Try-catch all async, log with @gafus/logger
+- Security: Check session, validate input with Zod
+
+## File Organization
+```
+src/
+├── app/              # Next.js routes
+├── features/         # Feature modules
+│   └── [feature]/
+│       ├── components/
+│       ├── lib/      # Server actions here
+│       └── types/
+└── shared/           # Shared code
+    ├── components/
+    ├── lib/
+    └── hooks/
+```
+
+## Common Patterns
+
+### Server Action
+```typescript
+"use server";
+import { z } from "zod";
+import { getServerSession } from "next-auth";
+
+export async function myAction(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return { error: "Не авторизован" };
+  
+  try {
+    const data = schema.parse(Object.fromEntries(formData));
+    // ... logic
+    revalidatePath("/path");
+    return { success: true };
+  } catch (error) {
+    logger.error("Error", error as Error);
+    return { error: "Ошибка" };
+  }
+}
+```
+
+### Discriminated Union
+```typescript
+type Data = 
+  | { type: 'step'; stepTitle: string; stepIndex: number }
+  | { type: 'immediate'; title: string; body: string };
+
+function process(data: Data) {
+  if (data.type === 'immediate') {
+    // TypeScript knows: data.title, data.body available
+  }
+}
+```
+
+## See Also
+- `typescript.mdc` - TypeScript best practices
+- `nextjs.mdc` - Next.js patterns
+- `database.mdc` - Prisma usage
+- `react.mdc` - React patterns
+- `error-handling.mdc` - Error handling
+- `security.mdc` - Security practices
+- `performance.mdc` - Performance optimization

@@ -1,0 +1,56 @@
+---
+alwaysApply: true
+---
+
+# Next.js 15 Best Practices
+
+## App Router
+- Use App Router (not Pages Router)
+- Server Components by default
+- Mark Client Components with `"use client"`
+- Mark Server Actions with `"use server"`
+
+## Server Actions
+- Place in `lib/` directory with descriptive names
+- Always validate input with Zod
+- Use `revalidatePath()` or `revalidateTag()` for cache invalidation
+- Return `ActionResult` type: `{ success?: boolean; error?: string; data?: T }`
+- Handle errors gracefully with try-catch
+
+## Server Components
+- Fetch data directly in components (no useEffect)
+- Use `async/await` for data fetching
+- Cache with `unstable_cache()` from 'next/cache'
+- Use `getServerSession()` for authentication
+
+## Client Components
+- Minimize client components (only when needed)
+- Use for: interactivity, hooks, browser APIs, event handlers
+- Prefer server components when possible
+- Use `useTransition()` for server action calls
+
+## Configuration
+- `serverActions.bodySizeLimit: '100mb'` for large file uploads
+- `output: 'standalone'` for Docker deployment
+- Optimize with `experimental.optimizePackageImports`
+
+## Example: Server Action
+```typescript
+"use server";
+
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+
+const schema = z.object({ name: z.string().min(1) });
+
+export async function createItem(formData: FormData) {
+  try {
+    const data = schema.parse({ name: formData.get("name") });
+    // ... create item
+    revalidatePath("/items");
+    return { success: true };
+  } catch (error) {
+    return { error: "Failed to create item" };
+  }
+}
+```

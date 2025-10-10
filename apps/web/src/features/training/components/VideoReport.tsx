@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button, Card, CardContent, Typography, Alert, Box, CircularProgress } from "@mui/material";
-import { VideoCameraFront, Stop, CloudUpload } from "@mui/icons-material";
+import { VideoCameraFront, Stop, CloudUpload, CloudDone } from "@mui/icons-material";
 import { submitExamResult } from "@/shared/lib/actions/submitExamResult";
 import { getExamResult } from "@/shared/lib/actions/getExamResult";
 import { uploadExamVideo } from "@/shared/lib/actions/uploadExamVideo";
@@ -20,11 +20,13 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const [videoSize, setVideoSize] = useState<number>(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const recordedVideoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
@@ -36,7 +38,8 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
       try {
         const examResult = await getExamResult(userStepId);
         if (examResult?.videoReportUrl) {
-          setRecordedVideo(examResult.videoReportUrl);
+          // Для существующих видео с CDN URL просто отмечаем как отправленные
+          // Не устанавливаем recordedVideo, чтобы не показывать CDN URL в preview
           setIsSubmitted(true);
         }
       } catch (error) {
@@ -61,11 +64,11 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
         videoRef.current.srcObject = stream;
       }
 
-      // Настройки для оптимального сжатия видео
+      // Настройки для оптимального сжатия видео (уменьшенный битрейт для меньшего размера)
       const options: MediaRecorderOptions = {
         mimeType: 'video/webm;codecs=vp9', // VP9 - лучшее сжатие
-        videoBitsPerSecond: 500000, // 500 kbps - хорошее качество при небольшом размере
-        audioBitsPerSecond: 64000   // 64 kbps для аудио
+        videoBitsPerSecond: 300000, // 300 kbps - уменьшен для меньшего размера файла
+        audioBitsPerSecond: 48000   // 48 kbps для аудио (уменьшен)
       };
       
       // Проверяем поддержку VP9, если нет - используем VP8
@@ -73,8 +76,8 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
       if (!MediaRecorder.isTypeSupported(options.mimeType || '')) {
         finalOptions = {
           mimeType: 'video/webm;codecs=vp8',
-          videoBitsPerSecond: 500000,
-          audioBitsPerSecond: 64000
+          videoBitsPerSecond: 300000, // 300 kbps для VP8
+          audioBitsPerSecond: 48000   // 48 kbps для аудио
         };
       }
       
@@ -84,22 +87,47 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
       recordedChunksRef.current = [];
       
       mediaRecorder.ondataavailable = (event) => {
-        recordedChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
       };
       
       mediaRecorder.onstop = () => {
+        if (recordedChunksRef.current.length === 0) {
+          console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Нет записанных chunks!');
+          alert('Ошибка: не удалось записать видео. Попробуйте еще раз.');
+          return;
+        }
+        
         const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        
+        if (blob.size === 0) {
+          console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Blob пустой!');
+          alert('Ошибка: записанное видео пустое. Попробуйте еще раз.');
+          return;
+        }
+        
         const videoUrl = URL.createObjectURL(blob);
-        setRecordedVideo(videoUrl);
-        setVideoSize(blob.size);
-        setRecordingTime(0);
+        
+        // ПРЯМАЯ установка через DOM для корректного отображения видео
+        if (recordedVideoRef.current) {
+          recordedVideoRef.current.src = videoUrl;
+          recordedVideoRef.current.load();
+          
+          setRecordedVideo(videoUrl);
+          setVideoSize(blob.size);
+          setRecordingTime(0);
+        } else {
+          console.error('❌ recordedVideoRef.current is null!');
+        }
+        
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
       };
       
-      mediaRecorder.start();
+      mediaRecorder.start(1000); // Записываем chunks каждую секунду (как в HTML тесте)
       setIsRecording(true);
       setRecordingTime(0);
       
@@ -154,25 +182,39 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
     
     setIsSubmitting(true);
     setSubmitError(null);
+    setUploadProgress(null);
     
     try {
       // Создаем Blob из записанного видео
       const response = await fetch(recordedVideo);
       const blob = await response.blob();
       
+      // Проверяем размер файла (максимум 50MB)
+      const maxFileSize = 50 * 1024 * 1024; // 50MB
+      if (blob.size > maxFileSize) {
+        throw new Error(`Размер видео (${(blob.size / 1024 / 1024).toFixed(1)}MB) превышает максимально допустимый (50MB). Попробуйте записать видео короче.`);
+      }
+      
       // Создаем File объект из Blob для загрузки на CDN
       const fileName = `exam-video-${Date.now()}.webm`;
       const videoFile = new File([blob], fileName, { type: blob.type });
       
-      // Загружаем видео на CDN через FormData
+      // Показываем статус загрузки на CDN
+      setUploadProgress("Загружаем видео на сервер... Это может занять несколько секунд.");
+      
+      // Загружаем видео на CDN через FormData (одиночная загрузка)
       const formData = new FormData();
       formData.append("video", videoFile);
+      formData.append("userStepId", userStepId); // Для удаления старого видео
       
       const uploadResult = await uploadExamVideo(formData);
       
       if (!uploadResult.success || !uploadResult.videoUrl) {
         throw new Error(uploadResult.error || "Не удалось загрузить видео на сервер");
       }
+      
+      // Показываем статус сохранения результата
+      setUploadProgress("Сохраняем результат экзамена...");
       
       // Сохраняем результат экзамена с реальным CDN URL
       await submitExamResult({
@@ -183,16 +225,25 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
         isPassed: true
       });
       
+      // Очищаем прогресс и устанавливаем успешное состояние
+      setUploadProgress(null);
+      setSubmitError(null);
       onComplete(blob);
       setIsSubmitted(true);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Ошибка при сохранении видео отчёта");
+      setUploadProgress(null);
+      // Проверяем, не был ли запрос прерван
+      if (error instanceof Error && error.name === 'AbortError') {
+        setSubmitError("Загрузка прервана. Попробуйте еще раз.");
+      } else {
+        setSubmitError(error instanceof Error ? error.message : "Ошибка при сохранении видео отчёта");
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (recordedVideo) {
       URL.revokeObjectURL(recordedVideo);
     }
@@ -207,6 +258,23 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    
+    // Если видео было отправлено, нужно удалить его из базы данных
+    if (isSubmitted) {
+      try {
+        await submitExamResult({
+          userStepId,
+          stepId,
+          videoReportUrl: undefined,
+          overallScore: undefined,
+          isPassed: false
+        });
+      } catch (error) {
+        console.error("Ошибка при сбросе видео:", error);
+        setSubmitError("Ошибка при сбросе видео. Попробуйте еще раз.");
+      }
+    }
+    
     onReset();
   };
 
@@ -223,6 +291,8 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   };
+
+  // Примечание: установка src теперь происходит напрямую в mediaRecorder.onstop
 
   // Показываем индикатор загрузки
   if (isLoading) {
@@ -253,9 +323,64 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
         </Alert>
       )}
 
+      {/* Скрытый video элемент для записанного видео - ВСЕГДА в DOM */}
+      <video
+        ref={recordedVideoRef}
+        controls
+        playsInline
+        preload="auto"
+        onError={(e) => console.error('❌ Ошибка видео:', e)}
+        style={{ 
+          display: !isSubmitted && recordedVideo ? "block" : "none",
+          width: "100%", 
+          maxWidth: "400px", 
+          minHeight: "300px",
+          height: "auto",
+          borderRadius: "8px",
+          backgroundColor: "#000",
+          margin: "0 auto"
+        }}
+      />
+
       <Card>
         <CardContent>
-          {!recordedVideo ? (
+          {isSubmitted ? (
+            // Состояние: видео уже отправлено
+            <Box sx={{ textAlign: "center", py: 4 }}>
+              <Box sx={{ 
+                width: "100%", 
+                maxWidth: "400px", 
+                height: "225px",
+                backgroundColor: "#f5f5f5",
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto"
+              }}>
+                <Box sx={{ textAlign: "center" }}>
+                  <CloudDone sx={{ fontSize: 48, color: "success.main", mb: 1 }} />
+                  <Typography variant="h6" color="success.main">
+                    Видео отправлено
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Ожидайте проверки тренером
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Box sx={{ mt: 2 }}>
+                <Button
+                  variant="outlined"
+                  onClick={handleReset}
+                  startIcon={<VideoCameraFront />}
+                >
+                  Записать заново
+                </Button>
+              </Box>
+            </Box>
+          ) : !recordedVideo ? (
+            // Состояние: запись не начата
             <Box sx={{ textAlign: "center", py: 4 }}>
               <video
                 ref={videoRef}
@@ -311,22 +436,46 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
               </Box>
             </Box>
           ) : (
+            // Состояние: видео записано, но не отправлено
             <Box sx={{ textAlign: "center" }}>
-              <video
-                src={recordedVideo}
-                controls
-                style={{ 
-                  width: "100%", 
-                  maxWidth: "400px", 
-                  height: "auto",
-                  borderRadius: "8px"
-                }}
-              />
+              {/* Видео элемент вынесен наверх, перед Card */}
+              
+              {/* Альтернативный способ отображения для отладки */}
+              <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Debug info:
+                </Typography>
+                <Typography variant="caption" display="block">
+                  URL: {recordedVideo?.substring(0, 80)}...
+                </Typography>
+                <Typography variant="caption" display="block">
+                  Размер: {videoSize} байт
+                </Typography>
+                
+                {/* Ссылка для скачивания blob */}
+                {recordedVideo && (
+                  <Box sx={{ mt: 1 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      component="a"
+                      href={recordedVideo}
+                      download="recorded-video.webm"
+                    >
+                      Скачать видео
+                    </Button>
+                  </Box>
+                )}
+              </Box>
               
               {videoSize > 0 && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                <Typography 
+                  variant="caption" 
+                  color={videoSize > 50 * 1024 * 1024 ? "error" : "text.secondary"} 
+                  sx={{ display: "block", mt: 1 }}
+                >
                   Размер видео: {formatSize(videoSize)}
-                  {videoSize > 50 * 1024 * 1024 && " ⚠️ Большой файл, загрузка может занять время"}
+                  {videoSize > 50 * 1024 * 1024 && " ⚠️ Превышен лимит 50MB - загрузка будет заблокирована"}
                 </Typography>
               )}
               
@@ -335,7 +484,7 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
                   variant="contained"
                   startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <CloudUpload />}
                   onClick={handleSubmit}
-                  disabled={isSubmitted || isSubmitting}
+                  disabled={isSubmitting || videoSize > 50 * 1024 * 1024}
                   sx={{ mr: 1 }}
                 >
                   {isSubmitting ? "Загрузка на сервер..." : "Отправить видео"}
@@ -353,6 +502,12 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
         </CardContent>
       </Card>
 
+      {uploadProgress && (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          {uploadProgress}
+        </Alert>
+      )}
+      
       {submitError && (
         <Alert severity="error" sx={{ mt: 2 }}>
           {submitError}
@@ -361,7 +516,7 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
       
       {isSubmitted && (
         <Alert severity="success" sx={{ mt: 2 }}>
-          Видео отчёт успешно отправлен!
+          Видео отчёт успешно отправлен и сохранён. Ожидайте проверки тренером.
         </Alert>
       )}
     </div>

@@ -31,6 +31,34 @@ const config = {
   },
 } as const;
 
+// Типы уведомлений (Discriminated Union)
+type NotificationType = 'step' | 'immediate';
+
+// Интерфейсы для типобезопасности
+interface StepNotificationData {
+  type: 'step';
+  stepTitle: string;
+  stepIndex: number;
+  url?: string;
+}
+
+interface ImmediateNotificationData {
+  type: 'immediate';
+  title: string;
+  body: string;
+  url?: string;
+}
+
+type NotificationData = StepNotificationData | ImmediateNotificationData;
+
+// Константы для форматирования
+const NOTIFICATION_FORMAT = {
+  SEPARATOR: '|' as const,
+  DEFAULT_ICON: '/icons/icon192.png' as const,
+  DEFAULT_BADGE: '/icons/badge-72.png' as const,
+  DEFAULT_URL: '/' as const,
+} as const;
+
 // Инициализация PushNotificationService
 const pushService = PushNotificationService.fromEnvironment();
 
@@ -70,7 +98,9 @@ class NotificationProcessor {
       return;
     }
 
-    const payload = this.createNotificationPayload(notification);
+    // Создаем типобезопасные данные на основе поля type из БД
+    const notificationData = this.createNotificationData(notification);
+    const payload = this.createNotificationPayload(notificationData);
     const results = await this.sendNotifications(subscriptions, payload);
 
     await this.updateNotificationStatus(notificationId, results.successCount > 0);
@@ -122,23 +152,90 @@ class NotificationProcessor {
     }
   }
 
-  private createNotificationPayload(notification: {
+  /**
+   * Создает типобезопасные данные уведомления на основе записи из БД
+   */
+  private createNotificationData(notification: {
+    type: string;
     stepTitle?: string | null;
     stepIndex: number;
     url?: string | null;
-  }): string {
+  }): NotificationData {
+    if (notification.type === 'immediate') {
+      // Для немедленных уведомлений stepTitle содержит "title|body"
+      const stepTitle = notification.stepTitle || 'Уведомление|Проверьте детали';
+      const separator = NOTIFICATION_FORMAT.SEPARATOR;
+      
+      let title: string;
+      let body: string;
+      
+      if (stepTitle.includes(separator)) {
+        const parts = stepTitle.split(separator, 2);
+        title = parts[0] || 'Уведомление';
+        body = parts[1] || 'Проверьте детали';
+      } else {
+        title = stepTitle;
+        body = 'Проверьте детали';
+      }
+      
+      return {
+        type: 'immediate',
+        title: title.trim(),
+        body: body.trim(),
+        url: notification.url || undefined,
+      };
+    } else {
+      // Обычное уведомление о шаге
+      return {
+        type: 'step',
+        stepTitle: notification.stepTitle || `Шаг ${notification.stepIndex + 1}`,
+        stepIndex: notification.stepIndex,
+        url: notification.url || undefined,
+      };
+    }
+  }
+
+  private createNotificationPayload(notification: NotificationData): string {
+    // TypeScript автоматически сузит типы благодаря Discriminated Union
+    if (notification.type === 'immediate') {
+      return this.createImmediateNotificationPayload(notification);
+    } else {
+      return this.createStepNotificationPayload(notification);
+    }
+  }
+
+  /**
+   * Создаёт payload для немедленных уведомлений (например, зачёт экзамена)
+   */
+  private createImmediateNotificationPayload(notification: ImmediateNotificationData): string {
+    return JSON.stringify({
+      title: notification.title.trim(),
+      body: notification.body.trim(),
+      icon: NOTIFICATION_FORMAT.DEFAULT_ICON,
+      badge: NOTIFICATION_FORMAT.DEFAULT_BADGE,
+      data: {
+        url: notification.url ?? NOTIFICATION_FORMAT.DEFAULT_URL,
+      },
+    });
+  }
+
+  /**
+   * Создаёт payload для обычных уведомлений о шагах
+   */
+  private createStepNotificationPayload(notification: StepNotificationData): string {
     const stepTitle = notification.stepTitle || `Шаг ${notification.stepIndex + 1}`;
 
     return JSON.stringify({
       title: "ВЫ ВЕЛИКОЛЕПНЫ!",
       body: `Вы успешно прошли "${stepTitle}".`,
-      icon: "/icons/icon192.png",
-      badge: "/icons/badge-72.png",
+      icon: NOTIFICATION_FORMAT.DEFAULT_ICON,
+      badge: NOTIFICATION_FORMAT.DEFAULT_BADGE,
       data: {
-        url: notification.url ?? "/",
+        url: notification.url ?? NOTIFICATION_FORMAT.DEFAULT_URL,
       },
     });
   }
+
 
   private async sendNotifications(
     subscriptions: PushSubscription[],

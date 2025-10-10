@@ -5,5 +5,6 @@ import webpush from "web-push";
 export * from "./db";
 export * from "./service";
 export * from "./types";
+export * from "./immediate-push";
 
 export default webpush;

@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   experimental: {
     workerThreads: false,
     cpus: 1,
+    serverActions: {
+      bodySizeLimit: '100mb', // Лимит для Server Actions (для загрузки множества изображений)
+    },
   },
   eslint: {
     // ESLint проверки включены для качества кода

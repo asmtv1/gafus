@@ -1,0 +1,94 @@
+---
+alwaysApply: true
+---
+
+# Code Style & Conventions
+
+## General Rules
+- Use 2 spaces for indentation
+- Use semicolons
+- Use double quotes for strings
+- Max line length: 100 characters
+- Use trailing commas in multiline objects/arrays
+
+## Imports
+- Group imports: external → internal → relative
+- Sort imports alphabetically within groups
+- Use absolute imports with `@` alias when available
+
+```typescript
+// ✅ Good import order
+import { useState } from "react";
+import { Box, Button } from "@mui/material";
+
+import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
+
+import { MyComponent } from "@/components/MyComponent";
+import { myUtil } from "./utils";
+```
+
+## Naming
+- **Files**: kebab-case (`my-component.tsx`, `user-service.ts`)
+- **Components**: PascalCase (`UserProfile.tsx`)
+- **Functions**: camelCase (`getUserData`, `handleClick`)
+- **Constants**: UPPER_SNAKE_CASE (`MAX_FILE_SIZE`, `API_URL`)
+- **Types/Interfaces**: PascalCase (`UserData`, `ApiResponse`)
+
+## Comments
+- Use JSDoc for public APIs
+- Explain "why", not "what"
+- Keep comments up to date
+- Use TODO comments for future work
+
+```typescript
+/**
+ * Создает типобезопасные данные уведомления на основе записи из БД
+ * @param notification - Запись из таблицы StepNotification
+ * @returns Типобезопасный объект NotificationData
+ */
+function createNotificationData(notification: DbNotification): NotificationData {
+  // Парсим title и body из stepTitle для немедленных уведомлений
+  if (notification.type === 'immediate') {
+    // ...
+  }
+}
+```
+
+## Functions
+- Keep functions small (< 50 lines)
+- One responsibility per function
+- Use early returns for guards
+- Prefer pure functions when possible
+
+```typescript
+// ✅ Good - Early return
+function processUser(user: User | null) {
+  if (!user) return null;
+  if (!user.isActive) return null;
+  
+  return transformUser(user);
+}
+
+// ❌ Bad - Nested conditions
+function processUser(user: User | null) {
+  if (user) {
+    if (user.isActive) {
+      return transformUser(user);
+    }
+  }
+  return null;
+}
+```
+
+## Async/Await
+- Always use async/await (not .then())
+- Handle errors with try-catch
+- Use Promise.all() for parallel operations
+
+## Best Practices
+- Avoid magic numbers - use named constants
+- Avoid abbreviations in names
+- Use descriptive variable names
+- Keep code DRY (Don't Repeat Yourself)
+- Follow SOLID principles

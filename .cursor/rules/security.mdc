@@ -1,0 +1,73 @@
+---
+alwaysApply: true
+---
+
+# Security Best Practices
+
+## Authentication
+- Use NextAuth.js for authentication
+- Import: `import { getServerSession } from "next-auth"`
+- Check session in Server Actions and API routes
+- Use role-based access control (RBAC)
+
+## Authorization
+```typescript
+"use server";
+
+import { getServerSession } from "next-auth";
+import { authOptions } from "@gafus/auth";
+
+export async function protectedAction() {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user) {
+    return { error: "Не авторизован" };
+  }
+  
+  // Check role
+  if (!["ADMIN", "TRAINER"].includes(session.user.role)) {
+    return { error: "Недостаточно прав доступа" };
+  }
+  
+  // ... action logic
+}
+```
+
+## CSRF Protection
+- Use `@gafus/csrf` package
+- Validate CSRF tokens in mutations
+- Token automatically included in forms
+
+## Input Validation
+- Always validate with Zod schemas
+- Sanitize user input
+- Validate file uploads (type, size)
+- Use parameterized queries (Prisma handles this)
+
+## File Uploads
+```typescript
+// Validate file type and size
+const maxSize = 100 * 1024 * 1024; // 100MB
+
+if (!file.type.startsWith('video/')) {
+  return { error: "Файл должен быть видео" };
+}
+
+if (file.size > maxSize) {
+  return { error: "Размер файла превышает лимит" };
+}
+```
+
+## Environment Variables
+- Never expose secrets to client
+- Use `process.env` only in server code
+- Validate env vars at startup
+- Use `.env.local` for local development
+
+## Best Practices
+- Never trust client input
+- Use HTTPS in production
+- Implement rate limiting
+- Log security events
+- Keep dependencies updated
+- Use Content Security Policy (CSP)

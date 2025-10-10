@@ -64,19 +64,12 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
   const [formState, setFormState] = useState<ActionResult>({});
   const [isPending, setIsPending] = useState(false);
 
-  const [imageFiles, setImageFiles] = useState<File[]>([]); // Новое состояние для файлов
+  const [imageFiles, setImageFiles] = useState<File[]>([]); // Состояние для файлов
   const [deletedImages, setDeletedImages] = useState<string[]>([]); // Состояние для удаленных изображений
-  const [isUploadingRemaining, setIsUploadingRemaining] = useState(false); // Состояние для отслеживания загрузки оставшихся файлов
   const [pdfUrls, setPdfUrls] = useState<string[]>(initialData?.pdfUrls ?? []);
-  
-  const maxFilesPerRequest = 5; // Максимальное количество файлов за один запрос
   const [checklist, setChecklist] = useState<ChecklistQuestion[]>(initialData?.checklist ?? []);
-  const [_imagePreviews, _setImagePreviews] = useState<string[]>([]);
-  const [_pdfNames, _setPdfNames] = useState<string[]>([]);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showErrorMessage, setShowErrorMessage] = useState(false);
-  const [_successCount, _setSuccessCount] = useState(0);
-  const [_localSuccess, setLocalSuccess] = useState(false);
   const [formKey, setFormKey] = useState(0);
 
   const form = useForm<StepFormData>({
@@ -170,16 +163,14 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
       if (data.type === "TRAINING") {
         formData.append("duration", data.duration || "");
         if (data.videoUrl) formData.append("videoUrl", data.videoUrl);
-        // Добавляем файлы изображений (максимум 5 файлов за раз для избежания 413 ошибки)
-        const filesToUpload = imageFiles.slice(0, maxFilesPerRequest);
         
-        filesToUpload.forEach((file, index) => {
+        // Добавляем ВСЕ файлы изображений за один запрос (благодаря bodySizeLimit: 100mb)
+        imageFiles.forEach((file, index) => {
           const extension = file.name.split('.').pop() || 'jpg';
           const fileName = `image_${Date.now()}_${index}.${extension}`;
           formData.append("images", file, fileName);
         });
         
-        // Файлы будут обработаны после успешного сохранения
         // Добавляем удаленные изображения
         deletedImages.forEach((imageUrl) => {
           formData.append("deletedImages", imageUrl);
@@ -198,73 +189,8 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
       const result = await serverAction({}, formData);
       setFormState(result);
 
-      // Если сохранение прошло успешно и есть оставшиеся файлы, загружаем их
-      if (result.success && imageFiles.length > maxFilesPerRequest) {
-        const remainingFiles = imageFiles.slice(maxFilesPerRequest);
-        setImageFiles(remainingFiles);
-        setIsUploadingRemaining(true);
-        
-        // Показываем уведомление о продолжении загрузки
-        setFormState({ 
-          success: true,
-          error: `Загружено ${maxFilesPerRequest} изображений. Загружаем оставшиеся ${remainingFiles.length}...` 
-        });
-        
-        // Автоматически сохраняем оставшиеся файлы
-        setTimeout(async () => {
-          try {
-            const remainingFormData = new FormData();
-            if (initialData?.id) remainingFormData.append("id", initialData.id);
-            remainingFormData.append("title", data.title);
-            remainingFormData.append("description", data.description);
-            remainingFormData.append("type", data.type);
-            
-            if (data.type === "TRAINING") {
-              remainingFormData.append("duration", data.duration || "");
-              if (data.videoUrl) remainingFormData.append("videoUrl", data.videoUrl);
-              
-              // Добавляем оставшиеся файлы
-              remainingFiles.forEach((file, index) => {
-                const extension = file.name.split('.').pop() || 'jpg';
-                const fileName = `image_${Date.now()}_${index + maxFilesPerRequest}.${extension}`;
-                remainingFormData.append("images", file, fileName);
-              });
-              
-              // Добавляем удаленные изображения (если есть)
-              deletedImages.forEach((imageUrl) => {
-                remainingFormData.append("deletedImages", imageUrl);
-              });
-              pdfUrls.forEach((url) => remainingFormData.append("pdfUrls", url));
-            }
-            
-            if (data.type === "EXAMINATION") {
-              remainingFormData.append("checklist", JSON.stringify(checklist));
-              remainingFormData.append("requiresVideoReport", String(data.requiresVideoReport));
-              remainingFormData.append("requiresWrittenFeedback", String(data.requiresWrittenFeedback));
-              remainingFormData.append("hasTestQuestions", String(data.hasTestQuestions));
-            }
-
-            const remainingResult = await serverAction({}, remainingFormData);
-            setFormState(remainingResult);
-            
-            // Очищаем состояние файлов после успешной загрузки
-            if (remainingResult.success) {
-              setImageFiles([]);
-              setFormState({ 
-                success: true,
-                error: `Все ${imageFiles.length + maxFilesPerRequest} изображений успешно загружены!` 
-              });
-            }
-          } catch (error) {
-            setFormState({ 
-              error: `Ошибка загрузки оставшихся файлов: ${error instanceof Error ? error.message : "Неизвестная ошибка"}` 
-            });
-          } finally {
-            setIsUploadingRemaining(false);
-          }
-        }, 1000); // Небольшая задержка для лучшего UX
-      } else if (result.success) {
-        // Если все файлы загружены, очищаем состояние
+      // Если сохранение прошло успешно, очищаем состояние файлов
+      if (result.success) {
         setImageFiles([]);
       }
     } catch (error) {
@@ -286,8 +212,6 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
         }, 2000);
       } else {
         // Если создавали новый шаг - очищаем форму
-        setLocalSuccess(true);
-
         // Показываем уведомление об успехе
         setShowSuccessMessage(true);
 
@@ -300,8 +224,6 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
         form.reset();
         setImageFiles([]);
         setPdfUrls([]);
-        _setImagePreviews([]);
-        _setPdfNames([]);
 
         // Увеличиваем key чтобы пересоздать компонент с чистым formState
         setFormKey((prev) => prev + 1);
@@ -485,15 +407,13 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
           <Button
             type="submit"
             variant="contained"
-            disabled={isPending || isUploadingRemaining || !form.formState.isValid}
+            disabled={isPending || !form.formState.isValid}
             className={sharedStyles.formButton}
           >
             {isPending
               ? hasInitial
                 ? "Сохранение..."
                 : "Создание..."
-              : isUploadingRemaining
-              ? "Загрузка оставшихся файлов..."
               : hasInitial
                 ? "Сохранить изменения"
                 : "Создать шаг"}

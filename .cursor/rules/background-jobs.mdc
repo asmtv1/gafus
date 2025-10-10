@@ -1,0 +1,98 @@
+---
+alwaysApply: true
+---
+
+# Background Jobs & Queues Best Practices
+
+## BullMQ Usage
+- Use `@gafus/queues` for queue access
+- Define jobs with clear names and data types
+- Use retry strategies for transient failures
+- Set appropriate timeouts and concurrency
+
+## Queue Structure
+```typescript
+import { pushQueue } from "@gafus/queues";
+
+// Add job to queue
+await pushQueue.add(
+  "job-name",
+  { data: "payload" },
+  {
+    attempts: 3,
+    backoff: { type: "exponential", delay: 1000 },
+    removeOnComplete: true,
+    removeOnFail: 50,
+  }
+);
+```
+
+## Worker Implementation
+```typescript
+import { Worker, Job } from "bullmq";
+import { connection } from "@gafus/queues";
+import { createWorkerLogger } from "@gafus/logger";
+
+const logger = createWorkerLogger('worker-name');
+
+class MyWorker {
+  private worker: Worker;
+
+  constructor() {
+    this.worker = new Worker("queue-name", this.processJob.bind(this), {
+      connection,
+      concurrency: 5,
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 50 },
+    });
+
+    this.setupEventHandlers();
+  }
+
+  private async processJob(job: Job): Promise<void> {
+    try {
+      logger.info("Processing job", { jobId: job.id });
+      // ... job logic
+      logger.success("Job completed", { jobId: job.id });
+    } catch (error) {
+      logger.error("Job failed", error as Error, { jobId: job.id });
+      throw error; // BullMQ will retry
+    }
+  }
+
+  private setupEventHandlers(): void {
+    this.worker.on("completed", (job) => {
+      logger.success("Job completed", { jobId: job.id });
+    });
+
+    this.worker.on("failed", (job, err) => {
+      logger.error("Job failed", err as Error, { jobId: job?.id });
+    });
+  }
+}
+```
+
+## Cron Jobs
+```typescript
+import { Queue } from "bullmq";
+
+// Schedule recurring job
+await queue.add(
+  "cleanup-job",
+  {},
+  {
+    repeat: {
+      pattern: "0 3 * * *", // Daily at 3 AM MSK
+      tz: "Europe/Moscow"
+    }
+  }
+);
+```
+
+## Best Practices
+- Use idempotent job handlers (safe to retry)
+- Log all job lifecycle events
+- Set appropriate retry limits
+- Clean up completed/failed jobs
+- Monitor queue health
+- Use job priorities when needed

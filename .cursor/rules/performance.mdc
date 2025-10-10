@@ -1,0 +1,75 @@
+---
+alwaysApply: true
+---
+
+# Performance Best Practices
+
+## Caching
+- Use `unstable_cache()` for expensive operations
+- Use `revalidatePath()` for cache invalidation
+- Cache database queries when appropriate
+- Use Redis for session/temporary data
+
+## Caching Example
+```typescript
+import { unstable_cache } from "next/cache";
+
+export const getCachedData = unstable_cache(
+  async (id: string) => {
+    return await prisma.data.findUnique({ where: { id } });
+  },
+  ["data-cache"],
+  {
+    revalidate: 3600, // 1 hour
+    tags: ["data"],
+  }
+);
+
+// Invalidate cache
+import { revalidateTag } from "next/cache";
+revalidateTag("data");
+```
+
+## Database Optimization
+- Use indexes on frequently queried fields
+- Select only needed fields
+- Use pagination for large datasets
+- Avoid N+1 queries with `include`
+- Use database transactions for consistency
+
+## Image Optimization
+- Use Next.js `<Image>` component
+- Specify width and height
+- Use appropriate formats (WebP)
+- Lazy load images below the fold
+
+## Code Splitting
+- Use dynamic imports for large components
+- Split routes with Next.js App Router
+- Lazy load heavy dependencies
+
+## Bundle Optimization
+```typescript
+// next.config.ts
+experimental: {
+  optimizePackageImports: [
+    "@mui/material",
+    "@mui/icons-material",
+  ],
+}
+```
+
+## Video Optimization
+- Compress videos before upload
+- Use appropriate codecs (VP9/VP8)
+- Set bitrate limits (300kbps video, 48kbps audio)
+- Implement time limits (2 minutes max)
+- Validate file size client-side
+
+## Best Practices
+- Minimize client-side JavaScript
+- Use Server Components when possible
+- Implement proper loading states
+- Use Suspense boundaries
+- Monitor performance with Web Vitals
+- Optimize for mobile devices

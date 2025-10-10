@@ -1,10 +1,11 @@
 "use server";
 
-import { uploadFileToCDN } from "@gafus/cdn-upload";
+import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { randomUUID } from "crypto";
 import { createWebLogger } from "@gafus/logger";
+import { prisma } from "@gafus/prisma";
 
 const logger = createWebLogger('web-upload-exam-video');
 
@@ -39,6 +40,41 @@ export async function uploadExamVideo(formData: FormData): Promise<{ success: bo
     }
 
     logger.info(`🎥 Загружаем видео экзамена для пользователя ${session.user.id}, размер: ${(videoFile.size / 1024 / 1024).toFixed(2)}MB`);
+
+    // ВАЖНО: Удаляем старое видео перед загрузкой нового (экономия CDN)
+    const userStepId = formData.get("userStepId")?.toString();
+    if (userStepId) {
+      try {
+        const existingExam = await prisma.examResult.findUnique({
+          where: { userStepId },
+          select: { videoReportUrl: true }
+        });
+
+        if (existingExam?.videoReportUrl) {
+          logger.info(`🗑️ Найдено старое видео, удаляем перед загрузкой нового: ${existingExam.videoReportUrl}`);
+          
+          // Извлекаем относительный путь из CDN URL
+          const oldRelativePath = existingExam.videoReportUrl
+            .replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
+          
+          await deleteFileFromCDN(oldRelativePath);
+          
+          // Логируем удаление в БД
+          await prisma.examResult.update({
+            where: { userStepId },
+            data: {
+              videoDeletedAt: new Date(),
+              videoDeleteReason: 'replaced'
+            }
+          });
+          
+          logger.success(`✅ Старое видео удалено перед загрузкой нового`);
+        }
+      } catch (error) {
+        logger.warn(`⚠️ Не удалось удалить старое видео (не критично, продолжаем): ${error}`);
+        // Продолжаем загрузку нового видео даже если старое не удалилось
+      }
+    }
 
     // Генерируем уникальное имя файла
     const fileId = randomUUID();

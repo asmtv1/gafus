@@ -1,0 +1,84 @@
+---
+alwaysApply: true
+---
+
+# Documentation Best Practices
+
+## Code Documentation
+- Document all public APIs with JSDoc
+- Explain complex algorithms
+- Add examples for non-obvious usage
+- Keep documentation in sync with code
+
+## JSDoc Format
+```typescript
+/**
+ * Отправляет немедленное пуш-уведомление пользователю
+ * 
+ * @param options - Параметры уведомления
+ * @param options.userId - ID пользователя
+ * @param options.title - Заголовок уведомления
+ * @param options.body - Текст уведомления
+ * @param options.url - URL для перехода при клике
+ * @returns Результат отправки с ID уведомления или ошибкой
+ * 
+ * @example
+ * ```typescript
+ * const result = await sendImmediatePushNotification({
+ *   userId: "user-123",
+ *   title: "Экзамен зачтён! ✅",
+ *   body: "Тренер проверил ваш экзамен.",
+ *   url: "/trainings/personal/1"
+ * });
+ * ```
+ */
+export async function sendImmediatePushNotification(
+  options: SendImmediatePushNotificationOptions
+): Promise<{ success: boolean; notificationId?: string; error?: string }> {
+  // ...
+}
+```
+
+## Project Documentation
+- Keep `docs/` directory updated
+- Document architecture decisions
+- Maintain changelog for versions
+- Add troubleshooting guides
+
+## Documentation Structure
+```
+docs/
+├── README.md              # Overview
+├── architecture/          # Architecture decisions
+├── packages/             # Package documentation
+├── apps/                 # Application documentation
+├── deployment/           # Deployment guides
+└── troubleshooting/      # Common issues
+```
+
+## Changelog Format
+```markdown
+### Version X.Y.Z - Feature Name
+
+**Дата:** DD Month YYYY
+
+**Изменения:**
+- Feature 1
+- Feature 2
+- Bug fix
+
+**Техническая архитектура:**
+[Code examples]
+
+**Преимущества:**
+- Benefit 1
+- Benefit 2
+```
+
+## Best Practices
+- Update docs with every feature
+- Include code examples
+- Document breaking changes
+- Keep README files current
+- Use diagrams for complex flows
+- Write in Russian for this project

@@ -1,0 +1,64 @@
+---
+alwaysApply: true
+---
+
+# React Best Practices
+
+## Component Structure
+- Functional components only (no class components)
+- Use TypeScript for all components
+- Props interface above component definition
+- Export component at the end of file
+
+## Hooks
+- Follow Rules of Hooks (top level, not in conditions)
+- Custom hooks start with `use` prefix
+- Use `useCallback` for functions passed as props
+- Use `useMemo` for expensive computations
+- Use `useTransition` for server actions in Next.js
+
+## State Management
+- Local state: `useState` for simple state
+- Global state: React Context or Zustand
+- Server state: React Query or Next.js cache
+- Form state: React Hook Form with Zod validation
+
+## Performance
+- Avoid unnecessary re-renders with `React.memo`
+- Use `useCallback` and `useMemo` wisely (not everywhere)
+- Lazy load components with `React.lazy` and `Suspense`
+- Use `key` prop correctly in lists
+
+## Event Handlers
+- Name handlers with `handle` prefix: `handleClick`, `handleSubmit`
+- Use arrow functions for inline handlers
+- Debounce/throttle expensive operations
+
+## Example: Component Structure
+```typescript
+interface ButtonProps {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+export function Button({ label, onClick, disabled = false }: ButtonProps) {
+  const handleClick = useCallback(() => {
+    if (!disabled) {
+      onClick();
+    }
+  }, [disabled, onClick]);
+
+  return (
+    <button onClick={handleClick} disabled={disabled}>
+      {label}
+    </button>
+  );
+}
+```
+
+## Material-UI Usage
+- Import from `@mui/material` and `@mui/icons-material`
+- Use `sx` prop for styling (not `style`)
+- Use theme tokens for colors, spacing, breakpoints
+- Prefer MUI components over custom HTML elements

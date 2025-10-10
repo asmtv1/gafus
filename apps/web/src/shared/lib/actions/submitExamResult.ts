@@ -52,20 +52,48 @@ export async function submitExamResult(data: ExamSubmissionData) {
     }
 
     // Создаем или обновляем результат экзамена
+    // ВАЖНО: обновляем только переданные поля, чтобы не перезаписывать существующие данные
+    const updateData: Partial<{
+      testAnswers: string;
+      testScore: number;
+      testMaxScore: number;
+      videoReportUrl: string;
+      writtenFeedback: string;
+      overallScore: number;
+      isPassed: boolean;
+      updatedAt: Date;
+    }> = {
+      updatedAt: new Date()
+    };
+
+    // Добавляем в updateData только те поля, которые были переданы
+    if (data.testAnswers !== undefined) {
+      updateData.testAnswers = JSON.stringify(data.testAnswers);
+    }
+    if (data.testScore !== undefined) {
+      updateData.testScore = data.testScore;
+    }
+    if (data.testMaxScore !== undefined) {
+      updateData.testMaxScore = data.testMaxScore;
+    }
+    if (data.videoReportUrl !== undefined) {
+      updateData.videoReportUrl = data.videoReportUrl;
+    }
+    if (data.writtenFeedback !== undefined) {
+      updateData.writtenFeedback = data.writtenFeedback;
+    }
+    if (data.overallScore !== undefined) {
+      updateData.overallScore = data.overallScore;
+    }
+    if (data.isPassed !== undefined) {
+      updateData.isPassed = data.isPassed;
+    }
+
     const examResult = await prisma.examResult.upsert({
       where: {
         userStepId: data.userStepId
       },
-      update: {
-        testAnswers: data.testAnswers ? JSON.stringify(data.testAnswers) : undefined,
-        testScore: data.testScore || null,
-        testMaxScore: data.testMaxScore || null,
-        videoReportUrl: data.videoReportUrl || null,
-        writtenFeedback: data.writtenFeedback || null,
-        overallScore: data.overallScore || null,
-        isPassed: data.isPassed || null,
-        updatedAt: new Date()
-      },
+      update: updateData,
       create: {
         userStepId: data.userStepId,
         stepId: data.stepId,
