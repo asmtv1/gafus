@@ -14,6 +14,7 @@
   text-align: center;
 }
 
+
 .courseList {
     display: flex;
     gap: 20px;
@@ -36,4 +37,12 @@
 
 .emptyState p {
     margin: 0;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+    .courseList {
+        padding: 0 10px;
+        gap: 15px;
+    }
 }

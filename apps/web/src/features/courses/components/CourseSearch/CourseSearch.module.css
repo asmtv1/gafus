@@ -1,0 +1,103 @@
+.searchContainer {
+  display: flex;
+  justify-content: center;
+  padding: 0 20px;
+  margin: 20px 0 10px;
+}
+
+.searchWrapper {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 14px 48px 14px 48px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background-color: var(--bg-2);
+  color: var(--text-primary);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.searchInput::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background-color: var(--bg-1);
+}
+
+.clearButton {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.clearButton:hover {
+  background-color: var(--bg-3);
+  color: var(--text-primary);
+}
+
+.clearButton:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+  .searchContainer {
+    padding: 0 10px;
+    margin: 15px 0 8px;
+  }
+
+  .searchInput {
+    padding: 12px 44px 12px 44px;
+    font-size: 14px;
+  }
+
+  .searchIcon {
+    left: 14px;
+  }
+
+  .clearButton {
+    right: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .searchInput {
+    padding: 10px 40px 10px 40px;
+    font-size: 13px;
+  }
+}
+

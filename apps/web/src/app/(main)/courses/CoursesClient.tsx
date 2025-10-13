@@ -6,8 +6,15 @@ import type { CourseWithProgressData } from "@gafus/types";
 
 import styles from "./courses.module.css";
 import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
-import CourseTabs, { type CourseTabType } from "@/features/courses/components/CourseTabs/CourseTabs";
-import { filterCoursesByTab } from "@/features/courses/utils/courseFilters";
+import type { CourseTabType } from "@/features/courses/components/CourseTabs/CourseTabs";
+import CourseSearch from "@/features/courses/components/CourseSearch/CourseSearch";
+import CourseFilters, { 
+  type TrainingLevelType, 
+  type ProgressFilterType, 
+  type SortingType, 
+  type RatingFilterType 
+} from "@/features/courses/components/CourseFilters";
+import { filterAndSortCourses } from "@/features/courses/utils/courseFilters";
 
 interface CoursesClientProps {
   initialCourses?: CourseWithProgressData[] | null;
@@ -20,7 +27,19 @@ export default function CoursesClient({
   initialError, 
   userId 
 }: CoursesClientProps) {
+  // Состояние фильтров
   const [activeTab, setActiveTab] = useState<CourseTabType>("free");
+  const [activeLevel, setActiveLevel] = useState<TrainingLevelType>("ALL");
+  const [activeProgress, setActiveProgress] = useState<ProgressFilterType>("ALL");
+  const [activeRating, setActiveRating] = useState<RatingFilterType>("ALL");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [activeSorting, setActiveSorting] = useState<SortingType>("newest");
+
+  // Функция сброса всех фильтров
+  const handleResetFilters = () => {
+    setSearchQuery(""); // Также сбрасываем поиск
+  };
+  
   const { allCourses, loading, errors, fetchAllCourses, forceRefreshFavorites, setAllCourses } =
     useCourseStoreActions();
 
@@ -72,22 +91,56 @@ export default function CoursesClient({
   }
 
   const allCoursesData = allCourses?.data || [];
-  const filteredCourses = filterCoursesByTab(allCoursesData, activeTab);
+  
+  // Применяем все фильтры и сортировку
+  const filteredCourses = filterAndSortCourses(allCoursesData, {
+    tab: activeTab,
+    level: activeLevel,
+    progress: activeProgress,
+    rating: activeRating,
+    search: searchQuery,
+    sorting: activeSorting,
+  });
 
   return (
     <div className={styles.container}>
-      <CourseTabs 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab}
+      {/* Поиск */}
+      <CourseSearch 
+        value={searchQuery}
+        onChange={setSearchQuery}
       />
+
+      {/* Все фильтры в выпадающих списках */}
+      <CourseFilters
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        activeLevel={activeLevel}
+        onLevelChange={setActiveLevel}
+        activeProgress={activeProgress}
+        onProgressChange={setActiveProgress}
+        activeRating={activeRating}
+        onRatingChange={setActiveRating}
+        activeSorting={activeSorting}
+        onSortingChange={setActiveSorting}
+        onResetFilters={handleResetFilters}
+      />
+
+      {/* Список курсов */}
       <ul className={styles.courseList}>
         {filteredCourses.map((course, index) => (
           <CourseCard key={course.id} {...course} index={index} />
         ))}
       </ul>
+      
+      {/* Пустое состояние */}
       {filteredCourses.length === 0 && (
         <div className={styles.emptyState}>
-          <p>В этой категории пока нет курсов</p>
+          <p>
+            {searchQuery 
+              ? `По запросу "${searchQuery}" ничего не найдено`
+              : "В этой категории пока нет курсов"
+            }
+          </p>
         </div>
       )}
     </div>
