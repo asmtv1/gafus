@@ -1356,6 +1356,86 @@ const filteredResults = examResults.filter(...)
 - ✅ Можно отключить фильтр и увидеть зачтённый экзамен
 - ✅ Статистика обновляется в реальном времени
 
+### Версия 2.6.1 - Badge с количеством непроверенных экзаменов
+
+**Дата:** 10 января 2025
+
+**Изменения:**
+- **Красный badge** на вкладке "Результаты экзаменов" в навигации
+- **Динамическое отображение** - показывается только если есть непроверенные экзамены
+- **Анимация pulse** для привлечения внимания
+- **Server-side подсчёт** количества экзаменов со статусом IN_PROGRESS
+
+**Техническая архитектура:**
+
+```typescript
+// Server Action для подсчёта непроверенных экзаменов
+export async function getPendingExamCount(): Promise<number> {
+  const count = await prisma.examResult.count({
+    where: {
+      userStep: {
+        status: "IN_PROGRESS",
+        userTraining: {
+          dayOnCourse: {
+            course: {
+              authorId: session.user.id // Только курсы тренера
+            }
+          }
+        }
+      }
+    }
+  });
+  return count;
+}
+
+// Layout с badge
+const pendingExamCount = await getPendingExamCount();
+
+<Link href="/main-panel/exam-results" className={styles.button}>
+  <Assignment />
+  Результаты экзаменов
+  {pendingExamCount > 0 && (
+    <span className={styles.badge}>
+      {pendingExamCount}
+    </span>
+  )}
+</Link>
+```
+
+**CSS стили:**
+```css
+.badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: #ef4444;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  padding: 0 6px;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+```
+
+**Преимущества:**
+- ✅ **Визуальное напоминание** - тренер сразу видит количество непроверенных экзаменов
+- ✅ **Не отвлекает** - badge не показывается если все проверено
+- ✅ **Анимация** - плавная пульсация привлекает внимание
+- ✅ **Производительность** - один запрос `count()` вместо выборки всех данных
+
 ---
 
 *Система экзаменационных шагов обеспечивает комплексную проверку знаний и навыков пользователей с гибкой настройкой типов проверки.*

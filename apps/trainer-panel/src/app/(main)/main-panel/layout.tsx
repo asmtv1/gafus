@@ -14,6 +14,7 @@ import {
 } from "@mui/icons-material";
 
 import styles from "./main-panel.module.css";
+import { getPendingExamCount } from "@/features/exam-results/lib/getPendingExamCount";
 
 export default async function MainPanelLayout({ children }: { children: React.ReactNode }) {
   const session = (await getServerSession(authOptions)) as {
@@ -23,6 +24,9 @@ export default async function MainPanelLayout({ children }: { children: React.Re
 
   const userName = session.user.username;
   const avatarUrl = session.user.avatarUrl ?? "/uploads/avatar.svg";
+  
+  // Получаем количество непроверенных экзаменов
+  const pendingExamCount = await getPendingExamCount();
 
   return (
     <div className={styles.container}>
@@ -56,6 +60,11 @@ export default async function MainPanelLayout({ children }: { children: React.Re
         <Link href="/main-panel/exam-results" className={styles.button}>
           <Assignment sx={{ mr: 1.5, fontSize: 20 }} />
           Результаты экзаменов
+          {pendingExamCount > 0 && (
+            <span className={styles.badge}>
+              {pendingExamCount}
+            </span>
+          )}
         </Link>
         
         <div className={styles.divider}></div>
