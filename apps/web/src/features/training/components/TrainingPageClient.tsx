@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useOfflineStore } from "@shared/stores/offlineStore";
+import { useCourseCompletionCelebration } from "@shared/hooks/useCourseCompletionCelebration";
 
 import CourseDescriptionWithVideo from "./CourseDescriptionWithVideo";
 import TrainingDayList from "./TrainingDayList";
@@ -32,6 +33,13 @@ export default function TrainingPageClient({
   initialError
 }: TrainingPageClientProps) {
   const _online = useOfflineStore((s) => s.isOnline);
+
+  // Празднуем завершение курса с конфетти и haptic feedback
+  useCourseCompletionCelebration({
+    courseId: initialData?.courseId || "",
+    courseType,
+    trainingDays: initialData?.trainingDays,
+  });
 
   return (
     <>

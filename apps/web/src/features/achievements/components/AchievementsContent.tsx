@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-
 import { useAchievementsFromStores, useAchievementsByCategoryFromStores } from "@shared/hooks/useAchievementsFromStores";
 import { AchievementsSkeleton } from "@shared/components/ui/AchievementsSkeleton";
 import { AchievementsError } from "@shared/components/ui/AchievementsError";
 import UserCoursesStatistics from "./UserCoursesStatistics";
-
 
 import styles from "./AchievementsContent.module.css";
 
@@ -16,6 +14,7 @@ import styles from "./AchievementsContent.module.css";
 export function AchievementsContent() {
   const { data, error, isLoading } = useAchievementsFromStores();
   const { achievementsByCategory, unlockedCount, totalCount, completionPercentage } = useAchievementsByCategoryFromStores();
+  
   
   // Состояние загрузки
   if (isLoading) {
@@ -85,6 +84,7 @@ export function AchievementsContent() {
         </div>
         
       </div>
+      
       
       {/* Достижения */}
       <div className={styles.achievementsSection}>

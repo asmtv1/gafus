@@ -97,3 +97,41 @@
 .dayEven.inprogress {
   border-color: #F6D86E;
 }
+
+/* Индикатор "Вы здесь" */
+.currentIndicator {
+  position: absolute;
+  top: -12px;
+  left: 10px;
+  background: linear-gradient(135deg, #636128 0%, #8B8A3B 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 3;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 16px rgba(99, 97, 40, 0.6);
+  }
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 480px) {
+  .currentIndicator {
+    font-size: 11px;
+    padding: 3px 10px;
+    top: -10px;
+    left: 8px;
+  }
+}

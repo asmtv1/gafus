@@ -7,6 +7,7 @@ import { pauseNotificationClient, resumeNotificationClient, resetNotificationCli
 import { pauseUserStepServerAction, resumeUserStepServerAction } from "@shared/lib/training/pauseResumeUserStep";
 import { startUserStepServerAction } from "@shared/lib/training/startUserStepServerAction";
 import { updateStepStatusServerAction } from "@shared/lib/training/updateUserStepStatus";
+import { hapticStart, hapticComplete } from "@/utils/hapticFeedback";
 
 // Создаем логгер для timer store
 const logger = createWebLogger('web-timer-store');
@@ -99,6 +100,8 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
         if (diff === 0) {
           get().stopTimer(courseId, day, stepIndex);
+          // Haptic feedback при завершении таймера
+          hapticComplete();
           // Вызываем callback для завершения
           onFinish();
         }
@@ -108,6 +111,11 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       activeTimer = timer;
       activeStep = stepKey;
       timers.set(stepKey, timer);
+
+      // Haptic feedback при старте таймера
+      if (!isRestore) {
+        hapticStart();
+      }
 
       return true; // Успешно запущен
     },

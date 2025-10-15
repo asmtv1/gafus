@@ -50,6 +50,39 @@ const TrainingDayList = memo(function TrainingDayList({
     return baseClass;
   }, []);
 
+  // Определяем текущий день для индикатора "Вы здесь"
+  const getCurrentDayNumber = useCallback((days: {
+    day: number;
+    courseId: string;
+    userStatus: string;
+  }[]) => {
+    // 1. Ищем первый день IN_PROGRESS
+    const inProgressDay = days.find((day) => {
+      const localStatus = calculateDayStatus(day.courseId, day.day, stepStates);
+      const finalStatus = rank(localStatus) > rank(day.userStatus) ? localStatus : day.userStatus;
+      return finalStatus === "IN_PROGRESS";
+    });
+    
+    if (inProgressDay) return inProgressDay.day;
+
+    // 2. Ищем последний COMPLETED и возвращаем следующий
+    let lastCompletedDay = 0;
+    days.forEach((day) => {
+      const localStatus = calculateDayStatus(day.courseId, day.day, stepStates);
+      const finalStatus = rank(localStatus) > rank(day.userStatus) ? localStatus : day.userStatus;
+      if (finalStatus === "COMPLETED") {
+        lastCompletedDay = Math.max(lastCompletedDay, day.day);
+      }
+    });
+
+    if (lastCompletedDay > 0 && lastCompletedDay < days.length) {
+      return lastCompletedDay + 1;
+    }
+
+    // 3. По умолчанию - первый день
+    return days[0]?.day || 1;
+  }, [stepStates]);
+
   const typeLabels: Record<string, string> = {
     base: "Базовый день",
     regular: "Тренировочный день",
@@ -99,48 +132,60 @@ const TrainingDayList = memo(function TrainingDayList({
     );
   }
 
+  const currentDayNumber = getCurrentDayNumber(displayData.trainingDays);
+
   return (
     <ul className={styles.list}>
-      {displayData.trainingDays.map((day) => (
-        <li
-          key={`${day.courseId}-${day.day}`}
-          className={(() => {
-            // Вычисляем локальный статус дня из stepStore
-            const localStatus = calculateDayStatus(day.courseId, day.day, stepStates);
-            // Не понижаем статус: берем максимум между серверным и локальным
-            const finalStatus = rank(localStatus) > rank(day.userStatus)
-              ? localStatus
-              : day.userStatus;
-            return getItemClass(finalStatus, day.day);
-          })()}
-        >
-          <Link
-            href={`/trainings/${courseType}/${day.day}`}
-            className={styles.link}
-            prefetch={false}
-            onClick={(e) => {
-              // При офлайн-навигации форсируем полную навигацию, чтобы SW отдал HTML заглушку
-              const isOnline = useOfflineStore.getState().isOnline;
-              if (!isOnline) {
-                e.preventDefault();
-                window.location.assign(`/trainings/${courseType}/${day.day}`);
-              }
-            }}
+      {displayData.trainingDays.map((day) => {
+        const isCurrent = day.day === currentDayNumber;
+        
+        return (
+          <li
+            key={`${day.courseId}-${day.day}`}
+            className={(() => {
+              // Вычисляем локальный статус дня из stepStore
+              const localStatus = calculateDayStatus(day.courseId, day.day, stepStates);
+              // Не понижаем статус: берем максимум между серверным и локальным
+              const finalStatus = rank(localStatus) > rank(day.userStatus)
+                ? localStatus
+                : day.userStatus;
+              return getItemClass(finalStatus, day.day);
+            })()}
           >
-            <div className={styles.timeBadge}>
-              <div>{day.estimatedDuration}</div>
-              <span>мин</span>
-            </div>
-            <div className={styles.card}>
-              <h2 className={styles.dayTitle}>{day.title}</h2>
-              <p className={styles.subtitle}>({typeLabels[day.type] || day.type})</p>
-              <p>Что понадобится:</p>
-              <p className={styles.equipment}>{day.equipment || "вкусняшки и терпение"}</p>
-            </div>
-          </Link>
-          
-        </li>
-      ))}
+            {isCurrent && (
+              <div className={styles.currentIndicator}>
+                <span>📍</span>
+                <span>Вы здесь</span>
+              </div>
+            )}
+            <Link
+              href={`/trainings/${courseType}/${day.day}`}
+              className={styles.link}
+              prefetch={false}
+              onClick={(e) => {
+                // При офлайн-навигации форсируем полную навигацию, чтобы SW отдал HTML заглушку
+                const isOnline = useOfflineStore.getState().isOnline;
+                if (!isOnline) {
+                  e.preventDefault();
+                  window.location.assign(`/trainings/${courseType}/${day.day}`);
+                }
+              }}
+            >
+              <div className={styles.timeBadge}>
+                <div>{day.estimatedDuration}</div>
+                <span>мин</span>
+              </div>
+              <div className={styles.card}>
+                <h2 className={styles.dayTitle}>{day.title}</h2>
+                <p className={styles.subtitle}>({typeLabels[day.type] || day.type})</p>
+                <p>Что понадобится:</p>
+                <p className={styles.equipment}>{day.equipment || "вкусняшки и терпение"}</p>
+              </div>
+            </Link>
+            
+          </li>
+        );
+      })}
     </ul>
   );
 });
