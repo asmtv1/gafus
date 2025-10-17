@@ -155,7 +155,7 @@ jobs:
     needs: prepare-deps
     strategy:
       matrix:
-        app: [web, trainer-panel, error-dashboard]
+        app: [web, trainer-panel, error-dashboard, admin-panel]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -272,6 +272,7 @@ jobs:
           - { name: "web", file: "Dockerfile-web-optimized", tag: "gafus-web" }
           - { name: "trainer-panel", file: "Dockerfile-trainer-panel-optimized", tag: "gafus-trainer-panel" }
           - { name: "error-dashboard", file: "Dockerfile-error-dashboard-optimized", tag: "gafus-error-dashboard" }
+          - { name: "admin-panel", file: "Dockerfile-admin-panel-optimized", tag: "gafus-admin-panel" }
           - { name: "worker", file: "Dockerfile-worker-optimized", tag: "gafus-worker" }
           - { name: "bull-board", file: "Dockerfile-bull-board-optimized", tag: "gafus-bull-board" }
           - { name: "telegram-bot", file: "Dockerfile-telegram-bot-optimized", tag: "gafus-telegram-bot" }
@@ -482,7 +483,7 @@ jobs:
             docker rm $(docker ps -aq --filter "name=gafus-*") 2>/dev/null || true
 
             # Remove all gafus containers by name explicitly
-            docker rm -f gafus-web gafus-trainer-panel gafus-error-dashboard gafus-worker gafus-bull-board gafus-telegram-bot gafus-prisma gafus-postgres gafus-redis gafus-nginx 2>/dev/null || true
+            docker rm -f gafus-web gafus-trainer-panel gafus-error-dashboard gafus-admin-panel gafus-worker gafus-bull-board gafus-telegram-bot gafus-prisma gafus-postgres gafus-redis gafus-nginx 2>/dev/null || true
 
             # Now do the normal compose cleanup
             docker-compose -f ci-cd/docker/docker-compose.prod.yml down --remove-orphans --timeout 30 || true
@@ -501,6 +502,7 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest & pids="$pids $!"
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-trainer-panel:latest & pids="$pids $!"
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-error-dashboard:latest & pids="$pids $!"
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-admin-panel:latest & pids="$pids $!"
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-worker:latest & pids="$pids $!"
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-bull-board:latest & pids="$pids $!"
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-telegram-bot:latest & pids="$pids $!"
@@ -532,7 +534,7 @@ jobs:
             sleep 10
 
             # 3. Start web services
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate web trainer-panel error-dashboard
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate web trainer-panel error-dashboard admin-panel
             echo "⏳ Waiting for web services to be ready..."
             sleep 10
 
@@ -582,7 +584,7 @@ jobs:
                 --webroot --webroot-path=/var/www/certbot \
                 --email admin@gafus.ru --agree-tos --no-eff-email \
                 -d gafus.ru -d www.gafus.ru -d api.gafus.ru \
-                -d trainer-panel.gafus.ru -d monitor.gafus.ru -d queues.gafus.ru || true
+                -d trainer-panel.gafus.ru -d monitor.gafus.ru -d adminka.gafus.ru -d queues.gafus.ru || true
 
             # Switch back to HTTPS config
             echo "🔄 Switching back to HTTPS config..."
