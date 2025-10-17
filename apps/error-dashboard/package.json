@@ -17,6 +17,7 @@
     "@gafus/csrf": "workspace:*",
     "@gafus/error-handling": "workspace:*",
     "@gafus/prisma": "workspace:*",
+    "@gafus/queues": "workspace:*",
     "@gafus/react-query": "workspace:*",
     "@gafus/types": "workspace:*",
     "@mui/icons-material": "7.1.0",

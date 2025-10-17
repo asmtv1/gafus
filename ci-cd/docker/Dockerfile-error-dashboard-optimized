@@ -38,6 +38,16 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 # Копируем Prisma Query Engine рядом с клиентом (ожидаемое Prisma расположение)
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
 
+# Собираем зависимые пакеты в правильном порядке
+RUN pnpm --filter @gafus/logger run build
+RUN pnpm --filter @gafus/prisma run build
+RUN pnpm --filter @gafus/types run build
+RUN pnpm --filter @gafus/auth run build
+RUN pnpm --filter @gafus/csrf run build
+RUN pnpm --filter @gafus/error-handling run build
+RUN pnpm --filter @gafus/react-query run build
+RUN pnpm --filter @gafus/queues run build
+
 # Собираем приложение
 RUN pnpm build --filter @gafus/error-dashboard
 

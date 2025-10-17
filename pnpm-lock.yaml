@@ -271,6 +271,9 @@ importers:
       '@gafus/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma
+      '@gafus/queues':
+        specifier: workspace:*
+        version: link:../../packages/queues
       '@gafus/react-query':
         specifier: workspace:*
         version: link:../../packages/react-query
