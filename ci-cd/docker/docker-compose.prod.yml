@@ -114,6 +114,26 @@ services:
       - postgres
       - redis
 
+  # Admin Panel
+  admin-panel:
+    image: ghcr.io/asmtv1/gafus-admin-panel:latest
+    container_name: gafus-admin-panel
+    environment:
+      - NODE_ENV=production
+      - PORT=3006
+      - DISABLE_CONSOLE_LOGGING=${DISABLE_CONSOLE_LOGGING:-false}
+      - CSRF_STRICT=${CSRF_STRICT:-false}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${ADMIN_PANEL_URL:-https://admin.gafus.ru}
+      - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
+    # Убрали открытые порты - доступ только через Nginx
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+
   # Prisma Database Management
   prisma:
     image: ghcr.io/asmtv1/gafus-prisma:latest
@@ -198,6 +218,7 @@ services:
       - web
       - trainer-panel
       - error-dashboard
+      - admin-panel
       - bull-board
 
   # Certbot for SSL certificates
@@ -207,7 +228,7 @@ services:
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru -d api.gafus.ru -d trainer-panel.gafus.ru -d monitor.gafus.ru -d queues.gafus.ru
+    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru -d api.gafus.ru -d trainer-panel.gafus.ru -d monitor.gafus.ru -d admin.gafus.ru -d queues.gafus.ru
     depends_on:
       - nginx
 

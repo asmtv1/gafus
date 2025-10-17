@@ -144,7 +144,7 @@ export const showNotificationPermissionAlert = (
         Swal.hideLoading();
         Swal.showValidationMessage('Произошла ошибка при включении уведомлений');
       }
-    } else if (result.dismiss === Swal.DismissReason.cancel) {
+    } else if (result.dismiss === 'cancel') {
       await onDeny();
       // Закрываем модальное окно после выполнения действия
       Swal.close();

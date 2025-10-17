@@ -1,0 +1,93 @@
+# ===========================
+# Stage 1: Dependencies
+# ===========================
+FROM node:22-alpine AS deps
+RUN apk add --no-cache libc6-compat openssl
+
+# Установка pnpm
+RUN corepack enable && corepack prepare pnpm@9.15.6 --activate
+
+WORKDIR /app
+
+# Копируем файлы управления зависимостями
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY turbo.json ./
+COPY apps/admin-panel/package.json ./apps/admin-panel/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/prisma/package.json ./packages/prisma/
+COPY packages/logger/package.json ./packages/logger/
+COPY packages/csrf/package.json ./packages/csrf/
+COPY packages/error-handling/package.json ./packages/error-handling/
+COPY packages/react-query/package.json ./packages/react-query/
+COPY packages/types/package.json ./packages/types/
+
+# Устанавливаем зависимости
+RUN pnpm install --frozen-lockfile --prefer-offline
+
+# ===========================
+# Stage 2: Builder
+# ===========================
+FROM node:22-alpine AS builder
+RUN apk add --no-cache libc6-compat openssl
+
+# Установка pnpm
+RUN corepack enable && corepack prepare pnpm@9.15.6 --activate
+
+WORKDIR /app
+
+# Копируем установленные зависимости
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/admin-panel/node_modules ./apps/admin-panel/node_modules
+COPY --from=deps /app/packages/auth/node_modules ./packages/auth/node_modules
+COPY --from=deps /app/packages/prisma/node_modules ./packages/prisma/node_modules
+COPY --from=deps /app/packages/logger/node_modules ./packages/logger/node_modules
+COPY --from=deps /app/packages/csrf/node_modules ./packages/csrf/node_modules
+COPY --from=deps /app/packages/error-handling/node_modules ./packages/error-handling/node_modules
+COPY --from=deps /app/packages/react-query/node_modules ./packages/react-query/node_modules
+COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
+
+# Копируем остальные файлы проекта
+COPY . .
+
+# Генерируем Prisma Client
+RUN cd packages/prisma && pnpm exec prisma generate
+
+# Билдим зависимые пакеты
+RUN pnpm --filter @gafus/types run build
+RUN pnpm --filter @gafus/prisma run build
+RUN pnpm --filter @gafus/logger run build
+RUN pnpm --filter @gafus/auth run build
+RUN pnpm --filter @gafus/csrf run build
+RUN pnpm --filter @gafus/error-handling run build
+RUN pnpm --filter @gafus/react-query run build
+
+# Билдим admin-panel
+RUN pnpm --filter @gafus/admin-panel run build
+
+# ===========================
+# Stage 3: Runner
+# ===========================
+FROM node:22-alpine AS runner
+RUN apk add --no-cache openssl
+
+WORKDIR /app
+
+# Создаем пользователя для запуска приложения
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Копируем только необходимые файлы
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin-panel/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin-panel/.next/static ./apps/admin-panel/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin-panel/public ./apps/admin-panel/public
+
+USER nextjs
+
+EXPOSE 3006
+
+ENV PORT=3006
+ENV NODE_ENV=production
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "apps/admin-panel/server.js"]
+
