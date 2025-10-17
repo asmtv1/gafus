@@ -1257,28 +1257,60 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   console.log('🦁 SW Custom: Notification click event');
   
+  const notificationData = event.notification.data || {};
+  const targetUrl = notificationData.url || '/';
+  const notificationId = notificationData.notificationId;
+  
   event.notification.close();
   
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clients) => {
-        // Ищем уже открытое окно приложения
-        for (const client of clients) {
-          if (client.url.includes('gafus.ru') && 'focus' in client) {
-            console.log('✅ SW Custom: Focusing existing window');
-            return client.focus();
+    (async () => {
+      try {
+        // Отслеживаем клик по re-engagement уведомлению
+        if (notificationId) {
+          console.log('🦁 SW Custom: Tracking reengagement click:', notificationId);
+          
+          try {
+            const response = await fetch('/api/track-reengagement-click', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ notificationId }),
+            });
+            
+            if (response.ok) {
+              console.log('✅ SW Custom: Reengagement click tracked');
+            } else {
+              console.warn('⚠️ SW Custom: Failed to track reengagement click:', response.status);
+            }
+          } catch (error) {
+            console.warn('⚠️ SW Custom: Error tracking reengagement click:', error);
           }
         }
         
-        // Если нет открытого окна, открываем новое
-        if (clients.openWindow) {
-          console.log('✅ SW Custom: Opening new window');
-          return clients.openWindow('/');
+        // Открываем окно
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        
+        // Ищем уже открытое окно приложения
+        for (const client of clients) {
+          if (client.url.includes('gafus.ru') && 'focus' in client) {
+            console.log('✅ SW Custom: Focusing existing window, navigating to:', targetUrl);
+            await client.focus();
+            client.postMessage({ type: 'NAVIGATE', url: targetUrl });
+            return;
+          }
         }
-      })
-      .catch(error => {
+        
+        // Если нет открытого окна, открываем новое с нужным URL
+        if (self.clients.openWindow) {
+          console.log('✅ SW Custom: Opening new window with URL:', targetUrl);
+          await self.clients.openWindow(targetUrl);
+        }
+      } catch (error) {
         console.error('❌ SW Custom: Error handling notification click:', error);
-      })
+      }
+    })()
   );
 });
 

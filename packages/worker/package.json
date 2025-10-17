@@ -19,12 +19,16 @@
     "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
+    "@gafus/webpush": "workspace:*",
+    "@gafus/reengagement": "workspace:*",
     "bullmq": "5.2.0",
     "ioredis": "5.3.2",
+    "node-cron": "^3.0.3",
     "web-push": "3.6.6"
   },
   "devDependencies": {
     "@types/node": "20.4.8",
+    "@types/node-cron": "^3.0.11",
     "@types/web-push": "3.6.4",
     "rimraf": "5.0.1",
     "tsx": "4.19.0",

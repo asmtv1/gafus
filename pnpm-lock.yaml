@@ -218,7 +218,7 @@ importers:
         version: 15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       next-auth:
         specifier: 4.24.11
-        version: 4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 4.24.11(next@15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -361,7 +361,7 @@ importers:
         version: 15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       next-auth:
         specifier: 4.24.11
-        version: 4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 4.24.11(next@15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -485,7 +485,7 @@ importers:
         version: 15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       next-auth:
         specifier: 4.24.11
-        version: 4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 4.24.11(next@15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -561,7 +561,7 @@ importers:
         version: 15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       next-auth:
         specifier: 4.24.11
-        version: 4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 4.24.11(next@15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -802,6 +802,28 @@ importers:
         specifier: 5.8.3
         version: 5.8.3
 
+  packages/reengagement:
+    dependencies:
+      '@gafus/logger':
+        specifier: workspace:*
+        version: link:../logger
+      '@gafus/prisma':
+        specifier: workspace:*
+        version: link:../prisma
+      '@gafus/queues':
+        specifier: workspace:*
+        version: link:../queues
+      '@gafus/webpush':
+        specifier: workspace:*
+        version: link:../webpush
+    devDependencies:
+      '@types/node':
+        specifier: ^20.17.12
+        version: 20.19.18
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
+
   packages/types:
     dependencies:
       '@gafus/logger':
@@ -840,7 +862,7 @@ importers:
         version: 15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       next-auth:
         specifier: 4.24.11
-        version: 4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 4.24.11(next@15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -903,12 +925,21 @@ importers:
       '@gafus/queues':
         specifier: workspace:*
         version: link:../queues
+      '@gafus/reengagement':
+        specifier: workspace:*
+        version: link:../reengagement
+      '@gafus/webpush':
+        specifier: workspace:*
+        version: link:../webpush
       bullmq:
         specifier: 5.2.0
         version: 5.2.0
       ioredis:
         specifier: 5.3.2
         version: 5.3.2
+      node-cron:
+        specifier: ^3.0.3
+        version: 3.0.3
       web-push:
         specifier: 3.6.6
         version: 3.6.6
@@ -916,6 +947,9 @@ importers:
       '@types/node':
         specifier: 20.4.8
         version: 20.4.8
+      '@types/node-cron':
+        specifier: ^3.0.11
+        version: 3.0.11
       '@types/web-push':
         specifier: 3.6.4
         version: 3.6.4
@@ -3274,6 +3308,9 @@ packages:
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
+
+  '@types/node-cron@3.0.11':
+    resolution: {integrity: sha512-0ikrnug3/IyneSHqCBeslAhlK2aBfYek1fGo4bP4QnZPmiqSGRK+Oy7ZMisLWkesffJvQ1cqAcBnJC+8+nxIAg==}
 
   '@types/node@20.19.18':
     resolution: {integrity: sha512-KeYVbfnbsBCyKG8e3gmUqAfyZNcoj/qpEbHRkQkfZdKOBrU7QQ+BsTdfqLSWX9/m1ytYreMhpKvp+EZi3UFYAg==}
@@ -5995,6 +6032,10 @@ packages:
   node-addon-api@8.5.0:
     resolution: {integrity: sha512-/bRZty2mXUIFY/xU5HLvveNHlswNJej+RnxBjOMkidWfwZzgTbPG1E3K5TOxRLOR+5hX7bSofy8yf1hZevMS8A==}
     engines: {node: ^18 || ^20 || >= 21}
+
+  node-cron@3.0.3:
+    resolution: {integrity: sha512-dOal67//nohNgYWb+nWmg5dkFdIwDm8EpeGYMekPMrngV3637lqnX0lbUcCtgibHTz6SEz7DAIjKvKDFYCnO1A==}
+    engines: {node: '>=6.0.0'}
 
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
@@ -11023,6 +11064,8 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
+  '@types/node-cron@3.0.11': {}
+
   '@types/node@20.19.18':
     dependencies:
       undici-types: 6.21.0
@@ -11080,7 +11123,7 @@ snapshots:
 
   '@types/web-push@3.6.4':
     dependencies:
-      '@types/node': 20.4.8
+      '@types/node': 20.19.18
 
   '@types/yauzl@2.10.3':
     dependencies:
@@ -14268,7 +14311,7 @@ snapshots:
 
   netmask@2.0.2: {}
 
-  next-auth@4.24.11(next@15.4.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+  next-auth@4.24.11(next@15.4.7(@babel/core@7.28.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
       '@babel/runtime': 7.28.4
       '@panva/hkdf': 1.2.1
@@ -14309,6 +14352,10 @@ snapshots:
   node-abort-controller@3.1.1: {}
 
   node-addon-api@8.5.0: {}
+
+  node-cron@3.0.3:
+    dependencies:
+      uuid: 8.3.2
 
   node-domexception@1.0.0: {}
 

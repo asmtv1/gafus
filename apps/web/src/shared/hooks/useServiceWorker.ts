@@ -106,6 +106,13 @@ export function useServiceWorker() {
         case 'OFFLINE_ACTION_PROCESSED':
           break;
           
+        case 'NAVIGATE':
+          // Навигация по URL из push-уведомления
+          if (data.url && typeof window !== 'undefined') {
+            window.location.href = data.url;
+          }
+          break;
+          
         default:
           break;
       }

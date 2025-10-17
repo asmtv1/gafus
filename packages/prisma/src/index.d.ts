@@ -1,4 +1,5 @@
-export type { Course, CourseAccess, CourseReview, DayOnCourse, ErrorReport, FavoriteCourse, Pet, PetType, Prisma, PrismaClient, PushSubscription, Step, StepNotification, StepOnDay, TrainingDay, TrainingLevel, TrainingStatus, User, UserCourse, UserProfile, UserRole, UserStep, UserTraining, } from "@prisma/client";
+export type { Course, CourseAccess, CourseReview, DayOnCourse, ErrorReport, FavoriteCourse, Pet, Prisma, PrismaClient, PushSubscription, Step, StepNotification, StepOnDay, TrainingDay, TrainingLevel, TrainingStatus, User, UserCourse, UserProfile, UserRole, UserStep, UserTraining, } from "@prisma/client";
+export { PetType } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
 export interface DatabaseClient {
     user: PrismaClient["user"];

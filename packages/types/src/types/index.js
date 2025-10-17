@@ -17,4 +17,3 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // Экспорт всех собственных типов
 __exportStar(require("./next-types"), exports);
 __exportStar(require("./react-types"), exports);
-//# sourceMappingURL=index.js.map

@@ -224,7 +224,7 @@ export default function EnhancedDaysTable({
           page={page}
           rowsPerPage={rowsPerPage}
           onPageChange={handleChangePage}
-          rowsPerPageOptions={[5, 10, 25, { label: "Все", value: -1 }]}
+          rowsPerPageOptions={[5, 10, 25]}
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Paper>

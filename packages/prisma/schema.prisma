@@ -255,6 +255,8 @@ model User {
   passwordResetTokens      PasswordResetToken[]
   pushSubscriptions        PushSubscription[]
   stepNotifications        StepNotification[]
+  reengagementCampaigns    ReengagementCampaign[]
+  reengagementSettings     ReengagementSettings?
   passwordResetRequestedAt DateTime?
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @default(now())
@@ -493,4 +495,124 @@ model ErrorReport {
   @@index([environment])
   @@index([resolved])
   @@index([createdAt])
+}
+
+// ===== Re-engagement система =====
+
+model ReengagementCampaign {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Статус кампании
+  isActive             Boolean  @default(true)
+  currentLevel         Int      @default(1)  // 1, 2, 3, 4
+  
+  // Временные метки
+  lastActivityDate     DateTime  // Когда последний раз был активен
+  campaignStartDate    DateTime @default(now())
+  lastNotificationSent DateTime?
+  nextNotificationDate DateTime?
+  
+  // История отправленных уведомлений
+  notifications        ReengagementNotification[]
+  
+  // Результаты кампании
+  returned             Boolean  @default(false)  // Вернулся ли пользователь
+  returnedAt           DateTime?
+  unsubscribed         Boolean  @default(false)
+  
+  // Метаданные для аналитики
+  totalNotificationsSent Int @default(0)
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([isActive, nextNotificationDate])
+  @@index([lastActivityDate])
+}
+
+model ReengagementNotification {
+  id           String   @id @default(cuid())
+  campaignId   String
+  campaign     ReengagementCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  // Тип и содержание
+  level        Int      // 1, 2, 3, 4
+  messageType  String   // 'emotional', 'educational', 'motivational', 'mixed'
+  variantId    String   // ID конкретного варианта сообщения
+  
+  // Отправленное содержимое
+  title        String
+  body         String
+  url          String?
+  
+  // Статус
+  sent         Boolean  @default(false)
+  sentAt       DateTime?
+  
+  // Взаимодействие
+  opened       Boolean  @default(false)
+  openedAt     DateTime?
+  clicked      Boolean  @default(false)
+  clickedAt    DateTime?
+  
+  // Результат отправки
+  successCount Int      @default(0)
+  failedCount  Int      @default(0)
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([campaignId])
+  @@index([sent, sentAt])
+}
+
+model ReengagementSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Разрешения
+  enabled               Boolean  @default(true)
+  unsubscribedAt        DateTime?
+  
+  // Предпочтения
+  preferredTime         String?  // "09:00", "18:00" и т.д.
+  timezone              String   @default("Europe/Moscow")
+  
+  // Частота
+  maxNotificationsPerWeek Int   @default(2)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model ReengagementMetrics {
+  id              String   @id @default(cuid())
+  date            DateTime @default(now())
+  
+  // Общие метрики
+  totalActive     Int      // Всего активных кампаний
+  totalSent       Int      // Отправлено уведомлений за день
+  totalReturned   Int      // Вернулось пользователей
+  
+  // По уровням
+  level1Sent      Int      @default(0)
+  level2Sent      Int      @default(0)
+  level3Sent      Int      @default(0)
+  level4Sent      Int      @default(0)
+  
+  // Эффективность
+  openRate        Float?   // % открытий
+  clickRate       Float?   // % кликов
+  returnRate      Float?   // % возвратов
+  
+  // По типам сообщений
+  emotionalSent   Int      @default(0)
+  educationalSent Int      @default(0)
+  motivationalSent Int     @default(0)
+  mixedSent       Int      @default(0)
+  
+  @@index([date])
 }

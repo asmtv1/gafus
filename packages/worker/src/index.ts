@@ -6,8 +6,10 @@ logger.info("Bootstrapping...");
 
 // Импортируем основную логику воркеров
 import "./push-worker";
+import "./reengagement-worker";
 import { startExamCleanupWorker } from "./exam-cleanup-worker";
 import { setupExamCleanupSchedule } from "./schedules/exam-cleanup-schedule";
+import { startCronJobs } from "./cron-scheduler";
 
 // Запускаем exam cleanup worker
 startExamCleanupWorker();
@@ -16,5 +18,8 @@ startExamCleanupWorker();
 setupExamCleanupSchedule().catch((error) => {
   logger.error("Failed to setup exam cleanup schedule", error as Error);
 });
+
+// Запускаем cron-планировщик для re-engagement
+startCronJobs();
 
 logger.success("All workers are up and running 🚀");

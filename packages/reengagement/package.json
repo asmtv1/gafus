@@ -1,0 +1,23 @@
+{
+  "name": "@gafus/reengagement",
+  "version": "1.0.0",
+  "description": "Re-engagement система для возврата неактивных пользователей",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/logger": "workspace:*",
+    "@gafus/queues": "workspace:*",
+    "@gafus/webpush": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.12",
+    "typescript": "^5.8.3"
+  }
+}
+
