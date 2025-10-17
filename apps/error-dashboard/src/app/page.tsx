@@ -13,6 +13,7 @@ import { FilterProvider } from "@shared/contexts/FilterContext";
 import ModernErrorStats from "@features/errors/components/ModernErrorStats";
 import RecentErrors from "@features/errors/components/RecentErrors";
 import ErrorFiltersWrapper from "@features/errors/components/ErrorFiltersWrapper";
+import { NavigationTabs } from "@shared/components/NavigationTabs";
 
 // Отключаем статическую генерацию для real-time данных
 export const dynamic = "force-dynamic";
@@ -25,6 +26,8 @@ export default function ModernDashboardPage() {
         bgcolor: "#f8f9fa",
       }}>
         <Container maxWidth="xl" sx={{ py: 4 }}>
+          {/* Навигация */}
+          <NavigationTabs />
           {/* Заголовок с пастельными цветами */}
           <Paper elevation={1} sx={{ 
             p: 4, 

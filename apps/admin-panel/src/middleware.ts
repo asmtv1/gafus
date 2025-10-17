@@ -20,6 +20,7 @@ function isPublicAsset(pathname: string): boolean {
     pathname.startsWith("/static/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/icons/") ||
+    pathname.startsWith("/uploads/") ||
     pathname.startsWith("/workbox-") ||
     pathname.endsWith(".js.map") ||
     /\.(png|jpg|jpeg|svg|webp|js|css|woff|woff2|ttf|eot)$/.test(pathname)

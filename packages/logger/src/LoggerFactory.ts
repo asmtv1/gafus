@@ -212,6 +212,15 @@ export function createBullBoardLogger(context?: string): Logger {
 }
 
 /**
+ * Создает логгер для admin-panel
+ */
+export function createAdminPanelLogger(context?: string): Logger {
+  return LoggerFactory.createLoggerWithContext('admin-panel', context || 'admin-panel', {
+    enableErrorDashboard: true,
+  });
+}
+
+/**
  * Создает "тихий" логгер (только критические ошибки)
  */
 export function createSilentLogger(context?: string): Logger {

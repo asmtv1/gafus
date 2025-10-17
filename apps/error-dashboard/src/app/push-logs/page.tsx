@@ -3,6 +3,7 @@
 import type { ErrorDashboardReport } from "@gafus/types";
 import { useErrors } from "@shared/hooks/useErrors";
 import { useEffect, useState } from "react";
+import { NavigationTabs } from "@shared/components/NavigationTabs";
 import {
   Box,
   Container,
@@ -204,6 +205,9 @@ export default function PushLogsPage() {
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f8f9fa" }}>
       <Container maxWidth="xl" sx={{ py: 4 }}>
+        {/* Навигация */}
+        <NavigationTabs />
+
         {/* Заголовок */}
         <Paper elevation={1} sx={{ 
           p: 4, 

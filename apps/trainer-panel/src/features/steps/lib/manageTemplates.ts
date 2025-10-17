@@ -60,7 +60,6 @@ export async function createStepTemplate(
 
     logger.info('Шаблон успешно создан', { templateId: template.id });
     revalidatePath('/main-panel/templates');
-    revalidatePath('/main-panel/admin/templates');
 
     return { success: true, message: "Шаблон успешно создан" };
   } catch (error) {
@@ -98,7 +97,6 @@ export async function deleteStepTemplate(templateId: string): Promise<TemplateAc
 
     logger.info('Шаблон успешно удален', { templateId });
     revalidatePath('/main-panel/templates');
-    revalidatePath('/main-panel/admin/templates');
 
     return { success: true, message: "Шаблон успешно удален" };
   } catch (error) {
@@ -145,7 +143,6 @@ export async function createStepCategory(
 
     logger.info('Категория успешно создана', { name });
     revalidatePath('/main-panel/templates');
-    revalidatePath('/main-panel/admin/templates');
 
     return { success: true, message: "Категория успешно создана" };
   } catch (error) {

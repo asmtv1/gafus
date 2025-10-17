@@ -74,10 +74,10 @@ export default function AdminTemplateManager({
       )}
 
       <Box sx={{ mb: 3, display: "flex", gap: 2 }}>
-        <Button variant="contained" startIcon={<AddIcon />} href="/main-panel/admin/templates/new">
+        <Button variant="contained" startIcon={<AddIcon />} href="/main-panel/templates/new">
           Создать шаблон
         </Button>
-        <Button variant="outlined" startIcon={<AddIcon />} href="/main-panel/admin/categories/new">
+        <Button variant="outlined" startIcon={<AddIcon />} href="/main-panel/templates/categories/new">
           Создать категорию
         </Button>
       </Box>

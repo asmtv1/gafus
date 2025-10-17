@@ -24,6 +24,23 @@ const nextConfig: NextConfig = {
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
+  // Конфигурация для изображений с CDN
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+      {
+        protocol: "http",
+        hostname: "**",
+      },
+    ],
+    unoptimized: true,
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
   async headers() {
     return [
       {

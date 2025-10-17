@@ -24,6 +24,19 @@ Error Dashboard - это система мониторинга ошибок и �
 - **🔍 Фильтрация** и поиск ошибок
 - **📤 Экспорт** данных для анализа
 
+### Мониторинг системы
+- **🖥️ Статус всех сервисов** (web, trainer-panel, admin-panel, bull-board)
+- **💾 Состояние баз данных** (PostgreSQL, Redis)
+- **📊 Системные метрики** (CPU, Memory, Uptime)
+- **⚡ Real-time обновление** статуса каждые 30 секунд
+
+### Управление очередями
+- **📊 Статистика всех очередей** (push, reengagement, examCleanup)
+- **🔍 Мониторинг задач** (waiting, active, completed, failed, delayed)
+- **⚠️ Быстрый доступ** к проблемным задачам
+- **🔄 Повторный запуск** failed jobs (одиночный и массовый)
+- **🗑️ Управление задачами** (retry, remove, promote)
+
 ## 🏗️ Архитектура
 
 ### Структура приложения
@@ -36,13 +49,24 @@ apps/error-dashboard/
 │   │   │   ├── csrf-token/    # CSRF токены
 │   │   │   ├── debug/         # Отладочные данные
 │   │   │   ├── push-logs/     # Push логи
-│   │   │   └── report/        # Отчеты об ошибках
+│   │   │   ├── queues/        # Управление очередями
+│   │   │   │   ├── jobs/      # Получение задач
+│   │   │   │   ├── retry/     # Повторный запуск
+│   │   │   │   └── stats/     # Статистика очередей
+│   │   │   ├── report/        # Отчеты об ошибках
+│   │   │   └── system-status/ # Статус системы
 │   │   ├── login/             # Страница входа
 │   │   ├── push-logs/         # Просмотр push логов
+│   │   ├── queues/            # Мониторинг очередей
+│   │   ├── system-status/     # Мониторинг системы
 │   │   └── page.tsx           # Главная страница
 │   ├── features/              # Функциональные модули
-│   │   └── errors/            # Управление ошибками
-│   │       └── components/    # Компоненты ошибок
+│   │   ├── errors/            # Управление ошибками
+│   │   │   └── components/    # Компоненты ошибок
+│   │   ├── queues/            # Управление очередями
+│   │   │   └── components/    # Компоненты очередей
+│   │   └── system/            # Мониторинг системы
+│   │       └── components/    # Компоненты статуса
 │   ├── shared/                # Общие компоненты
 │   │   ├── contexts/          # React контексты
 │   │   ├── hooks/             # React хуки
@@ -64,8 +88,17 @@ app/api/
 │   └── route.ts              # Отладочная информация
 ├── push-logs/
 │   └── route.ts              # Push логи
-└── report/
-    └── route.ts              # Отчеты об ошибках
+├── queues/
+│   ├── jobs/
+│   │   └── route.ts          # Получение задач из очередей
+│   ├── retry/
+│   │   └── route.ts          # Повторный запуск задач
+│   └── stats/
+│       └── route.ts          # Статистика очередей
+├── report/
+│   └── route.ts              # Отчеты об ошибках
+└── system-status/
+    └── route.ts              # Статус системы и метрики
 ```
 
 ## 🎨 UI и UX
@@ -89,6 +122,27 @@ app/api/
 - Stack trace и контекст
 - История изменений статуса
 - Комментарии и заметки
+
+#### Push-логи
+- Мониторинг push-уведомлений
+- Фильтрация по уровню и контексту
+- Поиск по сообщениям
+- История отправки уведомлений
+
+#### Статус системы
+- Мониторинг всех сервисов в реальном времени
+- Состояние PostgreSQL и Redis
+- Использование CPU и памяти
+- Время работы системы (uptime)
+- Автоматическое обновление каждые 30 секунд
+
+#### Управление очередями
+- Статистика всех очередей (push, reengagement, examCleanup)
+- Мониторинг задач по статусам
+- Список проблемных задач с деталями
+- Повторный запуск failed jobs
+- Массовый retry для всей очереди
+- Удаление и продвижение задач
 
 ### Компоненты интерфейса
 
@@ -299,6 +353,271 @@ function ErrorStatusActions({ error }: { error: ErrorReport }) {
 
       <TagInput onAddTag={(tag) => addTag.mutate(tag)} />
     </div>
+  );
+}
+```
+
+## 📋 Управление очередями
+
+### Статистика очередей
+```typescript
+// API endpoint для получения статистики всех очередей
+// app/api/queues/stats/route.ts
+import { pushQueue, reengagementQueue } from "@gafus/queues";
+
+export async function GET() {
+  // Получаем статистику для всех очередей параллельно
+  const [pushStats, reengagementStats, examCleanupStats] = await Promise.all([
+    getQueueStats("push", pushQueue),
+    getQueueStats("reengagement", reengagementQueue),
+    getQueueStats("examCleanup", examCleanupQueue),
+  ]);
+
+  const totalJobs = {
+    waiting: queues.reduce((sum, q) => sum + q.waiting, 0),
+    active: queues.reduce((sum, q) => sum + q.active, 0),
+    completed: queues.reduce((sum, q) => sum + q.completed, 0),
+    failed: queues.reduce((sum, q) => sum + q.failed, 0),
+    delayed: queues.reduce((sum, q) => sum + q.delayed, 0),
+  };
+
+  return NextResponse.json({
+    timestamp: new Date().toISOString(),
+    queues: [pushStats, reengagementStats, examCleanupStats],
+    totalJobs,
+  });
+}
+```
+
+### Получение failed jobs
+```typescript
+// API endpoint для получения проблемных задач
+// app/api/queues/jobs/route.ts
+export async function GET(request: NextRequest) {
+  const queueName = searchParams.get("queue");
+  const status = searchParams.get("status") || "failed";
+  const limit = parseInt(searchParams.get("limit") || "50", 10);
+
+  // Получаем задачи из конкретной очереди
+  const queue = getQueueByName(queueName);
+  const jobs = await queue.getFailed(0, limit - 1);
+
+  return NextResponse.json({
+    timestamp: new Date().toISOString(),
+    jobs: jobs.map((job) => ({
+      id: job.id,
+      name: job.name,
+      queueName,
+      data: job.data,
+      failedReason: job.failedReason,
+      stacktrace: job.stacktrace,
+      attemptsMade: job.attemptsMade,
+      timestamp: job.timestamp,
+    })),
+    count: jobs.length,
+  });
+}
+```
+
+### Повторный запуск задач
+```typescript
+// API endpoint для retry задач
+// app/api/queues/retry/route.ts
+
+// Одиночный retry
+export async function POST(request: NextRequest) {
+  const { queueName, jobId, action } = await request.json();
+
+  const queue = getQueueByName(queueName);
+  const job = await queue.getJob(jobId);
+
+  switch (action) {
+    case "retry":
+      await job.retry();
+      break;
+    case "remove":
+      await job.remove();
+      break;
+    case "promote":
+      await job.promote();
+      break;
+  }
+
+  return NextResponse.json({ success: true });
+}
+
+// Массовый retry
+export async function PUT(request: NextRequest) {
+  const { queueName } = await request.json();
+
+  const queue = getQueueByName(queueName);
+  const failedJobs = await queue.getFailed(0, -1);
+
+  // Повторно запускаем все failed jobs
+  await Promise.allSettled(failedJobs.map((job) => job.retry()));
+
+  return NextResponse.json({ success: true });
+}
+```
+
+### Компоненты очередей
+```typescript
+// Компонент статистики очереди
+import { QueueStatsCard } from "@features/queues/components/QueueStatsCard";
+
+function QueuesStats() {
+  const { data } = useQueuesStats();
+
+  return (
+    <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={3}>
+      {data?.queues.map((queueStats) => (
+        <QueueStatsCard
+          key={queueStats.name}
+          stats={queueStats}
+          onClick={() => handleQueueClick(queueStats.name)}
+        />
+      ))}
+    </Box>
+  );
+}
+```
+
+### Список failed jobs
+```typescript
+// Компонент списка проблемных задач
+import { FailedJobsList } from "@features/queues/components/FailedJobsList";
+import { useQueueJobs, useRetryJob } from "@shared/hooks/useQueueJobs";
+
+function FailedJobs() {
+  const { data } = useQueueJobs(undefined, "failed", 50);
+  const retryJob = useRetryJob();
+
+  const handleRetry = async (job: FailedJob) => {
+    await retryJob.mutateAsync({
+      queueName: job.queueName,
+      jobId: job.id,
+      action: "retry",
+    });
+  };
+
+  return <FailedJobsList jobs={data?.jobs || []} />;
+}
+```
+
+### Массовый retry
+```typescript
+// Хук для массового retry
+import { useBulkRetry } from "@shared/hooks/useQueueJobs";
+
+function BulkRetryButton({ queueName }: { queueName: string }) {
+  const bulkRetry = useBulkRetry();
+
+  const handleBulkRetry = async () => {
+    await bulkRetry.mutateAsync({ queueName });
+  };
+
+  return (
+    <Button
+      onClick={handleBulkRetry}
+      disabled={bulkRetry.isPending}
+      startIcon={<RetryIcon />}
+    >
+      Повторить все
+    </Button>
+  );
+}
+```
+
+## 🖥️ Мониторинг системы
+
+### Статус сервисов
+```typescript
+// API endpoint для получения статуса системы
+// app/api/system-status/route.ts
+import { NextResponse } from "next/server";
+import { prisma } from "@gafus/prisma";
+import { connection as redisConnection } from "@gafus/queues";
+
+export async function GET() {
+  try {
+    // Проверка статуса всех сервисов
+    const [webStatus, trainerStatus, adminStatus, bullBoardStatus] = 
+      await Promise.all([
+        checkServiceStatus("Web App", "http://localhost:3000/api/health"),
+        checkServiceStatus("Trainer Panel", "http://localhost:3001/api/health"),
+        checkServiceStatus("Admin Panel", "http://localhost:3002/api/health"),
+        checkServiceStatus("Bull Board", "http://localhost:3006/health"),
+      ]);
+
+    // Проверка баз данных
+    const [postgresStatus, redisStatus] = await Promise.all([
+      checkPostgresStatus(),
+      checkRedisStatus(),
+    ]);
+
+    // Системные метрики
+    const metrics = getSystemMetrics();
+
+    return NextResponse.json({
+      timestamp: new Date().toISOString(),
+      services: [webStatus, trainerStatus, adminStatus, bullBoardStatus],
+      databases: [postgresStatus, redisStatus],
+      metrics,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to get system status" },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Компоненты статуса
+```typescript
+// Компонент статуса сервиса
+import { ServiceStatusCard } from "@features/system/components/ServiceStatusCard";
+
+function SystemStatus() {
+  const { data, refetch } = useSystemStatus();
+
+  return (
+    <Grid container spacing={3}>
+      {data?.services.map((service) => (
+        <Grid item xs={12} sm={6} md={4} lg={3} key={service.name}>
+          <ServiceStatusCard service={service} />
+        </Grid>
+      ))}
+    </Grid>
+  );
+}
+```
+
+### Системные метрики
+```typescript
+// Компонент системных метрик
+import { SystemMetricsCard } from "@features/system/components/SystemMetricsCard";
+
+function SystemMetrics() {
+  const { data } = useSystemStatus();
+
+  if (!data) return null;
+
+  return <SystemMetricsCard metrics={data.metrics} />;
+}
+```
+
+### Навигация между разделами
+```typescript
+// Компонент навигации с вкладками
+import { NavigationTabs } from "@shared/components/NavigationTabs";
+
+function Layout({ children }) {
+  return (
+    <>
+      <NavigationTabs />
+      {children}
+    </>
   );
 }
 ```

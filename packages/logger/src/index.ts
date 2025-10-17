@@ -29,6 +29,8 @@ export {
   createTelegramBotLogger,
   createWorkerLogger,
   createBullBoardLogger,
+  createAdminPanelLogger,
+  createSilentLogger,
 } from './LoggerFactory';
 
 // Переэкспорт Pino для расширенного использования

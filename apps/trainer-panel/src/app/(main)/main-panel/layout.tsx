@@ -6,12 +6,9 @@ import {
   FitnessCenter, 
   Schedule, 
   Add,
-  People,
-  AdminPanelSettings,
   TrendingUp,
   Assignment,
-  AutoStories,
-  Notifications
+  AutoStories
 } from "@mui/icons-material";
 
 import styles from "./main-panel.module.css";
@@ -83,35 +80,7 @@ export default async function MainPanelLayout({ children }: { children: React.Re
           Создать новый курс
         </Link>
 
-        {/* Пункты меню только для админов и модераторов */}
-        {(session.user.role === "ADMIN" || session.user.role === "MODERATOR") && (
-          <>
-            <div className={styles.divider}></div>
-            <Link href="/main-panel/users" className={styles.button}>
-              <People sx={{ mr: 1.5, fontSize: 20 }} />
-              Пользователи платформы
-            </Link>
-            <Link href="/main-panel/admin" className={styles.button}>
-              <AdminPanelSettings sx={{ mr: 1.5, fontSize: 20 }} />
-              Администрирование
-            </Link>
-          </>
-        )}
 
-        {/* Push-рассылка и Re-engagement только для админов */}
-        {session.user.role === "ADMIN" && (
-          <>
-            <div className={styles.divider}></div>
-            <Link href="/main-panel/broadcasts" className={styles.button}>
-              <Notifications sx={{ mr: 1.5, fontSize: 20 }} />
-              Push-рассылка
-            </Link>
-            <Link href="/main-panel/reengagement" className={styles.button}>
-              <TrendingUp sx={{ mr: 1.5, fontSize: 20 }} />
-              Re-engagement
-            </Link>
-          </>
-        )}
       </aside>
 
       <main className={styles.content}>{children}</main>

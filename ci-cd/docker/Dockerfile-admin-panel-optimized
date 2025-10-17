@@ -20,6 +20,8 @@ COPY packages/csrf/package.json ./packages/csrf/
 COPY packages/error-handling/package.json ./packages/error-handling/
 COPY packages/react-query/package.json ./packages/react-query/
 COPY packages/types/package.json ./packages/types/
+COPY packages/webpush/package.json ./packages/webpush/
+COPY packages/queues/package.json ./packages/queues/
 
 # Устанавливаем зависимости
 RUN pnpm install --frozen-lockfile --prefer-offline
@@ -45,6 +47,8 @@ COPY --from=deps /app/packages/csrf/node_modules ./packages/csrf/node_modules
 COPY --from=deps /app/packages/error-handling/node_modules ./packages/error-handling/node_modules
 COPY --from=deps /app/packages/react-query/node_modules ./packages/react-query/node_modules
 COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
+COPY --from=deps /app/packages/webpush/node_modules ./packages/webpush/node_modules
+COPY --from=deps /app/packages/queues/node_modules ./packages/queues/node_modules
 
 # Копируем остальные файлы проекта
 COPY . .
@@ -52,14 +56,16 @@ COPY . .
 # Генерируем Prisma Client
 RUN cd packages/prisma && pnpm exec prisma generate
 
-# Билдим зависимые пакеты
-RUN pnpm --filter @gafus/types run build
-RUN pnpm --filter @gafus/prisma run build
+# Билдим зависимые пакеты в правильном порядке
 RUN pnpm --filter @gafus/logger run build
+RUN pnpm --filter @gafus/prisma run build
+RUN pnpm --filter @gafus/types run build
 RUN pnpm --filter @gafus/auth run build
 RUN pnpm --filter @gafus/csrf run build
 RUN pnpm --filter @gafus/error-handling run build
 RUN pnpm --filter @gafus/react-query run build
+RUN pnpm --filter @gafus/queues run build
+RUN pnpm --filter @gafus/webpush run build
 
 # Билдим admin-panel
 RUN pnpm --filter @gafus/admin-panel run build

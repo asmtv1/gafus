@@ -498,7 +498,7 @@ async function main() {
     courseCount: allCourses.length,
     averageRatings: allCourses.map(c => ({ id: c.id, rating: c.avgRating }))
   });
-  const hashedTrainerPassword = await bcrypt.hash("trainer123", 10);
+  const hashedTrainerPassword = await bcrypt.hash("12341234", 10);
 
   const trainer = await prismaClient.user.upsert({
     where: { phone: "+79998887766" },

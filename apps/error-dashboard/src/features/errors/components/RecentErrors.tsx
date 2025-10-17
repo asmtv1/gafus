@@ -149,12 +149,12 @@ function RecentErrorItem({ error, onViewDetails, onResolveSuccess, onResolveErro
 
       <ListItemText
         primary={
-          <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+          <Box component="span" display="flex" alignItems="center" gap={1} mb={0.5}>
             <Typography variant="body2" fontWeight="medium" sx={{ flex: 1 }}>
               {truncateMessage(error.message)}
             </Typography>
             
-            <Box display="flex" alignItems="center" gap={0.5}>
+            <Box component="span" display="flex" alignItems="center" gap={0.5}>
               {error.resolved && (
                 <Chip
                   icon={<CheckIcon />}
@@ -179,9 +179,9 @@ function RecentErrorItem({ error, onViewDetails, onResolveSuccess, onResolveErro
           </Box>
         }
         secondary={
-          <Box>
-            <Box display="flex" alignItems="center" gap={2} mb={0.5}>
-              <Box display="flex" alignItems="center" gap={0.5}>
+          <Box component="span">
+            <Box component="span" display="flex" alignItems="center" gap={2} mb={0.5}>
+              <Box component="span" display="flex" alignItems="center" gap={0.5}>
                 <ComputerIcon fontSize="small" color="action" />
                 <Typography variant="caption" color="text.secondary">
                   {error.environment}
@@ -189,7 +189,7 @@ function RecentErrorItem({ error, onViewDetails, onResolveSuccess, onResolveErro
               </Box>
               
               {error.userId && (
-                <Box display="flex" alignItems="center" gap={0.5}>
+                <Box component="span" display="flex" alignItems="center" gap={0.5}>
                   <PersonIcon fontSize="small" color="action" />
                   <Typography variant="caption" color="text.secondary">
                     Пользователь
