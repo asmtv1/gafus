@@ -147,6 +147,19 @@
   color: #352E2E;
 }
 
+.reviewsLink {
+  font-size: 0.8rem;
+  color: #009dcf;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.reviewsLink:hover {
+  color: #007ba7;
+  text-decoration: underline;
+}
+
 .author {
   display: flex;
   justify-content: space-between;

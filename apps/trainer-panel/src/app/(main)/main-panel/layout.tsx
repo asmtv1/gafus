@@ -10,7 +10,8 @@ import {
   AdminPanelSettings,
   TrendingUp,
   Assignment,
-  AutoStories
+  AutoStories,
+  Notifications
 } from "@mui/icons-material";
 
 import styles from "./main-panel.module.css";
@@ -93,6 +94,17 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             <Link href="/main-panel/admin" className={styles.button}>
               <AdminPanelSettings sx={{ mr: 1.5, fontSize: 20 }} />
               Администрирование
+            </Link>
+          </>
+        )}
+
+        {/* Push-рассылка только для админов */}
+        {session.user.role === "ADMIN" && (
+          <>
+            <div className={styles.divider}></div>
+            <Link href="/main-panel/broadcasts" className={styles.button}>
+              <Notifications sx={{ mr: 1.5, fontSize: 20 }} />
+              Push-рассылка
             </Link>
           </>
         )}

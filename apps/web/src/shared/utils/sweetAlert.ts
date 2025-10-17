@@ -71,6 +71,31 @@ export const showSuccessAlert = (message: string) => {
   });
 };
 
+// Стилизованный диалог подтверждения
+export const showConfirmDialog = async (title: string, text: string): Promise<boolean> => {
+  const result = await Swal.fire({
+    title,
+    text,
+    imageUrl: '/logo.png',
+    imageWidth: 160,
+    imageHeight: 160,
+    imageAlt: 'Гафус',
+    showCancelButton: true,
+    confirmButtonText: 'Да',
+    cancelButtonText: 'Отмена',
+    confirmButtonColor: customTheme.cancelButtonColor,
+    cancelButtonColor: '#d32f2f',
+    customClass: {
+      popup: 'swal2-popup-custom',
+      title: 'swal2-title-custom',
+      htmlContainer: 'swal2-content-custom',
+      confirmButton: 'swal2-confirm-custom',
+      cancelButton: 'swal2-cancel-custom',
+    },
+  });
+  return result.isConfirmed;
+};
+
 // Стилизованный запрос разрешения на уведомления
 export const showNotificationPermissionAlert = (
   onAllow: () => void,

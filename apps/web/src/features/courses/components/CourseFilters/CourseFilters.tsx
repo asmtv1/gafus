@@ -214,7 +214,7 @@ export default function CourseFilters({
               fill="none"
             >
               <path 
-                d="M1 4v6h6M15 12V6H9M3 7l4-4 4 4" 
+                d="M2 8h12M8 4l-4 4 4 4" 
                 stroke="currentColor" 
                 strokeWidth="2" 
                 strokeLinecap="round" 

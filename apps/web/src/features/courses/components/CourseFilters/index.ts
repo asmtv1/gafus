@@ -5,3 +5,4 @@ export type {
   SortingType, 
   RatingFilterType 
 } from "./CourseFilters";
+

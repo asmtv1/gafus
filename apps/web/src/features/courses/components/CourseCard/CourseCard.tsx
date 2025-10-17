@@ -122,8 +122,15 @@ export const CourseCard = ({
   };
 
   const getReviewText = () => {
-    if (!reviews || reviews.length === 0) return "Нет отзывов";
-    return `${reviews.length} ${declOfNum(reviews.length, ["отзыв", "отзыва", "отзывов"])}`;
+    const reviewCount = reviews?.length || 0;
+    
+    if (reviewCount === 0) {
+      // Если отзывов нет
+      return userStatus === TrainingStatus.COMPLETED ? "Оставить отзыв" : "Нет отзывов";
+    }
+    
+    // Если есть отзывы
+    return `${reviewCount} ${declOfNum(reviewCount, ["отзыв", "отзыва", "отзывов"])}`;
   };
 
   return (
@@ -218,7 +225,16 @@ export const CourseCard = ({
               initialRating={avgRating || 0} 
               readOnly={userStatus !== TrainingStatus.COMPLETED}
             />
-            <span className={styles.reviews}>{getReviewText()}</span>
+            {(reviews && reviews.length > 0) || userStatus === TrainingStatus.COMPLETED ? (
+              <NextLink 
+                href={`/trainings/${type}/reviews`} 
+                className={styles.reviewsLink}
+              >
+                {getReviewText()}
+              </NextLink>
+            ) : (
+              <span className={styles.reviews}>{getReviewText()}</span>
+            )}
           </div>
           </div>
 

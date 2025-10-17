@@ -3,6 +3,7 @@ export * from "./courseStore";
 export * from "./offlineStore";
 export * from "./favoritesStore";
 export * from "./petsStore";
+export * from "./reviewsStore";
 export * from "./stepStore";
 export * from "./timerStore";
 export * from "./trainingStore";

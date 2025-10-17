@@ -84,3 +84,5 @@ export function useCourseCompletionCelebration({
   }, [trainingDays, courseId, courseType]);
 }
 
+
+

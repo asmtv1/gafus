@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GAFUS - Платформа онлайн-обучения для кинологов. Масштабируйте свою экспертизу, проверяйте практику дистанционно, зарабатывайте в 10 раз больше.">
+  <meta name="keywords" content="кинология, онлайн обучение, дрессировка собак, платформа для кинологов">
+  <meta property="og:title" content="GAFUS - Платформа для Кинологов">
+  <meta property="og:description" content="Единственная платформа с видео-экзаменами и проверкой практики. 1 тренер → 1000+ учеников.">
+  <meta property="og:image" content="/icons/icon512.png">
+  <meta property="og:type" content="website">
+  <title>GAFUS - Платформа для Кинологов | Презентация</title>
+  
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --secondary: #10b981;
+      --accent: #f59e0b;
+      --dark: #1f2937;
+      --light: #f9fafb;
+      --gray: #6b7280;
+      --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --gradient-warm: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      --gradient-cool: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: var(--dark);
+      background: var(--light);
+      overflow-x: hidden;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--gradient);
+      color: white;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+      background-size: 50px 50px;
+      animation: drift 20s linear infinite;
+      opacity: 0.3;
+    }
+    
+    @keyframes drift {
+      from { transform: translate(0, 0); }
+      to { transform: translate(50px, 50px); }
+    }
+    
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      animation: fadeInUp 1s ease-out;
+    }
+    
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .hero h1 {
+      font-size: clamp(2.5rem, 8vw, 5rem);
+      font-weight: 800;
+      margin-bottom: 1rem;
+      line-height: 1.1;
+      text-shadow: 2px 2px 20px rgba(0,0,0,0.3);
+    }
+    
+    .hero .tagline {
+      font-size: clamp(1.2rem, 3vw, 1.8rem);
+      margin-bottom: 2rem;
+      opacity: 0.95;
+      font-weight: 300;
+    }
+    
+    .hero .subtitle {
+      font-size: clamp(1rem, 2vw, 1.3rem);
+      margin-bottom: 3rem;
+      opacity: 0.9;
+    }
+    
+    .cta-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .btn {
+      padding: 1rem 2.5rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 50px;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .btn-primary {
+      background: white;
+      color: var(--primary);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+    
+    .btn-outline {
+      background: transparent;
+      color: white;
+      border: 2px solid white;
+    }
+    
+    .btn-outline:hover {
+      background: white;
+      color: var(--primary);
+      transform: translateY(-3px);
+    }
+    
+    /* Section Styles */
+    section {
+      padding: 5rem 0;
+    }
+    
+    section:nth-child(even) {
+      background: white;
+    }
+    
+    .section-title {
+      text-align: center;
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--dark);
+    }
+    
+    .section-subtitle {
+      text-align: center;
+      font-size: clamp(1rem, 2vw, 1.3rem);
+      color: var(--gray);
+      margin-bottom: 4rem;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    /* Problem Section */
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+    
+    .problem-card {
+      background: white;
+      padding: 2rem;
+      border-radius: 20px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+    
+    .problem-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      border-color: var(--primary);
+    }
+    
+    .problem-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    
+    .problem-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 0.5rem;
+      color: var(--dark);
+    }
+    
+    .problem-card p {
+      color: var(--gray);
+      line-height: 1.6;
+    }
+    
+    /* Features Section */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 3rem;
+      margin-top: 3rem;
+    }
+    
+    .feature-card {
+      text-align: center;
+      padding: 2.5rem;
+      border-radius: 20px;
+      background: linear-gradient(145deg, #ffffff, #f0f0f0);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--gradient);
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+    }
+    
+    .feature-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    
+    .feature-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      color: var(--dark);
+    }
+    
+    .feature-card p {
+      color: var(--gray);
+      margin-bottom: 1rem;
+      line-height: 1.7;
+    }
+    
+    .feature-list {
+      text-align: left;
+      list-style: none;
+      margin-top: 1rem;
+    }
+    
+    .feature-list li {
+      padding: 0.5rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+      color: var(--gray);
+    }
+    
+    .feature-list li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--secondary);
+      font-weight: bold;
+    }
+    
+    /* Stats Section */
+    .stats {
+      background: var(--gradient);
+      color: white;
+      text-align: center;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 3rem;
+      margin-top: 3rem;
+    }
+    
+    .stat-card {
+      padding: 2rem;
+    }
+    
+    .stat-number {
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      font-weight: 800;
+      display: block;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #fff, #e0e0e0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .stat-label {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      font-weight: 300;
+    }
+    
+    /* Comparison Table */
+    .comparison {
+      background: var(--light);
+    }
+    
+    .comparison-table {
+      overflow-x: auto;
+      margin-top: 3rem;
+      border-radius: 20px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+    
+    th, td {
+      padding: 1.5rem;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    th {
+      background: var(--gradient);
+      color: white;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.9rem;
+      letter-spacing: 0.5px;
+    }
+    
+    tr:hover {
+      background: #f9fafb;
+    }
+    
+    .check {
+      color: var(--secondary);
+      font-weight: bold;
+      font-size: 1.3rem;
+    }
+    
+    .cross {
+      color: #ef4444;
+      font-weight: bold;
+      font-size: 1.3rem;
+    }
+    
+    /* Pricing */
+    .pricing {
+      background: white;
+    }
+    
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+    
+    .pricing-card {
+      background: white;
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+      position: relative;
+    }
+    
+    .pricing-card.featured {
+      border-color: var(--primary);
+      transform: scale(1.05);
+    }
+    
+    .pricing-card:hover {
+      transform: scale(1.08);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+    }
+    
+    .pricing-badge {
+      position: absolute;
+      top: -15px;
+      right: 20px;
+      background: var(--gradient);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .pricing-card h3 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+      color: var(--dark);
+    }
+    
+    .price {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 1rem 0;
+    }
+    
+    .price-period {
+      font-size: 1rem;
+      color: var(--gray);
+      font-weight: 400;
+    }
+    
+    .pricing-features {
+      list-style: none;
+      margin: 2rem 0;
+      text-align: left;
+    }
+    
+    .pricing-features li {
+      padding: 0.8rem 0;
+      padding-left: 1.8rem;
+      position: relative;
+      color: var(--gray);
+    }
+    
+    .pricing-features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--secondary);
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+    
+    /* Testimonials */
+    .testimonials {
+      background: var(--light);
+    }
+    
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+    
+    .testimonial-card {
+      background: white;
+      padding: 2.5rem;
+      border-radius: 20px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    
+    .quote-icon {
+      font-size: 3rem;
+      color: var(--primary);
+      opacity: 0.2;
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+    }
+    
+    .testimonial-text {
+      font-size: 1.1rem;
+      color: var(--gray);
+      margin-bottom: 1.5rem;
+      line-height: 1.7;
+      font-style: italic;
+    }
+    
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .author-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 1.3rem;
+    }
+    
+    .author-info h4 {
+      font-size: 1rem;
+      color: var(--dark);
+      margin-bottom: 0.2rem;
+    }
+    
+    .author-info p {
+      font-size: 0.9rem;
+      color: var(--gray);
+    }
+    
+    /* CTA Section */
+    .cta-section {
+      background: var(--gradient);
+      color: white;
+      text-align: center;
+      padding: 6rem 0;
+    }
+    
+    .cta-section h2 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      margin-bottom: 1.5rem;
+    }
+    
+    .cta-section p {
+      font-size: clamp(1.1rem, 2vw, 1.5rem);
+      margin-bottom: 2.5rem;
+      opacity: 0.95;
+    }
+    
+    /* Contact */
+    .contact {
+      background: var(--dark);
+      color: white;
+      text-align: center;
+      padding: 3rem 0;
+    }
+    
+    .contact-info {
+      display: flex;
+      justify-content: center;
+      gap: 3rem;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+    }
+    
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.1rem;
+    }
+    
+    .contact-item a {
+      color: white;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    
+    .contact-item a:hover {
+      color: var(--accent);
+    }
+    
+    /* Scroll to top button */
+    .scroll-top {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      width: 50px;
+      height: 50px;
+      background: var(--gradient);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 1.5rem;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .scroll-top.show {
+      display: flex;
+    }
+    
+    .scroll-top:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero {
+        min-height: 100svh;
+        padding: 2rem 1rem;
+      }
+      
+      section {
+        padding: 3rem 0;
+      }
+      
+      .pricing-card.featured {
+        transform: none;
+      }
+      
+      .pricing-card:hover {
+        transform: scale(1.02);
+      }
+      
+      .stats-grid,
+      .features-grid,
+      .problem-grid,
+      .testimonials-grid {
+        gap: 1.5rem;
+      }
+    }
+    
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    .animate-pulse {
+      animation: pulse 2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container hero-content">
+      <h1>🐕 GAFUS</h1>
+      <p class="tagline">Платформа Онлайн-Обучения для Кинологов</p>
+      <p class="subtitle">Масштабируйте свою экспертизу · Проверяйте практику дистанционно · Зарабатывайте в 10 раз больше</p>
+      <div class="cta-buttons">
+        <a href="#features" class="btn btn-primary">Узнать больше</a>
+        <a href="#pricing" class="btn btn-outline">Тарифы</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Problem Section -->
+  <section id="problem">
+    <div class="container">
+      <h2 class="section-title">Проблемы Кинологов Сегодня</h2>
+      <p class="section-subtitle">С чем сталкиваются профессиональные тренеры в работе?</p>
+      
+      <div class="problem-grid">
+        <div class="problem-card">
+          <div class="problem-icon">⏰</div>
+          <h3>Ограничение времени</h3>
+          <p>Максимум 5-10 учеников одновременно. Физически не успеваете больше.</p>
+        </div>
+        
+        <div class="problem-card">
+          <div class="problem-icon">📍</div>
+          <h3>Привязка к месту</h3>
+          <p>Нужна площадка для тренировок. Работаете только в своём городе.</p>
+        </div>
+        
+        <div class="problem-card">
+          <div class="problem-icon">💰</div>
+          <h3>Потолок дохода</h3>
+          <p>Доход = часы работы. Чтобы заработать больше, нужно работать больше.</p>
+        </div>
+        
+        <div class="problem-card">
+          <div class="problem-icon">📱</div>
+          <h3>Сложность онлайн</h3>
+          <p>Telegram — хаос, YouTube — нет обратной связи, GetCourse — нельзя проверить практику.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Solution -->
+  <section id="solution">
+    <div class="container">
+      <h2 class="section-title">Решение: GAFUS</h2>
+      <p class="section-subtitle">Единственная платформа, которая позволяет масштабировать кинологический бизнес</p>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-number">1 → 1000+</span>
+          <span class="stat-label">Тренер → Учеников</span>
+        </div>
+        
+        <div class="stat-card">
+          <span class="stat-number">10x</span>
+          <span class="stat-label">Рост дохода</span>
+        </div>
+        
+        <div class="stat-card">
+          <span class="stat-number">95%</span>
+          <span class="stat-label">Экономия времени</span>
+        </div>
+        
+        <div class="stat-card">
+          <span class="stat-number">80%</span>
+          <span class="stat-label">Завершают курс</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features">
+    <div class="container">
+      <h2 class="section-title">Ключевые Возможности</h2>
+      <p class="section-subtitle">Всё, что нужно для успешного онлайн-обучения</p>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-icon">📹</span>
+          <h3>Видео-Экзамены</h3>
+          <p>Проверка практических навыков дистанционно</p>
+          <ul class="feature-list">
+            <li>Запись видео в браузере</li>
+            <li>Автозагрузка на CDN</li>
+            <li>Тесты + видео + письменная работа</li>
+            <li>Push-уведомления при зачёте</li>
+          </ul>
+        </div>
+        
+        <div class="feature-card">
+          <span class="feature-icon">🔔</span>
+          <h3>Smart Push</h3>
+          <p>Ученики не забывают тренироваться</p>
+          <ul class="feature-list">
+            <li>Напоминания по расписанию</li>
+            <li>Событийные уведомления</li>
+            <li>+30% Engagement</li>
+            <li>Работает на iOS/Android</li>
+          </ul>
+        </div>
+        
+        <div class="feature-card">
+          <span class="feature-icon">📱</span>
+          <h3>PWA Приложение</h3>
+          <p>Native-like опыт без установки</p>
+          <ul class="feature-list">
+            <li>Работает оффлайн</li>
+            <li>Haptic Feedback (вибрация)</li>
+            <li>Конфетти при достижениях</li>
+            <li>Геймификация</li>
+          </ul>
+        </div>
+        
+        <div class="feature-card">
+          <span class="feature-icon">🏗️</span>
+          <h3>Конструктор Курсов</h3>
+          <p>От идеи до запуска за 30 минут</p>
+          <ul class="feature-list">
+            <li>Библиотека шаблонов</li>
+            <li>Drag-n-drop интерфейс</li>
+            <li>Переиспользование шагов</li>
+            <li>Загрузка на CDN</li>
+          </ul>
+        </div>
+        
+        <div class="feature-card">
+          <span class="feature-icon">👤</span>
+          <h3>Профили Питомцев</h3>
+          <p>Персонализированный подход</p>
+          <ul class="feature-list">
+            <li>Порода, возраст, вес</li>
+            <li>История тренировок</li>
+            <li>Достижения и награды</li>
+            <li>Аналитика по породам</li>
+          </ul>
+        </div>
+        
+        <div class="feature-card">
+          <span class="feature-icon">📊</span>
+          <h3>Аналитика</h3>
+          <p>Полная статистика и отчёты</p>
+          <ul class="feature-list">
+            <li>Прогресс учеников</li>
+            <li>Популярные курсы</li>
+            <li>Конверсия воронки</li>
+            <li>Экспорт в Excel</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="stats">
+    <div class="container">
+      <h2 class="section-title" style="color: white;">Результаты Использования</h2>
+      <p class="section-subtitle" style="color: rgba(255,255,255,0.9);">Реальные метрики улучшения бизнеса</p>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-number">+150%</span>
+          <span class="stat-label">Удержание учеников</span>
+        </div>
+        
+        <div class="stat-card">
+          <span class="stat-number">20x</span>
+          <span class="stat-label">Масштаб аудитории</span>
+        </div>
+        
+        <div class="stat-card">
+          <span class="stat-number">30 мин</span>
+          <span class="stat-label">Создание курса</span>
+        </div>
+        
+        <div class="stat-card">
+          <span class="stat-number">24/7</span>
+          <span class="stat-label">Доступность обучения</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison Table -->
+  <section class="comparison">
+    <div class="container">
+      <h2 class="section-title">GAFUS vs Альтернативы</h2>
+      <p class="section-subtitle">Почему GAFUS — лучший выбор для кинологов</p>
+      
+      <div class="comparison-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Функция</th>
+              <th>GAFUS</th>
+              <th>GetCourse</th>
+              <th>Telegram</th>
+              <th>YouTube</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Видео-экзамены</strong></td>
+              <td class="check">✓</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+            </tr>
+            <tr>
+              <td><strong>Проверка практики</strong></td>
+              <td class="check">✓ Полная</td>
+              <td>⚠️ Только тесты</td>
+              <td>⚠️ Вручную</td>
+              <td class="cross">✗</td>
+            </tr>
+            <tr>
+              <td><strong>Push-уведомления</strong></td>
+              <td class="check">✓</td>
+              <td>⚠️ Email</td>
+              <td>⚠️ Вручную</td>
+              <td class="cross">✗</td>
+            </tr>
+            <tr>
+              <td><strong>PWA/Оффлайн</strong></td>
+              <td class="check">✓</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td>⚠️ Частично</td>
+            </tr>
+            <tr>
+              <td><strong>Профили питомцев</strong></td>
+              <td class="check">✓</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+            </tr>
+            <tr>
+              <td><strong>Геймификация</strong></td>
+              <td class="check">✓ Полная</td>
+              <td>⚠️ Базовая</td>
+              <td class="cross">✗</td>
+              <td class="cross">✗</td>
+            </tr>
+            <tr>
+              <td><strong>Для кинологов</strong></td>
+              <td class="check">✓ Специализация</td>
+              <td class="cross">Универсальный</td>
+              <td class="cross">Универсальный</td>
+              <td class="cross">Универсальный</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section id="pricing" class="pricing">
+    <div class="container">
+      <h2 class="section-title">Тарифы</h2>
+      <p class="section-subtitle">Выберите подходящий план для вашего бизнеса</p>
+      
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <h3>Starter</h3>
+          <div class="price">5 000₽<span class="price-period">/мес</span></div>
+          <ul class="pricing-features">
+            <li>До 50 учеников</li>
+            <li>3 курса</li>
+            <li>Базовая аналитика</li>
+            <li>Email поддержка</li>
+            <li>Видео-экзамены</li>
+            <li>Push-уведомления</li>
+          </ul>
+          <a href="#contact" class="btn btn-outline" style="color: var(--primary); border-color: var(--primary);">Начать</a>
+        </div>
+        
+        <div class="pricing-card featured">
+          <div class="pricing-badge">Популярный</div>
+          <h3>Professional</h3>
+          <div class="price">15 000₽<span class="price-period">/мес</span></div>
+          <ul class="pricing-features">
+            <li>До 200 учеников</li>
+            <li>Неограниченно курсов</li>
+            <li>Полная аналитика</li>
+            <li>Приоритетная поддержка</li>
+            <li>Белая метка</li>
+            <li>Свой домен</li>
+            <li>Все фишки Starter</li>
+          </ul>
+          <a href="#contact" class="btn btn-primary">Выбрать</a>
+        </div>
+        
+        <div class="pricing-card">
+          <h3>Enterprise</h3>
+          <div class="price">Договорная</div>
+          <ul class="pricing-features">
+            <li>Неограниченно учеников</li>
+            <li>Неограниченно тренеров</li>
+            <li>Кастомная разработка</li>
+            <li>Dedicated сервер</li>
+            <li>SLA 99.99%</li>
+            <li>Персональный менеджер</li>
+            <li>Все фишки Professional</li>
+          </ul>
+          <a href="#contact" class="btn btn-outline" style="color: var(--primary); border-color: var(--primary);">Связаться</a>
+        </div>
+      </div>
+      
+      <p style="text-align: center; margin-top: 3rem; color: var(--gray); font-size: 1.1rem;">
+        🎁 <strong>Бонус:</strong> Первый месяц бесплатно для новых пользователей!
+      </p>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="testimonials">
+    <div class="container">
+      <h2 class="section-title">Отзывы Тренеров</h2>
+      <p class="section-subtitle">Что говорят профессионалы о GAFUS</p>
+      
+      <div class="testimonials-grid">
+        <div class="testimonial-card">
+          <div class="quote-icon">"</div>
+          <p class="testimonial-text">
+            За 2 месяца на GAFUS я заработал больше, чем за полгода очных тренировок. 
+            Система видео-экзаменов — это просто бомба!
+          </p>
+          <div class="testimonial-author">
+            <div class="author-avatar">АК</div>
+            <div class="author-info">
+              <h4>Александр К.</h4>
+              <p>Кинолог, опыт 7 лет</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="testimonial-card">
+          <div class="quote-icon">"</div>
+          <p class="testimonial-text">
+            Раньше я могла работать максимум с 10 учениками. Теперь у меня 150+ на платформе, 
+            и я успеваю всех проверять. Спасибо библиотеке шаблонов!
+          </p>
+          <div class="testimonial-author">
+            <div class="author-avatar">МП</div>
+            <div class="author-info">
+              <h4>Мария П.</h4>
+              <p>Специалист по щенкам</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="testimonial-card">
+          <div class="quote-icon">"</div>
+          <p class="testimonial-text">
+            Ученики наконец-то ДОХОДЯТ до конца курса! Push-уведомления и геймификация 
+            творят чудеса. Retention вырос с 30% до 75%.
+          </p>
+          <div class="testimonial-author">
+            <div class="author-avatar">ДВ</div>
+            <div class="author-info">
+              <h4>Дмитрий В.</h4>
+              <p>Владелец кинологической школы</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta-section">
+    <div class="container">
+      <h2 class="animate-pulse">Готовы Масштабировать Свою Экспертизу?</h2>
+      <p>Присоединяйтесь к революции в кинологическом образовании!</p>
+      <div class="cta-buttons">
+        <a href="mailto:support@gafus.ru" class="btn btn-primary">Начать Бесплатно</a>
+        <a href="tel:+79198031371" class="btn btn-outline">Связаться с Нами</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact Section -->
+  <section id="contact" class="contact">
+    <div class="container">
+      <h2 class="section-title" style="color: white;">Контакты</h2>
+      <div class="contact-info">
+        <div class="contact-item">
+          <span>📧</span>
+          <a href="mailto:support@gafus.ru">support@gafus.ru</a>
+        </div>
+        <div class="contact-item">
+          <span>📱</span>
+          <a href="tel:+79198031371">+7 (919) 803-13-71</a>
+        </div>
+        <div class="contact-item">
+          <span>💬</span>
+          <a href="https://t.me/gafus_support">@gafus_support</a>
+        </div>
+      </div>
+      <p style="margin-top: 2rem; opacity: 0.7;">© 2025 GAFUS. Все права защищены.</p>
+    </div>
+  </section>
+
+  <!-- Scroll to Top Button -->
+  <button class="scroll-top" id="scrollTop" aria-label="Наверх">↑</button>
+
+  <script>
+    // Smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // Scroll to top button
+    const scrollTopBtn = document.getElementById('scrollTop');
+    
+    window.addEventListener('scroll', () => {
+      if (window.pageYOffset > 300) {
+        scrollTopBtn.classList.add('show');
+      } else {
+        scrollTopBtn.classList.remove('show');
+      }
+    });
+
+    scrollTopBtn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // Intersection Observer for animations
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, observerOptions);
+
+    document.querySelectorAll('.problem-card, .feature-card, .stat-card, .pricing-card, .testimonial-card').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(30px)';
+      el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      observer.observe(el);
+    });
+  </script>
+
+</body>
+</html>
+
+
