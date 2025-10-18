@@ -56,6 +56,16 @@ COPY . .
 # Генерируем Prisma Client
 RUN cd packages/prisma && pnpm exec prisma generate
 
+# Создаем папку для Prisma
+RUN mkdir -p /app/node_modules/.prisma
+
+# Копируем Prisma client
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
+
+# Копируем Prisma Query Engine рядом с клиентом (ожидаемое Prisma расположение)
+RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
+
 # Билдим зависимые пакеты в правильном порядке
 RUN pnpm --filter @gafus/logger run build
 RUN pnpm --filter @gafus/prisma run build
@@ -86,6 +96,14 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=nextjs:nodejs /app/apps/admin-panel/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/admin-panel/.next/static ./apps/admin-panel/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/admin-panel/public ./apps/admin-panel/public
+
+# Копируем Prisma client и Query Engine
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Копируем Prisma client в несколько мест для поиска движка рантаймом
+RUN mkdir -p ./apps/admin-panel/.prisma && cp -r ./node_modules/.prisma/client ./apps/admin-panel/.prisma/client
+RUN mkdir -p ./apps/admin-panel/node_modules/.prisma && cp -r ./node_modules/.prisma/client ./apps/admin-panel/node_modules/.prisma/client
+RUN mkdir -p ./apps/admin-panel/node_modules/@prisma && cp -r ./node_modules/.prisma/client ./apps/admin-panel/node_modules/@prisma/client
 
 USER nextjs
 
