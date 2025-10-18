@@ -3,26 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="GAFUS - Платформа онлайн-обучения для кинологов. Масштабируйте свою экспертизу, проверяйте практику дистанционно, зарабатывайте в 10 раз больше.">
-  <meta name="keywords" content="кинология, онлайн обучение, дрессировка собак, платформа для кинологов">
-  <meta property="og:title" content="GAFUS - Платформа для Кинологов">
-  <meta property="og:description" content="Единственная платформа с видео-экзаменами и проверкой практики. 1 тренер → 1000+ учеников.">
-  <meta property="og:image" content="/icons/icon512.png">
+  <meta name="description" content="ГАФУС - Бесплатная платформа онлайн-обучения для кинологов. Структурируйте курсы, отслеживайте прогресс учеников, используйте библиотеку шаблонов.">
+  <meta name="keywords" content="кинология, онлайн обучение, дрессировка собак, платформа для кинологов, курсы для собак">
+  <meta property="og:title" content="ГАФУС - Бесплатная Платформа для Кинологов">
+  <meta property="og:description" content="Создавайте курсы за 30 минут, отслеживайте прогресс учеников, используйте библиотеку шаблонов. Все бесплатно для кинологов!">
+  <meta property="og:image" content="https://gafus.ru/logo.png">
+  <meta property="og:url" content="https://gafus.ru/presentation.html">
   <meta property="og:type" content="website">
-  <title>GAFUS - Платформа для Кинологов | Презентация</title>
+  <meta property="og:site_name" content="ГАФУС">
+  
+  <!-- Twitter Card метатеги -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ГАФУС - Бесплатная Платформа для Кинологов">
+  <meta name="twitter:description" content="Создавайте курсы за 30 минут, отслеживайте прогресс учеников, используйте библиотеку шаблонов. Все бесплатно для кинологов!">
+  <meta name="twitter:image" content="https://gafus.ru/logo.png">
+  
+  <!-- Дополнительные метатеги -->
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="ГАФУС">
+  <meta name="theme-color" content="#636128">
+  <title>ГАФУС - Бесплатная Платформа для Кинологов | Презентация</title>
   
   <style>
     :root {
-      --primary: #2563eb;
-      --primary-dark: #1e40af;
-      --secondary: #10b981;
-      --accent: #f59e0b;
-      --dark: #1f2937;
-      --light: #f9fafb;
-      --gray: #6b7280;
-      --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --gradient-warm: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-      --gradient-cool: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      --primary: #636128;
+      --primary-dark: #4a4920;
+      --secondary: #dad3c1;
+      --accent: #fff8e5;
+      --dark: #352e2e;
+      --light: #dad3c1;
+      --gray: #636128;
+      --gradient: linear-gradient(135deg, #636128 0%, #4a4920 100%);
+      --gradient-warm: linear-gradient(135deg, #dad3c1 0%, #fff8e5 100%);
+      --gradient-cool: linear-gradient(135deg, #636128 0%, #dad3c1 100%);
+      --gradient-dark: linear-gradient(135deg, #dad3c1 0%, #f5f0e8 50%, #e8e0d0 100%);
+      --glass-bg: rgba(255, 248, 229, 0.9);
+      --glass-border: rgba(99, 97, 40, 0.2);
+      --shadow-soft: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.05);
+      --shadow-medium: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+      --shadow-strong: 0 20px 25px rgba(0, 0, 0, 0.15), 0 10px 10px rgba(0, 0, 0, 0.04);
+      --shadow-xl: 0 25px 50px rgba(0, 0, 0, 0.25), 0 10px 20px rgba(0, 0, 0, 0.1);
+      --neon-glow: 0 0 20px rgba(99, 97, 40, 0.2);
+      --neon-glow-warm: 0 0 20px rgba(255, 248, 229, 0.3);
+      --neon-glow-dark: 0 0 20px rgba(53, 46, 46, 0.2);
     }
     
     * {
@@ -35,14 +58,133 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
       line-height: 1.6;
       color: var(--dark);
-      background: var(--light);
+      background: var(--secondary);
       overflow-x: hidden;
+      scroll-behavior: smooth;
+      position: relative;
     }
     
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 20% 20%, rgba(99, 97, 40, 0.05) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(255, 248, 229, 0.03) 0%, transparent 60%),
+        radial-gradient(circle at 50% 50%, rgba(53, 46, 46, 0.02) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    
+    /* Следы лап как SVG */
+    .paw-print {
+      position: absolute;
+      width: 12.5rem;
+      height: 12.5rem;
+      opacity: 0.1;
+      pointer-events: none;
+      z-index: 1;
+      transform: rotate(var(--rotation, 0deg));
+      mix-blend-mode: multiply;
+      background-image: url('/paw.svg');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    
+    /* Маленькие следы для Hero секции */
+    .paw-print-small {
+      position: absolute;
+      width: 3.75rem;
+      height: 3.75rem;
+      opacity: 0.1;
+      pointer-events: none;
+      z-index: 1;
+      transform: rotate(var(--rotation, 0deg));
+      mix-blend-mode: multiply;
+      background-image: url('/paw.svg');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    
+    /* Средние следы - в 1.5 раза больше */
+    .paw-print-medium {
+      position: absolute;
+      width: 5.625rem;
+      height: 5.625rem;
+      opacity: 0.1;
+      pointer-events: none;
+      z-index: 1;
+      transform: rotate(var(--rotation, 0deg));
+      mix-blend-mode: multiply;
+      background-image: url('/paw.svg');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    
+    /* Совсем маленькие следы - в 1.5 раза меньше */
+    .paw-print-tiny {
+      position: absolute;
+      width: 2.5rem;
+      height: 2.5rem;
+      opacity: 0.1;
+      pointer-events: none;
+      z-index: 1;
+      transform: rotate(var(--rotation, 0deg));
+      mix-blend-mode: multiply;
+      background-image: url('/paw.svg');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    
+    /* Следы для Contact секции - полная непрозрачность */
+    .paw-print-contact {
+      position: absolute;
+      width: 12.5rem;
+      height: 12.5rem;
+      opacity: 1;
+      pointer-events: none;
+      z-index: 1;
+      transform: rotate(var(--rotation, 0deg));
+      mix-blend-mode: multiply;
+      background-image: url('/paw.svg');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    
+    .paw-print:nth-child(1) { top: 15%; left: 10%; --rotation: -25deg; }
+    .paw-print:nth-child(2) { top: 18%; left: 14%; --rotation: -20deg; }
+    .paw-print:nth-child(3) { top: 25%; left: 20%; --rotation: -30deg; }
+    .paw-print:nth-child(4) { top: 28%; left: 24%; --rotation: -25deg; }
+    .paw-print:nth-child(5) { top: 35%; left: 30%; --rotation: -15deg; }
+    .paw-print:nth-child(6) { top: 38%; left: 34%; --rotation: -20deg; }
+    .paw-print:nth-child(7) { top: 45%; left: 15%; --rotation: 25deg; }
+    .paw-print:nth-child(8) { top: 48%; left: 19%; --rotation: 20deg; }
+    .paw-print:nth-child(9) { top: 55%; left: 25%; --rotation: 30deg; }
+    .paw-print:nth-child(10) { top: 58%; left: 29%; --rotation: 25deg; }
+    .paw-print:nth-child(11) { top: 20%; left: 70%; --rotation: -35deg; }
+    .paw-print:nth-child(12) { top: 23%; left: 74%; --rotation: -30deg; }
+    .paw-print:nth-child(13) { top: 30%; left: 80%; --rotation: -25deg; }
+    .paw-print:nth-child(14) { top: 33%; left: 84%; --rotation: -30deg; }
+    .paw-print:nth-child(15) { top: 65%; left: 60%; --rotation: 15deg; }
+    .paw-print:nth-child(16) { top: 68%; left: 64%; --rotation: 20deg; }
+    .paw-print:nth-child(17) { top: 75%; left: 70%; --rotation: 25deg; }
+    .paw-print:nth-child(18) { top: 78%; left: 74%; --rotation: 20deg; }
+    .paw-print:nth-child(19) { top: 85%; left: 80%; --rotation: 30deg; }
+    .paw-print:nth-child(20) { top: 88%; left: 84%; --rotation: 25deg; }
+    
     .container {
-      max-width: 1200px;
+      max-width: 75rem;
       margin: 0 auto;
-      padding: 0 20px;
+      padding: 0 1.25rem;
     }
     
     /* Hero Section */
@@ -51,8 +193,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--gradient);
-      color: white;
+      background: var(--secondary);
+      color: var(--dark);
       text-align: center;
       position: relative;
       overflow: hidden;
@@ -61,29 +203,44 @@
     .hero::before {
       content: '';
       position: absolute;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
-      background-size: 50px 50px;
-      animation: drift 20s linear infinite;
-      opacity: 0.3;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 30% 20%, rgba(99, 97, 40, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 70% 80%, rgba(255, 248, 229, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(53, 46, 46, 0.03) 0%, transparent 60%);
+      pointer-events: none;
     }
     
-    @keyframes drift {
-      from { transform: translate(0, 0); }
-      to { transform: translate(50px, 50px); }
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 50%);
+      animation: float 20s ease-in-out infinite;
+      opacity: 0.6;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      33% { transform: translate(30px, -30px) rotate(120deg); }
+      66% { transform: translate(-20px, 20px) rotate(240deg); }
     }
     
     .hero-content {
       position: relative;
-      z-index: 1;
+      z-index: 3;
       animation: fadeInUp 1s ease-out;
     }
     
     @keyframes fadeInUp {
       from {
         opacity: 0;
-        transform: translateY(30px);
+        transform: translateY(1.875rem);
       }
       to {
         opacity: 1;
@@ -96,7 +253,13 @@
       font-weight: 800;
       margin-bottom: 1rem;
       line-height: 1.1;
-      text-shadow: 2px 2px 20px rgba(0,0,0,0.3);
+      color: #636128;
+      text-shadow: 0 2px 4px rgba(99, 97, 40, 0.2);
+    }
+    
+    @keyframes textGlow {
+      from { filter: brightness(1); }
+      to { filter: brightness(1.2); }
     }
     
     .hero .tagline {
@@ -123,44 +286,84 @@
       padding: 1rem 2.5rem;
       font-size: 1.1rem;
       font-weight: 600;
-      border-radius: 50px;
+      border-radius: 3.125rem;
       text-decoration: none;
       display: inline-block;
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: pointer;
       border: none;
+      position: relative;
+      overflow: hidden;
+      background: var(--gradient);
+      color: var(--accent);
+      box-shadow: var(--shadow-medium), 0 0 1.25rem rgba(99, 97, 40, 0.3);
+    }
+    
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: left 0.6s ease;
+    }
+    
+    .btn:hover {
+      transform: translateY(-0.375rem) scale(1.05);
+      box-shadow: var(--shadow-xl), 0 0 1.875rem rgba(99, 97, 40, 0.4);
+      background: linear-gradient(135deg, #4a4920 0%, #636128 50%, #352e2e 100%);
+    }
+    
+    .btn:hover::before {
+      left: 100%;
     }
     
     .btn-primary {
-      background: white;
+      background: linear-gradient(135deg, var(--accent) 0%, #fff 100%);
       color: var(--primary);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      box-shadow: var(--shadow-medium);
     }
     
     .btn-primary:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+      transform: translateY(-0.3125rem) scale(1.05);
+      box-shadow: var(--shadow-strong);
+      background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
     }
     
     .btn-outline {
-      background: transparent;
+      background: rgba(255, 255, 255, 0.1);
       color: white;
-      border: 2px solid white;
+      border: 0.125rem solid rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px);
     }
     
     .btn-outline:hover {
-      background: white;
+      background: rgba(255, 255, 255, 0.2);
       color: var(--primary);
-      transform: translateY(-3px);
+      transform: translateY(-0.3125rem) scale(1.05);
+      border-color: var(--accent);
     }
     
     /* Section Styles */
     section {
-      padding: 5rem 0;
+      padding: 6rem 0;
+      position: relative;
+      z-index: 2;
     }
     
     section:nth-child(even) {
-      background: white;
+      background: #f5f0e8;
+      border-top: 0.0625rem solid rgba(99, 97, 40, 0.1);
+      border-bottom: 0.0625rem solid rgba(99, 97, 40, 0.1);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5),
+                  inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+    }
+    
+    section:nth-child(odd):not(.hero):not(.contact) {
+      background: var(--secondary);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
     }
     
     .section-title {
@@ -168,17 +371,34 @@
       font-size: clamp(2rem, 5vw, 3rem);
       font-weight: 700;
       margin-bottom: 1rem;
-      color: var(--dark);
+      color: #352e2e;
+      position: relative;
+      display: inline-block;
+      width: 100%;
+    }
+    
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: -0.625rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 5rem;
+      height: 0.25rem;
+      background: var(--gradient);
+      border-radius: 0.125rem;
+      box-shadow: var(--neon-glow);
     }
     
     .section-subtitle {
       text-align: center;
       font-size: clamp(1rem, 2vw, 1.3rem);
-      color: var(--gray);
+      color: var(--dark);
       margin-bottom: 4rem;
       max-width: 700px;
       margin-left: auto;
       margin-right: auto;
+      font-weight: 500;
     }
     
     /* Problem Section */
@@ -190,17 +410,43 @@
     }
     
     .problem-card {
-      background: white;
-      padding: 2rem;
-      border-radius: 20px;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
+      background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+      padding: 2.5rem;
+      border-radius: 1.5rem;
+      box-shadow: var(--shadow-medium);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 0.0625rem solid rgba(99, 97, 40, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .problem-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 0.25rem;
+      background: var(--gradient);
+      box-shadow: 0 0.125rem 0.5rem rgba(99, 97, 40, 0.3);
+    }
+    
+    .problem-card::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(99, 97, 40, 0.03) 0%, transparent 70%);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
     }
     
     .problem-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      transform: translateY(-0.75rem);
+      box-shadow: var(--shadow-xl);
+      background: linear-gradient(135deg, #ffffff 0%, var(--glass-bg) 100%);
       border-color: var(--primary);
     }
     
@@ -212,12 +458,14 @@
     .problem-card h3 {
       font-size: 1.3rem;
       margin-bottom: 0.5rem;
-      color: var(--dark);
+      color: var(--primary);
+      font-weight: 700;
     }
     
     .problem-card p {
-      color: var(--gray);
+      color: var(--dark);
       line-height: 1.6;
+      font-weight: 500;
     }
     
     /* Features Section */
@@ -230,13 +478,14 @@
     
     .feature-card {
       text-align: center;
-      padding: 2.5rem;
-      border-radius: 20px;
-      background: linear-gradient(145deg, #ffffff, #f0f0f0);
-      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-      transition: all 0.3s ease;
+      padding: 3rem;
+      border-radius: 1.5rem;
+      background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+      box-shadow: var(--shadow-medium);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       overflow: hidden;
+      border: 0.0625rem solid rgba(99, 97, 40, 0.15);
     }
     
     .feature-card::before {
@@ -245,13 +494,28 @@
       top: 0;
       left: 0;
       width: 100%;
-      height: 4px;
+      height: 0.25rem;
       background: var(--gradient);
+      box-shadow: 0 0.125rem 0.5rem rgba(99, 97, 40, 0.3);
+    }
+    
+    .feature-card::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(99, 97, 40, 0.03) 0%, transparent 70%);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
     }
     
     .feature-card:hover {
-      transform: translateY(-10px);
-      box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+      transform: translateY(-1rem) scale(1.02);
+      box-shadow: var(--shadow-xl);
+      background: linear-gradient(135deg, #ffffff 0%, var(--glass-bg) 100%);
+      border-color: var(--primary);
     }
     
     .feature-icon {
@@ -263,298 +527,478 @@
     .feature-card h3 {
       font-size: 1.5rem;
       margin-bottom: 1rem;
-      color: var(--dark);
+      color: var(--primary);
+      font-weight: 700;
     }
     
     .feature-card p {
-      color: var(--gray);
+      color: var(--dark);
       margin-bottom: 1rem;
       line-height: 1.7;
+      font-weight: 500;
     }
     
-    .feature-list {
-      text-align: left;
-      list-style: none;
-      margin-top: 1rem;
-    }
     
-    .feature-list li {
-      padding: 0.5rem 0;
-      padding-left: 1.5rem;
-      position: relative;
-      color: var(--gray);
-    }
     
-    .feature-list li::before {
-      content: '✓';
+    /* Gafus Dialog Styles */
+    .gafus-dialog {
       position: absolute;
-      left: 0;
-      color: var(--secondary);
-      font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: row-reverse;
+    right: 0px;
+    top: 976px;
     }
     
-    /* Stats Section */
-    .stats {
-      background: var(--gradient);
-      color: white;
+    .gafus-dialog .logo {
+      height: auto;
+      width: 15.625rem;
+      margin-left: -0.875rem;
+      position: relative;
+      z-index: 2;
+      transform: scaleX(-1);
+    }
+    
+    .speech-bubble {
+      position: relative;
+      background-color: #f5f0d8;
+      border-radius: 1.25rem;
+      padding: 1.25rem;
+      min-width: 13.125rem;
+      max-width: 17.5rem;
+      box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+    }
+    
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      right: -1.25rem;
+      top: 32%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 1.0625rem solid transparent;
+      border-bottom: 1.4375rem solid transparent;
+      border-left: 1.625rem solid #f5f0d8;
+    }
+    
+    .speech-text {
+      font-family: 'Courier New', monospace;
+      font-size: 0.875rem;
+      line-height: 3;
+      color: #4a4a2a;
       text-align: center;
-    }
-    
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 3rem;
-      margin-top: 3rem;
-    }
-    
-    .stat-card {
-      padding: 2rem;
-    }
-    
-    .stat-number {
-      font-size: clamp(2.5rem, 6vw, 4rem);
-      font-weight: 800;
-      display: block;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(135deg, #fff, #e0e0e0);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    .stat-label {
-      font-size: 1.1rem;
-      opacity: 0.9;
-      font-weight: 300;
+      margin: 0;
+      font-weight: 500;
     }
     
     /* Comparison Table */
     .comparison {
-      background: var(--light);
+      background: linear-gradient(135deg, #dad3c1 0%, #e8e0d0 50%, #f5f0e8 100%);
+      border-top: 0.0625rem solid rgba(99, 97, 40, 0.1);
+      border-bottom: 0.0625rem solid rgba(99, 97, 40, 0.1);
     }
     
     .comparison-table {
       overflow-x: auto;
       margin-top: 3rem;
-      border-radius: 20px;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      border-radius: 1.5rem;
+      box-shadow: var(--shadow-strong);
+      border: 0.0625rem solid rgba(99, 97, 40, 0.15);
+      background: linear-gradient(135deg, #ffffff 0%, var(--glass-bg) 100%);
+      position: relative;
     }
     
     table {
       width: 100%;
       border-collapse: collapse;
-      background: white;
+      background: transparent;
     }
     
     th, td {
       padding: 1.5rem;
       text-align: left;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 0.0625rem solid rgba(0, 255, 150, 0.1);
     }
     
     th {
-      background: var(--gradient);
-      color: white;
-      font-weight: 600;
+      background: linear-gradient(135deg, #636128 0%, #4a4920 50%, #352e2e 100%);
+      color: var(--accent);
+      font-weight: 700;
       text-transform: uppercase;
       font-size: 0.9rem;
       letter-spacing: 0.5px;
+      text-align: center;
     }
     
-    tr:hover {
-      background: #f9fafb;
+    th:first-child {
+      text-align: left;
+      background: linear-gradient(135deg, #dad3c1 0%, #636128 100%);
+      color: var(--dark);
+      border-right: 1px solid var(--glass-border);
+    }
+    
+    td {
+      background: rgba(255, 248, 229, 0.8);
+      color: var(--dark);
+      font-weight: 600;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    
+    td:first-child {
+      text-align: left;
+      background: var(--glass-bg);
+      border-right: 1px solid var(--glass-border);
+      font-weight: 700;
+      color: var(--primary);
+    }
+    
+    tr:hover td {
+      background: rgba(99, 97, 40, 0.1);
+      transform: scale(1.01);
+    }
+    
+    tr:hover td:first-child {
+      background: rgba(99, 97, 40, 0.15);
     }
     
     .check {
-      color: var(--secondary);
+      color: #636128;
       font-weight: bold;
-      font-size: 1.3rem;
+      font-size: 1.5rem;
+      text-shadow: 0 0 10px rgba(99, 97, 40, 0.5);
     }
     
     .cross {
-      color: #ef4444;
+      color: #dc3545;
       font-weight: bold;
-      font-size: 1.3rem;
+      font-size: 1.5rem;
+      text-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
     }
     
-    /* Pricing */
-    .pricing {
-      background: white;
+    .warning {
+      color: #ffc107;
+      font-weight: bold;
+      font-size: 1.5rem;
+      text-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
     }
     
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 2rem;
+    .text-feature {
+      color: var(--primary);
+      font-weight: 700;
+    }
+    
+    /* Goals Section */
+    .goals {
+      background: #f5f0e8;
+      border-top: 0.0625rem solid rgba(99, 97, 40, 0.1);
+      border-bottom: 0.0625rem solid rgba(99, 97, 40, 0.1);
+    }
+    
+    .goals-content {
       margin-top: 3rem;
+      text-align: center;
     }
     
-    .pricing-card {
-      background: white;
-      border-radius: 20px;
-      padding: 2.5rem;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
-      position: relative;
-    }
-    
-    .pricing-card.featured {
-      border-color: var(--primary);
-      transform: scale(1.05);
-    }
-    
-    .pricing-card:hover {
-      transform: scale(1.08);
-      box-shadow: 0 15px 40px rgba(0,0,0,0.2);
-    }
-    
-    .pricing-badge {
-      position: absolute;
-      top: -15px;
-      right: 20px;
-      background: var(--gradient);
-      color: white;
-      padding: 0.5rem 1rem;
-      border-radius: 20px;
-      font-size: 0.8rem;
+    .goals-title {
+      font-size: clamp(1.5rem, 3vw, 2rem);
       font-weight: 600;
-      text-transform: uppercase;
+      color: #352e2e;
+      margin-bottom: 2rem;
     }
     
-    .pricing-card h3 {
-      font-size: 1.8rem;
-      margin-bottom: 0.5rem;
-      color: var(--dark);
-    }
-    
-    .price {
-      font-size: 3rem;
-      font-weight: 800;
-      color: var(--primary);
-      margin: 1rem 0;
-    }
-    
-    .price-period {
-      font-size: 1rem;
-      color: var(--gray);
-      font-weight: 400;
-    }
-    
-    .pricing-features {
-      list-style: none;
-      margin: 2rem 0;
-      text-align: left;
-    }
-    
-    .pricing-features li {
-      padding: 0.8rem 0;
-      padding-left: 1.8rem;
-      position: relative;
-      color: var(--gray);
-    }
-    
-    .pricing-features li::before {
-      content: '✓';
-      position: absolute;
-      left: 0;
-      color: var(--secondary);
-      font-weight: bold;
-      font-size: 1.2rem;
-    }
-    
-    /* Testimonials */
-    .testimonials {
-      background: var(--light);
-    }
-    
-    .testimonials-grid {
+    .goals-list {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: 2rem;
-      margin-top: 3rem;
+      margin-top: 2rem;
     }
     
-    .testimonial-card {
-      background: white;
-      padding: 2.5rem;
-      border-radius: 20px;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-      position: relative;
-    }
-    
-    .quote-icon {
-      font-size: 3rem;
-      color: var(--primary);
-      opacity: 0.2;
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-    }
-    
-    .testimonial-text {
-      font-size: 1.1rem;
-      color: var(--gray);
-      margin-bottom: 1.5rem;
-      line-height: 1.7;
-      font-style: italic;
-    }
-    
-    .testimonial-author {
+    .goal-item {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 1.5rem;
+      padding: 2rem;
+      background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+      border-radius: 1.25rem;
+      box-shadow: var(--shadow-medium);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 0.0625rem solid rgba(99, 97, 40, 0.15);
+      position: relative;
+      overflow: hidden;
     }
     
-    .author-avatar {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
+    .goal-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0.25rem;
+      height: 100%;
       background: var(--gradient);
+      box-shadow: 0.125rem 0 0.5rem rgba(99, 97, 40, 0.3);
+    }
+    
+    .goal-item::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at top right, rgba(99, 97, 40, 0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    
+    .goal-item:hover {
+      transform: translateY(-0.5rem);
+      box-shadow: var(--shadow-strong);
+      background: linear-gradient(135deg, #ffffff 0%, var(--glass-bg) 100%);
+      border-color: var(--primary);
+    }
+    
+    .goal-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+    
+    .goal-item p {
+      color: var(--dark);
+      font-size: 1rem;
+      line-height: 1.5;
+      margin: 0;
+      font-weight: 500;
+    }
+    
+    /* Solution Section */
+    .solution-section {
+      background: linear-gradient(135deg, #e8e0d0 0%, #f5f0e8 50%, #dad3c1 100%);
+      color: var(--dark);
+      position: relative;
+      overflow: hidden;
+      border-top: 0.125rem solid rgba(99, 97, 40, 0.15);
+      border-bottom: 0.125rem solid rgba(99, 97, 40, 0.15);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05),
+                  inset 0 -2px 4px rgba(0, 0, 0, 0.05),
+                  0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .solution-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 20% 30%, rgba(99, 97, 40, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(255, 248, 229, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(53, 46, 46, 0.02) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    
+    .solution-section .section-title,
+    .solution-section .section-subtitle {
+      color: #352e2e;
+      position: relative;
+      z-index: 3;
+    }
+    
+    .solution-section .section-title::after {
+      background: var(--gradient);
+    }
+    
+    .solution-header {
+      text-align: center;
+      margin-bottom: 4rem;
+      position: relative;
+      z-index: 3;
+    }
+    
+    .solution-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+      position: relative;
+      z-index: 3;
+    }
+    
+    .solution-visual {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .solution-icon-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      max-width: 300px;
+    }
+    
+    .solution-icon-item {
+      text-align: center;
+      opacity: 0;
+      transform: translateY(1.875rem);
+      transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .solution-icon-item.animate {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .icon-wrapper {
+      width: 5rem;
+      height: 5rem;
+      background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
-      font-weight: bold;
-      font-size: 1.3rem;
+      margin: 0 auto 1rem;
+      border: 0.0625rem solid rgba(99, 97, 40, 0.2);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-medium);
     }
     
-    .author-info h4 {
-      font-size: 1rem;
-      color: var(--dark);
-      margin-bottom: 0.2rem;
+    .icon-wrapper::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255, 248, 229, 0.2), transparent);
+      transform: rotate(45deg);
+      transition: all 0.6s ease;
+      opacity: 0;
     }
     
-    .author-info p {
+    .solution-icon-item:hover .icon-wrapper {
+      background: linear-gradient(135deg, #ffffff 0%, var(--glass-bg) 100%);
+      transform: scale(1.15);
+      border-color: var(--primary);
+      box-shadow: var(--shadow-strong);
+    }
+    
+    .solution-icon-item:hover .icon-wrapper::before {
+      opacity: 1;
+      transform: rotate(45deg) translate(50%, 50%);
+    }
+    
+    .solution-icon {
+      font-size: 2.5rem;
+      display: block;
+    }
+    
+    .icon-label {
       font-size: 0.9rem;
-      color: var(--gray);
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
     }
     
-    /* CTA Section */
-    .cta-section {
+    .solution-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+    
+    .solution-point {
+      display: flex;
+      align-items: flex-start;
+      gap: 1.5rem;
+      opacity: 0;
+      transform: translateX(1.875rem);
+      transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .solution-point.animate {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    
+    .point-number {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--accent);
       background: var(--gradient);
-      color: white;
-      text-align: center;
-      padding: 6rem 0;
+      width: 3.125rem;
+      height: 3.125rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 0.125rem solid var(--primary);
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-medium);
     }
     
-    .cta-section h2 {
-      font-size: clamp(2rem, 5vw, 3.5rem);
-      margin-bottom: 1.5rem;
+    .point-number::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, transparent, rgba(255, 248, 229, 0.2), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.6s ease;
     }
     
-    .cta-section p {
-      font-size: clamp(1.1rem, 2vw, 1.5rem);
-      margin-bottom: 2.5rem;
-      opacity: 0.95;
+    .solution-point:hover .point-number::before {
+      transform: translateX(100%);
     }
     
-    /* Contact */
+    .point-content h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--primary);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    .point-content p {
+      color: var(--dark);
+      line-height: 1.6;
+      margin: 0;
+      font-weight: 500;
+    }
+    
+    /* Contact Section */
     .contact {
-      background: var(--dark);
-      color: white;
+      background: linear-gradient(135deg, #636128 0%, #4a4920 100%);
+      color: var(--accent);
       text-align: center;
-      padding: 3rem 0;
+      padding: 4rem 0;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .contact::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 20% 20%, rgba(99, 97, 40, 0.05) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(255, 248, 229, 0.03) 0%, transparent 60%),
+        radial-gradient(circle at 50% 50%, rgba(53, 46, 46, 0.02) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    
+    .contact .container {
+      position: relative;
+      z-index: 3;
     }
     
     .contact-info {
@@ -568,29 +1012,58 @@
     .contact-item {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 1.1rem;
+      gap: 1rem;
+      font-size: 1.2rem;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+      border-radius: 3.125rem;
+      border: 0.0625rem solid rgba(255, 255, 255, 0.3);
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow-medium);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .contact-item::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 150%;
+      height: 150%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    
+    .contact-item:hover {
+      background: linear-gradient(135deg, #ffffff 0%, var(--glass-bg) 100%);
+      transform: translateY(-0.3125rem);
+      box-shadow: var(--shadow-strong);
+      border-color: rgba(255, 255, 255, 0.5);
     }
     
     .contact-item a {
-      color: white;
+      color: var(--dark);
       text-decoration: none;
       transition: color 0.3s ease;
+      font-weight: 600;
     }
     
     .contact-item a:hover {
-      color: var(--accent);
+      color: var(--primary);
     }
+    
     
     /* Scroll to top button */
     .scroll-top {
       position: fixed;
       bottom: 2rem;
       right: 2rem;
-      width: 50px;
-      height: 50px;
+      width: 3.125rem;
+      height: 3.125rem;
       background: var(--gradient);
-      color: white;
+      color: var(--accent);
       border: none;
       border-radius: 50%;
       font-size: 1.5rem;
@@ -598,7 +1071,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+      box-shadow: var(--shadow-medium);
       transition: all 0.3s ease;
       z-index: 1000;
     }
@@ -608,34 +1081,387 @@
     }
     
     .scroll-top:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      transform: translateY(-0.3125rem) scale(1.1);
+      box-shadow: var(--shadow-strong), var(--neon-glow);
     }
     
-    /* Responsive */
+    /* Подсказка о скролле для мобильных */
+    .scroll-hint {
+      display: none;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--dark);
+      opacity: 0.7;
+      margin-top: 0.5rem;
+    }
+    
     @media (max-width: 768px) {
+      .scroll-hint {
+        display: block;
+      }
+    }
+    
+    /* Responsive - Small phones */
+    @media (max-width: 480px) {
+      .container {
+        padding: 0 0.75rem;
+      }
+      
+      .hero h1 {
+        font-size: 2rem;
+      }
+      
+      .hero h1 img {
+        height: 5rem !important;
+        margin-right: 0.5rem !important;
+        margin-bottom: 0.5rem;
+      }
+      
+      .hero .tagline {
+        font-size: 1rem;
+      }
+      
+      .hero .subtitle {
+        font-size: 0.875rem;
+      }
+      
+      .btn {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+      }
+      
+      .section-title {
+        font-size: 1.75rem;
+      }
+      
+      .section-subtitle {
+        font-size: 0.875rem;
+      }
+      
+      /* Gafus dialog на маленьких экранах */
+      .gafus-dialog .logo {
+        width: 8rem;
+      }
+      
+      .speech-bubble {
+        padding: 1rem;
+        font-size: 0.75rem;
+      }
+      
+      /* Таблица на маленьких экранах */
+      .comparison-table {
+        font-size: 0.75rem;
+        overflow-x: scroll;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      table {
+        min-width: 500px;
+        display: block;
+        overflow-x: auto;
+      }
+      
+      thead, tbody {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+      }
+      
+      th, td {
+        padding: 0.875rem 0.5rem;
+        font-size: 0.75rem;
+        word-wrap: break-word;
+      }
+      
+      th:first-child,
+      td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+        min-width: 120px;
+        max-width: 120px;
+        background: linear-gradient(135deg, #dad3c1 0%, #636128 100%);
+        box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+      }
+      
+      td:first-child {
+        background: var(--glass-bg) !important;
+      }
+      
+      th:not(:first-child),
+      td:not(:first-child) {
+        min-width: 90px;
+      }
+      
+      .check, .cross, .warning {
+        font-size: 1.5rem;
+      }
+      
+      .text-feature {
+        font-size: 0.7rem;
+        display: block;
+      }
+    }
+    
+    /* Responsive - Tablets */
+    @media (max-width: 768px) {
+      .container {
+        padding: 0 1rem;
+      }
+      
       .hero {
         min-height: 100svh;
         padding: 2rem 1rem;
+      }
+      
+      .hero h1 img {
+        height: 6rem !important;
+        margin-right: 0.5rem !important;
       }
       
       section {
         padding: 3rem 0;
       }
       
-      .pricing-card.featured {
-        transform: none;
+      /* Следы лап на мобильных */
+      .paw-print-small {
+        width: 2.5rem;
+        height: 2.5rem;
       }
       
-      .pricing-card:hover {
-        transform: scale(1.02);
+      .paw-print-medium {
+        width: 3.75rem;
+        height: 3.75rem;
       }
       
-      .stats-grid,
-      .features-grid,
-      .problem-grid,
-      .testimonials-grid {
+      .paw-print-tiny {
+        width: 1.875rem;
+        height: 1.875rem;
+      }
+      
+      .paw-print {
+        width: 8rem;
+        height: 8rem;
+      }
+      
+      .paw-print-contact {
+        width: 8rem;
+        height: 8rem;
+      }
+      
+      /* Problem cards */
+      .problem-grid {
+        grid-template-columns: 1fr;
         gap: 1.5rem;
+      }
+      
+      .problem-card {
+        padding: 1.5rem;
+      }
+      
+      /* Features */
+      .features-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+      
+      .feature-card {
+        padding: 2rem;
+      }
+      
+      /* Solution section */
+      .solution-content {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        text-align: center;
+      }
+      
+      .solution-icon-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        max-width: 15.625rem;
+        margin: 0 auto;
+      }
+      
+      .icon-wrapper {
+        width: 3.75rem;
+        height: 3.75rem;
+      }
+      
+      .solution-icon {
+        font-size: 1.5rem;
+      }
+      
+      .solution-point {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+      }
+      
+      .point-number {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1.2rem;
+      }
+      
+      /* Gafus dialog */
+      .comparison .container {
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .comparison-table {
+        order: 1;
+      }
+      
+      .gafus-dialog {
+        order: 2;
+        flex-direction: column;
+        align-items: center;
+        position: relative !important;
+        top: auto !important;
+        right: auto !important;
+        margin: 2rem auto 1rem;
+      }
+      
+      .gafus-dialog .logo {
+        width: 10rem;
+        margin-left: 0;
+        margin-bottom: 0;
+        order: 2;
+      }
+      
+      .speech-bubble {
+        min-width: auto;
+        max-width: 90%;
+        order: 1;
+        margin-bottom: 1rem;
+      }
+      
+      .speech-bubble::after {
+        right: auto;
+        left: 50%;
+        top: auto;
+        bottom: -1rem;
+        transform: translateX(-50%) rotate(-90deg);
+        border-left: 1.0625rem solid transparent;
+        border-right: 1.0625rem solid transparent;
+        border-top: 1.625rem solid #f5f0d8;
+        border-bottom: none;
+      }
+      
+      .scroll-hint {
+        order: 3;
+      }
+      
+      /* Comparison table */
+      .comparison-table {
+        font-size: 0.875rem;
+        overflow-x: scroll;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      table {
+        min-width: 700px;
+      }
+      
+      th, td {
+        padding: 1rem 0.75rem;
+        font-size: 0.875rem;
+      }
+      
+      th:first-child,
+      td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+      }
+      
+      /* Goals */
+      .goals-list {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .goal-item {
+        padding: 1.5rem;
+        gap: 1rem;
+      }
+      
+      /* Contact */
+      .contact-item {
+        font-size: 1rem;
+        padding: 0.75rem 1.5rem;
+      }
+      
+      /* Следы в Contact на мобильных */
+      .contact .paw-print-contact:nth-of-type(1) {
+        top: 15% !important;
+        left: 64% !important;
+        right: auto !important;
+        --rotation: 0deg;
+      }
+      
+      .contact .paw-print-contact:nth-of-type(2) {
+        top: 15% !important;
+        left: 4% !important;
+        right: auto !important;
+        --rotation: -51deg;
+      }
+      
+      /* Scroll button */
+      .scroll-top {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1.25rem;
+        bottom: 1rem;
+        right: 1rem;
+      }
+    }
+    
+    /* Responsive - Large screens */
+    @media (min-width: 1440px) {
+      .container {
+        max-width: 90rem;
+        padding: 0 2rem;
+      }
+      
+      .hero h1 {
+        font-size: 6rem;
+      }
+      
+      .hero .tagline {
+        font-size: 2rem;
+      }
+      
+      .hero .subtitle {
+        font-size: 1.5rem;
+      }
+      
+      .btn {
+        padding: 1.25rem 3rem;
+        font-size: 1.25rem;
+      }
+      
+      .section-title {
+        font-size: 3.5rem;
+      }
+      
+      .section-subtitle {
+        font-size: 1.5rem;
+      }
+      
+      .gafus-dialog .logo {
+        width: 18.75rem;
+      }
+      
+      .speech-bubble {
+        max-width: 21.875rem;
+        padding: 1.5rem;
+      }
+      
+      .speech-text {
+        font-size: 1rem;
       }
     }
     
@@ -645,8 +1471,41 @@
       50% { transform: scale(1.05); }
     }
     
+    @keyframes floatUp {
+      0% { transform: translateY(1.875rem); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    
+    @keyframes slideInLeft {
+      0% { transform: translateX(-3.125rem); opacity: 0; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes slideInRight {
+      0% { transform: translateX(3.125rem); opacity: 0; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+    
     .animate-pulse {
       animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .animate-float-up {
+      animation: floatUp 0.8s ease-out forwards;
+    }
+    
+    .animate-slide-left {
+      animation: slideInLeft 0.8s ease-out forwards;
+    }
+    
+    .animate-slide-right {
+      animation: slideInRight 0.8s ease-out forwards;
+    }
+    
+    /* Parallax effect */
+    .parallax {
+      transform: translateZ(0);
+      will-change: transform;
     }
   </style>
 </head>
@@ -654,13 +1513,74 @@
 
   <!-- Hero Section -->
   <section class="hero">
+    <!-- Хаотичные следы - собаки разных размеров беспорядочно бегали (60 следов) -->
+    <div class="paw-print-medium" style="top: 5%; left: 3%; --rotation: 45deg;"></div>
+    <div class="paw-print-small" style="top: 8%; left: 5%; --rotation: 50deg;"></div>
+    <div class="paw-print-medium" style="top: 10%; left: 75%; --rotation: -20deg;"></div>
+    <div class="paw-print-small" style="top: 12%; left: 8%; --rotation: 55deg;"></div>
+    <div class="paw-print-tiny" style="top: 14%; right: 30%; --rotation: -125deg;"></div>
+    <div class="paw-print-small" style="top: 15%; right: 28%; --rotation: -120deg;"></div>
+    <div class="paw-print-medium" style="top: 17%; left: 68%; --rotation: -10deg;"></div>
+    <div class="paw-print-small" style="top: 18%; right: 25%; --rotation: -115deg;"></div>
+    <div class="paw-print-tiny" style="top: 20%; left: 80%; --rotation: -15deg;"></div>
+    <div class="paw-print-small" style="top: 22%; left: 32%; --rotation: 75deg;"></div>
+    <div class="paw-print-small" style="top: 24%; right: 70%; --rotation: 140deg;"></div>
+    <div class="paw-print-small" style="top: 25%; left: 35%; --rotation: 70deg;"></div>
+    <div class="paw-print-small" style="top: 27%; right: 8%; --rotation: 105deg;"></div>
+    <div class="paw-print-small" style="top: 28%; left: 18%; --rotation: 110deg;"></div>
+    <div class="paw-print-small" style="top: 30%; right: 5%; --rotation: 100deg;"></div>
+    <div class="paw-print-small" style="top: 32%; right: 15%; --rotation: -85deg;"></div>
+    <div class="paw-print-medium" style="top: 34%; left: 60%; --rotation: -35deg;"></div>
+    <div class="paw-print-small" style="top: 35%; right: 12%; --rotation: -80deg;"></div>
+    <div class="paw-print-tiny" style="top: 37%; left: 25%; --rotation: 115deg;"></div>
+    <div class="paw-print-small" style="top: 38%; left: 50%; --rotation: -140deg;"></div>
+    <div class="paw-print-medium" style="top: 40%; left: 65%; --rotation: -30deg;"></div>
+    <div class="paw-print-small" style="top: 41%; right: 22%; --rotation: -90deg;"></div>
+    <div class="paw-print-tiny" style="top: 42%; right: 55%; --rotation: 165deg;"></div>
+    <div class="paw-print-small" style="top: 44%; left: 10%; --rotation: 120deg;"></div>
+    <div class="paw-print-medium" style="top: 45%; right: 45%; --rotation: 160deg;"></div>
+    <div class="paw-print-small" style="top: 47%; left: 78%; --rotation: -40deg;"></div>
+    <div class="paw-print-small" style="top: 48%; left: 42%; --rotation: -145deg;"></div>
+    <div class="paw-print-small" style="top: 50%; left: 70%; --rotation: -25deg;"></div>
+    <div class="paw-print-small" style="top: 50%; right: 60%; --rotation: 150deg;"></div>
+    <div class="paw-print-small" style="top: 52%; left: 28%; --rotation: -55deg;"></div>
+    <div class="paw-print-tiny" style="top: 54%; right: 75%; --rotation: 145deg;"></div>
+    <div class="paw-print-small" style="top: 55%; right: 8%; --rotation: 95deg;"></div>
+    <div class="paw-print-medium" style="top: 57%; left: 48%; --rotation: -150deg;"></div>
+    <div class="paw-print-small" style="top: 58%; left: 12%; --rotation: -165deg;"></div>
+    <div class="paw-print-tiny" style="top: 60%; right: 38%; --rotation: 130deg;"></div>
+    <div class="paw-print-small" style="top: 61%; left: 85%; --rotation: -5deg;"></div>
+    <div class="paw-print-medium" style="top: 62%; right: 35%; --rotation: 125deg;"></div>
+    <div class="paw-print-small" style="top: 64%; left: 6%; --rotation: 90deg;"></div>
+    <div class="paw-print-tiny" style="top: 65%; left: 58%; --rotation: 35deg;"></div>
+    <div class="paw-print-small" style="top: 67%; right: 68%; --rotation: 155deg;"></div>
+    <div class="paw-print-small" style="top: 68%; right: 20%; --rotation: -95deg;"></div>
+    <div class="paw-print-small" style="top: 70%; left: 55%; --rotation: 40deg;"></div>
+    <div class="paw-print-small" style="top: 71%; left: 30%; --rotation: -60deg;"></div>
+    <div class="paw-print-small" style="top: 72%; left: 15%; --rotation: 80deg;"></div>
+    <div class="paw-print-small" style="top: 74%; right: 52%; --rotation: -100deg;"></div>
+    <div class="paw-print-medium" style="top: 75%; right: 42%; --rotation: -110deg;"></div>
+    <div class="paw-print-small" style="top: 77%; left: 72%; --rotation: 25deg;"></div>
+    <div class="paw-print-tiny" style="top: 78%; left: 22%; --rotation: 85deg;"></div>
+    <div class="paw-print-small" style="top: 80%; right: 50%; --rotation: -105deg;"></div>
+    <div class="paw-print-medium" style="top: 81%; left: 38%; --rotation: -65deg;"></div>
+    <div class="paw-print-small" style="top: 82%; right: 10%; --rotation: -45deg;"></div>
+    <div class="paw-print-tiny" style="top: 84%; right: 28%; --rotation: -115deg;"></div>
+    <div class="paw-print-small" style="top: 85%; left: 40%; --rotation: 135deg;"></div>
+    <div class="paw-print-medium" style="top: 87%; right: 82%; --rotation: 170deg;"></div>
+    <div class="paw-print-small" style="top: 88%; left: 62%; --rotation: 30deg;"></div>
+    <div class="paw-print-tiny" style="top: 88%; right: 65%; --rotation: -125deg;"></div>
+    <div class="paw-print-small" style="top: 90%; right: 18%; --rotation: -50deg;"></div>
+    <div class="paw-print-medium" style="top: 91%; left: 52%; --rotation: -70deg;"></div>
+    <div class="paw-print-small" style="top: 93%; left: 15%; --rotation: 75deg;"></div>
+    <div class="paw-print-tiny" style="top: 95%; right: 35%; --rotation: -130deg;"></div>
+    
     <div class="container hero-content">
-      <h1>🐕 GAFUS</h1>
-      <p class="tagline">Платформа Онлайн-Обучения для Кинологов</p>
-      <p class="subtitle">Масштабируйте свою экспертизу · Проверяйте практику дистанционно · Зарабатывайте в 10 раз больше</p>
+      <h1><img src="/logo.png" alt="ГАФУС" style="height: 13.75rem; vertical-align: middle; margin-right: 1.25rem;">ГАФУС</h1>
+      <p class="tagline">Бесплатный сервис для кинологов по созданию собственных курсов</p>
+      <p class="subtitle">Создавайте курсы · Масштабируйте свою экспертизу · Отслеживайте прогресс учеников</p>
       <div class="cta-buttons">
         <a href="#features" class="btn btn-primary">Узнать больше</a>
-        <a href="#pricing" class="btn btn-outline">Тарифы</a>
       </div>
     </div>
   </section>
@@ -668,62 +1588,118 @@
   <!-- Problem Section -->
   <section id="problem">
     <div class="container">
-      <h2 class="section-title">Проблемы Кинологов Сегодня</h2>
-      <p class="section-subtitle">С чем сталкиваются профессиональные тренеры в работе?</p>
+      <h2 class="section-title">Проблемы кинологов сегодня</h2>
+      <p class="section-subtitle">С чем сталкиваются кинологи в работе?</p>
       
       <div class="problem-grid">
         <div class="problem-card">
           <div class="problem-icon">⏰</div>
-          <h3>Ограничение времени</h3>
-          <p>Максимум 5-10 учеников одновременно. Физически не успеваете больше.</p>
+          <h3>Отсутствие роста</h3>
+          <p>Ощущения, что “упёрлись в потолок”: клиенты те же, деньги те же, перспектив мало.</p>
         </div>
         
-        <div class="problem-card">
-          <div class="problem-icon">📍</div>
-          <h3>Привязка к месту</h3>
-          <p>Нужна площадка для тренировок. Работаете только в своём городе.</p>
-        </div>
+
         
         <div class="problem-card">
           <div class="problem-icon">💰</div>
-          <h3>Потолок дохода</h3>
-          <p>Доход = часы работы. Чтобы заработать больше, нужно работать больше.</p>
+          <h3>Потеря информации</h3>
+          <p>Ученики забывают, что делать, просят повторить, а кинолог повторно объясняет.</p>
         </div>
         
         <div class="problem-card">
           <div class="problem-icon">📱</div>
-          <h3>Сложность онлайн</h3>
-          <p>Telegram — хаос, YouTube — нет обратной связи, GetCourse — нельзя проверить практику.</p>
+          <h3>Рутинная коммуникация</h3>
+          <p>Много времени уходит на переписку: пересылка материалов, напоминания, ответы на однотипные вопросы.</p>
+        </div>
+        
+        <div class="problem-card">
+          <div class="problem-icon">🚫</div>
+          <h3>Потеря мотивации</h3>
+          <p>Не делают домашку, забывают про курс, теряют интерес.</p>
         </div>
       </div>
     </div>
+
+
   </section>
 
   <!-- Solution -->
-  <section id="solution">
+  <section id="solution" class="solution-section">
+    <div class="paw-print" style="top: 10%; right: 7%; --rotation: -58deg;"></div>
+    <div class="paw-print" style="top: 29%; left: 14%; --rotation: -65deg;"></div>
+    <div class="paw-print" style="top: 30%; left: 33%; --rotation: -69deg;"></div>
+    <div class="paw-print" style="top: 52%; left: 31%; --rotation: -66deg;"></div>
+    <div class="paw-print" style="top: 51%; left: 53%; --rotation: -64deg;"></div>
+    <div class="paw-print" style="top: 72%; left: 43%; --rotation: -68deg;"></div>
+    <div class="paw-print" style="top: 74%; left: 67%; --rotation: -69deg;"></div>
     <div class="container">
-      <h2 class="section-title">Решение: GAFUS</h2>
-      <p class="section-subtitle">Единственная платформа, которая позволяет масштабировать кинологический бизнес</p>
+      <div class="solution-header">
+        <h2 class="section-title">Решение: ГАФУС</h2>
+        <p class="section-subtitle">Платформа, которая помогает кинологам структурировать обучение и повышать мотивацию учеников</p>
+      </div>
       
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-number">1 → 1000+</span>
-          <span class="stat-label">Тренер → Учеников</span>
+      <div class="solution-content">
+        <div class="solution-visual">
+          <div class="solution-icon-grid">
+            <div class="solution-icon-item" data-delay="0">
+              <div class="icon-wrapper">
+                <span class="solution-icon">📚</span>
+              </div>
+              <div class="icon-label">Структура</div>
+            </div>
+            <div class="solution-icon-item" data-delay="200">
+              <div class="icon-wrapper">
+                <span class="solution-icon">🔔</span>
+              </div>
+              <div class="icon-label">Уведомления</div>
+            </div>
+            <div class="solution-icon-item" data-delay="400">
+              <div class="icon-wrapper">
+                <span class="solution-icon">👤</span>
+              </div>
+              <div class="icon-label">Персонализация</div>
+            </div>
+            <div class="solution-icon-item" data-delay="600">
+              <div class="icon-wrapper">
+                <span class="solution-icon">⚡</span>
+              </div>
+              <div class="icon-label">Шаблоны</div>
+            </div>
+          </div>
         </div>
         
-        <div class="stat-card">
-          <span class="stat-number">10x</span>
-          <span class="stat-label">Рост дохода</span>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-number">95%</span>
-          <span class="stat-label">Экономия времени</span>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-number">80%</span>
-          <span class="stat-label">Завершают курс</span>
+        <div class="solution-text">
+          <div class="solution-point">
+            <div class="point-number">01</div>
+            <div class="point-content">
+              <h3>Структурированные уроки</h3>
+              <p>По шагам исключают путаницу и повышают мотивацию учеников</p>
+            </div>
+          </div>
+          
+          <div class="solution-point">
+            <div class="point-number">02</div>
+            <div class="point-content">
+              <h3>Push-уведомления</h3>
+              <p>Напоминают об уроках и мотивируют продолжать тренировки</p>
+            </div>
+          </div>
+          
+          <div class="solution-point">
+            <div class="point-number">03</div>
+            <div class="point-content">
+              <h3>Персонализированный подход</h3>
+              <p>Детальная статистика и достижения для каждого ученика</p>
+            </div>
+          </div>
+          
+          <div class="solution-point">
+            <div class="point-number">04</div>
+            <div class="point-content">
+              <h3>Библиотека шаблонов</h3>
+              <p>Интуитивный интерфейс для создания уроков и домашек</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -733,119 +1709,64 @@
   <section id="features">
     <div class="container">
       <h2 class="section-title">Ключевые Возможности</h2>
-      <p class="section-subtitle">Всё, что нужно для успешного онлайн-обучения</p>
+      <p class="section-subtitle">Всё, что нужно для успешного обучения</p>
       
       <div class="features-grid">
         <div class="feature-card">
-          <span class="feature-icon">📹</span>
-          <h3>Видео-Экзамены</h3>
-          <p>Проверка практических навыков дистанционно</p>
-          <ul class="feature-list">
-            <li>Запись видео в браузере</li>
-            <li>Автозагрузка на CDN</li>
-            <li>Тесты + видео + письменная работа</li>
-            <li>Push-уведомления при зачёте</li>
-          </ul>
-        </div>
-        
-        <div class="feature-card">
-          <span class="feature-icon">🔔</span>
-          <h3>Smart Push</h3>
-          <p>Ученики не забывают тренироваться</p>
-          <ul class="feature-list">
-            <li>Напоминания по расписанию</li>
-            <li>Событийные уведомления</li>
-            <li>+30% Engagement</li>
-            <li>Работает на iOS/Android</li>
-          </ul>
+          <span class="feature-icon">🏗️</span>
+          <h3>Конструктор курсов</h3>
+          <p>От идеи до создания курса всего 30 минут. Есть интуитивный интерфейс и библиотека шаблонов.</p>
         </div>
         
         <div class="feature-card">
           <span class="feature-icon">📱</span>
-          <h3>PWA Приложение</h3>
-          <p>Native-like опыт без установки</p>
-          <ul class="feature-list">
-            <li>Работает оффлайн</li>
-            <li>Haptic Feedback (вибрация)</li>
-            <li>Конфетти при достижениях</li>
-            <li>Геймификация</li>
-          </ul>
-        </div>
-        
-        <div class="feature-card">
-          <span class="feature-icon">🏗️</span>
-          <h3>Конструктор Курсов</h3>
-          <p>От идеи до запуска за 30 минут</p>
-          <ul class="feature-list">
-            <li>Библиотека шаблонов</li>
-            <li>Drag-n-drop интерфейс</li>
-            <li>Переиспользование шагов</li>
-            <li>Загрузка на CDN</li>
-          </ul>
-        </div>
-        
-        <div class="feature-card">
-          <span class="feature-icon">👤</span>
-          <h3>Профили Питомцев</h3>
-          <p>Персонализированный подход</p>
-          <ul class="feature-list">
-            <li>Порода, возраст, вес</li>
-            <li>История тренировок</li>
-            <li>Достижения и награды</li>
-            <li>Аналитика по породам</li>
-          </ul>
+          <h3>Работа онлайн и оффлайн</h3>
+          <p>Ученики смогут заниматься по вашим урокам даже без интернета.</p>
         </div>
         
         <div class="feature-card">
           <span class="feature-icon">📊</span>
           <h3>Аналитика</h3>
-          <p>Полная статистика и отчёты</p>
-          <ul class="feature-list">
-            <li>Прогресс учеников</li>
-            <li>Популярные курсы</li>
-            <li>Конверсия воронки</li>
-            <li>Экспорт в Excel</li>
-          </ul>
+          <p>Полная статистика и отчёты по прохождению ваших курсов в режиме реального времени.</p>
+        </div>
+        
+        <div class="feature-card">
+          <span class="feature-icon">👤</span>
+          <h3>Профили Питомцев</h3>
+          <p>Обеспечите персональный подход, потому что будете видеть все особенности питомцев, которые с вами занимаются.</p>
+        </div>
+        
+        <div class="feature-card">
+          <span class="feature-icon">📹</span>
+          <h3>Экзамены</h3>
+          <p>Сможете дистанционно проверять результаты учеников с помощью тестов, видео или письменных работ.</p>
+        </div>
+        
+        <div class="feature-card">
+          <span class="feature-icon">🔔</span>
+          <h3>Уведомления</h3>
+          <p>Ученики не забывают тренироваться, получая автоматические уведомления.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Stats Section -->
-  <section class="stats">
-    <div class="container">
-      <h2 class="section-title" style="color: white;">Результаты Использования</h2>
-      <p class="section-subtitle" style="color: rgba(255,255,255,0.9);">Реальные метрики улучшения бизнеса</p>
-      
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-number">+150%</span>
-          <span class="stat-label">Удержание учеников</span>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-number">20x</span>
-          <span class="stat-label">Масштаб аудитории</span>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-number">30 мин</span>
-          <span class="stat-label">Создание курса</span>
-        </div>
-        
-        <div class="stat-card">
-          <span class="stat-number">24/7</span>
-          <span class="stat-label">Доступность обучения</span>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <!-- Comparison Table -->
   <section class="comparison">
     <div class="container">
       <h2 class="section-title">GAFUS vs Альтернативы</h2>
       <p class="section-subtitle">Почему GAFUS — лучший выбор для кинологов</p>
+      
+      <!-- Диалог с Гафусом -->
+      <div class="gafus-dialog">
+        <img src="/logo.png" alt="ГАФУС" class="logo">
+        <div class="speech-bubble">
+          <p class="speech-text">
+            Да! вот такие мы клёвые!
+          </p>
+        </div>
+      </div>
       
       <div class="comparison-table">
         <table>
@@ -911,154 +1832,63 @@
           </tbody>
         </table>
       </div>
+      <p class="scroll-hint">← Прокрутите таблицу влево и вправо →</p>
     </div>
   </section>
 
-  <!-- Pricing -->
-  <section id="pricing" class="pricing">
+  <!-- Goals Section -->
+  <section class="goals">
     <div class="container">
-      <h2 class="section-title">Тарифы</h2>
-      <p class="section-subtitle">Выберите подходящий план для вашего бизнеса</p>
+      <h2 class="section-title">Что мы от вас хотим:</h2>
+     
+      <p class="section-subtitle">Создайте свой первый полноценный курс на платформе.
+        <br>
+        Пользуйтесь, пробуйте, давайте ученикам — всё бесплатно.
+        <br>
+        А потом расскажите нам, как оно: что удобно, чего не хватает, что стоит улучшить.
+   
+       </p>
       
-      <div class="pricing-grid">
-        <div class="pricing-card">
-          <h3>Starter</h3>
-          <div class="price">5 000₽<span class="price-period">/мес</span></div>
-          <ul class="pricing-features">
-            <li>До 50 учеников</li>
-            <li>3 курса</li>
-            <li>Базовая аналитика</li>
-            <li>Email поддержка</li>
-            <li>Видео-экзамены</li>
-            <li>Push-уведомления</li>
-          </ul>
-          <a href="#contact" class="btn btn-outline" style="color: var(--primary); border-color: var(--primary);">Начать</a>
-        </div>
-        
-        <div class="pricing-card featured">
-          <div class="pricing-badge">Популярный</div>
-          <h3>Professional</h3>
-          <div class="price">15 000₽<span class="price-period">/мес</span></div>
-          <ul class="pricing-features">
-            <li>До 200 учеников</li>
-            <li>Неограниченно курсов</li>
-            <li>Полная аналитика</li>
-            <li>Приоритетная поддержка</li>
-            <li>Белая метка</li>
-            <li>Свой домен</li>
-            <li>Все фишки Starter</li>
-          </ul>
-          <a href="#contact" class="btn btn-primary">Выбрать</a>
-        </div>
-        
-        <div class="pricing-card">
-          <h3>Enterprise</h3>
-          <div class="price">Договорная</div>
-          <ul class="pricing-features">
-            <li>Неограниченно учеников</li>
-            <li>Неограниченно тренеров</li>
-            <li>Кастомная разработка</li>
-            <li>Dedicated сервер</li>
-            <li>SLA 99.99%</li>
-            <li>Персональный менеджер</li>
-            <li>Все фишки Professional</li>
-          </ul>
-          <a href="#contact" class="btn btn-outline" style="color: var(--primary); border-color: var(--primary);">Связаться</a>
-        </div>
-      </div>
-      
-      <p style="text-align: center; margin-top: 3rem; color: var(--gray); font-size: 1.1rem;">
-        🎁 <strong>Бонус:</strong> Первый месяц бесплатно для новых пользователей!
-      </p>
-    </div>
-  </section>
-
-  <!-- Testimonials -->
-  <section class="testimonials">
-    <div class="container">
-      <h2 class="section-title">Отзывы Тренеров</h2>
-      <p class="section-subtitle">Что говорят профессионалы о GAFUS</p>
-      
-      <div class="testimonials-grid">
-        <div class="testimonial-card">
-          <div class="quote-icon">"</div>
-          <p class="testimonial-text">
-            За 2 месяца на GAFUS я заработал больше, чем за полгода очных тренировок. 
-            Система видео-экзаменов — это просто бомба!
-          </p>
-          <div class="testimonial-author">
-            <div class="author-avatar">АК</div>
-            <div class="author-info">
-              <h4>Александр К.</h4>
-              <p>Кинолог, опыт 7 лет</p>
-            </div>
+      <div class="goals-content">
+        <h3 class="goals-title">Наши глобальные цели:</h3>
+        <div class="goals-list">
+          <div class="goal-item">
+            <span class="goal-icon">⚡</span>
+            <p>Разгрузить работу кинологов.</p>
           </div>
-        </div>
-        
-        <div class="testimonial-card">
-          <div class="quote-icon">"</div>
-          <p class="testimonial-text">
-            Раньше я могла работать максимум с 10 учениками. Теперь у меня 150+ на платформе, 
-            и я успеваю всех проверять. Спасибо библиотеке шаблонов!
-          </p>
-          <div class="testimonial-author">
-            <div class="author-avatar">МП</div>
-            <div class="author-info">
-              <h4>Мария П.</h4>
-              <p>Специалист по щенкам</p>
-            </div>
+          <div class="goal-item">
+            <span class="goal-icon">📈</span>
+            <p>Повысить проходимость курсов.</p>
           </div>
-        </div>
-        
-        <div class="testimonial-card">
-          <div class="quote-icon">"</div>
-          <p class="testimonial-text">
-            Ученики наконец-то ДОХОДЯТ до конца курса! Push-уведомления и геймификация 
-            творят чудеса. Retention вырос с 30% до 75%.
-          </p>
-          <div class="testimonial-author">
-            <div class="author-avatar">ДВ</div>
-            <div class="author-info">
-              <h4>Дмитрий В.</h4>
-              <p>Владелец кинологической школы</p>
-            </div>
+          <div class="goal-item">
+            <span class="goal-icon">💬</span>
+            <p>Сделать коммуникацию между кинологами и учениками проще и удобнее.</p>
+          </div>
+          <div class="goal-item">
+            <span class="goal-icon">⭐</span>
+            <p>Повысить уровень сервиса ваших услуг.</p>
           </div>
         </div>
       </div>
     </div>
-  </section>
-
-  <!-- CTA Section -->
-  <section class="cta-section">
-    <div class="container">
-      <h2 class="animate-pulse">Готовы Масштабировать Свою Экспертизу?</h2>
-      <p>Присоединяйтесь к революции в кинологическом образовании!</p>
-      <div class="cta-buttons">
-        <a href="mailto:support@gafus.ru" class="btn btn-primary">Начать Бесплатно</a>
-        <a href="tel:+79198031371" class="btn btn-outline">Связаться с Нами</a>
-      </div>
-    </div>
-  </section>
+     <h2 class="section-subtitle" style="text-align: center; margin-top: 3.75rem;"> Мы всегда готовы помочь, если вам что-то непонятно!</h2>
+    </section>
 
   <!-- Contact Section -->
-  <section id="contact" class="contact">
+  <section class="contact">
+    <div class="paw-print-contact" style="top: 1%; left: 49%; --rotation: -24deg;"></div>
+    <div class="paw-print-contact" style="top: 1%; left: 39%; --rotation: -24deg;"></div>
     <div class="container">
-      <h2 class="section-title" style="color: white;">Контакты</h2>
+      <h2 class="section-title" style="color: var(--accent);">Контакты</h2>
       <div class="contact-info">
         <div class="contact-item">
-          <span>📧</span>
-          <a href="mailto:support@gafus.ru">support@gafus.ru</a>
-        </div>
-        <div class="contact-item">
-          <span>📱</span>
-          <a href="tel:+79198031371">+7 (919) 803-13-71</a>
-        </div>
-        <div class="contact-item">
-          <span>💬</span>
-          <a href="https://t.me/gafus_support">@gafus_support</a>
+          <svg width="1.5rem" height="1.5rem" viewBox="0 0 24 24" fill="currentColor" style="color: var(--primary);">
+            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+          </svg>
+          <a href="https://t.me/gafus_support" target="_blank">@gafus_support</a>
         </div>
       </div>
-      <p style="margin-top: 2rem; opacity: 0.7;">© 2025 GAFUS. Все права защищены.</p>
+      <p style="margin-top: 2rem; opacity: 0.8; color: var(--accent);">© 2025 GAFUS. Все права защищены.</p>
     </div>
   </section>
 
@@ -1081,7 +1911,7 @@
     const scrollTopBtn = document.getElementById('scrollTop');
     
     window.addEventListener('scroll', () => {
-      if (window.pageYOffset > 300) {
+      if (window.pageYOffset > window.innerHeight * 0.3) {
         scrollTopBtn.classList.add('show');
       } else {
         scrollTopBtn.classList.remove('show');
@@ -1103,19 +1933,73 @@
         if (entry.isIntersecting) {
           entry.target.style.opacity = '1';
           entry.target.style.transform = 'translateY(0)';
+          
+          // Add staggered animation for cards
+          if (entry.target.classList.contains('problem-card') || 
+              entry.target.classList.contains('feature-card') || 
+              entry.target.classList.contains('goal-item')) {
+            const delay = Array.from(entry.target.parentNode.children).indexOf(entry.target) * 100;
+            setTimeout(() => {
+              entry.target.style.animation = 'floatUp 0.8s ease-out forwards';
+            }, delay);
+          }
         }
       });
     }, observerOptions);
 
-    document.querySelectorAll('.problem-card, .feature-card, .stat-card, .pricing-card, .testimonial-card').forEach(el => {
+    // Enhanced scroll animations
+    document.querySelectorAll('.problem-card, .feature-card, .goal-item').forEach(el => {
       el.style.opacity = '0';
-      el.style.transform = 'translateY(30px)';
+      el.style.transform = 'translateY(1.875rem)';
       el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      observer.observe(el);
+    });
+
+    // Solution section animations
+    const solutionObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          // Animate icon items with delay
+          const iconItems = entry.target.querySelectorAll('.solution-icon-item');
+          iconItems.forEach((item, index) => {
+            setTimeout(() => {
+              item.classList.add('animate');
+            }, index * 200);
+          });
+          
+          // Animate text points with delay
+          const textPoints = entry.target.querySelectorAll('.solution-point');
+          textPoints.forEach((point, index) => {
+            setTimeout(() => {
+              point.classList.add('animate');
+            }, index * 300 + 400);
+          });
+        }
+      });
+    }, { threshold: 0.3 });
+
+    const solutionSection = document.querySelector('.solution-section');
+    if (solutionSection) {
+      solutionObserver.observe(solutionSection);
+    }
+
+    // Parallax effect for hero section
+    window.addEventListener('scroll', () => {
+      const scrolled = window.pageYOffset;
+      const hero = document.querySelector('.hero');
+      if (hero) {
+        hero.style.transform = `translateY(${scrolled * 0.5}px)`;
+      }
+    });
+
+    // Smooth reveal animations
+    const revealElements = document.querySelectorAll('.section-title, .section-subtitle');
+    revealElements.forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(1.25rem)';
       observer.observe(el);
     });
   </script>
 
 </body>
 </html>
-
-

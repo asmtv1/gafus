@@ -160,9 +160,6 @@ function CourseStatisticsCard({
   const totalDays = course.dayLinks?.length || 0;
   const totalSteps = course.dayLinks?.reduce((sum, dayLink) => sum + (dayLink.day?.stepLinks?.length || 0), 0) || 0;
   
-  // Используем только кэшированные данные из trainingStore
-  const completedDaysFromUserProgress = 0; // Не используем данные с сервера
-  const completedStepsFromUserProgress = 0; // Не используем данные с сервера
   
   // Используем данные из stepStore для точного подсчета завершенных шагов
   const cachedProgress = useMemo(() => {
