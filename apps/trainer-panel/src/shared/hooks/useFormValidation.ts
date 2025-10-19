@@ -7,7 +7,7 @@ export const commonValidationRules = {
     minLength: { value: 3, message: "Минимум 3 символа" },
     maxLength: { value: 100, message: "Максимум 100 символов" },
     pattern: {
-      value: /^[а-яёА-ЯЁa-zA-Z0-9\s\-_.,!?()]+$/,
+      value: /^[а-яёА-ЯЁa-zA-Z0-9\s\-–—_.,!?()]+$/,
       message: "Недопустимые символы в названии",
     },
   },
@@ -51,12 +51,20 @@ export const commonValidationRules = {
     },
   },
 
+  logoImg: {
+    required: "Логотип курса обязателен",
+    validate: (value: unknown) => {
+      if (!value || String(value).trim() === "") return "Загрузите логотип курса";
+      return true;
+    },
+  },
+
   courseName: {
     required: "Название курса обязательно",
     minLength: { value: 3, message: "Минимум 3 символа" },
     maxLength: { value: 100, message: "Максимум 100 символов" },
     pattern: {
-      value: /^[а-яёА-ЯЁa-zA-Z0-9\s\-_.,!?()]+$/,
+      value: /^[а-яёА-ЯЁa-zA-Z0-9\s\-–—_.,!?()]+$/,
       message: "Недопустимые символы в названии курса",
     },
   },

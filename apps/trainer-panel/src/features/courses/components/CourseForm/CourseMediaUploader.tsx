@@ -86,7 +86,7 @@ export default function CourseMediaUploader({
     <Card sx={{ maxWidth: 345, mb: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          Логотип курса
+          Логотип курса *
         </Typography>
 
         {error && (

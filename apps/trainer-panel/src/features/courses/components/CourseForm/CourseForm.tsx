@@ -258,8 +258,14 @@ export default function CourseForm({
         </FormSection>
 
         <FormSection title="Медиа">
+          <input
+            type="hidden"
+            {...form.register("logoImg", commonValidationRules.logoImg)}
+          />
           <CourseMediaUploader 
-            onUploadComplete={(url) => form.setValue("logoImg", url)} 
+            onUploadComplete={(url) => {
+              form.setValue("logoImg", url, { shouldValidate: true });
+            }} 
             courseId={courseId}
           />
           {form.formState.errors.logoImg && (

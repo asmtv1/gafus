@@ -16,7 +16,7 @@ export function validateStepForm(data: {
     errors.title = "Название должно содержать минимум 3 символа";
   } else if (data.title.length > 100) {
     errors.title = "Название не может быть длиннее 100 символов";
-  } else if (!/^[а-яёА-ЯЁa-zA-Z0-9\s\-_.,!?()]+$/.test(data.title)) {
+  } else if (!/^[а-яёА-ЯЁa-zA-Z0-9\s\-–—_.,!?()]+$/.test(data.title)) {
     errors.title = "Название содержит недопустимые символы";
   }
 
@@ -75,7 +75,7 @@ export function validateCourseForm(data: {
     errors.name = "Название должно содержать минимум 3 символа";
   } else if (data.name.length > 100) {
     errors.name = "Название не может быть длиннее 100 символов";
-  } else if (!/^[а-яёА-ЯЁa-zA-Z0-9\s\-_.,!?()]+$/.test(data.name)) {
+  } else if (!/^[а-яёА-ЯЁa-zA-Z0-9\s\-–—_.,!?()]+$/.test(data.name)) {
     errors.name = "Название содержит недопустимые символы";
   }
 
