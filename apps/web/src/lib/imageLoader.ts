@@ -12,8 +12,15 @@ interface ImageLoaderProps {
 }
 
 export default function imageLoader({ src, width, quality }: ImageLoaderProps): string {
-  // Файлы с CDN (/uploads/*) отдаём напрямую
-  if (src.startsWith('/uploads/')) {
+  // Файлы с CDN отдаём напрямую
+  // 1. Относительный путь: /uploads/*
+  // 2. Полный URL с CDN: https://gafus-media.storage.yandexcloud.net/uploads/*
+  // 3. Альтернативный формат: https://storage.yandexcloud.net/gafus-media/uploads/*
+  if (
+    src.startsWith('/uploads/') ||
+    src.startsWith('https://gafus-media.storage.yandexcloud.net/uploads/') ||
+    src.startsWith('https://storage.yandexcloud.net/gafus-media/uploads/')
+  ) {
     return src;
   }
 
