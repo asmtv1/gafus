@@ -14,7 +14,7 @@ export const showCourseRatingAlert = () => {
   return Swal.fire({
     title: 'Курс не завершен',
     text: 'Завершите курс, чтобы поставить рейтинг',
-    imageUrl: 'https://gafus.ru/uploads/logo.png',
+    imageUrl: '/uploads/logo.png',
     imageWidth: 160,
     imageHeight: 160,
     imageAlt: 'Гафус',
@@ -35,7 +35,7 @@ export const showErrorAlert = (message: string) => {
   return Swal.fire({
     title: 'Ошибка',
     text: message,
-    imageUrl: 'https://gafus.ru/uploads/logo.png',
+    imageUrl: '/uploads/logo.png',
     imageWidth: 50,
     imageHeight: 50,
     imageAlt: 'Гафус',
@@ -55,7 +55,7 @@ export const showSuccessAlert = (message: string) => {
   return Swal.fire({
     title: 'Успешно',
     text: message,
-    imageUrl: 'https://gafus.ru/uploads/logo.png',
+    imageUrl: '/uploads/logo.png',
     imageWidth: 160,
     imageHeight: 160,
     imageAlt: 'Гафус',
@@ -76,7 +76,7 @@ export const showConfirmDialog = async (title: string, text: string): Promise<bo
   const result = await Swal.fire({
     title,
     text,
-    imageUrl: 'https://gafus.ru/uploads/logo.png',
+    imageUrl: '/uploads/logo.png',
     imageWidth: 160,
     imageHeight: 160,
     imageAlt: 'Гафус',
@@ -108,7 +108,7 @@ export const showNotificationPermissionAlert = (
     text: 'Включите уведомления, чтобы получать оповещения о завершении упражнения.\n' +
       'Так вы сможете не отвлекаться на телефон во время тренировки.\n' +
       'Отключить уведомления можно в настройках профиля.',
-    imageUrl: 'https://gafus.ru/uploads/logo.png',
+    imageUrl: '/uploads/logo.png',
     imageWidth: 160,
     imageHeight: 160,
     imageAlt: 'Гафус',
@@ -202,7 +202,7 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
         </div>
       </div>
     `,
-    imageUrl: 'https://gafus.ru/uploads/logo.png',
+    imageUrl: '/uploads/logo.png',
     imageWidth: 80,
     imageHeight: 80,
     imageAlt: 'Гафус',

@@ -32,7 +32,7 @@ export default function AuthPage() {
       </div>
       <h1 className={styles.title}>Гафус!</h1>
       <div className={styles.gafusdialog}>
-      <Image src="https://gafus.ru/uploads/logo.png" alt="logo" className={styles.logo} width={250} height={250} priority />
+      <Image src="/uploads/logo.png" alt="logo" className={styles.logo} width={250} height={250} priority />
       
       <div className={styles.speechBubble}>
         <p className={styles.speechText}>
