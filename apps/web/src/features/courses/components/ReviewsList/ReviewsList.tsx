@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import type { CourseReviewData, UserReviewStatus } from "@shared/lib/course/getCourseReviews";
 import { showSuccessAlert, showErrorAlert, showConfirmDialog } from "@shared/utils/sweetAlert";
 import { getCurrentUserId } from "@/utils/getCurrentUserId";
@@ -213,9 +214,11 @@ export function ReviewsList({ courseType, courseName, reviews: initialReviews, u
                 <div className={styles.reviewHeader}>
                   <div className={styles.userInfo}>
                     {review.user.profile?.avatarUrl ? (
-                      <img
+                      <Image
                         src={review.user.profile.avatarUrl}
                         alt={review.user.username}
+                        width={40}
+                        height={40}
                         className={styles.avatar}
                       />
                     ) : (

@@ -127,19 +127,10 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
             mr: 3,
             borderRadius: 2,
           }}
-        >
-          <img
-            src={course.logoImg || "/uploads/course-logo.webp"}
-            alt={course.name}
-            width={100}
-            height={100}
-            style={{ borderRadius: "8px" }}
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = "/uploads/course-logo.webp";
-            }}
-          />
-        </Avatar>
+          src={course.logoImg || "/uploads/course-logo.webp"}
+          alt={course.name}
+          variant="rounded"
+        />
 
         <Box sx={{ flex: 1 }}>
           <Typography variant="h4" component="h3" gutterBottom color="text.primary">
@@ -362,18 +353,11 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
                     }}
                   >
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <Avatar sx={{ width: 40, height: 40 }}>
-                        <img
-                          src={userCourse.user.profile?.avatarUrl || "/uploads/avatar.svg"}
-                          alt={userCourse.user.username}
-                          width={40}
-                          height={40}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = "/uploads/avatar.svg";
-                          }}
-                        />
-                      </Avatar>
+                      <Avatar 
+                        sx={{ width: 40, height: 40 }}
+                        src={userCourse.user.profile?.avatarUrl || "/uploads/avatar.svg"}
+                        alt={userCourse.user.username}
+                      />
                       <Box>
                         <Typography
                           variant="body1"
@@ -426,18 +410,11 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
               {course.reviews.slice(0, 5).map((review, index: number) => (
                 <Paper key={index} sx={{ p: 2, mb: 1 }}>
                   <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                    <Avatar sx={{ width: 40, height: 40 }}>
-                      <img
-                        src={review.user?.profile?.avatarUrl || "/uploads/avatar.svg"}
-                        alt={review.user?.username || "user"}
-                        width={40}
-                        height={40}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = "/uploads/avatar.svg";
-                        }}
-                      />
-                    </Avatar>
+                    <Avatar 
+                      sx={{ width: 40, height: 40 }}
+                      src={review.user?.profile?.avatarUrl || "/uploads/avatar.svg"}
+                      alt={review.user?.username || "user"}
+                    />
                     <Box sx={{ flex: 1 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
                         <Typography variant="body2" fontWeight="bold">

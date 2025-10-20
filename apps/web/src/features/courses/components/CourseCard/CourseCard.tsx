@@ -4,6 +4,7 @@
 import { TrainingStatus } from "@gafus/types";
 import { useCourseStore } from "@shared/stores";
 import { useOfflineStore } from "@shared/stores/offlineStore";
+import Image from "next/image";
 import Link from "next/link";
 import NextLink from "next/link";
 import { useEffect, useState } from "react";
@@ -149,25 +150,14 @@ export const CourseCard = ({
         }}
       >
         <div className={styles.imageContainer}>
-          {isImageAlreadyCached ? (
-            <img
-              src={finalSrc}
-              alt={`${name} logo`}
-              width={350}
-              height={200}
-              className={styles.image}
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <img
-              src={finalSrc}
-              alt={`${name} logo`}
-              width={350}
-              height={200}
-              className={styles.image}
-              onError={() => setImgError(true)}
-            />
-          )}
+          <Image
+            src={finalSrc}
+            alt={`${name} logo`}
+            width={350}
+            height={200}
+            className={styles.image}
+            onError={() => setImgError(true)}
+          />
           {isPrivate && <div className={styles.privateBadge}>Приватный</div>}
         </div>
 

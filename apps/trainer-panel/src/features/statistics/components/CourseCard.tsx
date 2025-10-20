@@ -75,19 +75,10 @@ export default function CourseCard({ course, onClick }: CourseCardProps) {
               mr: 2,
               borderRadius: 2,
             }}
-          >
-            <img
-              src={course.logoImg || "/uploads/course-logo.webp"}
-              alt={course.name}
-              width={80}
-              height={80}
-              style={{ borderRadius: "8px" }}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = "/uploads/course-logo.webp";
-              }}
-            />
-          </Avatar>
+            src={course.logoImg || "/uploads/course-logo.webp"}
+            alt={course.name}
+            variant="rounded"
+          />
 
           <Box sx={{ flex: 1 }}>
             <Typography variant="h5" component="h3" gutterBottom>

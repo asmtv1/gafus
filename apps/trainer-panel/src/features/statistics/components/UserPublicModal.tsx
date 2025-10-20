@@ -79,18 +79,11 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
         {data && (
           <Box>
             <Box sx={{ display: "flex", alignItems: "flex-start", mb: 3 }}>
-              <Avatar sx={{ width: 80, height: 80, mr: 2 }}>
-                <img
-                  src={data.profile?.avatarUrl || "/uploads/avatar.svg"}
-                  alt={data.username}
-                  width={80}
-                  height={80}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "/uploads/avatar.svg";
-                  }}
-                />
-              </Avatar>
+              <Avatar 
+                sx={{ width: 80, height: 80, mr: 2 }}
+                src={data.profile?.avatarUrl || "/uploads/avatar.svg"}
+                alt={data.username}
+              />
               <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" gutterBottom color="text.primary">
                   {data.profile?.fullName || data.username}
@@ -129,18 +122,11 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
                 {data.pets.map((pet) => (
                   <Paper key={pet.id} sx={{ p: 2, flex: "1 1 260px", minWidth: 0 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                      <Avatar sx={{ width: 48, height: 48 }}>
-                        <img
-                          src={pet.photoUrl || "/uploads/pet-avatar.jpg"}
-                          alt={pet.name}
-                          width={48}
-                          height={48}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = "/uploads/pet-avatar.jpg";
-                          }}
-                        />
-                      </Avatar>
+                      <Avatar 
+                        sx={{ width: 48, height: 48 }}
+                        src={pet.photoUrl || "/uploads/pet-avatar.jpg"}
+                        alt={pet.name}
+                      />
                       <Box>
                         <Typography variant="subtitle1" fontWeight="bold" color="text.primary">
                           {pet.name}

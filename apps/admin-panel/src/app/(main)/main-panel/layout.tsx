@@ -1,4 +1,5 @@
 import { authOptions } from "@gafus/auth";
+import Image from "next/image";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { 
@@ -24,7 +25,7 @@ export default async function MainPanelLayout({ children }: { children: React.Re
       <aside className={styles.sidebar}>
         <div className={styles.profilWrapper}>
           <div className={styles.userName}>{userName || "\u00A0"}</div>
-          <img
+          <Image
             src={avatarUrl}
             alt="Avatar"
             width={48}

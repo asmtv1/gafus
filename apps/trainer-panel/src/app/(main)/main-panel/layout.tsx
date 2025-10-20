@@ -1,6 +1,7 @@
 // apps/trainer-panel/src/app/(main)/main-panel/layout.tsx
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { 
@@ -89,7 +90,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
         </button>
         <div className={styles.mobileHeaderUser}>
           <span className={styles.mobileUserName}>{userName}</span>
-          <img
+          <Image
             src={avatarUrl}
             alt="Avatar"
             width={32}
@@ -108,7 +109,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
       <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ""}`}>
         <div className={styles.profilWrapper}>
           <div className={styles.userName}>{userName || "\u00A0"}</div>
-          <img
+          <Image
             src={avatarUrl}
             alt="Avatar"
             width={48}
