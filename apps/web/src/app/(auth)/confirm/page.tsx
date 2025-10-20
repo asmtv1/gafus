@@ -18,7 +18,7 @@ export default function ConfirmPage() {
         <h1 className={styles.title}>Гафус!</h1>
         <Image
           className={styles.logo}
-          src="/logo.png"
+          src="https://gafus.ru/uploads/logo.png"
           alt="Logo"
           width={400}
           height={400}

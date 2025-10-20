@@ -57,7 +57,7 @@ export function useCourseCompletionCelebration({
               Вы большой молодец! 🌟
             </p>
           `,
-          imageUrl: "/logo.png",
+          imageUrl: "https://gafus.ru/uploads/logo.png",
           imageWidth: 120,
           imageHeight: 120,
           imageAlt: "Гафус",

@@ -4,19 +4,19 @@ import Link from "next/link";
 import styles from "./page.module.css";
 
 export const metadata = {
-  title: "Гафус — тренировки с собакой",
-  description: "Умные прогулки с собакой: тренировки по шагам, отдых и обучение — всё в одном.",
+  title: "ГАФУС — Бесплатный сервис для владельцев собак и кинологов",
+  description: "Создавайте собственные курсы за 30 минут! Отслеживайте прогресс учеников, используйте библиотеку шаблонов. Полностью бесплатно для кинологов!",
   openGraph: {
-    title: "Гафус — тренировки с собакой",
+    title: "ГАФУС — Бесплатный сервис для владельцев собак и кинологов",
     description:
-      "Онлайн-платформа с пошаговыми тренировками, отдыхом и обучением для собак и их хозяев.",
+      "Создавайте собственные курсы за 30 минут! Отслеживайте прогресс учеников, используйте библиотеку шаблонов. Полностью бесплатно для кинологов!",
     url: "https://gafus.ru",
     images: [
       {
-        url: "/logo.png",
+        url: "https://gafus.ru/uploads/logo.png",
         width: 1200,
         height: 630,
-        alt: "Гафус — тренировки с собакой",
+        alt: "ГАФУС — Бесплатный сервис для владельцев собак и кинологов",
       },
     ],
   },
@@ -32,7 +32,7 @@ export default function AuthPage() {
       </div>
       <h1 className={styles.title}>Гафус!</h1>
       <div className={styles.gafusdialog}>
-      <Image src="/logo.png" alt="logo" className={styles.logo} width={250} height={250} priority />
+      <Image src="https://gafus.ru/uploads/logo.png" alt="logo" className={styles.logo} width={250} height={250} priority />
       
       <div className={styles.speechBubble}>
         <p className={styles.speechText}>

@@ -38,7 +38,7 @@ const handleDelete = async (
     const result = await Swal.fire({
       title: 'Удалить питомца?',
       text: `Вы уверены, что хотите удалить питомца "${petName}"? Это действие нельзя отменить.`,
-      imageUrl: '/logo.png',
+      imageUrl: 'https://gafus.ru/uploads/logo.png',
       imageWidth: 80,
       imageHeight: 80,
       imageAlt: 'Гафус',

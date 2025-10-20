@@ -3,26 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="ГАФУС - Бесплатная платформа онлайн-обучения для кинологов. Структурируйте курсы, отслеживайте прогресс учеников, используйте библиотеку шаблонов.">
-  <meta name="keywords" content="кинология, онлайн обучение, дрессировка собак, платформа для кинологов, курсы для собак">
-  <meta property="og:title" content="ГАФУС - Бесплатная Платформа для Кинологов">
-  <meta property="og:description" content="Создавайте курсы за 30 минут, отслеживайте прогресс учеников, используйте библиотеку шаблонов. Все бесплатно для кинологов!">
-  <meta property="og:image" content="https://gafus.ru/logo.png">
+  <meta name="description" content="ГАФУС - Бесплатный сервис для кинологов по созданию собственных курсов. Масштабируйте свою экспертизу, отслеживайте прогресс учеников.">
+  <meta name="keywords" content="кинология, онлайн обучение, дрессировка собак, платформа для кинологов, курсы для собак, бесплатно">
+  <meta property="og:title" content="ГАФУС - Бесплатный Сервис для Кинологов">
+  <meta property="og:description" content="Создавайте собственные курсы за 30 минут! Отслеживайте прогресс учеников, используйте библиотеку шаблонов. Полностью бесплатно для кинологов!">
+  <meta property="og:image" content="https://gafus.ru/uploads/logo.png">
+  <meta property="og:image:secure_url" content="https://gafus.ru/uploads/logo.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="ГАФУС - Бесплатный сервис для кинологов">
   <meta property="og:url" content="https://gafus.ru/presentation.html">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ГАФУС">
+  <meta property="og:updated_time" content="2025-10-19T20:20:00+00:00">
   
   <!-- Twitter Card метатеги -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="ГАФУС - Бесплатная Платформа для Кинологов">
-  <meta name="twitter:description" content="Создавайте курсы за 30 минут, отслеживайте прогресс учеников, используйте библиотеку шаблонов. Все бесплатно для кинологов!">
-  <meta name="twitter:image" content="https://gafus.ru/logo.png">
+  <meta name="twitter:title" content="ГАФУС - Бесплатный Сервис для Кинологов">
+  <meta name="twitter:description" content="Создавайте собственные курсы за 30 минут! Отслеживайте прогресс учеников, используйте библиотеку шаблонов. Полностью бесплатно для кинологов!">
+  <meta name="twitter:image" content="https://gafus.ru/uploads/logo.png">
   
   <!-- Дополнительные метатеги -->
   <meta name="robots" content="index, follow">
   <meta name="author" content="ГАФУС">
   <meta name="theme-color" content="#636128">
-  <title>ГАФУС - Бесплатная Платформа для Кинологов | Презентация</title>
+  <title>ГАФУС - Бесплатный Сервис для Кинологов | Создавайте Курсы Онлайн</title>
   
   <style>
     :root {
@@ -348,7 +354,7 @@
     
     /* Section Styles */
     section {
-      padding: 6rem 0;
+      padding: 3rem 0rem 9rem 0;
       position: relative;
       z-index: 2;
     }
@@ -471,7 +477,7 @@
     /* Features Section */
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-template-columns: repeat(3, 1fr);
       gap: 3rem;
       margin-top: 3rem;
     }
@@ -548,7 +554,7 @@
     justify-content: center;
     flex-direction: row-reverse;
     right: 0px;
-    top: 976px;
+    top: 875px;
     }
     
     .gafus-dialog .logo {
@@ -1101,6 +1107,22 @@
       }
     }
     
+    /* Responsive - Tablets */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .gafus-dialog {
+        right: 0px;
+        top: 947px;
+      }
+    }
+    
+    /* Responsive - Medium desktops */
+    @media (min-width: 1025px) and (max-width: 1440px) {
+      .gafus-dialog {
+        right: 0px;
+        top: 935px;
+      }
+    }
+    
     /* Responsive - Small phones */
     @media (max-width: 480px) {
       .container {
@@ -1502,10 +1524,95 @@
       animation: slideInRight 0.8s ease-out forwards;
     }
     
-    /* Parallax effect */
+    /* Parallax effect - отключен на мобильных для производительности */
     .parallax {
       transform: translateZ(0);
       will-change: transform;
+    }
+    
+    /* Мобильные оптимизации анимаций */
+    @media (max-width: 768px) {
+      /* Отключаем только тяжелые анимации на мобильных */
+      .animate-pulse {
+        animation: none;
+      }
+      
+      /* Упрощаем анимации для мобильных - оставляем легкие */
+      .animate-float-up {
+        animation: none;
+        opacity: 1;
+        transform: none;
+        transition: opacity 0.3s ease;
+      }
+      
+      .animate-slide-left,
+      .animate-slide-right {
+        animation: none;
+        opacity: 1;
+        transform: none;
+        transition: opacity 0.3s ease;
+      }
+      
+      /* Легкие анимации для карточек на мобильных */
+      .problem-card,
+      .feature-card,
+      .goal-item {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: opacity 0.3s ease !important;
+      }
+      
+      /* Легкие анимации для solution элементов */
+      .solution-icon-item,
+      .solution-point {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: opacity 0.4s ease !important;
+      }
+      
+      /* Отключаем parallax на мобильных */
+      .parallax {
+        transform: none !important;
+        will-change: auto;
+      }
+      
+      /* Упрощаем hover эффекты на мобильных */
+      .feature-card:hover,
+      .problem-card:hover,
+      .goal-item:hover {
+        transform: none !important;
+        box-shadow: var(--shadow-soft) !important;
+      }
+      
+      /* Оптимизируем paw prints анимации - оставляем статичными */
+      .paw-print,
+      .paw-print-small,
+      .paw-print-medium,
+      .paw-print-tiny,
+      .paw-print-contact {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+    
+    /* Дополнительная оптимизация для слабых устройств */
+    @media (max-width: 480px) {
+      /* Отключаем все анимации на слабых устройствах */
+      * {
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+      }
+      
+      /* Убираем тени для экономии ресурсов */
+      .feature-card,
+      .problem-card,
+      .goal-item,
+      .pricing-card,
+      .testimonial-card {
+        box-shadow: none !important;
+      }
     }
   </style>
 </head>
@@ -1576,7 +1683,7 @@
     <div class="paw-print-tiny" style="top: 95%; right: 35%; --rotation: -130deg;"></div>
     
     <div class="container hero-content">
-      <h1><img src="/logo.png" alt="ГАФУС" style="height: 13.75rem; vertical-align: middle; margin-right: 1.25rem;">ГАФУС</h1>
+      <h1><img src="https://gafus.ru/uploads/logo.png" alt="ГАФУС" style="height: 13.75rem; vertical-align: middle; margin-right: 1.25rem;">ГАФУС</h1>
       <p class="tagline">Бесплатный сервис для кинологов по созданию собственных курсов</p>
       <p class="subtitle">Создавайте курсы · Масштабируйте свою экспертизу · Отслеживайте прогресс учеников</p>
       <div class="cta-buttons">
@@ -1760,7 +1867,7 @@
       
       <!-- Диалог с Гафусом -->
       <div class="gafus-dialog">
-        <img src="/logo.png" alt="ГАФУС" class="logo">
+        <img src="https://gafus.ru/uploads/logo.png" alt="ГАФУС" class="logo">
         <div class="speech-bubble">
           <p class="speech-text">
             Да! вот такие мы клёвые!
@@ -1922,83 +2029,120 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    // Intersection Observer for animations
-    const observerOptions = {
-      threshold: 0.1,
-      rootMargin: '0px 0px -50px 0px'
-    };
+    // Проверяем, мобильное ли устройство
+    const isMobile = window.innerWidth <= 768;
+    
+    if (!isMobile) {
+      // Intersection Observer for animations (только для десктопа)
+      const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      };
 
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.style.opacity = '1';
-          entry.target.style.transform = 'translateY(0)';
-          
-          // Add staggered animation for cards
-          if (entry.target.classList.contains('problem-card') || 
-              entry.target.classList.contains('feature-card') || 
-              entry.target.classList.contains('goal-item')) {
-            const delay = Array.from(entry.target.parentNode.children).indexOf(entry.target) * 100;
-            setTimeout(() => {
-              entry.target.style.animation = 'floatUp 0.8s ease-out forwards';
-            }, delay);
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.style.opacity = '1';
+            entry.target.style.transform = 'translateY(0)';
+            
+            // Add staggered animation for cards
+            if (entry.target.classList.contains('problem-card') || 
+                entry.target.classList.contains('feature-card') || 
+                entry.target.classList.contains('goal-item')) {
+              const delay = Array.from(entry.target.parentNode.children).indexOf(entry.target) * 100;
+              setTimeout(() => {
+                entry.target.style.animation = 'floatUp 0.8s ease-out forwards';
+              }, delay);
+            }
           }
-        }
+        });
+      }, observerOptions);
+
+      // Enhanced scroll animations
+      document.querySelectorAll('.problem-card, .feature-card, .goal-item').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(1.875rem)';
+        el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(el);
       });
-    }, observerOptions);
 
-    // Enhanced scroll animations
-    document.querySelectorAll('.problem-card, .feature-card, .goal-item').forEach(el => {
-      el.style.opacity = '0';
-      el.style.transform = 'translateY(1.875rem)';
-      el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-      observer.observe(el);
-    });
+      // Solution section animations
+      const solutionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            // Animate icon items with delay
+            const iconItems = entry.target.querySelectorAll('.solution-icon-item');
+            iconItems.forEach((item, index) => {
+              setTimeout(() => {
+                item.classList.add('animate');
+              }, index * 200);
+            });
+            
+            // Animate text points text points with delay
+            const textPoints = entry.target.querySelectorAll('.solution-point');
+            textPoints.forEach((point, index) => {
+              setTimeout(() => {
+                point.classList.add('animate');
+              }, index * 300 + 400);
+            });
+          }
+        });
+      }, { threshold: 0.3 });
 
-    // Solution section animations
-    const solutionObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          // Animate icon items with delay
-          const iconItems = entry.target.querySelectorAll('.solution-icon-item');
-          iconItems.forEach((item, index) => {
-            setTimeout(() => {
-              item.classList.add('animate');
-            }, index * 200);
-          });
-          
-          // Animate text points with delay
-          const textPoints = entry.target.querySelectorAll('.solution-point');
-          textPoints.forEach((point, index) => {
-            setTimeout(() => {
-              point.classList.add('animate');
-            }, index * 300 + 400);
-          });
-        }
-      });
-    }, { threshold: 0.3 });
-
-    const solutionSection = document.querySelector('.solution-section');
-    if (solutionSection) {
-      solutionObserver.observe(solutionSection);
-    }
-
-    // Parallax effect for hero section
-    window.addEventListener('scroll', () => {
-      const scrolled = window.pageYOffset;
-      const hero = document.querySelector('.hero');
-      if (hero) {
-        hero.style.transform = `translateY(${scrolled * 0.5}px)`;
+      const solutionSection = document.querySelector('.solution-section');
+      if (solutionSection) {
+        solutionObserver.observe(solutionSection);
       }
-    });
 
-    // Smooth reveal animations
-    const revealElements = document.querySelectorAll('.section-title, .section-subtitle');
-    revealElements.forEach(el => {
-      el.style.opacity = '0';
-      el.style.transform = 'translateY(1.25rem)';
-      observer.observe(el);
-    });
+      // Parallax effect for hero section (только для десктопа)
+      window.addEventListener('scroll', () => {
+        const scrolled = window.pageYOffset;
+        const hero = document.querySelector('.hero');
+        if (hero) {
+          hero.style.transform = `translateY(${scrolled * 0.5}px)`;
+        }
+      });
+
+      // Smooth reveal animations
+      const revealElements = document.querySelectorAll('.section-title, .section-subtitle');
+      revealElements.forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(1.25rem)';
+        observer.observe(el);
+      });
+    } else {
+      // Для мобильных устройств - используем легкие анимации
+      const mobileObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.style.opacity = '1';
+            
+            // Легкая анимация для solution элементов
+            if (entry.target.classList.contains('solution-icon-item') || 
+                entry.target.classList.contains('solution-point')) {
+              const delay = Array.from(entry.target.parentNode.children).indexOf(entry.target) * 100;
+              setTimeout(() => {
+                entry.target.style.opacity = '1';
+              }, delay);
+            }
+          }
+        });
+      }, { threshold: 0.3 });
+
+      // Показываем контент сразу с легкими переходами
+      document.querySelectorAll('.problem-card, .feature-card, .goal-item, .section-title, .section-subtitle').forEach(el => {
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+        el.style.transition = 'opacity 0.3s ease';
+      });
+
+      // Наблюдаем за solution элементами для легких анимаций
+      document.querySelectorAll('.solution-icon-item, .solution-point').forEach(el => {
+        el.style.opacity = '0.8';
+        el.style.transition = 'opacity 0.4s ease';
+        mobileObserver.observe(el);
+      });
+    }
   </script>
 
 </body>

@@ -31,14 +31,14 @@ export const metadata: Metadata = {
     siteName: "Гафус",
     title: "Гафус — Тренировки для собак",
     description: "Профессиональные онлайн тренировки для собак с опытными кинологами",
-    images: [{ url: "/logo.png", width: 1200, height: 630, alt: "Гафус" }],
+    images: [{ url: "https://gafus.ru/uploads/logo.png", width: 1200, height: 630, alt: "Гафус" }],
     locale: "ru_RU",
   },
   twitter: {
     card: "summary_large_image",
     title: "Гафус — Тренировки для собак",
     description: "Профессиональные тренировки для собак с опытными кинологами",
-    images: ["/logo.png"],
+    images: ["https://gafus.ru/uploads/logo.png"],
   },
   appleWebApp: { capable: true, title: "Гафус", statusBarStyle: "default" },
 };
