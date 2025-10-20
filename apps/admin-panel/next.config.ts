@@ -26,6 +26,8 @@ const nextConfig: NextConfig = {
   },
   // Конфигурация для изображений с CDN
   images: {
+    loader: 'custom',
+    loaderFile: './src/lib/imageLoader.ts',
     remotePatterns: [
       {
         protocol: "https",
@@ -36,7 +38,6 @@ const nextConfig: NextConfig = {
         hostname: "**",
       },
     ],
-    unoptimized: true,
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

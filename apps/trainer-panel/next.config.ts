@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
 
   // Конфигурация для изображений
   images: {
+    loader: 'custom',
+    loaderFile: './src/lib/imageLoader.ts',
     // Разрешаем загрузку изображений с любых доменов
     remotePatterns: [
       {
@@ -34,8 +36,6 @@ const nextConfig: NextConfig = {
         hostname: "**",
       },
     ],
-    // Отключаем оптимизацию для локальных изображений
-    unoptimized: true,
     // Обработка ошибок загрузки
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",

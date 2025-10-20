@@ -65,7 +65,6 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                     width={24}
                     height={24}
                     className={styles.avatar}
-                    unoptimized
                     priority
                   />
                 ) : (

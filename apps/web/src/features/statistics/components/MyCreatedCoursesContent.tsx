@@ -87,7 +87,6 @@ export default function MyCreatedCoursesContent({
           width={48}
           height={48}
           className={styles.logo}
-          unoptimized
           priority={usePriority}
         />
         <h3 className={styles.title}>{course.name}</h3>
@@ -125,7 +124,6 @@ export default function MyCreatedCoursesContent({
                       width={24}
                       height={24}
                       className={styles.reviewAvatar}
-                      unoptimized
                       loading="lazy"
                     />
                     <strong className={styles.reviewUsername}>{rev.user.username}:</strong>
@@ -215,7 +213,6 @@ function UserProgressBlock({
             width={32}
             height={32}
             className={styles.userAvatar}
-            unoptimized
             loading="lazy"
           />
           <span className={styles.userName}>{userProgress.username}</span>

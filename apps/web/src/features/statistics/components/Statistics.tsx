@@ -44,7 +44,6 @@ export default async function Statistics() {
               width={40}
               height={40}
               className={styles.avatar}
-              unoptimized
               priority
             />
           ) : (
