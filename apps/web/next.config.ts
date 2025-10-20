@@ -113,6 +113,8 @@ const nextConfig = {
 
   // Оптимизация изображений
   images: {
+    loader: 'custom',
+    loaderFile: './src/lib/imageLoader.ts',
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com" },
       { protocol: "https", hostname: "gafus-media.storage.yandexcloud.net" },

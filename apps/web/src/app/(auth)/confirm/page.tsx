@@ -23,7 +23,6 @@ export default function ConfirmPage() {
           width={400}
           height={400}
           priority
-          unoptimized
         />
       </div>
       <h2 className={styles.subtitle}>Подтвердите номер</h2>
