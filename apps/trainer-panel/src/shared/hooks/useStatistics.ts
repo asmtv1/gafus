@@ -31,8 +31,9 @@ export function useCourseStatistics(userId: string, isElevated: boolean) {
       return result.data as StatisticsData;
     },
     {
-      refetchOnWindowFocus: false,
-      staleTime: 30000, // 30 секунд
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      staleTime: 0, // Всегда проверяем свежесть данных
     },
   );
 }

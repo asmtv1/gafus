@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { 
   FitnessCenter, 
   Schedule, 
@@ -11,7 +11,8 @@ import {
   Assignment,
   AutoStories,
   Menu as MenuIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Logout
 } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 
@@ -22,7 +23,7 @@ interface MainPanelLayoutProps {
 }
 
 export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [pendingExamCount, setPendingExamCount] = useState(0);
 
@@ -45,7 +46,22 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
     loadPendingCount();
   }, []);
 
-  if (!session) return <div>Не авторизован</div>;
+  // Показываем скелетон при загрузке сессии
+  if (status === "loading") {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.spinner}></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.spinner}></div>
+      </div>
+    );
+  }
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -53,6 +69,11 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
+  };
+
+  const handleLogout = async () => {
+    closeMobileMenu();
+    await signOut({ redirect: true, callbackUrl: "/login" });
   };
 
   return (
@@ -167,6 +188,16 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           <Add sx={{ mr: 1.5, fontSize: 20 }} />
           Создать новый курс
         </Link>
+
+        <div className={styles.divider}></div>
+
+        <button 
+          className={styles.logoutButton}
+          onClick={handleLogout}
+        >
+          <Logout sx={{ mr: 1.5, fontSize: 20 }} />
+          Выход
+        </button>
       </aside>
 
       <main className={styles.content}>{children}</main>
