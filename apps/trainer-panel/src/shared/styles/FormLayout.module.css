@@ -131,25 +131,150 @@
 }
 
 
-/* Адаптивность */
+/* === АДАПТИВНОСТЬ === */
+
+/* Планшеты */
+@media (max-width: 1024px) {
+  .formPageContainer {
+    max-width: 100%;
+    padding: 1.75rem;
+  }
+
+  .formPageTitle {
+    font-size: 1.875rem;
+  }
+
+  .formContainer {
+    gap: 1.375rem;
+  }
+
+  .formSection {
+    padding: 1.375rem;
+  }
+
+  .formSectionTitle {
+    font-size: 1.175rem;
+  }
+}
+
+/* Мобильные устройства */
 @media (max-width: 768px) {
   .formPageContainer {
-    margin: 1rem;
-    padding: 1.5rem;
-    border-radius: 6px;
+    margin: 0.75rem;
+    padding: 1.25rem;
+    border-radius: 8px;
   }
   
   .formPageTitle {
-    font-size: 1.75rem;
-    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .formContainer {
+    gap: 1.25rem;
   }
   
   .formSection {
-    padding: 1rem;
+    padding: 1.25rem;
+    border-radius: 8px;
+  }
+
+  .formSectionTitle {
+    font-size: 1.125rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .formSectionTitle::before {
+    width: 3px;
+    height: 18px;
+  }
+
+  .formField {
+    margin-bottom: 1.25rem;
+  }
+
+  .formLabel {
+    font-size: 0.8125rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .formInput,
+  .formSelect {
+    font-size: 0.9375rem;
+  }
+
+  .formButton {
+    padding: 0.625rem 1.5rem !important;
+    font-size: 0.9375rem !important;
   }
   
   .formActions {
-    flex-direction: column;
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
   }
-  
+
+  .formActions button {
+    width: 100%;
+  }
+
+  .formAlert {
+    margin-bottom: 1.25rem;
+  }
+}
+
+/* Очень маленькие экраны */
+@media (max-width: 480px) {
+  .formPageContainer {
+    margin: 0.5rem;
+    padding: 1rem;
+    border-radius: 6px;
+  }
+
+  .formPageTitle {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .formContainer {
+    gap: 1rem;
+  }
+
+  .formSection {
+    padding: 1rem;
+  }
+
+  .formSectionTitle {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .formField {
+    margin-bottom: 1rem;
+  }
+
+  .formLabel {
+    font-size: 0.75rem;
+  }
+
+  .formInput,
+  .formSelect {
+    font-size: 0.875rem;
+  }
+
+  .formButton {
+    padding: 0.5rem 1.25rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  .formActions {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    gap: 0.625rem;
+  }
+
+  .formAlert {
+    margin-bottom: 1rem;
+  }
 }

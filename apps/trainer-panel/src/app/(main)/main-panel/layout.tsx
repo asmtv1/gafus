@@ -1,34 +1,90 @@
 // apps/trainer-panel/src/app/(main)/main-panel/layout.tsx
-import { authOptions } from "@gafus/auth";
+"use client";
+
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { useSession } from "next-auth/react";
 import { 
   FitnessCenter, 
   Schedule, 
   Add,
   TrendingUp,
   Assignment,
-  AutoStories
+  AutoStories,
+  Menu as MenuIcon,
+  Close as CloseIcon
 } from "@mui/icons-material";
+import { useState, useEffect } from "react";
 
 import styles from "./main-panel.module.css";
-import { getPendingExamCount } from "@/features/exam-results/lib/getPendingExamCount";
 
-export default async function MainPanelLayout({ children }: { children: React.ReactNode }) {
-  const session = (await getServerSession(authOptions)) as {
-    user: { id: string; username: string; role: string; avatarUrl?: string };
-  } | null;
+interface MainPanelLayoutProps {
+  children: React.ReactNode;
+}
+
+export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
+  const { data: session } = useSession();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [pendingExamCount, setPendingExamCount] = useState(0);
+
+  const userName = session?.user?.username;
+  const avatarUrl = session?.user?.avatarUrl ?? "/uploads/avatar.svg";
+
+  // Загружаем количество непроверенных экзаменов
+  useEffect(() => {
+    async function loadPendingCount() {
+      try {
+        const response = await fetch("/api/exam-results/pending-count");
+        if (response.ok) {
+          const data = await response.json();
+          setPendingExamCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Failed to load pending exam count:", error);
+      }
+    }
+    loadPendingCount();
+  }, []);
+
   if (!session) return <div>Не авторизован</div>;
 
-  const userName = session.user.username;
-  const avatarUrl = session.user.avatarUrl ?? "/uploads/avatar.svg";
-  
-  // Получаем количество непроверенных экзаменов
-  const pendingExamCount = await getPendingExamCount();
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <div className={styles.container}>
-      <aside className={styles.sidebar}>
+      {/* Мобильная шапка с кнопкой меню */}
+      <div className={styles.mobileHeader}>
+        <button 
+          className={styles.menuButton} 
+          onClick={toggleMobileMenu}
+          aria-label="Открыть меню"
+        >
+          {isMobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+        </button>
+        <div className={styles.mobileHeaderUser}>
+          <span className={styles.mobileUserName}>{userName}</span>
+          <img
+            src={avatarUrl}
+            alt="Avatar"
+            width={32}
+            height={32}
+            className={styles.mobileAvatar}
+          />
+        </div>
+      </div>
+
+      {/* Оверлей для закрытия меню на мобилке */}
+      {isMobileMenuOpen && (
+        <div className={styles.overlay} onClick={closeMobileMenu}></div>
+      )}
+
+      {/* Боковая панель */}
+      <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ""}`}>
         <div className={styles.profilWrapper}>
           <div className={styles.userName}>{userName || "\u00A0"}</div>
           <img
@@ -39,23 +95,43 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             className={styles.avatar}
           />
         </div>
-        <Link href="/main-panel/statistics" className={styles.button}>
+        <Link 
+          href="/main-panel/statistics" 
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
           <TrendingUp sx={{ mr: 1.5, fontSize: 20 }} />
           Общая Статистика
         </Link>
-        <Link href="/main-panel/steps" className={styles.button}>
+        <Link 
+          href="/main-panel/steps" 
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
           <FitnessCenter sx={{ mr: 1.5, fontSize: 20 }} />
           Созданные шаги
         </Link>
-        <Link href="/main-panel/days" className={styles.button}>
+        <Link 
+          href="/main-panel/days" 
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
           <Schedule sx={{ mr: 1.5, fontSize: 20 }} />
           Созданные дни
         </Link>
-        <Link href="/main-panel/templates" className={styles.button}>
+        <Link 
+          href="/main-panel/templates" 
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
           <AutoStories sx={{ mr: 1.5, fontSize: 20 }} />
           Библиотека шаблонов
         </Link>
-        <Link href="/main-panel/exam-results" className={styles.button}>
+        <Link 
+          href="/main-panel/exam-results" 
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
           <Assignment sx={{ mr: 1.5, fontSize: 20 }} />
           Результаты экзаменов
           {pendingExamCount > 0 && (
@@ -67,20 +143,30 @@ export default async function MainPanelLayout({ children }: { children: React.Re
         
         <div className={styles.divider}></div>
         
-        <Link href="/main-panel/steps/new" className={styles.button}>
+        <Link 
+          href="/main-panel/steps/new" 
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
           <Add sx={{ mr: 1.5, fontSize: 20 }} />
           Создать новый шаг
         </Link>
-        <Link href="/main-panel/days/new" className={styles.button}>
+        <Link 
+          href="/main-panel/days/new" 
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
           <Add sx={{ mr: 1.5, fontSize: 20 }} />
           Создать новый день
         </Link>
-        <Link href="/main-panel/courses/new" className={styles.button}>
+        <Link 
+          href="/main-panel/courses/new" 
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
           <Add sx={{ mr: 1.5, fontSize: 20 }} />
           Создать новый курс
         </Link>
-
-
       </aside>
 
       <main className={styles.content}>{children}</main>

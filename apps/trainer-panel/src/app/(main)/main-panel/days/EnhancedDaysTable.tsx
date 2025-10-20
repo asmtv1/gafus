@@ -21,6 +21,12 @@ import {
   Toolbar,
   Tooltip,
   Typography,
+  Card,
+  CardContent,
+  CardActions,
+  Chip,
+  Stack,
+  Divider
 } from "@mui/material";
 import { visuallyHidden } from "@mui/utils";
 import * as React from "react";
@@ -104,18 +110,35 @@ export default function EnhancedDaysTable({
     return sorted.slice(start, start + rowsPerPage);
   }, [days, page, rowsPerPage, comparator]);
 
+  // Определяем мобильный режим
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <Box sx={{ width: "100%" }}>
-      <Paper sx={{ width: "100%", mb: 2 }}>
+      <Paper sx={{ width: "100%", mb: 2, borderRadius: { xs: 2, md: 3 } }}>
         <Toolbar
           sx={{
-            pl: { sm: 2 },
+            pl: { xs: 1, sm: 2 },
             pr: { xs: 1, sm: 1 },
+            minHeight: { xs: 56, sm: 64 },
             ...(selected.length > 0 && { bgcolor: (theme) => theme.palette.action.selected }),
           }}
         >
           <Typography
-            sx={{ flex: "1 1 100%" }}
+            sx={{ 
+              flex: "1 1 100%",
+              fontSize: { xs: '1rem', sm: '1.25rem' }
+            }}
             color={selected.length > 0 ? "inherit" : "text.primary"}
             variant="h6"
           >
@@ -134,90 +157,195 @@ export default function EnhancedDaysTable({
             </IconButton>
           </Tooltip>
         </Toolbar>
-        <TableContainer>
-          <Table size={dense ? "small" : "medium"}>
-            <TableHead>
-              <TableRow>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    color="primary"
-                    checked={days.length > 0 && selected.length === days.length}
-                    indeterminate={selected.length > 0 && selected.length < days.length}
-                    onChange={handleSelectAllClick}
-                  />
-                </TableCell>
-                {headCells.map(({ id, label, numeric }) => (
-                  <TableCell
-                    key={id}
-                    align={numeric ? "right" : "left"}
-                    sortDirection={orderBy === id ? order : false}
-                  >
-                    {id !== "actions" ? (
-                      <TableSortLabel
-                        active={orderBy === id}
-                        direction={orderBy === id ? order : "asc"}
-                        onClick={(e) => handleRequestSort(e, id)}
-                      >
-                        {label}
-                        {orderBy === id && (
-                          <Box component="span" sx={visuallyHidden}>
-                            {order === "desc" ? "по убыванию" : "по возрастанию"}
-                          </Box>
-                        )}
-                      </TableSortLabel>
-                    ) : (
-                      label
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
+
+        {/* Мобильное представление - карточки */}
+        {isMobile ? (
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={2}>
               {visibleRows.map((row) => {
                 const isItemSelected = selected.includes(row.id);
+                const stepsList = row.stepLinks && row.stepLinks.length
+                  ? Array.from(new Set(row.stepLinks.map((sl) => sl.step.title))).join(", ")
+                  : "—";
+                const coursesList = row.dayLinks && row.dayLinks.length
+                  ? Array.from(new Set(row.dayLinks.map((dl) => dl.course.name))).join(", ")
+                  : "—";
+
                 return (
-                  <TableRow
+                  <Card 
                     key={row.id}
-                    hover
-                    onClick={(e) => handleClick(e, row.id)}
-                    selected={isItemSelected}
-                    aria-checked={isItemSelected}
-                    tabIndex={-1}
+                    sx={{ 
+                      bgcolor: isItemSelected ? 'action.selected' : 'background.paper',
+                      position: 'relative'
+                    }}
                   >
-                    <TableCell padding="checkbox">
-                      <Checkbox color="primary" checked={isItemSelected} />
-                    </TableCell>
-                    <TableCell>{row.title}</TableCell>
-                    <TableCell>{row.type}</TableCell>
-                    <TableCell>{row.description || "—"}</TableCell>
-                    <TableCell>
-                      {row.stepLinks && row.stepLinks.length
-                        ? Array.from(new Set(row.stepLinks.map((sl) => sl.step.title))).join(", ")
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {row.dayLinks && row.dayLinks.length
-                        ? Array.from(new Set(row.dayLinks.map((dl) => dl.course.name))).join(", ")
-                        : "—"}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="Редактировать">
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEditDay?.(row.id);
-                          }}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
+                    <CardContent sx={{ pb: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
+                        <Checkbox
+                          size="small"
+                          checked={isItemSelected}
+                          onClick={(e) => handleClick(e, row.id)}
+                          sx={{ mt: -0.5 }}
+                        />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+                              {row.title}
+                            </Typography>
+                            <Chip 
+                              label={row.type} 
+                              size="small" 
+                              color={row.type === 'TRAINING' ? 'primary' : 'default'}
+                              sx={{ height: '20px', fontSize: '0.6875rem' }}
+                            />
+                          </Box>
+                          {row.description && (
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary" 
+                              sx={{ 
+                                fontSize: '0.875rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical'
+                              }}
+                            >
+                              {row.description}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+
+                      <Divider sx={{ my: 1.5 }} />
+
+                      <Stack spacing={1}>
+                        {stepsList !== "—" && (
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">
+                              Шаги:
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem', mt: 0.25 }}>
+                              {stepsList}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {coursesList !== "—" && (
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">
+                              Курсы:
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem', mt: 0.25 }}>
+                              {coursesList}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Stack>
+                    </CardContent>
+
+                    <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => onEditDay?.(row.id)}
+                        sx={{ color: 'primary.main' }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </CardActions>
+                  </Card>
                 );
               })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+            </Stack>
+          </Box>
+        ) : (
+          /* Десктопное представление - таблица */
+          <TableContainer>
+            <Table size={dense ? "small" : "medium"}>
+              <TableHead>
+                <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      color="primary"
+                      checked={days.length > 0 && selected.length === days.length}
+                      indeterminate={selected.length > 0 && selected.length < days.length}
+                      onChange={handleSelectAllClick}
+                    />
+                  </TableCell>
+                  {headCells.map(({ id, label, numeric }) => (
+                    <TableCell
+                      key={id}
+                      align={numeric ? "right" : "left"}
+                      sortDirection={orderBy === id ? order : false}
+                    >
+                      {id !== "actions" ? (
+                        <TableSortLabel
+                          active={orderBy === id}
+                          direction={orderBy === id ? order : "asc"}
+                          onClick={(e) => handleRequestSort(e, id)}
+                        >
+                          {label}
+                          {orderBy === id && (
+                            <Box component="span" sx={visuallyHidden}>
+                              {order === "desc" ? "по убыванию" : "по возрастанию"}
+                            </Box>
+                          )}
+                        </TableSortLabel>
+                      ) : (
+                        label
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {visibleRows.map((row) => {
+                  const isItemSelected = selected.includes(row.id);
+                  return (
+                    <TableRow
+                      key={row.id}
+                      hover
+                      onClick={(e) => handleClick(e, row.id)}
+                      selected={isItemSelected}
+                      aria-checked={isItemSelected}
+                      tabIndex={-1}
+                    >
+                      <TableCell padding="checkbox">
+                        <Checkbox color="primary" checked={isItemSelected} />
+                      </TableCell>
+                      <TableCell>{row.title}</TableCell>
+                      <TableCell>{row.type}</TableCell>
+                      <TableCell>{row.description || "—"}</TableCell>
+                      <TableCell>
+                        {row.stepLinks && row.stepLinks.length
+                          ? Array.from(new Set(row.stepLinks.map((sl) => sl.step.title))).join(", ")
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {row.dayLinks && row.dayLinks.length
+                          ? Array.from(new Set(row.dayLinks.map((dl) => dl.course.name))).join(", ")
+                          : "—"}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Tooltip title="Редактировать">
+                          <IconButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditDay?.(row.id);
+                            }}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
         <TablePagination
           component="div"
           count={days.length}
@@ -226,12 +354,23 @@ export default function EnhancedDaysTable({
           onPageChange={handleChangePage}
           rowsPerPageOptions={[5, 10, 25]}
           onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            '& .MuiTablePagination-select': {
+              fontSize: { xs: '0.875rem', sm: '1rem' }
+            },
+            '& .MuiTablePagination-displayedRows': {
+              fontSize: { xs: '0.875rem', sm: '1rem' }
+            }
+          }}
         />
       </Paper>
-      <FormControlLabel
-        control={<Switch checked={dense} onChange={() => setDense((d) => !d)} />}
-        label="Компактный режим"
-      />
+      {!isMobile && (
+        <FormControlLabel
+          control={<Switch checked={dense} onChange={() => setDense((d) => !d)} />}
+          label="Компактный режим"
+          sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+        />
+      )}
     </Box>
   );
 }
