@@ -66,6 +66,10 @@ RUN mkdir -p ./apps/web/.prisma && cp -r ./node_modules/.prisma/client ./apps/we
 RUN mkdir -p ./apps/web/node_modules/.prisma && cp -r ./node_modules/.prisma/client ./apps/web/node_modules/.prisma/client
 RUN mkdir -p ./apps/web/node_modules/@prisma && cp -r ./node_modules/.prisma/client ./apps/web/node_modules/@prisma/client
 
+# Копируем Query Engine в .pnpm структуру для standalone build
+RUN mkdir -p ./node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/.prisma/client && \
+    cp ./node_modules/.prisma/client/libquery_engine-* ./node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/.prisma/client/ 2>/dev/null || true
+
 # Устанавливаем права доступа
 RUN chown -R nextjs:nodejs /app
 USER nextjs
