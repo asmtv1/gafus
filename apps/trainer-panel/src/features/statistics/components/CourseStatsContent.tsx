@@ -357,6 +357,10 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
                         sx={{ width: 40, height: 40 }}
                         src={userCourse.user.profile?.avatarUrl || "/uploads/avatar.svg"}
                         alt={userCourse.user.username}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = "/uploads/avatar.svg";
+                        }}
                       />
                       <Box>
                         <Typography
