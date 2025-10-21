@@ -3,8 +3,7 @@
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createWebLogger } from "@gafus/logger";
-
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId as getCurrentUserIdFromAuth } from "@gafus/auth/server";
 
 // Создаем логгер для getUserProfile
 const logger = createWebLogger('web-get-user-profile');
@@ -12,8 +11,11 @@ const logger = createWebLogger('web-get-user-profile');
 export async function getUserProfile() {
   let userId: string | null = null;
   try {
-    userId = await getCurrentUserId();
-    if (!userId) throw new Error("Не удалось получить профиль пользователя");
+    // Используем auth напрямую - возвращает null для неавторизованных без выброса ошибки
+    userId = await getCurrentUserIdFromAuth();
+    if (!userId) {
+      return null;
+    }
 
     const profile = await prisma.userProfile.findUnique({
       where: { userId },
@@ -37,6 +39,6 @@ export async function getUserProfile() {
       tags: ["user", "profile", "server-action"],
     });
 
-    throw new Error("Что-то пошло не так при получении профиля пользователя");
+    return null;
   }
 }

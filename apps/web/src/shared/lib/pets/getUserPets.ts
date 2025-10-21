@@ -2,15 +2,15 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId as getCurrentUserIdFromAuth } from "@gafus/auth/server";
 
 // Создаем логгер для getUserPets
 const logger = createWebLogger('web-get-user-pets');
 
 export async function getUserPets() {
   try {
-    const userId = await getCurrentUserId();
+    // Используем auth напрямую - возвращает null для неавторизованных без выброса ошибки
+    const userId = await getCurrentUserIdFromAuth();
     if (!userId) {
       // Возвращаем пустой список вместо ошибки, если пользователь не авторизован
       return [];

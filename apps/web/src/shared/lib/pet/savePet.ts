@@ -3,11 +3,10 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
+import { getCurrentUserId as getCurrentUserIdFromAuth } from "@gafus/auth/server";
 
 import type { Prisma, PetType } from "@gafus/prisma";
 import type { UpdatePetInput } from "@gafus/types";
-
-import { getCurrentUserId } from "@/utils";
 
 import { createPetSchema, updatePetSchema } from "../validation/petSchemas";
 
@@ -25,14 +24,14 @@ export async function savePet({
   notes,
 }: UpdatePetInput) {
   try {
-    const ownerId = await getCurrentUserId();
+    // Используем auth напрямую - возвращает null для неавторизованных без выброса ошибки
+    const ownerId = await getCurrentUserIdFromAuth();
+    if (!ownerId) {
+      throw new Error("Необходима авторизация");
+    }
     logger.warn("Получен ownerId:", { ownerId, operation: 'warn' });
 
     const trimmedId = id?.trim();
-
-    if (!trimmedId && !ownerId) {
-      throw new Error("Поле ownerId обязательно при создании");
-    }
 
     if (!trimmedId) {
       const validatedData = createPetSchema.parse({
