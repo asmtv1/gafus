@@ -6,7 +6,6 @@ import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { loginFormSchema } from "@shared/lib/validation/authSchemas";
 import { signIn } from "next-auth/react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -95,7 +94,7 @@ export default function LoginForm() {
         </Link>
       </div>
       <button className={styles.button} type="submit" disabled={csrfLoading}>
-        {csrfLoading ? "Загрузка..." : <Image src="/login-paw.png" alt="Войти" width={80} height={60} />}
+        {csrfLoading ? "Загрузка..." : <img src="/login-paw.png" alt="Войти" />}
       </button>
     </form>
   );

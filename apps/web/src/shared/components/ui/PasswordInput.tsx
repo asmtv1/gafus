@@ -2,7 +2,6 @@
 
 // components/ui/PasswordInput.tsx
 import { useState } from "react";
-import Image from "next/image";
 
 import { ValidationError } from "./ValidationError";
 
@@ -67,7 +66,7 @@ export const PasswordInput: FC<Props> = ({
           tabIndex={-1}
         >
           {show ? (
-            <Image
+            <img
               src="/hide.png"
               alt="Скрыть пароль"
               width={20}
@@ -75,7 +74,7 @@ export const PasswordInput: FC<Props> = ({
               style={{ display: "block" }}
             />
           ) : (
-            <Image
+            <img
               src="/Show.png"
               alt="Показать пароль"
               width={20}
