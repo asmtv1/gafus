@@ -26,8 +26,6 @@ const nextConfig: NextConfig = {
   },
   // Конфигурация для изображений с CDN
   images: {
-    loader: 'custom',
-    loaderFile: './src/lib/imageLoader.ts',
     remotePatterns: [
       {
         protocol: "https",
@@ -41,6 +39,17 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
+
+  async rewrites() {
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (!isDev) return [];
+    return [
+      {
+        source: "/uploads/:path*",
+        destination: "https://storage.yandexcloud.net/gafus-media/uploads/:path*",
+      },
+    ];
   },
   async headers() {
     return [

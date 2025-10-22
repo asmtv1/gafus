@@ -113,11 +113,10 @@ const nextConfig = {
 
   // Оптимизация изображений
   images: {
-    loader: 'custom',
-    loaderFile: './src/lib/imageLoader.ts',
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com" },
       { protocol: "https", hostname: "gafus-media.storage.yandexcloud.net" },
+      { protocol: "https", hostname: "storage.yandexcloud.net" },
     ],
     formats: ["image/webp", "image/avif"],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
@@ -125,6 +124,18 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 дней
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
+
+  // В dev окружении проксируем /uploads/* на CDN, чтобы Next Image мог оптимизировать
+  async rewrites() {
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (!isDev) return [];
+    return [
+      {
+        source: "/uploads/:path*",
+        destination: "https://storage.yandexcloud.net/gafus-media/uploads/:path*",
+      },
+    ];
   },
 
   async headers() {

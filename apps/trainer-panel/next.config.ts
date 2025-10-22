@@ -23,8 +23,6 @@ const nextConfig: NextConfig = {
 
   // Конфигурация для изображений
   images: {
-    loader: 'custom',
-    loaderFile: './src/lib/imageLoader.ts',
     // Разрешаем загрузку изображений с любых доменов
     remotePatterns: [
       {
@@ -40,6 +38,17 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
+
+  async rewrites() {
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (!isDev) return [];
+    return [
+      {
+        source: "/uploads/:path*",
+        destination: "https://storage.yandexcloud.net/gafus-media/uploads/:path*",
+      },
+    ];
   },
 
   // Webpack конфигурация для workspace зависимостей
