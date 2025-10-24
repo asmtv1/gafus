@@ -6,15 +6,16 @@
   margin: 20px 0;
 }
 
-.toggleButtonContainer {
+.controlsRow {
   display: flex;
   justify-content: center;
-  gap: 12px;
+  align-items: center;
+  gap: 260px;
   margin-bottom: 10px;
-  flex-wrap: wrap;
 }
 
-.toggleButton {
+.sortButton,
+.filterToggleButton {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -32,27 +33,18 @@
   position: relative;
 }
 
-.toggleButton:hover {
+.sortButton:hover,
+.filterToggleButton:hover {
   background-color: var(--bg-3);
   border-color: var(--accent-primary);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transform: translateY(-1px);
 }
 
-.toggleText {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  position: relative;
-}
-
-.toggleArrow {
-  transition: transform 0.3s ease;
+.sortIcon,
+.filterIcon {
   color: var(--text-secondary);
-}
-
-.toggleArrow.open {
-  transform: rotate(180deg);
+  flex-shrink: 0;
 }
 
 .activeFiltersBadge {
@@ -71,11 +63,36 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.resetIcon {
-  transition: transform 0.3s ease;
+.resetButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg-2);
+  border: 2px solid var(--bg-3);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
 }
 
-.toggleButton:hover .resetIcon {
+.resetButton:hover {
+  background-color: var(--bg-3);
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.resetIcon {
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.resetButton:hover .resetIcon {
   transform: rotate(180deg);
 }
 
@@ -85,6 +102,7 @@
   flex-wrap: wrap;
   justify-content: center;
   animation: slideDown 0.3s ease;
+  align-items: flex-start;
 }
 
 @keyframes slideDown {
@@ -96,13 +114,6 @@
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.additionalFilters {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
 }
 
 .dropdown {
@@ -237,24 +248,36 @@
     gap: 12px;
   }
 
-  .toggleButton {
+  .controlsRow {
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .sortButton,
+  .filterToggleButton {
     padding: 10px 16px;
     font-size: 14px;
+  }
+
+  .sortIcon,
+  .filterIcon {
+    width: 20px;
+    height: 20px;
   }
 
   .mainFilters {
     gap: 8px;
   }
 
-  .additionalFilters {
-    gap: 8px;
-    justify-content: center;
-  }
-
   .filterButton {
     padding: 8px 12px;
     font-size: 13px;
     min-width: 120px;
+  }
+
+  .resetButton {
+    padding: 8px 12px;
+    font-size: 13px;
   }
 
   .label {
@@ -280,13 +303,28 @@
 }
 
 @media (max-width: 480px) {
-  .toggleButton {
-    padding: 8px 14px;
+  .controlsRow {
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sortButton,
+  .filterToggleButton {
+    padding: 8px 12px;
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .sortButton span,
+  .filterToggleButton span {
     font-size: 13px;
   }
 
-  .toggleText {
-    gap: 6px;
+  .sortIcon,
+  .filterIcon {
+    width: 18px;
+    height: 18px;
   }
 
   .activeFiltersBadge {
@@ -295,22 +333,13 @@
     font-size: 11px;
   }
 
-  .toggleButton {
-    padding: 8px 12px;
-    font-size: 12px;
-  }
-
   .mainFilters {
     flex-direction: column;
     align-items: center;
   }
 
-  .additionalFilters {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .filterButton {
+  .filterButton,
+  .resetButton {
     width: 100%;
     max-width: 280px;
     justify-content: space-between;

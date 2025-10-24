@@ -102,6 +102,23 @@ export default function CoursesClient({
     sorting: activeSorting,
   });
 
+  // Функция для получения количества результатов по фильтрам (для preview в drawer)
+  const getResultsCount = (filters: {
+    tab: CourseTabType;
+    level: TrainingLevelType;
+    progress: ProgressFilterType;
+    rating: RatingFilterType;
+  }) => {
+    return filterAndSortCourses(allCoursesData, {
+      tab: filters.tab,
+      level: filters.level,
+      progress: filters.progress,
+      rating: filters.rating,
+      search: searchQuery,
+      sorting: activeSorting,
+    }).length;
+  };
+
   return (
     <div className={styles.container}>
       {/* Поиск */}
@@ -123,6 +140,7 @@ export default function CoursesClient({
         activeSorting={activeSorting}
         onSortingChange={setActiveSorting}
         onResetFilters={handleResetFilters}
+        getResultsCount={getResultsCount}
       />
 
       {/* Список курсов */}

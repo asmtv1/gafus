@@ -1,7 +1,8 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { TrainingStatus } from "@gafus/types";
+import type { TrainingStatus } from "@gafus/types";
 import type { CourseTabType } from "../CourseTabs/CourseTabs";
+import FiltersDrawer from "./FiltersDrawer";
 import styles from "./CourseFilters.module.css";
 
 export type TrainingLevelType = "ALL" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
@@ -29,35 +30,15 @@ interface CourseFiltersProps {
   
   // Сброс фильтров
   onResetFilters?: () => void;
+  
+  // Функция для получения количества результатов по фильтрам
+  getResultsCount?: (filters: {
+    tab: CourseTabType;
+    level: TrainingLevelType;
+    progress: ProgressFilterType;
+    rating: RatingFilterType;
+  }) => number;
 }
-
-const tabOptions = [
-  { id: "free" as CourseTabType, label: "Бесплатные" },
-  { id: "paid" as CourseTabType, label: "Платные" },
-  { id: "private" as CourseTabType, label: "Приватные" },
-];
-
-const levelOptions = [
-  { id: "ALL" as TrainingLevelType, label: "Все уровни" },
-  { id: "BEGINNER" as TrainingLevelType, label: "Начальный" },
-  { id: "INTERMEDIATE" as TrainingLevelType, label: "Средний" },
-  { id: "ADVANCED" as TrainingLevelType, label: "Продвинутый" },
-  { id: "EXPERT" as TrainingLevelType, label: "Экспертный" },
-];
-
-const progressOptions = [
-  { id: "ALL" as ProgressFilterType, label: "Все курсы", icon: "📚" },
-  { id: TrainingStatus.NOT_STARTED, label: "Не начатые", icon: "⭐" },
-  { id: TrainingStatus.IN_PROGRESS, label: "В процессе", icon: "🔥" },
-  { id: TrainingStatus.COMPLETED, label: "Завершённые", icon: "✅" },
-];
-
-const ratingOptions = [
-  { id: "ALL" as RatingFilterType, label: "Все курсы" },
-  { id: "4+" as RatingFilterType, label: "4+ звезды" },
-  { id: "3+" as RatingFilterType, label: "3+ звезды" },
-  { id: "ANY" as RatingFilterType, label: "С рейтингом" },
-];
 
 const sortingOptions = [
   { id: "newest" as SortingType, label: "Новые → Старые", icon: "🕒" },
@@ -66,20 +47,7 @@ const sortingOptions = [
   { id: "progress" as SortingType, label: "По прогрессу", icon: "📊" },
 ];
 
-interface DropdownProps {
-  isOpen: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-  children: React.ReactNode;
-}
-
-interface FilterOption {
-  id: string;
-  label: string;
-  icon?: string;
-}
-
-function Dropdown({ isOpen, onToggle, onClose, children }: DropdownProps) {
+function Dropdown({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -117,9 +85,10 @@ export default function CourseFilters({
   activeSorting,
   onSortingChange,
   onResetFilters,
+  getResultsCount,
 }: CourseFiltersProps) {
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
-  const [showFilters, setShowFilters] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const toggleDropdown = (key: string) => {
     setOpenDropdowns(prev => ({
@@ -135,17 +104,12 @@ export default function CourseFilters({
     }));
   };
 
-  const getActiveOption = (options: FilterOption[], activeId: string) => {
-    return options.find(opt => opt.id === activeId);
-  };
-
   // Подсчитываем активные фильтры (не по умолчанию)
   const activeFiltersCount = [
     activeTab !== "free",
     activeLevel !== "ALL", 
     activeProgress !== "ALL",
-    activeRating !== "ALL",
-    activeSorting !== "newest"
+    activeRating !== "ALL"
   ].filter(Boolean).length;
 
   // Сброс всех фильтров к значениям по умолчанию
@@ -154,292 +118,132 @@ export default function CourseFilters({
     onLevelChange("ALL");
     onProgressChange("ALL");
     onRatingChange("ALL");
-    onSortingChange("newest");
-    
-    // Закрываем все выпадающие списки
-    setOpenDropdowns({});
     
     // Вызываем дополнительный коллбек если передан
     onResetFilters?.();
   };
 
   return (
-    <div className={styles.filtersContainer}>
-      {/* Кнопки управления фильтрами */}
-      <div className={styles.toggleButtonContainer}>
-        <button
-          className={styles.toggleButton}
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <span className={styles.toggleText}>
-            {showFilters ? "Скрыть фильтры" : "Добавить фильтры"}
-            {activeFiltersCount > 0 && !showFilters && (
-              <span className={styles.activeFiltersBadge}>
-                {activeFiltersCount}
-              </span>
+    <>
+      <div className={styles.filtersContainer}>
+        {/* Контейнер с двумя кнопками по сторонам */}
+        <div className={styles.controlsRow}>
+          {/* Кнопка сортировки - слева */}
+          <Dropdown
+            isOpen={openDropdowns.sorting}
+            onClose={() => closeDropdown('sorting')}
+          >
+            <button
+              className={styles.sortButton}
+              onClick={() => toggleDropdown('sorting')}
+            >
+              <svg 
+                width="24" 
+                height="24" 
+                viewBox="0 0 24 24" 
+                fill="none"
+                className={styles.sortIcon}
+              >
+                <path 
+                  d="M8 5v14M8 5l-3 3M8 5l3 3M16 19V5M16 19l-3-3M16 19l3-3" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>Сортировка</span>
+              <svg 
+                className={`${styles.arrow} ${openDropdowns.sorting ? styles.open : ""}`} 
+                width="12" 
+                height="12" 
+                viewBox="0 0 12 12"
+              >
+                <path 
+                  d="M2 4l4 4 4-4" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            
+            {openDropdowns.sorting && (
+              <div className={styles.dropdownMenu}>
+                {sortingOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    className={`${styles.option} ${activeSorting === option.id ? styles.active : ""}`}
+                    onClick={() => {
+                      onSortingChange(option.id);
+                      closeDropdown('sorting');
+                    }}
+                  >
+                    <span className={styles.icon}>{option.icon}</span>
+                    {option.label}
+                    {activeSorting === option.id && (
+                      <svg className={styles.checkmark} width="16" height="16" viewBox="0 0 16 16">
+                        <path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
             )}
-          </span>
-          <svg 
-            className={`${styles.toggleArrow} ${showFilters ? styles.open : ""}`}
-            width="16" 
-            height="16" 
-            viewBox="0 0 16 16" 
-            fill="none"
-          >
-            <path 
-              d="M4 6l4 4 4-4" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+          </Dropdown>
 
-        {/* Кнопка сброса фильтров */}
-        {activeFiltersCount > 0 && (
+          {/* Кнопка фильтров - справа */}
           <button
-            className={styles.toggleButton}
-            onClick={handleResetFilters}
-            title="Сбросить все фильтры"
+            className={styles.filterToggleButton}
+            onClick={() => setIsDrawerOpen(true)}
           >
-            <span className={styles.toggleText}>
-              Сбросить фильтры
-            </span>
             <svg 
-              className={styles.resetIcon}
-              width="16" 
-              height="16" 
-              viewBox="0 0 16 16" 
+              width="24" 
+              height="24" 
+              viewBox="0 0 24 24" 
               fill="none"
+              className={styles.filterIcon}
             >
               <path 
-                d="M2 8h12M8 4l-4 4 4 4" 
+                d="M4 6h16M6 12h12M8 18h8" 
                 stroke="currentColor" 
                 strokeWidth="2" 
                 strokeLinecap="round" 
                 strokeLinejoin="round"
               />
+              <circle cx="8" cy="6" r="2" fill="currentColor"/>
+              <circle cx="16" cy="12" r="2" fill="currentColor"/>
+              <circle cx="12" cy="18" r="2" fill="currentColor"/>
             </svg>
+            <span>Фильтры</span>
+            {activeFiltersCount > 0 && (
+              <span className={styles.activeFiltersBadge}>
+                {activeFiltersCount}
+              </span>
+            )}
           </button>
-        )}
+        </div>
       </div>
 
-      {/* Основные фильтры */}
-      {showFilters && (
-        <div className={styles.mainFilters}>
-        {/* Тип курса */}
-        <Dropdown
-          isOpen={openDropdowns.tab}
-          onToggle={() => toggleDropdown('tab')}
-          onClose={() => closeDropdown('tab')}
-        >
-          <button
-            className={styles.filterButton}
-            onClick={() => toggleDropdown('tab')}
-          >
-            <span className={styles.label}>Тип:</span>
-            <span className={styles.value}>{getActiveOption(tabOptions, activeTab)?.label}</span>
-            <svg className={`${styles.arrow} ${openDropdowns.tab ? styles.open : ""}`} width="12" height="12" viewBox="0 0 12 12">
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          
-          {openDropdowns.tab && (
-            <div className={styles.dropdownMenu}>
-              {tabOptions.map((option) => (
-                <button
-                  key={option.id}
-                  className={`${styles.option} ${activeTab === option.id ? styles.active : ""}`}
-                  onClick={() => {
-                    onTabChange(option.id);
-                    closeDropdown('tab');
-                  }}
-                >
-                  {option.label}
-                  {activeTab === option.id && (
-                    <svg className={styles.checkmark} width="16" height="16" viewBox="0 0 16 16">
-                      <path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </Dropdown>
-
-        {/* Уровень сложности */}
-        <Dropdown
-          isOpen={openDropdowns.level}
-          onToggle={() => toggleDropdown('level')}
-          onClose={() => closeDropdown('level')}
-        >
-          <button
-            className={styles.filterButton}
-            onClick={() => toggleDropdown('level')}
-          >
-            <span className={styles.label}>Уровень:</span>
-            <span className={styles.value}>{getActiveOption(levelOptions, activeLevel)?.label}</span>
-            <svg className={`${styles.arrow} ${openDropdowns.level ? styles.open : ""}`} width="12" height="12" viewBox="0 0 12 12">
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          
-          {openDropdowns.level && (
-            <div className={styles.dropdownMenu}>
-              {levelOptions.map((option) => (
-                <button
-                  key={option.id}
-                  className={`${styles.option} ${activeLevel === option.id ? styles.active : ""}`}
-                  onClick={() => {
-                    onLevelChange(option.id);
-                    closeDropdown('level');
-                  }}
-                >
-                  {option.label}
-                  {activeLevel === option.id && (
-                    <svg className={styles.checkmark} width="16" height="16" viewBox="0 0 16 16">
-                      <path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </Dropdown>
-
-        {/* Прогресс */}
-        <Dropdown
-          isOpen={openDropdowns.progress}
-          onToggle={() => toggleDropdown('progress')}
-          onClose={() => closeDropdown('progress')}
-        >
-          <button
-            className={styles.filterButton}
-            onClick={() => toggleDropdown('progress')}
-          >
-            <span className={styles.label}>Прогресс:</span>
-            <span className={styles.value}>
-              <span className={styles.icon}>{getActiveOption(progressOptions, activeProgress)?.icon}</span>
-              {getActiveOption(progressOptions, activeProgress)?.label}
-            </span>
-            <svg className={`${styles.arrow} ${openDropdowns.progress ? styles.open : ""}`} width="12" height="12" viewBox="0 0 12 12">
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          
-          {openDropdowns.progress && (
-            <div className={styles.dropdownMenu}>
-              {progressOptions.map((option) => (
-                <button
-                  key={option.id}
-                  className={`${styles.option} ${activeProgress === option.id ? styles.active : ""}`}
-                  onClick={() => {
-                    onProgressChange(option.id);
-                    closeDropdown('progress');
-                  }}
-                >
-                  <span className={styles.icon}>{option.icon}</span>
-                  {option.label}
-                  {activeProgress === option.id && (
-                    <svg className={styles.checkmark} width="16" height="16" viewBox="0 0 16 16">
-                      <path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </Dropdown>
-
-        {/* Дополнительные фильтры */}
-        <div className={styles.additionalFilters}>
-        {/* Рейтинг */}
-        <Dropdown
-          isOpen={openDropdowns.rating}
-          onToggle={() => toggleDropdown('rating')}
-          onClose={() => closeDropdown('rating')}
-        >
-          <button
-            className={styles.filterButton}
-            onClick={() => toggleDropdown('rating')}
-          >
-            <span className={styles.label}>Рейтинг:</span>
-            <span className={styles.value}>{getActiveOption(ratingOptions, activeRating)?.label}</span>
-            <svg className={`${styles.arrow} ${openDropdowns.rating ? styles.open : ""}`} width="12" height="12" viewBox="0 0 12 12">
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          
-          {openDropdowns.rating && (
-            <div className={styles.dropdownMenu}>
-              {ratingOptions.map((option) => (
-                <button
-                  key={option.id}
-                  className={`${styles.option} ${activeRating === option.id ? styles.active : ""}`}
-                  onClick={() => {
-                    onRatingChange(option.id);
-                    closeDropdown('rating');
-                  }}
-                >
-                  {option.label}
-                  {activeRating === option.id && (
-                    <svg className={styles.checkmark} width="16" height="16" viewBox="0 0 16 16">
-                      <path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </Dropdown>
-
-        {/* Сортировка */}
-        <Dropdown
-          isOpen={openDropdowns.sorting}
-          onToggle={() => toggleDropdown('sorting')}
-          onClose={() => closeDropdown('sorting')}
-        >
-          <button
-            className={styles.filterButton}
-            onClick={() => toggleDropdown('sorting')}
-          >
-            <span className={styles.label}>Сортировка:</span>
-            <span className={styles.value}>
-              <span className={styles.icon}>{getActiveOption(sortingOptions, activeSorting)?.icon}</span>
-              {getActiveOption(sortingOptions, activeSorting)?.label}
-            </span>
-            <svg className={`${styles.arrow} ${openDropdowns.sorting ? styles.open : ""}`} width="12" height="12" viewBox="0 0 12 12">
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          
-          {openDropdowns.sorting && (
-            <div className={styles.dropdownMenu}>
-              {sortingOptions.map((option) => (
-                <button
-                  key={option.id}
-                  className={`${styles.option} ${activeSorting === option.id ? styles.active : ""}`}
-                  onClick={() => {
-                    onSortingChange(option.id);
-                    closeDropdown('sorting');
-                  }}
-                >
-                  <span className={styles.icon}>{option.icon}</span>
-                  {option.label}
-                  {activeSorting === option.id && (
-                    <svg className={styles.checkmark} width="16" height="16" viewBox="0 0 16 16">
-                      <path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </Dropdown>
-        </div>
-        </div>
-      )}
-    </div>
+      {/* Drawer с фильтрами */}
+      <FiltersDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+        activeLevel={activeLevel}
+        onLevelChange={onLevelChange}
+        activeProgress={activeProgress}
+        onProgressChange={onProgressChange}
+        activeRating={activeRating}
+        onRatingChange={onRatingChange}
+        onApply={() => {
+          // Фильтры применяются автоматически через onChange колбэки
+        }}
+        onReset={handleResetFilters}
+        getResultsCount={getResultsCount}
+      />
+    </>
   );
 }
