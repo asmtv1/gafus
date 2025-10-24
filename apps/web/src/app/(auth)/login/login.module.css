@@ -10,29 +10,19 @@
   gap: 14px;
 }
 
-.pawContainer {
+.link {
   color: var(--bg-2);
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-around;
-  gap: 8px;
-  width: 100%;
+  text-decoration: underline;
 }
-.pawText {
-  font-family: var(--font-montserrat), system-ui, sans-serif;
-  font-weight: 400;
-  font-size: 15px;
-  line-height: 100%;
-  letter-spacing: 0px;
-  text-align: center;
+
+.registerLink {
+  color: var(--bg-2);
+  text-decoration: none;
 }
-.paw {
-  width: 140px;
-  height: 135px;
-  position: relative;
-  left: 13px;
-  top: 10px;
+
+.forgotLink {
+  color: var(--bg-2);
+  text-decoration: none;
 }
 .title {
   color: var(--bg-2);
@@ -108,6 +98,9 @@ p.subtitle {
   cursor: pointer;
   width: 150px;
   height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .forgotButton {
   background-color: transparent;
@@ -133,24 +126,3 @@ p.subtitle {
   width: 100%;
 }
 
-/* responsive skeleton */
-@media (min-width: 481px) and (max-width: 768px) {
-  .paw_absolute {
-    display: none;
-  }
-}
-@media (min-width: 769px) and (max-width: 1024px) {
-  .paw_absolute {
-    display: none;
-  }
-}
-@media (min-width: 1025px) and (max-width: 1439px) {
-  .paw_absolute {
-    display: none;
-  }
-}
-@media (min-width: 1440px) {
-  .paw_absolute {
-    display: none;
-  }
-}

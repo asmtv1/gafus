@@ -59,6 +59,7 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/courses", url));
   }
 
+
   // Пропускаем публичные страницы
   const isPublicPath = PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),

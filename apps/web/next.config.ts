@@ -25,11 +25,13 @@ const withPWA = withPWAInit({
 // 3. основной конфиг Next.js
 const nextConfig = {
   reactStrictMode: true,
-  // Включаем standalone режим для Docker
-  output: 'standalone',
+  // Включаем standalone режим только для production/Docker
+  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   // Исправляем проблемы с standalone сборкой
   trailingSlash: false,
   skipTrailingSlashRedirect: true,
+  // Исправляем проблемы с React 19 и Next.js 14
+  transpilePackages: ['@gafus/auth', '@gafus/prisma', '@gafus/logger', '@gafus/types'],
   // Настройки для больших файлов (видео)
   serverRuntimeConfig: {
     // Максимальный размер body для API routes
@@ -58,6 +60,9 @@ const nextConfig = {
     "http://localhost:3002",
   ],
 
+  // Исправляем проблемы с clientReferenceManifest в Next.js 14
+  serverExternalPackages: ['sharp'],
+  
   // Оптимизации для bundle
   experimental: {
     optimizePackageImports: [
@@ -66,7 +71,6 @@ const nextConfig = {
       "@emotion/react",
       "@emotion/styled",
     ],
-    workerThreads: false, // Отключаем worker threads
     serverActions: {
       bodySizeLimit: '100mb', // Лимит для Server Actions (для загрузки видео)
     },
@@ -87,7 +91,7 @@ const nextConfig = {
       "@gafus/webpush": _path.resolve(__dirname, "../../packages/webpush/dist"),
     };
 
-    // Исправляем проблемы с standalone сборкой
+    // Исправляем проблемы с standalone сборкой и clientReferenceManifest
     if (isServer) {
       config.externals = config.externals || [];
       config.externals.push({

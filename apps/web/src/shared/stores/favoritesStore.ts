@@ -126,6 +126,19 @@ export const useFavoritesStore = create<FavoritesState>()(
         // Проверяем, что мы в браузере и роутер инициализирован
         if (typeof window === 'undefined') return;
         
+        // Проверяем авторизацию через клиентскую сессию
+        try {
+          const { getSession } = await import("next-auth/react");
+          const session = await getSession();
+          if (!session?.user) {
+            // Пользователь не авторизован, не загружаем избранные
+            return;
+          }
+        } catch (e) {
+          // Если не можем проверить сессию, не загружаем
+          return;
+        }
+        
         set({ loading: true, error: null });
         try {
           const { data, favoriteIds } = await getFavoritesCourses();
