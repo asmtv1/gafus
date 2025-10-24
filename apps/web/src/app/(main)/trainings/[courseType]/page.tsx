@@ -1,12 +1,36 @@
+import type { Metadata } from "next";
+
 import TrainingPageClient from "@features/training/components/TrainingPageClient";
 import { getTrainingDaysCached } from "@shared/lib/actions/cachedCourses";
 import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
+import { getCourseMetadata } from "@shared/lib/course/getCourseMetadata";
 import { getCurrentUserId } from "@/utils";
+import { generateCourseOGMetadata } from "@/utils/metadata";
 
 import styles from "./trainings.module.css";
 
 interface TrainingsPageProps {
   params: Promise<{ courseType: string }>;
+}
+
+// Генерация метаданных для Open Graph (Telegram, соц.сети)
+export async function generateMetadata({ params }: TrainingsPageProps): Promise<Metadata> {
+  const { courseType } = await params;
+  const course = await getCourseMetadata(courseType);
+
+  if (!course) {
+    return {
+      title: "Курс",
+      description: "Пошаговая тренировка для вашего питомца",
+    };
+  }
+
+  return generateCourseOGMetadata(
+    course.name,
+    course.shortDesc || course.description,
+    courseType,
+    course.logoImg,
+  );
 }
 
 export default async function TrainingsPage({ params }: TrainingsPageProps) {
