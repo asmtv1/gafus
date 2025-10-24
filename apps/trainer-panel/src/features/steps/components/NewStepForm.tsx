@@ -314,9 +314,10 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
                 id="videoUrl"
                 label="Ссылка на видео"
                 name="videoUrl"
-                placeholder="https://youtube.com/..."
+                placeholder="https://youtube.com/..., https://vk.com/video..."
                 form={form}
                 rules={validationRules.videoUrl}
+                helperText="Поддерживаются: YouTube, Rutube, Vimeo, VK Video"
               />
             </FormSection>
 

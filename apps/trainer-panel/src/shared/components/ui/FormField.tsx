@@ -24,6 +24,7 @@ interface FormFieldProps<T extends FieldValues> {
   fullWidth?: boolean;
   margin?: "none" | "dense" | "normal";
   variant?: "outlined" | "filled" | "standard";
+  helperText?: string;
 }
 
 export function FormField<T extends FieldValues>({
@@ -44,6 +45,7 @@ export function FormField<T extends FieldValues>({
   fullWidth = true,
   margin = "normal",
   variant = "outlined",
+  helperText,
 }: FormFieldProps<T>) {
   const {
     register,
@@ -97,7 +99,7 @@ export function FormField<T extends FieldValues>({
       margin={margin}
       variant={variant}
       error={!!error}
-      helperText={error}
+      helperText={error || helperText}
       className={className}
       {...register(name, rules)}
     />
