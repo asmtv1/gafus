@@ -9,6 +9,7 @@ import TrainingDayList from "./TrainingDayList";
 
 interface TrainingPageClientProps {
   courseType: string;
+  courseName?: string;
   initialData?: {
     trainingDays: {
       trainingDayId: string;
@@ -28,7 +29,8 @@ interface TrainingPageClientProps {
 }
 
 export default function TrainingPageClient({ 
-  courseType, 
+  courseType,
+  courseName,
   initialData,
   initialError
 }: TrainingPageClientProps) {
@@ -50,6 +52,8 @@ export default function TrainingPageClient({
           videoUrl={initialData?.courseVideoUrl || null}
           equipment={initialData?.courseEquipment || null}
           trainingLevel={initialData?.courseTrainingLevel || null}
+          courseName={courseName}
+          courseType={courseType}
         />
       </div>
 

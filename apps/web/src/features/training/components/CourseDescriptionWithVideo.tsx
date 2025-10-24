@@ -5,12 +5,15 @@ import styles from "./CourseDescriptionWithVideo.module.css";
 import { ExpandMoreIcon } from "@/utils/muiImports";
 
 import { getEmbeddedVideoInfo } from "@/utils";
+import ShareButton from "./ShareButton/ShareButton";
 
 interface Props {
   description: string | null;
   videoUrl?: string | null;
   equipment?: string | null;
   trainingLevel?: string | null;
+  courseName?: string;
+  courseType?: string;
 }
 
 const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
@@ -18,6 +21,8 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
   videoUrl,
   equipment,
   trainingLevel,
+  courseName,
+  courseType,
 }: Props) {
   const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [
     videoUrl]);
@@ -88,6 +93,17 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
                 className={styles.videoIframe}
               />
             </div>
+          </div>
+        )}
+
+        {/* Кнопка поделиться в конце контента */}
+        {courseName && courseType && (
+          <div className={styles.shareButtonContainer}>
+            <ShareButton 
+              courseName={courseName}
+              courseType={courseType}
+              courseDescription={description || undefined}
+            />
           </div>
         )}
       </div>

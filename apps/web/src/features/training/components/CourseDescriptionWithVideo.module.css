@@ -42,10 +42,19 @@
   color: #636128;
   transition: transform 0.2s ease;
   font-size: 24px;
+  flex-shrink: 0;
 }
 
 .expandIcon.expanded {
   transform: rotate(180deg);
+}
+
+.shareButtonContainer {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #D4C4A8;
 }
 
 .descriptionContent {
@@ -255,6 +264,11 @@
   
   .descriptionContent.expanded {
     padding: 16px;
+  }
+
+  .shareButtonContainer {
+    margin-top: 16px;
+    padding-top: 16px;
   }
   
   .descriptionContent.collapsed {

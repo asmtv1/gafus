@@ -25,3 +25,4 @@ export async function getCourseMetadata(courseType: string) {
   return course;
 }
 
+
