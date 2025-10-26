@@ -32,4 +32,3 @@ export interface ErrorReporterState {
     error: Error | null;
     errorInfo: ErrorReport | null;
 }
-//# sourceMappingURL=reporting.d.ts.map

@@ -5,7 +5,7 @@ import { generatePageMetadata } from "@gafus/metadata";
 import styles from "./page.module.css";
 
 export const metadata = generatePageMetadata({
-  title: "Гафус — тренировки для собак от кинологов",
+  title: "ГАФУС — Бесплатный сервис для владельцев собак и кинологов",
   description: "Создавайте собственные курсы за 30 минут! Отслеживайте прогресс учеников, используйте библиотеку шаблонов. Полностью бесплатно для кинологов!",
   path: "/",
 });

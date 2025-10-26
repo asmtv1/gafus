@@ -123,4 +123,3 @@ export interface PrivateUsersSelectorProps {
     users: PrivateUsersSelectorUser[];
 }
 export type { CourseCardProps };
-//# sourceMappingURL=course.d.ts.map

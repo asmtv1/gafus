@@ -1,10 +1,11 @@
 {
   "name": "@gafus/cdn-upload",
   "version": "1.0.0",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "license": "MIT",
   "scripts": {
-    "build": "tsc src/uploadToCDN.ts src/index.ts --outDir dist --declaration --sourceMap --target ES2020 --module commonjs --moduleResolution node --esModuleInterop --allowSyntheticDefaultImports",
+    "build": "tsc",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix"
   },

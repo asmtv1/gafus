@@ -56,4 +56,3 @@ export interface CourseDescriptionWithVideoProps {
     embedUrl?: string;
     description: string;
 }
-//# sourceMappingURL=training.d.ts.map

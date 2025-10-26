@@ -19,7 +19,7 @@ const CACHE_CONFIG = {
   // 🏗️ Архитектура кэшей (синхронизирована с текущей схемой)
   CACHES: {
     // Полные HTML-страницы (для офлайн-навигации)
-    HTML_PAGES: 'gafus-html-v2',
+    HTML_PAGES: 'gafus-html-v3',
     // RSC-данные (храним отдельно для управляемости)
     RSC_DATA: 'gafus-rsc-v2',
     
@@ -992,6 +992,11 @@ self.addEventListener('fetch', (event) => {
     request.method === 'GET' &&
     (request.mode === 'navigate' || dest === 'document' || uir === '1' || isKnownPagePath(url.pathname))
   ) {
+    // БАЙПАСС навигации для auth-страниц: '/', '/login', '/register' — всегда сеть, без кэша
+    if (url.pathname === '/' || url.pathname === '/login' || url.pathname === '/register') {
+      // Не используем respondWith (пусть браузер идет в сеть напрямую)
+      return; 
+    }
     event.respondWith(handleNavigationRequest(event, request));
     return;
   }
@@ -1294,7 +1299,7 @@ self.addEventListener('notificationclick', (event) => {
         
         // Ищем уже открытое окно приложения
         for (const client of clients) {
-          if (client.url.includes('gafus.ru') && 'focus' in client) {
+          if ((client.url.includes('gafus.ru') || client.url.includes('localhost')) && 'focus' in client) {
             console.log('✅ SW Custom: Focusing existing window, navigating to:', targetUrl);
             await client.focus();
             client.postMessage({ type: 'NAVIGATE', url: targetUrl });
@@ -1304,8 +1309,10 @@ self.addEventListener('notificationclick', (event) => {
         
         // Если нет открытого окна, открываем новое с нужным URL
         if (self.clients.openWindow) {
-          console.log('✅ SW Custom: Opening new window with URL:', targetUrl);
-          await self.clients.openWindow(targetUrl);
+          // Формируем абсолютный URL
+          const absoluteUrl = new URL(targetUrl, self.location.origin).href;
+          console.log('✅ SW Custom: Opening new window with URL:', absoluteUrl);
+          await self.clients.openWindow(absoluteUrl);
         }
       } catch (error) {
         console.error('❌ SW Custom: Error handling notification click:', error);

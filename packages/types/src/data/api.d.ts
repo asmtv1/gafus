@@ -105,4 +105,3 @@ export interface CourseWithExtras {
         };
     }[];
 }
-//# sourceMappingURL=api.d.ts.map

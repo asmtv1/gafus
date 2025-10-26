@@ -7,4 +7,3 @@ export interface ApiResponse<T = unknown> {
     data?: T;
     error?: string;
 }
-//# sourceMappingURL=common.d.ts.map

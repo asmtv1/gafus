@@ -62,4 +62,3 @@ export interface IdTitleItem {
     id: string;
     title: string;
 }
-//# sourceMappingURL=trainer-panel.d.ts.map

@@ -54,11 +54,13 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Перенаправляем авторизованных пользователей с главной страницы на курсы
-  if (pathname === "/" && token) {
-    return NextResponse.redirect(new URL("/courses", url));
+  // Перенаправляем авторизованных пользователей на /courses
+  if (token) {
+    const authPages = ["/", "/login", "/register"];
+    if (authPages.includes(pathname)) {
+      return NextResponse.redirect(new URL("/courses", url));
+    }
   }
-
 
   // Пропускаем публичные страницы
   const isPublicPath = PUBLIC_PATHS.some(

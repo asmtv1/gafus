@@ -30,4 +30,3 @@ export interface ErrorStatsProps {
 export interface SessionProviderWrapperProps {
     children: React.ReactNode;
 }
-//# sourceMappingURL=error-dashboard.d.ts.map

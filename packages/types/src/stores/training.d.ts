@@ -61,4 +61,3 @@ export interface TrainingState {
     togglePauseWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
     resumeNotificationWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
 }
-//# sourceMappingURL=training.d.ts.map

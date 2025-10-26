@@ -184,4 +184,3 @@ export interface AuthoredCourse {
         }[];
     }[];
 }
-//# sourceMappingURL=course.d.ts.map

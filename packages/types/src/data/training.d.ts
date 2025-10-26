@@ -72,4 +72,3 @@ export interface TrainingDayProps {
     trainingId: string;
     courseId: string;
 }
-//# sourceMappingURL=training.d.ts.map

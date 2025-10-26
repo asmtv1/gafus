@@ -22,4 +22,3 @@ export interface SkeletonProps {
     height?: string | number;
     className?: string;
 }
-//# sourceMappingURL=ui.d.ts.map

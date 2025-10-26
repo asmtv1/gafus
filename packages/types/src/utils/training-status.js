@@ -7,3 +7,4 @@ var TrainingStatus;
     TrainingStatus["IN_PROGRESS"] = "IN_PROGRESS";
     TrainingStatus["COMPLETED"] = "COMPLETED";
 })(TrainingStatus || (exports.TrainingStatus = TrainingStatus = {}));
+//# sourceMappingURL=training-status.js.map

@@ -11,7 +11,7 @@
     "dev": "tsx --watch src/index.ts",
     "dev:env": "tsx --env-file=../../.env src/index.ts",
     "start": "node dist/worker/src/index.js",
-    "start:watch": "nodemon dist/worker/src/push-worker.js --watch dist --ext js --ignore dist/**/*.map --exec 'node'",
+    "start:watch": "nodemon dist/worker/src/index.js --watch dist --ext js --ignore dist/**/*.map --exec 'node'",
     "start:dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },

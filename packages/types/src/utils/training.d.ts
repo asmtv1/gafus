@@ -37,4 +37,3 @@ export interface TrainingDetail {
     userStatus: TrainingStatus;
     steps: TrainingStep[];
 }
-//# sourceMappingURL=training.d.ts.map

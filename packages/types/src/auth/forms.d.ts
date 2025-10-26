@@ -12,4 +12,3 @@ export interface PasswordResetFormData {
     username: string;
     phone: string;
 }
-//# sourceMappingURL=forms.d.ts.map

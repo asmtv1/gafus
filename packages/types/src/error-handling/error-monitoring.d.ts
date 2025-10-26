@@ -42,4 +42,3 @@ export interface ErrorBoundaryState {
     error: Error | null;
     errorInfo: ErrorInfo | null;
 }
-//# sourceMappingURL=error-monitoring.d.ts.map

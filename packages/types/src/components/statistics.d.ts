@@ -67,4 +67,3 @@ export interface DetailedCourseStats extends CourseStats {
         recommendationEffectiveness: number;
     };
 }
-//# sourceMappingURL=statistics.d.ts.map

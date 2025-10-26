@@ -119,6 +119,7 @@ export const authOptions: NextAuthOptions = {
         path: "/",
         domain: cookieDomain,
         secure: isProd,
+        maxAge: 30 * 24 * 60 * 60, // 30 дней
       },
     },
     callbackUrl: {
@@ -129,6 +130,7 @@ export const authOptions: NextAuthOptions = {
         path: "/",
         domain: cookieDomain,
         secure: isProd,
+        maxAge: 30 * 24 * 60 * 60, // 30 дней
       },
     },
     csrfToken: {
@@ -139,6 +141,7 @@ export const authOptions: NextAuthOptions = {
         path: "/",
         domain: cookieDomain,
         secure: isProd,
+        maxAge: 30 * 24 * 60 * 60, // 30 дней
       },
     },
   },
