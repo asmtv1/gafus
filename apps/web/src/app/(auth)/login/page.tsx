@@ -1,13 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
+import { generateStaticPageMetadata } from "@gafus/metadata";
 
 import styles from "./login.module.css";
 import LoginForm from "./LoginForm";
 
-export const metadata = {
-  title: "Страница входа пользователя",
-  description: "Страница входа пользователя",
-};
+export const metadata = generateStaticPageMetadata(
+  "Вход",
+  "Войдите в свой аккаунт для доступа к тренировкам и курсам.",
+  "/login"
+);
 
 export default function LoginPage() {
   return (

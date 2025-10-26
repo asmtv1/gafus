@@ -75,7 +75,7 @@ pnpm --filter @gafus/error-dashboard dev
 
 #### Основные переменные
 ```env
-# .env.local
+# .env (хранится локально, не в git)
 # Приложение
 NODE_ENV=development
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -102,35 +102,35 @@ AWS_S3_BUCKET=your-bucket-name
 
 #### Переменные для каждого приложения
 
-**Web App (.env.local)**
+**Web App (.env)**
 ```env
 # Web App
 PORT=3002
 NEXT_PUBLIC_API_URL=http://localhost:3002/api
 ```
 
-**Trainer Panel (.env.local)**
+**Trainer Panel (.env)**
 ```env
 # Trainer Panel
 PORT=3001
 NEXT_PUBLIC_API_URL=http://localhost:3001/api
 ```
 
-**Error Dashboard (.env.local)**
+**Error Dashboard (.env)**
 ```env
 # Error Dashboard
 PORT=3000
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
 ```
 
-**Telegram Bot (.env.local)**
+**Telegram Bot (.env)**
 ```env
 # Telegram Bot
 TELEGRAM_BOT_TOKEN=your-bot-token
 TELEGRAM_WEBHOOK_URL=https://your-domain.com/api/telegram-webhook
 ```
 
-**Bull Board (.env.local)**
+**Bull Board (.env)**
 ```env
 # Bull Board
 BULL_BOARD_PORT=3003
@@ -334,7 +334,7 @@ npx prisma migrate reset
 
 #### Включение подробных логов
 ```env
-# .env.local
+# .env
 DEBUG=*
 LOG_LEVEL=debug
 ```

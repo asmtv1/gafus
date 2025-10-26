@@ -1,26 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
+import { generatePageMetadata } from "@gafus/metadata";
 
 import styles from "./page.module.css";
 
-export const metadata = {
-  title: "ГАФУС — Бесплатный сервис для владельцев собак и кинологов",
+export const metadata = generatePageMetadata({
+  title: "Гафус — тренировки для собак от кинологов",
   description: "Создавайте собственные курсы за 30 минут! Отслеживайте прогресс учеников, используйте библиотеку шаблонов. Полностью бесплатно для кинологов!",
-  openGraph: {
-    title: "ГАФУС — Бесплатный сервис для владельцев собак и кинологов",
-    description:
-      "Создавайте собственные курсы за 30 минут! Отслеживайте прогресс учеников, используйте библиотеку шаблонов. Полностью бесплатно для кинологов!",
-    url: "https://gafus.ru",
-    images: [
-      {
-        url: "https://gafus.ru/uploads/logo.png",
-        width: 1200,
-        height: 630,
-        alt: "ГАФУС — Бесплатный сервис для владельцев собак и кинологов",
-      },
-    ],
-  },
-};
+  path: "/",
+});
 
 export default function AuthPage() {
   return (

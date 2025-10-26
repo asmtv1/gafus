@@ -3,24 +3,17 @@ import { getCoursesWithProgressCached } from "@shared/lib/actions/cachedCourses"
 import { getServerSession } from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import { authOptions } from "@gafus/auth";
+import { generateStaticPageMetadata } from "@gafus/metadata";
 import styles from "./courses.module.css";
 import CoursesClient from "./CoursesClient";
 
 export const revalidate = 60;
 
-export const metadata = {
-  title: "Список курсов",
-  description: "Выбирайте курсы для послушания, фокуса и социализации вашей собаки.",
-  robots: {
-    index: true,
-    follow: true,
-  },
-  openGraph: {
-    title: "Список курсов",
-    description: "Выбирайте курсы для послушания, фокуса и социализации вашей собаки.",
-    type: "website",
-  },
-};
+export const metadata = generateStaticPageMetadata(
+  "Список курсов",
+  "Выбирайте курсы для послушания, фокуса и социализации вашей собаки.",
+  "/courses"
+);
 
 export default async function CoursesPage() {
   // Загружаем данные курсов серверно для кэширования

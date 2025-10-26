@@ -1,6 +1,7 @@
 // src/app/layout.tsx
 
 import { ErrorBoundary } from "@gafus/error-handling";
+import { SITE_CONFIG, DEFAULT_OG_IMAGE, SOCIAL } from "@gafus/metadata";
 import PetsProvider from "@shared/components/common/PetsProvider";
 import UserProvider from "@shared/components/common/UserProvider";
 import ClientLayout from "@shared/components/ui/ClientLayout";
@@ -15,10 +16,10 @@ import "./normalize.css";
 import "./tokens.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://gafus.ru"),
-  title: { default: "Гафус — Тренировки для собак", template: "%s — Гафус" },
-  description: "Профессиональные онлайн тренировки для собак с опытными кинологами",
-  applicationName: "Гафус",
+  metadataBase: new URL(SITE_CONFIG.url),
+  title: { default: SITE_CONFIG.title, template: `%s — ${SITE_CONFIG.name}` },
+  description: SITE_CONFIG.description,
+  applicationName: SITE_CONFIG.name,
   alternates: { canonical: "/" },
   manifest: "/manifest.json",
   icons: {
@@ -27,26 +28,26 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    url: "https://gafus.ru",
-    siteName: "Гафус",
-    title: "Гафус — Тренировки для собак",
-    description: "Профессиональные онлайн тренировки для собак с опытными кинологами",
-    images: [{ url: "https://gafus.ru/uploads/logo.png", width: 1200, height: 630, alt: "Гафус" }],
-    locale: "ru_RU",
+    url: SITE_CONFIG.url,
+    siteName: SITE_CONFIG.name,
+    title: SITE_CONFIG.title,
+    description: SITE_CONFIG.description,
+    images: [DEFAULT_OG_IMAGE],
+    locale: SITE_CONFIG.locale,
   },
   twitter: {
-    card: "summary_large_image",
-    title: "Гафус — Тренировки для собак",
-    description: "Профессиональные тренировки для собак с опытными кинологами",
-    images: ["https://gafus.ru/uploads/logo.png"],
+    card: SOCIAL.twitterCard,
+    title: SITE_CONFIG.title,
+    description: SITE_CONFIG.description,
+    images: [DEFAULT_OG_IMAGE.url],
   },
-  appleWebApp: { capable: true, title: "Гафус", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: SITE_CONFIG.name, statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#DAD3C1",
+  themeColor: SITE_CONFIG.themeColor,
 };
 
 const montserrat = Montserrat({
@@ -67,7 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         Тогда Next.js сам добавит нужный <meta name="theme-color" ... /> для этой страницы.
         Здесь оставляем дефолтную тему для всего приложения:
       */}
-        <meta name="theme-color" content="#DAD3C1" />
+        <meta name="theme-color" content={SITE_CONFIG.themeColor} />
         <meta name="mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon180.png" />
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon192.png" />

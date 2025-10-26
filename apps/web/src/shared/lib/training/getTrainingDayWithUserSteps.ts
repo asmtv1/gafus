@@ -75,10 +75,54 @@ async function findTrainingDayWithUserTraining(
   });
 }
 
-/** Получаем детали дня + статусы шагов */
+/** Создает UserTraining если его нет (идемпотентная операция) */
+async function ensureUserTrainingExists(
+  userId: string,
+  dayOnCourseId: string,
+): Promise<string> {
+  try {
+    const userTraining = await prisma.userTraining.upsert({
+      where: {
+        userId_dayOnCourseId: {
+          userId,
+          dayOnCourseId,
+        },
+      },
+      create: {
+        userId,
+        dayOnCourseId,
+        status: TrainingStatus.NOT_STARTED,
+      },
+      update: {}, // Ничего не обновляем, если запись уже существует
+      select: { id: true },
+    });
+    return userTraining.id;
+  } catch (error: unknown) {
+    // Если race condition - другой запрос уже создал запись, просто получаем её
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      const existing = await prisma.userTraining.findUnique({
+        where: {
+          userId_dayOnCourseId: {
+            userId,
+            dayOnCourseId,
+          },
+        },
+        select: { id: true },
+      });
+      if (!existing?.id) {
+        throw new Error("Failed to create or find UserTraining");
+      }
+      return existing.id;
+    }
+    throw error;
+  }
+}
+
+/** Получаем детали дня + статусы шагов (read-only для metadata) */
 export async function getTrainingDayWithUserSteps(
   courseType: string,
   dayOrder: number,
+  options?: { createIfMissing?: boolean },
 ): Promise<TrainingDetail | null> {
   const safeCourseType = courseTypeSchema.parse(courseType);
   const safeDayOrder = dayOrderSchema.parse(dayOrder);
@@ -96,16 +140,44 @@ export async function getTrainingDayWithUserSteps(
   const userTraining = userTrainings[0];
   let userTrainingId = userTraining?.id;
 
-  // Если UserTraining нет, создаем его
+  // Создаем UserTraining только если явно указано (для компонента страницы)
+  if (!userTrainingId && options?.createIfMissing) {
+    userTrainingId = await ensureUserTrainingExists(userId, found.id);
+  }
+  
+  // Если UserTraining всё ещё нет - возвращаем базовую структуру без статусов
   if (!userTrainingId) {
-    const newUserTraining = await prisma.userTraining.create({
-      data: {
-        userId,
-        dayOnCourseId: found.id,
-        status: TrainingStatus.NOT_STARTED,
-      },
-    });
-    userTrainingId = newUserTraining.id;
+    const steps = stepLinks.map(({ id: stepOnDayId, step, order }) => ({
+      id: step.id,
+      title: step.title,
+      description: step.description,
+      durationSec: step.durationSec ?? 0,
+      videoUrl: step.videoUrl ?? "",
+      imageUrls: step.imageUrls,
+      pdfUrls: step.pdfUrls,
+      status: TrainingStatus.NOT_STARTED,
+      order: order,
+      isPausedOnServer: false,
+      remainingSecOnServer: undefined,
+      type: step.type as "TRAINING" | "EXAMINATION" | undefined,
+      checklist: step.checklist,
+      requiresVideoReport: step.requiresVideoReport,
+      requiresWrittenFeedback: step.requiresWrittenFeedback,
+      hasTestQuestions: step.hasTestQuestions,
+      userStepId: undefined,
+    }));
+
+    return {
+      trainingDayId,
+      day: safeDayOrder,
+      title,
+      type,
+      courseId,
+      description: description ?? "",
+      duration: courseDuration ?? "",
+      userStatus: TrainingStatus.NOT_STARTED,
+      steps,
+    };
   }
 
   // Получаем статусы UserStep для каждого stepOnDayId

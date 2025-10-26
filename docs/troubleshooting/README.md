@@ -202,7 +202,7 @@ pnpm --filter @gafus/web build
 rm -rf apps/web/.next
 
 # Проверка переменных окружения
-cat apps/web/.env.local
+cat .env
 ```
 
 ### Trainer Panel недоступен

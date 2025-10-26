@@ -1,14 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
+import { generatePageMetadata } from "@gafus/metadata";
 
 import styles from "./confirm.module.css";
 import ConfirmClient from "./ConfirmClient";
 
-export const metadata = {
+export const metadata = generatePageMetadata({
   title: "Подтверждение номера",
   description: "Подтвердите свой номер телефона для окончания регистрации",
-};
+  path: "/confirm",
+  noIndex: true, // Не индексировать служебную страницу
+});
 export const dynamic = "force-dynamic";
 
 export default function ConfirmPage() {

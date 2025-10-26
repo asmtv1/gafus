@@ -1,13 +1,15 @@
 import Image from "next/image";
+import { generateStaticPageMetadata } from "@gafus/metadata";
 
 import styles from "./register.module.css";
 
 import { RegisterForm } from "@/app/(auth)/register/RegisterForm";
 
-export const metadata = {
-  title: "Страница регистрации пользователя",
-  description: "Страница регистрации пользователя",
-};
+export const metadata = generateStaticPageMetadata(
+  "Регистрация",
+  "Создайте аккаунт для доступа к профессиональным тренировкам для собак.",
+  "/register"
+);
 export default function RegisterPage() {
   return (
     <main className={styles.container}>

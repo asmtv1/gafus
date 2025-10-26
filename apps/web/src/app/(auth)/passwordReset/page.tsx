@@ -1,13 +1,16 @@
 import Image from "next/image";
 import { Suspense } from "react";
+import { generatePageMetadata } from "@gafus/metadata";
 
 import styles from "./passwordReset.module.css";
 import { PasswordResetForm } from "./PasswordResetForm";
 
-export const metadata = {
-  title: "Смена пароля",
-  description: "Введите логин и номер телефона для восстановления доступа.",
-};
+export const metadata = generatePageMetadata({
+  title: "Сброс пароля",
+  description: "Введите логин и номер телефона для восстановления доступа к аккаунту.",
+  path: "/passwordReset",
+  noIndex: true, // Не индексировать служебную страницу
+});
 export const dynamic = "force-dynamic";
 
 export default function PasswordResetPage() {

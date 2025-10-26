@@ -523,6 +523,9 @@ importers:
       '@gafus/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@gafus/metadata':
+        specifier: workspace:*
+        version: link:../../packages/metadata
       '@gafus/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma
@@ -777,6 +780,19 @@ importers:
         version: 5.0.1
       typescript:
         specifier: 5.8.3
+        version: 5.8.3
+
+  packages/metadata:
+    dependencies:
+      next:
+        specifier: 15.4.7
+        version: 15.4.7(@babel/core@7.28.5)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.18.12
+      typescript:
+        specifier: ^5.8.3
         version: 5.8.3
 
   packages/prisma:
@@ -3419,6 +3435,9 @@ packages:
 
   '@types/node@20.4.8':
     resolution: {integrity: sha512-0mHckf6D2DiIAzh8fM8f3HQCvMKDpK94YQ0DSVkfWTG9BZleYIWudw9cJxX8oCk9bM+vAkDyujDV6dmKHbvQpg==}
+
+  '@types/node@22.18.12':
+    resolution: {integrity: sha512-BICHQ67iqxQGFSzfCFTT7MRQ5XcBjG5aeKh5Ok38UBbPe5fxTyE+aHFxwVrGyr8GNlqFMLKD1D3P2K/1ks8tog==}
 
   '@types/node@24.9.1':
     resolution: {integrity: sha512-QoiaXANRkSXK6p0Duvt56W208du4P9Uye9hWLWgGMDTEoKPhuenzNcC4vGUmrNkiOKTlIrBoyNQYNpSwfEZXSg==}
@@ -11233,6 +11252,10 @@ snapshots:
       undici-types: 6.21.0
 
   '@types/node@20.4.8': {}
+
+  '@types/node@22.18.12':
+    dependencies:
+      undici-types: 6.21.0
 
   '@types/node@24.9.1':
     dependencies:

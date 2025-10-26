@@ -5,7 +5,7 @@ import { getTrainingDaysCached } from "@shared/lib/actions/cachedCourses";
 import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
 import { getCourseMetadata } from "@shared/lib/course/getCourseMetadata";
 import { getCurrentUserId } from "@/utils";
-import { generateCourseOGMetadata } from "@/utils/metadata";
+import { generateCourseMetadata } from "@gafus/metadata";
 
 import styles from "./trainings.module.css";
 
@@ -25,12 +25,12 @@ export async function generateMetadata({ params }: TrainingsPageProps): Promise<
     };
   }
 
-  return generateCourseOGMetadata(
-    course.name,
-    course.shortDesc || course.description,
-    courseType,
-    course.logoImg,
-  );
+  return generateCourseMetadata({
+    name: course.name,
+    description: course.shortDesc || course.description,
+    type: courseType,
+    logoUrl: course.logoImg,
+  });
 }
 
 export default async function TrainingsPage({ params }: TrainingsPageProps) {

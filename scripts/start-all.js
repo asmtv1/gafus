@@ -5,12 +5,12 @@ const { execSync } = require("child_process");
 const path = require("path");
 const dotenv = require("dotenv");
 
-// Загружаем переменные окружения только из .env.local
+// Загружаем переменные окружения из .env
 try {
   const rootDir = process.cwd();
-  dotenv.config({ path: path.join(rootDir, ".env.local") });
+  dotenv.config({ path: path.join(rootDir, ".env") });
   // eslint-disable-next-line no-console
-  console.warn("🔑 ENV загружен из .env.local");
+  console.warn("🔑 ENV загружен из .env");
 } catch {}
 
 console.warn("🚀 Запуск всех приложений Гафус...\n");

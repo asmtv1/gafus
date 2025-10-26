@@ -68,13 +68,6 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
             isActive: true
           },
           take: 1
-        },
-        // Настройки
-        reengagementSettings: {
-          select: {
-            enabled: true,
-            unsubscribedAt: true
-          }
         }
       }
     });
@@ -104,12 +97,6 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
       
       if (totalCompletions < INACTIVITY_CRITERIA.MIN_COMPLETED_STEPS) {
         continue; // Недостаточно активности в прошлом
-      }
-
-      // Проверить настройки
-      const settings = user.reengagementSettings;
-      if (settings && (!settings.enabled || settings.unsubscribedAt)) {
-        continue; // Отключено или отписался
       }
 
       // Проверить наличие активной кампании

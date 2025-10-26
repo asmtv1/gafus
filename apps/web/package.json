@@ -21,6 +21,7 @@
     "@gafus/csrf": "workspace:*",
     "@gafus/error-handling": "workspace:*",
     "@gafus/logger": "workspace:*",
+    "@gafus/metadata": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
     "@gafus/react-query": "workspace:*",

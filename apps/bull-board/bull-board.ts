@@ -1,10 +1,20 @@
-import { createBullBoard } from "@bull-board/api";
-import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
-import { ExpressAdapter } from "@bull-board/express";
-import { pushQueue } from "@gafus/queues";
-import { createBullBoardLogger } from "@gafus/logger";
-import "dotenv/config";
+// ВАЖНО: загружаем .env ДО импорта queues, используя динамический импорт
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, "../..");
+dotenv.config({ path: path.join(rootDir, ".env") });
+
+// Динамически импортируем модули после загрузки env
+const { createBullBoard } = await import("@bull-board/api");
+const { BullMQAdapter } = await import("@bull-board/api/bullMQAdapter");
+const { ExpressAdapter } = await import("@bull-board/express");
+const { pushQueue, examCleanupQueue, reengagementQueue } = await import("@gafus/queues");
+const { createBullBoardLogger } = await import("@gafus/logger");
 
 // Создаем логгер для bull-board
 const logger = createBullBoardLogger('bull-board');
@@ -23,14 +33,16 @@ logger.info("Bull-Board initializing", {
 try {
   createBullBoard({
     queues: [
-      new BullMQAdapter(pushQueue), // ✅ обёрнутый адаптер
+      new BullMQAdapter(pushQueue),
+      new BullMQAdapter(examCleanupQueue),
+      new BullMQAdapter(reengagementQueue),
     ],
     serverAdapter,
   });
 
   logger.success("Bull Board created successfully", {
-    queueCount: 1,
-    queueName: 'pushQueue',
+    queueCount: 3,
+    queueNames: ['pushQueue', 'examCleanupQueue', 'reengagementQueue'],
     basePath: '/admin/queues',
     operation: 'create_bull_board'
   });

@@ -16,19 +16,23 @@ import {
   Chip,
   Box,
   CircularProgress,
-  Alert
+  Alert,
+  Button
 } from "@mui/material";
 import {
   TrendingUp,
   Notifications,
   People,
   TouchApp,
-  PersonOff
+  PersonOff,
+  PlayArrow,
+  Refresh
 } from "@mui/icons-material";
 import {
   getReengagementMetrics,
   type ReengagementMetrics
 } from "../lib/getReengagementMetrics";
+import { triggerReengagementScheduler } from "../lib/triggerScheduler";
 
 /**
  * Компонент мониторинга re-engagement системы
@@ -38,6 +42,8 @@ export default function ReengagementMonitor() {
   const [metrics, setMetrics] = useState<ReengagementMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [triggering, setTriggering] = useState(false);
+  const [triggerResult, setTriggerResult] = useState<string | null>(null);
 
   useEffect(() => {
     loadMetrics();
@@ -55,10 +61,39 @@ export default function ReengagementMonitor() {
       } else {
         setError(result.error || "Не удалось загрузить метрики");
       }
-    } catch (err) {
+    } catch {
       setError("Произошла ошибка при загрузке метрик");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTriggerScheduler = async () => {
+    try {
+      setTriggering(true);
+      setTriggerResult(null);
+      
+      const result = await triggerReengagementScheduler();
+      
+      if (result.success && result.result) {
+        setTriggerResult(
+          `✅ Планировщик выполнен успешно!\n` +
+          `🆕 Новых кампаний: ${result.result.newCampaigns}\n` +
+          `📨 Уведомлений запланировано: ${result.result.scheduledNotifications}\n` +
+          `✔️ Кампаний закрыто: ${result.result.closedCampaigns}`
+        );
+        
+        // Перезагрузить метрики через 2 секунды
+        setTimeout(() => {
+          loadMetrics();
+        }, 2000);
+      } else {
+        setTriggerResult(`❌ Ошибка: ${result.error || "Неизвестная ошибка"}`);
+      }
+    } catch {
+      setTriggerResult("❌ Произошла ошибка при запуске планировщика");
+    } finally {
+      setTriggering(false);
     }
   };
 
@@ -80,13 +115,45 @@ export default function ReengagementMonitor() {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>
-        Мониторинг Re-engagement
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+        <Box>
+          <Typography variant="h5" gutterBottom>
+            Мониторинг Re-engagement
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Аналитика системы возвращения неактивных пользователей
+          </Typography>
+        </Box>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={loadMetrics}
+            disabled={loading}
+          >
+            Обновить
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<PlayArrow />}
+            onClick={handleTriggerScheduler}
+            disabled={triggering || loading}
+            color="primary"
+          >
+            {triggering ? "Запуск..." : "Запустить планировщик"}
+          </Button>
+        </Box>
+      </Box>
 
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Аналитика системы возвращения неактивных пользователей
-      </Typography>
+      {triggerResult && (
+        <Alert 
+          severity={triggerResult.includes("✅") ? "success" : "error"}
+          onClose={() => setTriggerResult(null)}
+          sx={{ mb: 3, whiteSpace: "pre-line" }}
+        >
+          {triggerResult}
+        </Alert>
+      )}
 
       {/* Общая статистика */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
