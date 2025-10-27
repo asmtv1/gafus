@@ -2,19 +2,19 @@ import Link from "next/link";
 
 import type { UserWithTrainings } from "@gafus/types";
 
-import ReengagementSettings from "./ReengagementSettings";
+import TrainingReminders from "./TrainingReminders";
 import styles from "./PrivateProfileSection.module.css";
 
 interface PrivateProfileSectionProps {
   user: UserWithTrainings;
 }
 
-export default function PrivateProfileSection({ user }: PrivateProfileSectionProps) {
+export default function PrivateProfileSection({ user: _user }: PrivateProfileSectionProps) {
   
   return (
     <section className={styles.section}>
       <div style={{ marginBottom: "20px" }}>
-        <ReengagementSettings />
+        <TrainingReminders />
       </div>
       
       <div style={{ marginTop: "20px", textAlign: "center" }}>

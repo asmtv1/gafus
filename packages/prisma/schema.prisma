@@ -257,6 +257,7 @@ model User {
   stepNotifications        StepNotification[]
   reengagementCampaigns    ReengagementCampaign[]
   reengagementSettings     ReengagementSettings?
+  reminders                Reminder[]
   passwordResetRequestedAt DateTime?
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @default(now())
@@ -586,6 +587,36 @@ model ReengagementSettings {
   
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+// Универсальная система напоминаний (тренировки, прививки, кормление и т.д.)
+model Reminder {
+  id                    String   @id @default(cuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Тип и название напоминания
+  type                  String   // "training", "vaccination", "feeding", etc.
+  name                  String   // Название для пользователя: "Утро", "День", "Вечер" и т.д.
+  
+  // Настройки
+  enabled               Boolean  @default(false)  // По умолчанию выключено
+  reminderTime          String   @default("09:00") // Время напоминания в формате HH:MM
+  reminderDays          String?  // "1,2,3,4,5,6,7" где 1=Пн, 7=Вс, или null для всех дней
+  timezone              String   @default("Europe/Moscow")
+  
+  // Дополнительные данные (JSON для гибкости)
+  metadata              Json?    // Например, для прививок: {petId, vaccineName}, для кормления: {petId, mealType}
+  
+  // Метаданные
+  lastSentAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([userId, type])
+  @@index([enabled])
+  @@index([type])
+  @@index([reminderTime])
 }
 
 model ReengagementMetrics {

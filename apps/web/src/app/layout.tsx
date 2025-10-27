@@ -10,6 +10,7 @@ import { WebQueryProvider } from "@shared/providers/QueryProvider";
 
 import { Montserrat } from "next/font/google";
 
+import { ClientRedirect } from "./ClientRedirect";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./normalize.css";
@@ -95,6 +96,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <ClientLayout>
             <SessionWrapper>
+              <ClientRedirect />
               <UserProvider>
                 <PetsProvider>
                   <WebQueryProvider>

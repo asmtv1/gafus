@@ -2,37 +2,39 @@
 
 set -e
 
-# Загружаем переменные из .env.local (если файл существует)
-if [ -f .env.local ]; then
-  export $(grep -v '^#' .env.local | xargs)
-  echo "✅ Загружены переменные из .env.local"
+# Загружаем переменные из .env (если файл существует)
+if [ -f .env ]; then
+  echo "✅ Найден файл .env, загружаем переменные..."
+  export $(grep -v '^#' .env | grep -v '^$' | xargs)
 else
-  echo "⚠️  Файл .env.local не найден, используем системные переменные"
+  echo "⚠️  Файл .env не найден, используем системные переменные"
 fi
 
 SCHEMA_PATH="packages/prisma/schema.prisma"
 
-echo "🧹 Очищаем кэш Prisma и переустанавливаем зависимости..."
+# Проверяем наличие DATABASE_URL
+if [ -z "$DATABASE_URL" ]; then
+  echo "❌ Ошибка: DATABASE_URL не найден в переменных окружения"
+  exit 1
+fi
+
+echo "🧹 Очищаем кэш Prisma..."
 rm -rf packages/prisma/node_modules/.prisma
-pnpm install
 
 echo "🔥 Удаляем миграции..."
 rm -rf packages/prisma/migrations
 
 echo "💥 Сбрасываем базу данных..."
-PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION="User explicitly consented to reset development database" pnpx prisma migrate reset --schema=$SCHEMA_PATH --force --skip-seed
+DATABASE_URL=$DATABASE_URL pnpm exec prisma migrate reset --schema=$SCHEMA_PATH --force --skip-seed || true
 
-echo "🛠️  Создаём новый мигрэйшн: init"
-pnpx prisma migrate dev --schema=$SCHEMA_PATH --name init
+echo "🛠️  Создаём новую миграцию: init"
+DATABASE_URL=$DATABASE_URL pnpm exec prisma migrate dev --schema=$SCHEMA_PATH --name init
 
 echo "🔄 Генерируем Prisma Client..."
-cd packages/prisma && pnpm prisma generate && cd ../..
+DATABASE_URL=$DATABASE_URL pnpm --filter @gafus/prisma db:generate
 
 echo "🌱 Прогоняем сид-скрипт..."
-pnpm --filter @gafus/prisma db:seed
-
-echo "🔧 Генерируем Prisma Client для всех пакетов..."
-pnpm --filter @gafus/prisma db:generate
+DATABASE_URL=$DATABASE_URL pnpm --filter @gafus/prisma db:seed
 
 echo "✅ База данных полностью сброшена и готова."
 echo "🚀 Теперь можно запускать: pnpm run build"

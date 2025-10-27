@@ -1,0 +1,463 @@
+/* Основной контейнер */
+.container {
+  background: #FBF9F4;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #E5DCC8;
+}
+
+/* Заголовок */
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #636128;
+  margin: 0 0 12px 0;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+}
+
+/* Описание */
+.description {
+  font-size: 0.9rem;
+  color: #7a7751;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+/* Загрузка */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #636128;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #E5DCC8;
+  border-top-color: #636128;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Уведомления */
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alert.success {
+  background: #e7f4e7;
+  color: #2d5f2d;
+  border: 1px solid #a5d6a7;
+}
+
+.alert.error {
+  background: #fdecea;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
+.alertClose {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 12px;
+  color: inherit;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.alertClose:hover {
+  opacity: 1;
+}
+
+/* Список напоминаний */
+.remindersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Карточка напоминания */
+.reminderItem {
+  background: white;
+  border: 2px solid #E5DCC8;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.3s;
+}
+
+.reminderItem.expanded {
+  border-color: #636128;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.1);
+}
+
+.reminderHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Переключатель */
+.switchLabel {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.switchInput {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switchSlider {
+  width: 44px;
+  height: 24px;
+  background: #ccc;
+  border-radius: 24px;
+  position: relative;
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+
+.switchSlider::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.3s;
+}
+
+.switchInput:checked + .switchSlider {
+  background: #636128;
+}
+
+.switchInput:checked + .switchSlider::before {
+  transform: translateX(20px);
+}
+
+.switchInput:disabled + .switchSlider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Поле названия */
+.nameInput {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #352E2E;
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.nameInput:hover {
+  background: #f5f5f5;
+}
+
+.nameInput:focus {
+  outline: none;
+  background: white;
+  border-color: #636128;
+}
+
+/* Превью времени */
+.timePreview {
+  font-size: 0.9rem;
+  color: #636128;
+  font-weight: 600;
+  font-family: monospace;
+  padding: 4px 8px;
+  background: #FFF9E6;
+  border-radius: 4px;
+}
+
+/* Кнопки */
+.expandButton {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: #636128;
+  transition: transform 0.2s;
+}
+
+.expandButton:hover {
+  transform: scale(1.1);
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: #c62828;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.deleteButton:hover {
+  color: #8b0000;
+  transform: scale(1.2);
+}
+
+/* Детали напоминания */
+.reminderDetails {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #E5DCC8;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settingGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #352E2E;
+}
+
+/* Time Input */
+.timeInput {
+  padding: 10px 12px;
+  border: 2px solid #E5DCC8;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #352E2E;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  font-family: inherit;
+  width: 100%;
+  max-width: 180px;
+}
+
+.timeInput:hover {
+  border-color: #636128;
+}
+
+.timeInput:focus {
+  outline: none;
+  border-color: #636128;
+  box-shadow: 0 0 0 3px rgba(99, 97, 40, 0.1);
+}
+
+.timeInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Чекбокс для "Все дни" */
+.dayCheckbox {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 8px;
+}
+
+.dayCheckbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  cursor: pointer;
+  accent-color: #636128;
+}
+
+.dayLabel {
+  font-size: 0.9rem;
+  color: #352E2E;
+}
+
+/* Сетка дней недели */
+.daysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.dayButton {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dayInput {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.dayButtonLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  background: white;
+  border: 2px solid #E5DCC8;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #636128;
+  transition: all 0.2s;
+  text-align: center;
+  min-height: 36px;
+}
+
+.dayInput:checked + .dayButtonLabel {
+  background: #636128;
+  color: #FBF9F4;
+  border-color: #636128;
+}
+
+.dayButton:hover .dayButtonLabel {
+  border-color: #636128;
+  transform: translateY(-1px);
+}
+
+/* Кнопка добавления */
+.addButton {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
+  color: #FBF9F4;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 6px rgba(99, 97, 40, 0.2);
+}
+
+.addButton:hover {
+  background: #4a4a1a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(99, 97, 40, 0.3);
+}
+
+.addButton:active {
+  transform: translateY(0);
+}
+
+/* Информационный блок */
+.infoBox {
+  margin-top: 20px;
+  padding: 14px;
+  background: #EDF7FF;
+  border-radius: 8px;
+  border: 1px solid #B3D9FF;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #1976d2;
+}
+
+.infoBox strong {
+  font-weight: 600;
+}
+
+/* Мобильные стили */
+@media (max-width: 768px) {
+  .container {
+    padding: 20px;
+  }
+
+  .title {
+    font-size: 1.3rem;
+  }
+
+  .description {
+    font-size: 0.85rem;
+  }
+
+  .reminderHeader {
+    gap: 8px;
+  }
+
+  .nameInput {
+    font-size: 0.9rem;
+  }
+
+  .timePreview {
+    font-size: 0.85rem;
+  }
+
+  .daysGrid {
+    gap: 4px;
+  }
+
+  .dayButtonLabel {
+    font-size: 0.75rem;
+    padding: 6px 2px;
+    min-height: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 16px;
+  }
+
+  .title {
+    font-size: 1.2rem;
+  }
+
+  .reminderItem {
+    padding: 12px;
+  }
+
+  .nameInput {
+    font-size: 0.85rem;
+  }
+}

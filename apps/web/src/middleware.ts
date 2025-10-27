@@ -43,7 +43,7 @@ export default async function middleware(req: NextRequest) {
     secureCookie: process.env.NODE_ENV === "production",
     cookieName: "next-auth.session-token"
   });
-
+  
   // Пропускаем публичные ресурсы
   if (isPublicAsset(pathname)) {
     return NextResponse.next();
@@ -58,11 +58,21 @@ export default async function middleware(req: NextRequest) {
   if (token) {
     const authPages = ["/", "/login", "/register"];
     if (authPages.includes(pathname)) {
-      return NextResponse.redirect(new URL("/courses", url));
+      const redirectUrl = new URL("/courses", url);
+      const response = NextResponse.redirect(redirectUrl, 302);
+      
+      // Запрещаем кэширование редиректа
+      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      response.headers.set("Pragma", "no-cache");
+      response.headers.set("Expires", "0");
+      
+      return response;
     }
+    // Если пользователь авторизован, пропускаем все остальные маршруты
+    return NextResponse.next();
   }
 
-  // Пропускаем публичные страницы
+  // Пропускаем публичные страницы для неавторизованных
   const isPublicPath = PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
@@ -71,12 +81,8 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Все остальные маршруты требуют авторизации
-  if (!token) {
-    return NextResponse.redirect(new URL("/", url));
-  }
-  
-  return NextResponse.next();
+  // Все остальные маршруты требуют авторизации - редиректим на главную
+  return NextResponse.redirect(new URL("/", url));
 }
 
 export const config = {

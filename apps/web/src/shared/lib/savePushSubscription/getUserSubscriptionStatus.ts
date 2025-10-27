@@ -24,6 +24,11 @@ export async function getUserSubscriptionStatus() {
     return { hasSubscription };
     
   } catch (error) {
+    // Если пользователь не авторизован, молча возвращаем false без логирования ошибки
+    if (error instanceof Error && error.message === "Пользователь не авторизован") {
+      return { hasSubscription: false };
+    }
+    
     logger.error("❌ getUserSubscriptionStatus: Ошибка:", error as Error, { operation: 'error' });
     return { hasSubscription: false };
   }
@@ -67,6 +72,11 @@ export async function getUserSubscriptions() {
 
     return { subscriptions };
   } catch (error) {
+    // Если пользователь не авторизован, молча возвращаем пустой массив
+    if (error instanceof Error && error.message === "Пользователь не авторизован") {
+      return { subscriptions: [] };
+    }
+    
     logger.error("Ошибка при получении списка подписок:", error as Error, { operation: 'error' });
     return { subscriptions: [] };
   }

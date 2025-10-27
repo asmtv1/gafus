@@ -21,22 +21,22 @@ const CACHE_CONFIG = {
     // Полные HTML-страницы (для офлайн-навигации)
     HTML_PAGES: 'gafus-html-v3',
     // RSC-данные (храним отдельно для управляемости)
-    RSC_DATA: 'gafus-rsc-v2',
+    RSC_DATA: 'gafus-rsc-v3',
     
     // RSC-данные (для динамических обновлений)
     // RSC_DATA кэш отключен
     
     // Статические ресурсы
-    STATIC: 'gafus-static-v2',
+    STATIC: 'gafus-static-v3',
     
     // Изображения (синхронизировано с courseStore: 30 минут)
-    IMAGES: 'gafus-images-v2',
+    IMAGES: 'gafus-images-v3',
     
     // Данные курсов (для синхронизации с courseStore)
     // COURSE_DATA кэш отключен
     
     // Прочие API-запросы (которые не попали в специализированные группы)
-    API: 'gafus-api-v2',
+    API: 'gafus-api-v3',
   },
   
   // ⚡ Стратегии кэширования (обновлены под текущую архитектуру)
@@ -79,7 +79,8 @@ const CACHE_CONFIG = {
   // 🔍 Паттерны для определения типов ресурсов (обновлены)
   PATTERNS: {
     HTML_PAGES: [
-      /^\/$/,
+      // Исключаем главную страницу из кэша (она должна всегда проверять авторизацию)
+      // /^\/$/,
       /^\/courses/,
       /^\/profile/,
       /^\/achievements/,
@@ -992,11 +993,6 @@ self.addEventListener('fetch', (event) => {
     request.method === 'GET' &&
     (request.mode === 'navigate' || dest === 'document' || uir === '1' || isKnownPagePath(url.pathname))
   ) {
-    // БАЙПАСС навигации для auth-страниц: '/', '/login', '/register' — всегда сеть, без кэша
-    if (url.pathname === '/' || url.pathname === '/login' || url.pathname === '/register') {
-      // Не используем respondWith (пусть браузер идет в сеть напрямую)
-      return; 
-    }
     event.respondWith(handleNavigationRequest(event, request));
     return;
   }
@@ -1299,7 +1295,7 @@ self.addEventListener('notificationclick', (event) => {
         
         // Ищем уже открытое окно приложения
         for (const client of clients) {
-          if ((client.url.includes('gafus.ru') || client.url.includes('localhost')) && 'focus' in client) {
+          if (client.url.includes('gafus.ru') && 'focus' in client) {
             console.log('✅ SW Custom: Focusing existing window, navigating to:', targetUrl);
             await client.focus();
             client.postMessage({ type: 'NAVIGATE', url: targetUrl });
@@ -1309,10 +1305,8 @@ self.addEventListener('notificationclick', (event) => {
         
         // Если нет открытого окна, открываем новое с нужным URL
         if (self.clients.openWindow) {
-          // Формируем абсолютный URL
-          const absoluteUrl = new URL(targetUrl, self.location.origin).href;
-          console.log('✅ SW Custom: Opening new window with URL:', absoluteUrl);
-          await self.clients.openWindow(absoluteUrl);
+          console.log('✅ SW Custom: Opening new window with URL:', targetUrl);
+          await self.clients.openWindow(targetUrl);
         }
       } catch (error) {
         console.error('❌ SW Custom: Error handling notification click:', error);

@@ -438,12 +438,31 @@ CREATE TABLE "ReengagementSettings" (
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "unsubscribedAt" TIMESTAMP(3),
     "preferredTime" TEXT,
+    "preferredDays" TEXT,
     "timezone" TEXT NOT NULL DEFAULT 'Europe/Moscow',
     "maxNotificationsPerWeek" INTEGER NOT NULL DEFAULT 2,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "ReengagementSettings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Reminder" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT false,
+    "reminderTime" TEXT NOT NULL DEFAULT '09:00',
+    "reminderDays" TEXT,
+    "timezone" TEXT NOT NULL DEFAULT 'Europe/Moscow',
+    "metadata" JSONB,
+    "lastSentAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Reminder_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -598,6 +617,18 @@ CREATE INDEX "ReengagementNotification_sent_sentAt_idx" ON "ReengagementNotifica
 CREATE UNIQUE INDEX "ReengagementSettings_userId_key" ON "ReengagementSettings"("userId");
 
 -- CreateIndex
+CREATE INDEX "Reminder_userId_type_idx" ON "Reminder"("userId", "type");
+
+-- CreateIndex
+CREATE INDEX "Reminder_enabled_idx" ON "Reminder"("enabled");
+
+-- CreateIndex
+CREATE INDEX "Reminder_type_idx" ON "Reminder"("type");
+
+-- CreateIndex
+CREATE INDEX "Reminder_reminderTime_idx" ON "Reminder"("reminderTime");
+
+-- CreateIndex
 CREATE INDEX "ReengagementMetrics_date_idx" ON "ReengagementMetrics"("date");
 
 -- AddForeignKey
@@ -710,3 +741,6 @@ ALTER TABLE "ReengagementNotification" ADD CONSTRAINT "ReengagementNotification_
 
 -- AddForeignKey
 ALTER TABLE "ReengagementSettings" ADD CONSTRAINT "ReengagementSettings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Reminder" ADD CONSTRAINT "Reminder_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -290,6 +290,12 @@ export const usePushStore = create<PushState>()(
             set({ hasServerSubscription: isSynced });
             
           } catch (error) {
+            // Если пользователь не авторизован, это нормально - молча выходим
+            if (error instanceof Error && error.message === "Пользователь не авторизован") {
+              set({ hasServerSubscription: false });
+              return;
+            }
+            
             logger.error("Ошибка проверки БД", error as Error, {
               operation: 'check_db_error',
               hasLocalSubscription: hasLocalSubscription

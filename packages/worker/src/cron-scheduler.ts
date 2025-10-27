@@ -7,6 +7,7 @@ import cron from 'node-cron';
 import { scheduleReengagementCampaigns } from '@gafus/reengagement';
 import { recordDailyMetrics } from '@gafus/reengagement';
 import { createWorkerLogger } from '@gafus/logger';
+import { sendTrainingReminders } from './training-reminders-sender';
 
 const logger = createWorkerLogger('cron-scheduler');
 
@@ -46,10 +47,28 @@ export function startCronJobs(): void {
     timezone: 'Europe/Moscow'
   });
 
+  // Задача 3: Отправка напоминаний о тренировках (каждые 10 минут)
+  cron.schedule('*/10 * * * *', async () => {
+    logger.info('Запуск проверки напоминаний о тренировках');
+    
+    try {
+      const result = await sendTrainingReminders();
+      
+      logger.success('Проверка напоминаний завершена', {
+        sent: result.sent,
+        skipped: result.skipped,
+        errors: result.errors
+      });
+    } catch (error) {
+      logger.error('Ошибка при проверке напоминаний', error as Error);
+    }
+  });
+
   logger.success('Cron-планировщик запущен', {
     tasks: [
       'Re-engagement планировщик: ежедневно в 8:00 МСК',
-      'Сбор метрик: ежедневно в 23:55 МСК'
+      'Сбор метрик: ежедневно в 23:55 МСК',
+      'Напоминания о тренировках: каждые 10 минут'
     ]
   });
 }
