@@ -69,7 +69,9 @@ RUN npm init -y && \
     web-push@3.6.6 \
     @prisma/client@6.10.1 \
     pino@8.16.2 \
-    pino-pretty@10.2.3
+    pino-pretty@10.2.3 \
+    @aws-sdk/client-s3@3.914.0 \
+    @aws-sdk/s3-request-presigner@3.914.0
 
 # Копируем весь сгенерированный Prisma client из base stage (включая runtime файлы)
 COPY --from=base /app/node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/.prisma ./node_modules/.prisma
