@@ -130,10 +130,8 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 
-  // В dev окружении проксируем /uploads/* на CDN, чтобы Next Image мог оптимизировать
+  // Проксируем /uploads/* на CDN для Next Image Optimization
   async rewrites() {
-    const isDev = process.env.NODE_ENV !== 'production';
-    if (!isDev) return [];
     return [
       {
         source: "/uploads/:path*",
