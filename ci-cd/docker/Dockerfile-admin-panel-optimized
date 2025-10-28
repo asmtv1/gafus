@@ -22,6 +22,7 @@ COPY packages/react-query/package.json ./packages/react-query/
 COPY packages/types/package.json ./packages/types/
 COPY packages/webpush/package.json ./packages/webpush/
 COPY packages/queues/package.json ./packages/queues/
+COPY packages/reengagement/package.json ./packages/reengagement/
 
 # Устанавливаем зависимости
 RUN pnpm install --frozen-lockfile --prefer-offline
@@ -49,6 +50,7 @@ COPY --from=deps /app/packages/react-query/node_modules ./packages/react-query/n
 COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
 COPY --from=deps /app/packages/webpush/node_modules ./packages/webpush/node_modules
 COPY --from=deps /app/packages/queues/node_modules ./packages/queues/node_modules
+COPY --from=deps /app/packages/reengagement/node_modules ./packages/reengagement/node_modules
 
 # Копируем остальные файлы проекта
 COPY . .
@@ -76,6 +78,7 @@ RUN pnpm --filter @gafus/error-handling run build
 RUN pnpm --filter @gafus/react-query run build
 RUN pnpm --filter @gafus/queues run build
 RUN pnpm --filter @gafus/webpush run build
+RUN pnpm --filter @gafus/reengagement run build
 
 # Билдим admin-panel
 RUN pnpm --filter @gafus/admin-panel run build
