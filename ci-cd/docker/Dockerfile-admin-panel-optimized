@@ -25,10 +25,11 @@ RUN cd packages/prisma \
   && cp schema.prisma schema.prisma.bak \
   && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
   && mv schema.tmp schema.prisma \
-  && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
+  && (for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5 && [ $i -eq 3 ] && exit 1); done) \
   && mv schema.prisma.bak schema.prisma \
   && echo "Checking Prisma Client..." \
-  && ls -la /app/node_modules/.pnpm/ | grep "@prisma+client" || echo "WARNING: Prisma Client directory not found"
+  && ls -la /app/node_modules/.pnpm/ | grep "@prisma+client" \
+  && echo "✅ Prisma Client generated successfully"
 
 # Создаем папку для Prisma
 RUN mkdir -p /app/node_modules/.prisma
