@@ -1,62 +1,34 @@
-# ===========================
-# Stage 1: Dependencies
-# ===========================
-FROM node:22-alpine AS deps
-RUN apk add --no-cache libc6-compat openssl
-
-# Установка pnpm
-RUN corepack enable && corepack prepare pnpm@9.15.6 --activate
+# Base stage - для сборки
+FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# Копируем файлы управления зависимостями
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY turbo.json ./
-COPY apps/admin-panel/package.json ./apps/admin-panel/
-COPY packages/auth/package.json ./packages/auth/
-COPY packages/prisma/package.json ./packages/prisma/
-COPY packages/logger/package.json ./packages/logger/
-COPY packages/csrf/package.json ./packages/csrf/
-COPY packages/error-handling/package.json ./packages/error-handling/
-COPY packages/react-query/package.json ./packages/react-query/
-COPY packages/types/package.json ./packages/types/
-COPY packages/webpush/package.json ./packages/webpush/
-COPY packages/queues/package.json ./packages/queues/
-COPY packages/reengagement/package.json ./packages/reengagement/
+# Включаем pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Копируем файлы конфигурации
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+
+# Копируем исходный код
+COPY packages ./packages
+COPY apps/admin-panel ./apps/admin-panel
 
 # Устанавливаем зависимости
-RUN pnpm install --frozen-lockfile --prefer-offline
+RUN pnpm install --frozen-lockfile
 
-# ===========================
-# Stage 2: Builder
-# ===========================
-FROM node:22-alpine AS builder
-RUN apk add --no-cache libc6-compat openssl
+# Копируем tsconfig файлы
+COPY packages/*/tsconfig.json ./packages/*/
+COPY apps/admin-panel/tsconfig.json ./apps/admin-panel/
 
-# Установка pnpm
-RUN corepack enable && corepack prepare pnpm@9.15.6 --activate
-
-WORKDIR /app
-
-# Копируем установленные зависимости
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/admin-panel/node_modules ./apps/admin-panel/node_modules
-COPY --from=deps /app/packages/auth/node_modules ./packages/auth/node_modules
-COPY --from=deps /app/packages/prisma/node_modules ./packages/prisma/node_modules
-COPY --from=deps /app/packages/logger/node_modules ./packages/logger/node_modules
-COPY --from=deps /app/packages/csrf/node_modules ./packages/csrf/node_modules
-COPY --from=deps /app/packages/error-handling/node_modules ./packages/error-handling/node_modules
-COPY --from=deps /app/packages/react-query/node_modules ./packages/react-query/node_modules
-COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
-COPY --from=deps /app/packages/webpush/node_modules ./packages/webpush/node_modules
-COPY --from=deps /app/packages/queues/node_modules ./packages/queues/node_modules
-COPY --from=deps /app/packages/reengagement/node_modules ./packages/reengagement/node_modules
-
-# Копируем остальные файлы проекта
-COPY . .
-
-# Генерируем Prisma Client
-RUN cd packages/prisma && pnpm exec prisma generate
+# Генерируем Prisma client (без ERD в контейнере)
+RUN cd packages/prisma \
+  && cp schema.prisma schema.prisma.bak \
+  && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
+  && mv schema.tmp schema.prisma \
+  && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
+  && mv schema.prisma.bak schema.prisma \
+  && echo "Checking Prisma Client..." \
+  && ls -la /app/node_modules/.pnpm/ | grep "@prisma+client" || echo "WARNING: Prisma Client directory not found"
 
 # Создаем папку для Prisma
 RUN mkdir -p /app/node_modules/.prisma
@@ -68,53 +40,49 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 # Копируем Prisma Query Engine рядом с клиентом (ожидаемое Prisma расположение)
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
 
-# Билдим зависимые пакеты в правильном порядке
-RUN pnpm --filter @gafus/logger run build
-RUN pnpm --filter @gafus/prisma run build
-RUN pnpm --filter @gafus/types run build
-RUN pnpm --filter @gafus/auth run build
-RUN pnpm --filter @gafus/csrf run build
-RUN pnpm --filter @gafus/error-handling run build
-RUN pnpm --filter @gafus/react-query run build
-RUN pnpm --filter @gafus/queues run build
-RUN pnpm --filter @gafus/webpush run build
-RUN pnpm --filter @gafus/reengagement run build
+# Собираем зависимые пакеты
+RUN pnpm build --filter @gafus/logger --filter @gafus/prisma --filter @gafus/types --filter @gafus/auth --filter @gafus/csrf --filter @gafus/error-handling --filter @gafus/react-query --filter @gafus/queues --filter @gafus/webpush --filter @gafus/reengagement
 
-# Билдим admin-panel
-RUN pnpm --filter @gafus/admin-panel run build
+# Собираем приложение
+RUN pnpm --filter @gafus/admin-panel build
 
-# ===========================
-# Stage 3: Runner
-# ===========================
-FROM node:22-alpine AS runner
-RUN apk add --no-cache openssl
+# Production stage - только runtime
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Создаем пользователя для запуска приложения
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+# Создаем пользователя
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# Копируем только необходимые файлы
-COPY --from=builder --chown=nextjs:nodejs /app/apps/admin-panel/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/admin-panel/.next/static ./apps/admin-panel/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/admin-panel/public ./apps/admin-panel/public
+# Устанавливаем только необходимые пакеты
+RUN apk add --no-cache curl openssl
 
-# Копируем Prisma client и Query Engine
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Копируем только standalone версию Next.js
+COPY --from=base /app/apps/admin-panel/.next/standalone ./
+COPY --from=base /app/apps/admin-panel/.next/static ./apps/admin-panel/.next/static
+COPY --from=base /app/apps/admin-panel/public ./apps/admin-panel/public
+
+# Копируем Prisma client и Query Engine (оставляем .pnpm из standalone)
+COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
 # Копируем Prisma client в несколько мест для поиска движка рантаймом
 RUN mkdir -p ./apps/admin-panel/.prisma && cp -r ./node_modules/.prisma/client ./apps/admin-panel/.prisma/client
 RUN mkdir -p ./apps/admin-panel/node_modules/.prisma && cp -r ./node_modules/.prisma/client ./apps/admin-panel/node_modules/.prisma/client
 RUN mkdir -p ./apps/admin-panel/node_modules/@prisma && cp -r ./node_modules/.prisma/client ./apps/admin-panel/node_modules/@prisma/client
 
+# Копируем Query Engine в .pnpm структуру для standalone build
+RUN mkdir -p ./node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/.prisma/client && \
+    cp ./node_modules/.prisma/client/libquery_engine-* ./node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/.prisma/client/ 2>/dev/null || true
+
+# Устанавливаем права доступа
+RUN chown -R nextjs:nodejs /app
 USER nextjs
 
+# Запускаем приложение
 EXPOSE 3006
-
 ENV PORT=3006
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "apps/admin-panel/server.js"]
-
