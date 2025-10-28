@@ -26,8 +26,8 @@ RUN cd packages/prisma \
   && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
   && mv schema.prisma.bak schema.prisma
 
-# Собираем все пакеты (включая logger и cdn-upload для worker)
-RUN pnpm build --filter @gafus/worker --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/types --filter @gafus/logger --filter @gafus/cdn-upload
+# Собираем все пакеты (включая logger, cdn-upload и reengagement для worker)
+RUN pnpm build --filter @gafus/worker --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/types --filter @gafus/logger --filter @gafus/cdn-upload --filter @gafus/reengagement
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
@@ -48,11 +48,13 @@ COPY --from=base /app/packages/queues/dist ./packages/queues/dist
 COPY --from=base /app/packages/webpush/dist ./packages/webpush/dist
 COPY --from=base /app/packages/types/dist ./packages/types/dist
 COPY --from=base /app/packages/logger/dist ./packages/logger/dist
+COPY --from=base /app/packages/reengagement/dist ./packages/reengagement/dist
 COPY --from=base /app/packages/cdn-upload/dist ./packages/cdn-upload/dist
 
 # Копируем только package.json файлы
 COPY --from=base /app/packages/worker/package.json ./packages/worker/package.json
 COPY --from=base /app/packages/prisma/package.json ./packages/prisma/package.json
+COPY --from=base /app/packages/reengagement/package.json ./packages/reengagement/package.json
 COPY --from=base /app/packages/queues/package.json ./packages/queues/package.json
 COPY --from=base /app/packages/webpush/package.json ./packages/webpush/package.json
 COPY --from=base /app/packages/types/package.json ./packages/types/package.json
@@ -83,7 +85,8 @@ RUN mkdir -p /app/node_modules/@gafus \
   && ln -s /app/packages/webpush /app/node_modules/@gafus/webpush \
   && ln -s /app/packages/types /app/node_modules/@gafus/types \
   && ln -s /app/packages/logger /app/node_modules/@gafus/logger \
-  && ln -s /app/packages/cdn-upload /app/node_modules/@gafus/cdn-upload
+  && ln -s /app/packages/cdn-upload /app/node_modules/@gafus/cdn-upload \
+  && ln -s /app/packages/reengagement /app/node_modules/@gafus/reengagement
 
 # Устанавливаем права доступа
 RUN chown -R worker:nodejs /app
