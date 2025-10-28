@@ -164,6 +164,9 @@ importers:
       '@gafus/react-query':
         specifier: workspace:*
         version: link:../../packages/react-query
+      '@gafus/reengagement':
+        specifier: workspace:*
+        version: link:../../packages/reengagement
       '@gafus/types':
         specifier: workspace:*
         version: link:../../packages/types
