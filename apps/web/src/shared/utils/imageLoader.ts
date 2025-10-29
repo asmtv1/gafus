@@ -14,9 +14,8 @@ interface ImageLoaderParams {
 const CDN_URL = "https://gafus-media.storage.yandexcloud.net";
 
 export default function imageLoader({ src, width, quality }: ImageLoaderParams): string {
-  // Если изображение уже с CDN - возвращаем как есть
-  // CDN сам обрабатывает оптимизацию и кэширование
-  if (src.startsWith(CDN_URL) || src.startsWith("https://")) {
+  // Если изображение уже с CDN или внешний URL - возвращаем как есть
+  if (src.startsWith(CDN_URL) || src.startsWith("https://") || src.startsWith("http://")) {
     return src;
   }
 
@@ -25,14 +24,9 @@ export default function imageLoader({ src, width, quality }: ImageLoaderParams):
     return `${CDN_URL}${src}`;
   }
 
-  // Для локальных статических файлов из /public
-  // используем встроенную оптимизацию Next.js
-  const params = new URLSearchParams({
-    url: src,
-    w: width.toString(),
-    q: (quality || 75).toString(),
-  });
-
-  return `/_next/image?${params.toString()}`;
+  // Для локальных статических файлов из /public (SVG, PNG, etc.)
+  // возвращаем как есть без оптимизации
+  // В standalone режиме /_next/image не работает для локальных файлов
+  return src;
 }
 
