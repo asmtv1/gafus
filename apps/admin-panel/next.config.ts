@@ -24,33 +24,12 @@ const nextConfig: NextConfig = {
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
-  // Конфигурация для изображений с CDN
+  // Вся статика обслуживается через CDN / nginx, отключаем оптимизацию
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
-      {
-        protocol: "http",
-        hostname: "**",
-      },
-    ],
-    dangerouslyAllowSVG: true,
-    contentDispositionType: "attachment",
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    unoptimized: true,
   },
 
-  async rewrites() {
-    const isDev = process.env.NODE_ENV !== 'production';
-    if (!isDev) return [];
-    return [
-      {
-        source: "/uploads/:path*",
-        destination: "https://storage.yandexcloud.net/gafus-media/uploads/:path*",
-      },
-    ];
-  },
+  // Больше не требуется: статика на CDN (см. nginx)
   async headers() {
     return [
       {
