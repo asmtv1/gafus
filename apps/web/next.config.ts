@@ -115,21 +115,9 @@ const nextConfig = {
     return config;
   },
 
-  // Оптимизация изображений с Custom Loader для CDN
+  // Отключаем Image Optimization - вся статика на CDN
   images: {
-    loader: 'custom',
-    loaderFile: './src/shared/utils/imageLoader.ts',
-    remotePatterns: [
-      // Разрешаем загрузку с CDN
-      { protocol: "https", hostname: "gafus-media.storage.yandexcloud.net" },
-      { protocol: "https", hostname: "storage.yandexcloud.net" },
-    ],
-    formats: ["image/webp", "image/avif"],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 дней
-    dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    unoptimized: true,
   },
 
   async headers() {
