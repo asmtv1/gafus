@@ -128,6 +128,9 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 дней
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Custom loader для /uploads/* - проксируем через CDN
+    loader: 'custom',
+    loaderFile: './src/shared/lib/imageLoader.ts',
   },
 
   // Проксируем /uploads/* на CDN для Next Image Optimization
