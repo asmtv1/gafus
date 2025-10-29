@@ -410,7 +410,8 @@
 /* Мобильные стили */
 @media (max-width: 768px) {
   .container {
-    padding: 20px;
+    padding: 16px;
+    margin: 0 8px;
   }
 
   .title {
@@ -423,10 +424,12 @@
 
   .reminderHeader {
     gap: 8px;
+    flex-wrap: wrap;
   }
 
   .nameInput {
     font-size: 0.9rem;
+    min-width: 0;
   }
 
   .timePreview {
@@ -435,29 +438,138 @@
 
   .daysGrid {
     gap: 4px;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 
   .dayButtonLabel {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     padding: 6px 2px;
     min-height: 32px;
+    word-break: break-word;
+  }
+
+  .timeInput {
+    max-width: 100%;
+  }
+
+  .addButton {
+    font-size: 0.9rem;
+  }
+
+  .infoBox {
+    font-size: 0.8rem;
+    padding: 12px;
   }
 }
 
 @media (max-width: 480px) {
   .container {
-    padding: 16px;
+    padding: 12px;
+    margin: 0 4px;
   }
 
   .title {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+  }
+
+  .description {
+    font-size: 0.8rem;
   }
 
   .reminderItem {
-    padding: 12px;
+    padding: 10px;
+  }
+
+  .reminderHeader {
+    gap: 6px;
+  }
+
+  .switchSlider {
+    width: 40px;
+    height: 22px;
+  }
+
+  .switchSlider::before {
+    width: 16px;
+    height: 16px;
+  }
+
+  .switchInput:checked + .switchSlider::before {
+    transform: translateX(18px);
   }
 
   .nameInput {
+    font-size: 0.8rem;
+    padding: 6px 8px;
+  }
+
+  .timePreview {
+    font-size: 0.8rem;
+    padding: 3px 6px;
+  }
+
+  .expandButton,
+  .deleteButton {
+    font-size: 1rem;
+    padding: 2px 4px;
+  }
+
+  .daysGrid {
+    gap: 3px;
+  }
+
+  .dayButtonLabel {
+    font-size: 0.65rem;
+    padding: 4px 1px;
+    min-height: 28px;
+  }
+
+  .settingGroup {
+    gap: 6px;
+  }
+
+  .label {
     font-size: 0.85rem;
+  }
+
+  .timeInput {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .addButton {
+    padding: 12px;
+    font-size: 0.85rem;
+  }
+
+  .infoBox {
+    font-size: 0.75rem;
+    padding: 10px;
+    margin-top: 16px;
+  }
+}
+
+@media (max-width: 375px) {
+  .container {
+    padding: 10px;
+    margin: 0 2px;
+  }
+
+  .title {
+    font-size: 1rem;
+  }
+
+  .description {
+    font-size: 0.75rem;
+  }
+
+  .reminderItem {
+    padding: 8px;
+  }
+
+  .dayButtonLabel {
+    font-size: 0.6rem;
+    padding: 3px 1px;
+    min-height: 26px;
   }
 }
