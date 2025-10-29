@@ -82,13 +82,15 @@ export const CourseCard = ({
 
   // Проверяем кэш изображения в useEffect
   useEffect(() => {
-    const cached = isImageCached(logoImg);
-    setIsImageAlreadyCached(cached);
+    if (logoImg) {
+      const cached = isImageCached(logoImg);
+      setIsImageAlreadyCached(cached);
+    }
   }, [logoImg, isImageCached]);
 
   // Отслеживаем загрузку изображения
   useEffect(() => {
-    if (!isImageAlreadyCached) {
+    if (logoImg && !isImageAlreadyCached) {
       const img = document.createElement("img");
       img.onload = () => markImageLoaded(logoImg);
       img.onerror = () => markImageError(logoImg);

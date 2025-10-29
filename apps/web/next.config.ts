@@ -115,10 +115,12 @@ const nextConfig = {
     return config;
   },
 
-  // Оптимизация изображений
+  // Оптимизация изображений с Custom Loader для CDN
   images: {
+    loader: 'custom',
+    loaderFile: './src/shared/utils/imageLoader.ts',
     remotePatterns: [
-      { protocol: "https", hostname: "res.cloudinary.com" },
+      // Разрешаем загрузку с CDN
       { protocol: "https", hostname: "gafus-media.storage.yandexcloud.net" },
       { protocol: "https", hostname: "storage.yandexcloud.net" },
     ],
@@ -128,37 +130,16 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 дней
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-    // Custom loader для /uploads/* - проксируем через CDN
-    loader: 'custom',
-    loaderFile: './src/shared/lib/imageLoader.ts',
-  },
-
-  // Проксируем /uploads/* на CDN для Next Image Optimization
-  async rewrites() {
-    return [
-      {
-        source: "/uploads/:path*",
-        destination: "https://storage.yandexcloud.net/gafus-media/uploads/:path*",
-      },
-    ];
   },
 
   async headers() {
     return [
-      {
-        source: "/uploads/:path*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=86400, immutable" }],
-      },
       {
         source: "/_next/static/:path*",
         headers: [
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
-      },
-      {
-        source: "/_next/image/:path*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
       // Кэширование HTML страниц для офлайн работы
       {

@@ -48,43 +48,23 @@ export default function OptimizedImage({
   const finalSrc = imgError || !src ? placeholder : src;
 
   const handleError = () => {
-    logger.warn(`❌ OptimizedImage: Ошибка загрузки изображения в Safari`, {
-      operation: 'image_load_error_safari',
+    logger.warn(`❌ OptimizedImage: Ошибка загрузки изображения`, {
+      operation: 'image_load_error',
       src: src,
       retryCount: retryCount,
       isSafariBrowser: isSafariBrowser
     });
     
-    // В Safari попробуем перезагрузить изображение несколько раз
-    if (isSafariBrowser && retryCount < 2) {
+    // Попробуем перезагрузить изображение несколько раз
+    if (retryCount < 2) {
       setRetryCount(prev => prev + 1);
-      setImgError(false); // Сбрасываем ошибку для повторной попытки
+      setImgError(false);
       return;
     }
     
     setImgError(true);
     onError?.();
   };
-
-  // Специальная обработка для Safari
-  useEffect(() => {
-    if (isSafariBrowser && src && !imgError) {
-      
-      // В Safari иногда нужно принудительно перезагрузить изображение
-      const img = new window.Image();
-      img.onload = () => {
-        // Изображение загружено успешно
-      };
-      img.onerror = () => {
-        logger.warn(`⚠️ OptimizedImage: Safari - изображение не загрузилось`, {
-          operation: 'safari_image_load_failed',
-          src: src
-        });
-        // Не устанавливаем ошибку сразу, даем шанс Next.js Image
-      };
-      img.src = src;
-    }
-  }, [src, isSafariBrowser, imgError, retryCount]);
 
   // Сбрасываем retryCount при изменении src
   useEffect(() => {
@@ -101,14 +81,9 @@ export default function OptimizedImage({
       className={className}
       priority={usePriority}
       loading={usePriority ? "eager" : useLazyLoading ? "lazy" : "eager"}
-      unoptimized={unoptimized || imgError || isSafariBrowser} // В Safari используем unoptimized для лучшей совместимости
+      unoptimized={unoptimized || imgError}
       onError={handleError}
       style={style}
-      // Добавляем специальные атрибуты для Safari
-      {...(isSafariBrowser && {
-        crossOrigin: "anonymous",
-        decoding: "async" as const,
-      })}
     />
   );
 }
