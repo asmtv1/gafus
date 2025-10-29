@@ -68,7 +68,7 @@ export const PasswordInput: FC<Props> = ({
         >
           {show ? (
             <Image
-              src="/hide.png"
+              src="/uploads/hide.png"
               alt="Скрыть пароль"
               width={20}
               height={20}
@@ -76,7 +76,7 @@ export const PasswordInput: FC<Props> = ({
             />
           ) : (
             <Image
-              src="/Show.png"
+              src="/uploads/Show.png"
               alt="Показать пароль"
               width={20}
               height={20}

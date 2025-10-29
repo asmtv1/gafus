@@ -17,7 +17,7 @@ export default function RegisterPage() {
       <div className={styles.logoContainer}>
       <Image
         className={styles.logo}
-        src="/register-logo.png"
+        src="/uploads/register-logo.png"
         alt="Logo"
         width={400}
         height={400}

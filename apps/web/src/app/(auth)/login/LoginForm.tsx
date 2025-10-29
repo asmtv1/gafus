@@ -95,7 +95,7 @@ export default function LoginForm() {
         </Link>
       </div>
       <button className={styles.button} type="submit" disabled={csrfLoading}>
-        {csrfLoading ? "Загрузка..." : <Image src="/login-paw.png" alt="Войти" width={140} height={135} />}
+        {csrfLoading ? "Загрузка..." : <Image src="/uploads/login-paw.png" alt="Войти" width={140} height={135} />}
       </button>
     </form>
   );

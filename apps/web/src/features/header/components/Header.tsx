@@ -79,7 +79,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                   className={styles.menuButton}
                 >
                   <Image
-                    src="/header/achievements.svg"
+                    src="/uploads/header/achievements.svg"
                     alt="achievements"
                     width={24}
                     height={24}
@@ -95,7 +95,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                   className={styles.menuButton}
                 >
                   <Image
-                    src="/header/statistics.svg"
+                    src="/uploads/header/statistics.svg"
                     alt="statistics"
                     width={24}
                     height={24}
@@ -110,7 +110,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                     className={styles.menuButton}
                   >
                     <Image
-                      src="/header/trainer-panel.svg"
+                      src="/uploads/header/trainer-panel.svg"
                       alt="statistics"
                       width={24}
                       height={24}

@@ -15,7 +15,7 @@ export default function AuthPage() {
     <main className={styles.container}>
       <div className={styles.pawContainer}>
         <p className={styles.pawText}>гуляем</p>
-        <Image src="/paw.svg" alt="paw" className={styles.paw} width={141} height={136} />
+        <Image src="/uploads/paw.svg" alt="paw" className={styles.paw} width={141} height={136} />
         <p className={styles.pawText}>вместе</p>
       </div>
       <h1 className={styles.title}>Гафус!</h1>
