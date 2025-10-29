@@ -71,9 +71,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       */}
         <meta name="theme-color" content={SITE_CONFIG.themeColor} />
         <meta name="mobile-web-app-capable" content="yes" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon180.png" />
-        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon192.png" />
-        <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon512_rounded.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/uploads/icons/icon180.png" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/uploads/icons/icon192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/uploads/icons/icon512_rounded.png" />
 
         {/* DNS prefetch для внешних ресурсов */}
         <link rel="dns-prefetch" href="//res.cloudinary.com" />

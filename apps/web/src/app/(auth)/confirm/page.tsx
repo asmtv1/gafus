@@ -39,7 +39,7 @@ export default function ConfirmPage() {
       </Suspense>
       <Image
         className={styles.confirm_paw}
-        src="/confirm_paw.png"
+        src="/uploads/confirm_paw.png"
         alt="Logo"
         width={326}
         height={300}

@@ -21,7 +21,7 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = "gafus-media";
-const PUBLIC_DIR = path.join(__dirname, "../apps/web/public");
+const UPLOADS_DIR = path.join(__dirname, "../apps/web/public/uploads");
 
 // Рекурсивно получаем все файлы из директории
 function getAllFiles(dirPath, arrayOfFiles = []) {
@@ -33,20 +33,10 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
     if (fs.statSync(filePath).isDirectory()) {
       arrayOfFiles = getAllFiles(filePath, arrayOfFiles);
     } else {
-      // Пропускаем некоторые файлы
-      const skipFiles = ['sw.js', 'manifest.json', 'presentation.html', '.DS_Store'];
-      const skipDirs = ['music'];
-      
-      const relativePath = path.relative(PUBLIC_DIR, filePath);
-      const shouldSkip = skipFiles.includes(file) || 
-                        skipDirs.some(dir => relativePath.startsWith(dir));
-      
-      if (!shouldSkip) {
-        // Фильтруем только изображения и SVG
-        const ext = path.extname(file).toLowerCase();
-        if (['.png', '.jpg', '.jpeg', '.webp', '.svg'].includes(ext)) {
-          arrayOfFiles.push(filePath);
-        }
+      // Фильтруем только изображения и SVG
+      const ext = path.extname(file).toLowerCase();
+      if (['.png', '.jpg', '.jpeg', '.webp', '.svg'].includes(ext)) {
+        arrayOfFiles.push(filePath);
       }
     }
   });
@@ -64,7 +54,7 @@ async function uploadPublicToCDN() {
     }
 
     // Получаем все файлы
-    const files = getAllFiles(PUBLIC_DIR);
+    const files = getAllFiles(UPLOADS_DIR);
 
     if (files.length === 0) {
       throw new Error("❌ Не найдено файлов для загрузки");
@@ -77,12 +67,12 @@ async function uploadPublicToCDN() {
       const fileContent = fs.readFileSync(filePath);
       const contentType = mime.lookup(filePath) || 'application/octet-stream';
       
-      // Получаем относительный путь от public/
-      const relativePath = path.relative(PUBLIC_DIR, filePath);
-      // Загружаем в uploads/ напрямую (структура как в /public)
+      // Получаем относительный путь от uploads/
+      const relativePath = path.relative(UPLOADS_DIR, filePath);
+      // Загружаем в uploads/ с сохранением структуры
       const key = `uploads/${relativePath.replace(/\\/g, '/')}`;
 
-      console.log(`📤 Загружаем ${relativePath}...`);
+      console.log(`📤 Загружаем uploads/${relativePath}...`);
 
       const command = new PutObjectCommand({
         Bucket: BUCKET_NAME,

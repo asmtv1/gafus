@@ -89,7 +89,7 @@ const CACHE_CONFIG = {
     STATIC: [
       /\.(?:js|css|woff2?|ttf|eot|mp3|mp4|webm|ogg|wav|m4a)$/,
       /\/_next\/static\//,
-      /\/icons\//,
+      /\/uploads\/icons\//,
     ],
     // COURSE_DATA: отключено
     IMAGES: [
@@ -1164,8 +1164,8 @@ async function revalidateNavigationHTML(request, htmlCache, htmlKey) {
 
 // Функция создания уведомлений с Safari-оптимизацией
 function createNotificationOptions(title, options = {}) {
-  const safariIcon = settings.isSafari ? '/icons/icon-256-safari.png' : '/icons/icon192.png';
-  const safariBadge = settings.isSafari ? '/icons/badge-72.png' : '/icons/icon192.png';
+  const safariIcon = settings.isSafari ? '/uploads/icons/icon-256-safari.png' : '/uploads/icons/icon192.png';
+  const safariBadge = settings.isSafari ? '/uploads/icons/badge-72.png' : '/uploads/icons/icon192.png';
   
   if (settings.useSimpleNotifications) {
     // Для Safari: только базовые опции с Safari-специфичными иконками
