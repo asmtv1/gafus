@@ -21,35 +21,12 @@ const nextConfig: NextConfig = {
   // Внешние пакеты для server components
   serverExternalPackages: ['@aws-sdk/client-s3', 'bcrypt'],
 
-  // Конфигурация для изображений
+  // Вся статика обслуживается через CDN / nginx, отключаем оптимизацию
   images: {
-    // Разрешаем загрузку изображений с любых доменов
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
-      {
-        protocol: "http",
-        hostname: "**",
-      },
-    ],
-    // Обработка ошибок загрузки
-    dangerouslyAllowSVG: true,
-    contentDispositionType: "attachment",
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    unoptimized: true,
   },
 
-  async rewrites() {
-    const isDev = process.env.NODE_ENV !== 'production';
-    if (!isDev) return [];
-    return [
-      {
-        source: "/uploads/:path*",
-        destination: "https://storage.yandexcloud.net/gafus-media/uploads/:path*",
-      },
-    ];
-  },
+  // Больше не требуется: статика на CDN (см. nginx)
 
   // Webpack конфигурация для workspace зависимостей
   webpack: (config, { isServer: _isServer }) => {

@@ -166,11 +166,7 @@ function getResourceType(request) {
     return 'IMAGES';
   }
   
-  // Специальная обработка для Next.js Image Optimization API
-  if (pathname.startsWith('/_next/image')) {
-    console.log(`🖼️ SW: Next.js Image Optimization detected`);
-    return 'IMAGES';
-  }
+  // (удалено) Специальная обработка для Next.js Image Optimization API
   
   for (const pattern of CACHE_CONFIG.PATTERNS.IMAGES) {
     if (pattern.test(pathname)) {
