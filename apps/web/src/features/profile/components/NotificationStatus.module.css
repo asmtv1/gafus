@@ -218,10 +218,24 @@ ease;
   font-size: 14px;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
   .container {
     padding: 16px;
-    margin: 16px 0;
+    margin: 16px 8px;
+  }
+
+  .allowButton,
+  .denyButton {
+    min-width: 180px;
+    padding: 12px 20px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 12px;
+    margin: 12px 4px;
   }
 
   .status {
@@ -232,18 +246,57 @@ ease;
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+    padding: 6px 10px;
   }
 
   .actions {
     flex-direction: column;
+    width: 100%;
   }
 
-  .button {
+  .button,
+  .allowButton,
+  .denyButton {
     width: 100%;
     min-width: auto;
+    padding: 10px 16px;
+    font-size: 0.85rem;
   }
 
   .label {
     font-size: 14px;
+  }
+
+  .statusText {
+    font-size: 13px;
+    min-width: 100px;
+  }
+
+  .container h3 {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 375px) {
+  .container {
+    padding: 10px;
+    margin: 10px 2px;
+  }
+
+  .container h3 {
+    font-size: 1.2rem;
+  }
+
+  .statusItem {
+    padding: 5px 8px;
+  }
+
+  .label {
+    font-size: 13px;
+  }
+
+  .statusText {
+    font-size: 12px;
+    padding: 4px 8px;
   }
 }

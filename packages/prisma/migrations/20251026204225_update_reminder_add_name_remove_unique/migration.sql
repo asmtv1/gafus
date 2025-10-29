@@ -8,3 +8,4 @@ ALTER TABLE "Reminder" ADD COLUMN "name" TEXT NOT NULL DEFAULT 'Напомина
 CREATE INDEX "Reminder_userId_type_idx" ON "Reminder"("userId", "type");
 
 
+
