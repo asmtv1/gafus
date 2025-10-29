@@ -24,6 +24,10 @@ const nextConfig: NextConfig = {
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
+  // Вся статика на CDN, отключаем оптимизацию
+  images: {
+    unoptimized: true,
+  },
   async headers() {
     return [
       {
