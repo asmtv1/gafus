@@ -2148,6 +2148,331 @@
         mobileObserver.observe(el);
       });
     }
+
+    // ========== Трекинг статистики presentation.html ==========
+    (function() {
+      'use strict';
+
+      // Генерируем уникальный ID сессии (для текущей сессии браузера)
+      function getSessionId() {
+        let sessionId = sessionStorage.getItem('presentation_session_id');
+        if (!sessionId) {
+          sessionId = 'presentation_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          sessionStorage.setItem('presentation_session_id', sessionId);
+        }
+        return sessionId;
+      }
+
+      // Получаем или создаём уникальный ID посетителя (сохраняется в cookie на 365 дней)
+      function getVisitorId() {
+        // Пробуем получить из cookie
+        const cookieValue = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('presentation_visitor_id='));
+        
+        if (cookieValue) {
+          return cookieValue.split('=')[1];
+        }
+
+        // Если нет, создаём новый
+        const visitorId = 'visitor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        // Устанавливаем cookie на 365 дней
+        const expires = new Date();
+        expires.setTime(expires.getTime() + (365 * 24 * 60 * 60 * 1000));
+        document.cookie = `presentation_visitor_id=${visitorId}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+        
+        return visitorId;
+      }
+
+      // Извлекаем параметры из URL для отслеживания источников
+      function getUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+          ref: params.get('ref') || null, // Референс (например, имя пользователя)
+          campaign: params.get('campaign') || null, // Название кампании
+          source: params.get('source') || null, // Источник (например, 'telegram', 'email')
+          tag: params.get('tag') || null, // Дополнительный тег
+        };
+      }
+
+      // Извлекаем домен из referrer
+      function getReferrerDomain(referrer) {
+        if (!referrer) return null;
+        try {
+          const url = new URL(referrer);
+          return url.hostname.replace('www.', '');
+        } catch {
+          return null;
+        }
+      }
+
+      // Извлекаем UTM параметры из URL
+      function getUTMParams() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+          utmSource: params.get('utm_source') || null,
+          utmMedium: params.get('utm_medium') || null,
+          utmCampaign: params.get('utm_campaign') || null,
+        };
+      }
+
+      // Вычисляем процент прокрутки
+      function getScrollDepth() {
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollPercent = Math.round((scrollTop / (documentHeight - windowHeight)) * 100);
+        return Math.min(100, Math.max(0, scrollPercent));
+      }
+
+      // Отправка события на сервер
+      async function trackEvent(eventType, data = {}) {
+        try {
+          const sessionId = getSessionId();
+          const visitorId = getVisitorId(); // Уникальный ID посетителя (сохраняется между сессиями)
+          const referrer = document.referrer || null;
+          const referrerDomain = getReferrerDomain(referrer);
+          const utmParams = getUTMParams();
+          const urlParams = getUrlParams(); // Параметры из URL (?ref=username&campaign=name)
+          
+          const timeOnPage = Math.floor((Date.now() - pageStartTime) / 1000);
+          const scrollDepth = getScrollDepth();
+
+          const payload = {
+            sessionId,
+            visitorId, // Добавляем visitorId для отслеживания уникальных пользователей
+            referrer,
+            referrerDomain,
+            ...utmParams,
+            ...urlParams, // Добавляем параметры из URL
+            userAgent: navigator.userAgent,
+            language: navigator.language || navigator.userLanguage,
+            deviceType: getDeviceType(),
+            screenWidth: window.screen.width,
+            screenHeight: window.screen.height,
+            timeOnPage: eventType === 'exit' || eventType === 'heartbeat' ? timeOnPage : null,
+            scrollDepth: scrollDepth > 0 ? scrollDepth : null,
+            ...data,
+            eventType,
+          };
+
+          // Используем sendBeacon для надежной отправки при выходе
+          if (eventType === 'exit') {
+            const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+            navigator.sendBeacon('/api/track-presentation', blob);
+          } else {
+            const response = await fetch('/api/track-presentation', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+              console.warn('Не удалось отправить статистику:', response.statusText);
+            }
+          }
+        } catch (error) {
+          console.warn('Ошибка трекинга:', error);
+        }
+      }
+
+      // Отправка события на сервер
+      async function trackPresentationEvent(eventType, eventName, data = {}) {
+        try {
+          const sessionId = getSessionId();
+          const timeOnPage = Math.floor((Date.now() - pageStartTime) / 1000);
+          const scrollDepth = getScrollDepth();
+
+          const payload = {
+            sessionId,
+            eventType,
+            eventName,
+            scrollDepth,
+            timeOnPage,
+            ...data
+          };
+
+          await fetch('/api/track-presentation-event', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+        } catch (error) {
+          console.warn('Ошибка трекинга события:', error);
+        }
+      }
+
+      // Определение типа устройства
+      function getDeviceType() {
+        const width = window.innerWidth;
+        if (width < 768) return 'mobile';
+        if (width < 1024) return 'tablet';
+        return 'desktop';
+      }
+
+      // Запоминаем время начала просмотра
+      const pageStartTime = Date.now();
+      let maxScrollDepth = 0;
+      let heartbeatInterval = null;
+      let lastHeartbeatTime = Date.now();
+      let reachedMilestones = {
+        25: false,
+        50: false,
+        75: false,
+        100: false
+      };
+      let reachedSections = {
+        hero: false,
+        problem: false,
+        solution: false,
+        features: false,
+        comparison: false,
+        goals: false,
+        contact: false
+      };
+
+      // Отслеживание прокрутки
+      let scrollTimeout = null;
+      window.addEventListener('scroll', () => {
+        const currentScrollDepth = getScrollDepth();
+        if (currentScrollDepth > maxScrollDepth) {
+          maxScrollDepth = currentScrollDepth;
+        }
+
+        // Отслеживание вех прокрутки
+        [25, 50, 75, 100].forEach(milestone => {
+          if (currentScrollDepth >= milestone && !reachedMilestones[milestone]) {
+            reachedMilestones[milestone] = true;
+            trackPresentationEvent('scroll_milestone', `scroll_${milestone}`, {
+              scrollDepth: milestone
+            });
+          }
+        });
+
+        // Обновляем scrollDepth при heartbeat
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          if (maxScrollDepth > 0) {
+            trackEvent('heartbeat', { scrollDepth: maxScrollDepth });
+          }
+        }, 2000); // Обновляем через 2 секунды после прекращения прокрутки
+      }, { passive: true });
+
+      // Отслеживание достижения секций через Intersection Observer
+      const sectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
+            const sectionId = entry.target.id;
+            const sectionMap = {
+              'problem': 'problem',
+              'solution': 'solution',
+              'features': 'features',
+              'comparison': 'comparison',
+              'goals': 'goals',
+              'contact': 'contact'
+            };
+
+            const sectionName = sectionMap[sectionId];
+            if (sectionName && !reachedSections[sectionName]) {
+              reachedSections[sectionName] = true;
+              const timeOnPage = Math.floor((Date.now() - pageStartTime) / 1000);
+              trackPresentationEvent('section_reached', `${sectionName}_reached`, {
+                targetSection: sectionId,
+                timeOnPage
+              });
+            }
+          }
+        });
+      }, { threshold: 0.3 });
+
+      // Наблюдаем за секциями
+      ['problem', 'solution', 'features', 'comparison', 'goals', 'contact'].forEach(sectionId => {
+        const section = document.getElementById(sectionId);
+        if (section) {
+          sectionObserver.observe(section);
+        }
+      });
+
+      // Hero секция всегда достигнута при загрузке
+      reachedSections.hero = true;
+
+      // Отслеживание кликов по CTA кнопкам
+      document.querySelectorAll('.btn, .cta-buttons a, a[href^="#"]').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const target = e.target.closest('a, button');
+          if (target) {
+            const buttonText = target.textContent?.trim() || '';
+            const href = target.getAttribute('href') || '';
+            trackPresentationEvent('click', 'cta_click', {
+              targetElement: target.tagName.toLowerCase(),
+              targetText: buttonText.substring(0, 50),
+              targetHref: href.substring(0, 200)
+            });
+          }
+        });
+      });
+
+      // Отправка события просмотра при загрузке страницы
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          trackEvent('view');
+        });
+      } else {
+        trackEvent('view');
+      }
+
+      // Heartbeat каждые 30 секунд для обновления времени на странице
+      heartbeatInterval = setInterval(() => {
+        const now = Date.now();
+        // Отправляем heartbeat только если прошло больше 20 секунд
+        if (now - lastHeartbeatTime >= 20000) {
+          trackEvent('heartbeat', { scrollDepth: maxScrollDepth });
+          lastHeartbeatTime = now;
+        }
+      }, 30000);
+
+      // Отслеживание выхода со страницы
+      let exitSent = false;
+      function sendExitEvent() {
+        if (!exitSent) {
+          exitSent = true;
+          trackEvent('exit', { scrollDepth: maxScrollDepth });
+          if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+          }
+        }
+      }
+
+      // События выхода
+      window.addEventListener('beforeunload', sendExitEvent);
+      window.addEventListener('pagehide', sendExitEvent);
+      
+      // Visibility API для отслеживания переключения вкладок
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          // Пользователь ушёл со страницы
+          trackEvent('heartbeat', { scrollDepth: maxScrollDepth });
+        } else {
+          // Пользователь вернулся на страницу
+          lastHeartbeatTime = Date.now();
+        }
+      });
+
+      // Отправка финального события при выходе через PopState (назад/вперёд)
+      window.addEventListener('popstate', () => {
+        sendExitEvent();
+      });
+
+      // Очистка при выгрузке страницы
+      window.addEventListener('unload', () => {
+        sendExitEvent();
+      });
+    })();
   </script>
 
 </body>

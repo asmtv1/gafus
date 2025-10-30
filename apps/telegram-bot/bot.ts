@@ -34,6 +34,58 @@ bot.catch(async (err, ctx) => {
   ctx.reply("Произошла ошибка. Попробуйте позже.");
 });
 
+// Обработка команды /start с deep-link параметром
+bot.start(async (ctx) => {
+  const payload = ctx.startPayload;
+  const chatId = ctx.chat.id;
+
+  logger.info("Received /start command", {
+    chatId: chatId,
+    userId: ctx.from?.id,
+    username: ctx.from?.username,
+    payload: payload || 'none'
+  });
+
+  // Если пришел параметр register, сразу показываем кнопку подтверждения
+  if (payload === "register") {
+    logger.info("Deep-link registration initiated", {
+      chatId: chatId,
+      userId: ctx.from?.id
+    });
+
+    return ctx.reply("Добро пожаловать! Для регистрации подтвердите свой номер телефона:", {
+      reply_markup: {
+        keyboard: [
+          [
+            {
+              text: "📲 Подтвердить номер",
+              request_contact: true,
+            },
+          ],
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true,
+      },
+    });
+  }
+
+  // Обычный /start без параметра
+  return ctx.reply("Нажмите кнопку ниже, чтобы отправить номер телефона:", {
+    reply_markup: {
+      keyboard: [
+        [
+          {
+            text: "📲 Подтвердить номер",
+            request_contact: true,
+          },
+        ],
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    },
+  });
+});
+
 bot.on("message", async (ctx) => {
   const msg = ctx.message;
   const chatId = ctx.chat.id;
@@ -71,7 +123,11 @@ bot.on("message", async (ctx) => {
         operation: 'confirm_user_telegram'
       });
 
-      return ctx.reply("✅ Вы успешно подтверждены!");
+      return ctx.reply("✅ Вы успешно подтверждены!", {
+        reply_markup: {
+          remove_keyboard: true,
+        },
+      });
     } catch (err) {
       await logger.error("Ошибка при обновлении пользователя", err as Error, {
         chatId: chatId,

@@ -6,7 +6,8 @@ import {
   People,
   AdminPanelSettings,
   Notifications,
-  TrendingUp
+  TrendingUp,
+  Assessment
 } from "@mui/icons-material";
 
 import styles from "./main-panel.module.css";
@@ -55,6 +56,17 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             <Link href="/main-panel/reengagement" className={styles.button}>
               <TrendingUp sx={{ mr: 1.5, fontSize: 20 }} />
               Re-engagement
+            </Link>
+          </>
+        )}
+
+        {/* Статистика по презентации для ADMIN и MODERATOR */}
+        {["ADMIN", "MODERATOR"].includes(session.user.role) && (
+          <>
+            <div className={styles.divider}></div>
+            <Link href="/main-panel/presentation-stats" className={styles.button}>
+              <Assessment sx={{ mr: 1.5, fontSize: 20 }} />
+              Стата по презентации
             </Link>
           </>
         )}

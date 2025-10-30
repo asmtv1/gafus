@@ -438,7 +438,6 @@ CREATE TABLE "ReengagementSettings" (
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "unsubscribedAt" TIMESTAMP(3),
     "preferredTime" TEXT,
-    "preferredDays" TEXT,
     "timezone" TEXT NOT NULL DEFAULT 'Europe/Moscow',
     "maxNotificationsPerWeek" INTEGER NOT NULL DEFAULT 2,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -485,6 +484,65 @@ CREATE TABLE "ReengagementMetrics" (
     "mixedSent" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "ReengagementMetrics_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PresentationView" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "visitorId" TEXT,
+    "referrer" TEXT,
+    "referrerDomain" TEXT,
+    "utmSource" TEXT,
+    "utmMedium" TEXT,
+    "utmCampaign" TEXT,
+    "refParam" TEXT,
+    "campaignParam" TEXT,
+    "sourceParam" TEXT,
+    "tagParam" TEXT,
+    "userAgent" TEXT,
+    "ipAddress" TEXT,
+    "language" TEXT,
+    "deviceType" TEXT,
+    "screenWidth" INTEGER,
+    "screenHeight" INTEGER,
+    "timeOnPage" INTEGER,
+    "scrollDepth" INTEGER,
+    "reachedHero" INTEGER,
+    "reachedProblem" INTEGER,
+    "reachedSolution" INTEGER,
+    "reachedFeatures" INTEGER,
+    "reachedComparison" INTEGER,
+    "reachedGoals" INTEGER,
+    "reachedContact" INTEGER,
+    "ctaClicks" INTEGER NOT NULL DEFAULT 0,
+    "convertedToUser" BOOLEAN NOT NULL DEFAULT false,
+    "convertedUserId" TEXT,
+    "firstViewAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastViewAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "sessionEndedAt" TIMESTAMP(3),
+    "additionalData" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PresentationView_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PresentationEvent" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "viewId" TEXT,
+    "eventType" TEXT NOT NULL,
+    "eventName" TEXT NOT NULL,
+    "targetElement" TEXT,
+    "targetSection" TEXT,
+    "scrollDepth" INTEGER,
+    "timeOnPage" INTEGER,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PresentationEvent_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -630,6 +688,45 @@ CREATE INDEX "Reminder_reminderTime_idx" ON "Reminder"("reminderTime");
 
 -- CreateIndex
 CREATE INDEX "ReengagementMetrics_date_idx" ON "ReengagementMetrics"("date");
+
+-- CreateIndex
+CREATE INDEX "PresentationView_sessionId_idx" ON "PresentationView"("sessionId");
+
+-- CreateIndex
+CREATE INDEX "PresentationView_visitorId_idx" ON "PresentationView"("visitorId");
+
+-- CreateIndex
+CREATE INDEX "PresentationView_referrerDomain_idx" ON "PresentationView"("referrerDomain");
+
+-- CreateIndex
+CREATE INDEX "PresentationView_refParam_idx" ON "PresentationView"("refParam");
+
+-- CreateIndex
+CREATE INDEX "PresentationView_campaignParam_idx" ON "PresentationView"("campaignParam");
+
+-- CreateIndex
+CREATE INDEX "PresentationView_firstViewAt_idx" ON "PresentationView"("firstViewAt");
+
+-- CreateIndex
+CREATE INDEX "PresentationView_createdAt_idx" ON "PresentationView"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "PresentationView_convertedToUser_idx" ON "PresentationView"("convertedToUser");
+
+-- CreateIndex
+CREATE INDEX "PresentationView_convertedUserId_idx" ON "PresentationView"("convertedUserId");
+
+-- CreateIndex
+CREATE INDEX "PresentationEvent_sessionId_idx" ON "PresentationEvent"("sessionId");
+
+-- CreateIndex
+CREATE INDEX "PresentationEvent_eventType_idx" ON "PresentationEvent"("eventType");
+
+-- CreateIndex
+CREATE INDEX "PresentationEvent_viewId_idx" ON "PresentationEvent"("viewId");
+
+-- CreateIndex
+CREATE INDEX "PresentationEvent_createdAt_idx" ON "PresentationEvent"("createdAt");
 
 -- AddForeignKey
 ALTER TABLE "Course" ADD CONSTRAINT "Course_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

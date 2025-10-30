@@ -647,3 +647,101 @@ model ReengagementMetrics {
   
   @@index([date])
 }
+
+// Статистика просмотров presentation.html
+model PresentationView {
+  id              String   @id @default(cuid())
+  
+  // Информация о сессии и посетителе
+  sessionId        String   // Уникальный ID сессии для группировки событий
+  visitorId        String?  // Уникальный ID посетителя (сохраняется между сессиями через cookie)
+  
+  // Источник трафика
+  referrer         String?  // Откуда пришёл пользователь (document.referrer)
+  referrerDomain   String?  // Домен источника (для удобства фильтрации)
+  utmSource        String?  // UTM метки
+  utmMedium        String?  // UTM метки
+  utmCampaign      String?  // UTM метки
+  
+  // Параметры из URL для отслеживания источников
+  refParam         String?  // Референс из URL (?ref=username)
+  campaignParam    String?  // Кампания из URL (?campaign=name)
+  sourceParam      String?  // Источник из URL (?source=telegram)
+  tagParam         String?  // Тег из URL (?tag=promo)
+  
+  // Техническая информация
+  userAgent        String?  // User Agent браузера
+  ipAddress        String?  // IP адрес (опционально, для геолокации)
+  language         String?  // Язык браузера
+  deviceType       String?  // "mobile" | "tablet" | "desktop"
+  screenWidth      Int?     // Ширина экрана
+  screenHeight     Int?     // Высота экрана
+  
+  // Метрики просмотра
+  timeOnPage       Int?     // Время на странице в секундах
+  scrollDepth      Int?     // Процент прокрутки (0-100)
+  
+  // Достижения секций (время первого достижения в секундах от начала просмотра)
+  reachedHero      Int?     // Достиг Hero секции
+  reachedProblem   Int?     // Достиг Problem секции
+  reachedSolution  Int?     // Достиг Solution секции
+  reachedFeatures  Int?     // Достиг Features секции
+  reachedComparison Int?    // Достиг Comparison секции
+  reachedGoals     Int?     // Достиг Goals секции
+  reachedContact   Int?     // Достиг Contact секции
+  
+  // Конверсия
+  ctaClicks        Int      @default(0) // Количество кликов по CTA кнопкам
+  convertedToUser  Boolean  @default(false) // Зарегистрировался ли пользователь
+  convertedUserId  String?  // ID пользователя, если зарегистрировался
+  
+  // Временные метки
+  firstViewAt      DateTime @default(now()) // Первый просмотр
+  lastViewAt       DateTime @default(now()) // Последняя активность
+  sessionEndedAt   DateTime? // Когда сессия завершилась
+  
+  // Дополнительные данные
+  additionalData   Json?    // Дополнительные метаданные
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([sessionId])
+  @@index([visitorId])
+  @@index([referrerDomain])
+  @@index([refParam])
+  @@index([campaignParam])
+  @@index([firstViewAt])
+  @@index([createdAt])
+  @@index([convertedToUser])
+  @@index([convertedUserId])
+}
+
+// События взаимодействия с presentation.html (клики, достижения секций)
+model PresentationEvent {
+  id              String   @id @default(cuid())
+  sessionId       String   // ID сессии
+  viewId          String?  // ID соответствующего PresentationView
+  
+  // Тип события
+  eventType       String   // "click" | "section_reached" | "scroll_milestone"
+  eventName       String   // Название события (например, "cta_click", "hero_reached")
+  
+  // Данные события
+  targetElement   String?  // Элемент, на который кликнули (для кликов)
+  targetSection   String?  // Секция, которую достигли
+  
+  // Позиция и время
+  scrollDepth     Int?     // Процент прокрутки в момент события
+  timeOnPage      Int?     // Время на странице в секундах в момент события
+  
+  // Дополнительные данные
+  metadata        Json?    // Дополнительные метаданные
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([sessionId])
+  @@index([eventType])
+  @@index([viewId])
+  @@index([createdAt])
+}

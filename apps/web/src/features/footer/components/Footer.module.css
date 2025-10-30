@@ -14,3 +14,21 @@
   letter-spacing: 0px;
   text-align: center;
 }
+.telegramLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #636128;
+  text-decoration: underline;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+.telegramLink:hover {
+  color: #44432a;
+}
+.telegramText {
+  font-weight: 600;
+  color: #636128;
+  font-size: 16px;
+  padding-left: 2px;
+}
