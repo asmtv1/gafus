@@ -151,7 +151,18 @@ export default function AdminTemplateManager({
         ))}
       </Box>
 
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={() => setDeleteDialogOpen(false)}
+        slotProps={{
+          backdrop: {
+            sx: {
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation'
+            }
+          }
+        }}
+      >
         <DialogTitle>Удалить шаблон?</DialogTitle>
         <DialogContent>
           <Typography>

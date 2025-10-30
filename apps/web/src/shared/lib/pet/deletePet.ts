@@ -1,6 +1,6 @@
 "use server";
 
-import { deleteFileFromCDN } from "@gafus/cdn-upload";
+import { deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
 import { prisma } from "@gafus/prisma";
 import { revalidatePath } from "next/cache";
 import { createWebLogger } from "@gafus/logger";
@@ -19,7 +19,7 @@ export async function deletePet(petId: string, pathToRevalidate = "/") {
     });
 
     if (pet?.photoUrl) {
-      const relativePath = pet.photoUrl.replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
+      const relativePath = getRelativePathFromCDNUrl(pet.photoUrl);
       logger.info(`🔍 Найдено фото питомца для удаления: ${pet.photoUrl} -> ${relativePath}`);
       try {
         await deleteFileFromCDN(relativePath);

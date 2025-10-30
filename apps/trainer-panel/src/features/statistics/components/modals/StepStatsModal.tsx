@@ -23,7 +23,20 @@ interface StepStatsModalProps {
 export default function StepStatsModal({ open, onClose, step }: StepStatsModalProps) {
   if (!step) return null;
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="md" 
+      fullWidth
+      slotProps={{
+        backdrop: {
+          sx: {
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation'
+          }
+        }
+      }}
+    >
       <DialogTitle>Статистика шага: {step.title}</DialogTitle>
       <DialogContent>
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>

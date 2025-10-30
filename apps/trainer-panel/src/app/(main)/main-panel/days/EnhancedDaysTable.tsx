@@ -152,6 +152,13 @@ export default function EnhancedDaysTable({
                   setSelected([]);
                 }
               }}
+              disabled={selected.length === 0}
+              sx={{
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
+                minWidth: '44px',
+                minHeight: '44px'
+              }}
             >
               {selected.length > 0 ? <DeleteIcon /> : <FilterListIcon />}
             </IconButton>
@@ -249,7 +256,13 @@ export default function EnhancedDaysTable({
                       <IconButton
                         size="small"
                         onClick={() => onEditDay?.(row.id)}
-                        sx={{ color: 'primary.main' }}
+                        sx={{ 
+                          color: 'primary.main',
+                          WebkitTapHighlightColor: 'transparent',
+                          touchAction: 'manipulation',
+                          minWidth: '44px',
+                          minHeight: '44px'
+                        }}
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
@@ -284,6 +297,12 @@ export default function EnhancedDaysTable({
                           active={orderBy === id}
                           direction={orderBy === id ? order : "asc"}
                           onClick={(e) => handleRequestSort(e, id)}
+                          sx={{
+                            WebkitTapHighlightColor: 'transparent',
+                            touchAction: 'manipulation',
+                            minHeight: '44px',
+                            '& .MuiTableSortLabel-icon': { mr: 0.5 }
+                          }}
                         >
                           {label}
                           {orderBy === id && (
@@ -334,6 +353,12 @@ export default function EnhancedDaysTable({
                               e.stopPropagation();
                               onEditDay?.(row.id);
                             }}
+                            sx={{
+                              WebkitTapHighlightColor: 'transparent',
+                              touchAction: 'manipulation',
+                              minWidth: '44px',
+                              minHeight: '44px'
+                            }}
                           >
                             <EditIcon />
                           </IconButton>
@@ -360,6 +385,12 @@ export default function EnhancedDaysTable({
             },
             '& .MuiTablePagination-displayedRows': {
               fontSize: { xs: '0.875rem', sm: '1rem' }
+            },
+            '& .MuiIconButton-root': {
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+              minWidth: '44px',
+              minHeight: '44px'
             }
           }}
         />
@@ -368,7 +399,11 @@ export default function EnhancedDaysTable({
         <FormControlLabel
           control={<Switch checked={dense} onChange={() => setDense((d) => !d)} />}
           label="Компактный режим"
-          sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+          sx={{ 
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation'
+          }}
         />
       )}
     </Box>

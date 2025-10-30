@@ -55,11 +55,33 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
   }, [open, username]);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="md" 
+      fullWidth
+      slotProps={{
+        backdrop: {
+          sx: {
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation'
+          }
+        }
+      }}
+    >
       <DialogTitle sx={{ pb: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Typography variant="h6" color="text.primary">Публичный профиль пользователя</Typography>
-          <IconButton onClick={onClose} size="small">
+          <IconButton 
+            onClick={onClose} 
+            size="small"
+            sx={{
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+              minWidth: '44px',
+              minHeight: '44px'
+            }}
+          >
             <Close />
           </IconButton>
         </Box>

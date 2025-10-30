@@ -172,6 +172,11 @@ export default function StepImageUploader({
         startIcon={<AddIcon />}
         disabled={isProcessing || totalImages >= maxImages}
         onClick={handleAddImages}
+        sx={{
+          WebkitTapHighlightColor: 'transparent',
+          touchAction: 'manipulation',
+          minHeight: { xs: '44px', sm: 'auto' }
+        }}
       >
         Добавить изображения
       </Button>
@@ -211,6 +216,12 @@ export default function StepImageUploader({
                     color="error"
                     onClick={() => handleRemoveImage(index)}
                     disabled={isProcessing}
+                    sx={{
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
+                      minWidth: '44px',
+                      minHeight: '44px'
+                    }}
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
@@ -239,6 +250,12 @@ export default function StepImageUploader({
                     color="error"
                     onClick={() => handleRemoveImage(images.length + index)}
                     disabled={isProcessing}
+                    sx={{
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
+                      minWidth: '44px',
+                      minHeight: '44px'
+                    }}
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>

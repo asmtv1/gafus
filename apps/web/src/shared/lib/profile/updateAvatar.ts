@@ -2,7 +2,7 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
+import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
 import { z } from "zod";
 
 import { getCurrentUserId } from "@/utils";
@@ -35,7 +35,7 @@ export async function updateAvatar(file: File): Promise<string> {
 
     // 4. Удаляем старый файл из CDN (если есть)
     if (existingProfile?.avatarUrl) {
-      const oldRelativePath = existingProfile.avatarUrl.replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
+      const oldRelativePath = getRelativePathFromCDNUrl(existingProfile.avatarUrl);
       logger.info(`🔍 Найден старый аватар для удаления: ${existingProfile.avatarUrl} -> ${oldRelativePath}`);
       try {
         await deleteFileFromCDN(oldRelativePath);

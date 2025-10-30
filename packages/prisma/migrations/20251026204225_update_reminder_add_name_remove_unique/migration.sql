@@ -9,3 +9,4 @@ CREATE INDEX "Reminder_userId_type_idx" ON "Reminder"("userId", "type");
 
 
 
+

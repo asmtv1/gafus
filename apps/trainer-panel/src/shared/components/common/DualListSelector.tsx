@@ -108,7 +108,16 @@ export default function DualListSelector<T>({
                 }}
               >
                 <Typography variant="subtitle1">Доступные ({availableItems.length})</Typography>
-                <Button size="small" onClick={handleAddAll} disabled={availableItems.length === 0}>
+                <Button 
+                  size="small" 
+                  onClick={handleAddAll} 
+                  disabled={availableItems.length === 0}
+                  sx={{
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
+                    minHeight: { xs: '44px', sm: 'auto' }
+                  }}
+                >
                   Добавить все
                 </Button>
               </Box>
@@ -117,7 +126,12 @@ export default function DualListSelector<T>({
                   <ListItemButton
                     key={`available-${index}-${getItemId(item)}`}
                     onClick={() => handleAdd(item)}
-                    sx={{ py: 0.5 }}
+                    sx={{ 
+                      py: 0.5,
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
+                      minHeight: { xs: '44px', sm: 'auto' }
+                    }}
                   >
                     <ListItemText primary={getItemLabel(item)} />
                   </ListItemButton>
@@ -133,6 +147,11 @@ export default function DualListSelector<T>({
               size="small"
               onClick={handleAddAll}
               disabled={availableItems.length === 0}
+              sx={{
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
+                minHeight: { xs: '44px', sm: 'auto' }
+              }}
             >
               &gt;&gt;
             </Button>
@@ -141,6 +160,11 @@ export default function DualListSelector<T>({
               size="small"
               onClick={handleRemoveAll}
               disabled={selected.length === 0}
+              sx={{
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
+                minHeight: { xs: '44px', sm: 'auto' }
+              }}
             >
               &lt;&lt;
             </Button>
@@ -158,7 +182,16 @@ export default function DualListSelector<T>({
                 }}
               >
                 <Typography variant="subtitle1">Выбранные ({selected.length})</Typography>
-                <Button size="small" onClick={handleRemoveAll} disabled={selected.length === 0}>
+                <Button 
+                  size="small" 
+                  onClick={handleRemoveAll} 
+                  disabled={selected.length === 0}
+                  sx={{
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
+                    minHeight: { xs: '44px', sm: 'auto' }
+                  }}
+                >
                   Удалить все
                 </Button>
               </Box>
@@ -167,7 +200,12 @@ export default function DualListSelector<T>({
                   <ListItemButton
                     key={`selected-${index}-${getItemId(item)}`}
                     onClick={() => handleRemoveAt(index)}
-                    sx={{ py: 0.5 }}
+                    sx={{ 
+                      py: 0.5,
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
+                      minHeight: { xs: '44px', sm: 'auto' }
+                    }}
                   >
                     <ListItemText primary={getItemLabel(item)} />
                   </ListItemButton>

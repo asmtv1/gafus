@@ -306,9 +306,44 @@ template {
 
 /* Оптимизация для touch устройств */
 @media (hover: none) and (pointer: coarse) {
-  button, a, input[type="button"], input[type="submit"] {
+  button, a, input[type="button"], input[type="submit"], 
+  [role="button"], .MuiButton-root, .MuiIconButton-root, 
+  .MuiCard-root, .MuiLink-root {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  button, a, input[type="button"], input[type="submit"], 
+  [role="button"], .MuiButton-root {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  .MuiIconButton-root {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Глобальные touch-оптимизации для всех интерактивных элементов */
+a, button, input[type="button"], input[type="submit"], 
+input[type="reset"], [role="button"], [onclick],
+.MuiButton-root, .MuiIconButton-root, .MuiLink-root {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Минимальные размеры для touch-элементов на мобильных */
+@media (max-width: 768px) {
+  a, button, input[type="button"], input[type="submit"], 
+  [role="button"], .MuiButton-root {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .MuiIconButton-root {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 

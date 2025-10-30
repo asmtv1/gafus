@@ -180,6 +180,13 @@ export default function EnhancedStepsTable({
                   setSelected([]);
                 }
               }}
+              disabled={selected.length === 0}
+              sx={{
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
+                minWidth: '44px',
+                minHeight: '44px'
+              }}
             >
               {selected.length > 0 ? <DeleteIcon /> : <FilterListIcon />}
             </IconButton>
@@ -271,7 +278,13 @@ export default function EnhancedStepsTable({
                       <IconButton
                         size="small"
                         onClick={() => onEditStep?.(row.id)}
-                        sx={{ color: 'primary.main' }}
+                        sx={{ 
+                          color: 'primary.main',
+                          WebkitTapHighlightColor: 'transparent',
+                          touchAction: 'manipulation',
+                          minWidth: '44px',
+                          minHeight: '44px'
+                        }}
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
@@ -306,6 +319,12 @@ export default function EnhancedStepsTable({
                           active={orderBy === id}
                           direction={orderBy === id ? order : "asc"}
                           onClick={(e) => handleRequestSort(e, id)}
+                          sx={{
+                            WebkitTapHighlightColor: 'transparent',
+                            touchAction: 'manipulation',
+                            minHeight: '44px',
+                            '& .MuiTableSortLabel-icon': { mr: 0.5 }
+                          }}
                         >
                           {label}
                           {orderBy === id && (
@@ -348,6 +367,12 @@ export default function EnhancedStepsTable({
                               e.stopPropagation();
                               onEditStep?.(row.id);
                             }}
+                            sx={{
+                              WebkitTapHighlightColor: 'transparent',
+                              touchAction: 'manipulation',
+                              minWidth: '44px',
+                              minHeight: '44px'
+                            }}
                           >
                             <EditIcon />
                           </IconButton>
@@ -374,6 +399,12 @@ export default function EnhancedStepsTable({
             },
             '& .MuiTablePagination-displayedRows': {
               fontSize: { xs: '0.875rem', sm: '1rem' }
+            },
+            '& .MuiIconButton-root': {
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+              minWidth: '44px',
+              minHeight: '44px'
             }
           }}
         />
@@ -382,7 +413,11 @@ export default function EnhancedStepsTable({
         <FormControlLabel
           control={<Switch checked={dense} onChange={() => setDense((d) => !d)} />}
           label="Компактный режим"
-          sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+          sx={{ 
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation'
+          }}
         />
       )}
     </Box>

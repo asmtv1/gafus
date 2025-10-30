@@ -104,6 +104,9 @@
   font-weight: 500 !important;
   text-transform: none !important;
   transition: background-color 0.15s ease-in-out !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
+  min-height: 44px !important;
 }
 
 .formButton:hover {
@@ -113,6 +116,11 @@
 .formButton:disabled {
   background-color: #6c757d !important;
   color: #ffffff !important;
+}
+
+.formButton:active:not(:disabled) {
+  background-color: #004085 !important;
+  transform: scale(0.98);
 }
 
 

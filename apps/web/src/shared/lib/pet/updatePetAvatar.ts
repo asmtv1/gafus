@@ -2,7 +2,7 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
+import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
 import { z } from "zod";
 
 import { petIdSchema } from "../validation/petSchemas";
@@ -35,7 +35,7 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
 
     // 4. Удаляем старый файл из CDN (если есть)
     if (existingPet?.photoUrl) {
-      const oldRelativePath = existingPet.photoUrl.replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
+      const oldRelativePath = getRelativePathFromCDNUrl(existingPet.photoUrl);
       logger.info(`🔍 Найден старое фото питомца для удаления: ${existingPet.photoUrl} -> ${oldRelativePath}`);
       try {
         await deleteFileFromCDN(oldRelativePath);

@@ -1,6 +1,6 @@
 "use server";
 
-import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
+import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { randomUUID } from "crypto";
@@ -54,8 +54,7 @@ export async function uploadExamVideo(formData: FormData): Promise<{ success: bo
           logger.info(`🗑️ Найдено старое видео, удаляем перед загрузкой нового: ${existingExam.videoReportUrl}`);
           
           // Извлекаем относительный путь из CDN URL
-          const oldRelativePath = existingExam.videoReportUrl
-            .replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
+          const oldRelativePath = getRelativePathFromCDNUrl(existingExam.videoReportUrl);
           
           await deleteFileFromCDN(oldRelativePath);
           

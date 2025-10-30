@@ -122,7 +122,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           className={styles.button}
           onClick={closeMobileMenu}
         >
-          <TrendingUp sx={{ mr: 1.5, fontSize: 20 }} />
+          <TrendingUp />
           Общая Статистика
         </Link>
         <Link 
@@ -130,7 +130,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           className={styles.button}
           onClick={closeMobileMenu}
         >
-          <FitnessCenter sx={{ mr: 1.5, fontSize: 20 }} />
+          <FitnessCenter />
           Созданные шаги
         </Link>
         <Link 
@@ -138,7 +138,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           className={styles.button}
           onClick={closeMobileMenu}
         >
-          <Schedule sx={{ mr: 1.5, fontSize: 20 }} />
+          <Schedule />
           Созданные дни
         </Link>
         <Link 
@@ -146,7 +146,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           className={styles.button}
           onClick={closeMobileMenu}
         >
-          <AutoStories sx={{ mr: 1.5, fontSize: 20 }} />
+          <AutoStories />
           Библиотека шаблонов
         </Link>
         <Link 
@@ -154,7 +154,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           className={styles.button}
           onClick={closeMobileMenu}
         >
-          <Assignment sx={{ mr: 1.5, fontSize: 20 }} />
+          <Assignment />
           Результаты экзаменов
           {pendingExamCount > 0 && (
             <span className={styles.badge}>
@@ -170,7 +170,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           className={styles.button}
           onClick={closeMobileMenu}
         >
-          <Add sx={{ mr: 1.5, fontSize: 20 }} />
+          <Add />
           Создать новый шаг
         </Link>
         <Link 
@@ -178,7 +178,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           className={styles.button}
           onClick={closeMobileMenu}
         >
-          <Add sx={{ mr: 1.5, fontSize: 20 }} />
+          <Add />
           Создать новый день
         </Link>
         <Link 
@@ -186,7 +186,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           className={styles.button}
           onClick={closeMobileMenu}
         >
-          <Add sx={{ mr: 1.5, fontSize: 20 }} />
+          <Add />
           Создать новый курс
         </Link>
 
@@ -196,7 +196,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           className={styles.logoutButton}
           onClick={handleLogout}
         >
-          <Logout sx={{ mr: 1.5, fontSize: 20 }} />
+          <Logout />
           Выход
         </button>
       </aside>

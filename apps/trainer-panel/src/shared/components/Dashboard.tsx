@@ -225,6 +225,8 @@ export default function Dashboard() {
                 height: '100%',
                 transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
                 borderRadius: { xs: 2, md: 3 },
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
                 '&:hover': {
                   transform: { xs: 'none', sm: 'translateY(-4px)' },
                   boxShadow: { xs: 2, sm: 6 }
@@ -266,7 +268,12 @@ export default function Dashboard() {
                   variant="outlined" 
                   size="small"
                   color={card.color as "primary" | "success" | "warning" | "info"}
-                  sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
+                  sx={{ 
+                    fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
+                    minHeight: { xs: '44px', sm: 'auto' }
+                  }}
                 >
                   Подробнее
                 </Button>
@@ -285,7 +292,9 @@ export default function Dashboard() {
         <Box>
           <Card sx={{ 
             height: '100%',
-            borderRadius: { xs: 2, md: 3 }
+            borderRadius: { xs: 2, md: 3 },
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation'
           }}>
             <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
               <Typography 
@@ -325,6 +334,9 @@ export default function Dashboard() {
                       textAlign: 'left',
                       borderColor: `${action.color}.main`,
                       color: `${action.color}.main`,
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
+                      minHeight: { xs: '52px', sm: 'auto' },
                       '&:hover': {
                         backgroundColor: `${action.color}.main`,
                         color: 'white'
@@ -361,7 +373,9 @@ export default function Dashboard() {
         <Box>
           <Card sx={{ 
             height: '100%',
-            borderRadius: { xs: 2, md: 3 }
+            borderRadius: { xs: 2, md: 3 },
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation'
           }}>
             <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
               <Typography 
@@ -473,7 +487,11 @@ export default function Dashboard() {
                     href="/main-panel/courses/new"
                     variant="contained"
                     startIcon={<Add />}
-                    size={window.innerWidth < 600 ? 'small' : 'medium'}
+                    sx={{
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
+                      minHeight: { xs: '44px', sm: 'auto' }
+                    }}
                   >
                     Создать первый курс
                   </Button>

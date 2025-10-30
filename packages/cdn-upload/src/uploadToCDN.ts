@@ -55,7 +55,7 @@ export async function uploadFileToCDN(file: File, relativePath: string): Promise
 
     logger.info(`✅ Файл загружен в CDN: ${relativePath}`);
 
-    return `https://gafus-media.storage.yandexcloud.net/uploads/${relativePath}`;
+    return `https://storage.yandexcloud.net/gafus-media/uploads/${relativePath}`;
   } catch (error) {
     logger.error(`❌ Ошибка загрузки в CDN: ${error}`);
     throw error;
