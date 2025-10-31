@@ -1,8 +1,7 @@
 "use server";
 
-import { prisma } from "@gafus/prisma";
+import { prisma, type Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import type { Prisma } from "@prisma/client";
 
 const logger = createWebLogger('track-presentation-event');
 
