@@ -983,9 +983,87 @@
       font-weight: 500;
     }
     
+    /* Invitation Section */
+    .invitation {
+      background: linear-gradient(135deg, #dad3c1 0%, #e8e0d0 50%, #f5f0e8 100%);
+      padding: 4rem 0;
+      position: relative;
+      overflow: hidden;
+      border-top: 0.0625rem solid rgba(99, 97, 40, 0.1);
+      border-bottom: 0.0625rem solid rgba(99, 97, 40, 0.1);
+    }
+    
+    .invitation-card {
+      background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+      border-radius: 2rem;
+      padding: 3rem;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+      box-shadow: var(--shadow-medium);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 0.0625rem solid rgba(99, 97, 40, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .invitation-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 0.25rem;
+      background: var(--gradient);
+      box-shadow: 0 0.125rem 0.5rem rgba(99, 97, 40, 0.3);
+    }
+    
+    .invitation-card::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(99, 97, 40, 0.03) 0%, transparent 70%);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    
+    .invitation-card:hover {
+      transform: translateY(-0.5rem);
+      box-shadow: var(--shadow-xl);
+      background: linear-gradient(135deg, #ffffff 0%, var(--glass-bg) 100%);
+      border-color: var(--primary);
+    }
+    
+    .invitation-icon {
+      width: 20.125rem;
+    height: 15.125rem;
+    transition: all 0.4s 
+cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-block;
+    object-fit: cover;
+    }
+    
+    .invitation-title {
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--primary);
+    }
+    
+    .invitation-text {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: var(--dark);
+      line-height: 1.8;
+      margin-bottom: 2rem;
+      font-weight: 500;
+    }
+    
     /* Contact Section */
     .contact {
-      background: linear-gradient(135deg, #636128 0%, #4a4920 100%);
+      background: linear-gradient(135deg, #636128 0%, #4a4920 100%) !important;
       color: var(--accent);
       text-align: center;
       padding: 4rem 0;
@@ -1228,6 +1306,16 @@
         font-size: 0.7rem;
         display: block;
       }
+      
+      /* Invitation */
+      .invitation-card {
+        padding: 1.5rem;
+      }
+      
+      .invitation-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+      }
     }
     
     /* Responsive - Tablets */
@@ -1419,6 +1507,16 @@
       .contact-item {
         font-size: 1rem;
         padding: 0.75rem 1.5rem;
+      }
+      
+      /* Invitation */
+      .invitation-card {
+        padding: 2rem;
+      }
+      
+      .invitation-icon {
+        width: 7rem;
+        height: 7rem;
       }
       
       /* Следы в Contact на мобильных */
@@ -1984,7 +2082,19 @@
       </div>
     </div>
      <h2 class="section-subtitle" style="text-align: center; margin-top: 3.75rem;"> Мы всегда готовы помочь, если вам что-то непонятно!</h2>
-    </section>
+  </section>
+
+  <!-- Invitation Section -->
+  <section class="invitation">
+    <div class="container">
+      <div class="invitation-card">
+        <img src="https://storage.yandexcloud.net/gafus-media/uploads/letsgo2.png" alt="Готовы начать" class="invitation-icon">
+        <h3 class="invitation-title">Готовы начать?</h3>
+        <p class="invitation-text">Предлагаем вам перейти по ссылке в приложение, чтобы уже сейчас посмотреть, как устроена платформа. Там мы создали примеры курсов, чтобы вы могли посмотреть, как могут выглядеть ваши уроки.</p>
+        <a href="https://gafus.ru/" class="btn btn-primary" target="_blank">Перейти в приложение</a>
+      </div>
+    </div>
+  </section>
 
   <!-- Contact Section -->
   <section class="contact">
