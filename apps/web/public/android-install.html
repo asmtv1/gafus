@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Пошаговая инструкция по установке PWA приложения Гафус на Android устройства">
+  <meta name="keywords" content="установка PWA, Android, инструкция, Гафус">
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://gafus.ru/android-install.html">
+  
+  <!-- Open Graph метатеги -->
+  <meta property="og:title" content="Инструкция по установке PWA на Android — Гафус">
+  <meta property="og:description" content="Пошаговая инструкция по установке PWA приложения Гафус на Android устройства">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://gafus.ru/android-install.html">
+  <meta property="og:locale" content="ru_RU">
+  
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="Гафус">
+  <meta name="theme-color" content="#DAD3C1">
+  <title>Инструкция по установке PWA на Android — Гафус</title>
+  
+  <style>
+    :root {
+      --primary: #636128;
+      --primary-dark: #4a4920;
+      --secondary: #dad3c1;
+      --accent: #fff8e5;
+      --dark: #352e2e;
+      --light: #dad3c1;
+      --gray: #636128;
+      --gradient: linear-gradient(135deg, #636128 0%, #4a4920 100%);
+      --gradient-warm: linear-gradient(135deg, #dad3c1 0%, #fff8e5 100%);
+      --shadow-soft: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.05);
+      --shadow-medium: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+      --shadow-strong: 0 20px 25px rgba(0, 0, 0, 0.15), 0 10px 10px rgba(0, 0, 0, 0.04);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: var(--dark);
+      background: var(--secondary);
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      position: relative;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 20% 20%, rgba(99, 97, 40, 0.05) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(255, 248, 229, 0.03) 0%, transparent 60%),
+        radial-gradient(circle at 50% 50%, rgba(53, 46, 46, 0.02) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .container {
+      max-width: 75rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding: 3rem 0;
+      position: relative;
+    }
+    
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 4px;
+      background: var(--gradient);
+      border-radius: 2px;
+    }
+    
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      text-shadow: 0 2px 4px rgba(99, 97, 40, 0.2);
+    }
+    
+    .header .subtitle {
+      font-size: clamp(1rem, 2vw, 1.3rem);
+      color: var(--dark);
+      opacity: 0.8;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    /* Info Box */
+    .info-box {
+      background: var(--accent);
+      border-left: 4px solid var(--primary);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin: 2rem auto 3rem;
+      max-width: 700px;
+      box-shadow: var(--shadow-soft);
+      position: relative;
+    }
+    
+    .info-box::before {
+      content: 'ℹ️';
+      position: absolute;
+      left: 1.5rem;
+      top: 1.5rem;
+      font-size: 1.5rem;
+    }
+    
+    .info-box p {
+      margin: 0;
+      padding-left: 2.5rem;
+      color: var(--dark);
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+    
+    @media (max-width: 768px) {
+      .info-box {
+        padding: 1.25rem;
+      }
+      
+      .info-box::before {
+        left: 1.25rem;
+        top: 1.25rem;
+      }
+      
+      .info-box p {
+        padding-left: 2.25rem;
+        font-size: 0.95rem;
+      }
+    }
+    
+    /* Instructions Grid */
+    .instructions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+    
+    .instruction-card {
+      background: var(--accent);
+      border-radius: 1rem;
+      padding: 2rem;
+      box-shadow: var(--shadow-medium);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .instruction-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--gradient);
+    }
+    
+    .instruction-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-strong);
+    }
+    
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 3rem;
+      height: 3rem;
+      background: var(--gradient);
+      color: white;
+      border-radius: 50%;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow-soft);
+    }
+    
+    .instruction-image {
+      width: 100%;
+      height: auto;
+      border-radius: 0.75rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow-soft);
+      display: block;
+      background: white;
+      padding: 0.5rem;
+    }
+    
+    .instruction-image img {
+      width: 100%;
+      height: auto;
+      border-radius: 0.5rem;
+      display: block;
+    }
+    
+    /* Mobile Optimized */
+    @media (max-width: 768px) {
+      .instructions {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+      
+      .instruction-card {
+        padding: 1.5rem;
+      }
+      
+      .header {
+        padding: 2rem 0;
+      }
+    }
+    
+    /* Large screens - 2 columns */
+    @media (min-width: 769px) and (max-width: 1200px) {
+      .instructions {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    /* Extra large screens - 3 columns */
+    @media (min-width: 1201px) {
+      .instructions {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 2rem 0;
+      margin-top: 3rem;
+      border-top: 1px solid rgba(99, 97, 40, 0.2);
+      color: var(--dark);
+      opacity: 0.7;
+    }
+    
+    .footer a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      transition: opacity 0.3s ease;
+    }
+    
+    .footer a:hover {
+      opacity: 0.8;
+      text-decoration: underline;
+    }
+    
+    /* Loading state for images */
+    .instruction-image {
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: white;
+    }
+    
+    .instruction-image img {
+      opacity: 0;
+      animation: fadeIn 0.5s ease-in forwards;
+    }
+    
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Установка PWA на Android</h1>
+      <p class="subtitle">Пошаговая инструкция по установке приложения Гафус на ваше Android устройство</p>
+    </div>
+    
+    <div class="info-box">
+      <p>Установка PWA-приложения необходима для полноценной работы всех функций сайта на Android устройствах. После установки вы получите доступ ко всем возможностям Гафуса, включая уведомления, офлайн-режим и улучшенную производительность.</p>
+    </div>
+    
+    <div class="instructions">
+      <div class="instruction-card">
+        <div class="step-number">1</div>
+        <div class="instruction-image">
+          <img 
+            src="https://storage.yandexcloud.net/gafus-media/uploads/installation%20instructions/android/1.png" 
+            alt="Шаг 1: Откройте сайт в браузере"
+            loading="lazy"
+            onerror="this.style.display='none'; this.parentElement.innerHTML='<p style=\'color:#999;padding:2rem;text-align:center;\'>Изображение не загружено</p>';"
+          />
+        </div>
+      </div>
+      
+      <div class="instruction-card">
+        <div class="step-number">2</div>
+        <div class="instruction-image">
+          <img 
+            src="https://storage.yandexcloud.net/gafus-media/uploads/installation%20instructions/android/2.png" 
+            alt="Шаг 2: Нажмите на меню браузера"
+            loading="lazy"
+            onerror="this.style.display='none'; this.parentElement.innerHTML='<p style=\'color:#999;padding:2rem;text-align:center;\'>Изображение не загружено</p>';"
+          />
+        </div>
+      </div>
+      
+      <div class="instruction-card">
+        <div class="step-number">3</div>
+        <div class="instruction-image">
+          <img 
+            src="https://storage.yandexcloud.net/gafus-media/uploads/installation%20instructions/android/3.png" 
+            alt="Шаг 3: Выберите 'Добавить на главный экран'"
+            loading="lazy"
+            onerror="this.style.display='none'; this.parentElement.innerHTML='<p style=\'color:#999;padding:2rem;text-align:center;\'>Изображение не загружено</p>';"
+          />
+        </div>
+      </div>
+      
+      <div class="instruction-card">
+        <div class="step-number">4</div>
+        <div class="instruction-image">
+          <img 
+            src="https://storage.yandexcloud.net/gafus-media/uploads/installation%20instructions/android/4.png" 
+            alt="Шаг 4: Подтвердите установку"
+            loading="lazy"
+            onerror="this.style.display='none'; this.parentElement.innerHTML='<p style=\'color:#999;padding:2rem;text-align:center;\'>Изображение не загружено</p>';"
+          />
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>© 2025 Гафус. Все права защищены.</p>
+    </div>
+  </div>
+</body>
+</html>
+
