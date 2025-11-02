@@ -25,7 +25,7 @@
   max-width: 15.625rem;
   max-height: 15.625rem;
   position: absolute;
-  top: 70%;
+  top: 85%;
   left: 10%;
 }
 .button {
@@ -56,7 +56,7 @@
   line-height: 1.3;
   text-align: left;
   max-width: 20rem;
-  margin-top: 9.375rem;
+  margin-top: 12.375rem;
 }
 p.subtitle {
   font-family: var(--font-montserrat), system-ui, sans-serif;

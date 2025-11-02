@@ -45,6 +45,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
+  font-family: system-ui;
 }
 
 .simpleRatingHeart {
@@ -102,3 +103,4 @@
 .large .simpleRatingHeart {
   font-size: 24px;
 }
+

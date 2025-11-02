@@ -176,9 +176,9 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
           ♥
         </span>
       ))}
-      {rating && rating > 0 && (
+      {rating !== null && rating !== undefined && (
         <span className={styles.simpleRatingValue}>
-          {rating.toFixed(1)}
+          {rating === 0 ? "0" : rating.toFixed(1)}
         </span>
       )}
     </div>

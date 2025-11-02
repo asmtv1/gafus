@@ -41,8 +41,8 @@ export default function ConfirmPage() {
         className={styles.confirm_paw}
         src="/uploads/confirm_paw.png"
         alt="Logo"
-        width={326}
-        height={300}
+        width={156}
+        height={130}
         priority
       />
     </main>

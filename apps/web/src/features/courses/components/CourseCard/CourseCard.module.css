@@ -120,7 +120,7 @@
 .rating {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 22px;
   margin-top: auto;
   flex-wrap: wrap;
   padding-top: 10px;
@@ -131,13 +131,13 @@
 /* Мобильные стили для рейтинга */
 @media (max-width: 768px) {
   .rating {
-    gap: 8px;
+    gap: 22px;
   }
 }
 
 @media (max-width: 480px) {
   .rating {
-    gap: 6px;
+    gap: 22px;
     align-items: center;
   }
 }
@@ -148,11 +148,17 @@
 }
 
 .reviewsLink {
+  min-height: -moz-fit-content;
+  min-height: fit-content;
+  align-items: center;
   font-size: 0.8rem;
   color: #009dcf;
   text-decoration: none;
   cursor: pointer;
   transition: color 0.2s;
+  width: 68px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .reviewsLink:hover {
