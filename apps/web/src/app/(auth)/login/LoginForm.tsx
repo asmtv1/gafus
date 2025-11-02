@@ -5,6 +5,7 @@ import { FormField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { loginFormSchema } from "@shared/lib/validation/authSchemas";
+import { checkUserState } from "@shared/lib/auth/login-utils";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -38,9 +39,20 @@ export default function LoginForm() {
     }
 
     try {
+      const username = data.username.toLowerCase().trim();
+      
+      // Проверяем статус подтверждения номера перед входом
+      const userState = await checkUserState(username);
+      
+      if (!userState.confirmed && userState.phone) {
+        // Если номер не подтверждён, перенаправляем на страницу подтверждения
+        router.push(`/confirm?phone=${encodeURIComponent(userState.phone)}`);
+        return;
+      }
+
       // Отключаем авто-редирект next-auth и вручную направляем на текущем хосте
       const res = await signIn("credentials", {
-        username: data.username.toLowerCase().trim(),
+        username,
         password: data.password,
         redirect: false,
       });
