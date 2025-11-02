@@ -57,6 +57,64 @@
   border-radius: 10px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
+
+/* Маленькие телефоны (до 480px) */
+@media (max-width: 480px) {
+  .dropdownMenu {
+    top: 75%;
+    right: 25px;
+    transform: translateX(0) translateY(0);
+    min-width: 140px;
+    padding: 12px;
+    row-gap: 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  }
+
+  .menuButton,
+  .logoutButton {
+    font-size: 0.875rem;
+  }
+}
+
+/* Планшеты и телефоны (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  .dropdownMenu {
+    top: 95%;
+    right: 15px;
+    transform: translateX(-5%) translateY(-5%);
+    min-width: 150px;
+    padding: 14px;
+    row-gap: 9px;
+  }
+
+  .menuButton,
+  .logoutButton {
+    font-size: 0.9375rem;
+  }
+}
+
+/* Планшеты в ландшафте и небольшие десктопы (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .dropdownMenu {
+    top: 105%;
+    right: 10px;
+    transform: translateX(-8%) translateY(-6%);
+    min-width: 155px;
+    padding: 15px;
+  }
+}
+
+/* Средние десктопы (1025px - 1439px) */
+@media (min-width: 1025px) and (max-width: 1439px) {
+  .dropdownMenu {
+    top: 115%;
+    right: 5px;
+    transform: translateX(-10%) translateY(-8%);
+    min-width: 160px;
+    padding: 16px;
+  }
+}
 .overlay {
   position: fixed;
   top: 0;

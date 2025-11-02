@@ -284,7 +284,8 @@ export default function CourseForm({
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               • <strong>Публичный курс</strong> — доступен всем пользователям бесплатно<br/>
               • <strong>Приватный курс</strong> — доступен только выбранным пользователям<br/>
-              • <strong>Платный курс</strong> — доступен всем пользователям за плату
+              {/* TODO: Вернуться к реализации платных курсов */}
+              {/* • <strong>Платный курс</strong> — доступен всем пользователям за плату */}
             </Typography>
             <RadioGroup
               value={(() => {
@@ -292,7 +293,8 @@ export default function CourseForm({
                 const isPaid = form.watch("isPaid");
                 if (isPublic && !isPaid) return "public";
                 if (!isPublic && !isPaid) return "private";
-                if (isPaid) return "paid";
+                // TODO: Вернуться к реализации платных курсов
+                // if (isPaid) return "paid";
                 return "public";
               })()}
               onChange={(e) => {
@@ -306,13 +308,15 @@ export default function CourseForm({
                 } else if (value === "private") {
                   form.setValue("isPublic", false);
                   form.setValue("isPaid", false);
-                } else if (value === "paid") {
-                  form.setValue("isPublic", true);
-                  form.setValue("isPaid", true);
-                  // Очищаем список разрешённых пользователей
-                  setSelectedUsers([]);
-                  form.setValue("allowedUsers", []);
                 }
+                // TODO: Вернуться к реализации платных курсов
+                // else if (value === "paid") {
+                //   form.setValue("isPublic", true);
+                //   form.setValue("isPaid", true);
+                //   // Очищаем список разрешённых пользователей
+                //   setSelectedUsers([]);
+                //   form.setValue("allowedUsers", []);
+                // }
               }}
               row
             >
@@ -326,11 +330,12 @@ export default function CourseForm({
                 control={<Radio />}
                 label="Приватный курс"
               />
-              <FormControlLabel
+              {/* TODO: Вернуться к реализации платных курсов */}
+              {/* <FormControlLabel
                 value="paid"
                 control={<Radio />}
                 label="Платный курс"
-              />
+              /> */}
             </RadioGroup>
           </FormControl>
         </FormSection>

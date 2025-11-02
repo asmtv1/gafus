@@ -8,7 +8,8 @@ import type {
   RatingFilterType 
 } from "../components/CourseFilters";
 
-// Фильтрация по табам (Бесплатные/Платные/Приватные)
+// Фильтрация по табам (Бесплатные/Приватные)
+// TODO: Вернуться к реализации платных курсов
 export function filterCoursesByTab(
   courses: CourseWithProgressData[],
   tab: CourseTabType
@@ -18,9 +19,10 @@ export function filterCoursesByTab(
       // Бесплатные курсы - те, которые не приватные и не платные
       return courses.filter(course => !course.isPrivate && !course.isPaid);
     
-    case "paid":
-      // Платные курсы - те, которые помечены как платные
-      return courses.filter(course => course.isPaid);
+    // TODO: Вернуться к реализации платных курсов
+    // case "paid":
+    //   // Платные курсы - те, которые помечены как платные
+    //   return courses.filter(course => course.isPaid);
     
     case "private":
       // Приватные курсы
@@ -157,12 +159,14 @@ export function filterAndSortCourses(
 }
 
 // Подсчёт курсов по табам
+// TODO: Вернуться к реализации платных курсов
 export function getTabCounts(
   courses: CourseWithProgressData[]
 ): Record<CourseTabType, number> {
   return {
     free: courses.filter(course => !course.isPrivate && !course.isPaid).length,
-    paid: courses.filter(course => course.isPaid).length,
+    // TODO: Вернуться к реализации платных курсов
+    paid: 0, // courses.filter(course => course.isPaid).length,
     private: courses.filter(course => course.isPrivate).length,
   };
 }
