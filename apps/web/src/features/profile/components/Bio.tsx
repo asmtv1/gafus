@@ -104,9 +104,9 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
         {showEmptyNotice && <div className={styles.emptyNotice}>Информация о себе не внесена</div>}
 
         {isOwner && (
-          <button>
-            <Link href="/profile/editBio">Внести/Изменить «О себе»</Link>
-          </button>
+          <Link className={`${styles.editBioButton} ${styles.buttonLink}`} href="/profile/editBio">
+            Внести/Изменить «О себе»
+          </Link>
         )}
          </div>
         
@@ -117,9 +117,9 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
         />
 
         {isOwner && (
-          <button className={styles.addpet}>
-            <Link href="/profile/addPet">Добавить питомца</Link>
-          </button>
+          <Link className={`${styles.editBioButton} ${styles.addpet}`} href="/profile/addPet">
+            Добавить питомца
+          </Link>
         )}
 </div>
 <div className={styles.notificationStatus}>

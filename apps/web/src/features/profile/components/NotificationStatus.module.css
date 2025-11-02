@@ -30,6 +30,7 @@
 .statusValue {
   font-weight: 600;
   color: var(--bg-2);
+  align-self: center;
 }
 
 .label {

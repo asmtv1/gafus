@@ -12,28 +12,6 @@
   position: relative;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
-.addpet{
-  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
-  color: #ECE5D2;
-  border: 1px solid #636128;
-  padding: 14px 28px;
-  border-radius: 12px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s 
-ease;
-  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
-  text-decoration: none;
-  display: inline-flex
-;
-  align-items: center;
-  justify-content: center;
-  min-width: 220px;
-  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
-  position: relative;
-  overflow: hidden;
-}
 
 /* Новый дизайн баннера профиля */
 .profileBanner {
@@ -158,9 +136,6 @@ ease;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
   text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 100%;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
   position: relative;
@@ -188,6 +163,35 @@ ease;
   margin-top: 1rem;
   width: 100%;
   min-width: auto;
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
+  color: #ECE5D2;
+  border: 1px solid #636128;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
+  text-decoration: none;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.addpet:hover {
+  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
+  color: #ECE5D2;
+}
+
+.addpet:active {
+  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
 
 .roleBadge {
@@ -477,4 +481,40 @@ ease;
     padding: 2rem;
     margin: 1rem 0;
   }
+}
+.editBioButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.buttonLink {
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
+  color: #ECE5D2;
+  border: 1px solid #636128;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
+  width: 100%;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.buttonLink:hover {
+  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
+  color: #ECE5D2;
+}
+
+.buttonLink:active {
+  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
