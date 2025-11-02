@@ -55,12 +55,19 @@ export const authOptions: NextAuthOptions = {
         }
 
         const username = credentials.username.toLowerCase().trim();
-        const user = await prisma.user.findUnique({ where: { username } });
+        const user = await prisma.user.findUnique({ 
+          where: { username },
+          select: { id: true, username: true, password: true, role: true, isConfirmed: true },
+        });
 
         if (!user) throw new Error("Пользователь не найден");
 
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) throw new Error("Неверный пароль");
+
+        if (!user.isConfirmed) {
+          throw new Error("Номер телефона не подтверждён. Пожалуйста, подтвердите номер через Telegram-бот.");
+        }
 
         return {
           id: user.id,

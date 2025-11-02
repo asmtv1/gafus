@@ -46,7 +46,7 @@ export default function LoginForm() {
       });
 
       if (res?.error) {
-        alert("Неверное имя пользователя или пароль");
+        alert(res.error);
         return;
       }
 
