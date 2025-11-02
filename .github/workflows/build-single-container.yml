@@ -1,0 +1,349 @@
+name: Build Single Container
+
+on:
+  workflow_dispatch:
+    inputs:
+      container:
+        description: "Container to build and deploy"
+        required: true
+        type: choice
+        options:
+          - web
+          - trainer-panel
+          - error-dashboard
+          - admin-panel
+          - worker
+          - bull-board
+          - telegram-bot
+          - prisma
+      deploy:
+        description: "Deploy to server after build"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: asmtv1
+
+jobs:
+  # Подготовка зависимостей
+  prepare-deps:
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+      pnpm-cache-key: ${{ steps.pnpm-cache-key.outputs.key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate cache keys
+        id: cache-key
+        run: |
+          echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('packages/**/src/**', 'apps/**/src/**') }}" >> $GITHUB_OUTPUT
+
+      - name: Generate pnpm cache key
+        id: pnpm-cache-key
+        run: echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store" >> $GITHUB_OUTPUT
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ steps.pnpm-cache-key.outputs.key }}
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store
+
+      - name: Install dependencies
+        run: |
+          pnpm config set store-dir ~/.pnpm-store
+          pnpm config set verify-store-integrity false
+          pnpm config set auto-install-peers true
+          pnpm config set dedupe-peer-dependents false
+          pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Generate Prisma Client
+        run: |
+          cd packages/prisma
+          cp schema.prisma schema.prisma.bak
+          awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp && mv schema.tmp schema.prisma
+          pnpm db:generate
+          mv schema.prisma.bak schema.prisma
+
+      - name: Build packages
+        run: pnpm build --filter=@gafus/*
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ steps.cache-key.outputs.key }}-deps
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-deps
+
+  # Определение конфигурации контейнера
+  set-container-config:
+    runs-on: ubuntu-latest
+    outputs:
+      dockerfile: ${{ steps.config.outputs.dockerfile }}
+      tag: ${{ steps.config.outputs.tag }}
+      app-name: ${{ steps.config.outputs.app-name }}
+    steps:
+      - name: Set container configuration
+        id: config
+        run: |
+          case "${{ github.event.inputs.container }}" in
+            web)
+              echo "dockerfile=Dockerfile-web-optimized" >> $GITHUB_OUTPUT
+              echo "tag=gafus-web" >> $GITHUB_OUTPUT
+              echo "app-name=web" >> $GITHUB_OUTPUT
+              ;;
+            trainer-panel)
+              echo "dockerfile=Dockerfile-trainer-panel-optimized" >> $GITHUB_OUTPUT
+              echo "tag=gafus-trainer-panel" >> $GITHUB_OUTPUT
+              echo "app-name=trainer-panel" >> $GITHUB_OUTPUT
+              ;;
+            error-dashboard)
+              echo "dockerfile=Dockerfile-error-dashboard-optimized" >> $GITHUB_OUTPUT
+              echo "tag=gafus-error-dashboard" >> $GITHUB_OUTPUT
+              echo "app-name=error-dashboard" >> $GITHUB_OUTPUT
+              ;;
+            admin-panel)
+              echo "dockerfile=Dockerfile-admin-panel-optimized" >> $GITHUB_OUTPUT
+              echo "tag=gafus-admin-panel" >> $GITHUB_OUTPUT
+              echo "app-name=admin-panel" >> $GITHUB_OUTPUT
+              ;;
+            worker)
+              echo "dockerfile=Dockerfile-worker-optimized" >> $GITHUB_OUTPUT
+              echo "tag=gafus-worker" >> $GITHUB_OUTPUT
+              echo "app-name=worker" >> $GITHUB_OUTPUT
+              ;;
+            bull-board)
+              echo "dockerfile=Dockerfile-bull-board-optimized" >> $GITHUB_OUTPUT
+              echo "tag=gafus-bull-board" >> $GITHUB_OUTPUT
+              echo "app-name=bull-board" >> $GITHUB_OUTPUT
+              ;;
+            telegram-bot)
+              echo "dockerfile=Dockerfile-telegram-bot-optimized" >> $GITHUB_OUTPUT
+              echo "tag=gafus-telegram-bot" >> $GITHUB_OUTPUT
+              echo "app-name=telegram-bot" >> $GITHUB_OUTPUT
+              ;;
+            prisma)
+              echo "dockerfile=Dockerfile-prisma-optimized" >> $GITHUB_OUTPUT
+              echo "tag=gafus-prisma" >> $GITHUB_OUTPUT
+              echo "app-name=prisma" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+  # Сборка приложения (если это Next.js приложение)
+  build-app:
+    needs: [prepare-deps, set-container-config]
+    if: |
+      github.event.inputs.container == 'web' ||
+      github.event.inputs.container == 'trainer-panel' ||
+      github.event.inputs.container == 'error-dashboard' ||
+      github.event.inputs.container == 'admin-panel'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Restore pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.pnpm-cache-key }}
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store
+
+      - name: Install dependencies
+        run: |
+          pnpm config set store-dir ~/.pnpm-store
+          pnpm config set verify-store-integrity false
+          pnpm config set auto-install-peers true
+          pnpm config set dedupe-peer-dependents false
+          pnpm install --frozen-lockfile --prefer-offline --offline
+
+      - name: Build ${{ needs.set-container-config.outputs.app-name }}
+        run: |
+          cd apps/${{ needs.set-container-config.outputs.app-name }}
+          pnpm build
+
+      - name: Cache app build
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/${{ needs.set-container-config.outputs.app-name }}/.next
+            apps/${{ needs.set-container-config.outputs.app-name }}/dist
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-${{ needs.set-container-config.outputs.app-name }}-build
+
+  # Подготовка Docker окружения
+  prepare-docker:
+    needs: [prepare-deps, set-container-config]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+  # Сборка и пуш Docker образа
+  build-and-push:
+    needs: [prepare-docker, set-container-config]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build and push ${{ needs.set-container-config.outputs.tag }} image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ci-cd/docker/${{ needs.set-container-config.outputs.dockerfile }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ needs.set-container-config.outputs.tag }}:latest
+          cache-from: |
+            type=gha
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-base:latest
+          cache-to: |
+            type=gha,mode=max
+          platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+  # Деплой на сервер (опционально)
+  deploy:
+    needs: [build-and-push, set-container-config]
+    if: github.event.inputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy ${{ needs.set-container-config.outputs.tag }} to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          command_timeout: 30m
+          script: |
+            set -e
+            echo "🚀 Deploying ${{ needs.set-container-config.outputs.tag }} to production..."
+
+            # Install Docker if not present
+            if ! command -v docker &> /dev/null; then
+              echo "🐳 Installing Docker..."
+              apt-get update
+              apt-get install -y apt-transport-https ca-certificates gnupg lsb-release curl
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+              echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu focal stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+              apt-get update
+              apt-get install -y docker-ce docker-ce-cli containerd.io
+              systemctl start docker
+              systemctl enable docker
+            fi
+
+            # Install Docker Compose if not present
+            if ! command -v docker-compose &> /dev/null; then
+              echo "🐳 Installing Docker Compose..."
+              curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+            fi
+
+            # Login to GitHub Container Registry
+            echo "🔐 Logging in to GitHub Container Registry..."
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u asmtv1 --password-stdin
+
+            # Navigate to project directory
+            cd /root/gafus || {
+              echo "Directory /root/gafus not found, creating it..."
+              mkdir -p /root/gafus
+              cd /root/gafus
+            }
+
+            # Pull latest image
+            echo "📥 Pulling latest ${{ needs.set-container-config.outputs.tag }} image..."
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ needs.set-container-config.outputs.tag }}:latest
+
+            # Restart specific container
+            echo "🔄 Restarting ${{ needs.set-container-config.outputs.tag }} container..."
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate --no-deps ${{ github.event.inputs.container }} || {
+              echo "⚠️ Container restart failed, trying to start it..."
+              docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d ${{ github.event.inputs.container }}
+            }
+
+            # Wait for container to be ready
+            echo "⏳ Waiting for container to be ready..."
+            sleep 10
+
+            # Check container status
+            if docker ps | grep -q "gafus-${{ github.event.inputs.container }}"; then
+              echo "✅ Container ${{ needs.set-container-config.outputs.tag }} deployed successfully!"
+              docker ps | grep "gafus-${{ github.event.inputs.container }}"
+            else
+              echo "❌ Container ${{ needs.set-container-config.outputs.tag }} failed to start"
+              docker logs gafus-${{ github.event.inputs.container }} || echo "Could not fetch logs"
+              exit 1
+            fi
+
+            # Cleanup old images
+            docker image prune -f || true
+
