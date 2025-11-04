@@ -4,11 +4,11 @@ import styles from "./Bio.module.css";
 import EditableAvatar from "./EditableAvatar";
 import NotificationStatus from "./NotificationStatus";
 import PetList from "./PetList";
+import ProfileAvatar from "./ProfileAvatar";
 
 import type { BioProps } from "@gafus/types";
 
 import { getAge, declOfNum } from "@/utils";
-import { Avatar } from "@/utils/muiImports";
 
 export default function Bio({ publicData, isOwner, username, userData }: BioProps) {
   const profile = publicData.profile;
@@ -56,17 +56,10 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
               avatarUrl={profile?.avatarUrl || "/uploads/avatar.svg"}
             />
           ) : (
-            <Avatar
+            <ProfileAvatar
+              avatarUrl={profile?.avatarUrl || null}
               alt="Profile picture"
-              src={profile?.avatarUrl || "/uploads/avatar.svg"}
-              sx={{ width: 80, height: 80 }}
-              imgProps={{
-                onError: (e) => {
-                  console.warn("Ошибка загрузки аватара:", e);
-                  // Fallback на заглушку при ошибке
-                  e.currentTarget.src = "/uploads/avatar.svg";
-                }
-              }}
+              size={80}
             />
           )}
         </div>

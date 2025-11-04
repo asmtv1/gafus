@@ -2,6 +2,7 @@ import { getIsOwner } from "@gafus/auth/server";
 import { getPublicProfile } from "@shared/lib/profile/getPublicProfile";
 import { getUserWithTrainings } from "@shared/lib/user/getUserWithTrainings";
 import { generateStaticPageMetadata } from "@gafus/metadata";
+import { notFound } from "next/navigation";
 
 import ProfileClient from "./ProfileClient";
 
@@ -18,21 +19,39 @@ export default async function ProfilPage({
 }: {
   searchParams: Promise<{ username?: string }>;
 }) {
-  const { username } = await searchParams;
-  if (!username) throw new Error("Имя пользователя не указано в URL");
+  const params = await searchParams;
+  const username = params?.username;
 
-  const isOwner = await getIsOwner(username);
-  const publicData = await getPublicProfile(username);
-  if (!publicData) throw new Error("Пользователь не найден");
+  if (!username) {
+    notFound();
+  }
 
-  const userData: UserWithTrainings | null = isOwner ? await getUserWithTrainings() : null;
+  try {
+    const [isOwner, publicData] = await Promise.all([
+      getIsOwner(username),
+      getPublicProfile(username),
+    ]);
 
-  return (
-    <ProfileClient
-      publicData={publicData}
-      isOwner={isOwner}
-      username={username}
-      userData={userData}
-    />
-  );
+    if (!publicData) {
+      notFound();
+    }
+
+    const userData: UserWithTrainings | null = isOwner
+      ? await getUserWithTrainings()
+      : null;
+
+    return (
+      <ProfileClient
+        publicData={publicData}
+        isOwner={isOwner}
+        username={username}
+        userData={userData}
+      />
+    );
+  } catch (error) {
+    // Логируем ошибку для отладки, но не выбрасываем её дальше,
+    // чтобы избежать бесконечных циклов ререндеринга
+    console.error("Ошибка при загрузке профиля:", error);
+    notFound();
+  }
 }
