@@ -101,7 +101,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <PetsProvider>
                   <WebQueryProvider>
                     <main>{children}</main>
-
                   </WebQueryProvider>
                 </PetsProvider>
               </UserProvider>

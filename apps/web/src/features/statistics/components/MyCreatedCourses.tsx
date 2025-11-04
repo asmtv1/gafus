@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import LoadingSpinner from "@shared/components/ui/LoadingSpinner";
 
 import styles from "./MyCreatedCourses.module.css";
 
@@ -8,7 +9,7 @@ import type { AuthoredCourse } from "@gafus/types";
 
 // Динамический импорт для тяжелого компонента
 const MyCreatedCoursesContent = dynamic(() => import("./MyCreatedCoursesContent"), {
-  loading: () => <div className={styles.loading}>Загрузка...</div>,
+  loading: () => <LoadingSpinner />,
   ssr: true,
 });
 

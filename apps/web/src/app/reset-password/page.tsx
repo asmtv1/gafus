@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { generatePageMetadata } from "@gafus/metadata";
+import LoadingScreen from "@shared/components/ui/LoadingScreen";
 
 import ResetPasswordForm from "./reset-password-form";
 
@@ -14,7 +15,7 @@ export const metadata = generatePageMetadata({
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<p>Загрузка...</p>}>
+    <Suspense fallback={<LoadingScreen />}>
       <ResetPasswordForm />
     </Suspense>
   );

@@ -2,28 +2,33 @@
 
 import { CSRFProvider } from "@gafus/csrf";
 import { setupGlobalErrorHandling } from "@shared/lib/global-error-handler";
-import { usePathname } from "next/navigation";
+import LoadingScreen from "@shared/components/ui/LoadingScreen";
 import { useState, useEffect } from "react";
-import Image from "next/image";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const pathname = usePathname();
 
-  // Начальная загрузка - показываем полноэкранный loading screen
+  // Начальная загрузка - показываем полноэкранный loading screen только при первой загрузке приложения
   useEffect(() => {
     let loadComplete = false;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let maxTimerId: NodeJS.Timeout | null = null;
+    let listenerAdded = false;
+    
     const minDisplayTime = 800; // Минимальное время показа loading screen (800ms)
     const startTime = Date.now();
 
     const handleLoad = () => {
+      if (loadComplete) return; // Защита от повторных вызовов
+      
       loadComplete = true;
+      listenerAdded = false; // Listener уже автоматически удален из-за { once: true }
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, minDisplayTime - elapsed);
       
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         setIsInitialLoad(false);
+        timeoutId = null;
       }, remaining);
     };
 
@@ -32,30 +37,30 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       handleLoad();
     } else {
       // Ждем загрузки страницы
-      window.addEventListener("load", handleLoad);
+      window.addEventListener("load", handleLoad, { once: true });
+      listenerAdded = true;
       
       // Максимальное время показа (на случай если load не сработает)
-      const maxTimer = setTimeout(() => {
+      maxTimerId = setTimeout(() => {
         if (!loadComplete) {
+          loadComplete = true;
+          listenerAdded = false;
           setIsInitialLoad(false);
         }
+        maxTimerId = null;
       }, 2000);
+    }
 
-      return () => {
+    return () => {
+      // Безопасно удаляем listener только если он еще не был вызван
+      // При использовании { once: true } listener автоматически удаляется после первого вызова
+      if (listenerAdded) {
         window.removeEventListener("load", handleLoad);
-        clearTimeout(maxTimer);
-      };
-    }
+      }
+      if (timeoutId) clearTimeout(timeoutId);
+      if (maxTimerId) clearTimeout(maxTimerId);
+    };
   }, []);
-
-  // Loading при смене маршрута
-  useEffect(() => {
-    if (!isInitialLoad) {
-      setLoading(true);
-      const timeout = setTimeout(() => setLoading(false), 400);
-      return () => clearTimeout(timeout);
-    }
-  }, [pathname, isInitialLoad]);
 
   // Настройка глобального отлова ошибок
   useEffect(() => {
@@ -65,7 +70,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <CSRFProvider>
       <div style={{ position: "relative" }}>
-        {/* Начальный loading screen при первой загрузке */}
+        {/* Начальный loading screen при первой загрузке приложения */}
+        {/* z-index 9999 гарантирует, что он будет поверх любых Suspense fallback */}
+        {/* Блокируем взаимодействие во время начальной загрузки для предотвращения race conditions */}
         {isInitialLoad && (
           <div
             style={{
@@ -74,74 +81,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               left: 0,
               width: "100vw",
               height: "100vh",
-              backgroundColor: "var(--bg-1)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "32px",
               zIndex: 9999,
             }}
           >
-            <Image
-              src="/uploads/logo.png"
-              alt="Гафус"
-              width={200}
-              height={200}
-              priority
-              style={{
-                width: "200px",
-                height: "200px",
-                objectFit: "contain",
-              }}
-            />
-            <div
-              style={{
-                width: "48px",
-                height: "48px",
-                border: "6px solid rgba(99, 97, 40, 0.2)",
-                borderTop: "6px solid var(--bg-2)",
-                borderRadius: "50%",
-                animation: "spin 1s linear infinite",
-              }}
-            />
-            <style>{`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}</style>
-          </div>
-        )}
-
-        {/* Loading overlay при смене маршрута */}
-        {loading && !isInitialLoad && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              backdropFilter: "blur(4px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 9999,
-              pointerEvents: "none",
-            }}
-          >
-            <div
-              style={{
-                width: "48px",
-                height: "48px",
-                border: "6px solid #ccc",
-                borderTop: "6px solid #333",
-                borderRadius: "50%",
-                animation: "spin 1s linear infinite",
-              }}
-            />
+            <LoadingScreen />
           </div>
         )}
 

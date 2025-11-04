@@ -1,6 +1,7 @@
 import { authOptions } from "@gafus/auth";
 import type { AuthoredCourse } from "@gafus/types";
 import { getAuthoredCourses } from "@shared/lib/course/getAuthoredCourses";
+import LoadingSpinner from "@shared/components/ui/LoadingSpinner";
 import { getServerSession } from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import dynamic from "next/dynamic";
@@ -10,11 +11,7 @@ import styles from "./Statistics.module.css";
 
 // Динамический импорт для тяжелого компонента статистики
 const StatisticsContent = dynamic(() => import("./StatisticsContent"), {
-  loading: () => (
-    <div className={styles.loading}>
-      <div>Загрузка статистики...</div>
-    </div>
-  ),
+  loading: () => <LoadingSpinner />,
   ssr: true,
 });
 
