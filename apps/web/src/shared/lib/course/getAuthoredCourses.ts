@@ -81,12 +81,15 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
     },
   });
 
-  const coursesWithStats: AuthoredCourse[] = await Promise.all(
-    courses.map(async (course: RawCourseData) => {
-      const trainings = await prisma.userTraining.findMany({
+  // Собираем все courseIds для батч-запросов
+  const courseIds = courses.map(c => c.id);
+
+  // Батч-запрос 1: Получаем все UserTraining для всех курсов одним запросом
+  const allTrainings = courseIds.length > 0
+    ? await prisma.userTraining.findMany({
         where: {
           dayOnCourse: {
-            courseId: course.id,
+            courseId: { in: courseIds },
           },
         },
         select: {
@@ -94,312 +97,329 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
           userId: true,
           status: true,
           createdAt: true,
+          dayOnCourseId: true,
           dayOnCourse: {
             select: {
+              courseId: true,
               order: true,
-              day: {
-                select: {
-                  title: true,
-                  stepLinks: {
-                    select: {
-                      id: true,
-                      order: true,
-                      step: {
-                        select: {
-                          title: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
             },
           },
         },
-      });
+      })
+    : [];
 
-      // Получаем уникальных пользователей из userTrainings
-      const uniqueUserIds = new Set(trainings.map((t: { userId: string }) => t.userId));
+  // Батч-запрос 2: Получаем все UserStep для всех trainings одним запросом
+  const allTrainingIds = allTrainings.map(t => t.id);
+  const allUserSteps = allTrainingIds.length > 0
+    ? await prisma.userStep.findMany({
+        where: {
+          userTrainingId: { in: allTrainingIds },
+        },
+        select: {
+          id: true,
+          userTrainingId: true,
+          stepOnDayId: true,
+          status: true,
+          createdAt: true,
+        },
+      })
+    : [];
 
-      // Объединяем пользователей из userCourses и userTrainings
-      const allUsers = new Map<
-        string,
-        {
-          userId: string;
-          username: string;
-          avatarUrl: string | null;
-          startedAt: Date | null;
-          completedAt: Date | null;
-          status: TrainingStatus;
-        }
-      >();
+  // Получаем уникальных пользователей из всех userTrainings
+  const allUserIds = Array.from(new Set(allTrainings.map(t => t.userId)));
+  
+  // Получаем userIds из userCourses для исключения дублирования
+  const userCourseUserIds = new Set<string>();
+  courses.forEach(course => {
+    course.userCourses.forEach(uc => userCourseUserIds.add(uc.userId));
+  });
 
-      // Добавляем пользователей из userCourses
-      course.userCourses.forEach((uc) => {
-        allUsers.set(uc.userId, {
-          userId: uc.userId,
-          username: uc.user.username,
-          avatarUrl: uc.user.profile?.avatarUrl ?? null,
-          startedAt: uc.startedAt,
-          completedAt: uc.completedAt,
-          status: uc.status as TrainingStatus,
-        });
-      });
-
-      // Получаем общее количество дней в курсе один раз
-      const totalDaysInCourse = await prisma.dayOnCourse.count({
-        where: { courseId: course.id },
-      });
-
-      // Получаем все userTrainingIds для эффективной проверки активных шагов
-      const allUserTrainingIds = trainings.map((t: { id: string }) => t.id);
-      const allActiveUserSteps = allUserTrainingIds.length > 0
-        ? await prisma.userStep.findMany({
-            where: {
-              userTrainingId: { in: allUserTrainingIds },
-              status: {
-                in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED],
-              },
-            },
+  // Батч-запрос 3: Получаем всех недостающих пользователей одним запросом
+  const missingUserIds = allUserIds.filter(id => !userCourseUserIds.has(id));
+  const users = missingUserIds.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: missingUserIds } },
+        select: {
+          id: true,
+          username: true,
+          profile: {
             select: {
-              id: true,
-              status: true,
-              createdAt: true,
-              userTraining: {
-                select: {
-                  userId: true,
-                },
-              },
+              avatarUrl: true,
             },
-            orderBy: {
-              createdAt: "asc",
-            },
-          })
-        : [];
+          },
+        },
+      })
+    : [];
 
-      // Создаем мапу активных шагов по userId для быстрого доступа
-      type ActiveStep = (typeof allActiveUserSteps)[number];
-      const activeStepsByUserId = new Map<string, ActiveStep[]>();
-      for (const step of allActiveUserSteps) {
-        const userId = step.userTraining.userId;
+  // Создаем Map'ы для быстрого доступа к данным
+
+  // Map: userId -> User
+  const usersByUserId = new Map(users.map(u => [u.id, u]));
+
+  // Map: courseId -> UserTraining[]
+  const trainingsByCourseId = new Map<string, typeof allTrainings>();
+  for (const training of allTrainings) {
+    const courseId = training.dayOnCourse.courseId;
+    if (!trainingsByCourseId.has(courseId)) {
+      trainingsByCourseId.set(courseId, []);
+    }
+    trainingsByCourseId.get(courseId)!.push(training);
+  }
+
+  // Map: userTrainingId -> UserStep[]
+  const userStepsByTrainingId = new Map<string, typeof allUserSteps>();
+  for (const userStep of allUserSteps) {
+    if (!userStepsByTrainingId.has(userStep.userTrainingId)) {
+      userStepsByTrainingId.set(userStep.userTrainingId, []);
+    }
+    userStepsByTrainingId.get(userStep.userTrainingId)!.push(userStep);
+  }
+
+  // Map: userId -> ActiveUserStep[] (только IN_PROGRESS и COMPLETED)
+  const activeStepsByUserId = new Map<string, {
+    id: string;
+    status: string;
+    createdAt: Date;
+    userTrainingId: string;
+  }[]>();
+  for (const userStep of allUserSteps) {
+    if (userStep.status === TrainingStatus.IN_PROGRESS || userStep.status === TrainingStatus.COMPLETED) {
+      // Находим userId через training
+      const training = allTrainings.find(t => t.id === userStep.userTrainingId);
+      if (training) {
+        const userId = training.userId;
         if (!activeStepsByUserId.has(userId)) {
           activeStepsByUserId.set(userId, []);
         }
-        activeStepsByUserId.get(userId)!.push(step);
+        activeStepsByUserId.get(userId)!.push(userStep);
       }
+    }
+  }
 
-      // Синхронизируем статус для пользователей из userCourses на основе реальных активных шагов
-      for (const [userId, userData] of allUsers.entries()) {
-        const userActiveSteps = activeStepsByUserId.get(userId) || [];
-        const userTrainings = trainings.filter(
-          (t: { userId: string }) => t.userId === userId,
-        );
+  // Сортируем активные шаги по дате создания для каждого пользователя
+  for (const [userId, steps] of activeStepsByUserId.entries()) {
+    steps.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }
 
-        // Проверяем завершение курса на основе завершенных дней
-        const completedDays = userTrainings.filter(
-          (t: { status: string }) => t.status === TrainingStatus.COMPLETED,
-        ).length;
-        const isCourseCompleted =
-          completedDays === totalDaysInCourse &&
-          userTrainings.length === totalDaysInCourse &&
-          totalDaysInCourse > 0;
+  // Формируем результат для каждого курса, используя сгруппированные данные
+  const coursesWithStats: AuthoredCourse[] = courses.map((course: RawCourseData) => {
+    const trainings = trainingsByCourseId.get(course.id) || [];
+    
+    // Используем dayLinks.length вместо запроса к БД
+    const totalDaysInCourse = course.dayLinks.length;
 
-        // Если курс завершен по дням, сохраняем статус COMPLETED
-        if (isCourseCompleted) {
-          userData.status = TrainingStatus.COMPLETED;
-          // completedAt уже установлен из userCourse, не перезаписываем
-        } else if (userActiveSteps.length > 0) {
-          // Если есть реальные активные шаги, обновляем статус
-          // Обновляем startedAt на основе первого активного шага, если он раньше текущего
-          const firstActiveStepDate = userActiveSteps[0]?.createdAt;
-          if (firstActiveStepDate && (!userData.startedAt || firstActiveStepDate < userData.startedAt)) {
-            userData.startedAt = firstActiveStepDate;
-          }
-          userData.status = TrainingStatus.IN_PROGRESS;
-        } else {
-          // Если нет реальных активных шагов и курс не завершен
-          // Сбрасываем статус только если он был IN_PROGRESS, COMPLETED сохраняем
-          if (userData.status === TrainingStatus.IN_PROGRESS) {
-            userData.status = TrainingStatus.NOT_STARTED;
-            userData.startedAt = null;
-          }
-          // Если статус COMPLETED, но нет активных шагов - возможно данные устарели,
-          // но доверяем статусу из userCourse (пользователь мог завершить курс ранее)
-        }
-      }
+    // Получаем уникальных пользователей для этого курса
+    const uniqueUserIds = new Set(trainings.map(t => t.userId));
 
-      // Получаем информацию о недостающих пользователях одним запросом
-      const missingUserIds = Array.from(uniqueUserIds).filter(id => !allUsers.has(id as string));
-      const missingUsers = missingUserIds.length > 0
-        ? await prisma.user.findMany({
-            where: { id: { in: missingUserIds as string[] } },
-            select: {
-              id: true,
-              username: true,
-              profile: {
-                select: {
-                  avatarUrl: true,
-                },
-              },
-            },
-          })
-        : [];
-
-      // Добавляем пользователей из userTrainings, если их нет в userCourses
-      for (const user of missingUsers) {
-        const userTrainings = trainings.filter(
-          (t: { userId: string }) => t.userId === user.id,
-        );
-
-        // Используем уже полученные активные шаги из мапы
-        const userActiveSteps = activeStepsByUserId.get(user.id) || [];
-
-        // Проверяем завершение курса на основе завершенных дней
-        const completedDays = userTrainings.filter(
-          (t: { status: string }) => t.status === TrainingStatus.COMPLETED,
-        ).length;
-        const isCourseCompleted =
-          completedDays === totalDaysInCourse &&
-          userTrainings.length === totalDaysInCourse &&
-          totalDaysInCourse > 0;
-
-        let status: TrainingStatus = TrainingStatus.NOT_STARTED;
-        let startedAt: Date | null = null;
-        let completedAt: Date | null = null;
-
-        // Статус определяется на основе завершенных дней и активных шагов
-        if (isCourseCompleted) {
-          status = TrainingStatus.COMPLETED;
-          // completedAt устанавливаем на основе последнего завершенного дня
-          const lastCompletedTraining = userTrainings
-            .filter((t: { status: string }) => t.status === TrainingStatus.COMPLETED)
-            .sort(
-              (a: { createdAt: Date | null }, b: { createdAt: Date | null }) =>
-                new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
-            )[0];
-          completedAt = lastCompletedTraining?.createdAt || new Date();
-        } else if (userActiveSteps.length > 0) {
-          // Если есть реальные активные шаги, устанавливаем IN_PROGRESS
-          status = TrainingStatus.IN_PROGRESS;
-          // Определяем startedAt как время первого активного шага
-          startedAt = userActiveSteps[0]?.createdAt || null;
-        }
-        // Если нет активных шагов и курс не завершен, статус остается NOT_STARTED
-
-        allUsers.set(user.id, {
-          userId: user.id,
-          username: user.username,
-          avatarUrl: user.profile?.avatarUrl ?? null,
-          startedAt,
-          completedAt,
-          status,
-        });
-      }
-
-      // Получаем все userSteps одним запросом для оптимизации
-      const allTrainingIds = trainings.map((t: { id: string }) => t.id);
-      const allUserSteps = allTrainingIds.length > 0
-        ? await prisma.userStep.findMany({
-            where: {
-              userTrainingId: { in: allTrainingIds },
-            },
-            select: {
-              userTrainingId: true,
-              stepOnDayId: true,
-              status: true,
-            },
-          })
-        : [];
-
-      // Создаем мапу userSteps по userTrainingId
-      const userStepsByTrainingId = new Map<string, Map<string, string>>();
-      for (const userStep of allUserSteps) {
-        if (!userStepsByTrainingId.has(userStep.userTrainingId)) {
-          userStepsByTrainingId.set(userStep.userTrainingId, new Map());
-        }
-        userStepsByTrainingId.get(userStep.userTrainingId)!.set(userStep.stepOnDayId, userStep.status);
-      }
-
-      // Создаем мапу дней по userId для корректной фильтрации
-      const daysByUserId = new Map<string, {
-        dayOrder: number;
-        dayTitle: string;
+    // Объединяем пользователей из userCourses и userTrainings
+    const allUsers = new Map<
+      string,
+      {
+        userId: string;
+        username: string;
+        avatarUrl: string | null;
+        startedAt: Date | null;
+        completedAt: Date | null;
         status: TrainingStatus;
-        steps: {
-          stepOrder: number;
-          stepTitle: string;
-          status: TrainingStatus;
-        }[];
-      }[]>();
-
-      // Обрабатываем trainings и группируем по userId
-      for (const training of trainings) {
-        const stepProgressMap = userStepsByTrainingId.get(training.id) || new Map();
-
-        const stepProgress = training.dayOnCourse.day.stepLinks.map(
-          (link: { id: string; order: number; step: { title: string } }) => {
-            const stepStatus = stepProgressMap.get(link.id) || TrainingStatus.NOT_STARTED;
-            return {
-              stepOrder: link.order,
-              stepTitle: link.step.title,
-              status: stepStatus as TrainingStatus,
-            };
-          },
-        );
-
-        const dayData = {
-          dayOrder: training.dayOnCourse.order,
-          dayTitle: training.dayOnCourse.day.title,
-          status: training.status as TrainingStatus,
-          steps: stepProgress,
-        };
-
-        if (!daysByUserId.has(training.userId)) {
-          daysByUserId.set(training.userId, []);
-        }
-        daysByUserId.get(training.userId)!.push(dayData);
       }
+    >();
 
-      const userProgressArray = Array.from(allUsers.values());
-      
-      // Фильтруем: включаем только пользователей, которые начали хотя бы один шаг
-      // (статус IN_PROGRESS или COMPLETED). Пользователи без активных шагов не попадают в статистику.
-      const usersWithProgress = userProgressArray.filter(
-        (uc) => uc.status !== TrainingStatus.NOT_STARTED,
-      );
-      
-      const totalStarted = usersWithProgress.length;
-      const totalCompleted = usersWithProgress.filter(
-        (uc) => uc.status === TrainingStatus.COMPLETED,
+    // Добавляем пользователей из userCourses
+    course.userCourses.forEach((uc) => {
+      allUsers.set(uc.userId, {
+        userId: uc.userId,
+        username: uc.user.username,
+        avatarUrl: uc.user.profile?.avatarUrl ?? null,
+        startedAt: uc.startedAt,
+        completedAt: uc.completedAt,
+        status: uc.status as TrainingStatus,
+      });
+    });
+
+    // Синхронизируем статус для пользователей из userCourses на основе реальных активных шагов
+    for (const [userId, userData] of allUsers.entries()) {
+      const userActiveSteps = activeStepsByUserId.get(userId) || [];
+      const userTrainings = trainings.filter(t => t.userId === userId);
+
+      // Проверяем завершение курса на основе завершенных дней
+      const completedDays = userTrainings.filter(
+        t => t.status === TrainingStatus.COMPLETED,
       ).length;
-      const totalRatings = course.reviews.length;
+      const isCourseCompleted =
+        completedDays === totalDaysInCourse &&
+        userTrainings.length === totalDaysInCourse &&
+        totalDaysInCourse > 0;
 
-      return {
-        ...course,
-        totalStarted,
-        totalCompleted,
-        totalRatings,
-        // Возвращаем только пользователей с реальным прогрессом (начали хотя бы 1 шаг)
-        userProgress: usersWithProgress.map((user) => {
-          // Получаем дни конкретного пользователя
-          const userDays = daysByUserId.get(user.userId) || [];
-          // Фильтруем только дни с активным прогрессом
-          const activeDays = userDays.filter(
-            (d) => d.status !== TrainingStatus.NOT_STARTED,
-          );
-          
-          return {
-            userId: user.userId,
+      // Если курс завершен по дням, сохраняем статус COMPLETED
+      if (isCourseCompleted) {
+        userData.status = TrainingStatus.COMPLETED;
+        // completedAt уже установлен из userCourse, не перезаписываем
+      } else if (userActiveSteps.length > 0) {
+        // Если есть реальные активные шаги, обновляем статус
+        // Обновляем startedAt на основе первого активного шага, если он раньше текущего
+        const firstActiveStepDate = userActiveSteps[0]?.createdAt;
+        if (firstActiveStepDate && (!userData.startedAt || firstActiveStepDate < userData.startedAt)) {
+          userData.startedAt = firstActiveStepDate;
+        }
+        userData.status = TrainingStatus.IN_PROGRESS;
+      } else {
+        // Если нет реальных активных шагов и курс не завершен
+        // Сбрасываем статус только если он был IN_PROGRESS, COMPLETED сохраняем
+        if (userData.status === TrainingStatus.IN_PROGRESS) {
+          userData.status = TrainingStatus.NOT_STARTED;
+          userData.startedAt = null;
+        }
+        // Если статус COMPLETED, но нет активных шагов - возможно данные устарели,
+        // но доверяем статусу из userCourse (пользователь мог завершить курс ранее)
+      }
+    }
+
+    // Добавляем пользователей из userTrainings, если их нет в userCourses
+    for (const userId of uniqueUserIds) {
+      if (!allUsers.has(userId)) {
+        const user = usersByUserId.get(userId);
+        if (user) {
+          const userTrainings = trainings.filter(t => t.userId === userId);
+          const userActiveSteps = activeStepsByUserId.get(userId) || [];
+
+          // Проверяем завершение курса на основе завершенных дней
+          const completedDays = userTrainings.filter(
+            t => t.status === TrainingStatus.COMPLETED,
+          ).length;
+          const isCourseCompleted =
+            completedDays === totalDaysInCourse &&
+            userTrainings.length === totalDaysInCourse &&
+            totalDaysInCourse > 0;
+
+          let status: TrainingStatus = TrainingStatus.NOT_STARTED;
+          let startedAt: Date | null = null;
+          let completedAt: Date | null = null;
+
+          // Статус определяется на основе завершенных дней и активных шагов
+          if (isCourseCompleted) {
+            status = TrainingStatus.COMPLETED;
+            // completedAt устанавливаем на основе последнего завершенного дня
+            const lastCompletedTraining = userTrainings
+              .filter(t => t.status === TrainingStatus.COMPLETED)
+              .sort(
+                (a, b) =>
+                  new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+              )[0];
+            completedAt = lastCompletedTraining?.createdAt || new Date();
+          } else if (userActiveSteps.length > 0) {
+            // Если есть реальные активные шаги, устанавливаем IN_PROGRESS
+            status = TrainingStatus.IN_PROGRESS;
+            // Определяем startedAt как время первого активного шага
+            startedAt = userActiveSteps[0]?.createdAt || null;
+          }
+          // Если нет активных шагов и курс не завершен, статус остается NOT_STARTED
+
+          allUsers.set(userId, {
+            userId: userId,
             username: user.username,
-            avatarUrl: user.avatarUrl,
-            startedAt: user.startedAt,
-            completedAt: user.completedAt,
-            days: activeDays,
-          };
-        }),
+            avatarUrl: user.profile?.avatarUrl ?? null,
+            startedAt,
+            completedAt,
+            status,
+          });
+        }
+      }
+    }
+
+    // Создаем мапу дней по userId для корректной фильтрации
+    const daysByUserId = new Map<string, {
+      dayOrder: number;
+      dayTitle: string;
+      status: TrainingStatus;
+      steps: {
+        stepOrder: number;
+        stepTitle: string;
+        status: TrainingStatus;
+      }[];
+    }[]>();
+
+    // Создаем мапу dayOnCourseId -> day info из course.dayLinks
+    const dayInfoMap = new Map(
+      course.dayLinks.map(dl => [
+        dl.day.id, 
+        { 
+          title: dl.day.title, 
+          stepLinks: dl.day.stepLinks 
+        }
+      ])
+    );
+
+    // Обрабатываем trainings и группируем по userId
+    for (const training of trainings) {
+      const userStepsForTraining = userStepsByTrainingId.get(training.id) || [];
+      
+      // Создаем Map для быстрого доступа к статусам шагов
+      const stepStatusMap = new Map(
+        userStepsForTraining.map(us => [us.stepOnDayId, us.status])
+      );
+
+      // Находим информацию о дне из dayLinks
+      const dayInfo = dayInfoMap.get(training.dayOnCourseId);
+      if (!dayInfo) continue;
+
+      const stepProgress = dayInfo.stepLinks.map(link => ({
+        stepOrder: link.order,
+        stepTitle: link.step.title,
+        status: (stepStatusMap.get(link.id) || TrainingStatus.NOT_STARTED) as TrainingStatus,
+      }));
+
+      const dayData = {
+        dayOrder: training.dayOnCourse.order,
+        dayTitle: dayInfo.title,
+        status: training.status as TrainingStatus,
+        steps: stepProgress,
       };
-    }),
-  );
+
+      if (!daysByUserId.has(training.userId)) {
+        daysByUserId.set(training.userId, []);
+      }
+      daysByUserId.get(training.userId)!.push(dayData);
+    }
+
+    const userProgressArray = Array.from(allUsers.values());
+    
+    // Фильтруем: включаем только пользователей, которые начали хотя бы один шаг
+    // (статус IN_PROGRESS или COMPLETED). Пользователи без активных шагов не попадают в статистику.
+    const usersWithProgress = userProgressArray.filter(
+      (uc) => uc.status !== TrainingStatus.NOT_STARTED,
+    );
+    
+    const totalStarted = usersWithProgress.length;
+    const totalCompleted = usersWithProgress.filter(
+      (uc) => uc.status === TrainingStatus.COMPLETED,
+    ).length;
+    const totalRatings = course.reviews.length;
+
+    return {
+      ...course,
+      totalStarted,
+      totalCompleted,
+      totalRatings,
+      // Возвращаем только пользователей с реальным прогрессом (начали хотя бы 1 шаг)
+      userProgress: usersWithProgress.map((user) => {
+        // Получаем дни конкретного пользователя
+        const userDays = daysByUserId.get(user.userId) || [];
+        // Фильтруем только дни с активным прогрессом
+        const activeDays = userDays.filter(
+          (d) => d.status !== TrainingStatus.NOT_STARTED,
+        );
+        
+        return {
+          userId: user.userId,
+          username: user.username,
+          avatarUrl: user.avatarUrl,
+          startedAt: user.startedAt,
+          completedAt: user.completedAt,
+          days: activeDays,
+        };
+      }),
+    };
+  });
 
   return coursesWithStats;
 }
