@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import type { UserWithTrainings } from "@gafus/types";
 
 import TrainingReminders from "./TrainingReminders";
@@ -15,12 +13,6 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
     <section className={styles.section}>
       <div style={{ marginBottom: "20px" }}>
         <TrainingReminders />
-      </div>
-      
-      <div style={{ marginTop: "20px", textAlign: "center" }}>
-        <Link href="/passwordReset" className={styles.passwordButton}>
-          🔐 Сменить пароль
-        </Link>
       </div>
     </section>
   );

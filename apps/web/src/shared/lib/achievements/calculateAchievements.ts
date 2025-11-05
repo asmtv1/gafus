@@ -9,6 +9,7 @@ import type {
   UserWithTrainings,
   CourseWithProgressData
 } from "@gafus/types";
+import { calculateCurrentStreak, calculateLongestStreak } from "./calculateStreaks";
 
 // Создаем логгер для calculate-achievements
 const logger = createWebLogger('web-calculate-achievements');
@@ -185,9 +186,10 @@ function calculateUserStatistics(user: UserWithTrainings): AchievementStats {
       }, 0) / totalCourses)
     : 0;
   
-  // Вычисляем серии (упрощенная версия)
-  const longestStreak = calculateLongestStreak(courses);
-  const currentStreak = calculateCurrentStreak(courses);
+  // Вычисляем серии (упрощенная версия для старого API)
+  // В новой версии используются реальные даты из БД через calculateAchievementsFromStores
+  const longestStreak = Math.min(completedCourses * 2, 30);
+  const currentStreak = Math.min(inProgressCourses, 7);
   
   return {
     totalCourses,
@@ -203,25 +205,6 @@ function calculateUserStatistics(user: UserWithTrainings): AchievementStats {
   };
 }
 
-/**
- * Вычисляет самую длинную серию занятий
- */
-function calculateLongestStreak(courses: UserWithTrainings['courses']): number {
-  // Упрощенная реализация - в реальном приложении нужно анализировать даты
-  const completedCourses = courses.filter(course => course.completedAt);
-  return Math.min(completedCourses.length * 2, 30); // Примерная оценка
-}
-
-/**
- * Вычисляет текущую серию занятий
- */
-function calculateCurrentStreak(courses: UserWithTrainings['courses']): number {
-  // Упрощенная реализация - в реальном приложении нужно анализировать даты
-  const inProgressCourses = courses.filter(
-    course => course.startedAt && !course.completedAt
-  );
-  return Math.min(inProgressCourses.length, 7); // Примерная оценка
-}
 
 /**
  * Вычисляет достижения на основе статистики
@@ -322,7 +305,8 @@ export function calculateAchievementsFromStores(
     courseDescription: string | null;
     courseId: string | null;
     courseVideoUrl: string | null;
-  }>
+  }>,
+  trainingDates?: Date[]
 ): AchievementData {
   // Фильтруем курсы, которые не в статусе NOT_STARTED
   const activeCourses = courses.filter(course => course.userStatus !== "NOT_STARTED");
@@ -393,9 +377,20 @@ export function calculateAchievementsFromStores(
       }, 0) / totalCourses)
     : 0;
   
-  // Упрощенные серии
-  const longestStreak = Math.min(completedCourses * 2, 30);
-  const currentStreak = Math.min(inProgressCourses, 7);
+  // Подсчет серий на основе реальных дат занятий
+  let longestStreak = 0;
+  let currentStreak = 0;
+  
+  if (trainingDates && trainingDates.length > 0) {
+    // Используем реальные даты для правильного подсчета серий
+    // Обрабатываем как Date[], так и string[] (после сериализации через клиент-сервер)
+    longestStreak = calculateLongestStreak(trainingDates as Date[] | string[]);
+    currentStreak = calculateCurrentStreak(trainingDates as Date[] | string[]);
+  } else {
+    // Fallback: упрощенная оценка, если даты еще не загружены
+    longestStreak = Math.min(completedCourses * 2, 30);
+    currentStreak = Math.min(inProgressCourses, 7);
+  }
   
   const stats: AchievementStats = {
     totalCourses,

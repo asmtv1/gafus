@@ -133,7 +133,8 @@ function getQueryKeysForPageType(pageType: RefreshPageType): string[] {
       return [
         "user:achievements",
         "user:profile",
-        "user:with-trainings"
+        "user:with-trainings",
+        "user:training-dates"
       ];
     default:
       return [];

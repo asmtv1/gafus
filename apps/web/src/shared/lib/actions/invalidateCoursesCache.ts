@@ -52,7 +52,9 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
           "training", 
           "days",
           "courses-favorites",
-          "courses"
+          "courses",
+          "achievements",
+          "streaks"
         ]);
         
         addToSyncQueue(action);
@@ -77,6 +79,8 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
     revalidateTag("days"); // Инвалидируем кэш дней тренировок
     revalidateTag("courses-favorites"); // Инвалидируем кэш избранных курсов
     revalidateTag("courses"); // Инвалидируем общий кэш курсов
+    revalidateTag("achievements"); // Инвалидируем кэш дат занятий для серий
+    revalidateTag("streaks"); // Инвалидируем кэш дат занятий для серий
     
     logger.warn(`[Cache] User progress cache invalidated successfully for user: ${safeUserId}`, { operation: 'warn' });
     return { success: true };

@@ -229,6 +229,13 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             ),
             SERVER_ACTION_TIMEOUT_MS
           );
+          
+          // Отправляем событие для инвалидации React Query кэша на клиенте
+          // Это событие будет обработано в компонентах, использующих React Query
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("invalidate-training-dates-cache"));
+            logger.info("[Cache] Sent event to invalidate React Query cache for user:training-dates", { operation: 'info' });
+          }
         } catch (error) {
           logger.error("❌ Ошибка завершения шага", error as Error, {
             operation: 'finish_step_with_server_error',

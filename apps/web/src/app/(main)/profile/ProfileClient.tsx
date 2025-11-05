@@ -1,5 +1,6 @@
 import Bio from "@features/profile/components/Bio";
 import PrivateProfileSection from "@features/profile/components/PrivateProfileSection";
+import SettingsActions from "@features/profile/components/SettingsActions";
 
 import type { PublicProfile, UserWithTrainings } from "@gafus/types";
 
@@ -20,6 +21,7 @@ export default function ProfileClient({
     <main>
       <Bio publicData={publicData} isOwner={isOwner} username={username} userData={userData} />
       {isOwner && userData && <PrivateProfileSection user={userData} />}
+      {isOwner && userData && <SettingsActions />}
     </main>
   );
 }
