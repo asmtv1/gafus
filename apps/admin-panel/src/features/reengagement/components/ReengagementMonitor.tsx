@@ -115,21 +115,30 @@ export default function ReengagementMonitor() {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+      <Box 
+        display="flex" 
+        justifyContent="space-between" 
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        flexDirection={{ xs: "column", sm: "row" }}
+        gap={{ xs: 2, sm: 0 }}
+        sx={{ mb: 2 }}
+      >
         <Box>
-          <Typography variant="h5" gutterBottom>
+          <Typography variant="h5" gutterBottom sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}>
             Мониторинг Re-engagement
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
             Аналитика системы возвращения неактивных пользователей
           </Typography>
         </Box>
-        <Box display="flex" gap={2}>
+        <Box display="flex" gap={2} flexDirection={{ xs: "column", sm: "row" }} width={{ xs: "100%", sm: "auto" }}>
           <Button
             variant="outlined"
             startIcon={<Refresh />}
             onClick={loadMetrics}
             disabled={loading}
+            fullWidth
+            sx={{ "@media (min-width: 600px)": { width: "auto" } }}
           >
             Обновить
           </Button>
@@ -139,6 +148,8 @@ export default function ReengagementMonitor() {
             onClick={handleTriggerScheduler}
             disabled={triggering || loading}
             color="primary"
+            fullWidth
+            sx={{ "@media (min-width: 600px)": { width: "auto" } }}
           >
             {triggering ? "Запуск..." : "Запустить планировщик"}
           </Button>
@@ -266,7 +277,7 @@ export default function ReengagementMonitor() {
       {/* Метрики по уровням */}
       <Card sx={{ mb: 4 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
             Эффективность по уровням
           </Typography>
           
@@ -328,7 +339,7 @@ export default function ReengagementMonitor() {
       {/* Метрики по типам сообщений */}
       <Card sx={{ mb: 4 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
             Эффективность по типам сообщений
           </Typography>
           
@@ -390,11 +401,11 @@ export default function ReengagementMonitor() {
       {/* Последние кампании */}
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
             Последние кампании
           </Typography>
 
-          <TableContainer>
+          <TableContainer sx={{ overflowX: "auto" }}>
             <Table size="small">
               <TableHead>
                 <TableRow>

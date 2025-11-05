@@ -96,11 +96,28 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Редактировать пользователя</DialogTitle>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="sm" 
+      fullWidth
+      PaperProps={{
+        sx: {
+          "@media (max-width: 600px)": {
+            m: 0,
+            borderRadius: 0,
+            height: "100%",
+            maxHeight: "100%",
+          },
+        },
+      }}
+    >
+      <DialogTitle sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
+        Редактировать пользователя
+      </DialogTitle>
       <DialogContent>
         <Box component="form" onSubmit={form.handleSubmit(handleSubmit)} sx={{ mt: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", sm: "0.875rem" }, wordBreak: "break-all" }}>
             ID: {user.id}
           </Typography>
 
@@ -140,11 +157,28 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
             </Typography>
           )}
 
-          <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
-            <Button onClick={onClose} disabled={isPending}>
+          <Box sx={{ 
+            display: "flex", 
+            gap: 2, 
+            justifyContent: "flex-end",
+            flexDirection: { xs: "column-reverse", sm: "row" },
+            mt: 3
+          }}>
+            <Button 
+              onClick={onClose} 
+              disabled={isPending}
+              fullWidth
+              sx={{ "@media (min-width: 600px)": { width: "auto" } }}
+            >
               Отмена
             </Button>
-            <Button type="submit" variant="contained" disabled={isPending}>
+            <Button 
+              type="submit" 
+              variant="contained" 
+              disabled={isPending}
+              fullWidth
+              sx={{ "@media (min-width: 600px)": { width: "auto" } }}
+            >
               {isPending ? "Обновление..." : "Обновить"}
             </Button>
           </Box>

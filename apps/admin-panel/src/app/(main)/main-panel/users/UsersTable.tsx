@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   Avatar,
   Box,
+  Button,
   Chip,
   IconButton,
   Paper,
@@ -91,7 +92,12 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
 
   return (
     <Paper sx={{ width: "100%", overflow: "hidden" }}>
-      <TableContainer sx={{ maxHeight: 600 }}>
+      <TableContainer 
+        sx={{ 
+          maxHeight: { xs: "none", sm: 600 },
+          display: { xs: "none", sm: "block" }
+        }}
+      >
         <Table stickyHeader>
           <TableHead>
             <TableRow>
@@ -205,6 +211,121 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
           `${from}-${to} из ${count !== -1 ? count : `более ${to}`}`
         }
       />
+
+      {/* Мобильный вид - карточки */}
+      <Box sx={{ display: { xs: "block", sm: "none" }, p: 2 }}>
+        {users.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((user) => (
+          <Paper
+            key={user.id}
+            sx={{
+              p: 2,
+              mb: 2,
+              borderRadius: 2,
+              boxShadow: 1,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+              <Avatar
+                src={user.profile?.avatarUrl || "/uploads/avatar.svg"}
+                alt={user.username}
+                sx={{ width: 48, height: 48 }}
+              />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body1" fontWeight="medium" noWrap>
+                  {user.profile?.fullName || user.username}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  @{user.username}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mb: 2 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  ID
+                </Typography>
+                <Typography variant="body2" fontFamily="monospace" sx={{ wordBreak: "break-all" }}>
+                  {user.id}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Роль
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  <Chip
+                    label={roleLabels[user.role as keyof typeof roleLabels] || user.role}
+                    color={roleColors[user.role as keyof typeof roleColors] || "default"}
+                    size="small"
+                  />
+                </Box>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Телефон
+                </Typography>
+                <Typography variant="body2">{formatPhone(user.phone)}</Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Статус
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  <Chip
+                    label={user.isConfirmed ? "Подтвержден" : "Не подтвержден"}
+                    color={user.isConfirmed ? "success" : "warning"}
+                    size="small"
+                  />
+                </Box>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Дата регистрации
+                </Typography>
+                <Typography variant="body2">{formatDate(user.createdAt)}</Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
+              <IconButton size="small" onClick={() => onEditUser(user)} color="primary">
+                <EditIcon />
+              </IconButton>
+              <IconButton size="small" onClick={() => onDeleteUser(user.id)} color="error">
+                <DeleteIcon />
+              </IconButton>
+            </Box>
+          </Paper>
+        ))}
+
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => handleChangePage(null, Math.max(0, page - 1))}
+              disabled={page === 0}
+            >
+              Назад
+            </Button>
+            <Typography variant="body2" sx={{ px: 2 }}>
+              {page * rowsPerPage + 1}-{Math.min((page + 1) * rowsPerPage, users.length)} из {users.length}
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => handleChangePage(null, Math.min(Math.ceil(users.length / rowsPerPage) - 1, page + 1))}
+              disabled={page >= Math.ceil(users.length / rowsPerPage) - 1}
+            >
+              Вперед
+            </Button>
+          </Box>
+        </Box>
+      </Box>
     </Paper>
   );
 }

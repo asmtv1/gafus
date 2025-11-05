@@ -10,18 +10,23 @@ interface StorageManagementProps {
 export default function StorageManagement({ stats }: StorageManagementProps) {
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant="h4" gutterBottom sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
         Управление хранилищем видео
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", sm: "1rem" } }}>
         Статистика и мониторинг хранения видео экзаменов
       </Typography>
 
       {/* Общая статистика */}
-      <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+      <Typography variant="h6" gutterBottom sx={{ mt: 3, fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
         Общая статистика
       </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2, mb: 3 }}>
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(auto-fit, minmax(200px, 1fr))' }, 
+        gap: 2, 
+        mb: 3 
+      }}>
         <Card>
           <CardContent>
             <Typography variant="h4" color="primary">
@@ -68,10 +73,15 @@ export default function StorageManagement({ stats }: StorageManagementProps) {
       </Box>
 
       {/* Статистика по статусам */}
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
         По статусам экзаменов
       </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 2, mb: 3 }}>
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: { xs: '1fr', sm: '1fr', md: 'repeat(auto-fit, minmax(300px, 1fr))' }, 
+        gap: 2, 
+        mb: 3 
+      }}>
         <Card>
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -108,10 +118,15 @@ export default function StorageManagement({ stats }: StorageManagementProps) {
       </Box>
 
       {/* Кандидаты на удаление */}
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
         Кандидаты на автоудаление
       </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 2, mb: 3 }}>
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: { xs: '1fr', sm: '1fr', md: 'repeat(auto-fit, minmax(300px, 1fr))' }, 
+        gap: 2, 
+        mb: 3 
+      }}>
         <Card sx={{ border: '1px solid', borderColor: 'error.light' }}>
           <CardContent>
             <Typography variant="h5" color="error.main">
@@ -144,10 +159,14 @@ export default function StorageManagement({ stats }: StorageManagementProps) {
       <Divider sx={{ my: 3 }} />
 
       {/* История удалений */}
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
         История удалений
       </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 2 }}>
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(auto-fit, minmax(250px, 1fr))' }, 
+        gap: 2 
+      }}>
         <Card>
           <CardContent>
             <Typography variant="h5">
@@ -185,11 +204,11 @@ export default function StorageManagement({ stats }: StorageManagementProps) {
         </Card>
       </Box>
 
-      <Box sx={{ mt: 3, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
-        <Typography variant="body2" color="info.dark">
+      <Box sx={{ mt: 3, p: { xs: 1.5, sm: 2 }, bgcolor: 'info.light', borderRadius: 1 }}>
+        <Typography variant="body2" color="info.dark" sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
           ℹ️ Автоматическая очистка запускается каждый день в 03:00 MSK
         </Typography>
-        <Typography variant="caption" color="info.dark" sx={{ display: 'block', mt: 1 }}>
+        <Typography variant="caption" color="info.dark" sx={{ display: 'block', mt: 1, fontSize: { xs: "0.75rem", sm: "0.75rem" } }}>
           • Зачтенные экзамены: удаление через 30 дней после зачета<br />
           • Незачтенные экзамены: удаление через 90 дней после создания<br />
           • При перезаписи: старое видео удаляется немедленно

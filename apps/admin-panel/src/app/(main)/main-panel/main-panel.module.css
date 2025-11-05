@@ -15,6 +15,12 @@
   position: relative;
 }
 
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+}
+
 .sidebar::before {
   content: '';
   position: absolute;
@@ -67,6 +73,13 @@
   padding: 0;
   background-color: #f8f9fa;
   overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .content {
+    width: 100%;
+    padding-top: 0;
+  }
 }
 
 .avatar {

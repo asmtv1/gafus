@@ -87,11 +87,11 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
   return (
     <Card className={className}>
       <CardContent>
-        <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+        <Typography variant="h6" gutterBottom sx={{ mb: 2, fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
           Массовая рассылка push-уведомлений
         </Typography>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
           Отправьте push-уведомление всем пользователям, которые разрешили получать уведомления.
           Уведомление будет отправлено на все устройства пользователей.
         </Typography>
@@ -146,16 +146,20 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
               color="primary"
               size="large"
               disabled={isPending}
+              fullWidth
               startIcon={isPending ? <CircularProgress size={20} /> : <SendIcon />}
-              sx={{ alignSelf: "flex-start" }}
+              sx={{ 
+                alignSelf: { xs: "stretch", sm: "flex-start" },
+                "@media (min-width: 769px)": { width: "auto" }
+              }}
             >
               {isPending ? "Отправка..." : "Отправить всем"}
             </Button>
           </Box>
         </form>
 
-        <Box sx={{ mt: 3, p: 2, bgcolor: "info.light", borderRadius: 1 }}>
-          <Typography variant="body2" color="info.dark">
+        <Box sx={{ mt: 3, p: { xs: 1.5, sm: 2 }, bgcolor: "info.light", borderRadius: 1 }}>
+          <Typography variant="body2" color="info.dark" sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
             <strong>⚠️ Важно:</strong> Это действие отправит уведомление всем пользователям
             с активными подписками. Используйте эту функцию ответственно и только для важных
             объявлений.

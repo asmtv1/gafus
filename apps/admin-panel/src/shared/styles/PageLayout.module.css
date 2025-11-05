@@ -54,19 +54,60 @@
 /* Адаптивность */
 @media (max-width: 768px) {
   .pageContainer {
-    padding: 1rem;
+    padding: 1rem 0.75rem;
   }
   
   .pageHeader {
-    padding: 1.5rem;
+    padding: 1.25rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
   }
   
   .pageTitle {
-    font-size: 2rem;
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
+
+  .pageSubtitle {
+    font-size: 0.95rem;
   }
   
   .contentCard {
-    padding: 1.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+  }
+
+  .contentCard h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .contentCard h3 {
+    font-size: 1.1rem;
+    margin: 1rem 0 0.75rem 0;
+  }
+}
+
+@media (max-width: 390px) {
+  .pageContainer {
+    padding: 0.5rem;
+  }
+
+  .pageHeader {
+    padding: 1rem 0.75rem;
+  }
+
+  .pageTitle {
+    font-size: 1.25rem;
+  }
+
+  .pageSubtitle {
+    font-size: 0.875rem;
+  }
+
+  .contentCard {
+    padding: 0.75rem;
   }
 }
 

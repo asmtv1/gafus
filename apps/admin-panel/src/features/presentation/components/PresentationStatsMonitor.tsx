@@ -80,16 +80,6 @@ export default function PresentationStatsMonitor() {
     return `${hours} ч ${remainingMinutes} мин`;
   };
 
-  // Форматирование общего времени
-  const formatTotalTime = (seconds: number) => {
-    if (seconds < 3600) {
-      const minutes = Math.floor(seconds / 60);
-      return `${minutes} мин`;
-    }
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours} ч ${minutes} мин`;
-  };
 
   if (loading) {
     return (
@@ -109,12 +99,19 @@ export default function PresentationStatsMonitor() {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+      <Box 
+        display="flex" 
+        justifyContent="space-between" 
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        flexDirection={{ xs: "column", sm: "row" }}
+        gap={{ xs: 2, sm: 0 }}
+        sx={{ mb: 2 }}
+      >
         <Box>
-          <Typography variant="h5" gutterBottom>
+          <Typography variant="h5" gutterBottom sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}>
             Статистика по презентации
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
             Аналитика просмотров presentation.html
           </Typography>
         </Box>
@@ -123,6 +120,13 @@ export default function PresentationStatsMonitor() {
           startIcon={<Refresh />}
           onClick={loadStats}
           disabled={loading}
+          fullWidth
+          sx={{ 
+            "@media (min-width: 600px)": { 
+              width: "auto",
+              alignSelf: "flex-start"
+            } 
+          }}
         >
           Обновить
         </Button>
@@ -303,11 +307,11 @@ export default function PresentationStatsMonitor() {
       {stats.byReferrer.length > 0 && (
         <Card sx={{ mb: 4 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
               Статистика по источникам (Referrer)
             </Typography>
 
-            <TableContainer>
+            <TableContainer sx={{ overflowX: "auto" }}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -355,7 +359,7 @@ export default function PresentationStatsMonitor() {
       {/* Воронка вовлечённости */}
       <Card sx={{ mb: 4 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
             Воронка вовлечённости по секциям
           </Typography>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -403,7 +407,7 @@ export default function PresentationStatsMonitor() {
       {/* Вехи прокрутки */}
       <Card sx={{ mb: 4 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
             Вехи прокрутки
           </Typography>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -440,10 +444,10 @@ export default function PresentationStatsMonitor() {
       {stats.byDevice.length > 0 && (
         <Card sx={{ mb: 4 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
               Статистика по устройствам
             </Typography>
-            <TableContainer>
+            <TableContainer sx={{ overflowX: "auto" }}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -475,11 +479,11 @@ export default function PresentationStatsMonitor() {
       {stats.byUTM.length > 0 && (
         <Card sx={{ mb: 4 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
               Статистика по UTM меткам
             </Typography>
 
-            <TableContainer>
+            <TableContainer sx={{ overflowX: "auto" }}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -508,11 +512,11 @@ export default function PresentationStatsMonitor() {
       {/* Последние просмотры */}
       <Card sx={{ mb: 4 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
             Последние просмотры
           </Typography>
 
-          <TableContainer>
+          <TableContainer sx={{ overflowX: "auto" }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -574,7 +578,7 @@ export default function PresentationStatsMonitor() {
       {/* Распределение по времени суток */}
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
             Распределение просмотров по времени суток
           </Typography>
 
