@@ -616,11 +616,18 @@ async function getOfflineFallback(request) {
         p { color: #666; line-height: 1.6; text-align: center; }
         .retry { background: #007bff; color: white; border: none; 
                 padding: 12px 24px; border-radius: 6px; cursor: pointer; 
-                margin-top: 20px; display: block; margin-left: auto; margin-right: auto; }
+                margin-top: 20px; display: block; margin-left: auto; margin-right: auto; 
+                font-size: 16px; font-weight: 500; }
         .back { background: #6c757d; color: white; border: none; 
                 padding: 12px 24px; border-radius: 6px; cursor: pointer; 
-                margin-top: 10px; display: block; margin-left: auto; margin-right: auto; }
+                margin-top: 10px; display: block; margin-left: auto; margin-right: auto;
+                font-size: 16px; font-weight: 500; }
+        .home { background: #28a745; color: white; border: none; 
+                padding: 12px 24px; border-radius: 6px; cursor: pointer; 
+                margin-top: 10px; display: block; margin-left: auto; margin-right: auto;
+                font-size: 16px; font-weight: 500; text-decoration: none; text-align: center; }
         .buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        .loading { display: none; text-align: center; margin-top: 10px; color: #007bff; }
       </style>
     </head>
     <body>
@@ -628,17 +635,61 @@ async function getOfflineFallback(request) {
         <div class="icon">📱</div>
         <h1>Нет подключения к интернету</h1>
         <p>Проверьте подключение к интернету и попробуйте снова.</p>
+        <p class="loading" id="loading">Загрузка...</p>
         <div class="buttons">
-          <button class="retry" onclick="window.location.reload()">Попробовать снова</button>
-          <button class="back" onclick="window.history.back()">Назад</button>
+          <button class="retry" onclick="handleRetry()">Попробовать снова</button>
+          <button class="back" onclick="handleBack()">Назад</button>
+          <a href="/" class="home">На главную</a>
         </div>
       </div>
+      <script>
+        let retryAttempts = 0;
+        const maxRetries = 3;
+        
+        function handleRetry() {
+          retryAttempts++;
+          const loading = document.getElementById('loading');
+          loading.style.display = 'block';
+          
+          // Добавляем случайный параметр для обхода кэша
+          const url = new URL(window.location.href);
+          url.searchParams.set('retry', Date.now().toString());
+          
+          // Даем больше времени на каждую последующую попытку
+          const timeout = 5000 + (retryAttempts * 2000);
+          
+          setTimeout(() => {
+            window.location.href = url.toString();
+          }, 500);
+        }
+        
+        function handleBack() {
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            window.location.href = '/';
+          }
+        }
+        
+        // Автоматическая попытка подключения каждые 5 секунд
+        let autoRetryCount = 0;
+        setInterval(() => {
+          if (navigator.onLine && autoRetryCount < 3) {
+            autoRetryCount++;
+            console.log('Online detected, attempting auto-retry');
+            handleRetry();
+          }
+        }, 5000);
+      </script>
     </body>
     </html>
   `, {
     status: 200,
     statusText: 'OK',
-    headers: { 'Content-Type': 'text/html' }
+    headers: { 
+      'Content-Type': 'text/html',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    }
   });
 }
 
@@ -660,6 +711,108 @@ async function getRSCFallback(request) {
       'sw-fallback': 'rsc-offline'
     }
   });
+}
+
+// Утилиты для работы с localStorage из Service Worker
+// Service Worker не имеет прямого доступа к localStorage, поэтому используем IndexedDB
+async function getLocalStorageItem(key) {
+  try {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('sw-localstorage', 1);
+      
+      request.onerror = () => reject(request.error);
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains('storage')) {
+          db.createObjectStore('storage');
+        }
+      };
+      
+      request.onsuccess = (event) => {
+        const db = event.target.result;
+        try {
+          const transaction = db.transaction(['storage'], 'readonly');
+          const store = transaction.objectStore('storage');
+          const getRequest = store.get(key);
+          
+          getRequest.onsuccess = () => resolve(getRequest.result);
+          getRequest.onerror = () => reject(getRequest.error);
+        } catch (e) {
+          reject(e);
+        }
+      };
+    });
+  } catch (e) {
+    console.warn('⚠️ SW: Failed to get localStorage item', e);
+    return null;
+  }
+}
+
+async function setLocalStorageItem(key, value) {
+  try {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('sw-localstorage', 1);
+      
+      request.onerror = () => reject(request.error);
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains('storage')) {
+          db.createObjectStore('storage');
+        }
+      };
+      
+      request.onsuccess = (event) => {
+        const db = event.target.result;
+        try {
+          const transaction = db.transaction(['storage'], 'readwrite');
+          const store = transaction.objectStore('storage');
+          const putRequest = store.put(value, key);
+          
+          putRequest.onsuccess = () => resolve();
+          putRequest.onerror = () => reject(putRequest.error);
+        } catch (e) {
+          reject(e);
+        }
+      };
+    });
+  } catch (e) {
+    console.warn('⚠️ SW: Failed to set localStorage item', e);
+  }
+}
+
+async function removeLocalStorageItem(key) {
+  try {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('sw-localstorage', 1);
+      
+      request.onerror = () => reject(request.error);
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains('storage')) {
+          db.createObjectStore('storage');
+        }
+      };
+      
+      request.onsuccess = (event) => {
+        const db = event.target.result;
+        try {
+          const transaction = db.transaction(['storage'], 'readwrite');
+          const store = transaction.objectStore('storage');
+          const deleteRequest = store.delete(key);
+          
+          deleteRequest.onsuccess = () => resolve();
+          deleteRequest.onerror = () => reject(deleteRequest.error);
+        } catch (e) {
+          reject(e);
+        }
+      };
+    });
+  } catch (e) {
+    console.warn('⚠️ SW: Failed to remove localStorage item', e);
+  }
 }
 
 // Safari/WebKit-specific settings для уведомлений
@@ -1122,10 +1275,50 @@ async function handleNavigationRequest(event, request) {
     }
 
     // 1) Кэша нет — пробуем сеть с таймаутом
-    const response = await Promise.race([
-      fetch(request),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200)),
-    ]);
+    // Проверяем, был ли недавно очищен кэш (в течение последних 2 минут)
+    let networkTimeout = 1200; // Стандартный таймаут
+    let shouldRetry = false;
+    
+    try {
+      const cacheCleared = await getLocalStorageItem('cache-cleared-timestamp');
+      if (cacheCleared) {
+        const timeSinceCleared = Date.now() - parseInt(cacheCleared);
+        // Если кэш был очищен менее 2 минут назад, используем увеличенный таймаут
+        if (timeSinceCleared < 2 * 60 * 1000) {
+          networkTimeout = 5000; // 5 секунд для первых запросов после очистки
+          shouldRetry = true; // Разрешаем повторную попытку
+          console.log(`⏱️ SW: Using extended timeout (${networkTimeout}ms) due to recent cache clear`);
+        } else {
+          // Удаляем старый флаг
+          await removeLocalStorageItem('cache-cleared-timestamp');
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ SW: Failed to check cache-cleared-timestamp', e);
+    }
+
+    let response;
+    try {
+      response = await Promise.race([
+        fetch(request),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), networkTimeout)),
+      ]);
+    } catch (firstError) {
+      // Если первая попытка не удалась и разрешен retry, пробуем еще раз с еще более длительным таймаутом
+      if (shouldRetry && firstError.message === 'timeout') {
+        console.log(`🔄 SW: First attempt timed out, retrying with 10s timeout`);
+        try {
+          response = await Promise.race([
+            fetch(request),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+          ]);
+        } catch (secondError) {
+          throw secondError; // Если и вторая попытка не удалась, выбрасываем ошибку
+        }
+      } else {
+        throw firstError; // Если retry не разрешен, выбрасываем оригинальную ошибку
+      }
+    }
 
     const ct = response.headers.get('Content-Type') || '';
     if (ct.includes('text/html')) {

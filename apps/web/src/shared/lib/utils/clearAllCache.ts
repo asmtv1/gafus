@@ -181,6 +181,40 @@ export async function clearAllCache(): Promise<void> {
         logger.warn("⚠️ Ошибка удаления device-subscriptions", { error, operation: 'warn' });
       }
 
+      // Устанавливаем флаг для Service Worker, что кэш был очищен
+      // Это позволит SW использовать более длительный таймаут при первой загрузке
+      try {
+        localStorage.setItem("cache-cleared-timestamp", Date.now().toString());
+        
+        // Сохраняем флаг также в IndexedDB для доступа из Service Worker
+        const request = indexedDB.open('sw-localstorage', 1);
+        
+        request.onupgradeneeded = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
+          if (!db.objectStoreNames.contains('storage')) {
+            db.createObjectStore('storage');
+          }
+        };
+        
+        request.onsuccess = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
+          const transaction = db.transaction(['storage'], 'readwrite');
+          const store = transaction.objectStore('storage');
+          store.put(Date.now().toString(), 'cache-cleared-timestamp');
+          db.close();
+          logger.info("✅ Установлен флаг очистки кэша для SW", { operation: 'set_cache_cleared_flag' });
+        };
+        
+        request.onerror = () => {
+          logger.warn("⚠️ Ошибка установки флага очистки кэша в IndexedDB", { 
+            error: request.error, 
+            operation: 'warn' 
+          });
+        };
+      } catch (error) {
+        logger.warn("⚠️ Ошибка установки флага очистки кэша", { error, operation: 'warn' });
+      }
+
       logger.info("✅ localStorage очищен", { 
         operation: 'clear_local_storage',
         timerKeysCount: timerKeys.length 
