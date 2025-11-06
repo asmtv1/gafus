@@ -7,8 +7,8 @@
   "scope": "/",
   "display": "standalone",
   "display_override": ["fullscreen", "standalone"],
-  "theme_color": "#DAD3C1",
-  "background_color": "#DAD3C1",
+  "theme_color": "#8936FF",
+  "background_color": "#2EC6FE",
   "orientation": "portrait-primary",
   "categories": ["education", "lifestyle", "productivity"],
   "icons": [

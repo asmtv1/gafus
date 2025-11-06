@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { generatePageMetadata } from "@gafus/metadata";
-import LoadingScreen from "@shared/components/ui/LoadingScreen";
 
 import styles from "./confirm.module.css";
 import ConfirmClient from "./ConfirmClient";
@@ -35,7 +34,7 @@ export default function ConfirmPage() {
         <button className={styles.button}>Открыть Telegram-бота</button>
       </Link>
 
-      <Suspense fallback={<LoadingScreen />}>
+      <Suspense fallback={<p>Проверка подтверждения...</p>}>
         <ConfirmClient />
       </Suspense>
       <Image
