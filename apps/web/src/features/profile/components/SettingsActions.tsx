@@ -15,7 +15,7 @@ export default function SettingsActions() {
   const { clearCache } = useClearAllCache();
   const [notification, setNotification] = useState<{
     message: string;
-    type: "success" | "error";
+    type: "success" | "error" | "warning";
   } | null>(null);
   const [isClearing, setIsClearing] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
