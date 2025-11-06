@@ -122,6 +122,7 @@ export default function PresentationStatsMonitor() {
           disabled={loading}
           fullWidth
           sx={{ 
+            minHeight: { xs: "44px", sm: "auto" },
             "@media (min-width: 600px)": { 
               width: "auto",
               alignSelf: "flex-start"
@@ -133,20 +134,20 @@ export default function PresentationStatsMonitor() {
       </Box>
 
       {/* Общая статистика */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Всего просмотров
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {stats.overview.totalViews}
                   </Typography>
                 </Box>
-                <Visibility color="primary" sx={{ fontSize: 48 }} />
+                <Visibility color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
               </Box>
             </CardContent>
           </Card>
@@ -156,18 +157,18 @@ export default function PresentationStatsMonitor() {
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Уникальных посетителей
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {stats.overview.uniqueVisitors || stats.overview.uniqueSessions}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Сессий: {stats.overview.uniqueSessions}
                   </Typography>
                 </Box>
-                <People color="primary" sx={{ fontSize: 48 }} />
+                <People color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
               </Box>
             </CardContent>
           </Card>
@@ -177,20 +178,20 @@ export default function PresentationStatsMonitor() {
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Глубокая вовлечённость
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {stats.engagement.deepEngagement}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     {stats.overview.totalViews > 0 
                       ? Math.round((stats.engagement.deepEngagement / stats.overview.totalViews) * 100 * 10) / 10 
                       : 0}%
                   </Typography>
                 </Box>
-                <TrendingUp color="primary" sx={{ fontSize: 48 }} />
+                <TrendingUp color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
               </Box>
             </CardContent>
           </Card>
@@ -200,18 +201,18 @@ export default function PresentationStatsMonitor() {
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Клики по CTA
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {stats.engagement.clickedCTA}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     {Math.round(stats.engagement.avgClicksPerSession * 10) / 10} на сессию
                   </Typography>
                 </Box>
-                <LinkIcon color="primary" sx={{ fontSize: 48 }} />
+                <LinkIcon color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
               </Box>
             </CardContent>
           </Card>
@@ -219,7 +220,7 @@ export default function PresentationStatsMonitor() {
       </Grid>
 
       {/* Метрики вовлечённости */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
@@ -311,7 +312,13 @@ export default function PresentationStatsMonitor() {
               Статистика по источникам (Referrer)
             </Typography>
 
-            <TableContainer sx={{ overflowX: "auto" }}>
+            {/* Десктопная таблица */}
+            <TableContainer 
+              sx={{ 
+                overflowX: "auto",
+                display: { xs: "none", sm: "block" }
+              }}
+            >
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -352,6 +359,79 @@ export default function PresentationStatsMonitor() {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Мобильные карточки */}
+            <Box sx={{ display: { xs: "block", sm: "none" } }}>
+              {stats.byReferrer.map((ref, index) => (
+                <Paper
+                  key={index}
+                  sx={{
+                    p: 2,
+                    mb: 2,
+                    borderRadius: 2,
+                    boxShadow: 1,
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                    {ref.domain ? (
+                      <>
+                        <Language fontSize="small" />
+                        <Typography variant="subtitle1" fontWeight="medium" sx={{ wordBreak: "break-all" }}>
+                          {ref.domain}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography variant="subtitle1" color="text.secondary">
+                        Прямой переход
+                      </Typography>
+                    )}
+                  </Box>
+
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <Box sx={{ display: "flex", gap: 2 }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Просмотров
+                        </Typography>
+                        <Typography variant="body2" fontWeight="medium">
+                          {ref.views}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Сессий
+                        </Typography>
+                        <Typography variant="body2" fontWeight="medium">
+                          {ref.uniqueSessions}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Среднее время
+                      </Typography>
+                      <Typography variant="body2">
+                        {ref.avgTimeOnPage > 0 ? formatTime(Math.round(ref.avgTimeOnPage)) : '-'}
+                      </Typography>
+                    </Box>
+
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Вовлечённость
+                      </Typography>
+                      <Box sx={{ mt: 0.5 }}>
+                        <Chip 
+                          label={`${ref.deepEngagementRate}%`} 
+                          size="small" 
+                          color={ref.deepEngagementRate > 30 ? "success" : ref.deepEngagementRate > 15 ? "warning" : "default"}
+                        />
+                      </Box>
+                    </Box>
+                  </Box>
+                </Paper>
+              ))}
+            </Box>
           </CardContent>
         </Card>
       )}
@@ -362,7 +442,7 @@ export default function PresentationStatsMonitor() {
           <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
             Воронка вовлечённости по секциям
           </Typography>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: 1 }}>
             {[
               { name: 'Hero', value: stats.funnel.hero, label: 'Начало просмотра' },
               { name: 'Problem', value: stats.funnel.problem, label: 'Проблемы' },
@@ -377,14 +457,14 @@ export default function PresentationStatsMonitor() {
                 : 0;
               return (
                 <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="subtitle1" gutterBottom>
+                  <Paper sx={{ p: { xs: 1.5, sm: 2 } }}>
+                    <Typography variant="subtitle1" gutterBottom sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
                       {section.name}
                     </Typography>
-                    <Typography variant="h6" color="primary">
+                    <Typography variant="h6" color="primary" sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
                       {section.value} ({percentage}%)
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                       {section.label}
                     </Typography>
                     <Box
@@ -410,17 +490,17 @@ export default function PresentationStatsMonitor() {
           <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
             Вехи прокрутки
           </Typography>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: 1 }}>
             {stats.scrollMilestones.map((milestone, index) => (
               <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-                <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="h6" color="primary">
+                <Paper sx={{ p: { xs: 1.5, sm: 2 }, textAlign: 'center' }}>
+                  <Typography variant="h6" color="primary" sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
                     {milestone.milestone}%
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     {milestone.reached} пользователей
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     {milestone.percentage}% от всех
                   </Typography>
                   <Box
@@ -447,7 +527,13 @@ export default function PresentationStatsMonitor() {
             <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
               Статистика по устройствам
             </Typography>
-            <TableContainer sx={{ overflowX: "auto" }}>
+            {/* Десктопная таблица */}
+            <TableContainer 
+              sx={{ 
+                overflowX: "auto",
+                display: { xs: "none", sm: "block" }
+              }}
+            >
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -471,6 +557,50 @@ export default function PresentationStatsMonitor() {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Мобильные карточки */}
+            <Box sx={{ display: { xs: "block", sm: "none" } }}>
+              {stats.byDevice.map((device, index) => (
+                <Paper
+                  key={index}
+                  sx={{
+                    p: 2,
+                    mb: 2,
+                    borderRadius: 2,
+                    boxShadow: 1,
+                  }}
+                >
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Устройство
+                      </Typography>
+                      <Typography variant="body1" fontWeight="medium">
+                        {device.deviceType || 'Неизвестно'}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 2 }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Просмотров
+                        </Typography>
+                        <Typography variant="body2" fontWeight="medium">
+                          {device.views}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Среднее время
+                        </Typography>
+                        <Typography variant="body2">
+                          {device.avgTimeOnPage > 0 ? formatTime(Math.round(device.avgTimeOnPage)) : '-'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                </Paper>
+              ))}
+            </Box>
           </CardContent>
         </Card>
       )}
@@ -483,7 +613,13 @@ export default function PresentationStatsMonitor() {
               Статистика по UTM меткам
             </Typography>
 
-            <TableContainer sx={{ overflowX: "auto" }}>
+            {/* Десктопная таблица */}
+            <TableContainer 
+              sx={{ 
+                overflowX: "auto",
+                display: { xs: "none", sm: "block" }
+              }}
+            >
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -505,6 +641,56 @@ export default function PresentationStatsMonitor() {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Мобильные карточки */}
+            <Box sx={{ display: { xs: "block", sm: "none" } }}>
+              {stats.byUTM.map((utm, index) => (
+                <Paper
+                  key={index}
+                  sx={{
+                    p: 2,
+                    mb: 2,
+                    borderRadius: 2,
+                    boxShadow: 1,
+                  }}
+                >
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Source
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium">
+                        {utm.source || '-'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Medium
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium">
+                        {utm.medium || '-'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Campaign
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium">
+                        {utm.campaign || '-'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Просмотров
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium">
+                        {utm.views}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              ))}
+            </Box>
           </CardContent>
         </Card>
       )}
@@ -516,7 +702,13 @@ export default function PresentationStatsMonitor() {
             Последние просмотры
           </Typography>
 
-          <TableContainer sx={{ overflowX: "auto" }}>
+          {/* Десктопная таблица */}
+          <TableContainer 
+            sx={{ 
+              overflowX: "auto",
+              display: { xs: "none", sm: "block" }
+            }}
+          >
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -572,6 +764,96 @@ export default function PresentationStatsMonitor() {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Мобильные карточки */}
+          <Box sx={{ display: { xs: "block", sm: "none" } }}>
+            {stats.recentViews.map((view) => (
+              <Paper
+                key={view.id}
+                sx={{
+                  p: 2,
+                  mb: 2,
+                  borderRadius: 2,
+                  boxShadow: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Дата
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {new Date(view.firstViewAt).toLocaleString('ru-RU', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Источник
+                    </Typography>
+                    <Box sx={{ mt: 0.5 }}>
+                      {view.referrerDomain ? (
+                        <Chip 
+                          label={view.referrerDomain} 
+                          size="small" 
+                          icon={<LinkIcon />}
+                        />
+                      ) : (
+                        <Typography color="text.secondary" variant="body2">
+                          Прямой переход
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Время
+                      </Typography>
+                      <Typography variant="body2">
+                        {view.timeOnPage ? formatTime(view.timeOnPage) : '-'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Прокрутка
+                      </Typography>
+                      <Typography variant="body2">
+                        {view.scrollDepth !== null ? `${view.scrollDepth}%` : '-'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Клики CTA
+                      </Typography>
+                      <Box sx={{ mt: 0.5 }}>
+                        {view.ctaClicks > 0 ? (
+                          <Chip label={view.ctaClicks} size="small" color="primary" />
+                        ) : (
+                          <Typography variant="body2">-</Typography>
+                        )}
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Устройство
+                      </Typography>
+                      <Typography variant="body2">
+                        {view.deviceType || '-'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Paper>
+            ))}
+          </Box>
         </CardContent>
       </Card>
 
@@ -582,14 +864,14 @@ export default function PresentationStatsMonitor() {
             Распределение просмотров по времени суток
           </Typography>
 
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mt: 1 }}>
             {stats.timeDistribution.map((item) => (
               <Grid size={{ xs: 6, sm: 4, md: 3 }} key={item.hour}>
-                <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="h6" color="primary">
+                <Paper sx={{ p: { xs: 1.5, sm: 2 }, textAlign: 'center' }}>
+                  <Typography variant="h6" color="primary" sx={{ fontSize: { xs: "0.875rem", sm: "1.25rem" } }}>
                     {item.hour}:00
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     {item.views} просмотров
                   </Typography>
                   <Box

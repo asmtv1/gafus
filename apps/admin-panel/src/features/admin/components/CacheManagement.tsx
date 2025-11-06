@@ -96,7 +96,11 @@ export default function CacheManagement({ className }: CacheManagementProps) {
                 onClick={handleInvalidateAllCache}
                 disabled={isInvalidatingAll || isInvalidating}
                 fullWidth
-                sx={{ mb: 1, "@media (min-width: 769px)": { width: "auto" } }}
+                sx={{ 
+                  mb: 1,
+                  minHeight: { xs: "44px", sm: "auto" },
+                  "@media (min-width: 769px)": { width: "auto" } 
+                }}
               >
                 {isInvalidatingAll ? "⏳ Сброс кэша..." : "🗑️ Сбросить весь кэш для всех пользователей"}
               </Button>
@@ -116,7 +120,11 @@ export default function CacheManagement({ className }: CacheManagementProps) {
               onClick={handleInvalidateCoursesCache}
               disabled={isInvalidating || isInvalidatingAll}
               fullWidth
-              sx={{ mb: 1, "@media (min-width: 769px)": { width: "auto" } }}
+              sx={{ 
+                mb: 1,
+                minHeight: { xs: "44px", sm: "auto" },
+                "@media (min-width: 769px)": { width: "auto" } 
+              }}
             >
               {isInvalidating ? "⏳ Обновление..." : "🔄 Обновить кэш курсов"}
             </Button>

@@ -268,7 +268,7 @@ async function cacheFirstStrategy(request, resourceType) {
               statusText: resForHeaders.statusText,
               headers,
             });
-            await cache.put(request, updatedResponse.clone());
+            await cache.put(cacheKey, updatedResponse.clone());
             if (resourceType === 'HTML_PAGES' && request.url.includes('/trainings/')) {
               try {
                 const normalizedRequest = getNormalizedRSCRequest(request);
@@ -356,7 +356,17 @@ async function cacheFirstStrategy(request, resourceType) {
       return await getOfflineFallback(request);
     }
     
-    throw error;
+    // 7. Для статических ресурсов и изображений - кэша нет (уже проверяли в начале)
+    // Возвращаем ошибку 503
+    console.warn(`⚠️ SW: No cache available for ${resourceType} ${request.url}, returning 503`);
+    return new Response('Service Unavailable', {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: {
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'no-cache'
+      }
+    });
   }
 }
 
@@ -607,6 +617,10 @@ async function getOfflineFallback(request) {
         .retry { background: #007bff; color: white; border: none; 
                 padding: 12px 24px; border-radius: 6px; cursor: pointer; 
                 margin-top: 20px; display: block; margin-left: auto; margin-right: auto; }
+        .back { background: #6c757d; color: white; border: none; 
+                padding: 12px 24px; border-radius: 6px; cursor: pointer; 
+                margin-top: 10px; display: block; margin-left: auto; margin-right: auto; }
+        .buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
       </style>
     </head>
     <body>
@@ -614,7 +628,10 @@ async function getOfflineFallback(request) {
         <div class="icon">📱</div>
         <h1>Нет подключения к интернету</h1>
         <p>Проверьте подключение к интернету и попробуйте снова.</p>
-        <button class="retry" onclick="window.location.reload()">Попробовать снова</button>
+        <div class="buttons">
+          <button class="retry" onclick="window.location.reload()">Попробовать снова</button>
+          <button class="back" onclick="window.history.back()">Назад</button>
+        </div>
       </div>
     </body>
     </html>
@@ -1067,6 +1084,21 @@ async function handleRequest(request, resourceType, strategy) {
     // Fallback для RSC-запросов — отдаём HTML офлайн-страницу, чтобы не отображался сырой RSC-поток
     if (resourceType === 'RSC_DATA') {
       return await getOfflineFallback(request);
+    }
+    
+    // Fallback для статических ресурсов и изображений - пробуем вернуть из кэша
+    if (resourceType === 'STATIC' || resourceType === 'IMAGES') {
+      try {
+        const cacheName = getCacheName(resourceType);
+        const cache = await caches.open(cacheName);
+        const cachedResponse = await cache.match(request);
+        if (cachedResponse) {
+          console.log(`✅ SW: Serving cached ${resourceType} as fallback: ${request.url}`);
+          return cachedResponse;
+        }
+      } catch (cacheError) {
+        console.warn(`⚠️ SW: Failed to get cache for fallback:`, cacheError);
+      }
     }
     
     // Для остальных типов возвращаем ошибку

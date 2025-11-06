@@ -72,18 +72,6 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
         >
           <Menu />
         </IconButton>
-        <Box className={styles.headerUser}>
-          <Typography variant="body2" className={styles.headerUserName}>
-            {userName}
-          </Typography>
-          <Image
-            src={avatarUrl}
-            alt="Avatar"
-            width={32}
-            height={32}
-            className={styles.headerAvatar}
-          />
-        </Box>
       </Box>
 
       <Drawer

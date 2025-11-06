@@ -1,37 +1,22 @@
 .mobileHeader {
   display: none;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 1100;
   background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
   padding: 0.75rem 1rem;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
 }
 
 .menuButton {
   color: #ecf0f1 !important;
-}
-
-.headerUser {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.headerUserName {
-  color: #ecf0f1 !important;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.headerAvatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .drawerPaper {
@@ -70,6 +55,8 @@
 
 .closeButton {
   color: #ecf0f1 !important;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .drawerMenu {
@@ -93,6 +80,8 @@
   align-items: center;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  min-height: 44px;
+  touch-action: manipulation;
 }
 
 .drawerMenuItem:hover {

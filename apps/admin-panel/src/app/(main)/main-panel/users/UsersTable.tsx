@@ -185,10 +185,20 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: "flex", gap: 1 }}>
-                    <IconButton size="small" onClick={() => onEditUser(user)} color="primary">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => onEditUser(user)} 
+                      color="primary"
+                      sx={{ minWidth: { xs: "44px", sm: "auto" }, minHeight: { xs: "44px", sm: "auto" } }}
+                    >
                       <EditIcon />
                     </IconButton>
-                    <IconButton size="small" onClick={() => onDeleteUser(user.id)} color="error">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => onDeleteUser(user.id)} 
+                      color="error"
+                      sx={{ minWidth: { xs: "44px", sm: "auto" }, minHeight: { xs: "44px", sm: "auto" } }}
+                    >
                       <DeleteIcon />
                     </IconButton>
                   </Box>
@@ -292,10 +302,20 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
             </Box>
 
             <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
-              <IconButton size="small" onClick={() => onEditUser(user)} color="primary">
+              <IconButton 
+                size="small" 
+                onClick={() => onEditUser(user)} 
+                color="primary"
+                sx={{ minWidth: { xs: "44px", sm: "auto" }, minHeight: { xs: "44px", sm: "auto" } }}
+              >
                 <EditIcon />
               </IconButton>
-              <IconButton size="small" onClick={() => onDeleteUser(user.id)} color="error">
+              <IconButton 
+                size="small" 
+                onClick={() => onDeleteUser(user.id)} 
+                color="error"
+                sx={{ minWidth: { xs: "44px", sm: "auto" }, minHeight: { xs: "44px", sm: "auto" } }}
+              >
                 <DeleteIcon />
               </IconButton>
             </Box>

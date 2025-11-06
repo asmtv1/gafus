@@ -138,7 +138,10 @@ export default function ReengagementMonitor() {
             onClick={loadMetrics}
             disabled={loading}
             fullWidth
-            sx={{ "@media (min-width: 600px)": { width: "auto" } }}
+            sx={{ 
+              minHeight: { xs: "44px", sm: "auto" },
+              "@media (min-width: 600px)": { width: "auto" } 
+            }}
           >
             Обновить
           </Button>
@@ -149,7 +152,10 @@ export default function ReengagementMonitor() {
             disabled={triggering || loading}
             color="primary"
             fullWidth
-            sx={{ "@media (min-width: 600px)": { width: "auto" } }}
+            sx={{ 
+              minHeight: { xs: "44px", sm: "auto" },
+              "@media (min-width: 600px)": { width: "auto" } 
+            }}
           >
             {triggering ? "Запуск..." : "Запустить планировщик"}
           </Button>
@@ -167,23 +173,23 @@ export default function ReengagementMonitor() {
       )}
 
       {/* Общая статистика */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, sm: 6, md: 4 }}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Всего кампаний
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {metrics.overview.totalCampaigns}
                   </Typography>
-                  <Typography variant="body2" color="primary">
+                  <Typography variant="body2" color="primary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Активных: {metrics.overview.activeCampaigns}
                   </Typography>
                 </Box>
-                <People color="primary" sx={{ fontSize: 48 }} />
+                <People color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
               </Box>
             </CardContent>
           </Card>
@@ -193,18 +199,18 @@ export default function ReengagementMonitor() {
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Уведомления
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {metrics.overview.totalNotificationsSent}
                   </Typography>
-                  <Typography variant="body2" color="success.main">
+                  <Typography variant="body2" color="success.main" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Открыто: {metrics.overview.clickedNotifications}
                   </Typography>
                 </Box>
-                <Notifications color="primary" sx={{ fontSize: 48 }} />
+                <Notifications color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
               </Box>
             </CardContent>
           </Card>
@@ -214,18 +220,18 @@ export default function ReengagementMonitor() {
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     CTR (Click Rate)
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {metrics.overview.clickRate.toFixed(1)}%
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Процент открытий
                   </Typography>
                 </Box>
-                <TouchApp color="primary" sx={{ fontSize: 48 }} />
+                <TouchApp color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
               </Box>
             </CardContent>
           </Card>
@@ -235,18 +241,18 @@ export default function ReengagementMonitor() {
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Вернулись
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {metrics.overview.returnedUsers}
                   </Typography>
-                  <Typography variant="body2" color="success.main">
+                  <Typography variant="body2" color="success.main" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     {metrics.overview.returnRate.toFixed(1)}% от всех
                   </Typography>
                 </Box>
-                <TrendingUp color="success" sx={{ fontSize: 48 }} />
+                <TrendingUp color="success" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
               </Box>
             </CardContent>
           </Card>
@@ -256,18 +262,18 @@ export default function ReengagementMonitor() {
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Отписались
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {metrics.overview.unsubscribedUsers}
                   </Typography>
-                  <Typography variant="body2" color="error.main">
+                  <Typography variant="body2" color="error.main" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                     Не хотят получать
                   </Typography>
                 </Box>
-                <PersonOff color="error" sx={{ fontSize: 48 }} />
+                <PersonOff color="error" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
               </Box>
             </CardContent>
           </Card>
@@ -281,53 +287,53 @@ export default function ReengagementMonitor() {
             Эффективность по уровням
           </Typography>
           
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: 1 }}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
+              <Paper sx={{ p: { xs: 1.5, sm: 2 } }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
                   Уровень 1 (мягкое напоминание)
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Отправлено: {metrics.byLevel.level1.sent}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Открыто: {metrics.byLevel.level1.clicked}
                 </Typography>
-                <Typography variant="body2" color="primary">
+                <Typography variant="body2" color="primary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   CTR: {metrics.byLevel.level1.clickRate.toFixed(1)}%
                 </Typography>
               </Paper>
             </Grid>
 
             <Grid size={{ xs: 12, md: 4 }}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
+              <Paper sx={{ p: { xs: 1.5, sm: 2 } }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
                   Уровень 2 (персональное)
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Отправлено: {metrics.byLevel.level2.sent}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Открыто: {metrics.byLevel.level2.clicked}
                 </Typography>
-                <Typography variant="body2" color="primary">
+                <Typography variant="body2" color="primary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   CTR: {metrics.byLevel.level2.clickRate.toFixed(1)}%
                 </Typography>
               </Paper>
             </Grid>
 
             <Grid size={{ xs: 12, md: 4 }}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
+              <Paper sx={{ p: { xs: 1.5, sm: 2 } }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
                   Уровень 3 (эмоциональное)
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Отправлено: {metrics.byLevel.level3.sent}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Открыто: {metrics.byLevel.level3.clicked}
                 </Typography>
-                <Typography variant="body2" color="primary">
+                <Typography variant="body2" color="primary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   CTR: {metrics.byLevel.level3.clickRate.toFixed(1)}%
                 </Typography>
               </Paper>
@@ -343,53 +349,53 @@ export default function ReengagementMonitor() {
             Эффективность по типам сообщений
           </Typography>
           
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: 1 }}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
+              <Paper sx={{ p: { xs: 1.5, sm: 2 } }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
                   Поддержание навыков
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Отправлено: {metrics.byType.skillMaintenance.sent}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Открыто: {metrics.byType.skillMaintenance.clicked}
                 </Typography>
-                <Typography variant="body2" color="primary">
+                <Typography variant="body2" color="primary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   CTR: {metrics.byType.skillMaintenance.clickRate.toFixed(1)}%
                 </Typography>
               </Paper>
             </Grid>
 
             <Grid size={{ xs: 12, md: 4 }}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
+              <Paper sx={{ p: { xs: 1.5, sm: 2 } }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
                   Мы скучаем
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Отправлено: {metrics.byType.weMissYou.sent}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Открыто: {metrics.byType.weMissYou.clicked}
                 </Typography>
-                <Typography variant="body2" color="primary">
+                <Typography variant="body2" color="primary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   CTR: {metrics.byType.weMissYou.clickRate.toFixed(1)}%
                 </Typography>
               </Paper>
             </Grid>
 
             <Grid size={{ xs: 12, md: 4 }}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
+              <Paper sx={{ p: { xs: 1.5, sm: 2 } }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
                   Развитие собаки
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Отправлено: {metrics.byType.dogDevelopment.sent}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   Открыто: {metrics.byType.dogDevelopment.clicked}
                 </Typography>
-                <Typography variant="body2" color="primary">
+                <Typography variant="body2" color="primary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
                   CTR: {metrics.byType.dogDevelopment.clickRate.toFixed(1)}%
                 </Typography>
               </Paper>
@@ -405,7 +411,13 @@ export default function ReengagementMonitor() {
             Последние кампании
           </Typography>
 
-          <TableContainer sx={{ overflowX: "auto" }}>
+          {/* Десктопная таблица */}
+          <TableContainer 
+            sx={{ 
+              overflowX: "auto",
+              display: { xs: "none", sm: "block" }
+            }}
+          >
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -456,6 +468,86 @@ export default function ReengagementMonitor() {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Мобильные карточки */}
+          <Box sx={{ display: { xs: "block", sm: "none" } }}>
+            {metrics.recentCampaigns.map((campaign) => (
+              <Paper
+                key={campaign.id}
+                sx={{
+                  p: 2,
+                  mb: 2,
+                  borderRadius: 2,
+                  boxShadow: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+                  <Typography variant="subtitle1" fontWeight="medium">
+                    {campaign.userName || "Неизвестен"}
+                  </Typography>
+                  <Chip 
+                    label={`Уровень ${campaign.level}`} 
+                    size="small" 
+                    color={
+                      campaign.level === 1 ? 'default' :
+                      campaign.level === 2 ? 'primary' :
+                      'secondary'
+                    }
+                  />
+                </Box>
+
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Дата старта
+                    </Typography>
+                    <Typography variant="body2">
+                      {new Date(campaign.campaignStartDate).toLocaleDateString('ru-RU')}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: "flex", gap: 2 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Отправлено
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium">
+                        {campaign.notificationsSent}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Открыто
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium">
+                        {campaign.clicked}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Статус
+                    </Typography>
+                    <Box sx={{ mt: 0.5 }}>
+                      {campaign.returned && (
+                        <Chip label="Вернулся" size="small" color="success" />
+                      )}
+                      {campaign.unsubscribed && (
+                        <Chip label="Отписался" size="small" color="error" />
+                      )}
+                      {campaign.isActive && !campaign.returned && !campaign.unsubscribed && (
+                        <Chip label="Активна" size="small" color="primary" />
+                      )}
+                      {!campaign.isActive && !campaign.returned && !campaign.unsubscribed && (
+                        <Chip label="Завершена" size="small" color="default" />
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              </Paper>
+            ))}
+          </Box>
         </CardContent>
       </Card>
     </Box>

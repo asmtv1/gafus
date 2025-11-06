@@ -10,6 +10,7 @@ import {
   Assessment
 } from "@mui/icons-material";
 
+import MobileMenu from "@/shared/components/MobileMenu";
 import styles from "./main-panel.module.css";
 
 export default async function MainPanelLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,13 @@ export default async function MainPanelLayout({ children }: { children: React.Re
 
   return (
     <div className={styles.container}>
+      {/* Мобильное меню */}
+      <MobileMenu 
+        userName={userName}
+        avatarUrl={avatarUrl}
+        userRole={session.user.role}
+      />
+
       <aside className={styles.sidebar}>
         <div className={styles.profilWrapper}>
           <div className={styles.userName}>{userName || "\u00A0"}</div>

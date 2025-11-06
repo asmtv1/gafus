@@ -150,6 +150,7 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
               startIcon={isPending ? <CircularProgress size={20} /> : <SendIcon />}
               sx={{ 
                 alignSelf: { xs: "stretch", sm: "flex-start" },
+                minHeight: { xs: "44px", sm: "auto" },
                 "@media (min-width: 769px)": { width: "auto" }
               }}
             >
