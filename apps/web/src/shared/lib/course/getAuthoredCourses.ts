@@ -264,13 +264,12 @@ export async function getAuthoredCourses(): Promise<AuthoredCourse[]> {
         userData.status = TrainingStatus.IN_PROGRESS;
       } else {
         // Если нет реальных активных шагов и курс не завершен
-        // Сбрасываем статус только если он был IN_PROGRESS, COMPLETED сохраняем
-        if (userData.status === TrainingStatus.IN_PROGRESS) {
-          userData.status = TrainingStatus.NOT_STARTED;
-          userData.startedAt = null;
-        }
-        // Если статус COMPLETED, но нет активных шагов - возможно данные устарели,
-        // но доверяем статусу из userCourse (пользователь мог завершить курс ранее)
+        // Сбрасываем статус на NOT_STARTED независимо от текущего статуса
+        // Это гарантирует, что в список попадут только пользователи с реальным прогрессом
+        userData.status = TrainingStatus.NOT_STARTED;
+        userData.startedAt = null;
+        // Если был статус COMPLETED, но нет активных шагов и дней - данные неконсистентны,
+        // сбрасываем статус, чтобы не показывать пользователя без реального прогресса
       }
     }
 

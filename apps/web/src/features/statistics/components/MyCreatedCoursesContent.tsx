@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import styles from "./MyCreatedCourses.module.css";
 
@@ -47,7 +47,7 @@ function useUserProgress(courseId: string, userId: string) {
       setLoading(true);
       setError(null);
       try {
-        const data = await getUserProgress(courseId, userId);
+        const data = await getUserProgress(courseId, userId, { readOnly: true });
         if (data) {
           setProgress(data);
         } else {
@@ -203,6 +203,42 @@ function UserProgressBlock({
 
   const hasActiveProgress = activeDays.length > 0;
 
+  // Вычисляем статус на основе реального прогресса
+  const computedStatus = useMemo(() => {
+    // Если прогресс загружен, определяем статус на основе реальных данных
+    if (progress) {
+      // Проверяем наличие активных шагов (IN_PROGRESS или COMPLETED)
+      const hasRealProgress = progress.days.some((day) =>
+        day.steps.some((step) => step.status === "IN_PROGRESS" || step.status === "COMPLETED")
+      );
+
+      if (hasRealProgress) {
+        // Если есть завершенные дни, проверяем завершен ли курс
+        if (userProgress.completedAt) {
+          return "COMPLETED";
+        } else {
+          return "IN_PROGRESS";
+        }
+      } else {
+        // Нет реального прогресса - курс не начат
+        return "NOT_STARTED";
+      }
+    } else {
+      // Если прогресс еще не загружен, используем данные из userProgress
+      // Но учитываем, что startedAt может быть установлен без реального прогресса
+      if (userProgress.completedAt) {
+        return "COMPLETED";
+      } else if (userProgress.startedAt && !loading) {
+        // Показываем "в процессе" только если прогресс загружен и нет ошибки
+        // Если прогресс не загрузился, но есть startedAt - это может быть неточно
+        return "IN_PROGRESS";
+      }
+      return "NOT_STARTED";
+    }
+  }, [progress, userProgress.completedAt, userProgress.startedAt, loading]);
+
+  const statusLabel = statusLabels[computedStatus] || statusLabels["NOT_STARTED"];
+
   return (
     <div className={styles.userBlock}>
       <div className={styles.userHeader} onClick={() => setIsExpanded(!isExpanded)}>
@@ -219,34 +255,15 @@ function UserProgressBlock({
         </div>
 
         <div className={styles.userStatus}>
-          {/* Определяем корректный статус на основе данных */}
-          {(() => {
-            let displayStatus: string = "NOT_STARTED";
-            let statusLabel = statusLabels["NOT_STARTED"];
+          <span>
+            Статус:{" "}
+            <span className={`${styles.statusTag} ${styles[`status${computedStatus}`]}`}>
+              {statusLabel}
+            </span>
+          </span>
 
-            // Корректируем статус, если есть дата начала, но статус "не начат" - значит пользователь начал курс
-            if (userProgress.startedAt) {
-              displayStatus = "IN_PROGRESS";
-              statusLabel = "в процессе";
-            }
-
-            if (userProgress.completedAt) {
-              displayStatus = "COMPLETED";
-              statusLabel = "завершил";
-            }
-
-            return (
-              <>
-                Статус:{" "}
-                <span className={`${styles.statusTag} ${styles[`status${displayStatus}`]}`}>
-                  {statusLabel}
-                </span>
-              </>
-            );
-          })()}
-
-          {/* Показываем даты в зависимости от статуса */}
-          {userProgress.startedAt && (
+          {/* Показываем даты в зависимости от статуса - только если курс реально начат */}
+          {userProgress.startedAt && computedStatus !== "NOT_STARTED" && (
             <span className={styles.userDate}>
               Начал:{" "}
               {(() => {

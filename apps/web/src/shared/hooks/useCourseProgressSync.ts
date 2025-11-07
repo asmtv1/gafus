@@ -41,22 +41,17 @@ export function useCourseProgressSync() {
     return allCourses.data.map(course => {
       // Получаем кэшированные данные дней тренировок
       const cachedData = getCachedTrainingDays(course.type);
-      const isAssigned = courseAssignments[course.id] || false;
-
-      // Если курс назначен, но статус не обновлен, обновляем его
-      if (isAssigned && course.userStatus === TrainingStatus.NOT_STARTED) {
-        return {
-          ...course,
-          userStatus: TrainingStatus.IN_PROGRESS
-        };
-      }
 
       // Если есть кэшированные данные, проверяем прогресс
       if (cachedData?.data?.trainingDays) {
         const completedDays = cachedData.data.trainingDays.filter(
-
           (day) => day.userStatus === TrainingStatus.COMPLETED
         ).length;
+        
+        // Проверяем наличие реального прогресса (IN_PROGRESS или COMPLETED дней)
+        const hasActiveProgress = cachedData.data.trainingDays.some(
+          (day) => day.userStatus === TrainingStatus.IN_PROGRESS || day.userStatus === TrainingStatus.COMPLETED
+        );
         
         const totalDays = cachedData.data.trainingDays.length;
         
@@ -69,12 +64,13 @@ export function useCourseProgressSync() {
           };
         }
         
-        // Если есть прогресс, но статус не обновлен
-        if (completedDays > 0 && course.userStatus === TrainingStatus.NOT_STARTED) {
+        // Если есть реальный прогресс (не только назначение курса), но статус не обновлен
+        if (hasActiveProgress && course.userStatus === TrainingStatus.NOT_STARTED) {
           return {
             ...course,
             userStatus: TrainingStatus.IN_PROGRESS,
-            startedAt: course.startedAt || new Date()
+            // startedAt устанавливается на сервере при реальном начале шага
+            startedAt: course.startedAt || null
           };
         }
       }

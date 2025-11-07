@@ -41,11 +41,13 @@ const userCourseProgressSchema = z.object({
 export async function getUserProgress(
   courseId: string,
   userId: string,
+  options?: { readOnly?: boolean },
 ): Promise<UserDetailedProgress | null> {
   const { courseId: safeCourseId, userId: safeUserId } = userCourseProgressSchema.parse({
     courseId,
     userId,
   });
+  const readOnly = options?.readOnly ?? false;
   try {
     // Сначала пытаемся получить информацию из userCourse
     const userProgress = await prisma.userCourse.findFirst({
@@ -84,42 +86,69 @@ export async function getUserProgress(
       completedAt = userProgress.completedAt;
 
       // Синхронизируем статус курса с реальным прогрессом
-      const userTrainings = await prisma.userTraining.findMany({
-        where: {
-          userId: safeUserId,
-          dayOnCourse: {
-            courseId: safeCourseId,
+      // Используем один запрос для получения всех необходимых данных
+      const [userTrainings, totalDaysInCourse] = await Promise.all([
+        prisma.userTraining.findMany({
+          where: {
+            userId: safeUserId,
+            dayOnCourse: {
+              courseId: safeCourseId,
+            },
           },
-        },
-        select: {
-          status: true,
-        },
-      });
+          select: {
+            id: true,
+            status: true,
+          },
+        }),
+        prisma.dayOnCourse.count({
+          where: { courseId: safeCourseId },
+        }),
+      ]);
 
-      // Получаем общее количество дней в курсе для правильной проверки завершения
-      const totalDaysInCourse = await prisma.dayOnCourse.count({
-        where: { courseId: safeCourseId },
-      });
+      const userTrainingIds = userTrainings.map((t) => t.id);
 
-      if (userTrainings.length > 0) {
-        const userTrainingCount = userTrainings.length;
-        const completedDays = userTrainings.filter(
-          (t: { status: string }) => t.status === "COMPLETED",
-        ).length;
+      // Получаем реальные активные шаги (IN_PROGRESS или COMPLETED) для проверки прогресса
+      const userSteps = userTrainingIds.length > 0
+        ? await prisma.userStep.findMany({
+            where: {
+              userTrainingId: { in: userTrainingIds },
+              status: {
+                in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED],
+              },
+            },
+            select: {
+              id: true,
+              createdAt: true,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          })
+        : [];
 
-        // ВАЖНО: Проверяем что пользователь завершил ВСЕ дни курса, а не только те, что у него есть
-        // Курс завершен только если:
-        // 1. У пользователя есть тренировки для ВСЕХ дней курса (userTrainingCount === totalDaysInCourse)
-        // 2. ВСЕ эти тренировки завершены (completedDays === totalDaysInCourse)
-        if (userTrainingCount === totalDaysInCourse && completedDays === totalDaysInCourse && totalDaysInCourse > 0 && userProgress.status !== "COMPLETED") {
-          // Устанавливаем completedAt только если он еще не был установлен
-          if (!userProgress.completedAt) {
-            completedAt = new Date();
-          } else {
-            completedAt = userProgress.completedAt;
-          }
-          // Обновляем статус курса в базе
+      const hasRealProgress = userSteps.length > 0;
+
+      // Синхронизируем статус только если не в режиме readOnly
+      // В режиме readOnly (например, для статистики) только вычисляем статус для отображения
+      if (!readOnly) {
+        // Вспомогательная функция для обновления статуса курса
+        const updateCourseStatus = async (
+          newStatus: TrainingStatus,
+          newStartedAt: Date | null,
+          newCompletedAt: Date | null = null,
+        ): Promise<void> => {
           try {
+            const updateData: {
+              status: TrainingStatus;
+              startedAt: Date | null;
+              completedAt?: Date | null;
+            } = {
+              status: newStatus,
+              startedAt: newStartedAt,
+            };
+            if (newCompletedAt !== null) {
+              updateData.completedAt = newCompletedAt;
+            }
             await prisma.userCourse.update({
               where: {
                 userId_courseId: {
@@ -127,53 +156,87 @@ export async function getUserProgress(
                   courseId: safeCourseId,
                 },
               },
-              data: {
-                status: "COMPLETED",
-                completedAt: completedAt,
-              },
+              data: updateData,
             });
           } catch (error) {
-            logger.error("Failed to sync course status (COMPLETED)", error as Error, {
-              operation: 'sync_course_status_completed_error',
+            logger.error(`Failed to sync course status (${newStatus})`, error as Error, {
+              operation: `sync_course_status_${newStatus.toLowerCase()}_error`,
               courseId: courseId,
               userId: userId,
-              status: "COMPLETED"
+              status: newStatus,
             });
+          }
+        };
+
+        if (userTrainings.length > 0) {
+          const userTrainingCount = userTrainings.length;
+          const completedDays = userTrainings.filter(
+            (t) => t.status === TrainingStatus.COMPLETED,
+          ).length;
+
+          // ВАЖНО: Проверяем что пользователь завершил ВСЕ дни курса, а не только те, что у него есть
+          // Курс завершен только если:
+          // 1. У пользователя есть тренировки для ВСЕХ дней курса (userTrainingCount === totalDaysInCourse)
+          // 2. ВСЕ эти тренировки завершены (completedDays === totalDaysInCourse)
+          if (
+            userTrainingCount === totalDaysInCourse &&
+            completedDays === totalDaysInCourse &&
+            totalDaysInCourse > 0 &&
+            userProgress.status !== TrainingStatus.COMPLETED
+          ) {
+            // Устанавливаем completedAt только если он еще не был установлен
+            completedAt = userProgress.completedAt || new Date();
+            await updateCourseStatus(TrainingStatus.COMPLETED, startedAt, completedAt);
+          }
+          // Если есть реальные активные шаги, но курс не помечен как начатый
+          else if (userProgress.status === TrainingStatus.NOT_STARTED && hasRealProgress) {
+            // Устанавливаем startedAt на основе первого активного шага
+            startedAt = userSteps[0]?.createdAt || new Date();
+            await updateCourseStatus(TrainingStatus.IN_PROGRESS, startedAt);
+          }
+          // Если статус IN_PROGRESS, но нет реальных активных шагов - сбрасываем статус
+          else if (userProgress.status === TrainingStatus.IN_PROGRESS && !hasRealProgress) {
+            startedAt = null;
+            await updateCourseStatus(TrainingStatus.NOT_STARTED, null);
+          }
+          // Если статус NOT_STARTED, но есть startedAt (старые данные или неконсистентность) - очищаем startedAt
+          else if (userProgress.status === TrainingStatus.NOT_STARTED && userProgress.startedAt && !hasRealProgress) {
+            startedAt = null;
+            await updateCourseStatus(TrainingStatus.NOT_STARTED, null);
+          }
+        } else {
+          // Если нет тренировок, но статус IN_PROGRESS или есть startedAt - сбрасываем статус
+          if (userProgress.status === TrainingStatus.IN_PROGRESS || userProgress.startedAt) {
+            startedAt = null;
+            await updateCourseStatus(TrainingStatus.NOT_STARTED, null);
           }
         }
-        // Если есть активность, но курс не помечен как начатый
-        else if (
-          userProgress.status === "NOT_STARTED" &&
-          userTrainings.some((t: { status: string }) => t.status !== "NOT_STARTED")
-        ) {
-          // Устанавливаем startedAt только если он еще не был установлен
-          if (!userProgress.startedAt) {
-            startedAt = new Date();
+      } else {
+        // В режиме readOnly только вычисляем статус для отображения, не обновляем БД
+        if (userTrainings.length > 0) {
+          const userTrainingCount = userTrainings.length;
+          const completedDays = userTrainings.filter(
+            (t) => t.status === TrainingStatus.COMPLETED,
+          ).length;
+
+          // Вычисляем статус на основе реального прогресса для отображения
+          if (
+            userTrainingCount === totalDaysInCourse &&
+            completedDays === totalDaysInCourse &&
+            totalDaysInCourse > 0
+          ) {
+            // Курс завершен
+            completedAt = userProgress.completedAt || null;
+          } else if (hasRealProgress) {
+            // Есть реальный прогресс
+            startedAt = userSteps[0]?.createdAt || userProgress.startedAt || null;
           } else {
-            startedAt = userProgress.startedAt;
+            // Нет реального прогресса
+            startedAt = null;
           }
-          // Обновляем статус курса в базе
-          try {
-            await prisma.userCourse.update({
-              where: {
-                userId_courseId: {
-                  userId: safeUserId,
-                  courseId: safeCourseId,
-                },
-              },
-              data: {
-                status: "IN_PROGRESS",
-                startedAt: startedAt,
-              },
-            });
-          } catch (error) {
-            logger.error("Failed to sync course status (IN_PROGRESS)", error as Error, {
-              operation: 'sync_course_status_in_progress_error',
-              courseId: courseId,
-              userId: userId,
-              status: "IN_PROGRESS"
-            });
-          }
+        } else {
+          // Нет тренировок
+          startedAt = null;
         }
       }
     } else {

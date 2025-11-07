@@ -32,8 +32,9 @@ export async function assignCoursesToUser(courseId: string) {
       create: {
         userId,
         courseId: safeCourseId,
-        status: TrainingStatus.IN_PROGRESS,
-        startedAt: new Date(),
+        status: TrainingStatus.NOT_STARTED,
+        // startedAt устанавливается только когда пользователь реально начинает проходить шаги
+        // в startUserStepServerAction
       },
     });
 
