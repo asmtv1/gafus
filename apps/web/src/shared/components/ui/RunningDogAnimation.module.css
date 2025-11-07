@@ -1,0 +1,233 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.dog {
+  position: relative;
+  width: 120px;
+  height: 80px;
+  animation: run 0.6s infinite linear;
+}
+
+/* Тело собаки */
+.body {
+  position: absolute;
+  left: 30px;
+  top: 20px;
+  width: 60px;
+  height: 35px;
+  background: #8b6914;
+  border-radius: 20px 10px 10px 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Голова */
+.head {
+  position: absolute;
+  left: 0;
+  top: 15px;
+  width: 40px;
+  height: 35px;
+  background: #8b6914;
+  border-radius: 20px 15px 15px 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Уши */
+.ear {
+  position: absolute;
+  width: 15px;
+  height: 20px;
+  background: #6b5010;
+  border-radius: 50% 50% 0 0;
+  top: -5px;
+  left: 5px;
+  transform: rotate(-20deg);
+}
+
+.earRight {
+  left: 20px;
+  transform: rotate(20deg);
+}
+
+/* Глаза */
+.eye {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #000;
+  border-radius: 50%;
+  top: 12px;
+  left: 12px;
+}
+
+.eyeRight {
+  left: 22px;
+}
+
+/* Нос */
+.nose {
+  position: absolute;
+  width: 8px;
+  height: 6px;
+  background: #000;
+  border-radius: 0 0 50% 50%;
+  top: 22px;
+  left: 16px;
+}
+
+/* Лапы */
+.leg {
+  position: absolute;
+  width: 12px;
+  height: 25px;
+  background: #6b5010;
+  border-radius: 6px;
+  bottom: -5px;
+}
+
+.frontLeg1 {
+  left: 35px;
+  animation: frontLeg1Run 0.3s infinite ease-in-out;
+}
+
+.frontLeg2 {
+  left: 50px;
+  animation: frontLeg2Run 0.3s infinite ease-in-out;
+}
+
+.backLeg1 {
+  left: 70px;
+  animation: backLeg1Run 0.3s infinite ease-in-out;
+}
+
+.backLeg2 {
+  left: 85px;
+  animation: backLeg2Run 0.3s infinite ease-in-out;
+}
+
+/* Лапки */
+.paw {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 8px;
+  background: #4a3a0a;
+  border-radius: 0 0 50% 50%;
+}
+
+/* Хвост */
+.tail {
+  position: absolute;
+  right: -15px;
+  top: 25px;
+  width: 8px;
+  height: 25px;
+  background: #8b6914;
+  border-radius: 4px;
+  transform-origin: top center;
+  animation: tailWag 0.2s infinite ease-in-out;
+}
+
+/* Анимация движения вперед */
+@keyframes run {
+  0% {
+    transform: translateX(0) translateY(0);
+  }
+  25% {
+    transform: translateX(2px) translateY(-3px);
+  }
+  50% {
+    transform: translateX(0) translateY(0);
+  }
+  75% {
+    transform: translateX(2px) translateY(3px);
+  }
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+}
+
+/* Анимация передних лап */
+@keyframes frontLeg1Run {
+  0% {
+    transform: rotate(0deg);
+    height: 25px;
+  }
+  50% {
+    transform: rotate(25deg);
+    height: 20px;
+  }
+  100% {
+    transform: rotate(0deg);
+    height: 25px;
+  }
+}
+
+@keyframes frontLeg2Run {
+  0% {
+    transform: rotate(0deg);
+    height: 20px;
+  }
+  50% {
+    transform: rotate(-25deg);
+    height: 25px;
+  }
+  100% {
+    transform: rotate(0deg);
+    height: 20px;
+  }
+}
+
+/* Анимация задних лап */
+@keyframes backLeg1Run {
+  0% {
+    transform: rotate(0deg);
+    height: 20px;
+  }
+  50% {
+    transform: rotate(-25deg);
+    height: 25px;
+  }
+  100% {
+    transform: rotate(0deg);
+    height: 20px;
+  }
+}
+
+@keyframes backLeg2Run {
+  0% {
+    transform: rotate(0deg);
+    height: 25px;
+  }
+  50% {
+    transform: rotate(25deg);
+    height: 20px;
+  }
+  100% {
+    transform: rotate(0deg);
+    height: 25px;
+  }
+}
+
+/* Анимация хвоста */
+@keyframes tailWag {
+  0% {
+    transform: rotate(-15deg);
+  }
+  50% {
+    transform: rotate(15deg);
+  }
+  100% {
+    transform: rotate(-15deg);
+  }
+}
+

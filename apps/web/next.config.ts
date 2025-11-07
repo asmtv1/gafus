@@ -160,6 +160,15 @@ const nextConfig = {
           { key: "Content-Type", value: "text/html; charset=utf-8" },
         ],
       },
+      // Кэширование тестовой страницы с анимацией собаки
+      {
+        source: "/test-dog.html",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Content-Type", value: "text/html; charset=utf-8" },
+        ],
+      },
     ];
   },
 };

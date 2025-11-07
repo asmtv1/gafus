@@ -68,14 +68,16 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
     setPage(0);
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat("ru-RU", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(date));
+  const formatDate = (date: Date | string) => {
+    // Принимаем Date или string (после сериализации от сервера)
+    const d = new Date(date);
+    // Используем стабильное форматирование без Intl для избежания проблем с гидратацией
+    const day = d.getDate().toString().padStart(2, "0");
+    const month = (d.getMonth() + 1).toString().padStart(2, "0");
+    const year = d.getFullYear();
+    const hours = d.getHours().toString().padStart(2, "0");
+    const minutes = d.getMinutes().toString().padStart(2, "0");
+    return `${day}.${month}.${year}, ${hours}:${minutes}`;
   };
 
   const formatPhone = (phone: string) => {
