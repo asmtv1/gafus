@@ -1,5 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+
 import {
   TextField,
   NumberField,
@@ -9,9 +13,7 @@ import {
 } from "@shared/components/ui/FormField";
 import { usePetZodForm } from "@shared/hooks/usePetZodForm";
 import { savePet } from "@shared/lib/pet/savePet";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { clearProfilePageCache } from "@shared/lib/utils/clearProfileCache";
 
 import type { PetFormSchema } from "@shared/lib/validation/petSchemas";
 import styles from "./AddPetForm.module.css";
@@ -54,8 +56,9 @@ export default function AddPetForm() {
         id: "",
         // ownerId убираем - он будет получен внутри savePet из сессии
       });
+      const username = session?.user?.username ?? null;
+      await clearProfilePageCache(username);
       // Возвращаемся на страницу профиля с правильным username
-      const username = session?.user?.username;
       if (username) {
         router.push(`/profile?username=${username}`);
       } else {

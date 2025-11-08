@@ -225,6 +225,14 @@ import { clearProfilePageCache } from '@shared/lib/utils/clearProfileCache';
 await updateUserProfile(formData);
 await clearProfilePageCache(username);
 router.push(`/profile?username=${username}`);
+
+await savePet(petData);
+await clearProfilePageCache(username);
+router.push(`/profile?username=${username}`);
+
+await savePet(updatedPetData);
+await clearProfilePageCache(username);
+router.refresh();
 ```
 
 ## 📱 Мобильная оптимизация

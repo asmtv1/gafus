@@ -1,15 +1,17 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { useSession } from "next-auth/react";
 
 import { createWebLogger } from "@gafus/logger";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import { deletePet } from "@shared/lib/pet/deletePet";
 import { savePet } from "@shared/lib/pet/savePet";
+import { clearProfilePageCache } from "@shared/lib/utils/clearProfileCache";
 import { showEditPetAlert, showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
-import Swal from 'sweetalert2';
-import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import Swal from "sweetalert2";
 
 import EditablePetAvatar from "./EditablePetAvatar";
 import styles from "./PetList.module.css";
@@ -31,6 +33,7 @@ const handleDelete = async (
   router: ReturnType<typeof useRouter>,
   startTransition: (callback: () => void) => void,
   isPending: boolean,
+  invalidateProfileCache: () => Promise<void>,
 ) => {
   if (isPending) return;
   
@@ -60,10 +63,11 @@ const handleDelete = async (
       startTransition(async () => {
         try {
           await deletePet(petId, "/profile");
+          await invalidateProfileCache();
           await showSuccessAlert(`Питомец "${petName}" успешно удален!`);
           router.refresh();
-        } catch {
-          logger.error("Ошибка при удалении питомца");
+        } catch (error) {
+          logger.error("Ошибка при удалении питомца", error as Error, { operation: "delete_pet_error" });
           await showErrorAlert("Произошла ошибка при удалении питомца");
         }
       });
@@ -76,6 +80,19 @@ const handleDelete = async (
 export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[]; isOwner: boolean }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const { data: session } = useSession();
+  const username = session?.user?.username ?? null;
+
+  const invalidateProfileCache = async () => {
+    try {
+      await clearProfilePageCache(username);
+    } catch (error) {
+      logger.warn("Не удалось очистить кэш профиля после операции с питомцем", {
+        error: error instanceof Error ? error.message : String(error),
+        operation: "warn",
+      });
+    }
+  };
 
   const handleEditClick = async (pet: PetFromPublicProfile) => {
     // Преобразуем PetFromPublicProfile в PetFormData для SweetAlert
@@ -98,10 +115,11 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
         startTransition(async () => {
           try {
             await savePet(updatedPetData);
+            await invalidateProfileCache();
             await showSuccessAlert(`Питомец "${updatedPetData.name}" успешно обновлен!`);
             router.refresh();
           } catch (error) {
-            logger.error("Ошибка при обновлении питомца:", error as Error, { operation: 'error' });
+            logger.error("Ошибка при обновлении питомца:", error as Error, { operation: "update_pet_error" });
             await showErrorAlert("Произошла ошибка при обновлении питомца");
           }
         });
@@ -173,7 +191,16 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
             <EditRoundedIcon />
           </IconButton>
           <IconButton
-            onClick={() => handleDelete(pet.id, pet.name, router, startTransition, isPending)}
+            onClick={() =>
+              handleDelete(
+                pet.id,
+                pet.name,
+                router,
+                startTransition,
+                isPending,
+                invalidateProfileCache,
+              )
+            }
             size="small"
             aria-label="Удалить питомца"
             disabled={isPending}
