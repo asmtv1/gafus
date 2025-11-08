@@ -65,7 +65,7 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
         </div>
         <div className={styles.profileInfo}>
           <div className={styles.greeting}>
-            Привет, {profile?.fullName || username}!
+            {isOwner ? `Привет, ${profile?.fullName || username}!` : profile?.fullName || username}
           </div>
           <div className={styles.contactInfo}>
             {isOwner && userData?.phone 

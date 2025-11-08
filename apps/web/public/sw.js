@@ -671,15 +671,15 @@ async function getOfflineFallback(request) {
           }
         }
         
-        // Автоматическая попытка подключения каждые 5 секунд
+        // Автоматическая попытка подключения каждые 10 секунд (максимум 2 попытки)
         let autoRetryCount = 0;
         setInterval(() => {
-          if (navigator.onLine && autoRetryCount < 3) {
+          if (navigator.onLine && autoRetryCount < 2) {
             autoRetryCount++;
             console.log('Online detected, attempting auto-retry');
             handleRetry();
           }
-        }, 5000);
+        }, 10000);
       </script>
     </body>
     </html>
@@ -1277,7 +1277,11 @@ async function handleNavigationRequest(event, request) {
     // 1) Кэша нет — пробуем сеть с таймаутом
     // Проверяем, был ли недавно очищен кэш (в течение последних 2 минут)
     let networkTimeout = 1200; // Стандартный таймаут
+    let retryTimeout = 10000; // Таймаут для повторной попытки
     let shouldRetry = false;
+    
+    const reqUrl = new URL(request.url);
+    const isHomePage = reqUrl.pathname === '/';
     
     try {
       const cacheCleared = await getLocalStorageItem('cache-cleared-timestamp');
@@ -1285,9 +1289,11 @@ async function handleNavigationRequest(event, request) {
         const timeSinceCleared = Date.now() - parseInt(cacheCleared);
         // Если кэш был очищен менее 2 минут назад, используем увеличенный таймаут
         if (timeSinceCleared < 2 * 60 * 1000) {
-          networkTimeout = 5000; // 5 секунд для первых запросов после очистки
+          // Для главной страницы используем больший таймаут (она загружается первой после очистки)
+          networkTimeout = isHomePage ? 8000 : 5000;
+          retryTimeout = isHomePage ? 15000 : 10000;
           shouldRetry = true; // Разрешаем повторную попытку
-          console.log(`⏱️ SW: Using extended timeout (${networkTimeout}ms) due to recent cache clear`);
+          console.log(`⏱️ SW: Using extended timeout (${networkTimeout}ms) due to recent cache clear${isHomePage ? ' (home page)' : ''}`);
         } else {
           // Удаляем старый флаг
           await removeLocalStorageItem('cache-cleared-timestamp');
@@ -1306,11 +1312,11 @@ async function handleNavigationRequest(event, request) {
     } catch (firstError) {
       // Если первая попытка не удалась и разрешен retry, пробуем еще раз с еще более длительным таймаутом
       if (shouldRetry && firstError.message === 'timeout') {
-        console.log(`🔄 SW: First attempt timed out, retrying with 10s timeout`);
+        console.log(`🔄 SW: First attempt timed out, retrying with ${retryTimeout}ms timeout`);
         try {
           response = await Promise.race([
             fetch(request),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), retryTimeout)),
           ]);
         } catch (secondError) {
           throw secondError; // Если и вторая попытка не удалась, выбрасываем ошибку
@@ -1545,6 +1551,37 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
   
+  if (event.data && event.data.type === 'CLEAR_PROFILE_CACHE') {
+    const username =
+      typeof event.data.username === 'string' ? event.data.username : null;
+
+    event.waitUntil(
+      (async () => {
+        try {
+          const removed = await clearProfileCacheEntries(username);
+          if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage({
+              type: 'CLEAR_PROFILE_CACHE_RESULT',
+              success: true,
+              removed,
+            });
+          }
+        } catch (error) {
+          console.warn('⚠️ SW: Failed to clear profile cache', error);
+          if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage({
+              type: 'CLEAR_PROFILE_CACHE_RESULT',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+          }
+        }
+      })(),
+    );
+
+    return;
+  }
+
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports[0].postMessage({
       type: 'VERSION_INFO',
@@ -1699,6 +1736,72 @@ async function estimateCacheSize(cache) {
   } catch {
     return 0;
   }
+}
+
+async function clearProfileCacheEntries(username) {
+  const normalizedUsername =
+    typeof username === 'string' && username.length > 0
+      ? username.toLowerCase()
+      : null;
+  const cacheNames = [
+    CACHE_CONFIG.CACHES.HTML_PAGES,
+    CACHE_CONFIG.CACHES.API,
+    CACHE_CONFIG.CACHES.RSC_DATA,
+  ].filter(Boolean);
+  let removed = 0;
+
+  for (const cacheName of cacheNames) {
+    try {
+      const cache = await caches.open(cacheName);
+      const requests = await cache.keys();
+      const isHTMLCache = cacheName === CACHE_CONFIG.CACHES.HTML_PAGES;
+
+      // eslint-disable-next-line no-loop-func
+      await Promise.all(
+        requests.map(async (request) => {
+          try {
+            const url = new URL(request.url);
+            if (!url.pathname.startsWith('/profile')) return;
+
+            // Проверяем username для фильтрации
+            if (normalizedUsername) {
+              const param = url.searchParams.get('username');
+              if (!param || param.toLowerCase() !== normalizedUsername) return;
+            }
+
+            // Для HTML кэша проверяем оба варианта ключа (с __sw_html и без)
+            if (isHTMLCache) {
+              const hasHTMLParam = url.searchParams.has('__sw_html');
+              
+              if (!hasHTMLParam) {
+                // Если нет параметра __sw_html, создаем ключ с параметром и удаляем оба
+                const urlWithHTMLParam = new URL(url.toString());
+                urlWithHTMLParam.searchParams.set('__sw_html', '1');
+                const requestWithHTMLParam = new Request(urlWithHTMLParam.toString(), { method: 'GET' });
+                const deletedWithParam = await cache.delete(requestWithHTMLParam);
+                const deletedOriginal = await cache.delete(request);
+                if (deletedWithParam || deletedOriginal) removed += 1;
+              } else {
+                // Если уже есть параметр, удаляем только этот запрос
+                const deleted = await cache.delete(request);
+                if (deleted) removed += 1;
+              }
+            } else {
+              // Для не-HTML кэшей удаляем запрос как обычно
+              const deleted = await cache.delete(request);
+              if (deleted) removed += 1;
+            }
+          } catch (error) {
+            console.warn('⚠️ SW: Failed to inspect profile cache entry', error);
+          }
+        }),
+      );
+    } catch (error) {
+      console.warn(`⚠️ SW: Failed to clear profile cache in ${cacheName}`, error);
+    }
+  }
+
+  return removed;
 }
 
 // Логи о загрузке SW убраны

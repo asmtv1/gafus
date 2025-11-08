@@ -8,6 +8,7 @@ import {
   Button,
   Chip,
   IconButton,
+  InputAdornment,
   Paper,
   Table,
   TableBody,
@@ -16,9 +17,17 @@ import {
   TableHead,
   TablePagination,
   TableRow,
+  TextField,
   Typography,
 } from "@/utils/muiImports";
-import { DeleteIcon, EditIcon } from "@/utils/muiImports";
+import {
+  ArrowDownwardIcon,
+  ArrowUpwardIcon,
+  DeleteIcon,
+  EditIcon,
+  SearchIcon,
+  UnfoldMoreIcon,
+} from "@/utils/muiImports";
 
 interface User {
   id: string;
@@ -33,8 +42,16 @@ interface User {
   } | null;
 }
 
+type SortField = "role" | "isConfirmed" | "createdAt" | null;
+type SortDirection = "asc" | "desc";
+
 interface UsersTableProps {
   users: User[];
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  sortField: SortField;
+  sortDirection: SortDirection;
+  onSort: (field: SortField) => void;
   onEditUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
 }
@@ -55,13 +72,19 @@ const roleLabels = {
   PREMIUM: "Премиум",
 } as const;
 
-export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTableProps) {
+export default function UsersTable({
+  users,
+  searchQuery,
+  onSearchChange,
+  sortField,
+  sortDirection,
+  onSort,
+  onEditUser,
+  onDeleteUser,
+}: UsersTableProps) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
-  const handleChangePage = (_event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
@@ -92,8 +115,44 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
     return phone;
   };
 
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <UnfoldMoreIcon sx={{ fontSize: 16, opacity: 0.5 }} />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUpwardIcon sx={{ fontSize: 16 }} />
+    ) : (
+      <ArrowDownwardIcon sx={{ fontSize: 16 }} />
+    );
+  };
+
+  const handlePageChange = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
   return (
     <Paper sx={{ width: "100%", overflow: "hidden" }}>
+      {/* Поле поиска */}
+      <Box sx={{ p: 2, pb: 1 }}>
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Поиск по нику..."
+          value={searchQuery}
+          onChange={(e) => {
+            onSearchChange(e.target.value);
+            setPage(0);
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ maxWidth: { xs: "100%", sm: 400 } }}
+        />
+      </Box>
       <TableContainer 
         sx={{ 
           maxHeight: { xs: "none", sm: 600 },
@@ -114,9 +173,22 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
                 </Typography>
               </TableCell>
               <TableCell>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  Роль
-                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    cursor: "pointer",
+                    userSelect: "none",
+                    "&:hover": { opacity: 0.7 },
+                  }}
+                  onClick={() => onSort("role")}
+                >
+                  <Typography variant="subtitle2" fontWeight="bold">
+                    Роль
+                  </Typography>
+                  {getSortIcon("role")}
+                </Box>
               </TableCell>
               <TableCell>
                 <Typography variant="subtitle2" fontWeight="bold">
@@ -124,14 +196,40 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
                 </Typography>
               </TableCell>
               <TableCell>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  Статус
-                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    cursor: "pointer",
+                    userSelect: "none",
+                    "&:hover": { opacity: 0.7 },
+                  }}
+                  onClick={() => onSort("isConfirmed")}
+                >
+                  <Typography variant="subtitle2" fontWeight="bold">
+                    Статус
+                  </Typography>
+                  {getSortIcon("isConfirmed")}
+                </Box>
               </TableCell>
               <TableCell>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  Дата регистрации
-                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    cursor: "pointer",
+                    userSelect: "none",
+                    "&:hover": { opacity: 0.7 },
+                  }}
+                  onClick={() => onSort("createdAt")}
+                >
+                  <Typography variant="subtitle2" fontWeight="bold">
+                    Дата регистрации
+                  </Typography>
+                  {getSortIcon("createdAt")}
+                </Box>
               </TableCell>
               <TableCell>
                 <Typography variant="subtitle2" fontWeight="bold">
@@ -216,7 +314,7 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
         count={users.length}
         rowsPerPage={rowsPerPage}
         page={page}
-        onPageChange={handleChangePage}
+        onPageChange={handlePageChange}
         onRowsPerPageChange={handleChangeRowsPerPage}
         labelRowsPerPage="Строк на странице:"
         labelDisplayedRows={({ from, to, count }) =>
@@ -329,7 +427,7 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
             <Button
               variant="outlined"
               size="small"
-              onClick={() => handleChangePage(null, Math.max(0, page - 1))}
+              onClick={() => handlePageChange(null, Math.max(0, page - 1))}
               disabled={page === 0}
             >
               Назад
@@ -340,7 +438,7 @@ export default function UsersTable({ users, onEditUser, onDeleteUser }: UsersTab
             <Button
               variant="outlined"
               size="small"
-              onClick={() => handleChangePage(null, Math.min(Math.ceil(users.length / rowsPerPage) - 1, page + 1))}
+              onClick={() => handlePageChange(null, Math.min(Math.ceil(users.length / rowsPerPage) - 1, page + 1))}
               disabled={page >= Math.ceil(users.length / rowsPerPage) - 1}
             >
               Вперед

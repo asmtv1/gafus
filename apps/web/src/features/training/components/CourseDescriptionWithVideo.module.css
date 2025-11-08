@@ -72,7 +72,7 @@
 }
 
 .descriptionContent.expanded {
-  max-height: 1000px;
+  max-height: fit-content;
   opacity: 1;
   padding: 20px;
 }

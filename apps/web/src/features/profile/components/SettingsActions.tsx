@@ -44,34 +44,34 @@ export default function SettingsActions() {
     try {
       await clearCache();
       
-      // Операция завершена успешно
+      // Операция завершена успешно - показываем уведомление и перенаправляем на главную
       setNotification({
-        message: "Кэш успешно очищен",
+        message: "Кэш очищен. Перезагрузка...",
         type: "success",
       });
       
-      // Скрываем уведомление через 3 секунды
+      logger.info("Кэш очищен, выполняем редирект на главную", { operation: 'clear_cache_redirect' });
+      
+      // Даем время на завершение операций очистки и показ уведомления,
+      // затем делаем жесткий редирект на главную страницу
       timeoutRef.current = setTimeout(() => {
-        setNotification(null);
-        timeoutRef.current = null;
-      }, 3000);
+        window.location.href = '/';
+      }, 800);
     } catch (error) {
       // Ошибка при очистке (должна быть редкой, так как clearAllCache теперь не бросает ошибки)
       logger.warn("Ошибка при очистке кэша в компоненте", { error, operation: 'warn' });
       
       setNotification({
-        message: "Кэш очищен с предупреждениями. Основные данные удалены.",
+        message: "Кэш очищен с предупреждениями. Перезагрузка...",
         type: "warning",
       });
       
-      // Скрываем уведомление через 5 секунд
+      // Даже при ошибке перенаправляем на главную для перезагрузки
       timeoutRef.current = setTimeout(() => {
-        setNotification(null);
-        timeoutRef.current = null;
-      }, 5000);
+        window.location.href = '/';
+      }, 1000);
     } finally {
-      // Всегда сбрасываем состояние загрузки
-      setIsClearing(false);
+      // Не сбрасываем состояние загрузки - страница перезагрузится
     }
   };
 

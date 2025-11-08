@@ -95,8 +95,14 @@ export default function DualListSelector<T>({
       <Typography variant="h6" gutterBottom>
         {title}
       </Typography>
-      <Box sx={{ display: "flex", gap: 2 }}>
-        <Box sx={{ flex: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          flexDirection: { xs: "column", md: "row" },
+        }}
+      >
+        <Box sx={{ flex: 1, width: "100%" }}>
           <Card>
             <CardContent>
               <Box
@@ -140,8 +146,20 @@ export default function DualListSelector<T>({
             </CardContent>
           </Card>
         </Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "row", md: "column" },
+              gap: 1,
+            }}
+          >
             <Button
               variant="outlined"
               size="small"
@@ -170,7 +188,7 @@ export default function DualListSelector<T>({
             </Button>
           </Box>
         </Box>
-        <Box sx={{ flex: 1 }}>
+        <Box sx={{ flex: 1, width: "100%" }}>
           <Card>
             <CardContent>
               <Box

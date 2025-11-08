@@ -13,6 +13,7 @@ export { default as DialogContent } from "@mui/material/DialogContent";
 export { default as DialogTitle } from "@mui/material/DialogTitle";
 export { default as FormControl } from "@mui/material/FormControl";
 export { default as IconButton } from "@mui/material/IconButton";
+export { default as InputAdornment } from "@mui/material/InputAdornment";
 export { default as InputLabel } from "@mui/material/InputLabel";
 export { default as MenuItem } from "@mui/material/MenuItem";
 export { default as Paper } from "@mui/material/Paper";
@@ -32,4 +33,8 @@ export { default as TableRow } from "@mui/material/TableRow";
 // Material-UI иконки
 export { default as DeleteIcon } from "@mui/icons-material/Delete";
 export { default as EditIcon } from "@mui/icons-material/Edit";
+export { default as SearchIcon } from "@mui/icons-material/Search";
+export { default as ArrowUpwardIcon } from "@mui/icons-material/ArrowUpward";
+export { default as ArrowDownwardIcon } from "@mui/icons-material/ArrowDownward";
+export { default as UnfoldMoreIcon } from "@mui/icons-material/UnfoldMore";
 

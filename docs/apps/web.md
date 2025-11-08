@@ -218,6 +218,15 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
+### Актуализация профиля в PWA
+```typescript
+import { clearProfilePageCache } from '@shared/lib/utils/clearProfileCache';
+
+await updateUserProfile(formData);
+await clearProfilePageCache(username);
+router.push(`/profile?username=${username}`);
+```
+
 ## 📱 Мобильная оптимизация
 
 ### Адаптивный дизайн
