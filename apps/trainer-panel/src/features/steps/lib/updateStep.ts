@@ -8,7 +8,7 @@ import { validateForm } from "@shared/lib/validation/serverValidation";
 import { revalidatePath } from "next/cache";
 import { deleteFileFromCDN, uploadFileToCDN } from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@gafus/prisma";
 
 import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 

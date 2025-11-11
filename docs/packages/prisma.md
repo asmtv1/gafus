@@ -28,12 +28,15 @@ pnpm add @gafus/prisma
 
 ### Базовое использование
 ```typescript
-import { PrismaClient } from '@gafus/prisma';
+import { Prisma, PrismaClient } from '@gafus/prisma';
 
 const prisma = new PrismaClient();
 
 // Использование в приложении
 const users = await prisma.user.findMany();
+
+// Доступ к пространству имён Prisma (JsonNull, Decimal и т.д.)
+const checklist = Prisma.JsonNull;
 ```
 
 ## 🗄️ Схема базы данных

@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@gafus/prisma";
 
 import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 
