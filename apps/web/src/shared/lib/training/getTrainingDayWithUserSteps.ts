@@ -4,7 +4,7 @@ import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
 
-import type { TrainingDetail } from "@gafus/types";
+import type { ChecklistQuestion, TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 import { dayNumberSchema, trainingTypeSchema } from "../validation/schemas";
@@ -289,7 +289,9 @@ export async function getTrainingDayWithUserSteps(
       remainingSecOnServer: remainingByStepId[stepOnDayId] ?? undefined,
       // Новые поля для типов экзамена
       type: step.type as "TRAINING" | "EXAMINATION" | undefined,
-      checklist: step.checklist,
+      checklist: Array.isArray(step.checklist)
+        ? (step.checklist as ChecklistQuestion[])
+        : null,
       requiresVideoReport: step.requiresVideoReport,
       requiresWrittenFeedback: step.requiresWrittenFeedback,
       hasTestQuestions: step.hasTestQuestions,

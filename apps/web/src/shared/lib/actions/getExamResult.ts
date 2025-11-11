@@ -13,6 +13,15 @@ export interface ExamResultData {
   writtenFeedback: string | null;
   overallScore: number | null;
   isPassed: boolean | null;
+  trainerComment: string | null;
+  reviewedAt: Date | null;
+  reviewedById: string | null;
+  reviewedBy: {
+    username: string;
+    profile: {
+      fullName: string | null;
+    } | null;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,6 +65,19 @@ export async function getExamResult(userStepId: string): Promise<ExamResultData 
         writtenFeedback: true,
         overallScore: true,
         isPassed: true,
+        trainerComment: true,
+        reviewedAt: true,
+        reviewedById: true,
+        reviewedBy: {
+          select: {
+            username: true,
+            profile: {
+              select: {
+                fullName: true,
+              },
+            },
+          },
+        },
         createdAt: true,
         updatedAt: true
       }

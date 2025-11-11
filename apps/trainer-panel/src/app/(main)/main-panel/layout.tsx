@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Assignment,
   AutoStories,
+  HelpOutline,
   Menu as MenuIcon,
   Close as CloseIcon,
   Logout
@@ -161,6 +162,14 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
               {pendingExamCount}
             </span>
           )}
+        </Link>
+        <Link 
+          href="/main-panel/faq" 
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
+          <HelpOutline />
+          Частые вопросы
         </Link>
         
         <div className={styles.divider}></div>

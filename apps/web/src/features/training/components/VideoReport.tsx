@@ -24,6 +24,7 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
   const [isLoading, setIsLoading] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const [videoSize, setVideoSize] = useState<number>(0);
+  const [examResult, setExamResult] = useState<Awaited<ReturnType<typeof getExamResult>>>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const recordedVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -36,8 +37,9 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
   useEffect(() => {
     async function loadExistingData() {
       try {
-        const examResult = await getExamResult(userStepId);
-        if (examResult?.videoReportUrl) {
+        const result = await getExamResult(userStepId);
+        setExamResult(result);
+        if (result?.videoReportUrl) {
           // Для существующих видео с CDN URL просто отмечаем как отправленные
           // Не устанавливаем recordedVideo, чтобы не показывать CDN URL в preview
           setIsSubmitted(true);
@@ -292,6 +294,22 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
     return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   };
 
+  const formatDateTime = (value?: Date | string | null) => {
+    if (!value) return null;
+    const date = typeof value === "string" ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleString("ru-RU");
+  };
+
+  const getTrainerName = () => {
+    if (!examResult?.reviewedBy) return null;
+    return examResult.reviewedBy.profile?.fullName || examResult.reviewedBy.username || null;
+  };
+
+  const isReviewed = examResult?.reviewedAt !== null;
+  const isPassed = examResult?.isPassed === true;
+  const hasComment = examResult?.trainerComment && examResult.trainerComment.trim().length > 0;
+
   // Примечание: установка src теперь происходит напрямую в mediaRecorder.onstop
 
   // Показываем индикатор загрузки
@@ -317,9 +335,37 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
         демонстрируете выполнение упражнений или делитесь своими мыслями.
       </Typography>
 
-      {isSubmitted && (
+      {isSubmitted && !isReviewed && (
         <Alert severity="info" sx={{ mb: 2 }}>
           Ваш видео отчёт сохранен. Ожидайте проверки тренером.
+        </Alert>
+      )}
+
+      {isReviewed && (
+        <Alert 
+          severity={isPassed ? "success" : "error"} 
+          sx={{ mb: 2 }}
+        >
+          <Typography variant="subtitle2" gutterBottom>
+            {isPassed ? "Экзамен зачтён" : "Экзамен не зачтён"}
+          </Typography>
+          {hasComment && examResult && (
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", mt: 1 }}>
+              {examResult.trainerComment}
+            </Typography>
+          )}
+          {examResult && (examResult.reviewedAt || getTrainerName()) && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mt: 1 }}
+            >
+              {[
+                examResult.reviewedAt && `Проверено: ${formatDateTime(examResult.reviewedAt)}`,
+                getTrainerName() && `Тренер: ${getTrainerName()}`
+              ].filter(Boolean).join(" • ")}
+            </Typography>
+          )}
         </Alert>
       )}
 

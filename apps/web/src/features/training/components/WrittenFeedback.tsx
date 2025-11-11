@@ -18,14 +18,16 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [examResult, setExamResult] = useState<Awaited<ReturnType<typeof getExamResult>>>(null);
 
   // Загружаем существующую обратную связь при монтировании компонента
   useEffect(() => {
     async function loadExistingData() {
       try {
-        const examResult = await getExamResult(userStepId);
-        if (examResult?.writtenFeedback) {
-          setFeedback(examResult.writtenFeedback);
+        const result = await getExamResult(userStepId);
+        setExamResult(result);
+        if (result?.writtenFeedback) {
+          setFeedback(result.writtenFeedback);
           setIsSubmitted(true);
         }
       } catch (error) {
@@ -70,6 +72,22 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
     onReset();
   };
 
+  const formatDateTime = (value?: Date | string | null) => {
+    if (!value) return null;
+    const date = typeof value === "string" ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleString("ru-RU");
+  };
+
+  const getTrainerName = () => {
+    if (!examResult?.reviewedBy) return null;
+    return examResult.reviewedBy.profile?.fullName || examResult.reviewedBy.username || null;
+  };
+
+  const isReviewed = examResult?.reviewedAt !== null;
+  const isPassed = examResult?.isPassed === true;
+  const hasComment = examResult?.trainerComment && examResult.trainerComment.trim().length > 0;
+
   // Показываем индикатор загрузки
   if (isLoading) {
     return (
@@ -93,9 +111,37 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
         какие у вас есть вопросы или комментарии.
       </Typography>
 
-      {isSubmitted && (
+      {isSubmitted && !isReviewed && (
         <Alert severity="info" sx={{ mb: 2 }}>
           Ваша обратная связь сохранена. Ожидайте проверки тренером.
+        </Alert>
+      )}
+
+      {isReviewed && (
+        <Alert 
+          severity={isPassed ? "success" : "error"} 
+          sx={{ mb: 2 }}
+        >
+          <Typography variant="subtitle2" gutterBottom>
+            {isPassed ? "Экзамен зачтён" : "Экзамен не зачтён"}
+          </Typography>
+          {hasComment && examResult && (
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", mt: 1 }}>
+              {examResult.trainerComment}
+            </Typography>
+          )}
+          {examResult && (examResult.reviewedAt || getTrainerName()) && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mt: 1 }}
+            >
+              {[
+                examResult.reviewedAt && `Проверено: ${formatDateTime(examResult.reviewedAt)}`,
+                getTrainerName() && `Тренер: ${getTrainerName()}`
+              ].filter(Boolean).join(" • ")}
+            </Typography>
+          )}
         </Alert>
       )}
 

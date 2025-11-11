@@ -245,6 +245,7 @@ model User {
   courseAccesses           CourseAccess[]
   authoredCourses          Course[]
   createdSteps             Step[]
+  reviewedExamResults      ExamResult[]         @relation("ExamResultReviewedBy")
   createdStepTemplates     StepTemplate[]
   createdDays              TrainingDay[]
   userTrainings            UserTraining[]
@@ -441,36 +442,43 @@ model StepNotification {
 }
 
 model ExamResult {
-  id                    String         @id @default(cuid())
-  userStepId           String         @unique
+  id                   String   @id @default(cuid())
+  userStepId           String   @unique
   stepId               String
   
   // Результаты тестовых вопросов
-  testAnswers          Json?           // Ответы пользователя на тестовые вопросы
-  testScore            Int?            // Количество правильных ответов
-  testMaxScore         Int?            // Максимально возможное количество баллов
+  testAnswers          Json?    // Ответы пользователя на тестовые вопросы
+  testScore            Int?     // Количество правильных ответов
+  testMaxScore         Int?     // Максимально возможное количество баллов
   
   // Видео отчёт
-  videoReportUrl       String?         // Ссылка на загруженное видео
-  videoDeletedAt       DateTime?       // Когда видео было удалено
-  videoDeleteReason    String?         // Причина удаления: replaced | auto_cleanup_completed | auto_cleanup_pending
+  videoReportUrl       String?  // Ссылка на загруженное видео
+  videoDeletedAt       DateTime? // Когда видео было удалено
+  videoDeleteReason    String?  // Причина удаления: replaced | auto_cleanup_completed | auto_cleanup_pending
   
   // Письменная обратная связь
-  writtenFeedback      String?         // Текст обратной связи от пользователя
+  writtenFeedback      String?  // Текст обратной связи от пользователя
   
   // Общая оценка экзамена
-  overallScore         Int?            // Общая оценка (например, процент)
-  isPassed             Boolean?       // Прошёл ли экзамен
+  overallScore         Int?     // Общая оценка (например, процент)
+  isPassed             Boolean? // Прошёл ли экзамен
+
+  // Проверка тренером
+  trainerComment       String?  // Комментарий тренера для пользователя
+  reviewedAt           DateTime? // Когда тренер проверил результат
+  reviewedById         String?  // Кто проверил
+  reviewedBy           User?    @relation("ExamResultReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   
-  userStep             UserStep        @relation(fields: [userStepId], references: [id], onDelete: Cascade)
-  step                 Step            @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  userStep             UserStep @relation(fields: [userStepId], references: [id], onDelete: Cascade)
+  step                 Step     @relation(fields: [stepId], references: [id], onDelete: Cascade)
   
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
   
   @@index([userStepId])
   @@index([stepId])
   @@index([videoDeletedAt])
+  @@index([reviewedById])
 }
 
 model ErrorReport {

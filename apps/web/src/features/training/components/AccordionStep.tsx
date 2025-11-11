@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import type { ChecklistQuestion } from "@gafus/types";
 
 import { useStepStore } from "@shared/stores/stepStore";
 import { useTimerStore } from "@shared/stores/timerStore";
@@ -14,13 +15,6 @@ import { TestQuestions } from "./TestQuestions";
 import { WrittenFeedback } from "./WrittenFeedback";
 import { VideoReport } from "./VideoReport";
 import ImageViewer from "@shared/components/ui/ImageViewer";
-
-interface ChecklistQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: number;
-}
 
 interface AccordionStepProps {
   courseId: string;

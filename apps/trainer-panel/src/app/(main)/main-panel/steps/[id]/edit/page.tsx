@@ -3,13 +3,7 @@ import { updateStep } from "@features/steps/lib/updateStep";
 import { prisma } from "@gafus/prisma";
 import { notFound } from "next/navigation";
 import FormPageLayout from "@shared/components/FormPageLayout";
-
-interface ChecklistQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: number;
-}
+import type { ChecklistQuestion } from "@gafus/types";
 
 interface Props {
   params: Promise<{ id: string }>;

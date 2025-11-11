@@ -5,12 +5,7 @@ import { Button, Card, CardContent, FormControl, FormControlLabel, Radio, RadioG
 import { submitExamResult } from "@/shared/lib/actions/submitExamResult";
 import { getExamResult } from "@/shared/lib/actions/getExamResult";
 
-interface ChecklistQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: number;
-}
+import type { ChecklistQuestion } from "@gafus/types";
 
 interface TestQuestionsProps {
   checklist: ChecklistQuestion[];
@@ -27,14 +22,16 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [examResult, setExamResult] = useState<Awaited<ReturnType<typeof getExamResult>>>(null);
 
   // Загружаем существующие ответы при монтировании компонента
   useEffect(() => {
     async function loadExistingData() {
       try {
-        const examResult = await getExamResult(userStepId);
-        if (examResult?.testAnswers) {
-          setAnswers(examResult.testAnswers);
+        const result = await getExamResult(userStepId);
+        setExamResult(result);
+        if (result?.testAnswers) {
+          setAnswers(result.testAnswers);
           setIsSubmitted(true);
           setShowResults(true);
         }
@@ -115,15 +112,59 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
     );
   }
 
+  const formatDateTime = (value?: Date | string | null) => {
+    if (!value) return null;
+    const date = typeof value === "string" ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleString("ru-RU");
+  };
+
+  const getTrainerName = () => {
+    if (!examResult?.reviewedBy) return null;
+    return examResult.reviewedBy.profile?.fullName || examResult.reviewedBy.username || null;
+  };
+
+  const isReviewed = examResult?.reviewedAt !== null;
+  const isPassed = examResult?.isPassed === true;
+  const hasComment = examResult?.trainerComment && examResult.trainerComment.trim().length > 0;
+
   return (
     <div style={{ padding: "16px" }}>
       <Typography variant="h6" gutterBottom>
         Тестовые вопросы
       </Typography>
       
-      {isSubmitted && (
+      {isSubmitted && !isReviewed && (
         <Alert severity="info" sx={{ mb: 2 }}>
           Ваши ответы сохранены. Ожидайте проверки тренером.
+        </Alert>
+      )}
+
+      {isReviewed && (
+        <Alert 
+          severity={isPassed ? "success" : "error"} 
+          sx={{ mb: 2 }}
+        >
+          <Typography variant="subtitle2" gutterBottom>
+            {isPassed ? "Экзамен зачтён" : "Экзамен не зачтён"}
+          </Typography>
+          {hasComment && examResult && (
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", mt: 1 }}>
+              {examResult.trainerComment}
+            </Typography>
+          )}
+          {examResult && (examResult.reviewedAt || getTrainerName()) && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mt: 1 }}
+            >
+              {[
+                examResult.reviewedAt && `Проверено: ${formatDateTime(examResult.reviewedAt)}`,
+                getTrainerName() && `Тренер: ${getTrainerName()}`
+              ].filter(Boolean).join(" • ")}
+            </Typography>
+          )}
         </Alert>
       )}
       
@@ -152,15 +193,21 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
             </FormControl>
 
             {showResults && (
-              <Alert 
-                severity={answers[question.id] === question.correctAnswer ? "success" : "error"}
-                sx={{ mt: 1 }}
-              >
-                {answers[question.id] === question.correctAnswer 
-                  ? "Правильно!" 
-                  : `Неправильно. Правильный ответ: ${question.options[question.correctAnswer]}`
-                }
-              </Alert>
+              <>
+                <Alert
+                  severity={answers[question.id] === question.correctAnswer ? "success" : "error"}
+                  sx={{ mt: 1 }}
+                >
+                  {answers[question.id] === question.correctAnswer
+                    ? "Правильно!"
+                    : `Неправильно. Правильный ответ: ${question.options[question.correctAnswer]}`}
+                </Alert>
+                {question.comment && (
+                  <Alert severity="info" sx={{ mt: 1 }}>
+                    Комментарий тренера: {question.comment}
+                  </Alert>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

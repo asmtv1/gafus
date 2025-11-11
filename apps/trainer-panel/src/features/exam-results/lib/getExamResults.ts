@@ -13,6 +13,17 @@ export interface ExamResultWithDetails {
   writtenFeedback: string | null;
   overallScore: number | null;
   isPassed: boolean | null;
+  trainerComment: string | null;
+  reviewedAt: Date | null;
+  reviewedById: string | null;
+  reviewedBy: {
+    id: string;
+    username: string;
+    profile: {
+      fullName: string | null;
+      avatarUrl: string | null;
+    } | null;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
   userStep: {
@@ -86,6 +97,18 @@ export async function getExamResults(options?: GetExamResultsOptions): Promise<E
       }
     },
     include: {
+      reviewedBy: {
+        select: {
+          id: true,
+          username: true,
+          profile: {
+            select: {
+              fullName: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      },
       userStep: {
         include: {
           userTraining: {
@@ -149,6 +172,18 @@ export async function getExamResultsByCourse(courseId: string): Promise<ExamResu
       }
     },
     include: {
+      reviewedBy: {
+        select: {
+          id: true,
+          username: true,
+          profile: {
+            select: {
+              fullName: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      },
       userStep: {
         include: {
           userTraining: {

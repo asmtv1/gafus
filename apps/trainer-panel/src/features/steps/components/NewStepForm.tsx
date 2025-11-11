@@ -12,16 +12,9 @@ import FormSection from "@shared/components/FormSection";
 import ChecklistEditor from "./ChecklistEditor";
 import StepImageUploader from "./StepImageUploader";
 
-import type { ActionResult } from "@gafus/types";
+import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 
 import { Alert, Box, Button, Typography, FormControlLabel, Checkbox, FormGroup } from "@/utils/muiImports";
-
-interface ChecklistQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: number;
-}
 
 interface StepFormData {
   title: string;

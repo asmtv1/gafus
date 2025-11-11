@@ -1,6 +1,14 @@
 // Типы для тренировок, шагов и дней
 import type { TrainingStatus } from "../utils/training-status";
 
+export interface ChecklistQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  comment?: string;
+}
+
 export interface Step {
   id: string;
   title: string;
@@ -15,7 +23,7 @@ export interface Step {
   
   // Новые поля для типов экзамена
   type?: "TRAINING" | "EXAMINATION";
-  checklist?: any; // JSON с тестовыми вопросами
+  checklist?: ChecklistQuestion[]; // JSON с тестовыми вопросами
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;
   hasTestQuestions?: boolean;

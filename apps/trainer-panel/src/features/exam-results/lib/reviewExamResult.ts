@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
@@ -11,7 +12,18 @@ import { sendImmediatePushNotification } from "@gafus/webpush";
 import type { ActionResult } from "@gafus/types";
 
 // Создаем логгер
-const logger = createTrainerPanelLogger('trainer-panel-review-exam');
+const logger = createTrainerPanelLogger("trainer-panel-review-exam");
+
+const reviewSchema = z.object({
+  userStepId: z.string().min(1, "ID шага обязателен"),
+  action: z.enum(["approve", "reject"]),
+  trainerComment: z
+    .string()
+    .trim()
+    .max(1000, "Комментарий не должен превышать 1000 символов")
+    .transform((value) => (value.length ? value : null))
+    .optional(),
+});
 
 /**
  * Проверка и утверждение/отклонение результата экзамена тренером
@@ -31,17 +43,24 @@ export async function reviewExamResult(
       return { error: "Недостаточно прав доступа" };
     }
 
-    const userStepId = formData.get("userStepId")?.toString();
-    const action = formData.get("action")?.toString(); // "approve" или "reject"
-    const trainerComment = formData.get("trainerComment")?.toString();
+    const rawUserStepId = formData.get("userStepId");
+    const rawAction = formData.get("action");
+    const rawTrainerComment = formData.get("trainerComment");
 
-    if (!userStepId) {
-      return { error: "ID шага обязателен" };
+    const parseResult = reviewSchema.safeParse({
+      userStepId: typeof rawUserStepId === "string" ? rawUserStepId : undefined,
+      action: typeof rawAction === "string" ? rawAction : undefined,
+      trainerComment:
+        typeof rawTrainerComment === "string" ? rawTrainerComment : undefined,
+    });
+
+    if (!parseResult.success) {
+      return {
+        error: parseResult.error.errors[0]?.message ?? "Некорректные данные запроса",
+      };
     }
 
-    if (!action || !["approve", "reject"].includes(action)) {
-      return { error: "Некорректное действие" };
-    }
+    const { userStepId, action, trainerComment } = parseResult.data;
 
     // Получаем userStep с информацией о курсе и шаге
     const userStep = await prisma.userStep.findUnique({
@@ -52,18 +71,18 @@ export async function reviewExamResult(
             user: true, // Для получения userId
             dayOnCourse: {
               include: {
-                course: true // Для типа курса и order дня
-              }
-            }
-          }
+                course: true, // Для типа курса и order дня
+              },
+            },
+          },
         },
         stepOnDay: {
           include: {
-            step: true // Для названия шага
-          }
+            step: true, // Для названия шага
+          },
         },
-        examResult: true
-      }
+        examResult: true,
+      },
     });
 
     if (!userStep) {
@@ -80,12 +99,14 @@ export async function reviewExamResult(
       return { error: "Результат экзамена не найден" };
     }
 
+    const finalComment = trainerComment ?? null;
+
     // Обновляем статус шага
     await prisma.userStep.update({
       where: { id: userStepId },
       data: {
-        status: action === "approve" ? "COMPLETED" : "IN_PROGRESS"
-      }
+        status: action === "approve" ? "COMPLETED" : "IN_PROGRESS",
+      },
     });
 
     // Обновляем результат экзамена с комментарием тренера
@@ -94,55 +115,83 @@ export async function reviewExamResult(
       data: {
         isPassed: action === "approve",
         overallScore: action === "approve" ? 100 : 0,
-        // Добавляем поле для комментария тренера (нужно будет добавить в схему)
-        updatedAt: new Date()
-      }
+        trainerComment: finalComment,
+        reviewedAt: new Date(),
+        reviewedById: session.user.id,
+        updatedAt: new Date(),
+      },
     });
 
     // Логируем действие
-    logger.info(`Тренер ${session.user.username} ${action === "approve" ? "утвердил" : "отклонил"} экзамен для userStep ${userStepId}`);
+    logger.info(
+      `Тренер ${session.user.username} ${
+        action === "approve" ? "утвердил" : "отклонил"
+      } экзамен для userStep ${userStepId}`,
+      {
+        commentProvided: Boolean(finalComment),
+      },
+    );
 
-    // Отправляем пуш-уведомление пользователю при зачёте экзамена
-    if (action === "approve") {
-      try {
-        const stepTitle = userStep.stepOnDay.step.title;
-        const courseType = userStep.userTraining.dayOnCourse.course.type;
-        const dayOrder = userStep.userTraining.dayOnCourse.order; // Используем order вместо dayNumber
-        const userId = userStep.userTraining.userId;
+    const stepTitle = userStep.stepOnDay.step.title;
+    const courseType = userStep.userTraining.dayOnCourse.course.type;
+    const dayOrder = userStep.userTraining.dayOnCourse.order; // Используем order вместо dayNumber
+    const userId = userStep.userTraining.userId;
 
-        const pushResult = await sendImmediatePushNotification({
-          userId,
+    const defaultRejectBody =
+      "Тренер вернул экзамен на доработку. Ознакомьтесь с комментарием и отправьте отчёт ещё раз.";
+
+    const trimmedComment = finalComment
+      ? finalComment.length > 180
+        ? `${finalComment.slice(0, 177)}...`
+        : finalComment
+      : null;
+
+    const pushPayload = action === "approve"
+      ? {
           title: `"${stepTitle}" зачтён! ✅`,
-          body: `Тренер проверил ваш экзамен. Можете переходить к следующему шагу.`,
-          url: `/trainings/${courseType}/${dayOrder}`,
-          icon: "/icons/icon192.png",
-          badge: "/icons/badge-72.png"
-        });
-
-        if (pushResult.success) {
-          logger.success(`Пуш-уведомление отправлено пользователю ${userId}`, {
-            notificationId: pushResult.notificationId
-          });
-        } else {
-          logger.warn(`Не удалось отправить пуш-уведомление: ${pushResult.error}`, {
-            userId
-          });
+          body: "Тренер проверил ваш экзамен. Можете переходить к следующему шагу.",
         }
-      } catch (pushError) {
-        // Ошибка отправки пуша не должна блокировать основную логику
-        logger.error("Ошибка при отправке пуш-уведомления (не критично)", pushError as Error, {
-          userStepId
+      : {
+          title: `"${stepTitle}" требует доработки ❗️`,
+          body: trimmedComment ? `Комментарий тренера: ${trimmedComment}` : defaultRejectBody,
+        };
+
+    try {
+      const pushResult = await sendImmediatePushNotification({
+        userId,
+        title: pushPayload.title,
+        body: pushPayload.body,
+        url: `/trainings/${courseType}/${dayOrder}`,
+        icon: "/icons/icon192.png",
+        badge: "/icons/badge-72.png",
+      });
+
+      if (pushResult.success) {
+        logger.success(`Пуш-уведомление отправлено пользователю ${userId}`, {
+          notificationId: pushResult.notificationId,
+          action,
+        });
+      } else {
+        logger.warn(`Не удалось отправить пуш-уведомление: ${pushResult.error}`, {
+          userId,
+          action,
         });
       }
+    } catch (pushError) {
+      // Ошибка отправки пуша не должна блокировать основную логику
+      logger.error("Ошибка при отправке пуш-уведомления (не критично)", pushError as Error, {
+        userStepId,
+        action,
+      });
     }
 
     revalidatePath("/main-panel/exam-results");
-    
-    return { 
-      success: true
+
+    return {
+      success: true,
     };
   } catch (error) {
-    logger.error("Ошибка при проверке экзамена:", error as Error, { operation: 'error' });
+    logger.error("Ошибка при проверке экзамена:", error as Error, { operation: "error" });
     await reportErrorToDashboard({
       message: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,
@@ -154,4 +203,3 @@ export async function reviewExamResult(
     return { error: "Не удалось проверить экзамен" };
   }
 }
-

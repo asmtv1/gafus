@@ -61,6 +61,9 @@ export async function submitExamResult(data: ExamSubmissionData) {
       writtenFeedback: string;
       overallScore: number;
       isPassed: boolean;
+      trainerComment: string | null;
+      reviewedAt: Date | null;
+      reviewedById: string | null;
       updatedAt: Date;
     }> = {
       updatedAt: new Date()
@@ -88,6 +91,11 @@ export async function submitExamResult(data: ExamSubmissionData) {
     if (data.isPassed !== undefined) {
       updateData.isPassed = data.isPassed;
     }
+
+    // Сбрасываем результат проверки тренером при повторной отправке
+    updateData.trainerComment = null;
+    updateData.reviewedAt = null;
+    updateData.reviewedById = null;
 
     const examResult = await prisma.examResult.upsert({
       where: {

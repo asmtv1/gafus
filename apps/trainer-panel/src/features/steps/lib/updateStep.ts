@@ -8,11 +8,14 @@ import { validateForm } from "@shared/lib/validation/serverValidation";
 import { revalidatePath } from "next/cache";
 import { deleteFileFromCDN, uploadFileToCDN } from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 
-import type { ActionResult } from "@gafus/types";
+import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 
 // Создаем логгер для update-step
 const logger = createTrainerPanelLogger('trainer-panel-update-step');
+
+const MAX_COMMENT_LENGTH = 500;
 
 export async function updateStep(
   prevState: ActionResult,
@@ -95,6 +98,12 @@ export async function updateStep(
               if (!Array.isArray(checklist)) return "Чек-лист должен быть массивом";
               if (checklist.length === 0) return "Добавьте хотя бы один вопрос";
               for (const question of checklist) {
+                if (typeof question !== "object" || question === null) {
+                  return "Каждый вопрос чек-листа должен быть объектом";
+                }
+                if (!question.id || typeof question.id !== "string") {
+                  return "Каждый вопрос должен иметь идентификатор";
+                }
                 if (!question.question || question.question.trim().length === 0) {
                   return "Все вопросы должны иметь текст";
                 }
@@ -103,6 +112,14 @@ export async function updateStep(
                 }
                 if (question.options.some((opt: string) => !opt || opt.trim().length === 0)) {
                   return "Все варианты ответов должны быть заполнены";
+                }
+                if (question.comment != null) {
+                  if (typeof question.comment !== "string") {
+                    return "Комментарий к вопросу должен быть строкой";
+                  }
+                  if (question.comment.trim().length > MAX_COMMENT_LENGTH) {
+                    return `Комментарий к вопросу не должен превышать ${MAX_COMMENT_LENGTH} символов`;
+                  }
                 }
               }
               return null;
@@ -127,7 +144,20 @@ export async function updateStep(
     }
 
     const duration = type === "TRAINING" ? parseInt(durationStr, 10) : null;
-    const checklist = hasTestQuestions && checklistStr ? JSON.parse(checklistStr) : null;
+    const checklist = hasTestQuestions && checklistStr
+      ? (JSON.parse(checklistStr) as ChecklistQuestion[])
+      : null;
+    const normalizedChecklist = checklist
+      ? checklist.map((question) => ({
+          ...question,
+          comment:
+            typeof question.comment === "string" && question.comment.trim().length > 0
+              ? question.comment.trim()
+              : undefined,
+        }))
+      : null;
+    const checklistValue =
+      hasTestQuestions && normalizedChecklist ? normalizedChecklist : Prisma.JsonNull;
 
     // Получаем существующие изображения
     const existingStep = await prisma.step.findUnique({
@@ -196,7 +226,7 @@ export async function updateStep(
         videoUrl: type === "TRAINING" ? (videoUrl || null) : null,
         imageUrls: type === "TRAINING" ? [...remainingImageUrls, ...newImageUrls] : [],
         pdfUrls: type === "TRAINING" ? pdfUrls : [],
-        checklist,
+        checklist: checklistValue,
         requiresVideoReport: type === "EXAMINATION" ? requiresVideoReport : false,
         requiresWrittenFeedback: type === "EXAMINATION" ? requiresWrittenFeedback : false,
         hasTestQuestions: type === "EXAMINATION" ? hasTestQuestions : false,

@@ -1,28 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { 
-  Box, 
-  Button, 
-  Card, 
-  CardContent, 
-  IconButton, 
-  TextField, 
+import { useEffect, useState } from "react";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  IconButton,
+  TextField,
   Typography,
   FormControl,
   FormLabel,
   RadioGroup,
   FormControlLabel,
-  Radio
+  Radio,
 } from "@/utils/muiImports";
 import { AddIcon, DeleteIcon } from "@/utils/muiImports";
 
-interface ChecklistQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: number; // индекс правильного ответа
-}
+import type { ChecklistQuestion } from "@gafus/types";
 
 interface ChecklistEditorProps {
   checklist: ChecklistQuestion[];
@@ -32,12 +27,17 @@ interface ChecklistEditorProps {
 export default function ChecklistEditor({ checklist, onChange }: ChecklistEditorProps) {
   const [questions, setQuestions] = useState<ChecklistQuestion[]>(checklist);
 
+  useEffect(() => {
+    setQuestions(checklist);
+  }, [checklist]);
+
   const addQuestion = () => {
     const newQuestion: ChecklistQuestion = {
       id: `question_${Date.now()}`,
       question: "",
       options: ["", ""],
-      correctAnswer: 0
+      correctAnswer: 0,
+      comment: "",
     };
     const updatedQuestions = [...questions, newQuestion];
     setQuestions(updatedQuestions);
@@ -51,7 +51,7 @@ export default function ChecklistEditor({ checklist, onChange }: ChecklistEditor
   };
 
   const updateQuestion = (questionId: string, field: keyof ChecklistQuestion, value: string | number) => {
-    const updatedQuestions = questions.map(q => 
+    const updatedQuestions = questions.map(q =>
       q.id === questionId ? { ...q, [field]: value } : q
     );
     setQuestions(updatedQuestions);
@@ -59,8 +59,8 @@ export default function ChecklistEditor({ checklist, onChange }: ChecklistEditor
   };
 
   const addOption = (questionId: string) => {
-    const updatedQuestions = questions.map(q => 
-      q.id === questionId 
+    const updatedQuestions = questions.map(q =>
+      q.id === questionId
         ? { ...q, options: [...q.options, ""] }
         : q
     );
@@ -84,8 +84,8 @@ export default function ChecklistEditor({ checklist, onChange }: ChecklistEditor
   };
 
   const updateOption = (questionId: string, optionIndex: number, value: string) => {
-    const updatedQuestions = questions.map(q => 
-      q.id === questionId 
+    const updatedQuestions = questions.map(q =>
+      q.id === questionId
         ? { ...q, options: q.options.map((opt, idx) => idx === optionIndex ? value : opt) }
         : q
     );
@@ -110,7 +110,7 @@ export default function ChecklistEditor({ checklist, onChange }: ChecklistEditor
       </Box>
 
       {questions.length === 0 ? (
-        <Card sx={{ p: 3, textAlign: 'center', backgroundColor: '#f5f5f5' }}>
+        <Card sx={{ p: 3, textAlign: "center", backgroundColor: "#f5f5f5" }}>
           <Typography variant="body1" color="text.secondary">
             Пока нет вопросов. Нажмите "Добавить вопрос" чтобы создать первый вопрос.
           </Typography>
@@ -119,8 +119,8 @@ export default function ChecklistEditor({ checklist, onChange }: ChecklistEditor
         questions.map((question, questionIndex) => (
           <Card key={question.id} sx={{ mb: 2 }}>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
                   Вопрос {questionIndex + 1}
                 </Typography>
                 <IconButton
@@ -150,7 +150,7 @@ export default function ChecklistEditor({ checklist, onChange }: ChecklistEditor
                   onChange={(e) => updateQuestion(question.id, 'correctAnswer', parseInt(e.target.value))}
                 >
                   {question.options.map((option, optionIndex) => (
-                    <Box key={optionIndex} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Box key={optionIndex} sx={{ display: "flex", alignItems: "center", mb: 1 }}>
                       <FormControlLabel
                         value={optionIndex}
                         control={<Radio />}
@@ -179,12 +179,23 @@ export default function ChecklistEditor({ checklist, onChange }: ChecklistEditor
                 </RadioGroup>
               </FormControl>
 
+              <TextField
+                fullWidth
+                label="Комментарий (опционально)"
+                value={question.comment ?? ""}
+                onChange={(e) => updateQuestion(question.id, "comment", e.target.value)}
+                placeholder="Добавьте пояснение, которое увидит пользователь после ответа"
+                multiline
+                rows={3}
+                sx={{ mt: 2 }}
+              />
+
               <Button
                 variant="outlined"
                 startIcon={<AddIcon />}
                 onClick={() => addOption(question.id)}
                 size="small"
-                sx={{ mt: 1 }}
+                sx={{ mt: 2 }}
               >
                 Добавить вариант
               </Button>
