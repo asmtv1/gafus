@@ -1,9 +1,19 @@
 export function getEmbeddedVideoInfo(url: string | null): {
   embedUrl: string;
   isShorts: boolean;
+  isCDN?: boolean;
 } {
   if (!url) {
     return { embedUrl: "", isShorts: false };
+  }
+
+  // CDN видео из нашего хранилища
+  if (url.includes("gafus-media.storage.yandexcloud.net/uploads/")) {
+    return {
+      embedUrl: url,
+      isShorts: false,
+      isCDN: true,
+    };
   }
 
   // YouTube Shorts
@@ -52,6 +62,18 @@ export function getEmbeddedVideoInfo(url: string | null): {
   if (vkZMatch) {
     const oid = vkZMatch[1];
     const id = vkZMatch[2];
+    return {
+      embedUrl: `https://vk.com/video_ext.php?oid=${oid}&id=${id}`,
+      isShorts: false,
+    };
+  }
+
+  // VK Video через vkvideo.ru: vkvideo.ru/video13432143_456239219 или https://vkvideo.ru/video13432143_456239219
+  const vkVideoMatch = url.match(/(?:https?:\/\/)?(?:www\.)?vkvideo\.ru\/video(-?\d+)_(\d+)/);
+  if (vkVideoMatch) {
+    const oid = vkVideoMatch[1];
+    const id = vkVideoMatch[2];
+    // Для vkvideo.ru используем стандартный формат VK embed
     return {
       embedUrl: `https://vk.com/video_ext.php?oid=${oid}&id=${id}`,
       isShorts: false,

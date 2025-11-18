@@ -11,17 +11,24 @@
 - **Оптимизация изображений** перед загрузкой
 - **Валидация типов файлов** и размеров
 
+## 📂 Структура каталогов CDN
+
+- `uploads/steps/*` — изображения и документы шагов
+- `uploads/trainer-videos/*` — личные видео тренеров из панели (`trainerId` внутри пути)
+- `uploads/public/*` — общие публичные ассеты
+
+> Для новых видео используйте относительный путь вида `trainer-videos/{trainerId}/{uuid}.mp4`. Пакет автоматически добавит префикс `uploads/`.
+
 ## 📦 Использование
 
 ### Загрузка файла
 ```typescript
-import { uploadToCDN } from '@gafus/cdn-upload';
+import { uploadFileToCDN } from "@gafus/cdn-upload";
+import { randomUUID } from "crypto";
 
-const result = await uploadToCDN(file, {
-  bucket: 'my-bucket',
-  key: 'uploads/image.jpg',
-  contentType: 'image/jpeg'
-});
+const relativePath = `trainer-videos/${trainerId}/${randomUUID()}.mp4`;
+
+await uploadFileToCDN(file, relativePath);
 ```
 
 ### Генерация пресigned URL

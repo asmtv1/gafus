@@ -6,3 +6,4 @@ export * from "./pet";
 export * from "./push";
 export * from "./common";
 export * from "./api";
+export * from "./trainer-video";

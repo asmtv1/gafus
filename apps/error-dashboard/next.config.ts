@@ -9,17 +9,19 @@ interface WebpackConfig {
 }
 
 const nextConfig: NextConfig = {
-  // Включаем standalone режим для Docker
-  output: 'standalone',
+  // Включаем standalone режим только для production (ускоряет dev)
+  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   serverExternalPackages: ["@gafus/prisma"],
   eslint: {
-    // ESLint проверки включены для качества кода
-    ignoreDuringBuilds: false,
+    // Отключаем ESLint проверки в dev режиме для ускорения компиляции
+    // Проверки можно запускать отдельно: pnpm lint
+    ignoreDuringBuilds: process.env.NODE_ENV !== 'production',
     dirs: ["src"],
   },
   typescript: {
-    // TypeScript проверки включены для качества кода
-    ignoreBuildErrors: false,
+    // Отключаем TypeScript проверки в dev режиме для ускорения компиляции
+    // Проверки можно запускать отдельно: pnpm typecheck
+    ignoreBuildErrors: process.env.NODE_ENV !== 'production',
   },
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,

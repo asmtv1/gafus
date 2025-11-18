@@ -4,9 +4,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { 
-  FitnessCenter, 
-  Schedule, 
+import {
+  FitnessCenter,
+  Schedule,
   Add,
   TrendingUp,
   Assignment,
@@ -14,11 +14,13 @@ import {
   HelpOutline,
   Menu as MenuIcon,
   Close as CloseIcon,
-  Logout
+  Logout,
+  VideoLibrary,
 } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 
 import styles from "./main-panel.module.css";
+import { getPendingExamCount } from "@/features/exam-results/lib/getPendingExamCount";
 
 interface MainPanelLayoutProps {
   children: React.ReactNode;
@@ -36,11 +38,8 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
   useEffect(() => {
     async function loadPendingCount() {
       try {
-        const response = await fetch("/api/exam-results/pending-count");
-        if (response.ok) {
-          const data = await response.json();
-          setPendingExamCount(data.count || 0);
-        }
+        const count = await getPendingExamCount();
+        setPendingExamCount(count || 0);
       } catch (error) {
         console.error("Failed to load pending exam count:", error);
       }
@@ -149,6 +148,14 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
         >
           <AutoStories />
           Библиотека шаблонов
+        </Link>
+        <Link 
+          href="/main-panel/my-videos" 
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
+          <VideoLibrary />
+          Мои видео
         </Link>
         <Link 
           href="/main-panel/exam-results" 

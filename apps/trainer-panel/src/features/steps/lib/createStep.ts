@@ -93,9 +93,14 @@ export async function createStep(
         videoUrl: (value: unknown) => {
           const v = String(value ?? "");
           if (!v) return null; // Необязательное поле
-          const urlPattern =
-            /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com)\/.+/;
-          return urlPattern.test(v) ? null : "Неверный формат ссылки на видео";
+          
+          // Поддерживаем внешние ссылки и CDN
+          const externalUrlPattern =
+            /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
+          const cdnUrlPattern = /^https:\/\/gafus-media\.storage\.yandexcloud\.net\/uploads\/.+/;
+          
+          const isValid = externalUrlPattern.test(v) || cdnUrlPattern.test(v);
+          return isValid ? null : "Неверный формат ссылки на видео";
         },
         type: (value: unknown) => {
           const v = String(value ?? "");

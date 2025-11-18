@@ -495,13 +495,25 @@ export function AccordionStep({
           <div
             className={`${styles.videoWrapper} ${videoInfo.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
           >
-            <iframe
-              src={videoInfo.embedUrl}
-              title="Видео упражнения"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className={styles.videoIframe}
-            />
+            {videoInfo.isCDN ? (
+              <video
+                src={videoInfo.embedUrl}
+                controls
+                className={styles.videoIframe}
+                controlsList="nodownload"
+                preload="metadata"
+              >
+                Ваш браузер не поддерживает воспроизведение видео.
+              </video>
+            ) : (
+              <iframe
+                src={videoInfo.embedUrl}
+                title="Видео упражнения"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className={styles.videoIframe}
+              />
+            )}
           </div>
         </div>
       )}

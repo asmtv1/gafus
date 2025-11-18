@@ -11,6 +11,7 @@ import sharedStyles from "@shared/styles/FormLayout.module.css";
 import FormSection from "@shared/components/FormSection";
 import ChecklistEditor from "./ChecklistEditor";
 import StepImageUploader from "./StepImageUploader";
+import VideoSelector from "./VideoSelector";
 
 import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 
@@ -47,9 +48,23 @@ type ServerAction = (prevState: ActionResult, formData: FormData) => Promise<Act
 interface NewStepFormProps {
   initialData?: StepInitialData;
   serverAction: ServerAction;
+  trainerVideos?: TrainerVideoViewModel[];
 }
 
-export default function NewStepForm({ initialData, serverAction }: NewStepFormProps) {
+interface TrainerVideoViewModel {
+  id: string;
+  trainerId: string;
+  relativePath: string;
+  originalName: string;
+  displayName?: string | null;
+  mimeType: string;
+  fileSize: number;
+  durationSec: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export default function NewStepForm({ initialData, serverAction, trainerVideos = [] }: NewStepFormProps) {
   const hasInitial = Boolean(initialData && (initialData.title || initialData.id));
   const router = useRouter();
 
@@ -121,7 +136,7 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
       validate: (value: string | boolean) => {
         const strValue = String(value);
         if (!strValue) return true; // Необязательное поле
-        const urlPattern = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com)\/.+/;
+        const urlPattern = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
         return urlPattern.test(strValue) || "Неверный формат ссылки на видео";
       },
     },
@@ -303,15 +318,18 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
                 rules={validationRules.duration}
               />
 
-              <FormField
-                id="videoUrl"
-                label="Ссылка на видео"
-                name="videoUrl"
-                placeholder="https://youtube.com/..., https://vk.com/video..."
-                form={form}
-                rules={validationRules.videoUrl}
-                helperText="Поддерживаются: YouTube, Rutube, Vimeo, VK Video"
-              />
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Видео
+                </Typography>
+                <VideoSelector
+                  value={form.watch("videoUrl")}
+                  onChange={(value) => form.setValue("videoUrl", value)}
+                  trainerVideos={trainerVideos}
+                  error={form.formState.errors.videoUrl?.message}
+                  helperText="Выберите видео из библиотеки или укажите внешнюю ссылку"
+                />
+              </Box>
             </FormSection>
 
             <FormSection title="Медиа файлы">
@@ -375,6 +393,28 @@ export default function NewStepForm({ initialData, serverAction }: NewStepFormPr
                   {form.formState.errors.hasTestQuestions.message}
                 </Alert>
               )}
+            </FormSection>
+
+            <FormSection title="Видео">
+              <Box sx={{ mb: 2 }}>
+                <VideoSelector
+                  value={form.watch("videoUrl")}
+                  onChange={(value) => form.setValue("videoUrl", value)}
+                  trainerVideos={trainerVideos}
+                  error={form.formState.errors.videoUrl?.message}
+                  helperText="Выберите видео из библиотеки или укажите внешнюю ссылку"
+                />
+              </Box>
+            </FormSection>
+
+            <FormSection title="Медиа файлы">
+              <StepImageUploader
+                onImagesChange={setImageFiles}
+                onDeletedImagesChange={setDeletedImages}
+                initialImages={initialData?.imageUrls || []}
+                _stepId={initialData?.id}
+                maxImages={10}
+              />
             </FormSection>
 
             {form.watch("hasTestQuestions") && (

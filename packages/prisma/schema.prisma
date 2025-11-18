@@ -259,9 +259,26 @@ model User {
   reengagementCampaigns    ReengagementCampaign[]
   reengagementSettings     ReengagementSettings?
   reminders                Reminder[]
+  trainerVideos            TrainerVideo[]
   passwordResetRequestedAt DateTime?
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @default(now())
+}
+
+model TrainerVideo {
+  id           String   @id @default(cuid())
+  trainerId    String
+  trainer      User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  relativePath String
+  originalName String
+  displayName  String?
+  mimeType     String
+  fileSize     Int
+  durationSec  Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([trainerId], name: "idx_trainer_videos_trainer")
 }
 
 model UserProfile {

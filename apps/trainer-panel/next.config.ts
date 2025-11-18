@@ -3,18 +3,21 @@ import path from "path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Включаем standalone режим для Docker
-  output: 'standalone',
+  // Включаем standalone режим только для production (ускоряет dev)
+  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   experimental: {
-    workerThreads: false,
-    cpus: 1,
+    // В dev режиме используем все CPU и worker threads для ускорения компиляции
+    ...(process.env.NODE_ENV !== 'production' && {
+      workerThreads: true,
+    }),
     serverActions: {
-      bodySizeLimit: '100mb', // Лимит для Server Actions (для загрузки множества изображений)
+      bodySizeLimit: '600mb', // Лимит для Server Actions (для загрузки видео до 500 МБ)
     },
   },
   eslint: {
-    // ESLint проверки включены для качества кода
-    ignoreDuringBuilds: false,
+    // Отключаем ESLint проверки в dev режиме для ускорения компиляции
+    // Проверки можно запускать отдельно: pnpm lint
+    ignoreDuringBuilds: process.env.NODE_ENV !== 'production',
     dirs: ["src"],
   },
 

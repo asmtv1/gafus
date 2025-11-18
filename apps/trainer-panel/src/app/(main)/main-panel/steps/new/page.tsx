@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { Box, Button, Alert } from "@mui/material";
 import { AutoStories as TemplateIcon } from "@mui/icons-material";
+import { getServerSession } from "next-auth";
+
 import NewStepForm from "@features/steps/components/NewStepForm";
 import { createStep } from "@features/steps/lib/createStep";
 import FormPageLayout from "@shared/components/FormPageLayout";
+import { getTrainerVideos } from "@features/trainer-videos/lib/getTrainerVideos";
+import { authOptions } from "@gafus/auth";
 
-export default function NewStepPage() {
+export default async function NewStepPage() {
+  const session = await getServerSession(authOptions);
+  const trainerVideos = session?.user?.id ? await getTrainerVideos(session.user.id) : [];
   return (
     <FormPageLayout 
       title="Создание шага тренировки"
@@ -30,7 +36,7 @@ export default function NewStepPage() {
           </Box>
         </Alert>
       </Box>
-      <NewStepForm serverAction={createStep} />
+      <NewStepForm serverAction={createStep} trainerVideos={trainerVideos} />
     </FormPageLayout>
   );
 }

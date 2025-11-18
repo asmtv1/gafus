@@ -191,14 +191,13 @@ export async function GET() {
 
     // Определяем URL сервисов на основе окружения
     const isProduction = process.env.NODE_ENV === "production";
-    const baseUrl = isProduction ? "http://localhost" : "http://localhost";
 
-    // Проверяем статус всех сервисов параллельно
+    // В production используем имена Docker сервисов, в development - localhost
     const [webStatus, trainerStatus, adminStatus, bullBoardStatus] = await Promise.all([
-      checkServiceStatus("Web App", `${baseUrl}:3000/api/health`),
-      checkServiceStatus("Trainer Panel", `${baseUrl}:3001/api/health`),
-      checkServiceStatus("Admin Panel", `${baseUrl}:3002/api/health`),
-      checkServiceStatus("Bull Board", `${baseUrl}:3006/health`),
+      checkServiceStatus("Web App", isProduction ? "http://web:3000/api/health" : "http://localhost:3000/api/health"),
+      checkServiceStatus("Trainer Panel", isProduction ? "http://trainer-panel:3001/api/health" : "http://localhost:3001/api/health"),
+      checkServiceStatus("Admin Panel", isProduction ? "http://admin-panel:3006/api/health" : "http://localhost:3006/api/health"),
+      checkServiceStatus("Bull Board", isProduction ? "http://bull-board:3002/health" : "http://localhost:3002/health"),
     ]);
 
     // Проверяем базы данных параллельно

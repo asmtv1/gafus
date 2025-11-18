@@ -38,7 +38,7 @@ export const commonValidationRules = {
   videoUrl: {
     validate: (value: unknown) => {
       if (!value) return true; // Необязательное поле
-      const urlPattern = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com)\/.+/;
+      const urlPattern = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
       return urlPattern.test(String(value)) || "Неверный формат ссылки на видео";
     },
   },

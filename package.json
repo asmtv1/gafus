@@ -18,6 +18,7 @@
     "check:ports": "node scripts/check-ports.js",
     "clean": "turbo run clean",
     "clean:all": "pnpm -r run clean",
+    "clean:cache": "bash scripts/clean-cache.sh",
     "dev": "turbo run dev",
     "dev:env": "node -r dotenv/config scripts/dev-with-env.js",
     "format": "prettier --cache --write .",

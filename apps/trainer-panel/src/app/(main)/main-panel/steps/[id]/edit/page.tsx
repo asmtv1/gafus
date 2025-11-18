@@ -1,8 +1,12 @@
+import { getServerSession } from "next-auth";
+
 import NewStepForm from "@features/steps/components/NewStepForm";
 import { updateStep } from "@features/steps/lib/updateStep";
 import { prisma } from "@gafus/prisma";
 import { notFound } from "next/navigation";
 import FormPageLayout from "@shared/components/FormPageLayout";
+import { getTrainerVideos } from "@features/trainer-videos/lib/getTrainerVideos";
+import { authOptions } from "@gafus/auth";
 import type { ChecklistQuestion } from "@gafus/types";
 
 interface Props {
@@ -14,6 +18,9 @@ export default async function EditStepPage({ params }: Props) {
   const step = await prisma.step.findUnique({ where: { id } });
   if (!step) return notFound();
 
+  const session = await getServerSession(authOptions);
+  const trainerVideos = session?.user?.id ? await getTrainerVideos(session.user.id) : [];
+
   return (
     <FormPageLayout 
       title="Редактирование шага тренировки"
@@ -21,6 +28,7 @@ export default async function EditStepPage({ params }: Props) {
     >
       <NewStepForm
         serverAction={updateStep}
+        trainerVideos={trainerVideos}
         initialData={{
           id: step.id,
           title: step.title,
