@@ -12,9 +12,10 @@ import { deleteSteps } from "@/features/steps/lib/deleteSteps";
 
 interface StepsClientProps {
   steps: TrainerStepTableRow[];
+  isAdmin?: boolean;
 }
 
-export default function StepsClient({ steps }: StepsClientProps) {
+export default function StepsClient({ steps, isAdmin = false }: StepsClientProps) {
   const router = useRouter();
   const [_state, formAction] = useActionState<ActionResult, FormData>(deleteSteps, {});
 
@@ -26,11 +27,17 @@ export default function StepsClient({ steps }: StepsClientProps) {
     });
   };
 
-  const uiSteps = (steps || []).map((s: TrainerStepTableRow) => ({
+  const uiSteps = (steps || []).map((s: TrainerStepTableRow & { author?: { username: string; profile?: { fullName: string | null } | null } }) => ({
     id: s.id,
     title: s.title,
     description: s.description,
     durationSec: s.durationSec,
+    author: s.author
+      ? {
+          username: s.author.username,
+          fullName: s.author.profile?.fullName ?? null,
+        }
+      : undefined,
     stepLinks: (s.stepLinks || []).map((sl) => ({
       order: sl.order,
       day: {
@@ -52,6 +59,7 @@ export default function StepsClient({ steps }: StepsClientProps) {
         steps={uiSteps}
         onEditStep={(id) => router.push(`/main-panel/steps/${id}/edit`)}
         onDeleteSteps={handleDelete}
+        isAdmin={isAdmin}
       />
     </PageLayout>
   );

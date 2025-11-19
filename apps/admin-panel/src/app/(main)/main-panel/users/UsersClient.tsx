@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import UsersTable from "@/app/(main)/main-panel/users/UsersTable";
 import EditUserForm from "@/features/users/components/EditUserForm";
 import PageLayout from "@shared/components/PageLayout";
+import { deleteUser } from "@/features/users/lib/deleteUser";
+import { Alert, Box } from "@/utils/muiImports";
 
 interface User {
   id: string;
@@ -27,11 +30,17 @@ type SortField = "role" | "isConfirmed" | "createdAt" | null;
 type SortDirection = "asc" | "desc";
 
 export default function UsersClient({ users }: UsersClientProps) {
+  const router = useRouter();
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [, startTransition] = useTransition();
 
   const filteredAndSortedUsers = useMemo(() => {
     let result = [...users];
@@ -94,11 +103,44 @@ export default function UsersClient({ users }: UsersClientProps) {
     setIsEditFormOpen(true);
   };
 
-  const handleDeleteUser = (_userId: string) => {
-    if (confirm("Вы уверены, что хотите удалить этого пользователя?")) {
-      // Простое удаление - в реальном приложении здесь можно добавить API вызов
-      alert("Функция удаления будет реализована позже");
+  const handleDeleteUser = (userId: string) => {
+    const user = users.find((u) => u.id === userId);
+    const userName = user?.profile?.fullName || user?.username || "пользователя";
+
+    if (!confirm(`Вы уверены, что хотите удалить ${userName}? Это действие нельзя отменить.`)) {
+      return;
     }
+
+    setMessage(null);
+
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.append("userId", userId);
+
+        const result = await deleteUser({}, formData);
+
+        if (result.success) {
+          setMessage({
+            type: "success",
+            text: `✅ Пользователь ${userName} успешно удален`,
+          });
+
+          // Обновляем список пользователей
+          router.refresh();
+        } else {
+          setMessage({
+            type: "error",
+            text: `❌ Ошибка: ${result.error || "Не удалось удалить пользователя"}`,
+          });
+        }
+      } catch (error) {
+        setMessage({
+          type: "error",
+          text: `❌ Ошибка: ${error instanceof Error ? error.message : "Неизвестная ошибка"}`,
+        });
+      }
+    });
   };
 
   return (
@@ -106,6 +148,14 @@ export default function UsersClient({ users }: UsersClientProps) {
       title="Пользователи платформы" 
       subtitle="Список всех зарегистрированных пользователей"
     >
+      {message && (
+        <Box sx={{ mb: 2 }}>
+          <Alert severity={message.type} onClose={() => setMessage(null)}>
+            {message.text}
+          </Alert>
+        </Box>
+      )}
+
       <UsersTable
         users={filteredAndSortedUsers}
         searchQuery={searchQuery}

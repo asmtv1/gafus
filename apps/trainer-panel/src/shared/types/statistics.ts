@@ -11,6 +11,10 @@ export interface CourseStats {
   inProgressUsers: number;
   notStartedUsers: number;
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+  author?: {
+    username: string;
+    fullName?: string | null;
+  };
   reviews: CourseReview[];
   userCourses: UserCourse[];
 }

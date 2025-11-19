@@ -13,9 +13,10 @@ import type { ActionResult, TrainerDayTableRow as Day } from "@gafus/types";
 
 interface DaysClientProps {
   days: Day[];
+  isAdmin?: boolean;
 }
 
-export default function DaysClient({ days }: DaysClientProps) {
+export default function DaysClient({ days, isAdmin = false }: DaysClientProps) {
   const router = useRouter();
   const [_state, formAction] = useActionState<ActionResult, FormData>(deleteDays, {});
 
@@ -27,15 +28,26 @@ export default function DaysClient({ days }: DaysClientProps) {
     });
   };
 
+  const uiDays = days.map((day: Day & { author?: { username: string; profile?: { fullName: string | null } | null } }) => ({
+    ...day,
+    author: day.author
+      ? {
+          username: day.author.username,
+          fullName: day.author.profile?.fullName ?? null,
+        }
+      : undefined,
+  }));
+
   return (
     <PageLayout 
       title="Созданные дни" 
       subtitle="Управление вашими днями тренировок"
     >
       <EnhancedDaysTable
-        days={days}
+        days={uiDays}
         onEditDay={(id) => router.push(`/main-panel/days/${id}/edit`)}
         onDeleteDays={handleDelete}
+        isAdmin={isAdmin}
       />
     </PageLayout>
   );

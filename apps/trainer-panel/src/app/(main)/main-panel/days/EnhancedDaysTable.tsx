@@ -37,7 +37,7 @@ type Order = "asc" | "desc";
 
 // Day тип теперь импортируется из @gafus/types
 
-const headCells = [
+const baseHeadCells = [
   { id: "title", label: "Название", numeric: false },
   { id: "type", label: "Тип", numeric: false },
   { id: "description", label: "Описание", numeric: false },
@@ -46,19 +46,29 @@ const headCells = [
   { id: "actions", label: "Действия", numeric: false },
 ] as const;
 
-type HeadCellId = (typeof headCells)[number]["id"];
+type HeadCellId = (typeof baseHeadCells)[number]["id"] | "author";
 
 interface EnhancedDaysTableProps {
   days: Day[];
   onEditDay?: (id: string) => void;
   onDeleteDays?: (ids: string[]) => void;
+  isAdmin?: boolean;
 }
 
 export default function EnhancedDaysTable({
   days,
   onEditDay,
   onDeleteDays,
+  isAdmin = false,
 }: EnhancedDaysTableProps) {
+  const headCells = React.useMemo(() => {
+    if (isAdmin) {
+      // Вставляем колонку "Автор" перед "Действия"
+      const authorCell = { id: "author" as const, label: "Автор", numeric: false as const };
+      return [...baseHeadCells.slice(0, -1), authorCell, baseHeadCells[baseHeadCells.length - 1]];
+    }
+    return baseHeadCells;
+  }, [isAdmin]);
   const [order, setOrder] = React.useState<Order>("asc");
   const [orderBy, setOrderBy] = React.useState<HeadCellId>("title");
   const [selected, setSelected] = React.useState<readonly string[]>([]);
@@ -94,6 +104,10 @@ export default function EnhancedDaysTable({
         if (orderBy === "courses") {
           return (day.dayLinks?.map((dl) => dl.course.name).join(", ") || "").toLowerCase();
         }
+        if (orderBy === "author") {
+          if (!day.author) return "";
+          return (day.author.fullName || day.author.username || "").toLowerCase();
+        }
         const value = (day as unknown as Record<string, unknown>)[orderBy];
         return typeof value === "number" ? value.toString() : String(value || "");
       };
@@ -103,6 +117,11 @@ export default function EnhancedDaysTable({
     },
     [order, orderBy],
   );
+
+  const renderAuthorName = (day: Day) => {
+    if (!day.author) return "—";
+    return day.author.fullName || day.author.username;
+  };
 
   const visibleRows = React.useMemo(() => {
     const sorted = [...days].sort(comparator);
@@ -249,6 +268,17 @@ export default function EnhancedDaysTable({
                             </Typography>
                           </Box>
                         )}
+
+                        {isAdmin && (
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">
+                              Автор:
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem', mt: 0.25 }}>
+                              {renderAuthorName(row)}
+                            </Typography>
+                          </Box>
+                        )}
                       </Stack>
                     </CardContent>
 
@@ -346,6 +376,7 @@ export default function EnhancedDaysTable({
                           ? Array.from(new Set(row.dayLinks.map((dl) => dl.course.name))).join(", ")
                           : "—"}
                       </TableCell>
+                      {isAdmin && <TableCell>{renderAuthorName(row)}</TableCell>}
                       <TableCell align="center">
                         <Tooltip title="Редактировать">
                           <IconButton

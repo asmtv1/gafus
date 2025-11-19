@@ -2,7 +2,7 @@
 
 
 import { createAdminPanelLogger } from "@gafus/logger";
-import { FormField, SelectField } from "@shared/components/ui/FormField";
+import { FormField, PasswordField, SelectField } from "@shared/components/ui/FormField";
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -44,10 +44,11 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
       username: user.username,
       phone: user.phone,
       role: user.role,
+      newPassword: "",
     },
   });
 
-  const handleSubmit = async (data: { username: string; phone: string; role: string }) => {
+  const handleSubmit = async (data: { username: string; phone: string; role: string; newPassword: string }) => {
     setIsPending(true);
     setFormState({});
 
@@ -68,6 +69,7 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
           username: data.username !== user.username ? data.username : undefined,
           phone: data.phone !== user.phone ? data.phone : undefined,
           role: data.role !== user.role ? data.role : undefined,
+          newPassword: data.newPassword.trim() ? data.newPassword : undefined,
         }),
       });
 
@@ -146,8 +148,22 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
             form={form}
             options={roleOptions}
             disabled={isPending}
-            className="mb-3"
+            className="mb-2"
           />
+
+          <PasswordField
+            id="newPassword"
+            name="newPassword"
+            label="Задать новый пароль (необязательно)"
+            form={form}
+            disabled={isPending}
+            className="mb-3"
+            autoComplete="new-password"
+          />
+
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.75rem", sm: "0.75rem" }, display: "block" }}>
+            Оставьте поле пустым, если не нужно менять пароль
+          </Typography>
 
           {formState.error && <ValidationErrors errors={{ error: formState.error }} />}
 

@@ -20,6 +20,7 @@ export default async function MyVideosPage() {
   }
 
   const videos = await getTrainerVideos(session.user.id);
+  const isAdmin = session.user.role === "ADMIN";
 
   const serialized: TrainerVideoViewModel[] = videos.map((video) => ({
     ...video,
@@ -27,6 +28,6 @@ export default async function MyVideosPage() {
     updatedAt: video.updatedAt.toISOString(),
   }));
 
-  return <TrainerVideosClient videos={serialized} />;
+  return <TrainerVideosClient videos={serialized} isAdmin={isAdmin} />;
 }
 

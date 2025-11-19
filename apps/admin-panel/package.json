@@ -12,10 +12,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gafus/logger": "workspace:*",
     "@gafus/auth": "workspace:*",
     "@gafus/csrf": "workspace:*",
     "@gafus/error-handling": "workspace:*",
+    "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/react-query": "workspace:*",
     "@gafus/reengagement": "workspace:*",
@@ -26,6 +26,7 @@
     "@mui/x-data-grid": "7.8.0",
     "@tanstack/react-query": "^5.85.9",
     "@tanstack/react-query-devtools": "^5.85.9",
+    "bcryptjs": "^3.0.2",
     "date-fns": "3.6.0",
     "next": "15.4.7",
     "next-auth": "4.24.11",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "20.4.8",
     "@types/react": "19.1.9",
     "@types/react-dom": "19.1.7",
@@ -44,4 +46,3 @@
     "typescript": "5.8.3"
   }
 }
-

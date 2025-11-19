@@ -34,6 +34,10 @@ export interface TrainerStepTableRow {
   title: string;
   description: string;
   durationSec: number;
+  author?: {
+    username: string;
+    fullName?: string | null;
+  };
   stepLinks: {
     order: number;
     day: {
@@ -55,6 +59,10 @@ export interface TrainerDayTableRow {
   title: string;
   description?: string;
   type: string;
+  author?: {
+    username: string;
+    fullName?: string | null;
+  };
   stepLinks?: { step: { id: string; title: string } }[];
   dayLinks?: { course: { id: string; name: string } }[];
 }

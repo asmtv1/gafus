@@ -15,6 +15,16 @@ export async function getVisibleDays() {
   const days = await prisma.trainingDay.findMany({
     where: isAdminOrModerator ? {} : { authorId: userId },
     include: {
+      author: {
+        select: {
+          username: true,
+          profile: {
+            select: {
+              fullName: true,
+            },
+          },
+        },
+      },
       stepLinks: {
         include: {
           step: {

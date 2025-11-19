@@ -36,6 +36,16 @@ export async function getVisibleSteps() {
       authorId: true,
       createdAt: true,
       updatedAt: true,
+      author: {
+        select: {
+          username: true,
+          profile: {
+            select: {
+              fullName: true,
+            },
+          },
+        },
+      },
       stepLinks: {
         include: {
           day: {

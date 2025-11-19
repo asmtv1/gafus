@@ -11,9 +11,10 @@ import type { TrainerVideoViewModel } from "../types";
 
 interface TrainerVideosClientProps {
   videos: TrainerVideoViewModel[];
+  isAdmin?: boolean;
 }
 
-export default function TrainerVideosClient({ videos: initialVideos }: TrainerVideosClientProps) {
+export default function TrainerVideosClient({ videos: initialVideos, isAdmin = false }: TrainerVideosClientProps) {
   const [videos, setVideos] = useState<TrainerVideoViewModel[]>(initialVideos);
 
   const handleUploaded = (video: TrainerVideoViewModel) => {
@@ -43,6 +44,7 @@ export default function TrainerVideosClient({ videos: initialVideos }: TrainerVi
         videos={videos} 
         onVideoDeleted={handleDeleted}
         onVideoUpdated={handleUpdated}
+        isAdmin={isAdmin}
       />
     </PageLayout>
   );

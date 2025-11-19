@@ -2,8 +2,11 @@
 
 import { prisma } from "@gafus/prisma";
 import { revalidatePath } from "next/cache";
+import { createErrorDashboardLogger } from "@gafus/logger";
 
 import type { ErrorDashboardReport } from "@gafus/types";
+
+const logger = createErrorDashboardLogger('error-dashboard-actions');
 
 type ErrorReport = ErrorDashboardReport;
 
@@ -105,6 +108,35 @@ export async function deleteError(errorId: string) {
   } catch (error) {
     console.error("Ошибка при удалении ошибки:", error);
     return { success: false, error: "Не удалось удалить ошибку" };
+  }
+}
+
+export async function deleteAllErrors() {
+  try {
+    logger.info("🗑️ Deleting all errors", { operation: 'deleteAll' });
+
+    const result = await prisma.errorReport.deleteMany({});
+    const deletedCount = result.count;
+
+    logger.info("✅ All errors deleted successfully", { 
+      operation: 'deleteAll',
+      deletedCount 
+    });
+
+    revalidatePath("/");
+    return { 
+      success: true, 
+      deletedCount,
+      message: `Удалено ошибок: ${deletedCount}`
+    };
+  } catch (error) {
+    logger.error("❌ Failed to delete all errors", error as Error, { 
+      operation: 'deleteAll' 
+    });
+    return { 
+      success: false, 
+      error: "Не удалось удалить все ошибки" 
+    };
   }
 }
 

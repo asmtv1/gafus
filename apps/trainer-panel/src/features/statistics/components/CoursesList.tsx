@@ -10,9 +10,10 @@ import type { CourseStats } from "@shared/types/statistics";
 
 interface CoursesListProps {
   courses: CourseStats[];
+  isAdmin?: boolean;
 }
 
-export default function CoursesList({ courses }: CoursesListProps) {
+export default function CoursesList({ courses, isAdmin = false }: CoursesListProps) {
   const [courseItems, setCourseItems] = useState<CourseStats[]>(courses);
   const router = useRouter();
 
@@ -49,7 +50,7 @@ export default function CoursesList({ courses }: CoursesListProps) {
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
         {courseItems.map((course) => (
           <Box key={course.id} sx={{ flex: "1 1 400px", minWidth: 0 }}>
-            <CourseCard course={course} onClick={() => handleCourseClick(course)} />
+            <CourseCard course={course} onClick={() => handleCourseClick(course)} isAdmin={isAdmin} />
           </Box>
         ))}
       </Box>

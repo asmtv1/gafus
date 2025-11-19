@@ -9,6 +9,10 @@ export interface TrainerVideoDto {
   durationSec: number | null;
   createdAt: Date;
   updatedAt: Date;
+  trainer?: {
+    username: string;
+    fullName?: string | null;
+  };
 }
 
 export interface TrainerVideoUploadResult {

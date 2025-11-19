@@ -3,6 +3,7 @@
 import { useData, useMutate } from "@gafus/react-query";
 import { getErrorsCached } from "@shared/lib/actions/cachedErrors";
 import { resolveErrorAction, unresolveErrorAction } from "@shared/lib/actions/resolveError";
+import { deleteAllErrors } from "@shared/lib/actions/errors";
 
 import type { ErrorDashboardReport } from "@gafus/types";
 
@@ -67,9 +68,21 @@ export function useErrorsMutation() {
     }
   };
 
+  const deleteAll = async () => {
+    const result = await deleteAllErrors();
+    if (result.success) {
+      // Инвалидируем кэш после успешного удаления
+      invalidateErrors();
+      return result;
+    } else {
+      throw new Error(typeof result.error === 'string' ? result.error : 'Неизвестная ошибка');
+    }
+  };
+
   return {
     invalidateErrors,
     resolveError,
     unresolveError,
+    deleteAll,
   };
 }

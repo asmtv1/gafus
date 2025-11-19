@@ -49,9 +49,14 @@ const getTrainingLevelColor = (level: string) => {
 interface CourseCardProps {
   course: CourseStats;
   onClick: () => void;
+  isAdmin?: boolean;
 }
 
-export default function CourseCard({ course, onClick }: CourseCardProps) {
+export default function CourseCard({ course, onClick, isAdmin = false }: CourseCardProps) {
+  const renderAuthorName = () => {
+    if (!course.author) return null;
+    return course.author.fullName || course.author.username;
+  };
   return (
     <Card
       onClick={onClick}
@@ -81,9 +86,16 @@ export default function CourseCard({ course, onClick }: CourseCardProps) {
           />
 
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h5" component="h3" gutterBottom>
-              {course.name}
-            </Typography>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+              <Typography variant="h5" component="h3">
+                {course.name}
+              </Typography>
+              {isAdmin && course.author && (
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                  Автор: {renderAuthorName()}
+                </Typography>
+              )}
+            </Box>
 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Нажмите для просмотра детальной статистики

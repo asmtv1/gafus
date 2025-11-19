@@ -37,9 +37,10 @@ interface TrainerVideosListProps {
   videos: TrainerVideoViewModel[];
   onVideoDeleted?: (videoId: string) => void;
   onVideoUpdated?: (videoId: string, displayName: string | null) => void;
+  isAdmin?: boolean;
 }
 
-export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdated }: TrainerVideosListProps) {
+export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdated, isAdmin = false }: TrainerVideosListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [videoToDelete, setVideoToDelete] = useState<TrainerVideoViewModel | null>(null);
@@ -273,6 +274,11 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
                       </IconButton>
                     </Tooltip>
                   </Box>
+                )}
+                {isAdmin && video.trainer && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    Владелец: {video.trainer.fullName || video.trainer.username}
+                  </Typography>
                 )}
                 <Typography variant="body2" color="text.secondary">
                   Размер: {formatFileSize(video.fileSize)}

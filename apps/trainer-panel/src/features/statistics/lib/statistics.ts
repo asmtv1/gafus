@@ -13,6 +13,11 @@ export async function getCourseStatistics(
       author: {
         select: {
           username: true,
+          profile: {
+            select: {
+              fullName: true,
+            },
+          },
         },
       },
       dayLinks: {
@@ -53,6 +58,10 @@ export async function getCourseStatistics(
       avgRating: number | null;
       isPrivate: boolean;
       trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+      author: {
+        username: string;
+        profile: { fullName: string | null } | null;
+      };
       userCourses: {
         userId: string;
         status: string;
@@ -89,6 +98,12 @@ export async function getCourseStatistics(
         inProgressUsers,
         notStartedUsers,
         trainingLevel: course.trainingLevel,
+        author: course.author
+          ? {
+              username: course.author.username,
+              fullName: course.author.profile?.fullName ?? null,
+            }
+          : undefined,
         reviews: course.reviews.map(
           (r: {
             rating: number | null;

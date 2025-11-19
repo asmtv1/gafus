@@ -15,7 +15,12 @@ import {
   Tooltip,
   Divider,
   CircularProgress,
-  Button
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from "@mui/material";
 import {
   BugReport as BugIcon,
@@ -26,7 +31,8 @@ import {
   Visibility as ViewIcon,
   OpenInNew as OpenIcon,
   Person as PersonIcon,
-  Computer as ComputerIcon
+  Computer as ComputerIcon,
+  Delete as DeleteIcon
 } from "@mui/icons-material";
 import { useErrors, useErrorsMutation } from "@shared/hooks/useErrors";
 import { formatDistanceToNow } from "date-fns";
@@ -252,8 +258,11 @@ export default function RecentErrors() {
     limit: 50,
     offset: 0 
   });
+  const { deleteAll } = useErrorsMutation();
   const [showAll, setShowAll] = useState(false);
   const [selectedError, setSelectedError] = useState<ErrorDashboardReport | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -305,6 +314,29 @@ export default function RecentErrors() {
 
   const displayedErrors = showAll ? errors : errors.slice(0, 20);
 
+  const handleDeleteAll = async () => {
+    setIsDeleting(true);
+    try {
+      const result = await deleteAll();
+      setDeleteDialogOpen(false);
+      setSnackbar({ 
+        open: true, 
+        message: result.message || "Все ошибки успешно удалены", 
+        severity: 'success' 
+      });
+      refetch();
+    } catch (error) {
+      console.error("Failed to delete all errors:", error);
+      setSnackbar({ 
+        open: true, 
+        message: "Не удалось удалить все ошибки", 
+        severity: 'error' 
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Card elevation={2}>
       <CardContent sx={{ p: 3 }}>
@@ -317,6 +349,16 @@ export default function RecentErrors() {
             <Tooltip title="Обновить список">
               <IconButton color="primary" size="small" onClick={() => refetch()}>
                 <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Очистить все ошибки">
+              <IconButton 
+                color="error" 
+                size="small" 
+                onClick={() => setDeleteDialogOpen(true)}
+                disabled={!errors || errors.length === 0}
+              >
+                <DeleteIcon />
               </IconButton>
             </Tooltip>
           </Box>
@@ -360,6 +402,42 @@ export default function RecentErrors() {
         onClose={() => setSelectedError(null)}
         error={selectedError}
       />
+
+      {/* Диалог подтверждения удаления */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => !isDeleting && setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Подтверждение удаления</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Вы уверены, что хотите удалить все ошибки из базы данных? 
+            Это действие нельзя отменить.
+            {errors && errors.length > 0 && (
+              <Box component="span" display="block" mt={1} fontWeight="bold">
+                Будет удалено ошибок: {errors.length}
+              </Box>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setDeleteDialogOpen(false)} 
+            disabled={isDeleting}
+          >
+            Отмена
+          </Button>
+          <Button 
+            onClick={handleDeleteAll} 
+            color="error" 
+            variant="contained"
+            disabled={isDeleting}
+            startIcon={isDeleting ? <CircularProgress size={16} /> : <DeleteIcon />}
+          >
+            {isDeleting ? 'Удаление...' : 'Удалить все'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar для уведомлений */}
       <Snackbar

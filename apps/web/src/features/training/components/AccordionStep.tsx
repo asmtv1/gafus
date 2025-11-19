@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { ChecklistQuestion } from "@gafus/types";
 
@@ -65,6 +65,8 @@ export function AccordionStep({
 }: AccordionStepProps) {
   // Состояние для отслеживания загрузки
   const [isPausing, setIsPausing] = useState(false);
+  // Ref для video элемента CDN видео
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const {
     stepStates,
@@ -497,11 +499,19 @@ export function AccordionStep({
           >
             {videoInfo.isCDN ? (
               <video
+                ref={videoRef}
                 src={videoInfo.embedUrl}
                 controls
                 className={styles.videoIframe}
                 controlsList="nodownload"
-                preload="metadata"
+                preload="auto"
+                playsInline
+                onLoadedMetadata={() => {
+                  // Устанавливаем первый кадр для отображения превью
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = 0.01;
+                  }
+                }}
               >
                 Ваш браузер не поддерживает воспроизведение видео.
               </video>

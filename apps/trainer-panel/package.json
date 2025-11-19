@@ -23,6 +23,7 @@
     "@gafus/react-query": "workspace:*",
     "@gafus/types": "workspace:*",
     "@gafus/webpush": "workspace:*",
+    "bcryptjs": "^3.0.2",
     "@mui/icons-material": "7.1.0",
     "@mui/material": "7.1.0",
     "@mui/utils": "7.1.0",

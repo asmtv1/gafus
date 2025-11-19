@@ -37,7 +37,7 @@ type Order = "asc" | "desc";
 
 // Step тип теперь импортируется из @gafus/types
 
-const headCells = [
+const baseHeadCells = [
   { id: "title", label: "Название", numeric: false },
   { id: "description", label: "Описание", numeric: false },
   { id: "durationSec", label: "Длительность (сек)", numeric: true },
@@ -46,19 +46,29 @@ const headCells = [
   { id: "actions", label: "Действия", numeric: false },
 ] as const;
 
-type HeadCellId = (typeof headCells)[number]["id"];
+type HeadCellId = (typeof baseHeadCells)[number]["id"] | "author";
 
 interface EnhancedStepsTableProps {
   steps: Step[];
   onEditStep?: (id: string) => void;
   onDeleteSteps?: (ids: string[]) => void;
+  isAdmin?: boolean;
 }
 
 export default function EnhancedStepsTable({
   steps,
   onEditStep,
   onDeleteSteps,
+  isAdmin = false,
 }: EnhancedStepsTableProps) {
+  const headCells = React.useMemo(() => {
+    if (isAdmin) {
+      // Вставляем колонку "Автор" перед "Действия"
+      const authorCell = { id: "author" as const, label: "Автор", numeric: false as const };
+      return [...baseHeadCells.slice(0, -1), authorCell, baseHeadCells[baseHeadCells.length - 1]];
+    }
+    return baseHeadCells;
+  }, [isAdmin]);
   const [order, setOrder] = React.useState<Order>("asc");
   const [orderBy, setOrderBy] = React.useState<HeadCellId>("durationSec");
   const [selected, setSelected] = React.useState<readonly string[]>([]);
@@ -105,6 +115,10 @@ export default function EnhancedStepsTable({
               .join(", ") || ""
           );
         }
+        if (orderBy === "author") {
+          if (!step.author) return "";
+          return (step.author.fullName || step.author.username || "").toLowerCase();
+        }
 
         // Безопасный доступ к свойствам Step
         const value = step[orderBy as keyof Step];
@@ -134,6 +148,11 @@ export default function EnhancedStepsTable({
   const renderDayNames = (step: Step) => {
     const dayNames = Array.from(new Set(step.stepLinks.map((link) => link.day.title)));
     return dayNames.length ? dayNames.join(", ") : "—";
+  };
+
+  const renderAuthorName = (step: Step) => {
+    if (!step.author) return "—";
+    return step.author.fullName || step.author.username;
   };
 
   // Определяем мобильный режим
@@ -271,6 +290,17 @@ export default function EnhancedStepsTable({
                             </Typography>
                           </Box>
                         )}
+
+                        {isAdmin && (
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">
+                              Автор:
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem', mt: 0.25 }}>
+                              {renderAuthorName(row)}
+                            </Typography>
+                          </Box>
+                        )}
                       </Stack>
                     </CardContent>
 
@@ -360,6 +390,7 @@ export default function EnhancedStepsTable({
                       <TableCell align="right">{row.durationSec}</TableCell>
                       <TableCell>{renderDayNames(row)}</TableCell>
                       <TableCell>{renderCourseNames(row)}</TableCell>
+                      {isAdmin && <TableCell>{renderAuthorName(row)}</TableCell>}
                       <TableCell align="center">
                         <Tooltip title="Редактировать">
                           <IconButton
