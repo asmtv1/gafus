@@ -14,7 +14,6 @@
     "isolatedModules": true,
     "noEmit": true,
     "incremental": true,
-    "types": [],
     /* Пути и алиасы для web */
     "baseUrl": ".",
     "paths": {
