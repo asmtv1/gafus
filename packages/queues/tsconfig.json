@@ -6,7 +6,6 @@
     "noEmit": false,
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": [],
     "typeRoots": ["../../node_modules/@types"]
   },
   "include": ["src/**/*", "src"],
