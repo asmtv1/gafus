@@ -15,6 +15,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "skipLibCheck": true,
+    "types": [],
     "typeRoots": ["../../node_modules/@types"]
   },
   "include": ["src/**/*"],
