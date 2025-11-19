@@ -9,6 +9,7 @@
     "rootDir": "src", // исходники в src
     /* пути и алиасы наследуются из корневого tsconfig */
     "skipLibCheck": true, // ускоряет сборку
+    "types": [],
     "typeRoots": ["../../node_modules/@types"] // явно указываем где искать типы
   },
   "include": ["src"]
