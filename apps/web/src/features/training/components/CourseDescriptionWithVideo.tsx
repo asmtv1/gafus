@@ -55,9 +55,14 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
         onClick={handleToggleDescription}
       >
         <h3 className={styles.descriptionTitle}>Описание курса</h3>
-        <ExpandMoreIcon 
-          className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ''}`} 
-        />
+        <div className={styles.expandControl}>
+          <span className={styles.expandText}>
+            {isDescriptionOpen ? "Скрыть" : "Подробнее"}
+          </span>
+          <ExpandMoreIcon 
+            className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ''}`} 
+          />
+        </div>
       </div>
       <div className={`${styles.descriptionContent} ${isDescriptionOpen ? styles.expanded : styles.collapsed}`}>
         <ReactMarkdown>{description ?? ""}</ReactMarkdown>

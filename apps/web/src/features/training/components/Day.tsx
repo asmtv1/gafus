@@ -156,9 +156,14 @@ export function Day({ training }: DayProps) {
           onClick={handleToggleDescription}
         >
           <h3 className={styles.descriptionTitle}>Описание дня</h3>
-          <ExpandMoreIcon 
-            className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ''}`} 
-          />
+          <div className={styles.expandControl}>
+            <span className={styles.expandText}>
+              {isDescriptionOpen ? "Скрыть" : "Подробнее"}
+            </span>
+            <ExpandMoreIcon 
+              className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ''}`} 
+            />
+          </div>
         </div>
         <div className={`${styles.dayDescription} ${isDescriptionOpen ? styles.expanded : styles.collapsed}`}>
           <ReactMarkdown>{training.description || ""}</ReactMarkdown>
@@ -187,17 +192,27 @@ export function Day({ training }: DayProps) {
               onClick={() => handleToggleOpen(index)}
               style={{ backgroundColor: stepStatusConfig.backgroundColor }}
             >
-              <div className={styles.stepTitleContainer}>
+              <div className={styles.stepTitleContainer}> 
+              <div className={styles.expandControl}>
                 <ExpandMoreIcon 
                   className={`${styles.expandIcon} ${openIndex === index ? styles.expanded : ''}`} 
                 />
+                
+                <span className={styles.expandText}>
+                  {openIndex === index ? "Скрыть" : "Подробнее"}
+                </span>
+              </div>
                 <h3 className={styles.stepTitle}>
                   <div className={styles.stepTitleText}>
-                    <span>{`Упражнение #${step.order}. `}{`«${step.title}»`} </span>
-                    <span>{stepStatusConfig.text}</span>
+                    <span>{`Упражнение #${step.order}`}</span>
+                    <span>{`«${step.title}»`} </span>
                   </div>
                 </h3>
+                <div className={styles.stepStatusConfig}>
+                    <span>{stepStatusConfig.text}</span>
+                  </div>
               </div>
+              
             </div>
 
             {openIndex === index && (

@@ -38,6 +38,21 @@
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
+.expandControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.expandText {
+  font-size: 14px;
+  font-weight: 500;
+  color: #636128;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  white-space: nowrap;
+}
+
 .expandIcon {
   color: #636128;
   transition: transform 0.2s ease;
@@ -289,6 +304,10 @@
   
   .expandIcon {
     font-size: 20px;
+  }
+  
+  .expandText {
+    font-size: 12px;
   }
   
   .courseInfo {

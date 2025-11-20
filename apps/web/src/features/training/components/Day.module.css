@@ -25,10 +25,6 @@
     letter-spacing: 0px;
     text-align: center;
   }
-.stepTitleText{
-  display: flex;
-  justify-content: space-between;
-}
 
 .descriptionContainer {
   margin-bottom: 24px;
@@ -215,7 +211,23 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
+  flex: 1;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.expandControl {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.expandText {
+  font-size: 14px;
+  font-weight: 500;
+  color: #636128;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  white-space: nowrap;
 }
 
 .expandIcon {
@@ -243,11 +255,24 @@
   line-height: 1.2;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
   margin: 0;
-  flex: 1;
   min-width: 0;
   word-wrap: break-word;
+text-align: center;
+}
+.stepTitleText{
+  display: flex;
+  flex-direction: column;
 }
 
+.stepStatusConfig{
+font-size: 14px;
+font-weight: 400;
+color: #352E2E;
+line-height: 1.2;
+font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+margin: 0;
+white-space: nowrap;
+}
 
 .finished {
   background-color: #00ff4c;
@@ -339,4 +364,9 @@
   .expandIcon {
     font-size: 20px;
   }
+  
+  .expandText {
+    font-size: 12px;
+  }
+
 }
