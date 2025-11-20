@@ -48,7 +48,9 @@ export async function submitExamResult(data: ExamSubmissionData) {
 
     // Проверяем, что это экзаменационный шаг
     if (userStep.stepOnDay.step.type !== "EXAMINATION") {
-      throw new Error("Этот шаг не является экзаменационным");
+      throw new Error(
+        `Этот шаг не является экзаменационным. Тип шага: ${userStep.stepOnDay.step.type || "не определен"}`
+      );
     }
 
     // Создаем или обновляем результат экзамена

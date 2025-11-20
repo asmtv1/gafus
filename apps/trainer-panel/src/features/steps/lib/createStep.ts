@@ -60,7 +60,7 @@ export async function createStep(
         title,
         description,
         duration: type === "TRAINING" ? durationStr : "",
-        videoUrl: type === "TRAINING" ? videoUrl : "",
+        videoUrl: (type === "TRAINING" || type === "THEORY") ? videoUrl : "",
         type,
         checklist: type === "EXAMINATION" ? checklistStr : "",
       },
@@ -81,8 +81,8 @@ export async function createStep(
         },
         duration: (value: unknown) => {
           const v = String(value ?? "");
-          // Для экзаменационных шагов длительность не обязательна
-          if (type === "EXAMINATION") return null;
+          // Для экзаменационных и теоретических шагов длительность не обязательна
+          if (type === "EXAMINATION" || type === "THEORY") return null;
           if (!v || v.trim().length === 0) return "Длительность обязательна";
           const num = parseInt(v, 10);
           if (isNaN(num)) return "Должно быть числом";
@@ -105,7 +105,7 @@ export async function createStep(
         type: (value: unknown) => {
           const v = String(value ?? "");
           if (!v || v.trim().length === 0) return "Тип шага обязателен";
-          if (!["TRAINING", "EXAMINATION"].includes(v)) return "Неверный тип шага";
+          if (!["TRAINING", "EXAMINATION", "THEORY"].includes(v)) return "Неверный тип шага";
           return null;
         },
         checklist: (value: unknown) => {
@@ -207,8 +207,8 @@ export async function createStep(
       }
     }
 
-    // Удаляем изображения из CDN (только для тренировочных шагов)
-    if (type === "TRAINING" && deletedImages.length > 0) {
+    // Удаляем изображения из CDN (для тренировочных и теоретических шагов)
+    if ((type === "TRAINING" || type === "THEORY") && deletedImages.length > 0) {
       try {
         logger.info(`🗑️ Удаляем ${deletedImages.length} изображений из CDN`);
         
@@ -243,10 +243,10 @@ export async function createStep(
         title,
         description,
         durationSec: duration,
-        type: type as "TRAINING" | "EXAMINATION",
-        videoUrl: type === "TRAINING" ? (videoUrl || null) : null,
-        imageUrls: type === "TRAINING" ? imageUrls : [],
-        pdfUrls: type === "TRAINING" ? pdfUrls : [],
+        type: type as "TRAINING" | "EXAMINATION" | "THEORY",
+        videoUrl: (type === "TRAINING" || type === "THEORY") ? (videoUrl || null) : null,
+        imageUrls: (type === "TRAINING" || type === "THEORY") ? imageUrls : [],
+        pdfUrls: (type === "TRAINING" || type === "THEORY") ? pdfUrls : [],
         checklist: checklistValue,
         requiresVideoReport: type === "EXAMINATION" ? requiresVideoReport : false,
         requiresWrittenFeedback: type === "EXAMINATION" ? requiresWrittenFeedback : false,

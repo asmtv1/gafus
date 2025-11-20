@@ -18,7 +18,7 @@ export interface TrainingStep {
     order: number;
     isPausedOnServer?: boolean;
     remainingSecOnServer?: number;
-    type?: "TRAINING" | "EXAMINATION";
+    type?: "TRAINING" | "EXAMINATION" | "THEORY";
     checklist?: any;
     requiresVideoReport?: boolean;
     requiresWrittenFeedback?: boolean;

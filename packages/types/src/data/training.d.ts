@@ -10,7 +10,7 @@ export interface Step {
     authorId: string;
     createdAt: Date;
     updatedAt: Date;
-    type?: "TRAINING" | "EXAMINATION";
+    type?: "TRAINING" | "EXAMINATION" | "THEORY";
     checklist?: any;
     requiresVideoReport?: boolean;
     requiresWrittenFeedback?: boolean;

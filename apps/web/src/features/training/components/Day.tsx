@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import type { TrainingDetail } from "@gafus/types";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useTrainingStore } from "@shared/stores/trainingStore";
+import { markTheoryStepAsCompleted } from "@shared/lib/training/markTheoryStepAsCompleted";
 import { ExpandMoreIcon } from "@/utils/muiImports";
 import { AccordionStep } from "./AccordionStep";
 import styles from "./Day.module.css";
@@ -40,7 +41,7 @@ export function Day({ training }: DayProps) {
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState<boolean>(false);
 
-  const { stepStates, initializeStep } = useStepStore();
+  const { stepStates, initializeStep, updateStepStatus } = useStepStore();
   const {
     getOpenIndex,
     getRunningIndex,
@@ -81,12 +82,38 @@ export function Day({ training }: DayProps) {
   );
 
   const handleToggleOpen = useCallback(
-    (index: number) => {
+    async (index: number) => {
       const newOpenIndex = openIndex === index ? null : index;
       setOpenIndex(newOpenIndex);
       setStoreOpenIndex(training.courseId, training.day, newOpenIndex);
+
+      // Если открываем шаг типа THEORY с статусом NOT_STARTED, отмечаем его как завершенный
+      if (newOpenIndex !== null) {
+        const step = training.steps[index];
+        const stepKey = getStepKey(index);
+        const stepState = stepStates[stepKey];
+        const currentStatus = stepState?.status || step.status || "NOT_STARTED";
+
+        if (step.type === "THEORY" && currentStatus === "NOT_STARTED") {
+          try {
+            await markTheoryStepAsCompleted(
+              training.courseId,
+              training.day,
+              index,
+              step.title,
+              step.order,
+            );
+            
+            // Обновляем локальное состояние шага на COMPLETED
+            updateStepStatus(training.courseId, training.day, index, "COMPLETED");
+          } catch (error) {
+            // Ошибка уже обработана в server action, не прерываем работу UI
+            console.error("Failed to mark theory step as completed:", error);
+          }
+        }
+      }
     },
-    [openIndex, training.courseId, training.day, setStoreOpenIndex],
+    [openIndex, training.courseId, training.day, training.steps, stepStates, getStepKey, setStoreOpenIndex, updateStepStatus],
   );
 
   const handleToggleDescription = useCallback(() => {

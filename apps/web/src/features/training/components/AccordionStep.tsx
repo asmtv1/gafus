@@ -32,7 +32,7 @@ interface AccordionStepProps {
   onReset: (stepIndex: number) => void;
   
   // Новые поля для типов экзамена
-  type?: "TRAINING" | "EXAMINATION";
+  type?: "TRAINING" | "EXAMINATION" | "THEORY";
   checklist?: ChecklistQuestion[];
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;
@@ -362,7 +362,7 @@ export function AccordionStep({
   return (
     <div className={styles.stepContainer}>
       {/* Таймер только для тренировочных шагов */}
-      {type !== "EXAMINATION" && (
+      {type !== "EXAMINATION" && type !== "THEORY" && (
         <div className={styles.timerCard}>
           <div className={styles.timerHeader}>
             <AccessTimeIcon fontSize="small" />
@@ -403,6 +403,15 @@ export function AccordionStep({
         <div className={styles.timerCard}>
           <div className={styles.timerHeader}>
             <span>Экзаменационный шаг</span>
+          </div>
+        </div>
+      )}
+
+      {/* Для теоретических шагов показываем заголовок */}
+      {type === "THEORY" && (
+        <div className={styles.timerCard}>
+          <div className={styles.timerHeader}>
+            <span>Теоретический шаг</span>
           </div>
         </div>
       )}

@@ -46,7 +46,7 @@ export async function updateStep(
         title,
         description,
         duration: type === "TRAINING" ? durationStr : "",
-        videoUrl: type === "TRAINING" ? videoUrl : "",
+        videoUrl: (type === "TRAINING" || type === "THEORY") ? videoUrl : "",
         type,
         checklist: type === "EXAMINATION" ? checklistStr : "",
       },
@@ -90,7 +90,7 @@ export async function updateStep(
         type: (value: unknown) => {
           const v = String(value ?? "");
           if (!v || v.trim().length === 0) return "Тип шага обязателен";
-          if (!["TRAINING", "EXAMINATION"].includes(v)) return "Неверный тип шага";
+          if (!["TRAINING", "EXAMINATION", "THEORY"].includes(v)) return "Неверный тип шага";
           return null;
         },
         checklist: (value: unknown) => {
@@ -174,9 +174,9 @@ export async function updateStep(
     const existingImageUrls = existingStep?.imageUrls || [];
     const remainingImageUrls = existingImageUrls.filter(url => !deletedImages.includes(url));
     
-    // Загружаем новые изображения в CDN (только для тренировочных шагов)
+    // Загружаем новые изображения в CDN (для тренировочных и теоретических шагов)
     const newImageUrls: string[] = [];
-    if (type === "TRAINING" && imageFiles.length > 0) {
+    if ((type === "TRAINING" || type === "THEORY") && imageFiles.length > 0) {
       try {
         logger.info(`🔄 Загружаем ${imageFiles.length} новых изображений в CDN для обновления шага`);
         
@@ -227,10 +227,10 @@ export async function updateStep(
         title,
         description,
         durationSec: duration,
-        type: type as "TRAINING" | "EXAMINATION",
-        videoUrl: type === "TRAINING" ? (videoUrl || null) : null,
-        imageUrls: type === "TRAINING" ? [...remainingImageUrls, ...newImageUrls] : [],
-        pdfUrls: type === "TRAINING" ? pdfUrls : [],
+        type: type as "TRAINING" | "EXAMINATION" | "THEORY",
+        videoUrl: (type === "TRAINING" || type === "THEORY") ? (videoUrl || null) : null,
+        imageUrls: (type === "TRAINING" || type === "THEORY") ? [...remainingImageUrls, ...newImageUrls] : [],
+        pdfUrls: (type === "TRAINING" || type === "THEORY") ? pdfUrls : [],
         checklist: checklistValue,
         requiresVideoReport: type === "EXAMINATION" ? requiresVideoReport : false,
         requiresWrittenFeedback: type === "EXAMINATION" ? requiresWrittenFeedback : false,

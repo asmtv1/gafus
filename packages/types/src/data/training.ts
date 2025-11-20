@@ -22,7 +22,7 @@ export interface Step {
   updatedAt: Date;
   
   // Новые поля для типов экзамена
-  type?: "TRAINING" | "EXAMINATION";
+  type?: "TRAINING" | "EXAMINATION" | "THEORY";
   checklist?: ChecklistQuestion[]; // JSON с тестовыми вопросами
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;

@@ -167,9 +167,13 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
       formData.append("description", data.description);
       formData.append("type", data.type);
       
-      // Для тренировочных шагов добавляем длительность и видео
+      // Для тренировочных и теоретических шагов добавляем длительность и видео
+      if (data.type === "TRAINING" || data.type === "THEORY") {
+        // Длительность только для тренировочных шагов
       if (data.type === "TRAINING") {
         formData.append("duration", data.duration || "");
+        }
+        // Видео и медиа для обоих типов
         if (data.videoUrl) formData.append("videoUrl", data.videoUrl);
         
         // Добавляем ВСЕ файлы изображений за один запрос (благодаря bodySizeLimit: 100mb)
@@ -287,7 +291,8 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
             rules={{ required: "Выберите тип шага" }}
             options={[
               { value: "TRAINING", label: "Тренировочный" },
-              { value: "EXAMINATION", label: "Экзаменационный" }
+              { value: "EXAMINATION", label: "Экзаменационный" },
+              { value: "THEORY", label: "Теоретический" }
             ]}
           />
 
@@ -306,9 +311,10 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
         </FormSection>
 
         {/* Условное отображение полей в зависимости от типа шага */}
-        {form.watch("type") === "TRAINING" ? (
+        {(form.watch("type") === "TRAINING" || form.watch("type") === "THEORY") ? (
           <>
-            <FormSection title="Параметры тренировки">
+            <FormSection title={form.watch("type") === "THEORY" ? "Параметры теоретического шага" : "Параметры тренировки"}>
+              {form.watch("type") === "TRAINING" && (
               <NumberField
                 id="duration"
                 label="Длительность (секунды) *"
@@ -317,6 +323,7 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
                 form={form}
                 rules={validationRules.duration}
               />
+              )}
 
               <Box sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>

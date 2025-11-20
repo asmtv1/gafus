@@ -159,7 +159,7 @@ export async function getTrainingDayWithUserSteps(
       order: order,
       isPausedOnServer: false,
       remainingSecOnServer: undefined,
-      type: step.type as "TRAINING" | "EXAMINATION" | undefined,
+      type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | undefined,
       checklist: step.checklist,
       requiresVideoReport: step.requiresVideoReport,
       requiresWrittenFeedback: step.requiresWrittenFeedback,
@@ -288,7 +288,7 @@ export async function getTrainingDayWithUserSteps(
       isPausedOnServer: pausedByStepId[stepOnDayId] ?? false,
       remainingSecOnServer: remainingByStepId[stepOnDayId] ?? undefined,
       // Новые поля для типов экзамена
-      type: step.type as "TRAINING" | "EXAMINATION" | undefined,
+      type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | undefined,
       checklist: Array.isArray(step.checklist)
         ? (step.checklist as ChecklistQuestion[])
         : null,
