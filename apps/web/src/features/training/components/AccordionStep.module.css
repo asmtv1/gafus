@@ -64,6 +64,18 @@
   padding: 14px 16px;
 }
 
+.estimatedTimeBadge {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background-color: #E0E7FF;
+  color: #1E3A8A;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .timerHeader {
   display: flex;
   align-items: center;

@@ -34,6 +34,7 @@ export default async function EditStepPage({ params }: Props) {
           title: step.title,
           description: step.description,
           durationSec: step.durationSec ?? undefined,
+          estimatedDurationSec: (step as unknown as { estimatedDurationSec?: number | null }).estimatedDurationSec ?? null,
           videoUrl: step.videoUrl,
           type: (step as unknown as { type?: string }).type || "TRAINING",
           imageUrls: step.imageUrls || [],

@@ -17,6 +17,7 @@ export interface TrainingStep {
   title: string;
   description: string;
   durationSec: number;
+  estimatedDurationSec?: number | null;
   status: TrainingStatus;
   order: number;
   // Доп. поля с серверной паузой (не влияют на TrainingStatus)

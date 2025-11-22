@@ -20,6 +20,7 @@ interface TrainingDayListProps {
       courseId: string;
       userStatus: string;
       estimatedDuration?: number;
+       theoryMinutes?: number;
       equipment?: string;
     }[];
     courseDescription: string | null;
@@ -139,6 +140,18 @@ const TrainingDayList = memo(function TrainingDayList({
       {displayData.trainingDays.map((day) => {
         const isCurrent = day.day === currentDayNumber;
         
+        if (process.env.NODE_ENV !== "production") {
+          // Отладка времени по дню: таймеры vs теория
+          // eslint-disable-next-line no-console
+          console.warn("[TrainingDayList] Day time debug", {
+            dayNumber: day.day,
+            title: day.title,
+            estimatedDuration: day.estimatedDuration,
+            theoryMinutes: day.theoryMinutes,
+            type: day.type,
+          });
+        }
+
         return (
           <li
             key={`${day.courseId}-${day.day}`}
@@ -171,10 +184,22 @@ const TrainingDayList = memo(function TrainingDayList({
                 }
               }}
             >
-              <div className={styles.timeBadge}>
-                <div>{day.estimatedDuration}</div>
-                <span>мин</span>
-              </div>
+              {(day.estimatedDuration ?? 0) > 0 || (day.theoryMinutes ?? 0) > 0 ? (
+                <div className={styles.timeBadgeWrapper}>
+                  {(day.estimatedDuration ?? 0) > 0 && (
+                    <div className={styles.timeBadge}>
+                      <div>{day.estimatedDuration}</div>
+                      <span>мин</span>
+                    </div>
+                  )}
+                  {(day.theoryMinutes ?? 0) > 0 && (
+                    <div className={styles.timeBadgeTheory}>
+                      <div>{day.theoryMinutes}</div>
+                      <span>мин</span>
+                    </div>
+                  )}
+                </div>
+              ) : null}
               <div className={styles.card}>
                 <h2 className={styles.dayTitle}>{day.title}</h2>
                 <p className={styles.subtitle}>({typeLabels[day.type] || day.type})</p>

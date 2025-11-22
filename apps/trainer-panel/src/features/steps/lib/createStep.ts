@@ -27,6 +27,8 @@ export async function createStep(
     const title = formData.get("title")?.toString() || "";
     const description = formData.get("description")?.toString() || "";
     const durationStr = formData.get("duration")?.toString() || "";
+    const estimatedDurationMinutesStr =
+      formData.get("estimatedDurationMinutes")?.toString() || "";
     const videoUrl = formData.get("videoUrl")?.toString() || "";
     const type = formData.get("type")?.toString() || "TRAINING";
     const checklistStr = formData.get("checklist")?.toString() || "";
@@ -164,6 +166,10 @@ export async function createStep(
     }
 
     const duration = type === "TRAINING" ? parseInt(durationStr, 10) : null;
+    const estimatedDurationSec =
+      type === "TRAINING" || estimatedDurationMinutesStr.trim().length === 0
+        ? null
+        : parseInt(estimatedDurationMinutesStr, 10) * 60;
     const checklist = type === "EXAMINATION" && checklistStr
       ? (JSON.parse(checklistStr) as ChecklistQuestion[])
       : null;
@@ -243,6 +249,7 @@ export async function createStep(
         title,
         description,
         durationSec: duration,
+        estimatedDurationSec,
         type: type as "TRAINING" | "EXAMINATION" | "THEORY",
         videoUrl: (type === "TRAINING" || type === "THEORY") ? (videoUrl || null) : null,
         imageUrls: (type === "TRAINING" || type === "THEORY") ? imageUrls : [],

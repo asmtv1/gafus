@@ -41,6 +41,7 @@ const baseHeadCells = [
   { id: "title", label: "Название", numeric: false },
   { id: "description", label: "Описание", numeric: false },
   { id: "durationSec", label: "Длительность (сек)", numeric: true },
+  { id: "estimatedDurationSec", label: "Оценка (сек)", numeric: true },
   { id: "days", label: "Дни", numeric: false },
   { id: "courses", label: "Курсы", numeric: false },
   { id: "actions", label: "Действия", numeric: false },
@@ -387,7 +388,10 @@ export default function EnhancedStepsTable({
                       </TableCell>
                       <TableCell>{row.title}</TableCell>
                       <TableCell>{row.description}</TableCell>
-                      <TableCell align="right">{row.durationSec}</TableCell>
+                  <TableCell align="right">{row.durationSec}</TableCell>
+                  <TableCell align="right">
+                    {row.estimatedDurationSec != null ? row.estimatedDurationSec : "—"}
+                  </TableCell>
                       <TableCell>{renderDayNames(row)}</TableCell>
                       <TableCell>{renderCourseNames(row)}</TableCell>
                       {isAdmin && <TableCell>{renderAuthorName(row)}</TableCell>}

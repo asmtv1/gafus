@@ -14,6 +14,7 @@ export interface Step {
   title: string;
   description: string;
   durationSec: number;
+  estimatedDurationSec?: number | null;
   imageUrls: string[];
   pdfUrls: string[];
   videoUrl?: string;

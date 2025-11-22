@@ -28,6 +28,7 @@ export async function getVisibleSteps() {
       title: true,
       description: true,
       durationSec: true,
+      estimatedDurationSec: true,
       type: true,
       videoUrl: true,
       imageUrls: true,

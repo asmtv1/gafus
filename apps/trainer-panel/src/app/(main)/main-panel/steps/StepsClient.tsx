@@ -32,6 +32,7 @@ export default function StepsClient({ steps, isAdmin = false }: StepsClientProps
     title: s.title,
     description: s.description,
     durationSec: s.durationSec,
+    estimatedDurationSec: s.estimatedDurationSec ?? null,
     author: s.author
       ? {
           username: s.author.username,

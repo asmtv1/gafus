@@ -48,6 +48,7 @@ async function findTrainingDayWithUserTraining(
                   title: true,
                   description: true,
                   durationSec: true,
+              estimatedDurationSec: true,
                   videoUrl: true,
                   imageUrls: true,
                   pdfUrls: true,
@@ -152,6 +153,7 @@ export async function getTrainingDayWithUserSteps(
       title: step.title,
       description: step.description,
       durationSec: step.durationSec ?? 0,
+      estimatedDurationSec: step.estimatedDurationSec ?? null,
       videoUrl: step.videoUrl ?? "",
       imageUrls: step.imageUrls,
       pdfUrls: step.pdfUrls,
@@ -264,6 +266,7 @@ export async function getTrainingDayWithUserSteps(
         title: string;
         description: string;
         durationSec: number | null;
+        estimatedDurationSec: number | null;
         videoUrl: string | null;
         imageUrls: string[];
         pdfUrls: string[];
@@ -279,6 +282,7 @@ export async function getTrainingDayWithUserSteps(
       title: step.title,
       description: step.description,
       durationSec: step.durationSec ?? 0,
+      estimatedDurationSec: step.estimatedDurationSec ?? null,
       videoUrl: step.videoUrl ?? "",
       imageUrls: step.imageUrls,
       pdfUrls: step.pdfUrls,

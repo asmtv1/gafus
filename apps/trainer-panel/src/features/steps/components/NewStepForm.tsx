@@ -21,6 +21,7 @@ interface StepFormData {
   title: string;
   description: string;
   duration: string;
+  estimatedDurationMinutes: string;
   videoUrl: string;
   type: string;
   requiresVideoReport: boolean;
@@ -33,6 +34,7 @@ interface StepInitialData {
   title?: string;
   description?: string;
   durationSec?: number;
+  estimatedDurationSec?: number | null;
   videoUrl?: string | null;
   type?: string;
   imageUrls?: string[];
@@ -86,6 +88,10 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
       title: initialData?.title ?? "",
       description: initialData?.description ?? "",
       duration: initialData?.durationSec != null ? String(initialData.durationSec) : "",
+      estimatedDurationMinutes:
+        initialData?.estimatedDurationSec != null
+          ? String(Math.round(initialData.estimatedDurationSec / 60))
+          : "",
       videoUrl: initialData?.videoUrl ?? "",
       type: initialData?.type ?? "TRAINING",
       requiresVideoReport: initialData?.requiresVideoReport ?? false,
@@ -101,6 +107,10 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
         title: initialData.title ?? "",
         description: initialData.description ?? "",
         duration: initialData.durationSec != null ? String(initialData.durationSec) : "",
+        estimatedDurationMinutes:
+          initialData.estimatedDurationSec != null
+            ? String(Math.round(initialData.estimatedDurationSec / 60))
+            : "",
         videoUrl: initialData.videoUrl ?? "",
         type: initialData.type ?? "TRAINING",
         requiresVideoReport: initialData.requiresVideoReport ?? false,
@@ -129,6 +139,29 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
         const num = parseInt(strValue);
         if (isNaN(num) || num <= 0) return "Длительность должна быть положительным числом";
         if (num > 1000) return "Длительность не может быть больше 1000";
+        return true;
+      },
+    },
+    estimatedDurationMinutes: {
+      validate: (value: string | boolean) => {
+        const strValue = String(value).trim();
+        const type = form.watch("type");
+
+        // Для теоретических и экзаменационных шагов время обязательно
+        if ((type === "THEORY" || type === "EXAMINATION") && !strValue) {
+          return "Укажите примерное время";
+        }
+
+        // Для тренировочных шагов поле не используется и не обязательно
+        if (type === "TRAINING" && !strValue) return true;
+
+        const num = parseInt(strValue, 10);
+        if (Number.isNaN(num) || num <= 0) {
+          return "Время должно быть положительным числом";
+        }
+        if (num > 600) {
+          return "Время не может быть больше 600 минут";
+        }
         return true;
       },
     },
@@ -196,6 +229,11 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
         formData.append("requiresVideoReport", String(data.requiresVideoReport));
         formData.append("requiresWrittenFeedback", String(data.requiresWrittenFeedback));
         formData.append("hasTestQuestions", String(data.hasTestQuestions));
+      }
+
+      // Оценочное время (минуты) только для теоретических и экзаменационных шагов
+      if (data.type !== "TRAINING" && data.estimatedDurationMinutes) {
+        formData.append("estimatedDurationMinutes", data.estimatedDurationMinutes);
       }
 
       const result = await serverAction({}, formData);
@@ -311,10 +349,9 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
         </FormSection>
 
         {/* Условное отображение полей в зависимости от типа шага */}
-        {(form.watch("type") === "TRAINING" || form.watch("type") === "THEORY") ? (
+        {form.watch("type") === "TRAINING" ? (
           <>
-            <FormSection title={form.watch("type") === "THEORY" ? "Параметры теоретического шага" : "Параметры тренировки"}>
-              {form.watch("type") === "TRAINING" && (
+            <FormSection title="Время на выполнение шага">
               <NumberField
                 id="duration"
                 label="Длительность (секунды) *"
@@ -323,12 +360,45 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
                 form={form}
                 rules={validationRules.duration}
               />
-              )}
+            </FormSection>
 
+            <FormSection title="Видео">
               <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  Видео
-                </Typography>
+                <VideoSelector
+                  value={form.watch("videoUrl")}
+                  onChange={(value) => form.setValue("videoUrl", value)}
+                  trainerVideos={trainerVideos}
+                  error={form.formState.errors.videoUrl?.message}
+                  helperText="Выберите видео из библиотеки или укажите внешнюю ссылку"
+                />
+              </Box>
+            </FormSection>
+
+            <FormSection title="Медиа файлы">
+              <StepImageUploader
+                onImagesChange={setImageFiles}
+                onDeletedImagesChange={setDeletedImages}
+                initialImages={initialData?.imageUrls || []}
+                _stepId={initialData?.id}
+                maxImages={10}
+              />
+            </FormSection>
+          </>
+        ) : form.watch("type") === "THEORY" ? (
+          <>
+            <FormSection title="Время на изучение">
+              <NumberField
+                id="estimatedDurationMinutes"
+                label="Примерное время (минуты)"
+                name="estimatedDurationMinutes"
+                placeholder="Введите примерное время"
+                form={form}
+                rules={validationRules.estimatedDurationMinutes}
+              />
+            </FormSection>
+
+            <FormSection title="Видео">
+              <Box sx={{ mb: 2 }}>
                 <VideoSelector
                   value={form.watch("videoUrl")}
                   onChange={(value) => form.setValue("videoUrl", value)}
@@ -400,6 +470,17 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
                   {form.formState.errors.hasTestQuestions.message}
                 </Alert>
               )}
+            </FormSection>
+
+            <FormSection title="Время на сдачу экзамена">
+              <NumberField
+                id="estimatedDurationMinutes"
+                label="Примерное время (минуты)"
+                name="estimatedDurationMinutes"
+                placeholder="Введите примерное время"
+                form={form}
+                rules={validationRules.estimatedDurationMinutes}
+              />
             </FormSection>
 
             <FormSection title="Видео">

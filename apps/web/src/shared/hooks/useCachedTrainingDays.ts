@@ -21,6 +21,7 @@ interface TrainingDaysData {
     courseId: string;
     userStatus: string;
     estimatedDuration?: number;
+    theoryMinutes?: number;
     equipment?: string;
   }[];
   courseDescription: string | null;

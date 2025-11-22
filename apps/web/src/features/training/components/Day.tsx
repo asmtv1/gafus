@@ -249,6 +249,7 @@ export function Day({ training }: DayProps) {
                   day={training.day}
                   stepIndex={index}
                   durationSec={step.durationSec}
+                  estimatedDurationSec={step.estimatedDurationSec ?? null}
                   stepTitle={step.title}
                   stepDescription={step.description}
                   stepOrder={step.order}

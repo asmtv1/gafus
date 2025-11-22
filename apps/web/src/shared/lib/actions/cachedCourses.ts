@@ -501,8 +501,8 @@ export const getTrainingDaysCached = unstable_cache(
         tags: ["training", "days", "cache", "server-action"],
       });
 
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: "Что-то пошло не так при получении дней тренировок",
         data: {
           trainingDays: [],
@@ -511,11 +511,12 @@ export const getTrainingDaysCached = unstable_cache(
           courseVideoUrl: null,
           courseEquipment: null,
           courseTrainingLevel: null,
-        }
+        },
       };
     }
   },
-  ["training-days"],
+  // Меняем ключ версионирования, чтобы сбросить старый кэш с другим расчётом времени
+  ["training-days-v2"],
   {
     revalidate: false, // Бесконечное кэширование - инвалидируется только вручную
     tags: ["training", "days"],
@@ -545,13 +546,18 @@ export const getTrainingDayCached = unstable_cache(
               id: true,
               order: true,
               step: {
+                // Поле estimatedDurationSec уже есть в БД, но ещё не проброшено в Prisma-типах,
+                // поэтому используем any только в select
                 select: {
                   id: true,
                   title: true,
                   description: true,
                   durationSec: true,
+                  estimatedDurationSec: true,
+                  type: true,
                   videoUrl: true,
-                }
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } as any,
               }
             }
           }
@@ -588,15 +594,30 @@ export const getTrainingDayCached = unstable_cache(
         courseVideoUrl: courses[0]?.course.videoUrl || null,
         equipment: day.equipment,
         description: day.description,
-        steps: day.stepLinks.map((link: { order: number; step: { id: string; title: string; description: string; durationSec: number | null; videoUrl: string | null } }) => ({
+        steps: day.stepLinks.map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (link: { order: number; step: any }) => ({
           id: link.step.id,
           title: link.step.title,
           description: link.step.description,
           durationSec: link.step.durationSec ?? 0,
+          estimatedDurationSec: link.step.estimatedDurationSec ?? null,
           videoUrl: link.step.videoUrl,
-          order: link.order
+          order: link.order,
         })),
-        estimatedDuration: day.stepLinks.reduce((total: number, link: { step: { durationSec: number | null } }) => total + (link.step.durationSec ?? 0), 0)
+        estimatedDuration: day.stepLinks.reduce(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (total: number, link: { step: any }) => {
+          const step = link.step as {
+            durationSec: number | null;
+            estimatedDurationSec: number | null;
+            type: string | null;
+          };
+          if (step.type === "TRAINING") {
+            return total + (step.durationSec ?? 0);
+          }
+          return total + (step.estimatedDurationSec ?? 0);
+        }, 0),
       };
 
       logger.warn(`[React Cache] Cached training day ${safeDayId} successfully`, { operation: 'warn' });

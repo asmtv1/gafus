@@ -41,10 +41,18 @@
   background-color: #FFF8E5;
 }
 
-.timeBadge {
+.timeBadgeWrapper {
   position: absolute;
   top: -10px;
   right: -10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  z-index: 2;
+}
+
+.timeBadge {
   background-color: #636128;
   color: white;
   border-radius: 50%;
@@ -52,7 +60,17 @@
   font-size: 14px;
   font-weight: bold;
   text-align: center;
-  z-index: 2;
+}
+
+.timeBadgeTheory {
+  background-color: #E0E7FF;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  background-color: #af6d34;
 }
 
 .dayTitle {

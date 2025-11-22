@@ -21,6 +21,7 @@ interface AccordionStepProps {
   day: number;
   stepIndex: number;
   durationSec: number;
+  estimatedDurationSec?: number | null;
   stepTitle: string;
   stepDescription?: string;
   stepOrder: number;
@@ -46,6 +47,7 @@ export function AccordionStep({
   day,
   stepIndex,
   durationSec,
+  estimatedDurationSec,
   stepTitle,
   stepDescription,
   stepOrder,
@@ -404,6 +406,11 @@ export function AccordionStep({
           <div className={styles.timerHeader}>
             <span>Экзаменационный шаг</span>
           </div>
+          {typeof estimatedDurationSec === "number" && estimatedDurationSec > 0 && (
+            <div className={styles.estimatedTimeBadge}>
+              Этот шаг займёт ~ {Math.round(estimatedDurationSec / 60)} мин
+            </div>
+          )}
         </div>
       )}
 
@@ -413,6 +420,11 @@ export function AccordionStep({
           <div className={styles.timerHeader}>
             <span>Теоретический шаг</span>
           </div>
+          {typeof estimatedDurationSec === "number" && estimatedDurationSec > 0 && (
+            <div className={styles.estimatedTimeBadge}>
+              Этот шаг займёт ~ {Math.round(estimatedDurationSec / 60)} мин
+            </div>
+          )}
         </div>
       )}
 

@@ -136,7 +136,8 @@ model Step {
   id                    String    @id @default(cuid())
   title                 String
   description           String
-  durationSec           Int?
+  durationSec           Int?      // Фактическая длительность для таймера тренировочного шага (TRAINING)
+  estimatedDurationSec  Int?      // Оценочное время прохождения шага (THEORY, EXAMINATION, опционально TRAINING)
   type                  StepType  @default(TRAINING)
   imageUrls             String[]
   pdfUrls               String[]
