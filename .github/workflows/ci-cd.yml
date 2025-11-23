@@ -132,8 +132,8 @@ jobs:
           pnpm config set auto-install-peers true
           pnpm config set dedupe-peer-dependents false
           
-          # Быстрая установка из кэша
-          pnpm install --frozen-lockfile --prefer-offline --offline
+          # Установка с предпочтением кэша, но с возможностью загрузки из сети
+          pnpm install --frozen-lockfile --prefer-offline
 
       - name: Run security audit
         run: pnpm audit --audit-level high || echo "Security audit found issues, but continuing build"
@@ -195,8 +195,8 @@ jobs:
           pnpm config set auto-install-peers true
           pnpm config set dedupe-peer-dependents false
           
-          # Быстрая установка из кэша
-          pnpm install --frozen-lockfile --prefer-offline --offline
+          # Установка с предпочтением кэша, но с возможностью загрузки из сети
+          pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build ${{ matrix.app }}
         run: |
@@ -211,7 +211,7 @@ jobs:
       - name: Run type check for ${{ matrix.app }}
         run: |
           cd apps/${{ matrix.app }}
-          pnpm typecheck
+          pnpm typecheck || (echo "Type check failed for ${{ matrix.app }}" && exit 1)
 
       - name: Cache app build
         uses: actions/cache@v4
