@@ -7,8 +7,7 @@ import { useData, useMutate } from "@gafus/react-query";
 import { getCourseStatisticsCached } from "../lib/actions/cachedStatistics";
 import { getStepStatisticsAction } from "../lib/actions/statistics";
 
-import type { StatisticsData } from "../types/statistics";
-import type { StepStats } from "@features/statistics/lib/statistics-steps";
+import type { StatisticsData, StepStats } from "@gafus/statistics";
 
 // Создаем логгер для use-statistics
 const logger = createTrainerPanelLogger('trainer-panel-use-statistics');

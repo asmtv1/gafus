@@ -4,6 +4,7 @@ import {
   Category,
   Delete as DeleteIcon,
   Edit as EditIcon,
+  ExpandMore as ExpandMoreIcon,
   Lock as LockIcon,
   Person,
   Public as PublicIcon,
@@ -12,7 +13,7 @@ import {
 
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 import DayAnalytics from "./DayAnalytics";
@@ -22,14 +23,19 @@ import TimeAnalytics from "./TimeAnalytics";
 import UserPublicModal from "./UserPublicModal";
 import { Toast, useToast } from "@shared/components/ui/Toast";
 import { deleteCourseServerAction } from "@shared/lib/actions/courses";
+import { getUserProgress, type UserDetailedProgress } from "@shared/lib/actions/getUserProgress";
 // Создаем логгер для CourseStatsContent
 const logger = createTrainerPanelLogger('trainer-panel-course-stats');
 
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Avatar,
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -46,7 +52,8 @@ import {
   Typography,
 } from "@/utils/muiImports";
 
-import type { DetailedCourseStats } from "@shared/types/statistics";
+import type { DetailedCourseStats } from "@gafus/statistics";
+import { TrainingStatus } from "@gafus/types";
 
 interface CourseStatsContentProps {
   course: DetailedCourseStats;
@@ -316,7 +323,7 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
               </Box>
             </Box>
 
-            <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
+            <Box sx={{ maxHeight: 600, overflowY: "auto" }}>
               {course.userCourses
                 .filter((uc) => {
                   const status = uc.status;
@@ -344,61 +351,15 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
                   return db - da;
                 })
                 .map((userCourse, index: number) => (
-                <Paper key={index} sx={{ p: 2, mb: 1 }}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <Avatar 
-                        sx={{ width: 40, height: 40 }}
-                        src={userCourse.user.profile?.avatarUrl || "/uploads/avatar.svg"}
-                        alt={userCourse.user.username}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = "/uploads/avatar.svg";
-                        }}
-                      />
-                      <Box>
-                        <Typography
-                          variant="body1"
-                          fontWeight="bold"
-                          sx={{ cursor: "pointer", textDecoration: "underline" }}
-                          color="text.primary"
-                          onClick={() => {
+                  <UserProgressAccordion
+                    key={index}
+                    userCourse={userCourse}
+                    courseId={course.id}
+                    onUsernameClick={() => {
                             setSelectedUsername(userCourse.user.username);
                             setUserModalOpen(true);
                           }}
-                        >
-                          {userCourse.user.username}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Статус:{" "}
-                          {userCourse.status === "COMPLETED"
-                            ? "Завершил"
-                            : userCourse.status === "IN_PROGRESS"
-                              ? "В процессе"
-                              : "Не начал"}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ textAlign: "right" }}>
-                      {userCourse.startedAt && (
-                        <Typography variant="body2" color="text.secondary">
-                          Начал: {new Date(userCourse.startedAt).toLocaleDateString()}
-                        </Typography>
-                      )}
-                      {userCourse.completedAt && (
-                        <Typography variant="body2" color="success.main">
-                          Завершил: {new Date(userCourse.completedAt).toLocaleDateString()}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                </Paper>
+                  />
               ))}
             </Box>
           </Box>
@@ -522,5 +483,210 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
 
       <Toast open={toastOpen} message={message} severity={severity} onClose={closeToast} />
     </Box>
+  );
+}
+
+// Компонент для отображения прогресса пользователя с раскрывающимся блоком
+function UserProgressAccordion({
+  userCourse,
+  courseId,
+  onUsernameClick,
+}: {
+  userCourse: DetailedCourseStats["userCourses"][0];
+  courseId: string;
+  onUsernameClick: () => void;
+}) {
+  const [progress, setProgress] = useState<UserDetailedProgress | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (expanded && !progress && !loading) {
+      setLoading(true);
+      setError(null);
+      getUserProgress(courseId, userCourse.userId)
+        .then((data) => {
+          setProgress(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "Ошибка загрузки");
+          setLoading(false);
+        });
+    }
+  }, [expanded, courseId, userCourse.userId, progress, loading]);
+
+  // Фильтруем дни, показывая только те, где есть активные шаги
+  const activeDays =
+    progress?.days.filter((day) => {
+      const hasActiveSteps = day.steps.some(
+        (step) => step.status === TrainingStatus.IN_PROGRESS || step.status === TrainingStatus.COMPLETED,
+      );
+      return hasActiveSteps;
+    }) || [];
+
+  const handleChange = (_event: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpanded(isExpanded);
+  };
+
+  return (
+    <Accordion sx={{ mb: 1 }} onChange={handleChange}>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%", pr: 2 }}>
+          <Avatar
+            sx={{ width: 40, height: 40 }}
+            src={userCourse.user.profile?.avatarUrl || "/uploads/avatar.svg"}
+            alt={userCourse.user.username}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "/uploads/avatar.svg";
+            }}
+          />
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              variant="body1"
+              fontWeight="bold"
+              sx={{ cursor: "pointer", textDecoration: "underline" }}
+              color="text.primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUsernameClick();
+              }}
+            >
+              {userCourse.user.username}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Статус:{" "}
+              {userCourse.status === "COMPLETED"
+                ? "Завершил"
+                : userCourse.status === "IN_PROGRESS"
+                  ? "В процессе"
+                  : "Не начал"}
+            </Typography>
+          </Box>
+          <Box sx={{ textAlign: "right" }}>
+            {userCourse.startedAt && (
+              <Typography variant="body2" color="text.secondary">
+                Начал: {new Date(userCourse.startedAt).toLocaleDateString()}
+              </Typography>
+            )}
+            {userCourse.completedAt && (
+              <Typography variant="body2" color="success.main">
+                Завершил: {new Date(userCourse.completedAt).toLocaleDateString()}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails>
+        {loading && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
+        {error && (
+          <Typography variant="body2" color="error" sx={{ py: 2 }}>
+            Ошибка загрузки: {error}
+          </Typography>
+        )}
+        {!loading && !error && progress && activeDays.length > 0 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Детальный прогресс
+            </Typography>
+            {activeDays.map((day) => {
+              const activeSteps = day.steps.filter(
+                (step) =>
+                  step.status === TrainingStatus.IN_PROGRESS ||
+                  step.status === TrainingStatus.COMPLETED,
+              );
+
+              return (
+                <Paper key={day.dayOrder} sx={{ p: 2, mb: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      День {day.dayOrder}: {day.dayTitle}
+                    </Typography>
+                    <Chip
+                      label={
+                        day.status === TrainingStatus.COMPLETED
+                          ? "Завершен"
+                          : day.status === TrainingStatus.IN_PROGRESS
+                            ? "В процессе"
+                            : "Не начат"
+                      }
+                      color={
+                        day.status === TrainingStatus.COMPLETED
+                          ? "success"
+                          : day.status === TrainingStatus.IN_PROGRESS
+                            ? "warning"
+                            : "default"
+                      }
+                      size="small"
+                    />
+                  </Box>
+                  {day.dayCompletedAt && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Завершен: {new Date(day.dayCompletedAt).toLocaleDateString()}
+                    </Typography>
+                  )}
+                  {activeSteps.length > 0 && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body2" fontWeight="bold" sx={{ mb: 1 }}>
+                        Шаги:
+                      </Typography>
+                      {activeSteps.map((step) => (
+                        <Box
+                          key={step.stepOrder}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            mb: 0.5,
+                            pl: 2,
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ flex: 1 }}>
+                            {step.stepOrder}. {step.stepTitle}
+                          </Typography>
+                          <Chip
+                            label={
+                              step.status === TrainingStatus.COMPLETED
+                                ? "Завершен"
+                                : step.status === TrainingStatus.IN_PROGRESS
+                                  ? "В процессе"
+                                  : "Не начат"
+                            }
+                            color={
+                              step.status === TrainingStatus.COMPLETED
+                                ? "success"
+                                : step.status === TrainingStatus.IN_PROGRESS
+                                  ? "warning"
+                                  : "default"
+                            }
+                            size="small"
+                          />
+                          {step.completedAt && (
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(step.completedAt).toLocaleDateString()}
+                            </Typography>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </Paper>
+              );
+            })}
+          </Box>
+        )}
+        {!loading && !error && progress && activeDays.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+            Пользователь еще не начал проходить курс
+          </Typography>
+        )}
+      </AccordionDetails>
+    </Accordion>
   );
 }

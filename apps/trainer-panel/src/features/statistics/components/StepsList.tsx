@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import StepStatsModal from "./modals/StepStatsModal";
 
-import type { StepStats } from "@features/statistics/lib/statistics-steps";
+import type { StepStats } from "@gafus/statistics";
 
 import { Box, Paper, Typography } from "@/utils/muiImports";
 

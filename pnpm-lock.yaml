@@ -417,6 +417,9 @@ importers:
       '@gafus/react-query':
         specifier: workspace:*
         version: link:../../packages/react-query
+      '@gafus/statistics':
+        specifier: workspace:*
+        version: link:../../packages/statistics
       '@gafus/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -550,6 +553,9 @@ importers:
       '@gafus/react-query':
         specifier: workspace:*
         version: link:../../packages/react-query
+      '@gafus/statistics':
+        specifier: workspace:*
+        version: link:../../packages/statistics
       '@gafus/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -939,6 +945,28 @@ importers:
       '@types/node':
         specifier: ^20.17.12
         version: 20.19.24
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
+
+  packages/statistics:
+    dependencies:
+      '@gafus/prisma':
+        specifier: workspace:*
+        version: link:../prisma
+      '@gafus/types':
+        specifier: workspace:*
+        version: link:../types
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.18.13
+      rimraf:
+        specifier: 5.0.1
+        version: 5.0.1
       typescript:
         specifier: ^5.8.3
         version: 5.8.3

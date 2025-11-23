@@ -2,7 +2,7 @@
 
 
 import { createTrainerPanelLogger } from "@gafus/logger";
-import { getCourseStatistics } from "@features/statistics/lib/statistics";
+import { getCourseStatistics } from "@gafus/statistics";
 import { unstable_cache } from "next/cache";
 
 import { reportErrorToDashboard } from "./reportError";

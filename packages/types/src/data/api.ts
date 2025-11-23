@@ -29,6 +29,7 @@ export interface RawCourseData {
     };
   }[];
   dayLinks: {
+    id: string;
     order: number;
     day: {
       id: string;

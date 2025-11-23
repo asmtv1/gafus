@@ -89,20 +89,6 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                 </Link>
             {trainerOnly && (
               <>
-                <Link
-                  href="/statistics/"
-                  onClick={() => setMenuOpen(false)}
-                  className={styles.menuButton}
-                >
-                  <Image
-                    src="/uploads/header/statistics.svg"
-                    alt="statistics"
-                    width={24}
-                    height={24}
-                    loading="lazy"
-                  />
-                  Статистика
-                </Link>
                 {process.env.NEXT_PUBLIC_TRAINER_PANEL_URL && (
                   <Link
                     href={process.env.NEXT_PUBLIC_TRAINER_PANEL_URL}

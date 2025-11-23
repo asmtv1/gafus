@@ -5,8 +5,9 @@ import { createTrainerPanelLogger } from "@gafus/logger";
 import {
   getCourseStatistics,
   getDetailedCourseStatistics,
-} from "@features/statistics/lib/statistics";
-import { getDetailedStepStatistics, getStepStatistics } from "@features/statistics/lib/statistics-steps";
+  getDetailedStepStatistics,
+  getStepStatistics,
+} from "@gafus/statistics";
 import { authOptions } from "@gafus/auth";
 import { getServerSession } from "next-auth";
 

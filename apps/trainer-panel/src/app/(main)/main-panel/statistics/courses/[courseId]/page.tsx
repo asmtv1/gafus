@@ -1,6 +1,6 @@
 import CourseStatsContent from "@features/statistics/components/CourseStatsContent";
 import PageLayout from "@shared/components/PageLayout";
-import { getDetailedCourseStatistics } from "@features/statistics/lib/statistics";
+import { getDetailedCourseStatistics } from "@gafus/statistics";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { notFound } from "next/navigation";

@@ -35,7 +35,9 @@
       "@gafus/csrf/*": ["packages/csrf/src/*"],
       "@gafus/ui-components": ["packages/ui-components/src/index.ts"],
       "@gafus/ui-components/*": ["packages/ui-components/src/*"],
-      "@gafus/ui-components/": ["packages/ui-components/src/"]
+      "@gafus/ui-components/": ["packages/ui-components/src/"],
+      "@gafus/statistics": ["packages/statistics/src/index.ts"],
+      "@gafus/statistics/*": ["packages/statistics/src/*"]
     },
 
     "typeRoots": ["./node_modules/@types", "packages/types/src"]

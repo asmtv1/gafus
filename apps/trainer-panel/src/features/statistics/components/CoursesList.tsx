@@ -6,7 +6,7 @@ import CourseCard from "./CourseCard";
 
 import { Box, Paper, Typography } from "@/utils/muiImports";
 
-import type { CourseStats } from "@shared/types/statistics";
+import type { CourseStats } from "@gafus/statistics";
 
 interface CoursesListProps {
   courses: CourseStats[];

@@ -12,7 +12,7 @@ import NextLink from "next/link";
 
 import { Avatar, Box, Button, Card, CardContent, Chip, Typography } from "@/utils/muiImports";
 
-import type { CourseStats } from "@shared/types/statistics";
+import type { CourseStats } from "@gafus/statistics";
 
 // Функция для получения русского названия уровня сложности
 const getTrainingLevelLabel = (level: string) => {
