@@ -498,23 +498,40 @@ jobs:
 
             # Pull latest images from registry in parallel to speed up deployment
             echo "📥 Pulling latest Docker images in parallel..."
-            pids=""
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest & pids="$pids $!"
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-trainer-panel:latest & pids="$pids $!"
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-error-dashboard:latest & pids="$pids $!"
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-admin-panel:latest & pids="$pids $!"
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-worker:latest & pids="$pids $!"
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-bull-board:latest & pids="$pids $!"
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-telegram-bot:latest & pids="$pids $!"
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-prisma:latest & pids="$pids $!"
+            
+            # Проверяем авторизацию перед загрузкой
+            echo "🔍 Verifying registry access..."
+            if ! docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest 2>&1 | head -5; then
+              echo "⚠️ Warning: Failed to pull test image, but continuing..."
+            fi
+            
+            # Загружаем образы с детальным логированием ошибок
+            images=(
+              "gafus-web"
+              "gafus-trainer-panel"
+              "gafus-error-dashboard"
+              "gafus-admin-panel"
+              "gafus-worker"
+              "gafus-bull-board"
+              "gafus-telegram-bot"
+              "gafus-prisma"
+            )
+            
             pull_failed=0
-            for pid in $pids; do
-              if ! wait $pid; then
+            for image in "${images[@]}"; do
+              echo "📥 Pulling $image..."
+              if ! docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$image:latest; then
+                echo "❌ Failed to pull $image"
                 pull_failed=1
+              else
+                echo "✅ Successfully pulled $image"
               fi
             done
+            
             if [ "$pull_failed" -ne 0 ]; then
               echo "❌ One or more docker pulls failed"
+              echo "🔍 Checking registry authentication..."
+              docker login ghcr.io -u asmtv1 --password-stdin <<< "${{ secrets.GHCR_TOKEN }}" || echo "⚠️ Login check failed"
               exit 1
             fi
 
