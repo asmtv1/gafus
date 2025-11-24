@@ -114,6 +114,7 @@ export interface UserDayProgress {
     stepOrder: number;
     stepTitle: string;
     status: TrainingStatus;
+    startedAt: Date | null;
     completedAt: Date | null;
   }[];
 }

@@ -20,6 +20,7 @@ export interface UserDayProgress {
     stepOrder: number;
     stepTitle: string;
     status: TrainingStatus;
+    startedAt: Date | null;
     completedAt: Date | null;
   }[];
 }
@@ -336,15 +337,27 @@ export async function getUserProgress(
       {
         dayOnCourseId: string;
         status: string;
-        steps: { stepOnDayId: string; status: string; updatedAt: Date }[];
+        steps: { stepOnDayId: string; status: string; createdAt: Date; updatedAt: Date }[];
       }
     >(
       userTrainings.map(
         (ut: {
           dayOnCourseId: string;
           status: string;
-          steps: { stepOnDayId: string; status: string; updatedAt: Date }[];
-        }) => [ut.dayOnCourseId, ut],
+          steps: { stepOnDayId: string; status: string; createdAt: Date; updatedAt: Date }[];
+        }) => [
+          ut.dayOnCourseId,
+          {
+            dayOnCourseId: ut.dayOnCourseId,
+            status: ut.status,
+            steps: ut.steps.map((s) => ({
+              stepOnDayId: s.stepOnDayId,
+              status: s.status,
+              createdAt: s.createdAt,
+              updatedAt: s.updatedAt,
+            })),
+          },
+        ],
       ),
     );
 
@@ -381,11 +394,12 @@ export async function getUserProgress(
         const stepsProgress = dayLink.day.stepLinks.map(
           (stepLink: { id: string; order: number; step: { title: string } }) => {
             let stepStatus = TrainingStatus.NOT_STARTED;
+            let stepStartedAt: Date | null = null;
             let stepCompletedAt: Date | null = null;
 
             if (userTraining && userTraining.steps) {
               const userStep = userTraining.steps.find(
-                (step: { stepOnDayId: string; status: string; updatedAt: Date }) =>
+                (step: { stepOnDayId: string; status: string; createdAt: Date; updatedAt: Date }) =>
                   step.stepOnDayId === stepLink.id,
               );
               if (userStep) {
@@ -395,6 +409,10 @@ export async function getUserProgress(
                 // - COMPLETED: шаг завершен
                 const currentStatus = userStep.status as TrainingStatus;
                 stepStatus = currentStatus;
+                // Для шагов в процессе используем createdAt как дату начала
+                if (currentStatus === TrainingStatus.IN_PROGRESS) {
+                  stepStartedAt = userStep.createdAt;
+                }
                 // Дату завершения показываем только для завершенных шагов
                 stepCompletedAt =
                   currentStatus === TrainingStatus.COMPLETED ? userStep.updatedAt : null;
@@ -405,6 +423,7 @@ export async function getUserProgress(
               stepOrder: stepLink.order,
               stepTitle: stepLink.step.title,
               status: stepStatus,
+              startedAt: stepStartedAt,
               completedAt: stepCompletedAt,
             };
           },

@@ -650,27 +650,45 @@ function UserProgressAccordion({
                           <Typography variant="body2" sx={{ flex: 1 }}>
                             {step.stepOrder}. {step.stepTitle}
                           </Typography>
-                          <Chip
-                            label={
-                              step.status === TrainingStatus.COMPLETED
-                                ? "Завершен"
-                                : step.status === TrainingStatus.IN_PROGRESS
-                                  ? "В процессе"
-                                  : "Не начат"
-                            }
-                            color={
-                              step.status === TrainingStatus.COMPLETED
-                                ? "success"
-                                : step.status === TrainingStatus.IN_PROGRESS
-                                  ? "warning"
-                                  : "default"
-                            }
-                            size="small"
-                          />
-                          {step.completedAt && (
-                            <Typography variant="caption" color="text.secondary">
-                              {new Date(step.completedAt).toLocaleDateString()}
-                            </Typography>
+                          {step.status === TrainingStatus.COMPLETED && step.completedAt ? (
+                            <Chip
+                              label={new Date(step.completedAt).toLocaleString("ru-RU", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                              color="success"
+                              size="small"
+                            />
+                          ) : (
+                            <>
+                              <Chip
+                                label={
+                                  step.status === TrainingStatus.IN_PROGRESS
+                                    ? "В процессе"
+                                    : "Не начат"
+                                }
+                                color={
+                                  step.status === TrainingStatus.IN_PROGRESS
+                                    ? "warning"
+                                    : "default"
+                                }
+                                size="small"
+                              />
+                              {step.status === TrainingStatus.IN_PROGRESS && step.startedAt && (
+                                <Typography variant="caption" color="text.secondary">
+                                  Начат: {new Date(step.startedAt).toLocaleString("ru-RU", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </Typography>
+                              )}
+                            </>
                           )}
                         </Box>
                       ))}
