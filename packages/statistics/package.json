@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@gafus/prisma": "workspace:*",
-    "@gafus/types": "workspace:*"
+    "@gafus/types": "workspace:*",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
