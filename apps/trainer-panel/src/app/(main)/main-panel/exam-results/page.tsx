@@ -1,10 +1,15 @@
 import { Suspense } from "react";
 import { Box, Typography, CircularProgress, Alert } from "@/utils/muiImports";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@gafus/auth";
 import { getExamResults } from "@/features/exam-results/lib/getExamResults";
 import { ExamResultsListWithFilter } from "@/features/exam-results/components/ExamResultsListWithFilter";
 
 async function ExamResultsContent({ hideCompleted }: { hideCompleted: boolean }) {
   try {
+    const session = await getServerSession(authOptions);
+    const isAdmin = session?.user?.role === "ADMIN";
+    
     // Всегда загружаем ВСЕ результаты, фильтрация на клиенте
     const examResults = await getExamResults({ hideCompleted: false });
     
@@ -14,7 +19,10 @@ async function ExamResultsContent({ hideCompleted }: { hideCompleted: boolean })
           Результаты экзаменов
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          Просмотр результатов экзаменов по вашим курсам
+          {isAdmin 
+            ? "Просмотр результатов экзаменов всех пользователей всех курсов"
+            : "Просмотр результатов экзаменов по вашим курсам"
+          }
         </Typography>
         
         <ExamResultsListWithFilter 

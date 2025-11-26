@@ -79,7 +79,10 @@ export async function getExamResults(options?: GetExamResultsOptions): Promise<E
     throw new Error("Не авторизован");
   }
 
-  // Получаем все результаты экзаменов для курсов, созданных текущим пользователем
+  const isAdmin = session.user.role === "ADMIN";
+
+  // Получаем все результаты экзаменов
+  // Для админа - все экзамены всех курсов, для остальных - только свои курсы
   const examResults = await prisma.examResult.findMany({
     where: {
       userStep: {
@@ -90,7 +93,10 @@ export async function getExamResults(options?: GetExamResultsOptions): Promise<E
         userTraining: {
           dayOnCourse: {
             course: {
-              authorId: session.user.id
+              // Если не админ, то только свои курсы
+              ...(!isAdmin && {
+                authorId: session.user.id
+              })
             }
           }
         }
@@ -149,11 +155,15 @@ export async function getExamResultsByCourse(courseId: string): Promise<ExamResu
     throw new Error("Не авторизован");
   }
 
-  // Проверяем, что курс принадлежит текущему пользователю
+  const isAdmin = session.user.role === "ADMIN";
+
+  // Проверяем, что курс принадлежит текущему пользователю (или админ может видеть любой курс)
   const course = await prisma.course.findFirst({
     where: {
       id: courseId,
-      authorId: session.user.id
+      ...(!isAdmin && {
+        authorId: session.user.id
+      })
     }
   });
 

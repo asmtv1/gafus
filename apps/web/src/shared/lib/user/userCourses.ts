@@ -16,36 +16,25 @@ const trainingDayStatusesSchema = z.array(
   }),
 );
 
+/**
+ * Инвалидирует кэш прогресса пользователя для курса.
+ * Запись в userCourses НЕ создается - она создается только когда пользователь реально начинает проходить курс
+ * (в startUserStepServerAction при первом шаге).
+ */
 export async function assignCoursesToUser(courseId: string) {
-  const safeCourseId = courseIdSchema.parse(courseId);
+  courseIdSchema.parse(courseId); // Валидация courseId
   try {
     const userId = await getCurrentUserId();
 
-    const createdUserCourse = await prisma.userCourse.upsert({
-      where: {
-        userId_courseId: {
-          userId,
-          courseId: safeCourseId,
-        },
-      },
-      update: {},
-      create: {
-        userId,
-        courseId: safeCourseId,
-        status: TrainingStatus.NOT_STARTED,
-        // startedAt устанавливается только когда пользователь реально начинает проходить шаги
-        // в startUserStepServerAction
-      },
-    });
-
     // Инвалидируем кэш прогресса пользователя
+    // Запись в userCourses создается только при реальном начале прохождения курса
     const cacheResult = await invalidateUserProgressCache(userId, false);
     
     if (cacheResult.skipped) {
       logger.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`, { operation: 'warn' });
     }
 
-    return { success: true, data: createdUserCourse };
+    return { success: true };
   } catch (error) {
     logger.error("Ошибка в assignCoursesToUser:", error as Error, { operation: 'error' });
     throw new Error("Ошибка при назначении курса. Попробуйте перезагрузить страницу.");

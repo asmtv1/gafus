@@ -413,7 +413,19 @@ function mergeUserCourses(
 } {
   const merged = new Map<string, UserCourse>();
 
+  // Добавляем пользователей из courseUserCourses, но только тех, у кого есть реальный прогресс
+  // (статус не NOT_STARTED или есть реальные тренировки)
   courseUserCourses.forEach((uc) => {
+    const hasRealTrainings = trainingSummaryMap?.has(uc.userId) && 
+      trainingSummaryMap.get(uc.userId)?.trainings.some(
+        (t) => t.status !== TrainingStatus.NOT_STARTED
+      );
+    
+    // Исключаем пользователей со статусом NOT_STARTED без реальных тренировок
+    if (uc.status === TrainingStatus.NOT_STARTED && !hasRealTrainings) {
+      return;
+    }
+
     merged.set(uc.userId, {
       userId: uc.userId,
       status: uc.status as TrainingStatus,
@@ -426,6 +438,7 @@ function mergeUserCourses(
     });
   });
 
+  // Обновляем/добавляем пользователей на основе реальных тренировок
   if (trainingSummaryMap) {
     trainingSummaryMap.forEach((summary, userId) => {
       if (summary.trainings.length === 0) {
@@ -461,7 +474,20 @@ function mergeUserCourses(
     });
   }
 
-  const userCourses = Array.from(merged.values());
+  // Финальная фильтрация: исключаем пользователей со статусом NOT_STARTED без реальных тренировок
+  const userCourses = Array.from(merged.values()).filter((uc) => {
+    if (uc.status === TrainingStatus.NOT_STARTED) {
+      const hasRealTrainings = trainingSummaryMap?.has(uc.userId) && 
+        trainingSummaryMap.get(uc.userId)?.trainings.some(
+          (t) => t.status !== TrainingStatus.NOT_STARTED
+        );
+      // Исключаем из статистики, если нет реальных тренировок
+      return hasRealTrainings === true;
+    }
+    // Все остальные статусы включаем
+    return true;
+  });
+
   return {
     userCourses,
     totalUsers: userCourses.length,
