@@ -474,17 +474,20 @@ function mergeUserCourses(
     });
   }
 
-  // Финальная фильтрация: исключаем пользователей со статусом NOT_STARTED без реальных тренировок
+  // Финальная фильтрация: исключаем пользователей без реальных тренировок
   const userCourses = Array.from(merged.values()).filter((uc) => {
-    if (uc.status === TrainingStatus.NOT_STARTED) {
-      const hasRealTrainings = trainingSummaryMap?.has(uc.userId) && 
-        trainingSummaryMap.get(uc.userId)?.trainings.some(
-          (t) => t.status !== TrainingStatus.NOT_STARTED
-        );
-      // Исключаем из статистики, если нет реальных тренировок
-      return hasRealTrainings === true;
+    // Проверяем наличие реальных тренировок (не NOT_STARTED)
+    const hasRealTrainings = trainingSummaryMap?.has(uc.userId) && 
+      trainingSummaryMap.get(uc.userId)?.trainings.some(
+        (t) => t.status !== TrainingStatus.NOT_STARTED
+      );
+    
+    // Исключаем из статистики пользователей без реальных тренировок
+    // (независимо от статуса в userCourses)
+    if (!hasRealTrainings) {
+      return false;
     }
-    // Все остальные статусы включаем
+    
     return true;
   });
 
