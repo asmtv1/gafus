@@ -21,6 +21,7 @@ import {
   Refresh as RefreshIcon,
   Schedule as ScheduleIcon,
   PlaylistAddCheck as BulkRetryIcon,
+  Info as InfoIcon,
 } from "@mui/icons-material";
 import { NavigationTabs } from "@shared/components/NavigationTabs";
 import { useQueuesStats } from "@shared/hooks/useQueuesStats";
@@ -50,6 +51,11 @@ export default function QueuesPage() {
   const handleRefreshAll = () => {
     refetchStats();
     refetchJobs();
+  };
+
+  const handleShowAll = () => {
+    setSelectedQueue(undefined);
+    refetchJobs(); // Принудительно обновляем список задач
   };
 
   if (statsLoading) {
@@ -165,9 +171,14 @@ export default function QueuesPage() {
 
         {/* Общая статистика */}
         <Box mb={4}>
-          <Typography variant="h5" fontWeight="bold" mb={2}>
-            Общая статистика
-          </Typography>
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <Typography variant="h5" fontWeight="bold">
+              Общая статистика
+            </Typography>
+            <Tooltip title="Суммарная статистика по всем очередям" arrow>
+              <InfoIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+            </Tooltip>
+          </Box>
           <Card elevation={1}>
             <CardContent>
               <Box
@@ -181,46 +192,56 @@ export default function QueuesPage() {
                   gap: 3,
                 }}
               >
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    В ожидании
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" color="primary">
-                    {stats.totalJobs.waiting}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Активно
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: "#4caf50" }}>
-                    {stats.totalJobs.active}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Завершено
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: "#66bb6a" }}>
-                    {stats.totalJobs.completed}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Ошибки
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" color="error">
-                    {stats.totalJobs.failed}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Отложено
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: "#ff9800" }}>
-                    {stats.totalJobs.delayed}
-                  </Typography>
-                </Box>
+                <Tooltip title="Задачи, ожидающие начала обработки" arrow>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      В ожидании
+                    </Typography>
+                    <Typography variant="h4" fontWeight="bold" color="primary">
+                      {stats.totalJobs.waiting}
+                    </Typography>
+                  </Box>
+                </Tooltip>
+                <Tooltip title="Задачи, которые сейчас обрабатываются" arrow>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Активно
+                    </Typography>
+                    <Typography variant="h4" fontWeight="bold" sx={{ color: "#4caf50" }}>
+                      {stats.totalJobs.active}
+                    </Typography>
+                  </Box>
+                </Tooltip>
+                <Tooltip title="Задачи, которые успешно завершились" arrow>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Завершено
+                    </Typography>
+                    <Typography variant="h4" fontWeight="bold" sx={{ color: "#66bb6a" }}>
+                      {stats.totalJobs.completed}
+                    </Typography>
+                  </Box>
+                </Tooltip>
+                <Tooltip title="Задачи, которые завершились с ошибкой" arrow>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Ошибки
+                    </Typography>
+                    <Typography variant="h4" fontWeight="bold" color="error">
+                      {stats.totalJobs.failed}
+                    </Typography>
+                  </Box>
+                </Tooltip>
+                <Tooltip title="Задачи, отложенные на выполнение в будущем" arrow>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Отложено
+                    </Typography>
+                    <Typography variant="h4" fontWeight="bold" sx={{ color: "#ff9800" }}>
+                      {stats.totalJobs.delayed}
+                    </Typography>
+                  </Box>
+                </Tooltip>
               </Box>
             </CardContent>
           </Card>
@@ -236,7 +257,7 @@ export default function QueuesPage() {
               <Button
                 variant="outlined"
                 size="small"
-                onClick={() => setSelectedQueue(undefined)}
+                onClick={handleShowAll}
               >
                 Показать все
               </Button>
@@ -267,9 +288,31 @@ export default function QueuesPage() {
         {/* Список проблемных задач */}
         <Box mb={4}>
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-            <Typography variant="h5" fontWeight="bold">
-              Проблемные задачи
-            </Typography>
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography variant="h5" fontWeight="bold">
+                Проблемные задачи
+              </Typography>
+              {selectedQueue && (
+                <Chip
+                  label={
+                    selectedQueue === "examCleanup"
+                      ? "Очистка экзаменов"
+                      : selectedQueue === "push"
+                      ? "Push-уведомления"
+                      : selectedQueue === "reengagement"
+                      ? "Re-engagement"
+                      : selectedQueue
+                  }
+                  color="primary"
+                  size="small"
+                  onDelete={handleShowAll}
+                  deleteIcon={<RefreshIcon />}
+                />
+              )}
+              {!selectedQueue && (
+                <Chip label="Все очереди" color="default" size="small" variant="outlined" />
+              )}
+            </Box>
             {selectedQueue && jobs && jobs.jobs.length > 0 && (
               <Button
                 variant="contained"

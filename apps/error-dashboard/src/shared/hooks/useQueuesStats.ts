@@ -8,6 +8,10 @@ interface QueueStats {
   failed: number;
   delayed: number;
   paused: boolean;
+  // Дополнительные метрики из Prometheus
+  throughput?: number; // Задач в секунду
+  averageDuration?: number; // Среднее время обработки в секундах
+  errorRate?: number; // Процент ошибок (0-100)
 }
 
 interface QueuesStatsResponse {

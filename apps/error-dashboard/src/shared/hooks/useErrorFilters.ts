@@ -1,6 +1,6 @@
 "use client";
 
-import { useData, useMutate } from "@gafus/react-query";
+import { useData } from "@gafus/react-query";
 import { getErrorFilters } from "@shared/lib/actions/errorFilters";
 
 import type { ErrorFilters } from "@gafus/types";
@@ -14,7 +14,5 @@ export function useErrorFilters() {
 }
 
 export function useMutateErrorFilters() {
-  const { mutate } = useMutate();
-
   return {};
 }

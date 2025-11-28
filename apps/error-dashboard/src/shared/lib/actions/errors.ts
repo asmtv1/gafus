@@ -38,7 +38,7 @@ export async function reportError(
 
     revalidatePath("/");
     return { success: true, errorId: error.id };
-  } catch (error) {
+  } catch {
     return { success: false, error: "Не удалось сохранить ошибку" };
   }
 }
@@ -73,7 +73,7 @@ export async function getErrors(filters?: {
     });
 
     return { success: true, errors };
-  } catch (error) {
+  } catch {
     return { success: false, error: "Не удалось получить ошибки" };
   }
 }

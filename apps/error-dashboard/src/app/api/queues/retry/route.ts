@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("queues-retry");

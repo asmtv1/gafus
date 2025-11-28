@@ -108,11 +108,13 @@ services:
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${ERROR_DASHBOARD_URL:-https://monitor.gafus.ru}
       - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
+      - PROMETHEUS_URL=${PROMETHEUS_URL:-http://prometheus:9090}
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
     depends_on:
       - postgres
       - redis
+      - prometheus
 
   # Admin Panel
   admin-panel:
@@ -220,6 +222,7 @@ services:
       - error-dashboard
       - admin-panel
       - bull-board
+      - prometheus
 
   # Certbot for SSL certificates
   certbot:
@@ -228,9 +231,79 @@ services:
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru -d api.gafus.ru -d trainer-panel.gafus.ru -d monitor.gafus.ru -d adminka.gafus.ru -d queues.gafus.ru
+    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru -d api.gafus.ru -d trainer-panel.gafus.ru -d monitor.gafus.ru -d adminka.gafus.ru -d queues.gafus.ru -d prometheus.gafus.ru
     depends_on:
       - nginx
 
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gafus-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    depends_on:
+      - node-exporter
+      - postgres-exporter
+      - redis-exporter
+      - blackbox-exporter
+    # Убрали открытые порты - доступ только через Nginx (если нужно)
+
+  # Node Exporter
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: gafus-node-exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    network_mode: host
+    restart: unless-stopped
+    pid: host
+
+  # PostgreSQL Exporter
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: gafus-postgres-exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-gafus}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-gafus}?sslmode=disable
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+  # Redis Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: gafus-redis-exporter
+    environment:
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # Blackbox Exporter для проверки HTTP endpoints (health checks)
+  blackbox-exporter:
+    image: prom/blackbox-exporter:latest
+    container_name: gafus-blackbox-exporter
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+    volumes:
+      - ./blackbox:/etc/blackbox_exporter
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  prometheus_data:

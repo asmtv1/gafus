@@ -65,11 +65,72 @@ try {
 
 // Добавляем health check endpoint
 app.get("/health", (req, res) => {
-  logger.info("Health check requested", {
-    timestamp: new Date().toISOString(),
-    operation: 'health_check'
-  });
+  // Не логируем health checks - они вызываются Prometheus каждые 15 секунд
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Функция для экспорта метрик очереди в формате Prometheus
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function exportQueueMetrics(queueName: string, queue: any): Promise<string> {
+  try {
+    const [waiting, active, completed, failed, delayed, paused] = await Promise.all([
+      queue.getWaitingCount().catch(() => 0),
+      queue.getActiveCount().catch(() => 0),
+      queue.getCompletedCount().catch(() => 0),
+      queue.getFailedCount().catch(() => 0),
+      queue.getDelayedCount().catch(() => 0),
+      queue.isPaused().catch(() => false),
+    ]);
+
+    // Форматируем метрики в формате Prometheus
+    const metrics = [
+      `# HELP bullmq_job_count Number of jobs in the queue by state`,
+      `# TYPE bullmq_job_count gauge`,
+      `bullmq_job_count{queue="${queueName}",state="waiting"} ${waiting}`,
+      `bullmq_job_count{queue="${queueName}",state="active"} ${active}`,
+      `bullmq_job_count{queue="${queueName}",state="completed"} ${completed}`,
+      `bullmq_job_count{queue="${queueName}",state="failed"} ${failed}`,
+      `bullmq_job_count{queue="${queueName}",state="delayed"} ${delayed}`,
+      `bullmq_job_count{queue="${queueName}",state="paused"} ${paused ? 1 : 0}`,
+      `# HELP bullmq_queue_total Total number of jobs in the queue`,
+      `# TYPE bullmq_queue_total gauge`,
+      `bullmq_queue_total{queue="${queueName}"} ${waiting + active + failed + delayed}`,
+    ].join("\n");
+
+    return metrics;
+  } catch (error) {
+    logger.error(`Ошибка при получении метрик для очереди ${queueName}`, error as Error);
+    return `# Error getting metrics for queue ${queueName}: ${error instanceof Error ? error.message : "Unknown error"}\n`;
+  }
+}
+
+// Добавляем Prometheus metrics endpoint
+app.get("/metrics", async (req, res) => {
+  try {
+    // Не логируем metrics requests - Prometheus скрейпит каждые 15 секунд
+
+    // Экспортируем метрики для всех очередей
+    const [pushMetrics, reengagementMetrics, examCleanupMetrics] = await Promise.all([
+      exportQueueMetrics("push", pushQueue),
+      exportQueueMetrics("reengagement", reengagementQueue),
+      exportQueueMetrics("exam-cleanup", examCleanupQueue),
+    ]);
+
+    // Объединяем все метрики
+    const allMetrics = [
+      pushMetrics,
+      reengagementMetrics,
+      examCleanupMetrics,
+    ].filter(Boolean).join("\n\n");
+
+    res.setHeader("Content-Type", "text/plain; version=0.0.4");
+    res.send(allMetrics || "# No metrics available\n");
+  } catch (error) {
+    logger.error("Ошибка при экспорте метрик Prometheus", error as Error, {
+      operation: 'prometheus_metrics'
+    });
+    res.status(500).send(`# Error exporting metrics: ${error instanceof Error ? error.message : "Unknown error"}\n`);
+  }
 });
 
 // Берём порт из env, если нет — ставим 3002

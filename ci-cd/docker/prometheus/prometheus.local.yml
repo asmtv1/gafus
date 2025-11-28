@@ -1,0 +1,73 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'gafus'
+    environment: 'local'
+
+scrape_configs:
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          instance: 'local-machine'
+          job: 'node-exporter'
+
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          instance: 'local-postgres'
+          job: 'postgres-exporter'
+
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          instance: 'local-redis'
+          job: 'redis-exporter'
+
+  # Health checks для сервисов через blackbox_exporter
+  - job_name: 'services-health'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://host.docker.internal:3002/api/health  # Web App (порт 3002!)
+          - http://host.docker.internal:3001/api/health  # Trainer Panel
+          - http://host.docker.internal:3006/api/health  # Admin Panel
+          - http://host.docker.internal:3004/health      # Bull Board (порт 3004!)
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      # Добавляем метку service на основе URL
+      - source_labels: [instance]
+        regex: 'http://host.docker.internal:3002.*'
+        target_label: service
+        replacement: 'web-app'
+      - source_labels: [instance]
+        regex: 'http://host.docker.internal:3001.*'
+        target_label: service
+        replacement: 'trainer-panel'
+      - source_labels: [instance]
+        regex: 'http://host.docker.internal:3006.*'
+        target_label: service
+        replacement: 'admin-panel'
+      - source_labels: [instance]
+        regex: 'http://host.docker.internal:3004.*'
+        target_label: service
+        replacement: 'bull-board'
+
+  # Метрики очередей BullMQ из bull-board
+  - job_name: 'bullmq-queues'
+    static_configs:
+      - targets: ['host.docker.internal:3004']
+        labels:
+          instance: 'local-bull-board'
+          job: 'bullmq-queues'
+

@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "PORT=3004 tsx bull-board.ts",
-    "start": "tsx bull-board.ts",
+    "start": "PORT=3004 tsx bull-board.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
