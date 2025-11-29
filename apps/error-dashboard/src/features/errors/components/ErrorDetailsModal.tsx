@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -12,6 +13,8 @@ import {
   IconButton,
   Paper,
   Alert,
+  Snackbar,
+  Tooltip,
 } from "@mui/material";
 import {
   Close as CloseIcon,
@@ -23,10 +26,99 @@ import {
   Computer as ComputerIcon,
   Schedule as ScheduleIcon,
   OpenInNew as OpenIcon,
+  ContentCopy as CopyIcon,
+  Download as DownloadIcon,
 } from "@mui/icons-material";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { ru } from "date-fns/locale";
 import type { ErrorDashboardReport } from "@gafus/types";
+
+/**
+ * Форматирует ошибку в Markdown для AI-анализа
+ */
+function formatErrorForAI(error: ErrorDashboardReport): string {
+  const lines: string[] = [];
+  
+  lines.push(`# Ошибка: ${error.message}`);
+  lines.push('');
+  lines.push(`**ID:** \`${error.id}\``);
+  lines.push(`**Приложение:** ${error.appName}`);
+  lines.push(`**Окружение:** ${error.environment}`);
+  lines.push(`**Дата:** ${format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}`);
+  lines.push(`**URL:** ${error.url}`);
+  lines.push(`**Статус:** ${error.resolved ? '✅ Решено' : '❌ Не решено'}`);
+  
+  if (error.userId) {
+    lines.push(`**User ID:** \`${error.userId}\``);
+  }
+  
+  if (error.sessionId) {
+    lines.push(`**Session ID:** \`${error.sessionId}\``);
+  }
+  
+  if (error.stack) {
+    lines.push('');
+    lines.push('## Stack Trace');
+    lines.push('```');
+    lines.push(error.stack);
+    lines.push('```');
+  }
+  
+  if (error.componentStack) {
+    lines.push('');
+    lines.push('## Component Stack');
+    lines.push('```');
+    lines.push(error.componentStack);
+    lines.push('```');
+  }
+  
+  if (error.additionalContext) {
+    lines.push('');
+    lines.push('## Дополнительный контекст');
+    lines.push('```json');
+    lines.push(JSON.stringify(error.additionalContext, null, 2));
+    lines.push('```');
+  }
+  
+  if (error.tags && error.tags.length > 0) {
+    lines.push('');
+    lines.push(`## Теги`);
+    lines.push(error.tags.map(tag => `- ${tag}`).join('\n'));
+  }
+  
+  if (error.userAgent) {
+    lines.push('');
+    lines.push('## User Agent');
+    lines.push(`\`${error.userAgent}\``);
+  }
+  
+  return lines.join('\n');
+}
+
+/**
+ * Форматирует ошибку в JSON для экспорта
+ */
+function formatErrorAsJSON(error: ErrorDashboardReport): string {
+  return JSON.stringify({
+    id: error.id,
+    message: error.message,
+    appName: error.appName,
+    environment: error.environment,
+    url: error.url,
+    stack: error.stack,
+    componentStack: error.componentStack,
+    additionalContext: error.additionalContext,
+    tags: error.tags,
+    userId: error.userId,
+    sessionId: error.sessionId,
+    userAgent: error.userAgent,
+    resolved: error.resolved,
+    createdAt: error.createdAt,
+    updatedAt: error.updatedAt,
+    resolvedAt: error.resolvedAt,
+    resolvedBy: error.resolvedBy,
+  }, null, 2);
+}
 
 interface ErrorDetailsModalProps {
   open: boolean;
@@ -34,63 +126,242 @@ interface ErrorDetailsModalProps {
   error: ErrorDashboardReport | null;
 }
 
+/**
+ * Подсвечивает синтаксис в stack trace
+ */
+function highlightStackTrace(stack: string): React.ReactNode {
+  const lines = stack.split('\n');
+  
+  return lines.map((line, index) => {
+    // Подсветка файла и номера строки (например: at Component (file.tsx:123:45))
+    const fileMatch = line.match(/\(([^)]+):(\d+):(\d+)\)/);
+    const atMatch = line.match(/^\s*at\s+/);
+    
+    if (fileMatch) {
+      const [fullMatch, filePath, lineNum, colNum] = fileMatch;
+      const beforeMatch = line.substring(0, line.indexOf(fullMatch));
+      const afterMatch = line.substring(line.indexOf(fullMatch) + fullMatch.length);
+      
+      return (
+        <Box key={index} component="span" sx={{ display: 'block' }}>
+          <Box component="span" sx={{ color: atMatch ? '#a78bfa' : '#e2e8f0' }}>
+            {beforeMatch}
+          </Box>
+          <Box component="span" sx={{ color: '#6b7280' }}>(</Box>
+          <Box component="span" sx={{ color: '#60a5fa' }}>{filePath}</Box>
+          <Box component="span" sx={{ color: '#6b7280' }}>:</Box>
+          <Box component="span" sx={{ color: '#fbbf24' }}>{lineNum}</Box>
+          <Box component="span" sx={{ color: '#6b7280' }}>:</Box>
+          <Box component="span" sx={{ color: '#fbbf24' }}>{colNum}</Box>
+          <Box component="span" sx={{ color: '#6b7280' }}>)</Box>
+          <Box component="span" sx={{ color: '#e2e8f0' }}>{afterMatch}</Box>
+          {'\n'}
+        </Box>
+      );
+    }
+    
+    // Подсветка ошибки в начале (Error: message)
+    if (line.match(/^(Error|TypeError|ReferenceError|SyntaxError|RangeError):/)) {
+      const colonIndex = line.indexOf(':');
+      return (
+        <Box key={index} component="span" sx={{ display: 'block' }}>
+          <Box component="span" sx={{ color: '#f87171', fontWeight: 'bold' }}>
+            {line.substring(0, colonIndex + 1)}
+          </Box>
+          <Box component="span" sx={{ color: '#fca5a5' }}>
+            {line.substring(colonIndex + 1)}
+          </Box>
+          {'\n'}
+        </Box>
+      );
+    }
+    
+    // at Function/Method
+    if (atMatch) {
+      return (
+        <Box key={index} component="span" sx={{ display: 'block' }}>
+          <Box component="span" sx={{ color: '#a78bfa' }}>    at </Box>
+          <Box component="span" sx={{ color: '#34d399' }}>
+            {line.replace(/^\s*at\s+/, '')}
+          </Box>
+          {'\n'}
+        </Box>
+      );
+    }
+    
+    return (
+      <Box key={index} component="span" sx={{ display: 'block', color: '#e2e8f0' }}>
+        {line}
+        {'\n'}
+      </Box>
+    );
+  });
+}
+
+/**
+ * Подсвечивает синтаксис JSON
+ */
+function highlightJSON(json: string): React.ReactNode {
+  // Простая подсветка JSON с помощью regex
+  const highlighted = json
+    .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+    .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+    .replace(/: (\d+)/g, ': <span class="json-number">$1</span>')
+    .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+    .replace(/: (null)/g, ': <span class="json-null">$1</span>');
+  
+  return (
+    <Box
+      component="pre"
+      sx={{
+        '& .json-key': { color: '#60a5fa' },
+        '& .json-string': { color: '#34d399' },
+        '& .json-number': { color: '#fbbf24' },
+        '& .json-boolean': { color: '#a78bfa' },
+        '& .json-null': { color: '#f87171' },
+      }}
+      dangerouslySetInnerHTML={{ __html: highlighted }}
+    />
+  );
+}
+
 // Компоненты для безопасного рендеринга
-function StackTraceSection({ stack }: { stack: unknown }) {
+function StackTraceSection({ stack, onCopy }: { stack: unknown; onCopy?: (text: string) => void }) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  
   if (!stack || typeof stack !== 'string') return null;
   
   return (
-    <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: "#1a1a1a", borderRadius: 2, border: "1px solid #333" }}>
-      <Typography variant="h6" fontWeight="bold" mb={2} color="#fff">
-        📍 Stack Trace
-      </Typography>
-      <Typography 
-        component="pre" 
-        sx={{ 
-          fontFamily: 'monospace', 
-          fontSize: '0.8rem',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          bgcolor: '#1a1a1a',
-          color: '#e2e8f0',
-          p: 2,
-          borderRadius: 1,
-          overflow: 'auto',
-          maxHeight: '400px',
-          border: '1px solid #4a5568'
-        }}
-      >
-        {stack}
-      </Typography>
+    <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: "#0f0f0f", borderRadius: 2, border: "1px solid #333" }}>
+      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+        <Typography 
+          variant="h6" 
+          fontWeight="bold" 
+          color="#fff" 
+          sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1 }}
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          📍 Stack Trace
+          <Chip 
+            label={isExpanded ? "▼" : "▶"} 
+            size="small" 
+            sx={{ bgcolor: '#333', color: '#fff', height: 20, fontSize: '0.7rem' }} 
+          />
+        </Typography>
+        {onCopy && (
+          <Tooltip title="Копировать stack trace">
+            <IconButton 
+              size="small" 
+              onClick={() => onCopy(stack)}
+              sx={{ color: '#9ca3af', '&:hover': { color: '#fff' } }}
+            >
+              <CopyIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+      {isExpanded && (
+        <Box
+          sx={{ 
+            fontFamily: '"JetBrains Mono", "Fira Code", Monaco, Consolas, monospace', 
+            fontSize: '0.75rem',
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            bgcolor: '#0a0a0a',
+            p: 2,
+            borderRadius: 1,
+            overflow: 'auto',
+            maxHeight: '400px',
+            border: '1px solid #2d2d2d'
+          }}
+        >
+          {highlightStackTrace(stack)}
+        </Box>
+      )}
     </Paper>
   );
 }
 
-function ComponentStackSection({ componentStack }: { componentStack: unknown }) {
+function ComponentStackSection({ componentStack, onCopy }: { componentStack: unknown; onCopy?: (text: string) => void }) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  
   if (!componentStack || typeof componentStack !== 'string') return null;
   
+  // Подсветка React компонентов в component stack
+  const highlightComponentStack = (stack: string) => {
+    const lines = stack.split('\n');
+    return lines.map((line, index) => {
+      // Подсвечиваем названия компонентов (в угловых скобках)
+      const componentMatch = line.match(/<([A-Z][a-zA-Z0-9]*)/);
+      if (componentMatch) {
+        const [, componentName] = componentMatch;
+        return (
+          <Box key={index} component="span" sx={{ display: 'block' }}>
+            <Box component="span" sx={{ color: '#6b7280' }}>&lt;</Box>
+            <Box component="span" sx={{ color: '#60a5fa', fontWeight: 'bold' }}>{componentName}</Box>
+            <Box component="span" sx={{ color: '#e2e8f0' }}>{line.substring(line.indexOf(componentName) + componentName.length)}</Box>
+            {'\n'}
+          </Box>
+        );
+      }
+      return (
+        <Box key={index} component="span" sx={{ display: 'block', color: '#a78bfa' }}>
+          {line}
+          {'\n'}
+        </Box>
+      );
+    });
+  };
+  
   return (
-    <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: "#1a1a1a", borderRadius: 2, border: "1px solid #333" }}>
-      <Typography variant="h6" fontWeight="bold" mb={2} color="#fff">
-        🧩 Component Stack
-      </Typography>
-      <Typography 
-        component="pre" 
-        sx={{ 
-          fontFamily: 'monospace', 
-          fontSize: '0.8rem',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          bgcolor: '#1a1a1a',
-          color: '#e2e8f0',
-          p: 2,
-          borderRadius: 1,
-          overflow: 'auto',
-          maxHeight: '400px',
-          border: '1px solid #4a5568'
-        }}
-      >
-        {componentStack}
-      </Typography>
+    <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: "#0f0f0f", borderRadius: 2, border: "1px solid #333" }}>
+      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+        <Typography 
+          variant="h6" 
+          fontWeight="bold" 
+          color="#fff" 
+          sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1 }}
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          🧩 Component Stack
+          <Chip 
+            label={isExpanded ? "▼" : "▶"} 
+            size="small" 
+            sx={{ bgcolor: '#333', color: '#fff', height: 20, fontSize: '0.7rem' }} 
+          />
+        </Typography>
+        {onCopy && (
+          <Tooltip title="Копировать component stack">
+            <IconButton 
+              size="small" 
+              onClick={() => onCopy(componentStack)}
+              sx={{ color: '#9ca3af', '&:hover': { color: '#fff' } }}
+            >
+              <CopyIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+      {isExpanded && (
+        <Box
+          sx={{ 
+            fontFamily: '"JetBrains Mono", "Fira Code", Monaco, Consolas, monospace', 
+            fontSize: '0.75rem',
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            bgcolor: '#0a0a0a',
+            p: 2,
+            borderRadius: 1,
+            overflow: 'auto',
+            maxHeight: '400px',
+            border: '1px solid #2d2d2d'
+          }}
+        >
+          {highlightComponentStack(componentStack)}
+        </Box>
+      )}
     </Paper>
   );
 }
@@ -120,38 +391,189 @@ function UserAgentSection({ userAgent }: { userAgent: unknown }) {
   );
 }
 
-function AdditionalContextSection({ additionalContext }: { additionalContext: unknown }) {
+function AdditionalContextSection({ additionalContext, onCopy }: { additionalContext: unknown; onCopy?: (text: string) => void }) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  
   if (!additionalContext) return null;
   
+  const jsonString = JSON.stringify(additionalContext, null, 2);
+  
+  // Подсветка JSON синтаксиса
+  const renderJsonWithHighlight = (json: string) => {
+    const lines = json.split('\n');
+    return lines.map((line, index) => {
+      // Ключ: "key":
+      let highlighted = line.replace(
+        /"([^"]+)":/g, 
+        '<span style="color: #60a5fa">"$1"</span>:'
+      );
+      // Строковое значение: "value"
+      highlighted = highlighted.replace(
+        /: "([^"]*)"/g, 
+        ': <span style="color: #34d399">"$1"</span>'
+      );
+      // Числовое значение
+      highlighted = highlighted.replace(
+        /: (\d+\.?\d*)/g, 
+        ': <span style="color: #fbbf24">$1</span>'
+      );
+      // Boolean значения
+      highlighted = highlighted.replace(
+        /: (true|false)/g, 
+        ': <span style="color: #a78bfa">$1</span>'
+      );
+      // null
+      highlighted = highlighted.replace(
+        /: (null)/g, 
+        ': <span style="color: #f87171">$1</span>'
+      );
+      
+      return (
+        <Box 
+          key={index} 
+          component="div"
+          sx={{ minHeight: '1.2em' }}
+          dangerouslySetInnerHTML={{ __html: highlighted || '&nbsp;' }}
+        />
+      );
+    });
+  };
+  
   return (
-    <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: "#fef5e7", borderRadius: 2, border: "1px solid #f6e05e" }}>
-      <Typography variant="h6" fontWeight="bold" mb={2} color="#744210">
-        📋 Additional Context
-      </Typography>
-      <Typography 
-        component="pre" 
-        sx={{ 
-          fontFamily: 'Monaco, Consolas, "Courier New", monospace',
-          fontSize: '0.75rem',
-          lineHeight: 1.4,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          bgcolor: '#1a1a1a',
-          color: '#e2e8f0',
-          p: 2,
-          borderRadius: 1,
-          overflow: 'auto',
-          maxHeight: '400px'
-        }}
-      >
-        {JSON.stringify(additionalContext, null, 2)}
-      </Typography>
+    <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: "#1a1a0a", borderRadius: 2, border: "1px solid #3d3d00" }}>
+      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+        <Typography 
+          variant="h6" 
+          fontWeight="bold" 
+          color="#fbbf24" 
+          sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1 }}
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          📋 Additional Context
+          <Chip 
+            label={isExpanded ? "▼" : "▶"} 
+            size="small" 
+            sx={{ bgcolor: '#3d3d00', color: '#fbbf24', height: 20, fontSize: '0.7rem' }} 
+          />
+          <Chip 
+            label={`${Object.keys(additionalContext as object).length} полей`} 
+            size="small" 
+            sx={{ bgcolor: '#3d3d00', color: '#fbbf24', height: 20, fontSize: '0.65rem' }} 
+          />
+        </Typography>
+        {onCopy && (
+          <Tooltip title="Копировать JSON">
+            <IconButton 
+              size="small" 
+              onClick={() => onCopy(jsonString)}
+              sx={{ color: '#9ca3af', '&:hover': { color: '#fbbf24' } }}
+            >
+              <CopyIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+      {isExpanded && (
+        <Box
+          sx={{ 
+            fontFamily: '"JetBrains Mono", "Fira Code", Monaco, Consolas, monospace',
+            fontSize: '0.75rem',
+            lineHeight: 1.5,
+            whiteSpace: 'pre',
+            bgcolor: '#0a0a0a',
+            color: '#e2e8f0',
+            p: 2,
+            borderRadius: 1,
+            overflow: 'auto',
+            maxHeight: '400px',
+            border: '1px solid #2d2d2d'
+          }}
+        >
+          {renderJsonWithHighlight(jsonString)}
+        </Box>
+      )}
     </Paper>
   );
 }
 
 export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetailsModalProps) {
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+
   if (!error) return null;
+
+  const handleCopyForAI = async () => {
+    try {
+      const markdown = formatErrorForAI(error);
+      await navigator.clipboard.writeText(markdown);
+      setSnackbar({ open: true, message: 'Скопировано для AI! Вставьте в чат.', severity: 'success' });
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      setSnackbar({ open: true, message: 'Не удалось скопировать', severity: 'error' });
+    }
+  };
+
+  const handleCopyJSON = async () => {
+    try {
+      const json = formatErrorAsJSON(error);
+      await navigator.clipboard.writeText(json);
+      setSnackbar({ open: true, message: 'JSON скопирован в буфер обмена', severity: 'success' });
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      setSnackbar({ open: true, message: 'Не удалось скопировать JSON', severity: 'error' });
+    }
+  };
+
+  const handleDownloadJSON = () => {
+    try {
+      const json = formatErrorAsJSON(error);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `error-${error.id}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setSnackbar({ open: true, message: 'JSON файл скачан', severity: 'success' });
+    } catch (err) {
+      console.error('Failed to download:', err);
+      setSnackbar({ open: true, message: 'Не удалось скачать файл', severity: 'error' });
+    }
+  };
+
+  const handleDownloadMarkdown = () => {
+    try {
+      const markdown = formatErrorForAI(error);
+      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `error-${error.id}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setSnackbar({ open: true, message: 'Markdown файл скачан', severity: 'success' });
+    } catch (err) {
+      console.error('Failed to download:', err);
+      setSnackbar({ open: true, message: 'Не удалось скачать файл', severity: 'error' });
+    }
+  };
+
+  const handleCopyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setSnackbar({ open: true, message: 'Скопировано в буфер обмена', severity: 'success' });
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      setSnackbar({ open: true, message: 'Не удалось скопировать', severity: 'error' });
+    }
+  };
 
   const getSeverityIcon = (message: string) => {
     const lowerMessage = message.toLowerCase();
@@ -325,16 +747,16 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
 
 
         {/* Stack Trace */}
-        <StackTraceSection stack={error.stack} />
+        <StackTraceSection stack={error.stack} onCopy={handleCopyText} />
 
         {/* Component Stack */}
-        <ComponentStackSection componentStack={error.componentStack} />
+        <ComponentStackSection componentStack={error.componentStack} onCopy={handleCopyText} />
 
         {/* User Agent */}
         <UserAgentSection userAgent={error.userAgent} />
 
         {/* Additional Context */}
-        <AdditionalContextSection additionalContext={error.additionalContext} />
+        <AdditionalContextSection additionalContext={error.additionalContext} onCopy={handleCopyText} />
 
         {/* Полная информация о времени */}
         <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: "#edf2f7", borderRadius: 2, border: "1px solid #cbd5e0" }}>
@@ -538,18 +960,82 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 3, pt: 0 }}>
-        <Button onClick={onClose} variant="outlined">
-          Закрыть
-        </Button>
-        <Button 
-          onClick={() => window.open(error.url, '_blank')} 
-          variant="contained"
-          startIcon={<OpenIcon />}
-        >
-          Открыть в новой вкладке
-        </Button>
+      <DialogActions sx={{ p: 3, pt: 0, flexWrap: 'wrap', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', flex: 1 }}>
+          <Tooltip title="Копировать в формате Markdown для вставки в AI чат">
+            <Button 
+              onClick={handleCopyForAI} 
+              variant="contained"
+              color="secondary"
+              startIcon={<CopyIcon />}
+              sx={{ 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                '&:hover': { background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)' }
+              }}
+            >
+              Копировать для AI
+            </Button>
+          </Tooltip>
+          
+          <Tooltip title="Копировать как JSON">
+            <Button 
+              onClick={handleCopyJSON} 
+              variant="outlined"
+              startIcon={<CopyIcon />}
+            >
+              JSON
+            </Button>
+          </Tooltip>
+          
+          <Tooltip title="Скачать как JSON файл">
+            <Button 
+              onClick={handleDownloadJSON} 
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+            >
+              Скачать JSON
+            </Button>
+          </Tooltip>
+          
+          <Tooltip title="Скачать как Markdown файл">
+            <Button 
+              onClick={handleDownloadMarkdown} 
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+            >
+              Скачать MD
+            </Button>
+          </Tooltip>
+        </Box>
+        
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button onClick={onClose} variant="outlined">
+            Закрыть
+          </Button>
+          <Button 
+            onClick={() => window.open(error.url, '_blank')} 
+            variant="contained"
+            startIcon={<OpenIcon />}
+          >
+            Открыть URL
+          </Button>
+        </Box>
       </DialogActions>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 }

@@ -1,9 +1,10 @@
 {
   "name": "@gafus/error-handling",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "description": "React Error Boundaries для приложений GAFUS",
+  "main": "dist/error-handling/src/index.js",
+  "types": "dist/error-handling/src/index.d.ts",
   "scripts": {
     "clean": "rimraf dist",
     "build": "tsc",
@@ -11,7 +12,6 @@
   },
   "dependencies": {
     "@gafus/logger": "workspace:*",
-    "next": "15.4.7",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
@@ -23,7 +23,6 @@
     "typescript": "^5.8.3"
   },
   "peerDependencies": {
-    "next": "15.4.7",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   }

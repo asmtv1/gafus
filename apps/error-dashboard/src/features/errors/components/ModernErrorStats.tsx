@@ -5,7 +5,6 @@ import {
   CardContent, 
   Typography, 
   Box, 
-  LinearProgress,
   CircularProgress,
   Alert,
   Chip,
@@ -22,8 +21,6 @@ import {
   Info as InfoIcon
 } from "@mui/icons-material";
 import { useErrorStats } from "@shared/hooks/useErrorStats";
-import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
 
 interface StatCardProps {
   title: string;
@@ -154,8 +151,10 @@ function ModernErrorStats() {
   }
 
   const { total, unresolved } = stats.stats;
+  // Вычисляем resolved из total - unresolved
   const resolvedCount = total - unresolved;
-  const resolvedPercentage = total > 0 ? (resolvedCount / total) * 100 : 0;
+  // Если total === 0, значит нет ошибок - здоровье системы 100%
+  const resolvedPercentage = total > 0 ? (resolvedCount / total) * 100 : 100;
   const critical = Math.floor(unresolved * 0.2); // Примерно 20% от нерешенных - критические
   const criticalPercentage = total > 0 ? (critical / total) * 100 : 0;
 
@@ -243,51 +242,6 @@ function ModernErrorStats() {
           <StatCard key={index} {...stat} />
         ))}
       </Box>
-
-      {/* Прогресс-бар общего здоровья системы */}
-      <Card sx={{ mt: 3 }}>
-        <CardContent>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-            <Typography variant="h6" fontWeight="bold">
-              Здоровье системы
-            </Typography>
-            <Chip 
-              label={`${(100 - (unresolved / total) * 100).toFixed(1)}%`}
-              color={resolvedPercentage > 80 ? "success" : resolvedPercentage > 60 ? "warning" : "error"}
-              variant="outlined"
-            />
-          </Box>
-          
-          <LinearProgress
-            variant="determinate"
-            value={resolvedPercentage}
-            sx={{
-              height: 8,
-              borderRadius: 4,
-              bgcolor: 'grey.200',
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 4,
-                background: `linear-gradient(90deg, ${
-                  resolvedPercentage > 80 ? '#4caf50' : 
-                  resolvedPercentage > 60 ? '#ff9800' : '#f44336'
-                } 0%, ${
-                  resolvedPercentage > 80 ? '#8bc34a' : 
-                  resolvedPercentage > 60 ? '#ffc107' : '#e91e63'
-                } 100%)`
-              }
-            }}
-          />
-          
-          <Box display="flex" justifyContent="space-between" mt={1}>
-            <Typography variant="body2" color="text.secondary">
-              Последнее обновление: {formatDistanceToNow(new Date(), { addSuffix: true, locale: ru })}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {resolvedCount} из {total} ошибок разрешено
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
     </Box>
   );
 }

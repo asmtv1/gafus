@@ -159,7 +159,7 @@ export default function SystemStatusPage() {
           <Typography variant="h5" fontWeight="bold" mb={2}>
             Системные ресурсы
           </Typography>
-          <SystemMetricsCard metrics={data.metrics} />
+          <SystemMetricsCard metrics={data.metrics} error={data.metricsError} />
         </Box>
 
         {/* Статус баз данных */}

@@ -1,6 +1,3 @@
-import "next-auth";
-import "next-auth/jwt";
-
 export type AuthRole = "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
 export interface AuthUser {
   id: string;
@@ -14,6 +11,7 @@ declare module "next-auth" {
       id: string;
       username: string;
       role: AuthRole;
+      avatarUrl?: string | null;
     } & import("next-auth").DefaultSession["user"];
   }
 

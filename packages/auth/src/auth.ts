@@ -2,35 +2,8 @@ import { prisma } from "@gafus/prisma";
 import bcrypt from "bcryptjs";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-type AuthRole = "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
-interface AuthUser { id: string; username: string; role: AuthRole }
-import type { DefaultSession, NextAuthOptions, SessionStrategy } from "next-auth";
-
-// Расширяем типы NextAuth для пользовательских полей
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      username: string;
-      role: AuthUser["role"];
-      avatarUrl?: string | null;
-    } & DefaultSession["user"];
-  }
-
-  interface User {
-    id: string;
-    username: string;
-    role: AuthUser["role"];
-  }
-}
-
-declare module "next-auth/jwt" {
-  interface JWT {
-    id: string;
-    username: string;
-    role: AuthUser["role"];
-  }
-}
+import type { NextAuthOptions } from "next-auth";
+import type { AuthUser } from "./next-auth.d";
 
 // Импортируем CredentialsProvider напрямую
 

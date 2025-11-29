@@ -1,23 +1,20 @@
 "use client";
 
-import { ErrorReporter } from "./ErrorReporter";
-import { createWebLogger } from "@gafus/logger";
-
-import type { ErrorBoundaryConfig } from "@gafus/types";
+import { ErrorReporter, createWebLogger, type ErrorReporterConfig } from "@gafus/logger";
 
 // Создаем логгер для клиентской части
 const logger = createWebLogger('web-global-error-handler');
 
 let globalErrorReporter: ErrorReporter | null = null;
 
-const defaultConfig: ErrorBoundaryConfig = {
+const defaultConfig: ErrorReporterConfig = {
   appName: "web-global-handler",
   environment: process.env.NODE_ENV === "production" ? "production" : "development",
   logToConsole: true,
   showErrorDetails: process.env.NODE_ENV === "development",
 };
 
-export function setupGlobalErrorHandling(config?: Partial<ErrorBoundaryConfig>) {
+export function setupGlobalErrorHandling(config?: Partial<ErrorReporterConfig>) {
   if (typeof window === "undefined") {
     return;
   }

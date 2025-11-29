@@ -90,6 +90,7 @@ const nextConfig = {
       "@gafus/error-handling": _path.resolve(__dirname, "../../packages/error-handling/dist/error-handling/src"),
       "@gafus/prisma": _path.resolve(__dirname, "../../packages/prisma/dist"),
       "@gafus/webpush": _path.resolve(__dirname, "../../packages/webpush/dist"),
+      "@gafus/logger": _path.resolve(__dirname, "../../packages/logger/dist"),
     };
 
     // Исправляем проблемы с standalone сборкой и clientReferenceManifest

@@ -1,8 +1,9 @@
-import { Card, CardContent, Box, Typography, LinearProgress, Divider } from "@mui/material";
+import { Card, CardContent, Box, Typography, LinearProgress, Divider, Alert } from "@mui/material";
 import {
   Memory as MemoryIcon,
   Speed as CpuIcon,
   AccessTime as UptimeIcon,
+  Warning as WarningIcon,
 } from "@mui/icons-material";
 
 interface SystemMetrics {
@@ -21,7 +22,8 @@ interface SystemMetrics {
 }
 
 interface SystemMetricsCardProps {
-  metrics: SystemMetrics;
+  metrics?: SystemMetrics;
+  error?: string;
 }
 
 // Форматирование байтов в читаемый формат
@@ -47,7 +49,40 @@ function formatUptime(seconds: number): string {
   return parts.join(" ") || "< 1м";
 }
 
-export function SystemMetricsCard({ metrics }: SystemMetricsCardProps) {
+export function SystemMetricsCard({ metrics, error }: SystemMetricsCardProps) {
+  // Если метрики недоступны, показываем предупреждение
+  if (!metrics) {
+    return (
+      <Card
+        elevation={1}
+        sx={{
+          height: "100%",
+          border: "2px solid #ff9800",
+          bgcolor: "#fff3e0",
+          transition: "all 0.3s ease",
+        }}
+      >
+        <CardContent>
+          <Typography variant="h6" fontWeight="bold" mb={2}>
+            Системные метрики
+          </Typography>
+          <Alert
+            severity="warning"
+            icon={<WarningIcon />}
+            sx={{ mt: 2 }}
+          >
+            <Typography variant="body2" fontWeight="medium" mb={1}>
+              Метрики недоступны
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {error || "Не удалось получить метрики из Prometheus. Проверьте подключение к серверу мониторинга."}
+            </Typography>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const memoryPercentage = metrics.memory.percentage;
   const memoryColor =
     memoryPercentage < 70 ? "#4caf50" : memoryPercentage < 85 ? "#ff9800" : "#f44336";

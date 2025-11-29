@@ -3,8 +3,22 @@
  */
 
 // Определяем URL Prometheus с учетом окружения
-// Используем переменную из .env или дефолтное значение
-const PROMETHEUS_URL = process.env.PROMETHEUS_URL || "http://localhost:9090";
+// В production используем имя Docker сервиса, в development - localhost
+function getPrometheusUrl(): string {
+  if (process.env.PROMETHEUS_URL) {
+    return process.env.PROMETHEUS_URL;
+  }
+  
+  // В production используем имя Docker сервиса
+  if (process.env.NODE_ENV === "production") {
+    return "http://prometheus:9090";
+  }
+  
+  // В development используем localhost
+  return "http://localhost:9090";
+}
+
+const PROMETHEUS_URL = getPrometheusUrl();
 
 interface PrometheusQueryResponse {
   status: string;
@@ -44,7 +58,7 @@ async function queryPrometheus(query: string): Promise<PrometheusQueryResult[]> 
       },
     });
   } catch (error) {
-    const errorMsg = `Failed to connect to Prometheus at ${PROMETHEUS_URL}: ${error instanceof Error ? error.message : "Unknown error"}`;
+    const errorMsg = `Failed to connect to Prometheus at ${PROMETHEUS_URL} (NODE_ENV: ${process.env.NODE_ENV || "undefined"}): ${error instanceof Error ? error.message : "Unknown error"}`;
     if (process.env.NODE_ENV === "development") {
       console.error("[Prometheus] Connection error:", errorMsg);
     }
@@ -78,7 +92,7 @@ async function querySingleValue(query: string): Promise<number> {
   const results = await queryPrometheus(query);
   if (results.length === 0) {
     // Более детальная ошибка для диагностики
-    const errorMsg = `No results for query: ${query}. Prometheus URL: ${PROMETHEUS_URL}. Проверьте, что метрика существует и Prometheus собирает данные.`;
+    const errorMsg = `No results for query: ${query}. Prometheus URL: ${PROMETHEUS_URL} (NODE_ENV: ${process.env.NODE_ENV || "undefined"}). Проверьте, что метрика существует и Prometheus собирает данные.`;
     if (process.env.NODE_ENV === "development") {
       console.error("[Prometheus] Query failed:", errorMsg);
       // Попробуем получить список доступных метрик для диагностики
@@ -726,5 +740,31 @@ export async function getQueuesMetricsFromPrometheus(): Promise<QueueMetrics[]> 
 /**
  * Экспорт функции для выполнения произвольных PromQL запросов
  */
+/**
+ * Интерфейс для метрик ошибок из Prometheus
+ */
+export interface ErrorMetricsFromPrometheus {
+  total: number; // Общее количество ошибок
+  byApp: { app: string; count: number }[]; // Ошибки по приложениям
+  byType: { type: string; count: number }[]; // Ошибки по типам
+  errorRate: number; // Количество ошибок в секунду за последние 5 минут
+  byAppAndType: { app: string; type: string; count: number }[]; // Ошибки по приложениям и типам
+}
+
+/**
+ * Получить метрики ошибок
+ * @deprecated Prometheus метрики удалены. Используйте статистику из базы данных.
+ */
+export async function getErrorMetricsFromPrometheus(): Promise<ErrorMetricsFromPrometheus> {
+  // Prometheus метрики удалены - возвращаем пустые данные
+  return {
+    total: 0,
+    byApp: [],
+    byType: [],
+    errorRate: 0,
+    byAppAndType: [],
+  };
+}
+
 export { queryPrometheus, querySingleValue };
 

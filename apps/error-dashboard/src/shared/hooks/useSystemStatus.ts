@@ -38,7 +38,8 @@ interface SystemStatusResponse {
   timestamp: string;
   services: ServiceStatus[];
   databases: DatabaseStatus[];
-  metrics: SystemMetrics;
+  metrics?: SystemMetrics;
+  metricsError?: string;
 }
 
 async function fetchSystemStatus(): Promise<SystemStatusResponse> {

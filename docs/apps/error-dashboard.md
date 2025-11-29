@@ -531,38 +531,28 @@ function BulkRetryButton({ queueName }: { queueName: string }) {
 ## 🖥️ Мониторинг системы
 
 ### Статус сервисов
+
+Мониторинг статуса сервисов выполняется через прямые HTTP health-check запросы к каждому сервису.
+
 ```typescript
 // API endpoint для получения статуса системы
 // app/api/system-status/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@gafus/prisma";
-import { connection as redisConnection } from "@gafus/queues";
 
 export async function GET() {
   try {
-    // Проверка статуса всех сервисов
+    // Проверяем статус сервисов через health endpoints
     const [webStatus, trainerStatus, adminStatus, bullBoardStatus] = 
       await Promise.all([
-        checkServiceStatus("Web App", "http://localhost:3000/api/health"),
-        checkServiceStatus("Trainer Panel", "http://localhost:3001/api/health"),
-        checkServiceStatus("Admin Panel", "http://localhost:3002/api/health"),
-        checkServiceStatus("Bull Board", "http://localhost:3006/health"),
+        checkServiceHealth("Web App", "http://web:3000/api/health"),
+        checkServiceHealth("Trainer Panel", "http://trainer-panel:3001/api/health"),
+        checkServiceHealth("Admin Panel", "http://admin-panel:3006/api/health"),
+        checkServiceHealth("Bull Board", "http://bull-board:3002/health"),
       ]);
-
-    // Проверка баз данных
-    const [postgresStatus, redisStatus] = await Promise.all([
-      checkPostgresStatus(),
-      checkRedisStatus(),
-    ]);
-
-    // Системные метрики
-    const metrics = getSystemMetrics();
 
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       services: [webStatus, trainerStatus, adminStatus, bullBoardStatus],
-      databases: [postgresStatus, redisStatus],
-      metrics,
     });
   } catch (error) {
     return NextResponse.json(
@@ -726,6 +716,71 @@ function validateErrorReport(data: unknown) {
 ```
 
 ## 🧪 Тестирование
+
+### Генерация тестовых ошибок
+
+Для проверки работы error-dashboard можно сгенерировать тестовые ошибки из всех приложений и пакетов.
+
+#### Универсальный скрипт
+
+Используйте универсальный скрипт для генерации ошибок:
+
+```bash
+# Все тесты (все приложения и пакеты)
+pnpm test:errors
+
+# Конкретный тест
+node scripts/generate-test-errors.js web
+node scripts/generate-test-errors.js logger
+node scripts/generate-test-errors.js auth
+
+# Список доступных тестов
+node scripts/generate-test-errors.js --help
+```
+
+#### Доступные тесты
+
+- `logger` - ошибки из пакета logger
+- `error-handling` - ошибки из пакета error-handling
+- `auth` - ошибки аутентификации
+- `prisma` - ошибки базы данных
+- `queues` - ошибки очередей
+- `webpush` - ошибки push-уведомлений
+- `csrf` - ошибки CSRF защиты
+- `types` - ошибки типов
+- `react-query` - ошибки React Query
+- `web` - ошибки web приложения
+- `trainer-panel` - ошибки trainer panel
+- `telegram-bot` - ошибки telegram бота
+- `bull-board` - ошибки bull board
+
+#### Индивидуальные тесты
+
+Каждый пакет/приложение имеет свой тестовый скрипт:
+
+```bash
+# Logger
+node packages/logger/test-error-dashboard.js
+
+# Error Handling
+node packages/error-handling/test-error-handling-error-dashboard.js
+
+# Web приложение
+node apps/web/test-web-error-dashboard.js
+
+# Trainer Panel
+node apps/trainer-panel/test-trainer-panel-error-dashboard.js
+```
+
+#### Проверка результатов
+
+После запуска тестов проверьте error-dashboard:
+
+- **Главная страница**: http://localhost:3001
+- **Push Logs**: http://localhost:3001/push-logs
+- **Статистика**: http://localhost:3001/stats
+
+Ошибки появятся в соответствующих разделах с тегами и контекстом.
 
 ### Unit тесты
 ```typescript

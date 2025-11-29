@@ -66,7 +66,7 @@ export default function TrainingReminders() {
     }
 
     try {
-      const name = `Напоминание ${reminders.length + 1}`;
+      const name = `задай название ${reminders.length + 1}`;
       const result = await createTrainingReminder(
         name,
         DEFAULT_TIME,

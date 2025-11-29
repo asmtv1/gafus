@@ -54,19 +54,20 @@ export default function ErrorFilters() {
     };
     setFilters(newFilters);
 
-    // Обновляем URL
+    // Обновляем URL без перезагрузки страницы
     const params = new URLSearchParams();
     if (newLocalFilters.app) params.set("app", newLocalFilters.app);
     if (newLocalFilters.environment) params.set("env", newLocalFilters.environment);
     if (newLocalFilters.resolved) params.set("resolved", newLocalFilters.resolved);
 
-    router.push(`/?${params.toString()}`);
+    const newUrl = params.toString() ? `/?${params.toString()}` : "/";
+    router.push(newUrl, { scroll: false });
   };
 
   const clearFilters = () => {
     setLocalFilters({ app: "", environment: "", resolved: "" });
     setFilters({});
-    router.push("/");
+    router.push("/", { scroll: false });
   };
 
   const hasActiveFilters = localFilters.app || localFilters.environment || localFilters.resolved;

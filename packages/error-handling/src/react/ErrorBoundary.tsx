@@ -2,25 +2,10 @@
 
 import type { ReactNode } from "react";
 import React, { Component } from "react";
-import { ErrorReporter } from "../core/ErrorReporter";
+import { ErrorReporter, type ErrorInfo, type ErrorReporterConfig } from "@gafus/logger";
 
-// Локальный интерфейс для ErrorInfo
-interface ErrorInfo {
-  componentStack: string;
-  errorBoundaryName: string;
-  appName: string;
-  userId?: string;
-  sessionId?: string;
-  url: string;
-  userAgent: string;
-  timestamp: number;
-}
-
-export interface ErrorBoundaryConfig {
-  appName: string;
-  environment?: string;
-  logToConsole?: boolean;
-  showErrorDetails?: boolean;
+export interface ErrorBoundaryConfig extends ErrorReporterConfig {
+  // Расширяем базовую конфигурацию для React специфики
 }
 
 export interface ErrorBoundaryProps {
@@ -59,7 +44,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.errorReporter = new ErrorReporter(defaultConfig);
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error, errorInfo: null };
   }
 
@@ -132,7 +117,6 @@ interface ErrorFallbackUIProps {
 
 function ErrorFallbackUI({
   onReset,
-
   appName,
 }: ErrorFallbackUIProps) {
   const getAppSpecificMessage = (appName?: string) => {

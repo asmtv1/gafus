@@ -41,7 +41,7 @@ const nextConfig: NextConfig = {
       "@gafus/csrf": path.resolve(__dirname, "../../packages/csrf/src"),
       "@gafus/error-handling": path.resolve(__dirname, "../../packages/error-handling/src"),
       "@gafus/prisma": path.resolve(__dirname, "../../packages/prisma/src"),
-      "@gafus/logger": path.resolve(__dirname, "../../packages/logger/src"),
+      "@gafus/logger": path.resolve(__dirname, "../../packages/logger/dist"),
       "@gafus/ui-components": path.resolve(__dirname, "../../packages/ui-components/src"),
     };
 

@@ -84,7 +84,8 @@ interface SystemStatusResponse {
   timestamp: string;
   services: ServiceStatus[];
   databases: DatabaseStatus[];
-  metrics: SystemMetrics;
+  metrics?: SystemMetrics;
+  metricsError?: string;
 }
 
 // Преобразование метрик сервиса из Prometheus в формат UI
@@ -243,7 +244,8 @@ export async function GET() {
         });
 
     // Получаем системные метрики из Prometheus
-    let metrics: SystemMetrics;
+    let metrics: SystemMetrics | undefined;
+    let metricsError: string | undefined;
     try {
       logger.info("Получение метрик из Prometheus", { 
         prometheusUrl: process.env.PROMETHEUS_URL || "не установлен",
@@ -255,23 +257,22 @@ export async function GET() {
         memoryTotalGB: (metrics.memory.total / 1024 / 1024 / 1024).toFixed(2)
       });
     } catch (error) {
-      logger.error("Ошибка получения метрик из Prometheus", error as Error, {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      logger.warn("Ошибка получения метрик из Prometheus, возвращаем частичные данные", {
+        error: errorMessage,
+        errorStack: error instanceof Error ? error.stack : undefined,
         prometheusUrl: process.env.PROMETHEUS_URL || "не установлен"
       });
-      return NextResponse.json(
-        {
-          error: "Failed to get system metrics from Prometheus",
-          message: error instanceof Error ? error.message : "Unknown error",
-        },
-        { status: 503 }
-      );
+      metricsError = errorMessage;
+      // Не возвращаем ошибку 503, продолжаем с частичными данными
     }
 
     const response: SystemStatusResponse = {
       timestamp: new Date().toISOString(),
       services: [webStatus, trainerStatus, adminStatus, bullBoardStatus],
       databases: [postgresStatus, redisStatus],
-      metrics,
+      ...(metrics && { metrics }),
+      ...(metricsError && { metricsError }),
     };
 
     logger.success("Статус системы получен успешно");

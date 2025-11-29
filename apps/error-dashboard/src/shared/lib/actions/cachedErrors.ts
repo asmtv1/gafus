@@ -10,6 +10,7 @@ export const getErrorsCached = unstable_cache(
     appName?: string;
     environment?: string;
     resolved?: boolean;
+    type?: "errors" | "logs" | "all";
     limit?: number;
     offset?: number;
   }) => {

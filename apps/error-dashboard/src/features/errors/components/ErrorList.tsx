@@ -15,6 +15,8 @@ import {
   CircularProgress,
   Card,
   CardContent,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { DataGrid, GridActionsCellItem } from "@mui/x-data-grid";
 import { useErrors, useErrorsMutation } from "@shared/hooks/useErrors";
@@ -35,9 +37,17 @@ interface ErrorListProps {
 }
 
 export default function ErrorList({ filters = {} }: ErrorListProps) {
+  const [tabValue, setTabValue] = useState<"errors" | "logs">("errors");
   // Используем TanStack Query для загрузки ошибок
-  const { data: errors, error, isLoading } = useErrors(filters);
+  const { data: errors, error, isLoading } = useErrors({
+    ...filters,
+    type: tabValue,
+  });
   const { invalidateErrors } = useErrorsMutation();
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: "errors" | "logs") => {
+    setTabValue(newValue);
+  };
 
   // Вспомогательная функция для проверки additionalContext
   const hasAdditionalContext = (error: ErrorDashboardReport): boolean => {
@@ -72,7 +82,7 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
         setSelectedError(null);
         setResolveNote("");
         // Инвалидируем кэш для обновления данных
-        invalidateErrors();
+        invalidateErrors({ ...filters, type: tabValue });
       } else {
         setActionError(result.error || "Не удалось разрешить ошибку");
       }
@@ -91,7 +101,7 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
       const result = await deleteError(id);
       if (result.success) {
         // Инвалидируем кэш для обновления данных
-        invalidateErrors();
+        invalidateErrors({ ...filters, type: tabValue });
       } else {
         setActionError(result.error || "Не удалось удалить ошибку");
       }
@@ -259,10 +269,23 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
     <>
       <Card>
         <CardContent>
-          <Box display="flex" alignItems="center" mb={2}>
-            <BugReport sx={{ mr: 1 }} />
-            <Typography variant="h6">Список ошибок</Typography>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+            <Box display="flex" alignItems="center">
+              <BugReport sx={{ mr: 1 }} />
+              <Typography variant="h6">
+                {tabValue === "errors" ? "Список ошибок" : "Список логов"}
+              </Typography>
+            </Box>
           </Box>
+
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange}
+            sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+          >
+            <Tab label="Ошибки" value="errors" />
+            <Tab label="Логи" value="logs" />
+          </Tabs>
 
           {actionError && (
             <Alert severity="error" sx={{ mb: 2 }}>

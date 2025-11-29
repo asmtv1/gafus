@@ -1,3 +1,4 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 interface WebpackConfig {
@@ -49,6 +50,12 @@ const nextConfig: NextConfig = {
 
   // Webpack конфигурация для создания dummy файла worker.js
   webpack: (config: WebpackConfig, { isServer }: { isServer: boolean }) => {
+    // Разрешаем workspace зависимости
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@gafus/logger": path.resolve(__dirname, "../../packages/logger/dist"),
+    };
+
     // Webpack плагин для создания dummy файла lib/worker.js
     config.plugins = config.plugins || [];
     config.plugins.push({

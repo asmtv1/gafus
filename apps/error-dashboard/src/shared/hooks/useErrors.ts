@@ -11,6 +11,7 @@ export function useErrors(filters?: {
   appName?: string;
   environment?: string;
   resolved?: boolean;
+  type?: "errors" | "logs" | "all";
   limit?: number;
   offset?: number;
 }) {
@@ -39,6 +40,7 @@ export function useErrorsMutation() {
     appName?: string;
     environment?: string;
     resolved?: boolean;
+    type?: "errors" | "logs" | "all";
     limit?: number;
     offset?: number;
   }) => {

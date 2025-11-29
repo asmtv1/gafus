@@ -1,24 +1,30 @@
-// Локальный интерфейс для ErrorInfo
-interface ErrorInfo {
-  componentStack: string;
-  errorBoundaryName: string;
+import type { LogMeta } from './logger-types';
+import { LoggerFactory } from './LoggerFactory';
+
+/**
+ * Информация об ошибке для отправки
+ */
+export interface ErrorInfo {
+  componentStack?: string;
+  errorBoundaryName?: string;
   appName: string;
   url: string;
   userAgent: string;
   timestamp: number;
   userId?: string;
   sessionId?: string;
+  additionalContext?: Record<string, unknown>;
 }
 
-// Локальный интерфейс для конфигурации
-interface ErrorReporterConfig {
+/**
+ * Конфигурация ErrorReporter
+ */
+export interface ErrorReporterConfig {
   appName: string;
   environment?: string;
   logToConsole?: boolean;
   showErrorDetails?: boolean;
 }
-
-import { createLogger } from './logger';
 
 /**
  * Базовый класс для отчетности об ошибках
@@ -27,18 +33,23 @@ import { createLogger } from './logger';
 export class ErrorReporter {
   private config: ErrorReporterConfig;
   private dashboardUrl: string;
-  private logger: ReturnType<typeof createLogger>;
+  private logger: ReturnType<typeof LoggerFactory.createLogger>;
 
   constructor(config: ErrorReporterConfig) {
     this.config = config;
     // URL дашборда ошибок - можно настроить через переменные окружения
-    // В production используем HTTPS URL, в dev - localhost
     const defaultUrl = config.environment === 'production'
       ? 'https://monitor.gafus.ru'
       : 'http://errors.gafus.localhost';
     this.dashboardUrl = process.env.ERROR_DASHBOARD_URL || defaultUrl;
-    // Создаем логгер для error-handling
-    this.logger = createLogger(`error-handling-${config.appName}`, config.environment);
+    
+    // Создаем логгер без отправки в error-dashboard чтобы избежать рекурсии
+    this.logger = LoggerFactory.createLogger({
+      appName: `error-reporter-${config.appName}`,
+      context: 'error-reporter',
+      enableErrorDashboard: false,
+      enableConsole: config.logToConsole,
+    });
   }
 
   /**
@@ -96,10 +107,8 @@ export class ErrorReporter {
       ...errorInfo,
     };
 
-    // Добавляем дополнительный контекст если есть
     if (additionalContext) {
-      (baseInfo as ErrorInfo & { additionalContext: Record<string, unknown> }).additionalContext =
-        additionalContext;
+      baseInfo.additionalContext = additionalContext;
     }
 
     return baseInfo;
@@ -135,14 +144,15 @@ export class ErrorReporter {
    * Логирование в консоль
    */
   private logToConsole(error: Error, errorInfo: ErrorInfo): void {
-    this.logger.error(`Ошибка в ${this.config.appName}`, error, {
+    const meta: LogMeta = {
       componentStack: errorInfo.componentStack,
       errorBoundaryName: errorInfo.errorBoundaryName,
       url: errorInfo.url,
       userAgent: errorInfo.userAgent,
       userId: errorInfo.userId,
       sessionId: errorInfo.sessionId
-    });
+    };
+    this.logger.error(`Ошибка в ${this.config.appName}`, error, meta);
   }
 
   /**
@@ -181,4 +191,12 @@ export class ErrorReporter {
       });
     }
   }
+
+  /**
+   * Обновление конфигурации
+   */
+  updateConfig(newConfig: Partial<ErrorReporterConfig>): void {
+    this.config = { ...this.config, ...newConfig };
+  }
 }
+
