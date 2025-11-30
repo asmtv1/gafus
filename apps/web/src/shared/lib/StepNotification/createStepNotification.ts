@@ -19,13 +19,31 @@ async function logToErrorDashboard(
       : 'http://errors.gafus.localhost:3005';
     const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || defaultUrl;
 
+    // Извлекаем notificationId и endpoint из meta
+    const notificationId = meta?.notificationId as string | undefined;
+    const endpoint = meta?.endpoint as string | undefined;
+    
+    // Формируем правильный формат для push-logs endpoint
     const logEntry = {
       message,
-      level,
       context: "step-notification",
       service: "training",
+      level,
+      timestamp: meta?.timestamp as string || new Date().toISOString(),
+      notificationId,
+      endpoint,
+      appName: "web",
+      environment: process.env.NODE_ENV || "development",
       additionalContext: {
         ...meta,
+        pushSpecific: {
+          context: "step-notification",
+          service: "training",
+          level,
+          timestamp: meta?.timestamp as string || new Date().toISOString(),
+          notificationId,
+          endpoint,
+        },
       },
       tags: ["step-notification", "push-subscription", level],
     };

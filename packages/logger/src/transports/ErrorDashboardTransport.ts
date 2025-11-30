@@ -36,10 +36,15 @@ export class ErrorDashboardTransport {
    */
   private async sendLog(logEntry: ErrorDashboardLogEntry): Promise<void> {
     try {
+      // Нормализуем URL - убираем /api в конце, если есть
+      const baseUrl = this.errorDashboardUrl.endsWith('/api') 
+        ? this.errorDashboardUrl.slice(0, -4)
+        : this.errorDashboardUrl.replace(/\/api$/, '');
+      
       // Определяем endpoint в зависимости от типа лога
       const endpoint = this.shouldUsePushLogsEndpoint(logEntry) 
-        ? `${this.errorDashboardUrl}/push-logs`
-        : `${this.errorDashboardUrl}/report`;
+        ? `${baseUrl}/api/push-logs`
+        : `${baseUrl}/api/report`;
 
       // Формируем данные в формате, ожидаемом error-dashboard
       const payload = this.formatPayloadForDashboard(logEntry);
@@ -82,15 +87,21 @@ export class ErrorDashboardTransport {
   private formatPayloadForDashboard(logEntry: ErrorDashboardLogEntry): any {
     if (this.shouldUsePushLogsEndpoint(logEntry)) {
       // Формат для push-logs endpoint
+      // Извлекаем notificationId и endpoint из meta, если они есть
+      const notificationId = logEntry.meta?.notificationId as string | undefined;
+      const endpoint = logEntry.meta?.endpoint as string | undefined;
+      
       return {
         message: logEntry.message,
         context: logEntry.context || 'unknown',
-        service: logEntry.context?.includes('webpush') ? 'webpush-service' : logEntry.service,
+        service: logEntry.context?.includes('webpush') ? 'webpush-service' : logEntry.service || logEntry.appName,
         level: logEntry.level,
-        timestamp: logEntry.timestamp,
+        timestamp: logEntry.timestamp || new Date().toISOString(),
         appName: logEntry.appName,
         environment: process.env.NODE_ENV || 'development',
         stack: logEntry.error?.stack,
+        notificationId,
+        endpoint,
         additionalContext: {
           ...logEntry.meta,
           error: logEntry.error,

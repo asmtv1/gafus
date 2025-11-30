@@ -24,6 +24,7 @@
 - ✅ Специализированные логгеры для каждого типа сервиса
 - ✅ React Error Boundaries (`@gafus/error-handling`)
 - ✅ Отправка логов в реальном времени
+- ✅ Сбор логов из Docker контейнеров через Promtail
 
 ### Чего не хватает (можно добавить при необходимости)
 
@@ -131,7 +132,26 @@ await reporter.reportError(error, {
 Приложение → Logger → Pino → Console
                     ↓
               ErrorDashboardTransport → error-dashboard → PostgreSQL
+
+Docker контейнеры → stdout/stderr → Promtail → error-dashboard → PostgreSQL
 ```
+
+### Сбор логов из Docker контейнеров
+
+Для сбора логов из Docker контейнеров используется **Promtail** — агент для сбора логов, который:
+
+1. **Читает логи контейнеров** из файловой системы Docker (`/var/lib/docker/containers/*/*-json.log`)
+2. **Парсит Pino JSON логи** и извлекает метаданные (level, context, app)
+3. **Фильтрует важные логи** (warn, error, fatal)
+4. **Отправляет в error-dashboard** через API endpoint `/api/container-logs`
+
+**Конфигурация Promtail:** `ci-cd/docker/promtail/promtail.yml`
+
+**Преимущества:**
+- Видим все логи контейнеров в error-dashboard
+- Автоматический парсинг Pino формата
+- Фильтрация только важных логов
+- Метаданные контейнера (имя, ID, app) добавляются автоматически
 
 ## ⚙️ Конфигурация
 

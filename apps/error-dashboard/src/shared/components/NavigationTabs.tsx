@@ -7,6 +7,7 @@ import {
   Notifications as NotificationsIcon,
   SettingsSystemDaydream as SystemIcon,
   Queue as QueueIcon,
+  Storage as StorageIcon,
 } from "@mui/icons-material";
 
 export function NavigationTabs() {
@@ -18,6 +19,7 @@ export function NavigationTabs() {
     if (pathname.startsWith("/push-logs")) return "/push-logs";
     if (pathname.startsWith("/system-status")) return "/system-status";
     if (pathname.startsWith("/queues")) return "/queues";
+    if (pathname.startsWith("/container-logs")) return "/container-logs";
     return "/";
   };
 
@@ -83,6 +85,15 @@ export function NavigationTabs() {
           value="/queues"
           sx={{
             color: getCurrentTab() === "/queues" ? "#9c27b0" : undefined,
+          }}
+        />
+        <Tab
+          icon={<StorageIcon />}
+          iconPosition="start"
+          label="Логи контейнеров"
+          value="/container-logs"
+          sx={{
+            color: getCurrentTab() === "/container-logs" ? "#00acc1" : undefined,
           }}
         />
       </Tabs>

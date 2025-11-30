@@ -304,6 +304,23 @@ services:
       - ./blackbox:/etc/blackbox_exporter
     restart: unless-stopped
 
+  # Promtail для сбора логов из Docker контейнеров
+  promtail:
+    image: grafana/promtail:latest
+    container_name: gafus-promtail
+    command:
+      - '-config.file=/etc/promtail/promtail.yml'
+    volumes:
+      - ./promtail:/etc/promtail
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+      - promtail_positions:/tmp
+    restart: unless-stopped
+    depends_on:
+      - error-dashboard
+
 volumes:
   postgres_data:
   prometheus_data:
+  promtail_positions:

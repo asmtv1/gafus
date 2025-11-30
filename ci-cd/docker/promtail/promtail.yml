@@ -1,0 +1,88 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://error-dashboard:3005/api/container-logs
+    batchwait: 1s
+    batchsize: 100
+    timeout: 10s
+
+scrape_configs:
+  # Собираем логи из Docker контейнеров через файловую систему
+  - job_name: docker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          __path__: /var/lib/docker/containers/*/*-json.log
+
+    pipeline_stages:
+      # Парсим Docker JSON формат лога
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            attrs: attrs
+            time: time
+
+      # Извлекаем metadata контейнера из attrs
+      - json:
+          expressions:
+            container_id: attrs.container_id
+            container_name: attrs.container_name
+          source: attrs
+
+      # Извлекаем сообщение лога
+      - output:
+          source: output
+
+      # Пытаемся распарсить Pino JSON логи
+      - json:
+          expressions:
+            pino_level: level
+            msg: msg
+            message: message
+            context: context
+            app: app
+            stack: stack
+            err: err
+            pino_time: time
+          source: output
+          drop_malformed: false
+
+      # Маппим уровень Pino (числовой) в строковый
+      - template:
+          source: level_label
+          template: '{{ if eq .pino_level "10" }}debug{{ else if eq .pino_level "20" }}info{{ else if eq .pino_level "30" }}warn{{ else if eq .pino_level "40" }}error{{ else if eq .pino_level "50" }}fatal{{ else }}info{{ end }}'
+
+      # Добавляем метки для фильтрации
+      - labels:
+          container_name:
+          container_id:
+          level: level_label
+          app:
+          context:
+          environment: production
+
+    # Извлекаем имя контейнера из пути файла и имени
+    relabel_configs:
+      # Извлекаем container_id из пути файла
+      - source_labels:
+          - __path__
+        regex: /var/lib/docker/containers/([^/]+)/.*
+        target_label: container_id
+        replacement: ${1}
+
+      # Извлекаем app name из container_name метки или имени файла
+      - source_labels:
+          - container_name
+        regex: gafus-([^-]+)
+        target_label: app
+        replacement: ${1}
+

@@ -37,27 +37,97 @@ export async function POST(request: NextRequest) {
 
     // Валидация обязательных полей для push-логов
     const requiredFields = ["message", "context", "service"];
+    const missingFields: string[] = [];
+    
     for (const field of requiredFields) {
-      if (!body[field]) {
-        logger.warn(`Missing required field: ${field}`, {
-          field: field,
-          hasMessage: !!body.message,
-          hasContext: !!body.context,
-          hasService: !!body.service,
+      if (!body[field] || (typeof body[field] === "string" && body[field].trim() === "")) {
+        missingFields.push(field);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      logger.warn(`Missing required fields: ${missingFields.join(", ")}`, {
+        missingFields,
+        hasMessage: !!body.message,
+        hasContext: !!body.context,
+        hasService: !!body.service,
+        messageType: typeof body.message,
+        contextType: typeof body.context,
+        serviceType: typeof body.service,
+        operation: 'validate_push_log'
+      });
+      return NextResponse.json(
+        { 
+          error: `Отсутствуют обязательные поля: ${missingFields.join(", ")}`,
+          missingFields 
+        },
+        {
+          status: 400,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        },
+      );
+    }
+
+    // Валидация типов полей
+    if (typeof body.context !== "string") {
+      return NextResponse.json(
+        { error: "Поле 'context' должно быть строкой" },
+        {
+          status: 400,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        },
+      );
+    }
+
+    if (typeof body.service !== "string") {
+      return NextResponse.json(
+        { error: "Поле 'service' должно быть строкой" },
+        {
+          status: 400,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        },
+      );
+    }
+
+    // Валидация level, если передан
+    const validLevels = ["info", "warn", "error", "success", "debug"];
+    if (body.level && !validLevels.includes(body.level)) {
+      logger.warn(`Invalid level: ${body.level}`, {
+        level: body.level,
+        validLevels,
+        operation: 'validate_push_log'
+      });
+      // Не возвращаем ошибку, просто используем "info" по умолчанию
+    }
+
+    // Обрабатываем timestamp - используем текущее время, если не передан
+    const timestamp = body.timestamp || new Date().toISOString();
+    
+    // Валидируем timestamp формат
+    let validTimestamp = timestamp;
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) {
+        logger.warn(`Invalid timestamp format: ${timestamp}, using current time`, {
+          timestamp,
           operation: 'validate_push_log'
         });
-        return NextResponse.json(
-          { error: `Отсутствует обязательное поле: ${field}` },
-          {
-            status: 400,
-            headers: {
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-              "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            },
-          },
-        );
+        validTimestamp = new Date().toISOString();
       }
+    } catch {
+      validTimestamp = new Date().toISOString();
     }
 
     // Создаем расширенный контекст для push-логов
@@ -68,8 +138,8 @@ export async function POST(request: NextRequest) {
         service: body.service,
         notificationId: body.notificationId,
         endpoint: body.endpoint,
-        level: body.level,
-        timestamp: body.timestamp,
+        level: body.level || "info",
+        timestamp: validTimestamp,
       },
     };
 

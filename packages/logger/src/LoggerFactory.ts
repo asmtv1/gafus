@@ -139,8 +139,8 @@ export class LoggerFactory {
 export function createWebLogger(context?: string): Logger {
   // В production используем относительный URL, в dev - localhost
   const defaultUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://monitor.gafus.ru/api'
-    : 'http://localhost:3005/api';
+    ? 'https://monitor.gafus.ru'
+    : 'http://localhost:3005';
     
   return LoggerFactory.createLoggerWithContext('web', context || 'web-app', {
     enableErrorDashboard: true,
@@ -154,8 +154,8 @@ export function createWebLogger(context?: string): Logger {
 export function createTrainerPanelLogger(context?: string): Logger {
   // В production используем относительный URL, в dev - localhost
   const defaultUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://monitor.gafus.ru/api'
-    : 'http://localhost:3005/api';
+    ? 'https://monitor.gafus.ru'
+    : 'http://localhost:3005';
     
   return LoggerFactory.createLoggerWithContext('trainer-panel', context || 'trainer-panel', {
     enableErrorDashboard: true,
@@ -178,8 +178,8 @@ export function createErrorDashboardLogger(context?: string): Logger {
 export function createTelegramBotLogger(context?: string): Logger {
   // В production используем относительный URL, в dev - localhost
   const defaultUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://monitor.gafus.ru/api'
-    : 'http://localhost:3005/api';
+    ? 'https://monitor.gafus.ru'
+    : 'http://localhost:3005';
     
   return LoggerFactory.createLoggerWithContext('telegram-bot', context || 'telegram-bot', {
     enableErrorDashboard: true,
@@ -193,8 +193,8 @@ export function createTelegramBotLogger(context?: string): Logger {
 export function createWorkerLogger(context?: string): Logger {
   // В production используем относительный URL, в dev - localhost
   const defaultUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://monitor.gafus.ru/api'
-    : 'http://localhost:3005/api';
+    ? 'https://monitor.gafus.ru'
+    : 'http://localhost:3005';
     
   return LoggerFactory.createLoggerWithContext('worker', context || 'worker', {
     enableErrorDashboard: true,
