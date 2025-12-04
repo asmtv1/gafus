@@ -25,7 +25,6 @@ import {
   Error as ErrorIcon,
   Refresh as RefreshIcon,
   Visibility as ViewIcon,
-  OpenInNew as OpenIcon,
   Person as PersonIcon,
   Computer as ComputerIcon,
   ContentCopy as CopyIcon,
@@ -98,16 +97,7 @@ function formatMultipleErrorsForAI(errors: ErrorDashboardReport[]): string {
 }
 
 interface RecentErrorItemProps {
-  error: {
-    id: string;
-    message: string;
-    appName: string;
-    environment: string;
-    createdAt: Date;
-    userId?: string | null;
-    url: string;
-    stack?: string | null;
-  };
+  error: ErrorDashboardReport;
   onViewDetails: () => void;
   onDelete?: (id: string) => void;
   isSelected?: boolean;
@@ -117,22 +107,34 @@ interface RecentErrorItemProps {
   isPending?: boolean;
 }
 
+/**
+ * Проверяет, является ли ошибка fatal
+ */
+function isFatalError(error: ErrorDashboardReport): boolean {
+  const lowerMessage = error.message.toLowerCase();
+  const hasFatalInMessage = lowerMessage.includes('fatal') || lowerMessage.includes('critical');
+  const hasFatalTag = error.tags?.includes('fatal') || error.tags?.includes('critical');
+  return hasFatalInMessage || hasFatalTag;
+}
+
 function RecentErrorItem({ error, onViewDetails, onDelete, isSelected, onToggleSelect, selectionMode, isDeleting, isPending }: RecentErrorItemProps) {
-  const getSeverityIcon = (message: string) => {
-    const lowerMessage = message.toLowerCase();
-    if (lowerMessage.includes('critical') || lowerMessage.includes('fatal')) {
+  const getSeverityIcon = (error: ErrorDashboardReport) => {
+    if (isFatalError(error)) {
       return <ErrorIcon />;
-    } else if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) {
+    }
+    const lowerMessage = error.message.toLowerCase();
+    if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) {
       return <WarningIcon />;
     }
     return <BugIcon />;
   };
 
-  const getSeverityColor = (message: string) => {
-    const lowerMessage = message.toLowerCase();
-    if (lowerMessage.includes('critical') || lowerMessage.includes('fatal')) {
-      return '#f48fb1';
-    } else if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) {
+  const getSeverityColor = (error: ErrorDashboardReport) => {
+    if (isFatalError(error)) {
+      return '#d32f2f';
+    }
+    const lowerMessage = error.message.toLowerCase();
+    if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) {
       return '#ffb74d';
     }
     return '#7986cb';
@@ -159,20 +161,35 @@ function RecentErrorItem({ error, onViewDetails, onDelete, isSelected, onToggleS
     locale: ru 
   });
 
+  const isFatal = isFatalError(error);
+  const severityColor = getSeverityColor(error);
 
   return (
     <ListItem
       sx={{
         borderRadius: 2,
         mb: 1,
-        bgcolor: isSelected ? 'action.selected' : 'background.paper',
+        bgcolor: isSelected 
+          ? 'action.selected' 
+          : isFatal 
+            ? 'rgba(211, 47, 47, 0.05)' 
+            : 'background.paper',
         border: '1px solid',
-        borderColor: isSelected ? '#667eea' : '#ffcdd2',
+        borderColor: isSelected 
+          ? '#667eea' 
+          : isFatal 
+            ? '#d32f2f' 
+            : '#ffcdd2',
         transition: 'all 0.2s ease',
         '&:hover': {
           transform: 'translateX(2px)',
           boxShadow: 1,
-          borderColor: isSelected ? '#5a67d8' : '#ef9a9a',
+          borderColor: isSelected 
+            ? '#5a67d8' 
+            : isFatal 
+              ? '#b71c1c' 
+              : '#ef9a9a',
+          bgcolor: isFatal ? 'rgba(211, 47, 47, 0.08)' : undefined,
         }
       }}
     >
@@ -186,12 +203,12 @@ function RecentErrorItem({ error, onViewDetails, onDelete, isSelected, onToggleS
       <ListItemAvatar>
         <Avatar
           sx={{
-            bgcolor: getSeverityColor(error.message),
+            bgcolor: severityColor,
             width: 40,
             height: 40,
           }}
         >
-          {getSeverityIcon(error.message)}
+          {getSeverityIcon(error)}
         </Avatar>
       </ListItemAvatar>
 
@@ -261,12 +278,6 @@ function RecentErrorItem({ error, onViewDetails, onDelete, isSelected, onToggleS
         <Tooltip title="Подробнее">
           <IconButton size="small" onClick={onViewDetails} color="primary">
             <ViewIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip title="Открыть URL">
-          <IconButton size="small" onClick={() => window.open(error.url, '_blank')} color="info">
-            <OpenIcon fontSize="small" />
           </IconButton>
         </Tooltip>
 

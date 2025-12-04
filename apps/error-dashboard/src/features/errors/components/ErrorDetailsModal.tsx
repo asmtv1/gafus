@@ -122,6 +122,16 @@ interface ErrorDetailsModalProps {
 }
 
 /**
+ * Проверяет, является ли ошибка fatal
+ */
+function isFatalError(error: ErrorDashboardReport): boolean {
+  const lowerMessage = error.message.toLowerCase();
+  const hasFatalInMessage = lowerMessage.includes('fatal') || lowerMessage.includes('critical');
+  const hasFatalTag = error.tags?.includes('fatal') || error.tags?.includes('critical');
+  return hasFatalInMessage || hasFatalTag;
+}
+
+/**
  * Подсвечивает синтаксис в stack trace
  */
 function highlightStackTrace(stack: string): React.ReactNode {
@@ -570,21 +580,23 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
     }
   };
 
-  const getSeverityIcon = (message: string) => {
-    const lowerMessage = message.toLowerCase();
-    if (lowerMessage.includes('critical') || lowerMessage.includes('fatal')) {
+  const getSeverityIcon = (error: ErrorDashboardReport) => {
+    if (isFatalError(error)) {
       return <ErrorIcon />;
-    } else if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) {
+    }
+    const lowerMessage = error.message.toLowerCase();
+    if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) {
       return <WarningIcon />;
     }
     return <BugIcon />;
   };
 
-  const getSeverityColor = (message: string) => {
-    const lowerMessage = message.toLowerCase();
-    if (lowerMessage.includes('critical') || lowerMessage.includes('fatal')) {
-      return "#f48fb1";
-    } else if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) {
+  const getSeverityColor = (error: ErrorDashboardReport) => {
+    if (isFatalError(error)) {
+      return "#d32f2f";
+    }
+    const lowerMessage = error.message.toLowerCase();
+    if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) {
       return "#ffb74d";
     }
     return "#7986cb";
@@ -601,8 +613,9 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
     return colors[appName as keyof typeof colors] || '#90a4ae';
   };
 
-  const severityColor = getSeverityColor(error.message);
+  const severityColor = getSeverityColor(error);
   const appColor = getAppColor(error.appName);
+  const isFatal = isFatalError(error);
 
   return (
     <Dialog 
@@ -616,8 +629,12 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
     >
       <DialogTitle sx={{ 
         pb: 1,
-        background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
-        borderBottom: "1px solid #dee2e6"
+        background: isFatal 
+          ? "linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)"
+          : "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
+        borderBottom: isFatal 
+          ? `2px solid ${severityColor}`
+          : "1px solid #dee2e6"
       }}>
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box display="flex" alignItems="center" gap={2}>
@@ -626,10 +643,10 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
                 p: 1, 
                 borderRadius: 2, 
                 bgcolor: `${severityColor}20`,
-                border: `1px solid ${severityColor}30`
+                border: `1px solid ${severityColor}${isFatal ? '80' : '30'}`
               }}
             >
-              {getSeverityIcon(error.message)}
+              {getSeverityIcon(error)}
             </Box>
             <Box>
               <Typography variant="h6" fontWeight="bold">
@@ -655,13 +672,14 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
           
           <Box display="flex" flexWrap="wrap" gap={1} mb={2}>
             <Chip
-              icon={getSeverityIcon(error.message)}
-              label="Тип ошибки"
+              icon={getSeverityIcon(error)}
+              label={isFatal ? "FATAL" : "Тип ошибки"}
               size="small"
               sx={{
                 bgcolor: `${severityColor}20`,
                 color: severityColor,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                border: isFatal ? `1px solid ${severityColor}` : 'none'
               }}
             />
             
@@ -963,13 +981,6 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button onClick={onClose} variant="outlined">
             Закрыть
-          </Button>
-          <Button 
-            onClick={() => window.open(error.url, '_blank')} 
-            variant="contained"
-            startIcon={<OpenIcon />}
-          >
-            Открыть URL
           </Button>
         </Box>
       </DialogActions>
