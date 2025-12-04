@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createStepNotificationsForUserStep } from "@shared/lib/StepNotification/createStepNotification";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
@@ -162,13 +161,11 @@ export async function startUserStepServerAction(
       userId: userId
     });
 
-    await reportErrorToDashboard({
-      message:
-        error instanceof Error ? error.message : "Unknown error in startUserStepServerAction",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in startUserStepServerAction",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "startUserStepServerAction",
         action: "startUserStepServerAction",
         courseId: safeInput.courseId,
         day: safeInput.day,
@@ -176,9 +173,9 @@ export async function startUserStepServerAction(
         status: safeInput.status,
         durationSec: safeInput.durationSec,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["training", "step-start", "server-action", "transaction"],
-    });
+        tags: ["training", "step-start", "server-action", "transaction"],
+      }
+    );
 
     throw new Error("Что-то пошло не так при запуске шага тренировки");
   }

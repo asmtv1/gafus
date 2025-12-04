@@ -7,7 +7,6 @@ import { z } from "zod";
 import { uploadFileToCDN } from "@gafus/cdn-upload";
 import { authOptions } from "@gafus/auth";
 import { createTrainerPanelLogger } from "@gafus/logger";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 
 import { registerTrainerVideo } from "./registerTrainerVideo";
 
@@ -94,14 +93,15 @@ export async function uploadTrainerVideoAction(
   } catch (error) {
     logger.error("Ошибка загрузки видео", error as Error);
 
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "trainer-panel",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: { action: "trainerVideoUpload" },
-      tags: ["trainer-videos", "upload"],
-    });
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "trainerVideoUpload",
+        action: "trainerVideoUpload",
+        tags: ["trainer-videos", "upload"],
+      }
+    );
 
     return { success: false, error: "Не удалось загрузить видео", status: 500 };
   }

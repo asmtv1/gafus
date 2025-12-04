@@ -7,7 +7,7 @@ positions:
   filename: /tmp/positions.yaml
 
 clients:
-  - url: http://error-dashboard:3005/api/container-logs
+  - url: http://loki:3100/loki/api/v1/push
     batchwait: 1s
     batchsize: 100
     timeout: 10s
@@ -61,7 +61,7 @@ scrape_configs:
           source: level_label
           template: '{{ if eq .pino_level "10" }}debug{{ else if eq .pino_level "20" }}info{{ else if eq .pino_level "30" }}warn{{ else if eq .pino_level "40" }}error{{ else if eq .pino_level "50" }}fatal{{ else }}info{{ end }}'
 
-      # Добавляем метки для фильтрации
+      # Добавляем метки для фильтрации в Loki
       - labels:
           container_name:
           container_id:
@@ -69,6 +69,8 @@ scrape_configs:
           app:
           context:
           environment: production
+          # Добавляем тег для идентификации логов контейнеров
+          tag_container_logs: "true"
 
     # Извлекаем имя контейнера из пути файла и имени
     relabel_configs:

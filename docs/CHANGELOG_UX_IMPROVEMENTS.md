@@ -1585,7 +1585,7 @@ apps/error-dashboard/src/features/queues/components/FailedJobsList.tsx
 
 **Технические детали:**
 - Компонент NavigationTabs с Material-UI Tabs
-- Переключение между: Дашборд ошибок, Push-логи, Статус системы
+- Переключение между: Дашборд ошибок, Очереди, Статус системы и «Логи контейнеров»
 - Активная вкладка подсвечивается соответствующим цветом
 - Полностью адаптивный дизайн
 
@@ -1596,8 +1596,9 @@ apps/error-dashboard/src/shared/components/NavigationTabs.tsx
 
 // Использование на страницах
 apps/error-dashboard/src/app/page.tsx
-apps/error-dashboard/src/app/push-logs/page.tsx
 apps/error-dashboard/src/app/system-status/page.tsx
+apps/error-dashboard/src/app/queues/page.tsx
+apps/error-dashboard/src/app/container-logs/page.tsx
 ```
 
 #### 2. API мониторинга системы

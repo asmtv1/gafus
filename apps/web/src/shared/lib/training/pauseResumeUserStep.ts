@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 
@@ -106,23 +105,19 @@ export async function pauseUserStepServerAction(
 
     return { success: true };
   } catch (error) {
-    try {
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : String(error),
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : String(error),
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "pauseUserStepServerAction",
         action: "pauseUserStepServerAction",
         courseId: safeInput.courseId,
         day: safeInput.day,
         stepIndex: safeInput.stepIndex,
         timeLeftSec: safeInput.timeLeftSec,
-      },
-      tags: ["training", "step-pause", "server-action"],
-      });
-    } catch (e) {
-      logger.warn("pauseUserStepServerAction: failed to report error", { error: e, operation: 'warn' });
-    }
+        tags: ["training", "step-pause", "server-action"],
+      }
+    );
     throw error;
   }
 }
@@ -177,22 +172,18 @@ export async function resumeUserStepServerAction(
 
     return { success: true };
   } catch (error) {
-    try {
-      await reportErrorToDashboard({
-        message: error instanceof Error ? error.message : String(error),
-        appName: "web",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
-          action: "resumeUserStepServerAction",
-          courseId: safeInput.courseId,
-          day: safeInput.day,
-          stepIndex: safeInput.stepIndex,
-        },
+    logger.error(
+      error instanceof Error ? error.message : String(error),
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "resumeUserStepServerAction",
+        action: "resumeUserStepServerAction",
+        courseId: safeInput.courseId,
+        day: safeInput.day,
+        stepIndex: safeInput.stepIndex,
         tags: ["training", "step-resume", "server-action"],
-      });
-    } catch (e) {
-      logger.warn("resumeUserStepServerAction: failed to report error", { error: e, operation: 'warn' });
-    }
+      }
+    );
     throw error;
   }
 }

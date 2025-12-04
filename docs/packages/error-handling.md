@@ -121,23 +121,26 @@ function App() {
 }
 ```
 
-### `ErrorReporter`
+### Отправка ошибок напрямую
 
-Реэкспорт из `@gafus/logger` для отправки ошибок напрямую (без Error Boundary).
+Для отправки ошибок используйте `logger.error()` из `@gafus/logger`:
 
 ```typescript
-import { ErrorReporter } from '@gafus/error-handling';
+import { createWebLogger } from '@gafus/logger';
 
-const reporter = new ErrorReporter({
-  appName: 'web',
-  environment: 'production'
-});
+const logger = createWebLogger('my-context');
 
 // Отправка ошибки
-await reporter.reportError(error, {
-  userId: '123',
-  additionalContext: { action: 'save_profile' }
-});
+await logger.error(
+  error.message || 'Unknown error',
+  error,
+  {
+    userId: '123',
+    operation: 'save_profile',
+    additionalContext: { action: 'save_profile' },
+    tags: ['error', 'profile'],
+  }
+);
 ```
 
 ## 📊 Структура отчётов об ошибках
@@ -171,7 +174,7 @@ packages/error-handling/
 
 ## 📦 Зависимости
 
-- `@gafus/logger` — логирование и ErrorReporter
+- `@gafus/logger` — логирование
 - `@gafus/types` — общие типы
 - `react`, `react-dom` — React runtime
 

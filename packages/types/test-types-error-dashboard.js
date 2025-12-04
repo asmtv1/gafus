@@ -90,12 +90,12 @@ async function testTypesErrorDashboard() {
     console.log('🎉 Все тесты завершены!');
     console.log('\n📊 Проверьте error-dashboard:');
     console.log('   - Reports: http://localhost:3001/reports');
-    console.log('   - Push Logs: http://localhost:3001/push-logs');
+    console.log('   - Логи контейнеров: http://localhost:3001/container-logs');
     console.log('   - Ищите логи по контексту: web-client, trainer-panel, worker-processor, etc.');
     console.log('\n🔍 Ожидаемые логи:');
-    console.log('   - Web ошибки в /api/report');
-    console.log('   - Worker ошибки в /api/push-logs');
-    console.log('   - Telegram bot ошибки в /api/report');
+    console.log('   - Web ошибки в разделе отчетов');
+    console.log('   - Worker ошибки в разделе «Логи контейнеров»');
+    console.log('   - Telegram bot ошибки в разделе отчетов');
     console.log('   - Error dashboard ошибки НЕ отправляются в себя');
 
   } catch (error) {

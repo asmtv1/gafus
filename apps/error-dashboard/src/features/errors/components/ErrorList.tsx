@@ -1,6 +1,6 @@
 "use client";
 
-import { BugReport, CheckCircle, Delete, Visibility } from "@mui/icons-material";
+import { BugReport, Visibility } from "@mui/icons-material";
 import {
   Box,
   Typography,
@@ -9,18 +9,14 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
   Chip,
   Alert,
   CircularProgress,
   Card,
   CardContent,
-  Tabs,
-  Tab,
 } from "@mui/material";
 import { DataGrid, GridActionsCellItem } from "@mui/x-data-grid";
-import { useErrors, useErrorsMutation } from "@shared/hooks/useErrors";
-import { resolveError, deleteError } from "@shared/lib/actions/errors";
+import { useErrors } from "@shared/hooks/useErrors";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useState } from "react";
@@ -32,22 +28,15 @@ interface ErrorListProps {
   filters?: {
     appName?: string;
     environment?: string;
-    resolved?: boolean;
   };
 }
 
 export default function ErrorList({ filters = {} }: ErrorListProps) {
-  const [tabValue, setTabValue] = useState<"errors" | "logs">("errors");
   // Используем TanStack Query для загрузки ошибок
   const { data: errors, error, isLoading } = useErrors({
     ...filters,
-    type: tabValue,
+    type: "errors" as const,
   });
-  const { invalidateErrors } = useErrorsMutation();
-
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: "errors" | "logs") => {
-    setTabValue(newValue);
-  };
 
   // Вспомогательная функция для проверки additionalContext
   const hasAdditionalContext = (error: ErrorDashboardReport): boolean => {
@@ -64,53 +53,9 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
 
   const [selectedError, setSelectedError] = useState<ErrorDashboardReport | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [isResolveDialogOpen, setIsResolveDialogOpen] = useState(false);
-  const [resolveNote, setResolveNote] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
 
-  const handleResolve = async () => {
-    if (!selectedError) return;
-
-    setLoading(true);
-    setActionError(null);
-
-    try {
-      const result = await resolveError(selectedError.id, `admin-${Date.now()}`);
-      if (result.success) {
-        setIsResolveDialogOpen(false);
-        setSelectedError(null);
-        setResolveNote("");
-        // Инвалидируем кэш для обновления данных
-        invalidateErrors({ ...filters, type: tabValue });
-      } else {
-        setActionError(result.error || "Не удалось разрешить ошибку");
-      }
-    } catch {
-      setActionError("Произошла ошибка при разрешении");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    setLoading(true);
-    setActionError(null);
-
-    try {
-      const result = await deleteError(id);
-      if (result.success) {
-        // Инвалидируем кэш для обновления данных
-        invalidateErrors({ ...filters, type: tabValue });
-      } else {
-        setActionError(result.error || "Не удалось удалить ошибку");
-      }
-    } catch {
-      setActionError("Произошла ошибка при удалении");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Логи теперь в Loki, удаление через UI недоступно
+  // Для удаления используйте Grafana или Loki API
 
   const columns: GridColDef[] = [
     {
@@ -169,18 +114,6 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
       },
     },
     {
-      field: "resolved",
-      headerName: "Статус",
-      width: 120,
-      renderCell: (params) => (
-        <Chip
-          label={params.value ? "Разрешена" : "Неразрешена"}
-          color={params.value ? "success" : "error"}
-          size="small"
-        />
-      ),
-    },
-    {
       field: "tags",
       headerName: "Теги",
       width: 150,
@@ -204,7 +137,7 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
       headerName: "Действия",
       width: 120,
       getActions: (params) => {
-        const actions = [
+        return [
           <GridActionsCellItem
             key="view"
             icon={<Visibility />}
@@ -214,31 +147,7 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
               setIsDetailDialogOpen(true);
             }}
           />,
-          <GridActionsCellItem
-            key="delete"
-            icon={<Delete />}
-            label="Удалить"
-            onClick={() => handleDelete(params.id as string)}
-          />,
         ];
-
-        if (!params.row.resolved) {
-          actions.splice(
-            1,
-            0,
-            <GridActionsCellItem
-              key="resolve"
-              icon={<CheckCircle />}
-              label="Разрешить"
-              onClick={() => {
-                setSelectedError(params.row);
-                setIsResolveDialogOpen(true);
-              }}
-            />,
-          );
-        }
-
-        return actions;
       },
     },
   ];
@@ -273,25 +182,10 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
             <Box display="flex" alignItems="center">
               <BugReport sx={{ mr: 1 }} />
               <Typography variant="h6">
-                {tabValue === "errors" ? "Список ошибок" : "Список логов"}
+              Список ошибок
               </Typography>
             </Box>
           </Box>
-
-          <Tabs 
-            value={tabValue} 
-            onChange={handleTabChange}
-            sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
-          >
-            <Tab label="Ошибки" value="errors" />
-            <Tab label="Логи" value="logs" />
-          </Tabs>
-
-          {actionError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {actionError}
-            </Alert>
-          )}
 
           <Box sx={{ height: 600, width: "100%" }}>
             <DataGrid
@@ -305,9 +199,6 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
               }}
               disableRowSelectionOnClick
               getRowId={(row) => row.id}
-              getRowClassName={(params) =>
-                params.row.resolved ? "resolved-row" : "unresolved-row"
-              }
             />
           </Box>
         </CardContent>
@@ -333,10 +224,6 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
                 <Chip
                   label={selectedError.environment}
                   color={selectedError.environment === "production" ? "error" : "warning"}
-                />
-                <Chip
-                  label={selectedError.resolved ? "Разрешена" : "Неразрешена"}
-                  color={selectedError.resolved ? "success" : "error"}
                 />
               </Box>
 
@@ -432,45 +319,6 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsDetailDialogOpen(false)}>Закрыть</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Диалог разрешения ошибки */}
-      <Dialog
-        open={isResolveDialogOpen}
-        onClose={() => setIsResolveDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Разрешить ошибку</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Вы уверены, что хотите отметить эту ошибку как разрешенную?
-          </Typography>
-
-          <TextField
-            fullWidth
-            label="Примечание (необязательно)"
-            multiline
-            rows={3}
-            value={resolveNote}
-            onChange={(e) => setResolveNote(e.target.value)}
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsResolveDialogOpen(false)} disabled={loading}>
-            Отмена
-          </Button>
-          <Button
-            onClick={handleResolve}
-            variant="contained"
-            color="success"
-            disabled={loading}
-            startIcon={<CheckCircle />}
-          >
-            Разрешить
-          </Button>
         </DialogActions>
       </Dialog>
     </>

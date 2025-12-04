@@ -1,6 +1,7 @@
 {
   "name": "@gafus/logger",
   "version": "1.1.0",
+  "type": "module",
   "description": "Единый логгер для всех приложений Gafus с интеграцией в error-dashboard",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

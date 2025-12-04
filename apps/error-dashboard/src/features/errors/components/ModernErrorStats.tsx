@@ -7,7 +7,6 @@ import {
   Box, 
   CircularProgress,
   Alert,
-  Chip,
   Avatar,
   Tooltip,
   IconButton
@@ -15,8 +14,6 @@ import {
 import { 
   BugReport as BugIcon,
   Warning as WarningIcon,
-  CheckCircle as CheckIcon,
-  TrendingUp as TrendingIcon,
   Refresh as RefreshIcon,
   Info as InfoIcon
 } from "@mui/icons-material";
@@ -25,30 +22,13 @@ import { useErrorStats } from "@shared/hooks/useErrorStats";
 interface StatCardProps {
   title: string;
   value: number;
-  change?: number;
   icon: React.ReactNode;
   color: string;
   bgColor: string;
   subtitle?: string;
-  trend?: 'up' | 'down' | 'stable';
 }
 
-function StatCard({ title, value, change, icon, color, bgColor, subtitle, trend }: StatCardProps) {
-  const formatChange = (change?: number) => {
-    if (!change) return null;
-    const sign = change > 0 ? '+' : '';
-    return `${sign}${change}%`;
-  };
-
-  const getTrendColor = (trend?: 'up' | 'down' | 'stable') => {
-    switch (trend) {
-      case 'up': return 'error';
-      case 'down': return 'success';
-      case 'stable': return 'info';
-      default: return 'default';
-    }
-  };
-
+function StatCard({ title, value, icon, color, bgColor, subtitle }: StatCardProps) {
   return (
     <Card 
       elevation={1}
@@ -75,19 +55,6 @@ function StatCard({ title, value, change, icon, color, bgColor, subtitle, trend 
           >
             {icon}
           </Avatar>
-          
-          {change !== undefined && (
-            <Chip
-              label={formatChange(change)}
-              color={getTrendColor(trend)}
-              size="small"
-              icon={trend === 'up' ? <TrendingIcon /> : undefined}
-              sx={{ 
-                fontWeight: 'bold',
-                transform: trend === 'down' ? 'rotate(180deg)' : 'none'
-              }}
-            />
-          )}
         </Box>
 
         <Typography variant="h3" component="div" fontWeight="bold" color={color} mb={1}>
@@ -110,6 +77,18 @@ function StatCard({ title, value, change, icon, color, bgColor, subtitle, trend 
 
 function ModernErrorStats() {
   const { data: stats, error, isLoading, refetch } = useErrorStats();
+
+  // Детальное логирование для диагностики
+  console.warn('[ModernErrorStats] Component rendered:', {
+    isLoading,
+    hasError: !!error,
+    errorMessage: error?.message,
+    hasStats: !!stats,
+    statsSuccess: stats?.success,
+    statsTotal: stats?.stats?.total,
+    statsUnresolved: stats?.stats?.unresolved,
+    fullStats: stats ? JSON.stringify(stats) : 'null',
+  });
 
   if (isLoading) {
     return (
@@ -142,7 +121,26 @@ function ModernErrorStats() {
     );
   }
 
-  if (!stats || !stats.success || !stats.stats) {
+  // Улучшенная проверка доступности статистики
+  // Проверяем структуру данных более детально
+  const isStatsValid = stats 
+    && stats.success === true 
+    && stats.stats 
+    && typeof stats.stats === 'object'
+    && typeof stats.stats.total === 'number'
+    && typeof stats.stats.critical === 'number';
+
+  console.warn('[ModernErrorStats] Stats validation:', {
+    hasStats: !!stats,
+    statsSuccess: stats?.success,
+    hasStatsObject: !!stats?.stats,
+    statsObjectType: typeof stats?.stats,
+    hasTotalField: stats?.stats && 'total' in stats.stats,
+    totalType: typeof stats?.stats?.total,
+    isStatsValid,
+  });
+
+  if (!isStatsValid) {
     return (
       <Alert severity="info">
         Статистика недоступна
@@ -150,34 +148,13 @@ function ModernErrorStats() {
     );
   }
 
-  const { total, unresolved } = stats.stats;
-  // Вычисляем resolved из total - unresolved
-  const resolvedCount = total - unresolved;
-  // Если total === 0, значит нет ошибок - здоровье системы 100%
-  const resolvedPercentage = total > 0 ? (resolvedCount / total) * 100 : 100;
-  const critical = Math.floor(unresolved * 0.2); // Примерно 20% от нерешенных - критические
+  const { total, unresolved, critical } = stats.stats || { total: 0, unresolved: 0, critical: 0 };
   const criticalPercentage = total > 0 ? (critical / total) * 100 : 0;
-
-  // Симулируем изменения (в реальном приложении это будет из API)
-  const mockChanges = {
-    total: Math.floor(Math.random() * 20) - 10, // -10% to +10%
-    unresolved: Math.floor(Math.random() * 15) - 5,
-    resolved: Math.floor(Math.random() * 10),
-    critical: Math.floor(Math.random() * 25) - 15,
-  };
-
-  const getTrend = (change: number): 'up' | 'down' | 'stable' => {
-    if (change > 5) return 'up';
-    if (change < -5) return 'down';
-    return 'stable';
-  };
 
   const statCards = [
     {
       title: "Всего ошибок",
       value: total,
-      change: mockChanges.total,
-      trend: getTrend(mockChanges.total),
       icon: <BugIcon />,
       color: "#7986cb",
       bgColor: "#7986cb",
@@ -186,8 +163,6 @@ function ModernErrorStats() {
     {
       title: "Активных ошибок",
       value: unresolved,
-      change: mockChanges.unresolved,
-      trend: getTrend(mockChanges.unresolved),
       icon: <WarningIcon />,
       color: "#ffb74d",
       bgColor: "#ffb74d",
@@ -196,22 +171,10 @@ function ModernErrorStats() {
     {
       title: "Критических ошибок",
       value: critical,
-      change: mockChanges.critical,
-      trend: getTrend(mockChanges.critical),
       icon: <BugIcon />,
       color: "#f48fb1",
       bgColor: "#f48fb1",
       subtitle: `${criticalPercentage.toFixed(1)}% от общего числа`
-    },
-    {
-      title: "Разрешено",
-      value: resolvedCount,
-      change: mockChanges.resolved,
-      trend: getTrend(mockChanges.resolved),
-      icon: <CheckIcon />,
-      color: "#81c784",
-      bgColor: "#81c784",
-      subtitle: `${resolvedPercentage.toFixed(1)}% успешности`
     }
   ];
 

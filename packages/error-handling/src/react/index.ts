@@ -3,5 +3,6 @@ export { ErrorBoundary } from "./ErrorBoundary";
 export type { 
   ErrorBoundaryProps, 
   ErrorBoundaryState, 
-  ErrorBoundaryConfig 
+  ErrorBoundaryConfig,
+  ErrorInfo
 } from "./ErrorBoundary";

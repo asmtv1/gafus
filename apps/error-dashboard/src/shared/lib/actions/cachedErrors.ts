@@ -1,89 +1,145 @@
 "use server";
 
-import { unstable_cache } from "next/cache";
+import { getErrorsFromDatabase } from "@shared/lib/error-log-service";
+import { createErrorDashboardLogger } from "@gafus/logger";
 
-import { getErrors, getErrorStats, reportError } from "./errors";
+const logger = createErrorDashboardLogger('error-dashboard-cached-errors');
 
-// Кэшированная версия получения ошибок
-export const getErrorsCached = unstable_cache(
-  async (filters?: {
+/**
+ * Получает ошибки из PostgreSQL
+ */
+export async function getErrorsCached(filters?: {
     appName?: string;
     environment?: string;
-    resolved?: boolean;
     type?: "errors" | "logs" | "all";
     limit?: number;
     offset?: number;
-  }) => {
+    tags?: string[];
+}) {
+    console.warn("[getErrorsCached] FUNCTION CALLED with filters:", JSON.stringify(filters));
+    
     try {
-      console.warn("[React Cache] Fetching errors with filters:", filters);
-      const result = await getErrors(filters);
-      console.warn(`[React Cache] Cached ${(result.errors || []).length} errors successfully`);
+      console.warn("[getErrorsCached] Fetching errors from database with filters:", filters);
+      
+      // Преобразуем type в level для БД
+      let level: string | undefined;
+      if (filters?.type === "errors") {
+        level = "error|fatal";
+      }
+      
+      const result = await getErrorsFromDatabase({
+        appName: filters?.appName,
+        environment: filters?.environment,
+        level,
+        limit: filters?.limit,
+        offset: filters?.offset,
+        tags: filters?.tags,
+      });
+      
+      if (!result.success) {
+        logger.error(
+          result.error || "Failed to get errors from database",
+          new Error(result.error || "Unknown error"),
+          {
+            operation: "getErrorsCached",
+            action: "getErrorsFromDatabase",
+            filters,
+            tags: ["errors", "cache", "server-action", "database"],
+        },
+        );
+        return result;
+      }
+      
+      const errorCount = (result.errors || []).length;
+      console.warn("[getErrorsCached] Fetched %d errors from database successfully", errorCount, {
+        filters,
+        errorIds: result.errors?.slice(0, 3).map((e) => e.id),
+      });
+      
       return result;
     } catch (error) {
       console.error("❌ Error in getErrorsCached:", error);
 
-      await reportError({
-        message: error instanceof Error ? error.message : "Unknown error in getErrorsCached",
-        stack: error instanceof Error ? error.stack || null : null,
-        appName: "error-dashboard",
-        environment: process.env.NODE_ENV || "development",
-        url: "error-dashboard",
-        userAgent: "server",
-        userId: null,
-        sessionId: null,
-        componentStack: null,
-        additionalContext: {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error in getErrorsCached";
+
+      logger.error(
+        errorMessage,
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: "getErrorsCached",
           action: "getErrorsCached",
           filters,
           errorType: error instanceof Error ? error.constructor.name : typeof error,
-        },
-        tags: ["errors", "cache", "server-action"],
-      });
+          tags: ["errors", "cache", "server-action"],
+      },
+      );
 
-      return { success: false, error: "Что-то пошло не так при получении ошибок" };
+      return { 
+        success: false, 
+        error: `Ошибка при получении ошибок: ${errorMessage}`,
+      };
     }
-  },
-  ["errors-cached"],
-  {
-    revalidate: 30, // 30 секунд
-    tags: ["errors"],
-  },
-);
+}
 
-// Кэшированная версия получения статистики ошибок
-export const getErrorStatsCached = unstable_cache(
-  async () => {
+/**
+ * Получает статистику ошибок из PostgreSQL
+ */
+export async function getErrorStatsCached() {
+    console.warn("[getErrorStatsCached] FUNCTION CALLED");
+    
     try {
-      console.warn("[React Cache] Fetching error statistics");
-      const result = await getErrorStats();
-      console.warn("[React Cache] Error statistics cached successfully");
-      return result;
+      console.warn("[getErrorStatsCached] Fetching error statistics from database");
+      
+      const { getErrorStatsFromDatabase } = await import("@shared/lib/error-log-service");
+      const result = await getErrorStatsFromDatabase();
+      
+      console.warn("[getErrorStatsCached] getErrorStatsFromDatabase result:", {
+        success: result.success,
+        total: result.stats?.total || 0,
+        error: result.error,
+      });
+      
+      if (!result.success) {
+        logger.error(
+          result.error || "Failed to get error statistics from database",
+          new Error(result.error || "Unknown error"),
+          {
+            operation: "getErrorStatsCached",
+            action: "getErrorStatsFromDatabase",
+            tags: ["errors", "stats", "cache", "server-action", "database"],
+        },
+        );
+        return {
+          success: false,
+          error: result.error || "Не удалось получить статистику ошибок",
+        };
+      }
+      
+      console.warn("[getErrorStatsCached] Statistics:", {
+        total: result.stats?.total,
+        unresolved: result.stats?.unresolved,
+        byApp: result.stats?.byApp.slice(0, 5),
+        byEnvironment: result.stats?.byEnvironment.slice(0, 3),
+      });
+      
+      return {
+        success: true,
+        stats: result.stats,
+      };
     } catch (error) {
       console.error("❌ Error in getErrorStatsCached:", error);
 
-      await reportError({
-        message: error instanceof Error ? error.message : "Unknown error in getErrorStatsCached",
-        stack: error instanceof Error ? error.stack || null : null,
-        appName: "error-dashboard",
-        environment: process.env.NODE_ENV || "development",
-        url: "error-dashboard",
-        userAgent: "server",
-        userId: null,
-        sessionId: null,
-        componentStack: null,
-        additionalContext: {
+      logger.error(
+        error instanceof Error ? error.message : "Unknown error in getErrorStatsCached",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: "getErrorStatsCached",
           action: "getErrorStatsCached",
           errorType: error instanceof Error ? error.constructor.name : typeof error,
-        },
-        tags: ["errors", "stats", "cache", "server-action"],
-      });
+          tags: ["errors", "stats", "cache", "server-action"],
+      },
+      );
 
       return { success: false, error: "Что-то пошло не так при получении статистики ошибок" };
     }
-  },
-  ["error-stats-cached"],
-  {
-    revalidate: 60, // 1 минута
-    tags: ["error-stats"],
-  },
-);
+}

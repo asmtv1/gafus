@@ -121,7 +121,7 @@ async function main() {
       console.log("\n🎉 Все тесты завершены!");
       console.log("\n📊 Проверьте error-dashboard:");
       console.log("   - Главная страница: http://localhost:3001");
-      console.log("   - Push Logs: http://localhost:3001/push-logs");
+      console.log("   - Логи контейнеров: http://localhost:3001/container-logs");
       console.log("   - Статистика: http://localhost:3001/stats");
     }
   } catch (error) {

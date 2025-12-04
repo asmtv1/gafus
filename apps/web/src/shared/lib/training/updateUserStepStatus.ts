@@ -2,7 +2,6 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 
@@ -248,27 +247,23 @@ export async function updateUserStepStatus(
   } catch (error) {
     logger.error("❌ Error in updateUserStepStatus:", error as Error, { operation: 'error' });
 
-    // Отправляем ошибку в dashboard для мониторинга
-    try {
-      await reportErrorToDashboard({
-        message: error instanceof Error ? error.message : String(error),
-        appName: "web",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
-          action: "updateUserStepStatus",
-          userId: safeUserId,
-          courseId: safeCourseId,
-          day: safeDay,
-          stepIndex: safeStepIndex,
-          status: safeStatus,
-          stepTitle: safeStepTitle,
-          stepOrder: safeStepOrder,
-        },
+    // Логируем ошибку через logger (отправляется в Loki)
+    logger.error(
+      error instanceof Error ? error.message : String(error),
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "updateUserStepStatus",
+        action: "updateUserStepStatus",
+        userId: safeUserId,
+        courseId: safeCourseId,
+        day: safeDay,
+        stepIndex: safeStepIndex,
+        status: safeStatus,
+        stepTitle: safeStepTitle,
+        stepOrder: safeStepOrder,
         tags: ["training", "step-update", "server-action"],
-      });
-    } catch (reportError) {
-      logger.error("Failed to report error to dashboard:", reportError as Error, { operation: 'error' });
-    }
+      }
+    );
 
     return { success: false };
   }

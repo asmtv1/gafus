@@ -96,24 +96,26 @@ logger.fatal('Критическая ошибка');
 | test | warn |
 | production | warn |
 
-### ErrorReporter
+### Отправка ошибок напрямую
 
-Для отправки ошибок напрямую (без React Error Boundary):
+Для отправки ошибок используйте `logger.error()` напрямую:
 
 ```typescript
-import { ErrorReporter } from '@gafus/logger';
+import { createWebLogger } from '@gafus/logger';
 
-const reporter = new ErrorReporter({
-  appName: 'web',
-  environment: 'production',
-  logToConsole: true
-});
+const logger = createWebLogger('my-context');
 
 // Отправка ошибки
-await reporter.reportError(error, {
-  userId: user.id,
-  additionalContext: { action: 'checkout' }
-});
+await logger.error(
+  error.message || 'Unknown error',
+  error,
+  {
+    userId: user.id,
+    operation: 'checkout',
+    additionalContext: { action: 'checkout' },
+    tags: ['error', 'checkout'],
+  }
+);
 ```
 
 ## 🏗️ Архитектура
@@ -122,8 +124,7 @@ await reporter.reportError(error, {
 @gafus/logger
 ├── UnifiedLogger       # Основной класс (обёртка над Pino)
 ├── LoggerFactory       # Фабрика с кэшированием
-├── ErrorReporter       # Отправка ошибок в dashboard
-└── ErrorDashboardTransport  # Транспорт для HTTP отправки
+└── ErrorDashboardTransport  # Транспорт для отправки в Loki
 ```
 
 ### Поток данных
@@ -208,7 +209,6 @@ packages/logger/
 ├── src/
 │   ├── UnifiedLogger.ts          # Основной логгер
 │   ├── LoggerFactory.ts          # Фабрика
-│   ├── ErrorReporter.ts          # Отправка ошибок
 │   ├── logger-types.ts           # Типы
 │   ├── transports/
 │   │   └── ErrorDashboardTransport.ts

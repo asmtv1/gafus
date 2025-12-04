@@ -6,20 +6,17 @@
  * 
  * Включает:
  * - UnifiedLogger - основной класс логгера
- * - ErrorReporter - отправка ошибок в error-dashboard
  * - LoggerFactory - фабрика для создания логгеров
+ * - ErrorDashboardTransport - отправка логов в Loki
  * 
  * Для Prometheus метрик используйте @gafus/error-handling
  */
 
 // Основные классы и интерфейсы
-export { UnifiedLogger } from './UnifiedLogger';
-export { LoggerFactory } from './LoggerFactory';
-export { ErrorDashboardTransport } from './transports/ErrorDashboardTransport';
+export { UnifiedLogger } from './UnifiedLogger.js';
+export { LoggerFactory } from './LoggerFactory.js';
+export { ErrorDashboardTransport } from './transports/ErrorDashboardTransport.js';
 
-// ErrorReporter для отправки ошибок в error-dashboard
-export { ErrorReporter } from './ErrorReporter';
-export type { ErrorInfo, ErrorReporterConfig } from './ErrorReporter';
 
 // Типы и интерфейсы
 export type {
@@ -30,7 +27,7 @@ export type {
   Environment,
   LogMeta,
   ErrorDashboardLogEntry,
-} from './logger-types';
+} from './logger-types.js';
 
 // Удобные функции для создания логгеров
 export {
@@ -42,7 +39,7 @@ export {
   createBullBoardLogger,
   createAdminPanelLogger,
   createSilentLogger,
-} from './LoggerFactory';
+} from './LoggerFactory.js';
 
 // Переэкспорт Pino для расширенного использования
 export { pino } from 'pino';

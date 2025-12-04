@@ -71,27 +71,21 @@ export default function ContainerLogsPage() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
 
-  // Получаем все логи и фильтруем по тегу container-logs
+  // Получаем логи контейнеров с фильтром по тегу
   const {
-    data: allErrors,
+    data: containerLogs,
     error,
     isLoading,
     refetch,
   } = useErrors({
+    tags: ["container-logs"],
     limit: 1000,
   });
-
-  // Фильтруем только логи контейнеров
-  const containerLogs = useMemo(() => {
-    if (!allErrors) return [];
-    return allErrors.filter((log) => 
-      log.tags?.includes("container-logs")
-    );
-  }, [allErrors]);
 
   // Получаем уникальные значения для фильтров
   const containers = useMemo(() => {
     const uniqueContainers = new Set<string>();
+    if (!containerLogs) return [];
     containerLogs.forEach((log) => {
       const context = log.additionalContext as ContainerLogAdditionalContext;
       const containerName = context?.container?.name;
@@ -110,6 +104,7 @@ export default function ContainerLogsPage() {
 
   const levels = useMemo(() => {
     const uniqueLevels = new Set<string>();
+    if (!containerLogs) return ["all"];
     containerLogs.forEach((log) => {
       const context = log.additionalContext as ContainerLogAdditionalContext;
       const pinoLevel = context?.pino?.level;
@@ -137,9 +132,9 @@ export default function ContainerLogsPage() {
     return ["all", ...Array.from(uniqueLevels).sort()];
   }, [containerLogs]);
 
-  // Фильтруем логи
+  // Фильтруем логи (только по контейнеру, уровню и поиску)
   useEffect(() => {
-    if (!containerLogs) {
+    if (!containerLogs || containerLogs.length === 0) {
       setFilteredLogs([]);
       return;
     }
@@ -198,6 +193,9 @@ export default function ContainerLogsPage() {
 
   // Статистика
   const stats = useMemo(() => {
+    if (!containerLogs) {
+      return { total: 0, byLevel: {}, byContainer: {} };
+    }
     const total = containerLogs.length;
     const byLevel: Record<string, number> = {};
     const byContainer: Record<string, number> = {};
@@ -522,7 +520,7 @@ export default function ContainerLogsPage() {
 
             <Box display="flex" alignItems="center" justifyContent="space-between" mt={3}>
               <Typography variant="body2" color="text.secondary">
-                Найдено: {filteredLogs.length} из {containerLogs.length} логов
+                Найдено: {filteredLogs.length} из {containerLogs?.length || 0} логов
               </Typography>
 
               <Tooltip title="Обновить логи">

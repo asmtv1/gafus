@@ -16,13 +16,6 @@ import {
   Divider,
   CircularProgress,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Tabs,
-  Tab,
   Checkbox,
   Paper,
 } from "@mui/material";
@@ -30,26 +23,26 @@ import {
   BugReport as BugIcon,
   Warning as WarningIcon,
   Error as ErrorIcon,
-  CheckCircle as CheckIcon,
   Refresh as RefreshIcon,
   Visibility as ViewIcon,
   OpenInNew as OpenIcon,
   Person as PersonIcon,
   Computer as ComputerIcon,
-  Delete as DeleteIcon,
   ContentCopy as CopyIcon,
   Download as DownloadIcon,
   SelectAll as SelectAllIcon,
   Close as CloseIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { useErrors, useErrorsMutation } from "@shared/hooks/useErrors";
 import { useFilters } from "@shared/contexts/FilterContext";
 import { formatDistanceToNow, format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import ErrorDetailsModal from "./ErrorDetailsModal";
 import { Snackbar } from "@mui/material";
 import { Alert } from "@mui/material";
+import { deleteError } from "@shared/lib/actions/deleteError";
 import type { ErrorDashboardReport } from "@gafus/types";
 
 /**
@@ -65,7 +58,6 @@ function formatErrorForAI(error: ErrorDashboardReport): string {
   lines.push(`**Окружение:** ${error.environment}`);
   lines.push(`**Дата:** ${format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}`);
   lines.push(`**URL:** ${error.url}`);
-  lines.push(`**Статус:** ${error.resolved ? '✅ Решено' : '❌ Не решено'}`);
   
   if (error.userId) {
     lines.push(`**User ID:** \`${error.userId}\``);
@@ -112,22 +104,20 @@ interface RecentErrorItemProps {
     appName: string;
     environment: string;
     createdAt: Date;
-    resolved: boolean;
     userId?: string | null;
     url: string;
     stack?: string | null;
   };
   onViewDetails: () => void;
-  onResolveSuccess: (message: string) => void;
-  onResolveError: (message: string) => void;
+  onDelete?: (id: string) => void;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
   selectionMode?: boolean;
+  isDeleting?: boolean;
+  isPending?: boolean;
 }
 
-function RecentErrorItem({ error, onViewDetails, onResolveSuccess, onResolveError, isSelected, onToggleSelect, selectionMode }: RecentErrorItemProps) {
-  const { resolveError, unresolveError } = useErrorsMutation();
-  const [isResolving, setIsResolving] = useState(false);
+function RecentErrorItem({ error, onViewDetails, onDelete, isSelected, onToggleSelect, selectionMode, isDeleting, isPending }: RecentErrorItemProps) {
   const getSeverityIcon = (message: string) => {
     const lowerMessage = message.toLowerCase();
     if (lowerMessage.includes('critical') || lowerMessage.includes('fatal')) {
@@ -169,25 +159,6 @@ function RecentErrorItem({ error, onViewDetails, onResolveSuccess, onResolveErro
     locale: ru 
   });
 
-  const handleResolve = async () => {
-    if (isResolving) return;
-    
-    setIsResolving(true);
-    try {
-      if (error.resolved) {
-        const result = await unresolveError(error.id);
-        onResolveSuccess(result.message || "Ошибка помечена как не решенная");
-      } else {
-        const result = await resolveError(error.id);
-        onResolveSuccess(result.message || "Ошибка помечена как решенная");
-      }
-    } catch (error) {
-      console.error("Failed to resolve error:", error);
-      onResolveError("Не удалось изменить статус ошибки");
-    } finally {
-      setIsResolving(false);
-    }
-  };
 
   return (
     <ListItem
@@ -196,13 +167,12 @@ function RecentErrorItem({ error, onViewDetails, onResolveSuccess, onResolveErro
         mb: 1,
         bgcolor: isSelected ? 'action.selected' : 'background.paper',
         border: '1px solid',
-        borderColor: isSelected ? '#667eea' : (error.resolved ? '#c8e6c9' : '#ffcdd2'),
-        opacity: error.resolved ? 0.8 : 1,
+        borderColor: isSelected ? '#667eea' : '#ffcdd2',
         transition: 'all 0.2s ease',
         '&:hover': {
           transform: 'translateX(2px)',
           boxShadow: 1,
-          borderColor: isSelected ? '#5a67d8' : (error.resolved ? '#a5d6a7' : '#ef9a9a'),
+          borderColor: isSelected ? '#5a67d8' : '#ef9a9a',
         }
       }}
     >
@@ -233,16 +203,6 @@ function RecentErrorItem({ error, onViewDetails, onResolveSuccess, onResolveErro
             </Typography>
             
             <Box component="span" display="flex" alignItems="center" gap={0.5}>
-              {error.resolved && (
-                <Chip
-                  icon={<CheckIcon />}
-                  label="Решено"
-                  size="small"
-                  color="success"
-                  variant="outlined"
-                />
-              )}
-              
               <Chip
                 label={error.appName}
                 size="small"
@@ -304,41 +264,67 @@ function RecentErrorItem({ error, onViewDetails, onResolveSuccess, onResolveErro
           </IconButton>
         </Tooltip>
 
-        <Tooltip title={error.resolved ? "Пометить как не решенную" : "Пометить как решенную"}>
-          <IconButton 
-            size="small" 
-            onClick={handleResolve} 
-            color={error.resolved ? "warning" : "success"}
-            disabled={isResolving}
-          >
-            <CheckIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        
         <Tooltip title="Открыть URL">
           <IconButton size="small" onClick={() => window.open(error.url, '_blank')} color="info">
             <OpenIcon fontSize="small" />
           </IconButton>
         </Tooltip>
+
+        {onDelete && (
+          <Tooltip title="Удалить ошибку">
+            <span>
+              <IconButton
+                size="small"
+                onClick={() => onDelete(error.id)}
+                color="error"
+                disabled={isDeleting || isPending}
+              >
+                {isDeleting ? <CircularProgress size={16} /> : <DeleteIcon fontSize="small" />}
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
       </Box>
     </ListItem>
   );
 }
 
 export default function RecentErrors() {
-  const [tabValue, setTabValue] = useState<"errors" | "logs">("errors");
   const { filters } = useFilters();
-  const { data: errors, error, isLoading, refetch } = useErrors({ 
+  
+  const errorFilters = {
     ...filters,
     limit: 50,
     offset: 0,
-    type: tabValue
+    type: "errors" as const,
+  };
+  
+  // Логирование для диагностики
+  console.warn('[RecentErrors] Calling useErrors with filters:', JSON.stringify(errorFilters));
+  
+  const { data: errors, error, isLoading, refetch } = useErrors(errorFilters);
+  
+  // Логирование результатов
+  console.warn('[RecentErrors] useErrors result:', {
+    isLoading,
+    hasError: !!error,
+    errorMessage: error?.message,
+    errorsCount: errors?.length || 0,
+    sampleErrors: errors?.slice(0, 2).map(e => ({ id: e.id, appName: e.appName, message: e.message.substring(0, 30) })),
   });
-  const { deleteAll } = useErrorsMutation();
+  
+  // Логирование результатов
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[RecentErrors] useErrors result:', {
+      isLoading,
+      hasError: !!error,
+      errorMessage: error?.message,
+      errorsCount: errors?.length || 0,
+      sampleErrors: errors?.slice(0, 3).map(e => ({ id: e.id, appName: e.appName, message: e.message.substring(0, 30) })),
+    });
+  }
   const [showAll, setShowAll] = useState(false);
   const [selectedError, setSelectedError] = useState<ErrorDashboardReport | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -348,13 +334,11 @@ export default function RecentErrors() {
   // Batch selection state
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: "errors" | "logs") => {
-    setTabValue(newValue);
-    setShowAll(false);
-    setSelectionMode(false);
-    setSelectedIds(new Set());
-  };
+  
+  // Delete state
+  const [isPending, startTransition] = useTransition();
+  const [deletingErrorId, setDeletingErrorId] = useState<string | null>(null);
+  const { invalidateErrors } = useErrorsMutation();
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -382,6 +366,253 @@ export default function RecentErrors() {
     setSelectionMode(false);
     setSelectedIds(new Set());
   };
+
+  const handleDeleteError = (errorId: string) => {
+    // Найдем ошибку для отображения информации
+    const error = errors?.find(e => e.id === errorId);
+    const confirmMessage = error 
+      ? `Вы уверены, что хотите удалить эту ошибку?\n\nПриложение: ${error.appName}\nСообщение: ${error.message.substring(0, 100)}${error.message.length > 100 ? '...' : ''}\n\nЭто действие нельзя отменить.`
+      : 'Вы уверены, что хотите удалить эту ошибку? Это действие нельзя отменить.';
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    const errorBeforeDeletion = errors?.find(e => e.id === errorId);
+    const operationStartTime = Date.now();
+    const operationStartIso = new Date().toISOString();
+    
+    // Вспомогательная функция для безопасного преобразования createdAt в ISO строку
+    const toIsoString = (date: Date | string | undefined): string | undefined => {
+      if (!date) return undefined;
+      if (date instanceof Date) return date.toISOString();
+      if (typeof date === 'string') return date;
+      return new Date(date).toISOString();
+    };
+    
+    const errorLabels = errorBeforeDeletion?.labels || {};
+    const createdAtIso = toIsoString(errorBeforeDeletion?.createdAt);
+    
+    console.warn('[RecentErrors] Начало удаления ошибки:', { 
+      errorId,
+      operationStartTime: operationStartIso,
+      errorBeforeDeletion: errorBeforeDeletion ? {
+        id: errorBeforeDeletion.id,
+        appName: errorBeforeDeletion.appName,
+        createdAt: createdAtIso,
+        timestampNs: errorBeforeDeletion.timestampNs,
+        message: errorBeforeDeletion.message.substring(0, 100),
+        environment: errorBeforeDeletion.environment,
+        context: errorLabels.context,
+        serviceName: errorLabels.service_name || errorLabels.serviceName,
+        container: errorLabels.container_name || errorLabels.container,
+        labels: errorBeforeDeletion.labels,
+        allLabels: errorBeforeDeletion.labels ? Object.keys(errorBeforeDeletion.labels) : [],
+        labelValues: errorBeforeDeletion.labels || {},
+      } : null,
+      totalErrorsInList: errors?.length || 0,
+      errorExistsInList: !!errorBeforeDeletion,
+    });
+    
+    setDeletingErrorId(errorId);
+    startTransition(async () => {
+      const startTime = Date.now();
+      
+      try {
+        const deleteActionStartTime = Date.now();
+        const deleteActionStartIso = new Date().toISOString();
+        
+        console.warn('[RecentErrors] Вызов deleteError server action...', {
+          errorId,
+          deleteActionStartTime: deleteActionStartIso,
+          timeSinceOperationStartMs: deleteActionStartTime - operationStartTime,
+          errorBeforeDeletion: errorBeforeDeletion ? {
+            appName: errorBeforeDeletion.appName,
+            createdAt: createdAtIso,
+            timestampNs: errorBeforeDeletion.timestampNs,
+            environment: errorBeforeDeletion.environment,
+            context: errorLabels.context,
+            serviceName: errorLabels.service_name || errorLabels.serviceName,
+            labels: errorBeforeDeletion.labels,
+          } : null,
+        });
+        
+        const result = await deleteError(errorId);
+        const deleteActionEndTime = Date.now();
+        const deleteActionEndIso = new Date().toISOString();
+        const deleteActionDuration = deleteActionEndTime - deleteActionStartTime;
+        const duration = deleteActionEndTime - startTime;
+        
+        console.warn('[RecentErrors] Результат deleteError:', {
+          success: result.success,
+          message: result.message,
+          error: result.error,
+          deleteActionStartTime: deleteActionStartIso,
+          deleteActionEndTime: deleteActionEndIso,
+          deleteActionDurationMs: deleteActionDuration,
+          totalDurationMs: duration,
+          timeSinceOperationStartMs: deleteActionEndTime - operationStartTime,
+        });
+        
+        if (result.success) {
+          setSnackbar({
+            open: true,
+            message: result.message || 'Ошибка успешно удалена',
+            severity: 'success',
+          });
+          
+          const cacheInvalidationStartTime = Date.now();
+          const cacheInvalidationStartIso = new Date().toISOString();
+          
+          console.warn('[RecentErrors] Инвалидация кэша ошибок...', {
+            errorId,
+            cacheInvalidationStartTime: cacheInvalidationStartIso,
+            timeSinceDeleteActionMs: cacheInvalidationStartTime - deleteActionEndTime,
+            timeSinceOperationStartMs: cacheInvalidationStartTime - operationStartTime,
+          });
+          
+          // Даём Loki применить удаление, затем принудительно обновляем кэш
+          await new Promise((resolve) => setTimeout(resolve, 600));
+          await invalidateErrors(errorFilters);
+          
+          const refetchStartTime = Date.now();
+          const refetchStartIso = new Date().toISOString();
+          await refetch();
+          const refetchEndTime = Date.now();
+          const refetchEndIso = new Date().toISOString();
+          const refetchDuration = refetchEndTime - refetchStartTime;
+          
+          // Проверяем, осталась ли ошибка в списке после удаления
+          const verificationTime = Date.now();
+          const verificationIso = new Date().toISOString();
+          const errorsAfterDeletion = errors;
+          const errorStillInList = errorsAfterDeletion?.some(e => e.id === errorId);
+          const foundErrorAfterDeletion = errorsAfterDeletion?.find(e => e.id === errorId);
+          const totalErrorsAfter = errorsAfterDeletion?.length || 0;
+          
+          console.warn('[RecentErrors] Состояние после удаления и refetch:', {
+            errorId,
+            verificationTime: verificationIso,
+            deleteActionDurationMs: deleteActionDuration,
+            refetchStartTime: refetchStartIso,
+            refetchEndTime: refetchEndIso,
+            refetchDurationMs: refetchDuration,
+            timeSinceDeleteActionMs: verificationTime - deleteActionEndTime,
+            timeSinceOperationStartMs: verificationTime - operationStartTime,
+            totalDurationMs: duration,
+            errorStillInList,
+            totalErrorsAfter,
+            totalErrorsBefore: errors?.length || 0,
+            errorBeforeDeletion: errorBeforeDeletion ? {
+              appName: errorBeforeDeletion.appName,
+              createdAt: createdAtIso,
+              timestampNs: errorBeforeDeletion.timestampNs,
+              environment: errorBeforeDeletion.environment,
+              context: errorLabels.context,
+              serviceName: errorLabels.service_name || errorLabels.serviceName,
+              container: errorLabels.container_name || errorLabels.container,
+              labels: errorBeforeDeletion.labels,
+            } : null,
+            errorAfterDeletion: foundErrorAfterDeletion ? {
+              id: foundErrorAfterDeletion.id,
+              appName: foundErrorAfterDeletion.appName,
+              createdAt: toIsoString(foundErrorAfterDeletion.createdAt),
+              timestampNs: foundErrorAfterDeletion.timestampNs,
+              environment: foundErrorAfterDeletion.environment,
+              context: (foundErrorAfterDeletion.labels || {}).context,
+              serviceName: (foundErrorAfterDeletion.labels || {}).service_name || (foundErrorAfterDeletion.labels || {}).serviceName,
+              container: (foundErrorAfterDeletion.labels || {}).container_name || (foundErrorAfterDeletion.labels || {}).container,
+              labels: foundErrorAfterDeletion.labels,
+              allLabels: foundErrorAfterDeletion.labels ? Object.keys(foundErrorAfterDeletion.labels) : [],
+              labelValues: foundErrorAfterDeletion.labels || {},
+              message: foundErrorAfterDeletion.message.substring(0, 200),
+            } : null,
+          });
+          
+          if (errorStillInList && foundErrorAfterDeletion) {
+            console.error('[RecentErrors] ОШИБКА ВСЁ ЕЩЁ В СПИСКЕ ПОСЛЕ УДАЛЕНИЯ!', {
+              errorId,
+              verificationTime: verificationIso,
+              timeSinceDeleteActionMs: verificationTime - deleteActionEndTime,
+              timeSinceOperationStartMs: verificationTime - operationStartTime,
+            errorDetails: {
+              id: foundErrorAfterDeletion.id,
+              appName: foundErrorAfterDeletion.appName,
+              createdAt: toIsoString(foundErrorAfterDeletion.createdAt),
+              timestampNs: foundErrorAfterDeletion.timestampNs,
+              environment: foundErrorAfterDeletion.environment,
+              context: (foundErrorAfterDeletion.labels || {}).context,
+              serviceName: (foundErrorAfterDeletion.labels || {}).service_name || (foundErrorAfterDeletion.labels || {}).serviceName,
+              container: (foundErrorAfterDeletion.labels || {}).container_name || (foundErrorAfterDeletion.labels || {}).container,
+              labels: foundErrorAfterDeletion.labels,
+              allLabels: foundErrorAfterDeletion.labels ? Object.keys(foundErrorAfterDeletion.labels) : [],
+              labelValues: foundErrorAfterDeletion.labels || {},
+              message: foundErrorAfterDeletion.message,
+            },
+            comparisonWithOriginal: {
+              timestampsMatch: errorBeforeDeletion?.timestampNs === foundErrorAfterDeletion.timestampNs,
+              labelsMatch: JSON.stringify(errorBeforeDeletion?.labels || {}) === JSON.stringify(foundErrorAfterDeletion.labels || {}),
+              originalTimestampNs: errorBeforeDeletion?.timestampNs,
+              foundTimestampNs: foundErrorAfterDeletion.timestampNs,
+              originalLabels: errorBeforeDeletion?.labels || {},
+              foundLabels: foundErrorAfterDeletion.labels || {},
+            },
+            });
+          } else {
+            console.warn('[RecentErrors] Ошибка успешно удалена из списка', {
+              errorId,
+              durationMs: duration,
+            });
+          }
+        } else {
+          // Показываем конкретную ошибку пользователю
+          const errorMessage = result.error || 'Не удалось удалить ошибку';
+          
+          console.error('[RecentErrors] Не удалось удалить ошибку:', {
+            errorId,
+            error: errorMessage,
+            durationMs: duration,
+          });
+          
+          setSnackbar({
+            open: true,
+            message: errorMessage,
+            severity: 'error',
+          });
+        }
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка при удалении';
+        
+        console.error('[RecentErrors] Исключение при удалении ошибки:', {
+          errorId,
+          error,
+          errorMessage,
+          durationMs: duration,
+        });
+        
+        setSnackbar({
+          open: true,
+          message: `Ошибка удаления: ${errorMessage}`,
+          severity: 'error',
+        });
+      } finally {
+        setDeletingErrorId(null);
+        const operationEndTime = Date.now();
+        const operationEndIso = new Date().toISOString();
+        const totalOperationDuration = operationEndTime - operationStartTime;
+        
+        console.warn('[RecentErrors] Завершение удаления ошибки', {
+          errorId,
+          operationStartTime: operationStartIso,
+          operationEndTime: operationEndIso,
+          totalDurationMs: totalOperationDuration,
+          totalDurationFromStartMs: Date.now() - startTime,
+        });
+      }
+    });
+  };
+
 
   const handleCopySelectedForAI = async () => {
     if (!errors) return;
@@ -499,7 +730,7 @@ export default function RecentErrors() {
       <Card>
         <CardContent>
           <Alert severity="info">
-            {tabValue === "errors" ? "Нет недавних ошибок" : "Нет недавних логов"}
+            Нет недавних ошибок
           </Alert>
         </CardContent>
       </Card>
@@ -508,35 +739,12 @@ export default function RecentErrors() {
 
   const displayedErrors = showAll ? errors : errors.slice(0, 20);
 
-  const handleDeleteAll = async () => {
-    setIsDeleting(true);
-    try {
-      const result = await deleteAll();
-      setDeleteDialogOpen(false);
-      setSnackbar({ 
-        open: true, 
-        message: result.message || "Все ошибки успешно удалены", 
-        severity: 'success' 
-      });
-      refetch();
-    } catch (error) {
-      console.error("Failed to delete all errors:", error);
-      setSnackbar({ 
-        open: true, 
-        message: "Не удалось удалить все ошибки", 
-        severity: 'error' 
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   return (
     <Card elevation={2}>
       <CardContent sx={{ p: 3 }}>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
           <Typography variant="h5" component="h3" fontWeight="bold">
-            {tabValue === "errors" ? "Список ошибок" : "Список логов"}
+            Список ошибок
           </Typography>
           
           <Box display="flex" alignItems="center" gap={1}>
@@ -553,16 +761,6 @@ export default function RecentErrors() {
             <Tooltip title="Обновить список">
               <IconButton color="primary" size="small" onClick={() => refetch()}>
                 <RefreshIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={`Очистить все ${tabValue === "errors" ? "ошибки" : "логи"}`}>
-              <IconButton 
-                color="error" 
-                size="small" 
-                onClick={() => setDeleteDialogOpen(true)}
-                disabled={!errors || errors.length === 0}
-              >
-                <DeleteIcon />
               </IconButton>
             </Tooltip>
           </Box>
@@ -659,30 +857,18 @@ export default function RecentErrors() {
           </Paper>
         )}
 
-        <Tabs 
-          value={tabValue} 
-          onChange={handleTabChange}
-          sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab label="Ошибки" value="errors" />
-          <Tab label="Логи" value="logs" />
-        </Tabs>
-
         <List sx={{ p: 0 }}>
           {displayedErrors.map((err, index) => (
             <Box key={err.id}>
               <RecentErrorItem 
                 error={err} 
                 onViewDetails={() => setSelectedError(err)}
-                onResolveSuccess={(message) => {
-                  setSnackbar({ open: true, message, severity: 'success' });
-                }}
-                onResolveError={(message) => {
-                  setSnackbar({ open: true, message, severity: 'error' });
-                }}
+                onDelete={handleDeleteError}
                 selectionMode={selectionMode}
                 isSelected={selectedIds.has(err.id)}
                 onToggleSelect={handleToggleSelect}
+                isDeleting={deletingErrorId === err.id}
+                isPending={isPending}
               />
               {index < displayedErrors.length - 1 && <Divider sx={{ my: 1 }} />}
             </Box>
@@ -710,42 +896,6 @@ export default function RecentErrors() {
         error={selectedError}
       />
 
-      {/* Диалог подтверждения удаления */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => !isDeleting && setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Подтверждение удаления</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Вы уверены, что хотите удалить все {tabValue === "errors" ? "ошибки" : "логи"} из базы данных? 
-            Это действие нельзя отменить.
-            {errors && errors.length > 0 && (
-              <Box component="span" display="block" mt={1} fontWeight="bold">
-                Будет удалено {tabValue === "errors" ? "ошибок" : "логов"}: {errors.length}
-              </Box>
-            )}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => setDeleteDialogOpen(false)} 
-            disabled={isDeleting}
-          >
-            Отмена
-          </Button>
-          <Button 
-            onClick={handleDeleteAll} 
-            color="error" 
-            variant="contained"
-            disabled={isDeleting}
-            startIcon={isDeleting ? <CircularProgress size={16} /> : <DeleteIcon />}
-          >
-            {isDeleting ? 'Удаление...' : 'Удалить все'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Snackbar для уведомлений */}
       <Snackbar
         open={snackbar.open}
@@ -761,6 +911,7 @@ export default function RecentErrors() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
     </Card>
   );
 }

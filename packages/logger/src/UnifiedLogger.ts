@@ -1,6 +1,6 @@
 import pino, { Logger as PinoLogger } from 'pino';
-import type { Logger, LoggerConfig, LogMeta, LogLevel } from './logger-types';
-import { ErrorDashboardTransport } from './transports/ErrorDashboardTransport';
+import type { Logger, LoggerConfig, LogMeta, LogLevel } from './logger-types.js';
+import { ErrorDashboardTransport } from './transports/ErrorDashboardTransport.js';
 
 /**
  * Единый логгер на основе Pino с интеграцией в error-dashboard
@@ -19,6 +19,7 @@ export class UnifiedLogger implements Logger {
         errorDashboardUrl: config.errorDashboardUrl,
         appName: config.appName,
         context: config.context,
+        lokiUrl: config.lokiUrl,
       });
     }
   }
@@ -79,6 +80,7 @@ export class UnifiedLogger implements Logger {
     const levels: Record<LogLevel, number> = {
       debug: 10,
       info: 20,
+      success: 20, // success на том же уровне, что и info
       warn: 30,
       error: 40,
       fatal: 50,
@@ -97,11 +99,19 @@ export class UnifiedLogger implements Logger {
     meta?: LogMeta
   ): Promise<void> {
     if (this.errorDashboardTransport) {
+      // Для worker приложений отправляем все уровни (включая info и success для push-логов)
+      const isWorker = this.config.appName === 'worker' || 
+                      this.config.context?.includes('webpush') ||
+                      this.config.context?.includes('push-notifications');
+      
       // В production отправляем warn, error и fatal
       // В development отправляем только error и fatal
-      const shouldSend = this.config.environment === 'production' 
+      // Для worker отправляем все уровни (info, success, warn, error, fatal)
+      const shouldSend = isWorker
+        ? ['info', 'success', 'warn', 'error', 'fatal'].includes(level)
+        : (this.config.environment === 'production' 
         ? ['warn', 'error', 'fatal'].includes(level)
-        : ['error', 'fatal'].includes(level);
+            : ['error', 'fatal'].includes(level));
 
       if (shouldSend) {
         const logEntry = this.errorDashboardTransport.createLogEntry(
@@ -124,6 +134,8 @@ export class UnifiedLogger implements Logger {
   info(message: string, meta?: LogMeta): void {
     if (this.shouldLog('info')) {
       this.pinoLogger.info(meta, message);
+      // Отправляем info в error-dashboard для worker приложений
+      void this.sendToErrorDashboard('info', message, undefined, meta);
     }
   }
 
@@ -159,6 +171,8 @@ export class UnifiedLogger implements Logger {
     if (this.shouldLog('info')) {
       const emoji = this.config.environment === 'development' ? '✅ ' : '';
       this.pinoLogger.info({ success: true, ...meta }, `${emoji}SUCCESS: ${message}`);
+      // Отправляем success в error-dashboard для worker приложений
+      void this.sendToErrorDashboard('success', message, undefined, meta);
     }
   }
 
@@ -184,6 +198,7 @@ export class UnifiedLogger implements Logger {
         errorDashboardUrl: newConfig.errorDashboardUrl,
         appName: this.config.appName,
         context: this.config.context,
+        lokiUrl: newConfig.lokiUrl || this.config.lokiUrl,
       });
     }
   }

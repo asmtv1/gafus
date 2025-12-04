@@ -3,7 +3,6 @@
 
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { revalidateTag } from "next/cache";
-import { reportErrorToDashboard } from "./reportError";
 
 // Создаем логгер для invalidate-training-days-cache
 const logger = createTrainerPanelLogger('trainer-panel-invalidate-training-days-cache');
@@ -17,17 +16,16 @@ export async function invalidateTrainingDaysCache() {
     logger.warn("[Cache] Training days cache invalidated successfully", { operation: 'warn' });
   } catch (error) {
     logger.error("❌ Error invalidating training days cache:", error as Error, { operation: 'error' });
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in invalidateTrainingDaysCache",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "trainer-panel",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in invalidateTrainingDaysCache",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "invalidateTrainingDaysCache",
         action: "invalidateTrainingDaysCache",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["training", "days", "cache", "invalidation"],
-    });
+        tags: ["training", "days", "cache", "invalidation"],
+      }
+    );
   }
 }
 
@@ -40,17 +38,16 @@ export async function invalidateTrainingDayCache(dayId: string) {
     logger.warn(`[Cache] Training day ${dayId} cache invalidated successfully`, { operation: 'warn' });
   } catch (error) {
     logger.error("❌ Error invalidating training day cache:", error as Error, { operation: 'error' });
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in invalidateTrainingDayCache",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "trainer-panel",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in invalidateTrainingDayCache",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "invalidateTrainingDayCache",
         action: "invalidateTrainingDayCache",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         dayId,
-      },
-      tags: ["training", "day", "cache", "invalidation"],
-    });
+        tags: ["training", "day", "cache", "invalidation"],
+      }
+    );
   }
 }

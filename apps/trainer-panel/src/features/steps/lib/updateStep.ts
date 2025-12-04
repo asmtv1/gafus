@@ -3,7 +3,6 @@
 
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { validateForm } from "@shared/lib/validation/serverValidation";
 import { revalidatePath } from "next/cache";
 import { deleteFileFromCDN, uploadFileToCDN } from "@gafus/cdn-upload";
@@ -250,14 +249,15 @@ export async function updateStep(
     return { success: true };
   } catch (error) {
     logger.error("Ошибка при обновлении шага:", error as Error, { operation: 'error' });
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "trainer-panel",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: { action: "updateStep" },
-      tags: ["steps", "update"],
-    });
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "updateStep",
+        action: "updateStep",
+        tags: ["steps", "update"],
+      }
+    );
     return { error: "Не удалось обновить шаг" };
   }
 }

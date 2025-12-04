@@ -5,7 +5,6 @@ import { createTrainerPanelLogger } from "@gafus/logger";
 import { getCourseStatistics } from "@gafus/statistics";
 import { unstable_cache } from "next/cache";
 
-import { reportErrorToDashboard } from "./reportError";
 
 // Создаем логгер для cachedStatistics
 const logger = createTrainerPanelLogger('trainer-panel-cached-statistics');
@@ -24,20 +23,18 @@ export const getCourseStatisticsCached = unstable_cache(
     } catch (error) {
       logger.error("❌ Error in getCourseStatisticsCached:", error as Error, { operation: 'error' });
 
-      await reportErrorToDashboard({
-        message:
-          error instanceof Error ? error.message : "Unknown error in getCourseStatisticsCached",
-        stack: error instanceof Error ? error.stack : undefined,
-        appName: "trainer-panel",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
+      logger.error(
+        error instanceof Error ? error.message : "Unknown error in getCourseStatisticsCached",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: "getCourseStatisticsCached",
           action: "getCourseStatisticsCached",
           userId,
           isElevated,
           errorType: error instanceof Error ? error.constructor.name : typeof error,
-        },
-        tags: ["statistics", "cache", "server-action"],
-      });
+          tags: ["statistics", "cache", "server-action"],
+        }
+      );
 
       return { success: false, error: "Что-то пошло не так при получении статистики" };
     }
@@ -74,19 +71,17 @@ export const searchUsersByUsernameCached = unstable_cache(
     } catch (error) {
       logger.error("❌ Error in searchUsersByUsernameCached:", error as Error, { operation: 'error' });
 
-      await reportErrorToDashboard({
-        message:
-          error instanceof Error ? error.message : "Unknown error in searchUsersByUsernameCached",
-        stack: error instanceof Error ? error.stack : undefined,
-        appName: "trainer-panel",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
+      logger.error(
+        error instanceof Error ? error.message : "Unknown error in searchUsersByUsernameCached",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: "searchUsersByUsernameCached",
           action: "searchUsersByUsernameCached",
           search,
           errorType: error instanceof Error ? error.constructor.name : typeof error,
-        },
-        tags: ["users", "search", "cache", "server-action"],
-      });
+          tags: ["users", "search", "cache", "server-action"],
+        }
+      );
 
       return { success: false, error: "Что-то пошло не так при поиске пользователей" };
     }

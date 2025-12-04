@@ -21,11 +21,8 @@ function formatErrorForAI(error: {
   userId: string | null;
   sessionId: string | null;
   userAgent: string;
-  resolved: boolean;
   createdAt: Date;
   updatedAt: Date;
-  resolvedAt: Date | null;
-  resolvedBy: string | null;
 }): string {
   const lines: string[] = [];
   
@@ -36,7 +33,6 @@ function formatErrorForAI(error: {
   lines.push(`**Окружение:** ${error.environment}`);
   lines.push(`**Дата:** ${format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}`);
   lines.push(`**URL:** ${error.url}`);
-  lines.push(`**Статус:** ${error.resolved ? '✅ Решено' : '❌ Не решено'}`);
   
   if (error.userId) {
     lines.push(`**User ID:** \`${error.userId}\``);
@@ -94,7 +90,6 @@ function formatErrorForAI(error: {
  * - ids: comma-separated list of error IDs (optional, exports specific errors)
  * - appName: filter by app name (optional)
  * - environment: filter by environment (optional)
- * - resolved: filter by resolved status (optional)
  * - limit: max number of errors (default: 100)
  */
 export async function GET(request: NextRequest) {
@@ -104,7 +99,6 @@ export async function GET(request: NextRequest) {
     const ids = searchParams.get('ids')?.split(',').filter(Boolean);
     const appName = searchParams.get('appName');
     const environment = searchParams.get('environment');
-    const resolvedParam = searchParams.get('resolved');
     const limit = parseInt(searchParams.get('limit') || '100', 10);
 
     // Build where clause
@@ -112,7 +106,6 @@ export async function GET(request: NextRequest) {
       id?: { in: string[] };
       appName?: string;
       environment?: string;
-      resolved?: boolean;
     } = {};
 
     if (ids && ids.length > 0) {
@@ -124,11 +117,8 @@ export async function GET(request: NextRequest) {
     if (environment) {
       where.environment = environment;
     }
-    if (resolvedParam !== null) {
-      where.resolved = resolvedParam === 'true';
-    }
 
-    const errors = await prisma.errorReport.findMany({
+    const errors = await prisma.errorLog.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -145,7 +135,7 @@ export async function GET(request: NextRequest) {
 
     if (formatType === 'markdown' || formatType === 'md') {
       const markdownParts = errors.map((error, index) => {
-        const md = formatErrorForAI(error);
+        const md = formatErrorForAI(error as unknown as Parameters<typeof formatErrorForAI>[0]);
         return index === 0 ? md : `\n\n---\n\n${md}`;
       });
       
@@ -202,7 +192,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const errors = await prisma.errorReport.findMany({
+    const errors = await prisma.errorLog.findMany({
       where: {
         id: { in: ids },
       },
@@ -220,7 +210,7 @@ export async function POST(request: NextRequest) {
 
     if (formatType === 'markdown' || formatType === 'md') {
       const markdownParts = errors.map((error, index) => {
-        const md = formatErrorForAI(error);
+        const md = formatErrorForAI(error as unknown as Parameters<typeof formatErrorForAI>[0]);
         return index === 0 ? md : `\n\n---\n\n${md}`;
       });
       

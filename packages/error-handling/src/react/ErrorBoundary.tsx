@@ -2,10 +2,25 @@
 
 import type { ReactNode } from "react";
 import React, { Component } from "react";
-import { ErrorReporter, type ErrorInfo, type ErrorReporterConfig } from "@gafus/logger";
+import { LoggerFactory, type Logger, type LogMeta } from "@gafus/logger";
 
-export interface ErrorBoundaryConfig extends ErrorReporterConfig {
-  // Расширяем базовую конфигурацию для React специфики
+export interface ErrorBoundaryConfig {
+  appName: string;
+  environment?: string;
+  logToConsole?: boolean;
+  showErrorDetails?: boolean;
+}
+
+export interface ErrorInfo {
+  componentStack?: string;
+  errorBoundaryName?: string;
+  appName: string;
+  url: string;
+  userAgent: string;
+  timestamp: number;
+  userId?: string;
+  sessionId?: string;
+  additionalContext?: Record<string, unknown>;
 }
 
 export interface ErrorBoundaryProps {
@@ -26,7 +41,8 @@ export interface ErrorBoundaryState {
  * Может использоваться в любых React приложениях проекта
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  private errorReporter: ErrorReporter;
+  private logger: Logger;
+  private config: ErrorBoundaryConfig;
 
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -41,7 +57,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       ...props.config,
     };
 
-    this.errorReporter = new ErrorReporter(defaultConfig);
+    this.config = defaultConfig;
+
+    // Создаем логгер с кэшированием (как в createWebLogger)
+    this.logger = LoggerFactory.createLoggerWithContext(
+      defaultConfig.appName,
+      'error-boundary',
+      {
+        enableErrorDashboard: true,
+        enableConsole: defaultConfig.logToConsole,
+      }
+    );
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
@@ -52,7 +78,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     const enhancedErrorInfo: ErrorInfo = {
       componentStack: errorInfo.componentStack || "",
       errorBoundaryName: "ErrorBoundary",
-      appName: this.errorReporter.getConfig().appName,
+      appName: this.config.appName,
       userId:
         typeof window !== "undefined" ? localStorage.getItem("userId") || undefined : undefined,
       sessionId:
@@ -66,8 +92,25 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     this.setState({ errorInfo: enhancedErrorInfo });
 
-    // Отправляем ошибку через ErrorReporter
-    this.errorReporter.reportError(error, enhancedErrorInfo);
+    // Формируем метаданные для логгера
+    const meta: LogMeta = {
+      operation: 'error_boundary',
+      componentStack: enhancedErrorInfo.componentStack,
+      errorBoundaryName: enhancedErrorInfo.errorBoundaryName,
+      url: enhancedErrorInfo.url,
+      userAgent: enhancedErrorInfo.userAgent,
+      userId: enhancedErrorInfo.userId,
+      sessionId: enhancedErrorInfo.sessionId,
+      ...enhancedErrorInfo.additionalContext,
+      tags: ['error-boundary', 'react-error'],
+    };
+
+    // Отправляем ошибку напрямую через logger
+    void this.logger.error(
+      error.message || 'React component error',
+      error,
+      meta
+    );
 
     // Вызываем пользовательский обработчик если есть
     if (this.props.onError) {
@@ -97,8 +140,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           error={this.state.error}
           errorInfo={this.state.errorInfo}
           onReset={this.handleReset}
-          showDetails={this.errorReporter.getConfig().showErrorDetails}
-          appName={this.errorReporter.getConfig().appName}
+          showDetails={this.config.showErrorDetails}
+          appName={this.config.appName}
         />
       );
     }

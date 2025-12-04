@@ -3,7 +3,6 @@
 
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { revalidatePath } from "next/cache";
 import { deleteFileFromCDN } from "@gafus/cdn-upload";
 
@@ -47,14 +46,15 @@ export async function deleteSteps(_prev: ActionResult, formData: FormData): Prom
     return { success: true, message: `Удалено: ${result.count}` } as { success: boolean; message: string };
   } catch (error) {
     logger.error("Ошибка при удалении шагов:", error as Error, { operation: 'error' });
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "trainer-panel",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: { action: "deleteSteps" },
-      tags: ["steps", "delete"],
-    });
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "action",
+        action: "action",
+        tags: [],
+      }
+    );
     return { error: "Не удалось удалить шаги" };
   }
 }

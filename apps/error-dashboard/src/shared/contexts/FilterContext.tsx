@@ -7,7 +7,6 @@ import type { ReactNode } from "react";
 interface Filters {
   appName?: string;
   environment?: string;
-  resolved?: boolean;
 }
 
 interface FilterContextType {
@@ -27,12 +26,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
     const app = params.get("app");
     const env = params.get("env");
-    const resolved = params.get("resolved");
 
     if (app) filters.appName = app;
     if (env) filters.environment = env;
-    if (resolved === "true") filters.resolved = true;
-    if (resolved === "false") filters.resolved = false;
 
     return filters;
   };
@@ -47,8 +43,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       setFilters((prevFilters) => {
         if (
           prevFilters.appName !== newFilters.appName ||
-          prevFilters.environment !== newFilters.environment ||
-          prevFilters.resolved !== newFilters.resolved
+          prevFilters.environment !== newFilters.environment
         ) {
           return newFilters;
         }

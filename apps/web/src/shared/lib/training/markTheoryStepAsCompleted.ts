@@ -2,7 +2,6 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
@@ -122,30 +121,22 @@ export async function markTheoryStepAsCompleted(
       userId: userId,
     });
 
-    // Отправляем ошибку в dashboard для мониторинга
-    try {
-      await reportErrorToDashboard({
-        message:
-          error instanceof Error ? error.message : "Unknown error in markTheoryStepAsCompleted",
-        stack: error instanceof Error ? error.stack : undefined,
-        appName: "web",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
-          action: "markTheoryStepAsCompleted",
-          courseId: safeInput.courseId,
-          day: safeInput.day,
-          stepIndex: safeInput.stepIndex,
-          stepTitle: safeInput.stepTitle,
-          stepOrder: safeInput.stepOrder,
-          errorType: error instanceof Error ? error.constructor.name : typeof error,
-        },
+    // Логируем ошибку через logger (отправляется в Loki)
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in markTheoryStepAsCompleted",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "markTheoryStepAsCompleted",
+        action: "markTheoryStepAsCompleted",
+        courseId: safeInput.courseId,
+        day: safeInput.day,
+        stepIndex: safeInput.stepIndex,
+        stepTitle: safeInput.stepTitle,
+        stepOrder: safeInput.stepOrder,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
         tags: ["training", "theory-step", "server-action"],
-      });
-    } catch (reportError) {
-      logger.error("Failed to report error to dashboard", reportError as Error, {
-        operation: 'report_error_failed',
-      });
-    }
+      }
+    );
 
     // Возвращаем ошибку, но не прерываем выполнение на клиенте
     // Пользователь сможет открыть шаг, даже если серверное обновление не удалось

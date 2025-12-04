@@ -9,11 +9,10 @@ import type { ErrorDashboardReport } from "@gafus/types";
  */
 export async function GET() {
   try {
-    // Получаем все записи
-    const allReports = await prisma.errorReport.findMany({
+    // Получаем все записи из ErrorLog (новая модель)
+    const allReports = await prisma.errorLog.findMany({
       select: {
         id: true,
-        resolved: true,
         appName: true,
         environment: true,
         url: true,
@@ -21,6 +20,8 @@ export async function GET() {
         additionalContext: true,
         tags: true,
         message: true,
+        level: true,
+        timestamp: true,
         createdAt: true,
       },
       orderBy: { createdAt: "desc" },
@@ -29,7 +30,7 @@ export async function GET() {
 
     // Анализируем каждую запись
     const analysis = allReports.map((report) => {
-      const reportAsError = report as ErrorDashboardReport;
+      const reportAsError = report as unknown as ErrorDashboardReport;
       const fromLogger = isFromLogger(reportAsError);
       const level = getLogLevel(reportAsError);
       const isErrorResult = isError(reportAsError);
@@ -57,7 +58,6 @@ export async function GET() {
         url: report.url,
         userAgent: report.userAgent,
         tags: report.tags,
-        resolved: report.resolved,
         createdAt: report.createdAt,
         // Диагностика
         fromLogger,
@@ -88,11 +88,10 @@ export async function GET() {
     const stats = {
       total: allReports.length,
       fromLogger: allReports.filter((r) =>
-        isFromLogger(r as ErrorDashboardReport)
+        isFromLogger(r as unknown as ErrorDashboardReport)
       ).length,
-      errors: allReports.filter((r) => isError(r as ErrorDashboardReport)).length,
-      logs: allReports.filter((r) => isLog(r as ErrorDashboardReport)).length,
-      unresolved: allReports.filter((r) => !r.resolved).length,
+      errors: allReports.filter((r) => isError(r as unknown as ErrorDashboardReport)).length,
+      logs: allReports.filter((r) => isLog(r as unknown as ErrorDashboardReport)).length,
       byApp: {} as Record<string, number>,
       byEnvironment: {} as Record<string, number>,
       byLevel: {} as Record<string, number>,
@@ -103,7 +102,7 @@ export async function GET() {
       stats.byEnvironment[report.environment] =
         (stats.byEnvironment[report.environment] || 0) + 1;
 
-      const level = getLogLevel(report as ErrorDashboardReport);
+      const level = getLogLevel(report as unknown as ErrorDashboardReport);
       if (level) {
         stats.byLevel[level] = (stats.byLevel[level] || 0) + 1;
       }

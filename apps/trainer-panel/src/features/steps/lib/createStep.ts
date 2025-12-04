@@ -4,7 +4,6 @@
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { validateForm } from "@shared/lib/validation/serverValidation";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
@@ -267,14 +266,15 @@ export async function createStep(
     return { success: true };
   } catch (error) {
     logger.error("Ошибка при создании шага:", error as Error, { operation: 'error' });
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "trainer-panel",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: { action: "createStep" },
-      tags: ["steps", "create"],
-    });
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "createStep",
+        action: "createStep",
+        tags: ["steps", "create"],
+      }
+    );
     return { error: "Не удалось создать шаг" };
   }
 }

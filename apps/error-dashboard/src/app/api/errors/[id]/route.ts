@@ -21,11 +21,8 @@ function formatErrorForAI(error: {
   userId: string | null;
   sessionId: string | null;
   userAgent: string;
-  resolved: boolean;
   createdAt: Date;
   updatedAt: Date;
-  resolvedAt: Date | null;
-  resolvedBy: string | null;
 }): string {
   const lines: string[] = [];
   
@@ -36,7 +33,6 @@ function formatErrorForAI(error: {
   lines.push(`**Окружение:** ${error.environment}`);
   lines.push(`**Дата:** ${format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}`);
   lines.push(`**URL:** ${error.url}`);
-  lines.push(`**Статус:** ${error.resolved ? '✅ Решено' : '❌ Не решено'}`);
   
   if (error.userId) {
     lines.push(`**User ID:** \`${error.userId}\``);
@@ -94,7 +90,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const formatType = searchParams.get('format') || 'json';
 
-    const error = await prisma.errorReport.findUnique({
+    const error = await prisma.errorLog.findUnique({
       where: { id },
     });
 
@@ -106,7 +102,7 @@ export async function GET(
     }
 
     if (formatType === 'markdown' || formatType === 'md') {
-      const markdown = formatErrorForAI(error);
+      const markdown = formatErrorForAI(error as unknown as Parameters<typeof formatErrorForAI>[0]);
       return new NextResponse(markdown, {
         status: 200,
         headers: {

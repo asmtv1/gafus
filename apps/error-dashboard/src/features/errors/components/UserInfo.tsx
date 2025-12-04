@@ -15,8 +15,6 @@ export default function UserInfo() {
   useEffect(() => {
     if (pathname === "/") {
       setActiveTab(0);
-    } else if (pathname === "/push-logs") {
-      setActiveTab(1);
     }
   }, [pathname]);
 
@@ -28,8 +26,6 @@ export default function UserInfo() {
     setActiveTab(newValue);
     if (newValue === 0) {
       router.push("/");
-    } else if (newValue === 1) {
-      router.push("/push-logs");
     }
   };
 
@@ -43,7 +39,6 @@ export default function UserInfo() {
       <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
         <Tabs value={activeTab} onChange={handleTabChange} aria-label="dashboard navigation">
           <Tab label="Основные ошибки" />
-          <Tab label="Push-логи" />
         </Tabs>
       </Box>
 

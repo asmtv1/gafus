@@ -2,7 +2,6 @@
 
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { deleteFileFromCDN } from "@gafus/cdn-upload";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 
 const logger = createTrainerPanelLogger('trainer-panel-delete-step-image');
 
@@ -34,16 +33,15 @@ export async function deleteStepImageServerAction(imageUrl: string): Promise<{ s
       imageUrl
     });
 
-    await reportErrorToDashboard({
-      message: `Failed to delete step image: ${imageUrl}`,
-      stack: error instanceof Error ? error.stack : String(error),
-      appName: "trainer-panel",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
-        imageUrl,
-      },
-      tags: ["steps", "delete", "server-action"],
-    });
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "action",
+        action: "action",
+        tags: [],
+      }
+    );
 
     return { success: false, error: error instanceof Error ? error.message : "Не удалось удалить изображение" };
   }

@@ -21,7 +21,6 @@ import {
   BugReport as BugIcon,
   Warning as WarningIcon,
   Error as ErrorIcon,
-  CheckCircle as CheckIcon,
   Person as PersonIcon,
   Computer as ComputerIcon,
   Schedule as ScheduleIcon,
@@ -46,7 +45,6 @@ function formatErrorForAI(error: ErrorDashboardReport): string {
   lines.push(`**Окружение:** ${error.environment}`);
   lines.push(`**Дата:** ${format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}`);
   lines.push(`**URL:** ${error.url}`);
-  lines.push(`**Статус:** ${error.resolved ? '✅ Решено' : '❌ Не решено'}`);
   
   if (error.userId) {
     lines.push(`**User ID:** \`${error.userId}\``);
@@ -112,11 +110,8 @@ function formatErrorAsJSON(error: ErrorDashboardReport): string {
     userId: error.userId,
     sessionId: error.sessionId,
     userAgent: error.userAgent,
-    resolved: error.resolved,
     createdAt: error.createdAt,
     updatedAt: error.updatedAt,
-    resolvedAt: error.resolvedAt,
-    resolvedBy: error.resolvedBy,
   }, null, 2);
 }
 
@@ -686,15 +681,6 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
               variant="outlined"
             />
             
-            {error.resolved && (
-              <Chip
-                icon={<CheckIcon />}
-                label="Решено"
-                size="small"
-                color="success"
-                variant="outlined"
-              />
-            )}
           </Box>
 
           <Box display="grid" gridTemplateColumns={{ xs: "1fr", sm: "repeat(2, 1fr)" }} gap={2}>
@@ -801,29 +787,6 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
               </Typography>
             </Box>
 
-            {error.resolvedAt && (
-              <Box>
-                <Typography variant="body2" fontWeight="medium" mb={1}>
-                  Разрешено:
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                  {new Date(error.resolvedAt).toLocaleString('ru-RU', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    timeZoneName: 'short'
-                  })}
-                </Typography>
-                {error.resolvedBy && (
-                  <Typography variant="caption" color="text.secondary">
-                    Пользователем: {error.resolvedBy}
-                  </Typography>
-                )}
-              </Box>
-            )}
           </Box>
         </Paper>
 
@@ -863,9 +826,6 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
             <Box>
               <Typography variant="body2" fontWeight="medium" mb={1}>
                 Статус:
-              </Typography>
-              <Typography variant="body2" color={error.resolved ? "success.main" : "error.main"}>
-                {error.resolved ? "✅ Решено" : "❌ Не решено"}
               </Typography>
             </Box>
           </Box>
@@ -950,14 +910,6 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
         )}
 
         {/* Статус разрешения */}
-        {error.resolved && error.resolvedAt && (
-          <Alert severity="success" sx={{ borderRadius: 2 }}>
-            <Typography variant="body2">
-              Эта ошибка была решена {formatDistanceToNow(new Date(error.resolvedAt), { addSuffix: true, locale: ru })}
-              {error.resolvedBy && ` пользователем ${error.resolvedBy}`}
-            </Typography>
-          </Alert>
-        )}
       </DialogContent>
 
       <DialogActions sx={{ p: 3, pt: 0, flexWrap: 'wrap', gap: 1 }}>

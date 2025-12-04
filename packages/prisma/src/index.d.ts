@@ -1,5 +1,6 @@
-export type { Course, CourseAccess, CourseReview, DayOnCourse, ErrorReport, FavoriteCourse, Pet, Prisma, PrismaClient, PushSubscription, Step, StepNotification, StepOnDay, TrainingDay, TrainingLevel, TrainingStatus, User, UserCourse, UserProfile, UserRole, UserStep, UserTraining, } from "@prisma/client";
+export type { Course, CourseAccess, CourseReview, DayOnCourse, ErrorLog, FavoriteCourse, Pet, PrismaClient, PushSubscription, Step, StepNotification, StepOnDay, TrainingDay, TrainingLevel, TrainingStatus, User, UserCourse, UserProfile, UserRole, UserStep, UserTraining, } from "@prisma/client";
 export { PetType } from "@prisma/client";
+export { Prisma } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
 export interface DatabaseClient {
     user: PrismaClient["user"];
@@ -13,7 +14,7 @@ export interface DatabaseClient {
     favoriteCourse: PrismaClient["favoriteCourse"];
     courseReview: PrismaClient["courseReview"];
     stepNotification: PrismaClient["stepNotification"];
-    errorReport: PrismaClient["errorReport"];
+    errorLog: PrismaClient["errorLog"];
     pushSubscription: PrismaClient["pushSubscription"];
     userProfile: PrismaClient["userProfile"];
     userTraining: PrismaClient["userTraining"];
@@ -25,4 +26,3 @@ export interface DatabaseClient {
     $transaction: <T>(fn: (prisma: DatabaseClient) => Promise<T>) => Promise<T>;
 }
 export { prisma, default as prismaClient } from "./client";
-//# sourceMappingURL=index.d.ts.map

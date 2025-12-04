@@ -4,7 +4,6 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@gafus/prisma";
 import { getCurrentUserId } from "@/utils";
 import { createWebLogger } from "@gafus/logger";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 
 const logger = createWebLogger('web-get-user-training-dates');
 
@@ -99,18 +98,17 @@ export async function getUserTrainingDates(): Promise<Date[]> {
       operation: 'get_user_training_dates_error'
     });
 
-    // Для критических ошибок отправляем в error dashboard
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in getUserTrainingDates",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    // Логируем ошибку через logger (отправляется в Loki)
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in getUserTrainingDates",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "getUserTrainingDates",
         action: "getUserTrainingDates",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["achievements", "streaks", "server-action"],
-    });
+        tags: ["achievements", "streaks", "server-action"],
+      }
+    );
 
     return [];
   }

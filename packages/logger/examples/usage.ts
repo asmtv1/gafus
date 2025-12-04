@@ -43,7 +43,7 @@ export function demonstrateCustomLogger() {
     context: 'user-management',
     environment: 'development',
     enableErrorDashboard: true,
-    errorDashboardUrl: 'http://localhost:3001/api/push-logs',
+    errorDashboardUrl: 'http://localhost:3001/api/report',
   });
   
   customLogger.info('Создание пользователя', { email: 'user@example.com' });

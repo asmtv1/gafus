@@ -1,7 +1,6 @@
 // lib/user/getUserProfile.ts
 "use server";
 import { prisma } from "@gafus/prisma";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createWebLogger } from "@gafus/logger";
 import { getCurrentUserId as getCurrentUserIdFromAuth } from "@gafus/auth/server";
 
@@ -27,17 +26,16 @@ export async function getUserProfile() {
       hasUserId: !!userId
     });
 
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in getUserProfile",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in getUserProfile",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "getUserProfile",
         action: "getUserProfile",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["user", "profile", "server-action"],
-    });
+        tags: ["user", "profile", "server-action"],
+      }
+    );
 
     return null;
   }

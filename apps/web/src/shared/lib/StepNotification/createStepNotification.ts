@@ -6,56 +6,19 @@ import type { PushSubscription as DbPushSubscription } from "@gafus/prisma";
 // Создаем логгер для createStepNotification
 const logger = createWebLogger('web-create-step-notification');
 
-// Функция для логирования в error-dashboard
-async function logToErrorDashboard(
+// Функция для логирования через logger (отправляется в Loki)
+function logToErrorDashboard(
   message: string,
   level: "info" | "warn" | "error" = "info",
   meta?: Record<string, unknown>,
 ) {
-  try {
-    // В production используем HTTPS URL, в dev - localhost
-    const defaultUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://monitor.gafus.ru'
-      : 'http://errors.gafus.localhost:3005';
-    const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || defaultUrl;
-
-    // Извлекаем notificationId и endpoint из meta
-    const notificationId = meta?.notificationId as string | undefined;
-    const endpoint = meta?.endpoint as string | undefined;
-    
-    // Формируем правильный формат для push-logs endpoint
-    const logEntry = {
-      message,
-      context: "step-notification",
-      service: "training",
-      level,
-      timestamp: meta?.timestamp as string || new Date().toISOString(),
-      notificationId,
-      endpoint,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
-        ...meta,
-        pushSpecific: {
-          context: "step-notification",
-          service: "training",
-          level,
-          timestamp: meta?.timestamp as string || new Date().toISOString(),
-          notificationId,
-          endpoint,
-        },
-      },
-      tags: ["step-notification", "push-subscription", level],
-    };
-
-    await fetch(`${errorDashboardUrl}/api/push-logs`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(logEntry),
-    });
-  } catch {
-    // Fallback на console если error-dashboard недоступен
-    logger.warn(`[${level.toUpperCase()}] ${message}`, meta);
+  // Используем logger вместо прямого fetch
+  if (level === "error") {
+    logger.error(message, new Error(message), meta);
+  } else if (level === "warn") {
+    logger.warn(message, meta);
+  } else {
+    logger.info(message, meta);
   }
 }
 
@@ -83,8 +46,8 @@ export async function createStepNotificationsForUserStep({
   });
 
   if (subscriptions.length === 0) {
-    // Логируем ошибку в error-dashboard
-    await logToErrorDashboard("No push subscriptions found for user", "error", {
+    // Логируем ошибку через logger
+    logToErrorDashboard("No push subscriptions found for user", "error", {
       userId,
       day,
       stepIndex,
@@ -99,7 +62,7 @@ export async function createStepNotificationsForUserStep({
   }
 
   // Логируем успешное создание уведомления
-  await logToErrorDashboard("Step notification created successfully", "info", {
+  logToErrorDashboard("Step notification created successfully", "info", {
     userId,
     day,
     stepIndex,
@@ -149,7 +112,7 @@ export async function createStepNotificationsForUserStep({
     });
 
     // Логируем успешное добавление в очередь
-    await logToErrorDashboard("Job added to push queue successfully", "info", {
+    logToErrorDashboard("Job added to push queue successfully", "info", {
       notificationId: notif.id,
       jobId: job.id,
       userId,
@@ -161,7 +124,7 @@ export async function createStepNotificationsForUserStep({
     });
   } catch (err) {
     // Логируем ошибку добавления в очередь
-    await logToErrorDashboard("Error adding job to push queue", "error", {
+    logToErrorDashboard("Error adding job to push queue", "error", {
       notificationId: notif.id,
       userId,
       day,

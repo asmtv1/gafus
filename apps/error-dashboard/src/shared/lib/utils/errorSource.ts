@@ -28,7 +28,7 @@ export function getLogLevel(error: ErrorDashboardReport): string | null {
         }
       }
 
-      // Для push-logs может быть вложенный объект
+      // Для push-уведомлений может быть вложенный объект pushSpecific
       if (
         context &&
         typeof context === "object" &&

@@ -6,7 +6,7 @@
 
 **Содержимое:**
 - ✅ React ErrorBoundary компонент (1 файл: `ErrorBoundary.tsx`)
-- ✅ Re-export `ErrorReporter` из `@gafus/logger` (для обратной совместимости)
+- ✅ Использует `logger.error()` из `@gafus/logger` для отправки ошибок
 
 **Зависимости:**
 - `@gafus/logger` (workspace)
@@ -27,7 +27,7 @@
 **Содержимое:**
 - ✅ UnifiedLogger (основной класс на базе Pino)
 - ✅ LoggerFactory (фабрика для создания логгеров)
-- ✅ ErrorReporter (отправка ошибок в dashboard)
+- ✅ Logger с отправкой ошибок в Loki
 - ✅ ErrorDashboardTransport (HTTP транспорт)
 
 **Зависимости:**
@@ -219,7 +219,7 @@ packages/
 ```typescript
 // packages/error-handling/src/index.ts
 export { ErrorBoundary } from './react/ErrorBoundary';
-export { ErrorReporter } from '@gafus/logger';  // ✅ Уже есть
+// Использует logger.error() из @gafus/logger напрямую
 ```
 
 **Результат:** Один импорт для React-приложений, но пакеты разделены ✅
@@ -229,7 +229,7 @@ export { ErrorReporter } from '@gafus/logger';  // ✅ Уже есть
 ```typescript
 // packages/logger/src/react.ts (новый файл)
 export { ErrorBoundary } from '@gafus/error-handling';
-export { ErrorReporter } from './ErrorReporter';
+// ErrorReporter удален - используется logger.error() напрямую
 ```
 
 **Не рекомендуется** — создаёт циклическую зависимость ❌

@@ -74,7 +74,7 @@ async function testWebpushErrorDashboard() {
 
     console.log('🎉 Все тесты завершены!');
     console.log('\n📊 Проверьте error-dashboard:');
-    console.log('   - Push Logs: http://localhost:3001/push-logs');
+    console.log('   - Логи контейнеров: http://localhost:3001/container-logs');
     console.log('   - Ищите логи по контексту: webpush-service, device-manager');
     console.log('\n🔍 Ожидаемые логи:');
     console.log('   - Service errors с endpoint и notificationId');

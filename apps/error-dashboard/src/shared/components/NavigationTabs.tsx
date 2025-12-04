@@ -4,7 +4,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Tabs, Tab, Paper } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
-  Notifications as NotificationsIcon,
   SettingsSystemDaydream as SystemIcon,
   Queue as QueueIcon,
   Storage as StorageIcon,
@@ -16,7 +15,6 @@ export function NavigationTabs() {
 
   const getCurrentTab = () => {
     if (pathname === "/") return "/";
-    if (pathname.startsWith("/push-logs")) return "/push-logs";
     if (pathname.startsWith("/system-status")) return "/system-status";
     if (pathname.startsWith("/queues")) return "/queues";
     if (pathname.startsWith("/container-logs")) return "/container-logs";
@@ -58,15 +56,6 @@ export function NavigationTabs() {
           value="/"
           sx={{
             color: getCurrentTab() === "/" ? "#7b1fa2" : undefined,
-          }}
-        />
-        <Tab
-          icon={<NotificationsIcon />}
-          iconPosition="start"
-          label="Push-логи"
-          value="/push-logs"
-          sx={{
-            color: getCurrentTab() === "/push-logs" ? "#4caf50" : undefined,
           }}
         />
         <Tab

@@ -8,7 +8,6 @@ import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { deleteFileFromCDN } from "@gafus/cdn-upload";
 import { createTrainerPanelLogger } from "@gafus/logger";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 
 import type { ActionResult } from "@gafus/types";
 
@@ -100,19 +99,18 @@ export async function deleteTrainerVideo(
         originalName: video.originalName,
       });
 
-      await reportErrorToDashboard({
-        message: `Failed to delete video from CDN: ${video.relativePath}`,
-        stack: cdnError instanceof Error ? cdnError.stack : undefined,
-        appName: "trainer-panel",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
+      logger.error(
+        `Failed to delete video from CDN: ${video.relativePath}`,
+        cdnError instanceof Error ? cdnError : new Error(String(cdnError)),
+        {
+          operation: "deleteTrainerVideo",
           action: "deleteTrainerVideo",
           videoId,
           relativePath: video.relativePath,
           error: cdnError instanceof Error ? cdnError.message : String(cdnError),
-        },
-        tags: ["trainer-videos", "delete", "cdn-error", "critical"],
-      });
+          tags: ["trainer-videos", "delete", "cdn-error", "critical"],
+        }
+      );
 
       // НЕ удаляем из БД, если CDN недоступен - это критическая ошибка
       return {
@@ -138,14 +136,15 @@ export async function deleteTrainerVideo(
   } catch (error) {
     logger.error("Ошибка удаления видео", error as Error);
 
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "trainer-panel",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: { action: "deleteTrainerVideo" },
-      tags: ["trainer-videos", "delete"],
-    });
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "deleteTrainerVideo",
+        action: "deleteTrainerVideo",
+        tags: ["trainer-videos", "delete"],
+      }
+    );
 
     return {
       success: false,

@@ -4,7 +4,7 @@ export type {
   CourseAccess,
   CourseReview,
   DayOnCourse,
-  ErrorReport,
+  ErrorLog,
   FavoriteCourse,
   Pet,
   PrismaClient,
@@ -45,7 +45,7 @@ export interface DatabaseClient {
   favoriteCourse: PrismaClient["favoriteCourse"];
   courseReview: PrismaClient["courseReview"];
   stepNotification: PrismaClient["stepNotification"];
-  errorReport: PrismaClient["errorReport"];
+  errorLog: PrismaClient["errorLog"];
   pushSubscription: PrismaClient["pushSubscription"];
   userProfile: PrismaClient["userProfile"];
   userTraining: PrismaClient["userTraining"];

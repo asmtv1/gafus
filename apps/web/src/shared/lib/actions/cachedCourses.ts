@@ -6,7 +6,6 @@ import { prisma } from "@gafus/prisma";
 import type { Prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
-import { reportErrorToDashboard } from "../actions/reportError";
 import { getAuthoredCourses } from "../course/getAuthoredCourses";
 import { getCoursesWithProgress } from "../course/getCourses";
 import { getFavoritesCourses } from "../course/getFavoritesCourses";
@@ -154,20 +153,16 @@ export const getAllCoursesCached = unstable_cache(
       logger.warn(`[React Cache] Cached ${data.length} courses (public + private, { operation: 'warn' }) permanently`);
       return { success: true, data };
     } catch (error) {
-      logger.error("❌ Error in getAllCoursesCached:", error as Error, { operation: 'error' });
-
-      await reportErrorToDashboard({
-        message:
-          error instanceof Error ? error.message : "Unknown error in getAllCoursesCached",
-        stack: error instanceof Error ? error.stack : undefined,
-        appName: "web",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
+      logger.error(
+        error instanceof Error ? error.message : "Unknown error in getAllCoursesCached",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: "getAllCoursesCached",
           action: "getAllCoursesCached",
           errorType: error instanceof Error ? error.constructor.name : typeof error,
-        },
-        tags: ["courses", "cache", "server-action"],
-      });
+          tags: ["courses", "cache", "server-action"],
+        }
+      );
 
       return { success: false, error: "Что-то пошло не так при получении курсов" };
     }
@@ -238,19 +233,17 @@ export async function getUserCoursesProgressCached(userId?: string) {
       } catch (error) {
         logger.error("❌ Error in getUserCoursesProgressCached:", error as Error, { operation: 'error' });
 
-        await reportErrorToDashboard({
-          message:
-            error instanceof Error ? error.message : "Unknown error in getUserCoursesProgressCached",
-          stack: error instanceof Error ? error.stack : undefined,
-          appName: "web",
-          environment: process.env.NODE_ENV || "development",
-          additionalContext: {
+        logger.error(
+          error instanceof Error ? error.message : "Unknown error in getUserCoursesProgressCached",
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            operation: "getUserCoursesProgressCached",
             action: "getUserCoursesProgressCached",
             errorType: error instanceof Error ? error.constructor.name : typeof error,
             userId: safeUserId,
-          },
-          tags: ["courses", "cache", "server-action"],
-        });
+            tags: ["courses", "cache", "server-action"],
+          }
+        );
 
         return { success: false, error: "Что-то пошло не так при получении прогресса курсов" };
       }
@@ -282,19 +275,17 @@ export async function getCoursesWithProgressCached(userId?: string) {
       } catch (error) {
         logger.error("❌ Error in getCoursesWithProgressCached:", error as Error, { operation: 'error' });
 
-        await reportErrorToDashboard({
-          message:
-            error instanceof Error ? error.message : "Unknown error in getCoursesWithProgressCached",
-          stack: error instanceof Error ? error.stack : undefined,
-          appName: "web",
-          environment: process.env.NODE_ENV || "development",
-          additionalContext: {
+        logger.error(
+          error instanceof Error ? error.message : "Unknown error in getCoursesWithProgressCached",
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            operation: "getCoursesWithProgressCached",
             action: "getCoursesWithProgressCached",
             errorType: error instanceof Error ? error.constructor.name : typeof error,
             userId: safeUserId,
-          },
-          tags: ["courses", "cache", "server-action"],
-        });
+            tags: ["courses", "cache", "server-action"],
+          }
+        );
 
         return { success: false, error: "Что-то пошло не так при получении курсов" };
       }
@@ -375,19 +366,17 @@ export async function getCoursesWithUserProgressCached(userId?: string) {
   } catch (error) {
     logger.error("❌ Error in getCoursesWithUserProgressCached:", error as Error, { operation: 'error' });
 
-    await reportErrorToDashboard({
-      message:
-        error instanceof Error ? error.message : "Unknown error in getCoursesWithUserProgressCached",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in getCoursesWithUserProgressCached",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "getCoursesWithUserProgressCached",
         action: "getCoursesWithUserProgressCached",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         userId: safeUserId,
-      },
-      tags: ["courses", "cache", "server-action"],
-    });
+        tags: ["courses", "cache", "server-action"],
+      }
+    );
 
     return { success: false, error: "Что-то пошло не так при получении курсов с прогрессом" };
   }
@@ -407,18 +396,16 @@ export async function getFavoritesCoursesCached(userId?: string) {
       } catch (error) {
         logger.error("❌ Error in getFavoritesCoursesCached:", error as Error, { operation: 'error' });
 
-        await reportErrorToDashboard({
-          message:
-            error instanceof Error ? error.message : "Unknown error in getFavoritesCoursesCached",
-          stack: error instanceof Error ? error.stack : undefined,
-          appName: "web",
-          environment: process.env.NODE_ENV || "development",
-          additionalContext: {
+        logger.error(
+          error instanceof Error ? error.message : "Unknown error in getFavoritesCoursesCached",
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            operation: "getFavoritesCoursesCached",
             action: "getFavoritesCoursesCached",
             errorType: error instanceof Error ? error.constructor.name : typeof error,
-          },
-          tags: ["courses", "favorites", "cache", "server-action"],
-        });
+            tags: ["courses", "favorites", "cache", "server-action"],
+          }
+        );
 
         return { success: false, error: "Что-то пошло не так при получении избранных курсов" };
       }
@@ -444,18 +431,16 @@ export const getAuthoredCoursesCached = unstable_cache(
     } catch (error) {
       logger.error("❌ Error in getAuthoredCoursesCached:", error as Error, { operation: 'error' });
 
-      await reportErrorToDashboard({
-        message:
-          error instanceof Error ? error.message : "Unknown error in getAuthoredCoursesCached",
-        stack: error instanceof Error ? error.stack : undefined,
-        appName: "web",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
+      logger.error(
+        error instanceof Error ? error.message : "Unknown error in getAuthoredCoursesCached",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: "getAuthoredCoursesCached",
           action: "getAuthoredCoursesCached",
           errorType: error instanceof Error ? error.constructor.name : typeof error,
-        },
-        tags: ["courses", "authored", "cache", "server-action"],
-      });
+          tags: ["courses", "authored", "cache", "server-action"],
+        }
+      );
 
       return { success: false, error: "Что-то пошло не так при получении созданных курсов" };
     }
@@ -487,19 +472,17 @@ export const getTrainingDaysCached = unstable_cache(
         operation: 'error'
       });
 
-      await reportErrorToDashboard({
-        message:
-          error instanceof Error ? error.message : "Unknown error in getTrainingDaysCached",
-        stack: error instanceof Error ? error.stack : undefined,
-        appName: "web",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
+      logger.error(
+        error instanceof Error ? error.message : "Unknown error in getTrainingDaysCached",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: "getTrainingDaysCached",
           action: "getTrainingDaysCached",
           errorType: error instanceof Error ? error.constructor.name : typeof error,
           typeParam: safeType,
-        },
-        tags: ["training", "days", "cache", "server-action"],
-      });
+          tags: ["training", "days", "cache", "server-action"],
+        }
+      );
 
       return {
         success: false,
@@ -624,18 +607,17 @@ export const getTrainingDayCached = unstable_cache(
       return { success: true, data: result };
     } catch (error) {
       logger.error("❌ Error in getTrainingDayCached:", error as Error, { operation: 'error' });
-      await reportErrorToDashboard({
-        message: error instanceof Error ? error.message : "Unknown error in getTrainingDayCached",
-        stack: error instanceof Error ? error.stack : undefined,
-        appName: "web",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
+      logger.error(
+        error instanceof Error ? error.message : "Unknown error in getTrainingDayCached",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: "getTrainingDayCached",
           action: "getTrainingDayCached",
           errorType: error instanceof Error ? error.constructor.name : typeof error,
           dayId: safeDayId,
-        },
-        tags: ["training", "day", "cache", "server-action"],
-      });
+          tags: ["training", "day", "cache", "server-action"],
+        }
+      );
 
       return { 
         success: false, 

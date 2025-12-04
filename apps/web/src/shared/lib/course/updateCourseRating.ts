@@ -4,7 +4,6 @@ import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 
 import { prisma } from "@gafus/prisma";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 
 import { getCurrentUserId } from "@/utils";
 
@@ -96,19 +95,18 @@ export async function updateCourseRatingAction(
   } catch (error) {
     logger.error("Ошибка в updateCourseRatingAction:", error as Error, { operation: 'error' });
 
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in updateCourseRatingAction",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in updateCourseRatingAction",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "updateCourseRatingAction",
         action: "updateCourseRatingAction",
         courseId: safeCourseId,
         rating: safeRating,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["course", "rating", "server-action"],
-    });
+        tags: ["course", "rating", "server-action"],
+      }
+    );
 
     return { success: false, error: "Не удалось обновить рейтинг" };
   }

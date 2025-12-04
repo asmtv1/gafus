@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createWebLogger } from "@gafus/logger";
 
 import type { UserPreferences } from "@gafus/types";
@@ -88,18 +87,17 @@ export async function updateUserPreferences(
   } catch (error) {
     logger.error("Ошибка в updateUserPreferences:", error as Error, { operation: 'error' });
 
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in updateUserPreferences",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in updateUserPreferences",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "updateUserPreferences",
         action: "updateUserPreferences",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         preferences: safePreferences,
-      },
-      tags: ["user", "preferences", "server-action"],
-    });
+        tags: ["user", "preferences", "server-action"],
+      }
+    );
 
     throw new Error("Ошибка при обновлении настроек");
   }

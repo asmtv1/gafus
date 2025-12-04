@@ -8,7 +8,6 @@ import {
   resetPasswordByToken,
   registerUser,
 } from "@gafus/auth";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { createWebLogger } from "@gafus/logger";
 
@@ -59,19 +58,18 @@ export async function checkUserState(username: string) {
       username: username
     });
 
-    // Отправляем ошибку в дашборд
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in checkUserState",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    // Логируем ошибку через logger (отправляется в Loki)
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in checkUserState",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "checkUserState",
         action: "checkUserState",
         username,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["auth", "checkUserState", "server-action"],
-    });
+        tags: ["auth", "checkUserState", "server-action"],
+      }
+    );
 
     throw new Error("Что-то пошло не так при проверке пользователя");
   }
@@ -96,19 +94,18 @@ export async function sendPasswordResetRequest(username: string, phone: string) 
       phone: phone
     });
 
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in sendPasswordResetRequest",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in sendPasswordResetRequest",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "sendPasswordResetRequest",
         action: "sendPasswordResetRequest",
         username,
         phone,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["auth", "password-reset", "server-action"],
-    });
+        tags: ["auth", "password-reset", "server-action"],
+      }
+    );
 
     throw new Error("Что-то пошло не так при отправке запроса на сброс пароля");
   }
@@ -131,19 +128,18 @@ export async function registerUserAction(name: string, phone: string, password: 
       phone
     });
 
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in registerUserAction",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in registerUserAction",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "registerUserAction",
         action: "registerUserAction",
         name,
         phone,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["auth", "registration", "server-action"],
-    });
+        tags: ["auth", "registration", "server-action"],
+      }
+    );
 
     throw new Error("Что-то пошло не так при регистрации пользователя");
   }
@@ -160,18 +156,17 @@ export default async function resetPassword(token: string, password: string) {
       password: password
     });
 
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in resetPassword",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in resetPassword",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "resetPassword",
         action: "resetPassword",
         token: token.substring(0, 10) + "...", // Не логируем полный токен
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["auth", "password-reset", "server-action"],
-    });
+        tags: ["auth", "password-reset", "server-action"],
+      }
+    );
 
     throw new Error("Что-то пошло не так при сбросе пароля");
   }
@@ -197,20 +192,18 @@ export async function checkPhoneMatchesUsername(username: string, phone: string)
       phone: phone
     });
 
-    await reportErrorToDashboard({
-      message:
-        error instanceof Error ? error.message : "Unknown error in checkPhoneMatchesUsername",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in checkPhoneMatchesUsername",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "checkPhoneMatchesUsername",
         action: "checkPhoneMatchesUsername",
         username,
         phone,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["auth", "phone-check", "server-action"],
-    });
+        tags: ["auth", "phone-check", "server-action"],
+      }
+    );
 
     throw new Error("Что-то пошло не так при проверке номера телефона");
   }

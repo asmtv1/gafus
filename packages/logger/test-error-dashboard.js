@@ -50,7 +50,7 @@ async function testErrorDashboard() {
 
     console.log('🎉 Все тесты завершены!');
     console.log('\n📊 Проверьте error-dashboard:');
-    console.log('   - Push Logs: http://localhost:3001/push-logs');
+    console.log('   - Логи контейнеров: http://localhost:3001/container-logs');
     console.log('   - Errors: http://localhost:3001');
     console.log('\n🔍 Ищите логи по тегам: error-test-001, warn-test-002, fatal-test-003');
 

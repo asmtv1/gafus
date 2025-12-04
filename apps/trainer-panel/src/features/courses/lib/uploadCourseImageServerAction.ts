@@ -1,6 +1,5 @@
 "use server";
 
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { randomUUID } from "crypto";
 import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
@@ -72,18 +71,15 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
     
     // Отправляем ошибку в error dashboard
     if (file) {
-      await reportErrorToDashboard({
-        message: "Failed to upload course image",
-        stack: error instanceof Error ? error.stack : String(error),
-        appName: "trainer-panel",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-        },
-        tags: ["courses", "upload", "server-action"],
-      });
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "action",
+        action: "action",
+        tags: [],
+      }
+    );
     }
     
     throw error;

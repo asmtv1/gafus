@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { unstable_cache } from "next/cache";
 
@@ -28,18 +27,17 @@ export const searchUsersByUsername = unstable_cache(
         search: search
       });
 
-      await reportErrorToDashboard({
-        message: error instanceof Error ? error.message : "Unknown error in searchUsersByUsername",
-        stack: error instanceof Error ? error.stack : undefined,
-        appName: "trainer-panel",
-        environment: process.env.NODE_ENV || "development",
-        additionalContext: {
+      logger.error(
+        error instanceof Error ? error.message : "Unknown error in searchUsersByUsername",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: "searchUsersByUsername",
           action: "searchUsersByUsername",
           search,
           errorType: error instanceof Error ? error.constructor.name : typeof error,
-        },
-        tags: ["users", "search", "server-action"],
-      });
+          tags: ["users", "search", "server-action"],
+        }
+      );
 
       throw new Error("Что-то пошло не так при поиске пользователей");
     }

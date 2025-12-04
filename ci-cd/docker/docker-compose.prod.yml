@@ -109,6 +109,7 @@ services:
       - NEXTAUTH_URL=${ERROR_DASHBOARD_URL:-https://monitor.gafus.ru}
       - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
       - PROMETHEUS_URL=${PROMETHEUS_URL:-http://prometheus:9090}
+      - LOKI_URL=${LOKI_URL:-http://loki:3100}
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
     depends_on:
@@ -248,6 +249,8 @@ services:
     volumes:
       - ./prometheus:/etc/prometheus
       - prometheus_data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     depends_on:
       - node-exporter
@@ -304,6 +307,23 @@ services:
       - ./blackbox:/etc/blackbox_exporter
     restart: unless-stopped
 
+  # Loki для хранения логов
+  loki:
+    image: grafana/loki:latest
+    container_name: gafus-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki:/etc/loki
+      - loki-data:/loki
+    restart: unless-stopped
+    # Убрали открытые порты - доступ только внутри Docker сети
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   # Promtail для сбора логов из Docker контейнеров
   promtail:
     image: grafana/promtail:latest
@@ -318,9 +338,11 @@ services:
       - promtail_positions:/tmp
     restart: unless-stopped
     depends_on:
-      - error-dashboard
+      loki:
+        condition: service_healthy
 
 volumes:
   postgres_data:
   prometheus_data:
   promtail_positions:
+  loki-data:

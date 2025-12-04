@@ -4,6 +4,8 @@ export interface ErrorDashboardReport {
     stack: string | null;
     appName: string;
     environment: string;
+    labels?: Record<string, string>;
+    timestampNs?: string;
     url: string;
     userAgent: string;
     userId: string | null;
@@ -12,9 +14,6 @@ export interface ErrorDashboardReport {
     additionalContext: unknown;
     createdAt: Date;
     updatedAt: Date;
-    resolved: boolean;
-    resolvedAt: Date | null;
-    resolvedBy: string | null;
     tags: string[];
 }
 export interface ErrorListProps {
@@ -22,7 +21,6 @@ export interface ErrorListProps {
 }
 export interface ErrorStatsProps {
     totalErrors: number;
-    resolvedErrors: number;
     unresolvedErrors: number;
     errorsByApp: Record<string, number>;
     errorsByEnvironment: Record<string, number>;

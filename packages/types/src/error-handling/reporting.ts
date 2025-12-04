@@ -21,15 +21,4 @@ export interface ErrorReport {
   additionalData?: Record<string, unknown>;
 }
 
-export interface ErrorReporterProps {
-  children: ReactNode;
-  fallback?: ComponentType<{ error: Error; resetError: () => void }>;
-  onError?: (error: Error, errorInfo: ErrorReport) => void;
-  config?: ErrorReportingConfig;
-}
-
-export interface ErrorReporterState {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorReport | null;
-}
+// ErrorReporterProps и ErrorReporterState удалены - используйте ErrorBoundary из @gafus/error-handling

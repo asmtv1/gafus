@@ -1,84 +1,92 @@
 "use client";
 
-import { ErrorReporter, createWebLogger, type ErrorReporterConfig } from "@gafus/logger";
+import { createWebLogger, type LogMeta } from "@gafus/logger";
 
-// Создаем логгер для клиентской части
+// Создаем логгер для глобальных ошибок
 const logger = createWebLogger('web-global-error-handler');
 
-let globalErrorReporter: ErrorReporter | null = null;
+interface GlobalErrorConfig {
+  appName?: string;
+  environment?: string;
+  logToConsole?: boolean;
+  showErrorDetails?: boolean;
+}
 
-const defaultConfig: ErrorReporterConfig = {
+const defaultConfig: GlobalErrorConfig = {
   appName: "web-global-handler",
   environment: process.env.NODE_ENV === "production" ? "production" : "development",
   logToConsole: true,
   showErrorDetails: process.env.NODE_ENV === "development",
 };
 
-export function setupGlobalErrorHandling(config?: Partial<ErrorReporterConfig>) {
+export function setupGlobalErrorHandling(config?: Partial<GlobalErrorConfig>) {
   if (typeof window === "undefined") {
     return;
   }
 
   const mergedConfig = { ...defaultConfig, ...config };
 
-  if (!globalErrorReporter) {
-    globalErrorReporter = new ErrorReporter(mergedConfig);
-  } else {
-    globalErrorReporter.updateConfig(mergedConfig);
-  }
-
   // Отлов необработанных ошибок JavaScript
   window.onerror = (message, source, lineno, colno, error) => {
-    if (error && globalErrorReporter) {
-      logger.error("Глобальная ошибка JS", error, {
+    if (error) {
+      const meta: LogMeta = {
         operation: 'global_js_error',
+        componentStack: `Global (window.onerror) - ${source}:${lineno}:${colno}`,
+        errorBoundaryName: "GlobalErrorHandler",
+        url: window.location.href,
+        userAgent: navigator.userAgent,
         source: source,
         lineno: lineno,
         colno: colno,
-        message: message
-      });
-      globalErrorReporter.reportError(error, {
-        componentStack: `Global (window.onerror) - ${source}:${lineno}:${colno}`,
-        errorBoundaryName: "GlobalErrorHandler",
-        appName: mergedConfig.appName,
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        timestamp: Date.now(),
-      });
+        message: String(message),
+        tags: ['global-error', 'window-onerror'],
+      };
+
+      void logger.error(
+        error.message || String(message) || 'Global JavaScript error',
+        error,
+        meta
+      );
     }
     return false; // Возвращаем false, чтобы браузер продолжил обработку (например, вывод в консоль)
   };
 
   // Отлов необработанных Promise rejections
   window.onunhandledrejection = (event) => {
-    if (event.reason instanceof Error && globalErrorReporter) {
-      logger.error("Необработанный Promise rejection", event.reason, {
+    if (event.reason instanceof Error) {
+      const meta: LogMeta = {
         operation: 'unhandled_promise_rejection',
-        reason: event.reason.toString()
-      });
-      globalErrorReporter.reportError(event.reason, {
         componentStack: `Global (unhandledrejection)`,
         errorBoundaryName: "GlobalPromiseHandler",
-        appName: mergedConfig.appName,
         url: window.location.href,
         userAgent: navigator.userAgent,
-        timestamp: Date.now(),
-      });
-    } else if (globalErrorReporter) {
+        reason: event.reason.toString(),
+        tags: ['global-error', 'unhandled-rejection'],
+      };
+
+      void logger.error(
+        event.reason.message || 'Unhandled promise rejection',
+        event.reason,
+        meta
+      );
+    } else {
       // Если причина не Error, создаем искусственную ошибку
       const syntheticError = new Error(`Unhandled rejection: ${event.reason}`);
-      logger.error("Необработанный Promise rejection (не Error)", syntheticError, {
+      const meta: LogMeta = {
         operation: 'unhandled_promise_rejection_non_error',
-        reason: String(event.reason)
-      });
-      globalErrorReporter.reportError(syntheticError, {
         componentStack: `Global (unhandledrejection)`,
         errorBoundaryName: "GlobalPromiseHandler",
-        appName: mergedConfig.appName,
         url: window.location.href,
         userAgent: navigator.userAgent,
-        timestamp: Date.now(),
-      });
+        reason: String(event.reason),
+        tags: ['global-error', 'unhandled-rejection'],
+      };
+
+      void logger.error(
+        syntheticError.message,
+        syntheticError,
+        meta
+      );
     }
   };
 

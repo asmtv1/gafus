@@ -1,6 +1,5 @@
 "use server";
 
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 import { createWebLogger } from "@gafus/logger";
 
 import type { UserPreferences } from "@gafus/types";
@@ -43,17 +42,16 @@ export async function getUserPreferences(): Promise<UserPreferences | null> {
   } catch (error) {
     logger.error("Ошибка в getUserPreferences:", error as Error, { operation: 'error' });
 
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error in getUserPreferences",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: {
+    logger.error(
+      error instanceof Error ? error.message : "Unknown error in getUserPreferences",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        operation: "getUserPreferences",
         action: "getUserPreferences",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
-      },
-      tags: ["user", "preferences", "server-action"],
-    });
+        tags: ["user", "preferences", "server-action"],
+      }
+    );
 
     return null;
   }

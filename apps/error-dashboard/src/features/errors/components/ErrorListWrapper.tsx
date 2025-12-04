@@ -9,7 +9,6 @@ interface ErrorListWrapperProps {
   filters?: {
     appName?: string;
     environment?: string;
-    resolved?: boolean;
   };
 }
 

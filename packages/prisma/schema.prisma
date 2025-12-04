@@ -9,9 +9,8 @@ generator client {
 // }
 
 datasource db {
-  provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum TrainingStatus {
@@ -34,164 +33,164 @@ enum PetType {
 }
 
 enum TrainingLevel {
-  BEGINNER      // Начальный
-  INTERMEDIATE  // Средний
-  ADVANCED      // Продвинутый
-  EXPERT        // Экспертный
+  BEGINNER // Начальный
+  INTERMEDIATE // Средний
+  ADVANCED // Продвинутый
+  EXPERT // Экспертный
 }
 
 enum StepType {
-  TRAINING      // Тренировочный
-  EXAMINATION   // Экзаменационный
-  THEORY        // Теоретический
+  TRAINING // Тренировочный
+  EXAMINATION // Экзаменационный
+  THEORY // Теоретический
 }
 
 model Course {
-  id             String             @id @default(cuid())
-  name           String
-  type           String             @db.VarChar(50) @unique
-  description    String             @default("")
-  equipment      String             @default("")
-  trainingLevel  TrainingLevel      
-  shortDesc      String             @default("")
-  duration       String
-  logoImg        String
-  isPrivate      Boolean            @default(false)
-  isPaid         Boolean            @default(false)
+  id            String        @id @default(cuid())
+  name          String
+  type          String        @unique @db.VarChar(50)
+  description   String        @default("")
+  equipment     String        @default("")
+  trainingLevel TrainingLevel
+  shortDesc     String        @default("")
+  duration      String
+  logoImg       String
+  isPrivate     Boolean       @default(false)
+  isPaid        Boolean       @default(false)
 
-  authorId       String
-  author         User               @relation(fields: [authorId], references: [id])
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
 
-  dayLinks       DayOnCourse[]
-  access         CourseAccess[]
-  userCourses    UserCourse[]
-  favoritedBy    FavoriteCourse[]
-  reviews        CourseReview[]
-  awards         Award[]
-  avgRating      Float?
-  videoUrl       String?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  dayLinks    DayOnCourse[]
+  access      CourseAccess[]
+  userCourses UserCourse[]
+  favoritedBy FavoriteCourse[]
+  reviews     CourseReview[]
+  awards      Award[]
+  avgRating   Float?
+  videoUrl    String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 model TrainingDay {
-  id             String            @id @default(cuid())
-  title          String
-  equipment      String             @default("")
-  description    String             @default("")
-  type           String             @default("regular")
-  stepLinks      StepOnDay[]
-  dayLinks       DayOnCourse[]
-  authorId       String
-  author         User          @relation(fields: [authorId], references: [id])
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id          String        @id @default(cuid())
+  title       String
+  equipment   String        @default("")
+  description String        @default("")
+  type        String        @default("regular")
+  stepLinks   StepOnDay[]
+  dayLinks    DayOnCourse[]
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model Step {
-  id             String           @id @default(cuid())
-  title          String
-  description    String           @default("")
-  durationSec    Int?             // Фактическая длительность для таймера тренировочного шага (TRAINING)
-  estimatedDurationSec Int?       // Оценочное время прохождения шага (THEORY, EXAMINATION, опционально TRAINING)
-  type           StepType         @default(TRAINING)
-  imageUrls      String[]         @default([])
-  pdfUrls        String[]         @default([])
-  videoUrl       String?
-  checklist      Json?            // Для экзаменационных шагов: массив вопросов с вариантами ответов
-  
+  id                   String   @id @default(cuid())
+  title                String
+  description          String   @default("")
+  durationSec          Int? // Фактическая длительность для таймера тренировочного шага (TRAINING)
+  estimatedDurationSec Int? // Оценочное время прохождения шага (THEORY, EXAMINATION, опционально TRAINING)
+  type                 StepType @default(TRAINING)
+  imageUrls            String[] @default([])
+  pdfUrls              String[] @default([])
+  videoUrl             String?
+  checklist            Json? // Для экзаменационных шагов: массив вопросов с вариантами ответов
+
   // Поля для типов экзамена (только для EXAMINATION)
-  requiresVideoReport    Boolean  @default(false)  // Требуется видео отчёт
-  requiresWrittenFeedback Boolean @default(false)  // Требуется письменная обратная связь
-  hasTestQuestions       Boolean @default(false)   // Есть тестовые вопросы
-  
-  stepLinks      StepOnDay[]
-  examResults    ExamResult[]
+  requiresVideoReport     Boolean @default(false) // Требуется видео отчёт
+  requiresWrittenFeedback Boolean @default(false) // Требуется письменная обратная связь
+  hasTestQuestions        Boolean @default(false) // Есть тестовые вопросы
 
-  authorId       String
-  author         User          @relation(fields: [authorId], references: [id])
+  stepLinks   StepOnDay[]
+  examResults ExamResult[]
 
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @default(now())
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
 }
 
 model StepCategory {
   id          String         @id @default(cuid())
   name        String         @unique
   description String?
-  icon        String?        // Иконка категории (emoji или путь к иконке)
-  order       Int            @default(0)  // Порядок отображения
+  icon        String? // Иконка категории (emoji или путь к иконке)
+  order       Int            @default(0) // Порядок отображения
   templates   StepTemplate[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
-  
+
   @@index([order])
 }
 
 model StepTemplate {
-  id                      String         @id @default(cuid())
-  title                   String
-  description             String         @default("")
-  durationSec             Int?           // Фактическая длительность для таймера тренировочного шага (TRAINING)
-  estimatedDurationSec    Int?           // Оценочное время прохождения шага (THEORY, EXAMINATION, опционально TRAINING)
-  type                    StepType       @default(TRAINING)
-  imageUrls               String[]       @default([])
-  pdfUrls                 String[]       @default([])
-  videoUrl                String?
-  checklist               Json?
-  
+  id                   String   @id @default(cuid())
+  title                String
+  description          String   @default("")
+  durationSec          Int? // Фактическая длительность для таймера тренировочного шага (TRAINING)
+  estimatedDurationSec Int? // Оценочное время прохождения шага (THEORY, EXAMINATION, опционально TRAINING)
+  type                 StepType @default(TRAINING)
+  imageUrls            String[] @default([])
+  pdfUrls              String[] @default([])
+  videoUrl             String?
+  checklist            Json?
+
   // Поля для типов экзамена (только для EXAMINATION)
-  requiresVideoReport     Boolean        @default(false)
-  requiresWrittenFeedback Boolean        @default(false)
-  hasTestQuestions        Boolean        @default(false)
-  
+  requiresVideoReport     Boolean @default(false)
+  requiresWrittenFeedback Boolean @default(false)
+  hasTestQuestions        Boolean @default(false)
+
   // Организация и категоризация
-  categoryId      String?
-  category        StepCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  tags            String[]       @default([])  // Теги для поиска
-  
+  categoryId String?
+  category   StepCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags       String[]      @default([]) // Теги для поиска
+
   // Контроль доступа
-  isPublic        Boolean        @default(true)  // Доступен всем тренерам
-  
+  isPublic Boolean @default(true) // Доступен всем тренерам
+
   // Статистика
-  usageCount      Int            @default(0)  // Сколько раз использовали
-  
-  authorId        String
-  author          User           @relation(fields: [authorId], references: [id])
-  
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  
+  usageCount Int @default(0) // Сколько раз использовали
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([categoryId])
   @@index([isPublic])
   @@index([authorId])
 }
 
 model DayOnCourse {
-  id             String            @id @default(cuid())
-  courseId       String
-  dayId          String
-  order          Int
+  id       String @id @default(cuid())
+  courseId String
+  dayId    String
+  order    Int
 
-  course   Course @relation(fields: [courseId], references: [id])
-  day      TrainingDay @relation(fields: [dayId], references: [id])
+  course Course      @relation(fields: [courseId], references: [id])
+  day    TrainingDay @relation(fields: [dayId], references: [id])
 
-  userTrainings  UserTraining[]
+  userTrainings UserTraining[]
 
   @@unique([courseId, order]) // порядок уникален в курсе
   @@index([courseId, order])
 }
 
 model StepOnDay {
-  id             String             @id @default(cuid())
-  dayId          String
-  stepId         String
-  order          Int
+  id     String @id @default(cuid())
+  dayId  String
+  stepId String
+  order  Int
 
-  day            TrainingDay        @relation(fields: [dayId], references: [id], onDelete: Cascade)
-  step           Step               @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  day  TrainingDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  step Step        @relation(fields: [stepId], references: [id], onDelete: Cascade)
 
-  userSteps      UserStep[]
+  userSteps UserStep[]
 
   @@unique([dayId, order]) // порядок уникален в дне
   @@index([dayId, order])
@@ -204,43 +203,43 @@ model UserTraining {
   status           TrainingStatus @default(NOT_STARTED)
   currentStepIndex Int?           @default(0)
 
-  user             User           @relation(fields: [userId], references: [id])
-  dayOnCourse      DayOnCourse    @relation(fields: [dayOnCourseId], references: [id], onDelete: Cascade)
-  steps            UserStep[]
+  user        User        @relation(fields: [userId], references: [id])
+  dayOnCourse DayOnCourse @relation(fields: [dayOnCourseId], references: [id], onDelete: Cascade)
+  steps       UserStep[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now())
 
   @@unique([userId, dayOnCourseId])
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @default(now())
 }
 
 model UserStep {
-  id              String         @id @default(cuid())
-  userTrainingId  String
-  stepOnDayId     String
-  status          TrainingStatus @default(NOT_STARTED)
+  id             String         @id @default(cuid())
+  userTrainingId String
+  stepOnDayId    String
+  status         TrainingStatus @default(NOT_STARTED)
   // Флажок паузы и оставшееся время шага в секундах для серверного хранения
-  paused          Boolean        @default(false)
-  remainingSec    Int?
+  paused         Boolean        @default(false)
+  remainingSec   Int?
 
   // Связь с результатами экзаменов
-  examResult      ExamResult?
+  examResult ExamResult?
 
-  userTraining    UserTraining   @relation(fields: [userTrainingId], references: [id], onDelete: Cascade)
-  stepOnDay       StepOnDay      @relation(fields: [stepOnDayId], references: [id], onDelete: Cascade)
+  userTraining UserTraining @relation(fields: [userTrainingId], references: [id], onDelete: Cascade)
+  stepOnDay    StepOnDay    @relation(fields: [stepOnDayId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @default(now())
 
   @@unique([userTrainingId, stepOnDayId])
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @default(now())
 }
 
 model User {
-  id                       String               @id @default(cuid())
-  username                 String               @unique
-  phone                    String               @unique
-  password                 String
-  telegramId               String?              @unique
-  isConfirmed              Boolean              @default(false)
-  role                     UserRole             @default(USER)
+  id          String   @id @default(cuid())
+  username    String   @unique
+  phone       String   @unique
+  password    String
+  telegramId  String?  @unique
+  isConfirmed Boolean  @default(false)
+  role        UserRole @default(USER)
 
   profile                  UserProfile?
   diplomas                 Diploma[]
@@ -249,7 +248,7 @@ model User {
   courseAccesses           CourseAccess[]
   authoredCourses          Course[]
   createdSteps             Step[]
-  reviewedExamResults      ExamResult[]         @relation("ExamResultReviewedBy")
+  reviewedExamResults      ExamResult[]           @relation("ExamResultReviewedBy")
   createdStepTemplates     StepTemplate[]
   createdDays              TrainingDay[]
   userTrainings            UserTraining[]
@@ -265,8 +264,8 @@ model User {
   reminders                Reminder[]
   trainerVideos            TrainerVideo[]
   passwordResetRequestedAt DateTime?
-  createdAt                DateTime             @default(now())
-  updatedAt                DateTime             @default(now())
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @default(now())
 }
 
 model TrainerVideo {
@@ -286,362 +285,348 @@ model TrainerVideo {
 }
 
 model UserProfile {
-  id         String    @id @default(cuid())
-  userId     String    @unique
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fullName   String?
-  birthDate  DateTime?
-  about      String?
-  telegram   String?
-  instagram  String?
-  website    String?
-  avatarUrl  String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @default(now())
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName  String?
+  birthDate DateTime?
+  about     String?
+  telegram  String?
+  instagram String?
+  website   String?
+  avatarUrl String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
 }
 
 model Diploma {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title      String
-  issuedBy   String?
-  issuedAt   DateTime?
-  url        String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  issuedBy  String?
+  issuedAt  DateTime?
+  url       String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
   @@index([userId])
 }
 
 model Training {
-  id         String        @id @default(cuid())
-  userId     String
-  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String
-  isPrivate  Boolean       @default(false)
-  access     TrainingAccess[]
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @default(now())
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  isPrivate Boolean          @default(false)
+  access    TrainingAccess[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now())
 }
 
 model UserCourse {
-  userId        String
-  courseId      String
-  status        TrainingStatus @default(NOT_STARTED)
-  startedAt     DateTime?
-  completedAt   DateTime?
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId      String
+  courseId    String
+  status      TrainingStatus @default(NOT_STARTED)
+  startedAt   DateTime?
+  completedAt DateTime?
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @default(now())
+
   @@id([userId, courseId])
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now())
 }
 
 model Pet {
-  id            String         @id @default(cuid())
-  ownerId       String
-  name          String
-  type          PetType
-  breed         String
-  birthDate     DateTime
-  heightCm      Float?
-  weightKg      Float?
-  photoUrl      String?
-  notes         String?
-  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  awards        Award[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now())
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String
+  type      PetType
+  breed     String
+  birthDate DateTime
+  heightCm  Float?
+  weightKg  Float?
+  photoUrl  String?
+  notes     String?
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  awards    Award[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
 }
 
 model Award {
-  id            String         @id @default(cuid())
-  petId         String
-  title         String
-  event         String?
-  date          DateTime?
-  rank          String?
-  
+  id    String    @id @default(cuid())
+  petId String
+  title String
+  event String?
+  date  DateTime?
+  rank  String?
+
   // Новые поля для экзаменационных достижений
-  examType      String?        // Тип экзамена (TEST, VIDEO, WRITTEN)
-  examScore     Int?           // Балл за экзамен
-  courseId      String?        // Связь с курсом
-  
-  pet           Pet            @relation(fields: [petId], references: [id], onDelete: Cascade)
-  course        Course?        @relation(fields: [courseId], references: [id])
-  
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now())
+  examType  String? // Тип экзамена (TEST, VIDEO, WRITTEN)
+  examScore Int? // Балл за экзамен
+  courseId  String? // Связь с курсом
+
+  pet    Pet     @relation(fields: [petId], references: [id], onDelete: Cascade)
+  course Course? @relation(fields: [courseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
   @@index([petId])
   @@index([courseId])
 }
 
 model TrainingAccess {
-  trainingId    String
-  userId        String
-  training      Training       @relation(fields: [trainingId], references: [id], onDelete: Cascade)
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trainingId String
+  userId     String
+  training   Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+
   @@unique([trainingId, userId])
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now())
 }
 
 model CourseAccess {
-  courseId      String
-  userId        String
-  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  userId    String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
   @@unique([courseId, userId])
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now())
 }
 
 model FavoriteCourse {
-  userId        String
-  courseId      String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId    String
+  courseId  String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
   @@id([userId, courseId])
-  createdAt     DateTime       @default(now())
 }
 
 model CourseReview {
-  id            String         @id @default(cuid())
-  userId        String
-  courseId      String
-  rating        Float?
-  comment       String?
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  rating    Float?
+  comment   String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
   @@unique([userId, courseId])
   @@index([courseId, userId], name: "idx_rating_course_user")
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now())
 }
 
 model PasswordResetToken {
-  id            String         @id @default(cuid())
-  token         String         @unique
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt     DateTime
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now())
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
 }
 
 model PushSubscription {
-  id            String         @id @default(cuid())
-  userId        String
-  endpoint      String         @unique
-  keys          Json
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  keys      Json
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
   @@index([userId])
 }
 
 model StepNotification {
-  id            String   @id @default(uuid())
-  userId        String
-  day           Int
-  stepIndex     Int
-  endTs         Int
-  sent          Boolean  @default(false)
-  subscription  Json
-  url           String?
-  jobId         String?
-  paused        Boolean  @default(false)
-  remainingSec  Int?
-  stepTitle     String?  // Название шага
-  type          String   @default("step") // "step" | "immediate" - тип уведомления
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(uuid())
+  userId       String
+  day          Int
+  stepIndex    Int
+  endTs        Int
+  sent         Boolean  @default(false)
+  subscription Json
+  url          String?
+  jobId        String?
+  paused       Boolean  @default(false)
+  remainingSec Int?
+  stepTitle    String? // Название шага
+  type         String   @default("step") // "step" | "immediate" - тип уведомления
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   @@index([userId])
   @@index([day, stepIndex])
   @@index([type]) // Индекс для быстрого поиска по типу
 }
 
 model ExamResult {
-  id                   String   @id @default(cuid())
-  userStepId           String   @unique
-  stepId               String
-  
+  id         String @id @default(cuid())
+  userStepId String @unique
+  stepId     String
+
   // Результаты тестовых вопросов
-  testAnswers          Json?    // Ответы пользователя на тестовые вопросы
-  testScore            Int?     // Количество правильных ответов
-  testMaxScore         Int?     // Максимально возможное количество баллов
-  
+  testAnswers  Json? // Ответы пользователя на тестовые вопросы
+  testScore    Int? // Количество правильных ответов
+  testMaxScore Int? // Максимально возможное количество баллов
+
   // Видео отчёт
-  videoReportUrl       String?  // Ссылка на загруженное видео
-  videoDeletedAt       DateTime? // Когда видео было удалено
-  videoDeleteReason    String?  // Причина удаления: replaced | auto_cleanup_completed | auto_cleanup_pending
-  
+  videoReportUrl    String? // Ссылка на загруженное видео
+  videoDeletedAt    DateTime? // Когда видео было удалено
+  videoDeleteReason String? // Причина удаления: replaced | auto_cleanup_completed | auto_cleanup_pending
+
   // Письменная обратная связь
-  writtenFeedback      String?  // Текст обратной связи от пользователя
-  
+  writtenFeedback String? // Текст обратной связи от пользователя
+
   // Общая оценка экзамена
-  overallScore         Int?     // Общая оценка (например, процент)
-  isPassed             Boolean? // Прошёл ли экзамен
+  overallScore Int? // Общая оценка (например, процент)
+  isPassed     Boolean? // Прошёл ли экзамен
 
   // Проверка тренером
-  trainerComment       String?  // Комментарий тренера для пользователя
-  reviewedAt           DateTime? // Когда тренер проверил результат
-  reviewedById         String?  // Кто проверил
-  reviewedBy           User?    @relation("ExamResultReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  
-  userStep             UserStep @relation(fields: [userStepId], references: [id], onDelete: Cascade)
-  step                 Step     @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  
+  trainerComment String? // Комментарий тренера для пользователя
+  reviewedAt     DateTime? // Когда тренер проверил результат
+  reviewedById   String? // Кто проверил
+  reviewedBy     User?     @relation("ExamResultReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  userStep UserStep @relation(fields: [userStepId], references: [id], onDelete: Cascade)
+  step     Step     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userStepId])
   @@index([stepId])
   @@index([videoDeletedAt])
   @@index([reviewedById])
 }
 
-model ErrorReport {
-  id                String   @id @default(cuid())
-  message           String
-  stack             String?
-  appName           String
-  environment       String
-  url               String
-  userAgent         String
-  userId            String?
-  sessionId         String?
-  componentStack    String?
-  additionalContext Json?
-  tags              String[] @default([])
-  resolved          Boolean  @default(false)
-  resolvedAt        DateTime?
-  resolvedBy        String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  @@index([appName])
-  @@index([environment])
-  @@index([resolved])
-  @@index([createdAt])
-}
+// ErrorReport модель удалена - все логи теперь в Loki
 
 // ===== Re-engagement система =====
 
 model ReengagementCampaign {
-  id                   String   @id @default(cuid())
-  userId               String
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Статус кампании
-  isActive             Boolean  @default(true)
-  currentLevel         Int      @default(1)  // 1, 2, 3, 4
-  
+  isActive     Boolean @default(true)
+  currentLevel Int     @default(1) // 1, 2, 3, 4
+
   // Временные метки
-  lastActivityDate     DateTime  // Когда последний раз был активен
-  campaignStartDate    DateTime @default(now())
+  lastActivityDate     DateTime // Когда последний раз был активен
+  campaignStartDate    DateTime  @default(now())
   lastNotificationSent DateTime?
   nextNotificationDate DateTime?
-  
+
   // История отправленных уведомлений
-  notifications        ReengagementNotification[]
-  
+  notifications ReengagementNotification[]
+
   // Результаты кампании
-  returned             Boolean  @default(false)  // Вернулся ли пользователь
-  returnedAt           DateTime?
-  unsubscribed         Boolean  @default(false)
-  
+  returned     Boolean   @default(false) // Вернулся ли пользователь
+  returnedAt   DateTime?
+  unsubscribed Boolean   @default(false)
+
   // Метаданные для аналитики
   totalNotificationsSent Int @default(0)
-  
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([isActive, nextNotificationDate])
   @@index([lastActivityDate])
 }
 
 model ReengagementNotification {
-  id           String   @id @default(cuid())
-  campaignId   String
-  campaign     ReengagementCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  
+  id         String               @id @default(cuid())
+  campaignId String
+  campaign   ReengagementCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
   // Тип и содержание
-  level        Int      // 1, 2, 3, 4
-  messageType  String   // 'emotional', 'educational', 'motivational', 'mixed'
-  variantId    String   // ID конкретного варианта сообщения
-  
+  level       Int // 1, 2, 3, 4
+  messageType String // 'emotional', 'educational', 'motivational', 'mixed'
+  variantId   String // ID конкретного варианта сообщения
+
   // Отправленное содержимое
-  title        String
-  body         String
-  url          String?
-  
+  title String
+  body  String
+  url   String?
+
   // Статус
-  sent         Boolean  @default(false)
-  sentAt       DateTime?
-  
+  sent   Boolean   @default(false)
+  sentAt DateTime?
+
   // Взаимодействие
-  opened       Boolean  @default(false)
-  openedAt     DateTime?
-  clicked      Boolean  @default(false)
-  clickedAt    DateTime?
-  
+  opened    Boolean   @default(false)
+  openedAt  DateTime?
+  clicked   Boolean   @default(false)
+  clickedAt DateTime?
+
   // Результат отправки
-  successCount Int      @default(0)
-  failedCount  Int      @default(0)
-  
-  createdAt    DateTime @default(now())
-  
+  successCount Int @default(0)
+  failedCount  Int @default(0)
+
+  createdAt DateTime @default(now())
+
   @@index([campaignId])
   @@index([sent, sentAt])
 }
 
 model ReengagementSettings {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Разрешения
-  enabled               Boolean  @default(true)
-  unsubscribedAt        DateTime?
-  
+  enabled        Boolean   @default(true)
+  unsubscribedAt DateTime?
+
   // Предпочтения
-  preferredTime         String?  // "09:00", "18:00" и т.д.
-  timezone              String   @default("Europe/Moscow")
-  
+  preferredTime String? // "09:00", "18:00" и т.д.
+  timezone      String  @default("Europe/Moscow")
+
   // Частота
-  maxNotificationsPerWeek Int   @default(2)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  maxNotificationsPerWeek Int @default(2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Универсальная система напоминаний (тренировки, прививки, кормление и т.д.)
 model Reminder {
-  id                    String   @id @default(cuid())
-  userId                String
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Тип и название напоминания
-  type                  String   // "training", "vaccination", "feeding", etc.
-  name                  String   // Название для пользователя: "Утро", "День", "Вечер" и т.д.
-  
+  type String // "training", "vaccination", "feeding", etc.
+  name String // Название для пользователя: "Утро", "День", "Вечер" и т.д.
+
   // Настройки
-  enabled               Boolean  @default(false)  // По умолчанию выключено
-  reminderTime          String   @default("09:00") // Время напоминания в формате HH:MM
-  reminderDays          String?  // "1,2,3,4,5,6,7" где 1=Пн, 7=Вс, или null для всех дней
-  timezone              String   @default("Europe/Moscow")
-  
+  enabled      Boolean @default(false) // По умолчанию выключено
+  reminderTime String  @default("09:00") // Время напоминания в формате HH:MM
+  reminderDays String? // "1,2,3,4,5,6,7" где 1=Пн, 7=Вс, или null для всех дней
+  timezone     String  @default("Europe/Moscow")
+
   // Дополнительные данные (JSON для гибкости)
-  metadata              Json?    // Например, для прививок: {petId, vaccineName}, для кормления: {petId, mealType}
-  
+  metadata Json? // Например, для прививок: {petId, vaccineName}, для кормления: {petId, mealType}
+
   // Метаданные
-  lastSentAt            DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
+  lastSentAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
   @@index([userId, type])
   @@index([enabled])
   @@index([type])
@@ -649,92 +634,92 @@ model Reminder {
 }
 
 model ReengagementMetrics {
-  id              String   @id @default(cuid())
-  date            DateTime @default(now())
-  
+  id   String   @id @default(cuid())
+  date DateTime @default(now())
+
   // Общие метрики
-  totalActive     Int      // Всего активных кампаний
-  totalSent       Int      // Отправлено уведомлений за день
-  totalReturned   Int      // Вернулось пользователей
-  
+  totalActive   Int // Всего активных кампаний
+  totalSent     Int // Отправлено уведомлений за день
+  totalReturned Int // Вернулось пользователей
+
   // По уровням
-  level1Sent      Int      @default(0)
-  level2Sent      Int      @default(0)
-  level3Sent      Int      @default(0)
-  level4Sent      Int      @default(0)
-  
+  level1Sent Int @default(0)
+  level2Sent Int @default(0)
+  level3Sent Int @default(0)
+  level4Sent Int @default(0)
+
   // Эффективность
-  openRate        Float?   // % открытий
-  clickRate       Float?   // % кликов
-  returnRate      Float?   // % возвратов
-  
+  openRate   Float? // % открытий
+  clickRate  Float? // % кликов
+  returnRate Float? // % возвратов
+
   // По типам сообщений
-  emotionalSent   Int      @default(0)
-  educationalSent Int      @default(0)
-  motivationalSent Int     @default(0)
-  mixedSent       Int      @default(0)
-  
+  emotionalSent    Int @default(0)
+  educationalSent  Int @default(0)
+  motivationalSent Int @default(0)
+  mixedSent        Int @default(0)
+
   @@index([date])
 }
 
 // Статистика просмотров presentation.html
 model PresentationView {
-  id              String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Информация о сессии и посетителе
-  sessionId        String   // Уникальный ID сессии для группировки событий
-  visitorId        String?  // Уникальный ID посетителя (сохраняется между сессиями через cookie)
-  
+  sessionId String // Уникальный ID сессии для группировки событий
+  visitorId String? // Уникальный ID посетителя (сохраняется между сессиями через cookie)
+
   // Источник трафика
-  referrer         String?  // Откуда пришёл пользователь (document.referrer)
-  referrerDomain   String?  // Домен источника (для удобства фильтрации)
-  utmSource        String?  // UTM метки
-  utmMedium        String?  // UTM метки
-  utmCampaign      String?  // UTM метки
-  
+  referrer       String? // Откуда пришёл пользователь (document.referrer)
+  referrerDomain String? // Домен источника (для удобства фильтрации)
+  utmSource      String? // UTM метки
+  utmMedium      String? // UTM метки
+  utmCampaign    String? // UTM метки
+
   // Параметры из URL для отслеживания источников
-  refParam         String?  // Референс из URL (?ref=username)
-  campaignParam    String?  // Кампания из URL (?campaign=name)
-  sourceParam      String?  // Источник из URL (?source=telegram)
-  tagParam         String?  // Тег из URL (?tag=promo)
-  
+  refParam      String? // Референс из URL (?ref=username)
+  campaignParam String? // Кампания из URL (?campaign=name)
+  sourceParam   String? // Источник из URL (?source=telegram)
+  tagParam      String? // Тег из URL (?tag=promo)
+
   // Техническая информация
-  userAgent        String?  // User Agent браузера
-  ipAddress        String?  // IP адрес (опционально, для геолокации)
-  language         String?  // Язык браузера
-  deviceType       String?  // "mobile" | "tablet" | "desktop"
-  screenWidth      Int?     // Ширина экрана
-  screenHeight     Int?     // Высота экрана
-  
+  userAgent    String? // User Agent браузера
+  ipAddress    String? // IP адрес (опционально, для геолокации)
+  language     String? // Язык браузера
+  deviceType   String? // "mobile" | "tablet" | "desktop"
+  screenWidth  Int? // Ширина экрана
+  screenHeight Int? // Высота экрана
+
   // Метрики просмотра
-  timeOnPage       Int?     // Время на странице в секундах
-  scrollDepth      Int?     // Процент прокрутки (0-100)
-  
+  timeOnPage  Int? // Время на странице в секундах
+  scrollDepth Int? // Процент прокрутки (0-100)
+
   // Достижения секций (время первого достижения в секундах от начала просмотра)
-  reachedHero      Int?     // Достиг Hero секции
-  reachedProblem   Int?     // Достиг Problem секции
-  reachedSolution  Int?     // Достиг Solution секции
-  reachedFeatures  Int?     // Достиг Features секции
-  reachedComparison Int?    // Достиг Comparison секции
-  reachedGoals     Int?     // Достиг Goals секции
-  reachedContact   Int?     // Достиг Contact секции
-  
+  reachedHero       Int? // Достиг Hero секции
+  reachedProblem    Int? // Достиг Problem секции
+  reachedSolution   Int? // Достиг Solution секции
+  reachedFeatures   Int? // Достиг Features секции
+  reachedComparison Int? // Достиг Comparison секции
+  reachedGoals      Int? // Достиг Goals секции
+  reachedContact    Int? // Достиг Contact секции
+
   // Конверсия
-  ctaClicks        Int      @default(0) // Количество кликов по CTA кнопкам
-  convertedToUser  Boolean  @default(false) // Зарегистрировался ли пользователь
-  convertedUserId  String?  // ID пользователя, если зарегистрировался
-  
+  ctaClicks       Int     @default(0) // Количество кликов по CTA кнопкам
+  convertedToUser Boolean @default(false) // Зарегистрировался ли пользователь
+  convertedUserId String? // ID пользователя, если зарегистрировался
+
   // Временные метки
-  firstViewAt      DateTime @default(now()) // Первый просмотр
-  lastViewAt       DateTime @default(now()) // Последняя активность
-  sessionEndedAt   DateTime? // Когда сессия завершилась
-  
+  firstViewAt    DateTime  @default(now()) // Первый просмотр
+  lastViewAt     DateTime  @default(now()) // Последняя активность
+  sessionEndedAt DateTime? // Когда сессия завершилась
+
   // Дополнительные данные
-  additionalData   Json?    // Дополнительные метаданные
-  
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
+  additionalData Json? // Дополнительные метаданные
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([sessionId])
   @@index([visitorId])
   @@index([referrerDomain])
@@ -748,29 +733,71 @@ model PresentationView {
 
 // События взаимодействия с presentation.html (клики, достижения секций)
 model PresentationEvent {
-  id              String   @id @default(cuid())
-  sessionId       String   // ID сессии
-  viewId          String?  // ID соответствующего PresentationView
-  
+  id        String  @id @default(cuid())
+  sessionId String // ID сессии
+  viewId    String? // ID соответствующего PresentationView
+
   // Тип события
-  eventType       String   // "click" | "section_reached" | "scroll_milestone"
-  eventName       String   // Название события (например, "cta_click", "hero_reached")
-  
+  eventType String // "click" | "section_reached" | "scroll_milestone"
+  eventName String // Название события (например, "cta_click", "hero_reached")
+
   // Данные события
-  targetElement   String?  // Элемент, на который кликнули (для кликов)
-  targetSection   String?  // Секция, которую достигли
-  
+  targetElement String? // Элемент, на который кликнули (для кликов)
+  targetSection String? // Секция, которую достигли
+
   // Позиция и время
-  scrollDepth     Int?     // Процент прокрутки в момент события
-  timeOnPage      Int?     // Время на странице в секундах в момент события
-  
+  scrollDepth Int? // Процент прокрутки в момент события
+  timeOnPage  Int? // Время на странице в секундах в момент события
+
   // Дополнительные данные
-  metadata        Json?    // Дополнительные метаданные
-  
-  createdAt       DateTime @default(now())
-  
+  metadata Json? // Дополнительные метаданные
+
+  createdAt DateTime @default(now())
+
   @@index([sessionId])
   @@index([eventType])
   @@index([viewId])
   @@index([createdAt])
+}
+
+// Логи ошибок для Error Dashboard
+model ErrorLog {
+  id String @id @default(cuid())
+
+  // Основная информация
+  message String  @db.Text
+  stack   String? @db.Text
+  level   String  @default("error") // error | fatal | warn
+
+  // Метаданные приложения
+  appName     String
+  environment String  @default("development")
+  context     String? // контекст логгера (напр. "webpush-worker")
+
+  // Метаданные ошибки
+  url            String?
+  userAgent      String?
+  userId         String?
+  sessionId      String?
+  componentStack String? @db.Text
+
+  // Дополнительный контекст (JSON)
+  additionalContext Json?
+
+  // Теги для группировки
+  tags String[] @default([])
+
+  // Статус обработки
+  status String @default("new") // new | viewed | resolved | archived
+
+  // Временные метки
+  timestamp DateTime @default(now()) // время возникновения ошибки
+  createdAt DateTime @default(now()) // время записи в БД
+  updatedAt DateTime @updatedAt
+
+  // Индексы для быстрого поиска
+  @@index([appName, level, timestamp(sort: Desc)])
+  @@index([environment, timestamp(sort: Desc)])
+  @@index([status, timestamp(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
 }

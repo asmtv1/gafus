@@ -7,11 +7,11 @@ import type { ErrorFilters } from "@gafus/types";
 export async function getErrorFilters(): Promise<ErrorFilters> {
   try {
     const [appNames, environments] = await Promise.all([
-      prisma.errorReport.findMany({
+      prisma.errorLog.findMany({
         select: { appName: true },
         distinct: ["appName"],
       }),
-      prisma.errorReport.findMany({
+      prisma.errorLog.findMany({
         select: { environment: true },
         distinct: ["environment"],
       }),
