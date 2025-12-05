@@ -366,16 +366,39 @@ export class LokiClient {
             logLine: logLine.substring(0, 200),
             error: parseError instanceof Error ? parseError.message : String(parseError),
           });
+          
+          // Для логов контейнеров извлекаем информацию из labels
+          const isContainerLog = labels.tag_container_logs === 'true' || labels.job === 'docker';
+          let containerName = 'unknown';
+          let appName = labels.app || 'unknown';
+          
+          if (isContainerLog) {
+            // Пытаемся извлечь имя контейнера из filename или container_id
+            if (labels.filename) {
+              const match = labels.filename.match(/\/([^/]+)-json\.log$/);
+              if (match) {
+                containerName = match[1].substring(0, 12); // Первые 12 символов container_id
+              }
+            }
+            if (labels.container_id) {
+              containerName = labels.container_id.substring(0, 12);
+            }
+            
+            // Пытаемся определить appName из container_id через Docker API или используем container_id
+            // Для простоты используем "container" как appName для логов контейнеров
+            appName = 'container';
+          }
+          
           const report: ErrorDashboardReport = {
             id: generateErrorId(
-              labels.app || "unknown",
+              appName,
               timestamp,
               logLine
             ),
             message: logLine,
             stack: null,
-            appName: labels.app || "unknown",
-            environment: labels.environment || "development",
+            appName,
+            environment: labels.environment || "production",
             labels: normalizedLabels,
             timestampNs: timestamp,
             url: "/logger",
@@ -383,8 +406,24 @@ export class LokiClient {
             userId: null,
             sessionId: null,
             componentStack: null,
-            additionalContext: { raw: logLine },
-            tags: Object.keys(labels).filter((k) => k.startsWith("tag_")).map((k) => k.replace("tag_", "")),
+            additionalContext: {
+              raw: logLine,
+              ...(isContainerLog ? {
+                container: {
+                  name: containerName,
+                  id: labels.container_id || containerName,
+                  timestamp: new Date(parseInt(timestamp) / 1000000).toISOString(),
+                  raw: logLine,
+                },
+              } : {}),
+            },
+            tags: [
+              ...Object.keys(labels)
+                .filter((k) => k.startsWith("tag_"))
+                .map((k) => k.replace("tag_", "")),
+              ...(isContainerLog ? ['container-logs'] : []),
+              ...(labels.container_id ? [`container:${containerName}`] : []),
+            ],
             createdAt: new Date(parseInt(timestamp) / 1000000),
             updatedAt: new Date(parseInt(timestamp) / 1000000),
           };
@@ -434,7 +473,7 @@ export class LokiClient {
       for (const tag of filters.tags) {
         labelMatchers.push(`tag_${tag.replace("-", "_")}="true"`);
       }
-      // Для логов контейнеров (container-logs) используем job="docker" вместо app
+       // Для логов контейнеров (container-logs) используем job="docker" вместо app
       // так как Promtail не добавляет метку app в логи контейнеров
       if (filters.tags.includes("container-logs") && !filters.appName) {
         labelMatchers.push(`job="docker"`);
