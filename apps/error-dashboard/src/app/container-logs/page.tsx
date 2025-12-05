@@ -50,8 +50,17 @@ import { ru } from "date-fns/locale";
 interface ContainerLogAdditionalContext {
   container?: {
     name: string;
+    id: string;
     timestamp: string;
     raw: string;
+    caller?: string;
+    originalMsg?: string;
+  };
+  parsed?: {
+    level: string;
+    timestamp?: string;
+    caller?: string;
+    msg?: string;
   };
   pino?: {
     level: number | string;
@@ -548,14 +557,33 @@ export default function ContainerLogsPage() {
                 {filteredLogs.map((log, index) => {
                   const context = log.additionalContext as ContainerLogAdditionalContext;
                   const containerName = context?.container?.name || "unknown";
-                  const pinoLevel = context?.pino?.level;
-                  const levelStr = typeof pinoLevel === "number" || typeof pinoLevel === "string"
-                    ? (typeof pinoLevel === "number" 
-                        ? ["10", "20", "30", "40", "50"].includes(String(pinoLevel))
-                          ? { "10": "debug", "20": "info", "30": "warn", "40": "error", "50": "fatal" }[String(pinoLevel)] || String(pinoLevel)
-                          : String(pinoLevel)
-                        : pinoLevel)
-                    : log.tags?.find((tag) => tag.startsWith("level:"))?.replace("level:", "") || "info";
+                  
+                  // Определяем уровень логирования: сначала из parsed, потом из pino, потом из tags
+                  let levelStr = "info";
+                  if (context?.parsed?.level) {
+                    levelStr = context.parsed.level;
+                  } else {
+                    const pinoLevel = context?.pino?.level;
+                    if (typeof pinoLevel === "number" || typeof pinoLevel === "string") {
+                      if (typeof pinoLevel === "number") {
+                        const levelMap: Record<string, string> = {
+                          "10": "debug",
+                          "20": "info",
+                          "30": "warn",
+                          "40": "error",
+                          "50": "fatal",
+                        };
+                        levelStr = levelMap[String(pinoLevel)] || String(pinoLevel);
+                      } else {
+                        levelStr = pinoLevel;
+                      }
+                    } else {
+                      const tagLevel = log.tags?.find((tag) => 
+                        ["debug", "info", "warn", "error", "fatal"].includes(tag)
+                      );
+                      levelStr = tagLevel || log.tags?.find((tag) => tag.startsWith("level:"))?.replace("level:", "") || "info";
+                    }
+                  }
                   
                   const levelColor = getLevelColor(levelStr);
                   const levelBgColor = getLevelBgColor(levelStr);
@@ -588,7 +616,7 @@ export default function ContainerLogsPage() {
                           primary={
                             <Box display="flex" alignItems="center" gap={2} mb={1}>
                               <Typography variant="body1" fontWeight="medium" sx={{ flex: 1 }}>
-                                {log.message}
+                                {context?.parsed?.msg || context?.container?.originalMsg || log.message}
                               </Typography>
 
                               <Box display="flex" alignItems="center" gap={1}>
@@ -625,6 +653,14 @@ export default function ContainerLogsPage() {
                                     })}
                                   </Typography>
                                 </Box>
+
+                                {context?.parsed?.caller && (
+                                  <Box display="flex" alignItems="center" gap={0.5}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Caller: {String(context.parsed.caller)}
+                                    </Typography>
+                                  </Box>
+                                )}
 
                                 {context?.pino?.context && (
                                   <Box display="flex" alignItems="center" gap={0.5}>

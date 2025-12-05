@@ -372,21 +372,78 @@ export class LokiClient {
           let containerName = 'unknown';
           let appName = labels.app || 'unknown';
           
+          // Маппинг container_id -> имя контейнера (известные контейнеры)
+          const containerIdToName: Record<string, string> = {
+            '6e062042c39f': 'gafus-loki',
+            '83a97c5e1dc9': 'gafus-promtail',
+            'bf7045b8d739': 'gafus-nginx',
+            'e2abf3a50008': 'gafus-error-dashboard',
+            'b09a3c2c00a3': 'gafus-trainer-panel',
+            'cdd55a2c5280': 'gafus-web',
+            '3fac6bf7e795': 'gafus-bull-board',
+            '50a1b05b69fe': 'gafus-admin-panel',
+            'd0263b2acf44': 'gafus-prometheus',
+          };
+          
           if (isContainerLog) {
-            // Пытаемся извлечь имя контейнера из filename или container_id
-            if (labels.filename) {
+            // Получаем container_id из labels
+            const containerId = labels.container_id;
+            if (containerId) {
+              // Пытаемся найти имя контейнера по полному ID или первым 12 символам
+              containerName = containerIdToName[containerId] || 
+                             containerIdToName[containerId.substring(0, 12)] ||
+                             containerId.substring(0, 12);
+              
+              // Извлекаем appName из имени контейнера (gafus-loki -> loki)
+              const nameMatch = containerName.match(/gafus-(.+)/);
+              appName = nameMatch ? nameMatch[1] : containerName;
+            } else if (labels.filename) {
               const match = labels.filename.match(/\/([^/]+)-json\.log$/);
               if (match) {
-                containerName = match[1].substring(0, 12); // Первые 12 символов container_id
+                const id = match[1].substring(0, 12);
+                containerName = containerIdToName[id] || id;
+                appName = containerName.replace('gafus-', '');
               }
             }
-            if (labels.container_id) {
-              containerName = labels.container_id.substring(0, 12);
+          }
+          
+          // Парсим текстовый лог в формате key=value (Loki/Grafana формат)
+          let parsedMessage = logLine;
+          let parsedLevel = labels.level || 'info';
+          let parsedCaller: string | undefined;
+          let parsedMsg: string | undefined;
+          let parsedTs: string | undefined;
+          
+          if (isContainerLog && logLine.includes('=')) {
+            // Парсим формат: level=info ts=2025-12-05T20:21:09.880892204Z caller=... msg="..."
+            const parts = logLine.split(/\s+(?=\w+=)/);
+            const parsed: Record<string, string> = {};
+            
+            for (const part of parts) {
+              const match = part.match(/^(\w+)=(.+)$/);
+              if (match) {
+                const key = match[1];
+                let value = match[2];
+                
+                // Убираем кавычки если есть
+                if (value.startsWith('"') && value.endsWith('"')) {
+                  value = value.slice(1, -1);
+                }
+                
+                parsed[key] = value;
+              }
             }
             
-            // Пытаемся определить appName из container_id через Docker API или используем container_id
-            // Для простоты используем "container" как appName для логов контейнеров
-            appName = 'container';
+            if (parsed.level) parsedLevel = parsed.level;
+            if (parsed.ts) parsedTs = parsed.ts;
+            if (parsed.caller) parsedCaller = parsed.caller;
+            if (parsed.msg) {
+              parsedMsg = parsed.msg;
+              parsedMessage = parsed.msg; // Используем msg как основное сообщение
+            } else if (parsed.message) {
+              parsedMsg = parsed.message;
+              parsedMessage = parsed.message;
+            }
           }
           
           const report: ErrorDashboardReport = {
@@ -395,7 +452,7 @@ export class LokiClient {
               timestamp,
               logLine
             ),
-            message: logLine,
+            message: parsedMessage,
             stack: null,
             appName,
             environment: labels.environment || "production",
@@ -412,17 +469,26 @@ export class LokiClient {
                 container: {
                   name: containerName,
                   id: labels.container_id || containerName,
-                  timestamp: new Date(parseInt(timestamp) / 1000000).toISOString(),
+                  timestamp: parsedTs || new Date(parseInt(timestamp) / 1000000).toISOString(),
                   raw: logLine,
+                  ...(parsedCaller ? { caller: parsedCaller } : {}),
+                  ...(parsedMsg ? { originalMsg: parsedMsg } : {}),
+                },
+                parsed: {
+                  level: parsedLevel,
+                  ...(parsedTs ? { timestamp: parsedTs } : {}),
+                  ...(parsedCaller ? { caller: parsedCaller } : {}),
+                  ...(parsedMsg ? { msg: parsedMsg } : {}),
                 },
               } : {}),
             },
             tags: [
+              parsedLevel,
               ...Object.keys(labels)
                 .filter((k) => k.startsWith("tag_"))
                 .map((k) => k.replace("tag_", "")),
               ...(isContainerLog ? ['container-logs'] : []),
-              ...(labels.container_id ? [`container:${containerName}`] : []),
+              ...(containerName !== 'unknown' ? [`container:${containerName}`] : []),
             ],
             createdAt: new Date(parseInt(timestamp) / 1000000),
             updatedAt: new Date(parseInt(timestamp) / 1000000),
