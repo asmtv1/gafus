@@ -23,16 +23,29 @@ export async function getErrorsCached(filters?: {
     if (filters?.tags?.includes("container-logs")) {
       console.warn("[getErrorsCached] Using Loki for container-logs");
       try {
-        const lokiErrors = await getLokiErrorsCached({
+        const lokiResult = await getLokiErrorsCached({
           appName: filters?.appName,
           level: filters?.type === "errors" ? "error|fatal" : undefined,
           tags: filters?.tags,
           limit: filters?.limit,
         });
         
+        if (!lokiResult.success) {
+          return {
+            success: false,
+            error: lokiResult.error || "Не удалось получить логи контейнеров из Loki",
+          };
+        }
+        
+        console.warn("[getErrorsCached] Loki result:", {
+          success: lokiResult.success,
+          errorsCount: lokiResult.errors?.length || 0,
+          sampleIds: lokiResult.errors?.slice(0, 3).map(e => e.id),
+        });
+        
         return {
           success: true,
-          errors: lokiErrors,
+          errors: lokiResult.errors || [],
         };
       } catch (error) {
         logger.error(
