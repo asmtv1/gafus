@@ -1,12 +1,13 @@
 "use server";
 
 import { getErrorsFromDatabase } from "@shared/lib/error-log-service";
+import { getLokiErrorsCached } from "./loki-errors";
 import { createErrorDashboardLogger } from "@gafus/logger";
 
 const logger = createErrorDashboardLogger('error-dashboard-cached-errors');
 
 /**
- * Получает ошибки из PostgreSQL
+ * Получает ошибки из PostgreSQL или Loki в зависимости от фильтров
  */
 export async function getErrorsCached(filters?: {
     appName?: string;
@@ -17,6 +18,39 @@ export async function getErrorsCached(filters?: {
     tags?: string[];
 }) {
     console.warn("[getErrorsCached] FUNCTION CALLED with filters:", JSON.stringify(filters));
+    
+    // Если есть тег container-logs, используем Loki вместо БД
+    if (filters?.tags?.includes("container-logs")) {
+      console.warn("[getErrorsCached] Using Loki for container-logs");
+      try {
+        const lokiErrors = await getLokiErrorsCached({
+          appName: filters?.appName,
+          level: filters?.type === "errors" ? "error|fatal" : undefined,
+          tags: filters?.tags,
+          limit: filters?.limit,
+        });
+        
+        return {
+          success: true,
+          errors: lokiErrors,
+        };
+      } catch (error) {
+        logger.error(
+          "Failed to get container logs from Loki",
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            operation: "getErrorsCached",
+            action: "getLokiErrorsCached",
+            filters,
+            tags: ["container-logs", "loki", "server-action"],
+          }
+        );
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Не удалось получить логи контейнеров из Loki",
+        };
+      }
+    }
     
     try {
       console.warn("[getErrorsCached] Fetching errors from database with filters:", filters);
