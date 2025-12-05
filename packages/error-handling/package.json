@@ -6,6 +6,12 @@
   "description": "React Error Boundaries для приложений GAFUS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "clean": "rimraf dist",
     "build": "tsc",
