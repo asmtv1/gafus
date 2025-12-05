@@ -317,12 +317,8 @@ services:
       - loki-data:/loki
     restart: unless-stopped
     # Убрали открытые порты - доступ только внутри Docker сети
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+    # Healthcheck убран, т.к. образ Loki минималистичный и не содержит стандартных инструментов
+    # Promtail будет ждать запуска Loki через depends_on
 
   # Promtail для сбора логов из Docker контейнеров
   promtail:
@@ -339,7 +335,7 @@ services:
     restart: unless-stopped
     depends_on:
       loki:
-        condition: service_healthy
+        condition: service_started
 
 volumes:
   postgres_data:
