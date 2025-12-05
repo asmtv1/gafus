@@ -158,7 +158,7 @@ export class LokiClient {
       
       // Логирование результатов (всегда, не только в development)
       const resultCount = data?.data?.result?.length || 0;
-      const totalEntries = resultCount > 0 
+      const totalEntries = resultCount > 0 && data?.data?.result
         ? data.data.result.reduce((sum: number, stream: { values?: unknown[] }) => sum + (stream.values?.length || 0), 0)
         : 0;
       
