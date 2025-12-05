@@ -53,7 +53,6 @@ scrape_configs:
       # Используем статическое значение "info" для level, чтобы избежать ошибок template
       # Убираем пустые метки app и context, т.к. они не извлекаются из не-JSON логов
       - labels:
-          container_id:
           level: info
           environment: production
           # Добавляем тег для идентификации логов контейнеров
