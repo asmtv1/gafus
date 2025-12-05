@@ -35,7 +35,7 @@ scrape_configs:
       - output:
           source: output
 
-      # Пытаемся распарсить Pino JSON логи
+      # Пытаемся распарсить Pino JSON логи (опционально)
       - json:
           expressions:
             pino_level: level
@@ -49,10 +49,11 @@ scrape_configs:
           source: output
           drop_malformed: false
 
-      # Маппим уровень Pino (числовой) в строковый
+      # Маппим уровень Pino (числовой) в строковый, если он есть
+      # Если pino_level отсутствует, используем "info" по умолчанию
       - template:
           source: level_label
-          template: '{{ if eq .pino_level "10" }}debug{{ else if eq .pino_level "20" }}info{{ else if eq .pino_level "30" }}warn{{ else if eq .pino_level "40" }}error{{ else if eq .pino_level "50" }}fatal{{ else }}info{{ end }}'
+          template: '{{ if .pino_level }}{{ if eq .pino_level "10" }}debug{{ else if eq .pino_level "20" }}info{{ else if eq .pino_level "30" }}warn{{ else if eq .pino_level "40" }}error{{ else if eq .pino_level "50" }}fatal{{ else }}info{{ end }}{{ else }}info{{ end }}'
 
       # Добавляем метки для фильтрации в Loki
       - labels:
