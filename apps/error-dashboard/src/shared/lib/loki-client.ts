@@ -434,19 +434,18 @@ export class LokiClient {
       for (const tag of filters.tags) {
         labelMatchers.push(`tag_${tag.replace("-", "_")}="true"`);
       }
-      // Когда есть теги, всегда добавляем app=~".+" для соответствия требованиям Loki
-      // Loki требует хотя бы один regexp или equality matcher, который не имеет пустого значения
-      // app=~".+" требует хотя бы один символ, что соответствует требованиям Loki
-      // Теги могут не считаться достаточными matcher'ами, поэтому добавляем app matcher
-      if (!filters.appName) {
+      // Для логов контейнеров (container-logs) используем job="docker" вместо app
+      // так как Promtail не добавляет метку app в логи контейнеров
+      if (filters.tags.includes("container-logs") && !filters.appName) {
+        labelMatchers.push(`job="docker"`);
+      } else if (!filters.appName) {
+        // Для других тегов используем app=~".+" если нет appName
         labelMatchers.push(`app=~".+"`);
       }
     }
 
     // Базовый запрос - все логи
     // Loki требует хотя бы один matcher, который не имеет пустого значения
-    // Если нет фильтров, используем app=~".+" чтобы получить все приложения
-    // app=~".+" требует хотя бы один символ, что соответствует требованиям Loki
     let query = "{";
     if (labelMatchers.length > 0) {
       query += labelMatchers.join(",");
