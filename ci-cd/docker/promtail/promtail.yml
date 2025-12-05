@@ -31,13 +31,6 @@ scrape_configs:
             attrs: attrs
             time: time
 
-      # Извлекаем metadata контейнера из attrs
-      - json:
-          expressions:
-            container_id: attrs.container_id
-            container_name: attrs.container_name
-          source: attrs
-
       # Извлекаем сообщение лога
       - output:
           source: output
@@ -63,7 +56,6 @@ scrape_configs:
 
       # Добавляем метки для фильтрации в Loki
       - labels:
-          container_name:
           container_id:
           level: level_label
           app:
@@ -72,19 +64,11 @@ scrape_configs:
           # Добавляем тег для идентификации логов контейнеров
           tag_container_logs: "true"
 
-    # Извлекаем имя контейнера из пути файла и имени
+    # Извлекаем container_id из пути файла
     relabel_configs:
-      # Извлекаем container_id из пути файла
       - source_labels:
           - __path__
         regex: /var/lib/docker/containers/([^/]+)/.*
         target_label: container_id
-        replacement: ${1}
-
-      # Извлекаем app name из container_name метки или имени файла
-      - source_labels:
-          - container_name
-        regex: gafus-([^-]+)
-        target_label: app
         replacement: ${1}
 
