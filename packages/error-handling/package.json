@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "description": "React Error Boundaries для приложений GAFUS",
-  "main": "dist/error-handling/src/index.js",
-  "types": "dist/error-handling/src/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "clean": "rimraf dist",
     "build": "tsc",
