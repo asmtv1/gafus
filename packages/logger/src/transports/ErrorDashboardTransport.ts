@@ -174,7 +174,7 @@ export class ErrorDashboardTransport {
   private async sendToDatabase(logEntry: ErrorDashboardLogEntry): Promise<void> {
     try {
       // Dynamic import для избежания circular dependencies
-      // @ts-expect-error - prisma может быть не собран на этапе компиляции logger
+      // @ts-ignore - prisma может быть не собран на этапе компиляции logger
       const { prisma } = await import('@gafus/prisma');
       
       await prisma.errorLog.create({
