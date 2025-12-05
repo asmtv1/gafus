@@ -76,10 +76,14 @@ jobs:
 
       - name: Build packages
         run: |
-          # Сначала собираем prisma напрямую (без turbo), так как другие пакеты зависят от него
+          # Сначала собираем logger и prisma напрямую (без turbo) из-за циклической зависимости
+          # logger использует prisma динамически, но TypeScript проверяет типы при компиляции
+          # Собираем logger первым, так как prisma зависит от него статически
+          cd packages/logger && pnpm build && cd ../..
+          # После сборки logger, собираем prisma (он может использовать собранный logger)
           cd packages/prisma && pnpm build && cd ../..
           # Затем собираем остальные пакеты через turbo
-          pnpm build --filter=@gafus/* --filter=!@gafus/prisma
+          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger
 
       - name: Cache build artifacts
         uses: actions/cache@v4
