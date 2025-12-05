@@ -42,8 +42,8 @@ export function useErrors(filters?: {
       const result = await getErrorsCached(filters);
       console.warn('[useErrors] getErrorsCached returned:', {
         success: result.success,
-        errorCount: result.errors?.length || 0,
-        error: result.error,
+        errorCount: result.success && result.errors ? result.errors.length : 0,
+        error: result.success ? undefined : result.error,
       });
       if (!result.success) {
         throw new Error(result.error);
