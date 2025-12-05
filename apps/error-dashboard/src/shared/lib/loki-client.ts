@@ -1,4 +1,7 @@
 import type { ErrorDashboardReport } from "@gafus/types";
+import http from "http";
+import https from "https";
+import { URL } from "url";
 
 // Константы для работы с временными периодами
 const DAY_MS = 24 * 60 * 60 * 1000; // миллисекунды в сутках
@@ -90,37 +93,68 @@ export class LokiClient {
         url: requestUrl,
       });
 
-      const response = await fetch(requestUrl, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      // Используем встроенный http/https модуль вместо fetch для работы с Docker DNS
+      const data = await new Promise<{
+        data?: {
+          result?: {
+            stream?: Record<string, string>;
+            values?: [string, string][];
+          }[];
+        };
+      }>((resolve, reject) => {
+        const requestUrlObj = new URL(requestUrl);
+        const isHttps = requestUrlObj.protocol === 'https:';
+        const httpModule = isHttps ? https : http;
+        
+        const options = {
+          hostname: requestUrlObj.hostname,
+          port: requestUrlObj.port || (isHttps ? 443 : 80),
+          path: requestUrlObj.pathname + requestUrlObj.search,
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        };
+
+        const req = httpModule.request(options, (res) => {
+          let responseData = '';
+
+          res.on('data', (chunk) => {
+            responseData += chunk;
+          });
+
+          res.on('end', () => {
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+              try {
+                const parsedData = JSON.parse(responseData);
+                resolve(parsedData);
+              } catch (parseError) {
+                reject(new Error(`Failed to parse Loki response: ${parseError instanceof Error ? parseError.message : String(parseError)}`));
+              }
+            } else {
+              // Распознаем ошибку про matcher, которая на самом деле может быть ошибкой периода
+              if (responseData && responseData.includes("queries require at least one regexp or equality matcher")) {
+                const improvedMessage = `Диапазон запроса превышает лимит Loki (30 суток). Используется lookback 29 суток. Если ошибка сохраняется, проверьте конфигурацию Loki. Оригинальная ошибка: ${responseData.substring(0, 200)}`;
+                reject(new Error(improvedMessage));
+              } else {
+                const errorMessage = `Loki query failed: ${res.statusCode} ${res.statusMessage}. URL: ${this.baseUrl}. ${responseData ? `Response: ${responseData.substring(0, 200)}` : ""}`;
+                reject(new Error(errorMessage));
+              }
+            }
+          });
+        });
+
+        req.on('error', (error) => {
+          reject(new Error(`Не удалось подключиться к Loki. URL: ${this.baseUrl}. Проверьте, что Loki доступен и переменная окружения LOKI_URL настроена правильно. Ошибка: ${error.message}`));
+        });
+
+        req.setTimeout(30000, () => {
+          req.destroy();
+          reject(new Error(`Timeout при подключении к Loki. URL: ${this.baseUrl}`));
+        });
+
+        req.end();
       });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => response.statusText);
-        
-        // Распознаем ошибку про matcher, которая на самом деле может быть ошибкой периода
-        if (errorText && errorText.includes("queries require at least one regexp or equality matcher")) {
-          const improvedMessage = `Диапазон запроса превышает лимит Loki (30 суток). Используется lookback 29 суток. Если ошибка сохраняется, проверьте конфигурацию Loki. Оригинальная ошибка: ${errorText.substring(0, 200)}`;
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.error('[LokiClient] Query failed (likely time range issue):', improvedMessage);
-          }
-          
-          throw new Error(improvedMessage);
-        }
-        
-        const errorMessage = `Loki query failed: ${response.status} ${response.statusText}. URL: ${this.baseUrl}. ${errorText ? `Response: ${errorText.substring(0, 200)}` : ""}`;
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[LokiClient] Query failed:', errorMessage);
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
       
       // Логирование результатов (всегда, не только в development)
       const resultCount = data?.data?.result?.length || 0;
