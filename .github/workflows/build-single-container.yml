@@ -81,7 +81,11 @@ jobs:
           mv schema.prisma.bak schema.prisma
 
       - name: Build packages
-        run: pnpm build --filter=@gafus/*
+        run: |
+          # Сначала собираем prisma напрямую (без turbo), так как другие пакеты зависят от него
+          cd packages/prisma && pnpm build && cd ../..
+          # Затем собираем остальные пакеты через turbo
+          pnpm build --filter=@gafus/* --filter=!@gafus/prisma
 
       - name: Cache build artifacts
         uses: actions/cache@v4
