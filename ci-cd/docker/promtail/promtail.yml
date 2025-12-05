@@ -54,19 +54,24 @@ scrape_configs:
           source: output
           drop_malformed: false
 
+      # Преобразуем pino_level в level для использования в метках
+      # Если pino_level есть, используем его, иначе "info"
+      - template:
+          source: level
+          template: '{{ if .pino_level }}{{ .pino_level }}{{ else }}info{{ end }}'
+
       # Добавляем метки для фильтрации в Loki
-      # Используем статическое значение "info" для level, чтобы избежать ошибок template
+      # Используем извлеченные значения из Pino JSON
       - labels:
           container_id:
-          level: info
+          app: # Метка app из Pino JSON (если поле app было извлечено)
+          level: # Метка level (преобразована из pino_level через template)
           environment: production
           tag_container_logs: "true"
 
     # Добавляем статические метки через relabel_configs
     relabel_configs:
       # Добавляем статические метки для всех логов
-      - target_label: level
-        replacement: info
       - target_label: environment
         replacement: production
       - target_label: tag_container_logs

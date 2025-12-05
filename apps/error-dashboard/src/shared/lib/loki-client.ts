@@ -517,9 +517,26 @@ export class LokiClient {
   }): Promise<ErrorDashboardReport[]> {
     // Формируем LogQL запрос
     const labelMatchers: string[] = [];
+    const isContainerLogs = filters?.tags?.includes("container-logs");
 
-    if (filters?.appName) {
-      labelMatchers.push(`app="${filters.appName}"`);
+    // Для логов контейнеров (container-logs) используем job="docker" и tag_container_logs="true"
+    // Теперь Promtail также добавляет метку app из Pino JSON, поэтому можно фильтровать по app
+    if (isContainerLogs) {
+      // Всегда добавляем job="docker" для контейнерных логов
+      labelMatchers.push(`job="docker"`);
+      // Если указан appName, добавляем фильтр по app (Promtail добавляет метку app из Pino JSON)
+      if (filters?.appName) {
+        labelMatchers.push(`app="${filters.appName}"`);
+      }
+    } else {
+      // Для ошибок приложений используем метку app
+      if (filters?.appName) {
+        labelMatchers.push(`app="${filters.appName}"`);
+      } else {
+        // Если нет appName, используем app=~".+" для всех приложений
+        // Promtail должен добавлять метку app из Pino JSON логов
+        labelMatchers.push(`app=~".+"`);
+      }
     }
 
     if (filters?.level) {
@@ -539,14 +556,6 @@ export class LokiClient {
       for (const tag of filters.tags) {
         labelMatchers.push(`tag_${tag.replace("-", "_")}="true"`);
       }
-       // Для логов контейнеров (container-logs) используем job="docker" вместо app
-      // так как Promtail не добавляет метку app в логи контейнеров
-      if (filters.tags.includes("container-logs") && !filters.appName) {
-        labelMatchers.push(`job="docker"`);
-      } else if (!filters.appName) {
-        // Для других тегов используем app=~".+" если нет appName
-        labelMatchers.push(`app=~".+"`);
-      }
     }
 
     // Базовый запрос - все логи
@@ -555,20 +564,26 @@ export class LokiClient {
     if (labelMatchers.length > 0) {
       query += labelMatchers.join(",");
     } else {
-      // Если нет фильтров, добавляем matcher для всех приложений
-      query += `app=~".+"`;
+      // Если нет фильтров, добавляем matcher для всех приложений с уровнем error|fatal
+      // Это используется для получения всех ошибок приложений
+      query += `app=~".+",level=~"error|fatal"`;
     }
     query += "}";
+
+    // Для контейнерных логов используем больший дефолтный лимит (10000)
+    const defaultLimit = isContainerLogs ? 10000 : 1000;
+    const limit = filters?.limit || defaultLimit;
 
     console.warn('[LokiClient.getLogs] FUNCTION CALLED with filters:', JSON.stringify(filters));
     console.warn('[LokiClient.getLogs] Forming query:', {
       filters,
       labelMatchers,
       query,
-      limit: filters?.limit || 1000,
+      limit,
+      isContainerLogs,
     });
 
-    const result = await this.query(query, filters?.limit || 1000, filters?.startTime, filters?.endTime);
+    const result = await this.query(query, limit, filters?.startTime, filters?.endTime);
     
     console.warn('[LokiClient.getLogs] Query result:', {
       resultCount: result.length,

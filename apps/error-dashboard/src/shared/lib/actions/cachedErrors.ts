@@ -1,13 +1,16 @@
 "use server";
 
-import { getErrorsFromDatabase } from "@shared/lib/error-log-service";
 import { getLokiErrorsCached } from "./loki-errors";
+import { syncLokiErrorToDatabase } from "@shared/lib/error-log-service";
+import { getLogLevel } from "@shared/lib/utils/errorSource";
 import { createErrorDashboardLogger } from "@gafus/logger";
 
 const logger = createErrorDashboardLogger('error-dashboard-cached-errors');
 
 /**
- * Получает ошибки из PostgreSQL или Loki в зависимости от фильтров
+ * Получает ошибки из Loki, затем синхронизирует их в БД
+ * Все ошибки (error, fatal) читаются из Loki, затем автоматически записываются в БД
+ * Операции с ошибками (resolve, delete) выполняются только в БД
  */
 export async function getErrorsCached(filters?: {
     appName?: string;
@@ -19,129 +22,120 @@ export async function getErrorsCached(filters?: {
 }) {
     console.warn("[getErrorsCached] FUNCTION CALLED with filters:", JSON.stringify(filters));
     
-    // Если есть тег container-logs, используем Loki вместо БД
-    if (filters?.tags?.includes("container-logs")) {
-      console.warn("[getErrorsCached] Using Loki for container-logs");
-      try {
-        const lokiResult = await getLokiErrorsCached({
-          appName: filters?.appName,
-          level: filters?.type === "errors" ? "error|fatal" : undefined,
-          tags: filters?.tags,
-          limit: filters?.limit,
-        });
-        
-        if (!lokiResult.success) {
-          return {
-            success: false,
-            error: lokiResult.error || "Не удалось получить логи контейнеров из Loki",
-          };
-        }
-        
-        const errors = lokiResult.errors || [];
-        console.warn("[getErrorsCached] Loki result:", {
-          success: lokiResult.success,
-          errorsCount: errors.length,
-          sampleIds: errors.slice(0, 3).map(e => e.id),
-          sampleErrors: errors.slice(0, 2).map(e => ({
-            id: e.id,
-            message: e.message?.substring(0, 50),
-            appName: e.appName,
-            tags: e.tags,
-            createdAt: e.createdAt,
-            hasAdditionalContext: !!e.additionalContext,
-          })),
-        });
-        
-        // Проверяем, что errors - это массив
-        if (!Array.isArray(errors)) {
-          console.error("[getErrorsCached] ERROR: lokiResult.errors is not an array:", typeof errors, errors);
-          return {
-            success: false,
-            error: "Неверный формат данных из Loki",
-          };
-        }
-        
-        return {
-          success: true,
-          errors: errors,
-        };
-      } catch (error) {
-        logger.error(
-          "Failed to get container logs from Loki",
-          error instanceof Error ? error : new Error(String(error)),
-          {
-            operation: "getErrorsCached",
-            action: "getLokiErrorsCached",
-            filters,
-            tags: ["container-logs", "loki", "server-action"],
-          }
-        );
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Не удалось получить логи контейнеров из Loki",
-        };
-      }
-    }
-    
     try {
-      console.warn("[getErrorsCached] Fetching errors from database with filters:", filters);
+      // Всегда используем Loki для получения ошибок
+      // Для ошибок приложений фильтруем по level=error|fatal (только error и fatal)
+      // Для container-logs используем специальную логику формирования запроса
+      const isContainerLogs = filters?.tags?.includes("container-logs");
+      // Для обычных ошибок всегда фильтруем по error|fatal
+      // Для container-logs и type: "logs" не фильтруем по level
+      const level = isContainerLogs ? undefined :
+                    filters?.type === "logs" ? undefined :
+                    filters?.type === "errors" ? "error|fatal" :
+                    "error|fatal"; // По умолчанию для обычных ошибок только error|fatal
       
-      // Преобразуем type в level для БД
-      let level: string | undefined;
-      if (filters?.type === "errors") {
-        level = "error|fatal";
-      }
-      
-      const result = await getErrorsFromDatabase({
-        appName: filters?.appName,
-        environment: filters?.environment,
+      console.warn("[getErrorsCached] Using Loki for errors", {
+        isContainerLogs,
         level,
-        limit: filters?.limit,
-        offset: filters?.offset,
+        appName: filters?.appName,
         tags: filters?.tags,
       });
-      
-      if (!result.success) {
-        logger.error(
-          result.error || "Failed to get errors from database",
-          new Error(result.error || "Unknown error"),
-          {
-            operation: "getErrorsCached",
-            action: "getErrorsFromDatabase",
-            filters,
-            tags: ["errors", "cache", "server-action", "database"],
-        },
-        );
-        return result;
-      }
-      
-      const errorCount = (result.errors || []).length;
-      console.warn("[getErrorsCached] Fetched %d errors from database successfully", errorCount, {
-        filters,
-        errorIds: result.errors?.slice(0, 3).map((e) => e.id),
+
+      const lokiResult = await getLokiErrorsCached({
+        appName: filters?.appName,
+        level,
+        tags: filters?.tags,
+        limit: filters?.limit,
       });
       
-      return result;
+      if (!lokiResult.success) {
+        return {
+          success: false,
+          error: lokiResult.error || "Не удалось получить ошибки из Loki",
+        };
+      }
+      
+      const errors = lokiResult.errors || [];
+      
+      // Применяем offset если указан
+      let filteredErrors = errors;
+      if (filters?.offset) {
+        filteredErrors = filteredErrors.slice(filters.offset);
+      }
+      
+      // Применяем limit после offset
+      if (filters?.limit) {
+        filteredErrors = filteredErrors.slice(0, filters.limit);
+      }
+      
+      console.warn("[getErrorsCached] Loki result:", {
+        success: lokiResult.success,
+        errorsCount: errors.length,
+        filteredCount: filteredErrors.length,
+        sampleIds: filteredErrors.slice(0, 3).map(e => e.id),
+        sampleErrors: filteredErrors.slice(0, 2).map(e => ({
+          id: e.id,
+          message: e.message?.substring(0, 50),
+          appName: e.appName,
+          tags: e.tags,
+          createdAt: e.createdAt,
+          hasAdditionalContext: !!e.additionalContext,
+        })),
+      });
+      
+      // Проверяем, что errors - это массив
+      if (!Array.isArray(filteredErrors)) {
+        console.error("[getErrorsCached] ERROR: lokiResult.errors is not an array:", typeof filteredErrors, filteredErrors);
+        return {
+          success: false,
+          error: "Неверный формат данных из Loki",
+        };
+      }
+      
+      // Синхронизируем error/fatal логи в БД (fire-and-forget)
+      // Это позволяет работать с ошибками в БД (resolve, delete), но читать всегда из Loki
+      const errorFatalLogs = filteredErrors.filter(error => {
+        const errorLevel = getLogLevel(error);
+        return errorLevel === 'error' || errorLevel === 'fatal';
+      });
+
+      // Синхронизируем асинхронно, не блокируя ответ
+      if (errorFatalLogs.length > 0) {
+        void Promise.all(
+          errorFatalLogs.map(error => syncLokiErrorToDatabase(error))
+        ).catch(err => {
+          console.error('[getErrorsCached] Error syncing logs to database:', err);
+          logger.error(
+            "Failed to sync errors to database",
+            err instanceof Error ? err : new Error(String(err)),
+            {
+              operation: "getErrorsCached",
+              action: "syncLokiErrorToDatabase",
+              filters,
+              tags: ["errors", "loki", "sync", "server-action"],
+            }
+          );
+        });
+      }
+      
+      return {
+        success: true,
+        errors: filteredErrors,
+      };
     } catch (error) {
-      console.error("❌ Error in getErrorsCached:", error);
-
-      const errorMessage = error instanceof Error ? error.message : "Unknown error in getErrorsCached";
-
       logger.error(
-        errorMessage,
+        "Failed to get errors from Loki",
         error instanceof Error ? error : new Error(String(error)),
         {
           operation: "getErrorsCached",
-          action: "getErrorsCached",
+          action: "getLokiErrorsCached",
           filters,
-          errorType: error instanceof Error ? error.constructor.name : typeof error,
-          tags: ["errors", "cache", "server-action"],
-      },
+          tags: ["errors", "loki", "server-action"],
+        }
       );
-
-      return { 
-        success: false, 
-        error: `Ошибка при получении ошибок: ${errorMessage}`,
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Не удалось получить ошибки из Loki",
       };
     }
 }

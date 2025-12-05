@@ -28,6 +28,8 @@ import {
   ListItemText,
   Divider,
   Collapse,
+  Button,
+  Snackbar,
 } from "@mui/material";
 import {
   Storage as StorageIcon,
@@ -43,8 +45,11 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   BugReport as BugReportIcon,
+  ContentCopy as CopyIcon,
+  Code as CodeIcon,
+  LocationOn as LocationIcon,
 } from "@mui/icons-material";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { ru } from "date-fns/locale";
 
 interface ContainerLogAdditionalContext {
@@ -79,8 +84,11 @@ export default function ContainerLogsPage() {
   const [selectedLevel, setSelectedLevel] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
+  const [visibleLogsCount, setVisibleLogsCount] = useState<number>(100);
+  const [copySuccess, setCopySuccess] = useState<boolean>(false);
 
   // Получаем логи контейнеров с фильтром по тегу
+  // Используем большой лимит для контейнерных логов (10000)
   const {
     data: containerLogs,
     error,
@@ -88,7 +96,7 @@ export default function ContainerLogsPage() {
     refetch,
   } = useErrors({
     tags: ["container-logs"],
-    limit: 1000,
+    limit: 10000,
   });
 
   // Получаем уникальные значения для фильтров
@@ -198,6 +206,8 @@ export default function ContainerLogsPage() {
     }
 
     setFilteredLogs(filtered);
+    // Сбрасываем счетчик видимых логов при изменении фильтров
+    setVisibleLogsCount(100);
   }, [containerLogs, selectedContainer, selectedLevel, searchTerm]);
 
   // Статистика
@@ -321,6 +331,89 @@ export default function ContainerLogsPage() {
       }
       return newSet;
     });
+  };
+
+  // Видимые логи (с учетом пагинации)
+  const visibleLogs = useMemo(() => {
+    return filteredLogs.slice(0, visibleLogsCount);
+  }, [filteredLogs, visibleLogsCount]);
+
+  const hasMoreLogs = filteredLogs.length > visibleLogsCount;
+  const remainingLogs = filteredLogs.length - visibleLogsCount;
+
+  // Функция копирования всех видимых логов
+  const copyAllVisibleLogs = async () => {
+    try {
+      const lines: string[] = [];
+      lines.push("=== Логи контейнеров ===\n");
+      lines.push(`Всего логов: ${visibleLogs.length}\n`);
+      lines.push("=".repeat(50) + "\n\n");
+
+      visibleLogs.forEach((log, index) => {
+        const context = log.additionalContext as ContainerLogAdditionalContext;
+        const containerName = context?.container?.name || "unknown";
+        
+        // Определяем уровень
+        let levelStr = "info";
+        if (context?.parsed?.level) {
+          levelStr = context.parsed.level;
+        } else {
+          const pinoLevel = context?.pino?.level;
+          if (typeof pinoLevel === "number" || typeof pinoLevel === "string") {
+            if (typeof pinoLevel === "number") {
+              const levelMap: Record<string, string> = {
+                "10": "debug",
+                "20": "info",
+                "30": "warn",
+                "40": "error",
+                "50": "fatal",
+              };
+              levelStr = levelMap[String(pinoLevel)] || String(pinoLevel);
+            } else {
+              levelStr = pinoLevel;
+            }
+          } else {
+            levelStr = log.tags?.find((tag) => tag.startsWith("level:"))?.replace("level:", "") || "info";
+          }
+        }
+
+        const timestamp = format(new Date(log.createdAt), "yyyy-MM-dd HH:mm:ss", { locale: ru });
+        const message = context?.parsed?.msg || context?.container?.originalMsg || log.message;
+
+        lines.push(`[${timestamp}] [${levelStr.toUpperCase()}] [${containerName}]`);
+        lines.push(`Сообщение: ${message}`);
+
+        if (context?.parsed?.caller) {
+          lines.push(`Caller: ${context.parsed.caller}`);
+        }
+
+        if (context?.pino?.context) {
+          lines.push(`Context: ${context.pino.context}`);
+        }
+
+        if (context?.pino?.hostname) {
+          lines.push(`Hostname: ${context.pino.hostname}`);
+        }
+
+        if (context?.container?.raw) {
+          lines.push(`Raw: ${context.container.raw}`);
+        }
+
+        if (log.stack) {
+          lines.push(`Stack:\n${log.stack}`);
+        }
+
+        if (index < visibleLogs.length - 1) {
+          lines.push("\n" + "-".repeat(50) + "\n");
+        }
+      });
+
+      const text = lines.join("\n");
+      await navigator.clipboard.writeText(text);
+      setCopySuccess(true);
+    } catch (error) {
+      console.error("Ошибка при копировании логов:", error);
+    }
   };
 
   if (isLoading) {
@@ -544,17 +637,35 @@ export default function ContainerLogsPage() {
         {/* Список логов */}
         <Card elevation={1}>
           <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" fontWeight="bold" mb={3}>
-              Логи контейнеров
-            </Typography>
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+              <Typography variant="h6" fontWeight="bold">
+                Логи контейнеров
+              </Typography>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                  Показано: {visibleLogs.length} из {filteredLogs.length}
+                </Typography>
+                <Tooltip title="Копировать все видимые логи">
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<CopyIcon />}
+                    onClick={copyAllVisibleLogs}
+                  >
+                    Копировать все
+                  </Button>
+                </Tooltip>
+              </Box>
+            </Box>
 
             {filteredLogs.length === 0 ? (
               <Alert severity="info" sx={{ borderRadius: 2 }}>
                 Логи не найдены
               </Alert>
             ) : (
-              <List sx={{ p: 0 }}>
-                {filteredLogs.map((log, index) => {
+              <>
+                <List sx={{ p: 0 }}>
+                  {visibleLogs.map((log, index) => {
                   const context = log.additionalContext as ContainerLogAdditionalContext;
                   const containerName = context?.container?.name || "unknown";
                   
@@ -614,12 +725,22 @@ export default function ContainerLogsPage() {
 
                         <ListItemText
                           primary={
-                            <Box display="flex" alignItems="center" gap={2} mb={1}>
-                              <Typography variant="body1" fontWeight="medium" sx={{ flex: 1 }}>
+                            <Box>
+                              {/* Основное сообщение - выделено */}
+                              <Typography 
+                                variant="body1" 
+                                fontWeight="600" 
+                                sx={{ 
+                                  mb: 1.5,
+                                  color: "text.primary",
+                                  lineHeight: 1.5,
+                                }}
+                              >
                                 {context?.parsed?.msg || context?.container?.originalMsg || log.message}
                               </Typography>
 
-                              <Box display="flex" alignItems="center" gap={1}>
+                              {/* Метаданные в компактной форме */}
+                              <Box display="flex" flexWrap="wrap" alignItems="center" gap={1.5} mb={1}>
                                 <Chip
                                   label={levelStr}
                                   size="small"
@@ -636,14 +757,9 @@ export default function ContainerLogsPage() {
                                   size="small"
                                   variant="outlined"
                                   icon={<ComputerIcon />}
-                                  sx={{ fontWeight: "bold" }}
+                                  sx={{ fontWeight: "medium" }}
                                 />
-                              </Box>
-                            </Box>
-                          }
-                          secondary={
-                            <Box>
-                              <Box display="flex" alignItems="center" gap={2} mb={1}>
+
                                 <Box display="flex" alignItems="center" gap={0.5}>
                                   <ScheduleIcon fontSize="small" color="action" />
                                   <Typography variant="caption" color="text.secondary">
@@ -653,33 +769,42 @@ export default function ContainerLogsPage() {
                                     })}
                                   </Typography>
                                 </Box>
-
+                              </Box>
+                            </Box>
+                          }
+                          secondary={
+                            <Box>
+                              {/* Дополнительные метаданные с иконками */}
+                              <Box display="flex" flexWrap="wrap" alignItems="center" gap={1.5} mt={0.5}>
                                 {context?.parsed?.caller && (
                                   <Box display="flex" alignItems="center" gap={0.5}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Caller: {String(context.parsed.caller)}
+                                    <LocationIcon fontSize="small" color="action" sx={{ fontSize: "0.875rem" }} />
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace", fontSize: "0.7rem" }}>
+                                      {String(context.parsed.caller)}
                                     </Typography>
                                   </Box>
                                 )}
 
                                 {context?.pino?.context && (
                                   <Box display="flex" alignItems="center" gap={0.5}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Context: {String(context.pino.context)}
+                                    <CodeIcon fontSize="small" color="action" sx={{ fontSize: "0.875rem" }} />
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                                      {String(context.pino.context)}
                                     </Typography>
                                   </Box>
                                 )}
 
                                 {context?.pino?.hostname && (
                                   <Box display="flex" alignItems="center" gap={0.5}>
-                                    <ComputerIcon fontSize="small" color="action" />
-                                    <Typography variant="caption" color="text.secondary">
+                                    <ComputerIcon fontSize="small" color="action" sx={{ fontSize: "0.875rem" }} />
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
                                       {String(context.pino.hostname)}
                                     </Typography>
                                   </Box>
                                 )}
                               </Box>
 
+                              {/* Теги */}
                               {log.tags && log.tags.length > 0 && (
                                 <Box display="flex" flexWrap="wrap" gap={0.5} mt={1}>
                                   {log.tags
@@ -690,7 +815,7 @@ export default function ContainerLogsPage() {
                                         label={tag}
                                         size="small"
                                         variant="outlined"
-                                        sx={{ fontSize: "0.7rem" }}
+                                        sx={{ fontSize: "0.65rem", height: "20px" }}
                                       />
                                     ))}
                                 </Box>
@@ -725,23 +850,26 @@ export default function ContainerLogsPage() {
                           >
                             {log.stack && (
                               <Box mb={2}>
-                                <Typography variant="subtitle2" fontWeight="bold" mb={1}>
-                                  Stack Trace:
+                                <Typography variant="subtitle2" fontWeight="bold" mb={1} display="flex" alignItems="center" gap={0.5}>
+                                  <BugReportIcon fontSize="small" />
+                                  Stack Trace
                                 </Typography>
                                 <Typography
                                   variant="body2"
                                   component="pre"
                                   sx={{
-                                    fontFamily: "monospace",
-                                    fontSize: "0.75rem",
+                                    fontFamily: '"JetBrains Mono", "Fira Code", Monaco, Consolas, monospace',
+                                    fontSize: "0.7rem",
                                     whiteSpace: "pre-wrap",
                                     wordBreak: "break-word",
-                                    bgcolor: "#fff",
-                                    p: 1,
+                                    bgcolor: "#1e1e1e",
+                                    color: "#d4d4d4",
+                                    p: 1.5,
                                     borderRadius: 1,
-                                    border: "1px solid #e0e0e0",
+                                    border: "1px solid #333",
                                     maxHeight: 300,
                                     overflow: "auto",
+                                    lineHeight: 1.5,
                                   }}
                                 >
                                   {log.stack}
@@ -751,23 +879,26 @@ export default function ContainerLogsPage() {
 
                             {context?.container?.raw && (
                               <Box mb={2}>
-                                <Typography variant="subtitle2" fontWeight="bold" mb={1}>
-                                  Raw Log:
+                                <Typography variant="subtitle2" fontWeight="bold" mb={1} display="flex" alignItems="center" gap={0.5}>
+                                  <CodeIcon fontSize="small" />
+                                  Raw Log
                                 </Typography>
                                 <Typography
                                   variant="body2"
                                   component="pre"
                                   sx={{
-                                    fontFamily: "monospace",
-                                    fontSize: "0.75rem",
+                                    fontFamily: '"JetBrains Mono", "Fira Code", Monaco, Consolas, monospace',
+                                    fontSize: "0.7rem",
                                     whiteSpace: "pre-wrap",
                                     wordBreak: "break-word",
-                                    bgcolor: "#fff",
-                                    p: 1,
+                                    bgcolor: "#1e1e1e",
+                                    color: "#d4d4d4",
+                                    p: 1.5,
                                     borderRadius: 1,
-                                    border: "1px solid #e0e0e0",
+                                    border: "1px solid #333",
                                     maxHeight: 200,
                                     overflow: "auto",
+                                    lineHeight: 1.5,
                                   }}
                                 >
                                   {context.container.raw}
@@ -777,22 +908,25 @@ export default function ContainerLogsPage() {
 
                             {context?.pino && (
                               <Box>
-                                <Typography variant="subtitle2" fontWeight="bold" mb={1}>
-                                  Pino Metadata:
+                                <Typography variant="subtitle2" fontWeight="bold" mb={1} display="flex" alignItems="center" gap={0.5}>
+                                  <InfoIcon fontSize="small" />
+                                  Pino Metadata
                                 </Typography>
                                 <Typography
                                   variant="body2"
                                   component="pre"
                                   sx={{
-                                    fontFamily: "monospace",
-                                    fontSize: "0.75rem",
+                                    fontFamily: '"JetBrains Mono", "Fira Code", Monaco, Consolas, monospace',
+                                    fontSize: "0.7rem",
                                     whiteSpace: "pre-wrap",
-                                    bgcolor: "#fff",
-                                    p: 1,
+                                    bgcolor: "#1e1e1e",
+                                    color: "#d4d4d4",
+                                    p: 1.5,
                                     borderRadius: 1,
-                                    border: "1px solid #e0e0e0",
+                                    border: "1px solid #333",
                                     maxHeight: 200,
                                     overflow: "auto",
+                                    lineHeight: 1.5,
                                   }}
                                 >
                                   {JSON.stringify(context.pino, null, 2)}
@@ -803,14 +937,37 @@ export default function ContainerLogsPage() {
                         </Box>
                       </Collapse>
 
-                      {index < filteredLogs.length - 1 && <Divider sx={{ my: 1 }} />}
+                      {index < visibleLogs.length - 1 && <Divider sx={{ my: 1 }} />}
                     </Box>
                   );
                 })}
-              </List>
+                </List>
+
+                {/* Кнопка "Показать ещё 100" */}
+                {hasMoreLogs && (
+                  <Box display="flex" justifyContent="center" mt={3}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setVisibleLogsCount((prev) => Math.min(prev + 100, filteredLogs.length))}
+                      sx={{ minWidth: 200 }}
+                    >
+                      Показать ещё 100 {remainingLogs > 0 && `(осталось ${remainingLogs})`}
+                    </Button>
+                  </Box>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
+
+        {/* Уведомление об успешном копировании */}
+        <Snackbar
+          open={copySuccess}
+          autoHideDuration={3000}
+          onClose={() => setCopySuccess(false)}
+          message="Логи скопированы в буфер обмена"
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        />
       </Container>
     </Box>
   );
