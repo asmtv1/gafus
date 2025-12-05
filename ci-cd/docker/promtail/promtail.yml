@@ -49,11 +49,15 @@ scrape_configs:
           source: output
           drop_malformed: false
 
-      # Маппим уровень Pino (числовой) в строковый, если он есть
-      # Если pino_level отсутствует, используем "info" по умолчанию
+      # Устанавливаем level_label: если есть pino_level, маппим его, иначе используем "info"
+      # Используем статическое значение по умолчанию, чтобы избежать ошибок template с nil
+      - static:
+          source: level_label
+          value: info
+      # Если есть pino_level, перезаписываем level_label
       - template:
           source: level_label
-          template: '{{ if and .pino_level (ne .pino_level "") }}{{ if eq .pino_level "10" }}debug{{ else if eq .pino_level "20" }}info{{ else if eq .pino_level "30" }}warn{{ else if eq .pino_level "40" }}error{{ else if eq .pino_level "50" }}fatal{{ else }}info{{ end }}{{ else }}info{{ end }}'
+          template: '{{ if .pino_level }}{{ if eq .pino_level "10" }}debug{{ else if eq .pino_level "20" }}info{{ else if eq .pino_level "30" }}warn{{ else if eq .pino_level "40" }}error{{ else if eq .pino_level "50" }}fatal{{ else }}info{{ end }}{{ end }}'
 
       # Добавляем метки для фильтрации в Loki
       - labels:
