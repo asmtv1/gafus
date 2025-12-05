@@ -53,7 +53,7 @@ scrape_configs:
       # Если pino_level отсутствует, используем "info" по умолчанию
       - template:
           source: level_label
-          template: '{{ if .pino_level }}{{ if eq .pino_level "10" }}debug{{ else if eq .pino_level "20" }}info{{ else if eq .pino_level "30" }}warn{{ else if eq .pino_level "40" }}error{{ else if eq .pino_level "50" }}fatal{{ else }}info{{ end }}{{ else }}info{{ end }}'
+          template: '{{ if and .pino_level (ne .pino_level "") }}{{ if eq .pino_level "10" }}debug{{ else if eq .pino_level "20" }}info{{ else if eq .pino_level "30" }}warn{{ else if eq .pino_level "40" }}error{{ else if eq .pino_level "50" }}fatal{{ else }}info{{ end }}{{ else }}info{{ end }}'
 
       # Добавляем метки для фильтрации в Loki
       - labels:
