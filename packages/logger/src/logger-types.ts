@@ -42,8 +42,8 @@ export interface Logger {
   debug(message: string, meta?: LogMeta): void;
   info(message: string, meta?: LogMeta): void;
   warn(message: string, meta?: LogMeta): void;
-  error(message: string, error?: Error, meta?: LogMeta): void;
-  fatal(message: string, error?: Error, meta?: LogMeta): void;
+  error(message: string, error?: Error, meta?: LogMeta): Promise<void>;
+  fatal(message: string, error?: Error, meta?: LogMeta): Promise<void>;
   
   /** Логирование только в development */
   dev(message: string, meta?: LogMeta): void;

@@ -57,10 +57,10 @@ export function createLogger(context: string): Logger {
 export const silentLogger: Logger = {
   info: () => {},
   warn: () => {},
-  error: () => {},
+  error: async () => {},
   debug: () => {},
   success: () => {},
-  fatal: () => {},
+  fatal: async () => {},
   dev: () => {},
 };
 
