@@ -40,15 +40,19 @@ export function useErrors(filters?: {
     async () => {
       console.warn('[useErrors] Fetcher function called');
       const result = await getErrorsCached(filters);
+      const errorCount = result.success && 'errors' in result && Array.isArray(result.errors) 
+        ? result.errors.length 
+        : 0;
+      const errorMessage = result.success ? undefined : ('error' in result ? result.error : undefined);
       console.warn('[useErrors] getErrorsCached returned:', {
         success: result.success,
-        errorCount: result.success && result.errors ? result.errors.length : 0,
-        error: result.success ? undefined : result.error,
+        errorCount,
+        error: errorMessage,
       });
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error('error' in result ? result.error : 'Unknown error');
       }
-      return Array.isArray(result.errors) ? result.errors : [];
+      return 'errors' in result && Array.isArray(result.errors) ? result.errors : [];
     },
     {
       refetchOnWindowFocus: false,
