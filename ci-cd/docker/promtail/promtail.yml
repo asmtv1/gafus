@@ -1,15 +1,15 @@
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
-  log_level: debug
+  log_level: info
 
 positions:
   filename: /tmp/positions.yaml
 
 clients:
   - url: http://loki:3100/loki/api/v1/push
-    batchwait: 100ms
-    batchsize: 1
+    batchwait: 1s
+    batchsize: 100
     timeout: 10s
 
 scrape_configs:
@@ -35,6 +35,11 @@ scrape_configs:
       - output:
           source: output
 
+      # Извлекаем container_id из filename (который содержит полный путь)
+      - regex:
+          expression: '/var/lib/docker/containers/(?P<container_id>[^/]+)/'
+          source: filename
+
       # Пытаемся распарсить Pino JSON логи (опционально)
       - json:
           expressions:
@@ -51,18 +56,19 @@ scrape_configs:
 
       # Добавляем метки для фильтрации в Loki
       # Используем статическое значение "info" для level, чтобы избежать ошибок template
-      # Убираем пустые метки app и context, т.к. они не извлекаются из не-JSON логов
       - labels:
+          container_id:
           level: info
           environment: production
-          # Добавляем тег для идентификации логов контейнеров
           tag_container_logs: "true"
 
-    # Извлекаем container_id из пути файла
+    # Добавляем статические метки через relabel_configs
     relabel_configs:
-      - source_labels:
-          - __path__
-        regex: /var/lib/docker/containers/([^/]+)/.*
-        target_label: container_id
-        replacement: ${1}
+      # Добавляем статические метки для всех логов
+      - target_label: level
+        replacement: info
+      - target_label: environment
+        replacement: production
+      - target_label: tag_container_logs
+        replacement: "true"
 
