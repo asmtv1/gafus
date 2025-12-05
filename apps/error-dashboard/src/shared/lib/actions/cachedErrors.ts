@@ -37,15 +37,33 @@ export async function getErrorsCached(filters?: {
           };
         }
         
+        const errors = lokiResult.errors || [];
         console.warn("[getErrorsCached] Loki result:", {
           success: lokiResult.success,
-          errorsCount: lokiResult.errors?.length || 0,
-          sampleIds: lokiResult.errors?.slice(0, 3).map(e => e.id),
+          errorsCount: errors.length,
+          sampleIds: errors.slice(0, 3).map(e => e.id),
+          sampleErrors: errors.slice(0, 2).map(e => ({
+            id: e.id,
+            message: e.message?.substring(0, 50),
+            appName: e.appName,
+            tags: e.tags,
+            createdAt: e.createdAt,
+            hasAdditionalContext: !!e.additionalContext,
+          })),
         });
+        
+        // Проверяем, что errors - это массив
+        if (!Array.isArray(errors)) {
+          console.error("[getErrorsCached] ERROR: lokiResult.errors is not an array:", typeof errors, errors);
+          return {
+            success: false,
+            error: "Неверный формат данных из Loki",
+          };
+        }
         
         return {
           success: true,
-          errors: lokiResult.errors || [],
+          errors: errors,
         };
       } catch (error) {
         logger.error(
