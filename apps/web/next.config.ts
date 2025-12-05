@@ -31,7 +31,7 @@ const nextConfig = {
   trailingSlash: false,
   skipTrailingSlashRedirect: true,
   // Исправляем проблемы с React 19 и Next.js 14
-  transpilePackages: ['@gafus/auth', '@gafus/prisma', '@gafus/logger', '@gafus/types'],
+  transpilePackages: ['@gafus/auth', '@gafus/prisma', '@gafus/logger', '@gafus/types', '@gafus/error-handling'],
   // Настройки для больших файлов (видео)
   serverRuntimeConfig: {
     // Максимальный размер body для API routes
@@ -87,7 +87,7 @@ const nextConfig = {
       "@gafus/react-query": _path.resolve(__dirname, "../../packages/react-query/dist"),
       "@gafus/types": _path.resolve(__dirname, "../../packages/types/src"),
       "@gafus/csrf": _path.resolve(__dirname, "../../packages/csrf/src"),
-      "@gafus/error-handling": _path.resolve(__dirname, "../../packages/error-handling/dist/error-handling/src"),
+      "@gafus/error-handling": _path.resolve(__dirname, "../../packages/error-handling/dist"),
       "@gafus/prisma": _path.resolve(__dirname, "../../packages/prisma/dist"),
       "@gafus/webpush": _path.resolve(__dirname, "../../packages/webpush/dist"),
       "@gafus/logger": _path.resolve(__dirname, "../../packages/logger/dist"),
