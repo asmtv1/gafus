@@ -1,11 +1,10 @@
 import type { ErrorDashboardLogEntry, LogLevel } from '../logger-types.js';
 
 /**
- * Кастомный транспорт для отправки логов в Loki и error-dashboard
+ * Кастомный транспорт для отправки логов в error-dashboard через HTTP API
  */
 export class ErrorDashboardTransport {
   private errorDashboardUrl: string;
-  private lokiUrl: string;
   private appName: string;
   private context?: string;
 
@@ -13,213 +12,27 @@ export class ErrorDashboardTransport {
     errorDashboardUrl: string;
     appName: string;
     context?: string;
-    lokiUrl?: string;
   }) {
     this.errorDashboardUrl = options.errorDashboardUrl;
-    // Для локальной разработки используем localhost, для Docker - loki
-    const defaultLokiUrl = process.env.NODE_ENV === 'production' 
-      ? 'http://loki:3100'
-      : 'http://localhost:3100';
-    this.lokiUrl = options.lokiUrl || process.env.LOKI_URL || defaultLokiUrl;
     this.appName = options.appName;
     this.context = options.context;
   }
 
   /**
-   * Отправляет лог в error-dashboard
-   * 
-   * ВРЕМЕННО: Прямая отправка в Loki включена для локального тестирования.
-   * В production логи идут через stdout → Promtail → Loki (стандартная архитектура)
+   * Отправляет лог в error-dashboard через HTTP API
    */
   async sendToErrorDashboard(logEntry: ErrorDashboardLogEntry): Promise<void> {
     try {
-      // Записываем error/fatal в БД для Error Dashboard
-      if (logEntry.level === 'error' || logEntry.level === 'fatal') {
-        void this.sendToDatabase(logEntry);
-      }
-      
-      // ВРЕМЕННО: Прямая отправка в Loki для локального тестирования
-      // В production отключить и использовать Promtail
-      void this.sendToLoki(logEntry);
-      
-      // Опционально: отправляем в error-dashboard API для уведомлений
-      // void this.sendToErrorDashboardAPI(logEntry);
+      // Fire-and-forget: не блокируем основной поток
+      void this.sendToErrorDashboardAPI(logEntry);
     } catch (error) {
       // Не логируем ошибки отправки логов, чтобы избежать рекурсии
-      console.error('[Logger] Failed to send log:', error);
+      console.error('[Logger] Failed to send log to error-dashboard:', error);
     }
   }
 
   /**
-   * Отправляет лог в Loki через Push API
-   */
-  private async sendToLoki(logEntry: ErrorDashboardLogEntry): Promise<void> {
-    try {
-      const lokiEndpoint = `${this.lokiUrl}/loki/api/v1/push`;
-      const normalizedTimestamp = logEntry.timestamp || new Date().toISOString();
-      const logLevel = logEntry.level || 'error';
-      
-      // Формируем метки для Loki
-      const labels: Record<string, string> = {
-        app: this.appName,
-        level: logLevel,
-        environment: process.env.NODE_ENV || 'development',
-      };
-
-      // Добавляем контекст, если есть
-      if (this.context) {
-        labels.context = this.context;
-      }
-
-      // Добавляем теги для идентификации типа лога
-      if (this.shouldUsePushLogsEndpoint(logEntry)) {
-        labels.tag_push_notifications = 'true';
-      } else {
-        labels.tag_error_report = 'true';
-      }
-
-      // Формируем полные данные ошибки в JSON формате
-      const isPushLog = this.shouldUsePushLogsEndpoint(logEntry);
-      const additionalContext: Record<string, unknown> = {
-        ...(logEntry.meta || {}),
-        context: this.context,
-        level: logLevel,
-        timestamp: normalizedTimestamp,
-        error: logEntry.error,
-      };
-
-      // Для push-логов добавляем pushSpecific структуру
-      if (isPushLog) {
-        additionalContext.pushSpecific = {
-          level: logLevel,
-          context: this.context || 'unknown',
-          service: this.context?.includes('webpush') ? 'webpush-service' : this.appName,
-          timestamp: normalizedTimestamp,
-          endpoint: logEntry.meta?.endpoint as string | undefined || null,
-          notificationId: logEntry.meta?.notificationId as string | undefined || null,
-        };
-      }
-
-      const logData = {
-        level: logLevel,
-        message: logEntry.message,
-        stack: logEntry.error?.stack || null,
-        url: '/logger',
-        userAgent: 'logger-service',
-        userId: logEntry.meta?.userId as string | null || null,
-        sessionId: logEntry.meta?.sessionId as string | null || null,
-        componentStack: logEntry.meta?.componentStack as string | null || null,
-        additionalContext,
-        tags: [
-          logLevel,
-          this.context || 'unknown',
-          ...(isPushLog ? ['push-notifications'] : []),
-        ],
-        timestamp: normalizedTimestamp,
-      };
-
-      // Формат Loki Push API
-      const payload = {
-        streams: [{
-          stream: labels,
-          values: [[
-            // Timestamp в наносекундах
-            String(Date.parse(normalizedTimestamp) * 1000000),
-            JSON.stringify(logData),
-          ]],
-        }],
-      };
-
-      const response = await fetch(lokiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => response.statusText);
-        throw new Error(`Loki HTTP ${response.status}: ${response.statusText}. ${errorText ? `Response: ${errorText.substring(0, 200)}` : ""}`);
-      }
-
-      // Логирование успешной отправки
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ErrorDashboardTransport] Log sent to Loki:', {
-          app: this.appName,
-          context: this.context,
-          level: logEntry.level,
-          isPushLog,
-          labels: Object.keys(labels),
-          lokiUrl: this.lokiUrl,
-        });
-      }
-    } catch (error) {
-      // В случае ошибки сети, логируем только в консоль
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[ErrorDashboardTransport] Failed to send log to Loki:', {
-          app: this.appName,
-          context: this.context,
-          level: logEntry.level,
-          error: error instanceof Error ? error.message : String(error),
-          lokiUrl: this.lokiUrl,
-        });
-      }
-    }
-  }
-
-  /**
-   * Отправляет лог в PostgreSQL для Error Dashboard
-   */
-  private async sendToDatabase(logEntry: ErrorDashboardLogEntry): Promise<void> {
-    try {
-      // Dynamic import для избежания circular dependencies
-      // @ts-ignore - prisma может быть не собран на этапе компиляции logger
-      const { prisma } = await import('@gafus/prisma');
-      
-      await prisma.errorLog.create({
-        data: {
-          message: logEntry.message,
-          stack: logEntry.error?.stack || null,
-          level: logEntry.level || 'error',
-          appName: logEntry.appName || this.appName,
-          environment: process.env.NODE_ENV || 'development',
-          context: logEntry.context || this.context || null,
-          url: '/logger',
-          userAgent: 'logger-service',
-          userId: (logEntry.meta?.userId as string) || null,
-          sessionId: (logEntry.meta?.sessionId as string) || null,
-          componentStack: (logEntry.meta?.componentStack as string) || null,
-          additionalContext: logEntry.meta ? JSON.parse(JSON.stringify(logEntry.meta)) : {},
-          tags: [
-            logEntry.level || 'error',
-            logEntry.context || this.context || 'unknown',
-          ],
-          timestamp: new Date(logEntry.timestamp || Date.now()),
-          status: 'new',
-        },
-      });
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ErrorDashboardTransport] Error saved to database:', {
-          app: this.appName,
-          context: this.context,
-          level: logEntry.level,
-        });
-      }
-    } catch (error) {
-      // В случае ошибки сети/БД, логируем только в консоль
-      console.error('[ErrorDashboardTransport] Failed to save error to database:', {
-        app: this.appName,
-        context: this.context,
-        level: logEntry.level,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  /**
-   * Отправляет лог в error-dashboard API (для обратной совместимости)
+   * Внутренний метод отправки через HTTP API
    */
   private async sendToErrorDashboardAPI(logEntry: ErrorDashboardLogEntry): Promise<void> {
     try {

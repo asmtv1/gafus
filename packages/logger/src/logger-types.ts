@@ -26,8 +26,6 @@ export interface LoggerConfig {
   context?: string;
   /** URL error-dashboard для отправки логов */
   errorDashboardUrl?: string;
-  /** URL Loki для отправки логов */
-  lokiUrl?: string;
 }
 
 /**
@@ -72,8 +70,6 @@ export interface CreateLoggerOptions {
   enableErrorDashboard?: boolean;
   /** URL error-dashboard */
   errorDashboardUrl?: string;
-  /** URL Loki для отправки логов */
-  lokiUrl?: string;
 }
 
 /**

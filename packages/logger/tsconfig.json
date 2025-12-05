@@ -15,7 +15,12 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@gafus/prisma": ["../prisma/src/index.ts"],
+      "@gafus/prisma/*": ["../prisma/src/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"]

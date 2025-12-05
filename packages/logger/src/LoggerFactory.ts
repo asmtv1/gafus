@@ -52,8 +52,7 @@ function createLoggerConfig(options: CreateLoggerOptions): LoggerConfig {
     enableConsole: !disableLogging && !disableConsole && (options.enableConsole !== false),
     enableErrorDashboard: !disableLogging && !disableErrorDashboard && (options.enableErrorDashboard || false),
     context: options.context,
-    errorDashboardUrl: options.errorDashboardUrl,
-    lokiUrl: options.lokiUrl || process.env.LOKI_URL,
+    errorDashboardUrl: options.errorDashboardUrl || process.env.ERROR_DASHBOARD_URL,
   };
 }
 
@@ -138,16 +137,16 @@ export class LoggerFactory {
  * Создает логгер для веб-приложения
  */
 export function createWebLogger(context?: string): Logger {
-  // ВРЕМЕННО: Прямая отправка в Loki включена для локального тестирования
-  // В production отключить и использовать Promtail (stdout → Promtail → Loki)
   const defaultUrl = process.env.NODE_ENV === 'production' 
     ? 'https://monitor.gafus.ru'
     : 'http://localhost:3005';
+  
+  // В production дашборд сам читает из Loki, отправка не нужна
+  const isProduction = process.env.NODE_ENV === 'production';
     
   return LoggerFactory.createLoggerWithContext('web', context || 'web-app', {
-    enableErrorDashboard: true, // ВРЕМЕННО: для локального тестирования
+    enableErrorDashboard: !isProduction, // Только для dev и test
     errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
-    lokiUrl: process.env.LOKI_URL || 'http://localhost:3100',
   });
 }
 
@@ -155,16 +154,16 @@ export function createWebLogger(context?: string): Logger {
  * Создает логгер для панели тренера
  */
 export function createTrainerPanelLogger(context?: string): Logger {
-  // ВРЕМЕННО: Прямая отправка в Loki включена для локального тестирования
-  // В production отключить и использовать Promtail (stdout → Promtail → Loki)
   const defaultUrl = process.env.NODE_ENV === 'production' 
     ? 'https://monitor.gafus.ru'
     : 'http://localhost:3005';
+  
+  // В production дашборд сам читает из Loki, отправка не нужна
+  const isProduction = process.env.NODE_ENV === 'production';
     
   return LoggerFactory.createLoggerWithContext('trainer-panel', context || 'trainer-panel', {
-    enableErrorDashboard: true, // ВРЕМЕННО: для локального тестирования
+    enableErrorDashboard: !isProduction, // Только для dev и test
     errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
-    lokiUrl: process.env.LOKI_URL || 'http://localhost:3100',
   });
 }
 
@@ -181,16 +180,16 @@ export function createErrorDashboardLogger(context?: string): Logger {
  * Создает логгер для telegram-bot
  */
 export function createTelegramBotLogger(context?: string): Logger {
-  // ВРЕМЕННО: Прямая отправка в Loki включена для локального тестирования
-  // В production отключить и использовать Promtail (stdout → Promtail → Loki)
   const defaultUrl = process.env.NODE_ENV === 'production' 
     ? 'https://monitor.gafus.ru'
     : 'http://localhost:3005';
+  
+  // В production дашборд сам читает из Loki, отправка не нужна
+  const isProduction = process.env.NODE_ENV === 'production';
     
   return LoggerFactory.createLoggerWithContext('telegram-bot', context || 'telegram-bot', {
-    enableErrorDashboard: true, // ВРЕМЕННО: для локального тестирования
+    enableErrorDashboard: !isProduction, // Только для dev и test
     errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
-    lokiUrl: process.env.LOKI_URL || 'http://localhost:3100',
   });
 }
 
@@ -198,16 +197,16 @@ export function createTelegramBotLogger(context?: string): Logger {
  * Создает логгер для worker
  */
 export function createWorkerLogger(context?: string): Logger {
-  // ВРЕМЕННО: Прямая отправка в Loki включена для локального тестирования
-  // В production отключить и использовать Promtail (stdout → Promtail → Loki)
   const defaultUrl = process.env.NODE_ENV === 'production' 
     ? 'https://monitor.gafus.ru'
     : 'http://localhost:3005';
+  
+  // В production дашборд сам читает из Loki, отправка не нужна
+  const isProduction = process.env.NODE_ENV === 'production';
     
   return LoggerFactory.createLoggerWithContext('worker', context || 'worker', {
-    enableErrorDashboard: true, // ВРЕМЕННО: для локального тестирования
+    enableErrorDashboard: !isProduction, // Только для dev и test
     errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
-    lokiUrl: process.env.LOKI_URL || 'http://localhost:3100',
   });
 }
 
@@ -224,16 +223,16 @@ export function createBullBoardLogger(context?: string): Logger {
  * Создает логгер для admin-panel
  */
 export function createAdminPanelLogger(context?: string): Logger {
-  // ВРЕМЕННО: Прямая отправка в Loki включена для локального тестирования
-  // В production отключить и использовать Promtail (stdout → Promtail → Loki)
   const defaultUrl = process.env.NODE_ENV === 'production' 
     ? 'https://monitor.gafus.ru'
     : 'http://localhost:3005';
+  
+  // В production дашборд сам читает из Loki, отправка не нужна
+  const isProduction = process.env.NODE_ENV === 'production';
     
   return LoggerFactory.createLoggerWithContext('admin-panel', context || 'admin-panel', {
-    enableErrorDashboard: true, // ВРЕМЕННО: для локального тестирования
+    enableErrorDashboard: !isProduction, // Только для dev и test
     errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
-    lokiUrl: process.env.LOKI_URL || 'http://localhost:3100',
   });
 }
 

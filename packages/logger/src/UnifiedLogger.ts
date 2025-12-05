@@ -19,7 +19,6 @@ export class UnifiedLogger implements Logger {
         errorDashboardUrl: config.errorDashboardUrl,
         appName: config.appName,
         context: config.context,
-        lokiUrl: config.lokiUrl,
       });
     }
   }
@@ -91,6 +90,7 @@ export class UnifiedLogger implements Logger {
 
   /**
    * Отправляет лог в error-dashboard если настроено
+   * Отправляются только error и fatal для всех приложений
    */
   private async sendToErrorDashboard(
     level: LogLevel,
@@ -99,19 +99,8 @@ export class UnifiedLogger implements Logger {
     meta?: LogMeta
   ): Promise<void> {
     if (this.errorDashboardTransport) {
-      // Для worker приложений отправляем все уровни (включая info и success для push-логов)
-      const isWorker = this.config.appName === 'worker' || 
-                      this.config.context?.includes('webpush') ||
-                      this.config.context?.includes('push-notifications');
-      
-      // В production отправляем warn, error и fatal
-      // В development отправляем только error и fatal
-      // Для worker отправляем все уровни (info, success, warn, error, fatal)
-      const shouldSend = isWorker
-        ? ['info', 'success', 'warn', 'error', 'fatal'].includes(level)
-        : (this.config.environment === 'production' 
-        ? ['warn', 'error', 'fatal'].includes(level)
-            : ['error', 'fatal'].includes(level));
+      // Отправляем только error и fatal для всех приложений
+      const shouldSend = ['error', 'fatal'].includes(level);
 
       if (shouldSend) {
         const logEntry = this.errorDashboardTransport.createLogEntry(
@@ -134,16 +123,12 @@ export class UnifiedLogger implements Logger {
   info(message: string, meta?: LogMeta): void {
     if (this.shouldLog('info')) {
       this.pinoLogger.info(meta, message);
-      // Отправляем info в error-dashboard для worker приложений
-      void this.sendToErrorDashboard('info', message, undefined, meta);
     }
   }
 
   warn(message: string, meta?: LogMeta): void {
     if (this.shouldLog('warn')) {
       this.pinoLogger.warn(meta, message);
-      // Отправляем warn в error-dashboard в production
-      void this.sendToErrorDashboard('warn', message, undefined, meta);
     }
   }
 
@@ -171,8 +156,6 @@ export class UnifiedLogger implements Logger {
     if (this.shouldLog('info')) {
       const emoji = this.config.environment === 'development' ? '✅ ' : '';
       this.pinoLogger.info({ success: true, ...meta }, `${emoji}SUCCESS: ${message}`);
-      // Отправляем success в error-dashboard для worker приложений
-      void this.sendToErrorDashboard('success', message, undefined, meta);
     }
   }
 
@@ -198,7 +181,6 @@ export class UnifiedLogger implements Logger {
         errorDashboardUrl: newConfig.errorDashboardUrl,
         appName: this.config.appName,
         context: this.config.context,
-        lokiUrl: newConfig.lokiUrl || this.config.lokiUrl,
       });
     }
   }

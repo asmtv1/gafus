@@ -3,6 +3,7 @@
 import { unstable_cache } from "next/cache";
 import { getLogsFromLoki } from "@shared/lib/loki-client";
 import { getLogLevel } from "@shared/lib/utils/errorSource";
+import { syncLokiErrorToDatabase } from "@shared/lib/error-log-service";
 import type { ErrorDashboardReport } from "@gafus/types";
 
 /**
@@ -112,6 +113,22 @@ export async function getLokiErrors(filters?: {
       sampleAppNames: errors.slice(0, 5).map(e => e.appName),
       sampleLevels: errors.slice(0, 5).map(e => getLogLevel(e) || 'unknown'),
     });
+
+    // Синхронизируем error/fatal логи в БД (fire-and-forget)
+    // В production дашборд читает из Loki и автоматически записывает в БД
+    if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
+      const errorFatalLogs = errors.filter(error => {
+        const level = getLogLevel(error);
+        return level === 'error' || level === 'fatal';
+      });
+
+      // Синхронизируем асинхронно, не блокируя ответ
+      void Promise.all(
+        errorFatalLogs.map(error => syncLokiErrorToDatabase(error))
+      ).catch(err => {
+        console.error('[getLokiErrors] Error syncing logs to database:', err);
+      });
+    }
 
     // Применяем offset
     let filteredErrors = errors;
