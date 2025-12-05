@@ -167,7 +167,7 @@ export class LokiClient {
         resultCount,
         totalStreams: resultCount,
         totalEntries,
-        sampleLabels: resultCount > 0 ? Object.keys(data.data.result[0]?.stream || {}) : [],
+        sampleLabels: resultCount > 0 && data?.data?.result?.[0] ? Object.keys(data.data.result[0]?.stream || {}) : [],
       });
       
       const parsedResults = this.parseLokiResponse(data);

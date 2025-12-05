@@ -79,6 +79,10 @@ async function queryPrometheus(query: string): Promise<PrometheusQueryResult[]> 
     throw new Error(errorMsg);
   }
 
+  if (!data.data || !data.data.result) {
+    throw new Error(`Prometheus query returned no data. Query: ${query}`);
+  }
+
   return data.data.result.map((item) => ({
     value: parseFloat(item.value[1]),
     labels: item.metric,
