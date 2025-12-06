@@ -113,9 +113,14 @@ services:
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
     depends_on:
-      - postgres
-      - redis
-      - prometheus
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
 
   # Admin Panel
   admin-panel:
