@@ -570,8 +570,9 @@ export class LokiClient {
     }
     query += "}";
 
-    // Для контейнерных логов используем больший дефолтный лимит (10000)
-    const defaultLimit = isContainerLogs ? 10000 : 1000;
+    // Для контейнерных логов используем больший дефолтный лимит (5000 - максимум для Loki)
+    // Loki имеет ограничение max_entries_limit_per_query = 5000
+    const defaultLimit = isContainerLogs ? 5000 : 1000;
     const limit = filters?.limit || defaultLimit;
 
     console.warn('[LokiClient.getLogs] FUNCTION CALLED with filters:', JSON.stringify(filters));

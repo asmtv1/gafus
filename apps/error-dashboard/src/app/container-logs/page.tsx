@@ -88,7 +88,7 @@ export default function ContainerLogsPage() {
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
 
   // Получаем логи контейнеров с фильтром по тегу
-  // Используем большой лимит для контейнерных логов (10000)
+  // Используем лимит 5000 (максимум для Loki)
   const {
     data: containerLogs,
     error,
@@ -96,7 +96,7 @@ export default function ContainerLogsPage() {
     refetch,
   } = useErrors({
     tags: ["container-logs"],
-    limit: 10000,
+    limit: 5000,
   });
 
   // Получаем уникальные значения для фильтров
