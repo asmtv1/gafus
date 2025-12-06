@@ -448,7 +448,13 @@ export default function RecentErrors() {
           } : null,
         });
         
-        const result = await deleteError(errorId);
+        // Передаем данные ошибки для fallback поиска, если прямой поиск по ID не сработает
+        const result = await deleteError(errorId, errorBeforeDeletion ? {
+          message: errorBeforeDeletion.message,
+          createdAt: errorBeforeDeletion.createdAt,
+          appName: errorBeforeDeletion.appName,
+          labels: errorBeforeDeletion.labels,
+        } : undefined);
         const deleteActionEndTime = Date.now();
         const deleteActionEndIso = new Date().toISOString();
         const deleteActionDuration = deleteActionEndTime - deleteActionStartTime;

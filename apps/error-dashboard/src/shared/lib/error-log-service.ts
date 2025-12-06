@@ -15,6 +15,7 @@ export async function getErrorsFromDatabase(filters?: {
   limit?: number;
   offset?: number;
   tags?: string[];
+  type?: "errors" | "logs" | "all";
 }): Promise<{ success: boolean; errors?: ErrorDashboardReport[]; error?: string }> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,13 +33,25 @@ export async function getErrorsFromDatabase(filters?: {
       where.status = filters.status;
     }
     
+    // Обработка фильтра type для совместимости
+    // type: "errors" - только error и fatal
+    // type: "logs" - warn, info, debug (но в БД обычно только error/fatal синхронизируются)
+    // type: "all" - все уровни
     if (filters?.level) {
       // Поддержка multiple levels: "error|fatal"
       const levels = filters.level.split('|').filter(Boolean);
       if (levels.length > 0) {
         where.level = { in: levels };
       }
+    } else if (filters?.type === "errors") {
+      // Если указан type: "errors", фильтруем только error и fatal
+      where.level = { in: ["error", "fatal"] };
+    } else if (filters?.type === "logs") {
+      // Если указан type: "logs", фильтруем warn, info, debug
+      // Но в БД обычно только error/fatal, поэтому это может вернуть пустой результат
+      where.level = { in: ["warn", "info", "debug"] };
     }
+    // type: "all" или отсутствие type - не фильтруем по level
     
     if (filters?.tags && filters.tags.length > 0) {
       where.tags = { hasEvery: filters.tags };
@@ -88,16 +101,98 @@ export async function getErrorsFromDatabase(filters?: {
 
 /**
  * Удаляет ошибку из PostgreSQL
+ * Сначала пытается удалить по ID, если не найдено - ищет по уникальным полям
  */
-export async function deleteErrorFromDatabase(errorId: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteErrorFromDatabase(
+  errorId: string,
+  fallbackFields?: {
+    message: string;
+    timestamp: Date;
+    appName: string;
+    level: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
   try {
-    await prisma.errorLog.delete({ where: { id: errorId } });
-    return { success: true };
+    // Пытаемся удалить по ID
+    try {
+      await prisma.errorLog.delete({ where: { id: errorId } });
+      return { success: true };
+    } catch (deleteError) {
+      // Если запись не найдена по ID и есть fallback поля, ищем по уникальным полям
+      // Prisma возвращает ошибку с кодом P2025 или сообщением о том, что запись не найдена
+      const isRecordNotFoundError =
+        deleteError instanceof Error &&
+        (deleteError.message.includes("No record was found") ||
+          deleteError.message.includes("Record to delete does not exist") ||
+          deleteError.message.includes("not found for a delete"));
+      
+      if (isRecordNotFoundError && fallbackFields) {
+        console.warn('[deleteErrorFromDatabase] Record not found by ID, trying to find by fields:', {
+          errorId,
+          message: fallbackFields.message.substring(0, 100),
+          appName: fallbackFields.appName,
+          level: fallbackFields.level,
+          timestamp: fallbackFields.timestamp.toISOString(),
+        });
+
+        // Ищем запись по комбинации полей с окном ±1 секунда для timestamp
+        const found = await prisma.errorLog.findFirst({
+          where: {
+            message: fallbackFields.message,
+            appName: fallbackFields.appName,
+            level: fallbackFields.level,
+            timestamp: {
+              gte: new Date(fallbackFields.timestamp.getTime() - 1000),
+              lte: new Date(fallbackFields.timestamp.getTime() + 1000),
+            },
+          },
+        });
+
+        if (found) {
+          // Удаляем найденную запись по её ID
+          await prisma.errorLog.delete({ where: { id: found.id } });
+          console.warn('[deleteErrorFromDatabase] Record found and deleted by fields:', {
+            errorId,
+            foundId: found.id,
+          });
+          return { success: true };
+        }
+
+        console.warn('[deleteErrorFromDatabase] Record not found by fields either:', {
+          errorId,
+          fallbackFields,
+        });
+        return {
+          success: false,
+          error: `Запись не найдена по ID (${errorId}) и по уникальным полям`,
+        };
+      }
+
+      // Если это другая ошибка или нет fallback полей, пробрасываем её
+      throw deleteError;
+    }
   } catch (error) {
     console.error('[deleteErrorFromDatabase] Error:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Удаляет все ошибки из PostgreSQL
+ */
+export async function deleteAllErrorsFromDatabase(): Promise<{ success: boolean; error?: string; deletedCount?: number }> {
+  try {
+    const result = await prisma.errorLog.deleteMany({});
+    console.warn('[deleteAllErrorsFromDatabase] Deleted errors count:', result.count);
+    return { success: true, deletedCount: result.count };
+  } catch (error) {
+    console.error('[deleteAllErrorsFromDatabase] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }

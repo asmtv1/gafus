@@ -1,46 +1,62 @@
 "use server";
 
-import { getLokiClient } from "@shared/lib/loki-client";
+import { deleteAllErrorsFromDatabase } from "@shared/lib/error-log-service";
 import { createErrorDashboardLogger } from "@gafus/logger";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 const logger = createErrorDashboardLogger('error-dashboard-delete-all-errors');
 
 /**
- * Удаляет все ошибки из Loki
+ * Удаляет все ошибки из PostgreSQL
+ * Loki остается нетронутым, используется только для чтения
  */
 export async function deleteAllErrors(): Promise<{ success: boolean; message?: string; error?: string }> {
+  const operationStartTime = Date.now();
+  
   try {
-    logger.info("Удаление всех ошибок из Loki");
+    logger.info("Удаление всех ошибок из PostgreSQL");
 
-    const client = getLokiClient();
-    
-    // Удаляем все логи - без фильтров, Loki удалит все логи
-    // Используем фильтр app=~".+" чтобы удалить логи всех приложений
-    const result = await client.deleteLogs({
-      // Без фильтров - удалит все логи
-    });
+    const result = await deleteAllErrorsFromDatabase();
 
     if (result.success) {
-      logger.success("Все ошибки успешно удалены из Loki");
+      const operationDuration = Date.now() - operationStartTime;
+      logger.success("Все ошибки успешно удалены из PostgreSQL", {
+        deletedCount: result.deletedCount,
+        durationMs: operationDuration,
+      });
       
       // Инвалидируем серверный кэш через теги
       revalidateTag("errors");
       revalidateTag("error-stats");
+      revalidateTag("loki-errors");
       
       // Инвалидируем кэш и страницу
       revalidatePath("/");
       
+      const message = result.deletedCount 
+        ? `Успешно удалено ${result.deletedCount} ошибок из базы данных`
+        : "Все ошибки успешно удалены";
+      
       return {
         success: true,
-        message: "Все ошибки успешно удалены",
+        message,
       };
     }
 
-    logger.error("Не удалось удалить все ошибки из Loki", new Error(result.error || "Unknown error"));
-    return result;
+    const operationDuration = Date.now() - operationStartTime;
+    logger.error("Не удалось удалить все ошибки из PostgreSQL", new Error(result.error || "Unknown error"), {
+      durationMs: operationDuration,
+    });
+    
+    return {
+      success: false,
+      error: result.error || "Не удалось удалить все ошибки",
+    };
   } catch (error) {
-    logger.error("Ошибка при удалении всех ошибок", error as Error);
+    const operationDuration = Date.now() - operationStartTime;
+    logger.error("Ошибка при удалении всех ошибок", error as Error, {
+      durationMs: operationDuration,
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "Неизвестная ошибка при удалении всех ошибок",

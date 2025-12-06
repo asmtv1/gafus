@@ -7,8 +7,17 @@ const logger = createErrorDashboardLogger('error-dashboard-delete-error');
 
 /**
  * Удаляет ошибку из PostgreSQL по ID
+ * Опционально принимает данные ошибки для поиска по полям, если удаление по ID не удалось
  */
-export async function deleteError(errorId: string): Promise<{ 
+export async function deleteError(
+  errorId: string,
+  errorData?: {
+    message: string;
+    createdAt: Date | string;
+    appName: string;
+    labels?: Record<string, string>;
+  }
+): Promise<{ 
   success: boolean; 
   message?: string; 
   error?: string 
@@ -25,16 +34,47 @@ export async function deleteError(errorId: string): Promise<{
     logger.info("Удаление ошибки из БД", {
       errorId,
       timestamp: operationStartIso,
+      hasErrorData: !!errorData,
     });
     
+    // Подготавливаем fallback поля если доступны
+    let fallbackFields: Parameters<typeof deleteErrorFromDatabase>[1] | undefined;
+    
+    if (errorData) {
+      // Определяем уровень из labels или используем 'error' по умолчанию
+      // Аналогично логике в syncLokiErrorToDatabase
+      const level = errorData.labels?.level?.toLowerCase() || 'error';
+      
+      // Преобразуем createdAt в Date если нужно
+      const timestamp = errorData.createdAt instanceof Date
+        ? errorData.createdAt
+        : new Date(errorData.createdAt);
+      
+      fallbackFields = {
+        message: errorData.message,
+        appName: errorData.appName,
+        level,
+        timestamp,
+      };
+      
+      logger.info("Подготовлены fallback поля для поиска", {
+        errorId,
+        appName: fallbackFields.appName,
+        level: fallbackFields.level,
+        timestamp: fallbackFields.timestamp.toISOString(),
+        messagePreview: fallbackFields.message.substring(0, 100),
+      });
+    }
+    
     // Удаляем из БД
-    const result = await deleteErrorFromDatabase(errorId);
+    const result = await deleteErrorFromDatabase(errorId, fallbackFields);
     const operationDuration = Date.now() - operationStartTime;
     
     if (result.success) {
       logger.success("Ошибка удалена из БД", { 
         errorId,
         durationMs: operationDuration,
+        usedFallback: !!fallbackFields,
       });
       return { success: true, message: "Ошибка удалена" };
     }
@@ -42,6 +82,8 @@ export async function deleteError(errorId: string): Promise<{
     logger.error("Не удалось удалить ошибку из БД", new Error(result.error || "Unknown"), {
       errorId,
       durationMs: operationDuration,
+      hasFallbackFields: !!fallbackFields,
+      error: result.error,
     });
     
     return {
