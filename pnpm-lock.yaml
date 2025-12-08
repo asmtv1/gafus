@@ -325,6 +325,9 @@ importers:
       recharts:
         specifier: 2.12.0
         version: 2.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      ws:
+        specifier: ^8.18.0
+        version: 8.18.3
       zustand:
         specifier: 5.0.7
         version: 5.0.7(@types/react@19.1.9)(immer@10.2.0)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0))
@@ -344,6 +347,9 @@ importers:
       '@types/react-dom':
         specifier: 19.1.7
         version: 19.1.7(@types/react@19.1.9)
+      '@types/ws':
+        specifier: ^8.5.13
+        version: 8.18.1
       autoprefixer:
         specifier: ^10.4.21
         version: 10.4.21(postcss@8.5.6)
@@ -3528,6 +3534,9 @@ packages:
 
   '@types/web-push@3.6.4':
     resolution: {integrity: sha512-GnJmSr40H3RAnj0s34FNTcJi1hmWFV5KXugE0mYWnYhgTAHLJ/dJKAwDmvPJYMke0RplY2XE9LnM4hqSqKIjhQ==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
@@ -11235,6 +11244,10 @@ snapshots:
   '@types/use-sync-external-store@0.0.6': {}
 
   '@types/web-push@3.6.4':
+    dependencies:
+      '@types/node': 20.19.24
+
+  '@types/ws@8.18.1':
     dependencies:
       '@types/node': 20.19.24
 

@@ -2,6 +2,7 @@ import type { ErrorDashboardReport } from "@gafus/types";
 import http from "http";
 import https from "https";
 import { URL } from "url";
+import WebSocket from "ws";
 
 // Константы для работы с временными периодами
 const DAY_MS = 24 * 60 * 60 * 1000; // миллисекунды в сутках
@@ -607,137 +608,97 @@ export class LokiClient {
     onLog: (log: ErrorDashboardReport) => void,
     limit: number = 1000
   ): () => void {
-    const tailUrl = `${this.baseUrl}/loki/api/v1/tail`;
     let isActive = true;
-    let currentRequest: http.ClientRequest | null = null;
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
 
     const startStream = () => {
       if (!isActive) return;
 
       try {
-        const url = new URL(tailUrl);
-        url.searchParams.set("query", query);
-        url.searchParams.set("limit", String(limit));
+        // Формируем WebSocket URL
+        const url = new URL(this.baseUrl);
+        const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${wsProtocol}//${url.hostname}:${url.port || (url.protocol === "https:" ? 443 : 80)}/loki/api/v1/tail?query=${encodeURIComponent(query)}&limit=${limit}`;
 
-        const isHttps = url.protocol === "https:";
-        const httpModule = isHttps ? https : http;
+        ws = new WebSocket(wsUrl);
 
-        const options = {
-          hostname: url.hostname,
-          port: url.port || (isHttps ? 443 : 80),
-          path: url.pathname + url.search,
-          method: "GET",
-          headers: {
-            "Accept": "text/event-stream",
-          },
-        };
+        ws.on("open", () => {
+          console.warn("[LokiClient.streamLogs] WebSocket connected");
+        });
 
-        currentRequest = httpModule.request(options, (res) => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            const decoder = new TextDecoder();
-            let buffer = "";
+        ws.on("message", (data: WebSocket.Data) => {
+          if (!isActive || !ws) return;
 
-            res.on("data", (chunk: Buffer) => {
-              if (!isActive) return;
-
-              buffer += decoder.decode(chunk, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                if (!line.trim() || !line.startsWith("data: ")) {
-                  continue;
-                }
-
-                try {
-                  const jsonStr = line.substring(6); // Убираем "data: "
-                  const data = JSON.parse(jsonStr);
-
-                  if (data.streams && Array.isArray(data.streams)) {
-                    for (const stream of data.streams) {
-                      const labels = stream.stream || {};
-                      const values = stream.values || [];
-
-                      for (const [timestamp, logLine] of values) {
-                        try {
-                          const parsedLog = this.parseSingleLogEntry(timestamp, logLine, labels);
-                          if (parsedLog && isActive) {
-                            onLog(parsedLog);
-                          }
-                        } catch (parseError) {
-                          console.warn("[LokiClient.streamLogs] Failed to parse log entry:", parseError);
-                        }
-                      }
-                    }
-                  }
-                } catch (parseError) {
-                  console.warn("[LokiClient.streamLogs] Failed to parse SSE data:", parseError);
-                }
-              }
-            });
-
-            res.on("end", () => {
-              if (isActive) {
-                // Переподключение при разрыве соединения
-                setTimeout(() => {
-                  if (isActive) {
-                    startStream();
-                  }
-                }, 3000);
-              }
-            });
-
-            res.on("error", (error: Error) => {
-              if (isActive) {
-                console.error("[LokiClient.streamLogs] Response error:", error);
-                setTimeout(() => {
-                  if (isActive) {
-                    startStream();
-                  }
-                }, 3000);
-              }
-            });
-          } else {
-            const error = new Error(`Loki tail failed: ${res.statusCode} ${res.statusMessage}`);
-            console.error("[LokiClient.streamLogs]", error);
-            if (isActive) {
-              setTimeout(() => {
-                if (isActive) {
-                  startStream();
-                }
-              }, 3000);
+          try {
+            // WebSocket отправляет данные как Buffer или строку
+            const message = typeof data === "string" ? data : data.toString("utf-8");
+            
+            // Loki может отправлять данные в формате SSE (с префиксом "data: ") или как чистый JSON
+            let jsonStr = message.trim();
+            if (jsonStr.startsWith("data: ")) {
+              jsonStr = jsonStr.substring(6);
             }
-          }
-        });
 
-        currentRequest.on("error", (error: Error) => {
-          if (isActive) {
-            console.error("[LokiClient.streamLogs] Request error:", error);
-            setTimeout(() => {
-              if (isActive) {
-                startStream();
+            if (!jsonStr) return;
+
+            const parsedData = JSON.parse(jsonStr);
+
+            if (parsedData.streams && Array.isArray(parsedData.streams)) {
+              for (const stream of parsedData.streams) {
+                const labels = stream.stream || {};
+                const values = stream.values || [];
+
+                for (const [timestamp, logLine] of values) {
+                  try {
+                    const parsedLog = this.parseSingleLogEntry(timestamp, logLine, labels);
+                    if (parsedLog && isActive) {
+                      onLog(parsedLog);
+                    }
+                  } catch (parseError) {
+                    console.warn("[LokiClient.streamLogs] Failed to parse log entry:", parseError);
+                  }
+                }
               }
-            }, 3000);
+            }
+          } catch (parseError) {
+            console.warn("[LokiClient.streamLogs] Failed to parse WebSocket message:", parseError);
           }
         });
 
-        currentRequest.setTimeout(30000, () => {
-          if (currentRequest) {
-            currentRequest.destroy();
+        ws.on("error", (error: Error) => {
+          if (isActive) {
+            console.error("[LokiClient.streamLogs] WebSocket error:", error);
+            scheduleReconnect();
           }
         });
 
-        currentRequest.end();
+        ws.on("close", (code: number, reason: Buffer) => {
+          if (isActive) {
+            console.warn("[LokiClient.streamLogs] WebSocket closed:", code, reason.toString());
+            scheduleReconnect();
+          }
+        });
       } catch (error) {
         console.error("[LokiClient.streamLogs] Stream setup error:", error);
         if (isActive) {
-          setTimeout(() => {
-            if (isActive) {
-              startStream();
-            }
-          }, 3000);
+          scheduleReconnect();
         }
       }
+    };
+
+    const scheduleReconnect = () => {
+      if (!isActive) return;
+      
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      
+      reconnectTimeout = setTimeout(() => {
+        if (isActive) {
+          startStream();
+        }
+      }, 3000);
     };
 
     startStream();
@@ -745,9 +706,16 @@ export class LokiClient {
     // Возвращаем функцию для остановки потока
     return () => {
       isActive = false;
-      if (currentRequest) {
-        currentRequest.destroy();
-        currentRequest = null;
+      
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
+      
+      if (ws) {
+        ws.removeAllListeners();
+        ws.close();
+        ws = null;
       }
     };
   }
