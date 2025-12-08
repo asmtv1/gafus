@@ -10,46 +10,124 @@ const DEFAULT_LOOKBACK_MS = 7 * DAY_MS; // 7 суток (безопасный л
 
 // Кэш для имен контейнеров (container_id -> container_name)
 const containerNameCache = new Map<string, string>();
+let containerMappingFetched = false;
+let containerMappingPromise: Promise<void> | null = null;
+
+/**
+ * Загружает маппинг контейнеров с сервера (если доступен)
+ * Использует внутренний API endpoint, который получает данные через docker ps
+ */
+async function fetchContainerMapping(): Promise<void> {
+  if (containerMappingFetched) return;
+  
+  // Если уже идет загрузка, ждем её
+  if (containerMappingPromise) {
+    return containerMappingPromise;
+  }
+  
+  containerMappingPromise = (async () => {
+    try {
+      // Используем абсолютный URL для серверного запроса
+      // В Docker используем localhost (т.к. запрос идет внутри того же контейнера)
+      // Локально тоже localhost
+      const apiUrl = "http://localhost:3005/api/container-logs/mapping";
+      
+      const response = await fetch(apiUrl, {
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.mapping && typeof data.mapping === "object") {
+          // Заполняем кэш
+          for (const [id, name] of Object.entries(data.mapping)) {
+            if (typeof name === "string" && id) {
+              containerNameCache.set(id, name);
+              // Кэшируем и короткий ID
+              if (id.length >= 12) {
+                containerNameCache.set(id.substring(0, 12), name);
+              }
+            }
+          }
+          containerMappingFetched = true;
+          console.warn("[LokiClient] Container mapping loaded:", Object.keys(data.mapping).length, "containers");
+        }
+      }
+    } catch (error) {
+      // Игнорируем ошибки - используем fallback
+      console.warn("[LokiClient] Failed to fetch container mapping:", error);
+    } finally {
+      containerMappingPromise = null;
+    }
+  })();
+  
+  return containerMappingPromise;
+}
 
 /**
  * Определяет имя контейнера из доступных данных
- * Приоритет: app из лога > app из labels > короткий container_id
+ * Приоритет: container_name из labels > app из лога > app из labels > кэш > маппинг с сервера > короткий container_id
  */
 function getContainerName(
   containerId: string | undefined,
   logData: { app?: string } | null,
   labels: Record<string, string>
 ): string {
-  // 1. Пытаемся использовать app из самого лога (Pino JSON)
+  // 1. Пытаемся использовать container_name из labels (если Promtail добавил)
+  if (labels.container_name) {
+    const containerName = labels.container_name;
+    if (containerId) {
+      containerNameCache.set(containerId, containerName);
+      containerNameCache.set(containerId.substring(0, 12), containerName);
+    }
+    return containerName;
+  }
+
+  // 2. Пытаемся использовать app из самого лога (Pino JSON)
   if (logData?.app) {
     const appName = logData.app;
+    // Форматируем как имя контейнера (добавляем префикс gafus- если нужно)
+    const containerName = appName.startsWith('gafus-') ? appName : `gafus-${appName}`;
     // Кэшируем для этого container_id
     if (containerId) {
-      containerNameCache.set(containerId, appName);
-      containerNameCache.set(containerId.substring(0, 12), appName);
+      containerNameCache.set(containerId, containerName);
+      containerNameCache.set(containerId.substring(0, 12), containerName);
     }
-    return appName;
+    return containerName;
   }
 
-  // 2. Пытаемся использовать app из labels (если Promtail добавил)
+  // 3. Пытаемся использовать app из labels (если Promtail добавил)
   if (labels.app) {
     const appName = labels.app;
+    const containerName = appName.startsWith('gafus-') ? appName : `gafus-${appName}`;
     if (containerId) {
-      containerNameCache.set(containerId, appName);
-      containerNameCache.set(containerId.substring(0, 12), appName);
+      containerNameCache.set(containerId, containerName);
+      containerNameCache.set(containerId.substring(0, 12), containerName);
     }
-    return appName;
+    return containerName;
   }
 
-  // 3. Проверяем кэш
+  // 4. Проверяем кэш
   if (containerId) {
     const cached = containerNameCache.get(containerId) || containerNameCache.get(containerId.substring(0, 12));
-    if (cached) {
+    if (cached && cached !== containerId.substring(0, 12)) {
       return cached;
     }
   }
 
-  // 4. Fallback на короткий container_id
+  // 5. Пытаемся загрузить маппинг с сервера (асинхронно, не блокируем)
+  // Это загрузит маппинг для следующих логов
+  if (containerId && !containerMappingFetched && !containerMappingPromise) {
+    fetchContainerMapping().catch(() => {
+      // Игнорируем ошибки
+    });
+  }
+
+  // 6. Fallback на короткий container_id
+  // При следующем логе, если маппинг загрузится, имя будет из кэша
   if (containerId) {
     return containerId.substring(0, 12);
   }
@@ -807,7 +885,12 @@ export class LokiClient {
       if (isContainerLog) {
         // Парсим контейнерный лог
         const containerId = labels.container_id;
-        const containerName = getContainerName(containerId, logData, labels);
+        // Пытаемся извлечь app из logData, если это JSON
+        let appFromLog: string | undefined;
+        if (logData && typeof logData === "object" && "app" in logData) {
+          appFromLog = typeof logData.app === "string" ? logData.app : undefined;
+        }
+        const containerName = getContainerName(containerId, appFromLog ? { app: appFromLog } : null, labels);
 
         additionalContext.container = {
           name: containerName,
@@ -883,15 +966,18 @@ export class LokiClient {
       
       if (isContainerLog) {
         // Пытаемся распарсить JSON из logLine для получения app
-        let logData: { app?: string } | null = null;
+        let appFromLog: string | undefined;
         try {
-          logData = JSON.parse(logLine);
+          const parsed = JSON.parse(logLine);
+          if (parsed && typeof parsed === "object" && "app" in parsed) {
+            appFromLog = typeof parsed.app === "string" ? parsed.app : undefined;
+          }
         } catch {
           // Не JSON лог, игнорируем
         }
         
         const containerId = labels.container_id;
-        containerName = getContainerName(containerId, logData, labels);
+        containerName = getContainerName(containerId, appFromLog ? { app: appFromLog } : null, labels);
       }
 
       const id = generateErrorId(
@@ -1258,6 +1344,10 @@ let lokiClientInstance: LokiClient | null = null;
 export function getLokiClient(): LokiClient {
   if (!lokiClientInstance) {
     lokiClientInstance = new LokiClient();
+    // Загружаем маппинг контейнеров при первом создании клиента
+    fetchContainerMapping().catch(() => {
+      // Игнорируем ошибки
+    });
   }
   return lokiClientInstance;
 }
