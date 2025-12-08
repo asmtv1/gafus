@@ -39,7 +39,11 @@ export async function GET() {
     
     return NextResponse.json({ mapping, count: Object.keys(mapping).length });
   } catch (error) {
-    console.error("[container-logs/mapping] Error getting container mapping:", error);
+    // Санитизируем сообщение об ошибке для предотвращения command injection
+    const errorMessage = error instanceof Error 
+      ? error.message.replace(/[`$();|&]/g, '') 
+      : String(error).replace(/[`$();|&]/g, '');
+    console.error("[container-logs/mapping] Error getting container mapping:", errorMessage);
     // Возвращаем пустой маппинг при ошибке
     return NextResponse.json({ mapping: {}, count: 0 });
   }

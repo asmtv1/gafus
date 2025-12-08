@@ -60,7 +60,11 @@ async function fetchContainerMapping(): Promise<void> {
     } catch (error) {
       // Игнорируем ошибки - используем fallback
       // Docker может быть недоступен (например, в dev окружении)
-      console.warn("[LokiClient] Failed to fetch container mapping:", error);
+      // Санитизируем сообщение об ошибке для предотвращения command injection
+      const errorMessage = error instanceof Error 
+        ? error.message.replace(/[`$();|&]/g, '') 
+        : String(error).replace(/[`$();|&]/g, '');
+      console.warn("[LokiClient] Failed to fetch container mapping:", errorMessage);
     } finally {
       containerMappingPromise = null;
     }
@@ -71,7 +75,7 @@ async function fetchContainerMapping(): Promise<void> {
 
 /**
  * Определяет имя контейнера из доступных данных
- * Приоритет: container_name из labels > app из лога > app из labels > кэш > маппинг с сервера > короткий container_id
+  * Приоритет: container_name из labels > app из лога > app из labels > кэш > маппинг с сервера > короткий container_id
  */
 function getContainerName(
   containerId: string | undefined,
@@ -327,7 +331,11 @@ export class LokiClient {
         );
       }
       
-      console.error("Loki query error:", error);
+      // Санитизируем сообщение об ошибке для предотвращения command injection
+      const errorMessage = error instanceof Error 
+        ? error.message.replace(/[`$();|&]/g, '') 
+        : String(error).replace(/[`$();|&]/g, '');
+      console.error("Loki query error:", errorMessage);
       throw new Error(
         `Неизвестная ошибка при запросе к Loki (${this.baseUrl}): ${String(error)}`
       );
@@ -797,7 +805,11 @@ export class LokiClient {
 
         ws.on("error", (error: Error) => {
           if (isActive) {
-            console.error("[LokiClient.streamLogs] WebSocket error:", error);
+            // Санитизируем сообщение об ошибке для предотвращения command injection
+            const errorMessage = error instanceof Error 
+              ? error.message.replace(/[`$();|&]/g, '') 
+              : String(error).replace(/[`$();|&]/g, '');
+            console.error("[LokiClient.streamLogs] WebSocket error:", errorMessage);
             scheduleReconnect();
           }
         });
@@ -809,7 +821,11 @@ export class LokiClient {
           }
         });
       } catch (error) {
-        console.error("[LokiClient.streamLogs] Stream setup error:", error);
+        // Санитизируем сообщение об ошибке для предотвращения command injection
+        const errorMessage = error instanceof Error 
+          ? error.message.replace(/[`$();|&]/g, '') 
+          : String(error).replace(/[`$();|&]/g, '');
+        console.error("[LokiClient.streamLogs] Stream setup error:", errorMessage);
         if (isActive) {
           scheduleReconnect();
         }
