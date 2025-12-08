@@ -3,6 +3,10 @@ import http from "http";
 import https from "https";
 import { URL } from "url";
 import WebSocket from "ws";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 // Константы для работы с временными периодами
 const DAY_MS = 24 * 60 * 60 * 1000; // миллисекунды в сутках
@@ -14,8 +18,8 @@ let containerMappingFetched = false;
 let containerMappingPromise: Promise<void> | null = null;
 
 /**
- * Загружает маппинг контейнеров с сервера (если доступен)
- * Использует внутренний API endpoint, который получает данные через docker ps
+ * Загружает маппинг контейнеров напрямую через docker ps (без HTTP запроса)
+ * Работает только на сервере, где доступен Docker
  */
 async function fetchContainerMapping(): Promise<void> {
   if (containerMappingFetched) return;
@@ -27,37 +31,35 @@ async function fetchContainerMapping(): Promise<void> {
   
   containerMappingPromise = (async () => {
     try {
-      // Используем абсолютный URL для серверного запроса
-      // В Docker используем localhost (т.к. запрос идет внутри того же контейнера)
-      // Локально тоже localhost
-      const apiUrl = "http://localhost:3005/api/container-logs/mapping";
+      // Получаем список контейнеров напрямую через docker ps
+      const { stdout } = await execAsync("docker ps --format '{{.ID}}\t{{.Names}}' 2>/dev/null || echo ''");
       
-      const response = await fetch(apiUrl, {
-        cache: "no-store",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const mapping: Record<string, string> = {};
+      const lines = stdout.trim().split("\n").filter((line) => line.trim());
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.mapping && typeof data.mapping === "object") {
-          // Заполняем кэш
-          for (const [id, name] of Object.entries(data.mapping)) {
-            if (typeof name === "string" && id) {
-              containerNameCache.set(id, name);
-              // Кэшируем и короткий ID
-              if (id.length >= 12) {
-                containerNameCache.set(id.substring(0, 12), name);
-              }
+      for (const line of lines) {
+        const parts = line.split("\t");
+        if (parts.length >= 2) {
+          const id = parts[0]?.trim();
+          const name = parts[1]?.trim();
+          if (id && name) {
+            // Кэшируем и полный ID, и короткий (первые 12 символов)
+            containerNameCache.set(id, name);
+            if (id.length >= 12) {
+              containerNameCache.set(id.substring(0, 12), name);
             }
+            mapping[id] = name;
           }
-          containerMappingFetched = true;
-          console.warn("[LokiClient] Container mapping loaded:", Object.keys(data.mapping).length, "containers");
         }
+      }
+      
+      containerMappingFetched = true;
+      if (Object.keys(mapping).length > 0) {
+        console.warn("[LokiClient] Container mapping loaded:", Object.keys(mapping).length, "containers");
       }
     } catch (error) {
       // Игнорируем ошибки - используем fallback
+      // Docker может быть недоступен (например, в dev окружении)
       console.warn("[LokiClient] Failed to fetch container mapping:", error);
     } finally {
       containerMappingPromise = null;
