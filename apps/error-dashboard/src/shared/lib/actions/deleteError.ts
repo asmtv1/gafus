@@ -42,7 +42,7 @@ export async function deleteError(
     
     if (errorData) {
       // Определяем уровень из labels или используем 'error' по умолчанию
-      // Аналогично логике в syncLokiErrorToDatabase
+      // Аналогично логике в syncSeqErrorToDatabase
       const level = errorData.labels?.level?.toLowerCase() || 'error';
       
       // Преобразуем createdAt в Date если нужно

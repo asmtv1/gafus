@@ -1,15 +1,15 @@
 "use server";
 
 import { unstable_cache } from "next/cache";
-import { getLogsFromLoki } from "@shared/lib/loki-client";
+import { getLogsFromSeq } from "@shared/lib/seq-client";
 import { getLogLevel } from "@shared/lib/utils/errorSource";
-import { syncLokiErrorToDatabase } from "@shared/lib/error-log-service";
+import { syncSeqErrorToDatabase } from "@shared/lib/error-log-service";
 import type { ErrorDashboardReport } from "@gafus/types";
 
 /**
- * Получает логи из Loki с кэшированием
+ * Получает логи из Seq с кэшированием
  */
-export const getLokiErrorsCached = unstable_cache(
+export const getSeqErrorsCached = unstable_cache(
   async (filters?: {
     appName?: string;
     level?: string;
@@ -19,13 +19,13 @@ export const getLokiErrorsCached = unstable_cache(
   }) => {
     try {
       if (process.env.NODE_ENV === 'development') {
-        console.warn('[getLokiErrorsCached] Fetching logs with filters:', filters);
+        console.warn('[getSeqErrorsCached] Fetching logs with filters:', filters);
       }
       
-      const errors = await getLogsFromLoki(filters);
+      const errors = await getLogsFromSeq(filters);
       
       if (process.env.NODE_ENV === 'development') {
-        console.warn('[getLokiErrorsCached] Fetched logs:', {
+        console.warn('[getSeqErrorsCached] Fetched logs:', {
           filters,
           count: errors.length,
           sampleIds: errors.slice(0, 3).map(e => e.id),
@@ -34,8 +34,8 @@ export const getLokiErrorsCached = unstable_cache(
       
       return { success: true as const, errors };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Не удалось получить логи из Loki";
-      console.error("[getLokiErrorsCached] Error fetching logs from Loki:", {
+      const errorMessage = error instanceof Error ? error.message : "Не удалось получить логи из Seq";
+      console.error("[getSeqErrorsCached] Error fetching logs from Seq:", {
         filters,
         error: errorMessage,
         stack: error instanceof Error ? error.stack : undefined,
@@ -47,17 +47,17 @@ export const getLokiErrorsCached = unstable_cache(
       };
     }
   },
-  ["loki-errors-cached"],
+  ["seq-errors-cached"],
   {
     revalidate: 30, // 30 секунд
-    tags: ["loki-errors"],
+    tags: ["seq-errors"],
   },
 );
 
 /**
- * Получает ошибки из Loki (для обратной совместимости с getErrors)
+ * Получает ошибки из Seq (для обратной совместимости с getErrors)
  */
-export async function getLokiErrors(filters?: {
+export async function getSeqErrors(filters?: {
     appName?: string;
     environment?: string;
     type?: "errors" | "logs" | "all";
@@ -66,11 +66,11 @@ export async function getLokiErrors(filters?: {
     tags?: string[];
 }): Promise<{ success: boolean; errors?: ErrorDashboardReport[]; error?: string }> {
   // Логирование в начале функции для диагностики
-  console.warn("[getLokiErrors] FUNCTION CALLED with filters:", JSON.stringify(filters));
+  console.warn("[getSeqErrors] FUNCTION CALLED with filters:", JSON.stringify(filters));
   
   try {
-    // Преобразуем фильтры для Loki
-    const lokiFilters: {
+    // Преобразуем фильтры для Seq
+    const seqFilters: {
       appName?: string;
       level?: string;
       tags?: string[];
@@ -79,43 +79,42 @@ export async function getLokiErrors(filters?: {
     } = {};
 
     if (filters?.appName) {
-      lokiFilters.appName = filters.appName;
+      seqFilters.appName = filters.appName;
     }
 
     if (filters?.tags) {
-      lokiFilters.tags = filters.tags;
+      seqFilters.tags = filters.tags;
     }
 
     // Фильтруем по уровню для type
     if (filters?.type === "errors") {
       // Включаем error и fatal как критические уровни
-      // Используем regex matcher для Loki: level=~"error|fatal"
-      lokiFilters.level = "error|fatal";
+      seqFilters.level = "error|fatal";
     } else if (filters?.type === "logs") {
       // Для логов не фильтруем по уровню
     }
     // Для type: "all" не добавляем фильтр по уровню
 
     if (filters?.limit) {
-      lokiFilters.limit = filters.limit;
+      seqFilters.limit = filters.limit;
     }
 
-    console.warn('[getLokiErrors] FUNCTION CALLED with filters:', JSON.stringify(filters));
-    console.warn('[getLokiErrors] Calling getLogsFromLoki with filters:', {
+    console.warn('[getSeqErrors] FUNCTION CALLED with filters:', JSON.stringify(filters));
+    console.warn('[getSeqErrors] Calling getLogsFromSeq with filters:', {
       originalFilters: filters,
-      lokiFilters,
+      seqFilters,
     });
 
-    const errors = await getLogsFromLoki(lokiFilters);
+    const errors = await getLogsFromSeq(seqFilters);
     
-    console.warn('[getLokiErrors] getLogsFromLoki returned:', {
+    console.warn('[getSeqErrors] getLogsFromSeq returned:', {
       count: errors.length,
       sampleAppNames: errors.slice(0, 5).map(e => e.appName),
       sampleLevels: errors.slice(0, 5).map(e => getLogLevel(e) || 'unknown'),
     });
 
     // Синхронизируем error/fatal логи в БД (fire-and-forget)
-    // В production дашборд читает из Loki и автоматически записывает в БД
+    // В production дашборд читает из Seq и автоматически записывает в БД
     if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
       const errorFatalLogs = errors.filter(error => {
         const level = getLogLevel(error);
@@ -124,9 +123,9 @@ export async function getLokiErrors(filters?: {
 
       // Синхронизируем асинхронно, не блокируя ответ
       void Promise.all(
-        errorFatalLogs.map(error => syncLokiErrorToDatabase(error))
+        errorFatalLogs.map(error => syncSeqErrorToDatabase(error))
       ).catch(err => {
-        console.error('[getLokiErrors] Error syncing logs to database:', err);
+        console.error('[getSeqErrors] Error syncing logs to database:', err);
       });
     }
 
@@ -141,7 +140,7 @@ export async function getLokiErrors(filters?: {
       filteredErrors = filteredErrors.slice(0, filters.limit);
     }
 
-    console.warn('[getLokiErrors] Successfully fetched errors:', {
+    console.warn('[getSeqErrors] Successfully fetched errors:', {
       filters,
       totalCount: errors.length,
       filteredCount: filteredErrors.length,
@@ -151,16 +150,16 @@ export async function getLokiErrors(filters?: {
 
     return { success: true, errors: filteredErrors };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Не удалось получить ошибки из Loki";
+    const errorMessage = error instanceof Error ? error.message : "Не удалось получить ошибки из Seq";
     
-    console.error("[getLokiErrors] Error getting Loki errors:", {
+    console.error("[getSeqErrors] Error getting Seq errors:", {
       filters,
       error: errorMessage,
       stack: error instanceof Error ? error.stack : undefined,
     });
     
     // Формируем понятное сообщение об ошибке
-    let finalErrorMessage = "Не удалось получить ошибки из Loki";
+    let finalErrorMessage = "Не удалось получить ошибки из Seq";
     
     if (error instanceof Error) {
       finalErrorMessage = error.message;
@@ -169,7 +168,7 @@ export async function getLokiErrors(filters?: {
       if (error.message.includes("fetch") || error.message.includes("подключиться")) {
         finalErrorMessage = error.message;
       } else {
-        finalErrorMessage = `Ошибка при получении ошибок из Loki: ${error.message}`;
+        finalErrorMessage = `Ошибка при получении ошибок из Seq: ${error.message}`;
       }
     }
     

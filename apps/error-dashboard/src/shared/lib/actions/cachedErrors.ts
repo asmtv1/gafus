@@ -1,15 +1,15 @@
 "use server";
 
-import { getLokiErrorsCached } from "./loki-errors";
-import { syncLokiErrorToDatabase, getErrorsFromDatabase } from "@shared/lib/error-log-service";
+import { getSeqErrorsCached } from "./seq-errors";
+import { syncSeqErrorToDatabase, getErrorsFromDatabase } from "@shared/lib/error-log-service";
 import { getLogLevel } from "@shared/lib/utils/errorSource";
 import { createErrorDashboardLogger } from "@gafus/logger";
 
 const logger = createErrorDashboardLogger('error-dashboard-cached-errors');
 
 /**
- * Получает ошибки из PostgreSQL после синхронизации из Loki
- * Новая архитектура: Loki → синхронизация в PostgreSQL → чтение из PostgreSQL → показ в UI
+ * Получает ошибки из PostgreSQL после синхронизации из Seq
+ * Новая архитектура: Seq → синхронизация в PostgreSQL → чтение из PostgreSQL → показ в UI
  * PostgreSQL становится единым источником истины для UI
  */
 export async function getErrorsCached(filters?: {
@@ -19,11 +19,12 @@ export async function getErrorsCached(filters?: {
     limit?: number;
     offset?: number;
     tags?: string[];
+    status?: 'new' | 'viewed' | 'resolved' | 'archived';
 }) {
     console.warn("[getErrorsCached] FUNCTION CALLED with filters:", JSON.stringify(filters));
     
     try {
-      // Шаг 1: Синхронизируем ошибки из Loki в PostgreSQL
+      // Шаг 1: Синхронизируем ошибки из Seq в PostgreSQL
       // Для ошибок приложений фильтруем по level=error|fatal (только error и fatal)
       // Для container-logs используем специальную логику формирования запроса
       const isContainerLogs = filters?.tags?.includes("container-logs");
@@ -34,34 +35,34 @@ export async function getErrorsCached(filters?: {
                     filters?.type === "errors" ? "error|fatal" :
                     "error|fatal"; // По умолчанию для обычных ошибок только error|fatal
       
-      console.warn("[getErrorsCached] Syncing from Loki to PostgreSQL", {
+      console.warn("[getErrorsCached] Syncing from Seq to PostgreSQL", {
         isContainerLogs,
         level,
         appName: filters?.appName,
         tags: filters?.tags,
       });
 
-      // Получаем ошибки из Loki для синхронизации
+      // Получаем ошибки из Seq для синхронизации
       // Используем больший лимит для синхронизации, чтобы не пропустить данные
       const syncLimit = filters?.limit ? Math.max(filters.limit + (filters.offset || 0), 1000) : 1000;
       
-      const lokiResult = await getLokiErrorsCached({
+      const seqResult = await getSeqErrorsCached({
         appName: filters?.appName,
         level,
         tags: filters?.tags,
         limit: syncLimit,
       });
       
-      if (!lokiResult.success) {
-        // Если не удалось получить из Loki, пытаемся прочитать из БД
-        console.warn("[getErrorsCached] Failed to sync from Loki, reading from database only");
-        logger.warn("Failed to sync from Loki, reading from database", {
-          error: lokiResult.error,
+      if (!seqResult.success) {
+        // Если не удалось получить из Seq, пытаемся прочитать из БД
+        console.warn("[getErrorsCached] Failed to sync from Seq, reading from database only");
+        logger.warn("Failed to sync from Seq, reading from database", {
+          error: seqResult.error,
           filters,
         });
       } else {
         // Синхронизируем error/fatal логи в БД (синхронно, чтобы данные были актуальны)
-        const errors = lokiResult.errors || [];
+        const errors = seqResult.errors || [];
         const errorFatalLogs = errors.filter(error => {
           const errorLevel = getLogLevel(error);
           return errorLevel === 'error' || errorLevel === 'fatal';
@@ -71,7 +72,7 @@ export async function getErrorsCached(filters?: {
         if (errorFatalLogs.length > 0) {
           try {
             await Promise.all(
-              errorFatalLogs.map(error => syncLokiErrorToDatabase(error))
+              errorFatalLogs.map(error => syncSeqErrorToDatabase(error))
             );
             console.warn("[getErrorsCached] Synced errors to database:", {
               syncedCount: errorFatalLogs.length,
@@ -83,9 +84,9 @@ export async function getErrorsCached(filters?: {
               syncError instanceof Error ? syncError : new Error(String(syncError)),
               {
                 operation: "getErrorsCached",
-                action: "syncLokiErrorToDatabase",
+                action: "syncSeqErrorToDatabase",
                 filters,
-                tags: ["errors", "loki", "sync", "server-action"],
+                tags: ["errors", "seq", "sync", "server-action"],
               }
             );
             // Продолжаем выполнение, даже если синхронизация не удалась
@@ -99,6 +100,7 @@ export async function getErrorsCached(filters?: {
         environment: filters?.environment,
         type: filters?.type,
         level: level, // Передаем level для фильтрации в БД
+        status: filters?.status,
         tags: filters?.tags,
         limit: filters?.limit || 50,
         offset: filters?.offset || 0,

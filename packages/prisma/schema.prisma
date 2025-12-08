@@ -789,6 +789,8 @@ model ErrorLog {
 
   // Статус обработки
   status String @default("new") // new | viewed | resolved | archived
+  resolvedAt DateTime? // когда ошибка была решена
+  resolvedBy String? // кто решил ошибку (username/userId)
 
   // Временные метки
   timestamp DateTime @default(now()) // время возникновения ошибки

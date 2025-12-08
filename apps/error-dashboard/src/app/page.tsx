@@ -1,12 +1,14 @@
 "use client";
 
 import { Suspense } from "react";
-import { Box, Container, Typography, Paper, Chip } from "@mui/material";
+import { Box, Container, Typography, Paper, Chip, Button } from "@mui/material";
 import { 
   Dashboard as DashboardIcon,
   CheckCircle as CheckIcon,
   TrendingUp as TrendingIcon,
-  Schedule as ScheduleIcon
+  Schedule as ScheduleIcon,
+  OpenInNew as OpenInNewIcon,
+  Storage as StorageIcon
 } from "@mui/icons-material";
 
 import { FilterProvider } from "@shared/contexts/FilterContext";
@@ -48,7 +50,7 @@ export default function ModernDashboardPage() {
             </Box>
             
             {/* Статус системы */}
-            <Box display="flex" gap={1} flexWrap="wrap">
+            <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
               <Chip 
                 icon={<CheckIcon />} 
                 label="Система работает" 
@@ -70,6 +72,25 @@ export default function ModernDashboardPage() {
                 variant="outlined"
                 sx={{ bgcolor: "rgba(255, 152, 0, 0.1)", color: "#ef6c00" }}
               />
+              <Button
+                variant="outlined"
+                startIcon={<StorageIcon />}
+                endIcon={<OpenInNewIcon />}
+                href={process.env.NEXT_PUBLIC_SEQ_URL || "http://localhost:5341"}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{
+                  ml: "auto",
+                  borderColor: "#00acc1",
+                  color: "#00acc1",
+                  "&:hover": {
+                    borderColor: "#00838f",
+                    bgcolor: "rgba(0, 172, 193, 0.1)",
+                  },
+                }}
+              >
+                Открыть Seq
+              </Button>
             </Box>
           </Paper>
 

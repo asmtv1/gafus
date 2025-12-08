@@ -27,10 +27,16 @@ import {
   OpenInNew as OpenIcon,
   ContentCopy as CopyIcon,
   Download as DownloadIcon,
+  NewReleases as NewReleasesIcon,
+  VisibilityOutlined as VisibilityOutlinedIcon,
+  CheckCircle as CheckCircleIcon,
+  Archive as ArchiveIcon,
 } from "@mui/icons-material";
 import { formatDistanceToNow, format } from "date-fns";
 import { ru } from "date-fns/locale";
 import type { ErrorDashboardReport } from "@gafus/types";
+import { updateErrorStatusAction } from "@shared/lib/actions/updateErrorStatus";
+import { useTransition } from "react";
 
 /**
  * Форматирует ошибку в Markdown для AI-анализа
@@ -119,6 +125,7 @@ interface ErrorDetailsModalProps {
   open: boolean;
   onClose: () => void;
   error: ErrorDashboardReport | null;
+  onStatusChange?: () => void;
 }
 
 /**
@@ -501,14 +508,91 @@ function AdditionalContextSection({ additionalContext, onCopy }: { additionalCon
   );
 }
 
-export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetailsModalProps) {
+export default function ErrorDetailsModal({ open, onClose, error, onStatusChange }: ErrorDetailsModalProps) {
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
     severity: 'success'
   });
+  const [isPending, startTransition] = useTransition();
 
   if (!error) return null;
+
+  const getStatusColor = (status?: string) => {
+    switch (status) {
+      case 'new':
+        return '#d32f2f';
+      case 'viewed':
+        return '#1976d2';
+      case 'resolved':
+        return '#2e7d32';
+      case 'archived':
+        return '#757575';
+      default:
+        return '#d32f2f';
+    }
+  };
+
+  const getStatusLabel = (status?: string) => {
+    switch (status) {
+      case 'new':
+        return 'Новая';
+      case 'viewed':
+        return 'Просмотрена';
+      case 'resolved':
+        return 'Решена';
+      case 'archived':
+        return 'Архивирована';
+      default:
+        return 'Новая';
+    }
+  };
+
+  const getStatusIcon = (status?: string) => {
+    switch (status) {
+      case 'new':
+        return <NewReleasesIcon fontSize="small" />;
+      case 'viewed':
+        return <VisibilityOutlinedIcon fontSize="small" />;
+      case 'resolved':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'archived':
+        return <ArchiveIcon fontSize="small" />;
+      default:
+        return <NewReleasesIcon fontSize="small" />;
+    }
+  };
+
+  const handleStatusChange = (newStatus: 'new' | 'viewed' | 'resolved' | 'archived') => {
+    if (!error) return;
+    
+    startTransition(async () => {
+      try {
+        const result = await updateErrorStatusAction(error.id, newStatus);
+        if (result.success) {
+          setSnackbar({
+            open: true,
+            message: `Статус изменен на "${getStatusLabel(newStatus)}"`,
+            severity: 'success',
+          });
+          onStatusChange?.();
+        } else {
+          setSnackbar({
+            open: true,
+            message: result.error || 'Не удалось изменить статус',
+            severity: 'error',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to update status:', err);
+        setSnackbar({
+          open: true,
+          message: 'Не удалось изменить статус',
+          severity: 'error',
+        });
+      }
+    });
+  };
 
   const handleCopyForAI = async () => {
     try {
@@ -699,7 +783,29 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
               variant="outlined"
             />
             
+            <Chip
+              icon={getStatusIcon(error.status)}
+              label={getStatusLabel(error.status)}
+              size="small"
+              sx={{
+                bgcolor: `${getStatusColor(error.status)}15`,
+                color: getStatusColor(error.status),
+                fontWeight: 'medium',
+                border: `1px solid ${getStatusColor(error.status)}30`,
+              }}
+            />
           </Box>
+          
+          {error.status === 'resolved' && error.resolvedAt && (
+            <Box mt={2}>
+              <Typography variant="body2" color="text.secondary">
+                <CheckCircleIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5, color: '#2e7d32' }} />
+                Решена {formatDistanceToNow(new Date(error.resolvedAt), { addSuffix: true, locale: ru })}
+                {error.resolvedBy && ` пользователем ${error.resolvedBy}`}
+                {' '}({format(new Date(error.resolvedAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru })})
+              </Typography>
+            </Box>
+          )}
 
           <Box display="grid" gridTemplateColumns={{ xs: "1fr", sm: "repeat(2, 1fr)" }} gap={2}>
             <Box>
@@ -747,8 +853,79 @@ export default function ErrorDetailsModal({ open, onClose, error }: ErrorDetails
           </Box>
         </Paper>
 
+        {/* Управление статусом */}
+        <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: "#fff9e6", borderRadius: 2, border: "1px solid #ffd54f" }}>
+          <Typography variant="h6" fontWeight="bold" mb={2} color="#e65100">
+            📋 Управление статусом
+          </Typography>
+          
+          <Box display="flex" alignItems="center" gap={2} mb={2}>
+            <Typography variant="body2" fontWeight="medium">
+              Текущий статус:
+            </Typography>
+            <Chip
+              icon={getStatusIcon(error.status)}
+              label={getStatusLabel(error.status)}
+              size="medium"
+              sx={{
+                bgcolor: `${getStatusColor(error.status)}20`,
+                color: getStatusColor(error.status),
+                fontWeight: 'bold',
+                border: `2px solid ${getStatusColor(error.status)}`,
+                fontSize: '0.875rem',
+              }}
+            />
+          </Box>
 
-
+          <Box display="flex" flexWrap="wrap" gap={1}>
+            <Button
+              variant={error.status === 'viewed' ? 'contained' : 'outlined'}
+              size="small"
+              startIcon={<VisibilityOutlinedIcon />}
+              onClick={() => handleStatusChange('viewed')}
+              disabled={error.status === 'viewed' || isPending}
+              sx={{ textTransform: 'none' }}
+            >
+              Отметить просмотренной
+            </Button>
+            
+            <Button
+              variant={error.status === 'resolved' ? 'contained' : 'outlined'}
+              size="small"
+              color="success"
+              startIcon={<CheckCircleIcon />}
+              onClick={() => handleStatusChange('resolved')}
+              disabled={error.status === 'resolved' || isPending}
+              sx={{ textTransform: 'none' }}
+            >
+              Решить
+            </Button>
+            
+            <Button
+              variant={error.status === 'archived' ? 'contained' : 'outlined'}
+              size="small"
+              color="inherit"
+              startIcon={<ArchiveIcon />}
+              onClick={() => handleStatusChange('archived')}
+              disabled={error.status === 'archived' || isPending}
+              sx={{ textTransform: 'none' }}
+            >
+              Архивировать
+            </Button>
+            
+            <Button
+              variant={error.status === 'new' ? 'contained' : 'outlined'}
+              size="small"
+              color="error"
+              startIcon={<NewReleasesIcon />}
+              onClick={() => handleStatusChange('new')}
+              disabled={error.status === 'new' || isPending}
+              sx={{ textTransform: 'none' }}
+            >
+              Вернуть в новые
+            </Button>
+          </Box>
+        </Paper>
 
         {/* Stack Trace */}
         <StackTraceSection stack={error.stack} onCopy={handleCopyText} />

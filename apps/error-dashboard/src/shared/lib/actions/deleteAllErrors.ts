@@ -8,7 +8,7 @@ const logger = createErrorDashboardLogger('error-dashboard-delete-all-errors');
 
 /**
  * Удаляет все ошибки из PostgreSQL
- * Loki остается нетронутым, используется только для чтения
+ * Seq остается нетронутым, используется только для чтения
  */
 export async function deleteAllErrors(): Promise<{ success: boolean; message?: string; error?: string }> {
   const operationStartTime = Date.now();
@@ -28,7 +28,7 @@ export async function deleteAllErrors(): Promise<{ success: boolean; message?: s
       // Инвалидируем серверный кэш через теги
       revalidateTag("errors");
       revalidateTag("error-stats");
-      revalidateTag("loki-errors");
+      revalidateTag("seq-errors");
       
       // Инвалидируем кэш и страницу
       revalidatePath("/");

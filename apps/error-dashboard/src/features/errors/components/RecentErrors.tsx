@@ -18,6 +18,9 @@ import {
   Button,
   Checkbox,
   Paper,
+  Menu,
+  MenuItem,
+  ListItemIcon,
 } from "@mui/material";
 import {
   BugReport as BugIcon,
@@ -32,6 +35,11 @@ import {
   SelectAll as SelectAllIcon,
   Close as CloseIcon,
   Delete as DeleteIcon,
+  NewReleases as NewReleasesIcon,
+  VisibilityOutlined as VisibilityOutlinedIcon,
+  CheckCircle as CheckCircleIcon,
+  Archive as ArchiveIcon,
+  MoreVert as MoreVertIcon,
 } from "@mui/icons-material";
 import { useErrors, useErrorsMutation } from "@shared/hooks/useErrors";
 import { useFilters } from "@shared/contexts/FilterContext";
@@ -42,6 +50,7 @@ import ErrorDetailsModal from "./ErrorDetailsModal";
 import { Snackbar } from "@mui/material";
 import { Alert } from "@mui/material";
 import { deleteError } from "@shared/lib/actions/deleteError";
+import { updateErrorStatusAction } from "@shared/lib/actions/updateErrorStatus";
 import type { ErrorDashboardReport } from "@gafus/types";
 
 /**
@@ -100,6 +109,7 @@ interface RecentErrorItemProps {
   error: ErrorDashboardReport;
   onViewDetails: () => void;
   onDelete?: (id: string) => void;
+  onStatusChange?: (id: string, status: 'new' | 'viewed' | 'resolved' | 'archived') => void;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
   selectionMode?: boolean;
@@ -117,7 +127,67 @@ function isFatalError(error: ErrorDashboardReport): boolean {
   return hasFatalInMessage || hasFatalTag;
 }
 
-function RecentErrorItem({ error, onViewDetails, onDelete, isSelected, onToggleSelect, selectionMode, isDeleting, isPending }: RecentErrorItemProps) {
+function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSelected, onToggleSelect, selectionMode, isDeleting, isPending }: RecentErrorItemProps) {
+  const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
+
+  const getStatusColor = (status?: string) => {
+    switch (status) {
+      case 'new':
+        return '#d32f2f';
+      case 'viewed':
+        return '#1976d2';
+      case 'resolved':
+        return '#2e7d32';
+      case 'archived':
+        return '#757575';
+      default:
+        return '#d32f2f';
+    }
+  };
+
+  const getStatusLabel = (status?: string) => {
+    switch (status) {
+      case 'new':
+        return 'Новая';
+      case 'viewed':
+        return 'Просмотрена';
+      case 'resolved':
+        return 'Решена';
+      case 'archived':
+        return 'Архивирована';
+      default:
+        return 'Новая';
+    }
+  };
+
+  const getStatusIcon = (status?: string) => {
+    switch (status) {
+      case 'new':
+        return <NewReleasesIcon fontSize="small" />;
+      case 'viewed':
+        return <VisibilityOutlinedIcon fontSize="small" />;
+      case 'resolved':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'archived':
+        return <ArchiveIcon fontSize="small" />;
+      default:
+        return <NewReleasesIcon fontSize="small" />;
+    }
+  };
+
+  const handleStatusMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setStatusMenuAnchor(event.currentTarget);
+  };
+
+  const handleStatusMenuClose = () => {
+    setStatusMenuAnchor(null);
+  };
+
+  const handleStatusChange = (newStatus: 'new' | 'viewed' | 'resolved' | 'archived') => {
+    onStatusChange?.(error.id, newStatus);
+    handleStatusMenuClose();
+  };
+
   const getSeverityIcon = (error: ErrorDashboardReport) => {
     if (isFatalError(error)) {
       return <ErrorIcon />;
@@ -230,6 +300,19 @@ function RecentErrorItem({ error, onViewDetails, onDelete, isSelected, onToggleS
                   border: `1px solid ${getAppColor(error.appName)}30`
                 }}
               />
+              <Chip
+                icon={getStatusIcon(error.status)}
+                label={getStatusLabel(error.status)}
+                size="small"
+                sx={{
+                  bgcolor: `${getStatusColor(error.status)}15`,
+                  color: getStatusColor(error.status),
+                  fontWeight: 'medium',
+                  border: `1px solid ${getStatusColor(error.status)}30`,
+                  cursor: onStatusChange ? 'pointer' : 'default',
+                }}
+                onClick={onStatusChange ? handleStatusMenuOpen : undefined}
+              />
             </Box>
           </Box>
         }
@@ -257,6 +340,16 @@ function RecentErrorItem({ error, onViewDetails, onDelete, isSelected, onToggleS
               </Typography>
             </Box>
             
+            {error.status === 'resolved' && error.resolvedAt && (
+              <Box component="span" display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                <CheckCircleIcon fontSize="small" sx={{ color: '#2e7d32', fontSize: '0.875rem' }} />
+                <Typography variant="caption" color="text.secondary">
+                  Решена {formatDistanceToNow(new Date(error.resolvedAt), { addSuffix: true, locale: ru })}
+                  {error.resolvedBy && ` пользователем ${error.resolvedBy}`}
+                </Typography>
+              </Box>
+            )}
+            
             {error.url && (
               <Typography 
                 variant="caption" 
@@ -275,6 +368,46 @@ function RecentErrorItem({ error, onViewDetails, onDelete, isSelected, onToggleS
       />
 
       <Box display="flex" alignItems="center" gap={0.5}>
+        {onStatusChange && (
+          <>
+            <Tooltip title="Изменить статус">
+              <IconButton size="small" onClick={handleStatusMenuOpen} color="default">
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Menu
+              anchorEl={statusMenuAnchor}
+              open={Boolean(statusMenuAnchor)}
+              onClose={handleStatusMenuClose}
+            >
+              <MenuItem onClick={() => handleStatusChange('new')} disabled={error.status === 'new'}>
+                <ListItemIcon>
+                  <NewReleasesIcon fontSize="small" sx={{ color: getStatusColor('new') }} />
+                </ListItemIcon>
+                <ListItemText primary="Новая" />
+              </MenuItem>
+              <MenuItem onClick={() => handleStatusChange('viewed')} disabled={error.status === 'viewed'}>
+                <ListItemIcon>
+                  <VisibilityOutlinedIcon fontSize="small" sx={{ color: getStatusColor('viewed') }} />
+                </ListItemIcon>
+                <ListItemText primary="Просмотрена" />
+              </MenuItem>
+              <MenuItem onClick={() => handleStatusChange('resolved')} disabled={error.status === 'resolved'}>
+                <ListItemIcon>
+                  <CheckCircleIcon fontSize="small" sx={{ color: getStatusColor('resolved') }} />
+                </ListItemIcon>
+                <ListItemText primary="Решена" />
+              </MenuItem>
+              <MenuItem onClick={() => handleStatusChange('archived')} disabled={error.status === 'archived'}>
+                <ListItemIcon>
+                  <ArchiveIcon fontSize="small" sx={{ color: getStatusColor('archived') }} />
+                </ListItemIcon>
+                <ListItemText primary="Архивирована" />
+              </MenuItem>
+            </Menu>
+          </>
+        )}
+        
         <Tooltip title="Подробнее">
           <IconButton size="small" onClick={onViewDetails} color="primary">
             <ViewIcon fontSize="small" />
@@ -376,6 +509,36 @@ export default function RecentErrors() {
   const handleCancelSelection = () => {
     setSelectionMode(false);
     setSelectedIds(new Set());
+  };
+
+  const handleStatusChange = (errorId: string, status: 'new' | 'viewed' | 'resolved' | 'archived') => {
+    startTransition(async () => {
+      try {
+        const result = await updateErrorStatusAction(errorId, status);
+        if (result.success) {
+          setSnackbar({
+            open: true,
+            message: `Статус изменен на "${status === 'new' ? 'Новая' : status === 'viewed' ? 'Просмотрена' : status === 'resolved' ? 'Решена' : 'Архивирована'}"`,
+            severity: 'success',
+          });
+          await invalidateErrors(errorFilters);
+          await refetch();
+        } else {
+          setSnackbar({
+            open: true,
+            message: result.error || 'Не удалось изменить статус',
+            severity: 'error',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to update status:', err);
+        setSnackbar({
+          open: true,
+          message: 'Не удалось изменить статус',
+          severity: 'error',
+        });
+      }
+    });
   };
 
   const handleDeleteError = (errorId: string) => {
@@ -488,7 +651,7 @@ export default function RecentErrors() {
             timeSinceOperationStartMs: cacheInvalidationStartTime - operationStartTime,
           });
           
-          // Даём Loki применить удаление, затем принудительно обновляем кэш
+          // Даём Seq применить удаление, затем принудительно обновляем кэш
           await new Promise((resolve) => setTimeout(resolve, 600));
           await invalidateErrors(errorFilters);
           
@@ -881,6 +1044,7 @@ export default function RecentErrors() {
                 error={err} 
                 onViewDetails={() => setSelectedError(err)}
                 onDelete={handleDeleteError}
+                onStatusChange={handleStatusChange}
                 selectionMode={selectionMode}
                 isSelected={selectedIds.has(err.id)}
                 onToggleSelect={handleToggleSelect}
@@ -911,6 +1075,10 @@ export default function RecentErrors() {
         open={!!selectedError}
         onClose={() => setSelectedError(null)}
         error={selectedError}
+        onStatusChange={async () => {
+          await invalidateErrors(errorFilters);
+          await refetch();
+        }}
       />
 
       {/* Snackbar для уведомлений */}

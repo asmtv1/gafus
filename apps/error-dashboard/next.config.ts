@@ -26,6 +26,7 @@ const nextConfig: NextConfig = {
   },
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
+    NEXT_PUBLIC_SEQ_URL: process.env.NEXT_PUBLIC_SEQ_URL || "http://localhost:5341",
   },
   // Вся статика на CDN, отключаем оптимизацию
   images: {

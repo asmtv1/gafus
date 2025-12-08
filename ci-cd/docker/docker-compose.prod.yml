@@ -109,7 +109,7 @@ services:
       - NEXTAUTH_URL=${ERROR_DASHBOARD_URL:-https://monitor.gafus.ru}
       - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
       - PROMETHEUS_URL=${PROMETHEUS_URL:-http://prometheus:9090}
-      - LOKI_URL=${LOKI_URL:-http://loki:3100}
+      - SEQ_URL=${SEQ_URL:-http://seq:5341}
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
     depends_on:
@@ -119,7 +119,7 @@ services:
         condition: service_started
       prometheus:
         condition: service_started
-      loki:
+      seq:
         condition: service_started
 
   # Admin Panel
@@ -312,38 +312,37 @@ services:
       - ./blackbox:/etc/blackbox_exporter
     restart: unless-stopped
 
-  # Loki для хранения логов
-  loki:
-    image: grafana/loki:latest
-    container_name: gafus-loki
-    command: -config.file=/etc/loki/local-config.yaml
+  # Seq для хранения логов
+  seq:
+    image: datalust/seq:latest
+    container_name: gafus-seq
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
     volumes:
-      - ./loki:/etc/loki
-      - loki-data:/loki
+      - seq_data:/data
     restart: unless-stopped
     # Убрали открытые порты - доступ только внутри Docker сети
-    # Healthcheck убран, т.к. образ Loki минималистичный и не содержит стандартных инструментов
-    # Promtail будет ждать запуска Loki через depends_on
 
-  # Promtail для сбора логов из Docker контейнеров
-  promtail:
-    image: grafana/promtail:latest
-    container_name: gafus-promtail
+  # Vector для сбора логов из Docker контейнеров
+  vector:
+    image: timberio/vector:latest-alpine
+    container_name: gafus-vector
     command:
-      - '-config.file=/etc/promtail/promtail.yml'
+      - '--config-dir'
+      - '/etc/vector'
     volumes:
-      - ./promtail:/etc/promtail
+      - ./vector:/etc/vector
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /var/log:/var/log:ro
-      - promtail_positions:/tmp
+      - vector_data:/var/lib/vector
     restart: unless-stopped
     depends_on:
-      loki:
+      seq:
         condition: service_started
 
 volumes:
   postgres_data:
   prometheus_data:
-  promtail_positions:
-  loki-data:
+  vector_data:
+  seq_data:

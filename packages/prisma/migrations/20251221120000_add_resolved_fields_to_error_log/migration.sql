@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "ErrorLog" ADD COLUMN IF NOT EXISTS "resolvedAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "resolvedBy" TEXT;
+

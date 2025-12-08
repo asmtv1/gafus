@@ -24,7 +24,7 @@
 - ✅ Специализированные логгеры для каждого типа сервиса
 - ✅ React Error Boundaries (`@gafus/error-handling`)
 - ✅ Отправка логов в реальном времени
-- ✅ Сбор логов из Docker контейнеров через Promtail
+- ✅ Сбор логов из Docker контейнеров через Vector
 
 ### Чего не хватает (можно добавить при необходимости)
 
@@ -134,25 +134,27 @@ await logger.error(
                     ↓
               ErrorDashboardTransport → error-dashboard → PostgreSQL
 
-Docker контейнеры → stdout/stderr → Promtail → error-dashboard → PostgreSQL
+Docker контейнеры → stdout/stderr → Vector → Seq → Error Dashboard
 ```
 
 ### Сбор логов из Docker контейнеров
 
-Для сбора логов из Docker контейнеров используется **Promtail** — агент для сбора логов, который:
+Для сбора логов из Docker контейнеров используется **Vector** — агент для сбора и обработки логов, который:
 
 1. **Читает логи контейнеров** из файловой системы Docker (`/var/lib/docker/containers/*/*-json.log`)
-2. **Парсит Pino JSON логи** и извлекает метаданные (level, context, app)
-3. **Фильтрует важные логи** (warn, error, fatal)
-4. **Отправляет в error-dashboard** через API endpoint `/api/container-logs`
+2. **Парсит Docker JSON формат** и извлекает логи
+3. **Парсит Pino JSON логи** и извлекает метаданные (level, context, app)
+4. **Форматирует в CLEF** (Compact Log Event Format) для Seq
+5. **Отправляет в Seq** через HTTP API
 
-**Конфигурация Promtail:** `ci-cd/docker/promtail/promtail.yml`
+**Конфигурация Vector:** `ci-cd/docker/vector/vector.toml`
 
 **Преимущества:**
-- Видим все логи контейнеров в error-dashboard
-- Автоматический парсинг Pino формата
-- Фильтрация только важных логов
-- Метаданные контейнера (имя, ID, app) добавляются автоматически
+- Видим все логи контейнеров в Seq и Error Dashboard
+- Нативная поддержка Seq (встроенный sink)
+- Автоматический парсинг Pino формата через VRL (Vector Remap Language)
+- Метаданные контейнера (container_id, app, level, context) добавляются автоматически
+- Более гибкая обработка логов через VRL (Vector Remap Language)
 
 ## ⚙️ Конфигурация
 

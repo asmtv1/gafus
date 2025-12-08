@@ -18,6 +18,10 @@ import {
   DialogActions,
   Alert,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { useFilters } from "@shared/contexts/FilterContext";
 import { useRouter } from "next/navigation";
@@ -36,6 +40,7 @@ export default function ErrorFilters() {
   const [localFilters, setLocalFilters] = useState({
     app: filters.appName || "",
     environment: filters.environment || "",
+    status: filters.status || "",
   });
 
   // Синхронизируем локальные фильтры с контекстом
@@ -43,6 +48,7 @@ export default function ErrorFilters() {
     setLocalFilters({
       app: filters.appName || "",
       environment: filters.environment || "",
+      status: filters.status || "",
     });
   }, [filters]);
 
@@ -54,6 +60,9 @@ export default function ErrorFilters() {
     const newFilters = {
       appName: newLocalFilters.app || undefined,
       environment: newLocalFilters.environment || undefined,
+      status: (newLocalFilters.status && ['new', 'viewed', 'resolved', 'archived'].includes(newLocalFilters.status))
+        ? newLocalFilters.status as 'new' | 'viewed' | 'resolved' | 'archived'
+        : undefined,
     };
     setFilters(newFilters);
 
@@ -61,18 +70,21 @@ export default function ErrorFilters() {
     const params = new URLSearchParams();
     if (newLocalFilters.app) params.set("app", newLocalFilters.app);
     if (newLocalFilters.environment) params.set("env", newLocalFilters.environment);
+    if (newLocalFilters.status && ['new', 'viewed', 'resolved', 'archived'].includes(newLocalFilters.status)) {
+      params.set("status", newLocalFilters.status);
+    }
 
     const newUrl = params.toString() ? `/?${params.toString()}` : "/";
     router.push(newUrl, { scroll: false });
   };
 
   const clearFilters = () => {
-    setLocalFilters({ app: "", environment: "" });
+    setLocalFilters({ app: "", environment: "", status: "" });
     setFilters({});
     router.push("/", { scroll: false });
   };
 
-  const hasActiveFilters = localFilters.app || localFilters.environment;
+  const hasActiveFilters = localFilters.app || localFilters.environment || localFilters.status;
 
   const handleDeleteAllErrors = () => {
     setIsDeleteAllDialogOpen(true);
@@ -136,7 +148,7 @@ export default function ErrorFilters() {
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, 1fr)",
-              md: "repeat(3, 1fr)",
+              md: "repeat(4, 1fr)",
             },
           }}
         >
@@ -158,6 +170,23 @@ export default function ErrorFilters() {
               onChange={(e) => handleFilterChange("environment", e.target.value)}
               placeholder="production, development..."
             />
+          </Box>
+
+          <Box>
+            <FormControl fullWidth>
+              <InputLabel>Статус</InputLabel>
+              <Select
+                value={localFilters.status}
+                label="Статус"
+                onChange={(e) => handleFilterChange("status", e.target.value)}
+              >
+                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="new">Новые</MenuItem>
+                <MenuItem value="viewed">Просмотренные</MenuItem>
+                <MenuItem value="resolved">Решенные</MenuItem>
+                <MenuItem value="archived">Архивированные</MenuItem>
+              </Select>
+            </FormControl>
           </Box>
 
           <Box display="flex" gap={1} alignItems="center" height="100%">
@@ -190,6 +219,19 @@ export default function ErrorFilters() {
               <Chip
                 label={`Окружение: ${localFilters.environment}`}
                 onDelete={() => handleFilterChange("environment", "")}
+                size="small"
+                color="primary"
+              />
+            )}
+            {localFilters.status && (
+              <Chip
+                label={`Статус: ${
+                  localFilters.status === 'new' ? 'Новые' :
+                  localFilters.status === 'viewed' ? 'Просмотренные' :
+                  localFilters.status === 'resolved' ? 'Решенные' :
+                  'Архивированные'
+                }`}
+                onDelete={() => handleFilterChange("status", "")}
                 size="small"
                 color="primary"
               />

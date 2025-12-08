@@ -34,7 +34,7 @@ export function parseContainerName(context: ContainerLogAdditionalContext): stri
   if (context?.container?.name) {
     const name = context.container.name;
     // Если это ID контейнера (12 символов hex), оставляем как есть
-    // (имя уже должно быть получено через Docker API в loki-client)
+    // (имя уже должно быть получено через Docker API в seq-client)
     return name;
   }
   return "unknown";

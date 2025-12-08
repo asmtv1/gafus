@@ -1,0 +1,158 @@
+# Vector конфигурация для сбора Docker логов и отправки в Seq
+# Vector читает логи из Docker контейнеров, парсит их и отправляет в Seq в формате CLEF
+
+[sources.docker_logs]
+type = "file"
+include = ["/var/lib/docker/containers/*/*-json.log"]
+read_from = "beginning"
+file_key = "file"
+
+# Парсинг Docker JSON формата
+[transforms.parse_docker_json]
+type = "remap"
+inputs = ["docker_logs"]
+source = '''
+  # Парсим Docker JSON формат: {"log":"...", "stream":"stdout", "time":"..."}
+  parsed, err = parse_json(string!(.message))
+  if err == null {
+    .log = parsed.log
+    .stream = parsed.stream ?? "stdout"
+    .time = parsed.time
+    # Сохраняем оригинальное сообщение для дальнейшей обработки
+    .original_message = string!(.message)
+  } else {
+    # Если не JSON, пытаемся распарсить как plain text
+    .log = string!(.message)
+    .stream = "stdout"
+  }
+  
+  # Извлекаем container_id из пути к файлу
+  if exists(.file) {
+    container_id_match = match(string!(.file), r'/var/lib/docker/containers/([^/]+)/')
+    if container_id_match != null {
+      .container_id = container_id_match.captures[0]
+    }
+  }
+'''
+
+# Парсинг Pino JSON логов (если log содержит JSON)
+[transforms.parse_pino]
+type = "remap"
+inputs = ["parse_docker_json"]
+source = '''
+  # Пытаемся распарсить log как Pino JSON
+  if exists(.log) {
+    pino_parsed, pino_err = parse_json(string!(.log))
+    if pino_err == null {
+      # Pino логи имеют структуру: {"level": 30, "time": ..., "msg": "...", "app": "...", "context": "..."}
+      # Нормализуем уровень лога
+      pino_level_num = pino_parsed.level ?? 30
+      if pino_level_num == 10 { .level = "trace" }
+      else if pino_level_num == 20 { .level = "debug" }
+      else if pino_level_num == 30 { .level = "info" }
+      else if pino_level_num == 40 { .level = "warn" }
+      else if pino_level_num == 50 { .level = "error" }
+      else if pino_level_num == 60 { .level = "fatal" }
+      else { .level = "info" }
+      
+      # Извлекаем поля из Pino
+      .app = pino_parsed.app ?? null
+      .context = pino_parsed.context ?? null
+      .msg = pino_parsed.msg ?? pino_parsed.message ?? string!(.log)
+      
+      # Сохраняем stack trace если есть
+      if exists(pino_parsed.err) {
+        .stack = string!(pino_parsed.err.stack) ?? null
+      } else if exists(pino_parsed.stack) {
+        .stack = string!(pino_parsed.stack)
+      }
+    } else {
+      # Не Pino JSON - используем log как есть
+      .level = "info"
+      .msg = string!(.log)
+    }
+  } else {
+    .level = "info"
+    .msg = string!(.original_message)
+  }
+  
+  # Добавляем метки для Seq
+  .environment = "production"
+  .tag_container_logs = "true"
+  
+  # Форматируем timestamp для Seq
+  if exists(.time) {
+    # Docker время уже в формате ISO, но может требовать парсинга
+    .timestamp = .time
+  } else {
+    .timestamp = now()
+  }
+'''
+
+# Преобразуем данные в формат CLEF
+[transforms.format_clef]
+type = "remap"
+inputs = ["parse_pino"]
+source = '''
+  # CLEF формат требует поля @t (timestamp) и @m (message)
+  # Опционально: @l (level), свойства как плоские поля
+  
+  # Преобразуем level в формат Seq
+  seq_level = "Information"
+  if .level == "trace" { seq_level = "Verbose" }
+  else if .level == "debug" { seq_level = "Debug" }
+  else if .level == "info" { seq_level = "Information" }
+  else if .level == "warn" { seq_level = "Warning" }
+  else if .level == "error" { seq_level = "Error" }
+  else if .level == "fatal" { seq_level = "Fatal" }
+  
+  # Формируем CLEF структуру
+  clef = {
+    "@t": string!(.timestamp),
+    "@m": string!(.msg),
+    "@l": seq_level
+  }
+  
+  # Добавляем свойства
+  if exists(.container_id) {
+    clef.ContainerId = string!(.container_id)
+  }
+  if exists(.stream) {
+    clef.Stream = string!(.stream)
+  }
+  if exists(.app) {
+    clef.App = string!(.app)
+  }
+  if exists(.context) {
+    clef.Context = string!(.context)
+  }
+  if exists(.stack) {
+    clef.Exception = string!(.stack)
+  }
+  clef.Level = seq_level
+  clef.environment = string!(.environment)
+  clef.tag_container_logs = string!(.tag_container_logs)
+  
+  # Заменяем весь объект на CLEF формат
+  . = clef
+'''
+
+# Обновляем sink чтобы использовать format_clef
+[sinks.seq]
+type = "http"
+inputs = ["format_clef"]
+uri = "http://seq:80/api/events/raw?clef"
+method = "post"
+
+[sinks.seq.encoding]
+codec = "json"
+
+[sinks.seq.headers]
+Content-Type = "application/vnd.serilog.clef"
+
+# Настройки батчинга
+[sinks.seq.batch]
+max_bytes = 10485760
+max_events = 500
+timeout_secs = 5
+

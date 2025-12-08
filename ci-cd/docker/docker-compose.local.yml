@@ -81,38 +81,40 @@ services:
       - ./blackbox:/etc/blackbox_exporter
     restart: unless-stopped
 
-  # Loki для хранения логов (локальная разработка)
-  loki:
-    image: grafana/loki:latest
-    container_name: gafus-loki-local
-    command: -config.file=/etc/loki/local-config.yaml
+  # Seq для хранения логов (локальная разработка)
+  seq:
+    image: datalust/seq:latest
+    container_name: gafus-seq-local
     ports:
-      - "3100:3100"
+      - "5341:80"      # Web UI
+      - "5342:5341"    # Ingestion API
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
     volumes:
-      - ./loki:/etc/loki
-      - loki_local_data:/loki
+      - seq_local_data:/data
     restart: unless-stopped
 
-  # Promtail для сбора логов из Docker контейнеров (локальная разработка)
-  promtail:
-    image: grafana/promtail:latest
-    container_name: gafus-promtail-local
+  # Vector для сбора логов из Docker контейнеров (локальная разработка)
+  vector:
+    image: timberio/vector:latest-alpine
+    container_name: gafus-vector-local
     command:
-      - '-config.file=/etc/promtail/promtail.yml'
+      - '--config-dir'
+      - '/etc/vector'
     ports:
-      - "9080:9080"
+      - "8686:8686"  # Vector API
     volumes:
-      - ./promtail:/etc/promtail
+      - ./vector:/etc/vector
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /var/log:/var/log:ro
-      - promtail_local_positions:/tmp
+      - vector_local_data:/var/lib/vector
     restart: unless-stopped
     depends_on:
-      - loki
+      - seq
 
 volumes:
   prometheus_local_data:
-  loki_local_data:
-  promtail_local_positions:
+  seq_local_data:
+  vector_local_data:
 

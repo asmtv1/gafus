@@ -15,6 +15,9 @@ export interface ErrorDashboardReport {
   createdAt: Date;
   updatedAt: Date;
   tags: string[];
+  status?: 'new' | 'viewed' | 'resolved' | 'archived'; // статус ошибки
+  resolvedAt?: Date | null; // когда ошибка была решена
+  resolvedBy?: string | null; // кто решил ошибку (username/userId)
 }
 
 export interface ErrorListProps {

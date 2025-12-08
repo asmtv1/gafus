@@ -79,6 +79,9 @@ export async function getErrorsFromDatabase(filters?: {
       tags: log.tags,
       createdAt: log.timestamp,
       updatedAt: log.updatedAt,
+      status: log.status as 'new' | 'viewed' | 'resolved' | 'archived',
+      resolvedAt: log.resolvedAt || null,
+      resolvedBy: log.resolvedBy || null,
       labels: {
         app: log.appName,
         level: log.level,
@@ -202,12 +205,29 @@ export async function deleteAllErrorsFromDatabase(): Promise<{ success: boolean;
  */
 export async function updateErrorStatus(
   errorId: string, 
-  status: 'new' | 'viewed' | 'resolved' | 'archived'
+  status: 'new' | 'viewed' | 'resolved' | 'archived',
+  resolvedBy?: string | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const updateData: {
+      status: string;
+      resolvedAt?: Date | null;
+      resolvedBy?: string | null;
+    } = { status };
+
+    // Если статус "resolved", устанавливаем resolvedAt и resolvedBy
+    if (status === 'resolved') {
+      updateData.resolvedAt = new Date();
+      updateData.resolvedBy = resolvedBy || null;
+    } else {
+      // Для других статусов очищаем resolvedAt и resolvedBy
+      updateData.resolvedAt = null;
+      updateData.resolvedBy = null;
+    }
+
     await prisma.errorLog.update({
       where: { id: errorId },
-      data: { status },
+      data: updateData,
     });
     return { success: true };
   } catch (error) {
@@ -220,11 +240,11 @@ export async function updateErrorStatus(
 }
 
 /**
- * Синхронизирует лог из Loki в PostgreSQL
+ * Синхронизирует лог из Seq в PostgreSQL
  * Проверяет существование по message + timestamp + appName + level
  * Если не существует - создает запись
  */
-export async function syncLokiErrorToDatabase(
+export async function syncSeqErrorToDatabase(
   error: ErrorDashboardReport
 ): Promise<{ success: boolean; created?: boolean; error?: string }> {
   try {
@@ -282,12 +302,22 @@ export async function syncLokiErrorToDatabase(
 
     return { success: true, created: true };
   } catch (error) {
-    console.error('[syncLokiErrorToDatabase] Error:', error);
+    console.error('[syncSeqErrorToDatabase] Error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
+}
+
+/**
+ * Синхронизирует лог из Seq в PostgreSQL (deprecated, используйте syncSeqErrorToDatabase)
+ * @deprecated Используйте syncSeqErrorToDatabase
+ */
+export async function syncLokiErrorToDatabase(
+  error: ErrorDashboardReport
+): Promise<{ success: boolean; created?: boolean; error?: string }> {
+  return syncSeqErrorToDatabase(error);
 }
 
 /**

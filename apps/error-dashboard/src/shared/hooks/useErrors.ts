@@ -14,6 +14,7 @@ export function useErrors(filters?: {
   limit?: number;
   offset?: number;
   tags?: string[];
+  status?: 'new' | 'viewed' | 'resolved' | 'archived';
 }) {
   const queryClient = useQueryClient();
   const cacheKey = `errors:${JSON.stringify(filters || {})}`;
@@ -85,6 +86,7 @@ export function useErrorsMutation() {
     limit?: number;
     offset?: number;
     tags?: string[];
+    status?: 'new' | 'viewed' | 'resolved' | 'archived';
   }) => {
     // Если передан конкретный фильтр, инвалидируем только его
     if (filters) {

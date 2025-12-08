@@ -54,8 +54,8 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
   const [selectedError, setSelectedError] = useState<ErrorDashboardReport | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
-  // Логи теперь в Loki, удаление через UI недоступно
-  // Для удаления используйте Grafana или Loki API
+  // Логи теперь в Seq, удаление через UI недоступно
+  // Для удаления используйте Seq UI или API
 
   const columns: GridColDef[] = [
     {

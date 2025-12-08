@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 interface Filters {
   appName?: string;
   environment?: string;
+  status?: 'new' | 'viewed' | 'resolved' | 'archived';
 }
 
 interface FilterContextType {
@@ -26,9 +27,13 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
     const app = params.get("app");
     const env = params.get("env");
+    const status = params.get("status");
 
     if (app) filters.appName = app;
     if (env) filters.environment = env;
+    if (status && ['new', 'viewed', 'resolved', 'archived'].includes(status)) {
+      filters.status = status as 'new' | 'viewed' | 'resolved' | 'archived';
+    }
 
     return filters;
   };
@@ -43,7 +48,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       setFilters((prevFilters) => {
         if (
           prevFilters.appName !== newFilters.appName ||
-          prevFilters.environment !== newFilters.environment
+          prevFilters.environment !== newFilters.environment ||
+          prevFilters.status !== newFilters.status
         ) {
           return newFilters;
         }
