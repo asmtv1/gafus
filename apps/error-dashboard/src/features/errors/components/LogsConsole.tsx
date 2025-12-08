@@ -70,7 +70,6 @@ export default function LogsConsole() {
   const [autoScroll, setAutoScroll] = useState(true);
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Получаем уникальные контейнеры и уровни из логов
@@ -96,9 +95,9 @@ export default function LogsConsole() {
     return ["all", ...Array.from(uniqueLevels).sort()];
   }, [logs]);
 
-  // Фильтрация логов на клиенте
+  // Фильтрация логов на клиенте (новые логи сверху)
   const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
+    const filtered = logs.filter((log) => {
       const context = log.additionalContext as ContainerLogAdditionalContext;
       const containerName = parseContainerName(context);
       const level = parseLogLevel(context, log.tags);
@@ -126,21 +125,26 @@ export default function LogsConsole() {
 
       return true;
     });
+    
+    // Новые логи сверху - реверсируем массив
+    return [...filtered].reverse();
   }, [logs, selectedContainer, selectedLevel, searchTerm]);
 
-  // Автопрокрутка
+  // Автопрокрутка к новым логам (они сверху)
   useEffect(() => {
-    if (autoScroll && logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (autoScroll && containerRef.current) {
+      // Прокручиваем в самый верх, где новые логи
+      containerRef.current.scrollTop = 0;
     }
   }, [filteredLogs, autoScroll]);
 
-  // Проверка, находится ли пользователь внизу
+  // Проверка, находится ли пользователь вверху (где новые логи)
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
-    setAutoScroll(isAtBottom);
+    const { scrollTop } = containerRef.current;
+    // Если прокрутка близка к верху (менее 100px), включаем автопрокрутку
+    const isAtTop = scrollTop < 100;
+    setAutoScroll(isAtTop);
   }, []);
 
   // Подключение к SSE потоку
@@ -398,7 +402,6 @@ export default function LogsConsole() {
               );
             })
           )}
-          <div ref={logsEndRef} />
         </Box>
       </Paper>
     </Box>

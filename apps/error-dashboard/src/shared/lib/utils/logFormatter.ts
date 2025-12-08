@@ -32,7 +32,10 @@ interface ContainerLogAdditionalContext {
  */
 export function parseContainerName(context: ContainerLogAdditionalContext): string {
   if (context?.container?.name) {
-    return context.container.name;
+    const name = context.container.name;
+    // Если это ID контейнера (12 символов hex), оставляем как есть
+    // (имя уже должно быть получено через Docker API в loki-client)
+    return name;
   }
   return "unknown";
 }

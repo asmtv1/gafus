@@ -8,6 +8,55 @@ import WebSocket from "ws";
 const DAY_MS = 24 * 60 * 60 * 1000; // миллисекунды в сутках
 const DEFAULT_LOOKBACK_MS = 7 * DAY_MS; // 7 суток (безопасный лимит для Loki)
 
+// Кэш для имен контейнеров (container_id -> container_name)
+const containerNameCache = new Map<string, string>();
+
+/**
+ * Определяет имя контейнера из доступных данных
+ * Приоритет: app из лога > app из labels > короткий container_id
+ */
+function getContainerName(
+  containerId: string | undefined,
+  logData: { app?: string } | null,
+  labels: Record<string, string>
+): string {
+  // 1. Пытаемся использовать app из самого лога (Pino JSON)
+  if (logData?.app) {
+    const appName = logData.app;
+    // Кэшируем для этого container_id
+    if (containerId) {
+      containerNameCache.set(containerId, appName);
+      containerNameCache.set(containerId.substring(0, 12), appName);
+    }
+    return appName;
+  }
+
+  // 2. Пытаемся использовать app из labels (если Promtail добавил)
+  if (labels.app) {
+    const appName = labels.app;
+    if (containerId) {
+      containerNameCache.set(containerId, appName);
+      containerNameCache.set(containerId.substring(0, 12), appName);
+    }
+    return appName;
+  }
+
+  // 3. Проверяем кэш
+  if (containerId) {
+    const cached = containerNameCache.get(containerId) || containerNameCache.get(containerId.substring(0, 12));
+    if (cached) {
+      return cached;
+    }
+  }
+
+  // 4. Fallback на короткий container_id
+  if (containerId) {
+    return containerId.substring(0, 12);
+  }
+
+  return "unknown";
+}
+
 /**
  * Генерирует детерминированный ID для ошибки
  * Один и тот же лог всегда получит один и тот же ID
@@ -757,15 +806,12 @@ export class LokiClient {
 
       if (isContainerLog) {
         // Парсим контейнерный лог
-        let containerName = "unknown";
         const containerId = labels.container_id;
-        if (containerId) {
-          containerName = containerId.substring(0, 12);
-        }
+        const containerName = getContainerName(containerId, logData, labels);
 
         additionalContext.container = {
           name: containerName,
-          id: containerId || containerName,
+          id: containerId || containerId?.substring(0, 12) || containerName,
           timestamp: new Date(parseInt(timestamp) / 1000000).toISOString(),
           raw: logLine,
         };
@@ -834,8 +880,18 @@ export class LokiClient {
 
       const isContainerLog = labels.tag_container_logs === "true" || labels.job === "docker";
       let containerName = "unknown";
-      if (isContainerLog && labels.container_id) {
-        containerName = labels.container_id.substring(0, 12);
+      
+      if (isContainerLog) {
+        // Пытаемся распарсить JSON из logLine для получения app
+        let logData: { app?: string } | null = null;
+        try {
+          logData = JSON.parse(logLine);
+        } catch {
+          // Не JSON лог, игнорируем
+        }
+        
+        const containerId = labels.container_id;
+        containerName = getContainerName(containerId, logData, labels);
       }
 
       const id = generateErrorId(
