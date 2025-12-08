@@ -595,6 +595,318 @@ export class LokiClient {
   }
 
   /**
+   * Потоковое получение логов через Loki Live Tail API
+   * 
+   * @param query - LogQL запрос
+   * @param onLog - Callback для обработки каждого лога
+   * @param limit - Максимальное количество логов в буфере (по умолчанию 1000)
+   * @returns Функция для остановки потока
+   */
+  streamLogs(
+    query: string,
+    onLog: (log: ErrorDashboardReport) => void,
+    limit: number = 1000
+  ): () => void {
+    const tailUrl = `${this.baseUrl}/loki/api/v1/tail`;
+    let isActive = true;
+    let currentRequest: http.ClientRequest | null = null;
+
+    const startStream = () => {
+      if (!isActive) return;
+
+      try {
+        const url = new URL(tailUrl);
+        url.searchParams.set("query", query);
+        url.searchParams.set("limit", String(limit));
+
+        const isHttps = url.protocol === "https:";
+        const httpModule = isHttps ? https : http;
+
+        const options = {
+          hostname: url.hostname,
+          port: url.port || (isHttps ? 443 : 80),
+          path: url.pathname + url.search,
+          method: "GET",
+          headers: {
+            "Accept": "text/event-stream",
+          },
+        };
+
+        currentRequest = httpModule.request(options, (res) => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            res.on("data", (chunk: Buffer) => {
+              if (!isActive) return;
+
+              buffer += decoder.decode(chunk, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                if (!line.trim() || !line.startsWith("data: ")) {
+                  continue;
+                }
+
+                try {
+                  const jsonStr = line.substring(6); // Убираем "data: "
+                  const data = JSON.parse(jsonStr);
+
+                  if (data.streams && Array.isArray(data.streams)) {
+                    for (const stream of data.streams) {
+                      const labels = stream.stream || {};
+                      const values = stream.values || [];
+
+                      for (const [timestamp, logLine] of values) {
+                        try {
+                          const parsedLog = this.parseSingleLogEntry(timestamp, logLine, labels);
+                          if (parsedLog && isActive) {
+                            onLog(parsedLog);
+                          }
+                        } catch (parseError) {
+                          console.warn("[LokiClient.streamLogs] Failed to parse log entry:", parseError);
+                        }
+                      }
+                    }
+                  }
+                } catch (parseError) {
+                  console.warn("[LokiClient.streamLogs] Failed to parse SSE data:", parseError);
+                }
+              }
+            });
+
+            res.on("end", () => {
+              if (isActive) {
+                // Переподключение при разрыве соединения
+                setTimeout(() => {
+                  if (isActive) {
+                    startStream();
+                  }
+                }, 3000);
+              }
+            });
+
+            res.on("error", (error: Error) => {
+              if (isActive) {
+                console.error("[LokiClient.streamLogs] Response error:", error);
+                setTimeout(() => {
+                  if (isActive) {
+                    startStream();
+                  }
+                }, 3000);
+              }
+            });
+          } else {
+            const error = new Error(`Loki tail failed: ${res.statusCode} ${res.statusMessage}`);
+            console.error("[LokiClient.streamLogs]", error);
+            if (isActive) {
+              setTimeout(() => {
+                if (isActive) {
+                  startStream();
+                }
+              }, 3000);
+            }
+          }
+        });
+
+        currentRequest.on("error", (error: Error) => {
+          if (isActive) {
+            console.error("[LokiClient.streamLogs] Request error:", error);
+            setTimeout(() => {
+              if (isActive) {
+                startStream();
+              }
+            }, 3000);
+          }
+        });
+
+        currentRequest.setTimeout(30000, () => {
+          if (currentRequest) {
+            currentRequest.destroy();
+          }
+        });
+
+        currentRequest.end();
+      } catch (error) {
+        console.error("[LokiClient.streamLogs] Stream setup error:", error);
+        if (isActive) {
+          setTimeout(() => {
+            if (isActive) {
+              startStream();
+            }
+          }, 3000);
+        }
+      }
+    };
+
+    startStream();
+
+    // Возвращаем функцию для остановки потока
+    return () => {
+      isActive = false;
+      if (currentRequest) {
+        currentRequest.destroy();
+        currentRequest = null;
+      }
+    };
+  }
+
+  /**
+   * Парсит одну запись лога из потока Loki
+   */
+  private parseSingleLogEntry(
+    timestamp: string,
+    logLine: string,
+    labels: Record<string, string>
+  ): ErrorDashboardReport | null {
+    try {
+      // Пытаемся распарсить JSON
+      const logData = JSON.parse(logLine);
+      const tags = Array.isArray(logData.tags)
+        ? logData.tags.filter((tag: unknown) => typeof tag === "string")
+        : [];
+
+      const normalizedLabels = Object.entries(labels).reduce<Record<string, string>>(
+        (acc, [key, value]) => {
+          if (value !== undefined && value !== null) {
+            acc[key] = typeof value === "string" ? value : String(value);
+          }
+          return acc;
+        },
+        {}
+      );
+
+      const additionalContext: Record<string, unknown> = logData.additionalContext || {};
+
+      // Определяем уровень
+      const levelFromLog = typeof logData.level === "string" ? logData.level.toLowerCase() : undefined;
+      const levelFromLabels = typeof labels.level === "string" ? labels.level.toLowerCase() : undefined;
+      const resolvedLevel = levelFromLog || levelFromLabels || tags[0] || "info";
+
+      // Проверяем, является ли это логом контейнера
+      const isContainerLog = labels.tag_container_logs === "true" || labels.job === "docker";
+
+      if (isContainerLog) {
+        // Парсим контейнерный лог
+        let containerName = "unknown";
+        const containerId = labels.container_id;
+        if (containerId) {
+          containerName = containerId.substring(0, 12);
+        }
+
+        additionalContext.container = {
+          name: containerName,
+          id: containerId || containerName,
+          timestamp: new Date(parseInt(timestamp) / 1000000).toISOString(),
+          raw: logLine,
+        };
+
+        // Парсим формат key=value если есть
+        if (logLine.includes("=")) {
+          const parts = logLine.split(/\s+(?=\w+=)/);
+          const parsed: Record<string, string> = {};
+          for (const part of parts) {
+            const match = part.match(/^(\w+)=(.+)$/);
+            if (match) {
+              let value = match[2];
+              if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.slice(1, -1);
+              }
+              parsed[match[1]] = value;
+            }
+          }
+          if (parsed.level) {
+            additionalContext.parsed = {
+              level: parsed.level,
+              ...(parsed.ts ? { timestamp: parsed.ts } : {}),
+              ...(parsed.caller ? { caller: parsed.caller } : {}),
+              ...(parsed.msg ? { msg: parsed.msg } : {}),
+            };
+          }
+        }
+      }
+
+      // Генерируем ID
+      const id = generateErrorId(
+        labels.app || "unknown",
+        timestamp,
+        logData.message || logLine
+      );
+
+      return {
+        id,
+        message: logData.message || logLine,
+        stack: logData.stack || null,
+        appName: labels.app || logData.appName || "unknown",
+        environment: labels.environment || logData.environment || "production",
+        labels: normalizedLabels,
+        timestampNs: timestamp,
+        url: logData.url || "/logger",
+        userAgent: logData.userAgent || "logger-service",
+        userId: logData.userId || null,
+        sessionId: logData.sessionId || null,
+        componentStack: logData.componentStack || null,
+        additionalContext,
+        tags: [resolvedLevel, ...tags],
+        createdAt: new Date(parseInt(timestamp) / 1000000),
+        updatedAt: new Date(parseInt(timestamp) / 1000000),
+      };
+    } catch (parseError) {
+      // Если не удалось распарсить как JSON, создаем базовую запись
+      const normalizedLabels = Object.entries(labels).reduce<Record<string, string>>(
+        (acc, [key, value]) => {
+          if (value !== undefined && value !== null) {
+            acc[key] = typeof value === "string" ? value : String(value);
+          }
+          return acc;
+        },
+        {}
+      );
+
+      const isContainerLog = labels.tag_container_logs === "true" || labels.job === "docker";
+      let containerName = "unknown";
+      if (isContainerLog && labels.container_id) {
+        containerName = labels.container_id.substring(0, 12);
+      }
+
+      const id = generateErrorId(
+        labels.app || "unknown",
+        timestamp,
+        logLine
+      );
+
+      return {
+        id,
+        message: logLine,
+        stack: null,
+        appName: labels.app || "unknown",
+        environment: labels.environment || "production",
+        labels: normalizedLabels,
+        timestampNs: timestamp,
+        url: "/logger",
+        userAgent: "logger-service",
+        userId: null,
+        sessionId: null,
+        componentStack: null,
+        additionalContext: isContainerLog
+          ? {
+              container: {
+                name: containerName,
+                id: labels.container_id || containerName,
+                timestamp: new Date(parseInt(timestamp) / 1000000).toISOString(),
+                raw: logLine,
+              },
+            }
+          : {},
+        tags: ["info"],
+        createdAt: new Date(parseInt(timestamp) / 1000000),
+        updatedAt: new Date(parseInt(timestamp) / 1000000),
+      };
+    }
+  }
+
+  /**
    * Удаляет логи из Loki по фильтрам
    * 
    * @param filters - Фильтры для удаления логов
