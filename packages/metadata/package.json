@@ -8,11 +8,10 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "next": "^15.4.7"
+    "next": "15.5.7"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
     "typescript": "^5.8.3"
   }
 }
-

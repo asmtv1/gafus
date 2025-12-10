@@ -65,6 +65,7 @@ scrape_configs:
 
   # Метрики очередей BullMQ из bull-board
   - job_name: 'bullmq-queues'
+    metrics_path: /metrics
     static_configs:
       - targets: ['bull-board:3002']
         labels:

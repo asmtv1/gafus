@@ -27,10 +27,10 @@
     "@tanstack/react-query": "^5.85.9",
     "@tanstack/react-query-devtools": "^5.85.9",
     "date-fns": "3.6.0",
-    "next": "15.4.7",
+    "next": "15.5.7",
     "next-auth": "4.24.11",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
     "recharts": "2.12.0",
     "ws": "^8.18.0",
     "zustand": "5.0.7"

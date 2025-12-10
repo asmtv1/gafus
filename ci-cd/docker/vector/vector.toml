@@ -15,9 +15,9 @@ source = '''
   # Парсим Docker JSON формат: {"log":"...", "stream":"stdout", "time":"..."}
   parsed, err = parse_json(string!(.message))
   if err == null {
-    .log = parsed.log
-    .stream = parsed.stream ?? "stdout"
-    .time = parsed.time
+    .log = if exists(parsed.log) { string!(parsed.log) } else { "" }
+    .stream = if exists(parsed.stream) { string!(parsed.stream) } else { "stdout" }
+    .time = if exists(parsed.time) { string!(parsed.time) } else { null }
     # Сохраняем оригинальное сообщение для дальнейшей обработки
     .original_message = string!(.message)
   } else {
@@ -46,23 +46,31 @@ source = '''
     if pino_err == null {
       # Pino логи имеют структуру: {"level": 30, "time": ..., "msg": "...", "app": "...", "context": "..."}
       # Нормализуем уровень лога
-      pino_level_num = pino_parsed.level ?? 30
-      if pino_level_num == 10 { .level = "trace" }
-      else if pino_level_num == 20 { .level = "debug" }
-      else if pino_level_num == 30 { .level = "info" }
-      else if pino_level_num == 40 { .level = "warn" }
-      else if pino_level_num == 50 { .level = "error" }
-      else if pino_level_num == 60 { .level = "fatal" }
-      else { .level = "info" }
+      pino_level_num = if exists(pino_parsed.level) { int!(pino_parsed.level) } else { 30 }
+      if pino_level_num == 10 {
+        .level = "trace"
+      } else if pino_level_num == 20 {
+        .level = "debug"
+      } else if pino_level_num == 30 {
+        .level = "info"
+      } else if pino_level_num == 40 {
+        .level = "warn"
+      } else if pino_level_num == 50 {
+        .level = "error"
+      } else if pino_level_num == 60 {
+        .level = "fatal"
+      } else {
+        .level = "info"
+      }
       
       # Извлекаем поля из Pino
-      .app = pino_parsed.app ?? null
-      .context = pino_parsed.context ?? null
-      .msg = pino_parsed.msg ?? pino_parsed.message ?? string!(.log)
+      .app = if exists(pino_parsed.app) { string!(pino_parsed.app) } else { null }
+      .context = if exists(pino_parsed.context) { string!(pino_parsed.context) } else { null }
+      .msg = if exists(pino_parsed.msg) { string!(pino_parsed.msg) } else if exists(pino_parsed.message) { string!(pino_parsed.message) } else { string!(.log) }
       
       # Сохраняем stack trace если есть
-      if exists(pino_parsed.err) {
-        .stack = string!(pino_parsed.err.stack) ?? null
+      if exists(pino_parsed.err) && exists(pino_parsed.err.stack) {
+        .stack = string!(pino_parsed.err.stack)
       } else if exists(pino_parsed.stack) {
         .stack = string!(pino_parsed.stack)
       }
@@ -89,70 +97,94 @@ source = '''
   }
 '''
 
-# Преобразуем данные в формат CLEF
-[transforms.format_clef]
+# Преобразуем данные в CLEF формат для Seq
+[transforms.format_for_seq]
 type = "remap"
 inputs = ["parse_pino"]
 source = '''
-  # CLEF формат требует поля @t (timestamp) и @m (message)
-  # Опционально: @l (level), свойства как плоские поля
-  
   # Преобразуем level в формат Seq
   seq_level = "Information"
-  if .level == "trace" { seq_level = "Verbose" }
-  else if .level == "debug" { seq_level = "Debug" }
-  else if .level == "info" { seq_level = "Information" }
-  else if .level == "warn" { seq_level = "Warning" }
-  else if .level == "error" { seq_level = "Error" }
-  else if .level == "fatal" { seq_level = "Fatal" }
-  
-  # Формируем CLEF структуру
-  clef = {
-    "@t": string!(.timestamp),
-    "@m": string!(.msg),
-    "@l": seq_level
+  if .level == "trace" {
+    seq_level = "Verbose"
+  } else if .level == "debug" {
+    seq_level = "Debug"
+  } else if .level == "info" {
+    seq_level = "Information"
+  } else if .level == "warn" {
+    seq_level = "Warning"
+  } else if .level == "error" {
+    seq_level = "Error"
+  } else if .level == "fatal" {
+    seq_level = "Fatal"
   }
   
-  # Добавляем свойства
-  if exists(.container_id) {
-    clef.ContainerId = string!(.container_id)
-  }
-  if exists(.stream) {
-    clef.Stream = string!(.stream)
-  }
-  if exists(.app) {
-    clef.App = string!(.app)
-  }
-  if exists(.context) {
-    clef.Context = string!(.context)
-  }
-  if exists(.stack) {
-    clef.Exception = string!(.stack)
-  }
-  clef.Level = seq_level
-  clef.environment = string!(.environment)
-  clef.tag_container_logs = string!(.tag_container_logs)
+  # Формируем CLEF JSON строку вручную (VRL не поддерживает объекты с @ ключами напрямую)
+  clef_timestamp = if exists(.timestamp) && .timestamp != null { string!(.timestamp) } else { string!(now()) }
+  clef_message = if exists(.msg) && .msg != null { string!(.msg) } else { "No message" }
   
-  # Заменяем весь объект на CLEF формат
-  . = clef
+  # Экранируем сообщение для JSON (заменяем специальные символы)
+  clef_message_escaped = replace(clef_message, "\\", "\\\\")
+  clef_message_escaped = replace(clef_message_escaped, "\"", "\\\"")
+  clef_message_escaped = replace(clef_message_escaped, "\n", "\\n")
+  clef_message_escaped = replace(clef_message_escaped, "\r", "\\r")
+  clef_message_escaped = replace(clef_message_escaped, "\t", "\\t")
+  
+  # Формируем базовую CLEF JSON строку
+  clef_json = "{\"@t\":\"" + clef_timestamp + "\",\"@m\":\"" + clef_message_escaped + "\",\"@l\":\"" + seq_level + "\""
+  
+  # Добавляем дополнительные свойства
+  if exists(.container_id) && .container_id != null {
+    clef_json = clef_json + ",\"ContainerId\":\"" + string!(.container_id) + "\""
+  }
+  if exists(.stream) && .stream != null {
+    clef_json = clef_json + ",\"Stream\":\"" + string!(.stream) + "\""
+  }
+  if exists(.app) && .app != null {
+    clef_json = clef_json + ",\"App\":\"" + string!(.app) + "\""
+  }
+  if exists(.context) && .context != null {
+    clef_json = clef_json + ",\"Context\":\"" + string!(.context) + "\""
+  }
+  if exists(.stack) && .stack != null {
+    stack_str = string!(.stack)
+    stack_escaped = replace(stack_str, "\\", "\\\\")
+    stack_escaped = replace(stack_escaped, "\"", "\\\"")
+    stack_escaped = replace(stack_escaped, "\n", "\\n")
+    stack_escaped = replace(stack_escaped, "\r", "\\r")
+    stack_escaped = replace(stack_escaped, "\t", "\\t")
+    clef_json = clef_json + ",\"Exception\":\"" + stack_escaped + "\""
+  }
+  if exists(.environment) && .environment != null {
+    clef_json = clef_json + ",\"Environment\":\"" + string!(.environment) + "\""
+  }
+  
+  # Завершаем JSON объект
+  clef_json = clef_json + "}"
+  
+  # Используем CLEF JSON строку как текстовое сообщение
+  # Vector автоматически разделит события новой строкой при батчинге для text codec
+  . = {"message": clef_json}
 '''
 
-# Обновляем sink чтобы использовать format_clef
+# Отправляем в Seq через CLEF формат
 [sinks.seq]
 type = "http"
-inputs = ["format_clef"]
+inputs = ["format_for_seq"]
 uri = "http://seq:80/api/events/raw?clef"
 method = "post"
 
 [sinks.seq.encoding]
-codec = "json"
+codec = "text"
+only_fields = ["message"]
 
-[sinks.seq.headers]
-Content-Type = "application/vnd.serilog.clef"
+[sinks.seq.request]
+  [sinks.seq.request.headers]
+  Content-Type = "application/vnd.serilog.clef"
 
 # Настройки батчинга
+# Vector автоматически разделяет события новой строкой для text codec
 [sinks.seq.batch]
 max_bytes = 10485760
-max_events = 500
+max_events = 100
 timeout_secs = 5
 
