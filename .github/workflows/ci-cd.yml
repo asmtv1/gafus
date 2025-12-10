@@ -475,6 +475,11 @@ jobs:
               echo ""
               echo "# CSRF защита"
               echo "CSRF_STRICT=false"
+              echo ""
+              echo "# Grafana"
+              echo "GRAFANA_ADMIN_USER=${{ secrets.GRAFANA_ADMIN_USER }}"
+              echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+              echo "GRAFANA_SECRET_KEY=${{ secrets.GRAFANA_SECRET_KEY }}"
             } > ci-cd/docker/.env
 
             # Set secure permissions for .env file

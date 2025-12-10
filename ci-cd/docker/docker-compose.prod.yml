@@ -229,6 +229,7 @@ services:
       - admin-panel
       - bull-board
       - prometheus
+      - grafana
 
   # Certbot for SSL certificates
   certbot:
@@ -237,7 +238,7 @@ services:
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru -d api.gafus.ru -d trainer-panel.gafus.ru -d monitor.gafus.ru -d adminka.gafus.ru -d queues.gafus.ru -d prometheus.gafus.ru -d logs.gafus.ru -d seq.gafus.ru
+    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru -d api.gafus.ru -d trainer-panel.gafus.ru -d monitor.gafus.ru -d adminka.gafus.ru -d queues.gafus.ru -d prometheus.gafus.ru -d grafana.gafus.ru -d logs.gafus.ru -d seq.gafus.ru
     depends_on:
       - nginx
 
@@ -263,6 +264,28 @@ services:
       - redis-exporter
       - blackbox-exporter
     # Убрали открытые порты - доступ только через Nginx (если нужно)
+
+  # Grafana для визуализации метрик
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gafus-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_SERVER_ROOT_URL=https://grafana.gafus.ru
+      - GF_SERVER_DOMAIN=grafana.gafus.ru
+      - GF_INSTALL_PLUGINS=
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    volumes:
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    # Убрали открытые порты - доступ только через Nginx
 
   # Node Exporter
   node-exporter:
@@ -346,3 +369,4 @@ volumes:
   prometheus_data:
   vector_data:
   seq_data:
+  grafana_data:

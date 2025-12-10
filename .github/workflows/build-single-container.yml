@@ -327,6 +327,67 @@ jobs:
               cd /root/gafus
             }
 
+            # Check if .env file exists, create if not
+            if [ ! -f ci-cd/docker/.env ]; then
+              echo "⚠️ .env file not found, creating from GitHub Secrets..."
+              {
+                echo "# Database"
+                echo "POSTGRES_DB=gafus"
+                echo "POSTGRES_USER=gafus"
+                echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}"
+                echo "DATABASE_URL=postgresql://gafus:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/gafus"
+                echo ""
+                echo "# Redis"
+                echo "REDIS_URL=redis://redis:6379"
+                echo ""
+                echo "# Telegram Bot"
+                echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}"
+                echo ""
+                echo "# NextAuth секреты"
+                echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}"
+                echo ""
+                echo "# URLs приложений"
+                echo "NEXTAUTH_URL=https://gafus.ru"
+                echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
+                echo "ERROR_DASHBOARD_URL=https://monitor.gafus.ru"
+                echo "ERROR_DASHBOARD_INTERNAL_URL=http://gafus-error-dashboard:3005"
+                echo ""
+                echo "# Cookie домен"
+                echo "AUTH_COOKIE_DOMAIN=.gafus.ru"
+                echo ""
+                echo "# VAPID ключи для Push уведомлений"
+                echo "VAPID_PUBLIC_KEY=${{ secrets.VAPID_PUBLIC_KEY }}"
+                echo "VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}"
+                echo "VAPID_SUBJECT=mailto:admin@gafus.ru"
+                echo ""
+                echo "# Yandex Cloud CDN"
+                echo "YC_ACCESS_KEY_ID=${{ secrets.YC_ACCESS_KEY_ID }}"
+                echo "YC_SECRET_ACCESS_KEY=${{ secrets.YC_SECRET_ACCESS_KEY }}"
+                echo ""
+                echo "# Логирование"
+                echo "DISABLE_CONSOLE_LOGGING=true"
+                echo ""
+                echo "# Next.js публичные переменные"
+                echo "NEXT_PUBLIC_SITE_URL=https://gafus.ru"
+                echo "NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer.gafus.ru"
+                echo ""
+                echo "# Анализ бандла (только для разработки)"
+                echo "ANALYZE=false"
+                echo ""
+                echo "# CSRF защита"
+                echo "CSRF_STRICT=false"
+                echo ""
+                echo "# Grafana"
+                echo "GRAFANA_ADMIN_USER=${{ secrets.GRAFANA_ADMIN_USER }}"
+                echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+                echo "GRAFANA_SECRET_KEY=${{ secrets.GRAFANA_SECRET_KEY }}"
+              } > ci-cd/docker/.env
+              chmod 600 ci-cd/docker/.env
+              echo "✅ .env file created"
+            else
+              echo "✅ .env file exists"
+            fi
+
             # Pull latest image
             echo "📥 Pulling latest ${{ needs.set-container-config.outputs.tag }} image..."
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ needs.set-container-config.outputs.tag }}:latest
