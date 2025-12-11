@@ -38,8 +38,8 @@ export function validateStepForm(data: {
       errors.duration = "Длительность должна быть числом";
     } else if (duration <= 0) {
       errors.duration = "Длительность должна быть положительным числом";
-    } else if (duration > 1000) {
-      errors.duration = "Длительность не может быть больше 1000 секунд";
+    } else if (duration > 6000) {
+      errors.duration = "Длительность не может быть больше 6000 секунд";
     }
   }
 

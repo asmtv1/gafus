@@ -165,6 +165,8 @@ services:
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@gafus.ru}
+      # Включаем транспорты для гарантированной записи логов в stdout (для Vector/Seq)
+      - PINO_USE_WORKER_TRANSPORTS=true
     restart: unless-stopped
     depends_on:
       - postgres

@@ -1,0 +1,80 @@
+================================================================================
+ИНСТРУКЦИИ ПО СОЗДАНИЮ ДАШБОРДОВ В SEQ
+================================================================================
+
+СОЗДАНИЕ СИГНАЛОВ ДЛЯ КОНТЕЙНЕРОВ:
+===================================
+
+1. Web Application
+   Фильтр: ContainerName = 'gafus-web'
+   Название сигнала: Logs: Web Application
+
+2. Trainer Panel
+   Фильтр: ContainerName = 'gafus-trainer-panel'
+   Название сигнала: Logs: Trainer Panel
+
+3. Error Dashboard
+   Фильтр: ContainerName = 'gafus-error-dashboard'
+   Название сигнала: Logs: Error Dashboard
+
+4. Admin Panel
+   Фильтр: ContainerName = 'gafus-admin-panel'
+   Название сигнала: Logs: Admin Panel
+
+5. Worker
+   Фильтр: ContainerName = 'gafus-worker'
+   Название сигнала: Logs: Worker
+
+6. Telegram Bot
+   Фильтр: ContainerName = 'gafus-telegram-bot'
+   Название сигнала: Logs: Telegram Bot
+
+СОЗДАНИЕ СИГНАЛА ДЛЯ ОШИБОК:
+=============================
+
+7. Errors - All Containers
+   Фильтр: Level in ('Error', 'Fatal', 'Warning')
+   Название сигнала: Errors - All Containers
+
+СОЗДАНИЕ ДАШБОРДОВ:
+===================
+
+Для каждого контейнера создайте дашборд:
+
+Дашборд 1: "Web Application"
+  - Название: Web Application
+  - Сигнал: Logs: Web Application
+  - Виджеты: Timeline, Table, Bar Chart
+
+Дашборд 2: "Trainer Panel"
+  - Название: Trainer Panel
+  - Сигнал: Logs: Trainer Panel
+  - Виджеты: Timeline, Table, Bar Chart
+
+Дашборд 3: "Error Dashboard"
+  - Название: Error Dashboard
+  - Сигнал: Logs: Error Dashboard
+  - Виджеты: Timeline, Table, Bar Chart
+
+Дашборд 4: "Admin Panel"
+  - Название: Admin Panel
+  - Сигнал: Logs: Admin Panel
+  - Виджеты: Timeline, Table, Bar Chart
+
+Дашборд 5: "Worker"
+  - Название: Worker
+  - Сигнал: Logs: Worker
+  - Виджеты: Timeline, Table, Bar Chart
+
+Дашборд 6: "Telegram Bot"
+  - Название: Telegram Bot
+  - Сигнал: Logs: Telegram Bot
+  - Виджеты: Timeline, Table, Bar Chart
+
+Дашборд 7: "Errors - All Containers"
+  - Название: Errors - All Containers
+  - Сигнал: Errors - All Containers
+  - Виджеты: Timeline, Bar Chart (по ContainerName), Table
+
+================================================================================
+

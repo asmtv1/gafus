@@ -73,7 +73,7 @@ export async function updateStep(
           const num = parseInt(v, 10);
           if (isNaN(num)) return "Должно быть числом";
           if (num <= 0) return "Должно быть положительным числом";
-          if (num > 1000) return "Максимум 1000 секунд";
+          if (num > 6000) return "Максимум 6000 секунд";
           return null;
         },
         videoUrl: (value: unknown) => {

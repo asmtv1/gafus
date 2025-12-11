@@ -4,7 +4,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Tabs, Tab, Paper } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
-  SettingsSystemDaydream as SystemIcon,
   Queue as QueueIcon,
 } from "@mui/icons-material";
 
@@ -14,7 +13,6 @@ export function NavigationTabs() {
 
   const getCurrentTab = () => {
     if (pathname === "/") return "/";
-    if (pathname.startsWith("/system-status")) return "/system-status";
     if (pathname.startsWith("/queues")) return "/queues";
     return "/";
   };
@@ -54,15 +52,6 @@ export function NavigationTabs() {
           value="/"
           sx={{
             color: getCurrentTab() === "/" ? "#7b1fa2" : undefined,
-          }}
-        />
-        <Tab
-          icon={<SystemIcon />}
-          iconPosition="start"
-          label="Статус системы"
-          value="/system-status"
-          sx={{
-            color: getCurrentTab() === "/system-status" ? "#ff9800" : undefined,
           }}
         />
         <Tab

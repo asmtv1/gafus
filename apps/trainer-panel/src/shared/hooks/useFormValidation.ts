@@ -30,7 +30,7 @@ export const commonValidationRules = {
       if (!value) return "Введите длительность";
       const num = parseInt(String(value));
       if (isNaN(num) || num <= 0) return "Длительность должна быть положительным числом";
-      if (num > 1000) return "Длительность не может быть больше 1000";
+      if (num > 6000) return "Длительность не может быть больше 6000";
       return true;
     },
   },
@@ -112,7 +112,7 @@ export const commonValidationRules = {
       if (!value) return "Введите длительность шага";
       const num = parseInt(String(value));
       if (isNaN(num) || num <= 0) return "Длительность должна быть положительным числом";
-      if (num > 1000) return "Длительность не может быть больше 1000";
+      if (num > 6000) return "Длительность не может быть больше 6000";
       return true;
     },
   },

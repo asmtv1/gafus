@@ -1,0 +1,160 @@
+{
+  "OwnerId": null,
+  "Title": "Errors - All Containers",
+  "IsProtected": false,
+  "SignalExpression": null,
+  "Charts": [
+    {
+      "Id": null,
+      "Title": "Errors Over Time",
+      "SignalExpression": null,
+      "Queries": [
+        {
+          "Id": null,
+          "Measurements": [
+            {
+              "Value": "count(*)",
+              "Label": "count"
+            }
+          ],
+          "Where": "@Level in ['Error', 'Fatal', 'Warning'] or @Exception is not null",
+          "SignalExpression": null,
+          "GroupBy": [],
+          "DisplayStyle": {
+            "Type": "Line",
+            "LineFillToZeroY": true,
+            "LineShowMarkers": false,
+            "BarOverlaySum": false,
+            "UseLogarithmicScale": false,
+            "SuppressLegend": false,
+            "Palette": "Reds"
+          },
+          "Having": null,
+          "OrderBy": [],
+          "Limit": null
+        }
+      ],
+      "DisplayStyle": {
+        "WidthColumns": 12,
+        "HeightRows": 2
+      },
+      "Description": null
+    },
+    {
+      "Id": null,
+      "Title": "Errors by Container",
+      "SignalExpression": null,
+      "Queries": [
+        {
+          "Id": null,
+          "Measurements": [
+            {
+              "Value": "count(*)",
+              "Label": "count"
+            }
+          ],
+          "Where": "@Level in ['Error', 'Fatal', 'Warning'] or @Exception is not null",
+          "SignalExpression": null,
+          "GroupBy": [
+            "ContainerName"
+          ],
+          "DisplayStyle": {
+            "Type": "Bar",
+            "LineFillToZeroY": false,
+            "LineShowMarkers": true,
+            "BarOverlaySum": false,
+            "UseLogarithmicScale": false,
+            "SuppressLegend": false,
+            "Palette": "Reds"
+          },
+          "Having": null,
+          "OrderBy": [],
+          "Limit": null
+        }
+      ],
+      "DisplayStyle": {
+        "WidthColumns": 6,
+        "HeightRows": 3
+      },
+      "Description": null
+    },
+    {
+      "Id": null,
+      "Title": "Errors by Level",
+      "SignalExpression": null,
+      "Queries": [
+        {
+          "Id": null,
+          "Measurements": [
+            {
+              "Value": "count(*)",
+              "Label": "count"
+            }
+          ],
+          "Where": "@Level in ['Error', 'Fatal', 'Warning'] or @Exception is not null",
+          "SignalExpression": null,
+          "GroupBy": [
+            "@Level"
+          ],
+          "DisplayStyle": {
+            "Type": "Pie",
+            "LineFillToZeroY": false,
+            "LineShowMarkers": true,
+            "BarOverlaySum": false,
+            "UseLogarithmicScale": false,
+            "SuppressLegend": false,
+            "Palette": "Reds"
+          },
+          "Having": null,
+          "OrderBy": [],
+          "Limit": null
+        }
+      ],
+      "DisplayStyle": {
+        "WidthColumns": 6,
+        "HeightRows": 3
+      },
+      "Description": null
+    },
+    {
+      "Id": null,
+      "Title": "Distinct Containers with Errors",
+      "SignalExpression": null,
+      "Queries": [
+        {
+          "Id": null,
+          "Measurements": [
+            {
+              "Value": "count(distinct(ContainerName))",
+              "Label": "count"
+            }
+          ],
+          "Where": "@Level in ['Error', 'Fatal', 'Warning'] or @Exception is not null",
+          "SignalExpression": null,
+          "GroupBy": [],
+          "DisplayStyle": {
+            "Type": "Value",
+            "LineFillToZeroY": false,
+            "LineShowMarkers": true,
+            "BarOverlaySum": false,
+            "UseLogarithmicScale": false,
+            "SuppressLegend": false,
+            "Palette": "Default"
+          },
+          "Having": null,
+          "OrderBy": [],
+          "Limit": null
+        }
+      ],
+      "DisplayStyle": {
+        "WidthColumns": 12,
+        "HeightRows": 1
+      },
+      "Description": null
+    }
+  ],
+  "Id": null,
+  "Links": {
+    "Create": "api/dashboards/"
+  }
+}

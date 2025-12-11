@@ -138,7 +138,7 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
         if (!strValue) return true;
         const num = parseInt(strValue);
         if (isNaN(num) || num <= 0) return "Длительность должна быть положительным числом";
-        if (num > 1000) return "Длительность не может быть больше 1000";
+        if (num > 6000) return "Длительность не может быть больше 6000";
         return true;
       },
     },

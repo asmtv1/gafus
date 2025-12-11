@@ -1,38 +1,65 @@
 # Vector конфигурация для сбора Docker логов и отправки в Seq
-# Vector читает логи из Docker контейнеров, парсит их и отправляет в Seq в формате CLEF
+# Vector читает логи из Docker контейнеров через Docker API и отправляет в Seq в формате CLEF
 
 [sources.docker_logs]
-type = "file"
-include = ["/var/lib/docker/containers/*/*-json.log"]
-read_from = "beginning"
-file_key = "file"
+type = "docker_logs"
+# Собираем логи со всех контейнеров, кроме самого Vector
+exclude_containers = ["gafus-vector"]
+# Docker socket уже смонтирован в контейнер (/var/run/docker.sock)
 
-# Парсинг Docker JSON формата
+# Парсинг Docker логов и извлечение метаданных
 [transforms.parse_docker_json]
 type = "remap"
 inputs = ["docker_logs"]
 source = '''
-  # Парсим Docker JSON формат: {"log":"...", "stream":"stdout", "time":"..."}
-  parsed, err = parse_json(string!(.message))
-  if err == null {
-    .log = if exists(parsed.log) { string!(parsed.log) } else { "" }
-    .stream = if exists(parsed.stream) { string!(parsed.stream) } else { "stdout" }
-    .time = if exists(parsed.time) { string!(parsed.time) } else { null }
-    # Сохраняем оригинальное сообщение для дальнейшей обработки
-    .original_message = string!(.message)
-  } else {
-    # Если не JSON, пытаемся распарсить как plain text
+  # docker_logs source автоматически предоставляет метаданные:
+  # - .container_name (имя контейнера из Docker) 
+  # - .container_id (ID контейнера)
+  # - .message (содержимое лога - уже распарсено из Docker JSON формата)
+  # - .source_type = "stdout" или "stderr"
+  # - .timestamp (время события)
+  
+  # Извлекаем имя контейнера из метаданных Docker (уже есть!)
+  if exists(.container_name) && .container_name != null {
+    .container_name = string!(.container_name)
+  }
+  
+  # Извлекаем container_id из метаданных
+  if exists(.container_id) && .container_id != null {
+    .container_id = string!(.container_id)
+  }
+  
+  # Парсим сообщение - docker_logs уже распарсил JSON формат Docker
+  # .message содержит текст лога (уже извлечен из {"log":"...", "stream":"...", "time":"..."})
+  if exists(.message) {
     .log = string!(.message)
+  } else {
+    .log = ""
+  }
+  
+  # Определяем stream из source_type
+  if exists(.source_type) && .source_type != null {
+    .stream = string!(.source_type)
+  } else {
     .stream = "stdout"
   }
   
-  # Извлекаем container_id из пути к файлу
-  if exists(.file) {
-    container_id_match = match(string!(.file), r'/var/lib/docker/containers/([^/]+)/')
-    if container_id_match != null {
-      .container_id = container_id_match.captures[0]
-    }
+  # Используем timestamp из метаданных (уже timestamp тип) или текущее время
+  if !exists(.timestamp) {
+    .timestamp = now()
   }
+  # Сохраняем timestamp как строку для дальнейшего использования
+  current_time = now()
+  if exists(.timestamp) {
+    .timestamp_str, ts_err = to_string(.timestamp)
+    if ts_err != null {
+      .timestamp_str = to_string(current_time)
+    }
+  } else {
+    .timestamp_str = to_string(current_time)
+  }
+  
+  .original_message = .message
 '''
 
 # Парсинг Pino JSON логов (если log содержит JSON)
@@ -41,8 +68,9 @@ type = "remap"
 inputs = ["parse_docker_json"]
 source = '''
   # Пытаемся распарсить log как Pino JSON
-  if exists(.log) {
-    pino_parsed, pino_err = parse_json(string!(.log))
+  if exists(.log) && .log != null {
+    log_str = string!(.log)
+    pino_parsed, pino_err = parse_json(log_str)
     if pino_err == null {
       # Pino логи имеют структуру: {"level": 30, "time": ..., "msg": "...", "app": "...", "context": "..."}
       # Нормализуем уровень лога
@@ -88,19 +116,96 @@ source = '''
   .environment = "production"
   .tag_container_logs = "true"
   
-  # Форматируем timestamp для Seq
-  if exists(.time) {
-    # Docker время уже в формате ISO, но может требовать парсинга
-    .timestamp = .time
-  } else {
-    .timestamp = now()
+  # Используем timestamp_str из предыдущего transform, или текущее время
+  if !exists(.timestamp_str) {
+    current_time = now()
+    if exists(.timestamp) {
+      .timestamp_str, ts_err = to_string(.timestamp)
+      if ts_err != null {
+        .timestamp_str = to_string(current_time)
+      }
+    } else {
+      .timestamp_str = to_string(current_time)
+    }
+  }
+'''
+
+# Определяем имя контейнера по container_id через простой lookup маппинг
+[transforms.add_container_name]
+type = "remap"
+inputs = ["parse_pino"]
+source = '''
+  # Сначала пытаемся использовать поле App из Pino (для наших приложений)
+  if exists(.app) {
+    app_name, err = string(.app)
+    if err == null && app_name != null {
+      # Маппинг приложений на имена контейнеров
+      if app_name == "web" {
+        .container_name = "gafus-web"
+      } else if app_name == "trainer-panel" {
+        .container_name = "gafus-trainer-panel"
+      } else if app_name == "error-dashboard" {
+        .container_name = "gafus-error-dashboard"
+      } else if app_name == "admin-panel" {
+        .container_name = "gafus-admin-panel"
+      } else if app_name == "worker" {
+        .container_name = "gafus-worker"
+      } else if app_name == "telegram-bot" {
+        .container_name = "gafus-telegram-bot"
+      }
+    }
+  }
+  
+  # Если имя контейнера еще не установлено, используем lookup по container_id
+  if !exists(.container_name) {
+    if exists(.container_id) {
+      container_id_str, container_id_err = string(.container_id)
+      if container_id_err == null && container_id_str != null {
+        # Простой lookup по первым 12 символам container_id через match
+        if match(container_id_str, r'^3c5237beb348') != null {
+          .container_name = "gafus-web"
+        } else if match(container_id_str, r'^8cfae0f4ff0b') != null {
+          .container_name = "gafus-worker"
+        } else if match(container_id_str, r'^1213f3d40db3') != null {
+          .container_name = "gafus-trainer-panel"
+        } else if match(container_id_str, r'^feebad0742eb') != null {
+          .container_name = "gafus-error-dashboard"
+        } else if match(container_id_str, r'^ae4acc8e2d25') != null {
+          .container_name = "gafus-admin-panel"
+        } else if match(container_id_str, r'^91a66f1b2704') != null {
+          .container_name = "gafus-telegram-bot"
+        } else if match(container_id_str, r'^267e9558e3a1') != null {
+          .container_name = "gafus-seq"
+        } else if match(container_id_str, r'^8b72ebf8555c') != null {
+          .container_name = "gafus-postgres"
+        } else if match(container_id_str, r'^0ed9ceae22b4') != null {
+          .container_name = "gafus-redis"
+        } else {
+          .container_name = "container-" + container_id_str
+        }
+      }
+    }
+    
+    # docker_logs source уже предоставил container_name в метаданных
+  # Если имя все еще не установлено (fallback для старых логов или ошибок), используем container_id
+  if !exists(.container_name) && exists(.container_id) {
+    container_id_str, container_id_err = string(.container_id)
+    if container_id_err == null && container_id_str != null {
+      .container_name = "container-" + container_id_str
+    }
+  }
+  }
+  
+  # Финальный fallback
+  if !exists(.container_name) {
+    .container_name = "unknown"
   }
 '''
 
 # Преобразуем данные в CLEF формат для Seq
 [transforms.format_for_seq]
 type = "remap"
-inputs = ["parse_pino"]
+inputs = ["add_container_name"]
 source = '''
   # Преобразуем level в формат Seq
   seq_level = "Information"
@@ -119,7 +224,7 @@ source = '''
   }
   
   # Формируем CLEF JSON строку вручную (VRL не поддерживает объекты с @ ключами напрямую)
-  clef_timestamp = if exists(.timestamp) && .timestamp != null { string!(.timestamp) } else { string!(now()) }
+  clef_timestamp = if exists(.timestamp_str) && .timestamp_str != null { string!(.timestamp_str) } else { string!(now()) }
   clef_message = if exists(.msg) && .msg != null { string!(.msg) } else { "No message" }
   
   # Экранируем сообщение для JSON (заменяем специальные символы)
@@ -135,6 +240,12 @@ source = '''
   # Добавляем дополнительные свойства
   if exists(.container_id) && .container_id != null {
     clef_json = clef_json + ",\"ContainerId\":\"" + string!(.container_id) + "\""
+  }
+  if exists(.container_name) && .container_name != null {
+    container_name_escaped = string!(.container_name)
+    container_name_escaped = replace(container_name_escaped, "\\", "\\\\")
+    container_name_escaped = replace(container_name_escaped, "\"", "\\\"")
+    clef_json = clef_json + ",\"ContainerName\":\"" + container_name_escaped + "\""
   }
   if exists(.stream) && .stream != null {
     clef_json = clef_json + ",\"Stream\":\"" + string!(.stream) + "\""
@@ -187,4 +298,3 @@ only_fields = ["message"]
 max_bytes = 10485760
 max_events = 100
 timeout_secs = 5
-

@@ -30,7 +30,10 @@ export class UnifiedLogger implements Logger {
     // По умолчанию отключаем worker-базированные транспорты (pino-pretty/pino/file),
     // т.к. они используют worker_threads и могут падать в Next.js окружении ("the worker has exited").
     // Включить можно явно через PINO_USE_WORKER_TRANSPORTS=true
-    const allowWorkerTransports = process.env.PINO_USE_WORKER_TRANSPORTS === 'true';
+    // 
+    // Исключение: для worker приложений (не Next.js) всегда используем транспорты для гарантированной записи в stdout
+    const isWorkerApp = this.config.appName === 'worker' || this.config.appName === 'telegram-bot';
+    const allowWorkerTransports = process.env.PINO_USE_WORKER_TRANSPORTS === 'true' || isWorkerApp;
 
     if (allowWorkerTransports && this.config.enableConsole) {
       const transports = [];
@@ -63,6 +66,22 @@ export class UnifiedLogger implements Logger {
     }
 
     // Без транспортов — базовый pino без worker_threads
+    // Pino по умолчанию пишет в process.stdout, но для гарантии явно указываем
+    // Это необходимо для контейнеров, где логи должны попадать в Docker logs
+    if (this.config.enableConsole) {
+      return pino(
+        {
+          level: this.config.level,
+          base: {
+            app: this.config.appName,
+            context: this.config.context,
+          },
+        },
+        process.stdout // Явно указываем stdout для гарантированной записи
+      );
+    }
+
+    // Если консоль отключена, создаем logger без вывода
     return pino({
       level: this.config.level,
       base: {
