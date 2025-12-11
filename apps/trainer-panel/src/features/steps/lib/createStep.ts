@@ -77,7 +77,7 @@ export async function createStep(
           const v = String(value ?? "");
           if (!v || v.trim().length === 0) return "Описание обязательно";
           if (v.length < 10) return "Минимум 10 символов";
-          if (v.length > 2000) return "Максимум 2000 символов";
+          if (v.length > 3000) return "Максимум 3000 символов";
           return null;
         },
         duration: (value: unknown) => {

@@ -25,8 +25,8 @@ export function validateStepForm(data: {
     errors.description = "Описание шага обязательно";
   } else if (data.description.length < 10) {
     errors.description = "Описание должно содержать минимум 10 символов";
-  } else if (data.description.length > 2000) {
-    errors.description = "Описание не может быть длиннее 2000 символов";
+  } else if (data.description.length > 3000) {
+    errors.description = "Описание не может быть длиннее 3000 символов";
   }
 
   // Валидация длительности
@@ -84,8 +84,8 @@ export function validateCourseForm(data: {
     errors.description = "Полное описание курса обязательно";
   } else if (data.description.length < 10) {
     errors.description = "Описание должно содержать минимум 10 символов";
-  } else if (data.description.length > 2000) {
-    errors.description = "Описание не может быть длиннее 2000 символов";
+  } else if (data.description.length > 3000) {
+    errors.description = "Описание не может быть длиннее 3000 символов";
   }
 
   // Валидация краткого описания
@@ -157,8 +157,8 @@ export function validateTrainingDayForm(data: {
     errors.description = "Описание дня обязательно";
   } else if (data.description.length < 10) {
     errors.description = "Описание должно содержать минимум 10 символов";
-  } else if (data.description.length > 2000) {
-    errors.description = "Описание не может быть длиннее 2000 символов";
+  } else if (data.description.length > 3000) {
+    errors.description = "Описание не может быть длиннее 3000 символов";
   }
 
   return {

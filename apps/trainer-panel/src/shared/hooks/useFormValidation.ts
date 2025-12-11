@@ -15,7 +15,7 @@ export const commonValidationRules = {
   description: {
     required: "Описание обязательно",
     minLength: { value: 10, message: "Минимум 10 символов" },
-    maxLength: { value: 2000, message: "Максимум 2000 символов" },
+    maxLength: { value: 3000, message: "Максимум 3000 символов" },
   },
 
   shortDescription: {
@@ -103,7 +103,7 @@ export const commonValidationRules = {
   stepDescription: {
     required: "Описание шага обязательно",
     minLength: { value: 10, message: "Минимум 10 символов" },
-    maxLength: { value: 2000, message: "Максимум 2000 символов" },
+    maxLength: { value: 3000, message: "Максимум 3000 символов" },
   },
 
   stepDuration: {

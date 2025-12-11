@@ -4,13 +4,19 @@ import React from "react";
 interface ValidationErrorProps {
   error?: string;
   className?: string;
+  onClose?: () => void;
 }
 
-export function ValidationError({ error, className = "" }: ValidationErrorProps) {
+export function ValidationError({ error, className = "", onClose }: ValidationErrorProps) {
   if (!error) return null;
 
   return (
-    <Alert severity="error" sx={{ mt: 1, mb: 2 }} className={className}>
+    <Alert 
+      severity="error" 
+      sx={{ mt: 1, mb: 2 }} 
+      className={className}
+      onClose={onClose}
+    >
       {error}
     </Alert>
   );
@@ -20,15 +26,21 @@ export function ValidationError({ error, className = "" }: ValidationErrorProps)
 interface ValidationErrorsProps {
   errors: Record<string, string | undefined>;
   className?: string;
+  onClose?: () => void;
 }
 
-export function ValidationErrors({ errors, className = "" }: ValidationErrorsProps) {
+export function ValidationErrors({ errors, className = "", onClose }: ValidationErrorsProps) {
   const errorMessages = Object.values(errors).filter(Boolean);
 
   if (errorMessages.length === 0) return null;
 
   return (
-    <Alert severity="error" sx={{ mt: 2, mb: 2 }} className={className}>
+    <Alert 
+      severity="error" 
+      sx={{ mt: 2, mb: 2 }} 
+      className={className}
+      onClose={onClose}
+    >
       <AlertTitle>Ошибки в форме:</AlertTitle>
       <ul style={{ margin: 0, paddingLeft: 20 }}>
         {errorMessages.map((error, index) => (

@@ -163,7 +163,11 @@ export default function CourseForm({
   return (
     <Box className={sharedStyles.formContainer}>
       {error && (
-        <Alert severity="error" className={sharedStyles.formAlert}>
+        <Alert 
+          severity="error" 
+          className={sharedStyles.formAlert}
+          onClose={() => setError(null)}
+        >
           {error}
         </Alert>
       )}

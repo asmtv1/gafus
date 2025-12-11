@@ -192,6 +192,8 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
 
   const handleSubmit = async (data: StepFormData) => {
     setIsPending(true);
+    // Сбрасываем состояние ошибки, чтобы сообщение появлялось при каждом новом вызове
+    setShowErrorMessage(false);
 
     try {
       const formData = new FormData();
@@ -285,18 +287,19 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
 
     if (formState?.error) {
       setShowErrorMessage(true);
-
-      // Скрываем уведомление об ошибке через 5 секунд
-      setTimeout(() => {
-        setShowErrorMessage(false);
-      }, 5000);
+    } else {
+      setShowErrorMessage(false);
     }
   }, [formState?.success, formState?.error, hasInitial, form, router]);
 
   return (
     <Box key={formKey} className={sharedStyles.formContainer}>
       {showErrorMessage && (
-        <Alert severity="error" className={sharedStyles.formAlert}>
+        <Alert 
+          severity="error" 
+          className={sharedStyles.formAlert}
+          onClose={() => setShowErrorMessage(false)}
+        >
           {formState?.error}
         </Alert>
       )}
