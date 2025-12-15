@@ -5,6 +5,8 @@ import type { TrainingDetail } from "@gafus/types";
  * @returns Продолжительность в минутах.
  */
 export function calculateDuration(training: TrainingDetail): number {
-  const totalSeconds = training.steps.reduce((sum, step) => sum + step.durationSec, 0);
+  const totalSeconds = training.steps
+    .filter(step => step.type !== "BREAK")
+    .reduce((sum, step) => sum + step.durationSec, 0);
   return Math.ceil(totalSeconds / 60);
 }

@@ -60,7 +60,7 @@ export async function createStep(
       {
         title,
         description,
-        duration: type === "TRAINING" ? durationStr : "",
+        duration: (type === "TRAINING" || type === "BREAK") ? durationStr : "",
         videoUrl: (type === "TRAINING" || type === "THEORY") ? videoUrl : "",
         type,
         checklist: type === "EXAMINATION" ? checklistStr : "",
@@ -84,11 +84,14 @@ export async function createStep(
           const v = String(value ?? "");
           // Для экзаменационных и теоретических шагов длительность не обязательна
           if (type === "EXAMINATION" || type === "THEORY") return null;
-          if (!v || v.trim().length === 0) return "Длительность обязательна";
-          const num = parseInt(v, 10);
-          if (isNaN(num)) return "Должно быть числом";
-          if (num <= 0) return "Должно быть положительным числом";
-          if (num > 6000) return "Максимум 6000 секунд";
+          // Для тренировочных и перерыва длительность обязательна
+          if (type === "TRAINING" || type === "BREAK") {
+            if (!v || v.trim().length === 0) return "Длительность обязательна";
+            const num = parseInt(v, 10);
+            if (isNaN(num)) return "Должно быть числом";
+            if (num <= 0) return "Должно быть положительным числом";
+            if (num > 6000) return "Максимум 6000 секунд";
+          }
           return null;
         },
         videoUrl: (value: unknown) => {
@@ -106,7 +109,7 @@ export async function createStep(
         type: (value: unknown) => {
           const v = String(value ?? "");
           if (!v || v.trim().length === 0) return "Тип шага обязателен";
-          if (!["TRAINING", "EXAMINATION", "THEORY"].includes(v)) return "Неверный тип шага";
+          if (!["TRAINING", "EXAMINATION", "THEORY", "BREAK"].includes(v)) return "Неверный тип шага";
           return null;
         },
         checklist: (value: unknown) => {
@@ -164,7 +167,7 @@ export async function createStep(
       }
     }
 
-    const duration = type === "TRAINING" ? parseInt(durationStr, 10) : null;
+    const duration = (type === "TRAINING" || type === "BREAK") ? parseInt(durationStr, 10) : null;
     const estimatedDurationSec =
       type === "TRAINING" || estimatedDurationMinutesStr.trim().length === 0
         ? null
@@ -190,9 +193,9 @@ export async function createStep(
     }
     const authorId = session.user.id;
 
-    // Загружаем изображения в CDN (только для тренировочных шагов)
+    // Загружаем изображения в CDN (только для тренировочных и теоретических шагов)
     const imageUrls: string[] = [];
-    if (type === "TRAINING" && imageFiles.length > 0) {
+    if ((type === "TRAINING" || type === "THEORY") && imageFiles.length > 0) {
       try {
         logger.info(`🔄 Загружаем ${imageFiles.length} изображений в CDN`);
         
@@ -249,7 +252,7 @@ export async function createStep(
         description,
         durationSec: duration,
         estimatedDurationSec,
-        type: type as "TRAINING" | "EXAMINATION" | "THEORY",
+        type: type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK",
         videoUrl: (type === "TRAINING" || type === "THEORY") ? (videoUrl || null) : null,
         imageUrls: (type === "TRAINING" || type === "THEORY") ? imageUrls : [],
         pdfUrls: (type === "TRAINING" || type === "THEORY") ? pdfUrls : [],

@@ -596,6 +596,10 @@ export const getTrainingDayCached = unstable_cache(
             estimatedDurationSec: number | null;
             type: string | null;
           };
+          if (step.type === "BREAK") {
+            // BREAK не учитывается в расчётах времени
+            return total;
+          }
           if (step.type === "TRAINING") {
             return total + (step.durationSec ?? 0);
           }

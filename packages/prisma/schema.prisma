@@ -43,6 +43,7 @@ enum StepType {
   TRAINING // Тренировочный
   EXAMINATION // Экзаменационный
   THEORY // Теоретический
+  BREAK // Перерыв
 }
 
 model Course {

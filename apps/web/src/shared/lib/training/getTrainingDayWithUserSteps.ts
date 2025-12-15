@@ -292,7 +292,7 @@ export async function getTrainingDayWithUserSteps(
       isPausedOnServer: pausedByStepId[stepOnDayId] ?? false,
       remainingSecOnServer: remainingByStepId[stepOnDayId] ?? undefined,
       // Новые поля для типов экзамена
-      type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | undefined,
+      type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | undefined,
       checklist: Array.isArray(step.checklist)
         ? (step.checklist as ChecklistQuestion[])
         : null,

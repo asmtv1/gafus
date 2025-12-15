@@ -225,6 +225,11 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
         pdfUrls.forEach((url) => formData.append("pdfUrls", url));
       }
       
+      // Для перерыва добавляем только длительность
+      if (data.type === "BREAK") {
+        formData.append("duration", data.duration || "");
+      }
+      
       // Для экзаменационных шагов добавляем чек-лист и типы экзамена
       if (data.type === "EXAMINATION") {
         formData.append("checklist", JSON.stringify(checklist));
@@ -234,7 +239,7 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
       }
 
       // Оценочное время (минуты) только для теоретических и экзаменационных шагов
-      if (data.type !== "TRAINING" && data.estimatedDurationMinutes) {
+      if (data.type !== "TRAINING" && data.type !== "BREAK" && data.estimatedDurationMinutes) {
         formData.append("estimatedDurationMinutes", data.estimatedDurationMinutes);
       }
 
@@ -333,7 +338,8 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
             options={[
               { value: "TRAINING", label: "Тренировочный" },
               { value: "EXAMINATION", label: "Экзаменационный" },
-              { value: "THEORY", label: "Теоретический" }
+              { value: "THEORY", label: "Теоретический" },
+              { value: "BREAK", label: "Перерыв" }
             ]}
           />
 
@@ -384,6 +390,19 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
                 initialImages={initialData?.imageUrls || []}
                 _stepId={initialData?.id}
                 maxImages={10}
+              />
+            </FormSection>
+          </>
+        ) : form.watch("type") === "BREAK" ? (
+          <>
+            <FormSection title="Время на выполнение шага">
+              <NumberField
+                id="duration"
+                label="Длительность (секунды) *"
+                name="duration"
+                placeholder="Введите длительность"
+                form={form}
+                rules={validationRules.duration}
               />
             </FormSection>
           </>

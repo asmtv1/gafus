@@ -73,6 +73,9 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
         const step = sl.step;
         if (step.type === "TRAINING") {
           trainingSeconds += step.durationSec ?? 0;
+        } else if (step.type === "BREAK") {
+          // BREAK не учитывается в расчётах времени
+          continue;
         } else {
           // Все нетренировочные шаги считаем теорией/экзаменом
           theoryExamSeconds += step.estimatedDurationSec ?? 0;

@@ -25,7 +25,7 @@ export interface TrainingStep {
   remainingSecOnServer?: number;
   
   // Новые поля для типов экзамена
-  type?: "TRAINING" | "EXAMINATION" | "THEORY";
+  type?: "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK";
   checklist?: any; // JSON с тестовыми вопросами
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;

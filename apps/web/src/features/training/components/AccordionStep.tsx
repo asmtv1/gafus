@@ -33,7 +33,7 @@ interface AccordionStepProps {
   onReset: (stepIndex: number) => void;
   
   // Новые поля для типов экзамена
-  type?: "TRAINING" | "EXAMINATION" | "THEORY";
+  type?: "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK";
   checklist?: ChecklistQuestion[];
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;
@@ -363,7 +363,7 @@ export function AccordionStep({
 
   return (
     <div className={styles.stepContainer}>
-      {/* Таймер только для тренировочных шагов */}
+      {/* Таймер только для тренировочных шагов и перерывов */}
       {type !== "EXAMINATION" && type !== "THEORY" && (
         <div className={styles.timerCard}>
           <div className={styles.timerHeader}>
@@ -428,6 +428,15 @@ export function AccordionStep({
         </div>
       )}
 
+      {/* Для перерыва показываем заголовок */}
+      {type === "BREAK" && (
+        <div className={styles.timerCard}>
+          <div className={styles.timerHeader}>
+            <span>Перерыв</span>
+          </div>
+        </div>
+      )}
+
       {stepDescription && (
         <div className={styles.stepInfo}>
           <div>
@@ -439,8 +448,8 @@ export function AccordionStep({
         </div>
       )}
 
-      {/* Изображения шага */}
-      {imageUrls && imageUrls.length > 0 && (
+      {/* Изображения шага (не показываем для перерыва) */}
+      {imageUrls && imageUrls.length > 0 && type !== "BREAK" && (
         <div className={styles.stepInfo}>
           <div>
             <div className={styles.sectionTitle}>Изображения:</div>
@@ -513,7 +522,8 @@ export function AccordionStep({
         </div>
       )}
 
-      {videoInfo && (
+      {/* Видео (не показываем для перерыва) */}
+      {videoInfo && type !== "BREAK" && (
         <div className={styles.videoContainer}>
           <div
             className={`${styles.videoWrapper} ${videoInfo.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
