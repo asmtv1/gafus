@@ -603,6 +603,10 @@ export const getTrainingDayCached = unstable_cache(
           if (step.type === "TRAINING") {
             return total + (step.durationSec ?? 0);
           }
+          if (step.type === "PRACTICE") {
+            // PRACTICE учитывается в trainingSeconds через estimatedDurationSec
+            return total + (step.estimatedDurationSec ?? 0);
+          }
           return total + (step.estimatedDurationSec ?? 0);
         }, 0),
       };

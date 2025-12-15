@@ -3,13 +3,12 @@
 
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
+import { prisma, StepType, Prisma } from "@gafus/prisma";
 import { validateForm } from "@shared/lib/validation/serverValidation";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
-import { Prisma } from "@gafus/prisma";
 
 import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 
@@ -61,7 +60,7 @@ export async function createStep(
         title,
         description,
         duration: (type === "TRAINING" || type === "BREAK") ? durationStr : "",
-        videoUrl: (type === "TRAINING" || type === "THEORY") ? videoUrl : "",
+        videoUrl: (type === "TRAINING" || type === "THEORY" || type === "PRACTICE") ? videoUrl : "",
         type,
         checklist: type === "EXAMINATION" ? checklistStr : "",
       },
@@ -82,8 +81,8 @@ export async function createStep(
         },
         duration: (value: unknown) => {
           const v = String(value ?? "");
-          // Для экзаменационных и теоретических шагов длительность не обязательна
-          if (type === "EXAMINATION" || type === "THEORY") return null;
+          // Для экзаменационных, теоретических и практических шагов длительность не обязательна
+          if (type === "EXAMINATION" || type === "THEORY" || type === "PRACTICE") return null;
           // Для тренировочных и перерыва длительность обязательна
           if (type === "TRAINING" || type === "BREAK") {
             if (!v || v.trim().length === 0) return "Длительность обязательна";
@@ -109,7 +108,7 @@ export async function createStep(
         type: (value: unknown) => {
           const v = String(value ?? "");
           if (!v || v.trim().length === 0) return "Тип шага обязателен";
-          if (!["TRAINING", "EXAMINATION", "THEORY", "BREAK"].includes(v)) return "Неверный тип шага";
+          if (!["TRAINING", "EXAMINATION", "THEORY", "BREAK", "PRACTICE"].includes(v)) return "Неверный тип шага";
           return null;
         },
         checklist: (value: unknown) => {
@@ -193,9 +192,9 @@ export async function createStep(
     }
     const authorId = session.user.id;
 
-    // Загружаем изображения в CDN (только для тренировочных и теоретических шагов)
+    // Загружаем изображения в CDN (только для тренировочных, теоретических и практических шагов)
     const imageUrls: string[] = [];
-    if ((type === "TRAINING" || type === "THEORY") && imageFiles.length > 0) {
+    if ((type === "TRAINING" || type === "THEORY" || type === "PRACTICE") && imageFiles.length > 0) {
       try {
         logger.info(`🔄 Загружаем ${imageFiles.length} изображений в CDN`);
         
@@ -215,8 +214,8 @@ export async function createStep(
       }
     }
 
-    // Удаляем изображения из CDN (для тренировочных и теоретических шагов)
-    if ((type === "TRAINING" || type === "THEORY") && deletedImages.length > 0) {
+    // Удаляем изображения из CDN (для тренировочных, теоретических и практических шагов)
+    if ((type === "TRAINING" || type === "THEORY" || type === "PRACTICE") && deletedImages.length > 0) {
       try {
         logger.info(`🗑️ Удаляем ${deletedImages.length} изображений из CDN`);
         
@@ -252,10 +251,10 @@ export async function createStep(
         description,
         durationSec: duration,
         estimatedDurationSec,
-        type: type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK",
-        videoUrl: (type === "TRAINING" || type === "THEORY") ? (videoUrl || null) : null,
-        imageUrls: (type === "TRAINING" || type === "THEORY") ? imageUrls : [],
-        pdfUrls: (type === "TRAINING" || type === "THEORY") ? pdfUrls : [],
+        type: type as StepType,
+        videoUrl: (type === "TRAINING" || type === "THEORY" || type === "PRACTICE") ? (videoUrl || null) : null,
+        imageUrls: (type === "TRAINING" || type === "THEORY" || type === "PRACTICE") ? imageUrls : [],
+        pdfUrls: (type === "TRAINING" || type === "THEORY" || type === "PRACTICE") ? pdfUrls : [],
         checklist: checklistValue,
         requiresVideoReport: type === "EXAMINATION" ? requiresVideoReport : false,
         requiresWrittenFeedback: type === "EXAMINATION" ? requiresWrittenFeedback : false,

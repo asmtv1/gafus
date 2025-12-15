@@ -202,13 +202,13 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
       formData.append("description", data.description);
       formData.append("type", data.type);
       
-      // Для тренировочных и теоретических шагов добавляем длительность и видео
-      if (data.type === "TRAINING" || data.type === "THEORY") {
+      // Для тренировочных, теоретических и практических шагов добавляем длительность и видео
+      if (data.type === "TRAINING" || data.type === "THEORY" || data.type === "PRACTICE") {
         // Длительность только для тренировочных шагов
       if (data.type === "TRAINING") {
         formData.append("duration", data.duration || "");
         }
-        // Видео и медиа для обоих типов
+        // Видео и медиа для всех типов
         if (data.videoUrl) formData.append("videoUrl", data.videoUrl);
         
         // Добавляем ВСЕ файлы изображений за один запрос (благодаря bodySizeLimit: 100mb)
@@ -339,7 +339,8 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
               { value: "TRAINING", label: "Тренировочный" },
               { value: "EXAMINATION", label: "Экзаменационный" },
               { value: "THEORY", label: "Теоретический" },
-              { value: "BREAK", label: "Перерыв" }
+              { value: "BREAK", label: "Перерыв" },
+              { value: "PRACTICE", label: "Тренировочный (без таймера)" }
             ]}
           />
 
@@ -409,6 +410,41 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
         ) : form.watch("type") === "THEORY" ? (
           <>
             <FormSection title="Время на изучение">
+              <NumberField
+                id="estimatedDurationMinutes"
+                label="Примерное время (минуты)"
+                name="estimatedDurationMinutes"
+                placeholder="Введите примерное время"
+                form={form}
+                rules={validationRules.estimatedDurationMinutes}
+              />
+            </FormSection>
+
+            <FormSection title="Видео">
+              <Box sx={{ mb: 2 }}>
+                <VideoSelector
+                  value={form.watch("videoUrl")}
+                  onChange={(value) => form.setValue("videoUrl", value)}
+                  trainerVideos={trainerVideos}
+                  error={form.formState.errors.videoUrl?.message}
+                  helperText="Выберите видео из библиотеки или укажите внешнюю ссылку"
+                />
+              </Box>
+            </FormSection>
+
+            <FormSection title="Медиа файлы">
+              <StepImageUploader
+                onImagesChange={setImageFiles}
+                onDeletedImagesChange={setDeletedImages}
+                initialImages={initialData?.imageUrls || []}
+                _stepId={initialData?.id}
+                maxImages={10}
+              />
+            </FormSection>
+          </>
+        ) : form.watch("type") === "PRACTICE" ? (
+          <>
+            <FormSection title="Примерное время">
               <NumberField
                 id="estimatedDurationMinutes"
                 label="Примерное время (минуты)"

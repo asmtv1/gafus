@@ -8,6 +8,7 @@ import { useStepStore } from "@shared/stores/stepStore";
 import { useTimerStore } from "@shared/stores/timerStore";
 import { useCacheManager } from "@shared/utils/cacheManager";
 import { useSyncStatus } from "@shared/hooks/useSyncStatus";
+import { markPracticeStepAsCompleted } from "@shared/lib/training/markPracticeStepAsCompleted";
 import styles from "./AccordionStep.module.css";
 import { AccessTimeIcon, PauseIcon, PlayArrowIcon, ReplayIcon } from "@/utils/muiImports";
 import { getEmbeddedVideoInfo } from "@/utils";
@@ -33,7 +34,7 @@ interface AccordionStepProps {
   onReset: (stepIndex: number) => void;
   
   // Новые поля для типов экзамена
-  type?: "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK";
+  type?: "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE";
   checklist?: ChecklistQuestion[];
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;
@@ -358,17 +359,56 @@ export function AccordionStep({
     }
   }, [resetStepWithServer, courseId, day, stepIndex, durationSec, stopTimer, resetStep, onReset]);
 
+  const handleCompletePractice = useCallback(async () => {
+    try {
+      // 1. Обновляем кэш на всех уровнях (шаг, день, курс) - это также обновляет локальное состояние
+      updateStepProgress(courseId, day, stepIndex, 'COMPLETED', undefined, totalSteps);
+
+      // 2. Обновляем UI немедленно (оптимистичное обновление)
+      onRun(-1);
+
+      // 3. Отправляем на сервер с ретраями и индикатором синхронизации
+      addPendingChange();
+      startSync();
+      
+      try {
+        await markPracticeStepAsCompleted(courseId, day, stepIndex, stepTitle, stepOrder);
+        finishSync(true);
+        removePendingChange();
+      } catch (error) {
+        finishSync(false);
+        // При ошибке добавляем в очередь синхронизации
+        const { useOfflineStore } = await import("@shared/stores/offlineStore");
+        const offlineStore = useOfflineStore.getState();
+        offlineStore.addToSyncQueue({
+          type: "step-status-update",
+          data: {
+            courseId,
+            day,
+            stepIndex,
+            status: "COMPLETED",
+            stepTitle,
+            stepOrder,
+          },
+          maxRetries: 3,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to complete practice step:", error);
+    }
+  }, [courseId, day, stepIndex, stepTitle, stepOrder, updateStepProgress, totalSteps, onRun, addPendingChange, startSync, finishSync, removePendingChange]);
+
 
   if (!stepState) return null;
 
   return (
     <div className={styles.stepContainer}>
       {/* Таймер только для тренировочных шагов и перерывов */}
-      {type !== "EXAMINATION" && type !== "THEORY" && (
+      {type !== "EXAMINATION" && type !== "THEORY" && type !== "PRACTICE" && (
         <div className={styles.timerCard}>
           <div className={styles.timerHeader}>
             <AccessTimeIcon fontSize="small" />
-            <span>Начните занятие!</span>
+            <span>{type === "BREAK" ? "Начни перерыв" : "Начните занятие!"}</span>
           </div>
           <div className={styles.controlRow}>
           <div className={styles.timerDisplay}>
@@ -434,6 +474,30 @@ export function AccordionStep({
           <div className={styles.timerHeader}>
             <span>Перерыв</span>
           </div>
+        </div>
+      )}
+
+      {/* Для практических шагов (без таймера) показываем заголовок и кнопку */}
+      {type === "PRACTICE" && (
+        <div className={styles.timerCard}>
+          <div className={styles.timerHeader}>
+            <span>Упражнение без таймера</span>
+          </div>
+          {typeof estimatedDurationSec === "number" && estimatedDurationSec > 0 && (
+            <div className={styles.estimatedTimeBadge}>
+              Примерное время: ~{Math.round(estimatedDurationSec / 60)} мин
+            </div>
+          )}
+          {stepState.status !== "COMPLETED" && (
+            <button onClick={handleCompletePractice} className={styles.completeBtn}>
+              Я выполнил
+            </button>
+          )}
+          {stepState.status === "COMPLETED" && (
+            <div className={styles.completedBadge}>
+              Упражнение выполнено
+            </div>
+          )}
         </div>
       )}
 

@@ -62,6 +62,90 @@
   border: 2px solid #D5D0BB;
   border-radius: 12px;
   padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.completeBtn {
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
+  color: #ECE5D2;
+  border: 1px solid #636128;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  width: 100%;
+  max-width: 220px;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.completeBtn:hover {
+  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
+}
+
+.completeBtn:active {
+  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
+}
+
+.completeBtn:focus {
+  outline: 2px solid #636128;
+  outline-offset: 2px;
+}
+
+.completeBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.completedBadge {
+  background: linear-gradient(135deg, #B6C582 0%, #9BA86F 100%);
+  color: #155724;
+  border: 2px solid #B6C582;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-top: 12px;
+  text-align: center;
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(182, 197, 130, 0.3);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.completedBadge::before {
+  content: "✓";
+  font-size: 1.2rem;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .estimatedTimeBadge {
@@ -251,6 +335,23 @@
     font-size: 15px;
     min-height: 48px;
   }
+
+  .completeBtn {
+    padding: 12px 24px;
+    font-size: 0.9rem;
+    max-width: 100%;
+  }
+
+  .completedBadge {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+  }
+
+  .completedBadge::before {
+    width: 20px;
+    height: 20px;
+    font-size: 1rem;
+  }
 }
 
 /* Очень маленькие экраны */
@@ -299,6 +400,23 @@
   
   .timerCard {
     padding: 10px 12px;
+  }
+
+  .completeBtn {
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    max-width: 100%;
+  }
+
+  .completedBadge {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
+
+  .completedBadge::before {
+    width: 18px;
+    height: 18px;
+    font-size: 0.9rem;
   }
   
   .btnPrimary,
