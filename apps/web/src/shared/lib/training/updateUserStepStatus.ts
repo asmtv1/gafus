@@ -224,6 +224,54 @@ export async function updateUserStepStatus(
     );
 
     // После успешного завершения транзакции выполняем операции, которые не должны быть в транзакции
+    
+    // Устанавливаем статус курса в IN_PROGRESS при первом активном шаге
+    // Это важно для шагов без таймера, которые сразу завершаются со статусом COMPLETED
+    if (safeStatus === TrainingStatus.COMPLETED || safeStatus === TrainingStatus.IN_PROGRESS) {
+      try {
+        // Проверяем текущий статус курса
+        const userCourse = await prisma.userCourse.findUnique({
+          where: {
+            userId_courseId: {
+              userId: safeUserId,
+              courseId: result.courseId,
+            },
+          },
+        });
+
+        // Если курс в статусе NOT_STARTED или записи нет, устанавливаем статус в IN_PROGRESS
+        // Это означает, что это первый активный шаг пользователя в курсе
+        if (!userCourse || userCourse.status === TrainingStatus.NOT_STARTED) {
+          await prisma.userCourse.upsert({
+            where: {
+              userId_courseId: {
+                userId: safeUserId,
+                courseId: result.courseId,
+              },
+            },
+            update: {
+              status: TrainingStatus.IN_PROGRESS,
+              startedAt: new Date(),
+            },
+            create: {
+              userId: safeUserId,
+              courseId: result.courseId,
+              status: TrainingStatus.IN_PROGRESS,
+              startedAt: new Date(),
+            },
+          });
+        }
+      } catch (courseError) {
+        logger.error("Failed to update course status to IN_PROGRESS", courseError as Error, {
+          operation: 'update_course_status_to_in_progress_error',
+          courseId: result.courseId,
+          userId: safeUserId,
+          status: "IN_PROGRESS",
+        });
+        // Не прерываем выполнение, если обновление курса не удалось
+      }
+    }
+
     if (result.allCompleted) {
       // Проверяем завершение курса только если день действительно завершен
       // и у пользователя есть записи для всех шагов дня

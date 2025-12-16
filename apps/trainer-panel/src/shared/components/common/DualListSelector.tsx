@@ -7,10 +7,29 @@ import {
   CardContent,
   List,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
   Typography,
 } from "@mui/material";
+import { DragIndicator as DragIndicatorIcon } from "@mui/icons-material";
 import { useEffect, useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Props<T> {
   allItems: T[];
@@ -20,6 +39,80 @@ interface Props<T> {
   getItemLabel: (item: T) => string;
   title?: string;
   allowDuplicates?: boolean;
+}
+
+interface SortableSelectedItemProps<T> {
+  item: T;
+  index: number;
+  getItemId: (item: T) => string;
+  getItemLabel: (item: T) => string;
+  onRemove: (index: number) => void;
+}
+
+function SortableSelectedItem<T>({
+  item,
+  index,
+  getItemId,
+  getItemLabel,
+  onRemove,
+}: SortableSelectedItemProps<T>) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: getItemId(item) });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const handleTextClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRemove(index);
+  };
+
+  return (
+    <ListItemButton
+      ref={setNodeRef}
+      style={style}
+      sx={{
+        py: 0.5,
+        WebkitTapHighlightColor: "transparent",
+        touchAction: "manipulation",
+        minHeight: { xs: "44px", sm: "auto" },
+        cursor: isDragging ? "grabbing" : "default",
+      }}
+    >
+      <ListItemIcon
+        {...attributes}
+        {...listeners}
+        sx={{
+          minWidth: 36,
+          cursor: "grab",
+          "&:active": {
+            cursor: "grabbing",
+          },
+        }}
+      >
+        <DragIndicatorIcon color="action" />
+      </ListItemIcon>
+      <ListItemText 
+        primary={getItemLabel(item)} 
+        onClick={handleTextClick}
+        sx={{
+          cursor: "pointer",
+          "&:hover": {
+            textDecoration: "underline",
+          },
+        }}
+      />
+    </ListItemButton>
+  );
 }
 
 export default function DualListSelector<T>({
@@ -33,6 +126,17 @@ export default function DualListSelector<T>({
 }: Props<T>) {
   const [availableItems, setAvailableItems] = useState<T[]>([]);
   const [selected, setSelected] = useState<T[]>([]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // Минимальное расстояние для активации drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     if (allowDuplicates) {
@@ -90,6 +194,17 @@ export default function DualListSelector<T>({
     onSelectionChange([]);
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = selected.findIndex((item) => getItemId(item) === active.id);
+      const newIndex = selected.findIndex((item) => getItemId(item) === over.id);
+      const newSelected = arrayMove(selected, oldIndex, newIndex);
+      setSelected(newSelected);
+      onSelectionChange(newSelected);
+    }
+  };
+
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
@@ -127,7 +242,11 @@ export default function DualListSelector<T>({
                   Добавить все
                 </Button>
               </Box>
-              <List sx={{ maxHeight: 200, overflow: "auto" }}>
+              <List sx={{ 
+                minHeight: { xs: 300, sm: 400, md: 480 },
+                maxHeight: { xs: 300, sm: 400, md: 480 },
+                overflow: "auto" 
+              }}>
                 {availableItems.map((item, index) => (
                   <ListItemButton
                     key={`available-${index}-${getItemId(item)}`}
@@ -213,22 +332,33 @@ export default function DualListSelector<T>({
                   Удалить все
                 </Button>
               </Box>
-              <List sx={{ maxHeight: 200, overflow: "auto" }}>
-                {selected.map((item, index) => (
-                  <ListItemButton
-                    key={`selected-${index}-${getItemId(item)}`}
-                    onClick={() => handleRemoveAt(index)}
-                    sx={{ 
-                      py: 0.5,
-                      WebkitTapHighlightColor: 'transparent',
-                      touchAction: 'manipulation',
-                      minHeight: { xs: '44px', sm: 'auto' }
-                    }}
-                  >
-                    <ListItemText primary={getItemLabel(item)} />
-                  </ListItemButton>
-                ))}
-              </List>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={selected.map(getItemId)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <List sx={{ 
+                    minHeight: { xs: 300, sm: 400, md: 480 },
+                    maxHeight: { xs: 300, sm: 400, md: 480 },
+                    overflow: "auto" 
+                  }}>
+                    {selected.map((item, index) => (
+                      <SortableSelectedItem
+                        key={`selected-${getItemId(item)}-${index}`}
+                        item={item}
+                        index={index}
+                        getItemId={getItemId}
+                        getItemLabel={getItemLabel}
+                        onRemove={handleRemoveAt}
+                      />
+                    ))}
+                  </List>
+                </SortableContext>
+              </DndContext>
             </CardContent>
           </Card>
         </Box>
