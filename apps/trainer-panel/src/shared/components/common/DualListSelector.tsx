@@ -5,14 +5,16 @@ import {
   Button,
   Card,
   CardContent,
+  InputAdornment,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  TextField,
   Typography,
 } from "@mui/material";
-import { DragIndicator as DragIndicatorIcon } from "@mui/icons-material";
-import { useEffect, useState } from "react";
+import { DragIndicator as DragIndicatorIcon, Search as SearchIcon } from "@mui/icons-material";
+import { useCallback, useEffect, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -39,6 +41,7 @@ interface Props<T> {
   getItemLabel: (item: T) => string;
   title?: string;
   allowDuplicates?: boolean;
+  getItemSearchText?: (item: T) => string;
 }
 
 interface SortableSelectedItemProps<T> {
@@ -123,9 +126,11 @@ export default function DualListSelector<T>({
   getItemLabel,
   title = "Выбор элементов",
   allowDuplicates = false,
+  getItemSearchText,
 }: Props<T>) {
   const [availableItems, setAvailableItems] = useState<T[]>([]);
   const [selected, setSelected] = useState<T[]>([]);
+  const [searchText, setSearchText] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -138,19 +143,36 @@ export default function DualListSelector<T>({
     })
   );
 
+  const getFilteredItems = useCallback((items: T[]): T[] => {
+    let filtered = items;
+    
+    // Фильтр по тексту
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase().trim();
+      filtered = filtered.filter((item) => {
+        const text = (getItemSearchText || getItemLabel)(item).toLowerCase();
+        return text.includes(searchLower);
+      });
+    }
+    
+    return filtered;
+  }, [searchText, getItemSearchText, getItemLabel]);
+
   useEffect(() => {
+    const filteredAllItems = getFilteredItems(allItems);
+    
     if (allowDuplicates) {
-      // Если дубликаты разрешены, показываем все элементы как доступные
-      setAvailableItems(allItems);
+      // Если дубликаты разрешены, показываем все отфильтрованные элементы как доступные
+      setAvailableItems(filteredAllItems);
       setSelected(selectedItems);
     } else {
       // Если дубликаты не разрешены, фильтруем доступные элементы
       const selectedIds = new Set(selectedItems.map(getItemId));
-      const available = allItems.filter((item) => !selectedIds.has(getItemId(item)));
+      const available = filteredAllItems.filter((item) => !selectedIds.has(getItemId(item)));
       setAvailableItems(available);
       setSelected(selectedItems);
     }
-  }, [allItems, selectedItems, getItemId, allowDuplicates]);
+  }, [allItems, selectedItems, getItemId, allowDuplicates, getFilteredItems]);
 
   const handleAdd = (item: T) => {
     const newSelected = [...selected, item];
@@ -241,6 +263,22 @@ export default function DualListSelector<T>({
                 >
                   Добавить все
                 </Button>
+              </Box>
+              <Box sx={{ mb: 2 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Поиск..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
               </Box>
               <List sx={{ 
                 minHeight: { xs: 300, sm: 400, md: 480 },
