@@ -1149,6 +1149,13 @@ async function precacheHTMLPages() {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+  
+  // Пропускаем запросы с параметром _hardRefresh (hard refresh после очистки кэша)
+  if (url.searchParams.has('_hardRefresh')) {
+    console.log(`⏭️ SW: Skipping hard refresh request, allowing browser to handle: ${request.url}`);
+    return; // Позволяем браузеру обработать запрос напрямую, без кэширования
+  }
+  
   const dest = request.headers.get('Sec-Fetch-Dest') || '';
   const uir = request.headers.get('Upgrade-Insecure-Requests') || '';
   

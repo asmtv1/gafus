@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { deleteFileFromCDN, uploadFileToCDN } from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
 import { Prisma } from "@gafus/prisma";
+import { invalidateTrainingDaysCache } from "@shared/lib/actions/invalidateTrainingDaysCache";
 
 import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 
@@ -245,6 +246,10 @@ export async function updateStep(
     });
 
     revalidatePath("/main-panel/steps");
+
+    // Инвалидируем кэш дней тренировок, так как изменение типа/длительности шага
+    // влияет на расчет времени для всех дней, содержащих этот шаг
+    await invalidateTrainingDaysCache();
 
     return { success: true };
   } catch (error) {

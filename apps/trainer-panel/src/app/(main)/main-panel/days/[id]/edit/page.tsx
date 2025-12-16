@@ -1,4 +1,5 @@
 import CreateDayClient from "@features/steps/components/CreateDayClient";
+import { getVisibleSteps } from "@features/steps/lib/getVisibleSteps";
 import { prisma } from "@gafus/prisma";
 import { notFound } from "next/navigation";
 import FormPageLayout from "@shared/components/FormPageLayout";
@@ -17,15 +18,12 @@ export default async function EditDayPage({ params }: Props) {
   });
   if (!day) return null;
 
-  const allSteps = await prisma.step.findMany({ 
-    select: { id: true, title: true },
-    orderBy: { title: 'asc' }
-  });
+  const steps = await getVisibleSteps();
 
-  // Убираем дубликаты по id, оставляя только уникальные шаги
-  const uniqueSteps = allSteps.filter((step, index, self) => 
-    index === self.findIndex(s => s.id === step.id)
-  );
+  const formattedSteps = steps.map((step: { id: string | number; title: string }) => ({
+    id: String(step.id),
+    title: step.title,
+  }));
 
   return (
     <FormPageLayout 
@@ -33,7 +31,7 @@ export default async function EditDayPage({ params }: Props) {
       subtitle="Измените информацию о дне тренировки и выберите шаги"
     >
       <CreateDayClient
-        allSteps={uniqueSteps}
+        allSteps={formattedSteps}
         initialDay={{
           id: day.id,
           title: day.title,
