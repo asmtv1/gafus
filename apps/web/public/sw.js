@@ -186,8 +186,10 @@ function getResourceType(request) {
   }
   
   // 6.5. 🎯 ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ДЛЯ СТРАНИЦ
-  // Если это GET-запрос к корню или известным страницам, считаем это HTML-страницей
-  if (method === 'GET' && (pathname === '/' || pathname.startsWith('/profile') || pathname.startsWith('/statistics') || pathname.startsWith('/achievements') || pathname.startsWith('/courses') || pathname.startsWith('/favorites'))) {
+  // Главная страница НЕ кэшируется - она должна всегда проверять авторизацию
+  // Если это GET-запрос к известным страницам (кроме корня и страниц авторизации), считаем это HTML-страницей
+  if (method === 'GET' && pathname !== '/' && pathname !== '/login' && pathname !== '/register' && 
+      (pathname.startsWith('/profile') || pathname.startsWith('/statistics') || pathname.startsWith('/achievements') || pathname.startsWith('/courses') || pathname.startsWith('/favorites'))) {
     console.log(`📄 SW: Page request detected by path: ${pathname}`);
     return 'HTML_PAGES';
   }
@@ -639,7 +641,8 @@ async function getOfflineFallback(request) {
         <div class="buttons">
           <button class="retry" onclick="handleRetry()">Попробовать снова</button>
           <button class="back" onclick="handleBack()">Назад</button>
-          <a href="/" class="home" onclick="event.preventDefault(); window.location.href='/'; return false;">На главную</a>
+          <button class="retry" onclick="handleHardReload()" style="background: #28a745;">Обновить страницу (Ctrl+F5)</button>
+          <a href="/?bypass-sw=1" class="home" onclick="event.preventDefault(); window.location.href='/?bypass-sw=1'; return false;">На главную (обход кэша)</a>
         </div>
       </div>
       <script>
@@ -667,19 +670,34 @@ async function getOfflineFallback(request) {
           if (window.history.length > 1) {
             window.history.back();
           } else {
-            window.location.href = '/';
+            window.location.href = '/?bypass-sw=1';
           }
         }
         
-        // Автоматическая попытка подключения каждые 10 секунд (максимум 2 попытки)
+        function handleHardReload() {
+          // Принудительный обход кэша и Service Worker
+          const url = new URL(window.location.href);
+          url.searchParams.set('bypass-sw', '1');
+          url.searchParams.set('_t', Date.now().toString());
+          window.location.href = url.toString();
+        }
+        
+        // Автоматическая попытка подключения каждые 10 секунд (максимум 3 попытки)
         let autoRetryCount = 0;
-        setInterval(() => {
-          if (navigator.onLine && autoRetryCount < 2) {
+        const autoRetryInterval = setInterval(() => {
+          if (navigator.onLine && autoRetryCount < 3) {
             autoRetryCount++;
-            console.log('Online detected, attempting auto-retry');
+            console.log('Online detected, attempting auto-retry', autoRetryCount);
             handleRetry();
+          } else if (autoRetryCount >= 3) {
+            clearInterval(autoRetryInterval);
           }
         }, 10000);
+        
+        // Останавливаем авто-повтор через 60 секунд
+        setTimeout(() => {
+          clearInterval(autoRetryInterval);
+        }, 60000);
       </script>
     </body>
     </html>
@@ -1045,7 +1063,7 @@ async function precacheHTMLPages() {
     const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
     const imagesCache = await caches.open(CACHE_CONFIG.CACHES.IMAGES);
     const pagesToCache = [
-      '/',
+      // '/' - НЕ кэшируем, должна всегда проверять авторизацию через Next.js middleware
       '/courses',
       '/profile',
       '/achievements',
@@ -1154,6 +1172,22 @@ self.addEventListener('fetch', (event) => {
   const uir = request.headers.get('Upgrade-Insecure-Requests') || '';
   
   console.log(`🌐 SW: Fetch intercepted: ${request.url}, method: ${request.method}, mode: ${request.mode}`);
+  
+  // Пропускаем запросы с параметром bypass-sw для обхода Service Worker
+  if (url.searchParams.has('bypass-sw') || url.searchParams.has('_bypass_sw')) {
+    console.log(`⏭️ SW: Bypassing Service Worker for: ${request.url}`);
+    return; // Пропускаем обработку, браузер обработает запрос напрямую
+  }
+  
+  // Главная страница и страницы авторизации всегда идут в сеть без обработки SW
+  // Это критично для проверки актуальной сессии после очистки кэша
+  if (
+    request.method === 'GET' &&
+    (url.pathname === '/' || url.pathname === '/login' || url.pathname === '/register')
+  ) {
+    console.log(`🚫 SW: Bypassing Service Worker for auth page: ${url.pathname} (session check required)`);
+    return; // Пропускаем обработку, браузер обработает запрос напрямую
+  }
   
   // Спец. обработчик навигации (ТОЛЬКО GET): cache-first с фоновым revalidate
   if (
@@ -1265,10 +1299,16 @@ async function handleRequest(request, resourceType, strategy) {
 
 // Специальная обработка навигации для офлайна
 async function handleNavigationRequest(event, request) {
+  // Определяем переменные заранее для использования в catch блоке
+  const reqUrl = new URL(request.url);
+  const isHomePage = reqUrl.pathname === '/';
+  let htmlCache;
+  let htmlKey;
+  
   try {
     // 0) Если уже есть кэш — отдаем его сразу, сеть обновляем фоном
-    const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
-    const htmlKey = getHTMLCacheRequest(request);
+    htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
+    htmlKey = getHTMLCacheRequest(request);
     const cached = await htmlCache.match(htmlKey);
     if (cached) {
       event.waitUntil(revalidateNavigationHTML(request, htmlCache, htmlKey));
@@ -1276,23 +1316,21 @@ async function handleNavigationRequest(event, request) {
     }
 
     // 1) Кэша нет — пробуем сеть с таймаутом
-    const reqUrl = new URL(request.url);
-    const isHomePage = reqUrl.pathname === '/';
 
     // Увеличиваем стандартный таймаут для главной страницы
     let networkTimeout = isHomePage ? 5000 : 1200; // 5 секунд для главной, 1.2 сек для остальных
     let retryTimeout = isHomePage ? 15000 : 10000;
     let shouldRetry = isHomePage; // Всегда разрешаем retry для главной страницы
 
-    // Проверяем, был ли недавно очищен кэш (в течение последних 2 минут)
+    // Проверяем, был ли недавно очищен кэш (в течение последних 5 минут)
     try {
       const cacheCleared = await getLocalStorageItem('cache-cleared-timestamp');
       if (cacheCleared) {
         const timeSinceCleared = Date.now() - parseInt(cacheCleared);
-        if (timeSinceCleared < 2 * 60 * 1000) {
+        if (timeSinceCleared < 5 * 60 * 1000) {
           // Увеличиваем таймауты еще больше после очистки кэша
-          networkTimeout = isHomePage ? 10000 : 5000;
-          retryTimeout = isHomePage ? 20000 : 15000;
+          networkTimeout = isHomePage ? 15000 : 10000;
+          retryTimeout = isHomePage ? 30000 : 25000;
           shouldRetry = true;
           console.log(`⏱️ SW: Using extended timeout (${networkTimeout}ms) due to recent cache clear${isHomePage ? ' (home page)' : ''}`);
         } else {
@@ -1351,18 +1389,69 @@ async function handleNavigationRequest(event, request) {
     console.log(`⚠️ SW: Navigation returned non-HTML (${ct}), serving HTML fallback: ${request.url}`);
     return await getOfflineFallback(request);
   } catch (e) {
+    // Инициализируем htmlCache и htmlKey если они еще не определены
+    if (!htmlCache) {
+      try {
+        htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
+        htmlKey = getHTMLCacheRequest(request);
+      } catch (cacheError) {
+        console.warn('⚠️ SW: Failed to open cache in catch block', cacheError);
+      }
+    }
+    
+    // Проверяем реальный статус сети перед возвратом fallback
+    // Если браузер говорит что онлайн, даем еще одну попытку с увеличенным таймаутом
+    if (navigator.onLine) {
+      console.log(`🔄 SW: Network error but navigator.onLine is true, retrying with extended timeout: ${request.url}`);
+      try {
+        // Последняя попытка с очень большим таймаутом
+        const finalTimeout = isHomePage ? 20000 : 15000;
+        let response = await Promise.race([
+          fetch(request),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), finalTimeout)),
+        ]);
+        
+        const ct = response.headers.get('Content-Type') || '';
+        if (ct.includes('text/html')) {
+          try {
+            if (htmlCache && htmlKey) {
+              const resForHeaders = response.clone();
+              const headers = new Headers(resForHeaders.headers);
+              headers.set('sw-cache-time', Date.now().toString());
+              headers.set('sw-cache-type', 'HTML_PAGES');
+              const bodyBuffer = await resForHeaders.arrayBuffer();
+              const cachedResponse = new Response(bodyBuffer, {
+                status: resForHeaders.status,
+                statusText: resForHeaders.statusText,
+                headers,
+              });
+              await htmlCache.put(htmlKey, cachedResponse);
+              console.log(`💾 SW: Cached navigation HTML after retry: ${htmlKey.url}`);
+            }
+          } catch (cacheError) {
+            console.warn('⚠️ SW: Failed to cache navigation HTML after retry', cacheError);
+          }
+          return response;
+        }
+      } catch (retryError) {
+        console.log(`🧭 SW: Final retry failed, serving HTML fallback: ${request.url}`);
+      }
+    }
+    
     // Если офлайн — отдаём HTML офлайн-страницу
     console.log(`🧭 SW: Navigation offline, serving HTML fallback: ${request.url}`);
     // Пробуем найти ранее закэшированный HTML под спец. ключом
-    try {
-      const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
-      const htmlKey = getHTMLCacheRequest(request);
-      const hit = await htmlCache.match(htmlKey);
-      if (hit) {
-        console.log(`✅ SW: Serving cached navigation HTML: ${htmlKey.url}`);
-        return hit;
+    if (htmlCache && htmlKey) {
+      try {
+        const hit = await htmlCache.match(htmlKey);
+        if (hit) {
+          console.log(`✅ SW: Serving cached navigation HTML: ${htmlKey.url}`);
+          return hit;
+        }
+      } catch (matchError) {
+        console.warn('⚠️ SW: Failed to match cached HTML', matchError);
       }
-    } catch {}
+    }
     return await getOfflineFallback(request);
   }
 }
