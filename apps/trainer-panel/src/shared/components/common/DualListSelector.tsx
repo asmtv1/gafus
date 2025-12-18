@@ -66,7 +66,7 @@ function SortableSelectedItem<T>({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: getItemId(item) });
+  } = useSortable({ id: String(index) });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -219,8 +219,8 @@ export default function DualListSelector<T>({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = selected.findIndex((item) => getItemId(item) === active.id);
-      const newIndex = selected.findIndex((item) => getItemId(item) === over.id);
+      const oldIndex = Number(active.id);
+      const newIndex = Number(over.id);
       const newSelected = arrayMove(selected, oldIndex, newIndex);
       setSelected(newSelected);
       onSelectionChange(newSelected);
@@ -376,7 +376,7 @@ export default function DualListSelector<T>({
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={selected.map(getItemId)}
+                  items={selected.map((_, index) => String(index))}
                   strategy={verticalListSortingStrategy}
                 >
                   <List sx={{ 
