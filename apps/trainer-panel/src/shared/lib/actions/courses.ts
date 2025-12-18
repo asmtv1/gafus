@@ -71,7 +71,7 @@ export async function createCourseServerAction(input: CreateCourseInput) {
   await invalidateCoursesCache();
   
   // Инвалидируем кэш дней курсов при создании курса с днями
-  await invalidateTrainingDaysCache();
+  await invalidateTrainingDaysCache(course.id);
 
   return { success: true, id: course.id };
 }
@@ -133,7 +133,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   await invalidateCoursesCache();
   
   // Инвалидируем кэш дней курсов при обновлении курса с днями
-  await invalidateTrainingDaysCache();
+  await invalidateTrainingDaysCache(input.id);
   
   return { success: true };
 }
@@ -176,7 +176,7 @@ export async function deleteCourseServerAction(courseId: string) {
   await invalidateCoursesCache();
   
   // Инвалидируем кэш дней курсов при удалении курса
-  await invalidateTrainingDaysCache();
+  await invalidateTrainingDaysCache(courseId);
   
   return { success: true };
 }

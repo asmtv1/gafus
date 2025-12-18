@@ -123,6 +123,14 @@ NEXT_PUBLIC_API_URL=http://localhost:3002/api
 # Trainer Panel
 PORT=3001
 NEXT_PUBLIC_API_URL=http://localhost:3001/api
+
+# URL web-приложения для инвалидации кэша
+NEXT_PUBLIC_WEB_APP_URL=http://localhost:3002
+# Или используйте WEB_APP_URL (без NEXT_PUBLIC_)
+WEB_APP_URL=http://localhost:3002
+
+# Секретный токен для межсервисных вызовов (опционально)
+REVALIDATE_SECRET_TOKEN=your-secret-token-here
 ```
 
 **Error Dashboard (.env)**
