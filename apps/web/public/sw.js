@@ -639,7 +639,7 @@ async function getOfflineFallback(request) {
         <div class="buttons">
           <button class="retry" onclick="handleRetry()">Попробовать снова</button>
           <button class="back" onclick="handleBack()">Назад</button>
-          <a href="/" class="home">На главную</a>
+          <a href="/" class="home" onclick="event.preventDefault(); window.location.href='/'; return false;">На главную</a>
         </div>
       </div>
       <script>
@@ -1150,12 +1150,6 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
-  // Пропускаем запросы с параметром _hardRefresh (hard refresh после очистки кэша)
-  if (url.searchParams.has('_hardRefresh')) {
-    console.log(`⏭️ SW: Skipping hard refresh request, allowing browser to handle: ${request.url}`);
-    return; // Позволяем браузеру обработать запрос напрямую, без кэширования
-  }
-  
   const dest = request.headers.get('Sec-Fetch-Dest') || '';
   const uir = request.headers.get('Upgrade-Insecure-Requests') || '';
   
@@ -1282,27 +1276,26 @@ async function handleNavigationRequest(event, request) {
     }
 
     // 1) Кэша нет — пробуем сеть с таймаутом
-    // Проверяем, был ли недавно очищен кэш (в течение последних 2 минут)
-    let networkTimeout = 1200; // Стандартный таймаут
-    let retryTimeout = 10000; // Таймаут для повторной попытки
-    let shouldRetry = false;
-    
     const reqUrl = new URL(request.url);
     const isHomePage = reqUrl.pathname === '/';
-    
+
+    // Увеличиваем стандартный таймаут для главной страницы
+    let networkTimeout = isHomePage ? 5000 : 1200; // 5 секунд для главной, 1.2 сек для остальных
+    let retryTimeout = isHomePage ? 15000 : 10000;
+    let shouldRetry = isHomePage; // Всегда разрешаем retry для главной страницы
+
+    // Проверяем, был ли недавно очищен кэш (в течение последних 2 минут)
     try {
       const cacheCleared = await getLocalStorageItem('cache-cleared-timestamp');
       if (cacheCleared) {
         const timeSinceCleared = Date.now() - parseInt(cacheCleared);
-        // Если кэш был очищен менее 2 минут назад, используем увеличенный таймаут
         if (timeSinceCleared < 2 * 60 * 1000) {
-          // Для главной страницы используем больший таймаут (она загружается первой после очистки)
-          networkTimeout = isHomePage ? 8000 : 5000;
-          retryTimeout = isHomePage ? 15000 : 10000;
-          shouldRetry = true; // Разрешаем повторную попытку
+          // Увеличиваем таймауты еще больше после очистки кэша
+          networkTimeout = isHomePage ? 10000 : 5000;
+          retryTimeout = isHomePage ? 20000 : 15000;
+          shouldRetry = true;
           console.log(`⏱️ SW: Using extended timeout (${networkTimeout}ms) due to recent cache clear${isHomePage ? ' (home page)' : ''}`);
         } else {
-          // Удаляем старый флаг
           await removeLocalStorageItem('cache-cleared-timestamp');
         }
       }
@@ -1586,6 +1579,45 @@ self.addEventListener('message', (event) => {
       })(),
     );
 
+    return;
+  }
+
+  if (event.data && event.data.type === 'CLEAR_ALL_CACHE') {
+    event.waitUntil(
+      (async () => {
+        try {
+          // Очищаем все кэши с префиксом gafus-
+          const cacheNames = await caches.keys();
+          const gafusCaches = cacheNames.filter(name => name.startsWith('gafus-'));
+          
+          await Promise.all(
+            gafusCaches.map(cacheName => caches.delete(cacheName))
+          );
+          
+          // Устанавливаем флаг очистки кэша
+          await setLocalStorageItem('cache-cleared-timestamp', Date.now().toString());
+          
+          console.log(`✅ SW: All caches cleared (${gafusCaches.length} caches)`);
+          
+          if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage({
+              type: 'CLEAR_ALL_CACHE_RESULT',
+              success: true,
+              clearedCount: gafusCaches.length,
+            });
+          }
+        } catch (error) {
+          console.error('❌ SW: Failed to clear all caches', error);
+          if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage({
+              type: 'CLEAR_ALL_CACHE_RESULT',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+          }
+        }
+      })()
+    );
     return;
   }
 

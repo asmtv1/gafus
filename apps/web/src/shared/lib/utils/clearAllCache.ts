@@ -115,49 +115,54 @@ export async function clearAllCache(): Promise<void> {
     }
   }
 
-  // 3. Очищаем Service Worker кэш
-  // Важно: используем таймаут, чтобы избежать зависания при отсутствии сети
-  if (typeof window !== "undefined" && "caches" in window) {
+  // 3. Очищаем Service Worker кэш через postMessage
+  if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     try {
-      // Используем Promise.race с таймаутом для предотвращения зависания
-      const cacheCleanupPromise = (async () => {
-        const cacheNames = await Promise.race([
-          caches.keys(),
-          new Promise<string[]>((_, reject) => 
-            setTimeout(() => reject(new Error("Cache keys timeout")), 5000)
-          )
-        ]);
+      const result = await new Promise<{ success: boolean; clearedCount?: number; error?: string }>((resolve) => {
+        const messageChannel = new MessageChannel();
         
-        await Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName.startsWith("gafus-")) {
-              return Promise.race([
-                caches.delete(cacheName),
-                new Promise<boolean>((_, reject) => 
-                  setTimeout(() => reject(new Error("Cache delete timeout")), 3000)
-                )
-              ]);
-            }
-            return Promise.resolve(false);
-          })
-        );
-      })();
-
-      await Promise.race([
-        cacheCleanupPromise,
-        new Promise<void>((_, reject) => 
-          setTimeout(() => reject(new Error("Cache cleanup timeout")), 10000)
-        )
-      ]);
-
-      logger.info("✅ Service Worker кэш очищен", { operation: 'clear_service_worker' });
+        messageChannel.port1.onmessage = (event) => {
+          resolve(event.data);
+        };
+        
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage(
+            { type: 'CLEAR_ALL_CACHE' },
+            [messageChannel.port2]
+          );
+        } else {
+          // Если SW не активен, очищаем напрямую
+          caches.keys().then(cacheNames => {
+            const gafusCaches = cacheNames.filter(name => name.startsWith('gafus-'));
+            return Promise.all(gafusCaches.map(name => caches.delete(name)));
+          }).then(() => {
+            resolve({ success: true, clearedCount: 0 });
+          }).catch(error => {
+            resolve({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+          });
+        }
+        
+        // Таймаут на случай если SW не ответит
+        setTimeout(() => {
+          resolve({ success: false, error: 'Service Worker timeout' });
+        }, 5000);
+      });
+      
+      if (result.success) {
+        logger.info("✅ Service Worker кэш очищен", { 
+          operation: 'clear_service_worker',
+          clearedCount: result.clearedCount 
+        });
+      } else {
+        logger.warn("⚠️ Ошибка очистки Service Worker кэша", { 
+          error: result.error,
+          operation: 'warn' 
+        });
+        errors.push({ operation: "Service Worker кэш", error: result.error });
+      }
     } catch (error) {
       errors.push({ operation: "Service Worker кэш", error });
-      // Не считаем это критической ошибкой - кэш SW может быть недоступен в офлайн режиме
-      logger.warn("⚠️ Ошибка очистки Service Worker кэша (может быть нормально в офлайн режиме)", { 
-        error, 
-        operation: 'warn' 
-      });
+      logger.warn("⚠️ Ошибка очистки Service Worker кэша", { error, operation: 'warn' });
     }
   }
 

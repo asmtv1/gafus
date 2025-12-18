@@ -50,12 +50,12 @@ export default function SettingsActions() {
         type: "success",
       });
       
-      logger.info("Кэш очищен, выполняем hard refresh на главную", { operation: 'clear_cache_redirect' });
+      logger.info("Кэш очищен, выполняем редирект на главную", { operation: 'clear_cache_redirect' });
       
       // Даем время на завершение операций очистки и показ уведомления,
-      // затем делаем hard refresh на главную страницу (обходим SW кэш)
+      // затем делаем обычный редирект на главную страницу
       timeoutRef.current = setTimeout(() => {
-        window.location.replace('/?_hardRefresh=1');
+        window.location.replace('/');
       }, 800);
     } catch (error) {
       // Ошибка при очистке (должна быть редкой, так как clearAllCache теперь не бросает ошибки)
@@ -66,9 +66,9 @@ export default function SettingsActions() {
         type: "warning",
       });
       
-      // Даже при ошибке перенаправляем на главную для перезагрузки (обходим SW кэш)
+      // Даже при ошибке перенаправляем на главную для перезагрузки
       timeoutRef.current = setTimeout(() => {
-        window.location.replace('/?_hardRefresh=1');
+        window.location.replace('/');
       }, 1000);
     } finally {
       // Не сбрасываем состояние загрузки - страница перезагрузится
