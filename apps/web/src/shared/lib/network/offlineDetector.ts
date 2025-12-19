@@ -87,12 +87,27 @@ function saveCurrentUrl(): void {
 
 /**
  * Восстанавливает сохраненный URL и делает редирект
+ * Редирект происходит только если пользователь все еще на странице офлайна
  */
 function restorePreviousUrl(): void {
   if (typeof window === "undefined") return;
 
   try {
     const savedUrl = sessionStorage.getItem(STORAGE_KEY);
+    const currentPath = window.location.pathname;
+    
+    // Если пользователь уже ушел со страницы офлайна, просто очищаем сохраненный URL
+    if (currentPath !== OFFLINE_PAGE) {
+      if (savedUrl) {
+        sessionStorage.removeItem(STORAGE_KEY);
+        logger.info("User left offline page, clearing saved URL", {
+          operation: "clear_saved_url_after_navigation",
+          savedUrl,
+          currentPath,
+        });
+      }
+      return;
+    }
     
     if (savedUrl) {
       sessionStorage.removeItem(STORAGE_KEY);
@@ -115,8 +130,10 @@ function restorePreviousUrl(): void {
       operation: "restore_previous_url_error",
       error: error instanceof Error ? error.message : String(error),
     });
-    // В случае ошибки просто идем на главную
-    window.location.replace("/");
+    // В случае ошибки просто идем на главную (только если все еще на странице офлайна)
+    if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
+      window.location.replace("/");
+    }
   }
 }
 

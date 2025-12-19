@@ -15,11 +15,14 @@ self.addEventListener('fetch', (event) => {
   const isNavigationRequest = event.request.mode === 'navigate';
   
   // Игнорируем статические ресурсы и API
+  // Также игнорируем /uploads/ - эти запросы обрабатываются через useOfflineMediaUrl
+  // который заменяет URL на blob URL из IndexedDB перед загрузкой
   if (
     url.pathname === '/api/ping' ||
     url.pathname === '/manifest.json' ||
     url.pathname === '/favicon.ico' ||
     url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/uploads/') ||
     url.protocol === 'data:' ||
     url.protocol === 'blob:'
   ) {

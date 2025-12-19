@@ -18,6 +18,7 @@ import { declOfNum } from "@/utils";
 import { SimpleCourseRating } from "../CourseRating";
 import { FavoriteButton } from "../FavoriteButton";
 import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
+import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
@@ -101,11 +102,42 @@ export const CourseCard = ({
     checkDownloaded();
   }, [type, isDownloadedByType]);
 
-  // Используем офлайн-версию логотипа, если доступна, иначе оригинальный URL
+  // Получаем офлайн-версию логотипа из IndexedDB
+  const offlineLogoUrl = useOfflineMediaUrl(type, logoImg || undefined);
+
+  // Используем blob URL если доступен, иначе оригинальный URL
   // Если изображение не загрузилось или если src пустой, используем заглушку
-  const finalSrc = imgError || !logoImg 
-    ? DEFAULT_PLACEHOLDER 
+  // НО: если есть blob URL, игнорируем imgError (blob URL всегда работает офлайн)
+  const hasBlobUrl = offlineLogoUrl && offlineLogoUrl.startsWith("blob:");
+  const finalSrc = !logoImg
+    ? DEFAULT_PLACEHOLDER
+    : hasBlobUrl
+    ? offlineLogoUrl
+    : imgError
+    ? DEFAULT_PLACEHOLDER
     : logoImg;
+
+  // Логирование для отладки
+  useEffect(() => {
+    if (logoImg) {
+      console.log("[CourseCard] Logo resolution", {
+        courseType: type,
+        logoImg,
+        offlineLogoUrl,
+        finalSrc,
+        isBlobUrl: offlineLogoUrl?.startsWith("blob:"),
+        imgError,
+        hasLogoImg: !!logoImg,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      console.log("[CourseCard] No logoImg provided", {
+        courseType: type,
+        logoImg,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [type, logoImg, offlineLogoUrl, finalSrc, imgError]);
 
   // Проверяем кэш изображения в useEffect
   useEffect(() => {
