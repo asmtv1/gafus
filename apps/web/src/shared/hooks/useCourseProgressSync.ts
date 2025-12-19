@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useCallback, useRef } from "react";
 import { useTrainingStore } from "@shared/stores/trainingStore";
 import { useCourseStore } from "@shared/stores/courseStore";
+import { useStepStore } from "@shared/stores/stepStore";
+import { useOfflineStore } from "@shared/stores/offlineStore";
 import { TrainingStatus } from "@gafus/types";
+import { calculateDayStatus } from "@shared/utils/trainingCalculations";
 
 /**
  * Хук для синхронизации данных прогресса курсов между stores
@@ -11,6 +14,8 @@ import { TrainingStatus } from "@gafus/types";
 export function useCourseProgressSync() {
   const { getCachedTrainingDays, courseAssignments } = useTrainingStore();
   const { allCourses, setAllCourses } = useCourseStore();
+  const stepStates = useStepStore((state) => state.stepStates);
+  const isOnline = useOfflineStore((state) => state.isOnline);
   const lastProcessedRef = useRef<string | null>(null);
   const lastUpdateRef = useRef<string | null>(null);
 
@@ -18,18 +23,28 @@ export function useCourseProgressSync() {
   const isAssigned = useCallback((courseId: string) => courseAssignments[courseId] || false, [courseAssignments]);
   const getCachedData = useCallback((courseType: string) => getCachedTrainingDays(courseType), [getCachedTrainingDays]);
 
+  // Функция для сравнения статусов (как в TrainingDayList)
+  const rank = useCallback((s?: string) => {
+    if (s === "COMPLETED") return 2;
+    if (s === "IN_PROGRESS" || s === "PAUSED") return 1;
+    return 0; // NOT_STARTED или неизвестно
+  }, []);
+
   // Синхронизируем данные курсов с актуальным прогрессом из trainingStore
   const syncedCourses = useMemo(() => {
     if (!allCourses?.data) return null;
 
     // Создаем ключ для отслеживания изменений
+    const stepStatesKeys = Object.keys(stepStates).sort().join(',');
     const dataKey = JSON.stringify({
       courses: allCourses.data.map(c => ({ id: c.id, userStatus: c.userStatus })),
       assignments: Object.keys(courseAssignments).filter(id => courseAssignments[id]),
       cacheKeys: allCourses.data.map(c => {
         const cached = getCachedTrainingDays(c.type);
         return cached?.data ? `${c.type}-${cached.data.trainingDays.length}` : null;
-      }).filter(Boolean)
+      }).filter(Boolean),
+      isOnline,
+      stepStatesKeys
     });
 
     // Если данные не изменились, возвращаем null
@@ -45,16 +60,40 @@ export function useCourseProgressSync() {
 
       // Если есть кэшированные данные, проверяем прогресс
       if (cachedData?.data?.trainingDays) {
-        const completedDays = cachedData.data.trainingDays.filter(
-          (day) => day.userStatus === TrainingStatus.COMPLETED
+        // Рассчитываем финальные статусы дней с учетом офлайн режима
+        const dayStatuses = cachedData.data.trainingDays.map((day) => {
+          let finalStatus = day.userStatus as TrainingStatus;
+
+          // В офлайне используем stepStore для расчета локального статуса
+          if (!isOnline) {
+            // Находим dayLink для получения количества шагов
+            const dayLink = course.dayLinks?.find((dl) => dl.order === day.day);
+            const totalSteps = dayLink?.day?.stepLinks?.length;
+
+            if (totalSteps !== undefined) {
+              // Рассчитываем локальный статус дня из stepStore
+              const localStatus = calculateDayStatus(course.id, day.day, stepStates, totalSteps);
+              // Объединяем с серверным статусом (берем максимальный приоритет)
+              finalStatus = rank(localStatus) > rank(day.userStatus) ? localStatus : (day.userStatus as TrainingStatus);
+            }
+          }
+
+          return {
+            ...day,
+            finalStatus,
+          };
+        });
+
+        const completedDays = dayStatuses.filter(
+          (day) => day.finalStatus === TrainingStatus.COMPLETED
         ).length;
         
         // Проверяем наличие реального прогресса (IN_PROGRESS или COMPLETED дней)
-        const hasActiveProgress = cachedData.data.trainingDays.some(
-          (day) => day.userStatus === TrainingStatus.IN_PROGRESS || day.userStatus === TrainingStatus.COMPLETED
+        const hasActiveProgress = dayStatuses.some(
+          (day) => day.finalStatus === TrainingStatus.IN_PROGRESS || day.finalStatus === TrainingStatus.COMPLETED
         );
         
-        const totalDays = cachedData.data.trainingDays.length;
+        const totalDays = dayStatuses.length;
         
         // Если все дни завершены, обновляем статус
         if (completedDays === totalDays && totalDays > 0 && course.userStatus !== TrainingStatus.COMPLETED) {
@@ -85,7 +124,7 @@ export function useCourseProgressSync() {
 
       return course;
     });
-  }, [allCourses?.data, getCachedTrainingDays, courseAssignments]);
+  }, [allCourses?.data, getCachedTrainingDays, courseAssignments, stepStates, isOnline, rank]);
 
   // Обновляем данные в courseStore при изменении синхронизированных данных
   useEffect(() => {

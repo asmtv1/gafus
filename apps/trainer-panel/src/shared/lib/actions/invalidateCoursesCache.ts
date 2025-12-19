@@ -21,6 +21,7 @@ export async function invalidateCoursesCache() {
     revalidateTag("courses-all-permanent");
     revalidateTag("courses-favorites");
     revalidateTag("courses-authored");
+    revalidateTag("courses-metadata");
     
     logger.warn("[Cache] Courses cache invalidated successfully", { operation: 'warn' });
     return { success: true };

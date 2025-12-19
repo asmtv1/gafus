@@ -16,14 +16,22 @@ import {
   checkCourseUpdates,
 } from "@shared/lib/actions/offlineCourseActions";
 import { saveCourseHtmlPagesOnDownload } from "@shared/lib/offline/htmlPageStorage";
+import { isOnline } from "@shared/utils/offlineCacheUtils";
 
 const logger = createWebLogger("web-use-offline-course");
+
+interface UpdateCourseResult {
+  success: boolean;
+  hasUpdates?: boolean;
+  message?: string;
+  error?: string;
+}
 
 interface UseOfflineCourseResult {
   isDownloaded: (courseId: string) => Promise<boolean>;
   isDownloadedByType: (courseType: string) => Promise<boolean>;
   downloadCourse: (courseType: string) => Promise<{ success: boolean; error?: string }>;
-  updateCourse: (courseType: string) => Promise<{ success: boolean; error?: string }>;
+  updateCourse: (courseType: string) => Promise<UpdateCourseResult>;
   deleteCourse: (courseId: string) => Promise<{ success: boolean; error?: string }>;
   isDownloading: boolean;
   isUpdating: boolean;
@@ -351,9 +359,17 @@ export function useOfflineCourse(): UseOfflineCourseResult {
   );
 
   const updateCourse = useCallback(
-    async (courseType: string): Promise<{ success: boolean; error?: string }> => {
+    async (courseType: string): Promise<UpdateCourseResult> => {
       if (isUpdating) {
         return { success: false, error: "Обновление уже выполняется" };
+      }
+
+      // Проверяем онлайн-статус перед обновлением
+      if (!isOnline()) {
+        return {
+          success: false,
+          error: "Нет подключения к интернету. Обновление курса требует подключения к сети.",
+        };
       }
 
       setIsUpdating(true);
@@ -369,11 +385,18 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         const updateCheck = await checkCourseUpdates(courseType, offlineCourse.version);
 
         if (!updateCheck.success) {
-          return { success: false, error: updateCheck.error || "Не удалось проверить обновления" };
+          return {
+            success: false,
+            error: updateCheck.error || "Не удалось проверить обновления",
+          };
         }
 
         if (!updateCheck.hasUpdates) {
-          return { success: true }; // Нет обновлений
+          return {
+            success: true,
+            hasUpdates: false,
+            message: "Курс уже актуален. Обновлений нет.",
+          };
         }
 
         logger.info("Course has updates, downloading new version", {
@@ -386,12 +409,19 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         const downloadResult = await downloadCourse(courseType);
 
         if (!downloadResult.success) {
-          return downloadResult;
+          return {
+            success: false,
+            error: downloadResult.error || "Не удалось скачать обновленную версию курса",
+          };
         }
 
         logger.info("Course updated successfully", { courseType });
 
-        return { success: true };
+        return {
+          success: true,
+          hasUpdates: true,
+          message: "Курс успешно обновлен",
+        };
       } catch (error) {
         logger.error("Error updating course", error as Error, { courseType });
         return {

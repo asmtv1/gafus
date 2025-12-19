@@ -53,6 +53,7 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
           "days",
           "courses-favorites",
           "courses",
+          "courses-metadata",
           "achievements",
           "streaks"
         ]);
@@ -79,6 +80,7 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
     revalidateTag("days"); // Инвалидируем кэш дней тренировок
     revalidateTag("courses-favorites"); // Инвалидируем кэш избранных курсов
     revalidateTag("courses"); // Инвалидируем общий кэш курсов
+    revalidateTag("courses-metadata"); // Инвалидируем кэш метаданных курсов
     revalidateTag("achievements"); // Инвалидируем кэш дат занятий для серий
     revalidateTag("streaks"); // Инвалидируем кэш дат занятий для серий
     

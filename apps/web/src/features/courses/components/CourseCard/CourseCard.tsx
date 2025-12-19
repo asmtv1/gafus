@@ -19,6 +19,8 @@ import { SimpleCourseRating } from "../CourseRating";
 import { FavoriteButton } from "../FavoriteButton";
 import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
+import { showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
+import Swal from "sweetalert2";
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
@@ -165,8 +167,9 @@ export const CourseCard = ({
     const result = await downloadCourse(type);
     if (result.success) {
       setIsDownloaded(true);
+      await showSuccessAlert("Курс успешно скачан");
     } else {
-      alert(result.error || "Не удалось скачать курс");
+      await showErrorAlert(result.error || "Не удалось скачать курс");
     }
   };
 
@@ -178,8 +181,16 @@ export const CourseCard = ({
     if (result.success) {
       // Обновляем состояние
       setIsDownloaded(true);
+      
+      // Показываем информативное сообщение
+      if (result.hasUpdates) {
+        await showSuccessAlert(result.message || "Курс успешно обновлен");
+      } else {
+        // Курс уже актуален
+        await showSuccessAlert(result.message || "Курс уже актуален");
+      }
     } else {
-      alert(result.error || "Не удалось обновить курс");
+      await showErrorAlert(result.error || "Не удалось обновить курс");
     }
   };
 
@@ -187,15 +198,37 @@ export const CourseCard = ({
     e.preventDefault();
     e.stopPropagation();
     
-    if (!confirm("Вы уверены, что хотите удалить курс из офлайн-хранилища?")) {
+    const confirmed = await Swal.fire({
+      title: "Удалить курс?",
+      text: "Вы уверены, что хотите удалить курс из офлайн-хранилища?",
+      imageUrl: "/uploads/logo.png",
+      imageWidth: 50,
+      imageHeight: 50,
+      imageAlt: "Гафус",
+      showCancelButton: true,
+      confirmButtonText: "Удалить",
+      cancelButtonText: "Отмена",
+      confirmButtonColor: "#d32f2f",
+      cancelButtonColor: "#FFF8E5",
+      customClass: {
+        popup: "swal2-popup-custom",
+        title: "swal2-title-custom",
+        htmlContainer: "swal2-content-custom",
+        confirmButton: "swal2-confirm-custom",
+        cancelButton: "swal2-cancel-custom",
+      },
+    });
+    
+    if (!confirmed.isConfirmed) {
       return;
     }
     
     const result = await deleteCourse(id);
     if (result.success) {
       setIsDownloaded(false);
+      await showSuccessAlert("Курс удален из офлайн-хранилища");
     } else {
-      alert(result.error || "Не удалось удалить курс");
+      await showErrorAlert(result.error || "Не удалось удалить курс");
     }
   };
 

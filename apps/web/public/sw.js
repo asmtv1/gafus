@@ -3,11 +3,7 @@
 // Кэширование удалено - данные курсов хранятся в IndexedDB
 // Исключение: страница офлайна кэшируется для работы в офлайне
 
-// Отключаем подробные логирования в production
-const SW_DEBUG = true; // Временно включено для отладки
-if (!SW_DEBUG) {
-  try { console.log = function () {}; } catch (e) {}
-}
+// Логирование критичных ошибок для мониторинга в продакшене
 
 // Перехват fetch запросов для определения сетевых ошибок
 self.addEventListener('fetch', (event) => {
@@ -41,7 +37,6 @@ self.addEventListener('fetch', (event) => {
         
         // Если файл есть в кэше, возвращаем его (из офлайн-скачанного курса)
         if (cachedResponse) {
-          console.log('🦁 SW: Serving chunk from cache', url.pathname);
           return cachedResponse;
         }
         
@@ -54,7 +49,6 @@ self.addEventListener('fetch', (event) => {
             notifyClient('ONLINE');
             // Кэшируем только успешные ответы
             cache.put(event.request, response.clone());
-            console.log('🦁 SW: Chunk loaded from network and cached', url.pathname);
             return response;
           }
           
@@ -63,7 +57,6 @@ self.addEventListener('fetch', (event) => {
         } catch (error) {
           // Если не удалось загрузить и файла нет в кэше, возвращаем ошибку
           // Это вызовет ChunkLoadError, но это ожидаемо для нескачанных chunks
-          console.warn('🦁 SW: Chunk not found in cache and network failed', url.pathname);
           notifyClient('OFFLINE', { error: 'Static file not cached' });
           throw error;
         }
@@ -210,12 +203,10 @@ self.addEventListener('fetch', (event) => {
         // (Service Worker не может напрямую читать IndexedDB)
         // Нормализуем URL (убираем trailing slash)
         const requestKey = url.pathname.replace(/\/$/, '') || url.pathname;
-        console.log('🦁 SW: Requesting HTML from IndexedDB for', requestKey);
         
         // Создаем Promise, который резолвится когда клиент отправит HTML
         const htmlPromise = new Promise((resolve) => {
           pendingHtmlRequests.set(requestKey, resolve);
-          console.log('🦁 SW: Promise created for', requestKey, 'pending:', pendingHtmlRequests.size);
         });
         
         // Отправляем запрос клиенту
@@ -224,33 +215,24 @@ self.addEventListener('fetch', (event) => {
           action: 'GET_HTML_FROM_INDEXEDDB',
           url: requestKey
         });
-        console.log('🦁 SW: Message sent to client for', requestKey);
         
         // Ждем HTML от клиента с таймаутом 5 секунд (увеличено для надежности)
         let htmlFromIndexedDB = null;
         try {
           htmlFromIndexedDB = await Promise.race([
-            htmlPromise.then((html) => {
-              console.log('🦁 SW: HTML received from client for', requestKey, 'length:', html?.length || 0);
-              return html;
-            }),
+            htmlPromise.then((html) => html),
             new Promise((resolve) => {
-              setTimeout(() => {
-                console.log('🦁 SW: Timeout waiting for HTML from client for', requestKey);
-                resolve(null);
-              }, 5000);
+              setTimeout(() => resolve(null), 5000);
             })
           ]);
         } catch (error) {
-          console.error('🦁 SW: Error waiting for HTML:', error);
+          // Игнорируем ошибки ожидания HTML
         } finally {
           pendingHtmlRequests.delete(requestKey);
-          console.log('🦁 SW: Cleaned up promise for', requestKey);
         }
         
         // Если HTML пришел от клиента, сохраняем в кэш и возвращаем
         if (htmlFromIndexedDB) {
-          console.log('🦁 SW: Returning HTML from IndexedDB for', requestKey, 'length:', htmlFromIndexedDB.length);
           const htmlResponse = new Response(htmlFromIndexedDB, {
             status: 200,
             headers: {
@@ -260,27 +242,21 @@ self.addEventListener('fetch', (event) => {
           });
           
           // Сохраняем в кэш для следующего раза
-          coursesCache.put(cacheKey, htmlResponse.clone()).then(() => {
-            console.log('🦁 SW: HTML saved to cache for', requestKey);
-          }).catch((err) => {
-            console.error('🦁 SW: Failed to save HTML to cache:', err);
+          coursesCache.put(cacheKey, htmlResponse.clone()).catch(() => {
+            // Игнорируем ошибки сохранения в кэш
           });
           return htmlResponse;
-        } else {
-          console.log('🦁 SW: No HTML received from IndexedDB for', requestKey);
         }
         
         // Если HTML не пришел, проверяем кэш еще раз (на случай если клиент успел сохранить)
         const cachedAfterRequest = await coursesCache.match(cacheKey);
         if (cachedAfterRequest) {
-          console.log('🦁 SW: Found HTML in cache after request for', requestKey);
           return cachedAfterRequest;
         }
         
         // Если HTML нет в кэше и сеть недоступна, возвращаем базовый HTML
         // который позволит Next.js загрузиться на клиенте
         // Клиент загрузит данные из IndexedDB через useCachedTrainingDays
-        console.log('🦁 SW: Returning base HTML fallback for', requestKey);
         const baseHtml = `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -433,7 +409,6 @@ self.addEventListener('fetch', (event) => {
         // Для не-навигационных запросов возвращаем пустой ответ вместо проброса ошибки
         // Это предотвращает необработанные исключения в консоли
         if (!isNavigationRequest) {
-          console.log('🦁 SW: Network error for non-navigation request, returning empty response', url.pathname);
           return new Response('', {
             status: 503,
             statusText: 'Service Unavailable',
@@ -463,7 +438,7 @@ function notifyClient(type, data = {}) {
       });
     })
     .catch((error) => {
-      // Игнорируем ошибки отправки сообщений
+      console.warn('[SW] Failed to notify client:', error, { type, data });
     });
 }
 
@@ -486,13 +461,6 @@ function getSafariSettings() {
 }
 
 const settings = getSafariSettings();
-
-console.log('🦁 SW: Settings loaded', {
-  isSafari: settings.isSafari,
-  isIOS: settings.isIOS,
-  isStandalone: settings.isStandalone,
-  useSimpleNotifications: settings.useSimpleNotifications,
-});
 
 // Утилиты для работы с localStorage из Service Worker
 async function getLocalStorageItem(key) {
@@ -524,7 +492,7 @@ async function getLocalStorageItem(key) {
       };
     });
   } catch (e) {
-    console.warn('⚠️ SW: Failed to get localStorage item', e);
+    console.warn('[SW] Failed to get localStorage item:', e, { key });
     return null;
   }
 }
@@ -558,7 +526,7 @@ async function setLocalStorageItem(key, value) {
       };
     });
   } catch (e) {
-    console.warn('⚠️ SW: Failed to set localStorage item', e);
+    console.warn('[SW] Failed to set localStorage item:', e, { key });
   }
 }
 
@@ -656,24 +624,21 @@ async function cacheOfflinePageChunks(htmlResponse, cache) {
       }
     }
     
-    console.log(`🦁 SW: Found ${chunksToCache.size} chunks to cache for offline page`);
-    
     // Кэшируем все найденные chunks
     const cachePromises = Array.from(chunksToCache).map(async (url) => {
       try {
         const response = await fetch(url);
         if (response.ok) {
           await cache.put(url, response.clone());
-          console.log(`✅ SW: Cached chunk: ${url}`);
         }
       } catch (error) {
-        console.log(`⚠️ SW: Failed to cache chunk ${url}:`, error.message);
+        // Игнорируем ошибки кэширования отдельных chunks
       }
     });
     
     await Promise.allSettled(cachePromises);
   } catch (error) {
-    console.log('⚠️ SW: Error caching offline page chunks:', error);
+    // Игнорируем ошибки кэширования chunks
   }
 }
 
@@ -687,8 +652,6 @@ function isCoursePage(pathname) {
 
 // Install event - кэшируем страницу офлайна и её chunks
 self.addEventListener('install', (event) => {
-  console.log('📦 SW: Install event - Caching offline page and chunks');
-  
   event.waitUntil(
     (async () => {
       try {
@@ -699,19 +662,16 @@ self.addEventListener('install', (event) => {
           const response = await fetch(OFFLINE_PAGE_URL);
           if (response.ok) {
             await cache.put(OFFLINE_PAGE_URL, response.clone());
-            console.log('✅ SW: Offline page HTML cached');
-            
             // Кэшируем все chunks страницы офлайна
             await cacheOfflinePageChunks(response, cache);
-            console.log('✅ SW: Offline page and chunks cached');
           }
         } catch (error) {
-          console.log('⚠️ SW: Failed to cache offline page on install, will try later', error);
+          console.warn('[SW] Failed to cache offline page on install:', error);
         }
         
         self.skipWaiting();
       } catch (error) {
-        console.log('⚠️ SW: Install error:', error);
+        console.error('[SW] Install error:', error);
         self.skipWaiting();
       }
     })()
@@ -720,8 +680,6 @@ self.addEventListener('install', (event) => {
 
 // Activate event - очистка старых кэшей
 self.addEventListener('activate', (event) => {
-  console.log('🔄 SW: Activate event - Cleaning up old caches');
-  
   event.waitUntil(
     (async () => {
       try {
@@ -737,10 +695,6 @@ self.addEventListener('activate', (event) => {
           gafusCaches.map(cacheName => caches.delete(cacheName))
         );
         
-        if (gafusCaches.length > 0) {
-          console.log(`🧹 SW: Deleted ${gafusCaches.length} old caches`);
-        }
-        
         // Убеждаемся, что страница офлайна закэширована
         const cache = await caches.open(OFFLINE_CACHE_NAME);
         const cached = await cache.match(OFFLINE_PAGE_URL);
@@ -749,17 +703,15 @@ self.addEventListener('activate', (event) => {
             const response = await fetch(OFFLINE_PAGE_URL);
             if (response.ok) {
               await cache.put(OFFLINE_PAGE_URL, response);
-              console.log('✅ SW: Offline page cached on activate');
             }
           } catch (error) {
-            console.log('⚠️ SW: Failed to cache offline page on activate');
+            console.warn('[SW] Failed to cache offline page on activate:', error);
           }
         }
         
         await self.clients.claim();
-        console.log('✅ SW: Activation completed');
       } catch (error) {
-        console.error('❌ SW: Failed to cleanup caches:', error);
+        console.error('[SW] Failed to cleanup caches:', error);
       }
     })()
   );
@@ -785,8 +737,6 @@ function createNotificationOptions(title, options = {}) {
 
 // Push event handler
 self.addEventListener('push', (event) => {
-  console.log('🦁 SW: Push event received');
-  
   let data = {};
   try {
     if (event.data) {
@@ -797,14 +747,13 @@ self.addEventListener('push', (event) => {
         // Если не JSON, пробуем получить как текст
         try {
           const textData = event.data.text();
-          console.log('🦁 SW: Получены текстовые данные:', textData);
           // Если это простой текст, создаем объект уведомления
           data = {
             title: 'Gafus',
             body: textData || 'Новое уведомление'
           };
         } catch (textError) {
-          console.warn('⚠️ SW: Не удалось получить данные как текст:', textError);
+          console.warn('[SW] Failed to parse push data as text:', textError);
           data = { title: 'Gafus', body: 'Новое уведомление' };
         }
       }
@@ -812,7 +761,7 @@ self.addEventListener('push', (event) => {
       data = { title: 'Gafus', body: 'Новое уведомление' };
     }
   } catch (error) {
-    console.warn('⚠️ SW: Не удалось обработать push данные:', error);
+    console.error('[SW] Failed to parse push event data:', error);
     data = { title: 'Gafus', body: 'Новое уведомление' };
   }
   
@@ -827,23 +776,15 @@ self.addEventListener('push', (event) => {
     actions: data.actions || [],
   });
   
-  console.log('🦁 SW: Showing notification:', title);
-  
   event.waitUntil(
-    self.registration.showNotification(title, options)
-      .then(() => {
-        console.log('✅ SW: Notification shown successfully');
-      })
-      .catch(error => {
-        console.error('❌ SW: Error showing notification:', error);
-      })
+    self.registration.showNotification(title, options).catch((error) => {
+      console.error('[SW] Failed to show push notification:', error, { title, body: options.body });
+    })
   );
 });
 
 // Notification click event handler
 self.addEventListener('notificationclick', (event) => {
-  console.log('🦁 SW: Notification click event');
-  
   const notificationData = event.notification.data || {};
   const targetUrl = notificationData.url || '/';
   const notificationId = notificationData.notificationId;
@@ -855,8 +796,6 @@ self.addEventListener('notificationclick', (event) => {
       try {
         // Отслеживаем клик по re-engagement уведомлению
         if (notificationId) {
-          console.log('🦁 SW: Tracking reengagement click:', notificationId);
-          
           try {
             const response = await fetch('/api/track-reengagement-click', {
               method: 'POST',
@@ -865,14 +804,11 @@ self.addEventListener('notificationclick', (event) => {
               },
               body: JSON.stringify({ notificationId }),
             });
-            
-            if (response.ok) {
-              console.log('✅ SW: Reengagement click tracked');
-            } else {
-              console.warn('⚠️ SW: Failed to track reengagement click:', response.status);
+            if (!response.ok) {
+              console.warn('[SW] Failed to track reengagement click:', response.status, { notificationId });
             }
           } catch (error) {
-            console.warn('⚠️ SW: Error tracking reengagement click:', error);
+            console.warn('[SW] Error tracking reengagement click:', error, { notificationId });
           }
         }
         
@@ -882,7 +818,6 @@ self.addEventListener('notificationclick', (event) => {
         // Ищем уже открытое окно приложения
         for (const client of clients) {
           if (client.url.includes('gafus.ru') && 'focus' in client) {
-            console.log('✅ SW: Focusing existing window, navigating to:', targetUrl);
             await client.focus();
             client.postMessage({ type: 'NAVIGATE', url: targetUrl });
             return;
@@ -891,11 +826,14 @@ self.addEventListener('notificationclick', (event) => {
         
         // Если нет открытого окна, открываем новое с нужным URL
         if (self.clients.openWindow) {
-          console.log('✅ SW: Opening new window with URL:', targetUrl);
-          await self.clients.openWindow(targetUrl);
+          try {
+            await self.clients.openWindow(targetUrl);
+          } catch (error) {
+            console.warn('[SW] Failed to open window:', error, { targetUrl });
+          }
         }
       } catch (error) {
-        console.error('❌ SW: Error handling notification click:', error);
+        console.error('[SW] Error handling notification click:', error, { targetUrl, notificationId });
       }
     })()
   );
@@ -903,22 +841,13 @@ self.addEventListener('notificationclick', (event) => {
 
 // Message event handler для коммуникации с клиентом
 self.addEventListener('message', (event) => {
-  console.log('🦁 SW: Message event', event.data);
-  
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('🦁 SW: Skip waiting requested');
     self.skipWaiting();
   }
   
   // Обработка запроса HTML из IndexedDB (резервный вариант)
   if (event.data && event.data.type === 'HTML_FROM_INDEXEDDB') {
     const { url: urlPath, html } = event.data;
-    console.log('🦁 SW: Received HTML_FROM_INDEXEDDB message', {
-      url: urlPath,
-      hasHtml: !!html,
-      htmlLength: html?.length || 0,
-      pendingRequests: Array.from(pendingHtmlRequests.keys())
-    });
     
     if (html && urlPath) {
       // Нормализуем URL (убираем trailing slash)
@@ -927,11 +856,7 @@ self.addEventListener('message', (event) => {
       // Если есть ожидающий запрос для этого URL, резолвим Promise
       const resolve = pendingHtmlRequests.get(normalizedUrl);
       if (resolve) {
-        console.log('🦁 SW: Resolving promise for', normalizedUrl);
         resolve(html);
-        console.log('✅ SW: HTML received from IndexedDB and returned to request', normalizedUrl, 'length:', html.length);
-      } else {
-        console.warn('⚠️ SW: No pending request found for', normalizedUrl, 'available:', Array.from(pendingHtmlRequests.keys()));
       }
       
       // Также сохраняем HTML в Cache API для следующего раза
@@ -944,53 +869,11 @@ self.addEventListener('message', (event) => {
             await coursesCache.put(fullUrl, new Response(html, {
               headers: { 'Content-Type': 'text/html; charset=utf-8' }
             }));
-            console.log('✅ SW: HTML saved to cache from IndexedDB', normalizedUrl);
           } catch (error) {
-            console.error('⚠️ SW: Failed to save HTML to cache', error);
+            console.warn('[SW] Failed to save HTML to cache from IndexedDB:', error, { url: normalizedUrl });
           }
         })()
       );
-    } else {
-      console.warn('⚠️ SW: Invalid HTML_FROM_INDEXEDDB message', { urlPath, hasHtml: !!html });
     }
-  }
-  
-  if (event.data && event.data.type === 'CLEAR_ALL_CACHE') {
-    event.waitUntil(
-      (async () => {
-        try {
-          // Очищаем все кэши с префиксом gafus-
-          const cacheNames = await caches.keys();
-          const gafusCaches = cacheNames.filter(name => name.startsWith('gafus-'));
-          
-          await Promise.all(
-            gafusCaches.map(cacheName => caches.delete(cacheName))
-          );
-          
-          // Устанавливаем флаг очистки кэша
-          await setLocalStorageItem('cache-cleared-timestamp', Date.now().toString());
-          
-          console.log(`✅ SW: All caches cleared (${gafusCaches.length} caches)`);
-          
-          if (event.ports && event.ports[0]) {
-            event.ports[0].postMessage({
-              type: 'CLEAR_ALL_CACHE_RESULT',
-              success: true,
-              clearedCount: gafusCaches.length,
-            });
-          }
-        } catch (error) {
-          console.error('❌ SW: Failed to clear all caches', error);
-          if (event.ports && event.ports[0]) {
-            event.ports[0].postMessage({
-              type: 'CLEAR_ALL_CACHE_RESULT',
-              success: false,
-              error: error instanceof Error ? error.message : 'Unknown error',
-            });
-          }
-        }
-      })()
-    );
-    return;
   }
 });
