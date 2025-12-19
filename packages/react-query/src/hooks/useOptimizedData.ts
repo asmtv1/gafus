@@ -71,30 +71,6 @@ const cacheConfigs: Record<QueryCacheStrategy, any> = {
   },
 };
 
-// Хук для курсов с оптимизированным кэшированием
-export function useCoursesData<T extends CourseData>(
-  key: string | null,
-  fetcher?: () => Promise<T>,
-) {
-  const config = useMemo(() => cacheConfigs.courses, []);
-
-  const result = useData<T>(key, fetcher, {
-    ...config,
-  });
-
-  // Логирование в development режиме
-  if (process.env.NODE_ENV === "development" && result.data) {
-    logger.info(`Courses loaded: ${key}`, {
-      dataType: 'courses',
-      key: key,
-      hasData: !!result.data,
-      strategy: 'courses'
-    });
-  }
-
-  return result;
-}
-
 // Хук для профиля пользователя
 export function useUserProfileData<T extends UserProfileData>(
   key: string | null,

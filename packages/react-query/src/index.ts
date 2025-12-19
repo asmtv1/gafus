@@ -69,7 +69,6 @@ export {
 } from "./hooks/useData";
 
 export {
-  useCoursesData,
   useOptimizedData,
   useSearchData as useOptimizedSearchData,
   useRealTimeData,

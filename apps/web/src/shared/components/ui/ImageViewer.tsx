@@ -5,6 +5,11 @@ import Image from "next/image";
 import { getCDNUrl } from "@gafus/cdn-upload";
 import styles from "./ImageViewer.module.css";
 
+// Проверка, является ли URL blob URL
+function isBlobUrl(url: string): boolean {
+  return url.startsWith("blob:");
+}
+
 interface ImageViewerProps {
   src: string;
   alt: string;
@@ -64,18 +69,31 @@ export default function ImageViewer({
         }}
         aria-label={`Открыть изображение: ${alt}`}
       >
-        <Image
-          src={getCDNUrl(src)}
-          alt={alt}
-          width={width}
-          height={height}
-          className={`${styles.thumbnailImage} ${className || ""}`}
-          priority={priority}
-          loading={loading}
-          style={{
-            objectFit: "contain", // Изображение полностью вписывается без обрезки
-          }}
-        />
+        {isBlobUrl(src) ? (
+          <img
+            src={src}
+            alt={alt}
+            width={width}
+            height={height}
+            className={`${styles.thumbnailImage} ${className || ""}`}
+            style={{
+              objectFit: "contain",
+            }}
+          />
+        ) : (
+          <Image
+            src={getCDNUrl(src)}
+            alt={alt}
+            width={width}
+            height={height}
+            className={`${styles.thumbnailImage} ${className || ""}`}
+            priority={priority}
+            loading={loading}
+            style={{
+              objectFit: "contain", // Изображение полностью вписывается без обрезки
+            }}
+          />
+        )}
         <div className={styles.thumbnailOverlay}>
           <div className={styles.zoomIcon}>
             <svg
@@ -139,17 +157,30 @@ export default function ImageViewer({
             </button>
             
             <div className={styles.modalImageContainer}>
-              <Image
-                src={getCDNUrl(src)}
-                alt={alt}
-                fill
-                className={styles.modalImage}
-                priority={true}
-                style={{
-                  objectFit: "contain", // Изображение полностью вписывается без обрезки
-                }}
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 80vw"
-              />
+              {isBlobUrl(src) ? (
+                <img
+                  src={src}
+                  alt={alt}
+                  className={styles.modalImage}
+                  style={{
+                    objectFit: "contain",
+                    width: "100%",
+                    height: "100%",
+                  }}
+                />
+              ) : (
+                <Image
+                  src={getCDNUrl(src)}
+                  alt={alt}
+                  fill
+                  className={styles.modalImage}
+                  priority={true}
+                  style={{
+                    objectFit: "contain", // Изображение полностью вписывается без обрезки
+                  }}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 80vw"
+                />
+              )}
             </div>
             
             <div className={styles.modalCaption}>

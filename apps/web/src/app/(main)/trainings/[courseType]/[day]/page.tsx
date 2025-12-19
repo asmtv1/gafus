@@ -27,7 +27,7 @@ export default async function DayPage(props: {
     throw new Error("Тренировка не найдена");
   }
 
-  return <Day training={training} />;
+  return <Day training={training} courseType={courseType} />;
 }
 
 // Генерация метаданных (read-only, не создает данные в БД)

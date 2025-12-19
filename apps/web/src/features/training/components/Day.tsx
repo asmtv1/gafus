@@ -34,9 +34,10 @@ const STEP_STATUS_CONFIG = {
 
 interface DayProps {
   training: TrainingDetail;
+  courseType: string;
 }
 
-export function Day({ training }: DayProps) {
+export function Day({ training, courseType }: DayProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState<boolean>(false);
@@ -246,6 +247,7 @@ export function Day({ training }: DayProps) {
               <div className={styles.accordionContent}>
                 <AccordionStep
                   courseId={training.courseId}
+                  courseType={courseType}
                   day={training.day}
                   stepIndex={index}
                   durationSec={step.durationSec}

@@ -1,13 +1,121 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { TrainingStatus } from "@gafus/types";
+import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
+import { useOfflineStatus } from "@shared/hooks/useOfflineStatus";
+import type { OfflineCourse } from "@shared/lib/offline/types";
+import type { CourseCardPropsWithIndex } from "@gafus/types";
+import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
+import courseStyles from "../(main)/courses/courses.module.css";
+import styles from "./offline.module.css";
+
+// Преобразование OfflineCourse → CourseCardProps
+function convertToCourseCardProps(
+  offlineCourse: OfflineCourse,
+  index: number,
+): CourseCardPropsWithIndex {
+  const metadata = offlineCourse.course.metadata;
+  return {
+    id: metadata.id,
+    name: metadata.name,
+    type: metadata.type,
+    duration: metadata.duration,
+    logoImg: metadata.logoImg,
+    isPrivate: metadata.isPrivate,
+    userStatus: TrainingStatus.NOT_STARTED,
+    startedAt: null,
+    completedAt: null,
+    shortDesc: metadata.shortDesc,
+    authorUsername: metadata.authorUsername,
+    createdAt: new Date(metadata.createdAt),
+    avgRating: metadata.avgRating,
+    trainingLevel: metadata.trainingLevel as "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT",
+    reviews: [],
+    isFavorite: false,
+    index,
+  };
+}
+
 export default function OfflinePage() {
+  const { downloadedCourses, refreshDownloadedCourses } = useOfflineCourse();
+  const { isOnline } = useOfflineStatus();
+  const [isLoading, setIsLoading] = useState(true);
+  const [indexedDBError, setIndexedDBError] = useState<string | null>(null);
+  const [showConnectionRestored, setShowConnectionRestored] = useState(false);
+
+  // Загружаем курсы при монтировании
+  useEffect(() => {
+    const loadCourses = async () => {
+      setIsLoading(true);
+      setIndexedDBError(null);
+      try {
+        await refreshDownloadedCourses();
+      } catch (error) {
+        setIndexedDBError(
+          error instanceof Error ? error.message : "Ошибка загрузки курсов"
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadCourses();
+  }, [refreshDownloadedCourses]);
+
+  // Отслеживаем восстановление подключения
+  useEffect(() => {
+    if (isOnline) {
+      setShowConnectionRestored(true);
+      // Автоматический возврат обрабатывается в offlineDetector
+      // Показываем уведомление на короткое время
+      const timer = setTimeout(() => {
+        setShowConnectionRestored(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowConnectionRestored(false);
+    }
+  }, [isOnline]);
+
+
+  // Преобразуем курсы в формат для карточек
+  const courseCards = useMemo(() => {
+    return downloadedCourses.map((course, index) =>
+      convertToCourseCardProps(course, index),
+    );
+  }, [downloadedCourses]);
+
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-        <div className="mb-6">
-          <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+    <div className={styles.container}>
+      <h1 className={styles.title}>Нет соединения с сервером</h1>
+      
+      {/* Заголовок и информационное сообщение */}
+      <div className={styles.headerSection}>
+        <div className={styles.infoBox}>
+          <p>
+            Да, вы офлайн, но вот ваши скачанные курсы, можете их проходить
+          </p>
+          <p>
+            Все скачанные курсы доступны для прохождения в офлайн-режиме
+          </p>
+        </div>
+      </div>
+
+      {/* Список курсов или пустое состояние */}
+      {isLoading ? (
+        <div className={styles.loadingState}>
+          <p>Загрузка скачанных курсов...</p>
+        </div>
+      ) : courseCards.length > 0 ? (
+        <ul className={courseStyles.courseList}>
+          {courseCards.map((course) => (
+            <CourseCard key={course.id} {...course} />
+          ))}
+        </ul>
+      ) : (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyStateIcon}>
             <svg
-              className="w-8 h-8 text-yellow-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -16,58 +124,69 @@ export default function OfflinePage() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Нет соединения с сервером
-          </h1>
-          <p className="text-gray-600">
-            Сервер временно недоступен, но вы можете использовать приложение в офлайн режиме
+          <h2 className={styles.emptyStateTitle}>
+            Нет скачанных курсов
+          </h2>
+          <p className={styles.emptyStateText}>
+            У вас пока нет скачанных курсов для офлайн-доступа. Вернитесь на главную страницу
+            и скачайте курсы, чтобы использовать их без интернета.
           </p>
         </div>
+      )}
 
-        <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
-            <h3 className="font-semibold text-blue-900 mb-2">Что доступно:</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Просмотр загруженных курсов</li>
-              <li>• Таймеры и тренировки (если были закэшированы)</li>
-              <li>• Прогресс и статистика (из кэша)</li>
-              <li>• Работа с кэшированным контентом</li>
-              <li>• Локальные действия (сохранятся при восстановлении связи)</li>
-            </ul>
-          </div>
-
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
-            <h3 className="font-semibold text-yellow-900 mb-2">Что недоступно:</h3>
-            <ul className="text-sm text-yellow-800 space-y-1">
-              <li>• Загрузка новых курсов</li>
-              <li>• Синхронизация с сервером</li>
-              <li>• Обновление данных</li>
-            </ul>
-          </div>
-
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Попробовать снова
-          </button>
-
-          <button
-            onClick={() => window.history.back()}
-            className="w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-          >
-            Назад
-          </button>
-        </div>
-
-        <div className="mt-6 text-xs text-gray-500">
-          <p>Приложение будет автоматически синхронизироваться при восстановлении соединения</p>
-        </div>
+      {/* Кнопки действий */}
+      <div className={styles.actionsSection}>
+        <button
+          onClick={() => window.location.reload()}
+          className={styles.button}
+        >
+          Попробовать снова
+        </button>
+        <button
+          onClick={() => (window.location.href = "/")}
+          className={`${styles.button} ${styles.buttonSecondary}`}
+        >
+          На главную
+        </button>
       </div>
+
+
+      {/* Уведомление о восстановлении подключения */}
+      {showConnectionRestored && (
+        <div
+          style={{
+            marginTop: "16px",
+            padding: "12px",
+            background: "#d4edda",
+            border: "1px solid #c3e6cb",
+            borderRadius: "4px",
+            color: "#155724",
+            textAlign: "center",
+          }}
+        >
+          <strong>Подключение восстановлено!</strong> Происходит автоматический возврат...
+        </div>
+      )}
+
+      {/* Ошибка IndexedDB */}
+      {indexedDBError && (
+        <div
+          style={{
+            marginTop: "16px",
+            padding: "12px",
+            background: "#f8d7da",
+            border: "1px solid #f5c6cb",
+            borderRadius: "4px",
+            color: "#721c24",
+          }}
+        >
+          <strong>Внимание:</strong> {indexedDBError}
+        </div>
+      )}
     </div>
   );
 }

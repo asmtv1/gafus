@@ -169,7 +169,7 @@ export const getAllCoursesCached = unstable_cache(
   },
   ["courses-all-permanent"],
   {
-    revalidate: false, // Постоянное кэширование - инвалидируется только вручную
+    revalidate: 20 * 60, // 20 минут - курсы редко меняются
     tags: ["courses", "courses-all-permanent"],
   },
 );
@@ -250,7 +250,7 @@ export async function getUserCoursesProgressCached(userId?: string) {
     },
     ["user-courses-progress", cacheKeyUserId], // Включаем userId в ключ кэша
     {
-      revalidate: false, // НЕ инвалидируется по времени - только вручную при изменении прогресса
+      revalidate: 5 * 60, // 5 минут - прогресс меняется не так часто
       tags: ["courses", "user-progress", `user-${cacheKeyUserId}`], // Включаем userId в теги
     },
   );
@@ -292,7 +292,7 @@ export async function getCoursesWithProgressCached(userId?: string) {
     },
     ["courses-all", cacheKeyUserId], // Включаем userId в ключ кэша
     {
-      revalidate: 60, // 60 секунд - синхронизируем с revalidate страницы
+      revalidate: 5 * 60, // 5 минут - снижаем нагрузку на сервер
       tags: ["courses", "courses-all", `user-${cacheKeyUserId}`], // Включаем userId в теги
     },
   );
@@ -412,7 +412,7 @@ export async function getFavoritesCoursesCached(userId?: string) {
     },
     ["courses-favorites", cacheKeyUserId],
     {
-      revalidate: 60, // 60 секунд - синхронизируем с revalidate страницы
+      revalidate: 5 * 60, // 5 минут - избранные меняются не так часто
       tags: ["courses", "courses-favorites", `user-${cacheKeyUserId}`],
     },
   );
@@ -498,10 +498,10 @@ export const getTrainingDaysCached = unstable_cache(
       };
     }
   },
-  // Меняем ключ версионирования, чтобы сбросить старый кэш с другим расчётом времени
-  ["training-days-v2"],
+  // Краткое кэширование (1 минута) только для предотвращения дублирующих запросов
+  ["training-days-v3"],
   {
-    revalidate: false, // Бесконечное кэширование - инвалидируется только вручную
+    revalidate: 60, // 1 минута - краткое кэширование для предотвращения дублирующих запросов
     tags: ["training", "days"],
   }
 );
@@ -633,9 +633,9 @@ export const getTrainingDayCached = unstable_cache(
       };
     }
   },
-  ["training-day"],
+  ["training-day-v2"],
   {
-    revalidate: false, // Бесконечное кэширование - инвалидируется только вручную
+    revalidate: 60, // 1 минута - краткое кэширование для предотвращения дублирующих запросов
     tags: ["training", "day"],
   }
 );

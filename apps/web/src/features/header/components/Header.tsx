@@ -4,6 +4,7 @@ import { BurgerIcon } from "@shared/components/ui/BurgerIcon";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 
 import styles from "./Header.module.css";
@@ -14,6 +15,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const burgerRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -107,13 +109,19 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                 )}
               </>
             )}
-            <Link href="/courses" onClick={() => setMenuOpen(false)} className={styles.menuButton}>
+            <Link 
+              href="/courses" 
+              onClick={() => setMenuOpen(false)} 
+              onMouseEnter={() => router.prefetch("/courses")}
+              className={styles.menuButton}
+            >
               <Image src="/uploads/header/home.svg" alt="Home" width={24} height={24} loading="lazy" />
               Все курсы
             </Link>
             <Link
               href="/favorites"
               onClick={() => setMenuOpen(false)}
+              onMouseEnter={() => router.prefetch("/favorites")}
               className={styles.menuButton}
             >
               <Image

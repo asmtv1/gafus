@@ -1,0 +1,244 @@
+.container {
+  margin: 0 auto;
+  background-color: var(--bg-1);
+  padding-bottom: 10px;
+  min-height: 100vh;
+}
+
+.title {
+  color: #352e2e;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 80px;
+  line-height: 100%;
+  letter-spacing: 0px;
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.headerSection {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.iconWrapper {
+  margin: 0 auto 16px;
+  width: 64px;
+  height: 64px;
+  background-color: #FFF8E5;
+  border: 2px solid #636128;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconWrapper svg {
+  width: 32px;
+  height: 32px;
+  color: #636128;
+}
+
+.subtitle {
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.infoBox {
+  background-color: #FFF8E5;
+  border: 2px solid #636128;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto 32px;
+}
+
+.infoBox p {
+  margin: 0;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  color: #352e2e;
+}
+
+.infoBox p:first-child {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.infoBox p:last-child {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.courseList {
+  display: flex;
+  gap: 20px;
+  padding: 0 20px;
+  margin-top: 22px;
+  justify-items: center;
+  align-items: center;
+  align-content: center;
+  flex-wrap: wrap;
+  justify-content: space-evenly;
+}
+
+.loadingState {
+  text-align: center;
+  padding: 40px 20px;
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 16px;
+}
+
+.emptyState {
+  max-width: 600px;
+  margin: 0 auto;
+  background-color: #FFF8E5;
+  border: 2px solid #636128;
+  border-radius: 12px;
+  padding: 48px 32px;
+  text-align: center;
+}
+
+.emptyStateIcon {
+  margin: 0 auto 16px;
+  width: 64px;
+  height: 64px;
+  background-color: #E6E1CE;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emptyStateIcon svg {
+  width: 32px;
+  height: 32px;
+  color: #636128;
+}
+
+.emptyStateTitle {
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.emptyStateText {
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 16px;
+  margin-bottom: 24px;
+  opacity: 0.8;
+}
+
+.actionsSection {
+  margin-top: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.button {
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
+  color: #ECE5D2;
+  border: 1px solid #636128;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  position: relative;
+  overflow: hidden;
+  min-width: 200px;
+}
+
+.button:hover {
+  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
+}
+
+.button:active {
+  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
+}
+
+.button:focus {
+  outline: 2px solid #636128;
+  outline-offset: 2px;
+}
+
+.buttonSecondary {
+  background: transparent;
+  color: #636128;
+  border: 2px solid #636128;
+  box-shadow: none;
+}
+
+.buttonSecondary:hover {
+  background: #636128;
+  color: #ECE5D2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
+}
+
+.syncMessage {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  opacity: 0.7;
+}
+
+.syncMessage p {
+  margin: 0;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+  .title {
+    font-size: 48px;
+  }
+
+  .subtitle {
+    font-size: 20px;
+  }
+
+  .infoBox {
+    padding: 16px;
+    margin: 0 16px 24px;
+  }
+
+  .courseList {
+    padding: 0 10px;
+    gap: 15px;
+  }
+
+  .actionsSection {
+    padding: 0 16px;
+  }
+
+  .button {
+    width: 100%;
+    min-width: unset;
+  }
+}

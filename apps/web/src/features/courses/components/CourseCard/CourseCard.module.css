@@ -176,6 +176,88 @@
   position: relative;
 }
 
+.offlineActions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 30px 12px;
+  border-top: 1px solid rgba(99, 97, 40, 0.2);
+  margin-top: auto;
+}
+
+.downloadButton,
+.updateButton,
+.deleteButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #636128;
+  border-radius: 6px;
+  background: #FFF8E5;
+  color: #352E2E;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  white-space: nowrap;
+  flex: 1;
+  justify-content: center;
+}
+
+.buttonIcon {
+  font-size: 16px !important;
+  width: 16px;
+  height: 16px;
+}
+
+.downloadButton:hover:not(:disabled) {
+  background: #636128;
+  color: #FFF8E5;
+  border-color: #636128;
+}
+
+.updateButton {
+  border-color: #009dcf;
+  color: #009dcf;
+}
+
+.updateButton:hover:not(:disabled) {
+  background: #009dcf;
+  color: white;
+  border-color: #009dcf;
+}
+
+.deleteButton {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.deleteButton:hover {
+  background: #dc3545;
+  color: white;
+  border-color: #dc3545;
+}
+
+.downloadButton:disabled,
+.updateButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .author::before {
   content: '';
   position: absolute;

@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   "/passwordReset",
   "/reset-password",
   "/confirm",
+  "/~offline", // Страница офлайна доступна всем
   "/api/auth",
   "/api/csrf-token",
   "/api/webhook",

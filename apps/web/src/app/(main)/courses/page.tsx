@@ -7,7 +7,7 @@ import { generateStaticPageMetadata } from "@gafus/metadata";
 import styles from "./courses.module.css";
 import CoursesClient from "./CoursesClient";
 
-export const revalidate = 60;
+export const revalidate = 300; // 5 минут (300 секунд) - снижаем нагрузку на сервер
 
 export const metadata = generateStaticPageMetadata(
   "Список курсов",

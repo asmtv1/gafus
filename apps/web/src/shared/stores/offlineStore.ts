@@ -31,20 +31,20 @@ export const useOfflineStore = create<OfflineState>()(
       lastSyncAttempt: null,
       syncCooldown: 60000, // 60 секунд между попытками синхронизации
 
-      // Установка статуса онлайн/офлайн - только navigator.onLine
+      // Установка статуса онлайн/офлайн
       setOnlineStatus: (isOnline: boolean) => {
         const currentState = get();
         
-        // В dev режиме более консервативно обновляем статус
-        if (process.env.NODE_ENV === 'development') {
-          // Если пытаемся установить offline, но браузер говорит что онлайн - не делаем этого
-          if (!isOnline && navigator.onLine) {
-            logger.info("Dev mode: ignoring offline status while navigator.onLine is true", {
-              operation: 'dev_mode_offline_ignore'
-            });
-            return;
-          }
+        // Если статус не изменился, ничего не делаем
+        if (currentState.isOnline === isOnline) {
+          return;
         }
+        
+        logger.info("Online status changed", {
+          operation: 'online_status_change',
+          isOnline,
+          navigatorOnLine: typeof navigator !== 'undefined' ? navigator.onLine : undefined
+        });
         
         set({ isOnline });
 
@@ -247,38 +247,90 @@ async function syncAction(action: OfflineAction): Promise<void> {
 
 // Синхронизация завершения шага
 async function syncStepCompletion(data: StepCompletionData): Promise<void> {
-  await fetch("/api/training/complete-step", {
+  const response = await fetch("/api/training/complete-step", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    logger.warn("Failed to sync step completion", {
+      operation: "sync_step_completion_error",
+      status: response.status,
+      statusText: response.statusText,
+      error: errorText,
+    });
+    throw new Error(
+      `Failed to sync step completion: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
 }
 
 // Синхронизация обновления профиля
 async function syncProfileUpdate(data: ProfileUpdateData): Promise<void> {
-  await fetch("/api/profile/update", {
+  const response = await fetch("/api/profile/update", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    logger.warn("Failed to sync profile update", {
+      operation: "sync_profile_update_error",
+      status: response.status,
+      statusText: response.statusText,
+      error: errorText,
+    });
+    throw new Error(
+      `Failed to sync profile update: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
 }
 
 // Синхронизация комментария
 async function syncComment(data: CommentData): Promise<void> {
-  await fetch("/api/comments/add", {
+  const response = await fetch("/api/comments/add", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    logger.warn("Failed to sync comment", {
+      operation: "sync_comment_error",
+      status: response.status,
+      statusText: response.statusText,
+      error: errorText,
+    });
+    throw new Error(
+      `Failed to sync comment: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
 }
 
 // Синхронизация рейтинга
 async function syncRating(data: RatingData): Promise<void> {
-  await fetch("/api/ratings/add", {
+  const response = await fetch("/api/ratings/add", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    logger.warn("Failed to sync rating", {
+      operation: "sync_rating_error",
+      status: response.status,
+      statusText: response.statusText,
+      error: errorText,
+    });
+    throw new Error(
+      `Failed to sync rating: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
 }
 
 // Синхронизация статуса шага тренировки
@@ -402,55 +454,9 @@ async function syncFavoriteToggle(data: FavoriteToggleData): Promise<void> {
 }
 
 // Упрощенная функция инициализации store
+// Слушатели событий браузера и редирект обрабатываются в offlineDetector
 export function initializeOfflineStore() {
   if (typeof window === "undefined") return;
-
-  // Добавляем слушатели событий сети - только navigator.onLine
-  window.addEventListener("online", () => {
-    useOfflineStore.getState().setOnlineStatus(true);
-  });
-
-  window.addEventListener("offline", () => {
-    useOfflineStore.getState().setOnlineStatus(false);
-  });
-
-  // Перехватываем fetch ошибки для обновления статуса
-  try {
-    const originalFetch = window.fetch;
-    
-    window.fetch = async (...args) => {
-      try {
-        // В dev режиме используем более длинный таймаут, в prod - стандартный
-        const timeoutMs = process.env.NODE_ENV === 'development' ? 3000 : 5000;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-        
-        const fetchPromise = originalFetch(args[0], {
-          ...args[1],
-          signal: controller.signal,
-        });
-        
-        const result = await fetchPromise;
-        clearTimeout(timeoutId);
-        return result;
-      } catch (error) {
-        // Если произошла ошибка сети или таймаут — не понижаем статус вслепую
-        if (error instanceof TypeError) {
-          // Если браузер сам говорит, что офлайн — обновляем статус
-          if (!navigator.onLine) {
-            useOfflineStore.getState().setOnlineStatus(false);
-          }
-        }
-        
-        throw error;
-      }
-    };
-  } catch (error) {
-    logger.warn("Error setting up fetch interceptor", {
-      operation: 'setup_fetch_interceptor_error',
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
 
   // Инициализируем статус на основе navigator.onLine
   const isOnline = navigator.onLine;

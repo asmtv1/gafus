@@ -16,9 +16,48 @@ import { TestQuestions } from "./TestQuestions";
 import { WrittenFeedback } from "./WrittenFeedback";
 import { VideoReport } from "./VideoReport";
 import ImageViewer from "@shared/components/ui/ImageViewer";
+import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
+
+// Обертка для ImageViewer с поддержкой офлайн-режима
+function OfflineImageViewer({
+  courseType,
+  src,
+  alt,
+  width,
+  height,
+  className,
+  thumbnailClassName,
+  priority,
+  loading,
+}: {
+  courseType: string;
+  src: string;
+  alt: string;
+  width?: number;
+  height?: number;
+  className?: string;
+  thumbnailClassName?: string;
+  priority?: boolean;
+  loading?: "lazy" | "eager";
+}) {
+  const offlineSrc = useOfflineMediaUrl(courseType, src);
+  return (
+    <ImageViewer
+      src={offlineSrc || src}
+      alt={alt}
+      width={width}
+      height={height}
+      className={className}
+      thumbnailClassName={thumbnailClassName}
+      priority={priority}
+      loading={loading}
+    />
+  );
+}
 
 interface AccordionStepProps {
   courseId: string;
+  courseType: string;
   day: number;
   stepIndex: number;
   durationSec: number;
@@ -45,6 +84,7 @@ interface AccordionStepProps {
 
 export function AccordionStep({
   courseId,
+  courseType,
   day,
   stepIndex,
   durationSec,
@@ -95,8 +135,14 @@ export function AccordionStep({
   // Централизованный менеджер кэша
   const { updateStepProgress } = useCacheManager();
   
-  // Получаем информацию о видео
-  const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [videoUrl]);
+  // Получаем офлайн URL для видео
+  const offlineVideoUrl = useOfflineMediaUrl(courseType, videoUrl);
+  
+  // Получаем информацию о видео (используем офлайн URL если доступен)
+  const videoInfo = useMemo(
+    () => (offlineVideoUrl ? getEmbeddedVideoInfo(offlineVideoUrl) : null),
+    [offlineVideoUrl],
+  );
   // Инициализируем шаг при монтировании
   useEffect(() => {
     initializeStep(courseId, day, stepIndex, durationSec, initialStatus);
@@ -519,8 +565,9 @@ export function AccordionStep({
             <div className={styles.sectionTitle}>Изображения:</div>
             <div className={styles.imagesGrid}>
               {imageUrls.map((imageUrl, index) => (
-                <ImageViewer
+                <OfflineImageViewer
                   key={index}
+                  courseType={courseType}
                   src={imageUrl}
                   alt={`Изображение ${index + 1} для шага "${stepTitle}"`}
                   width={300}

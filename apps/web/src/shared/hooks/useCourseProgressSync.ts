@@ -12,6 +12,7 @@ export function useCourseProgressSync() {
   const { getCachedTrainingDays, courseAssignments } = useTrainingStore();
   const { allCourses, setAllCourses } = useCourseStore();
   const lastProcessedRef = useRef<string | null>(null);
+  const lastUpdateRef = useRef<string | null>(null);
 
   // Стабилизируем функции
   const isAssigned = useCallback((courseId: string) => courseAssignments[courseId] || false, [courseAssignments]);
@@ -88,8 +89,34 @@ export function useCourseProgressSync() {
 
   // Обновляем данные в courseStore при изменении синхронизированных данных
   useEffect(() => {
-    if (syncedCourses && syncedCourses !== allCourses?.data) {
-      setAllCourses(syncedCourses, allCourses?.type);
+    if (syncedCourses && allCourses?.data) {
+      // Создаем ключ для отслеживания уже примененных обновлений
+      const syncedKey = syncedCourses.map(c => `${c.id}:${c.userStatus}`).join('|');
+      
+      // Если это обновление уже было применено, пропускаем
+      if (lastUpdateRef.current === syncedKey) {
+        return;
+      }
+
+      // Проверяем, действительно ли данные изменились
+      const hasChanges = syncedCourses.some((syncedCourse, index) => {
+        const originalCourse = allCourses.data[index];
+        if (!originalCourse) return true;
+        
+        // Проверяем только критические изменения
+        const statusChanged = syncedCourse.userStatus !== originalCourse.userStatus;
+        const idChanged = syncedCourse.id !== originalCourse.id;
+        
+        return statusChanged || idChanged;
+      });
+
+      // Дополнительная проверка: сравниваем строковое представление для предотвращения циклов
+      const originalKey = allCourses.data.map(c => `${c.id}:${c.userStatus}`).join('|');
+      
+      if (hasChanges && syncedKey !== originalKey) {
+        lastUpdateRef.current = syncedKey;
+        setAllCourses(syncedCourses, allCourses.type);
+      }
     }
   }, [syncedCourses, allCourses?.data, allCourses?.type, setAllCourses]);
 

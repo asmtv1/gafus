@@ -17,6 +17,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   // Настройка глобального отлова ошибок
   useEffect(() => {
+    // Настраиваем обработку ошибок
     setupGlobalErrorHandling();
   }, []);
 

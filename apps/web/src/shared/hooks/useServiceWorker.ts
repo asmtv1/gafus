@@ -92,6 +92,22 @@ export function useServiceWorker() {
       const { data } = event;
       
       switch (data.type) {
+        case 'NETWORK_STATUS':
+          // Сообщение от Service Worker о статусе сети
+          if (data.status === 'OFFLINE') {
+            logger.warn('Service Worker detected offline', {
+              operation: 'sw_offline_detected',
+              error: data.error
+            });
+            setOnlineStatus(false);
+          } else if (data.status === 'ONLINE') {
+            logger.info('Service Worker detected online', {
+              operation: 'sw_online_detected'
+            });
+            setOnlineStatus(true);
+          }
+          break;
+          
         case 'NETWORK_STATUS_CHANGED':
           setOnlineStatus(data.isOnline);
           break;

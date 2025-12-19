@@ -7,8 +7,11 @@ export function getEmbeddedVideoInfo(url: string | null): {
     return { embedUrl: "", isShorts: false };
   }
 
-  // CDN видео из нашего хранилища
-  if (url.includes("gafus-media.storage.yandexcloud.net/uploads/")) {
+  // CDN видео из нашего хранилища (проверяем оба формата)
+  if (
+    url.includes("gafus-media.storage.yandexcloud.net") ||
+    url.includes("storage.yandexcloud.net/gafus-media")
+  ) {
     return {
       embedUrl: url,
       isShorts: false,

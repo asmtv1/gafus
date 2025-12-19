@@ -75,7 +75,6 @@ export default function CoursesClient({
     };
   }, [forceRefreshFavorites]);
 
-
   // Показываем скелетон во время загрузки
   if (loading.all) {
     return <CoursesSkeleton />;

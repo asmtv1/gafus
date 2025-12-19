@@ -1,738 +1,497 @@
 // Кастомный Service Worker для Gafus
-// Отвечает за push-уведомления и офлайн кэширование
+// Отвечает за push-уведомления и перехват сетевых запросов для определения офлайна
+// Кэширование удалено - данные курсов хранятся в IndexedDB
+// Исключение: страница офлайна кэшируется для работы в офлайне
 
 // Отключаем подробные логирования в production
-const SW_DEBUG = false;
+const SW_DEBUG = true; // Временно включено для отладки
 if (!SW_DEBUG) {
   try { console.log = function () {}; } catch (e) {}
 }
 
-// 🎯 ОБНОВЛЕННАЯ СТРАТЕГИЯ КЭШИРОВАНИЯ (v2)
-// Синхронизирована с текущей архитектурой: React Query + Zustand + Next.js cache
-// - HTML страницы: кэшируются для офлайн режима
-// - RSC данные: кэшируются с синхронизацией TTL (5 минут)
-// - Статические ресурсы: кэшируются для быстрой загрузки
-// - Данные курсов: кэшируются с синхронизацией courseStore (10 минут)
-// - Изображения: кэшируются с синхронизацией courseStore (30 минут)
-
-const CACHE_CONFIG = {
-  // 🏗️ Архитектура кэшей (синхронизирована с текущей схемой)
-  CACHES: {
-    // Полные HTML-страницы (для офлайн-навигации)
-    HTML_PAGES: 'gafus-html-v4',
-    // RSC-данные (храним отдельно для управляемости)
-    RSC_DATA: 'gafus-rsc-v4',
-    
-    // RSC-данные (для динамических обновлений)
-    // RSC_DATA кэш отключен
-    
-    // Статические ресурсы
-    STATIC: 'gafus-static-v4',
-    
-    // Изображения (синхронизировано с courseStore: 30 минут)
-    IMAGES: 'gafus-images-v4',
-    
-    // Данные курсов (для синхронизации с courseStore)
-    // COURSE_DATA кэш отключен
-    
-    // Прочие API-запросы (которые не попали в специализированные группы)
-    API: 'gafus-api-v4',
-  },
+// Перехват fetch запросов для определения сетевых ошибок
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  const isNavigationRequest = event.request.mode === 'navigate';
   
-  // ⚡ Стратегии кэширования (обновлены под текущую архитектуру)
-  STRATEGIES: {
-    HTML_PAGES: 'cacheFirst',    // HTML - кэш в первую очередь (критично для офлайна)
-    RSC_DATA: 'networkFirst',    // RSC - сеть с быстрым таймаутом и фолбэком на кэш
-    STATIC: 'cacheFirst',        // Статика - кэш в первую очередь
-    IMAGES: 'cacheFirst',        // Изображения - кэш в первую очередь
-    // COURSE_DATA: отключено
-    API: 'networkFirst',         // Прочие API - сеть в первую очередь
-  },
-  
-  // 🎯 Приоритеты кэширования (обновлены)
-  PRIORITIES: {
-    CRITICAL: ['HTML_PAGES'],                    // Критично для офлайна
-    HIGH: ['STATIC'],                            // Высокий приоритет
-    NORMAL: ['IMAGES'],                          // Обычный приоритет
-  },
-  
-  // ⏰ TTL для разных типов ресурсов (синхронизировано с React Query + Zustand)
-  TTL: {
-    HTML_PAGES: 7 * 24 * 60 * 60 * 1000,  // 7 дней (остается)
-    // RSC_DATA: отключено
-    STATIC: 7 * 24 * 60 * 60 * 1000,      // 7 дней (остается)
-    IMAGES: 30 * 60 * 1000,               // 30 минут (синхронизировано с courseStore)
-    // COURSE_DATA: отключено
-    API: 5 * 60 * 1000,                   // 5 минут для прочих API
-  },
-  
-  // 📊 Лимиты кэша (обновлены)
-  LIMITS: {
-    HTML_PAGES: 50,    // Максимум 50 HTML-страниц
-    // RSC_DATA: отключено
-    STATIC: 500,       // Максимум 500 статических файлов
-    IMAGES: 300,       // Максимум 300 изображений
-    // COURSE_DATA: отключено
-    API: 200,          // Максимум 200 прочих API-запросов
-  },
-  
-  // 🔍 Паттерны для определения типов ресурсов (обновлены)
-  PATTERNS: {
-    HTML_PAGES: [
-      // Исключаем главную страницу из кэша (она должна всегда проверять авторизацию)
-      // /^\/$/,
-      /^\/courses/,
-      /^\/profile/,
-      /^\/achievements/,
-    ],
-    // RSC_DATA: отключено
-    STATIC: [
-      /\.(?:js|css|woff2?|ttf|eot|mp3|mp4|webm|ogg|wav|m4a)$/,
-      /\/_next\/static\//,
-      /\/uploads\/icons\//,
-    ],
-    // COURSE_DATA: отключено
-    IMAGES: [
-      /\.(?:png|jpg|jpeg|gif|webp|svg)$/,
-      /\/uploads\//,
-    ],
-  },
-};
-
-// Таймауты сети (best practice: быстрый failover к кэшу)
-const RSC_NETWORK_TIMEOUT_MS = 500;
-const API_NETWORK_TIMEOUT_MS = 1000;
-
-// 🧠 УМНАЯ СИСТЕМА ОПРЕДЕЛЕНИЯ ТИПОВ РЕСУРСОВ
-// Анализирует запросы и определяет оптимальную стратегию кэширования
-
-function getResourceType(request) {
-  const url = new URL(request.url);
-  const pathname = url.pathname;
-  const search = url.search;
-  const accept = request.headers.get('Accept') || '';
-  const method = request.method;
-  
-  console.log(`🔍 SW: Analyzing request: ${pathname}${search}, Accept: ${accept}, Method: ${method}`);
-  
-  // 1. 🧭 НАВИГАЦИОННЫЕ ЗАПРОСЫ (HTML-страницы)
-  // Это запросы, которые должны возвращать полные HTML-страницы
-  const isNavigation = request.mode === 'navigate' || 
-                      (method === 'GET' && accept.includes('text/html') && !accept.includes('image/'));
-  
-  if (isNavigation) {
-    console.log(`🧭 SW: Navigation request detected - will cache as HTML page`);
-    return 'HTML_PAGES';
+  // Игнорируем статические ресурсы и API
+  if (
+    url.pathname === '/api/ping' ||
+    url.pathname === '/manifest.json' ||
+    url.pathname === '/favicon.ico' ||
+    url.pathname.startsWith('/api/') ||
+    url.protocol === 'data:' ||
+    url.protocol === 'blob:'
+  ) {
+    return; // Пропускаем обработку - браузер обработает сам
   }
-  
-  // 1.5. (удалено) Специальная обработка тренинговых страниц при навигации
-  
-  // 1.6. RSC-запросы обрабатываем как данные (с отдельной стратегией и таймаутом)
-  if (method === 'GET' && accept.includes('text/x-component')) {
-    console.log('🧩 SW: RSC request detected');
-    return 'RSC_DATA';
-  }
-  
-  // 1.7. Приоритет страниц по пути
-  if (method === 'GET') {
-    for (const pattern of CACHE_CONFIG.PATTERNS.HTML_PAGES) {
-      if (pattern.test(pathname)) {
-        console.log(`📄 SW: Page request detected by path: ${pathname}`);
-        return 'HTML_PAGES';
-      }
-    }
-  }
-  
-  // 2. 🔄 (упрощено) Кэширование RSC отключено — используем кэширование Next.js/React Query
-  
-  // 3. 📁 СТАТИЧЕСКИЕ РЕСУРСЫ
-  for (const pattern of CACHE_CONFIG.PATTERNS.STATIC) {
-    if (pattern.test(pathname)) {
-      console.log(`📁 SW: Static resource detected`);
-      return 'STATIC';
-    }
-  }
-  
-  // 4. 🖼️ ИЗОБРАЖЕНИЯ
-  // Специальная обработка для favicon.ico
-  if (pathname === '/favicon.ico') {
-    console.log(`🖼️ SW: Favicon detected - special handling`);
-    return 'IMAGES';
-  }
-  
-  // Проверяем по Accept заголовку и по паттернам
-  if (accept.includes('image/') || accept.includes('image/*')) {
-    console.log(`🖼️ SW: Image resource detected by Accept header`);
-    return 'IMAGES';
-  }
-  
-  // (удалено) Специальная обработка для Next.js Image Optimization API
-  
-  for (const pattern of CACHE_CONFIG.PATTERNS.IMAGES) {
-    if (pattern.test(pathname)) {
-      console.log(`🖼️ SW: Image resource detected by pattern`);
-      return 'IMAGES';
-    }
-  }
-  
-  // 5. (упрощено) Данные курсов не кэшируем на уровне SW
-  
-  // 6. 📄 СТРАНИЦЫ (fallback)
-  for (const pattern of CACHE_CONFIG.PATTERNS.HTML_PAGES) {
-    if (pattern.test(pathname)) {
-      console.log(`📄 SW: Page request detected (fallback)`);
-      return 'HTML_PAGES';
-    }
-  }
-  
-  // 6.5. 🎯 ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ДЛЯ СТРАНИЦ
-  // Главная страница НЕ кэшируется - она должна всегда проверять авторизацию
-  // Если это GET-запрос к известным страницам (кроме корня и страниц авторизации), считаем это HTML-страницей
-  if (method === 'GET' && pathname !== '/' && pathname !== '/login' && pathname !== '/register' && 
-      (pathname.startsWith('/profile') || pathname.startsWith('/statistics') || pathname.startsWith('/achievements') || pathname.startsWith('/courses') || pathname.startsWith('/favorites'))) {
-    console.log(`📄 SW: Page request detected by path: ${pathname}`);
-    return 'HTML_PAGES';
-  }
-  
-  // 6.6. (удалено) Спец. обработка HTML для тренинговых страниц
-  
-  // 7. ❓ НЕИЗВЕСТНЫЙ ТИП
-  console.log(`❓ SW: Unknown resource type, defaulting to API`);
-  return 'API';
-}
 
-function isKnownPagePath(pathname) {
-  try {
-    return CACHE_CONFIG.PATTERNS.HTML_PAGES.some((p) => p.test(pathname));
-  } catch { return false; }
-}
-
-// 🎯 ОПРЕДЕЛЕНИЕ СТРАТЕГИИ КЭШИРОВАНИЯ
-function getCachingStrategy(resourceType) {
-  return CACHE_CONFIG.STRATEGIES[resourceType] || 'networkFirst';
-}
-
-// 🏗️ ПОЛУЧЕНИЕ ИМЕНИ КЭША
-function getCacheName(resourceType) {
-  return CACHE_CONFIG.CACHES[resourceType] || CACHE_CONFIG.CACHES.API;
-}
-
-// ⚡ УМНЫЕ СТРАТЕГИИ КЭШИРОВАНИЯ
-// Реализуют различные подходы к кэшированию в зависимости от типа ресурса
-
-// 🎯 CACHE FIRST - кэш в первую очередь (для статики и HTML)
-async function cacheFirstStrategy(request, resourceType) {
-  const cacheName = getCacheName(resourceType);
-  const cache = await caches.open(cacheName);
-  
-  console.log(`🎯 SW: Cache First strategy for ${resourceType}: ${request.url}`);
-  
-  // Не кэшируем POST, PUT, DELETE и другие не-GET запросы
-  if (request.method !== 'GET') {
-    console.log(`🚫 SW: Skipping cache for non-GET request in cacheFirst: ${request.method} ${request.url}`);
-    return await fetch(request);
-  }
-  
-  // (удалено) Спец. retry для HTML /trainings — используем RSC
-  
-  // 1. Проверяем кэш
-  // Для HTML страниц ищем под специальным ключом
-  const cacheKey = resourceType === 'HTML_PAGES' ? getHTMLCacheRequest(request) : request;
-  const cachedResponse = await cache.match(cacheKey);
-  if (cachedResponse) {
-    console.log(`✅ SW: Cache hit for ${request.url}`);
-    // Не возвращаем RSC-потоки как HTML-страницы
-    if (resourceType === 'HTML_PAGES') {
-      const ct = cachedResponse.headers.get('Content-Type') || '';
-      if (!ct.includes('text/html')) {
-        console.log(`⚠️ SW: Cached HTML entry is not text/html (${ct}). Deleting and serving offline fallback`);
-        try { await cache.delete(cacheKey); } catch {}
-        return await getOfflineFallback(request);
-      }
-    }
-    // Проверяем TTL, если просрочено — пробуем обновить из сети
-    const cacheTimeHeader = cachedResponse.headers.get('sw-cache-time');
-    const ttlMs = CACHE_CONFIG.TTL[resourceType];
-    if (cacheTimeHeader && Number.isFinite(ttlMs)) {
-      const age = Date.now() - parseInt(cacheTimeHeader);
-      if (age >= ttlMs) {
-        console.log(`⏳ SW: Cached entry is stale, attempting revalidate: ${request.url}`);
-        try {
-          const networkResponse = await fetch(request);
-          if (networkResponse.ok) {
-            const resForHeaders = networkResponse.clone();
-            const headers = new Headers(resForHeaders.headers);
-            headers.set('sw-cache-time', Date.now().toString());
-            headers.set('sw-cache-type', resourceType);
-            const bodyBuffer = await resForHeaders.arrayBuffer();
-            const updatedResponse = new Response(bodyBuffer, {
-              status: resForHeaders.status,
-              statusText: resForHeaders.statusText,
-              headers,
-            });
-            await cache.put(cacheKey, updatedResponse.clone());
-            if (resourceType === 'HTML_PAGES' && request.url.includes('/trainings/')) {
-              try {
-                const normalizedRequest = getNormalizedRSCRequest(request);
-                await cache.put(normalizedRequest, updatedResponse.clone());
-                console.log(`💾 SW: Also cached normalized HTML key: ${normalizedRequest.url}`);
-              } catch (e) {
-                console.warn('⚠️ SW: Failed to cache normalized HTML key', e);
-              }
-            }
-            await cleanupCache(cacheName, resourceType);
-            return networkResponse;
-          }
-        } catch (e) {
-          console.warn('⚠️ SW: Revalidate failed, serving stale cache', e);
-        }
-      }
-    }
-    return cachedResponse;
-  }
-  
-  // 2. Если нет в кэше - идем в сеть
-  console.log(`🌐 SW: Cache miss, fetching from network: ${request.url}`);
-  try {
-    const networkResponse = await fetch(request);
-    
-    if (networkResponse.ok) {
-      // Если HTML страница, но пришёл RSC-поток — не возвращаем его пользователю
-      if (resourceType === 'HTML_PAGES') {
-        const ctCheck = networkResponse.headers.get('Content-Type') || '';
-        if (!ctCheck.includes('text/html')) {
-          console.log(`⚠️ SW: Network returned non-HTML for HTML_PAGES (${ctCheck}). Using HTML offline fallback.`);
-          return await getOfflineFallback(request);
-        }
-      }
-      // 3. Кэшируем успешный ответ
-      const resForHeaders = networkResponse.clone();
-      const headers = new Headers(resForHeaders.headers);
-      headers.set('sw-cache-time', Date.now().toString());
-      headers.set('sw-cache-type', resourceType);
-      const bodyBuffer = await resForHeaders.arrayBuffer();
-      const modifiedResponse = new Response(bodyBuffer, {
-        status: resForHeaders.status,
-        statusText: resForHeaders.statusText,
-        headers,
-      });
-      // Не складываем в HTML-кэш, если это не text/html (например, text/x-component)
-      if (resourceType !== 'HTML_PAGES') {
-        await cache.put(request, modifiedResponse.clone());
-      } else {
-        const ct = resForHeaders.headers.get('Content-Type') || '';
-        if (ct.includes('text/html')) {
-          await cache.put(cacheKey, modifiedResponse.clone());
-        } else {
-          console.log(`⚠️ SW: Skipping caching for HTML_PAGES due to Content-Type: ${ct}`);
-        }
-      }
-
-      // Для HTML страниц: используем только специальный HTML ключ, без дополнительных нормализаций
-      console.log(`💾 SW: Cached ${resourceType}: ${request.url}`);
-      
-      // 4. Очищаем старые записи
-      await cleanupCache(cacheName, resourceType);
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    console.log(`❌ SW: Network error for ${request.url}:`, error);
-    
-    // 5. Специальный fallback для favicon.ico
-    if (request.url.endsWith('/favicon.ico')) {
-      console.log(`🖼️ SW: Providing favicon fallback for ${request.url}`);
-      return new Response('', {
-        status: 200,
-        statusText: 'OK',
-        headers: {
-          'Content-Type': 'image/x-icon',
-          'sw-cache-time': Date.now().toString(),
-          'sw-cache-type': 'IMAGES'
-        }
-      });
-    }
-    
-    // 6. Fallback для HTML-страниц
-    if (resourceType === 'HTML_PAGES') {
-      return await getOfflineFallback(request);
-    }
-    
-    // 7. Для статических ресурсов и изображений - кэша нет (уже проверяли в начале)
-    // Возвращаем ошибку 503
-    console.warn(`⚠️ SW: No cache available for ${resourceType} ${request.url}, returning 503`);
-    return new Response('Service Unavailable', {
-      status: 503,
-      statusText: 'Service Unavailable',
-      headers: {
-        'Content-Type': 'text/plain',
-        'Cache-Control': 'no-cache'
-      }
-    });
-  }
-}
-
-// (удалено) cacheFirstWithRetry — не требуется
-
-// 🌐 NETWORK FIRST - сеть в первую очередь (для API и RSC)
-async function networkFirstStrategy(request, resourceType) {
-  const cacheName = getCacheName(resourceType);
-  const cache = await caches.open(cacheName);
-  
-  console.log(`🌐 SW: Network First strategy for ${resourceType}: ${request.url}`);
-  
-  // Не кэшируем POST, PUT, DELETE и другие не-GET запросы
-  if (request.method !== 'GET') {
-    console.log(`🚫 SW: Skipping cache for non-GET request: ${request.method} ${request.url}`);
-    return await fetch(request);
-  }
-  
-  // Специальная retry логика для RSC-запросов
-  // (упрощено) RSC_DATA не обрабатываем в SW
-  
-  try {
-    // 1. Пробуем сеть
-    const networkResponse = await fetch(request);
-    
-    if (networkResponse.ok) {
-      // 2. Кэшируем успешный ответ, корректно дублируя тело
-      const resForHeaders = networkResponse.clone();
-      const headers = new Headers(resForHeaders.headers);
-      headers.set('sw-cache-time', Date.now().toString());
-      headers.set('sw-cache-type', resourceType);
-
-      const bodyBuffer = await resForHeaders.arrayBuffer();
-      const modifiedResponse = new Response(bodyBuffer, {
-        status: resForHeaders.status,
-        statusText: resForHeaders.statusText,
-        headers,
-      });
-
-      // Кладем под оригинальным ключом
-      await cache.put(request, modifiedResponse.clone());
-      // И под нормализованным ключом без _rsc (чтобы офлайн работал с первого раза)
-      try {
-        const normalizedRequest = getNormalizedRSCRequest(request);
-        await cache.put(normalizedRequest, modifiedResponse.clone());
-        console.log(`💾 SW: Also cached normalized RSC key: ${normalizedRequest.url}`);
-      } catch (e) {
-        console.warn('⚠️ SW: Failed to cache normalized RSC key', e);
-      }
-      console.log(`💾 SW: Cached ${resourceType}: ${request.url}`);
-
-      // 3. Очищаем старые записи
-      await cleanupCache(cacheName, resourceType);
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    console.log(`❌ SW: Network error, trying cache: ${request.url}`);
-    
-    // 4. Если сеть недоступна - пробуем кэш
-    // Сначала пробуем точный ключ
-    let cachedResponse = await cache.match(request);
-    // Если промах — пробуем нормализованный ключ без _rsc
-    if (!cachedResponse) {
-      try {
-        const normalizedRequest = getNormalizedRSCRequest(request);
-        cachedResponse = await cache.match(normalizedRequest);
+  // Для статических файлов Next.js (_next/static/) используем Cache-First стратегию
+  // Это необходимо для работы приложения в офлайне
+  // Chunks кэшируются при скачивании курса через cacheChunksFromHtml
+  // Должно быть ПЕРЕД общей проверкой на /_next/
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(OFFLINE_CACHE_NAME);
+        const cachedResponse = await cache.match(event.request);
+        
+        // Если файл есть в кэше, возвращаем его (из офлайн-скачанного курса)
         if (cachedResponse) {
-          console.log(`✅ SW: RSC normalized cache hit for ${normalizedRequest.url}`);
+          console.log('🦁 SW: Serving chunk from cache', url.pathname);
+          return cachedResponse;
         }
-      } catch (e) {
-        console.warn('⚠️ SW: Failed to match normalized RSC key', e);
-      }
-    }
-    if (cachedResponse) {
-      console.log(`✅ SW: Cache fallback for ${request.url}`);
-      return cachedResponse;
-    }
-    
-    // (упрощено) RSC_DATA fallback отключен
-    
-    // 6. Fallback для HTML-страниц
-    if (resourceType === 'HTML_PAGES') {
-      return await getOfflineFallback(request);
-    }
-    
-    throw error;
-  }
-}
-
-// 🔄 Network-first with timeout для RSC-запросов
-async function networkFirstWithTimeout(request, cache, resourceType, timeoutMs) {
-  // Не кэшируем POST, PUT, DELETE и другие не-GET запросы
-  if (request.method !== 'GET') {
-    console.log(`🚫 SW: Skipping cache for non-GET request in timeout strategy: ${request.method} ${request.url}`);
-    return await fetch(request);
-  }
-
-  function fetchWithTimeout(req, ms) {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('timeout')), ms);
-      fetch(req).then((res) => {
-        clearTimeout(timer);
-        resolve(res);
-      }).catch((err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-    });
-  }
-
-  // 1) Быстрая попытка сети с таймаутом
-  try {
-    const networkResponse = await fetchWithTimeout(request, timeoutMs);
-    if (networkResponse.ok) {
-      const resForHeaders = networkResponse.clone();
-      const headers = new Headers(resForHeaders.headers);
-      headers.set('sw-cache-time', Date.now().toString());
-      headers.set('sw-cache-type', resourceType);
-      const bodyBuffer = await resForHeaders.arrayBuffer();
-      const modifiedResponse = new Response(bodyBuffer, {
-        status: resForHeaders.status,
-        statusText: resForHeaders.statusText,
-        headers,
-      });
-      // Под оригинальным ключом
-      await cache.put(request, modifiedResponse.clone());
-      // И под нормализованным ключом без _rsc
-      try {
-        const normalizedRequest = getNormalizedRSCRequest(request);
-        await cache.put(normalizedRequest, modifiedResponse.clone());
-        console.log(`💾 SW: Also cached normalized RSC key: ${normalizedRequest.url}`);
-      } catch (e) {
-        console.warn('⚠️ SW: Failed to cache normalized RSC key', e);
-      }
-      return networkResponse;
-    }
-  } catch (e) {
-    console.log(`❌ SW: RSC network attempt failed or timed out for ${request.url}`);
-  }
-
-  // 2) Падаем в кэш: сначала точный ключ
-  let cachedResponse = await cache.match(request);
-  // Затем нормализованный без _rsc
-  if (!cachedResponse) {
-    try {
-      const normalizedRequest = getNormalizedRSCRequest(request);
-      cachedResponse = await cache.match(normalizedRequest);
-      if (cachedResponse) {
-        console.log(`✅ SW: RSC normalized cache hit for ${normalizedRequest.url}`);
-      }
-    } catch (e) {
-      console.warn('⚠️ SW: Failed to match normalized RSC key', e);
-    }
-  }
-  // Затем поиск по pathname без query
-  if (!cachedResponse) {
-    try {
-      const cacheName = getCacheName(resourceType);
-      const rscCache = await caches.open(cacheName);
-      const keys = await rscCache.keys();
-      const reqUrl = new URL(request.url);
-      const matchKey = keys.find(k => {
+        
+        // Если файла нет в кэше, пытаемся загрузить из сети
         try {
-          const kUrl = new URL(k.url);
-          return kUrl.origin === reqUrl.origin && kUrl.pathname === reqUrl.pathname;
-        } catch { return false; }
-      });
-      if (matchKey) {
-        console.log(`✅ SW: RSC pathname cache hit for ${reqUrl.pathname} via ${matchKey.url}`);
-        cachedResponse = await rscCache.match(matchKey);
-      }
-    } catch (e) {
-      console.warn('⚠️ SW: Pathname-based RSC lookup failed', e);
-    }
+          const response = await fetch(event.request);
+          
+          // Если запрос успешен, кэшируем и возвращаем
+          if (response.ok) {
+            notifyClient('ONLINE');
+            // Кэшируем только успешные ответы
+            cache.put(event.request, response.clone());
+            console.log('🦁 SW: Chunk loaded from network and cached', url.pathname);
+            return response;
+          }
+          
+          // Если ответ не успешен, возвращаем его как есть
+          return response;
+        } catch (error) {
+          // Если не удалось загрузить и файла нет в кэше, возвращаем ошибку
+          // Это вызовет ChunkLoadError, но это ожидаемо для нескачанных chunks
+          console.warn('🦁 SW: Chunk not found in cache and network failed', url.pathname);
+          notifyClient('OFFLINE', { error: 'Static file not cached' });
+          throw error;
+        }
+      })()
+    );
+    return;
   }
-  if (cachedResponse) return cachedResponse;
 
-  // 3) Последний fallback — HTML офлайн-страница (поведение Next заглушки)
-  console.log(`🆘 SW: No RSC data available (RSC caching disabled), using HTML offline fallback: ${request.url}`);
-  return await getOfflineFallback(request);
-}
+  // Для chunks страницы офлайна используем Cache-First стратегию
+  if (url.pathname.startsWith('/_next/') && url.pathname.includes('~offline')) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(OFFLINE_CACHE_NAME);
+        const cachedResponse = await cache.match(event.request);
+        
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        
+        try {
+          const response = await fetch(event.request);
+          if (response.ok) {
+            cache.put(event.request, response.clone());
+          }
+          return response;
+        } catch (error) {
+          // Если нет в кэше и сеть недоступна, возвращаем пустой ответ
+          return new Response('', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: {
+              'Content-Type': 'application/javascript',
+              'Cache-Control': 'no-cache'
+            }
+          });
+        }
+      })()
+    );
+    return;
+  }
 
-// 🧹 УМНАЯ ОЧИСТКА КЭША
-async function cleanupCache(cacheName, resourceType) {
-  const cache = await caches.open(cacheName);
-  const keys = await cache.keys();
-  const limit = CACHE_CONFIG.LIMITS[resourceType] || 100;
-  
-  if (keys.length <= limit) return;
-  
-  console.log(`🧹 SW: Cleaning up ${cacheName}, current: ${keys.length}, limit: ${limit}`);
-  
-  // Сортируем по времени кэширования (старые первыми)
-  const entries = await Promise.all(
-    keys.map(async (key) => {
-      const response = await cache.match(key);
-      const cacheTime = response?.headers.get('sw-cache-time') || '0';
-      return { key, cacheTime: parseInt(cacheTime) };
-    })
+  // Игнорируем остальные статические ресурсы Next.js (но не /_next/static/)
+  if (url.pathname.startsWith('/_next/')) {
+    return; // Пропускаем обработку - браузер обработает сам
+  }
+
+  // Для страницы офлайна используем Cache-First стратегию (лучшая практика для статического контента)
+  if (isNavigationRequest && url.pathname === '/~offline') {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(OFFLINE_CACHE_NAME);
+        const cachedResponse = await cache.match(OFFLINE_PAGE_URL);
+        
+        if (cachedResponse) {
+          // Если есть в кэше, возвращаем и пытаемся обновить в фоне
+          event.waitUntil(
+            (async () => {
+              try {
+                const response = await fetch(event.request);
+                if (response.ok) {
+                  await cache.put(OFFLINE_PAGE_URL, response.clone());
+                  // Также пытаемся кэшировать chunks из HTML
+                  await cacheOfflinePageChunks(response, cache);
+                }
+              } catch (error) {
+                // Игнорируем ошибки обновления
+              }
+            })()
+          );
+          return cachedResponse;
+        }
+        
+        // Если нет в кэше, пытаемся загрузить из сети
+        try {
+          const response = await fetch(event.request);
+          if (response.ok) {
+            // Кэшируем HTML
+            await cache.put(OFFLINE_PAGE_URL, response.clone());
+            // Кэшируем все chunks страницы
+            await cacheOfflinePageChunks(response, cache);
+            return response;
+          }
+        } catch (error) {
+          // Если не удалось загрузить, возвращаем fallback
+        }
+        
+        // Fallback HTML если ничего не сработало
+        return new Response(
+          '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Офлайн</title></head><body><h1>Нет соединения</h1><p>Приложение работает в офлайн-режиме.</p></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' }
+          }
+        );
+      })()
+    );
+    return;
+  }
+
+  // Для страниц курсов разрешаем навигацию даже в офлайне
+  // Данные курсов хранятся в IndexedDB, клиент сам их загрузит через useCachedTrainingDays
+  // Service Worker кэширует только HTML структуру страницы
+  if (isNavigationRequest && isCoursePage(url.pathname)) {
+    event.respondWith(
+      (async () => {
+        const coursesCache = await caches.open(COURSES_CACHE_NAME);
+        const cacheKey = event.request.url;
+        
+        try {
+          // Пытаемся загрузить HTML страницы из сети (Network-First)
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          
+          const response = await fetch(event.request, {
+            cache: 'no-cache',
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          // Если запрос успешен, кэшируем HTML и возвращаем
+          if (response.ok) {
+            notifyClient('ONLINE');
+            // Кэшируем HTML структуру страницы для офлайн-доступа
+            // Данные курса клиент возьмет из IndexedDB
+            coursesCache.put(cacheKey, response.clone());
+            
+            // Кэшируем chunks страницы для офлайн-доступа
+            // Извлекаем ссылки на chunks из HTML и кэшируем их
+            cachePageChunks(response.clone(), OFFLINE_CACHE_NAME);
+            
+            return response;
+          }
+        } catch (error) {
+          // Сетевая ошибка - пробуем вернуть HTML страницы из кэша
+          const cachedResponse = await coursesCache.match(cacheKey);
+          if (cachedResponse) {
+            notifyClient('OFFLINE', { error: 'Using cached course page HTML' });
+            return cachedResponse;
+          }
+        }
+        
+        // Если HTML нет в кэше, пробуем получить через клиента из IndexedDB
+        // (Service Worker не может напрямую читать IndexedDB)
+        // Нормализуем URL (убираем trailing slash)
+        const requestKey = url.pathname.replace(/\/$/, '') || url.pathname;
+        console.log('🦁 SW: Requesting HTML from IndexedDB for', requestKey);
+        
+        // Создаем Promise, который резолвится когда клиент отправит HTML
+        const htmlPromise = new Promise((resolve) => {
+          pendingHtmlRequests.set(requestKey, resolve);
+          console.log('🦁 SW: Promise created for', requestKey, 'pending:', pendingHtmlRequests.size);
+        });
+        
+        // Отправляем запрос клиенту
+        notifyClient('OFFLINE', { 
+          error: 'Course page HTML not in cache',
+          action: 'GET_HTML_FROM_INDEXEDDB',
+          url: requestKey
+        });
+        console.log('🦁 SW: Message sent to client for', requestKey);
+        
+        // Ждем HTML от клиента с таймаутом 5 секунд (увеличено для надежности)
+        let htmlFromIndexedDB = null;
+        try {
+          htmlFromIndexedDB = await Promise.race([
+            htmlPromise.then((html) => {
+              console.log('🦁 SW: HTML received from client for', requestKey, 'length:', html?.length || 0);
+              return html;
+            }),
+            new Promise((resolve) => {
+              setTimeout(() => {
+                console.log('🦁 SW: Timeout waiting for HTML from client for', requestKey);
+                resolve(null);
+              }, 5000);
+            })
+          ]);
+        } catch (error) {
+          console.error('🦁 SW: Error waiting for HTML:', error);
+        } finally {
+          pendingHtmlRequests.delete(requestKey);
+          console.log('🦁 SW: Cleaned up promise for', requestKey);
+        }
+        
+        // Если HTML пришел от клиента, сохраняем в кэш и возвращаем
+        if (htmlFromIndexedDB) {
+          console.log('🦁 SW: Returning HTML from IndexedDB for', requestKey, 'length:', htmlFromIndexedDB.length);
+          const htmlResponse = new Response(htmlFromIndexedDB, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'no-cache'
+            }
+          });
+          
+          // Сохраняем в кэш для следующего раза
+          coursesCache.put(cacheKey, htmlResponse.clone()).then(() => {
+            console.log('🦁 SW: HTML saved to cache for', requestKey);
+          }).catch((err) => {
+            console.error('🦁 SW: Failed to save HTML to cache:', err);
+          });
+          return htmlResponse;
+        } else {
+          console.log('🦁 SW: No HTML received from IndexedDB for', requestKey);
+        }
+        
+        // Если HTML не пришел, проверяем кэш еще раз (на случай если клиент успел сохранить)
+        const cachedAfterRequest = await coursesCache.match(cacheKey);
+        if (cachedAfterRequest) {
+          console.log('🦁 SW: Found HTML in cache after request for', requestKey);
+          return cachedAfterRequest;
+        }
+        
+        // Если HTML нет в кэше и сеть недоступна, возвращаем базовый HTML
+        // который позволит Next.js загрузиться на клиенте
+        // Клиент загрузит данные из IndexedDB через useCachedTrainingDays
+        console.log('🦁 SW: Returning base HTML fallback for', requestKey);
+        const baseHtml = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Загрузка...</title>
+</head>
+<body>
+  <div id="__next"></div>
+  <script>
+    // Next.js обработает навигацию на клиенте
+    // Данные будут загружены из IndexedDB через useCachedTrainingDays
+  </script>
+</body>
+</html>`;
+        
+        return new Response(baseHtml, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache'
+          }
+        });
+      })()
+    );
+    return;
+  }
+
+  // Для остальных навигационных запросов используем Network-First с fallback на страницу офлайна
+  if (isNavigationRequest) {
+    event.respondWith(
+      (async () => {
+        try {
+          // Используем AbortController для таймаута
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1000);
+          
+          const response = await fetch(event.request, { 
+            cache: 'no-cache',
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          // Если запрос успешен, отправляем сообщение клиенту что мы онлайн
+          if (response.ok) {
+            notifyClient('ONLINE');
+          }
+          return response;
+        } catch (error) {
+          // Определяем все типы сетевых ошибок
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const isNetworkError = 
+            error instanceof TypeError &&
+            (errorMessage.includes('Failed to fetch') ||
+              errorMessage.includes('NetworkError') ||
+              errorMessage.includes('Network request failed') ||
+              errorMessage.includes('ERR_INTERNET_DISCONNECTED') ||
+              errorMessage.includes('ERR_NETWORK_CHANGED') ||
+              errorMessage.includes('ERR_CONNECTION_REFUSED') ||
+              errorMessage.includes('ERR_CONNECTION_RESET') ||
+              errorMessage.includes('ERR_CONNECTION_CLOSED') ||
+              errorMessage.includes('ERR_CONNECTION_ABORTED') ||
+              errorMessage.includes('ERR_NAME_NOT_RESOLVED') ||
+              errorMessage.includes('aborted'));
+
+          // При сетевой ошибке - возвращаем страницу офлайна из кэша
+          if (isNetworkError) {
+            notifyClient('OFFLINE', { error: errorMessage });
+            
+            const cache = await caches.open(OFFLINE_CACHE_NAME);
+            const cachedResponse = await cache.match(OFFLINE_PAGE_URL);
+            
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            
+            // Fallback HTML
+            const redirectHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Нет соединения</title>
+  <script>
+    if (window.location.pathname !== '/~offline') {
+      window.location.replace('/~offline');
+    }
+  </script>
+  <meta http-equiv="refresh" content="0;url=/~offline">
+</head>
+<body>
+  <p style="text-align: center; padding: 20px; font-family: sans-serif;">
+    Нет соединения с сервером. Перенаправление...
+  </p>
+  <p style="text-align: center;">
+    <a href="/~offline">Перейти вручную</a>
+  </p>
+</body>
+</html>`;
+            
+            return new Response(redirectHtml, {
+              status: 200,
+              headers: {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache'
+              }
+            });
+          }
+          
+          throw error;
+        }
+      })()
+    );
+    return;
+  }
+
+  // Для всех остальных запросов пытаемся выполнить их
+  // Если запрос не удался, это будет сетевой ошибка
+  // Для не-навигационных запросов обрабатываем ошибки gracefully
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        // Если запрос успешен, отправляем сообщение клиенту что мы онлайн
+        if (response.ok) {
+          notifyClient('ONLINE');
+        }
+        return response;
+      })
+      .catch((error) => {
+        // Определяем все типы сетевых ошибок
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const isNetworkError = 
+          error instanceof TypeError &&
+          (errorMessage.includes('Failed to fetch') ||
+            errorMessage.includes('NetworkError') ||
+            errorMessage.includes('Network request failed') ||
+            errorMessage.includes('ERR_INTERNET_DISCONNECTED') ||
+            errorMessage.includes('ERR_NETWORK_CHANGED') ||
+            errorMessage.includes('ERR_CONNECTION_REFUSED') ||
+            errorMessage.includes('ERR_CONNECTION_RESET') ||
+            errorMessage.includes('ERR_CONNECTION_CLOSED') ||
+            errorMessage.includes('ERR_CONNECTION_ABORTED') ||
+            errorMessage.includes('ERR_NAME_NOT_RESOLVED'));
+
+        // При сетевой ошибке отправляем сообщение клиенту что мы офлайн
+        if (isNetworkError) {
+          notifyClient('OFFLINE', { error: errorMessage });
+        }
+        
+        // Для не-навигационных запросов возвращаем пустой ответ вместо проброса ошибки
+        // Это предотвращает необработанные исключения в консоли
+        if (!isNavigationRequest) {
+          console.log('🦁 SW: Network error for non-navigation request, returning empty response', url.pathname);
+          return new Response('', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: {
+              'Content-Type': 'text/plain',
+              'Cache-Control': 'no-cache'
+            }
+          });
+        }
+        
+        // Для навигационных запросов пробрасываем ошибку (она обработана выше)
+        throw error;
+      })
   );
-  
-  entries.sort((a, b) => a.cacheTime - b.cacheTime);
-  
-  // Удаляем старые записи
-  const toDelete = entries.slice(0, entries.length - limit);
-  await Promise.all(toDelete.map(entry => cache.delete(entry.key)));
-  
-  console.log(`🗑️ SW: Deleted ${toDelete.length} old entries from ${cacheName}`);
+});
+
+// Утилита для отправки сообщений клиенту
+function notifyClient(type, data = {}) {
+  self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then((clients) => {
+      clients.forEach((client) => {
+        client.postMessage({
+          type: 'NETWORK_STATUS',
+          status: type,
+          ...data,
+        });
+      });
+    })
+    .catch((error) => {
+      // Игнорируем ошибки отправки сообщений
+    });
 }
 
-// 🆘 FALLBACK ДЛЯ ОФЛАЙН-СТРАНИЦ
-async function getOfflineFallback(request) {
-  console.log(`🆘 SW: Providing offline fallback for: ${request.url}`);
+// Safari/WebKit-specific settings для уведомлений
+function getSafariSettings() {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isWebKit = /webkit/i.test(navigator.userAgent);
+  const isChrome = /chrome/i.test(navigator.userAgent);
+  const isSafari = isWebKit && (/safari/i.test(navigator.userAgent) && !isChrome || isIOS);
+  const isStandalone = navigator.standalone;
   
-  // Пробуем найти похожую страницу в кэше
-  const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
-  const keys = await htmlCache.keys();
-  
-  // Ищем страницу по пути (игнорируя query параметры)
-  const url = new URL(request.url);
-  const pathname = url.pathname;
-  
-  for (const key of keys) {
-    const keyUrl = new URL(key.url);
-    if (keyUrl.pathname === pathname) {
-      console.log(`🎯 SW: Found similar page in cache: ${key.url}`);
-      return await htmlCache.match(key);
-    }
-  }
-  
-  // Если не нашли - возвращаем общую офлайн-страницу
-  return new Response(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Офлайн - Gafus</title>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-               margin: 0; padding: 20px; background: #f5f5f5; }
-        .container { max-width: 600px; margin: 0 auto; background: white; 
-                    padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .icon { font-size: 48px; text-align: center; margin-bottom: 20px; }
-        h1 { color: #333; text-align: center; margin-bottom: 20px; }
-        p { color: #666; line-height: 1.6; text-align: center; }
-        .retry { background: #007bff; color: white; border: none; 
-                padding: 12px 24px; border-radius: 6px; cursor: pointer; 
-                margin-top: 20px; display: block; margin-left: auto; margin-right: auto; 
-                font-size: 16px; font-weight: 500; }
-        .back { background: #6c757d; color: white; border: none; 
-                padding: 12px 24px; border-radius: 6px; cursor: pointer; 
-                margin-top: 10px; display: block; margin-left: auto; margin-right: auto;
-                font-size: 16px; font-weight: 500; }
-        .home { background: #28a745; color: white; border: none; 
-                padding: 12px 24px; border-radius: 6px; cursor: pointer; 
-                margin-top: 10px; display: block; margin-left: auto; margin-right: auto;
-                font-size: 16px; font-weight: 500; text-decoration: none; text-align: center; }
-        .buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-        .loading { display: none; text-align: center; margin-top: 10px; color: #007bff; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="icon">📱</div>
-        <h1>Нет подключения к интернету</h1>
-        <p>Проверьте подключение к интернету и попробуйте снова.</p>
-        <p class="loading" id="loading">Загрузка...</p>
-        <div class="buttons">
-          <button class="retry" onclick="handleRetry()">Попробовать снова</button>
-          <button class="back" onclick="handleBack()">Назад</button>
-          <button class="retry" onclick="handleHardReload()" style="background: #28a745;">Обновить страницу (Ctrl+F5)</button>
-          <a href="/?bypass-sw=1" class="home" onclick="event.preventDefault(); window.location.href='/?bypass-sw=1'; return false;">На главную (обход кэша)</a>
-        </div>
-      </div>
-      <script>
-        let retryAttempts = 0;
-        const maxRetries = 3;
-        
-        function handleRetry() {
-          retryAttempts++;
-          const loading = document.getElementById('loading');
-          loading.style.display = 'block';
-          
-          // Добавляем случайный параметр для обхода кэша
-          const url = new URL(window.location.href);
-          url.searchParams.set('retry', Date.now().toString());
-          
-          // Даем больше времени на каждую последующую попытку
-          const timeout = 5000 + (retryAttempts * 2000);
-          
-          setTimeout(() => {
-            window.location.href = url.toString();
-          }, 500);
-        }
-        
-        function handleBack() {
-          if (window.history.length > 1) {
-            window.history.back();
-          } else {
-            window.location.href = '/?bypass-sw=1';
-          }
-        }
-        
-        function handleHardReload() {
-          // Принудительный обход кэша и Service Worker
-          const url = new URL(window.location.href);
-          url.searchParams.set('bypass-sw', '1');
-          url.searchParams.set('_t', Date.now().toString());
-          window.location.href = url.toString();
-        }
-        
-        // Автоматическая попытка подключения каждые 10 секунд (максимум 3 попытки)
-        let autoRetryCount = 0;
-        const autoRetryInterval = setInterval(() => {
-          if (navigator.onLine && autoRetryCount < 3) {
-            autoRetryCount++;
-            console.log('Online detected, attempting auto-retry', autoRetryCount);
-            handleRetry();
-          } else if (autoRetryCount >= 3) {
-            clearInterval(autoRetryInterval);
-          }
-        }, 10000);
-        
-        // Останавливаем авто-повтор через 60 секунд
-        setTimeout(() => {
-          clearInterval(autoRetryInterval);
-        }, 60000);
-      </script>
-    </body>
-    </html>
-  `, {
-    status: 200,
-    statusText: 'OK',
-    headers: { 
-      'Content-Type': 'text/html',
-      'Cache-Control': 'no-cache, no-store, must-revalidate'
-    }
-  });
-}
-
-// 🔄 FALLBACK ДЛЯ RSC-ЗАПРОСОВ
-async function getRSCFallback(request) {
-  console.log(`🔄 SW: Providing RSC fallback for: ${request.url}`);
-  
-  // Возвращаем валидный RSC-ответ с минимальными данными
-  // Next.js ожидает JSON с компонентами
-  const rscData = {
-    "0": ["$", "div", null, {"children": ["$", "div", null, {"children": "Нет подключения к интернету", "className": "text-center p-8"}]}]
+  return {
+    isSafari,
+    isIOS,
+    isWebKit,
+    isStandalone,
+    useSimpleNotifications: isSafari,
+    usePWALogic: isSafari && isStandalone,
   };
-  
-  return new Response(JSON.stringify(rscData), {
-    status: 200,
-    statusText: 'OK',
-    headers: { 
-      'Content-Type': 'text/x-component',
-      'sw-fallback': 'rsc-offline'
-    }
-  });
 }
+
+const settings = getSafariSettings();
+
+console.log('🦁 SW: Settings loaded', {
+  isSafari: settings.isSafari,
+  isIOS: settings.isIOS,
+  isStandalone: settings.isStandalone,
+  useSimpleNotifications: settings.useSimpleNotifications,
+});
 
 // Утилиты для работы с localStorage из Service Worker
-// Service Worker не имеет прямого доступа к localStorage, поэтому используем IndexedDB
 async function getLocalStorageItem(key) {
   try {
     return new Promise((resolve, reject) => {
@@ -800,254 +559,202 @@ async function setLocalStorageItem(key, value) {
   }
 }
 
-async function removeLocalStorageItem(key) {
+// Кэши для офлайн-контента
+const OFFLINE_CACHE_NAME = 'gafus-offline-v1';
+const COURSES_CACHE_NAME = 'gafus-courses-v1';
+const OFFLINE_PAGE_URL = '/~offline';
+
+// Универсальная функция для кэширования chunks страницы
+async function cachePageChunks(htmlResponse, cacheName) {
   try {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open('sw-localstorage', 1);
-      
-      request.onerror = () => reject(request.error);
-      
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        if (!db.objectStoreNames.contains('storage')) {
-          db.createObjectStore('storage');
+    const html = await htmlResponse.clone().text();
+    const baseUrl = new URL(htmlResponse.url).origin;
+    const cache = await caches.open(cacheName);
+    const chunksToCache = new Set();
+    
+    // Ищем все script теги с chunks
+    const scriptRegex = /<script[^>]+src=["']([^"']+)["']/gi;
+    let match;
+    while ((match = scriptRegex.exec(html)) !== null) {
+      const url = match[1];
+      if (url.startsWith('/_next/static/')) {
+        const fullUrl = url.startsWith('http') ? url : new URL(url, baseUrl).href;
+        chunksToCache.add(fullUrl);
+      }
+    }
+    
+    // Ищем все link теги с CSS chunks
+    const linkRegex = /<link[^>]+href=["']([^"']+)["']/gi;
+    while ((match = linkRegex.exec(html)) !== null) {
+      const url = match[1];
+      if (url.startsWith('/_next/static/')) {
+        const fullUrl = url.startsWith('http') ? url : new URL(url, baseUrl).href;
+        chunksToCache.add(fullUrl);
+      }
+    }
+    
+    // Кэшируем все найденные chunks
+    const cachePromises = Array.from(chunksToCache).map(async (chunkUrl) => {
+      try {
+        const response = await fetch(chunkUrl);
+        if (response.ok) {
+          await cache.put(chunkUrl, response.clone());
         }
-      };
-      
-      request.onsuccess = (event) => {
-        const db = event.target.result;
-        try {
-          const transaction = db.transaction(['storage'], 'readwrite');
-          const store = transaction.objectStore('storage');
-          const deleteRequest = store.delete(key);
-          
-          deleteRequest.onsuccess = () => resolve();
-          deleteRequest.onerror = () => reject(deleteRequest.error);
-        } catch (e) {
-          reject(e);
-        }
-      };
+      } catch (error) {
+        // Игнорируем ошибки кэширования отдельных chunks
+      }
     });
-  } catch (e) {
-    console.warn('⚠️ SW: Failed to remove localStorage item', e);
-  }
-}
-
-// Safari/WebKit-specific settings для уведомлений
-function getSafariSettings() {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isWebKit = /webkit/i.test(navigator.userAgent);
-  const isChrome = /chrome/i.test(navigator.userAgent);
-  const isSafari = isWebKit && (/safari/i.test(navigator.userAgent) && !isChrome || isIOS);
-  const isStandalone = navigator.standalone;
-  
-  return {
-    isSafari,
-    isIOS,
-    isWebKit,
-    isStandalone,
-    useSimpleNotifications: isSafari,
-    usePWALogic: isSafari && isStandalone,
-  };
-}
-
-const settings = getSafariSettings();
-
-console.log('🦁 SW: Settings loaded', {
-  isSafari: settings.isSafari,
-  isIOS: settings.isIOS,
-  isStandalone: settings.isStandalone,
-  usePWALogic: settings.usePWALogic
-});
-
-// Утилиты для работы с кэшем
-class CacheManager {
-  constructor() {
-    this.caches = new Map();
-  }
-
-  // Определение типа ресурса по URL
-  getResourceType(url) {
-    const pathname = new URL(url).pathname;
     
-    for (const [type, patterns] of Object.entries(CACHE_CONFIG.PATTERNS)) {
-      if (patterns.some(pattern => pattern.test(pathname))) {
-        return type;
+    await Promise.allSettled(cachePromises);
+  } catch (error) {
+    // Игнорируем ошибки кэширования chunks
+  }
+}
+
+// Функция для кэширования chunks страницы офлайна
+async function cacheOfflinePageChunks(htmlResponse, cache) {
+  try {
+    const html = await htmlResponse.clone().text();
+    const baseUrl = new URL(htmlResponse.url).origin;
+    const chunksToCache = new Set();
+    
+    // Ищем все script и link теги с chunks для страницы офлайна
+    const scriptRegex = /<script[^>]+src=["']([^"']+)["']/gi;
+    const linkRegex = /<link[^>]+href=["']([^"']+)["']/gi;
+    
+    let match;
+    while ((match = scriptRegex.exec(html)) !== null) {
+      const url = match[1];
+      if (url.includes('~offline') || url.startsWith('/_next/')) {
+        const fullUrl = url.startsWith('http') ? url : new URL(url, baseUrl).href;
+        chunksToCache.add(fullUrl);
       }
     }
     
-    return 'API'; // По умолчанию считаем API
-  }
-
-  // Получение имени кэша для типа ресурса
-  getCacheName(type) {
-    return CACHE_CONFIG.CACHES[type] || CACHE_CONFIG.CACHES.API;
-  }
-
-  // Проверка, нужно ли кэшировать ресурс
-  shouldCache(url, type) {
-    // Не кэшируем запросы с no-cache заголовками
-    if (url.includes('no-cache')) return false;
-    
-    // Не кэшируем запросы к внешним доменам
-    try {
-      const urlObj = new URL(url);
-      if (urlObj.origin !== self.location.origin) return false;
-    } catch {
-      return false;
-    }
-    
-    return true;
-  }
-
-  // Очистка старых записей из кэша
-  async cleanupCache(cacheName, maxEntries = 200) {
-    try {
-      const cache = await caches.open(cacheName);
-      const keys = await cache.keys();
-      
-      if (keys.length > maxEntries) {
-        const keysToDelete = keys.slice(0, keys.length - maxEntries);
-        await Promise.all(keysToDelete.map(key => cache.delete(key)));
-        console.log(`🧹 SW: Cleaned up ${keysToDelete.length} old entries from ${cacheName}`);
+    while ((match = linkRegex.exec(html)) !== null) {
+      const url = match[1];
+      if (url.includes('~offline') || (url.startsWith('/_next/') && url.includes('css'))) {
+        const fullUrl = url.startsWith('http') ? url : new URL(url, baseUrl).href;
+        chunksToCache.add(fullUrl);
       }
-    } catch (error) {
-      console.warn(`⚠️ SW: Failed to cleanup cache ${cacheName}:`, error);
     }
-  }
-
-  // Проверка TTL для записи в кэше
-  async isCacheEntryValid(request, cacheName) {
-    try {
-      const cache = await caches.open(cacheName);
-      const response = await cache.match(request);
-      
-      if (!response) return false;
-      
-      const cacheTime = response.headers.get('sw-cache-time');
-      if (!cacheTime) return true; // Если нет времени кэширования, считаем валидным
-      
-      const resourceType = this.getResourceType(request.url);
-      const ttl = CACHE_CONFIG.TTL[resourceType];
-      const age = Date.now() - parseInt(cacheTime);
-      
-      return age < ttl;
-    } catch {
-      return false;
+    
+    // Ищем chunks в __NEXT_DATA__
+    const nextDataMatch = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([^<]+)<\/script>/i);
+    if (nextDataMatch) {
+      try {
+        const nextData = JSON.parse(nextDataMatch[1]);
+        // Next.js хранит информацию о chunks в разных местах
+        if (nextData.buildId) {
+          // Можно добавить логику для поиска chunks по buildId
+        }
+      } catch (e) {
+        // Игнорируем ошибки парсинга
+      }
     }
+    
+    console.log(`🦁 SW: Found ${chunksToCache.size} chunks to cache for offline page`);
+    
+    // Кэшируем все найденные chunks
+    const cachePromises = Array.from(chunksToCache).map(async (url) => {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          await cache.put(url, response.clone());
+          console.log(`✅ SW: Cached chunk: ${url}`);
+        }
+      } catch (error) {
+        console.log(`⚠️ SW: Failed to cache chunk ${url}:`, error.message);
+      }
+    });
+    
+    await Promise.allSettled(cachePromises);
+  } catch (error) {
+    console.log('⚠️ SW: Error caching offline page chunks:', error);
   }
 }
 
-const cacheManager = new CacheManager();
+// Хранилище ожидающих запросов HTML из IndexedDB
+const pendingHtmlRequests = new Map();
 
-// Нормализация запросов страниц: удаляем волатильные параметры (например, _rsc у Next.js)
-function getNormalizedPageRequest(originalRequest) {
-  try {
-    const originalUrl = new URL(originalRequest.url);
-    const normalizedUrl = new URL(originalUrl.toString());
-    // Удаляем параметр _rsc, чтобы кэш не разрастался и хиты совпадали
-    if (normalizedUrl.searchParams.has('_rsc')) {
-      normalizedUrl.searchParams.delete('_rsc');
-    }
-    // Можно при необходимости очищать и другие метки трекинга (utm_* и т.п.)
-    return new Request(normalizedUrl.toString(), { method: 'GET' });
-  } catch {
-    return originalRequest;
-  }
+// Проверяем, является ли URL страницей курса
+function isCoursePage(pathname) {
+  return pathname.startsWith('/trainings/');
 }
 
-// Нормализация RSC-запросов: удаляем волатильный параметр _rsc
-function getNormalizedRSCRequest(originalRequest) {
-  try {
-    const originalUrl = new URL(originalRequest.url);
-    const normalizedUrl = new URL(originalUrl.toString());
-    if (normalizedUrl.searchParams.has('_rsc')) {
-      normalizedUrl.searchParams.delete('_rsc');
-    }
-    return new Request(normalizedUrl.toString(), { method: 'GET' });
-  } catch {
-    return originalRequest;
-  }
-}
-
-// Специальный ключ для HTML-кэша: помечаем URL, чтобы не пересекаться с RSC по тому же пути
-function getHTMLCacheRequest(originalRequest) {
-  try {
-    const originalUrl = new URL(originalRequest.url);
-    const keyedUrl = new URL(originalUrl.toString());
-    keyedUrl.searchParams.set('__sw_html', '1');
-    return new Request(keyedUrl.toString(), { method: 'GET' });
-  } catch {
-    return originalRequest;
-  }
-}
-
-// Install event
+// Install event - кэшируем страницу офлайна и её chunks
 self.addEventListener('install', (event) => {
-  console.log('📦 SW: Install event - Setting up caches');
+  console.log('📦 SW: Install event - Caching offline page and chunks');
   
   event.waitUntil(
     (async () => {
       try {
-        // Создаем все необходимые кэши (обновлено под новую архитектуру)
-        const cacheNames = [
-          CACHE_CONFIG.CACHES.HTML_PAGES,
-          CACHE_CONFIG.CACHES.STATIC,
-          CACHE_CONFIG.CACHES.IMAGES,
-          CACHE_CONFIG.CACHES.API,
-        ];
+        const cache = await caches.open(OFFLINE_CACHE_NAME);
         
-        await Promise.all(
-          cacheNames.map(cacheName => caches.open(cacheName))
-        );
+        // Пытаемся закэшировать страницу офлайна
+        try {
+          const response = await fetch(OFFLINE_PAGE_URL);
+          if (response.ok) {
+            await cache.put(OFFLINE_PAGE_URL, response.clone());
+            console.log('✅ SW: Offline page HTML cached');
+            
+            // Кэшируем все chunks страницы офлайна
+            await cacheOfflinePageChunks(response, cache);
+            console.log('✅ SW: Offline page and chunks cached');
+          }
+        } catch (error) {
+          console.log('⚠️ SW: Failed to cache offline page on install, will try later', error);
+        }
         
-        console.log('✅ SW: All caches created successfully');
         self.skipWaiting();
       } catch (error) {
-        console.error('❌ SW: Failed to create caches:', error);
+        console.log('⚠️ SW: Install error:', error);
+        self.skipWaiting();
       }
     })()
   );
 });
 
-// Activate event
+// Activate event - очистка старых кэшей
 self.addEventListener('activate', (event) => {
   console.log('🔄 SW: Activate event - Cleaning up old caches');
   
   event.waitUntil(
     (async () => {
       try {
-        // Удаляем старые версии кэшей
+        // Удаляем все старые кэши, кроме кэшей офлайн-страницы и курсов
         const cacheNames = await caches.keys();
-        const currentCacheNames = Object.values(CACHE_CONFIG.CACHES);
-        
-        const cachesToDelete = cacheNames.filter(
-          cacheName => !currentCacheNames.includes(cacheName)
+        const gafusCaches = cacheNames.filter(
+          name => name.startsWith('gafus-') && 
+                  name !== OFFLINE_CACHE_NAME && 
+                  name !== COURSES_CACHE_NAME
         );
         
         await Promise.all(
-          cachesToDelete.map(cacheName => caches.delete(cacheName))
+          gafusCaches.map(cacheName => caches.delete(cacheName))
         );
         
-        if (cachesToDelete.length > 0) {
-          console.log(`🧹 SW: Deleted ${cachesToDelete.length} old caches`);
+        if (gafusCaches.length > 0) {
+          console.log(`🧹 SW: Deleted ${gafusCaches.length} old caches`);
         }
         
-        // Очищаем старые записи из текущих кэшей
-        const entries = Object.entries(CACHE_CONFIG.CACHES);
-        for (const [resourceType, cacheName] of entries) {
+        // Убеждаемся, что страница офлайна закэширована
+        const cache = await caches.open(OFFLINE_CACHE_NAME);
+        const cached = await cache.match(OFFLINE_PAGE_URL);
+        if (!cached) {
           try {
-            await cleanupCache(cacheName, resourceType);
-          } catch (e) {
-            console.warn(`⚠️ SW: Failed cleanup for ${cacheName}`, e);
+            const response = await fetch(OFFLINE_PAGE_URL);
+            if (response.ok) {
+              await cache.put(OFFLINE_PAGE_URL, response);
+              console.log('✅ SW: Offline page cached on activate');
+            }
+          } catch (error) {
+            console.log('⚠️ SW: Failed to cache offline page on activate');
           }
         }
         
-        console.log('✅ SW: Cache cleanup completed');
         await self.clients.claim();
-        
-        // 🎯 ПРЕДВАРИТЕЛЬНОЕ КЭШИРОВАНИЕ HTML-СТРАНИЦ
-        await precacheHTMLPages();
+        console.log('✅ SW: Activation completed');
       } catch (error) {
         console.error('❌ SW: Failed to cleanup caches:', error);
       }
@@ -1055,455 +762,15 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 🎯 ФУНКЦИЯ ПРЕДВАРИТЕЛЬНОГО КЭШИРОВАНИЯ HTML-СТРАНИЦ
-async function precacheHTMLPages() {
-  console.log('🎯 SW: Starting HTML pages precaching');
-  
-  try {
-    const htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
-    const imagesCache = await caches.open(CACHE_CONFIG.CACHES.IMAGES);
-    const pagesToCache = [
-      // '/' - НЕ кэшируем, должна всегда проверять авторизацию через Next.js middleware
-      '/courses',
-      '/profile',
-      '/achievements',
-      '/favorites'
-    ];
-    
-    // Кэшируем favicon.ico в кэш изображений
-    const faviconUrl = '/favicon.ico';
-    try {
-      console.log(`🎯 SW: Precaching favicon: ${faviconUrl}`);
-      
-      const faviconRequest = new Request(faviconUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-        }
-      });
-      
-      const faviconResponse = await fetch(faviconRequest);
-      
-      if (faviconResponse.ok) {
-        const modifiedResponse = new Response(faviconResponse.body, {
-          status: faviconResponse.status,
-          statusText: faviconResponse.statusText,
-          headers: {
-            ...Object.fromEntries(faviconResponse.headers.entries()),
-            'sw-cache-time': Date.now().toString(),
-            'sw-cache-type': 'IMAGES'
-          }
-        });
-        
-        await imagesCache.put(faviconRequest, modifiedResponse);
-        console.log(`✅ SW: Precached favicon: ${faviconUrl}`);
-      } else {
-        console.warn(`⚠️ SW: Favicon not found, creating fallback`);
-        // Создаем простой favicon fallback
-        const fallbackFavicon = new Response('', {
-          status: 200,
-          statusText: 'OK',
-          headers: {
-            'Content-Type': 'image/x-icon',
-            'sw-cache-time': Date.now().toString(),
-            'sw-cache-type': 'IMAGES'
-          }
-        });
-        
-        await imagesCache.put(faviconRequest, fallbackFavicon);
-        console.log(`✅ SW: Created favicon fallback`);
-      }
-    } catch (error) {
-      console.warn(`⚠️ SW: Failed to precache favicon:`, error);
-    }
-    
-    for (const pageUrl of pagesToCache) {
-      try {
-        console.log(`🎯 SW: Precaching HTML page: ${pageUrl}`);
-        
-        // Создаем запрос с правильными заголовками для получения HTML
-        const request = new Request(pageUrl, {
-          method: 'GET',
-          headers: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Cache-Control': 'no-cache'
-          },
-          mode: 'cors'
-        });
-        
-        const response = await fetch(request);
-        
-        if (response.ok && response.headers.get('Content-Type')?.includes('text/html')) {
-          const modifiedResponse = new Response(response.body, {
-            status: response.status,
-            statusText: response.statusText,
-            headers: {
-              ...Object.fromEntries(response.headers.entries()),
-              'sw-cache-time': Date.now().toString(),
-              'sw-cache-type': 'HTML_PAGES'
-            }
-          });
-          
-          await htmlCache.put(request, modifiedResponse);
-          console.log(`✅ SW: Precached HTML page: ${pageUrl}`);
-        } else {
-          console.warn(`⚠️ SW: Response not HTML for ${pageUrl}:`, response.headers.get('Content-Type'));
-        }
-      } catch (error) {
-        console.warn(`⚠️ SW: Failed to precache ${pageUrl}:`, error);
-      }
-    }
-    
-    console.log('✅ SW: HTML pages precaching completed');
-  } catch (error) {
-    console.error('❌ SW: Error in precacheHTMLPages:', error);
-  }
-}
+// Fetch event обрабатывается выше для определения сетевых ошибок
+// Кэширование не используется, данные курсов в IndexedDB
 
-// Fetch event handler для кэширования
-// 🎯 ГЛАВНЫЙ ОБРАБОТЧИК FETCH СОБЫТИЙ
-// Использует новую гибридную стратегию кэширования
-
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-  
-  const dest = request.headers.get('Sec-Fetch-Dest') || '';
-  const uir = request.headers.get('Upgrade-Insecure-Requests') || '';
-  
-  console.log(`🌐 SW: Fetch intercepted: ${request.url}, method: ${request.method}, mode: ${request.mode}`);
-  
-  // Пропускаем запросы с параметром bypass-sw для обхода Service Worker
-  if (url.searchParams.has('bypass-sw') || url.searchParams.has('_bypass_sw')) {
-    console.log(`⏭️ SW: Bypassing Service Worker for: ${request.url}`);
-    return; // Пропускаем обработку, браузер обработает запрос напрямую
-  }
-  
-  // Главная страница и страницы авторизации всегда идут в сеть без обработки SW
-  // Это критично для проверки актуальной сессии после очистки кэша
-  if (
-    request.method === 'GET' &&
-    (url.pathname === '/' || url.pathname === '/login' || url.pathname === '/register')
-  ) {
-    console.log(`🚫 SW: Bypassing Service Worker for auth page: ${url.pathname} (session check required)`);
-    return; // Пропускаем обработку, браузер обработает запрос напрямую
-  }
-  
-  // Спец. обработчик навигации (ТОЛЬКО GET): cache-first с фоновым revalidate
-  if (
-    request.method === 'GET' &&
-    (request.mode === 'navigate' || dest === 'document' || uir === '1' || isKnownPagePath(url.pathname))
-  ) {
-    event.respondWith(handleNavigationRequest(event, request));
-    return;
-  }
-
-  // Пропускаем не-GET запросы (кроме API)
-  if (request.method !== 'GET' && !url.pathname.startsWith('/api/')) {
-    console.log(`⏭️ SW: Skipping non-GET request: ${request.url}`);
-    return;
-  }
-  
-  // Пропускаем chrome-extension и другие протоколы
-  if (!url.protocol.startsWith('http')) {
-    console.log(`⏭️ SW: Skipping non-HTTP request: ${request.url}`);
-    return;
-  }
-  
-  try {
-    // 🧠 Определяем тип ресурса с помощью умной системы
-    const resourceType = getResourceType(request);
-    const strategy = getCachingStrategy(resourceType);
-    
-    console.log(`🎯 SW: Resource type: ${resourceType}, Strategy: ${strategy}`);
-    
-    // 🚀 Обрабатываем запрос с соответствующей стратегией
-    event.respondWith(handleRequest(request, resourceType, strategy));
-  } catch (error) {
-    console.error(`❌ SW: Error in fetch handler:`, error);
-    // Возвращаем ошибку, чтобы браузер мог обработать запрос сам
-    event.respondWith(new Response('Service Worker Error', { 
-      status: 500, 
-      statusText: 'Internal Server Error' 
-    }));
-  }
-});
-
-// 🚀 ГЛАВНАЯ ФУНКЦИЯ ОБРАБОТКИ ЗАПРОСОВ
-// Использует новую гибридную стратегию кэширования
-
-async function handleRequest(request, resourceType, strategy) {
-  console.log(`🚀 SW: Handling ${resourceType} request with ${strategy} strategy: ${request.url}`);
-  
-  try {
-    // Спец. стратегии с таймаутом для RSC и API
-    if (resourceType === 'RSC_DATA') {
-      const cache = await caches.open(CACHE_CONFIG.CACHES.RSC_DATA);
-      return await networkFirstWithTimeout(request, cache, resourceType, RSC_NETWORK_TIMEOUT_MS);
-    }
-    if (resourceType === 'API' && strategy === 'networkFirst') {
-      const cache = await caches.open(CACHE_CONFIG.CACHES.API);
-      return await networkFirstWithTimeout(request, cache, resourceType, API_NETWORK_TIMEOUT_MS);
-    }
-
-    // Выбираем стратегию кэширования
-    switch (strategy) {
-      case 'cacheFirst':
-        console.log(`🎯 SW: Using cacheFirst strategy for ${resourceType}`);
-        return await cacheFirstStrategy(request, resourceType);
-      
-      case 'networkFirst':
-        console.log(`🌐 SW: Using networkFirst strategy for ${resourceType}`);
-        return await networkFirstStrategy(request, resourceType);
-      
-      default:
-        console.warn(`⚠️ SW: Unknown strategy ${strategy}, using networkFirst`);
-        return await networkFirstStrategy(request, resourceType);
-    }
-  } catch (error) {
-    console.error(`❌ SW: Request failed for ${request.url}:`, error);
-    console.error(`❌ SW: Error details:`, error.stack);
-    
-    // Fallback для страниц - показываем офлайн страницу
-    if (resourceType === 'HTML_PAGES') {
-      return await getOfflineFallback(request);
-    }
-    
-    // Fallback для RSC-запросов — отдаём HTML офлайн-страницу, чтобы не отображался сырой RSC-поток
-    if (resourceType === 'RSC_DATA') {
-      return await getOfflineFallback(request);
-    }
-    
-    // Fallback для статических ресурсов и изображений - пробуем вернуть из кэша
-    if (resourceType === 'STATIC' || resourceType === 'IMAGES') {
-      try {
-        const cacheName = getCacheName(resourceType);
-        const cache = await caches.open(cacheName);
-        const cachedResponse = await cache.match(request);
-        if (cachedResponse) {
-          console.log(`✅ SW: Serving cached ${resourceType} as fallback: ${request.url}`);
-          return cachedResponse;
-        }
-      } catch (cacheError) {
-        console.warn(`⚠️ SW: Failed to get cache for fallback:`, cacheError);
-      }
-    }
-    
-    // Для остальных типов возвращаем ошибку
-    return new Response('Offline', { 
-      status: 503, 
-      statusText: 'Service Unavailable' 
-    });
-  }
-}
-
-// Специальная обработка навигации для офлайна
-async function handleNavigationRequest(event, request) {
-  // Определяем переменные заранее для использования в catch блоке
-  const reqUrl = new URL(request.url);
-  const isHomePage = reqUrl.pathname === '/';
-  let htmlCache;
-  let htmlKey;
-  
-  try {
-    // 0) Если уже есть кэш — отдаем его сразу, сеть обновляем фоном
-    htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
-    htmlKey = getHTMLCacheRequest(request);
-    const cached = await htmlCache.match(htmlKey);
-    if (cached) {
-      event.waitUntil(revalidateNavigationHTML(request, htmlCache, htmlKey));
-      return cached;
-    }
-
-    // 1) Кэша нет — пробуем сеть с таймаутом
-
-    // Увеличиваем стандартный таймаут для главной страницы
-    let networkTimeout = isHomePage ? 5000 : 1200; // 5 секунд для главной, 1.2 сек для остальных
-    let retryTimeout = isHomePage ? 15000 : 10000;
-    let shouldRetry = isHomePage; // Всегда разрешаем retry для главной страницы
-
-    // Проверяем, был ли недавно очищен кэш (в течение последних 5 минут)
-    try {
-      const cacheCleared = await getLocalStorageItem('cache-cleared-timestamp');
-      if (cacheCleared) {
-        const timeSinceCleared = Date.now() - parseInt(cacheCleared);
-        if (timeSinceCleared < 5 * 60 * 1000) {
-          // Увеличиваем таймауты еще больше после очистки кэша
-          networkTimeout = isHomePage ? 15000 : 10000;
-          retryTimeout = isHomePage ? 30000 : 25000;
-          shouldRetry = true;
-          console.log(`⏱️ SW: Using extended timeout (${networkTimeout}ms) due to recent cache clear${isHomePage ? ' (home page)' : ''}`);
-        } else {
-          await removeLocalStorageItem('cache-cleared-timestamp');
-        }
-      }
-    } catch (e) {
-      console.warn('⚠️ SW: Failed to check cache-cleared-timestamp', e);
-    }
-
-    let response;
-    try {
-      response = await Promise.race([
-        fetch(request),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), networkTimeout)),
-      ]);
-    } catch (firstError) {
-      // Если первая попытка не удалась и разрешен retry, пробуем еще раз с еще более длительным таймаутом
-      if (shouldRetry && firstError.message === 'timeout') {
-        console.log(`🔄 SW: First attempt timed out, retrying with ${retryTimeout}ms timeout`);
-        try {
-          response = await Promise.race([
-            fetch(request),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), retryTimeout)),
-          ]);
-        } catch (secondError) {
-          throw secondError; // Если и вторая попытка не удалась, выбрасываем ошибку
-        }
-      } else {
-        throw firstError; // Если retry не разрешен, выбрасываем оригинальную ошибку
-      }
-    }
-
-    const ct = response.headers.get('Content-Type') || '';
-    if (ct.includes('text/html')) {
-      try {
-        const resForHeaders = response.clone();
-        const headers = new Headers(resForHeaders.headers);
-        headers.set('sw-cache-time', Date.now().toString());
-        headers.set('sw-cache-type', 'HTML_PAGES');
-        const bodyBuffer = await resForHeaders.arrayBuffer();
-        const cachedResponse = new Response(bodyBuffer, {
-          status: resForHeaders.status,
-          statusText: resForHeaders.statusText,
-          headers,
-        });
-        await htmlCache.put(htmlKey, cachedResponse);
-        console.log(`💾 SW: Cached navigation HTML under special key: ${htmlKey.url}`);
-      } catch (e) {
-        console.warn('⚠️ SW: Failed to cache navigation HTML', e);
-      }
-      return response;
-    }
-
-    // Не HTML (например, RSC) — отдаём HTML fallback
-    console.log(`⚠️ SW: Navigation returned non-HTML (${ct}), serving HTML fallback: ${request.url}`);
-    return await getOfflineFallback(request);
-  } catch (e) {
-    // Инициализируем htmlCache и htmlKey если они еще не определены
-    if (!htmlCache) {
-      try {
-        htmlCache = await caches.open(CACHE_CONFIG.CACHES.HTML_PAGES);
-        htmlKey = getHTMLCacheRequest(request);
-      } catch (cacheError) {
-        console.warn('⚠️ SW: Failed to open cache in catch block', cacheError);
-      }
-    }
-    
-    // Проверяем реальный статус сети перед возвратом fallback
-    // Если браузер говорит что онлайн, даем еще одну попытку с увеличенным таймаутом
-    if (navigator.onLine) {
-      console.log(`🔄 SW: Network error but navigator.onLine is true, retrying with extended timeout: ${request.url}`);
-      try {
-        // Последняя попытка с очень большим таймаутом
-        const finalTimeout = isHomePage ? 20000 : 15000;
-        let response = await Promise.race([
-          fetch(request),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), finalTimeout)),
-        ]);
-        
-        const ct = response.headers.get('Content-Type') || '';
-        if (ct.includes('text/html')) {
-          try {
-            if (htmlCache && htmlKey) {
-              const resForHeaders = response.clone();
-              const headers = new Headers(resForHeaders.headers);
-              headers.set('sw-cache-time', Date.now().toString());
-              headers.set('sw-cache-type', 'HTML_PAGES');
-              const bodyBuffer = await resForHeaders.arrayBuffer();
-              const cachedResponse = new Response(bodyBuffer, {
-                status: resForHeaders.status,
-                statusText: resForHeaders.statusText,
-                headers,
-              });
-              await htmlCache.put(htmlKey, cachedResponse);
-              console.log(`💾 SW: Cached navigation HTML after retry: ${htmlKey.url}`);
-            }
-          } catch (cacheError) {
-            console.warn('⚠️ SW: Failed to cache navigation HTML after retry', cacheError);
-          }
-          return response;
-        }
-      } catch (retryError) {
-        console.log(`🧭 SW: Final retry failed, serving HTML fallback: ${request.url}`);
-      }
-    }
-    
-    // Если офлайн — отдаём HTML офлайн-страницу
-    console.log(`🧭 SW: Navigation offline, serving HTML fallback: ${request.url}`);
-    // Пробуем найти ранее закэшированный HTML под спец. ключом
-    if (htmlCache && htmlKey) {
-      try {
-        const hit = await htmlCache.match(htmlKey);
-        if (hit) {
-          console.log(`✅ SW: Serving cached navigation HTML: ${htmlKey.url}`);
-          return hit;
-        }
-      } catch (matchError) {
-        console.warn('⚠️ SW: Failed to match cached HTML', matchError);
-      }
-    }
-    return await getOfflineFallback(request);
-  }
-}
-
-// Фоновая ревалидация HTML для навигации
-async function revalidateNavigationHTML(request, htmlCache, htmlKey) {
-  try {
-    const response = await fetch(request);
-    const ct = response.headers.get('Content-Type') || '';
-    if (ct.includes('text/html')) {
-      const resForHeaders = response.clone();
-      const headers = new Headers(resForHeaders.headers);
-      headers.set('sw-cache-time', Date.now().toString());
-      headers.set('sw-cache-type', 'HTML_PAGES');
-      const bodyBuffer = await resForHeaders.arrayBuffer();
-      const cachedResponse = new Response(bodyBuffer, {
-        status: resForHeaders.status,
-        statusText: resForHeaders.statusText,
-        headers,
-      });
-      await htmlCache.put(htmlKey, cachedResponse);
-      console.log(`♻️ SW: Revalidated navigation HTML: ${htmlKey.url}`);
-    }
-  } catch (e) {
-    console.warn('⚠️ SW: Revalidate navigation failed', e);
-  }
-}
-
-// 🗑️ УДАЛЕНЫ СТАРЫЕ ФУНКЦИИ - используются новые функции выше
-
-// Функция создания уведомлений с Safari-оптимизацией
+// Создание опций для уведомлений
 function createNotificationOptions(title, options = {}) {
-  const safariIcon = settings.isSafari ? '/uploads/icons/icon-256-safari.png' : '/uploads/icons/icon192.png';
-  const safariBadge = settings.isSafari ? '/uploads/icons/badge-72.png' : '/uploads/icons/icon192.png';
-  
-  if (settings.useSimpleNotifications) {
-    // Для Safari: только базовые опции с Safari-специфичными иконками
-    return {
-      body: options.body || 'Новое уведомление',
-      icon: options.icon || safariIcon,
-      badge: options.badge || safariBadge,
-      tag: options.tag || 'default',
-      requireInteraction: false,
-      silent: false,
-    };
-  }
-  
-  // Для других браузеров: полные опции
   return {
-    body: options.body || 'Новое уведомление',
-    icon: options.icon || safariIcon,
-    badge: options.badge || safariBadge,
+    body: options.body || '',
+    icon: options.icon || '/uploads/logo.png',
+    badge: options.badge || '/uploads/logo.png',
     tag: options.tag || 'default',
     requireInteraction: options.requireInteraction || false,
     silent: options.silent || false,
@@ -1515,7 +782,7 @@ function createNotificationOptions(title, options = {}) {
 
 // Push event handler
 self.addEventListener('push', (event) => {
-  console.log('🦁 SW Custom: Push event received');
+  console.log('🦁 SW: Push event received');
   
   let data = {};
   try {
@@ -1527,14 +794,14 @@ self.addEventListener('push', (event) => {
         // Если не JSON, пробуем получить как текст
         try {
           const textData = event.data.text();
-          console.log('🦁 SW Custom: Получены текстовые данные:', textData);
+          console.log('🦁 SW: Получены текстовые данные:', textData);
           // Если это простой текст, создаем объект уведомления
           data = {
             title: 'Gafus',
             body: textData || 'Новое уведомление'
           };
         } catch (textError) {
-          console.warn('⚠️ SW Custom: Не удалось получить данные как текст:', textError);
+          console.warn('⚠️ SW: Не удалось получить данные как текст:', textError);
           data = { title: 'Gafus', body: 'Новое уведомление' };
         }
       }
@@ -1542,7 +809,7 @@ self.addEventListener('push', (event) => {
       data = { title: 'Gafus', body: 'Новое уведомление' };
     }
   } catch (error) {
-    console.warn('⚠️ SW Custom: Не удалось обработать push данные:', error);
+    console.warn('⚠️ SW: Не удалось обработать push данные:', error);
     data = { title: 'Gafus', body: 'Новое уведомление' };
   }
   
@@ -1557,22 +824,22 @@ self.addEventListener('push', (event) => {
     actions: data.actions || [],
   });
   
-  console.log('🦁 SW Custom: Showing notification:', title);
+  console.log('🦁 SW: Showing notification:', title);
   
   event.waitUntil(
     self.registration.showNotification(title, options)
       .then(() => {
-        console.log('✅ SW Custom: Notification shown successfully');
+        console.log('✅ SW: Notification shown successfully');
       })
       .catch(error => {
-        console.error('❌ SW Custom: Error showing notification:', error);
+        console.error('❌ SW: Error showing notification:', error);
       })
   );
 });
 
 // Notification click event handler
 self.addEventListener('notificationclick', (event) => {
-  console.log('🦁 SW Custom: Notification click event');
+  console.log('🦁 SW: Notification click event');
   
   const notificationData = event.notification.data || {};
   const targetUrl = notificationData.url || '/';
@@ -1585,7 +852,7 @@ self.addEventListener('notificationclick', (event) => {
       try {
         // Отслеживаем клик по re-engagement уведомлению
         if (notificationId) {
-          console.log('🦁 SW Custom: Tracking reengagement click:', notificationId);
+          console.log('🦁 SW: Tracking reengagement click:', notificationId);
           
           try {
             const response = await fetch('/api/track-reengagement-click', {
@@ -1597,12 +864,12 @@ self.addEventListener('notificationclick', (event) => {
             });
             
             if (response.ok) {
-              console.log('✅ SW Custom: Reengagement click tracked');
+              console.log('✅ SW: Reengagement click tracked');
             } else {
-              console.warn('⚠️ SW Custom: Failed to track reengagement click:', response.status);
+              console.warn('⚠️ SW: Failed to track reengagement click:', response.status);
             }
           } catch (error) {
-            console.warn('⚠️ SW Custom: Error tracking reengagement click:', error);
+            console.warn('⚠️ SW: Error tracking reengagement click:', error);
           }
         }
         
@@ -1612,7 +879,7 @@ self.addEventListener('notificationclick', (event) => {
         // Ищем уже открытое окно приложения
         for (const client of clients) {
           if (client.url.includes('gafus.ru') && 'focus' in client) {
-            console.log('✅ SW Custom: Focusing existing window, navigating to:', targetUrl);
+            console.log('✅ SW: Focusing existing window, navigating to:', targetUrl);
             await client.focus();
             client.postMessage({ type: 'NAVIGATE', url: targetUrl });
             return;
@@ -1621,11 +888,11 @@ self.addEventListener('notificationclick', (event) => {
         
         // Если нет открытого окна, открываем новое с нужным URL
         if (self.clients.openWindow) {
-          console.log('✅ SW Custom: Opening new window with URL:', targetUrl);
+          console.log('✅ SW: Opening new window with URL:', targetUrl);
           await self.clients.openWindow(targetUrl);
         }
       } catch (error) {
-        console.error('❌ SW Custom: Error handling notification click:', error);
+        console.error('❌ SW: Error handling notification click:', error);
       }
     })()
   );
@@ -1633,44 +900,58 @@ self.addEventListener('notificationclick', (event) => {
 
 // Message event handler для коммуникации с клиентом
 self.addEventListener('message', (event) => {
-  console.log('🦁 SW Custom: Message event', event.data);
+  console.log('🦁 SW: Message event', event.data);
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('🦁 SW Custom: Skip waiting requested');
+    console.log('🦁 SW: Skip waiting requested');
     self.skipWaiting();
   }
   
-  if (event.data && event.data.type === 'CLEAR_PROFILE_CACHE') {
-    const username =
-      typeof event.data.username === 'string' ? event.data.username : null;
-
-    event.waitUntil(
-      (async () => {
-        try {
-          const removed = await clearProfileCacheEntries(username);
-          if (event.ports && event.ports[0]) {
-            event.ports[0].postMessage({
-              type: 'CLEAR_PROFILE_CACHE_RESULT',
-              success: true,
-              removed,
-            });
+  // Обработка запроса HTML из IndexedDB (резервный вариант)
+  if (event.data && event.data.type === 'HTML_FROM_INDEXEDDB') {
+    const { url: urlPath, html } = event.data;
+    console.log('🦁 SW: Received HTML_FROM_INDEXEDDB message', {
+      url: urlPath,
+      hasHtml: !!html,
+      htmlLength: html?.length || 0,
+      pendingRequests: Array.from(pendingHtmlRequests.keys())
+    });
+    
+    if (html && urlPath) {
+      // Нормализуем URL (убираем trailing slash)
+      const normalizedUrl = urlPath.replace(/\/$/, '') || urlPath;
+      
+      // Если есть ожидающий запрос для этого URL, резолвим Promise
+      const resolve = pendingHtmlRequests.get(normalizedUrl);
+      if (resolve) {
+        console.log('🦁 SW: Resolving promise for', normalizedUrl);
+        resolve(html);
+        console.log('✅ SW: HTML received from IndexedDB and returned to request', normalizedUrl, 'length:', html.length);
+      } else {
+        console.warn('⚠️ SW: No pending request found for', normalizedUrl, 'available:', Array.from(pendingHtmlRequests.keys()));
+      }
+      
+      // Также сохраняем HTML в Cache API для следующего раза
+      event.waitUntil(
+        (async () => {
+          try {
+            const coursesCache = await caches.open(COURSES_CACHE_NAME);
+            // Создаем полный URL для кэша
+            const fullUrl = new URL(normalizedUrl, self.location.origin).href;
+            await coursesCache.put(fullUrl, new Response(html, {
+              headers: { 'Content-Type': 'text/html; charset=utf-8' }
+            }));
+            console.log('✅ SW: HTML saved to cache from IndexedDB', normalizedUrl);
+          } catch (error) {
+            console.error('⚠️ SW: Failed to save HTML to cache', error);
           }
-        } catch (error) {
-          console.warn('⚠️ SW: Failed to clear profile cache', error);
-          if (event.ports && event.ports[0]) {
-            event.ports[0].postMessage({
-              type: 'CLEAR_PROFILE_CACHE_RESULT',
-              success: false,
-              error: error instanceof Error ? error.message : 'Unknown error',
-            });
-          }
-        }
-      })(),
-    );
-
-    return;
+        })()
+      );
+    } else {
+      console.warn('⚠️ SW: Invalid HTML_FROM_INDEXEDDB message', { urlPath, hasHtml: !!html });
+    }
   }
-
+  
   if (event.data && event.data.type === 'CLEAR_ALL_CACHE') {
     event.waitUntil(
       (async () => {
@@ -1709,227 +990,4 @@ self.addEventListener('message', (event) => {
     );
     return;
   }
-
-  if (event.data && event.data.type === 'GET_VERSION') {
-    event.ports[0].postMessage({
-      type: 'VERSION_INFO',
-      version: 'push-and-cache',
-      safari: settings.isSafari,
-      ios: settings.isIOS,
-    });
-  }
-  
-  // Обработка сообщений от offlineStore
-  if (event.data && event.data.type === 'OFFLINE_STATUS') {
-    handleOfflineStatusChange(event.data.isOnline);
-  }
-  
-  if (event.data && event.data.type === 'SYNC_QUEUE') {
-    handleSyncQueue(event.data.actions);
-  }
-  
-  if (event.data && event.data.type === 'CACHE_STATUS') {
-    handleCacheStatusRequest(event);
-  }
 });
-
-// Обработка изменения офлайн статуса
-async function handleOfflineStatusChange(isOnline) {
-  console.log(`🌐 SW: Offline status changed: ${isOnline ? 'online' : 'offline'}`);
-  
-  // Уведомляем все клиенты об изменении статуса
-  const clients = await self.clients.matchAll();
-  clients.forEach(client => {
-    client.postMessage({
-      type: 'NETWORK_STATUS_CHANGED',
-      isOnline,
-      timestamp: Date.now(),
-    });
-  });
-  
-  // Если стали онлайн, пытаемся синхронизировать кэш
-  if (isOnline) {
-    await syncCachedData();
-  }
-}
-
-// Обработка очереди синхронизации
-async function handleSyncQueue(actions) {
-  console.log(`🔄 SW: Processing sync queue with ${actions.length} actions`);
-  
-  for (const action of actions) {
-    try {
-      await processOfflineAction(action);
-    } catch (error) {
-      console.warn(`⚠️ SW: Failed to process action ${action.id}:`, error);
-    }
-  }
-}
-
-// Обработка запроса статуса кэша
-async function handleCacheStatusRequest(event) {
-  try {
-    const cacheNames = [
-      CACHE_CONFIG.CACHES.HTML_PAGES,
-      CACHE_CONFIG.CACHES.STATIC,
-      CACHE_CONFIG.CACHES.IMAGES,
-      CACHE_CONFIG.CACHES.API,
-    ];
-    
-    const cacheStatus = {};
-    
-    for (const cacheName of cacheNames) {
-      const cache = await caches.open(cacheName);
-      const keys = await cache.keys();
-      cacheStatus[cacheName] = {
-        entries: keys.length,
-        size: await estimateCacheSize(cache),
-      };
-    }
-    
-    event.ports[0].postMessage({
-      type: 'CACHE_STATUS_RESPONSE',
-      status: cacheStatus,
-    });
-  } catch (error) {
-    console.warn('⚠️ SW: Failed to get cache status:', error);
-    event.ports[0].postMessage({
-      type: 'CACHE_STATUS_RESPONSE',
-      error: error.message,
-    });
-  }
-}
-
-// Обработка офлайн действия
-async function processOfflineAction(action) {
-  console.log(`🔄 SW: Processing offline action: ${action.type}`);
-  
-  // Здесь можно добавить логику для обработки специфичных действий
-  // Например, кэширование данных для последующей синхронизации
-  
-  // Уведомляем клиент об успешной обработке
-  const clients = await self.clients.matchAll();
-  clients.forEach(client => {
-    client.postMessage({
-      type: 'OFFLINE_ACTION_PROCESSED',
-      actionId: action.id,
-      success: true,
-    });
-  });
-}
-
-// Синхронизация кэшированных данных при восстановлении сети
-async function syncCachedData() {
-  console.log('🔄 SW: Syncing cached data after network restoration');
-  
-  try {
-    // Здесь можно добавить логику для синхронизации кэшированных данных
-    // Например, отправка накопленных метрик или аналитики
-    
-    const clients = await self.clients.matchAll();
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'NETWORK_RESTORED',
-        timestamp: Date.now(),
-      });
-    });
-  } catch (error) {
-    console.warn('⚠️ SW: Failed to sync cached data:', error);
-  }
-}
-
-// Оценка размера кэша
-async function estimateCacheSize(cache) {
-  try {
-    const keys = await cache.keys();
-    let totalSize = 0;
-    
-    for (const key of keys) {
-      const response = await cache.match(key);
-      if (response && response.body) {
-        const reader = response.body.getReader();
-        let size = 0;
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          size += value.length;
-        }
-        
-        totalSize += size;
-      }
-    }
-    
-    return totalSize;
-  } catch {
-    return 0;
-  }
-}
-
-async function clearProfileCacheEntries(username) {
-  const normalizedUsername =
-    typeof username === 'string' && username.length > 0
-      ? username.toLowerCase()
-      : null;
-  const cacheNames = [
-    CACHE_CONFIG.CACHES.HTML_PAGES,
-    CACHE_CONFIG.CACHES.API,
-    CACHE_CONFIG.CACHES.RSC_DATA,
-  ].filter(Boolean);
-  let removed = 0;
-
-  for (const cacheName of cacheNames) {
-    try {
-      const cache = await caches.open(cacheName);
-      const requests = await cache.keys();
-      const isHTMLCache = cacheName === CACHE_CONFIG.CACHES.HTML_PAGES;
-
-      // eslint-disable-next-line no-loop-func
-      await Promise.all(
-        requests.map(async (request) => {
-          try {
-            const url = new URL(request.url);
-            if (!url.pathname.startsWith('/profile')) return;
-
-            // Проверяем username для фильтрации
-            if (normalizedUsername) {
-              const param = url.searchParams.get('username');
-              if (!param || param.toLowerCase() !== normalizedUsername) return;
-            }
-
-            // Для HTML кэша проверяем оба варианта ключа (с __sw_html и без)
-            if (isHTMLCache) {
-              const hasHTMLParam = url.searchParams.has('__sw_html');
-              
-              if (!hasHTMLParam) {
-                // Если нет параметра __sw_html, создаем ключ с параметром и удаляем оба
-                const urlWithHTMLParam = new URL(url.toString());
-                urlWithHTMLParam.searchParams.set('__sw_html', '1');
-                const requestWithHTMLParam = new Request(urlWithHTMLParam.toString(), { method: 'GET' });
-                const deletedWithParam = await cache.delete(requestWithHTMLParam);
-                const deletedOriginal = await cache.delete(request);
-                if (deletedWithParam || deletedOriginal) removed += 1;
-              } else {
-                // Если уже есть параметр, удаляем только этот запрос
-                const deleted = await cache.delete(request);
-                if (deleted) removed += 1;
-              }
-            } else {
-              // Для не-HTML кэшей удаляем запрос как обычно
-              const deleted = await cache.delete(request);
-              if (deleted) removed += 1;
-            }
-          } catch (error) {
-            console.warn('⚠️ SW: Failed to inspect profile cache entry', error);
-          }
-        }),
-      );
-    } catch (error) {
-      console.warn(`⚠️ SW: Failed to clear profile cache in ${cacheName}`, error);
-    }
-  }
-
-  return removed;
-}
-
-// Логи о загрузке SW убраны

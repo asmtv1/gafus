@@ -53,32 +53,61 @@ export function setupGlobalErrorHandling(config?: Partial<GlobalErrorConfig>) {
 
   // Отлов необработанных Promise rejections
   window.onunhandledrejection = (event) => {
-    if (event.reason instanceof Error) {
+    const reason = event.reason;
+    const reasonMessage = reason instanceof Error ? reason.message : String(reason);
+    
+    // Проверяем сетевые ошибки и переводим в офлайн
+    const isNetworkError = 
+      reasonMessage.includes("Failed to fetch") ||
+      reasonMessage.includes("ERR_INTERNET_DISCONNECTED") ||
+      reasonMessage.includes("NetworkError") ||
+      reasonMessage.includes("Network request failed") ||
+      (!navigator.onLine);
+
+    if (isNetworkError && typeof window !== "undefined") {
+      // Импортируем store динамически, чтобы избежать циклических зависимостей
+      import("@shared/stores/offlineStore").then(({ useOfflineStore }) => {
+        const store = useOfflineStore.getState();
+        if (store.isOnline) {
+          store.setOnlineStatus(false);
+          // Немедленный редирект на страницу офлайна
+          if (window.location.pathname !== "/~offline") {
+            window.location.href = "/~offline";
+          }
+        }
+      }).catch(() => {
+        // Игнорируем ошибки импорта
+      });
+    }
+
+    if (reason instanceof Error) {
       const meta: LogMeta = {
         operation: 'unhandled_promise_rejection',
         componentStack: `Global (unhandledrejection)`,
         errorBoundaryName: "GlobalPromiseHandler",
         url: window.location.href,
         userAgent: navigator.userAgent,
-        reason: event.reason.toString(),
+        reason: reason.toString(),
+        isNetworkError,
         tags: ['global-error', 'unhandled-rejection'],
       };
 
       void logger.error(
-        event.reason.message || 'Unhandled promise rejection',
-        event.reason,
+        reason.message || 'Unhandled promise rejection',
+        reason,
         meta
       );
     } else {
       // Если причина не Error, создаем искусственную ошибку
-      const syntheticError = new Error(`Unhandled rejection: ${event.reason}`);
+      const syntheticError = new Error(`Unhandled rejection: ${reason}`);
       const meta: LogMeta = {
         operation: 'unhandled_promise_rejection_non_error',
         componentStack: `Global (unhandledrejection)`,
         errorBoundaryName: "GlobalPromiseHandler",
         url: window.location.href,
         userAgent: navigator.userAgent,
-        reason: String(event.reason),
+        reason: String(reason),
+        isNetworkError,
         tags: ['global-error', 'unhandled-rejection'],
       };
 

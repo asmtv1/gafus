@@ -3,11 +3,11 @@
 
 import { TrainingStatus } from "@gafus/types";
 import { useCourseStore } from "@shared/stores";
-import { useOfflineStore } from "@shared/stores/offlineStore";
 import Image from "next/image";
 import Link from "next/link";
 import NextLink from "next/link";
 import { useEffect, useState } from "react";
+import { Download, Refresh, Delete } from "@mui/icons-material";
 
 import styles from "./CourseCard.module.css";
 
@@ -17,6 +17,7 @@ import type { CourseCardPropsWithIndex } from "@gafus/types";
 import { declOfNum } from "@/utils";
 import { SimpleCourseRating } from "../CourseRating";
 import { FavoriteButton } from "../FavoriteButton";
+import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
@@ -68,6 +69,18 @@ export const CourseCard = ({
   const isFavorite = storeIsFavorite(id) ?? propIsFavorite;
   const [imgError, setImgError] = useState(false);
   const [isImageAlreadyCached, setIsImageAlreadyCached] = useState(false);
+  
+  // Офлайн-функциональность
+  const {
+    isDownloadedByType,
+    downloadCourse,
+    updateCourse,
+    deleteCourse,
+    isDownloading,
+    isUpdating,
+  } = useOfflineCourse();
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   // Синхронизируем состояние избранного с store при изменении пропсов
   useEffect(() => {
@@ -77,8 +90,22 @@ export const CourseCard = ({
     }
   }, [propIsFavorite, isFavorite]);
 
-  // Используем заглушку если изображение не загрузилось или если src пустой
-  const finalSrc = imgError || !logoImg ? DEFAULT_PLACEHOLDER : logoImg;
+  // Проверяем, скачан ли курс
+  useEffect(() => {
+    const checkDownloaded = async () => {
+      setIsChecking(true);
+      const downloaded = await isDownloadedByType(type);
+      setIsDownloaded(downloaded);
+      setIsChecking(false);
+    };
+    checkDownloaded();
+  }, [type, isDownloadedByType]);
+
+  // Используем офлайн-версию логотипа, если доступна, иначе оригинальный URL
+  // Если изображение не загрузилось или если src пустой, используем заглушку
+  const finalSrc = imgError || !logoImg 
+    ? DEFAULT_PLACEHOLDER 
+    : logoImg;
 
   // Проверяем кэш изображения в useEffect
   useEffect(() => {
@@ -97,6 +124,48 @@ export const CourseCard = ({
       img.src = logoImg;
     }
   }, [logoImg, isImageAlreadyCached, markImageLoaded, markImageError]);
+
+  // Обработчики для скачивания и обновления
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const result = await downloadCourse(type);
+    if (result.success) {
+      setIsDownloaded(true);
+    } else {
+      alert(result.error || "Не удалось скачать курс");
+    }
+  };
+
+  const handleUpdate = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const result = await updateCourse(type);
+    if (result.success) {
+      // Обновляем состояние
+      setIsDownloaded(true);
+    } else {
+      alert(result.error || "Не удалось обновить курс");
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!confirm("Вы уверены, что хотите удалить курс из офлайн-хранилища?")) {
+      return;
+    }
+    
+    const result = await deleteCourse(id);
+    if (result.success) {
+      setIsDownloaded(false);
+    } else {
+      alert(result.error || "Не удалось удалить курс");
+    }
+  };
 
   const getStatusText = () => {
     switch (userStatus) {
@@ -143,13 +212,6 @@ export const CourseCard = ({
         href={`/trainings/${type}`}
         className={styles.link}
         prefetch={false}
-        onClick={(e) => {
-          const isOnline = useOfflineStore.getState().isOnline;
-          if (!isOnline) {
-            e.preventDefault();
-            window.location.assign(`/trainings/${type}`);
-          }
-        }}
       >
         <div className={styles.imageContainer}>
           <Image
@@ -243,6 +305,42 @@ export const CourseCard = ({
         </div>
         <FavoriteButton id={id} isFavorite={isFavorite} onUnfavorite={() => onUnfavorite?.(id)} />
       </div>
+
+      {!isChecking && (
+        <div className={styles.offlineActions}>
+          {!isDownloaded ? (
+            <button
+              className={styles.downloadButton}
+              onClick={handleDownload}
+              disabled={isDownloading}
+              title="Скачать курс для офлайн-доступа"
+            >
+              <Download className={styles.buttonIcon} />
+              <span>{isDownloading ? "Скачивание..." : "Скачать"}</span>
+            </button>
+          ) : (
+            <>
+              <button
+                className={styles.updateButton}
+                onClick={handleUpdate}
+                disabled={isUpdating}
+                title="Обновить курс"
+              >
+                <Refresh className={`${styles.buttonIcon} ${isUpdating ? styles.spinning : ""}`} />
+                <span>{isUpdating ? "Обновление..." : "Обновить"}</span>
+              </button>
+              <button
+                className={styles.deleteButton}
+                onClick={handleDelete}
+                title="Удалить курс из офлайн-хранилища"
+              >
+                <Delete className={styles.buttonIcon} />
+                <span>Удалить</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </li>
   );
 };

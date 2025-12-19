@@ -7,7 +7,6 @@ import { useCachedTrainingDays } from "@shared/hooks/useCachedTrainingDays";
 import { useStepStore } from "@shared/stores/stepStore";
 import { calculateDayStatus } from "@shared/utils/trainingCalculations";
 import styles from "./TrainingDayList.module.css";
-import { useOfflineStore } from "@shared/stores/offlineStore";
 
 interface TrainingDayListProps {
   courseType: string;
@@ -175,14 +174,6 @@ const TrainingDayList = memo(function TrainingDayList({
               href={`/trainings/${courseType}/${day.day}`}
               className={styles.link}
               prefetch={false}
-              onClick={(e) => {
-                // При офлайн-навигации форсируем полную навигацию, чтобы SW отдал HTML заглушку
-                const isOnline = useOfflineStore.getState().isOnline;
-                if (!isOnline) {
-                  e.preventDefault();
-                  window.location.assign(`/trainings/${courseType}/${day.day}`);
-                }
-              }}
             >
               {(day.estimatedDuration ?? 0) > 0 || (day.theoryMinutes ?? 0) > 0 ? (
                 <div className={styles.timeBadgeWrapper}>

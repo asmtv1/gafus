@@ -12,10 +12,10 @@ import { TrainingStatus } from "@gafus/types";
 const logger = createWebLogger('web');
 
 // ===== КОНСТАНТЫ =====
-const CACHE_DURATION = 10 * 60 * 1000; // 10 минут для курсов
 const IMAGE_CACHE_DURATION = 30 * 60 * 1000; // 30 минут для изображений
+const COURSES_CACHE_DURATION = 5 * 60 * 1000; // 5 минут для курсов - синхронизируем с серверным кэшем
 
-const isStale = (timestamp: number, maxAge: number = CACHE_DURATION) => {
+const isStale = (timestamp: number, maxAge: number = IMAGE_CACHE_DURATION) => {
   return Date.now() - timestamp > maxAge;
 };
 
@@ -23,7 +23,7 @@ const isStale = (timestamp: number, maxAge: number = CACHE_DURATION) => {
 export const useCourseStore = create<CourseState>()(
   persist(
     (set, get) => ({
-      // Начальное состояние
+      // Начальное состояние (упрощено: убрано кэширование списков курсов)
       allCourses: null,
       favorites: null,
       authored: null,
@@ -43,18 +43,16 @@ export const useCourseStore = create<CourseState>()(
       prefetchedCourses: new Set(),
 
       // ===== ДЕЙСТВИЯ ДЛЯ КУРСОВ =====
+      // Упрощено: храним только последние загруженные данные без TTL
       setAllCourses: (courses, type) => {
-        // Если загружаем все курсы, обновляем состояние избранного для тех курсов, которые есть в избранном
         const state = get();
         let updatedFavoriteIds = state.favoriteCourseIds;
 
         if (type === "all" && courses.length > 0) {
-          // Проверяем, какие курсы из загруженных уже есть в избранном
           const existingFavoriteIds = courses
             .filter((course: { isFavorite: boolean }) => course.isFavorite)
             .map((course: { id: string }) => course.id);
 
-          // Обновляем состояние избранного
           updatedFavoriteIds = new Set([...state.favoriteCourseIds, ...existingFavoriteIds]);
         }
 
@@ -70,7 +68,6 @@ export const useCourseStore = create<CourseState>()(
       },
 
       setFavorites: (courses) => {
-        // Обновляем список избранных курсов
         const favoriteIds = new Set(courses.map((course: { id: string }) => course.id));
 
         set({
@@ -78,7 +75,7 @@ export const useCourseStore = create<CourseState>()(
             data: courses,
             timestamp: Date.now(),
           },
-          favoriteCourseIds: favoriteIds, // Синхронизируем с сервером
+          favoriteCourseIds: favoriteIds,
           errors: { ...get().errors, favorites: null },
         });
       },
@@ -225,85 +222,56 @@ export const useCourseStore = create<CourseState>()(
         return state.prefetchedCourses.has(courseId);
       },
 
-      // ===== SWR ИНТЕГРАЦИЯ =====
-      // Синхронизация с SWR кэшем
+      // ===== УПРОЩЕННЫЕ УТИЛИТЫ =====
+      // Упрощено: храним данные без TTL проверок
       syncWithSWR: (key, data) => {
-        const state = get();
-        switch (key) {
-          case "all":
-            if (data && !state.isStale(state.allCourses)) {
-              state.setAllCourses(data, "all");
-            }
-            break;
-          case "favorites":
-            if (data && !state.isStale(state.favorites)) {
-              state.setFavorites(data);
-            }
-            break;
-          case "authored":
-            if (data) {
-              state.setAuthored(data);
-            }
-            break;
+        if (key === "all" && data) {
+          get().setAllCourses(data, "all");
+        } else if (key === "favorites" && data) {
+          get().setFavorites(data);
+        } else if (key === "authored" && data) {
+          get().setAuthored(data);
         }
       },
 
-      // Инвалидация кэша
       invalidateCache: (key) => {
-        const state = get();
-        switch (key) {
-          case "all":
-            state.setAllCourses([], "all");
-            break;
-          case "favorites":
-            state.setFavorites([]);
-            break;
-          case "authored":
-            state.setAuthored([]);
-            break;
-        }
+        set({
+          errors: { ...get().errors, [key]: null },
+        });
       },
 
-      // Инвалидируем кэш избранного при изменении
       invalidateFavoritesCache: () => {
-        set({ favorites: null });
+        set({
+          favorites: null,
+          errors: { ...get().errors, favorites: null },
+        });
       },
 
-      // Проверка актуальности данных
-      isStale: (cache, maxAge = CACHE_DURATION) => {
-        if (!cache) return true;
-        return isStale(cache.timestamp, maxAge);
+      isStale: () => {
+        // Упрощено: всегда считаем данные актуальными (нет TTL)
+        return false;
       },
 
       getCourseById: (courseId) => {
         const state = get();
-
-        // Ищем в основных курсах
         if (state.allCourses?.data) {
           const course = state.allCourses.data.find((c) => c.id === courseId);
           if (course) return course;
         }
-
-        // Ищем в избранных
         if (state.favorites?.data) {
           const course = state.favorites.data.find((c) => c.id === courseId);
           if (course) return course;
         }
-
-        // Ищем в созданных
         if (state.authored) {
           const course = state.authored.find((c) => c.id === courseId);
           if (course) return course;
         }
-
         return null;
       },
 
       getPopularCourses: (limit = 10) => {
         const state = get();
         const courses = state.allCourses?.data || [];
-
-        // Сортируем по просмотрам и рейтингу
         return courses
           .map((course) => ({
             ...course,
@@ -329,6 +297,7 @@ export const useCourseStore = create<CourseState>()(
     {
       name: "course-store",
       partialize: (state) => ({
+        // Упрощено: сохраняем данные без TTL проверок
         allCourses: state.allCourses,
         favorites: state.favorites,
         authored: state.authored,
@@ -370,9 +339,12 @@ export const useCourseStoreActions = () => {
 
   const fetchAllCourses = useCallback(
     async (type?: string) => {
-      // Проверяем кэш
-      if (!store.isStale(store.allCourses) && store.allCourses?.type === type) {
-        return store.allCourses!.data;
+      // Проверяем наличие данных в store и их свежесть перед загрузкой
+      if (store.allCourses?.data && store.allCourses.type === type) {
+        const isDataFresh = !isStale(store.allCourses.timestamp, COURSES_CACHE_DURATION);
+        if (isDataFresh) {
+          return store.allCourses.data;
+        }
       }
 
       store.setLoading("all", true);
@@ -380,19 +352,7 @@ export const useCourseStoreActions = () => {
 
       try {
         const { data } = await getCoursesWithProgress();
-
         store.setAllCourses(data, type);
-        
-        // Синхронизируем с актуальными данными из stepStore после загрузки
-        setTimeout(async () => {
-          try {
-            const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
-            await syncCourseStoreWithStepStates();
-          } catch (error) {
-            logger.warn("Failed to sync courseStore with stepStates after fetch:", { error, operation: 'warn' });
-          }
-        }, 50);
-        
         return data;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -406,9 +366,12 @@ export const useCourseStoreActions = () => {
   );
 
   const fetchFavorites = useCallback(async () => {
-    // Проверяем кэш
-    if (!store.isStale(store.favorites)) {
-      return store.favorites!.data;
+    // Проверяем наличие данных в store и их свежесть перед загрузкой
+    if (store.favorites?.data) {
+      const isDataFresh = !isStale(store.favorites.timestamp, COURSES_CACHE_DURATION);
+      if (isDataFresh) {
+        return store.favorites.data;
+      }
     }
 
     store.setLoading("favorites", true);
@@ -416,24 +379,9 @@ export const useCourseStoreActions = () => {
 
     try {
       const { data, favoriteIds } = await getFavoritesCourses();
-
-      // Приводим к нужному типу
       const typedData = data as unknown as CourseWithProgressData[];
       store.setFavorites(typedData);
-
-      // Синхронизируем ID избранных курсов
       store.setFavoriteCourseIds(favoriteIds);
-      
-      // Синхронизируем с актуальными данными из stepStore
-      setTimeout(async () => {
-        try {
-          const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
-          await syncCourseStoreWithStepStates();
-        } catch (error) {
-          logger.warn("Failed to sync courseStore with stepStates after fetchFavorites:", { error, operation: 'warn' });
-        }
-      }, 50);
-
       return typedData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -508,17 +456,6 @@ export const useCourseStoreActions = () => {
       );
 
       store.setAuthored(transformedData);
-      
-      // Синхронизируем с актуальными данными из stepStore
-      setTimeout(async () => {
-        try {
-          const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
-          await syncCourseStoreWithStepStates();
-        } catch (error) {
-          logger.warn("Failed to sync courseStore with stepStates after fetchAuthored:", { error, operation: 'warn' });
-        }
-      }, 50);
-      
       return transformedData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";

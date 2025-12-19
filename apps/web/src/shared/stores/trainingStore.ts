@@ -43,6 +43,8 @@ export const useTrainingStore = create<TrainingState>()(
       },
 
       // ===== КЭШИРОВАНИЕ ДНЕЙ ТРЕНИРОВОК =====
+      // Краткое кэширование (1-2 минуты) только для предотвращения дублирующих запросов в рамках одной сессии
+      // В офлайне используется IndexedDB через useCachedTrainingDays
       getCachedTrainingDays: (courseType) => {
         const cached = get().cachedTrainingDays[courseType];
         
@@ -51,7 +53,7 @@ export const useTrainingStore = create<TrainingState>()(
         }
 
         const now = Date.now();
-        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 часа в миллисекундах
+        const CACHE_DURATION = 2 * 60 * 1000; // 2 минуты - только для предотвращения дублирующих запросов
         const isExpired = now - cached.timestamp > CACHE_DURATION;
 
         return { data: cached.data, isExpired };
