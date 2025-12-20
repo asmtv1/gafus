@@ -226,18 +226,15 @@ self.addEventListener('fetch', (event) => {
             url: requestKey
           });
           
-          // Определяем таймаут: 10 секунд для iOS, 5 секунд для остальных
-          // На iOS работа с IndexedDB медленнее, поэтому увеличиваем таймаут
-          const clientInfo = await getClientInfo();
-          const timeoutMs = clientInfo.isIOS ? 10000 : 5000;
+          // Определяем таймаут: 5 секунд для всех платформ
+          const timeoutMs = 5000;
           
           console.log('[SW] Waiting for HTML from IndexedDB', {
             url: requestKey,
             timeoutMs,
-            isIOS: clientInfo.isIOS
           });
           
-          // Ждем HTML от клиента с таймаутом (10 сек для iOS, 5 сек для остальных)
+          // Ждем HTML от клиента с таймаутом (5 сек по всей платформе)
           let htmlFromIndexedDB = null;
           try {
             htmlFromIndexedDB = await Promise.race([
@@ -696,24 +693,6 @@ const OFFLINE_CACHE_NAME = 'gafus-offline-v1';
 const COURSES_CACHE_NAME = 'gafus-courses-v1';
 const OFFLINE_PAGE_URL = '/~offline';
 
-// Кэш информации о платформе клиента
-let clientPlatformInfo = { isIOS: false };
-
-// Получаем информацию о клиенте для определения iOS
-async function getClientInfo() {
-  // Если информация уже есть в кэше, используем её
-  if (clientPlatformInfo.isIOS !== undefined) {
-    return clientPlatformInfo;
-  }
-  
-  // Пытаемся определить iOS через клиентов
-  // В Service Worker нет прямого доступа к navigator.userAgent
-  // Используем информацию, переданную от клиента через сообщения
-  // По умолчанию считаем, что это не iOS (более быстрый таймаут)
-  // Клиент отправит информацию о платформе при регистрации
-  return clientPlatformInfo;
-}
-
 // Универсальная функция для кэширования chunks страницы
 async function cachePageChunks(htmlResponse, cacheName) {
   try {
@@ -1022,14 +1001,6 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
-  }
-  
-  // Обработка информации о платформе от клиента
-  if (event.data && event.data.type === 'CLIENT_PLATFORM_INFO') {
-    clientPlatformInfo = {
-      isIOS: event.data.isIOS || false
-    };
-    console.log('[SW] Client platform info received', clientPlatformInfo);
   }
   
   // Обработка запроса HTML из IndexedDB (резервный вариант)
