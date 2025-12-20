@@ -347,23 +347,24 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         try {
-          // Используем AbortController для таймаута
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 1000);
-          
-          const response = await fetch(event.request, { 
-            cache: 'no-cache',
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          
-          // Если запрос успешен, отправляем сообщение клиенту что мы онлайн
-          if (response.ok) {
-            notifyClient('ONLINE');
-          }
-          return response;
-        } catch (error) {
+          try {
+            // Используем AbortController для таймаута
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1000);
+            
+            const response = await fetch(event.request, { 
+              cache: 'no-cache',
+              signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            // Если запрос успешен, отправляем сообщение клиенту что мы онлайн
+            if (response.ok) {
+              notifyClient('ONLINE');
+            }
+            return response;
+          } catch (error) {
           // Определяем все типы сетевых ошибок, включая AbortError
           const errorMessage = error instanceof Error ? error.message : String(error);
           const errorName = error instanceof Error ? error.name : '';
@@ -379,6 +380,7 @@ self.addEventListener('fetch', (event) => {
             (errorMessage.includes('Failed to fetch') ||
               errorMessage.includes('NetworkError') ||
               errorMessage.includes('Network request failed') ||
+              errorMessage.includes('Load failed') ||
               errorMessage.includes('ERR_INTERNET_DISCONNECTED') ||
               errorMessage.includes('ERR_NETWORK_CHANGED') ||
               errorMessage.includes('ERR_CONNECTION_REFUSED') ||
@@ -430,8 +432,55 @@ self.addEventListener('fetch', (event) => {
             });
           }
           
-          // Если это не сетевая ошибка, пробрасываем дальше
-          throw error;
+          // Если это не сетевая ошибка, все равно возвращаем fallback
+          // Не пробрасываем ошибку, чтобы не вызвать "Load failed" в event.respondWith
+          logger.warn('Non-network error in navigation request, returning offline page', {
+            error: errorMessage,
+            url: event.request.url
+          });
+          
+          const cache = await caches.open(OFFLINE_CACHE_NAME);
+          const cachedResponse = await cache.match(OFFLINE_PAGE_URL);
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          
+          // Fallback HTML
+          return new Response(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ошибка</title></head><body><h1>Ошибка загрузки</h1><p>Попробуйте обновить страницу.</p></body></html>',
+            {
+              status: 200,
+              headers: { 'Content-Type': 'text/html; charset=utf-8' }
+            }
+          );
+          }
+        } catch (outerError) {
+          // Дополнительная защита - если что-то пошло не так в обработке ошибок
+          const outerErrorMessage = outerError instanceof Error ? outerError.message : String(outerError);
+          console.error('[SW] Unhandled error in navigation request handler', outerError, {
+            url: event.request.url,
+            error: outerErrorMessage
+          });
+          
+          // Всегда возвращаем валидный Response
+          try {
+            const cache = await caches.open(OFFLINE_CACHE_NAME);
+            const cachedResponse = await cache.match(OFFLINE_PAGE_URL);
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+          } catch (cacheError) {
+            // Игнорируем ошибки кэша
+          }
+          
+          // Последний fallback
+          return new Response(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ошибка</title></head><body><h1>Ошибка загрузки</h1><p>Попробуйте обновить страницу.</p></body></html>',
+            {
+              status: 200,
+              headers: { 'Content-Type': 'text/html; charset=utf-8' }
+            }
+          );
         }
       })()
     );
@@ -442,19 +491,26 @@ self.addEventListener('fetch', (event) => {
   // Если запрос не удался, это будет сетевой ошибка
   // Для не-навигационных запросов обрабатываем ошибки gracefully
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
+    (async () => {
+      try {
+        const response = await fetch(event.request);
+        
         // Если запрос успешен, отправляем сообщение клиенту что мы онлайн
         if (response.ok) {
           notifyClient('ONLINE');
         }
         return response;
-      })
-      .catch((error) => {
+      } catch (error) {
         // Определяем все типы сетевых ошибок
         const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorName = error instanceof Error ? error.name : '';
+        const isAbortError = errorName === 'AbortError' || 
+                             errorMessage.includes('aborted') || 
+                             errorMessage.includes('AbortError');
+        
         const isNetworkError = 
-          error instanceof TypeError &&
+          isAbortError ||
+          (error instanceof TypeError &&
           (errorMessage.includes('Failed to fetch') ||
             errorMessage.includes('NetworkError') ||
             errorMessage.includes('Network request failed') ||
@@ -464,7 +520,8 @@ self.addEventListener('fetch', (event) => {
             errorMessage.includes('ERR_CONNECTION_RESET') ||
             errorMessage.includes('ERR_CONNECTION_CLOSED') ||
             errorMessage.includes('ERR_CONNECTION_ABORTED') ||
-            errorMessage.includes('ERR_NAME_NOT_RESOLVED'));
+            errorMessage.includes('ERR_NAME_NOT_RESOLVED') ||
+            errorMessage.includes('Load failed')));
 
         // При сетевой ошибке отправляем сообщение клиенту что мы офлайн
         if (isNetworkError) {
@@ -484,9 +541,24 @@ self.addEventListener('fetch', (event) => {
           });
         }
         
-        // Для навигационных запросов пробрасываем ошибку (она обработана выше)
-        throw error;
-      })
+        // Для навигационных запросов возвращаем страницу офлайна
+        // НЕ пробрасываем ошибку, чтобы не вызвать "Load failed"
+        const cache = await caches.open(OFFLINE_CACHE_NAME);
+        const cachedResponse = await cache.match(OFFLINE_PAGE_URL);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        
+        // Fallback HTML
+        return new Response(
+          '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ошибка</title></head><body><h1>Ошибка загрузки</h1><p>Попробуйте обновить страницу.</p></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' }
+          }
+        );
+      }
+    })()
   );
 });
 
