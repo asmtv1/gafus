@@ -162,113 +162,123 @@ self.addEventListener('fetch', (event) => {
   if (isNavigationRequest && isCoursePage(url.pathname)) {
     event.respondWith(
       (async () => {
-        const coursesCache = await caches.open(COURSES_CACHE_NAME);
-        const cacheKey = event.request.url;
-        
         try {
-          // Пытаемся загрузить HTML страницы из сети (Network-First)
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000);
-          
-          const response = await fetch(event.request, {
-            cache: 'no-cache',
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          
-          // Если запрос успешен, кэшируем HTML и возвращаем
-          if (response.ok) {
-            notifyClient('ONLINE');
-            // Кэшируем HTML структуру страницы для офлайн-доступа
-            // Данные курса клиент возьмет из IndexedDB
-            coursesCache.put(cacheKey, response.clone());
+          const coursesCache = await caches.open(COURSES_CACHE_NAME);
+          const cacheKey = event.request.url;
+        
+          try {
+            // Пытаемся загрузить HTML страницы из сети (Network-First)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
             
-            // Кэшируем chunks страницы для офлайн-доступа
-            // Извлекаем ссылки на chunks из HTML и кэшируем их
-            cachePageChunks(response.clone(), OFFLINE_CACHE_NAME);
+            const response = await fetch(event.request, {
+              cache: 'no-cache',
+              signal: controller.signal
+            });
             
-            return response;
-          }
-        } catch (error) {
-          // Сетевая ошибка - пробуем вернуть HTML страницы из кэша
-          const cachedResponse = await coursesCache.match(cacheKey);
-          if (cachedResponse) {
-            notifyClient('OFFLINE', { error: 'Using cached course page HTML' });
-            return cachedResponse;
-          }
-        }
-        
-        // Если HTML нет в кэше, пробуем получить через клиента из IndexedDB
-        // (Service Worker не может напрямую читать IndexedDB)
-        // Нормализуем URL (убираем trailing slash)
-        const requestKey = url.pathname.replace(/\/$/, '') || url.pathname;
-        
-        // Создаем Promise, который резолвится когда клиент отправит HTML
-        const htmlPromise = new Promise((resolve) => {
-          pendingHtmlRequests.set(requestKey, resolve);
-        });
-        
-        // Отправляем запрос клиенту
-        notifyClient('OFFLINE', { 
-          error: 'Course page HTML not in cache',
-          action: 'GET_HTML_FROM_INDEXEDDB',
-          url: requestKey
-        });
-        
-        // Определяем таймаут: 10 секунд для iOS, 5 секунд для остальных
-        // На iOS работа с IndexedDB медленнее, поэтому увеличиваем таймаут
-        const clientInfo = await getClientInfo();
-        const timeoutMs = clientInfo.isIOS ? 10000 : 5000;
-        
-        console.log('[SW] Waiting for HTML from IndexedDB', {
-          url: requestKey,
-          timeoutMs,
-          isIOS: clientInfo.isIOS
-        });
-        
-        // Ждем HTML от клиента с таймаутом (10 сек для iOS, 5 сек для остальных)
-        let htmlFromIndexedDB = null;
-        try {
-          htmlFromIndexedDB = await Promise.race([
-            htmlPromise.then((html) => html),
-            new Promise((resolve) => {
-              setTimeout(() => resolve(null), timeoutMs);
-            })
-          ]);
-        } catch (error) {
-          // Игнорируем ошибки ожидания HTML
-        } finally {
-          pendingHtmlRequests.delete(requestKey);
-        }
-        
-        // Если HTML пришел от клиента, сохраняем в кэш и возвращаем
-        if (htmlFromIndexedDB) {
-          const htmlResponse = new Response(htmlFromIndexedDB, {
-            status: 200,
-            headers: {
-              'Content-Type': 'text/html; charset=utf-8',
-              'Cache-Control': 'no-cache'
+            clearTimeout(timeoutId);
+            
+            // Если запрос успешен, кэшируем HTML и возвращаем
+            if (response.ok) {
+              notifyClient('ONLINE');
+              // Кэшируем HTML структуру страницы для офлайн-доступа
+              // Данные курса клиент возьмет из IndexedDB
+              coursesCache.put(cacheKey, response.clone());
+              
+              // Кэшируем chunks страницы для офлайн-доступа
+              // Извлекаем ссылки на chunks из HTML и кэшируем их
+              cachePageChunks(response.clone(), OFFLINE_CACHE_NAME);
+              
+              return response;
             }
+          } catch (error) {
+            // Обрабатываем все типы ошибок, включая AbortError
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const isAbortError = errorMessage.includes('aborted') || errorMessage.includes('AbortError');
+            
+            // AbortError и другие сетевые ошибки - пробуем вернуть HTML страницы из кэша
+            const cachedResponse = await coursesCache.match(cacheKey);
+            if (cachedResponse) {
+              notifyClient('OFFLINE', { 
+                error: isAbortError ? 'Request aborted, using cached HTML' : 'Using cached course page HTML' 
+              });
+              return cachedResponse;
+            }
+            
+            // Если это AbortError и нет кэша, продолжаем обработку ниже (получение из IndexedDB)
+            // Не пробрасываем ошибку дальше, чтобы не вызвать ошибку в event.respondWith
+          }
+          
+          // Если HTML нет в кэше, пробуем получить через клиента из IndexedDB
+          // (Service Worker не может напрямую читать IndexedDB)
+          // Нормализуем URL (убираем trailing slash)
+          const requestKey = url.pathname.replace(/\/$/, '') || url.pathname;
+          
+          // Создаем Promise, который резолвится когда клиент отправит HTML
+          const htmlPromise = new Promise((resolve) => {
+            pendingHtmlRequests.set(requestKey, resolve);
           });
           
-          // Сохраняем в кэш для следующего раза
-          coursesCache.put(cacheKey, htmlResponse.clone()).catch(() => {
-            // Игнорируем ошибки сохранения в кэш
+          // Отправляем запрос клиенту
+          notifyClient('OFFLINE', { 
+            error: 'Course page HTML not in cache',
+            action: 'GET_HTML_FROM_INDEXEDDB',
+            url: requestKey
           });
-          return htmlResponse;
-        }
-        
-        // Если HTML не пришел, проверяем кэш еще раз (на случай если клиент успел сохранить)
-        const cachedAfterRequest = await coursesCache.match(cacheKey);
-        if (cachedAfterRequest) {
-          return cachedAfterRequest;
-        }
-        
-        // Если HTML нет в кэше и сеть недоступна, возвращаем базовый HTML
-        // который позволит Next.js загрузиться на клиенте
-        // Клиент загрузит данные из IndexedDB через useCachedTrainingDays
-        const baseHtml = `<!DOCTYPE html>
+          
+          // Определяем таймаут: 10 секунд для iOS, 5 секунд для остальных
+          // На iOS работа с IndexedDB медленнее, поэтому увеличиваем таймаут
+          const clientInfo = await getClientInfo();
+          const timeoutMs = clientInfo.isIOS ? 10000 : 5000;
+          
+          console.log('[SW] Waiting for HTML from IndexedDB', {
+            url: requestKey,
+            timeoutMs,
+            isIOS: clientInfo.isIOS
+          });
+          
+          // Ждем HTML от клиента с таймаутом (10 сек для iOS, 5 сек для остальных)
+          let htmlFromIndexedDB = null;
+          try {
+            htmlFromIndexedDB = await Promise.race([
+              htmlPromise.then((html) => html),
+              new Promise((resolve) => {
+                setTimeout(() => resolve(null), timeoutMs);
+              })
+            ]);
+          } catch (error) {
+            // Игнорируем ошибки ожидания HTML
+          } finally {
+            pendingHtmlRequests.delete(requestKey);
+          }
+          
+          // Если HTML пришел от клиента, сохраняем в кэш и возвращаем
+          if (htmlFromIndexedDB) {
+            const htmlResponse = new Response(htmlFromIndexedDB, {
+              status: 200,
+              headers: {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-cache'
+              }
+            });
+            
+            // Сохраняем в кэш для следующего раза
+            coursesCache.put(cacheKey, htmlResponse.clone()).catch(() => {
+              // Игнорируем ошибки сохранения в кэш
+            });
+            return htmlResponse;
+          }
+          
+          // Если HTML не пришел, проверяем кэш еще раз (на случай если клиент успел сохранить)
+          const cachedAfterRequest = await coursesCache.match(cacheKey);
+          if (cachedAfterRequest) {
+            return cachedAfterRequest;
+          }
+          
+          // Если HTML нет в кэше и сеть недоступна, возвращаем базовый HTML
+          // который позволит Next.js загрузиться на клиенте
+          // Клиент загрузит данные из IndexedDB через useCachedTrainingDays
+          const baseHtml = `<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
@@ -283,21 +293,57 @@ self.addEventListener('fetch', (event) => {
   </script>
 </body>
 </html>`;
-        
-        return new Response(baseHtml, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'no-cache'
-          }
-        });
+          
+          return new Response(baseHtml, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'no-cache'
+            }
+          });
+        } catch (outerError) {
+          // Защита от любых необработанных ошибок
+          // Всегда возвращаем валидный Response, чтобы не показать ошибку пользователю
+          const outerErrorMessage = outerError instanceof Error ? outerError.message : String(outerError);
+          console.error('[SW] Unhandled error in course page handler', outerError, {
+            url: url.pathname,
+            error: outerErrorMessage
+          });
+          
+          // Пробуем вернуть базовый HTML
+          const fallbackHtml = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Загрузка...</title>
+</head>
+<body>
+  <div id="__next"></div>
+  <script>
+    // Next.js обработает навигацию на клиенте
+    // Данные будут загружены из IndexedDB через useCachedTrainingDays
+  </script>
+</body>
+</html>`;
+          
+          return new Response(fallbackHtml, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'no-cache'
+            }
+          });
+        }
       })()
     );
     return;
   }
 
   // Для остальных навигационных запросов используем Network-First с fallback на страницу офлайна
-  if (isNavigationRequest) {
+  // ВАЖНО: НЕ обрабатываем страницы курсов здесь - они обрабатываются выше
+  // Это предотвращает редирект на офлайн страницу для скачанных курсов
+  if (isNavigationRequest && !isCoursePage(url.pathname)) {
     event.respondWith(
       (async () => {
         try {
@@ -318,10 +364,18 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         } catch (error) {
-          // Определяем все типы сетевых ошибок
+          // Определяем все типы сетевых ошибок, включая AbortError
           const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorName = error instanceof Error ? error.name : '';
+          
+          // AbortError - это тоже сетевая ошибка (запрос был прерван)
+          const isAbortError = errorName === 'AbortError' || 
+                               errorMessage.includes('aborted') || 
+                               errorMessage.includes('AbortError');
+          
           const isNetworkError = 
-            error instanceof TypeError &&
+            isAbortError ||
+            (error instanceof TypeError &&
             (errorMessage.includes('Failed to fetch') ||
               errorMessage.includes('NetworkError') ||
               errorMessage.includes('Network request failed') ||
@@ -331,8 +385,7 @@ self.addEventListener('fetch', (event) => {
               errorMessage.includes('ERR_CONNECTION_RESET') ||
               errorMessage.includes('ERR_CONNECTION_CLOSED') ||
               errorMessage.includes('ERR_CONNECTION_ABORTED') ||
-              errorMessage.includes('ERR_NAME_NOT_RESOLVED') ||
-              errorMessage.includes('aborted'));
+              errorMessage.includes('ERR_NAME_NOT_RESOLVED')));
 
           // При сетевой ошибке - возвращаем страницу офлайна из кэша
           if (isNetworkError) {
@@ -377,6 +430,7 @@ self.addEventListener('fetch', (event) => {
             });
           }
           
+          // Если это не сетевая ошибка, пробрасываем дальше
           throw error;
         }
       })()
