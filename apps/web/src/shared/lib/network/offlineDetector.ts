@@ -127,7 +127,7 @@ function restorePreviousUrl(): void {
       } catch (error) {
         logger.error("Failed to execute redirect", error as Error, {
           operation: "restore_previous_url_execute_error",
-        });
+      });
         // Fallback
         try {
           if (window.location.pathname === OFFLINE_PAGE) {
@@ -135,7 +135,7 @@ function restorePreviousUrl(): void {
           }
         } catch (fallbackError) {
           logger.error("Fallback redirect also failed", fallbackError as Error);
-        }
+    }
       }
     }, 100);
     
@@ -143,7 +143,7 @@ function restorePreviousUrl(): void {
     logger.error("Failed to restore previous URL", error as Error);
     // Fallback на /courses
     try {
-      if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
+    if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
         setTimeout(() => {
           if (window.location.pathname === OFFLINE_PAGE) {
             window.location.replace("/courses");
@@ -179,18 +179,23 @@ async function shouldRedirectToOffline(): Promise<boolean> {
     return false;
   }
 
-  // Проверяем, не находимся ли мы на странице шага скачанного курса
-  // URL паттерн: /trainings/[courseType]/[day]
+  // Проверяем, не находимся ли мы на странице скачанного курса
+  // URL паттерны: /trainings/[courseType] (список дней) или /trainings/[courseType]/[day] (страница дня)
   const trainingDayMatch = currentPath.match(/^\/trainings\/([^/]+)\/(\d+)$/);
-  if (trainingDayMatch) {
-    const courseType = trainingDayMatch[1];
+  const trainingListMatch = currentPath.match(/^\/trainings\/([^/]+)$/);
+  
+  const courseType = trainingDayMatch?.[1] || trainingListMatch?.[1];
+  
+  if (courseType) {
     try {
       const isDownloaded = await isCourseDownloadedByType(courseType);
       if (isDownloaded) {
-        logger.info("Skipping redirect - user is on downloaded course day page", {
+        logger.info("Skipping redirect - user is on downloaded course page", {
           operation: "skip_redirect_downloaded_course",
           courseType,
           path: currentPath,
+          isDayPage: !!trainingDayMatch,
+          isListPage: !!trainingListMatch,
         });
         return false;
       }
@@ -198,7 +203,7 @@ async function shouldRedirectToOffline(): Promise<boolean> {
       // В случае ошибки проверки продолжаем с обычной логикой
       logger.warn("Failed to check if course is downloaded", {
         operation: "check_downloaded_course_error",
-        courseType: trainingDayMatch[1],
+        courseType,
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -244,8 +249,8 @@ function handleOfflineEvent(): void {
   // Проверяем асинхронно, не находимся ли мы на странице скачанного курса
   shouldRedirectToOffline().then((shouldRedirect) => {
     if (shouldRedirect) {
-      redirectToOffline();
-    }
+    redirectToOffline();
+  }
   });
 
   // Параллельно проверяем реальное подключение для корректности статуса
@@ -290,7 +295,7 @@ function handleOnlineEvent(): void {
           // Небольшая задержка перед редиректом для надежности
           setTimeout(() => {
             if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
-              restorePreviousUrl();
+          restorePreviousUrl();
             }
           }, 300);
         }
@@ -349,8 +354,8 @@ function startPeriodicCheck(): void {
           operation: "periodic_check_online_restore",
         });
         setTimeout(() => {
-          if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
-            restorePreviousUrl();
+      if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
+        restorePreviousUrl();
           }
         }, 300);
       }
@@ -405,8 +410,8 @@ export function initializeOfflineDetector(): void {
     // Проверяем асинхронно, не находимся ли мы на странице скачанного курса
     shouldRedirectToOffline().then((shouldRedirect) => {
       if (shouldRedirect) {
-        redirectToOffline();
-      }
+      redirectToOffline();
+    }
     });
     
     // Параллельно проверяем реальное подключение для корректности статуса

@@ -389,7 +389,8 @@ self.addEventListener('fetch', (event) => {
               errorMessage.includes('ERR_CONNECTION_ABORTED') ||
               errorMessage.includes('ERR_NAME_NOT_RESOLVED')));
 
-          // При сетевой ошибке - возвращаем страницу офлайна из кэша
+          // При сетевой ошибке - отправляем сообщение клиенту, но НЕ делаем редирект
+          // Редирект должен обрабатываться в offlineDetector.ts с проверкой на скачанные курсы
           if (isNetworkError) {
             notifyClient('OFFLINE', { error: errorMessage });
             
@@ -400,30 +401,22 @@ self.addEventListener('fetch', (event) => {
               return cachedResponse;
             }
             
-            // Fallback HTML
-            const redirectHtml = `<!DOCTYPE html>
+            // Fallback HTML без автоматического редиректа
+            // Редирект обрабатывается в offlineDetector.ts
+            const fallbackHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <title>Нет соединения</title>
-  <script>
-    if (window.location.pathname !== '/~offline') {
-      window.location.replace('/~offline');
-    }
-  </script>
-  <meta http-equiv="refresh" content="0;url=/~offline">
 </head>
 <body>
   <p style="text-align: center; padding: 20px; font-family: sans-serif;">
-    Нет соединения с сервером. Перенаправление...
-  </p>
-  <p style="text-align: center;">
-    <a href="/~offline">Перейти вручную</a>
+    Нет соединения с сервером. Ожидание обработки...
   </p>
 </body>
 </html>`;
             
-            return new Response(redirectHtml, {
+            return new Response(fallbackHtml, {
               status: 200,
               headers: {
                 'Content-Type': 'text/html; charset=utf-8',
@@ -541,7 +534,38 @@ self.addEventListener('fetch', (event) => {
           });
         }
         
-        // Для навигационных запросов возвращаем страницу офлайна
+        // Для навигационных запросов проверяем, не является ли запрос страницей курса
+        // Если это страница курса, не возвращаем страницу офлайна - пусть обрабатывается выше
+        // (хотя страницы курсов должны обрабатываться выше, но на всякий случай проверяем)
+        if (isCoursePage(url.pathname)) {
+          // Если это страница курса, возвращаем базовый HTML вместо страницы офлайна
+          // Редирект должен обрабатываться в offlineDetector.ts с проверкой на скачанные курсы
+          const baseHtml = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Загрузка...</title>
+</head>
+<body>
+  <div id="__next"></div>
+  <script>
+    // Next.js обработает навигацию на клиенте
+    // Данные будут загружены из IndexedDB через useCachedTrainingDays
+  </script>
+</body>
+</html>`;
+          
+          return new Response(baseHtml, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'no-cache'
+            }
+          });
+        }
+        
+        // Для остальных навигационных запросов возвращаем страницу офлайна
         // НЕ пробрасываем ошибку, чтобы не вызвать "Load failed"
         const cache = await caches.open(OFFLINE_CACHE_NAME);
         const cachedResponse = await cache.match(OFFLINE_PAGE_URL);
