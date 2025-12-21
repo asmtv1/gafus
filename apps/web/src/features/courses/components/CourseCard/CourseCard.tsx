@@ -80,6 +80,7 @@ export const CourseCard = ({
     updateCourse,
     deleteCourse,
     isDownloading,
+    downloadProgress,
     isUpdating,
   } = useOfflineCourse();
   const [isDownloaded, setIsDownloaded] = useState(false);
@@ -381,7 +382,9 @@ export const CourseCard = ({
               title="Скачать курс для офлайн-доступа"
             >
               <Download className={styles.buttonIcon} />
-              <span>{isDownloading ? "Скачивание..." : "Скачать"}</span>
+              <span>
+                {isDownloading ? `Скачивание ${Math.round(downloadProgress)}%` : "Скачать"}
+              </span>
             </button>
           ) : (
             <>

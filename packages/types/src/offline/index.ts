@@ -75,6 +75,7 @@ export interface FavoriteToggleData {
 export interface OfflineState {
   // Упрощенный статус сети - только navigator.onLine
   isOnline: boolean;
+  activeDownloads: number;
 
   // Очередь синхронизации
   syncQueue: OfflineAction[];
@@ -86,6 +87,8 @@ export interface OfflineState {
 
   // Действия
   setOnlineStatus: (isOnline: boolean) => void;
+  startDownload: () => void;
+  finishDownload: () => void;
   addToSyncQueue: (action: Omit<OfflineAction, "id" | "timestamp" | "retryCount">) => void;
   removeFromSyncQueue: (id: string) => void;
   clearSyncQueue: () => void;

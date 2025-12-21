@@ -26,6 +26,11 @@ async function checkRealConnection(): Promise<boolean> {
   isCheckingConnection = true;
 
   try {
+    const store = useOfflineStore.getState();
+    if (store.activeDownloads > 0) {
+      return true;
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), PING_TIMEOUT);
 
@@ -331,6 +336,10 @@ function startPeriodicCheck(): void {
 
     const isOnline = await checkRealConnection();
     const store = useOfflineStore.getState();
+
+    if (store.activeDownloads > 0) {
+      return;
+    }
 
     if (!isOnline && store.isOnline) {
       // Если ping не прошел, но статус был онлайн - переводим в офлайн

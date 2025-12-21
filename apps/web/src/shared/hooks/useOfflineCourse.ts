@@ -10,6 +10,7 @@ import {
   isCourseDownloadedByType,
   getAllDownloadedCourses,
 } from "@shared/lib/offline/offlineCourseStorage";
+import { useOfflineStore } from "@shared/stores/offlineStore";
 import type { OfflineCourse } from "@shared/lib/offline/types";
 import {
   downloadFullCourse,
@@ -34,6 +35,7 @@ interface UseOfflineCourseResult {
   updateCourse: (courseType: string) => Promise<UpdateCourseResult>;
   deleteCourse: (courseId: string) => Promise<{ success: boolean; error?: string }>;
   isDownloading: boolean;
+  downloadProgress: number;
   isUpdating: boolean;
   downloadedCourses: OfflineCourse[];
   refreshDownloadedCourses: () => Promise<void>;
@@ -103,7 +105,11 @@ async function downloadMediaFile(url: string): Promise<Blob | null> {
       return null;
     }
 
-    const response = await fetch(getCdnProxyUrl(url));
+    const response = await fetch(getCdnProxyUrl(url), {
+      headers: {
+        "X-Gafus-Background-Download": "1",
+      },
+    });
     if (!response.ok) {
       logger.warn("Failed to download media file", { url, status: response.status });
       return null;
@@ -163,6 +169,7 @@ async function downloadAllMediaFiles(
 
 export function useOfflineCourse(): UseOfflineCourseResult {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const [isUpdating, setIsUpdating] = useState(false);
   const [downloadedCourses, setDownloadedCourses] = useState<OfflineCourse[]>([]);
 
@@ -205,8 +212,13 @@ export function useOfflineCourse(): UseOfflineCourseResult {
       }
 
       setIsDownloading(true);
+      setDownloadProgress(0);
+      useOfflineStore.getState().startDownload();
 
       try {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 0);
+        });
         logger.info("Starting course download", { courseType });
 
         // Получаем данные курса с сервера
@@ -283,6 +295,9 @@ export function useOfflineCourse(): UseOfflineCourseResult {
           downloadableVideoUrls,
           uniqueImageUrls,
           uniquePdfUrls,
+          (progress) => {
+            setDownloadProgress(progress);
+          },
         );
 
         // Логируем результаты скачивания
@@ -367,6 +382,8 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         };
       } finally {
         setIsDownloading(false);
+        setDownloadProgress(0);
+        useOfflineStore.getState().finishDownload();
       }
     },
     [isDownloading, refreshDownloadedCourses],
@@ -477,6 +494,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
     updateCourse,
     deleteCourse,
     isDownloading,
+    downloadProgress,
     isUpdating,
     downloadedCourses,
     refreshDownloadedCourses,

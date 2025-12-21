@@ -60,6 +60,7 @@ export interface CacheInvalidationData {
 }
 export interface OfflineState {
     isOnline: boolean;
+    activeDownloads: number;
     syncQueue: OfflineAction[];
     lastSyncTime: number | null;
     syncErrors: string[];
@@ -67,6 +68,8 @@ export interface OfflineState {
     lastSyncAttempt: number | null;
     syncCooldown: number;
     setOnlineStatus: (isOnline: boolean) => void;
+    startDownload: () => void;
+    finishDownload: () => void;
     addToSyncQueue: (action: Omit<OfflineAction, "id" | "timestamp" | "retryCount">) => void;
     removeFromSyncQueue: (id: string) => void;
     clearSyncQueue: () => void;

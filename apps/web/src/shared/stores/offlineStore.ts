@@ -24,6 +24,7 @@ export const useOfflineStore = create<OfflineState>()(
     (set, get) => ({
       // Упрощенное состояние - только navigator.onLine
       isOnline: true, // По умолчанию онлайн, обновится на клиенте
+      activeDownloads: 0,
       syncQueue: [],
       lastSyncTime: null,
       syncErrors: [],
@@ -67,6 +68,16 @@ export const useOfflineStore = create<OfflineState>()(
             }
           }
         }
+      },
+
+      startDownload: () => {
+        set((state) => ({ activeDownloads: state.activeDownloads + 1 }));
+      },
+
+      finishDownload: () => {
+        set((state) => ({
+          activeDownloads: Math.max(0, state.activeDownloads - 1),
+        }));
       },
 
       // Добавление действия в очередь синхронизации

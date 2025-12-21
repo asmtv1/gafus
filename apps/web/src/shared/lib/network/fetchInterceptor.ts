@@ -25,6 +25,17 @@ export function setupFetchInterceptor() {
   ): Promise<Response> {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
+    const requestHeaders = input instanceof Request
+      ? input.headers
+      : new Headers(init?.headers);
+    const shouldIgnoreOffline =
+      requestHeaders.get("X-Gafus-Background-Download") === "1";
+
+    const isMediaRequest =
+      url.includes("/uploads/") ||
+      url.includes("gafus-media.storage.yandexcloud.net") ||
+      url.includes("storage.yandexcloud.net/gafus-media");
+
     // Игнорируем запросы к странице офлайна и статическим ресурсам
     if (
       url.includes("/~offline") ||
@@ -38,7 +49,7 @@ export function setupFetchInterceptor() {
 
     // Проверяем navigator.onLine перед запросом
     const store = useOfflineStore.getState();
-    if (!navigator.onLine) {
+    if (!navigator.onLine && !shouldIgnoreOffline) {
       // Если офлайн, устанавливаем статус и не делаем запрос
       if (store.isOnline) {
         logger.warn("Navigator offline detected before request, setting offline status", { url });
@@ -80,7 +91,7 @@ export function setupFetchInterceptor() {
       // Проверяем navigator.onLine еще раз после ошибки
       const isNavigatorOffline = !navigator.onLine;
 
-      if (isNetworkError || isNavigatorOffline) {
+      if ((isNetworkError || isNavigatorOffline) && !shouldIgnoreOffline && !isMediaRequest) {
         const currentStore = useOfflineStore.getState();
         if (currentStore.isOnline) {
           logger.warn("Network error detected, setting offline status", {
