@@ -84,6 +84,7 @@ export const CourseCard = ({
   } = useOfflineCourse();
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const [useHardNavigation, setUseHardNavigation] = useState(false);
 
   // Синхронизируем состояние избранного с store при изменении пропсов
   useEffect(() => {
@@ -158,6 +159,22 @@ export const CourseCard = ({
       img.src = logoImg;
     }
   }, [logoImg, isImageAlreadyCached, markImageLoaded, markImageError]);
+
+  // В iOS PWA офлайн клиентская навигация может не сработать.
+  // Используем обычную ссылку на странице офлайна, чтобы SW обработал навигацию.
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const isOfflinePage = window.location.pathname === "/~offline";
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isStandalone = "standalone" in navigator && !!navigator.standalone;
+
+    if (isOfflinePage && isIOS && isStandalone) {
+      setUseHardNavigation(true);
+    }
+  }, []);
 
   // Обработчики для скачивания и обновления
   const handleDownload = async (e: React.MouseEvent) => {
@@ -273,71 +290,131 @@ export const CourseCard = ({
   return (
     <li className={styles.courseCard}>
       <div className={styles.courseCardContent}>
-      <Link
-        href={`/trainings/${type}`}
-        className={styles.link}
-        prefetch={false}
-      >
-        <div className={styles.imageContainer}>
-          <Image
-            src={finalSrc}
-            alt={`${name} logo`}
-            width={350}
-            height={200}
-            className={styles.image}
-            onError={() => setImgError(true)}
-          />
-          {isPrivate && <div className={styles.privateBadge}>Приватный</div>}
-        </div>
-
-        <div className={styles.content}>
-          <h3 className={styles.title}>{name}</h3>
-          <div className={styles.meta}>
-            <div className={styles.duration}>
-              <span><b>Длительность:</b> {duration}</span>
-            </div>
-            <div className={styles.status}>
-              <span className={getStatusColor()}>{getStatusText()}</span>
-            </div>
-          </div>
-          <div className={styles.description}>
-            <p><b>Уровень сложности:</b> {getTrainingLevelLabel(trainingLevel)}</p>
-            <p><b>Описание:</b> {shortDesc}</p>
+      {useHardNavigation ? (
+        <a href={`/trainings/${type}`} className={styles.link}>
+          <div className={styles.imageContainer}>
+            <Image
+              src={finalSrc}
+              alt={`${name} logo`}
+              width={350}
+              height={200}
+              className={styles.image}
+              onError={() => setImgError(true)}
+            />
+            {isPrivate && <div className={styles.privateBadge}>Приватный</div>}
           </div>
 
-         
-
-          {startedAt && (
-            <div className={styles.date}>
-              <b>Начат:</b>{" "}
-              {(() => {
-                if (startedAt instanceof Date) {
-                  return startedAt.toLocaleDateString("ru-RU");
-                } else if (typeof startedAt === "string") {
-                  const date = new Date(startedAt);
-                  return isNaN(date.getTime()) ? startedAt : date.toLocaleDateString("ru-RU");
-                }
-                return startedAt;
-              })()}
+          <div className={styles.content}>
+            <h3 className={styles.title}>{name}</h3>
+            <div className={styles.meta}>
+              <div className={styles.duration}>
+                <span><b>Длительность:</b> {duration}</span>
+              </div>
+              <div className={styles.status}>
+                <span className={getStatusColor()}>{getStatusText()}</span>
+              </div>
             </div>
-          )}
-
-          {completedAt && (
-            <div className={styles.date}>
-              <b>Завершен:</b>{" "}
-              {(() => {
-                if (completedAt instanceof Date) {
-                  return completedAt.toLocaleDateString("ru-RU");
-                } else if (typeof completedAt === "string") {
-                  const date = new Date(completedAt);
-                  return isNaN(date.getTime()) ? completedAt : date.toLocaleDateString("ru-RU");
-                }
-                return completedAt;
-              })()}
+            <div className={styles.description}>
+              <p><b>Уровень сложности:</b> {getTrainingLevelLabel(trainingLevel)}</p>
+              <p><b>Описание:</b> {shortDesc}</p>
             </div>
-          )}
-        </div>
-      </Link>
+
+            {startedAt && (
+              <div className={styles.date}>
+                <b>Начат:</b>{" "}
+                {(() => {
+                  if (startedAt instanceof Date) {
+                    return startedAt.toLocaleDateString("ru-RU");
+                  } else if (typeof startedAt === "string") {
+                    const date = new Date(startedAt);
+                    return isNaN(date.getTime()) ? startedAt : date.toLocaleDateString("ru-RU");
+                  }
+                  return startedAt;
+                })()}
+              </div>
+            )}
+
+            {completedAt && (
+              <div className={styles.date}>
+                <b>Завершен:</b>{" "}
+                {(() => {
+                  if (completedAt instanceof Date) {
+                    return completedAt.toLocaleDateString("ru-RU");
+                  } else if (typeof completedAt === "string") {
+                    const date = new Date(completedAt);
+                    return isNaN(date.getTime()) ? completedAt : date.toLocaleDateString("ru-RU");
+                  }
+                  return completedAt;
+                })()}
+              </div>
+            )}
+          </div>
+        </a>
+      ) : (
+        <Link
+          href={`/trainings/${type}`}
+          className={styles.link}
+          prefetch={false}
+        >
+          <div className={styles.imageContainer}>
+            <Image
+              src={finalSrc}
+              alt={`${name} logo`}
+              width={350}
+              height={200}
+              className={styles.image}
+              onError={() => setImgError(true)}
+            />
+            {isPrivate && <div className={styles.privateBadge}>Приватный</div>}
+          </div>
+
+          <div className={styles.content}>
+            <h3 className={styles.title}>{name}</h3>
+            <div className={styles.meta}>
+              <div className={styles.duration}>
+                <span><b>Длительность:</b> {duration}</span>
+              </div>
+              <div className={styles.status}>
+                <span className={getStatusColor()}>{getStatusText()}</span>
+              </div>
+            </div>
+            <div className={styles.description}>
+              <p><b>Уровень сложности:</b> {getTrainingLevelLabel(trainingLevel)}</p>
+              <p><b>Описание:</b> {shortDesc}</p>
+            </div>
+
+            {startedAt && (
+              <div className={styles.date}>
+                <b>Начат:</b>{" "}
+                {(() => {
+                  if (startedAt instanceof Date) {
+                    return startedAt.toLocaleDateString("ru-RU");
+                  } else if (typeof startedAt === "string") {
+                    const date = new Date(startedAt);
+                    return isNaN(date.getTime()) ? startedAt : date.toLocaleDateString("ru-RU");
+                  }
+                  return startedAt;
+                })()}
+              </div>
+            )}
+
+            {completedAt && (
+              <div className={styles.date}>
+                <b>Завершен:</b>{" "}
+                {(() => {
+                  if (completedAt instanceof Date) {
+                    return completedAt.toLocaleDateString("ru-RU");
+                  } else if (typeof completedAt === "string") {
+                    const date = new Date(completedAt);
+                    return isNaN(date.getTime()) ? completedAt : date.toLocaleDateString("ru-RU");
+                  }
+                  return completedAt;
+                })()}
+              </div>
+            )}
+          </div>
+        </Link>
+      )}
       <div className={styles.rating}>
             <SimpleCourseRating 
               courseId={id} 
