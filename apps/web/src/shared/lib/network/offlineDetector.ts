@@ -168,6 +168,15 @@ function restorePreviousUrl(): void {
 async function shouldRedirectToOffline(): Promise<boolean> {
   if (typeof window === "undefined") return false;
 
+  const store = useOfflineStore.getState();
+  if (store.activeDownloads > 0) {
+    logger.info("Skipping offline redirect during active downloads", {
+      operation: "skip_redirect_active_downloads",
+      activeDownloads: store.activeDownloads,
+    });
+    return false;
+  }
+
   const currentPath = window.location.pathname;
   
   // Не редиректим если уже на странице офлайна
@@ -411,6 +420,10 @@ export function initializeOfflineDetector(): void {
   
   if (store.isOnline !== initialOnline) {
     store.setOnlineStatus(initialOnline);
+  }
+
+  if (initialOnline && window.location.pathname === OFFLINE_PAGE) {
+    restorePreviousUrl();
   }
 
   // Если изначально офлайн - немедленно делаем редирект

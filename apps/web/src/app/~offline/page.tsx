@@ -66,12 +66,18 @@ export default function OfflinePage() {
   useEffect(() => {
     if (isOnline) {
       setShowConnectionRestored(true);
-      // Автоматический возврат обрабатывается в offlineDetector
-      // Показываем уведомление на короткое время
+      const redirectTimer = setTimeout(() => {
+        if (window.location.pathname === "/~offline") {
+          window.location.replace("/courses");
+        }
+      }, 0);
       const timer = setTimeout(() => {
         setShowConnectionRestored(false);
       }, 2000);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(redirectTimer);
+        clearTimeout(timer);
+      };
     } else {
       setShowConnectionRestored(false);
     }

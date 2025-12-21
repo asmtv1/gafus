@@ -145,7 +145,7 @@ self.addEventListener('fetch', (event) => {
         
         // Fallback HTML если ничего не сработало
         return new Response(
-          '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Офлайн</title></head><body><h1>Нет соединения</h1><p>Приложение работает в офлайн-режиме.</p></body></html>',
+          '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Офлайн</title></head><body><h1>Нет соединения</h1><p>Приложение работает в офлайн-режиме.</p><script>(function(){function redirectIfOnline(){if(navigator.onLine){window.location.replace("/courses");}}window.addEventListener("online",redirectIfOnline);setInterval(redirectIfOnline,3000);redirectIfOnline();})();</script></body></html>',
           {
             status: 200,
             headers: { 'Content-Type': 'text/html; charset=utf-8' }

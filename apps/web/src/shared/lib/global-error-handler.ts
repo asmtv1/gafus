@@ -70,10 +70,13 @@ export function setupGlobalErrorHandling(config?: Partial<GlobalErrorConfig>) {
         const store = useOfflineStore.getState();
         if (store.isOnline) {
           store.setOnlineStatus(false);
-          // Немедленный редирект на страницу офлайна
-          if (window.location.pathname !== "/~offline") {
-            window.location.href = "/~offline";
-          }
+        }
+        if (store.activeDownloads > 0) {
+          return;
+        }
+        // Немедленный редирект на страницу офлайна
+        if (window.location.pathname !== "/~offline") {
+          window.location.href = "/~offline";
         }
       }).catch(() => {
         // Игнорируем ошибки импорта

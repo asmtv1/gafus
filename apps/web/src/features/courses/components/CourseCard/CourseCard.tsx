@@ -6,7 +6,7 @@ import { useCourseStore } from "@shared/stores";
 import Image from "next/image";
 import Link from "next/link";
 import NextLink from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, Refresh, Delete } from "@mui/icons-material";
 
 import styles from "./CourseCard.module.css";
@@ -41,6 +41,21 @@ const getTrainingLevelLabel = (level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" |
   }
 };
 
+const getDownloadTitle = (courseName: string) => `Скачивание: ${courseName}`;
+
+const getDownloadModalHtml = (progress: number) => {
+  const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
+  return `
+    <div style="margin-top:8px; font-size:14px;">
+      Пожалуйста, не закрывайте приложение до завершения скачивания.
+    </div>
+    <div style="margin-top:12px; background:#eee; border-radius:6px; overflow:hidden; height:10px;">
+      <div style="width:${safeProgress}%; background:#4caf50; height:10px;"></div>
+    </div>
+    <div style="margin-top:8px; font-weight:600;">${safeProgress}%</div>
+  `;
+};
+
 export const CourseCard = ({
   id,
   name,
@@ -72,6 +87,7 @@ export const CourseCard = ({
   const isFavorite = storeIsFavorite(id) ?? propIsFavorite;
   const [imgError, setImgError] = useState(false);
   const [isImageAlreadyCached, setIsImageAlreadyCached] = useState(false);
+  const downloadModalOpenRef = useRef(false);
   
   // Офлайн-функциональность
   const {
@@ -160,12 +176,54 @@ export const CourseCard = ({
     }
   }, [logoImg, isImageAlreadyCached, markImageLoaded, markImageError]);
 
+  const isDownloadModalVisible = () => {
+    const popup = Swal.getPopup();
+    return Boolean(popup && popup.getAttribute("data-download-modal") === "true");
+  };
+
+  // Показываем прогресс скачивания в модальном окне
+  useEffect(() => {
+    if (!isDownloading) {
+      if (isDownloadModalVisible()) {
+        Swal.close();
+      }
+      return;
+    }
+
+    if (!isDownloadModalVisible()) {
+      downloadModalOpenRef.current = true;
+      void Swal.fire({
+        titleText: getDownloadTitle(name),
+        html: getDownloadModalHtml(downloadProgress),
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        allowEnterKey: false,
+        didOpen: (popup) => {
+          popup.setAttribute("data-download-modal", "true");
+        },
+        willClose: () => {
+          downloadModalOpenRef.current = false;
+        },
+      });
+      return;
+    }
+
+    Swal.update({
+      titleText: getDownloadTitle(name),
+      html: getDownloadModalHtml(downloadProgress),
+    });
+  }, [isDownloading, downloadProgress, name]);
+
   // Обработчики для скачивания и обновления
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
     const result = await downloadCourse(type);
+    if (isDownloadModalVisible()) {
+      Swal.close();
+    }
     if (result.success) {
       setIsDownloaded(true);
       await showSuccessAlert("Курс успешно скачан");
