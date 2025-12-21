@@ -76,6 +76,20 @@ function isExternalVideoService(url: string): boolean {
   return externalVideoPatterns.some((pattern) => pattern.test(url));
 }
 
+function getCdnProxyUrl(url: string): string {
+  if (url.startsWith("https://storage.yandexcloud.net/gafus-media/")) {
+    const relativePath = url.replace("https://storage.yandexcloud.net/gafus-media/", "");
+    return `/${relativePath}`;
+  }
+
+  if (url.startsWith("https://gafus-media.storage.yandexcloud.net/")) {
+    const relativePath = url.replace("https://gafus-media.storage.yandexcloud.net/", "");
+    return `/${relativePath}`;
+  }
+
+  return url;
+}
+
 // Скачивание медиафайла на клиенте
 async function downloadMediaFile(url: string): Promise<Blob | null> {
   try {
@@ -89,7 +103,7 @@ async function downloadMediaFile(url: string): Promise<Blob | null> {
       return null;
     }
 
-    const response = await fetch(url);
+    const response = await fetch(getCdnProxyUrl(url));
     if (!response.ok) {
       logger.warn("Failed to download media file", { url, status: response.status });
       return null;
