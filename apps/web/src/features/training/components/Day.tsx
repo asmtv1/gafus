@@ -231,10 +231,16 @@ export function Day({ training, courseType }: DayProps) {
                 </span>
               </div>
                 <h3 className={styles.stepTitle}>
-                  <div className={styles.stepTitleText}>
-                    <span>{`Упражнение #${step.order}`}</span>
-                    <span>{`«${step.title}»`} </span>
-                  </div>
+                <div className={styles.stepTitleText}>
+                  <span>
+                    {step.type === "BREAK"
+                      ? "Перерыв"
+                      : `Упражнение #${step.order}`}
+                  </span>
+                  <span>
+                    {step.type === "BREAK" ? step.title : `«${step.title}»`}
+                  </span>
+                </div>
                 </h3>
                 <div className={styles.stepStatusConfig}>
                     <span>{stepStatusConfig.text}</span>

@@ -2,7 +2,7 @@
 "use client";
 
 import { TrainingStatus } from "@gafus/types";
-import { useCourseStore, useOfflineStore } from "@shared/stores";
+import { useCourseStore } from "@shared/stores";
 import Image from "next/image";
 import Link from "next/link";
 import NextLink from "next/link";
@@ -25,6 +25,8 @@ import Swal from "sweetalert2";
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
 
+
+
 // Функция для получения русского названия уровня сложности
 const getTrainingLevelLabel = (level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT") => {
   switch (level) {
@@ -41,18 +43,18 @@ const getTrainingLevelLabel = (level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" |
   }
 };
 
-const getDownloadTitle = (courseName: string) => `Скачивание: ${courseName}`;
+const getDownloadTitle = (courseName: string) => `Скачивание курса: ${courseName}`;
 
 const getDownloadModalHtml = (progress: number) => {
   const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
   return `
-    <div style="margin-top:8px; font-size:14px;">
-      Пожалуйста, не закрывайте приложение до завершения скачивания.
+    <div class="swal2-download-body">
+      <p class="swal2-download-note">Пожалуйста, не закрывайте приложение до завершения скачивания.</p>
+      <div class="swal2-download-progress">
+        <span class="swal2-download-progress-bar" style="width:${safeProgress}%"></span>
+      </div>
+      <div class="swal2-download-progress-value">${safeProgress}%</div>
     </div>
-    <div style="margin-top:12px; background:#eee; border-radius:6px; overflow:hidden; height:10px;">
-      <div style="width:${safeProgress}%; background:#4caf50; height:10px;"></div>
-    </div>
-    <div style="margin-top:8px; font-weight:600;">${safeProgress}%</div>
   `;
 };
 
@@ -82,7 +84,6 @@ export const CourseCard = ({
     isImageCached,
     isFavorite: storeIsFavorite,
   } = useCourseStore();
-  const isOnline = useOfflineStore((state) => state.isOnline);
 
   // Используем значение из store, если оно доступно, иначе из пропсов
   const isFavorite = storeIsFavorite(id) ?? propIsFavorite;
@@ -102,7 +103,6 @@ export const CourseCard = ({
   } = useOfflineCourse();
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
-  const courseHref = `/trainings/${type}`;
 
   // Синхронизируем состояние избранного с store при изменении пропсов
   useEffect(() => {
@@ -197,10 +197,20 @@ export const CourseCard = ({
       void Swal.fire({
         titleText: getDownloadTitle(name),
         html: getDownloadModalHtml(downloadProgress),
+        imageUrl: "/uploads/logo.png",
+        imageWidth: 140,
+        imageHeight: 120,
+        imageAlt: "Собака",
         showConfirmButton: false,
         allowOutsideClick: false,
         allowEscapeKey: false,
         allowEnterKey: false,
+        customClass: {
+          popup: "swal2-download-popup",
+          title: "swal2-download-title",
+          htmlContainer: "swal2-download-content",
+          image: "swal2-download-image",
+        },
         didOpen: (popup) => {
           popup.setAttribute("data-download-modal", "true");
         },
@@ -335,27 +345,9 @@ export const CourseCard = ({
     <li className={styles.courseCard}>
       <div className={styles.courseCardContent}>
       <Link
-        href={courseHref}
+        href={`/trainings/${type}`}
         className={styles.link}
         prefetch={false}
-        onClick={(event) => {
-          if (isOnline) {
-            return;
-          }
-
-          event.preventDefault();
-          event.stopPropagation();
-
-          void (async () => {
-            const downloaded = isDownloaded || (await isDownloadedByType(type));
-            if (!downloaded) {
-              await showErrorAlert("Курс не скачан для офлайн-доступа");
-              return;
-            }
-
-            window.location.href = courseHref;
-          })();
-        }}
       >
         <div className={styles.imageContainer}>
           <Image
