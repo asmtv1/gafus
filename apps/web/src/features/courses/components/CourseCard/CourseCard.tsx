@@ -2,7 +2,7 @@
 "use client";
 
 import { TrainingStatus } from "@gafus/types";
-import { useCourseStore } from "@shared/stores";
+import { useCourseStore, useOfflineStore } from "@shared/stores";
 import Image from "next/image";
 import Link from "next/link";
 import NextLink from "next/link";
@@ -82,6 +82,7 @@ export const CourseCard = ({
     isImageCached,
     isFavorite: storeIsFavorite,
   } = useCourseStore();
+  const isOnline = useOfflineStore((state) => state.isOnline);
 
   // Используем значение из store, если оно доступно, иначе из пропсов
   const isFavorite = storeIsFavorite(id) ?? propIsFavorite;
@@ -101,6 +102,7 @@ export const CourseCard = ({
   } = useOfflineCourse();
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const courseHref = `/trainings/${type}`;
 
   // Синхронизируем состояние избранного с store при изменении пропсов
   useEffect(() => {
@@ -333,9 +335,27 @@ export const CourseCard = ({
     <li className={styles.courseCard}>
       <div className={styles.courseCardContent}>
       <Link
-        href={`/trainings/${type}`}
+        href={courseHref}
         className={styles.link}
         prefetch={false}
+        onClick={(event) => {
+          if (isOnline) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          void (async () => {
+            const downloaded = isDownloaded || (await isDownloadedByType(type));
+            if (!downloaded) {
+              await showErrorAlert("Курс не скачан для офлайн-доступа");
+              return;
+            }
+
+            window.location.href = courseHref;
+          })();
+        }}
       >
         <div className={styles.imageContainer}>
           <Image
