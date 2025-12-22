@@ -171,6 +171,8 @@ export function Day({ training, courseType }: DayProps) {
     initializeStep,
   ]);
 
+  let exerciseCounter = 1;
+
   return (
     <div className={styles.main}>
       <div className={styles.dayHeader}>
@@ -199,6 +201,8 @@ export function Day({ training, courseType }: DayProps) {
       </div>
 
       {training.steps.map((step, index) => {
+        const isBreakStep = step.type === "BREAK";
+        const exerciseNumber = isBreakStep ? null : ++exerciseCounter;
         // Получаем статус шага из store
         const stepKey = getStepKey(index);
         const stepState = stepStates[stepKey];
@@ -233,9 +237,9 @@ export function Day({ training, courseType }: DayProps) {
                 <h3 className={styles.stepTitle}>
                 <div className={styles.stepTitleText}>
                   <span>
-                    {step.type === "BREAK"
+                    {isBreakStep
                       ? "Перерыв"
-                      : `Упражнение #${step.order}`}
+                      : `Упражнение #${exerciseNumber}`}
                   </span>
                   <span>
                     {step.type === "BREAK" ? step.title : `«${step.title}»`}
