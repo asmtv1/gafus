@@ -88,43 +88,106 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
 
   const isPrivate = !input.isPublic;
 
-  // Обновление основных полей
-  await prisma.course.update({
-    where: { id: input.id },
-    data: {
-      name: input.name,
-      description: input.description,
-      shortDesc: input.shortDesc,
-      duration: input.duration,
-      logoImg: input.logoImg,
-      videoUrl: input.videoUrl || null,
-      isPrivate,
-      isPaid: input.isPaid,
-      equipment: input.equipment,
-      trainingLevel: input.trainingLevel,
-    },
-  });
+  const desiredDayIds = (input.trainingDays || []).map((dayId: string) => String(dayId));
 
-  // Пересобираем DayOnCourse
-  await prisma.dayOnCourse.deleteMany({ where: { courseId: input.id } });
-  await prisma.dayOnCourse.createMany({
-    data: (input.trainingDays || []).map((dayId: string, index: number) => ({
-      courseId: input.id,
-      dayId: String(dayId),
-      order: index + 1, // Дни начинаются с 1, а не с 0
-    })),
-  });
-
-  // Пересобираем доступ
-  await prisma.courseAccess.deleteMany({ where: { courseId: input.id } });
-  if (isPrivate) {
-    await prisma.courseAccess.createMany({
-      data: (input.allowedUsers || []).map((userId: string) => ({
-        courseId: input.id,
-        userId: String(userId),
-      })),
+  await prisma.$transaction(async (tx) => {
+    // Обновление основных полей
+    await tx.course.update({
+      where: { id: input.id },
+      data: {
+        name: input.name,
+        description: input.description,
+        shortDesc: input.shortDesc,
+        duration: input.duration,
+        logoImg: input.logoImg,
+        videoUrl: input.videoUrl || null,
+        isPrivate,
+        isPaid: input.isPaid,
+        equipment: input.equipment,
+        trainingLevel: input.trainingLevel,
+      },
     });
-  }
+
+    // Сохраняем существующие DayOnCourse, чтобы не сбрасывать прогресс.
+    const existingDayLinks = await tx.dayOnCourse.findMany({
+      where: { courseId: input.id },
+      select: { id: true, dayId: true, order: true },
+      orderBy: { order: "asc" },
+    });
+
+    const existingByDayId = new Map<string, typeof existingDayLinks>();
+    for (const link of existingDayLinks) {
+      const list = existingByDayId.get(link.dayId);
+      if (list) {
+        list.push(link);
+      } else {
+        existingByDayId.set(link.dayId, [link]);
+      }
+    }
+
+    const reusedLinks: { id: string; newOrder: number }[] = [];
+    const newLinks: { dayId: string; order: number }[] = [];
+
+    desiredDayIds.forEach((dayId, index) => {
+      const list = existingByDayId.get(dayId);
+      if (list && list.length > 0) {
+        const link = list.shift();
+        if (link) {
+          reusedLinks.push({ id: link.id, newOrder: index + 1 });
+        }
+      } else {
+        newLinks.push({ dayId, order: index + 1 });
+      }
+    });
+
+    const removedLinks = Array.from(existingByDayId.values()).flat();
+    if (removedLinks.length > 0) {
+      await tx.dayOnCourse.deleteMany({
+        where: { id: { in: removedLinks.map((link) => link.id) } },
+      });
+    }
+
+    if (reusedLinks.length > 0) {
+      const tempBase = desiredDayIds.length + existingDayLinks.length + 1000;
+      for (let index = 0; index < reusedLinks.length; index += 1) {
+        const link = reusedLinks[index];
+        await tx.dayOnCourse.update({
+          where: { id: link.id },
+          data: { order: tempBase + index },
+        });
+      }
+    }
+
+    if (newLinks.length > 0) {
+      await tx.dayOnCourse.createMany({
+        data: newLinks.map((link) => ({
+          courseId: input.id,
+          dayId: link.dayId,
+          order: link.order,
+        })),
+      });
+    }
+
+    if (reusedLinks.length > 0) {
+      for (const link of reusedLinks) {
+        await tx.dayOnCourse.update({
+          where: { id: link.id },
+          data: { order: link.newOrder },
+        });
+      }
+    }
+
+    // Пересобираем доступ
+    await tx.courseAccess.deleteMany({ where: { courseId: input.id } });
+    if (isPrivate) {
+      await tx.courseAccess.createMany({
+        data: (input.allowedUsers || []).map((userId: string) => ({
+          courseId: input.id,
+          userId: String(userId),
+        })),
+      });
+    }
+  });
 
   revalidateTag("statistics");
   revalidatePath("/main-panel/statistics");
