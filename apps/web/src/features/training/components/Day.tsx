@@ -171,7 +171,7 @@ export function Day({ training, courseType }: DayProps) {
     initializeStep,
   ]);
 
-  let exerciseCounter = 1;
+  let exerciseCounter = 0;
 
   return (
     <div className={styles.main}>
