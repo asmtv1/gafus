@@ -2,7 +2,12 @@ import path from "path";
 
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+type TrainerPanelNextConfig = NextConfig & {
+  middlewareClientMaxBodySize?: number;
+};
+
+const nextConfig: TrainerPanelNextConfig = {
+  middlewareClientMaxBodySize: 600 * 1024 * 1024, // Allow large uploads for trainer videos (500MB)
   // Включаем standalone режим только для production (ускоряет dev)
   ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   experimental: {

@@ -142,6 +142,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - manifest.json, sw.js, icons/, static/, workbox files
      */
-    "/((?!api/|_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons/|static/|workbox-).*)",
+    "/((?!api/|_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons/|static/|workbox-|main-panel/my-videos/upload).*)",
   ],
 };
