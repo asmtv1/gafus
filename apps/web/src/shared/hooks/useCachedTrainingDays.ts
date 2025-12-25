@@ -10,6 +10,7 @@ import { useTrainingStore } from "../stores/trainingStore";
 import { getCurrentUserId } from "@/utils";
 import { getOfflineCourseByType } from "../lib/offline/offlineCourseStorage";
 import { checkCourseUpdates } from "../lib/actions/offlineCourseActions";
+import { isOnline } from "@shared/utils/offlineCacheUtils";
 
 // Создаем логгер для use-cached-training-days
 const logger = createWebLogger('web-use-cached-training-days');
@@ -113,7 +114,7 @@ export function useCachedTrainingDays(
           });
 
           // Проверяем обновления в фоне (только если онлайн)
-          if (typeof navigator !== "undefined" && navigator.onLine) {
+          if (isOnline()) {
             checkCourseUpdates(courseType, offlineCourse.version).then((updateResult) => {
               if (updateResult.success && updateResult.hasUpdates) {
                 logger.info("[Offline] Course has updates available", { courseType, operation: "info" });
@@ -140,7 +141,7 @@ export function useCachedTrainingDays(
 
       // Приоритет 2: Если есть серверные данные, используем их (только если онлайн)
       // Серверные данные имеют приоритет над кратким кэшем для актуальности
-      if (initialData && typeof navigator !== "undefined" && navigator.onLine) {
+      if (initialData && isOnline()) {
         logger.info("[Cache] Using initial server data", { courseType, operation: "info" });
         // Сохраняем в краткий кэш для предотвращения дублирующих запросов
         setCachedTrainingDays(courseType, initialData);
@@ -150,7 +151,7 @@ export function useCachedTrainingDays(
 
       // Приоритет 3: Проверяем краткий кэш trainingStore (только для предотвращения дублирующих запросов)
       // Используется только если нет серверных данных и мы онлайн
-      if (typeof navigator !== "undefined" && navigator.onLine) {
+      if (isOnline()) {
         const cached = getCachedTrainingDays(courseType);
         
         if (cached.data && !cached.isExpired) {
@@ -161,7 +162,7 @@ export function useCachedTrainingDays(
       }
 
       // Если есть серверная ошибка и мы офлайн, игнорируем её (используем офлайн данные)
-      if (initialError && typeof navigator !== "undefined" && !navigator.onLine) {
+      if (initialError && !isOnline()) {
         logger.warn("[Cache] Server error in offline mode, ignoring", { courseType, error: initialError, operation: "warn" });
         // Продолжаем - возможно есть офлайн данные в кэше
       } else if (initialError) {
@@ -172,7 +173,7 @@ export function useCachedTrainingDays(
       }
 
       // Приоритет 4: Загружаем с сервера (только если онлайн)
-      if (typeof navigator !== "undefined" && navigator.onLine) {
+      if (isOnline()) {
         let result;
         try {
           const userId = await getCurrentUserId();

@@ -5,6 +5,37 @@
 
 // Логирование критичных ошибок для мониторинга в продакшене
 
+const RSC_TIMEOUT_MS = 3000;
+
+function isRscRequest(url, request) {
+  if (!url || !request) {
+    return false;
+  }
+
+  if (url.searchParams && url.searchParams.has('_rsc')) {
+    return true;
+  }
+
+  const rscHeader = request.headers.get('RSC');
+  if (rscHeader === '1' || rscHeader === 'true') {
+    return true;
+  }
+
+  const acceptHeader = request.headers.get('Accept') || '';
+  return acceptHeader.includes('text/x-component');
+}
+
+async function fetchWithTimeout(request, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(request, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // Перехват fetch запросов для определения сетевых ошибок
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
@@ -483,7 +514,10 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
       try {
-        const response = await fetch(event.request);
+        const shouldTimeout = isRscRequest(url, event.request);
+        const response = shouldTimeout
+          ? await fetchWithTimeout(event.request, RSC_TIMEOUT_MS)
+          : await fetch(event.request);
         
         // Если запрос успешен, отправляем сообщение клиенту что мы онлайн
         if (response.ok) {

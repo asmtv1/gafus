@@ -47,8 +47,14 @@ export function setupFetchInterceptor() {
       return originalFetch(input, init);
     }
 
-    // Проверяем navigator.onLine перед запросом
+    // Проверяем локальный offline-статус перед запросом
     const store = useOfflineStore.getState();
+    if (!store.isOnline && !shouldIgnoreOffline && !isMediaRequest) {
+      // Если считаем себя офлайн, блокируем сетевой запрос
+      throw new TypeError("Failed to fetch: OFFLINE_MODE");
+    }
+
+    // Проверяем navigator.onLine перед запросом
     if (!navigator.onLine && !shouldIgnoreOffline) {
       // Если офлайн, устанавливаем статус и не делаем запрос
       if (store.isOnline) {
