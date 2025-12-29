@@ -58,6 +58,7 @@
 
 /* Карточка таймера */
 .timerCard {
+  margin-top: 10px;
   background: #FFFDF3;
   border: 2px solid #D5D0BB;
   border-radius: 12px;
@@ -88,6 +89,13 @@
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
   position: relative;
   overflow: hidden;
+}
+
+.completeAction {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .completeBtn:hover {

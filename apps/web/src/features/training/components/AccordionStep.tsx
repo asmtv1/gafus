@@ -449,43 +449,6 @@ export function AccordionStep({
 
   return (
     <div className={styles.stepContainer}>
-      {/* Таймер только для тренировочных шагов и перерывов */}
-      {type !== "EXAMINATION" && type !== "THEORY" && type !== "PRACTICE" && (
-        <div className={styles.timerCard}>
-          <div className={styles.timerHeader}>
-            <AccessTimeIcon fontSize="small" />
-            <span>{type === "BREAK" ? "Начни перерыв" : "Начните занятие!"}</span>
-          </div>
-          <div className={styles.controlRow}>
-          <div className={styles.timerDisplay}>
-            {`${Math.floor(stepState.timeLeft / 60)}:${(stepState.timeLeft % 60)
-              .toString()
-              .padStart(2, "0")}`}
-          </div>
-            {stepState.status === "NOT_STARTED" && (
-              <button onClick={handleStart} className={styles.circleBtn} aria-label="start">
-                <PlayArrowIcon />
-              </button>
-            )}
-            {stepState.status === "IN_PROGRESS" && isActuallyRunning && (
-              <button onClick={togglePause} disabled={isPausing} className={styles.circleBtn} aria-label="pause">
-                <PauseIcon />
-              </button>
-            )}
-            {(stepState.status === "IN_PROGRESS" && !isActuallyRunning) || stepState.status === "PAUSED" ? (
-              <button onClick={togglePause} disabled={isPausing} className={styles.circleBtn} aria-label="resume">
-                <PlayArrowIcon />
-              </button>
-            ) : null}
-            <button onClick={handleReset} className={styles.circleBtnReset} aria-label="reset">
-              <ReplayIcon />
-            </button>
-           
-          </div>
-         
-        </div>
-      )}
-
       {/* Для экзаменационных шагов показываем заголовок */}
       {type === "EXAMINATION" && (
         <div className={styles.timerCard}>
@@ -532,16 +495,6 @@ export function AccordionStep({
           {typeof estimatedDurationSec === "number" && estimatedDurationSec > 0 && (
             <div className={styles.estimatedTimeBadge}>
               Примерное время: ~{Math.round(estimatedDurationSec / 60)} мин
-            </div>
-          )}
-          {stepState.status !== "COMPLETED" && (
-            <button onClick={handleCompletePractice} className={styles.completeBtn}>
-              Я выполнил
-            </button>
-          )}
-          {stepState.status === "COMPLETED" && (
-            <div className={styles.completedBadge}>
-              Упражнение выполнено
             </div>
           )}
         </div>
@@ -667,6 +620,57 @@ export function AccordionStep({
               />
             )}
           </div>
+        </div>
+      )}
+
+      {/* Таймер только для тренировочных шагов и перерывов */}
+      {type !== "EXAMINATION" && type !== "THEORY" && type !== "PRACTICE" && (
+        <div className={styles.timerCard}>
+          <div className={styles.timerHeader}>
+            <AccessTimeIcon fontSize="small" />
+            <span>{type === "BREAK" ? "Начни перерыв" : "Начните занятие!"}</span>
+          </div>
+          <div className={styles.controlRow}>
+          <div className={styles.timerDisplay}>
+            {`${Math.floor(stepState.timeLeft / 60)}:${(stepState.timeLeft % 60)
+              .toString()
+              .padStart(2, "0")}`}
+          </div>
+            {stepState.status === "NOT_STARTED" && (
+              <button onClick={handleStart} className={styles.circleBtn} aria-label="start">
+                <PlayArrowIcon />
+              </button>
+            )}
+            {stepState.status === "IN_PROGRESS" && isActuallyRunning && (
+              <button onClick={togglePause} disabled={isPausing} className={styles.circleBtn} aria-label="pause">
+                <PauseIcon />
+              </button>
+            )}
+            {(stepState.status === "IN_PROGRESS" && !isActuallyRunning) || stepState.status === "PAUSED" ? (
+              <button onClick={togglePause} disabled={isPausing} className={styles.circleBtn} aria-label="resume">
+                <PlayArrowIcon />
+              </button>
+            ) : null}
+            <button onClick={handleReset} className={styles.circleBtnReset} aria-label="reset">
+              <ReplayIcon />
+            </button>
+           
+          </div>
+         
+        </div>
+      )}
+
+      {type === "PRACTICE" && (
+        <div className={styles.completeAction}>
+          {stepState.status !== "COMPLETED" ? (
+            <button onClick={handleCompletePractice} className={styles.completeBtn}>
+              Я выполнил
+            </button>
+          ) : (
+            <div className={styles.completedBadge}>
+              Упражнение выполнено
+            </div>
+          )}
         </div>
       )}
     </div>
