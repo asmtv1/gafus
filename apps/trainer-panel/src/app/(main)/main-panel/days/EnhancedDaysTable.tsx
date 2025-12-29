@@ -3,11 +3,13 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import SearchIcon from "@mui/icons-material/Search";
 import {
   Box,
   Checkbox,
   FormControlLabel,
   IconButton,
+  InputAdornment,
   Paper,
   Switch,
   Table,
@@ -18,6 +20,7 @@ import {
   TablePagination,
   TableRow,
   TableSortLabel,
+  TextField,
   Toolbar,
   Tooltip,
   Typography,
@@ -75,6 +78,29 @@ export default function EnhancedDaysTable({
   const [page, setPage] = React.useState(0);
   const [dense, setDense] = React.useState(false);
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [searchQuery, setSearchQuery] = React.useState("");
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredDays = React.useMemo(() => {
+    if (!normalizedQuery) return days;
+    return days.filter((day) => {
+      const matchesTitle = (day.title || "").toLowerCase().includes(normalizedQuery);
+      const matchesStepTitle =
+        day.stepLinks?.some((link) =>
+          (link.step.title || "").toLowerCase().includes(normalizedQuery),
+        ) ?? false;
+      return matchesTitle || matchesStepTitle;
+    });
+  }, [days, normalizedQuery]);
+  const filteredDayIds = React.useMemo(() => new Set(filteredDays.map((day) => day.id)), [filteredDays]);
+
+  React.useEffect(() => {
+    setSelected((prev) => prev.filter((id) => filteredDayIds.has(id)));
+  }, [filteredDayIds]);
+
+  React.useEffect(() => {
+    setPage(0);
+  }, [normalizedQuery]);
 
   const handleRequestSort = (_: React.MouseEvent<unknown>, property: HeadCellId) => {
     setOrder(orderBy === property && order === "asc" ? "desc" : "asc");
@@ -82,7 +108,7 @@ export default function EnhancedDaysTable({
   };
 
   const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelected(event.target.checked ? days.map((d) => d.id) : []);
+    setSelected(event.target.checked ? filteredDays.map((d) => d.id) : []);
   };
 
   const handleClick = (_: React.MouseEvent<unknown>, id: string) => {
@@ -124,10 +150,10 @@ export default function EnhancedDaysTable({
   };
 
   const visibleRows = React.useMemo(() => {
-    const sorted = [...days].sort(comparator);
+    const sorted = [...filteredDays].sort(comparator);
     const start = page * rowsPerPage;
     return sorted.slice(start, start + rowsPerPage);
-  }, [days, page, rowsPerPage, comparator]);
+  }, [filteredDays, page, rowsPerPage, comparator]);
 
   // Определяем мобильный режим
   const [isMobile, setIsMobile] = React.useState(false);
@@ -183,6 +209,22 @@ export default function EnhancedDaysTable({
             </IconButton>
           </Tooltip>
         </Toolbar>
+        <Box sx={{ px: { xs: 2, sm: 2 }, pb: 1 }}>
+          <TextField
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            size="small"
+            placeholder="Поиск по названию дня или шага"
+            fullWidth
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
 
         {/* Мобильное представление - карточки */}
         {isMobile ? (
@@ -311,8 +353,8 @@ export default function EnhancedDaysTable({
                   <TableCell padding="checkbox">
                     <Checkbox
                       color="primary"
-                      checked={days.length > 0 && selected.length === days.length}
-                      indeterminate={selected.length > 0 && selected.length < days.length}
+                      checked={filteredDays.length > 0 && selected.length === filteredDays.length}
+                      indeterminate={selected.length > 0 && selected.length < filteredDays.length}
                       onChange={handleSelectAllClick}
                     />
                   </TableCell>
@@ -404,7 +446,7 @@ export default function EnhancedDaysTable({
         )}
         <TablePagination
           component="div"
-          count={days.length}
+          count={filteredDays.length}
           page={page}
           rowsPerPage={rowsPerPage}
           onPageChange={handleChangePage}

@@ -3,11 +3,13 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import SearchIcon from "@mui/icons-material/Search";
 import {
   Box,
   Checkbox,
   FormControlLabel,
   IconButton,
+  InputAdornment,
   Paper,
   Switch,
   Table,
@@ -18,6 +20,7 @@ import {
   TablePagination,
   TableRow,
   TableSortLabel,
+  TextField,
   Toolbar,
   Tooltip,
   Typography,
@@ -76,6 +79,32 @@ export default function EnhancedStepsTable({
   const [page, setPage] = React.useState(0);
   const [dense, setDense] = React.useState(false);
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const [searchQuery, setSearchQuery] = React.useState("");
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredSteps = React.useMemo(() => {
+    if (!normalizedQuery) return steps;
+    return steps.filter((step) => {
+      const matchesTitle = (step.title || "").toLowerCase().includes(normalizedQuery);
+      const matchesDayTitle =
+        step.stepLinks?.some((link) =>
+          (link.day.title || "").toLowerCase().includes(normalizedQuery),
+        ) ?? false;
+      return matchesTitle || matchesDayTitle;
+    });
+  }, [steps, normalizedQuery]);
+  const filteredStepIds = React.useMemo(
+    () => new Set(filteredSteps.map((step) => step.id)),
+    [filteredSteps],
+  );
+
+  React.useEffect(() => {
+    setSelected((prev) => prev.filter((id) => filteredStepIds.has(id)));
+  }, [filteredStepIds]);
+
+  React.useEffect(() => {
+    setPage(0);
+  }, [normalizedQuery]);
 
   const handleRequestSort = (_: React.MouseEvent<unknown>, property: HeadCellId) => {
     setOrder(orderBy === property && order === "asc" ? "desc" : "asc");
@@ -83,7 +112,7 @@ export default function EnhancedStepsTable({
   };
 
   const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelected(event.target.checked ? steps.map((step) => step.id) : []);
+    setSelected(event.target.checked ? filteredSteps.map((step) => step.id) : []);
   };
 
   const handleClick = (_: React.MouseEvent<unknown>, id: string) => {
@@ -134,10 +163,10 @@ export default function EnhancedStepsTable({
   );
 
   const visibleRows = React.useMemo(() => {
-    const sorted = [...steps].sort(comparator);
+    const sorted = [...filteredSteps].sort(comparator);
     const start = page * rowsPerPage;
     return sorted.slice(start, start + rowsPerPage);
-  }, [steps, page, rowsPerPage, comparator]);
+  }, [filteredSteps, page, rowsPerPage, comparator]);
 
   const renderCourseNames = (step: Step) => {
     const courseNames = Array.from(
@@ -212,6 +241,22 @@ export default function EnhancedStepsTable({
             </IconButton>
           </Tooltip>
         </Toolbar>
+        <Box sx={{ px: { xs: 2, sm: 2 }, pb: 1 }}>
+          <TextField
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            size="small"
+            placeholder="Поиск по названию шага или дня"
+            fullWidth
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
         
         {/* Мобильное представление - карточки */}
         {isMobile ? (
@@ -334,8 +379,8 @@ export default function EnhancedStepsTable({
                   <TableCell padding="checkbox">
                     <Checkbox
                       color="primary"
-                      checked={steps.length > 0 && selected.length === steps.length}
-                      indeterminate={selected.length > 0 && selected.length < steps.length}
+                      checked={filteredSteps.length > 0 && selected.length === filteredSteps.length}
+                      indeterminate={selected.length > 0 && selected.length < filteredSteps.length}
                       onChange={handleSelectAllClick}
                     />
                   </TableCell>
@@ -422,7 +467,7 @@ export default function EnhancedStepsTable({
         )}
         <TablePagination
           component="div"
-          count={steps.length}
+          count={filteredSteps.length}
           page={page}
           rowsPerPage={rowsPerPage}
           onPageChange={handleChangePage}
