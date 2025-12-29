@@ -85,6 +85,43 @@ export async function getCourseStatistics(
           },
         });
 
+  const startedStepStatuses = [
+    TrainingStatus.IN_PROGRESS,
+    TrainingStatus.COMPLETED,
+  ];
+  const userStepsRaw =
+    courseIds.length === 0
+      ? []
+      : await prisma.userStep.findMany({
+          where: {
+            userTraining: {
+              dayOnCourse: {
+                courseId: { in: courseIds },
+              },
+            },
+            status: { in: startedStepStatuses },
+          },
+          select: {
+            createdAt: true,
+            userTraining: {
+              select: {
+                userId: true,
+                dayOnCourse: {
+                  select: { courseId: true },
+                },
+              },
+            },
+          },
+        });
+
+  const startedStepsByCourse = groupStartedStepsByCourse(
+    userStepsRaw.map((step) => ({
+      courseId: step.userTraining.dayOnCourse.courseId,
+      userId: step.userTraining.userId,
+      startedAt: step.createdAt,
+    })),
+  );
+
   const trainingsByCourse = groupTrainingRecordsByCourse(
     trainingsRaw.map((training) => ({
       courseId: training.dayOnCourse.courseId,
@@ -105,7 +142,13 @@ export async function getCourseStatistics(
   const courses = coursesRaw.map((course) => {
     const totalDays = course.dayLinks.length;
     const courseTrainings = trainingsByCourse.get(course.id);
-    const mergedUsers = mergeUserCourses(course.userCourses, courseTrainings, totalDays);
+    const startedSteps = startedStepsByCourse.get(course.id);
+    const mergedUsers = mergeUserCourses(
+      course.userCourses,
+      courseTrainings,
+      totalDays,
+      startedSteps,
+    );
 
     return {
       id: course.id,
@@ -281,7 +324,6 @@ export async function getDetailedCourseStatistics(
   );
 
   const timeAnalytics = await getTimeAnalytics(courseId);
-  const progressAnalytics = await getProgressAnalytics(courseId, course.userCourses);
   const socialAnalytics = await getSocialAnalytics(course);
 
   const totalDays = course.dayLinks.length;
@@ -302,7 +344,36 @@ export async function getDetailedCourseStatistics(
     })),
   ).get(courseId);
 
-  const mergedUsers = mergeUserCourses(course.userCourses, trainingMapForCourse, totalDays);
+  const startedStepStatuses = [
+    TrainingStatus.IN_PROGRESS,
+    TrainingStatus.COMPLETED,
+  ];
+  const startedStepsByCourse = groupStartedStepsByCourse(
+    userTrainings.flatMap((training) =>
+      training.steps
+        .filter((step) =>
+          startedStepStatuses.includes(step.status as TrainingStatus),
+        )
+        .map((step) => ({
+          courseId,
+          userId: training.userId,
+          startedAt: step.createdAt,
+        })),
+    ),
+  );
+  const startedSteps = startedStepsByCourse.get(courseId);
+
+  const mergedUsers = mergeUserCourses(
+    course.userCourses,
+    trainingMapForCourse,
+    totalDays,
+    startedSteps,
+  );
+
+  const progressAnalytics = await getProgressAnalytics(
+    courseId,
+    mergedUsers.userCourses,
+  );
 
   return {
     id: course.id,
@@ -364,6 +435,16 @@ type TrainingSummary = {
   };
 };
 
+type StartedStepRecord = {
+  courseId: string;
+  userId: string;
+  startedAt: Date;
+};
+
+type StartedStepSummary = {
+  startedAt: Date;
+};
+
 function groupTrainingRecordsByCourse(
   records: TrainingRecordWithCourse[],
 ): Map<string, Map<string, TrainingSummary>> {
@@ -394,6 +475,25 @@ function groupTrainingRecordsByCourse(
   return result;
 }
 
+function groupStartedStepsByCourse(
+  records: StartedStepRecord[],
+): Map<string, Map<string, StartedStepSummary>> {
+  const result = new Map<string, Map<string, StartedStepSummary>>();
+
+  records.forEach((record) => {
+    if (!result.has(record.courseId)) {
+      result.set(record.courseId, new Map());
+    }
+    const courseMap = result.get(record.courseId)!;
+    const existing = courseMap.get(record.userId);
+    if (!existing || record.startedAt < existing.startedAt) {
+      courseMap.set(record.userId, { startedAt: record.startedAt });
+    }
+  });
+
+  return result;
+}
+
 function mergeUserCourses(
   courseUserCourses: {
     userId: string;
@@ -404,6 +504,7 @@ function mergeUserCourses(
   }[],
   trainingSummaryMap: Map<string, TrainingSummary> | undefined,
   totalDays: number,
+  startedStepsMap: Map<string, StartedStepSummary> | undefined,
 ): {
   userCourses: UserCourse[];
   totalUsers: number;
@@ -412,25 +513,37 @@ function mergeUserCourses(
   notStartedUsers: number;
 } {
   const merged = new Map<string, UserCourse>();
+  const getStartedAtFromSteps = (userId: string) =>
+    startedStepsMap?.get(userId)?.startedAt ?? null;
+  const hasStartedStep = (userId: string) =>
+    Boolean(startedStepsMap?.has(userId));
 
-  // Добавляем пользователей из courseUserCourses, но только тех, у кого есть реальный прогресс
-  // (статус не NOT_STARTED или есть реальные тренировки)
+  // Добавляем пользователей из courseUserCourses, но только тех, кто начал хотя бы один шаг
   courseUserCourses.forEach((uc) => {
-    const hasRealTrainings = trainingSummaryMap?.has(uc.userId) && 
-      trainingSummaryMap.get(uc.userId)?.trainings.some(
-        (t) => t.status !== TrainingStatus.NOT_STARTED
-      );
-    
-    // Исключаем пользователей со статусом NOT_STARTED без реальных тренировок
-    if (uc.status === TrainingStatus.NOT_STARTED && !hasRealTrainings) {
+    if (!hasStartedStep(uc.userId)) {
       return;
+    }
+
+    const summary = trainingSummaryMap?.get(uc.userId);
+    const startedAt = getStartedAtFromSteps(uc.userId);
+    const progress = summary
+      ? computeStatusFromTrainings(summary, totalDays, startedAt)
+      : {
+          status: TrainingStatus.IN_PROGRESS,
+          startedAt,
+          completedAt: null,
+        };
+
+    let status = uc.status as TrainingStatus;
+    if (getStatusPriority(progress.status) > getStatusPriority(status)) {
+      status = progress.status;
     }
 
     merged.set(uc.userId, {
       userId: uc.userId,
-      status: uc.status as TrainingStatus,
-      startedAt: uc.startedAt,
-      completedAt: uc.completedAt,
+      status,
+      startedAt: startedAt ?? uc.startedAt,
+      completedAt: uc.completedAt ?? progress.completedAt,
       user: {
         username: uc.user.username,
         profile: { avatarUrl: uc.user.profile?.avatarUrl ?? null },
@@ -438,13 +551,21 @@ function mergeUserCourses(
     });
   });
 
-  // Обновляем/добавляем пользователей на основе реальных тренировок
+  // Обновляем/добавляем пользователей на основе тренировок при наличии начатого шага
   if (trainingSummaryMap) {
     trainingSummaryMap.forEach((summary, userId) => {
       if (summary.trainings.length === 0) {
         return;
       }
-      const { status, startedAt, completedAt } = computeStatusFromTrainings(summary, totalDays);
+      if (!hasStartedStep(userId)) {
+        return;
+      }
+      const startedAt = getStartedAtFromSteps(userId);
+      const { status, completedAt } = computeStatusFromTrainings(
+        summary,
+        totalDays,
+        startedAt,
+      );
       if (status === TrainingStatus.NOT_STARTED) {
         return;
       }
@@ -474,22 +595,10 @@ function mergeUserCourses(
     });
   }
 
-  // Финальная фильтрация: исключаем пользователей без реальных тренировок
-  const userCourses = Array.from(merged.values()).filter((uc) => {
-    // Проверяем наличие реальных тренировок (не NOT_STARTED)
-    const hasRealTrainings = trainingSummaryMap?.has(uc.userId) && 
-      trainingSummaryMap.get(uc.userId)?.trainings.some(
-        (t) => t.status !== TrainingStatus.NOT_STARTED
-      );
-    
-    // Исключаем из статистики пользователей без реальных тренировок
-    // (независимо от статуса в userCourses)
-    if (!hasRealTrainings) {
-      return false;
-    }
-    
-    return true;
-  });
+  // Финальная фильтрация: оставляем только пользователей с фактом начала шага
+  const userCourses = Array.from(merged.values()).filter(
+    (uc) => uc.status !== TrainingStatus.NOT_STARTED,
+  );
 
   return {
     userCourses,
@@ -503,6 +612,7 @@ function mergeUserCourses(
 function computeStatusFromTrainings(
   summary: TrainingSummary,
   totalDays: number,
+  startedAt: Date | null,
 ): {
   status: TrainingStatus;
   startedAt: Date | null;
@@ -510,23 +620,15 @@ function computeStatusFromTrainings(
 } {
   const trainings = summary.trainings;
   const completedDays = trainings.filter((t) => t.status === TrainingStatus.COMPLETED).length;
-  const hasProgress = trainings.length > 0;
   const isCourseCompleted =
     totalDays > 0 && completedDays === totalDays && trainings.length === totalDays;
 
   let status = TrainingStatus.NOT_STARTED;
   if (isCourseCompleted) {
     status = TrainingStatus.COMPLETED;
-  } else if (hasProgress) {
+  } else if (startedAt) {
     status = TrainingStatus.IN_PROGRESS;
   }
-
-  const startedAt = hasProgress
-    ? trainings.reduce(
-        (earliest, current) => (current.createdAt < earliest ? current.createdAt : earliest),
-        trainings[0].createdAt,
-      )
-    : null;
 
   const completedAt =
     status === TrainingStatus.COMPLETED
@@ -828,4 +930,3 @@ async function getSocialAnalytics(course: {
     recommendationEffectiveness: Math.round(recommendationEffectiveness),
   };
 }
-
