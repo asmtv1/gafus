@@ -7,14 +7,14 @@ on:
 
 jobs:
   backup:
-    runs-on: ubuntu-latest  # Измените на self-hosted, если runner развернут на вашем сервере с доступом к Docker
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run backup script
-        env:
-          YANDEX_DISK_TOKEN: ${{ secrets.YANDEX_DISK_TOKEN }}
-        run: |
-          chmod +x ci-cd/scripts/backup-to-yandex.sh
-          ./ci-cd/scripts/backup-to-yandex.sh
+      - name: SSH to server and run backup
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 185.239.51.125
+          username: root
+          key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
+          script: |
+            export YANDEX_DISK_TOKEN=${{ secrets.YANDEX_DISK_TOKEN }}
+            bash /root/gafus/ci-cd/scripts/backup-to-yandex.sh
