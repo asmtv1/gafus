@@ -1,7 +1,6 @@
 "use server";
 
-import { prisma } from "@gafus/prisma";
-import { Prisma } from "@prisma/client";
+import { prisma, isPrismaUniqueConstraintError } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
 
@@ -232,10 +231,7 @@ export async function getTrainingDayWithUserSteps(
 
       userSteps = [...userSteps, ...(newUserSteps as UserStepWithPause[])];
     } catch (creationError) {
-      if (
-        creationError instanceof Prisma.PrismaClientKnownRequestError &&
-        creationError.code === "P2002"
-      ) {
+      if (isPrismaUniqueConstraintError(creationError)) {
         // При race condition другой запрос уже создал нужные шаги
         const refreshedSteps = (await prisma.userStep.findMany({
           where: { userTrainingId },

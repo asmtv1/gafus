@@ -27,7 +27,8 @@ export type {
 export { PetType, StepType } from "@prisma/client";
 
 // Экспортируем пространство имён Prisma (для JsonNull, Decimal и т.д.)
-export { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+export { Prisma };
 
 // Импортируем PrismaClient для использования в типах
 import type { PrismaClient } from "@prisma/client";
@@ -59,3 +60,7 @@ export interface DatabaseClient {
 
 // Экспортируем готовый экземпляр клиента для приложений
 export { prisma, default as prismaClient } from "./client";
+
+export function isPrismaUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
