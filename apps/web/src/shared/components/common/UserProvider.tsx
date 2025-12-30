@@ -1,8 +1,9 @@
 "use client";
 
+import { useStepStore } from "@shared/stores/stepStore";
 import { useUserStore } from "@shared/stores";
 import { useSession } from "next-auth/react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import type { User } from "@gafus/types/stores/userStore";
 
@@ -13,6 +14,8 @@ interface UserProviderProps {
 export default function UserProvider({ children }: UserProviderProps) {
   const { data: session, status } = useSession();
   const { setUser, clearUser } = useUserStore();
+  const clearAllSteps = useStepStore((state) => state.clearAllSteps);
+  const lastUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
@@ -32,7 +35,20 @@ export default function UserProvider({ children }: UserProviderProps) {
     } else if (status === "unauthenticated") {
       clearUser();
     }
-  }, [session, status, setUser, clearUser]);
+
+    if (status === "loading") {
+      return;
+    }
+
+    const nextUserId =
+      status === "authenticated" && session?.user ? session.user.id : null;
+
+    if (lastUserIdRef.current !== nextUserId) {
+      lastUserIdRef.current = nextUserId;
+      clearAllSteps();
+      void useStepStore.persist.rehydrate();
+    }
+  }, [session, status, setUser, clearUser, clearAllSteps]);
 
   return <>{children}</>;
 }

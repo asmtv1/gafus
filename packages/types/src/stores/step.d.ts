@@ -17,6 +17,7 @@ export interface StepStore {
     restoreStepFromLS: (courseId: string, day: number, stepIndex: number) => StepState | null;
     syncTimeWithLocalStorage: (courseId: string, day: number, stepIndex: number) => void;
     updateTimeLeft: (courseId: string, day: number, stepIndex: number, timeLeft: number) => void;
+    clearAllSteps: () => void;
     cleanupExpiredData: (courseId: string, day: number) => void;
     validateStepIntegrity: (courseId: string, day: number, stepIndex: number) => boolean;
 }

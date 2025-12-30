@@ -39,6 +39,7 @@ export interface StepStore {
   updateTimeLeft: (courseId: string, day: number, stepIndex: number, timeLeft: number) => void;
 
   // Очистка данных
+  clearAllSteps: () => void;
   cleanupExpiredData: (courseId: string, day: number) => void;
   validateStepIntegrity: (courseId: string, day: number, stepIndex: number) => boolean;
 }

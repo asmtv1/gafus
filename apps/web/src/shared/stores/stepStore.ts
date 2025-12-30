@@ -1,16 +1,24 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
 
 import type { StepStore } from "@gafus/types";
+import { useUserStore } from "./userStore";
 
 // Создаем логгер для step store
 const logger = createWebLogger('web-step-store');
 
 // ===== УТИЛИТЫ =====
 const nowSec = () => Math.floor(Date.now() / 1000);
+const getUserScopeId = () => {
+  if (typeof window === "undefined") return "anonymous";
+  return useUserStore.getState().user?.id || "anonymous";
+};
 const makeEndKey = (courseId: string, day: number, idx: number) =>
-  `training-${courseId}-${day}-${idx}-end`;
+  `training-${getUserScopeId()}-${courseId}-${day}-${idx}-end`;
+const makePauseKey = (courseId: string, day: number, idx: number) =>
+  `training-${getUserScopeId()}-${courseId}-${day}-${idx}-paused`;
+const getStepStorageKey = () => `step-storage:${getUserScopeId()}`;
 
 const saveToLS = (key: string, val: string | number) => localStorage.setItem(key, val.toString());
 const loadFromLS = (key: string): string | null => localStorage.getItem(key);
@@ -153,7 +161,7 @@ export const useStepStore = create<StepStore>()(
         const stepKey = get().getStepKey(courseId, day, stepIndex);
 
         // Сохраняем данные паузы в localStorage для офлайн работы
-        const PAUSE_KEY = `training-${courseId}-${day}-${stepIndex}-paused`;
+        const PAUSE_KEY = makePauseKey(courseId, day, stepIndex);
         const currentStep = get().stepStates[stepKey];
         const pauseData = {
           pausedAt: Date.now(),
@@ -183,7 +191,7 @@ export const useStepStore = create<StepStore>()(
         }
 
         // Удаляем данные паузы из localStorage
-        const PAUSE_KEY = `training-${courseId}-${day}-${stepIndex}-paused`;
+        const PAUSE_KEY = makePauseKey(courseId, day, stepIndex);
         localStorage.removeItem(PAUSE_KEY);
 
         const timeLeft = currentStep.timeLeft;
@@ -275,7 +283,7 @@ export const useStepStore = create<StepStore>()(
       // ===== ВОССТАНОВЛЕНИЕ И СИНХРОНИЗАЦИЯ =====
       restoreStepFromLS: (courseId, day, stepIndex) => {
         const END_KEY = makeEndKey(courseId, day, stepIndex);
-        const PAUSE_KEY = `training-${courseId}-${day}-${stepIndex}-paused`;
+        const PAUSE_KEY = makePauseKey(courseId, day, stepIndex);
         
         // Проверяем, есть ли данные паузы
         const pauseDataStr = loadFromLS(PAUSE_KEY);
@@ -381,6 +389,9 @@ export const useStepStore = create<StepStore>()(
       },
 
       // ===== ОЧИСТКА ДАННЫХ =====
+      clearAllSteps: () => {
+        set({ stepStates: {} });
+      },
       cleanupExpiredData: (courseId, day) => {
         // Очищаем устаревшие данные для всех шагов дня
         for (let i = 0; i < 100; i++) {
@@ -424,6 +435,11 @@ export const useStepStore = create<StepStore>()(
     }),
     {
       name: "step-storage",
+      storage: createJSONStorage(() => ({
+        getItem: (_name) => localStorage.getItem(getStepStorageKey()),
+        setItem: (_name, value) => localStorage.setItem(getStepStorageKey(), value),
+        removeItem: (_name) => localStorage.removeItem(getStepStorageKey()),
+      })),
       partialize: (state) => ({
         stepStates: state.stepStates,
       }),
