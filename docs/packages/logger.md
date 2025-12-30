@@ -166,6 +166,9 @@ DISABLE_LOGGING=true              # Полное отключение
 DISABLE_CONSOLE_LOGGING=true      # Только консоль
 DISABLE_ERROR_DASHBOARD_LOGGING=true  # Только dashboard
 
+# Контроль отправки в Error Dashboard
+ENABLE_ERROR_DASHBOARD=true|false # true разрешает, false запрещает, по умолчанию включено вне production
+
 # URL error-dashboard
 ERROR_DASHBOARD_URL=https://monitor.gafus.ru/api
 ```

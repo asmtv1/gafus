@@ -57,6 +57,21 @@ function createLoggerConfig(options: CreateLoggerOptions): LoggerConfig {
 }
 
 /**
+ * Определяет значения для Error Dashboard на основе окружения
+ */
+function resolveErrorDashboardSettings(defaultUrl: string, isProduction: boolean) {
+  const flag = process.env.ENABLE_ERROR_DASHBOARD;
+  const enableErrorDashboard =
+    flag === 'true' ? true :
+    flag === 'false' ? false :
+    !isProduction;
+
+  const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || defaultUrl;
+
+  return { enableErrorDashboard, errorDashboardUrl };
+}
+
+/**
  * Фабрика для создания логгеров
  */
 export class LoggerFactory {
@@ -140,13 +155,12 @@ export function createWebLogger(context?: string): Logger {
   const defaultUrl = process.env.NODE_ENV === 'production' 
     ? 'https://monitor.gafus.ru'
     : 'http://localhost:3005';
-  
-  // В production дашборд сам читает из Loki, отправка не нужна
   const isProduction = process.env.NODE_ENV === 'production';
-    
+  const { enableErrorDashboard, errorDashboardUrl } = resolveErrorDashboardSettings(defaultUrl, isProduction);
+  
   return LoggerFactory.createLoggerWithContext('web', context || 'web-app', {
-    enableErrorDashboard: !isProduction, // Только для dev и test
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
+    enableErrorDashboard,
+    errorDashboardUrl,
   });
 }
 
@@ -157,13 +171,12 @@ export function createTrainerPanelLogger(context?: string): Logger {
   const defaultUrl = process.env.NODE_ENV === 'production' 
     ? 'https://monitor.gafus.ru'
     : 'http://localhost:3005';
-  
-  // В production дашборд сам читает из Loki, отправка не нужна
   const isProduction = process.env.NODE_ENV === 'production';
-    
+  const { enableErrorDashboard, errorDashboardUrl } = resolveErrorDashboardSettings(defaultUrl, isProduction);
+
   return LoggerFactory.createLoggerWithContext('trainer-panel', context || 'trainer-panel', {
-    enableErrorDashboard: !isProduction, // Только для dev и test
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
+    enableErrorDashboard,
+    errorDashboardUrl,
   });
 }
 
@@ -183,13 +196,12 @@ export function createTelegramBotLogger(context?: string): Logger {
   const defaultUrl = process.env.NODE_ENV === 'production' 
     ? 'https://monitor.gafus.ru'
     : 'http://localhost:3005';
-  
-  // В production дашборд сам читает из Loki, отправка не нужна
   const isProduction = process.env.NODE_ENV === 'production';
-    
+  const { enableErrorDashboard, errorDashboardUrl } = resolveErrorDashboardSettings(defaultUrl, isProduction);
+
   return LoggerFactory.createLoggerWithContext('telegram-bot', context || 'telegram-bot', {
-    enableErrorDashboard: !isProduction, // Только для dev и test
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
+    enableErrorDashboard,
+    errorDashboardUrl,
   });
 }
 
@@ -200,13 +212,12 @@ export function createWorkerLogger(context?: string): Logger {
   const defaultUrl = process.env.NODE_ENV === 'production' 
     ? 'https://monitor.gafus.ru'
     : 'http://localhost:3005';
-  
-  // В production дашборд сам читает из Loki, отправка не нужна
   const isProduction = process.env.NODE_ENV === 'production';
-    
+  const { enableErrorDashboard, errorDashboardUrl } = resolveErrorDashboardSettings(defaultUrl, isProduction);
+
   return LoggerFactory.createLoggerWithContext('worker', context || 'worker', {
-    enableErrorDashboard: !isProduction, // Только для dev и test
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
+    enableErrorDashboard,
+    errorDashboardUrl,
   });
 }
 
@@ -226,13 +237,12 @@ export function createAdminPanelLogger(context?: string): Logger {
   const defaultUrl = process.env.NODE_ENV === 'production' 
     ? 'https://monitor.gafus.ru'
     : 'http://localhost:3005';
-  
-  // В production дашборд сам читает из Loki, отправка не нужна
   const isProduction = process.env.NODE_ENV === 'production';
-    
+  const { enableErrorDashboard, errorDashboardUrl } = resolveErrorDashboardSettings(defaultUrl, isProduction);
+
   return LoggerFactory.createLoggerWithContext('admin-panel', context || 'admin-panel', {
-    enableErrorDashboard: !isProduction, // Только для dev и test
-    errorDashboardUrl: process.env.ERROR_DASHBOARD_URL || defaultUrl,
+    enableErrorDashboard,
+    errorDashboardUrl,
   });
 }
 

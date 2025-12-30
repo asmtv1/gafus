@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
+import { Prisma } from "@prisma/client";
 import { TrainingStatus } from "@gafus/types";
 import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
 
@@ -215,22 +216,36 @@ export async function getTrainingDayWithUserSteps(
   const missingStepOnDayIds = allStepOnDayIds.filter(id => !existingStepOnDayIds.has(id));
 
   if (missingStepOnDayIds.length > 0) {
-    // Создаем недостающие UserStep записи
-    const newUserSteps = await prisma.$transaction(
-      missingStepOnDayIds.map(stepOnDayId =>
-        prisma.userStep.create({
-          data: {
-            userTrainingId,
-            stepOnDayId,
-            status: TrainingStatus.NOT_STARTED,
-          },
-          select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
-        })
-      )
-    );
+    try {
+      const newUserSteps = await prisma.$transaction(
+        missingStepOnDayIds.map((stepOnDayId) =>
+          prisma.userStep.create({
+            data: {
+              userTrainingId,
+              stepOnDayId,
+              status: TrainingStatus.NOT_STARTED,
+            },
+            select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
+          }),
+        ),
+      );
 
-    // Добавляем новые записи к существующим
-    userSteps = [...userSteps, ...newUserSteps as UserStepWithPause[]];
+      userSteps = [...userSteps, ...(newUserSteps as UserStepWithPause[])];
+    } catch (creationError) {
+      if (
+        creationError instanceof Prisma.PrismaClientKnownRequestError &&
+        creationError.code === "P2002"
+      ) {
+        // При race condition другой запрос уже создал нужные шаги
+        const refreshedSteps = (await prisma.userStep.findMany({
+          where: { userTrainingId },
+          select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
+        })) as UserStepWithPause[];
+        userSteps = refreshedSteps;
+      } else {
+        throw creationError;
+      }
+    }
   }
 
   stepStatuses = Object.fromEntries(
