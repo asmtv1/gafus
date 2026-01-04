@@ -33,6 +33,7 @@ import {
 } from "@mui/material";
 import { visuallyHidden } from "@mui/utils";
 import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import type { TrainerStepTableRow as Step } from "@gafus/types";
 
@@ -52,11 +53,22 @@ const baseHeadCells = [
 
 type HeadCellId = (typeof baseHeadCells)[number]["id"] | "author";
 
+const STORAGE_KEY_ROWS_PER_PAGE = "stepsTable_rowsPerPage";
+const STORAGE_KEY_ORDER_BY = "stepsTable_orderBy";
+const STORAGE_KEY_ORDER = "stepsTable_order";
+
 interface EnhancedStepsTableProps {
   steps: Step[];
   onEditStep?: (id: string) => void;
   onDeleteSteps?: (ids: string[]) => void;
   isAdmin?: boolean;
+  initialSearchParams?: {
+    search?: string;
+    orderBy?: string;
+    order?: string;
+    page?: string;
+    rowsPerPage?: string;
+  };
 }
 
 export default function EnhancedStepsTable({
@@ -64,7 +76,11 @@ export default function EnhancedStepsTable({
   onEditStep,
   onDeleteSteps,
   isAdmin = false,
+  initialSearchParams,
 }: EnhancedStepsTableProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const headCells = React.useMemo(() => {
     if (isAdmin) {
       // Вставляем колонку "Автор" перед "Действия"
@@ -73,13 +89,104 @@ export default function EnhancedStepsTable({
     }
     return baseHeadCells;
   }, [isAdmin]);
-  const [order, setOrder] = React.useState<Order>("asc");
-  const [orderBy, setOrderBy] = React.useState<HeadCellId>("durationSec");
+
+  // Инициализация состояния из URL или localStorage
+  const getInitialOrder = (): Order => {
+    if (initialSearchParams?.order && (initialSearchParams.order === "asc" || initialSearchParams.order === "desc")) {
+      return initialSearchParams.order;
+    }
+    const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_ORDER) : null;
+    return (saved === "asc" || saved === "desc" ? saved : "asc") as Order;
+  };
+
+  const getInitialOrderBy = (): HeadCellId => {
+    if (initialSearchParams?.orderBy) {
+      const validOrderBy = baseHeadCells.find((cell) => cell.id === initialSearchParams.orderBy)?.id || "author";
+      if (initialSearchParams.orderBy === "author" || validOrderBy) {
+        return initialSearchParams.orderBy as HeadCellId;
+      }
+    }
+    const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_ORDER_BY) : null;
+    return (saved as HeadCellId) || "durationSec";
+  };
+
+  const getInitialRowsPerPage = (): number => {
+    if (initialSearchParams?.rowsPerPage) {
+      const parsed = parseInt(initialSearchParams.rowsPerPage, 10);
+      if ([5, 10, 25].includes(parsed)) return parsed;
+    }
+    const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_ROWS_PER_PAGE) : null;
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      if ([5, 10, 25].includes(parsed)) return parsed;
+    }
+    return 5;
+  };
+
+  const getInitialPage = (): number => {
+    if (initialSearchParams?.page) {
+      const parsed = parseInt(initialSearchParams.page, 10);
+      return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    }
+    return 0;
+  };
+
+  const getInitialSearch = (): string => {
+    return initialSearchParams?.search || "";
+  };
+
+  const [order, setOrder] = React.useState<Order>(getInitialOrder());
+  const [orderBy, setOrderBy] = React.useState<HeadCellId>(getInitialOrderBy());
   const [selected, setSelected] = React.useState<readonly string[]>([]);
-  const [page, setPage] = React.useState(0);
+  const [page, setPage] = React.useState(getInitialPage());
   const [dense, setDense] = React.useState(false);
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
-  const [searchQuery, setSearchQuery] = React.useState("");
+  const [rowsPerPage, setRowsPerPage] = React.useState(getInitialRowsPerPage());
+  const [searchQuery, setSearchQuery] = React.useState(getInitialSearch());
+
+  // Функция для обновления URL с текущими параметрами
+  const updateURL = React.useCallback(
+    (updates: {
+      search?: string;
+      orderBy?: HeadCellId;
+      order?: Order;
+      page?: number;
+      rowsPerPage?: number;
+    }) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (updates.search !== undefined) {
+        if (updates.search) {
+          params.set("search", updates.search);
+        } else {
+          params.delete("search");
+        }
+      }
+
+      if (updates.orderBy !== undefined) {
+        params.set("orderBy", updates.orderBy);
+      }
+
+      if (updates.order !== undefined) {
+        params.set("order", updates.order);
+      }
+
+      if (updates.page !== undefined) {
+        if (updates.page === 0) {
+          params.delete("page");
+        } else {
+          params.set("page", updates.page.toString());
+        }
+      }
+
+      if (updates.rowsPerPage !== undefined) {
+        params.set("rowsPerPage", updates.rowsPerPage.toString());
+      }
+
+      const newUrl = params.toString() ? `?${params.toString()}` : "";
+      router.replace(newUrl, { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredSteps = React.useMemo(() => {
@@ -102,12 +209,41 @@ export default function EnhancedStepsTable({
     setSelected((prev) => prev.filter((id) => filteredStepIds.has(id)));
   }, [filteredStepIds]);
 
+  // Синхронизация поиска с URL (с debounce) и сброс страницы
   React.useEffect(() => {
-    setPage(0);
-  }, [normalizedQuery]);
+    const timeoutId = setTimeout(() => {
+      setPage(0);
+      updateURL({ search: searchQuery, page: 0 });
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, updateURL]);
+
+  // Синхронизация сортировки с URL и localStorage
+  React.useEffect(() => {
+    updateURL({ orderBy, order });
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_ORDER_BY, orderBy);
+      localStorage.setItem(STORAGE_KEY_ORDER, order);
+    }
+  }, [orderBy, order, updateURL]);
+
+  // Синхронизация пагинации с URL
+  React.useEffect(() => {
+    updateURL({ page });
+  }, [page, updateURL]);
+
+  // Синхронизация rowsPerPage с URL и localStorage
+  React.useEffect(() => {
+    updateURL({ rowsPerPage });
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_ROWS_PER_PAGE, rowsPerPage.toString());
+    }
+  }, [rowsPerPage, updateURL]);
 
   const handleRequestSort = (_: React.MouseEvent<unknown>, property: HeadCellId) => {
-    setOrder(orderBy === property && order === "asc" ? "desc" : "asc");
+    const newOrder = orderBy === property && order === "asc" ? "desc" : "asc";
+    setOrder(newOrder);
     setOrderBy(property);
   };
 
@@ -119,10 +255,13 @@ export default function EnhancedStepsTable({
     setSelected((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
   };
 
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+  const handleChangePage = (_: unknown, newPage: number) => {
+    setPage(newPage);
+  };
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
   };
 

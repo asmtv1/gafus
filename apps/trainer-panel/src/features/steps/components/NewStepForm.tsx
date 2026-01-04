@@ -3,7 +3,7 @@
 import { MarkdownInput } from "@shared/components/common";
 import { FormField, NumberField } from "@shared/components/ui/FormField";
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -69,6 +69,7 @@ interface TrainerVideoViewModel {
 export default function NewStepForm({ initialData, serverAction, trainerVideos = [] }: NewStepFormProps) {
   const hasInitial = Boolean(initialData && (initialData.title || initialData.id));
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Используем useState вместо useActionState для локального управления
   const [formState, setFormState] = useState<ActionResult>({});
@@ -265,7 +266,11 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
 
         // Редиректим через 2 секунды, чтобы пользователь увидел уведомление
         setTimeout(() => {
-          router.push("/main-panel/steps");
+          const returnTo = searchParams.get("returnTo");
+          const redirectUrl = returnTo && returnTo.startsWith("/main-panel/steps") 
+            ? returnTo 
+            : "/main-panel/steps";
+          router.push(redirectUrl);
         }, 2000);
       } else {
         // Если создавали новый шаг - очищаем форму
