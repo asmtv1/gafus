@@ -15,7 +15,6 @@ jobs:
           host: 185.239.51.125
           username: root
           key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
-          host_key_checking: false
           envs: YANDEX_DISK_TOKEN
           script: bash /root/gafus/ci-cd/scripts/backup-to-yandex.sh
         env:
