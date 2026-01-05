@@ -79,10 +79,10 @@ export default function TrainingDayForm({
         form={form}
         options={[
           { value: "regular", label: "Тренировочный день" },
-          { value: "introduction", label: "Вводный день" },
-          { value: "test", label: "Проверочный или экзаменационный день" },
-          { value: "rest", label: "День отдыха" },
+          { value: "introduction", label: "Вводный блок" },
           { value: "instructions", label: "Инструкции" },
+          { value: "diagnostics", label: "Диагностика" },
+          { value: "summary", label: "Подведение итогов" },
         ]}
         rules={commonValidationRules.dayType as RegisterOptions<TrainingDayFormData, "type">}
       />

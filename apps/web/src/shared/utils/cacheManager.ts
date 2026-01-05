@@ -12,8 +12,8 @@ const logger = createWebLogger('web-cache-manager');
 
 // Утилиты для работы с временем
 const nowSec = () => Math.floor(Date.now() / 1000);
-const makeEndKey = (courseId: string, day: number, idx: number) =>
-  `training-${courseId}-${day}-${idx}-end`;
+const makeEndKey = (courseId: string, dayOnCourseId: string, idx: number) =>
+  `training-${courseId}-${dayOnCourseId}-${idx}-end`;
 
 // CourseWithProgressData больше не импортируется, так как используется только в courseStore
 
@@ -31,7 +31,7 @@ export function useCacheManager() {
    */
   const updateStepProgress = (
     courseId: string,
-    day: number,
+    dayOnCourseId: string,
     stepIndex: number,
     stepStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED',
     durationSec?: number,
@@ -40,7 +40,7 @@ export function useCacheManager() {
     logger.info(`[CacheManager] Updating step progress`, {
       operation: 'update_step_progress',
       courseId: courseId,
-      day: day,
+      dayOnCourseId: dayOnCourseId,
       stepIndex: stepIndex,
       stepStatus: stepStatus
     });
@@ -48,12 +48,12 @@ export function useCacheManager() {
     // 1. Обновляем локальный стейт шага
     if (stepStatus === 'IN_PROGRESS' && durationSec) {
       // При запуске шага создаем полное состояние через setState
-      const stepKey = `${courseId}-${day}-${stepIndex}`;
+      const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
       const endTs = nowSec() + durationSec;
       
       // Сохраняем endTs в localStorage для таймера
       if (typeof window !== 'undefined') {
-        localStorage.setItem(makeEndKey(courseId, day, stepIndex), endTs.toString());
+        localStorage.setItem(makeEndKey(courseId, dayOnCourseId, stepIndex), endTs.toString());
       }
       
       useStepStore.setState((state) => ({
@@ -68,20 +68,18 @@ export function useCacheManager() {
         },
       }));
     } else if (stepStatus === 'IN_PROGRESS') {
-      // Возобновление: используем резюм из stepStore, который корректно выставляет endTs
-      const { resumeStep } = useStepStore.getState();
-      resumeStep(courseId, day, stepIndex);
+      // Возобновление уже выполнено в resumeStepWithServer
+      // НЕ вызываем resumeStep снова
     } else if (stepStatus === 'PAUSED') {
-      // Пауза: используем pauseStep для корректной записи в LS
-      const { pauseStep } = useStepStore.getState();
-      pauseStep(courseId, day, stepIndex);
+      // Пауза уже выполнена в pauseStepWithServer  
+      // НЕ вызываем pauseStep снова
     } else if (stepStatus === 'COMPLETED') {
       // Завершение: используем finishStep для очистки ключей и времени
       const { finishStep } = useStepStore.getState();
-      finishStep(courseId, day, stepIndex);
+      finishStep(courseId, dayOnCourseId, stepIndex);
     } else {
       // Прочие обновления только статусом
-      updateStepStatus(courseId, day, stepIndex, stepStatus);
+      updateStepStatus(courseId, dayOnCourseId, stepIndex, stepStatus);
     }
 
     // 2. Получаем актуальные stepStates после обновления
@@ -89,8 +87,8 @@ export function useCacheManager() {
 
     // 3. Вычисляем новый статус дня на основе всех шагов
     const newDayStatus = totalSteps !== undefined 
-      ? calcDay(courseId, day, currentStepStates, totalSteps)
-      : calcDay(courseId, day, currentStepStates);
+      ? calcDay(courseId, dayOnCourseId, currentStepStates, totalSteps)
+      : calcDay(courseId, dayOnCourseId, currentStepStates);
 
     // 4. Вычисляем новый статус курса на основе всех дней
     // Получаем общее количество дней из данных курса
@@ -101,7 +99,7 @@ export function useCacheManager() {
     const newCourseStatus = calcCourse(courseId, currentStepStates, totalDays);
 
     // 5. Обновляем кэш курсов в courseStore
-    updateCoursesCache(courseId, newCourseStatus, day, stepIndex, stepStatus as 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED');
+    updateCoursesCache(courseId, newCourseStatus, dayOnCourseId, stepIndex, stepStatus as 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED');
 
     logger.info(`[CacheManager] Updated`, {
       operation: 'cache_manager_updated',
@@ -113,8 +111,8 @@ export function useCacheManager() {
   /**
    * Вычисляет статус дня на основе статусов всех шагов
    */
-  const calculateDayStatus = (courseId: string, day: number, stepStates: Record<string, { status?: string }>) => {
-    return calcDay(courseId, day, stepStates);
+  const calculateDayStatus = (courseId: string, dayOnCourseId: string, stepStates: Record<string, { status?: string }>) => {
+    return calcDay(courseId, dayOnCourseId, stepStates);
   };
 
   /**
@@ -130,7 +128,7 @@ export function useCacheManager() {
   const updateCoursesCache = (
     courseId: string,
     courseStatus: TrainingStatus,
-    day: number,
+    dayOnCourseId: string,
     stepIndex: number,
     stepStatus: string
   ) => {
@@ -138,7 +136,7 @@ export function useCacheManager() {
       operation: 'update_courses_cache',
       courseId: courseId,
       courseStatus: courseStatus,
-      day: day,
+      dayOnCourseId: dayOnCourseId,
       stepIndex: stepIndex,
       stepStatus: stepStatus
     });

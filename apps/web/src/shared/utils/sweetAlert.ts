@@ -276,3 +276,23 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
 
   return formData || null;
 };
+
+// Сообщение о заблокированном дне "Подведение итогов"
+export const showLockedDayAlert = () => {
+  return Swal.fire({
+    title: 'День заблокирован 🔒',
+    text: 'Чтобы открыть этот день, необходимо завершить все остальные дни курса. Продолжайте тренировки, и этот день станет доступен автоматически!',
+    imageUrl: '/uploads/logo.png',
+    imageWidth: 100,
+    imageHeight: 100,
+    imageAlt: 'Гафус',
+    confirmButtonText: 'Понятно',
+    confirmButtonColor: customTheme.cancelButtonColor,
+    customClass: {
+      popup: 'swal2-popup-custom',
+      title: 'swal2-title-custom',
+      htmlContainer: 'swal2-content-custom',
+      confirmButton: 'swal2-confirm-custom',
+    },
+  });
+};

@@ -14,10 +14,10 @@ const getUserScopeId = () => {
   if (typeof window === "undefined") return "anonymous";
   return useUserStore.getState().user?.id || "anonymous";
 };
-const makeEndKey = (courseId: string, day: number, idx: number) =>
-  `training-${getUserScopeId()}-${courseId}-${day}-${idx}-end`;
-const makePauseKey = (courseId: string, day: number, idx: number) =>
-  `training-${getUserScopeId()}-${courseId}-${day}-${idx}-paused`;
+const makeEndKey = (courseId: string, dayOnCourseId: string, idx: number) =>
+  `training-${courseId}-${dayOnCourseId}-${idx}-end`;
+const makePauseKey = (courseId: string, dayOnCourseId: string, idx: number) =>
+  `training-${courseId}-${dayOnCourseId}-${idx}-paused`;
 const getStepStorageKey = () => `step-storage:${getUserScopeId()}`;
 
 const saveToLS = (key: string, val: string | number) => localStorage.setItem(key, val.toString());
@@ -32,11 +32,11 @@ export const useStepStore = create<StepStore>()(
       stepStates: {},
 
       // ===== УТИЛИТЫ =====
-      getStepKey: (courseId, day, stepIndex) => `${courseId}-${day}-${stepIndex}`,
+      getStepKey: (courseId, dayOnCourseId, stepIndex) => `${courseId}-${dayOnCourseId}-${stepIndex}`,
 
       // ===== ДЕЙСТВИЯ ДЛЯ ШАГОВ =====
-      initializeStep: (courseId, day, stepIndex, durationSec, initialStatus = "NOT_STARTED", options) => {
-        const stepKey = get().getStepKey(courseId, day, stepIndex);
+      initializeStep: (courseId, dayOnCourseId, stepIndex, durationSec, initialStatus = "NOT_STARTED", options) => {
+        const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
         const existingState = get().stepStates[stepKey];
 
 
@@ -52,7 +52,7 @@ export const useStepStore = create<StepStore>()(
           const serverRank = rank(initialStatus);
 
           if (serverRank > localRank) {
-            const END_KEY = makeEndKey(courseId, day, stepIndex);
+            const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
             set((state) => ({
               stepStates: {
                 ...state.stepStates,
@@ -79,7 +79,7 @@ export const useStepStore = create<StepStore>()(
         }
 
         // Проверяем localStorage для восстановления
-        const restoredState = get().restoreStepFromLS(courseId, day, stepIndex);
+        const restoredState = get().restoreStepFromLS(courseId, dayOnCourseId, stepIndex);
 
 
         // Если сервер сообщает о паузе, учитываем её при начальном состоянии,
@@ -122,12 +122,12 @@ export const useStepStore = create<StepStore>()(
 
         // Если восстановили активный шаг, синхронизируем время
         if (restoredState && restoredState.status === "IN_PROGRESS") {
-          get().syncTimeWithLocalStorage(courseId, day, stepIndex);
+          get().syncTimeWithLocalStorage(courseId, dayOnCourseId, stepIndex);
         }
       },
 
-      startStep: async (courseId, day, stepIndex, durationSec) => {
-        const stepKey = get().getStepKey(courseId, day, stepIndex);
+      startStep: async (courseId, dayOnCourseId, stepIndex, durationSec) => {
+        const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
         const endTs = nowSec() + durationSec;
 
         // Проверяем, нет ли уже активных таймеров (реальное состояние)
@@ -140,7 +140,7 @@ export const useStepStore = create<StepStore>()(
         }
 
         // Сохраняем в localStorage
-        saveToLS(makeEndKey(courseId, day, stepIndex), endTs);
+        saveToLS(makeEndKey(courseId, dayOnCourseId, stepIndex), endTs);
 
         set((state) => ({
           stepStates: {
@@ -157,16 +157,33 @@ export const useStepStore = create<StepStore>()(
         return true; // Успешно запущен
       },
 
-      pauseStep: (courseId, day, stepIndex) => {
-        const stepKey = get().getStepKey(courseId, day, stepIndex);
+      pauseStep: async (courseId, dayOnCourseId, stepIndex) => {
+        const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
+        console.log(`[PAUSE STEP] Starting pause for ${stepKey}`);
+
+        // Останавливаем таймер
+        if (typeof window !== "undefined") {
+          const { useTimerStore } = await import("@shared/stores/timerStore");
+          console.log(`[PAUSE STEP] Stopping timer for ${stepKey}`);
+          useTimerStore.getState().stopTimer(courseId, dayOnCourseId, stepIndex);
+        }
+
+        // ВАЖНО: Удаляем END_KEY из localStorage, чтобы таймер не мог "тикать"
+        const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
+        const endTsBefore = typeof window !== "undefined" ? localStorage.getItem(END_KEY) : null;
+        console.log(`[PAUSE STEP] END_KEY before remove: ${END_KEY} = ${endTsBefore}`);
+        removeKeys(END_KEY);
+        const endTsAfter = typeof window !== "undefined" ? localStorage.getItem(END_KEY) : null;
+        console.log(`[PAUSE STEP] END_KEY after remove: ${END_KEY} = ${endTsAfter}`);
 
         // Сохраняем данные паузы в localStorage для офлайн работы
-        const PAUSE_KEY = makePauseKey(courseId, day, stepIndex);
+        const PAUSE_KEY = makePauseKey(courseId, dayOnCourseId, stepIndex);
         const currentStep = get().stepStates[stepKey];
         const pauseData = {
           pausedAt: Date.now(),
           timeLeft: currentStep?.timeLeft || 0,
         };
+        console.log(`[PAUSE STEP] Saving pause data: ${JSON.stringify(pauseData)}`);
         localStorage.setItem(PAUSE_KEY, JSON.stringify(pauseData));
 
         set((state) => ({
@@ -179,26 +196,32 @@ export const useStepStore = create<StepStore>()(
             },
           },
         }));
+        console.log(`[PAUSE STEP] State updated to PAUSED for ${stepKey}`);
       },
 
-      resumeStep: (courseId, day, stepIndex) => {
-        const stepKey = get().getStepKey(courseId, day, stepIndex);
+      resumeStep: (courseId, dayOnCourseId, stepIndex) => {
+        const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
+        console.log(`[RESUME STEP] Starting resume for ${stepKey}`);
 
         const currentStep = get().stepStates[stepKey];
 
         if (!currentStep) {
+          console.log(`[RESUME STEP] No current step found for ${stepKey}`);
           return;
         }
 
         // Удаляем данные паузы из localStorage
-        const PAUSE_KEY = makePauseKey(courseId, day, stepIndex);
+        const PAUSE_KEY = makePauseKey(courseId, dayOnCourseId, stepIndex);
         localStorage.removeItem(PAUSE_KEY);
+        console.log(`[RESUME STEP] Removed PAUSE_KEY: ${PAUSE_KEY}`);
 
         const timeLeft = currentStep.timeLeft;
         const endTs = nowSec() + timeLeft;
+        const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
 
         // Сохраняем в localStorage
-        saveToLS(makeEndKey(courseId, day, stepIndex), endTs);
+        console.log(`[RESUME STEP] Saving END_KEY: ${END_KEY} = ${endTs} (now: ${nowSec()}, timeLeft: ${timeLeft})`);
+        saveToLS(END_KEY, endTs);
 
         set((state) => ({
           stepStates: {
@@ -210,13 +233,14 @@ export const useStepStore = create<StepStore>()(
             },
           },
         }));
+        console.log(`[RESUME STEP] State updated to IN_PROGRESS for ${stepKey}`);
       },
 
-      finishStep: (courseId, day, stepIndex) => {
-        const stepKey = get().getStepKey(courseId, day, stepIndex);
+      finishStep: (courseId, dayOnCourseId, stepIndex) => {
+        const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
 
         // Удаляем localStorage ключи
-        removeKeys(makeEndKey(courseId, day, stepIndex));
+        removeKeys(makeEndKey(courseId, dayOnCourseId, stepIndex));
 
         set((state) => ({
           stepStates: {
@@ -232,8 +256,8 @@ export const useStepStore = create<StepStore>()(
       },
 
       // Универсальная функция для обновления статуса шага
-      updateStepStatus: (courseId, day, stepIndex, status) => {
-        const stepKey = get().getStepKey(courseId, day, stepIndex);
+      updateStepStatus: (courseId, dayOnCourseId, stepIndex, status) => {
+        const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
         const existingState = get().stepStates[stepKey];
 
         if (!existingState) {
@@ -253,12 +277,15 @@ export const useStepStore = create<StepStore>()(
         }));
       },
 
-      resetStep: (courseId, day, stepIndex, durationSec) => {
-        const stepKey = get().getStepKey(courseId, day, stepIndex);
+      resetStep: (courseId, dayOnCourseId, stepIndex, durationSec) => {
+        const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
         const currentState = get().stepStates[stepKey];
 
-        // Удаляем localStorage ключи
-        removeKeys(makeEndKey(courseId, day, stepIndex));
+        // Удаляем localStorage ключи (таймер и пауза)
+        removeKeys(
+          makeEndKey(courseId, dayOnCourseId, stepIndex),
+          makePauseKey(courseId, dayOnCourseId, stepIndex)
+        );
 
         // Определяем статус после сброса на основе предыдущего статуса
         let resetStatus: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" = "NOT_STARTED";
@@ -281,9 +308,9 @@ export const useStepStore = create<StepStore>()(
       },
 
       // ===== ВОССТАНОВЛЕНИЕ И СИНХРОНИЗАЦИЯ =====
-      restoreStepFromLS: (courseId, day, stepIndex) => {
-        const END_KEY = makeEndKey(courseId, day, stepIndex);
-        const PAUSE_KEY = makePauseKey(courseId, day, stepIndex);
+      restoreStepFromLS: (courseId, dayOnCourseId, stepIndex) => {
+        const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
+        const PAUSE_KEY = makePauseKey(courseId, dayOnCourseId, stepIndex);
         
         // Проверяем, есть ли данные паузы
         const pauseDataStr = loadFromLS(PAUSE_KEY);
@@ -300,7 +327,7 @@ export const useStepStore = create<StepStore>()(
             logger.warn("Failed to parse pause data", {
               operation: 'parse_pause_data_error',
               courseId: courseId,
-              day: day,
+              dayOnCourseId: dayOnCourseId,
               stepIndex: stepIndex,
               error: error instanceof Error ? error.message : String(error)
             });
@@ -341,13 +368,13 @@ export const useStepStore = create<StepStore>()(
         };
       },
 
-      syncTimeWithLocalStorage: (courseId, day, stepIndex) => {
-        const stepKey = get().getStepKey(courseId, day, stepIndex);
+      syncTimeWithLocalStorage: (courseId, dayOnCourseId, stepIndex) => {
+        const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
         const stepState = get().stepStates[stepKey];
 
         if (!stepState || stepState.status !== "IN_PROGRESS") return;
 
-        const END_KEY = makeEndKey(courseId, day, stepIndex);
+        const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
         const endTsStr = loadFromLS(END_KEY);
 
         if (!endTsStr) {
@@ -366,8 +393,11 @@ export const useStepStore = create<StepStore>()(
         }
       },
 
-      updateTimeLeft: (courseId, day, stepIndex, timeLeft) => {
-        const stepKey = get().getStepKey(courseId, day, stepIndex);
+      updateTimeLeft: (courseId, dayOnCourseId, stepIndex, timeLeft) => {
+        const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
+        const stepState = get().stepStates[stepKey];
+
+        console.log(`[UPDATE TIME] stepKey: ${stepKey}, timeLeft: ${timeLeft}, status: ${stepState?.status}, isPaused: ${stepState?.isPaused}`);
 
         set((state) => ({
           stepStates: {
@@ -379,12 +409,15 @@ export const useStepStore = create<StepStore>()(
           },
         }));
 
-        // Синхронизируем время с localStorage если шаг активен
-        const stepState = get().stepStates[stepKey];
-        if (stepState && stepState.status === "IN_PROGRESS") {
-          const END_KEY = makeEndKey(courseId, day, stepIndex);
+        // Синхронизируем время с localStorage ТОЛЬКО если шаг активен И НЕ на паузе
+        const stepStateAfter = get().stepStates[stepKey];
+        if (stepStateAfter && stepStateAfter.status === "IN_PROGRESS" && !stepStateAfter.isPaused) {
+          const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
           const endTs = nowSec() + timeLeft;
+          console.log(`[UPDATE TIME] Saving END_KEY: ${END_KEY} = ${endTs} (now: ${nowSec()}, timeLeft: ${timeLeft})`);
           saveToLS(END_KEY, endTs.toString());
+        } else {
+          console.log(`[UPDATE TIME] NOT saving END_KEY - status: ${stepStateAfter?.status}, isPaused: ${stepStateAfter?.isPaused}`);
         }
       },
 
@@ -392,10 +425,10 @@ export const useStepStore = create<StepStore>()(
       clearAllSteps: () => {
         set({ stepStates: {} });
       },
-      cleanupExpiredData: (courseId, day) => {
+      cleanupExpiredData: (courseId, dayOnCourseId) => {
         // Очищаем устаревшие данные для всех шагов дня
         for (let i = 0; i < 100; i++) {
-          const END_KEY = makeEndKey(courseId, day, i);
+          const END_KEY = makeEndKey(courseId, dayOnCourseId, i);
           const endTsStr = loadFromLS(END_KEY);
 
           if (endTsStr) {
@@ -404,18 +437,18 @@ export const useStepStore = create<StepStore>()(
               removeKeys(END_KEY);
 
               // Автоматически завершаем шаг если он был активен
-              const stepKey = get().getStepKey(courseId, day, i);
+              const stepKey = get().getStepKey(courseId, dayOnCourseId, i);
               const stepState = get().stepStates[stepKey];
               if (stepState && stepState.status === "IN_PROGRESS") {
-                get().finishStep(courseId, day, i);
+                get().finishStep(courseId, dayOnCourseId, i);
               }
             }
           }
         }
       },
 
-      validateStepIntegrity: (courseId, day, stepIndex) => {
-        const stepKey = get().getStepKey(courseId, day, stepIndex);
+      validateStepIntegrity: (courseId, dayOnCourseId, stepIndex) => {
+        const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
         const stepState = get().stepStates[stepKey];
 
         if (!stepState || stepState.status !== "IN_PROGRESS") {
@@ -424,12 +457,12 @@ export const useStepStore = create<StepStore>()(
 
         // Проверяем корректность времени
         if (stepState.timeLeft <= 0) {
-          get().finishStep(courseId, day, stepIndex);
+          get().finishStep(courseId, dayOnCourseId, stepIndex);
           return false;
         }
 
         // Синхронизируем время с localStorage
-        get().syncTimeWithLocalStorage(courseId, day, stepIndex);
+        get().syncTimeWithLocalStorage(courseId, dayOnCourseId, stepIndex);
         return true;
       },
     }),

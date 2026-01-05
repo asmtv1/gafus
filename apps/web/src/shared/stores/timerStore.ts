@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import { createWebLogger } from "@gafus/logger";
 
-import { TrainingStatus, type TimerStore } from "@gafus/types";
+import { TrainingStatus, type TimerStore, type StepStatusUpdateData, type StepResumeData } from "@gafus/types";
 import { pauseNotificationClient, resumeNotificationClient, resetNotificationClient } from "@shared/lib/StepNotification/manageStepNotificationSimple";
 import { pauseUserStepServerAction, resumeUserStepServerAction } from "@shared/lib/training/pauseResumeUserStep";
 import { startUserStepServerAction } from "@shared/lib/training/startUserStepServerAction";
@@ -14,8 +14,8 @@ const logger = createWebLogger('web-timer-store');
 
 // ===== УТИЛИТЫ =====
 const nowSec = () => Math.floor(Date.now() / 1000);
-const makeEndKey = (courseId: string, day: number, idx: number) =>
-  `training-${courseId}-${day}-${idx}-end`;
+const makeEndKey = (courseId: string, dayOnCourseId: string, idx: number) =>
+  `training-${courseId}-${dayOnCourseId}-${idx}-end`;
 
 const loadFromLS = (key: string): string | null => localStorage.getItem(key);
 
@@ -55,22 +55,22 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
     getActiveStep: () => activeStep,
 
     // Проверить, может ли шаг быть запущен
-    canStartStep: (courseId: string, day: number, stepIndex: number) => {
-      const stepKey = `${courseId}-${day}-${stepIndex}`;
+    canStartStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => {
+      const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
       return activeStep === null || activeStep === stepKey;
     },
 
     // ===== УПРАВЛЕНИЕ ТАЙМЕРАМИ =====
 
-    startTimer: (courseId, day, stepIndex, onTimeUpdate, onFinish, isRestore = false) => {
+    startTimer: (courseId, dayOnCourseId, stepIndex, onTimeUpdate, onFinish, isRestore = false) => {
       if (typeof window === "undefined") return false;
 
-      const stepKey = `${courseId}-${day}-${stepIndex}`;
+      const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
 
       // При восстановлении таймера не проверяем canStartStep
       if (!isRestore) {
         // Проверяем, может ли шаг быть запущен
-        if (!get().canStartStep(courseId, day, stepIndex)) {
+        if (!get().canStartStep(courseId, dayOnCourseId, stepIndex)) {
           return false; // Возвращаем false для показа уведомления
         }
 
@@ -84,22 +84,28 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
       // Создаем новый таймер
       const timer = setInterval(() => {
-        const END_KEY = makeEndKey(courseId, day, stepIndex);
+        const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
         const endTsStr = loadFromLS(END_KEY);
 
+        console.log(`[TIMER TICK] stepKey: ${stepKey}, END_KEY: ${END_KEY}, endTsStr: ${endTsStr}`);
+
         if (!endTsStr) {
-          get().stopTimer(courseId, day, stepIndex);
+          console.log(`[TIMER] No END_KEY found, stopping timer for ${stepKey}`);
+          get().stopTimer(courseId, dayOnCourseId, stepIndex);
           return;
         }
 
         const endTs = Number(endTsStr);
         const diff = Math.max(endTs - nowSec(), 0);
 
+        console.log(`[TIMER] stepKey: ${stepKey}, endTs: ${endTs}, now: ${nowSec()}, diff: ${diff}`);
+
         // Вызываем callback для обновления времени
         onTimeUpdate(diff);
 
         if (diff === 0) {
-          get().stopTimer(courseId, day, stepIndex);
+          console.log(`[TIMER] Timer finished for ${stepKey}`);
+          get().stopTimer(courseId, dayOnCourseId, stepIndex);
           // Haptic feedback при завершении таймера
           hapticComplete();
           // Вызываем callback для завершения
@@ -112,6 +118,8 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       activeStep = stepKey;
       timers.set(stepKey, timer);
 
+      console.log(`[START TIMER] stepKey: ${stepKey}, isRestore: ${isRestore}, timers.size: ${timers.size}, activeStep: ${activeStep}`);
+
       // Haptic feedback при старте таймера
       if (!isRestore) {
         hapticStart();
@@ -120,11 +128,13 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       return true; // Успешно запущен
     },
 
-    stopTimer: (courseId, day, stepIndex) => {
+    stopTimer: (courseId, dayOnCourseId, stepIndex) => {
       if (typeof window === "undefined") return;
 
-      const stepKey = `${courseId}-${day}-${stepIndex}`;
+      const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
       const timer = timers.get(stepKey);
+
+      console.log(`[STOP TIMER] stepKey: ${stepKey}, hasTimer: ${!!timer}, activeStep: ${activeStep}`);
 
       if (timer) {
         clearInterval(timer);
@@ -135,6 +145,9 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           activeStep = null;
           activeTimer = null;
         }
+        console.log(`[STOP TIMER] Timer cleared for ${stepKey}, timers.size: ${timers.size}`);
+      } else {
+        console.log(`[STOP TIMER] No timer found for ${stepKey}`);
       }
     },
 
@@ -167,14 +180,14 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
     },
 
     // ===== СЕРВЕРНЫЕ ДЕЙСТВИЯ С РЕТРАЯМИ =====
-    startStepWithServer: async (courseId, day, stepIndex, durationSec) => {
+    startStepWithServer: async (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => {
       // Запускаем серверное действие в фоне с быстрым таймаутом; UI не блокируем
       (async () => {
         try {
           await withTimeout(
             startUserStepServerAction(
               courseId,
-              day,
+              dayOnCourseId,
               stepIndex,
               TrainingStatus.IN_PROGRESS,
               durationSec,
@@ -185,7 +198,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           logger.error("❌ Ошибка запуска шага", error as Error, {
             operation: 'start_step_with_server_error',
             courseId: courseId,
-            day: day,
+            dayOnCourseId: dayOnCourseId,
             stepIndex: stepIndex,
             durationSec: durationSec
           });
@@ -196,17 +209,17 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
               type: "step-status-update",
               data: {
                 courseId,
-                day,
+                dayOnCourseId,
                 stepIndex,
                 status: "IN_PROGRESS",
-              },
+              } as unknown as StepStatusUpdateData & { dayOnCourseId: string },
               maxRetries: 3,
             });
           } catch (offlineError) {
             logger.error("❌ Не удалось добавить в очередь синхронизации", offlineError as Error, {
               operation: 'failed_to_add_to_sync_queue',
               courseId: courseId,
-              day: day,
+              dayOnCourseId: dayOnCourseId,
               stepIndex: stepIndex
             });
           }
@@ -214,14 +227,14 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       })();
     },
 
-    finishStepWithServer: async (courseId, day, stepIndex, stepTitle, stepOrder) => {
+    finishStepWithServer: async (courseId: string, dayOnCourseId: string, stepIndex: number, stepTitle: string, stepOrder: number) => {
       // Выполняем серверное действие в фоне, UI не блокируем
       (async () => {
         try {
           await withTimeout(
             updateStepStatusServerAction(
               courseId,
-              day,
+              dayOnCourseId,
               stepIndex,
               TrainingStatus.COMPLETED,
               stepTitle,
@@ -240,7 +253,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           logger.error("❌ Ошибка завершения шага", error as Error, {
             operation: 'finish_step_with_server_error',
             courseId: courseId,
-            day: day,
+            dayOnCourseId: dayOnCourseId,
             stepIndex: stepIndex,
             stepTitle: stepTitle,
             stepOrder: stepOrder
@@ -252,25 +265,25 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
               type: "step-status-update",
               data: {
                 courseId,
-                day,
+                dayOnCourseId,
                 stepIndex,
                 status: "COMPLETED",
                 stepTitle,
                 stepOrder,
-              },
+              } as unknown as StepStatusUpdateData & { dayOnCourseId: string },
               maxRetries: 3,
             });
             logger.info("📝 Добавлено в очередь офлайн синхронизации", {
               operation: 'added_to_offline_sync_queue_finish',
               courseId: courseId,
-              day: day,
+              dayOnCourseId: dayOnCourseId,
               stepIndex: stepIndex
             });
           } catch (offlineError) {
             logger.error("❌ Не удалось добавить в очередь синхронизации", offlineError as Error, {
               operation: 'failed_to_add_to_sync_queue_finish',
               courseId: courseId,
-              day: day,
+              dayOnCourseId: dayOnCourseId,
               stepIndex: stepIndex
             });
           }
@@ -278,12 +291,12 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       })();
     },
 
-    resetStepWithServer: async (courseId, day, stepIndex) => {
+    resetStepWithServer: async (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => {
       // Получаем текущий статус шага синхронно
       try {
         const { useStepStore } = await import("@shared/stores/stepStore");
         const stepStore = useStepStore.getState();
-        const stepKey = stepStore.getStepKey(courseId, day, stepIndex);
+        const stepKey = stepStore.getStepKey(courseId, dayOnCourseId, stepIndex);
         const currentState = stepStore.stepStates[stepKey];
         let resetStatus: TrainingStatus = TrainingStatus.NOT_STARTED;
         if (currentState?.status === "IN_PROGRESS" || currentState?.status === "COMPLETED") {
@@ -292,11 +305,18 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           resetStatus = TrainingStatus.IN_PROGRESS;
         }
 
+        // Останавливаем таймер немедленно
+        get().stopTimer(courseId, dayOnCourseId, stepIndex);
+
+        // Используем переданное исходное значение durationSec
+        // Сбрасываем локальное состояние с исходным значением
+        stepStore.resetStep(courseId, dayOnCourseId, stepIndex, durationSec);
+
         // Не блокируем UI: сбрасываем уведомление и статус в фоне
         (async () => {
           try {
             await withTimeout(
-              resetNotificationClient({ courseId, day, stepIndex }),
+              resetNotificationClient({ courseId, dayOnCourseId, stepIndex }),
               SERVER_ACTION_TIMEOUT_MS
             );
           } catch (notificationError) {
@@ -307,14 +327,14 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           }
           try {
             await withTimeout(
-              updateStepStatusServerAction(courseId, day, stepIndex, resetStatus),
+              updateStepStatusServerAction(courseId, dayOnCourseId, stepIndex, resetStatus),
               SERVER_ACTION_TIMEOUT_MS
             );
         } catch (error) {
           logger.error("❌ Ошибка сброса шага", error as Error, {
             operation: 'reset_step_error',
             courseId: courseId,
-            day: day,
+            dayOnCourseId: dayOnCourseId,
             stepIndex: stepIndex
           });
             try {
@@ -329,20 +349,20 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
               }
               offlineStore.addToSyncQueue({
                 type: "step-status-update",
-                data: { courseId, day, stepIndex, status: syncStatus },
+                data: { courseId, dayOnCourseId, stepIndex, status: syncStatus } as StepStatusUpdateData & { dayOnCourseId: string },
                 maxRetries: 3,
               });
               logger.info("📝 Добавлено в очередь офлайн синхронизации", {
                 operation: 'added_to_offline_sync_queue_reset',
                 courseId: courseId,
-                day: day,
+                dayOnCourseId: dayOnCourseId,
                 stepIndex: stepIndex
               });
             } catch (offlineError) {
               logger.error("❌ Не удалось добавить в очередь синхронизации", offlineError as Error, {
                 operation: 'failed_to_add_to_sync_queue_reset',
                 courseId: courseId,
-                day: day,
+                dayOnCourseId: dayOnCourseId,
                 stepIndex: stepIndex
               });
             }
@@ -352,36 +372,36 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         logger.error("❌ Ошибка при локальном расчёте статуса сброса", e as Error, {
           operation: 'local_reset_status_calculation_error',
           courseId: courseId,
-          day: day,
+          dayOnCourseId: dayOnCourseId,
           stepIndex: stepIndex
         });
       }
     },
 
     // Сервер: сохранить паузу шага и поставить на паузу Push-уведомление (StepNotification)
-    pauseNotification: async (courseId, day, stepIndex) => {
+    pauseNotification: async (courseId: string, dayOnCourseId: string, stepIndex: number) => {
       try {
         const { useStepStore } = await import("@shared/stores/stepStore");
         const stepStore = useStepStore.getState();
-        const stepKey = `${courseId}-${day}-${stepIndex}`;
+        const stepKey = stepStore.getStepKey(courseId, dayOnCourseId, stepIndex);
         const stepState = stepStore.stepStates[stepKey];
         const timeLeft = stepState?.timeLeft || 0;
         // 1) Пишем паузу шага в UserStep
         // 2) Ставим на паузу StepNotification
         await Promise.allSettled([
-          pauseUserStepServerAction(courseId, day, stepIndex, timeLeft),
-          pauseNotificationClient({ courseId, day, stepIndex }),
+          pauseUserStepServerAction(courseId, dayOnCourseId, stepIndex, timeLeft),
+          pauseNotificationClient({ courseId, dayOnCourseId, stepIndex }),
         ]);
       } catch (error) {
         const { useStepStore } = await import("@shared/stores/stepStore");
         const stepStore = useStepStore.getState();
-        const stepKey = `${courseId}-${day}-${stepIndex}`;
+        const stepKey = stepStore.getStepKey(courseId, dayOnCourseId, stepIndex);
         const stepState = stepStore.stepStates[stepKey];
         
         logger.error("Failed to pause step on server", error as Error, {
           operation: 'pause_step_on_server_error',
           courseId: courseId,
-          day: day,
+          dayOnCourseId: dayOnCourseId,
           stepIndex: stepIndex,
           timeLeft: stepState?.timeLeft || 0
         });
@@ -390,17 +410,17 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
     },
 
     // Сервер: снять паузу шага и возобновить Push-уведомление (StepNotification)
-    resumeNotification: async (courseId, day, stepIndex, durationSec) => {
+    resumeNotification: async (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => {
       try {
         await Promise.allSettled([
-          resumeUserStepServerAction(courseId, day, stepIndex),
-          resumeNotificationClient({ courseId, day, stepIndex, durationSec }),
+          resumeUserStepServerAction(courseId, dayOnCourseId, stepIndex),
+          resumeNotificationClient({ courseId, dayOnCourseId, stepIndex, durationSec }),
         ]);
       } catch (error) {
         logger.error("Failed to resume step on server", error as Error, {
           operation: 'resume_step_on_server_error',
           courseId: courseId,
-          day: day,
+          dayOnCourseId: dayOnCourseId,
           stepIndex: stepIndex,
           durationSec: durationSec
         });
@@ -411,14 +431,14 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
     // ===== ОФЛАЙН ФУНКЦИИ =====
 
     // Пауза шага в офлайн режиме
-    pauseStepOffline: (courseId, day, stepIndex) => {
+    pauseStepOffline: (courseId, dayOnCourseId, stepIndex) => {
       if (typeof window === "undefined") return;
 
       // Останавливаем таймер
-      get().stopTimer(courseId, day, stepIndex);
+      get().stopTimer(courseId, dayOnCourseId, stepIndex);
       
       // Сохраняем состояние паузы в localStorage
-      const PAUSE_KEY = `training-${courseId}-${day}-${stepIndex}-paused`;
+      const PAUSE_KEY = `training-${courseId}-${dayOnCourseId}-${stepIndex}-paused`;
       const pauseData = {
         pausedAt: Date.now(),
         timeLeft: 0, // Будет обновлено из stepStore
@@ -427,30 +447,30 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
     },
 
     // Возобновление шага в офлайн режиме
-    resumeStepOffline: (courseId, day, stepIndex) => {
+    resumeStepOffline: (courseId, dayOnCourseId, stepIndex) => {
       if (typeof window === "undefined") return;
 
       // Удаляем данные паузы из localStorage
-      const PAUSE_KEY = `training-${courseId}-${day}-${stepIndex}-paused`;
+      const PAUSE_KEY = `training-${courseId}-${dayOnCourseId}-${stepIndex}-paused`;
       localStorage.removeItem(PAUSE_KEY);
     },
 
     // Пауза шага с синхронизацией на сервер (optimistic + быстрый таймаут)
-    pauseStepWithServer: async (courseId, day, stepIndex) => {
+    pauseStepWithServer: async (courseId: string, dayOnCourseId: string, stepIndex: number) => {
       try {
         const { useStepStore } = await import("@shared/stores/stepStore");
         const stepStore = useStepStore.getState();
-        const stepKey = `${courseId}-${day}-${stepIndex}`;
+        const stepKey = stepStore.getStepKey(courseId, dayOnCourseId, stepIndex);
         const stepState = stepStore.stepStates[stepKey];
         const timeLeft = stepState?.timeLeft || 0;
 
-        // Мгновенно меняем локальное состояние
-        get().pauseStepOffline(courseId, day, stepIndex);
+        // Мгновенно меняем локальное состояние через stepStore (она остановит таймер и обновит состояние)
+        await stepStore.pauseStep(courseId, dayOnCourseId, stepIndex);
 
         // Сервер — в фоне с быстрым таймаутом
         (async () => {
           try {
-            await withTimeout(get().pauseNotification(courseId, day, stepIndex), SERVER_ACTION_TIMEOUT_MS);
+            await withTimeout(get().pauseNotification(courseId, dayOnCourseId, stepIndex), SERVER_ACTION_TIMEOUT_MS);
           } catch {
             try {
               const { useOfflineStore } = await import("@shared/stores/offlineStore");
@@ -459,18 +479,18 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
                 type: "step-pause",
                 data: {
                   courseId,
-                  day,
+                  dayOnCourseId,
                   stepIndex,
                   pausedAt: Date.now(),
                   timeLeft,
-                },
+                } as unknown as StepStatusUpdateData & { dayOnCourseId: string },
                 maxRetries: 3,
               });
             } catch (offlineError) {
               logger.error("Failed to add pause to offline queue", offlineError as Error, {
                 operation: 'failed_to_add_pause_to_offline_queue',
                 courseId: courseId,
-                day: day,
+                dayOnCourseId: dayOnCourseId,
                 stepIndex: stepIndex,
                 timeLeft: timeLeft
               });
@@ -481,29 +501,36 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         logger.error("Ошибка при локальной паузе", e as Error, {
           operation: 'local_pause_error',
           courseId: courseId,
-          day: day,
+          dayOnCourseId: dayOnCourseId,
           stepIndex: stepIndex
         });
-        get().pauseStepOffline(courseId, day, stepIndex);
+        // В случае ошибки пытаемся остановить таймер и обновить состояние
+        try {
+          const { useStepStore } = await import("@shared/stores/stepStore");
+          const stepStore = useStepStore.getState();
+          await stepStore.pauseStep(courseId, dayOnCourseId, stepIndex);
+        } catch (fallbackError) {
+          logger.error("Ошибка при fallback паузе", fallbackError as Error);
+        }
       }
     },
 
     // Возобновление шага с синхронизацией на сервер (optimistic + быстрый таймаут)
-    resumeStepWithServer: async (courseId, day, stepIndex, durationSec) => {
+    resumeStepWithServer: async (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => {
       try {
         const { useStepStore } = await import("@shared/stores/stepStore");
         const stepStore = useStepStore.getState();
-        const stepKey = `${courseId}-${day}-${stepIndex}`;
+        const stepKey = stepStore.getStepKey(courseId, dayOnCourseId, stepIndex);
         const stepState = stepStore.stepStates[stepKey];
         const timeLeft = stepState?.timeLeft || durationSec;
 
-        // Мгновенно меняем локальное состояние
-        get().resumeStepOffline(courseId, day, stepIndex);
+        // Мгновенно меняем локальное состояние через stepStore
+        stepStore.resumeStep(courseId, dayOnCourseId, stepIndex);
 
         // Сервер — в фоне с быстрым таймаутом
         (async () => {
           try {
-            await withTimeout(get().resumeNotification(courseId, day, stepIndex, durationSec), SERVER_ACTION_TIMEOUT_MS);
+            await withTimeout(get().resumeNotification(courseId, dayOnCourseId, stepIndex, durationSec), SERVER_ACTION_TIMEOUT_MS);
           } catch {
             try {
               const { useOfflineStore } = await import("@shared/stores/offlineStore");
@@ -512,18 +539,18 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
                 type: "step-resume",
                 data: {
                   courseId,
-                  day,
+                  dayOnCourseId,
                   stepIndex,
                   resumedAt: Date.now(),
                   timeLeft,
-                },
+                } as unknown as StepResumeData & { dayOnCourseId: string },
                 maxRetries: 3,
               });
             } catch (offlineError) {
               logger.error("Failed to add resume to offline queue", offlineError as Error, {
                 operation: 'failed_to_add_resume_to_offline_queue',
                 courseId: courseId,
-                day: day,
+                dayOnCourseId: dayOnCourseId,
                 stepIndex: stepIndex,
                 timeLeft: timeLeft
               });
@@ -534,11 +561,18 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         logger.error("Ошибка при локальном возобновлении", e as Error, {
           operation: 'local_resume_error',
           courseId: courseId,
-          day: day,
+          dayOnCourseId: dayOnCourseId,
           stepIndex: stepIndex,
           durationSec: durationSec
         });
-        get().resumeStepOffline(courseId, day, stepIndex);
+        // В случае ошибки пытаемся обновить состояние
+        try {
+          const { useStepStore } = await import("@shared/stores/stepStore");
+          const stepStore = useStepStore.getState();
+          stepStore.resumeStep(courseId, dayOnCourseId, stepIndex);
+        } catch (fallbackError) {
+          logger.error("Ошибка при fallback возобновлении", fallbackError as Error);
+        }
       }
     },
   };

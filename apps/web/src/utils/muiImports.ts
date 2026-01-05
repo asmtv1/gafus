@@ -53,6 +53,7 @@ export { default as PauseIcon } from "@mui/icons-material/Pause";
 export { default as ReplayIcon } from "@mui/icons-material/Replay";
 export { default as AccessTimeIcon } from "@mui/icons-material/AccessTime";
 export { default as ExpandMoreIcon } from "@mui/icons-material/ExpandMore";
+export { default as LockIcon } from "@mui/icons-material/Lock";
 
 // Material-UI утилиты
 export { styled } from "@mui/material/styles";

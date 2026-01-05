@@ -13,7 +13,7 @@ export interface TrainingState {
   cachedTrainingDays: Record<string, {
     data: {
       trainingDays: {
-        day: number;
+        dayOnCourseId: string;
         title: string;
         type: string;
         courseId: string;
@@ -27,12 +27,12 @@ export interface TrainingState {
   }>;
 
   // Утилиты
-  getStepKey: (courseId: string, day: number, stepIndex: number) => string;
-  getDayKey: (courseId: string, day: number) => string;
+  getStepKey: (courseId: string, dayOnCourseId: string, stepIndex: number) => string;
+  getDayKey: (courseId: string, dayOnCourseId: string) => string;
 
   // Геттеры
-  getOpenIndex: (courseId: string, day: number) => number | null;
-  getRunningIndex: (courseId: string, day: number) => number | null;
+  getOpenIndex: (courseId: string, dayOnCourseId: string) => number | null;
+  getRunningIndex: (courseId: string, dayOnCourseId: string) => number | null;
   getCourseAssigned: (courseId: string) => boolean;
   getAssignError: (courseId: string) => string | null;
   
@@ -40,7 +40,7 @@ export interface TrainingState {
   getCachedTrainingDays: (courseType: string) => {
     data: {
       trainingDays: {
-        day: number;
+        dayOnCourseId: string;
         title: string;
         type: string;
         courseId: string;
@@ -54,7 +54,7 @@ export interface TrainingState {
   };
   setCachedTrainingDays: (courseType: string, data: {
     trainingDays: {
-      day: number;
+      dayOnCourseId: string;
       title: string;
       type: string;
       courseId: string;
@@ -68,15 +68,15 @@ export interface TrainingState {
 
 
   // Действия для дня
-  setOpenIndex: (courseId: string, day: number, index: number | null) => void;
-  setRunningIndex: (courseId: string, day: number, index: number | null) => void;
+  setOpenIndex: (courseId: string, dayOnCourseId: string, index: number | null) => void;
+  setRunningIndex: (courseId: string, dayOnCourseId: string, index: number | null) => void;
   setCourseAssigned: (courseId: string, assigned: boolean) => void;
   setAssignError: (courseId: string, error: string | null) => void;
 
   // Поиск активного шага
-  findRunningStepIndex: (courseId: string, day: number, totalSteps: number) => number | null;
+  findRunningStepIndex: (courseId: string, dayOnCourseId: string, totalSteps: number) => number | null;
 
   // Серверные действия
-  togglePauseWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
-  resumeNotificationWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
+  togglePauseWithServer: (courseId: string, dayOnCourseId: string, stepIndex: number) => Promise<void>;
+  resumeNotificationWithServer: (courseId: string, dayOnCourseId: string, stepIndex: number) => Promise<void>;
 }

@@ -39,7 +39,7 @@ export interface RatingData {
 
 export interface StepStatusUpdateData {
   courseId: string;
-  day: number;
+  dayOnCourseId: string;
   stepIndex: number;
   status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
   stepTitle?: string;
@@ -48,7 +48,7 @@ export interface StepStatusUpdateData {
 
 export interface StepPauseData {
   courseId: string;
-  day: number;
+  dayOnCourseId: string;
   stepIndex: number;
   pausedAt: number; // timestamp когда была поставлена пауза
   timeLeft: number; // оставшееся время в секундах
@@ -56,7 +56,7 @@ export interface StepPauseData {
 
 export interface StepResumeData {
   courseId: string;
-  day: number;
+  dayOnCourseId: string;
   stepIndex: number;
   resumedAt: number; // timestamp когда было возобновлено
   timeLeft: number; // оставшееся время в секундах

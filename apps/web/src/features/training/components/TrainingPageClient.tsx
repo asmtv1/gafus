@@ -13,7 +13,7 @@ interface TrainingPageClientProps {
   initialData?: {
     trainingDays: {
       trainingDayId: string;
-      day: number;
+      dayOnCourseId: string;
       title: string;
       type: string;
       courseId: string;

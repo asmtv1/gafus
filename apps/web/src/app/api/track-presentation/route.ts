@@ -15,12 +15,34 @@ export async function POST(request: NextRequest) {
     const contentType = request.headers.get("content-type");
     
     if (contentType?.includes("application/json")) {
-      body = await request.json();
+      try {
+        const text = await request.text();
+        body = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        logger.error("Failed to parse JSON body", parseError as Error, {
+          operation: 'parse_json_error',
+          contentType,
+        });
+        return NextResponse.json(
+          { error: "Invalid JSON in request body" },
+          { status: 400 }
+        );
+      }
     } else {
       // sendBeacon отправляет blob, нужно распарсить
-      const blob = await request.blob();
-      const text = await blob.text();
-      body = JSON.parse(text);
+      try {
+        const blob = await request.blob();
+        const text = await blob.text();
+        body = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        logger.error("Failed to parse blob body", parseError as Error, {
+          operation: 'parse_blob_error',
+        });
+        return NextResponse.json(
+          { error: "Invalid JSON in request body" },
+          { status: 400 }
+        );
+      }
     }
 
     const {

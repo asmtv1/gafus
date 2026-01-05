@@ -353,9 +353,13 @@ async function syncStepStatusUpdate(data: StepStatusUpdateData): Promise<void> {
     );
 
     // Вызываем серверное действие для обновления статуса
+    const dayOnCourseId = (data as { dayOnCourseId: string }).dayOnCourseId;
+    if (!dayOnCourseId) {
+      throw new Error("dayOnCourseId is required");
+    }
     await updateStepStatusServerAction(
       data.courseId,
-      data.day,
+      dayOnCourseId,
       data.stepIndex,
       data.status as TrainingStatus,
       data.stepTitle
@@ -364,7 +368,7 @@ async function syncStepStatusUpdate(data: StepStatusUpdateData): Promise<void> {
     logger.warn("Failed to sync step status update", {
       operation: 'sync_step_status_update_error',
       courseId: data.courseId,
-      day: data.day,
+      dayOnCourseId: (data as { dayOnCourseId?: string }).dayOnCourseId,
       stepIndex: data.stepIndex,
       error: error instanceof Error ? error.message : String(error)
     });
@@ -379,15 +383,19 @@ async function syncStepPause(data: StepPauseData): Promise<void> {
       import("@shared/lib/training/pauseResumeUserStep"),
       import("@shared/lib/StepNotification/manageStepNotificationSimple"),
     ]);
+    const dayOnCourseId = (data as { dayOnCourseId: string }).dayOnCourseId;
+    if (!dayOnCourseId) {
+      throw new Error("dayOnCourseId is required");
+    }
     await Promise.allSettled([
-      pauseUserStepServerAction(data.courseId, data.day, data.stepIndex, data.timeLeft),
-      pauseNotificationClient({ courseId: data.courseId, day: data.day, stepIndex: data.stepIndex }),
+      pauseUserStepServerAction(data.courseId, dayOnCourseId, data.stepIndex, data.timeLeft),
+      pauseNotificationClient({ courseId: data.courseId, dayOnCourseId, stepIndex: data.stepIndex }),
     ]);
   } catch (error) {
     logger.warn("Failed to sync step pause", {
       operation: 'sync_step_pause_error',
       courseId: data.courseId,
-      day: data.day,
+      dayOnCourseId: (data as { dayOnCourseId?: string }).dayOnCourseId,
       stepIndex: data.stepIndex,
       error: error instanceof Error ? error.message : String(error)
     });
@@ -402,15 +410,19 @@ async function syncStepResume(data: StepResumeData): Promise<void> {
       import("@shared/lib/training/pauseResumeUserStep"),
       import("@shared/lib/StepNotification/manageStepNotificationSimple"),
     ]);
+    const dayOnCourseId = (data as { dayOnCourseId: string }).dayOnCourseId;
+    if (!dayOnCourseId) {
+      throw new Error("dayOnCourseId is required");
+    }
     await Promise.allSettled([
-      resumeUserStepServerAction(data.courseId, data.day, data.stepIndex),
-      resumeNotificationClient({ courseId: data.courseId, day: data.day, stepIndex: data.stepIndex, durationSec: data.timeLeft }),
+      resumeUserStepServerAction(data.courseId, dayOnCourseId, data.stepIndex),
+      resumeNotificationClient({ courseId: data.courseId, dayOnCourseId, stepIndex: data.stepIndex, durationSec: data.timeLeft }),
     ]);
   } catch (error) {
     logger.warn("Failed to sync step resume", {
       operation: 'sync_step_resume_error',
       courseId: data.courseId,
-      day: data.day,
+      dayOnCourseId: (data as { dayOnCourseId?: string }).dayOnCourseId,
       stepIndex: data.stepIndex,
       error: error instanceof Error ? error.message : String(error)
     });

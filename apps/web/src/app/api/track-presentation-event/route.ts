@@ -10,7 +10,19 @@ const logger = createWebLogger('api-track-presentation-event');
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      const text = await request.text();
+      body = text ? JSON.parse(text) : {};
+    } catch (parseError) {
+      logger.error("Failed to parse JSON body", parseError as Error, {
+        operation: 'parse_json_error',
+      });
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
     const {
       sessionId,
       eventType,

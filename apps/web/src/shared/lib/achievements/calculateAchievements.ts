@@ -293,10 +293,10 @@ export async function calculateAchievementsData(
 export function calculateAchievementsFromStores(
   courses: CourseWithProgressData[],
   stepStates: Record<string, { status: string; isFinished: boolean; timeLeft: number; isPaused: boolean }>,
-  getStepKey: (courseId: string, day: number, stepIndex: number) => string,
+  getStepKey: (courseId: string, dayOnCourseId: string, stepIndex: number) => string,
   cachedTrainingData?: Record<string, {
     trainingDays: {
-      day: number;
+      dayOnCourseId: string;
       title: string;
       type: string;
       courseId: string;
@@ -349,8 +349,11 @@ export function calculateAchievementsFromStores(
             _totalSteps += daySteps;
             
             // Подсчитываем завершенные шаги из stepStore
+            // Находим dayOnCourseId из кэшированных данных по индексу
+            const cachedDay = cachedTrainingData?.[course.id]?.trainingDays?.[dayIndex];
+            const dayOnCourseId = cachedDay?.dayOnCourseId || `${course.id}-day-${dayIndex}`;
             dayLink.day.stepLinks.forEach((stepLink, stepIndex) => {
-              const stepKey = getStepKey(course.id, dayIndex + 1, stepIndex);
+              const stepKey = getStepKey(course.id, dayOnCourseId, stepIndex);
               const stepState = stepStates[stepKey];
               if (stepState && stepState.status === "COMPLETED") {
                 _totalCompletedSteps++;

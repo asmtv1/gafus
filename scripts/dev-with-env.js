@@ -15,9 +15,9 @@ console.warn("🚀 Запуск dev режима с переменными ок�
 // Список приложений для запуска в dev режиме
 const apps = [
   { name: "Web App", filter: "@gafus/web", port: 3002, type: "next-dev" },
-  { name: "Trainer Panel", filter: "@gafus/trainer-panel", port: 3001, type: "next-dev" },
-  { name: "Admin Panel", filter: "@gafus/admin-panel", port: 3006, type: "next-dev" },
-  { name: "Error Dashboard", filter: "@gafus/error-dashboard", port: 3005, type: "next-dev" },
+  //{ name: "Trainer Panel", filter: "@gafus/trainer-panel", port: 3001, type: "next-dev" },
+  //{ name: "Admin Panel", filter: "@gafus/admin-panel", port: 3006, type: "next-dev" },
+  //{ name: "Error Dashboard", filter: "@gafus/error-dashboard", port: 3005, type: "next-dev" },
   { name: "Push Worker", filter: "@gafus/worker", port: null, type: "worker" },
 ];
 

@@ -2,15 +2,15 @@ import { TrainingStatus } from "@gafus/types";
 
 export type StepStates = Record<string, { status?: string }>;
 
-export function calculateDayStatus(courseId: string, day: number, stepStates: StepStates, totalSteps?: number): TrainingStatus {
-  const stepKeys = Object.keys(stepStates).filter((key) => key.startsWith(`${courseId}-${day}-`));
+export function calculateDayStatus(courseId: string, dayOnCourseId: string, stepStates: StepStates, totalSteps?: number): TrainingStatus {
+  const stepKeys = Object.keys(stepStates).filter((key) => key.startsWith(`${courseId}-${dayOnCourseId}-`));
   if (stepKeys.length === 0) return TrainingStatus.NOT_STARTED;
 
   // Если передан totalSteps, создаем массив статусов для всех шагов дня
   if (totalSteps !== undefined) {
     const stepStatuses: string[] = [];
     for (let i = 0; i < totalSteps; i++) {
-      const stepKey = `${courseId}-${day}-${i}`;
+      const stepKey = `${courseId}-${dayOnCourseId}-${i}`;
       const stepState = stepStates[stepKey];
       const status = stepState?.status || TrainingStatus.NOT_STARTED;
       stepStatuses.push(status);
@@ -47,6 +47,8 @@ export function calculateCourseStatus(courseId: string, stepStates: StepStates, 
     if (key.startsWith(`${courseId}-`)) {
       const parts = key.split('-');
       if (parts.length >= 3) {
+        // Формат ключа: ${courseId}-${dayOnCourseId}-${stepIndex}
+        // Сохраняем полный ключ дня: ${courseId}-${dayOnCourseId}
         dayKeys.add(`${courseId}-${parts[1]}`);
       }
     }
@@ -60,23 +62,13 @@ export function calculateCourseStatus(courseId: string, stepStates: StepStates, 
 
   if (effectiveTotalDays === 0) return TrainingStatus.NOT_STARTED;
 
-  let maxDay: number;
-  if (typeof totalDaysInCourse === 'number' && totalDaysInCourse > 0) {
-    maxDay = totalDaysInCourse;
-  } else {
-    const dayNumbers = Array.from(dayKeys)
-      .map((dayKey) => parseInt(dayKey.split('-')[1]))
-      .sort((a, b) => a - b);
-    maxDay = Math.max(...dayNumbers);
-  }
-
   // Если передан totalDaysInCourse, проверяем все дни курса
-  const daysToCheck = totalDaysInCourse ? totalDaysInCourse : maxDay;
-  
+  // Для расчета статуса курса используем все найденные dayOnCourseId
   const dayStatuses: TrainingStatus[] = [];
-  for (let day = 1; day <= daysToCheck; day++) {
-    dayStatuses.push(calculateDayStatus(courseId, day, stepStates));
-  }
+  dayKeys.forEach((dayKey) => {
+    const dayOnCourseId = dayKey.split('-').slice(1).join('-'); // Получаем dayOnCourseId из ключа
+    dayStatuses.push(calculateDayStatus(courseId, dayOnCourseId, stepStates));
+  });
 
   // Если есть информация о общем количестве дней, проверяем что все дни завершены
   if (totalDaysInCourse && dayStatuses.length === totalDaysInCourse) {

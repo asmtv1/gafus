@@ -8,14 +8,15 @@ import type { ChecklistQuestion, TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 import { dayIdSchema, trainingTypeSchema } from "../validation/schemas";
+import { NON_NUMBERED_DAY_TYPES } from "./dayTypes";
 
 const courseTypeSchema = trainingTypeSchema;
 
 /**
- * Пересчитывает номер дня для отображения, исключая дни типа "instructions"
+ * Пересчитывает номер дня для отображения, исключая не-тренировочные типы дней
  * @param dayLinks - Массив всех дней курса
  * @param currentIndex - Индекс текущего дня в массиве
- * @returns Пересчитанный номер дня (начиная с 1) или null для дней типа "instructions"
+ * @returns Пересчитанный номер дня (начиная с 1) или null для не-тренировочных дней
  */
 function calculateDisplayDayNumber(
   dayLinks: { day: { type: string } }[],
@@ -23,15 +24,15 @@ function calculateDisplayDayNumber(
 ): number | null {
   const currentDay = dayLinks[currentIndex];
   
-  // Если текущий день - "instructions", возвращаем null
-  if (currentDay.day.type === "instructions") {
+  // Если текущий день - не-тренировочный тип, возвращаем null
+  if (NON_NUMBERED_DAY_TYPES.includes(currentDay.day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])) {
     return null;
   }
   
-  // Подсчитываем количество дней до текущего, исключая "instructions"
+  // Подсчитываем количество дней до текущего, исключая не-тренировочные типы
   let displayNumber = 0;
   for (let i = 0; i <= currentIndex; i++) {
-    if (dayLinks[i].day.type !== "instructions") {
+    if (!NON_NUMBERED_DAY_TYPES.includes(dayLinks[i].day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])) {
       displayNumber++;
     }
   }
@@ -169,6 +170,10 @@ export async function getTrainingDayWithUserSteps(
     userTrainings,
   } = found;
 
+  // Используем foundDayOnCourseId (ID из DayOnCourse) для всех операций
+  // Это правильный ID, который должен использоваться вместо параметра dayOnCourseId
+  const correctDayOnCourseId = foundDayOnCourseId;
+
   // Пересчитываем номер дня для отображения
   const allDays = await prisma.dayOnCourse.findMany({
     where: { courseId },
@@ -219,7 +224,8 @@ export async function getTrainingDayWithUserSteps(
 
     return {
       trainingDayId,
-      day: displayDayNumber,
+      dayOnCourseId: correctDayOnCourseId, // Используем правильный ID из DayOnCourse
+      displayDayNumber,
       title,
       type,
       courseId,
@@ -374,7 +380,8 @@ export async function getTrainingDayWithUserSteps(
 
   return {
     trainingDayId,
-    day: displayDayNumber,
+    dayOnCourseId: correctDayOnCourseId, // Используем правильный ID из DayOnCourse
+    displayDayNumber: displayDayNumber, // Опциональное поле для отображения номера дня
     title,
     type,
     courseId,

@@ -79,7 +79,7 @@ export function useAchievementsFromStores() {
     // Получаем кэшированные данные дней тренировок из trainingStore
     const cachedTrainingData: Record<string, {
       trainingDays: {
-        day: number;
+        dayOnCourseId: string;
         title: string;
         type: string;
         courseId: string;

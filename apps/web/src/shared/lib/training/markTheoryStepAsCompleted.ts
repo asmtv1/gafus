@@ -9,13 +9,13 @@ import { updateUserStepStatus } from "./updateUserStepStatus";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
-import { courseIdSchema, dayNumberSchema, stepIndexSchema } from "../validation/schemas";
+import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
 
 const logger = createWebLogger('web-mark-theory-step-completed');
 
 const markTheoryStepSchema = z.object({
   courseId: courseIdSchema,
-  day: dayNumberSchema,
+  dayOnCourseId: dayIdSchema,
   stepIndex: stepIndexSchema,
   stepTitle: z.string().trim().optional(),
   stepOrder: z.number().int().min(0).optional(),
@@ -27,14 +27,14 @@ const markTheoryStepSchema = z.object({
  */
 export async function markTheoryStepAsCompleted(
   courseId: string,
-  day: number,
+  dayOnCourseId: string,
   stepIndex: number,
   stepTitle?: string,
   stepOrder?: number,
 ): Promise<{ success: boolean }> {
   const safeInput = markTheoryStepSchema.parse({
     courseId,
-    day,
+    dayOnCourseId,
     stepIndex,
     stepTitle,
     stepOrder,
@@ -47,8 +47,8 @@ export async function markTheoryStepAsCompleted(
     // Получаем информацию о шаге и проверяем его тип
     const stepInfo = await prisma.$transaction(
       async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-        const dayOnCourse = await tx.dayOnCourse.findFirst({
-          where: { courseId: safeInput.courseId, order: safeInput.day },
+        const dayOnCourse = await tx.dayOnCourse.findUnique({
+          where: { id: safeInput.dayOnCourseId },
           include: {
             day: {
               include: {
@@ -62,6 +62,12 @@ export async function markTheoryStepAsCompleted(
         });
 
         if (!dayOnCourse?.day) {
+          logger.error("DayOnCourse or day not found", new Error("DayOnCourse or day not found"), {
+            operation: "markTheoryStepAsCompleted",
+            courseId: safeInput.courseId,
+            dayOnCourseId: safeInput.dayOnCourseId,
+            stepIndex: safeInput.stepIndex,
+          });
           throw new Error("DayOnCourse or day not found");
         }
 
@@ -87,7 +93,7 @@ export async function markTheoryStepAsCompleted(
     await updateUserStepStatus(
       userId,
       safeInput.courseId,
-      safeInput.day,
+      safeInput.dayOnCourseId,
       safeInput.stepIndex,
       TrainingStatus.COMPLETED,
       stepInfo.stepTitle,
@@ -107,7 +113,7 @@ export async function markTheoryStepAsCompleted(
     logger.success("Theory step marked as completed", {
       userId,
       courseId: safeInput.courseId,
-      day: safeInput.day,
+      dayOnCourseId: safeInput.dayOnCourseId,
       stepIndex: safeInput.stepIndex,
     });
 
@@ -116,7 +122,7 @@ export async function markTheoryStepAsCompleted(
     logger.error("Failed to mark theory step as completed", error as Error, {
       operation: 'mark_theory_step_completed_failed',
       courseId: safeInput.courseId,
-      day: safeInput.day,
+      dayOnCourseId: safeInput.dayOnCourseId,
       stepIndex: safeInput.stepIndex,
       userId: userId,
     });
@@ -129,7 +135,7 @@ export async function markTheoryStepAsCompleted(
         operation: "markTheoryStepAsCompleted",
         action: "markTheoryStepAsCompleted",
         courseId: safeInput.courseId,
-        day: safeInput.day,
+        dayOnCourseId: safeInput.dayOnCourseId,
         stepIndex: safeInput.stepIndex,
         stepTitle: safeInput.stepTitle,
         stepOrder: safeInput.stepOrder,

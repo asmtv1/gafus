@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useCachedTrainingDays } from "@shared/hooks/useCachedTrainingDays";
 import { useStepStore } from "@shared/stores/stepStore";
 import { calculateDayStatus } from "@shared/utils/trainingCalculations";
+import { showLockedDayAlert } from "@shared/utils/sweetAlert";
+import { LockIcon } from "@/utils/muiImports";
 import styles from "./TrainingDayList.module.css";
 
 interface TrainingDayListProps {
@@ -13,7 +15,7 @@ interface TrainingDayListProps {
   initialData?: {
     trainingDays: {
       trainingDayId: string;
-      day: number;
+      dayOnCourseId: string;
       title: string;
       type: string;
       courseId: string;
@@ -21,6 +23,7 @@ interface TrainingDayListProps {
       estimatedDuration?: number;
        theoryMinutes?: number;
       equipment?: string;
+      isLocked?: boolean;
     }[];
     courseDescription: string | null;
     courseId: string | null;
@@ -51,45 +54,45 @@ const TrainingDayList = memo(function TrainingDayList({
   }, []);
 
   // Определяем текущий день для индикатора "Вы здесь"
-  const getCurrentDayNumber = useCallback((days: {
-    day: number;
+  const getCurrentDayIndex = useCallback((days: {
+    dayOnCourseId: string;
     courseId: string;
     userStatus: string;
   }[]) => {
     // 1. Ищем первый день IN_PROGRESS
-    const inProgressDay = days.find((day) => {
-      const localStatus = calculateDayStatus(day.courseId, day.day, stepStates);
+    const inProgressDayIndex = days.findIndex((day) => {
+      const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
       const finalStatus = rank(localStatus) > rank(day.userStatus) ? localStatus : day.userStatus;
       return finalStatus === "IN_PROGRESS";
     });
     
-    if (inProgressDay) return inProgressDay.day;
+    if (inProgressDayIndex !== -1) return inProgressDayIndex;
 
     // 2. Ищем последний COMPLETED и возвращаем следующий
-    let lastCompletedDay = 0;
-    days.forEach((day) => {
-      const localStatus = calculateDayStatus(day.courseId, day.day, stepStates);
+    let lastCompletedIndex = -1;
+    days.forEach((day, index) => {
+      const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
       const finalStatus = rank(localStatus) > rank(day.userStatus) ? localStatus : day.userStatus;
       if (finalStatus === "COMPLETED") {
-        lastCompletedDay = Math.max(lastCompletedDay, day.day);
+        lastCompletedIndex = index;
       }
     });
 
-    if (lastCompletedDay > 0 && lastCompletedDay < days.length) {
-      return lastCompletedDay + 1;
+    if (lastCompletedIndex !== -1 && lastCompletedIndex < days.length - 1) {
+      return lastCompletedIndex + 1;
     }
 
     // 3. По умолчанию - первый день
-    return days[0]?.day || 1;
+    return 0;
   }, [stepStates]);
 
   const typeLabels: Record<string, string> = {
     base: "Базовый день",
     regular: "Тренировочный день",
-    introduction: "Вводный день",
-    test: "Проверочный или экзаменационный день",
-    rest: "День отдыха",
+    introduction: "Вводный блок",
     instructions: "Инструкции",
+    diagnostics: "Диагностика",
+    summary: "Подведение итогов",
   };
 
   const rank = (s?: string) => {
@@ -133,17 +136,17 @@ const TrainingDayList = memo(function TrainingDayList({
     );
   }
 
-  const currentDayNumber = getCurrentDayNumber(displayData.trainingDays);
+  const currentDayIndex = getCurrentDayIndex(displayData.trainingDays);
 
   return (
     <ul className={styles.list}>
-      {displayData.trainingDays.map((day) => {
-        const isCurrent = day.day === currentDayNumber;
+      {displayData.trainingDays.map((day, index) => {
+        const isCurrent = index === currentDayIndex;
         
         if (process.env.NODE_ENV !== "production") {
           // Отладка времени по дню: таймеры vs теория
           console.warn("[TrainingDayList] Day time debug", {
-            dayNumber: day.day,
+            dayOnCourseId: day.dayOnCourseId,
             title: day.title,
             estimatedDuration: day.estimatedDuration,
             theoryMinutes: day.theoryMinutes,
@@ -153,15 +156,15 @@ const TrainingDayList = memo(function TrainingDayList({
 
         return (
           <li
-            key={`${day.courseId}-${day.day}`}
+            key={`${day.courseId}-${day.dayOnCourseId}`}
             className={(() => {
               // Вычисляем локальный статус дня из stepStore
-              const localStatus = calculateDayStatus(day.courseId, day.day, stepStates);
+              const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
               // Не понижаем статус: берем максимум между серверным и локальным
               const finalStatus = rank(localStatus) > rank(day.userStatus)
                 ? localStatus
                 : day.userStatus;
-              return getItemClass(finalStatus, day.day);
+              return getItemClass(finalStatus, index + 1);
             })()}
           >
             {isCurrent && (
@@ -172,8 +175,14 @@ const TrainingDayList = memo(function TrainingDayList({
             )}
             <Link
               href={`/trainings/${courseType}/${day.trainingDayId}`}
-              className={styles.link}
+              className={`${styles.link} ${day.isLocked ? styles.locked : ""}`}
               prefetch={false}
+              onClick={(e) => {
+                if (day.isLocked) {
+                  e.preventDefault();
+                  showLockedDayAlert();
+                }
+              }}
             >
               {(day.estimatedDuration ?? 0) > 0 || (day.theoryMinutes ?? 0) > 0 ? (
                 <div className={styles.timeBadgeWrapper}>
@@ -191,8 +200,17 @@ const TrainingDayList = memo(function TrainingDayList({
                   )}
                 </div>
               ) : null}
-              <div className={styles.card}>
-                <h2 className={styles.dayTitle}>{day.title}</h2>
+              <div className={`${styles.card} ${day.isLocked ? styles.locked : ""}`}>
+              {day.isLocked && (
+                    <div className={styles.lockBadge}>
+                      <LockIcon className={styles.lockIcon} />
+                      <span>Заблокировано</span>
+                    </div>
+                  )}
+                <div className={styles.titleWithLock}>
+                  <h2 className={styles.dayTitle}>{day.title}</h2>
+                 
+                </div>
                 <p className={styles.subtitle}>({typeLabels[day.type] || day.type})</p>
                 <p>Что понадобится:</p>
                 <p className={styles.equipment}>{day.equipment || "вкусняшки и терпение"}</p>

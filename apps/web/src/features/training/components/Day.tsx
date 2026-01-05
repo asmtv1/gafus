@@ -53,8 +53,8 @@ export function Day({ training, courseType }: DayProps) {
 
   // Утилиты для работы с ключами
   const getStepKey = useCallback(
-    (stepIndex: number) => `${training.courseId}-${training.day}-${stepIndex}`,
-    [training.courseId, training.day],
+    (stepIndex: number) => `${training.courseId}-${training.dayOnCourseId}-${stepIndex}`,
+    [training.courseId, training.dayOnCourseId],
   );
 
   // Обработчики событий
@@ -62,31 +62,31 @@ export function Day({ training, courseType }: DayProps) {
     async (stepIndex: number) => {
       if (stepIndex === -1) {
         setRunningIndex(null);
-        setStoreRunningIndex(training.courseId, training.day, null);
+        setStoreRunningIndex(training.courseId, training.dayOnCourseId, null);
         return;
       }
 
       setRunningIndex(stepIndex);
-      setStoreRunningIndex(training.courseId, training.day, stepIndex);
+      setStoreRunningIndex(training.courseId, training.dayOnCourseId, stepIndex);
     },
-    [training.courseId, training.day, setStoreRunningIndex],
+    [training.courseId, training.dayOnCourseId, setStoreRunningIndex],
   );
 
   const handleReset = useCallback(
     (stepIndex: number) => {
       if (runningIndex === stepIndex) {
         setRunningIndex(null);
-        setStoreRunningIndex(training.courseId, training.day, null);
+        setStoreRunningIndex(training.courseId, training.dayOnCourseId, null);
       }
     },
-    [runningIndex, training.courseId, training.day, setStoreRunningIndex],
+    [runningIndex, training.courseId, training.dayOnCourseId, setStoreRunningIndex],
   );
 
   const handleToggleOpen = useCallback(
     async (index: number) => {
       const newOpenIndex = openIndex === index ? null : index;
       setOpenIndex(newOpenIndex);
-      setStoreOpenIndex(training.courseId, training.day, newOpenIndex);
+      setStoreOpenIndex(training.courseId, training.dayOnCourseId, newOpenIndex);
 
       // Если открываем шаг типа THEORY с статусом NOT_STARTED, отмечаем его как завершенный
       if (newOpenIndex !== null) {
@@ -99,14 +99,14 @@ export function Day({ training, courseType }: DayProps) {
           try {
             await markTheoryStepAsCompleted(
               training.courseId,
-              training.day,
+              training.dayOnCourseId,
               index,
               step.title,
               step.order,
             );
             
             // Обновляем локальное состояние шага на COMPLETED
-            updateStepStatus(training.courseId, training.day, index, "COMPLETED");
+            updateStepStatus(training.courseId, training.dayOnCourseId, index, "COMPLETED");
           } catch (error) {
             // Ошибка уже обработана в server action, не прерываем работу UI
             console.error("Failed to mark theory step as completed:", error);
@@ -114,7 +114,7 @@ export function Day({ training, courseType }: DayProps) {
         }
       }
     },
-    [openIndex, training.courseId, training.day, training.steps, stepStates, getStepKey, setStoreOpenIndex, updateStepStatus],
+    [openIndex, training.courseId, training.dayOnCourseId, training.steps, stepStates, getStepKey, setStoreOpenIndex, updateStepStatus],
   );
 
   const handleToggleDescription = useCallback(() => {
@@ -128,7 +128,7 @@ export function Day({ training, courseType }: DayProps) {
       training.steps.forEach((step, index) => {
         initializeStep(
           training.courseId,
-          training.day,
+          training.dayOnCourseId,
           index,
           step.durationSec,
           step.status,
@@ -138,8 +138,8 @@ export function Day({ training, courseType }: DayProps) {
     } catch {
       // no-op
     }
-    const savedOpenIndex = getOpenIndex(training.courseId, training.day);
-    const savedRunningIndex = getRunningIndex(training.courseId, training.day);
+    const savedOpenIndex = getOpenIndex(training.courseId, training.dayOnCourseId);
+    const savedRunningIndex = getRunningIndex(training.courseId, training.dayOnCourseId);
 
     if (savedOpenIndex !== null) {
       setOpenIndex(savedOpenIndex);
@@ -151,18 +151,18 @@ export function Day({ training, courseType }: DayProps) {
 
     const activeStepIndex = findRunningStepIndex(
       training.courseId,
-      training.day,
+      training.dayOnCourseId,
       training.steps.length,
     );
 
     if (activeStepIndex !== null) {
       setRunningIndex(activeStepIndex);
-      setStoreRunningIndex(training.courseId, training.day, activeStepIndex);
+      setStoreRunningIndex(training.courseId, training.dayOnCourseId, activeStepIndex);
     }
 
   }, [
     training.courseId,
-    training.day,
+    training.dayOnCourseId,
     training.steps,
     findRunningStepIndex,
     setStoreRunningIndex,
@@ -177,7 +177,15 @@ export function Day({ training, courseType }: DayProps) {
     <div className={styles.main}>
       <div className={styles.dayHeader}>
         <h2 className={styles.dayTitle}>
-          {training.type === "instructions" ? "Инструкции" : `День ${training.day}`}
+          {training.type === "instructions"
+            ? "Инструкции"
+            : training.type === "introduction"
+              ? "Вводный блок"
+              : training.type === "diagnostics"
+                ? "Диагностика"
+                : training.type === "summary"
+                  ? "Подведение итогов"
+                  : training.displayDayNumber ? `День ${training.displayDayNumber}` : "День"}
         </h2>
       </div>
       <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ''}`}>
@@ -258,7 +266,7 @@ export function Day({ training, courseType }: DayProps) {
                 <AccordionStep
                   courseId={training.courseId}
                   courseType={courseType}
-                  day={training.day}
+                  dayOnCourseId={training.dayOnCourseId}
                   stepIndex={index}
                   durationSec={step.durationSec}
                   estimatedDurationSec={step.estimatedDurationSec ?? null}

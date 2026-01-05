@@ -10,14 +10,14 @@ import { updateUserStepStatus } from "./updateUserStepStatus";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
-import { courseIdSchema, dayNumberSchema, stepIndexSchema } from "../validation/schemas";
+import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
 
 // Создаем логгер для startUserStepServerAction
 const logger = createWebLogger('web-start-user-step-server-action');
 
 const startStepSchema = z.object({
   courseId: courseIdSchema,
-  day: dayNumberSchema,
+  dayOnCourseId: dayIdSchema,
   stepIndex: stepIndexSchema,
   status: z.nativeEnum(TrainingStatus, {
     errorMap: () => ({ message: "Некорректный статус шага" }),
@@ -27,12 +27,12 @@ const startStepSchema = z.object({
 
 export async function startUserStepServerAction(
   courseId: string,
-  day: number,
+  dayOnCourseId: string,
   stepIndex: number,
   status: TrainingStatus,
   durationSec: number,
 ): Promise<{ success: boolean }> {
-  const safeInput = startStepSchema.parse({ courseId, day, stepIndex, status, durationSec });
+  const safeInput = startStepSchema.parse({ courseId, dayOnCourseId, stepIndex, status, durationSec });
   let userId: string | null = null;
   try {
     userId = await getCurrentUserId();
@@ -41,8 +41,8 @@ export async function startUserStepServerAction(
 
     const stepInfo = await prisma.$transaction(
       async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-        const dayOnCourse = await tx.dayOnCourse.findFirst({
-          where: { courseId: safeInput.courseId, order: safeInput.day },
+        const dayOnCourse = await tx.dayOnCourse.findUnique({
+          where: { id: safeInput.dayOnCourseId },
           include: {
             day: {
               include: {
@@ -52,11 +52,15 @@ export async function startUserStepServerAction(
                 },
               },
             },
-            course: true,
+            course: {
+              select: {
+                type: true,
+              },
+            },
           },
         });
 
-        if (!dayOnCourse?.day) {
+        if (!dayOnCourse?.day || !dayOnCourse?.course) {
           throw new Error("DayOnCourse or day not found");
         }
 
@@ -70,7 +74,7 @@ export async function startUserStepServerAction(
           step: stepLink.step,
           stepTitle: stepLink.step.title,
           stepOrder: stepLink.order,
-          trainingUrl: `/trainings/${safeInput.courseId}/${dayOnCourse.id}`,
+          trainingUrl: `/trainings/${dayOnCourse.course.type}/${dayOnCourse.id}`,
         };
       },
     );
@@ -80,7 +84,7 @@ export async function startUserStepServerAction(
     await updateUserStepStatus(
       userId,
       safeInput.courseId,
-      safeInput.day,
+      safeInput.dayOnCourseId,
       safeInput.stepIndex,
       safeInput.status,
       stepInfo.stepTitle,
@@ -120,11 +124,17 @@ export async function startUserStepServerAction(
     }
 
     // Создаем уведомления при старте шага (для push-уведомлений по завершении)
+    // Получаем day (order) из dayOnCourse для обратной совместимости с createStepNotificationsForUserStep
+    const dayOnCourseForNotification = await prisma.dayOnCourse.findUnique({
+      where: { id: safeInput.dayOnCourseId },
+      select: { order: true },
+    });
+    const dayForNotification = dayOnCourseForNotification?.order ?? 0;
 
     try {
       await createStepNotificationsForUserStep({
         userId,
-        day: safeInput.day,
+        day: dayForNotification,
         stepIndex: safeInput.stepIndex,
         stepTitle: stepInfo.stepTitle,
         durationSec: safeInput.durationSec,
@@ -134,7 +144,7 @@ export async function startUserStepServerAction(
       logger.error("❌ Failed to create step notifications", notificationError as Error, {
         operation: 'create_step_notifications_error',
         courseId: courseId,
-        day: day,
+        dayOnCourseId: dayOnCourseId,
         stepIndex: stepIndex,
         userId: userId
       });
@@ -156,7 +166,7 @@ export async function startUserStepServerAction(
     logger.error("💥 startUserStepServerAction failed", error as Error, {
       operation: 'start_user_step_server_action_failed',
       courseId: courseId,
-      day: day,
+      dayOnCourseId: dayOnCourseId,
       stepIndex: stepIndex,
       userId: userId
     });
@@ -168,7 +178,7 @@ export async function startUserStepServerAction(
         operation: "startUserStepServerAction",
         action: "startUserStepServerAction",
         courseId: safeInput.courseId,
-        day: safeInput.day,
+        dayOnCourseId: safeInput.dayOnCourseId,
         stepIndex: safeInput.stepIndex,
         status: safeInput.status,
         durationSec: safeInput.durationSec,

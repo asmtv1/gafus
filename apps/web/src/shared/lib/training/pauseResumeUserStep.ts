@@ -7,52 +7,57 @@ import { createWebLogger } from "@gafus/logger";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
-import { courseIdSchema, dayNumberSchema, stepIndexSchema } from "../validation/schemas";
+import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
 
 const logger = createWebLogger('web');
 
 const pauseSchema = z.object({
   courseId: courseIdSchema,
-  day: dayNumberSchema,
+  dayOnCourseId: dayIdSchema,
   stepIndex: stepIndexSchema,
   timeLeftSec: z.number().min(0, "Оставшееся время должно быть неотрицательным"),
 });
 
 const resumeSchema = z.object({
   courseId: courseIdSchema,
-  day: dayNumberSchema,
+  dayOnCourseId: dayIdSchema,
   stepIndex: stepIndexSchema,
 });
 
-async function findDayOnCourse(courseId: string, day: number) {
-  return prisma.dayOnCourse.findFirst({
-    where: { courseId, order: day },
-    include: {
-      day: {
-        include: {
-          stepLinks: {
-            orderBy: { order: "asc" },
-            include: { step: true },
-          },
-        },
-      },
-    },
-  });
-}
-
 export async function pauseUserStepServerAction(
   courseId: string,
-  day: number,
+  dayOnCourseId: string,
   stepIndex: number,
   timeLeftSec: number,
 ): Promise<{ success: boolean }> {
-  const safeInput = pauseSchema.parse({ courseId, day, stepIndex, timeLeftSec });
+  const safeInput = pauseSchema.parse({ courseId, dayOnCourseId, stepIndex, timeLeftSec });
   const userId = await getCurrentUserId();
 
   try {
     await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-      const dayOnCourse = await findDayOnCourse(safeInput.courseId, safeInput.day);
-      if (!dayOnCourse?.day) throw new Error("DayOnCourse or day not found");
+      const dayOnCourse = await tx.dayOnCourse.findUnique({
+        where: { id: safeInput.dayOnCourseId },
+        include: {
+          day: {
+            include: {
+              stepLinks: {
+                orderBy: { order: "asc" },
+                include: { step: true },
+              },
+            },
+          },
+        },
+      });
+      
+      if (!dayOnCourse?.day) {
+        logger.error("DayOnCourse or day not found", new Error("DayOnCourse or day not found"), {
+          operation: "pauseUserStepServerAction",
+          courseId: safeInput.courseId,
+          dayOnCourseId: safeInput.dayOnCourseId,
+          stepIndex: safeInput.stepIndex,
+        });
+        throw new Error("DayOnCourse or day not found");
+      }
 
       const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
       if (!stepLink) throw new Error("Step not found by index");
@@ -112,7 +117,7 @@ export async function pauseUserStepServerAction(
         operation: "pauseUserStepServerAction",
         action: "pauseUserStepServerAction",
         courseId: safeInput.courseId,
-        day: safeInput.day,
+        dayOnCourseId: safeInput.dayOnCourseId,
         stepIndex: safeInput.stepIndex,
         timeLeftSec: safeInput.timeLeftSec,
         tags: ["training", "step-pause", "server-action"],
@@ -124,16 +129,37 @@ export async function pauseUserStepServerAction(
 
 export async function resumeUserStepServerAction(
   courseId: string,
-  day: number,
+  dayOnCourseId: string,
   stepIndex: number,
 ): Promise<{ success: boolean }> {
-  const safeInput = resumeSchema.parse({ courseId, day, stepIndex });
+  const safeInput = resumeSchema.parse({ courseId, dayOnCourseId, stepIndex });
   const userId = await getCurrentUserId();
 
   try {
     await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-      const dayOnCourse = await findDayOnCourse(safeInput.courseId, safeInput.day);
-      if (!dayOnCourse?.day) throw new Error("DayOnCourse or day not found");
+      const dayOnCourse = await tx.dayOnCourse.findUnique({
+        where: { id: safeInput.dayOnCourseId },
+        include: {
+          day: {
+            include: {
+              stepLinks: {
+                orderBy: { order: "asc" },
+                include: { step: true },
+              },
+            },
+          },
+        },
+      });
+      
+      if (!dayOnCourse?.day) {
+        logger.error("DayOnCourse or day not found", new Error("DayOnCourse or day not found"), {
+          operation: "resumeUserStepServerAction",
+          courseId: safeInput.courseId,
+          dayOnCourseId: safeInput.dayOnCourseId,
+          stepIndex: safeInput.stepIndex,
+        });
+        throw new Error("DayOnCourse or day not found");
+      }
 
       const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
       if (!stepLink) throw new Error("Step not found by index");
@@ -179,7 +205,7 @@ export async function resumeUserStepServerAction(
         operation: "resumeUserStepServerAction",
         action: "resumeUserStepServerAction",
         courseId: safeInput.courseId,
-        day: safeInput.day,
+        dayOnCourseId: safeInput.dayOnCourseId,
         stepIndex: safeInput.stepIndex,
         tags: ["training", "step-resume", "server-action"],
       }

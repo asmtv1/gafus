@@ -14,6 +14,8 @@ import { optionalTrainingTypeSchema, optionalUserIdSchema } from "../validation/
 // Создаем логгер для getTrainingDays
 const logger = createWebLogger("web-get-training-days");
 
+import { NON_NUMBERED_DAY_TYPES } from "./dayTypes";
+
 type CourseWithDayLinks = {
   id: string;
   description: string | null;
@@ -41,10 +43,10 @@ type CourseWithDayLinks = {
 };
 
 /**
- * Пересчитывает номер дня для отображения, исключая дни типа "instructions"
+ * Пересчитывает номер дня для отображения, исключая не-тренировочные типы дней
  * @param dayLinks - Массив всех дней курса
  * @param currentIndex - Индекс текущего дня в массиве
- * @returns Пересчитанный номер дня (начиная с 1) или null для дней типа "instructions"
+ * @returns Пересчитанный номер дня (начиная с 1) или null для не-тренировочных дней
  */
 function calculateDisplayDayNumber(
   dayLinks: CourseWithDayLinks["dayLinks"],
@@ -52,15 +54,15 @@ function calculateDisplayDayNumber(
 ): number | null {
   const currentDay = dayLinks[currentIndex];
   
-  // Если текущий день - "instructions", возвращаем null
-  if (currentDay.day.type === "instructions") {
+  // Если текущий день - не-тренировочный тип, возвращаем null
+  if (NON_NUMBERED_DAY_TYPES.includes(currentDay.day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])) {
     return null;
   }
   
-  // Подсчитываем количество дней до текущего, исключая "instructions"
+  // Подсчитываем количество дней до текущего, исключая не-тренировочные типы
   let displayNumber = 0;
   for (let i = 0; i <= currentIndex; i++) {
-    if (dayLinks[i].day.type !== "instructions") {
+    if (!NON_NUMBERED_DAY_TYPES.includes(dayLinks[i].day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])) {
       displayNumber++;
     }
   }
@@ -69,6 +71,24 @@ function calculateDisplayDayNumber(
 }
 
 function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
+  // Предварительно вычисляем статусы всех дней для проверки блокировки summary
+  const dayStatuses = firstCourse.dayLinks.map((link) => {
+    const ut = link.userTrainings[0];
+    const allStepStatuses: string[] = [];
+    for (const stepLink of link.day.stepLinks) {
+      const userStep = ut?.steps?.find(
+        (s: { stepOnDayId: string }) => s.stepOnDayId === stepLink.id,
+      );
+      allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
+    }
+    const computed = calculateDayStatusFromStatuses(allStepStatuses);
+    return {
+      id: link.id,
+      type: link.day.type,
+      status: ut ? computed : TrainingStatus.NOT_STARTED,
+    };
+  });
+
   return firstCourse.dayLinks.map(
     (link: {
       id: string;
@@ -94,6 +114,19 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
 
       const computed = calculateDayStatusFromStatuses(allStepStatuses);
       const userStatus = ut ? computed : TrainingStatus.NOT_STARTED;
+
+      // Проверяем блокировку для дня типа summary
+      let isLocked = false;
+      if (link.day.type === "summary") {
+        // Проверяем, что все остальные дни (кроме summary) завершены
+        const allOtherDaysCompleted = dayStatuses.every((dayStatus) => {
+          if (dayStatus.id === link.id) {
+            return true; // Пропускаем сам summary день
+          }
+          return dayStatus.status === TrainingStatus.COMPLETED;
+        });
+        isLocked = !allOtherDaysCompleted;
+      }
 
       // Время дня для бейджа: учитываем ТОЛЬКО тренировочные шаги (таймеры)
       let trainingSeconds = 0;
@@ -131,7 +164,7 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
 
       return {
         trainingDayId: link.id,
-        day: displayDay ?? link.order, // Используем пересчитанный номер или физический order для "instructions"
+        dayOnCourseId: link.id, // Используем ID дня в курсе
         title: link.day.title,
         type: link.day.type,
         courseId: firstCourse.id,
@@ -139,6 +172,7 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
         estimatedDuration,
         theoryMinutes,
         equipment: link.day.equipment || "",
+        isLocked,
       };
     },
   );
@@ -150,8 +184,8 @@ export async function getTrainingDays(
 ): Promise<{
   trainingDays: (Pick<
     TrainingDetail,
-    "trainingDayId" | "day" | "title" | "type" | "courseId" | "userStatus"
-  > & { estimatedDuration: number; theoryMinutes: number; equipment: string })[];
+    "trainingDayId" | "title" | "type" | "courseId" | "userStatus"
+  > & { dayOnCourseId: string; estimatedDuration: number; theoryMinutes: number; equipment: string; isLocked: boolean })[];
   courseDescription: string | null;
   courseId: string | null;
   courseVideoUrl: string | null;

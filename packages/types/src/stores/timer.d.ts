@@ -8,7 +8,7 @@ export interface TimerStore {
     cleanupTimers: () => void;
     startStepWithServer: (courseId: string, day: number, stepIndex: number, durationSec: number) => Promise<void>;
     finishStepWithServer: (courseId: string, day: number, stepIndex: number, stepTitle: string, stepOrder: number) => Promise<void>;
-    resetStepWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
+    resetStepWithServer: (courseId: string, day: number, stepIndex: number, durationSec: number) => Promise<void>;
     pauseNotification: (courseId: string, day: number, stepIndex: number) => Promise<void>;
     resumeNotification: (courseId: string, day: number, stepIndex: number, durationSec: number) => Promise<void>;
     pauseStepOffline: (courseId: string, day: number, stepIndex: number) => void;

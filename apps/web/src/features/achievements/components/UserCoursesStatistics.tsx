@@ -85,7 +85,7 @@ export default function UserCoursesStatistics() {
   const cachedTrainingData = useMemo(() => {
     const data: Record<string, {
       trainingDays: {
-        day: number;
+        dayOnCourseId: string;
         title: string;
         type: string;
         courseId: string;
@@ -181,7 +181,7 @@ function CourseStatisticsCard({
   currentUserId?: string;
   cachedTrainingData?: {
     trainingDays: {
-      day: number;
+      dayOnCourseId: string;
       title: string;
       type: string;
       courseId: string;
@@ -193,7 +193,7 @@ function CourseStatisticsCard({
   };
   isAssigned?: boolean;
   stepStates: Record<string, { status: string; isFinished: boolean; timeLeft: number; isPaused: boolean }>;
-  getStepKey: (courseId: string, day: number, stepIndex: number) => string;
+  getStepKey: (courseId: string, dayOnCourseId: string, stepIndex: number) => string;
 }) {
   // Вычисляем общее количество дней и шагов
   const totalDays = course.dayLinks?.length || 0;
@@ -220,8 +220,11 @@ function CourseStatisticsCard({
     if (course.dayLinks) {
       course.dayLinks.forEach((dayLink, dayIndex) => {
         if (dayLink.day?.stepLinks) {
+          // Находим dayOnCourseId из кэшированных данных по индексу
+          const cachedDay = cachedTrainingData?.trainingDays?.[dayIndex];
+          const dayOnCourseId = cachedDay?.dayOnCourseId || `${course.id}-day-${dayIndex}`;
           dayLink.day.stepLinks.forEach((_, stepIndex) => {
-            const stepKey = getStepKey(course.id, dayIndex + 1, stepIndex);
+            const stepKey = getStepKey(course.id, dayOnCourseId, stepIndex);
             const stepState = stepStates[stepKey];
             if (stepState && stepState.status === TrainingStatus.COMPLETED) {
               completedStepsFromStepStore++;
@@ -305,9 +308,8 @@ function CourseStatisticsCard({
             const dayProgress = progress?.days?.find((day) => day.dayOrder === dayNumber);
             
             // Проверяем также кэшированные данные
-            const cachedDay = cachedTrainingData?.trainingDays?.find(
-              (day) => day.day === dayNumber
-            );
+            // Находим день по индексу в массиве (так как порядок сохранен)
+            const cachedDay = cachedTrainingData?.trainingDays?.[index];
             
             // Используем ту же логику, что и для подсчета завершенных дней
             let isCompleted = dayProgress?.status === TrainingStatus.COMPLETED || 

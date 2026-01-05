@@ -18,7 +18,7 @@ const logger = createWebLogger('web-use-cached-training-days');
 interface TrainingDaysData {
   trainingDays: {
     trainingDayId: string;
-    day: number;
+    dayOnCourseId: string;
     title: string;
     type: string;
     courseId: string;
@@ -26,6 +26,7 @@ interface TrainingDaysData {
     estimatedDuration?: number;
     theoryMinutes?: number;
     equipment?: string;
+    isLocked?: boolean;
   }[];
   courseDescription: string | null;
   courseId: string | null;
@@ -91,7 +92,7 @@ export function useCachedTrainingDays(
 
               return {
                 trainingDayId: day.id,
-                day: day.order,
+                dayOnCourseId: day.id,
                 title: day.title,
                 type: day.type,
                 courseId: offlineCourse.courseId,

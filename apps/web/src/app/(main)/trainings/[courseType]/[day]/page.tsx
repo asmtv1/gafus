@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { Day } from "@features/training/components/Day";
 import { getTrainingDayWithUserSteps } from "@shared/lib/training/getTrainingDayWithUserSteps";
+import { checkDayAccess } from "@shared/lib/training/checkDayAccess";
 import { generatePageMetadata } from "@gafus/metadata";
 import { dayIdSchema } from "@shared/lib/validation/schemas";
 
@@ -13,6 +15,13 @@ export default async function DayPage(props: {
 
   // Валидируем, что day является корректным ID
   const dayId = dayIdSchema.parse(day);
+
+  // Проверяем доступ к дню (для дней типа summary)
+  const accessCheck = await checkDayAccess(dayId);
+  if (!accessCheck.allowed) {
+    // Редиректим на список дней с параметром locked
+    redirect(`/trainings/${courseType}?locked=true`);
+  }
 
   // Создаем UserTraining при необходимости (только в компоненте страницы)
   const training: TrainingDetail | null = await getTrainingDayWithUserSteps(

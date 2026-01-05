@@ -89,7 +89,7 @@ export const commonValidationRules = {
   dayType: {
     required: "Тип дня обязателен",
     validate: (value: unknown) => {
-      const validTypes = ["regular", "introduction", "test", "rest", "instructions"];
+      const validTypes = ["regular", "introduction", "instructions", "diagnostics", "summary"];
       return validTypes.includes(String(value)) || "Выберите корректный тип дня";
     },
   },

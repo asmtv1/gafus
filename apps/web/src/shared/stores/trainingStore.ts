@@ -20,17 +20,17 @@ export const useTrainingStore = create<TrainingState>()(
       cachedTrainingDays: {},
 
       // ===== УТИЛИТЫ =====
-      getStepKey: (courseId, day, stepIndex) => `${courseId}-${day}-${stepIndex}`,
-      getDayKey: (courseId, day) => `${courseId}-${day}`,
+      getStepKey: (courseId, dayOnCourseId, stepIndex) => `${courseId}-${dayOnCourseId}-${stepIndex}`,
+      getDayKey: (courseId, dayOnCourseId) => `${courseId}-${dayOnCourseId}`,
 
       // ===== ГЕТТЕРЫ =====
-      getOpenIndex: (courseId, day) => {
-        const dayKey = get().getDayKey(courseId, day);
+      getOpenIndex: (courseId, dayOnCourseId) => {
+        const dayKey = get().getDayKey(courseId, dayOnCourseId);
         return get().openIndexes[dayKey] ?? null;
       },
 
-      getRunningIndex: (courseId, day) => {
-        const dayKey = get().getDayKey(courseId, day);
+      getRunningIndex: (courseId, dayOnCourseId) => {
+        const dayKey = get().getDayKey(courseId, dayOnCourseId);
         return get().runningSteps[dayKey] ?? null;
       },
 
@@ -85,8 +85,8 @@ export const useTrainingStore = create<TrainingState>()(
 
 
       // ===== ДЕЙСТВИЯ ДЛЯ ДНЯ =====
-      setOpenIndex: (courseId, day, index) => {
-        const dayKey = get().getDayKey(courseId, day);
+      setOpenIndex: (courseId, dayOnCourseId, index) => {
+        const dayKey = get().getDayKey(courseId, dayOnCourseId);
         set((state) => ({
           openIndexes: {
             ...state.openIndexes,
@@ -95,8 +95,8 @@ export const useTrainingStore = create<TrainingState>()(
         }));
       },
 
-      setRunningIndex: (courseId, day, index) => {
-        const dayKey = get().getDayKey(courseId, day);
+      setRunningIndex: (courseId, dayOnCourseId, index) => {
+        const dayKey = get().getDayKey(courseId, dayOnCourseId);
         set((state) => ({
           runningSteps: {
             ...state.runningSteps,
@@ -124,8 +124,8 @@ export const useTrainingStore = create<TrainingState>()(
       },
 
       // ===== ПОИСК АКТИВНОГО ШАГА =====
-      findRunningStepIndex: (courseId, day, totalSteps) => {
-        const dayKey = get().getDayKey(courseId, day);
+      findRunningStepIndex: (courseId, dayOnCourseId, totalSteps) => {
+        const dayKey = get().getDayKey(courseId, dayOnCourseId);
         const runningIndex = get().runningSteps[dayKey];
 
         if (runningIndex === null || runningIndex < 0 || runningIndex >= totalSteps) {
@@ -136,28 +136,32 @@ export const useTrainingStore = create<TrainingState>()(
       },
 
       // ===== СЕРВЕРНЫЕ ДЕЙСТВИЯ =====
-      togglePauseWithServer: async (courseId: string, day: number, stepIndex: number) => {
+      togglePauseWithServer: async (courseId: string, dayOnCourseId: string, stepIndex: number) => {
         try {
-          await toggleStepNotificationPause(day, stepIndex, true);
+          // TODO: Обновить toggleStepNotificationPause для использования dayOnCourseId
+          // Временно используем day: 0 как заглушку, так как функция еще не обновлена
+          await toggleStepNotificationPause(0, stepIndex, true);
         } catch (error) {
           logger.error(`togglePauseWithServer error`, error as Error, {
             operation: 'toggle_pause_with_server_error',
             courseId: courseId,
-            day: day,
+            dayOnCourseId: dayOnCourseId,
             stepIndex: stepIndex
           });
           throw error;
         }
       },
 
-      resumeNotificationWithServer: async (courseId: string, day: number, stepIndex: number) => {
+      resumeNotificationWithServer: async (courseId: string, dayOnCourseId: string, stepIndex: number) => {
         try {
-          await toggleStepNotificationPause(day, stepIndex, false);
+          // TODO: Обновить toggleStepNotificationPause для использования dayOnCourseId
+          // Временно используем day: 0 как заглушку, так как функция еще не обновлена
+          await toggleStepNotificationPause(0, stepIndex, false);
         } catch (error) {
           logger.error(`resumeNotificationWithServer error`, error as Error, {
             operation: 'resume_notification_with_server_error',
             courseId: courseId,
-            day: day,
+            dayOnCourseId: dayOnCourseId,
             stepIndex: stepIndex
           });
           throw error;

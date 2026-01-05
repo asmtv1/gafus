@@ -14,7 +14,7 @@ const logger = createWebLogger('web');
 
 export interface NotificationAction {
   courseId: string;
-  day: number;
+  dayOnCourseId: string;
   stepIndex: number;
   durationSec?: number;
 }
@@ -26,7 +26,7 @@ export async function pauseNotificationClient(
   action: NotificationAction,
 ): Promise<{ success: boolean }> {
   try {
-    const result = await pauseNotificationAction(action.courseId, action.day, action.stepIndex);
+    const result = await pauseNotificationAction(action.courseId, action.dayOnCourseId, action.stepIndex);
     return result;
   } catch (error) {
     logger.error("Failed to pause notification:", error as Error, { operation: 'error' });
@@ -41,7 +41,7 @@ export async function resetNotificationClient(
   action: NotificationAction,
 ): Promise<{ success: boolean }> {
   try {
-    const result = await resetNotificationAction(action.courseId, action.day, action.stepIndex);
+    const result = await resetNotificationAction(action.courseId, action.dayOnCourseId, action.stepIndex);
     return result;
   } catch (error) {
     logger.error("Failed to reset notification:", error as Error, { operation: 'error' });
@@ -62,7 +62,7 @@ export async function resumeNotificationClient(
 
     const result = await resumeNotificationAction(
       action.courseId,
-      action.day,
+      action.dayOnCourseId,
       action.stepIndex,
       action.durationSec,
     );

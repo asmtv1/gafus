@@ -1,4 +1,4 @@
-import { getCSRFTokenForClient } from "@gafus/csrf";
+import { getCSRFTokenForClient } from "@gafus/csrf/server";
 import { createErrorDashboardLogger } from "@gafus/logger";
 import { NextResponse } from "next/server";
 

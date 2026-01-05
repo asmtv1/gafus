@@ -4,51 +4,51 @@ export interface TimerStore {
 
   // Управление активным шагом
   getActiveStep: () => string | null;
-  canStartStep: (courseId: string, day: number, stepIndex: number) => boolean;
+  canStartStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => boolean;
 
   // Управление таймерами
   startTimer: (
     courseId: string,
-    day: number,
+    dayOnCourseId: string,
     stepIndex: number,
     onTimeUpdate: (timeLeft: number) => void,
     onFinish: () => void,
     isRestore?: boolean,
   ) => boolean; // Возвращает true если успешно запущен, false если заблокирован
-  stopTimer: (courseId: string, day: number, stepIndex: number) => void;
+  stopTimer: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
   stopAllTimers: () => void;
   cleanupTimers: () => void;
 
   // Серверные действия
   startStepWithServer: (
     courseId: string,
-    day: number,
+    dayOnCourseId: string,
     stepIndex: number,
     durationSec: number,
   ) => Promise<void>;
 
   finishStepWithServer: (
     courseId: string,
-    day: number,
+    dayOnCourseId: string,
     stepIndex: number,
     stepTitle: string,
     stepOrder: number,
   ) => Promise<void>;
-  resetStepWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
+  resetStepWithServer: (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => Promise<void>;
 
   // Управление уведомлениями
-  pauseNotification: (courseId: string, day: number, stepIndex: number) => Promise<void>;
+  pauseNotification: (courseId: string, dayOnCourseId: string, stepIndex: number) => Promise<void>;
 
   resumeNotification: (
     courseId: string,
-    day: number,
+    dayOnCourseId: string,
     stepIndex: number,
     durationSec: number,
   ) => Promise<void>;
 
   // Офлайн функции для паузы и возобновления
-  pauseStepOffline: (courseId: string, day: number, stepIndex: number) => void;
-  resumeStepOffline: (courseId: string, day: number, stepIndex: number) => void;
-  pauseStepWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
-  resumeStepWithServer: (courseId: string, day: number, stepIndex: number, durationSec: number) => Promise<void>;
+  pauseStepOffline: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
+  resumeStepOffline: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
+  pauseStepWithServer: (courseId: string, dayOnCourseId: string, stepIndex: number) => Promise<void>;
+  resumeStepWithServer: (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => Promise<void>;
 }

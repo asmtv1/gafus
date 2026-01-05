@@ -1,11 +1,5 @@
-// Утилиты
-export { generateCSRFToken, verifyCSRFToken, getCSRFTokenForClient } from "./utils";
+// Клиентские React компоненты
+export { CSRFProvider, CSRFErrorBoundary, useCSRFContext } from "./react/CSRFProvider";
 
-// Middleware
-export { withCSRFProtection } from "./middleware";
-
-// React компоненты
-export { CSRFProvider, CSRFErrorBoundary } from "./react/CSRFProvider";
-
-// Store и хуки
+// Store и хуки для клиента
 export { useCSRFStore, useCSRFToken, createCSRFFetch } from "./store";

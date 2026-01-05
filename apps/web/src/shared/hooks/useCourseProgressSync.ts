@@ -61,18 +61,20 @@ export function useCourseProgressSync() {
       // Если есть кэшированные данные, проверяем прогресс
       if (cachedData?.data?.trainingDays) {
         // Рассчитываем финальные статусы дней с учетом офлайн режима
-        const dayStatuses = cachedData.data.trainingDays.map((day) => {
+        const trainingDays = cachedData.data.trainingDays;
+        const dayStatuses = trainingDays.map((day) => {
           let finalStatus = day.userStatus as TrainingStatus;
 
           // В офлайне используем stepStore для расчета локального статуса
           if (!isOnline) {
-            // Находим dayLink для получения количества шагов
-            const dayLink = course.dayLinks?.find((dl) => dl.order === day.day);
+            // Находим dayLink для получения количества шагов по индексу
+            const dayIndex = trainingDays.findIndex((d) => d.dayOnCourseId === day.dayOnCourseId);
+            const dayLink = course.dayLinks?.[dayIndex];
             const totalSteps = dayLink?.day?.stepLinks?.length;
 
             if (totalSteps !== undefined) {
               // Рассчитываем локальный статус дня из stepStore
-              const localStatus = calculateDayStatus(course.id, day.day, stepStates, totalSteps);
+              const localStatus = calculateDayStatus(course.id, day.dayOnCourseId, stepStates, totalSteps);
               // Объединяем с серверным статусом (берем максимальный приоритет)
               finalStatus = rank(localStatus) > rank(day.userStatus) ? localStatus : (day.userStatus as TrainingStatus);
             }

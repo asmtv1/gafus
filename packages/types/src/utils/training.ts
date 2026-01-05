@@ -38,7 +38,8 @@ export interface TrainingStep {
 /** Полная информация о тренировочном дне + шаги + статус пользователя */
 export interface TrainingDetail {
   trainingDayId: string;
-  day: number;
+  dayOnCourseId: string;
+  displayDayNumber?: number | null; // Опциональное поле только для отображения номера дня
   title: string;
   type: string;
   courseId: string;

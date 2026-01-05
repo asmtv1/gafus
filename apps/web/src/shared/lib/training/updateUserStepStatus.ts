@@ -12,7 +12,7 @@ import { getCurrentUserId } from "@/utils";
 import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
 import {
   courseIdSchema,
-  dayNumberSchema,
+  dayIdSchema,
   stepIndexSchema,
   userIdSchema,
 } from "../validation/schemas";
@@ -25,7 +25,7 @@ const statusSchema = z.nativeEnum(TrainingStatus, {
 const updateUserStepStatusSchema = z.object({
   userId: userIdSchema,
   courseId: courseIdSchema,
-  day: dayNumberSchema,
+  dayOnCourseId: dayIdSchema,
   stepIndex: stepIndexSchema,
   status: statusSchema,
   stepTitle: z.string().trim().optional(),
@@ -132,7 +132,7 @@ async function updateUserTrainingStatusWithTx(
 export async function updateUserStepStatus(
   userId: string,
   courseId: string,
-  day: number,
+  dayOnCourseId: string,
   stepIndex: number,
   status: TrainingStatus,
   stepTitle?: string,
@@ -141,7 +141,7 @@ export async function updateUserStepStatus(
   const {
     userId: safeUserId,
     courseId: safeCourseId,
-    day: safeDay,
+    dayOnCourseId: safeDayOnCourseId,
     stepIndex: safeStepIndex,
     status: safeStatus,
     stepTitle: safeStepTitle,
@@ -149,7 +149,7 @@ export async function updateUserStepStatus(
   } = updateUserStepStatusSchema.parse({
     userId,
     courseId,
-    day,
+    dayOnCourseId,
     stepIndex,
     status,
     stepTitle,
@@ -159,9 +159,9 @@ export async function updateUserStepStatus(
     // ВСЕ операции выполняются в одной транзакции
     const result = await prisma.$transaction(
       async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-        // 1. Получаем данные о дне
-        const dayOnCourse = await tx.dayOnCourse.findFirst({
-          where: { courseId: safeCourseId, order: safeDay },
+        // 1. Получаем данные о дне по ID
+        const dayOnCourse = await tx.dayOnCourse.findUnique({
+          where: { id: safeDayOnCourseId },
           include: {
             day: {
               include: {
@@ -171,10 +171,15 @@ export async function updateUserStepStatus(
                 },
               },
             },
+            course: {
+              select: {
+                type: true,
+              },
+            },
           },
         });
 
-        if (!dayOnCourse) {
+        if (!dayOnCourse || !dayOnCourse.course) {
           throw new Error("DayOnCourse not found");
         }
 
@@ -218,7 +223,7 @@ export async function updateUserStepStatus(
           allCompleted,
           courseId: dayOnCourse.courseId,
           stepTitle: stepLink.step?.title ?? "Шаг",
-          trainingUrl: `/trainings/${dayOnCourse.courseId}/${dayOnCourse.id}`,
+          trainingUrl: `/trainings/${dayOnCourse.course.type}/${dayOnCourse.id}`,
         };
       },
     );
@@ -304,7 +309,7 @@ export async function updateUserStepStatus(
         action: "updateUserStepStatus",
         userId: safeUserId,
         courseId: safeCourseId,
-        day: safeDay,
+        dayOnCourseId: safeDayOnCourseId,
         stepIndex: safeStepIndex,
         status: safeStatus,
         stepTitle: safeStepTitle,
@@ -319,7 +324,7 @@ export async function updateUserStepStatus(
 
 export async function updateStepStatusServerAction(
   courseId: string,
-  day: number,
+  dayOnCourseId: string,
   stepIndex: number,
   status: TrainingStatus,
   stepTitle?: string,
@@ -327,7 +332,7 @@ export async function updateStepStatusServerAction(
 ): Promise<{ success: boolean }> {
   const parsedInput = updateStepStatusActionSchema.parse({
     courseId,
-    day,
+    dayOnCourseId,
     stepIndex,
     status,
     stepTitle,
@@ -337,7 +342,7 @@ export async function updateStepStatusServerAction(
   return updateUserStepStatus(
     userId,
     parsedInput.courseId,
-    parsedInput.day,
+    parsedInput.dayOnCourseId,
     parsedInput.stepIndex,
     parsedInput.status,
     parsedInput.stepTitle,
