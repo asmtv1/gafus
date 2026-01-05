@@ -21,20 +21,35 @@ fi
 echo "🧹 Очищаем кэш Prisma..."
 rm -rf packages/prisma/node_modules/.prisma
 
-echo "🔥 Удаляем миграции..."
-rm -rf packages/prisma/migrations
+# Извлекаем имя базы данных из DATABASE_URL для создания новой БД
+# Формат: postgresql://user:password@host:port/database
+DB_NAME=$(echo "$DATABASE_URL" | sed -n 's/.*\/\([^?]*\).*/\1/p')
+# Получаем URL без имени базы для подключения к postgres
+DB_URL_WITHOUT_DB=$(echo "$DATABASE_URL" | sed 's/\/[^/]*$/\/postgres/')
 
-echo "💥 Сбрасываем базу данных..."
-DATABASE_URL=$DATABASE_URL pnpm exec prisma migrate reset --schema=$SCHEMA_PATH --force --skip-seed || true
+echo "💥 Удаляем базу данных (если существует)..."
+psql "$DB_URL_WITHOUT_DB" -c "DROP DATABASE IF EXISTS \"$DB_NAME\";" --quiet --no-psqlrc || true
 
-echo "🛠️  Создаём новую миграцию: init"
-DATABASE_URL=$DATABASE_URL pnpm exec prisma migrate dev --schema=$SCHEMA_PATH --name init
+echo "🆕 Создаём новую пустую базу данных..."
+psql "$DB_URL_WITHOUT_DB" -c "CREATE DATABASE \"$DB_NAME\";" --quiet --no-psqlrc || {
+  echo "❌ Ошибка при создании базы данных"
+  exit 1
+}
 
+echo "📦 Восстанавливаем базу данных из бэкапа..."
+BACKUP_FILE="gafus_backup.sql"
+if [ ! -f "$BACKUP_FILE" ]; then
+  echo "❌ Ошибка: файл бэкапа $BACKUP_FILE не найден в корне проекта"
+  exit 1
+fi
+
+echo "📦 Восстанавливаем базу данных из бэкапа..."
+psql "$DATABASE_URL" -f "$BACKUP_FILE" --quiet --no-psqlrc || {
+  echo "❌ Ошибка при восстановлении из бэкапа"
+  exit 1
+}
 echo "🔄 Генерируем Prisma Client..."
 DATABASE_URL=$DATABASE_URL pnpm --filter @gafus/prisma db:generate
-
-echo "🌱 Прогоняем сид-скрипт..."
-DATABASE_URL=$DATABASE_URL pnpm --filter @gafus/prisma db:seed
 
 echo "✅ База данных полностью сброшена и готова."
 echo "🚀 Теперь можно запускать: pnpm run build"

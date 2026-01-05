@@ -70,7 +70,7 @@ export async function startUserStepServerAction(
           step: stepLink.step,
           stepTitle: stepLink.step.title,
           stepOrder: stepLink.order,
-          trainingUrl: `/trainings/${safeInput.courseId}/${safeInput.day}`,
+          trainingUrl: `/trainings/${safeInput.courseId}/${dayOnCourse.id}`,
         };
       },
     );

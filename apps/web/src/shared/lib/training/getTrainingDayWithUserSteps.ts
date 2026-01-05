@@ -7,24 +7,53 @@ import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculatio
 import type { ChecklistQuestion, TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
-import { dayNumberSchema, trainingTypeSchema } from "../validation/schemas";
+import { dayIdSchema, trainingTypeSchema } from "../validation/schemas";
 
 const courseTypeSchema = trainingTypeSchema;
-const dayOrderSchema = dayNumberSchema;
 
-/** Находим день курса + userTraining */
+/**
+ * Пересчитывает номер дня для отображения, исключая дни типа "instructions"
+ * @param dayLinks - Массив всех дней курса
+ * @param currentIndex - Индекс текущего дня в массиве
+ * @returns Пересчитанный номер дня (начиная с 1) или null для дней типа "instructions"
+ */
+function calculateDisplayDayNumber(
+  dayLinks: { day: { type: string } }[],
+  currentIndex: number,
+): number | null {
+  const currentDay = dayLinks[currentIndex];
+  
+  // Если текущий день - "instructions", возвращаем null
+  if (currentDay.day.type === "instructions") {
+    return null;
+  }
+  
+  // Подсчитываем количество дней до текущего, исключая "instructions"
+  let displayNumber = 0;
+  for (let i = 0; i <= currentIndex; i++) {
+    if (dayLinks[i].day.type !== "instructions") {
+      displayNumber++;
+    }
+  }
+  
+  return displayNumber;
+}
+
+/** Находим день курса + userTraining по ID дня */
 async function findTrainingDayWithUserTraining(
   courseType: string,
-  dayOrder: number,
+  dayOnCourseId: string,
   userId: string,
 ) {
+  // Используем ID дня для прямого поиска в БД
   return prisma.dayOnCourse.findFirst({
     where: {
-      order: dayOrder as number,
+      id: dayOnCourseId,
       course: { type: courseType },
     },
     select: {
       id: true, // dayOnCourseId
+      order: true,
       courseId: true,
       course: {
         select: {
@@ -122,33 +151,52 @@ async function ensureUserTrainingExists(
 /** Получаем детали дня + статусы шагов (read-only для metadata) */
 export async function getTrainingDayWithUserSteps(
   courseType: string,
-  dayOrder: number,
+  dayOnCourseId: string,
   options?: { createIfMissing?: boolean },
 ): Promise<TrainingDetail | null> {
   const safeCourseType = courseTypeSchema.parse(courseType);
-  const safeDayOrder = dayOrderSchema.parse(dayOrder);
+  const safeDayId = dayIdSchema.parse(dayOnCourseId);
   const userId = await getCurrentUserId();
-  const found = await findTrainingDayWithUserTraining(safeCourseType, safeDayOrder, userId);
+  const found = await findTrainingDayWithUserTraining(safeCourseType, safeDayId, userId);
   if (!found) return null;
 
   const {
+    id: foundDayOnCourseId,
+    order: physicalOrder,
     courseId,
     course: { duration: courseDuration },
     day: { id: trainingDayId, title, description, type, stepLinks },
     userTrainings,
   } = found;
 
+  // Пересчитываем номер дня для отображения
+  const allDays = await prisma.dayOnCourse.findMany({
+    where: { courseId },
+    orderBy: { order: "asc" },
+    select: {
+      order: true,
+      day: {
+        select: {
+          type: true,
+        },
+      },
+    },
+  });
+
+  const currentDayIndex = allDays.findIndex((d) => d.order === physicalOrder);
+  const displayDayNumber = calculateDisplayDayNumber(allDays, currentDayIndex) ?? physicalOrder;
+
   const userTraining = userTrainings[0];
   let userTrainingId = userTraining?.id;
 
   // Создаем UserTraining только если явно указано (для компонента страницы)
   if (!userTrainingId && options?.createIfMissing) {
-    userTrainingId = await ensureUserTrainingExists(userId, found.id);
+    userTrainingId = await ensureUserTrainingExists(userId, foundDayOnCourseId);
   }
   
   // Если UserTraining всё ещё нет - возвращаем базовую структуру без статусов
   if (!userTrainingId) {
-    const steps = stepLinks.map(({ id: stepOnDayId, step, order }) => ({
+    const steps = stepLinks.map(({ step, order }) => ({
       id: step.id,
       title: step.title,
       description: step.description,
@@ -171,7 +219,7 @@ export async function getTrainingDayWithUserSteps(
 
     return {
       trainingDayId,
-      day: safeDayOrder,
+      day: displayDayNumber,
       title,
       type,
       courseId,
@@ -326,7 +374,7 @@ export async function getTrainingDayWithUserSteps(
 
   return {
     trainingDayId,
-    day: safeDayOrder,
+    day: displayDayNumber,
     title,
     type,
     courseId,

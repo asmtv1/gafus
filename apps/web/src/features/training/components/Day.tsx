@@ -177,7 +177,7 @@ export function Day({ training, courseType }: DayProps) {
     <div className={styles.main}>
       <div className={styles.dayHeader}>
         <h2 className={styles.dayTitle}>
-          День {training.day}
+          {training.type === "instructions" ? "Инструкции" : `День ${training.day}`}
         </h2>
       </div>
       <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ''}`}>

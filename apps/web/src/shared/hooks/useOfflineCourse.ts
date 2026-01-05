@@ -353,7 +353,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         try {
           await saveCourseHtmlPagesOnDownload(
             courseData.course.type,
-            courseData.trainingDays.map((day) => ({ order: day.order }))
+            courseData.trainingDays.map((day) => ({ id: day.id }))
           );
           logger.info("HTML pages download completed", {
             courseType: courseData.course.type,

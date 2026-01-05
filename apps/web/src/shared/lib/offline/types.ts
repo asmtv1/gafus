@@ -8,7 +8,7 @@ export interface OfflineCourse {
   // HTML страниц курса для офлайн-доступа (опционально, резервный вариант)
   htmlPages?: {
     listPage?: string; // HTML страницы списка дней курса (/trainings/[courseType])
-    dayPages?: Record<number, string>; // HTML страниц дней (/trainings/[courseType]/[day])
+    dayPages?: Record<string, string>; // HTML страниц дней (/trainings/[courseType]/[dayId])
   };
   course: {
     metadata: {

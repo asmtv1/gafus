@@ -1,6 +1,7 @@
 import { Day } from "@features/training/components/Day";
 import { getTrainingDayWithUserSteps } from "@shared/lib/training/getTrainingDayWithUserSteps";
 import { generatePageMetadata } from "@gafus/metadata";
+import { dayIdSchema } from "@shared/lib/validation/schemas";
 
 import type { Metadata } from "next";
 import type { TrainingDetail } from "@gafus/types";
@@ -10,16 +11,13 @@ export default async function DayPage(props: {
 }) {
   const { courseType, day } = await props.params;
 
-  // Валидируем, что day является корректным числом
-  const dayNumber = Number(day);
-  if (isNaN(dayNumber) || dayNumber < 1) {
-    throw new Error("Некорректный номер дня");
-  }
+  // Валидируем, что day является корректным ID
+  const dayId = dayIdSchema.parse(day);
 
   // Создаем UserTraining при необходимости (только в компоненте страницы)
   const training: TrainingDetail | null = await getTrainingDayWithUserSteps(
     courseType, 
-    dayNumber,
+    dayId,
     { createIfMissing: true }
   );
 
@@ -35,10 +33,12 @@ export async function generateMetadata(props: {
   params: Promise<{ courseType: string; day: string }>;
 }): Promise<Metadata> {
   const { courseType, day } = await props.params;
+  // Валидируем ID дня
+  const dayId = dayIdSchema.parse(day);
   // Read-only вызов без создания UserTraining
   const training: TrainingDetail | null = await getTrainingDayWithUserSteps(
     courseType,
-    Number(day),
+    dayId,
   );
 
   if (!training) {

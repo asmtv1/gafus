@@ -165,17 +165,17 @@ export async function saveCourseHtmlPage(
     }
 
     // Определяем тип страницы и сохраняем
-    // Страница дня: /trainings/[courseType]/[day]
-    const dayMatch = pagePath.match(/^\/trainings\/[^/]+\/(\d+)$/);
+    // Страница дня: /trainings/[courseType]/[dayId]
+    const dayMatch = pagePath.match(/^\/trainings\/[^/]+\/([^/]+)$/);
     if (dayMatch) {
-      const day = parseInt(dayMatch[1], 10);
+      const dayId = dayMatch[1];
       if (!course.htmlPages.dayPages) {
         course.htmlPages.dayPages = {};
       }
-      course.htmlPages.dayPages[day] = html;
+      course.htmlPages.dayPages[dayId] = html;
       logger.info("Day page HTML saved to IndexedDB", {
         courseType,
-        day,
+        dayId,
         pagePath,
         htmlLength: html.length,
       });
@@ -221,13 +221,13 @@ export async function saveCourseHtmlPage(
  */
 export async function saveCourseHtmlPagesOnDownload(
   courseType: string,
-  trainingDays: { order: number }[]
+  trainingDays: { id: string }[]
 ): Promise<void> {
   try {
     console.log("[HTML Storage] Starting to save HTML pages for course", {
       courseType,
       daysCount: trainingDays.length,
-      days: trainingDays.map((d) => d.order),
+      days: trainingDays.map((d) => d.id),
     });
 
     let savedListPage = false;
@@ -297,12 +297,12 @@ export async function saveCourseHtmlPagesOnDownload(
 
     // Сохраняем HTML страниц дней
     for (const day of trainingDays) {
-      const dayOrder = day.order;
-      const dayPageUrl = `/trainings/${courseType}/${dayOrder}`;
+      const dayId = day.id;
+      const dayPageUrl = `/trainings/${courseType}/${dayId}`;
       
       logger.info("Attempting to fetch day page HTML", {
         courseType,
-        day: dayOrder,
+        dayId,
         url: dayPageUrl,
       });
       
@@ -325,21 +325,21 @@ export async function saveCourseHtmlPagesOnDownload(
             savedDayPages++;
             logger.info("Course day page HTML saved successfully", {
               courseType,
-              day: dayOrder,
+              dayId,
               url: dayPageUrl,
               htmlLength: html.length,
             });
           } else {
             logger.warn("Fetched day page HTML is empty", {
               courseType,
-              day: dayOrder,
+              dayId,
               url: dayPageUrl,
             });
           }
         } else {
           logger.warn("Failed to fetch day page HTML - non-OK response", {
             courseType,
-            day: dayOrder,
+            dayId,
             url: dayPageUrl,
             status: response.status,
             statusText: response.statusText,
@@ -348,7 +348,7 @@ export async function saveCourseHtmlPagesOnDownload(
       } catch (error) {
         logger.warn("Failed to fetch day page HTML", {
           courseType,
-          day: dayOrder,
+          dayId,
           url: dayPageUrl,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -410,28 +410,28 @@ export async function getCourseHtmlPage(
     }
 
     // Определяем тип страницы и возвращаем HTML
-    // Страница дня: /trainings/[courseType]/[day]
-    const dayMatch = pagePath.match(/^\/trainings\/[^/]+\/(\d+)$/);
+    // Страница дня: /trainings/[courseType]/[dayId]
+    const dayMatch = pagePath.match(/^\/trainings\/[^/]+\/([^/]+)$/);
     if (dayMatch && course.htmlPages.dayPages) {
-      const day = parseInt(dayMatch[1], 10);
+      const dayId = dayMatch[1];
       console.log("[HTML Storage] Looking for day page HTML", {
         courseType,
-        day,
+        dayId,
         pagePath,
-        availableDays: Object.keys(course.htmlPages.dayPages).map(Number),
+        availableDays: Object.keys(course.htmlPages.dayPages),
       });
       
-      const html = course.htmlPages.dayPages[day];
+      const html = course.htmlPages.dayPages[dayId];
       if (html) {
         logger.info("Day page HTML found in IndexedDB", {
           courseType,
-          day,
+          dayId,
           pagePath,
           htmlLength: html.length,
         });
         console.log("[HTML Storage] Day page HTML found", {
           courseType,
-          day,
+          dayId,
           pagePath,
           htmlLength: html.length,
         });
@@ -439,15 +439,15 @@ export async function getCourseHtmlPage(
       } else {
         logger.warn("Day page HTML not found in IndexedDB", {
           courseType,
-          day,
+          dayId,
           pagePath,
-          availableDays: Object.keys(course.htmlPages.dayPages || {}).map(Number),
+          availableDays: Object.keys(course.htmlPages.dayPages || {}),
         });
         console.warn("[HTML Storage] Day page HTML not found", {
           courseType,
-          day,
+          dayId,
           pagePath,
-          availableDays: Object.keys(course.htmlPages.dayPages || {}).map(Number),
+          availableDays: Object.keys(course.htmlPages.dayPages || {}),
         });
       }
     }

@@ -89,6 +89,7 @@ const TrainingDayList = memo(function TrainingDayList({
     introduction: "Вводный день",
     test: "Проверочный или экзаменационный день",
     rest: "День отдыха",
+    instructions: "Инструкции",
   };
 
   const rank = (s?: string) => {
@@ -141,7 +142,6 @@ const TrainingDayList = memo(function TrainingDayList({
         
         if (process.env.NODE_ENV !== "production") {
           // Отладка времени по дню: таймеры vs теория
-          // eslint-disable-next-line no-console
           console.warn("[TrainingDayList] Day time debug", {
             dayNumber: day.day,
             title: day.title,
@@ -171,7 +171,7 @@ const TrainingDayList = memo(function TrainingDayList({
               </div>
             )}
             <Link
-              href={`/trainings/${courseType}/${day.day}`}
+              href={`/trainings/${courseType}/${day.trainingDayId}`}
               className={styles.link}
               prefetch={false}
             >

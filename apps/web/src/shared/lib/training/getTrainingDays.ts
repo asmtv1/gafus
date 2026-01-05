@@ -40,6 +40,34 @@ type CourseWithDayLinks = {
   }[];
 };
 
+/**
+ * Пересчитывает номер дня для отображения, исключая дни типа "instructions"
+ * @param dayLinks - Массив всех дней курса
+ * @param currentIndex - Индекс текущего дня в массиве
+ * @returns Пересчитанный номер дня (начиная с 1) или null для дней типа "instructions"
+ */
+function calculateDisplayDayNumber(
+  dayLinks: CourseWithDayLinks["dayLinks"],
+  currentIndex: number,
+): number | null {
+  const currentDay = dayLinks[currentIndex];
+  
+  // Если текущий день - "instructions", возвращаем null
+  if (currentDay.day.type === "instructions") {
+    return null;
+  }
+  
+  // Подсчитываем количество дней до текущего, исключая "instructions"
+  let displayNumber = 0;
+  for (let i = 0; i <= currentIndex; i++) {
+    if (dayLinks[i].day.type !== "instructions") {
+      displayNumber++;
+    }
+  }
+  
+  return displayNumber;
+}
+
 function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
   return firstCourse.dayLinks.map(
     (link: {
@@ -50,7 +78,9 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
         status: string;
         steps: { stepOnDayId: string; status: string }[];
       }[];
-    }) => {
+    }, index: number) => {
+      // Пересчитываем номер дня, исключая "instructions"
+      const displayDay = calculateDisplayDayNumber(firstCourse.dayLinks, index);
       const ut = link.userTrainings[0];
 
       // Создаем массив статусов для ВСЕХ шагов дня, заполняя недостающие как NOT_STARTED
@@ -101,7 +131,7 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
 
       return {
         trainingDayId: link.id,
-        day: link.order,
+        day: displayDay ?? link.order, // Используем пересчитанный номер или физический order для "instructions"
         title: link.day.title,
         type: link.day.type,
         courseId: firstCourse.id,

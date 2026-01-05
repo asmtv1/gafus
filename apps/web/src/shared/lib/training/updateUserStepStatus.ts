@@ -218,7 +218,7 @@ export async function updateUserStepStatus(
           allCompleted,
           courseId: dayOnCourse.courseId,
           stepTitle: stepLink.step?.title ?? "Шаг",
-          trainingUrl: `/trainings/${dayOnCourse.courseId}/${safeDay}`,
+          trainingUrl: `/trainings/${dayOnCourse.courseId}/${dayOnCourse.id}`,
         };
       },
     );
