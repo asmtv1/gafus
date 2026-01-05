@@ -325,28 +325,22 @@ export function AccordionStep({
   ]);
 
   const togglePause = useCallback(async () => {
-    console.log(`[TOGGLE PAUSE] status: ${stepState?.status}, isActuallyRunning: ${isActuallyRunning}, timeLeft: ${stepState?.timeLeft}`);
-    
     if (stepState?.status === "IN_PROGRESS") {
       if (isActuallyRunning) {
         // Если таймер работает - ставим на паузу
-        console.log(`[TOGGLE PAUSE] Pausing running timer`);
         setIsPausing(true);
         try {
           // pauseStepWithServer сам обновит состояние через stepStore
           await pauseStepWithServer(courseId, dayOnCourseId, stepIndex);
-          console.log(`[TOGGLE PAUSE] pauseStepWithServer completed`);
           // Обновляем кэш дня/курса
           updateStepProgress(courseId, dayOnCourseId, stepIndex, 'PAUSED', undefined, totalSteps);
         } catch (error) {
-          console.error(`[TOGGLE PAUSE] Error:`, error);
           // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
         } finally {
           setIsPausing(false);
         }
       } else {
         // Если таймер не работает, но статус IN_PROGRESS - возобновляем
-        console.log(`[TOGGLE PAUSE] Resuming non-running timer`);
         setIsPausing(true);
         try {
           // resumeStepWithServer сам обновит состояние через stepStore
@@ -356,12 +350,10 @@ export function AccordionStep({
             stepIndex,
             stepState?.timeLeft ?? durationSec,
           );
-          console.log(`[TOGGLE PAUSE] resumeStepWithServer completed`);
           // Обновляем кэш дня/курса
           updateStepProgress(courseId, dayOnCourseId, stepIndex, 'IN_PROGRESS', undefined, totalSteps);
           startStepTimer(true);
         } catch (error) {
-          console.error(`[TOGGLE PAUSE] Error:`, error);
           // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
         } finally {
           setIsPausing(false);
@@ -369,7 +361,6 @@ export function AccordionStep({
       }
     } else if (stepState?.status === "PAUSED") {
       // Если на паузе - возобновляем
-      console.log(`[TOGGLE PAUSE] Resuming from PAUSED`);
       setIsPausing(true);
       try {
         // resumeStepWithServer сам обновит состояние через stepStore
@@ -379,12 +370,10 @@ export function AccordionStep({
           stepIndex,
           stepState?.timeLeft ?? durationSec,
         );
-        console.log(`[TOGGLE PAUSE] resumeStepWithServer completed`);
         // Обновляем кэш дня/курса
         updateStepProgress(courseId, dayOnCourseId, stepIndex, 'IN_PROGRESS', undefined, totalSteps);
         startStepTimer(true);
       } catch (error) {
-        console.error(`[TOGGLE PAUSE] Error:`, error);
         // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
       } finally {
         setIsPausing(false);
@@ -393,24 +382,19 @@ export function AccordionStep({
   }, [stepState?.status, stepState?.timeLeft, isActuallyRunning, pauseStepWithServer, courseId, dayOnCourseId, stepIndex, updateStepProgress, resumeStepWithServer, durationSec, startStepTimer, totalSteps]);
 
   const handleReset = useCallback(async () => {
-    console.log(`[HANDLE RESET] stepKey: ${stepKey}, status: ${stepState?.status}, timeLeft: ${stepState?.timeLeft}, durationSec: ${durationSec}`);
     try {
       // Сбрасываем шаг на сервере с исходным durationSec
       await resetStepWithServer(courseId, dayOnCourseId, stepIndex, durationSec);
-      console.log(`[HANDLE RESET] resetStepWithServer completed`);
 
       // Останавливаем таймер
       stopTimer(courseId, dayOnCourseId, stepIndex);
-      console.log(`[HANDLE RESET] stopTimer called`);
 
       // Сбрасываем локальное состояние
       resetStep(courseId, dayOnCourseId, stepIndex, durationSec);
-      console.log(`[HANDLE RESET] resetStep called`);
 
       // Уведомляем родителя
       onReset(stepIndex);
     } catch (error) {
-      console.error(`[HANDLE RESET] Error:`, error);
       // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
       
       // Все равно выполняем локальный сброс

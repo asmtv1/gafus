@@ -159,22 +159,16 @@ export const useStepStore = create<StepStore>()(
 
       pauseStep: async (courseId, dayOnCourseId, stepIndex) => {
         const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
-        console.log(`[PAUSE STEP] Starting pause for ${stepKey}`);
 
         // Останавливаем таймер
         if (typeof window !== "undefined") {
           const { useTimerStore } = await import("@shared/stores/timerStore");
-          console.log(`[PAUSE STEP] Stopping timer for ${stepKey}`);
           useTimerStore.getState().stopTimer(courseId, dayOnCourseId, stepIndex);
         }
 
         // ВАЖНО: Удаляем END_KEY из localStorage, чтобы таймер не мог "тикать"
         const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
-        const endTsBefore = typeof window !== "undefined" ? localStorage.getItem(END_KEY) : null;
-        console.log(`[PAUSE STEP] END_KEY before remove: ${END_KEY} = ${endTsBefore}`);
         removeKeys(END_KEY);
-        const endTsAfter = typeof window !== "undefined" ? localStorage.getItem(END_KEY) : null;
-        console.log(`[PAUSE STEP] END_KEY after remove: ${END_KEY} = ${endTsAfter}`);
 
         // Сохраняем данные паузы в localStorage для офлайн работы
         const PAUSE_KEY = makePauseKey(courseId, dayOnCourseId, stepIndex);
@@ -183,7 +177,6 @@ export const useStepStore = create<StepStore>()(
           pausedAt: Date.now(),
           timeLeft: currentStep?.timeLeft || 0,
         };
-        console.log(`[PAUSE STEP] Saving pause data: ${JSON.stringify(pauseData)}`);
         localStorage.setItem(PAUSE_KEY, JSON.stringify(pauseData));
 
         set((state) => ({
@@ -196,31 +189,26 @@ export const useStepStore = create<StepStore>()(
             },
           },
         }));
-        console.log(`[PAUSE STEP] State updated to PAUSED for ${stepKey}`);
       },
 
       resumeStep: (courseId, dayOnCourseId, stepIndex) => {
         const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
-        console.log(`[RESUME STEP] Starting resume for ${stepKey}`);
 
         const currentStep = get().stepStates[stepKey];
 
         if (!currentStep) {
-          console.log(`[RESUME STEP] No current step found for ${stepKey}`);
           return;
         }
 
         // Удаляем данные паузы из localStorage
         const PAUSE_KEY = makePauseKey(courseId, dayOnCourseId, stepIndex);
         localStorage.removeItem(PAUSE_KEY);
-        console.log(`[RESUME STEP] Removed PAUSE_KEY: ${PAUSE_KEY}`);
 
         const timeLeft = currentStep.timeLeft;
         const endTs = nowSec() + timeLeft;
         const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
 
         // Сохраняем в localStorage
-        console.log(`[RESUME STEP] Saving END_KEY: ${END_KEY} = ${endTs} (now: ${nowSec()}, timeLeft: ${timeLeft})`);
         saveToLS(END_KEY, endTs);
 
         set((state) => ({
@@ -233,7 +221,6 @@ export const useStepStore = create<StepStore>()(
             },
           },
         }));
-        console.log(`[RESUME STEP] State updated to IN_PROGRESS for ${stepKey}`);
       },
 
       finishStep: (courseId, dayOnCourseId, stepIndex) => {
@@ -395,9 +382,6 @@ export const useStepStore = create<StepStore>()(
 
       updateTimeLeft: (courseId, dayOnCourseId, stepIndex, timeLeft) => {
         const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
-        const stepState = get().stepStates[stepKey];
-
-        console.log(`[UPDATE TIME] stepKey: ${stepKey}, timeLeft: ${timeLeft}, status: ${stepState?.status}, isPaused: ${stepState?.isPaused}`);
 
         set((state) => ({
           stepStates: {
@@ -414,10 +398,7 @@ export const useStepStore = create<StepStore>()(
         if (stepStateAfter && stepStateAfter.status === "IN_PROGRESS" && !stepStateAfter.isPaused) {
           const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
           const endTs = nowSec() + timeLeft;
-          console.log(`[UPDATE TIME] Saving END_KEY: ${END_KEY} = ${endTs} (now: ${nowSec()}, timeLeft: ${timeLeft})`);
           saveToLS(END_KEY, endTs.toString());
-        } else {
-          console.log(`[UPDATE TIME] NOT saving END_KEY - status: ${stepStateAfter?.status}, isPaused: ${stepStateAfter?.isPaused}`);
         }
       },
 

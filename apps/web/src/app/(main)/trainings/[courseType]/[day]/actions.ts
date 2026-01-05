@@ -85,7 +85,7 @@ export async function resumeNotificationAction(
     const userId = await getCurrentUserId();
     const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
 
-    await resumeStepNotification(userId, day, parsed.stepIndex, parsed.durationSec);
+    await resumeStepNotification(userId, day, parsed.stepIndex, parsed.durationSec, parsed.dayOnCourseId);
     return { success: true };
   } catch (error) {
     logger.error("Failed to resume notification", error as Error, {

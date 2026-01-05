@@ -87,10 +87,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
         const endTsStr = loadFromLS(END_KEY);
 
-        console.log(`[TIMER TICK] stepKey: ${stepKey}, END_KEY: ${END_KEY}, endTsStr: ${endTsStr}`);
-
         if (!endTsStr) {
-          console.log(`[TIMER] No END_KEY found, stopping timer for ${stepKey}`);
           get().stopTimer(courseId, dayOnCourseId, stepIndex);
           return;
         }
@@ -98,13 +95,10 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         const endTs = Number(endTsStr);
         const diff = Math.max(endTs - nowSec(), 0);
 
-        console.log(`[TIMER] stepKey: ${stepKey}, endTs: ${endTs}, now: ${nowSec()}, diff: ${diff}`);
-
         // Вызываем callback для обновления времени
         onTimeUpdate(diff);
 
         if (diff === 0) {
-          console.log(`[TIMER] Timer finished for ${stepKey}`);
           get().stopTimer(courseId, dayOnCourseId, stepIndex);
           // Haptic feedback при завершении таймера
           hapticComplete();
@@ -117,8 +111,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       activeTimer = timer;
       activeStep = stepKey;
       timers.set(stepKey, timer);
-
-      console.log(`[START TIMER] stepKey: ${stepKey}, isRestore: ${isRestore}, timers.size: ${timers.size}, activeStep: ${activeStep}`);
 
       // Haptic feedback при старте таймера
       if (!isRestore) {
@@ -134,8 +126,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
       const timer = timers.get(stepKey);
 
-      console.log(`[STOP TIMER] stepKey: ${stepKey}, hasTimer: ${!!timer}, activeStep: ${activeStep}`);
-
       if (timer) {
         clearInterval(timer);
         timers.delete(stepKey);
@@ -145,9 +135,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           activeStep = null;
           activeTimer = null;
         }
-        console.log(`[STOP TIMER] Timer cleared for ${stepKey}, timers.size: ${timers.size}`);
-      } else {
-        console.log(`[STOP TIMER] No timer found for ${stepKey}`);
       }
     },
 

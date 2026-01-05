@@ -61,19 +61,36 @@ export async function createStepNotificationsForUserStep({
     throw new Error("No push subscriptions found for user");
   }
 
+  // Валидация stepTitle: проверяем, что он не пустой
+  const hasStepTitle = stepTitle != null && stepTitle.trim().length > 0;
+  
+  if (!hasStepTitle) {
+    logToErrorDashboard("StepTitle отсутствует или пустой при создании уведомления", "warn", {
+      userId,
+      day,
+      stepIndex,
+      durationSec,
+      stepTitleValue: stepTitle,
+      url: maybeUrl,
+      subscriptionCount: subscriptions.length,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   // Логируем успешное создание уведомления
   logToErrorDashboard("Step notification created successfully", "info", {
     userId,
     day,
     stepIndex,
     durationSec,
-    stepTitle,
+    stepTitle: hasStepTitle ? stepTitle : `Шаг ${stepIndex + 1} (fallback)`,
     url: maybeUrl,
     subscriptionCount: subscriptions.length,
     timestamp: new Date().toISOString(),
   });
 
   // Создаем уведомление с ВСЕМИ подписками пользователя
+  // Сохраняем stepTitle как есть (может быть null/undefined), fallback будет использован в worker'е
   const notif = await prisma.stepNotification.create({
     data: {
       userId,
@@ -81,7 +98,7 @@ export async function createStepNotificationsForUserStep({
       stepIndex,
       endTs,
       url: maybeUrl,
-      stepTitle,
+      stepTitle: hasStepTitle ? stepTitle.trim() : null,
       // Сохраняем все подписки в JSON поле
       subscription: {
         subscriptions: subscriptions.map((sub: DbPushSubscription) => ({

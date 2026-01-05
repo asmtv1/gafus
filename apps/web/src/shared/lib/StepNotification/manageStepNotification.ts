@@ -126,6 +126,7 @@ export async function resumeStepNotification(
   day: number,
   stepIndex: number,
   durationSec: number,
+  dayOnCourseId?: string,
 ): Promise<void> {
   try {
     // Находим уведомление по userId, day, stepIndex
@@ -143,9 +144,52 @@ export async function resumeStepNotification(
     });
 
     if (!notification) {
-      // Если уведомление не найдено (например, было сброшено) — создаем новое и выходим
+      // Если уведомление не найдено (например, было сброшено) — создаем новое
       const nowTs = Math.floor(Date.now() / 1000);
       const endTs = nowTs + Math.max(Number(durationSec) || 0, 0);
+
+      // Получаем stepTitle из БД, если передан dayOnCourseId
+      let stepTitle: string | null = null;
+      let url: string | null = null;
+      
+      if (dayOnCourseId) {
+        try {
+          const dayOnCourse = await prisma.dayOnCourse.findUnique({
+            where: { id: dayOnCourseId },
+            include: {
+              day: {
+                include: {
+                  stepLinks: {
+                    include: { step: true },
+                    orderBy: { order: "asc" },
+                  },
+                },
+              },
+              course: {
+                select: { type: true },
+              },
+            },
+          });
+
+          if (dayOnCourse?.day?.stepLinks?.[stepIndex]?.step) {
+            stepTitle = dayOnCourse.day.stepLinks[stepIndex].step.title;
+            url = `/trainings/${dayOnCourse.course.type}/${dayOnCourse.id}`;
+          }
+        } catch (error) {
+          logger.warn("Failed to get stepTitle from DB when resuming notification", {
+            dayOnCourseId,
+            day,
+            stepIndex,
+            error: error instanceof Error ? error.message : String(error),
+            operation: 'resume_notification_get_step_title_error',
+          });
+        }
+      }
+
+      // Получаем подписки пользователя
+      const subscriptions = await prisma.pushSubscription.findMany({
+        where: { userId },
+      });
 
       const created = await prisma.stepNotification.create({
         data: {
@@ -153,8 +197,15 @@ export async function resumeStepNotification(
           day,
           stepIndex,
           endTs,
-          // без URL и title — опционально
-          subscription: { subscriptions: [], count: 0 },
+          stepTitle: stepTitle || null,
+          url: url || null,
+          subscription: {
+            subscriptions: subscriptions.map((sub) => ({
+              endpoint: sub.endpoint,
+              keys: (sub.keys ?? {}) as Record<string, string>,
+            })),
+            count: subscriptions.length,
+          },
         },
       });
 
@@ -175,7 +226,12 @@ export async function resumeStepNotification(
         data: { jobId: job.id, paused: false },
       });
 
-      logger.warn(`Notification created on resume for user ${userId}, day ${day}, step ${stepIndex}, jobId: ${job.id}`, { operation: 'warn' });
+      logger.warn(`Notification created on resume for user ${userId}, day ${day}, step ${stepIndex}, jobId: ${job.id}`, {
+        operation: 'warn',
+        stepTitle,
+        url,
+        dayOnCourseId,
+      });
       return;
     }
 

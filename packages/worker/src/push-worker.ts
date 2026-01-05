@@ -186,9 +186,24 @@ class NotificationProcessor {
       };
     } else {
       // Обычное уведомление о шаге
+      // Строгая проверка stepTitle: проверяем на null, undefined и пустую строку
+      const rawStepTitle = notification.stepTitle;
+      const hasStepTitle = rawStepTitle != null && rawStepTitle.trim().length > 0;
+      const stepTitle = hasStepTitle 
+        ? rawStepTitle.trim() 
+        : `Шаг ${notification.stepIndex + 1}`;
+      
+      // Логируем, если stepTitle отсутствует
+      if (!hasStepTitle) {
+        this.logger.warn("StepTitle отсутствует в уведомлении, используется fallback", {
+          stepIndex: notification.stepIndex,
+          stepTitleValue: rawStepTitle,
+        });
+      }
+      
       return {
         type: 'step',
-        stepTitle: notification.stepTitle || `Шаг ${notification.stepIndex + 1}`,
+        stepTitle,
         stepIndex: notification.stepIndex,
         url: notification.url || undefined,
       };

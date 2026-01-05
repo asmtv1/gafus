@@ -70,9 +70,21 @@ export async function startUserStepServerAction(
           throw new Error("Step not found");
         }
 
+        // Проверяем, что stepTitle не пустой
+        const stepTitle = stepLink.step.title;
+        if (!stepTitle || stepTitle.trim().length === 0) {
+          logger.warn("StepTitle пустой или отсутствует в БД", {
+            operation: 'empty_step_title_warning',
+            stepId: stepLink.step.id,
+            stepIndex: safeInput.stepIndex,
+            dayOnCourseId: safeInput.dayOnCourseId,
+            courseId: safeInput.courseId,
+          });
+        }
+
         return {
           step: stepLink.step,
-          stepTitle: stepLink.step.title,
+          stepTitle: stepTitle || `Шаг ${safeInput.stepIndex + 1}`, // Fallback, если title пустой
           stepOrder: stepLink.order,
           trainingUrl: `/trainings/${dayOnCourse.course.type}/${dayOnCourse.id}`,
         };
