@@ -16,6 +16,7 @@ jobs:
           username: root
           key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
           host_key_checking: false
-          script: |
-            export YANDEX_DISK_TOKEN=${{ secrets.YANDEX_DISK_TOKEN }}
-            bash /root/gafus/ci-cd/scripts/backup-to-yandex.sh
+          envs: YANDEX_DISK_TOKEN
+          script: bash /root/gafus/ci-cd/scripts/backup-to-yandex.sh
+        env:
+          YANDEX_DISK_TOKEN: ${{ secrets.YANDEX_DISK_TOKEN }}
