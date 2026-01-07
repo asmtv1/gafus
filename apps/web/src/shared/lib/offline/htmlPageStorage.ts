@@ -483,7 +483,7 @@ export async function getCourseHtmlPage(
       pagePath,
       hasListPage: !!course.htmlPages.listPage,
       dayPagesCount: course.htmlPages.dayPages ? Object.keys(course.htmlPages.dayPages).length : 0,
-      availableDays: course.htmlPages.dayPages ? Object.keys(course.htmlPages.dayPages).map(Number) : [],
+      availableDays: course.htmlPages.dayPages ? Object.keys(course.htmlPages.dayPages) : [],
     });
 
     return null;

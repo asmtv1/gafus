@@ -54,22 +54,22 @@ async function getCourseHtmlPageInline(
     }
 
     // Определяем тип страницы и возвращаем HTML
-    // Страница дня: /trainings/[courseType]/[day]
-    const dayMatch = pagePath.match(/^\/trainings\/[^/]+\/(\d+)$/);
+    // Страница дня: /trainings/[courseType]/[dayId]
+    const dayMatch = pagePath.match(/^\/trainings\/[^/]+\/([^/]+)$/);
     if (dayMatch && course.htmlPages.dayPages) {
-      const day = parseInt(dayMatch[1], 10);
+      const dayId = dayMatch[1];
       console.log("[ServiceWorkerRegistrar] Looking for day page HTML", {
         courseType,
-        day,
+        dayId,
         pagePath,
-        availableDays: Object.keys(course.htmlPages.dayPages).map(Number),
+        availableDays: Object.keys(course.htmlPages.dayPages),
       });
 
-      const html = course.htmlPages.dayPages[day];
+      const html = course.htmlPages.dayPages[dayId];
       if (html) {
         console.log("[ServiceWorkerRegistrar] Day page HTML found", {
           courseType,
-          day,
+          dayId,
           pagePath,
           htmlLength: html.length,
         });
@@ -77,9 +77,9 @@ async function getCourseHtmlPageInline(
       } else {
         console.warn("[ServiceWorkerRegistrar] Day page HTML not found", {
           courseType,
-          day,
+          dayId,
           pagePath,
-          availableDays: Object.keys(course.htmlPages.dayPages).map(Number),
+          availableDays: Object.keys(course.htmlPages.dayPages),
         });
       }
     }
@@ -107,7 +107,7 @@ async function getCourseHtmlPageInline(
       pagePath,
       hasListPage: !!course.htmlPages.listPage,
       dayPagesCount: course.htmlPages.dayPages ? Object.keys(course.htmlPages.dayPages).length : 0,
-      availableDays: course.htmlPages.dayPages ? Object.keys(course.htmlPages.dayPages).map(Number) : [],
+      availableDays: course.htmlPages.dayPages ? Object.keys(course.htmlPages.dayPages) : [],
     });
 
     return null;

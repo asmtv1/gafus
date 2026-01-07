@@ -194,8 +194,8 @@ async function shouldRedirectToOffline(): Promise<boolean> {
   }
 
   // Проверяем, не находимся ли мы на странице скачанного курса
-  // URL паттерны: /trainings/[courseType] (список дней) или /trainings/[courseType]/[day] (страница дня)
-  const trainingDayMatch = currentPath.match(/^\/trainings\/([^/]+)\/(\d+)$/);
+  // URL паттерны: /trainings/[courseType] (список дней) или /trainings/[courseType]/[dayId] (страница дня)
+  const trainingDayMatch = currentPath.match(/^\/trainings\/([^/]+)\/([^/]+)$/);
   const trainingListMatch = currentPath.match(/^\/trainings\/([^/]+)$/);
   
   const courseType = trainingDayMatch?.[1] || trainingListMatch?.[1];
