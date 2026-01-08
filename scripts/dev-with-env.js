@@ -18,7 +18,7 @@ const apps = [
   //{ name: "Trainer Panel", filter: "@gafus/trainer-panel", port: 3001, type: "next-dev" },
   //{ name: "Admin Panel", filter: "@gafus/admin-panel", port: 3006, type: "next-dev" },
   //{ name: "Error Dashboard", filter: "@gafus/error-dashboard", port: 3005, type: "next-dev" },
-  { name: "Push Worker", filter: "@gafus/worker", port: null, type: "worker" },
+  //{ name: "Push Worker", filter: "@gafus/worker", port: null, type: "worker" },
 ];
 
 // Освобождаем порты, если заняты (быстро, без вывода)
