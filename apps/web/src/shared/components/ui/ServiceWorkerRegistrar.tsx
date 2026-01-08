@@ -135,21 +135,6 @@ export default function ServiceWorkerRegistrar() {
     // Мгновенная регистрация Service Worker
     if (serviceWorkerManager.isSupported()) {
       serviceWorkerManager.register()
-        .then((registration) => {
-          // Отправляем информацию о платформе в Service Worker
-          if (registration.active || registration.installing || registration.waiting) {
-            const sw = registration.active || registration.installing || registration.waiting;
-            if (sw) {
-              // Определяем iOS
-              const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-              sw.postMessage({
-                type: 'CLIENT_PLATFORM_INFO',
-                isIOS
-              });
-              console.log('[ServiceWorkerRegistrar] Platform info sent to SW', { isIOS });
-            }
-          }
-        })
         .catch((error) => {
           logger.warn("⚠️ Не удалось зарегистрировать Service Worker", {
             operation: 'service_worker_registration_failed',
@@ -157,38 +142,6 @@ export default function ServiceWorkerRegistrar() {
           });
         });
     }
-  }, []);
-
-  // Отправка информации о платформе в Service Worker
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) {
-      return;
-    }
-
-    const sendPlatformInfo = () => {
-      if (navigator.serviceWorker.controller) {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        navigator.serviceWorker.controller.postMessage({
-          type: 'CLIENT_PLATFORM_INFO',
-          isIOS
-        });
-        console.log('[ServiceWorkerRegistrar] Platform info sent to active SW', { isIOS });
-      }
-    };
-
-    // Отправляем информацию сразу, если SW уже активен
-    sendPlatformInfo();
-
-    // Также отправляем при изменении состояния SW
-    const handleControllerChange = () => {
-      sendPlatformInfo();
-    };
-
-    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-
-    return () => {
-      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-    };
   }, []);
 
   // Обработка сообщений от Service Worker о сетевом статусе и запросах HTML

@@ -634,26 +634,6 @@ function notifyClient(type, data = {}) {
     });
 }
 
-// Safari/WebKit-specific settings для уведомлений
-function getSafariSettings() {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isWebKit = /webkit/i.test(navigator.userAgent);
-  const isChrome = /chrome/i.test(navigator.userAgent);
-  const isSafari = isWebKit && (/safari/i.test(navigator.userAgent) && !isChrome || isIOS);
-  const isStandalone = navigator.standalone;
-  
-  return {
-    isSafari,
-    isIOS,
-    isWebKit,
-    isStandalone,
-    useSimpleNotifications: isSafari,
-    usePWALogic: isSafari && isStandalone,
-  };
-}
-
-const settings = getSafariSettings();
-
 // Утилиты для работы с localStorage из Service Worker
 async function getLocalStorageItem(key) {
   try {
