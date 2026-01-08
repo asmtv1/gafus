@@ -138,27 +138,6 @@ export const CourseCard = ({
     ? DEFAULT_PLACEHOLDER
     : logoImg;
 
-  // Логирование для отладки
-  useEffect(() => {
-    if (logoImg) {
-      console.log("[CourseCard] Logo resolution", {
-        courseType: type,
-        logoImg,
-        offlineLogoUrl,
-        finalSrc,
-        isBlobUrl: offlineLogoUrl?.startsWith("blob:"),
-        imgError,
-        hasLogoImg: !!logoImg,
-        timestamp: new Date().toISOString(),
-      });
-    } else {
-      console.log("[CourseCard] No logoImg provided", {
-        courseType: type,
-        logoImg,
-        timestamp: new Date().toISOString(),
-      });
-    }
-  }, [type, logoImg, offlineLogoUrl, finalSrc, imgError]);
 
   // Проверяем кэш изображения в useEffect
   useEffect(() => {

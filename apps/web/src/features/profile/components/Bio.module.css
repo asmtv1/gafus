@@ -411,7 +411,7 @@
 @media (min-width: 769px) {
   .wrapper {
     padding: 20px;
-    margin: 0 auto;
+    margin: 20px auto;
     gap: 16px;
   }
 

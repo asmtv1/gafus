@@ -115,9 +115,11 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           </Link>
         )}
 </div>
-<div className={styles.notificationStatus}>
-        {isOwner && <NotificationStatus />}
-        </div>
+        {isOwner && (
+          <div className={styles.notificationStatus}>
+            <NotificationStatus />
+          </div>
+        )}
         {diplomas.length > 0 && (
           <div className={styles.diplomasSection}>
             <h2>Diplomas</h2>

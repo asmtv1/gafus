@@ -28,10 +28,6 @@ async function getOfflineMediaBlob(
   mediaUrl: string,
 ): Promise<Blob | null> {
   try {
-    console.log("[getOfflineMediaBlob] Starting search", {
-      courseType,
-      mediaUrl,
-    });
     logger.info("getOfflineMediaBlob: Starting search", {
       courseType,
       mediaUrl,
@@ -39,10 +35,6 @@ async function getOfflineMediaBlob(
 
     const offlineCourse = await getOfflineCourseByType(courseType);
     if (!offlineCourse) {
-      console.warn("[getOfflineMediaBlob] Offline course not found", {
-        courseType,
-        mediaUrl,
-      });
       logger.warn("getOfflineMediaBlob: Offline course not found", {
         courseType,
         mediaUrl,
@@ -51,16 +43,6 @@ async function getOfflineMediaBlob(
     }
 
     const imageKeys = Object.keys(offlineCourse.mediaFiles.images);
-    console.log("[getOfflineMediaBlob] Course found, checking media files", {
-      courseType,
-      mediaUrl,
-      totalVideos: Object.keys(offlineCourse.mediaFiles.videos).length,
-      totalImages: imageKeys.length,
-      totalPdfs: Object.keys(offlineCourse.mediaFiles.pdfs).length,
-      imageKeys: imageKeys.slice(0, 10), // Первые 10 для логов
-      searchingFor: mediaUrl,
-      exactMatch: offlineCourse.mediaFiles.images[mediaUrl] !== undefined,
-    });
     logger.info("getOfflineMediaBlob: Course found, checking media files", {
       courseType,
       mediaUrl,
@@ -83,12 +65,6 @@ async function getOfflineMediaBlob(
     // Проверяем изображения
     if (offlineCourse.mediaFiles.images[mediaUrl]) {
       const blob = offlineCourse.mediaFiles.images[mediaUrl];
-      console.log("[getOfflineMediaBlob] ✅ Found in images", {
-        courseType,
-        mediaUrl,
-        blobSize: blob.size,
-        blobType: blob.type,
-      });
       logger.info("getOfflineMediaBlob: Found in images", {
         courseType,
         mediaUrl,
@@ -109,14 +85,6 @@ async function getOfflineMediaBlob(
     }
 
     const availableImageKeys = Object.keys(offlineCourse.mediaFiles.images);
-    console.warn("[getOfflineMediaBlob] ❌ Media file not found in IndexedDB", {
-      courseType,
-      mediaUrl,
-      availableImageKeys: availableImageKeys.slice(0, 10),
-      totalAvailableImages: availableImageKeys.length,
-      exactMatch: offlineCourse.mediaFiles.images[mediaUrl] !== undefined,
-      sampleKeys: availableImageKeys.slice(0, 3),
-    });
     logger.warn("getOfflineMediaBlob: Media file not found in IndexedDB", {
       courseType,
       mediaUrl,
@@ -146,12 +114,6 @@ export function useOfflineMediaUrl(
   const blobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    console.log("[useOfflineMediaUrl] Effect triggered", {
-      courseType,
-      mediaUrl,
-      currentUrl: url,
-      hasBlobUrl: !!blobUrlRef.current,
-    });
     logger.info("useOfflineMediaUrl: Effect triggered", {
       courseType,
       mediaUrl,
@@ -161,11 +123,6 @@ export function useOfflineMediaUrl(
 
     // Очищаем предыдущий blob URL если есть
     if (blobUrlRef.current) {
-      console.log("[useOfflineMediaUrl] Revoking previous blob URL", {
-        courseType,
-        mediaUrl,
-        previousBlobUrl: blobUrlRef.current,
-      });
       logger.info("useOfflineMediaUrl: Revoking previous blob URL", {
         courseType,
         mediaUrl,
@@ -176,12 +133,6 @@ export function useOfflineMediaUrl(
     }
 
     if (!mediaUrl || !courseType) {
-      console.log("[useOfflineMediaUrl] Missing params, using original URL", {
-        courseType,
-        mediaUrl,
-        hasMediaUrl: !!mediaUrl,
-        hasCourseType: !!courseType,
-      });
       logger.info("useOfflineMediaUrl: Missing params, using original URL", {
         courseType,
         mediaUrl,
@@ -192,10 +143,6 @@ export function useOfflineMediaUrl(
       return;
     }
 
-    console.log("[useOfflineMediaUrl] Starting blob search", {
-      courseType,
-      mediaUrl,
-    });
     logger.info("useOfflineMediaUrl: Starting blob search", {
       courseType,
       mediaUrl,
@@ -207,13 +154,6 @@ export function useOfflineMediaUrl(
         if (blob) {
           const blobUrl = URL.createObjectURL(blob);
           blobUrlRef.current = blobUrl;
-          console.log("[useOfflineMediaUrl] ✅ Blob found, created blob URL", {
-            courseType,
-            mediaUrl,
-            blobSize: blob.size,
-            blobType: blob.type,
-            blobUrl,
-          });
           logger.info("useOfflineMediaUrl: Blob found, created blob URL", {
             courseType,
             mediaUrl,
@@ -224,10 +164,6 @@ export function useOfflineMediaUrl(
           setUrl(blobUrl);
         } else {
           // Если файл не найден в офлайн-хранилище, возвращаем оригинальный URL
-          console.warn("[useOfflineMediaUrl] ❌ Blob not found, using original URL", {
-            courseType,
-            mediaUrl,
-          });
           logger.warn("useOfflineMediaUrl: Blob not found, using original URL", {
             courseType,
             mediaUrl,
@@ -236,10 +172,6 @@ export function useOfflineMediaUrl(
         }
       })
       .catch((error) => {
-        console.error("[useOfflineMediaUrl] Error resolving offline media URL", error, {
-          courseType,
-          mediaUrl,
-        });
         logger.error("useOfflineMediaUrl: Error resolving offline media URL", error as Error, {
           courseType,
           mediaUrl,

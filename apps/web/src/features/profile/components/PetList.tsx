@@ -139,7 +139,7 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
         <div className={styles.avatar_container}>
           <Avatar
             alt={`${pet.name} фото питомца`}
-            src={pet.photoUrl || "/pet-avatar.jpg"}
+            src={pet.photoUrl || "/uploads/pet-avatar.jpg"}
           />
         </div>
       )}

@@ -84,7 +84,7 @@ export default function EditablePetAvatar({
     ? cacheBuster
       ? `${currentAvatarUrl}?cb=${cacheBuster}`
       : currentAvatarUrl
-    : "/pet-avatar.jpg";
+    : "/uploads/pet-avatar.jpg";
 
   return (
     <Box
