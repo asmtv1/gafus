@@ -96,6 +96,12 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
 
   if (!course) return null;
 
+  // Функция для нормализации даты к началу дня в локальном времени
+  const normalizeDateToLocalMidnight = (date: Date | string): Date => {
+    const d = new Date(date);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  };
+
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
@@ -492,14 +498,14 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
                   if (dateFrom || dateTo) {
                     const dateValue = dateType === "started" ? uc.startedAt : uc.completedAt;
                     if (!dateValue) return false;
-                    const dateMs = new Date(dateValue).getTime();
+                    const userDate = normalizeDateToLocalMidnight(dateValue);
                     if (dateFrom) {
-                      const fromMs = new Date(dateFrom).getTime();
-                      if (dateMs < fromMs) return false;
+                      const fromDate = normalizeDateToLocalMidnight(dateFrom);
+                      if (userDate < fromDate) return false;
                     }
                     if (dateTo) {
-                      const toMs = new Date(dateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
-                      if (dateMs > toMs) return false;
+                      const toDate = normalizeDateToLocalMidnight(dateTo);
+                      if (userDate > toDate) return false;
                     }
                   }
                   return true;
