@@ -35,10 +35,6 @@ async function getOfflineMediaBlob(
 
     const offlineCourse = await getOfflineCourseByType(courseType);
     if (!offlineCourse) {
-      logger.warn("getOfflineMediaBlob: Offline course not found", {
-        courseType,
-        mediaUrl,
-      });
       return null;
     }
 
@@ -164,10 +160,6 @@ export function useOfflineMediaUrl(
           setUrl(blobUrl);
         } else {
           // Если файл не найден в офлайн-хранилище, возвращаем оригинальный URL
-          logger.warn("useOfflineMediaUrl: Blob not found, using original URL", {
-            courseType,
-            mediaUrl,
-          });
           setUrl(mediaUrl);
         }
       })

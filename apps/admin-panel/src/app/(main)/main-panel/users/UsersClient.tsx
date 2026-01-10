@@ -20,13 +20,16 @@ interface User {
     fullName?: string | null;
     avatarUrl?: string | null;
   } | null;
+  _count: {
+    pushSubscriptions: number;
+  };
 }
 
 interface UsersClientProps {
   users: User[];
 }
 
-type SortField = "role" | "isConfirmed" | "createdAt" | null;
+type SortField = "role" | "isConfirmed" | "createdAt" | "notifications" | null;
 type SortDirection = "asc" | "desc";
 
 export default function UsersClient({ users }: UsersClientProps) {
@@ -71,6 +74,10 @@ export default function UsersClient({ users }: UsersClientProps) {
           case "createdAt":
             aValue = new Date(a.createdAt).getTime();
             bValue = new Date(b.createdAt).getTime();
+            break;
+          case "notifications":
+            aValue = a._count.pushSubscriptions > 0 ? 1 : 0;
+            bValue = b._count.pushSubscriptions > 0 ? 1 : 0;
             break;
           default:
             return 0;

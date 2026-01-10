@@ -40,9 +40,12 @@ interface User {
     fullName?: string | null;
     avatarUrl?: string | null;
   } | null;
+  _count: {
+    pushSubscriptions: number;
+  };
 }
 
-type SortField = "role" | "isConfirmed" | "createdAt" | null;
+type SortField = "role" | "isConfirmed" | "createdAt" | "notifications" | null;
 type SortDirection = "asc" | "desc";
 
 interface UsersTableProps {
@@ -223,6 +226,24 @@ export default function UsersTable({
                     userSelect: "none",
                     "&:hover": { opacity: 0.7 },
                   }}
+                  onClick={() => onSort("notifications")}
+                >
+                  <Typography variant="subtitle2" fontWeight="bold">
+                    Уведомления
+                  </Typography>
+                  {getSortIcon("notifications")}
+                </Box>
+              </TableCell>
+              <TableCell>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    cursor: "pointer",
+                    userSelect: "none",
+                    "&:hover": { opacity: 0.7 },
+                  }}
                   onClick={() => onSort("createdAt")}
                 >
                   <Typography variant="subtitle2" fontWeight="bold">
@@ -277,6 +298,13 @@ export default function UsersTable({
                   <Chip
                     label={user.isConfirmed ? "Подтвержден" : "Не подтвержден"}
                     color={user.isConfirmed ? "success" : "warning"}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={user._count.pushSubscriptions > 0 ? "Разрешены" : "Не разрешены"}
+                    color={user._count.pushSubscriptions > 0 ? "success" : "default"}
                     size="small"
                   />
                 </TableCell>
@@ -388,6 +416,19 @@ export default function UsersTable({
                   <Chip
                     label={user.isConfirmed ? "Подтвержден" : "Не подтвержден"}
                     color={user.isConfirmed ? "success" : "warning"}
+                    size="small"
+                  />
+                </Box>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Уведомления
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  <Chip
+                    label={user._count.pushSubscriptions > 0 ? "Разрешены" : "Не разрешены"}
+                    color={user._count.pushSubscriptions > 0 ? "success" : "default"}
                     size="small"
                   />
                 </Box>

@@ -65,16 +65,35 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         const t = token as any;
-        session.user.id = String(t.id ?? "");
+        const userId = String(t.id ?? "");
+        
+        session.user.id = userId;
         session.user.username = String(t.username ?? "");
-        session.user.role = t.role as any;
+        
+        // Получаем актуальную роль из БД для синхронизации с изменениями в admin-panel
+        // Используем роль из токена как fallback в случае ошибки
+        try {
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { role: true },
+          });
+          
+          session.user.role = (user?.role as any) ?? t.role;
+        } catch (error) {
+          session.user.role = t.role as any;
+        }
 
-        const profile = await prisma.userProfile.findUnique({
-          where: { userId: String((token as any).id ?? "") },
-          select: { avatarUrl: true },
-        });
+        // Получаем avatarUrl из профиля
+        try {
+          const profile = await prisma.userProfile.findUnique({
+            where: { userId },
+            select: { avatarUrl: true },
+          });
 
-        session.user.avatarUrl = profile?.avatarUrl ?? null;
+          session.user.avatarUrl = profile?.avatarUrl ?? null;
+        } catch (error) {
+          session.user.avatarUrl = null;
+        }
       }
       return session;
     },

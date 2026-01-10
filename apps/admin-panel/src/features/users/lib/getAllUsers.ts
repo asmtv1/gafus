@@ -35,6 +35,11 @@ export async function getAllUsers() {
             avatarUrl: true,
           },
         },
+        _count: {
+          select: {
+            pushSubscriptions: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
