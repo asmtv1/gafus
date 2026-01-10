@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Box, Typography } from "@mui/material";
+import { Alert, AlertTitle, Box, Typography } from "@mui/material";
 import MarkdownInput from "@shared/components/common/MarkdownInput";
 import { FormField, SelectField } from "@shared/components/ui/FormField";
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
@@ -86,6 +86,35 @@ export default function TrainingDayForm({
         ]}
         rules={commonValidationRules.dayType as RegisterOptions<TrainingDayFormData, "type">}
       />
+
+      <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
+        <AlertTitle>Различия между типами дней:</AlertTitle>
+        <Typography variant="body2" component="div" sx={{ mt: 1 }}>
+          <strong>Тренировочный день</strong> — основной день с практическими упражнениями и шагами.
+          <br />
+          <em>В курсе нумеруется как "День 1, 2..."</em>
+          <br />
+          <br />
+          <strong>Вводный блок</strong> — знакомство с курсом, общая информация.
+          <br />
+          <em>В курсе не нумеруется.</em>
+          <br />
+          <br />
+          <strong>Инструкции</strong> — правила, рекомендации, методические материалы.
+          <br />
+          <em>В курсе не нумеруется.</em>
+          <br />
+          <br />
+          <strong>Диагностика</strong> — проверка начального уровня знаний и навыков.
+          <br />
+          <em>В курсе не нумеруется.</em>
+          <br />
+          <br />
+          <strong>Подведение итогов</strong> — финальный день с результатами и выводами.
+          <br />
+          <em>В курсе не нумеруется, закрыт для просмотра ученику пока все дни до него не будут пройдены.</em>
+        </Typography>
+      </Alert>
 
       <FormField
         id="equipment"

@@ -15,7 +15,7 @@ import VideoSelector from "./VideoSelector";
 
 import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 
-import { Alert, Box, Button, Typography, FormControlLabel, Checkbox, FormGroup } from "@/utils/muiImports";
+import { Alert, AlertTitle, Box, Button, Typography, FormControlLabel, Checkbox, FormGroup } from "@/utils/muiImports";
 
 interface StepFormData {
   title: string;
@@ -348,6 +348,35 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
               { value: "PRACTICE", label: "Тренировочный (без таймера)" }
             ]}
           />
+
+          <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
+            <AlertTitle>Различия между типами шагов:</AlertTitle>
+            <Typography variant="body2" component="div" sx={{ mt: 1 }}>
+              <strong>Тренировочный</strong> — практический шаг с таймером, требует выполнения упражнения за указанное время.
+              <br />
+              <em>Прохождение упражнения будет зачтено после истечения таймера.</em>
+              <br />
+              <br />
+              <strong>Тренировочный (без таймера)</strong> — практический шаг без ограничения по времени, только примерное время прохождения.
+              <br />
+              <em>Прохождение будет зачтено, если пользователь нажмёт кнопку "я выполнил".</em>
+              <br />
+              <br />
+              <strong>Теоретический</strong> — изучение материала (видео, текст, медиа), без практического выполнения.
+              <br />
+              <em>Прохождение будет зачтено автоматически при открытии шага.</em>
+              <br />
+              <br />
+              <strong>Экзаменационный</strong> — проверка знаний (тесты, видео-отчёт, письменная обратная связь), требует проверки тренером.
+              <br />
+              <em>Прохождение будет зачтено, только когда вы в панели тренера поставите "зачёт".</em>
+              <br />
+              <br />
+              <strong>Перерыв</strong> — пауза между упражнениями с указанием длительности.
+              <br />
+              <em>Прохождение упражнения будет зачтено после истечения таймера.</em>
+            </Typography>
+          </Alert>
 
           <Box className={sharedStyles.formField}>
             <Typography className={sharedStyles.formLabel}>Описание *</Typography>
