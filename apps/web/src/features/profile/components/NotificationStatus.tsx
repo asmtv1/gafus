@@ -3,6 +3,8 @@
 import { createWebLogger } from "@gafus/logger";
 import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
 import { useNotificationComposite, useNotificationInitializer } from "@shared/stores";
+import { showInstallPWAAlert } from "@shared/utils/sweetAlert";
+import { detectPushSupport } from "@shared/utils/detectPushSupport";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
@@ -36,72 +38,67 @@ export default function NotificationStatus() {
   }, []);
 
   const handleAllowNotifications = async () => {
-    
-    
-    // Проверяем поддержку push-уведомлений
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isWebKit = /webkit/i.test(navigator.userAgent);
-    const isChrome = /chrome/i.test(navigator.userAgent);
-    const isSafari = isWebKit && (/safari/i.test(navigator.userAgent) && !isChrome || isIOS);
-    const isStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
-    
-    // Современные версии Safari поддерживают push в браузере (с iOS 16.4+, macOS 13+)
-    if (isSafari) {
-      
-      // Для старых версий iOS Safari (< 16.4) требуется PWA режим
-      if (isIOS && !isStandalone) {
-        // Проверяем поддержку push в браузере
-        if (!('PushManager' in window) || !('serviceWorker' in navigator)) {
-          logger.warn("⚠️ Old iOS Safari: PWA mode required for push notifications", {
+    // Проверяем поддержку push-уведомлений через новую утилиту
+    const pushSupport = detectPushSupport();
+
+    // iOS Safari в браузере (не PWA) - показываем инструкцию установки PWA
+    if (pushSupport.showInstallPrompt) {
+      logger.warn("⚠️ NotificationStatus: iOS Safari requires PWA mode for push notifications", {
+        operation: 'warn',
+        userAgent: navigator.userAgent,
+        isInPWA: pushSupport.isInPWA,
+        platform: pushSupport.platform
+      });
+      showInstallPWAAlert();
+      return;
+    }
+
+    // Если нет поддержки, не пытаемся запросить разрешение
+    if (!pushSupport.isSupported || !pushSupport.showNotificationPrompt) {
+      logger.warn("⚠️ NotificationStatus: Push notifications not supported", {
+        operation: 'warn',
+        pushSupport,
+        userAgent: navigator.userAgent
+      });
+      return;
+    }
+
+    if (vapidKey) {
+      try {
+        // Добавляем таймаут для Safari, чтобы избежать зависания
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error("Request permission timeout in Safari"));
+          }, 30000); // 30 секунд для Safari
+        });
+
+        const permissionPromise = requestPermission(vapidKey);
+        await Promise.race([permissionPromise, timeoutPromise]);
+      } catch (error) {
+        // В Safari часто бывают таймауты, логируем для отладки
+        if (error instanceof Error && error.message.includes("timeout")) {
+          logger.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально", {
             operation: 'warn',
-            userAgent: navigator.userAgent,
-            hasPushManager: 'PushManager' in window,
-            hasServiceWorker: 'serviceWorker' in navigator
+            error: error.message,
+            userAgent: navigator.userAgent
           });
-          alert("На данной версии iOS для push-уведомлений добавьте сайт на главный экран и запустите как приложение");
-          return;
+        } else if (error instanceof Error && error.message.includes("SW not available")) {
+          logger.warn("⚠️ NotificationStatus: Service Worker недоступен", {
+            operation: 'warn',
+            error: error.message,
+            userAgent: navigator.userAgent
+          });
+        } else {
+          logger.error("❌ NotificationStatus: Failed to request permission", error as Error, {
+            operation: 'error',
+            userAgent: navigator.userAgent
+          });
         }
       }
-    }
-    
-    if (vapidKey) {
-        
-        
-        try {
-          // Добавляем таймаут для Safari, чтобы избежать зависания
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => {
-            
-              reject(new Error("Request permission timeout in Safari"));
-            }, 30000); // Увеличиваем до 30 секунд для Safari
-          });
-          
-          
-          const permissionPromise = requestPermission(vapidKey);
-          await Promise.race([permissionPromise, timeoutPromise]);
-          
-        } catch (error) {
-          
-          // В Safari часто бывают таймауты, показываем пользователю
-          if (error instanceof Error && error.message.includes("timeout")) {
-            logger.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально", {
-              operation: 'warn',
-              error: error.message,
-              userAgent: navigator.userAgent
-            });
-            // Показываем пользователю информацию о таймауте
-            alert("В Safari может потребоваться больше времени для настройки уведомлений. Попробуйте еще раз через несколько секунд.");
-          } else if (error instanceof Error && error.message.includes("SW not available")) {
-            logger.warn("⚠️ NotificationStatus: Service Worker недоступен в Safari", {
-              operation: 'warn',
-              error: error.message,
-              userAgent: navigator.userAgent
-            });
-            alert("В Safari push-уведомления могут работать нестабильно. Добавьте сайт в главный экран для лучшей работы.");
-          }
-        }
     } else {
-      console.error("❌ NotificationStatus: VAPID key not available");
+      logger.error("❌ NotificationStatus: VAPID key not available", new Error("VAPID key missing"), {
+        operation: 'error'
+      });
     }
   };
 

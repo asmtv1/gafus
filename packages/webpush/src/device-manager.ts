@@ -141,10 +141,16 @@ export class DeviceSubscriptionManager {
   ): Promise<DeviceSubscription> {
     const deviceInfo = this.getCurrentDeviceInfo();
     
-    // Специальная проверка для Safari
-    if (deviceInfo.type === 'safari' && !deviceInfo.isPWA) {
+    // Специальная проверка для Safari iOS (требуется PWA режим)
+    if (deviceInfo.type === 'safari' && deviceInfo.platform === 'ios' && !deviceInfo.isPWA) {
+      logger.warn("Safari iOS requires PWA mode for push notifications", {
+        deviceType: deviceInfo.type,
+        platform: deviceInfo.platform,
+        isPWA: deviceInfo.isPWA,
+        userAgent: deviceInfo.userAgent
+      });
       throw new Error(
-        "Для push-уведомлений в Safari добавьте сайт в главный экран и запустите как приложение"
+        "Для push-уведомлений на iOS добавьте сайт в главный экран через кнопку 'Поделиться' → 'На экран Домой' и запустите как приложение"
       );
     }
 

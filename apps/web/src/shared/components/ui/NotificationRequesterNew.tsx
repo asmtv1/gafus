@@ -3,9 +3,10 @@
 import { createWebLogger } from "@gafus/logger";
 import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
 import { useNotificationComposite, useNotificationInitializer } from "@shared/stores";
-import { showNotificationPermissionAlert } from "@shared/utils/sweetAlert";
+import { showNotificationPermissionAlert, showInstallPWAAlert } from "@shared/utils/sweetAlert";
+import { detectPushSupport } from "@shared/utils/detectPushSupport";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 // Создаем логгер для notification-requester-new
 const logger = createWebLogger('web-notification-requester-new');
@@ -21,11 +22,13 @@ export default function NotificationRequesterNew() {
     isSupported,
     checkServerSubscription,
     setUserId,
+    dismissedUntil,
     shouldShowModal,
     dismissModal,
   } = useNotificationComposite();
   const [mounted, setMounted] = useState(false);
   const [vapidKey, setVapidKey] = useState<string | null>(null);
+  const hasShownDialogRef = useRef(false);
 
   // Инициализируем уведомления
   useNotificationInitializer();
@@ -77,10 +80,38 @@ export default function NotificationRequesterNew() {
     };
   }, [status, session?.user?.id, setUserId, checkServerSubscription]);
 
-  // Показываем SweetAlert2 модальное окно
+  // Обработчики для диалогов
+  const handleAllowNotifications = useCallback(async () => {
+    if (vapidKey) {
+      await requestPermission(vapidKey);
+      dismissModal();
+    } else {
+      logger.error("❌ NotificationRequesterNew: VAPID key not available");
+    }
+  }, [vapidKey, requestPermission, dismissModal]);
+
+  const handleDenyNotifications = useCallback(async () => {
+    await removePushSubscription();
+    dismissModal();
+  }, [removePushSubscription, dismissModal]);
+
+  // Сбрасываем флаг, когда dismissedUntil очищается (время прошло) и можно показывать диалог
   useEffect(() => {
-    // Если пользователь не авторизован или уведомления не поддерживаются, не показываем ничего
-    if (status !== "authenticated" || !session?.user || !mounted || !isSupported()) {
+    if (dismissedUntil === null && shouldShowModal()) {
+      hasShownDialogRef.current = false;
+    }
+  }, [dismissedUntil, shouldShowModal]);
+
+  // Показываем диалоги (инструкция PWA или запрос разрешений)
+  useEffect(() => {
+    // Если уже показывали диалог в этой сессии, не показываем снова (предотвращает дубли)
+    // Флаг сбрасывается при размонтировании компонента или когда shouldShowModal() меняется
+    if (hasShownDialogRef.current) {
+      return;
+    }
+
+    // Если пользователь не авторизован или компонент не смонтирован, не показываем ничего
+    if (status !== "authenticated" || !session?.user || !mounted) {
       return;
     }
 
@@ -89,32 +120,32 @@ export default function NotificationRequesterNew() {
       return;
     }
 
-    // Если не нужно показывать модальное окно, не показываем ничего
-    if (!shouldShowModal()) {
+    // Определяем платформу и нужные действия
+    const pushSupport = detectPushSupport();
+
+    // iOS (не PWA) - показываем инструкцию установки PWA
+    // Для iOS не проверяем shouldShowModal, так как инструкция всегда показывается
+    if (pushSupport.showInstallPrompt) {
+      hasShownDialogRef.current = true;
+      showInstallPWAAlert();
       return;
     }
 
-    const handleAllowNotifications = async () => {
-      if (vapidKey) {
-        await requestPermission(vapidKey);
-        dismissModal();
-      } else {
-        logger.error("❌ NotificationRequesterNew: VAPID key not available");
-      }
-    };
+    // iOS (PWA) / Android / Desktop - показываем запрос разрешений
+    // shouldShowModal() проверяет dismissedUntil и вернет true, если время прошло
+    if (pushSupport.showNotificationPrompt && shouldShowModal() && isSupported()) {
+      hasShownDialogRef.current = true;
+      showNotificationPermissionAlert(
+        handleAllowNotifications,
+        handleDenyNotifications,
+        isLoading,
+        error
+      );
+      return;
+    }
 
-    const handleDenyNotifications = async () => {
-      await removePushSubscription();
-      dismissModal();
-    };
-
-    // Показываем SweetAlert2 модальное окно
-    showNotificationPermissionAlert(
-      handleAllowNotifications, handleDenyNotifications,
-      isLoading,
-      error
-    );
-  }, [status, session, mounted, isSupported, permission, shouldShowModal, isLoading, error, vapidKey, requestPermission, dismissModal, removePushSubscription]);
+    // Другие случаи - ничего не показываем
+  }, [mounted, status, session?.user, permission, dismissedUntil, shouldShowModal, isSupported, isLoading, error, handleAllowNotifications, handleDenyNotifications]);
 
   // Компонент не рендерит ничего, так как использует SweetAlert2
   return null;

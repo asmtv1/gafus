@@ -152,6 +152,39 @@ export const showNotificationPermissionAlert = (
   });
 };
 
+// Диалог с инструкцией по установке PWA для iOS
+export const showInstallPWAAlert = () => {
+  return Swal.fire({
+    title: 'Установите приложение',
+    html: `
+      <div style="text-align: left; margin: 20px 0;">
+        <p style="margin-bottom: 15px;">Для получения уведомлений на iOS необходимо установить приложение на главный экран:</p>
+        <ol style="margin: 15px 0; padding-left: 25px; line-height: 1.8;">
+          <li>Нажмите кнопку "Поделиться" <span style="font-size: 20px;">📤</span> внизу экрана</li>
+          <li>Прокрутите вниз и выберите "На экран Домой"</li>
+          <li>Нажмите "Добавить"</li>
+          <li>Откройте приложение с главного экрана</li>
+        </ol>
+        <p style="color: #666; font-size: 14px; margin-top: 15px;">После установки вы сможете включить уведомления в настройках профиля.</p>
+      </div>
+    `,
+    imageUrl: '/uploads/logo.png',
+    imageWidth: 120,
+    imageHeight: 120,
+    imageAlt: 'Гафус',
+    confirmButtonText: 'Окей',
+    confirmButtonColor: customTheme.confirmButtonColor,
+    customClass: {
+      popup: 'swal2-popup-custom',
+      title: 'swal2-title-custom',
+      htmlContainer: 'swal2-content-custom',
+      confirmButton: 'swal2-confirm-custom',
+    },
+    allowOutsideClick: true,
+    allowEscapeKey: true,
+  });
+};
+
 // Модальное окно редактирования питомца
 export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | null> => {
   const petTypes = [

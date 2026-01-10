@@ -64,6 +64,7 @@ export function useNotificationComposite() {
     subscription: push.subscription,
     hasServerSubscription: push.hasServerSubscription,
     showModal: ui.showModal,
+    dismissedUntil: ui.dismissedUntil,
     isLoading: permission.isLoading || push.isLoading,
     error: permission.error || push.error,
     disabledByUser: push.disabledByUser,
@@ -100,7 +101,9 @@ export function useNotificationComposite() {
     isSupported: () => permission.isSupported() && push.isSupported(),
     canRequest: permission.canRequest,
     isGranted: permission.isGranted,
-    shouldShowModal: () => ui.shouldShowModal(permission.isGranted(), permission.isSupported()),
+    shouldShowModal: useCallback(() => {
+      return ui.shouldShowModal(permission.isGranted(), permission.isSupported());
+    }, [ui.shouldShowModal, permission.isGranted, permission.isSupported]),
 
     // Внутренние stores для прямого доступа при необходимости
     stores: {
