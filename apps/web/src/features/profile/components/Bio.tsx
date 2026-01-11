@@ -5,6 +5,7 @@ import EditableAvatar from "./EditableAvatar";
 import NotificationStatus from "./NotificationStatus";
 import PetList from "./PetList";
 import ProfileAvatar from "./ProfileAvatar";
+import TrainerCoursesSection from "./TrainerCoursesSection";
 
 import type { BioProps } from "@gafus/types";
 
@@ -115,6 +116,9 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           </Link>
         )}
 </div>
+        {publicData.role === "TRAINER" && (
+          <TrainerCoursesSection publicData={publicData} />
+        )}
         {isOwner && (
           <div className={styles.notificationStatus}>
             <NotificationStatus />

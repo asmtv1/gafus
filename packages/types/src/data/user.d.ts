@@ -58,6 +58,17 @@ export interface PublicProfile {
             rank: string | null;
         }[];
     }[];
+    courses?: {
+        id: string;
+        name: string;
+        type: string;
+        logoImg: string;
+        shortDesc: string;
+        duration: string;
+        isPrivate: boolean;
+        avgRating: number | null;
+        trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+    }[];
 }
 export interface BioFormData {
     fullName: string;

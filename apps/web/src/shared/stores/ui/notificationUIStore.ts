@@ -5,7 +5,7 @@ import { persist } from "zustand/middleware";
 
 // Константа для периода отложения напоминания (10 дней)
 const NOTIFICATION_REMIND_DELAY_DAYS = 10;
-const NOTIFICATION_REMIND_DELAY_MS = 60 * 1000;
+const NOTIFICATION_REMIND_DELAY_MS = NOTIFICATION_REMIND_DELAY_DAYS * 24 * 60 * 60 * 1000;
 
 interface NotificationUIState {
   showModal: boolean;

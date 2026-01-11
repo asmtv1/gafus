@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Day } from "@features/training/components/Day";
 import { getTrainingDayWithUserSteps } from "@shared/lib/training/getTrainingDayWithUserSteps";
 import { checkDayAccess } from "@shared/lib/training/checkDayAccess";
+import { checkCourseAccess } from "@shared/lib/course/checkCourseAccess";
 import { generatePageMetadata } from "@gafus/metadata";
 import { dayIdSchema } from "@shared/lib/validation/schemas";
 
@@ -12,6 +13,12 @@ export default async function DayPage(props: {
   params: Promise<{ courseType: string; day: string }>;
 }) {
   const { courseType, day } = await props.params;
+
+  // Проверяем доступ к курсу ПЕРЕД проверкой доступа к дню
+  const courseAccessCheck = await checkCourseAccess(courseType);
+  if (!courseAccessCheck.hasAccess) {
+    redirect("/courses");
+  }
 
   // Валидируем, что day является корректным ID
   const dayId = dayIdSchema.parse(day);

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import TrainingPageClient from "@features/training/components/TrainingPageClient";
 import { getTrainingDaysCached } from "@shared/lib/actions/cachedCourses";
 import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
 import { getCourseMetadata } from "@shared/lib/course/getCourseMetadata";
+import { checkCourseAccess } from "@shared/lib/course/checkCourseAccess";
 import { getCurrentUserId } from "@/utils";
 import { generateCourseMetadata } from "@gafus/metadata";
 
@@ -35,6 +37,12 @@ export async function generateMetadata({ params }: TrainingsPageProps): Promise<
 
 export default async function TrainingsPage({ params }: TrainingsPageProps) {
   const { courseType } = await params;
+  
+  // Проверяем доступ к курсу
+  const accessCheck = await checkCourseAccess(courseType);
+  if (!accessCheck.hasAccess) {
+    redirect("/courses");
+  }
   
   // Получаем метаданные курса для названия
   const courseMetadata = await getCourseMetadata(courseType);

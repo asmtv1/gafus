@@ -61,13 +61,46 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
             },
           },
         },
+        authoredCourses: {
+          where: {
+            showInProfile: true,
+          },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            logoImg: true,
+            shortDesc: true,
+            duration: true,
+            isPrivate: true,
+            avgRating: true,
+            trainingLevel: true,
+          },
+        },
       },
     });
 
     if (!user) return null;
 
+    const courses =
+      user.role === "TRAINER" && user.authoredCourses
+        ? user.authoredCourses.map((course) => ({
+            id: String(course.id),
+            name: course.name,
+            type: course.type,
+            logoImg: course.logoImg,
+            shortDesc: course.shortDesc,
+            duration: course.duration,
+            isPrivate: course.isPrivate,
+            avgRating: course.avgRating,
+            trainingLevel: course.trainingLevel,
+          }))
+        : undefined;
+
     const publicProfile: PublicProfile = {
       ...user,
+      courses,
       diplomas: user.diplomas
         .filter((d: { issuedAt: Date | null }) => d.issuedAt !== null)
         .map(

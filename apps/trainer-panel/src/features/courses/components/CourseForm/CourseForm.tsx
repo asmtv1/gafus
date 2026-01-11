@@ -18,8 +18,10 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   FormControl,
   FormControlLabel,
+  FormGroup,
   Radio,
   RadioGroup,
   Typography,
@@ -67,6 +69,7 @@ export default function CourseForm({
       logoImg: "",
       isPublic: true,
       isPaid: false,
+      showInProfile: true,
       trainingDays: [],
       allowedUsers: [],
       equipment: "",
@@ -86,6 +89,7 @@ export default function CourseForm({
         logoImg: initialValues.logoImg ?? "",
         isPublic: initialValues.isPublic ?? true,
         isPaid: initialValues.isPaid ?? false,
+        showInProfile: initialValues.showInProfile ?? true,
         trainingDays: initialValues.trainingDays ?? [],
         allowedUsers: initialValues.allowedUsers ?? [],
         equipment: initialValues.equipment ?? "",
@@ -119,6 +123,7 @@ export default function CourseForm({
           logoImg: data.logoImg,
           isPublic: data.isPublic,
           isPaid: data.isPaid,
+          showInProfile: data.showInProfile,
           trainingDays: data.trainingDays,
           allowedUsers: data.allowedUsers,
           equipment: data.equipment,
@@ -136,6 +141,7 @@ export default function CourseForm({
           logoImg: data.logoImg,
           isPublic: data.isPublic,
           isPaid: data.isPaid,
+          showInProfile: data.showInProfile,
           trainingDays: data.trainingDays,
           allowedUsers: data.allowedUsers,
           equipment: data.equipment,
@@ -341,6 +347,24 @@ export default function CourseForm({
                 label="Платный курс"
               /> */}
             </RadioGroup>
+          </FormControl>
+          <FormControl component="fieldset" className={sharedStyles.formField}>
+            <FormGroup>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={form.watch("showInProfile")}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      form.setValue("showInProfile", e.target.checked);
+                    }}
+                  />
+                }
+                label="Показывать курс в моём профиле"
+              />
+            </FormGroup>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Если включено, курс будет отображаться в вашем публичном профиле для всех посетителей
+            </Typography>
           </FormControl>
         </FormSection>
 

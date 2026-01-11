@@ -15,6 +15,7 @@ export interface TrainerCourseFormData {
     logoImg: string;
     isPublic: boolean;
     isPaid: boolean;
+    showInProfile: boolean;
     trainingDays: string[];
     allowedUsers: string[];
     equipment: string;

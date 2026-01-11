@@ -59,6 +59,7 @@ model Course {
   logoImg       String
   isPrivate     Boolean       @default(false)
   isPaid        Boolean       @default(false)
+  showInProfile Boolean       @default(true)
 
   authorId String
   author   User   @relation(fields: [authorId], references: [id])
@@ -790,7 +791,7 @@ model ErrorLog {
   tags String[] @default([])
 
   // Статус обработки
-  status String @default("new") // new | viewed | resolved | archived
+  status     String    @default("new") // new | viewed | resolved | archived
   resolvedAt DateTime? // когда ошибка была решена
   resolvedBy String? // кто решил ошибку (username/userId)
 

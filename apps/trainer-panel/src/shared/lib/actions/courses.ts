@@ -17,6 +17,7 @@ export interface CreateCourseInput {
   logoImg: string;
   isPublic: boolean;
   isPaid: boolean;
+  showInProfile: boolean;
   trainingDays: string[];
   allowedUsers: string[];
   equipment: string;
@@ -44,6 +45,7 @@ export async function createCourseServerAction(input: CreateCourseInput) {
       logoImg: input.logoImg,
       isPrivate,
       isPaid: input.isPaid,
+      showInProfile: input.showInProfile ?? true,
       videoUrl: input.videoUrl || null,
       equipment: input.equipment,
       trainingLevel: input.trainingLevel,
@@ -103,6 +105,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
         videoUrl: input.videoUrl || null,
         isPrivate,
         isPaid: input.isPaid,
+        showInProfile: input.showInProfile ?? true,
         equipment: input.equipment,
         trainingLevel: input.trainingLevel,
       },

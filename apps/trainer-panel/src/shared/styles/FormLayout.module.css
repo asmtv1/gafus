@@ -24,6 +24,8 @@
 }
 
 .formSection {
+  display: flex;
+  flex-direction: column;
   background-color: #f8f9fa;
   border-radius: 6px;
   padding: 1.5rem;
