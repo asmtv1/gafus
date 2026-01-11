@@ -9,6 +9,7 @@ import type { ChecklistQuestion, TrainingDetail } from "@gafus/types";
 import { getCurrentUserId } from "@/utils";
 import { dayIdSchema, trainingTypeSchema } from "../validation/schemas";
 import { NON_NUMBERED_DAY_TYPES } from "./dayTypes";
+import { checkCourseAccess } from "../course/checkCourseAccess";
 
 const courseTypeSchema = trainingTypeSchema;
 
@@ -46,6 +47,12 @@ async function findTrainingDayWithUserTraining(
   dayOnCourseId: string,
   userId: string,
 ) {
+  // Проверяем доступ к курсу перед запросом к БД
+  const accessCheck = await checkCourseAccess(courseType);
+  if (!accessCheck.hasAccess) {
+    return null;
+  }
+
   // Используем ID дня для прямого поиска в БД
   return prisma.dayOnCourse.findFirst({
     where: {

@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 import TrainingPageClient from "@features/training/components/TrainingPageClient";
-import { getTrainingDaysCached } from "@shared/lib/actions/cachedCourses";
+import { getTrainingDays } from "@shared/lib/training/getTrainingDays";
 import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
 import { getCourseMetadata } from "@shared/lib/course/getCourseMetadata";
-import { checkCourseAccess } from "@shared/lib/course/checkCourseAccess";
 import { getCurrentUserId } from "@/utils";
 import { generateCourseMetadata } from "@gafus/metadata";
 
@@ -38,12 +36,6 @@ export async function generateMetadata({ params }: TrainingsPageProps): Promise<
 export default async function TrainingsPage({ params }: TrainingsPageProps) {
   const { courseType } = await params;
   
-  // Проверяем доступ к курсу
-  const accessCheck = await checkCourseAccess(courseType);
-  if (!accessCheck.hasAccess) {
-    redirect("/courses");
-  }
-  
   // Получаем метаданные курса для названия
   const courseMetadata = await getCourseMetadata(courseType);
   const courseName = courseMetadata?.name;
@@ -55,18 +47,19 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
   try {
     // Получаем userId на сервере
     const userId = await getCurrentUserId();
-    const result = await getTrainingDaysCached(courseType, userId);
-    if (result.success) {
-      serverData = result.data;
-      // Проверяем завершение курса
-      await checkAndCompleteCourse(serverData.trainingDays, serverData.courseId);
+    const data = await getTrainingDays(courseType, userId);
+    serverData = data;
+    // Проверяем завершение курса
+    await checkAndCompleteCourse(serverData.trainingDays, serverData.courseId);
+  } catch (error) {
+    // Пробрасываем специфичную ошибку доступа
+    if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
+      serverError = "COURSE_ACCESS_DENIED";
     } else {
-      serverError = result.error;
+      // В случае ошибки сервера (например, офлайн), не показываем ошибку
+      // Client Component сам разберется с кэшем
+      serverError = null;
     }
-  } catch  {
-    // В случае ошибки сервера (например, офлайн), не показываем ошибку
-    // Client Component сам разберется с кэшем
-    serverError = null;
   }
 
   return (

@@ -70,18 +70,20 @@ export async function checkCourseAccess(
 }
 
 /**
- * Проверяет доступ текущего пользователя к курсу по ID
+ * Проверяет доступ пользователя к курсу по ID
  * @param courseId - ID курса
+ * @param userId - ID пользователя (опционально, если не передан - получается из сессии)
  * @returns Результат проверки доступа
  */
 export async function checkCourseAccessById(
   courseId: string,
+  userId?: string,
 ): Promise<{ hasAccess: boolean }> {
   try {
-    const userId = await getCurrentUserId();
+    const currentUserId = userId ?? await getCurrentUserId();
 
     // Если пользователь не авторизован, проверяем только публичные курсы
-    if (!userId) {
+    if (!currentUserId) {
       const course = await prisma.course.findUnique({
         where: { id: courseId },
         select: {
@@ -103,7 +105,7 @@ export async function checkCourseAccessById(
         isPrivate: true,
         access: {
           where: {
-            userId: userId,
+            userId: currentUserId,
           },
           select: {
             userId: true,

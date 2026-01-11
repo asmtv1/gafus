@@ -209,7 +209,7 @@ self.addEventListener('fetch', (event) => {
             
             clearTimeout(timeoutId);
             
-            // Если запрос успешен, кэшируем HTML и возвращаем
+            // Если запрос успешен (200), кэшируем HTML и возвращаем
             if (response.ok) {
               notifyClient('ONLINE');
               // Кэшируем HTML структуру страницы для офлайн-доступа
@@ -220,6 +220,19 @@ self.addEventListener('fetch', (event) => {
               // Извлекаем ссылки на chunks из HTML и кэшируем их
               cachePageChunks(response.clone(), OFFLINE_CACHE_NAME);
               
+              return response;
+            }
+            
+            // Если ответ - это redirect (3xx) или ошибка (4xx, 5xx),
+            // возвращаем ответ как есть, не пытаясь загружать из кэша/IndexedDB
+            // Это стандартное поведение для корректной обработки редиректов и ошибок браузером
+            if (response.status >= 300 && response.status < 400) {
+              // Redirect - возвращаем как есть
+              return response;
+            }
+            
+            // Для ошибок (4xx, 5xx) также возвращаем как есть
+            if (response.status >= 400) {
               return response;
             }
           } catch (error) {

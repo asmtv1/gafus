@@ -10,6 +10,7 @@ import type { TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 import { optionalTrainingTypeSchema, optionalUserIdSchema } from "../validation/schemas";
+import { checkCourseAccessById } from "../course/checkCourseAccess";
 
 // Создаем логгер для getTrainingDays
 const logger = createWebLogger("web-get-training-days");
@@ -225,6 +226,7 @@ export async function getTrainingDays(
         videoUrl: true,
         equipment: true,
         trainingLevel: true,
+        isPrivate: true,
         dayLinks: {
           orderBy: { order: "asc" },
           select: {
@@ -281,6 +283,19 @@ export async function getTrainingDays(
       };
     }
 
+    // Проверяем доступ к приватному курсу
+    if (firstCourse.isPrivate) {
+      const hasAccess = await checkCourseAccessById(firstCourse.id, currentUserId);
+      if (!hasAccess.hasAccess) {
+        logger.warn("Попытка доступа к приватному курсу без разрешения", {
+          operation: "get_training_days_access_denied",
+          courseId: firstCourse.id,
+          userId: currentUserId,
+        });
+        throw new Error("COURSE_ACCESS_DENIED");
+      }
+    }
+
     const trainingDays = mapCourseToTrainingDays(
       firstCourse as unknown as CourseWithDayLinks,
     );
@@ -297,6 +312,10 @@ export async function getTrainingDays(
     logger.error("Ошибка в getTrainingDays", error as Error, {
       operation: "get_training_days_error",
     });
+    // Пробрасываем специфичную ошибку доступа
+    if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
+      throw error;
+    }
     throw new Error("Не удалось загрузить Тренировки");
   }
 }

@@ -4,7 +4,6 @@
 import { createWebLogger } from "@gafus/logger";
 import { useCallback, useEffect, useState } from "react";
 
-import { getTrainingDaysCached } from "../lib/actions/cachedCourses";
 import { getTrainingDays } from "../lib/training/getTrainingDays";
 import { useTrainingStore } from "../stores/trainingStore";
 import { getCurrentUserId } from "@/utils";
@@ -175,26 +174,9 @@ export function useCachedTrainingDays(
 
       // Приоритет 4: Загружаем с сервера (только если онлайн)
       if (isOnline()) {
-        let result;
-        try {
-          const userId = await getCurrentUserId();
-          result = await getTrainingDaysCached(courseType, userId);
-        } catch (cachedError) {
-          logger.warn("[Cache] Cached function failed, trying direct function:", { cachedError, operation: 'warn' });
-          try {
-            const directResult = await getTrainingDays(courseType);
-            result = { success: true, data: directResult };
-          } catch (directError) {
-            logger.error("[Cache] Both cached and direct functions failed", directError as Error, { courseType, operation: 'error' });
-            throw directError;
-          }
-        }
-
-        if (result.success && result.data) {
-          setCachedTrainingDays(courseType, result.data);
-        } else {
-          throw new Error(result.error || "Ошибка загрузки дней тренировок");
-        }
+        const userId = await getCurrentUserId();
+        const data = await getTrainingDays(courseType, userId);
+        setCachedTrainingDays(courseType, data);
       } else {
         // Офлайн и нет данных - показываем ошибку
         throw new Error("Нет подключения к интернету и курс не скачан для офлайн-доступа");

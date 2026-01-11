@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import { Day } from "@features/training/components/Day";
 import { getTrainingDayWithUserSteps } from "@shared/lib/training/getTrainingDayWithUserSteps";
 import { checkDayAccess } from "@shared/lib/training/checkDayAccess";
-import { checkCourseAccess } from "@shared/lib/course/checkCourseAccess";
 import { generatePageMetadata } from "@gafus/metadata";
 import { dayIdSchema } from "@shared/lib/validation/schemas";
+import { AccessDeniedAlert } from "@features/training/components/AccessDeniedAlert";
 
 import type { Metadata } from "next";
 import type { TrainingDetail } from "@gafus/types";
@@ -13,12 +13,6 @@ export default async function DayPage(props: {
   params: Promise<{ courseType: string; day: string }>;
 }) {
   const { courseType, day } = await props.params;
-
-  // Проверяем доступ к курсу ПЕРЕД проверкой доступа к дню
-  const courseAccessCheck = await checkCourseAccess(courseType);
-  if (!courseAccessCheck.hasAccess) {
-    redirect("/courses");
-  }
 
   // Валидируем, что day является корректным ID
   const dayId = dayIdSchema.parse(day);
@@ -38,7 +32,8 @@ export default async function DayPage(props: {
   );
 
   if (!training) {
-    throw new Error("Тренировка не найдена");
+    // Вместо throw создаем клиентский компонент с alert
+    return <AccessDeniedAlert courseType={courseType} />;
   }
 
   return <Day training={training} courseType={courseType} />;

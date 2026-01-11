@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
+import { checkCourseAccess } from "./checkCourseAccess";
 
 const courseTypeSchema = z.string().trim().min(1);
 
@@ -47,7 +48,18 @@ export async function getCourseMetadata(courseType: string) {
     },
   );
 
-  return await cachedFunction();
+  const course = await cachedFunction();
+
+  // Проверяем доступ к курсу перед возвратом метаданных
+  if (course) {
+    const accessCheck = await checkCourseAccess(safeCourseType);
+    if (!accessCheck.hasAccess) {
+      // Не возвращаем метаданные для недоступных курсов
+      return null;
+    }
+  }
+
+  return course;
 }
 
 

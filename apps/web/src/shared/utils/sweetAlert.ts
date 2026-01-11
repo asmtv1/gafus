@@ -329,3 +329,26 @@ export const showLockedDayAlert = () => {
     },
   });
 };
+
+// Сообщение о недоступном приватном курсе
+export const showPrivateCourseAccessDeniedAlert = () => {
+  return Swal.fire({
+    title: 'Курс недоступен 🔒',
+    text: 'Этот курс приватный и доступен только по приглашению. Обратитесь к кинологу для получения доступа.',
+    imageUrl: '/uploads/logo.png',
+    imageWidth: 100,
+    imageHeight: 100,
+    imageAlt: 'Гафус',
+    confirmButtonText: 'Понятно',
+    confirmButtonColor: customTheme.cancelButtonColor,
+    customClass: {
+      popup: 'swal2-popup-custom',
+      title: 'swal2-title-custom',
+      htmlContainer: 'swal2-content-custom',
+      confirmButton: 'swal2-confirm-custom',
+    },
+  }).then(() => {
+    // После закрытия alert делаем редирект на список курсов (убираем параметры)
+    window.location.href = '/courses';
+  });
+};

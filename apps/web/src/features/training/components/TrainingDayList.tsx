@@ -1,12 +1,12 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useEffect } from "react";
 import Link from "next/link";
 
 import { useCachedTrainingDays } from "@shared/hooks/useCachedTrainingDays";
 import { useStepStore } from "@shared/stores/stepStore";
 import { calculateDayStatus } from "@shared/utils/trainingCalculations";
-import { showLockedDayAlert } from "@shared/utils/sweetAlert";
+import { showLockedDayAlert, showPrivateCourseAccessDeniedAlert } from "@shared/utils/sweetAlert";
 import { LockIcon } from "@/utils/muiImports";
 import styles from "./TrainingDayList.module.css";
 
@@ -106,6 +106,13 @@ const TrainingDayList = memo(function TrainingDayList({
   const displayError = initialError || error;
   const displayLoading = !initialData && loading;
 
+  // Специальная обработка для ошибки доступа
+  useEffect(() => {
+    if (displayError && displayError.includes("COURSE_ACCESS_DENIED")) {
+      showPrivateCourseAccessDeniedAlert();
+    }
+  }, [displayError]);
+
   if (displayLoading) {
     return (
       <div className="flex justify-center items-center py-8">
@@ -115,6 +122,11 @@ const TrainingDayList = memo(function TrainingDayList({
   }
 
   if (displayError) {
+    // Специальная обработка для ошибки доступа - показываем alert и возвращаем null
+    if (displayError.includes("COURSE_ACCESS_DENIED")) {
+      return null;
+    }
+    
     return (
       <div className="flex flex-col items-center py-8 space-y-4">
         <div className="text-red-600">Ошибка загрузки: {displayError}</div>
