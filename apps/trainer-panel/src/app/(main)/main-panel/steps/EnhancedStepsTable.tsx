@@ -33,7 +33,7 @@ import {
 } from "@mui/material";
 import { visuallyHidden } from "@mui/utils";
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 import type { TrainerStepTableRow as Step } from "@gafus/types";
 
@@ -79,7 +79,7 @@ export default function EnhancedStepsTable({
   initialSearchParams,
 }: EnhancedStepsTableProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   const headCells = React.useMemo(() => {
     if (isAdmin) {
@@ -152,40 +152,39 @@ export default function EnhancedStepsTable({
       page?: number;
       rowsPerPage?: number;
     }) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams();
 
-      if (updates.search !== undefined) {
-        if (updates.search) {
-          params.set("search", updates.search);
-        } else {
-          params.delete("search");
-        }
+      // Используем текущие значения состояния или обновленные значения
+      const currentSearch = updates.search !== undefined ? updates.search : searchQuery;
+      const currentOrderBy = updates.orderBy !== undefined ? updates.orderBy : orderBy;
+      const currentOrder = updates.order !== undefined ? updates.order : order;
+      const currentPage = updates.page !== undefined ? updates.page : page;
+      const currentRowsPerPage = updates.rowsPerPage !== undefined ? updates.rowsPerPage : rowsPerPage;
+
+      if (currentSearch) {
+        params.set("search", currentSearch);
       }
 
-      if (updates.orderBy !== undefined) {
-        params.set("orderBy", updates.orderBy);
+      if (currentOrderBy) {
+        params.set("orderBy", currentOrderBy);
       }
 
-      if (updates.order !== undefined) {
-        params.set("order", updates.order);
+      if (currentOrder) {
+        params.set("order", currentOrder);
       }
 
-      if (updates.page !== undefined) {
-        if (updates.page === 0) {
-          params.delete("page");
-        } else {
-          params.set("page", updates.page.toString());
-        }
+      if (currentPage > 0) {
+        params.set("page", currentPage.toString());
       }
 
-      if (updates.rowsPerPage !== undefined) {
-        params.set("rowsPerPage", updates.rowsPerPage.toString());
+      if (currentRowsPerPage) {
+        params.set("rowsPerPage", currentRowsPerPage.toString());
       }
 
-      const newUrl = params.toString() ? `?${params.toString()}` : "";
+      const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
       router.replace(newUrl, { scroll: false });
     },
-    [router, searchParams],
+    [router, pathname, searchQuery, orderBy, order, page, rowsPerPage],
   );
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -210,14 +209,30 @@ export default function EnhancedStepsTable({
   }, [filteredStepIds]);
 
   // Синхронизация поиска с URL (с debounce) и сброс страницы
+  // Используем useRef для отслеживания предыдущего значения поиска
+  const prevSearchQueryRef = React.useRef(searchQuery);
   React.useEffect(() => {
+    // Сбрасываем страницу только если поиск действительно изменился
+    const searchChanged = prevSearchQueryRef.current !== searchQuery;
+    prevSearchQueryRef.current = searchQuery;
+
     const timeoutId = setTimeout(() => {
-      setPage(0);
-      updateURL({ search: searchQuery, page: 0 });
+      if (searchChanged) {
+        setPage(0);
+        // Обновляем URL напрямую, не через updateURL, чтобы избежать конфликтов
+        const params = new URLSearchParams();
+        if (searchQuery) params.set("search", searchQuery);
+        if (orderBy) params.set("orderBy", orderBy);
+        if (order) params.set("order", order);
+        // page = 0, не добавляем в URL
+        if (rowsPerPage) params.set("rowsPerPage", rowsPerPage.toString());
+        const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+        router.push(newUrl, { scroll: false });
+      }
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, updateURL]);
+  }, [searchQuery, router, pathname, orderBy, order, rowsPerPage]);
 
   // Синхронизация сортировки с URL и localStorage
   React.useEffect(() => {
@@ -228,10 +243,7 @@ export default function EnhancedStepsTable({
     }
   }, [orderBy, order, updateURL]);
 
-  // Синхронизация пагинации с URL
-  React.useEffect(() => {
-    updateURL({ page });
-  }, [page, updateURL]);
+  // Синхронизация пагинации с URL - убрана, обновляется напрямую в handleChangePage
 
   // Синхронизация rowsPerPage с URL и localStorage
   React.useEffect(() => {
@@ -257,12 +269,30 @@ export default function EnhancedStepsTable({
 
   const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage);
+    // Обновляем URL сразу при изменении страницы
+    const params = new URLSearchParams();
+    if (searchQuery) params.set("search", searchQuery);
+    if (orderBy) params.set("orderBy", orderBy);
+    if (order) params.set("order", order);
+    if (newPage > 0) params.set("page", newPage.toString());
+    if (rowsPerPage) params.set("rowsPerPage", rowsPerPage.toString());
+    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.push(newUrl, { scroll: false });
   };
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
+    // Обновляем URL сразу при изменении rowsPerPage
+    const params = new URLSearchParams();
+    if (searchQuery) params.set("search", searchQuery);
+    if (orderBy) params.set("orderBy", orderBy);
+    if (order) params.set("order", order);
+    // page = 0, не добавляем в URL
+    params.set("rowsPerPage", newRowsPerPage.toString());
+    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.push(newUrl, { scroll: false });
   };
 
   const comparator = React.useCallback(
