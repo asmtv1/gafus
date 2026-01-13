@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getVideoUrlForPlayback } from "@shared/lib/video/getVideoUrlForPlayback";
 
 /**
  * Хук для получения URL видео с автоматическим преобразованием HLS URL в signed URL
  */
 export function useVideoUrl(videoUrl: string | null | undefined): string | null {
-  // Проверяем, является ли это CDN видео
-  const isCDN =
-    videoUrl?.includes("gafus-media.storage.yandexcloud.net") ||
-    videoUrl?.includes("storage.yandexcloud.net/gafus-media");
+  // Проверяем, является ли это CDN видео (мемоизируем, чтобы избежать пересчёта)
+  const isCDN = useMemo(
+    () =>
+      videoUrl?.includes("gafus-media.storage.yandexcloud.net") ||
+      videoUrl?.includes("storage.yandexcloud.net/gafus-media"),
+    [videoUrl]
+  );
 
   // Для CDN видео не инициализируем с оригинальным URL, так как он может быть удалён после транскодирования
   // Для не-CDN видео (YouTube, VK) используем оригинальный URL сразу
@@ -28,9 +31,14 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
       return;
     }
 
-    console.error("[useVideoUrl] Проверка CDN:", { isCDN, videoUrl });
+    // Проверяем, является ли это CDN видео
+    const isCDNVideo =
+      videoUrl.includes("gafus-media.storage.yandexcloud.net") ||
+      videoUrl.includes("storage.yandexcloud.net/gafus-media");
 
-    if (isCDN) {
+    console.error("[useVideoUrl] Проверка CDN:", { isCDN: isCDNVideo, videoUrl });
+
+    if (isCDNVideo) {
       console.error("[useVideoUrl] === CDN видео, вызываем getVideoUrlForPlayback ===");
       // Асинхронно получаем signed URL (функция сама определит HLS или MP4)
       getVideoUrlForPlayback(videoUrl)
@@ -57,7 +65,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
       console.error("[useVideoUrl] Не CDN видео, устанавливаем как есть");
       setPlaybackUrl(videoUrl);
     }
-  }, [videoUrl, isCDN]);
+  }, [videoUrl]);
 
   console.log("[useVideoUrl] Возвращаем playbackUrl:", playbackUrl);
   return playbackUrl;
