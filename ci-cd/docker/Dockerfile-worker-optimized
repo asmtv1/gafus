@@ -27,7 +27,8 @@ RUN cd packages/prisma \
   && mv schema.prisma.bak schema.prisma
 
 # Собираем все пакеты (включая logger, cdn-upload и reengagement для worker)
-RUN pnpm build --filter @gafus/worker --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/types --filter @gafus/logger --filter @gafus/cdn-upload --filter @gafus/reengagement
+# Порядок важен: сначала зависимости, потом worker
+RUN pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/cdn-upload --filter @gafus/reengagement --filter @gafus/worker
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner

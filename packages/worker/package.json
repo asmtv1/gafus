@@ -20,6 +20,7 @@
     "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
+    "@gafus/types": "workspace:*",
     "@gafus/webpush": "workspace:*",
     "@gafus/reengagement": "workspace:*",
     "bullmq": "5.2.0",

@@ -1112,6 +1112,9 @@ importers:
       '@gafus/reengagement':
         specifier: workspace:*
         version: link:../reengagement
+      '@gafus/types':
+        specifier: workspace:*
+        version: link:../types
       '@gafus/webpush':
         specifier: workspace:*
         version: link:../webpush
