@@ -595,31 +595,43 @@ export function AccordionStep({
       )}
 
       {/* Видео (не показываем для перерыва) */}
-      {videoInfo && type !== "BREAK" && (
+      {videoUrl && type !== "BREAK" && (
         <div className={styles.videoContainer}>
-          <div
-            className={`${styles.videoWrapper} ${videoInfo.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
-          >
-            {/* Используем HLSVideoPlayer для CDN видео или HLS видео (включая signed URLs) */}
-            {videoInfo.isCDN || videoInfo.isHLS ? (
-              <HLSVideoPlayer
-                src={videoInfo.embedUrl}
-                controls
-                className={styles.videoIframe}
-                onError={(error) => {
-                  console.error("Video playback error:", error);
-                }}
-              />
+          {playbackVideoUrl ? (
+            videoInfo ? (
+              <div
+                className={`${styles.videoWrapper} ${videoInfo.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
+              >
+                {/* Используем HLSVideoPlayer для CDN видео или HLS видео (включая signed URLs) */}
+                {videoInfo.isCDN || videoInfo.isHLS ? (
+                  <HLSVideoPlayer
+                    src={videoInfo.embedUrl}
+                    controls
+                    className={styles.videoIframe}
+                    onError={(error) => {
+                      console.error("Video playback error:", error);
+                    }}
+                  />
+                ) : (
+                  <iframe
+                    src={videoInfo.embedUrl}
+                    title="Видео упражнения"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className={styles.videoIframe}
+                  />
+                )}
+              </div>
             ) : (
-              <iframe
-                src={videoInfo.embedUrl}
-                title="Видео упражнения"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className={styles.videoIframe}
-              />
-            )}
-          </div>
+              <div style={{ padding: "20px", textAlign: "center" }}>
+                <p>Загрузка видео...</p>
+              </div>
+            )
+          ) : (
+            <div style={{ padding: "20px", textAlign: "center", color: "#d32f2f" }}>
+              <p>Не удалось загрузить видео. Пожалуйста, обновите страницу или обратитесь в поддержку.</p>
+            </div>
+          )}
         </div>
       )}
 

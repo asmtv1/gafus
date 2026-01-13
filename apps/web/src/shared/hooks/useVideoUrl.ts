@@ -7,8 +7,16 @@ import { getVideoUrlForPlayback } from "@shared/lib/video/getVideoUrlForPlayback
  * Хук для получения URL видео с автоматическим преобразованием HLS URL в signed URL
  */
 export function useVideoUrl(videoUrl: string | null | undefined): string | null {
-  // Инициализируем с videoUrl, чтобы не было задержки при первом рендере
-  const [playbackUrl, setPlaybackUrl] = useState<string | null>(videoUrl || null);
+  // Проверяем, является ли это CDN видео
+  const isCDN =
+    videoUrl?.includes("gafus-media.storage.yandexcloud.net") ||
+    videoUrl?.includes("storage.yandexcloud.net/gafus-media");
+
+  // Для CDN видео не инициализируем с оригинальным URL, так как он может быть удалён после транскодирования
+  // Для не-CDN видео (YouTube, VK) используем оригинальный URL сразу
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(
+    videoUrl && !isCDN ? videoUrl : null
+  );
 
   useEffect(() => {
     console.error("[useVideoUrl] === useEffect вызван === videoUrl:", videoUrl);
@@ -20,11 +28,6 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
       return;
     }
 
-    // Для CDN видео (не только HLS, но и MP4 которые могут быть транскодированы)
-    const isCDN =
-      videoUrl.includes("gafus-media.storage.yandexcloud.net") ||
-      videoUrl.includes("storage.yandexcloud.net/gafus-media");
-
     console.error("[useVideoUrl] Проверка CDN:", { isCDN, videoUrl });
 
     if (isCDN) {
@@ -33,18 +36,28 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
       getVideoUrlForPlayback(videoUrl)
         .then((url) => {
           console.error("[useVideoUrl] === getVideoUrlForPlayback ВЕРНУЛ ===", url);
-          setPlaybackUrl(url || videoUrl);
+          // Если url === null, это означает, что видео транскодировано, но signed URL не получен
+          // В этом случае не используем fallback на оригинальный URL, так как он удалён
+          if (url !== null) {
+            setPlaybackUrl(url);
+          } else {
+            // Если null, оставляем оригинальный URL только если видео ещё не транскодировано
+            // Но лучше вернуть null, чтобы показать ошибку пользователю
+            console.error("[useVideoUrl] getVideoUrlForPlayback вернул null - возможно, видео транскодировано, но signed URL не получен");
+            setPlaybackUrl(null);
+          }
         })
         .catch((error) => {
           console.error("[useVideoUrl] === ОШИБКА при получении signed URL ===", error);
-          setPlaybackUrl(videoUrl); // Fallback на оригинальный URL
+          // При ошибке тоже не используем fallback, так как оригинальный файл может быть удалён
+          setPlaybackUrl(null);
         });
     } else {
       // Для не-CDN видео (YouTube, VK и т.д.) возвращаем URL как есть
       console.error("[useVideoUrl] Не CDN видео, устанавливаем как есть");
       setPlaybackUrl(videoUrl);
     }
-  }, [videoUrl]);
+  }, [videoUrl, isCDN]);
 
   console.log("[useVideoUrl] Возвращаем playbackUrl:", playbackUrl);
   return playbackUrl;
