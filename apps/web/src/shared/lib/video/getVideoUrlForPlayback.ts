@@ -6,8 +6,7 @@ import { getSignedVideoUrl } from "./getSignedVideoUrl";
 
 /**
  * Преобразует videoUrl в URL для воспроизведения
- * - Для HLS видео: возвращает signed URL через API
- * - Для MP4/CDN: возвращает оригинальный URL
+ * - Для CDN видео: возвращает signed URL для HLS манифеста через API
  * - Для внешних видео (YouTube, VK): возвращает оригинальный URL
  */
 export async function getVideoUrlForPlayback(
@@ -90,9 +89,8 @@ export async function getVideoUrlForPlayback(
         }
       }
 
-      // Вариант 2: Ищем по relativePath (videoUrl в Step может указывать на original.mp4)
-      // Формат: uploads/trainers/{trainerId}/videocourses/{uuid}/original.mp4
-      // После транскодирования original.mp4 удалён, но relativePath остался
+      // Вариант 2: Ищем по relativePath (videoUrl в Step может указывать на старый путь)
+      // После транскодирования файлы удалены, но relativePath остался
       console.log("[getVideoUrlForPlayback] Ищем по relativePath:", relativePath);
 
       const videoByPath = await prisma.trainerVideo.findFirst({
@@ -132,9 +130,10 @@ export async function getVideoUrlForPlayback(
             transcodingStatus: videoByPath.transcodingStatus,
             hasHlsManifest: !!videoByPath.hlsManifestPath,
           });
+          // Если видео ещё не транскодировано - возвращаем null, так как оригинальные файлы удалены
+          console.log("[getVideoUrlForPlayback] Видео не транскодировано, возвращаем null");
+          return null;
         }
-        // Если видео ещё не транскодировано (PENDING/PROCESSING), возвращаем оригинальный URL
-        // Но если original.mp4 удалён, это не сработает - но это нормально, видео ещё обрабатывается
       } else {
         console.log("[getVideoUrlForPlayback] Видео не найдено по relativePath");
       }
@@ -142,13 +141,12 @@ export async function getVideoUrlForPlayback(
       console.error("[getVideoUrlForPlayback] ОШИБКА при поиске видео:", error);
     }
 
-    // Если не нашли видео или оно не транскодировано - возвращаем оригинальный URL (fallback)
-    // ВНИМАНИЕ: Если original.mp4 удалён, это может привести к ошибке загрузки
-    console.log("[getVideoUrlForPlayback] Возвращаем оригинальный URL (fallback):", videoUrl);
-    return videoUrl;
+    // Если не нашли видео - возвращаем null (оригинальные файлы удалены после транскодирования)
+    console.log("[getVideoUrlForPlayback] Видео не найдено, возвращаем null");
+    return null;
   }
 
-  // Для MP4 и других форматов - возвращаем оригинальный URL
-  console.log("[getVideoUrlForPlayback] Не CDN видео, возвращаем как есть");
-  return videoUrl;
+  // Для не-CDN видео (не должно попадать сюда, так как внешние видео обработаны выше)
+  console.log("[getVideoUrlForPlayback] Неизвестный тип видео, возвращаем null");
+  return null;
 }

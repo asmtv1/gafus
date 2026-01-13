@@ -11,6 +11,7 @@ import {
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -23,9 +24,10 @@ import {
   Typography,
 } from "@mui/material";
 
-import { getCDNUrl } from "@gafus/cdn-upload";
 import { deleteTrainerVideo } from "../lib/deleteTrainerVideo";
 import { updateTrainerVideoName } from "../lib/updateTrainerVideoName";
+import { getSignedVideoUrl } from "../lib/getSignedVideoUrl";
+import { HLSVideoPlayer } from "@shared/components/video/HLSVideoPlayer";
 
 import { formatFileSize, formatRuDate } from "../lib/format";
 import type { TrainerVideoViewModel } from "../types";
@@ -36,6 +38,160 @@ interface TrainerVideosListProps {
   onVideoDeleted?: (videoId: string) => void;
   onVideoUpdated?: (videoId: string, displayName: string | null) => void;
   isAdmin?: boolean;
+}
+
+/**
+ * Компонент для отображения видео плеера с поддержкой статусов транскодирования
+ */
+function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (video.transcodingStatus === "COMPLETED" && video.hlsManifestPath) {
+      setIsLoading(true);
+      getSignedVideoUrl(video.id)
+        .then((url) => {
+          setSignedUrl(url);
+        })
+        .catch((error) => {
+          console.error("[VideoPlayerSection] Ошибка получения signed URL:", error);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [video.id, video.transcodingStatus, video.hlsManifestPath]);
+
+  // PENDING или PROCESSING - показываем loader
+  if (video.transcodingStatus === "PENDING" || video.transcodingStatus === "PROCESSING") {
+    return (
+      <Box
+        sx={{
+          height: 220,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "grey.100",
+          borderTopLeftRadius: 8,
+          borderTopRightRadius: 8,
+        }}
+      >
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress />
+          <Typography variant="body2" color="text.secondary">
+            {video.transcodingStatus === "PENDING"
+              ? "Видео в очереди на обработку..."
+              : "Видео обрабатывается..."}
+          </Typography>
+        </Stack>
+      </Box>
+    );
+  }
+
+  // FAILED - показываем ошибку
+  if (video.transcodingStatus === "FAILED") {
+    return (
+      <Box
+        sx={{
+          height: 220,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "grey.100",
+          p: 2,
+          borderTopLeftRadius: 8,
+          borderTopRightRadius: 8,
+        }}
+      >
+        <Alert severity="error" sx={{ width: "100%" }}>
+          Ошибка обработки видео
+          {video.transcodingError && (
+            <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+              {video.transcodingError}
+            </Typography>
+          )}
+        </Alert>
+      </Box>
+    );
+  }
+
+  // COMPLETED с HLS - показываем HLS player
+  if (video.transcodingStatus === "COMPLETED" && video.hlsManifestPath && signedUrl) {
+    return (
+      <Box
+        sx={{
+          height: 220,
+          borderTopLeftRadius: 8,
+          borderTopRightRadius: 8,
+          overflow: "hidden",
+        }}
+      >
+        <HLSVideoPlayer src={signedUrl} controls autoPlay={false} />
+      </Box>
+    );
+  }
+
+  // Если нет HLS - показываем предупреждение (оригинальные файлы удалены)
+  if (video.transcodingStatus === "COMPLETED" && !video.hlsManifestPath) {
+    return (
+      <Box
+        sx={{
+          height: 220,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "grey.100",
+          p: 2,
+          borderTopLeftRadius: 8,
+          borderTopRightRadius: 8,
+        }}
+      >
+        <Alert severity="warning" sx={{ width: "100%" }}>
+          Видео недоступно. HLS версия отсутствует.
+        </Alert>
+      </Box>
+    );
+  }
+
+  // Загрузка signed URL
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          height: 220,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "grey.100",
+          borderTopLeftRadius: 8,
+          borderTopRightRadius: 8,
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Fallback для других случаев
+  return (
+    <Box
+      sx={{
+        height: 220,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "grey.100",
+        p: 2,
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 8,
+      }}
+    >
+      <Alert severity="info" sx={{ width: "100%" }}>
+        Видео недоступно
+      </Alert>
+    </Box>
+  );
 }
 
 export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdated, isAdmin = false }: TrainerVideosListProps) {
@@ -181,8 +337,6 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
         }}
       >
         {videos.map((video) => {
-          const cdnUrl = getCDNUrl(video.relativePath);
-
           return (
             <Card
               key={video.id}
@@ -195,16 +349,7 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
                 borderColor: "divider",
               }}
             >
-              <Box
-                component="video"
-                src={cdnUrl}
-                controls
-                preload="metadata"
-                sx={{ width: "100%", height: 220, borderTopLeftRadius: 8, borderTopRightRadius: 8 }}
-              >
-                <source src={cdnUrl} type={video.mimeType} />
-                Ваш браузер не поддерживает видео.
-              </Box>
+              <VideoPlayerSection video={video} />
               <CardContent sx={{ flexGrow: 1 }}>
                 {editingVideoId === video.id ? (
                   <Box sx={{ mb: 2 }}>

@@ -7,6 +7,10 @@ export interface TrainerVideoDto {
   mimeType: string;
   fileSize: number;
   durationSec: number | null;
+  // HLS транскодирование
+  hlsManifestPath?: string | null;
+  transcodingStatus?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  transcodingError?: string | null;
   createdAt: Date;
   updatedAt: Date;
   trainer?: {

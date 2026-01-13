@@ -46,6 +46,9 @@ export async function getTrainerVideos(trainerId: string): Promise<TrainerVideoD
     mimeType: video.mimeType,
     fileSize: video.fileSize,
     durationSec: video.durationSec,
+    hlsManifestPath: video.hlsManifestPath,
+    transcodingStatus: video.transcodingStatus,
+    transcodingError: video.transcodingError,
     createdAt: video.createdAt,
     updatedAt: video.updatedAt,
     trainer: video.trainer

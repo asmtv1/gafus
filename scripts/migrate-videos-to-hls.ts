@@ -4,7 +4,12 @@
  * Скрипт миграции существующих видео в HLS формат
  * 
  * Использование:
- * pnpm tsx scripts/migrate-videos-to-hls.ts [--batch-size=10] [--dry-run]
+ * pnpm tsx scripts/migrate-videos-to-hls.ts [--batch-size=10] [--dry-run] [--video-id=<id>]
+ * 
+ * Опции:
+ * --video-id=<id> - Обработать только одно видео по ID
+ * --batch-size=10 - Размер порции для обработки (по умолчанию 10)
+ * --dry-run - Режим проверки без реальных изменений
  */
 
 import { prisma } from "@gafus/prisma";
@@ -18,13 +23,83 @@ const batchSize = parseInt(
   10
 );
 const isDryRun = args.includes("--dry-run");
+const videoId = args.find((arg) => arg.startsWith("--video-id="))?.split("=")[1];
 
 console.log("🎬 Миграция видео в HLS формат");
-console.log(`Размер batch: ${batchSize}`);
+if (videoId) {
+  console.log(`Видео ID: ${videoId}`);
+} else {
+  console.log(`Размер batch: ${batchSize}`);
+}
 console.log(`Dry run: ${isDryRun ? "Да (без реальных изменений)" : "Нет"}\n`);
 
 async function migrateVideos() {
   try {
+    // Если указан video-id, обрабатываем только одно видео
+    if (videoId) {
+      const video = await prisma.trainerVideo.findUnique({
+        where: { id: videoId },
+        select: {
+          id: true,
+          trainerId: true,
+          relativePath: true,
+          originalName: true,
+          transcodingStatus: true,
+          hlsManifestPath: true,
+        },
+      });
+
+      if (!video) {
+        console.error(`❌ Видео с ID ${videoId} не найдено`);
+        return;
+      }
+
+      console.log(`📹 Обработка видео:`);
+      console.log(`  Название: ${video.originalName}`);
+      console.log(`  ID: ${video.id}`);
+      console.log(`  Статус: ${video.transcodingStatus}`);
+      console.log(`  Путь: ${video.relativePath}`);
+      console.log(`  HLS манифест: ${video.hlsManifestPath || "нет"}\n`);
+
+      if (video.transcodingStatus === "COMPLETED" && video.hlsManifestPath) {
+        console.log("✅ Видео уже транскодировано!");
+        return;
+      }
+
+      if (!isDryRun) {
+        // Обновляем статус на PENDING
+        await prisma.trainerVideo.update({
+          where: { id: video.id },
+          data: {
+            transcodingStatus: "PENDING",
+          },
+        });
+
+        // Добавляем задачу транскодирования в очередь
+        const jobData: VideoTranscodingJobData = {
+          videoId: video.id,
+          trainerId: video.trainerId,
+          originalPath: video.relativePath,
+        };
+
+        await videoTranscodingQueue.add("transcode-video", jobData, {
+          attempts: 3,
+          backoff: {
+            type: "exponential",
+            delay: 5000,
+          },
+          removeOnComplete: true,
+          removeOnFail: false,
+        });
+
+        console.log(`✅ Видео добавлено в очередь транскодирования`);
+      } else {
+        console.log(`⏭️  Пропущено (dry-run)`);
+      }
+
+      return;
+    }
+
     // Показываем начальную статистику
     const totalToMigrate = await prisma.trainerVideo.count({
       where: {
