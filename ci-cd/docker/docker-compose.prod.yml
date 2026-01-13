@@ -165,6 +165,9 @@ services:
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@gafus.ru}
+      # Yandex Cloud CDN credentials (необходимы для транскодирования видео)
+      - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
+      - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
       # Включаем транспорты для гарантированной записи логов в stdout (для Vector/Seq)
       - PINO_USE_WORKER_TRANSPORTS=true
     restart: unless-stopped
