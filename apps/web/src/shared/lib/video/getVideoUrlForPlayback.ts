@@ -83,6 +83,9 @@ export async function getVideoUrlForPlayback(
           console.log("[getVideoUrlForPlayback] Получен signed URL:", signedUrl);
           if (signedUrl) {
             return signedUrl;
+          } else {
+            console.error("[getVideoUrlForPlayback] ОШИБКА: Найдено HLS видео, но signed URL не получен. Возможно, отсутствует VIDEO_ACCESS_SECRET.");
+            return null;
           }
         }
       }
@@ -118,6 +121,11 @@ export async function getVideoUrlForPlayback(
           console.log("[getVideoUrlForPlayback] Получен signed URL:", signedUrl);
           if (signedUrl) {
             return signedUrl;
+          } else {
+            // Если signed URL не получен, но видео транскодировано - оригинальный файл удалён
+            // Не возвращаем оригинальный URL, так как он не существует
+            console.error("[getVideoUrlForPlayback] ОШИБКА: Видео транскодировано, но signed URL не получен. Возможно, отсутствует VIDEO_ACCESS_SECRET.");
+            return null;
           }
         } else {
           console.log("[getVideoUrlForPlayback] Видео не транскодировано или нет hlsManifestPath:", {
