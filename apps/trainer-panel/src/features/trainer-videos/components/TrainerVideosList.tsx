@@ -127,7 +127,7 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
           overflow: "hidden",
         }}
       >
-        <HLSVideoPlayer src={signedUrl} controls autoPlay={false} />
+        <HLSVideoPlayer src={signedUrl} controls autoplay={false} />
       </Box>
     );
   }
