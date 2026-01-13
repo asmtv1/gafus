@@ -577,6 +577,9 @@ importers:
       '@gafus/types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@gafus/video-access':
+        specifier: workspace:*
+        version: link:../../packages/video-access
       '@gafus/webpush':
         specifier: workspace:*
         version: link:../../packages/webpush
