@@ -7,6 +7,7 @@ logger.info("Bootstrapping...");
 // Импортируем основную логику воркеров
 import "./push-worker";
 import "./reengagement-worker";
+import "./video-transcoding-worker";
 import { startExamCleanupWorker } from "./exam-cleanup-worker";
 import { setupExamCleanupSchedule } from "./schedules/exam-cleanup-schedule";
 import { startCronJobs } from "./cron-scheduler";

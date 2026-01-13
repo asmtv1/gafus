@@ -271,6 +271,13 @@ model User {
   updatedAt                DateTime               @default(now())
 }
 
+enum TranscodingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model TrainerVideo {
   id           String   @id @default(cuid())
   trainerId    String
@@ -281,10 +288,18 @@ model TrainerVideo {
   mimeType     String
   fileSize     Int
   durationSec  Int?
+  
+  // HLS транскодирование
+  hlsManifestPath   String?             // Путь к HLS манифесту (playlist.m3u8)
+  transcodingStatus TranscodingStatus   @default(PENDING)
+  transcodedAt      DateTime?           // Когда транскодирование завершено
+  transcodingError  String?             // Текст ошибки если транскодирование провалилось
+  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([trainerId], name: "idx_trainer_videos_trainer")
+  @@index([transcodingStatus])
 }
 
 model UserProfile {

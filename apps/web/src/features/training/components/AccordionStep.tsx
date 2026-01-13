@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { ChecklistQuestion } from "@gafus/types";
 
@@ -17,6 +17,8 @@ import { WrittenFeedback } from "./WrittenFeedback";
 import { VideoReport } from "./VideoReport";
 import ImageViewer from "@shared/components/ui/ImageViewer";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
+import { HLSVideoPlayer } from "@shared/components/video/HLSVideoPlayer";
+import { useVideoUrl } from "@shared/hooks/useVideoUrl";
 
 // Обертка для ImageViewer с поддержкой офлайн-режима
 function OfflineImageViewer({
@@ -108,13 +110,10 @@ export function AccordionStep({
 }: AccordionStepProps) {
   // Состояние для отслеживания загрузки
   const [isPausing, setIsPausing] = useState(false);
-  // Ref для video элемента CDN видео
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const {
     stepStates,
     initializeStep,
-    pauseStep,
     resumeStep,
     resetStep,
     updateTimeLeft,
@@ -138,11 +137,21 @@ export function AccordionStep({
   
   // Получаем офлайн URL для видео
   const offlineVideoUrl = useOfflineMediaUrl(courseType, videoUrl);
+  console.log("[AccordionStep] videoUrl из пропсов:", videoUrl);
+  console.log("[AccordionStep] offlineVideoUrl:", offlineVideoUrl);
   
-  // Получаем информацию о видео (используем офлайн URL если доступен)
+  // Получаем signed URL для HLS видео (если нужно)
+  const playbackVideoUrl = useVideoUrl(offlineVideoUrl || videoUrl || null);
+  console.log("[AccordionStep] playbackVideoUrl:", playbackVideoUrl);
+  
+  // Получаем информацию о видео (используем playback URL)
   const videoInfo = useMemo(
-    () => (offlineVideoUrl ? getEmbeddedVideoInfo(offlineVideoUrl) : null),
-    [offlineVideoUrl],
+    () => {
+      const info = playbackVideoUrl ? getEmbeddedVideoInfo(playbackVideoUrl) : null;
+      console.log("[AccordionStep] videoInfo:", info);
+      return info;
+    },
+    [playbackVideoUrl],
   );
   // Инициализируем шаг при монтировании
   useEffect(() => {
@@ -591,24 +600,16 @@ export function AccordionStep({
           <div
             className={`${styles.videoWrapper} ${videoInfo.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
           >
-            {videoInfo.isCDN ? (
-              <video
-                ref={videoRef}
+            {/* Используем HLSVideoPlayer для CDN видео или HLS видео (включая signed URLs) */}
+            {videoInfo.isCDN || videoInfo.isHLS ? (
+              <HLSVideoPlayer
                 src={videoInfo.embedUrl}
                 controls
                 className={styles.videoIframe}
-                controlsList="nodownload"
-                preload="auto"
-                playsInline
-                onLoadedMetadata={() => {
-                  // Устанавливаем первый кадр для отображения превью
-                  if (videoRef.current) {
-                    videoRef.current.currentTime = 0.01;
-                  }
+                onError={(error) => {
+                  console.error("Video playback error:", error);
                 }}
-              >
-                Ваш браузер не поддерживает воспроизведение видео.
-              </video>
+              />
             ) : (
               <iframe
                 src={videoInfo.embedUrl}

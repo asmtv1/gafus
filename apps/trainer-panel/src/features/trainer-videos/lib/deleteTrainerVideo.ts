@@ -119,7 +119,47 @@ export async function deleteTrainerVideo(
       };
     }
 
-    // Только после успешного удаления из CDN удаляем запись из БД
+    // Очищаем videoUrl во всех шагах, которые используют это видео
+    logger.info("Очищаем ссылки на видео в шагах", { relativePath: video.relativePath, videoId });
+
+    // Формируем варианты URL для поиска
+    // VideoSelector сохраняет полный CDN URL: https://gafus-media.storage.yandexcloud.net/{relativePath}
+    const cdnBaseUrl = "https://gafus-media.storage.yandexcloud.net/";
+    const fullCdnUrl = `${cdnBaseUrl}${video.relativePath}`;
+
+    // Обновляем Step (ищем по videoId в URL или по полному URL)
+    const updatedSteps = await prisma.step.updateMany({
+      where: {
+        OR: [
+          { videoUrl: { contains: videoId } },
+          { videoUrl: fullCdnUrl },
+        ],
+      },
+      data: {
+        videoUrl: null,
+      },
+    });
+
+    // Обновляем StepTemplate
+    const updatedTemplates = await prisma.stepTemplate.updateMany({
+      where: {
+        OR: [
+          { videoUrl: { contains: videoId } },
+          { videoUrl: fullCdnUrl },
+        ],
+      },
+      data: {
+        videoUrl: null,
+      },
+    });
+
+    logger.info("Ссылки на видео очищены", {
+      videoId,
+      updatedSteps: updatedSteps.count,
+      updatedTemplates: updatedTemplates.count,
+    });
+
+    // Только после очистки ссылок удаляем запись из БД
     await prisma.trainerVideo.delete({
       where: { id: videoId },
     });
@@ -131,6 +171,7 @@ export async function deleteTrainerVideo(
     });
 
     revalidatePath("/main-panel/my-videos");
+    revalidatePath("/trainings/[courseType]/[day]", "page");
 
     return { success: true };
   } catch (error) {

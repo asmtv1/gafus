@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useTransition, useActionState, useEffect, useRef } from "react";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
@@ -41,7 +39,6 @@ interface TrainerVideosListProps {
 }
 
 export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdated, isAdmin = false }: TrainerVideosListProps) {
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [videoToDelete, setVideoToDelete] = useState<TrainerVideoViewModel | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -61,20 +58,6 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
   );
   const lastProcessedVideoIdRef = useRef<string | null>(null);
   const isWaitingForUpdateRef = useRef<boolean>(false);
-
-  const handleCopy = async (videoId: string, url: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiedId(videoId);
-      setTimeout(() => setCopiedId((current) => (current === videoId ? null : current)), 1500);
-    } catch (copyError) {
-      console.error("Не удалось скопировать ссылку:", copyError);
-    }
-  };
-
-  const handleOpen = (url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
 
   const openDeleteDialog = (video: TrainerVideoViewModel) => {
     setVideoToDelete(video);
@@ -199,7 +182,6 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
       >
         {videos.map((video) => {
           const cdnUrl = getCDNUrl(video.relativePath);
-          const isCopied = copiedId === video.id;
 
           return (
             <Card
@@ -288,24 +270,6 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
                 </Typography>
 
                 <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-                  <Tooltip title={isCopied ? "Скопировано" : "Скопировать ссылку"}>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleCopy(video.id, cdnUrl)}
-                      sx={{ WebkitTapHighlightColor: "transparent" }}
-                    >
-                      <ContentCopyIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Открыть в новой вкладке">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpen(cdnUrl)}
-                      sx={{ WebkitTapHighlightColor: "transparent" }}
-                    >
-                      <OpenInNewIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
                   <Tooltip title="Удалить видео">
                     <IconButton
                       size="small"

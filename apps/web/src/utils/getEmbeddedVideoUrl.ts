@@ -2,9 +2,20 @@ export function getEmbeddedVideoInfo(url: string | null): {
   embedUrl: string;
   isShorts: boolean;
   isCDN?: boolean;
+  isHLS?: boolean;
 } {
   if (!url) {
     return { embedUrl: "", isShorts: false };
+  }
+
+  // Проверяем на signed HLS URL (через API эндпоинт /api/video/.../manifest)
+  if (url.includes("/api/video/") && url.includes("/manifest")) {
+    return {
+      embedUrl: url,
+      isShorts: false,
+      isCDN: false, // Это не прямой CDN URL, а наш API эндпоинт
+      isHLS: true,
+    };
   }
 
   // CDN видео из нашего хранилища (проверяем оба формата)
@@ -12,10 +23,14 @@ export function getEmbeddedVideoInfo(url: string | null): {
     url.includes("gafus-media.storage.yandexcloud.net") ||
     url.includes("storage.yandexcloud.net/gafus-media")
   ) {
+    // Определяем HLS по расширению .m3u8
+    const isHLS = url.endsWith(".m3u8");
+    
     return {
       embedUrl: url,
       isShorts: false,
       isCDN: true,
+      isHLS,
     };
   }
 

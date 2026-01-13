@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createWebLogger } from "@gafus/logger";
 import { getOfflineCourseByType } from "./offlineCourseStorage";
+import { createOfflineHLSManifest } from "./hlsOfflineStorage";
 
 const logger = createWebLogger("web-offline-media-resolver");
 
@@ -42,14 +43,30 @@ async function getOfflineMediaBlob(
     logger.info("getOfflineMediaBlob: Course found, checking media files", {
       courseType,
       mediaUrl,
-      totalVideos: Object.keys(offlineCourse.mediaFiles.videos).length,
+      totalVideos: Object.keys(offlineCourse.mediaFiles.videos || {}).length,
       totalImages: imageKeys.length,
-      totalPdfs: Object.keys(offlineCourse.mediaFiles.pdfs).length,
+      totalPdfs: Object.keys(offlineCourse.mediaFiles.pdfs || {}).length,
+      totalHLS: Object.keys(offlineCourse.mediaFiles.hls || {}).length,
       imageKeys: imageKeys.slice(0, 5), // Первые 5 для логов
     });
 
-    // Проверяем видео
-    if (offlineCourse.mediaFiles.videos[mediaUrl]) {
+    // Проверяем HLS видео (приоритет, т.к. новые видео в HLS)
+    if (offlineCourse.mediaFiles.hls && offlineCourse.mediaFiles.hls[mediaUrl]) {
+      logger.info("getOfflineMediaBlob: Found in HLS cache", {
+        courseType,
+        mediaUrl,
+      });
+      
+      // Создаём локальный манифест с blob URLs
+      const manifestUrl = createOfflineHLSManifest(offlineCourse.mediaFiles.hls[mediaUrl]);
+      
+      // Возвращаем Blob с манифестом (для совместимости с текущим API)
+      const manifestBlob = new Blob([manifestUrl], { type: "text/plain" });
+      return manifestBlob;
+    }
+
+    // Проверяем MP4 видео (fallback для старых видео)
+    if (offlineCourse.mediaFiles.videos && offlineCourse.mediaFiles.videos[mediaUrl]) {
       logger.info("getOfflineMediaBlob: Found in videos", {
         courseType,
         mediaUrl,

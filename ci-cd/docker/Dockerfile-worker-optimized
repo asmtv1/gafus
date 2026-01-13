@@ -39,7 +39,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 worker
 
 # Устанавливаем только необходимые пакеты
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl ffmpeg
 
 # Копируем только собранные файлы
 COPY --from=base /app/packages/worker/dist ./packages/worker/dist

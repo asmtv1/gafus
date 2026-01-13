@@ -1,5 +1,13 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  DeleteObjectsCommand,
+} from "@aws-sdk/client-s3";
 import { createTrainerPanelLogger } from "@gafus/logger";
+import { Readable } from "stream";
 
 const logger = createTrainerPanelLogger('cdn-upload');
 
@@ -85,7 +93,109 @@ async function uploadWithRetry(command: PutObjectCommand, maxRetries: number): P
   throw new Error(`Не удалось загрузить файл после ${maxRetries} попыток: ${lastError?.message}`);
 }
 
-// Функция для удаления файла из CDN
+/**
+ * Скачивает файл из Object Storage
+ * @param relativePath - Относительный путь к файлу (без uploads/)
+ * @returns Buffer с содержимым файла
+ */
+export async function downloadFileFromCDN(relativePath: string): Promise<Buffer> {
+  try {
+    const bucketName = "gafus-media";
+    
+    // Убираем ведущий слеш если есть
+    let key = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+    
+    // Если путь не начинается с uploads/, добавляем его
+    if (!key.startsWith('uploads/')) {
+      key = `uploads/${key}`;
+    }
+
+    logger.info(`⬇️ Скачиваем файл из CDN: ${key}`);
+
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+    });
+
+    const response = await s3Client.send(command);
+
+    if (!response.Body) {
+      throw new Error("Файл не найден или пустой");
+    }
+
+    // Конвертируем stream в Buffer
+    const stream = response.Body as Readable;
+    const chunks: Buffer[] = [];
+    
+    for await (const chunk of stream) {
+      chunks.push(Buffer.from(chunk));
+    }
+    
+    const buffer = Buffer.concat(chunks);
+    logger.info(`✅ Файл скачан из CDN: ${key}, размер: ${buffer.length} байт`);
+    
+    return buffer;
+  } catch (error) {
+    logger.error(`❌ Ошибка скачивания из CDN: ${error}`);
+    throw error;
+  }
+}
+
+/**
+ * Получает ReadableStream для файла из Object Storage (для streaming)
+ * @param relativePath - Относительный путь к файлу (без uploads/)
+ * @returns Объект с stream и metadata
+ */
+export async function streamFileFromCDN(relativePath: string): Promise<{
+  stream: ReadableStream;
+  contentLength: number;
+  contentType: string;
+}> {
+  try {
+    const bucketName = "gafus-media";
+    
+    // Убираем ведущий слеш если есть
+    let key = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+    
+    // Если путь не начинается с uploads/, добавляем его
+    if (!key.startsWith('uploads/')) {
+      key = `uploads/${key}`;
+    }
+
+    logger.info(`📡 Стримим файл из CDN: ${key}`);
+
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+    });
+
+    const response = await s3Client.send(command);
+
+    if (!response.Body) {
+      throw new Error("Файл не найден или пустой");
+    }
+
+    // Конвертируем Node.js Readable в Web ReadableStream
+    const nodeStream = response.Body as Readable;
+    const webStream = Readable.toWeb(nodeStream) as ReadableStream;
+
+    logger.info(`✅ Стрим создан для: ${key}, размер: ${response.ContentLength || 0} байт`);
+
+    return {
+      stream: webStream,
+      contentLength: response.ContentLength || 0,
+      contentType: response.ContentType || "application/octet-stream",
+    };
+  } catch (error) {
+    logger.error(`❌ Ошибка создания стрима из CDN: ${error}`);
+    throw error;
+  }
+}
+
+/**
+ * Удаляет файл из CDN
+ * @param relativePath - Относительный путь к файлу (без uploads/)
+ */
 export async function deleteFileFromCDN(relativePath: string): Promise<void> {
   try {
     const bucketName = "gafus-media";
@@ -110,6 +220,119 @@ export async function deleteFileFromCDN(relativePath: string): Promise<void> {
     logger.info(`✅ Файл удален из CDN: ${key}`);
   } catch (error) {
     logger.error(`❌ Ошибка удаления из CDN: ${error}`);
+    throw error;
+  }
+}
+
+/**
+ * Рекурсивно удаляет папку со всеми файлами из Object Storage
+ * @param folderPath - Путь к папке (например, trainers/{trainerId}/videocourses/{videoId}/)
+ * @returns Количество удалённых файлов
+ */
+export async function deleteFolderFromCDN(folderPath: string): Promise<number> {
+  try {
+    const bucketName = "gafus-media";
+    
+    // Убираем ведущий слеш если есть
+    let prefix = folderPath.startsWith('/') ? folderPath.substring(1) : folderPath;
+    
+    // Если путь не начинается с uploads/, добавляем его
+    if (!prefix.startsWith('uploads/')) {
+      prefix = `uploads/${prefix}`;
+    }
+    
+    // Убеждаемся, что путь заканчивается на /
+    if (!prefix.endsWith('/')) {
+      prefix += '/';
+    }
+
+    logger.info(`🗑️ Удаляем папку из CDN: ${prefix}`);
+
+    let deletedCount = 0;
+    let continuationToken: string | undefined;
+
+    // Получаем список всех файлов в папке (может быть несколько запросов если файлов много)
+    do {
+      const listCommand = new ListObjectsV2Command({
+        Bucket: bucketName,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      });
+
+      const listResponse = await s3Client.send(listCommand);
+
+      if (listResponse.Contents && listResponse.Contents.length > 0) {
+        // Удаляем файлы батчами (максимум 1000 файлов за раз)
+        const deleteCommand = new DeleteObjectsCommand({
+          Bucket: bucketName,
+          Delete: {
+            Objects: listResponse.Contents.map(obj => ({ Key: obj.Key! })),
+            Quiet: false,
+          },
+        });
+
+        const deleteResponse = await s3Client.send(deleteCommand);
+        
+        const deleted = deleteResponse.Deleted?.length || 0;
+        deletedCount += deleted;
+        
+        logger.info(`🗑️ Удалено ${deleted} файлов из ${prefix}`);
+        
+        if (deleteResponse.Errors && deleteResponse.Errors.length > 0) {
+          logger.warn(`⚠️ Ошибки при удалении некоторых файлов: ${JSON.stringify(deleteResponse.Errors)}`);
+        }
+      }
+
+      continuationToken = listResponse.NextContinuationToken;
+    } while (continuationToken);
+
+    logger.info(`✅ Папка удалена из CDN: ${prefix}, всего удалено ${deletedCount} файлов`);
+    
+    return deletedCount;
+  } catch (error) {
+    logger.error(`❌ Ошибка удаления папки из CDN: ${error}`);
+    throw error;
+  }
+}
+
+/**
+ * Загружает Buffer в Object Storage
+ * @param buffer - Содержимое файла
+ * @param relativePath - Относительный путь для сохранения (без uploads/)
+ * @param contentType - MIME тип файла
+ * @returns URL загруженного файла
+ */
+export async function uploadBufferToCDN(
+  buffer: Buffer,
+  relativePath: string,
+  contentType: string = "application/octet-stream"
+): Promise<string> {
+  try {
+    const bucketName = "gafus-media";
+    
+    let key = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+    if (!key.startsWith('uploads/')) {
+      key = `uploads/${key}`;
+    }
+
+    logger.info(`🔄 Загружаем buffer в CDN: ${key}, размер: ${buffer.length} байт`);
+
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+      ContentLength: buffer.length,
+      CacheControl: "public, max-age=31536000", // 1 год
+    });
+
+    await uploadWithRetry(command, 3);
+
+    logger.info(`✅ Buffer загружен в CDN: ${key}`);
+
+    return `https://storage.yandexcloud.net/gafus-media/${key}`;
+  } catch (error) {
+    logger.error(`❌ Ошибка загрузки buffer в CDN: ${error}`);
     throw error;
   }
 }

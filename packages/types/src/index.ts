@@ -38,6 +38,9 @@ export * from "./offline";
 // Error Reporting
 export * from "./error-reporting";
 
+// Queues
+export * from "./queues/video-transcoding";
+
 // SWR
 export * from "./swr";
 

@@ -10,7 +10,7 @@ import { createTrainerPanelLogger } from "@gafus/logger";
 
 import { registerTrainerVideo } from "./registerTrainerVideo";
 
-import type { TrainerVideoUploadResult } from "@gafus/types";
+import type { TrainerVideoUploadResult, VideoTranscodingJobData } from "@gafus/types";
 
 const logger = createTrainerPanelLogger("trainer-panel-trainer-videos-action");
 
@@ -61,11 +61,17 @@ export async function uploadTrainerVideoAction(
   }
 
   const trainerId = session.user.id;
-  const objectKey = `trainer-videos/${trainerId}/${randomUUID()}.${extension}`;
+  
+  // Генерируем videoId заранее для структурированного пути
+  const videoId = randomUUID();
+  
+  // Новая структура: trainers/{trainerId}/videocourses/{videoId}/original.{extension}
+  const objectKey = `trainers/${trainerId}/videocourses/${videoId}/original.${extension}`;
 
   try {
     logger.info("Начало загрузки видео в CDN", {
       trainerId,
+      videoId,
       fileName: file.name,
       mimeType,
       fileSize: file.size,
@@ -88,6 +94,38 @@ export async function uploadTrainerVideoAction(
       videoId: video.id,
       relativePath: storedRelativePath,
     });
+
+    // Добавляем задачу транскодирования в очередь (динамический импорт для избежания ошибок на build)
+    try {
+      const { videoTranscodingQueue } = await import("@gafus/queues");
+      
+      const jobData: VideoTranscodingJobData = {
+        videoId: video.id,
+        trainerId,
+        originalPath: storedRelativePath,
+      };
+
+      await videoTranscodingQueue.add("transcode-video", jobData, {
+        attempts: 3, // 3 попытки при ошибке
+        backoff: {
+          type: "exponential",
+          delay: 5000, // Начальная задержка 5 секунд
+        },
+        removeOnComplete: true,
+        removeOnFail: false, // Сохраняем провалившиеся задачи для отладки
+      });
+
+      logger.info("Задача транскодирования добавлена в очередь", {
+        videoId: video.id,
+        trainerId,
+      });
+    } catch (queueError) {
+      // Если очередь недоступна (например, на build), логируем но не падаем
+      logger.warn("Не удалось добавить задачу в очередь транскодирования", {
+        error: queueError instanceof Error ? queueError.message : "Unknown error",
+        videoId: video.id,
+      });
+    }
 
     return { success: true, video, cdnUrl, status: 201 };
   } catch (error) {
