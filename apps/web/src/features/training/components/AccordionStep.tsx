@@ -17,8 +17,7 @@ import { WrittenFeedback } from "./WrittenFeedback";
 import { VideoReport } from "./VideoReport";
 import ImageViewer from "@shared/components/ui/ImageViewer";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
-import { HLSVideoPlayer } from "@shared/components/video/HLSVideoPlayer";
-import { useVideoUrl } from "@shared/hooks/useVideoUrl";
+import { VideoPlayerSection } from "@shared/components/video/VideoPlayerSection";
 
 // Обертка для ImageViewer с поддержкой офлайн-режима
 function OfflineImageViewer({
@@ -140,18 +139,15 @@ export function AccordionStep({
   console.log("[AccordionStep] videoUrl из пропсов:", videoUrl);
   console.log("[AccordionStep] offlineVideoUrl:", offlineVideoUrl);
   
-  // Получаем signed URL для HLS видео (если нужно)
-  const playbackVideoUrl = useVideoUrl(offlineVideoUrl || videoUrl || null);
-  console.log("[AccordionStep] playbackVideoUrl:", playbackVideoUrl);
-  
-  // Получаем информацию о видео (используем playback URL)
+  // Получаем информацию о видео для определения типа (внешнее/CDN)
   const videoInfo = useMemo(
     () => {
-      const info = playbackVideoUrl ? getEmbeddedVideoInfo(playbackVideoUrl) : null;
+      const url = offlineVideoUrl || videoUrl;
+      const info = url ? getEmbeddedVideoInfo(url) : null;
       console.log("[AccordionStep] videoInfo:", info);
       return info;
     },
-    [playbackVideoUrl],
+    [offlineVideoUrl, videoUrl],
   );
   // Инициализируем шаг при монтировании
   useEffect(() => {
@@ -596,43 +592,10 @@ export function AccordionStep({
 
       {/* Видео (не показываем для перерыва) */}
       {videoUrl && type !== "BREAK" && (
-        <div className={styles.videoContainer}>
-          {playbackVideoUrl ? (
-            videoInfo ? (
-              <div
-                className={`${styles.videoWrapper} ${videoInfo.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
-              >
-                {/* Используем HLSVideoPlayer для CDN видео или HLS видео (включая signed URLs) */}
-                {videoInfo.isCDN || videoInfo.isHLS ? (
-                  <HLSVideoPlayer
-                    src={videoInfo.embedUrl}
-                    controls
-                    className={styles.videoIframe}
-                    onError={(error) => {
-                      console.error("Video playback error:", error);
-                    }}
-                  />
-                ) : (
-                  <iframe
-                    src={videoInfo.embedUrl}
-                    title="Видео упражнения"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className={styles.videoIframe}
-                  />
-                )}
-              </div>
-            ) : (
-              <div style={{ padding: "20px", textAlign: "center" }}>
-                <p>Загрузка видео...</p>
-              </div>
-            )
-          ) : (
-            <div style={{ padding: "20px", textAlign: "center", color: "#d32f2f" }}>
-              <p>Не удалось загрузить видео. Пожалуйста, обновите страницу или обратитесь в поддержку.</p>
-            </div>
-          )}
-        </div>
+        <VideoPlayerSection
+          videoUrl={offlineVideoUrl || videoUrl}
+          videoInfo={videoInfo}
+        />
       )}
 
       {/* Таймер только для тренировочных шагов и перерывов */}

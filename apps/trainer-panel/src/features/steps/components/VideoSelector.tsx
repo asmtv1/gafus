@@ -20,6 +20,7 @@ import VideoLibraryIcon from "@mui/icons-material/VideoLibrary";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 import type { TrainerVideoDto } from "@gafus/types";
+import { getCDNUrl } from "@gafus/cdn-upload";
 
 interface VideoSelectorProps {
   value?: string | null;
@@ -193,7 +194,7 @@ export default function VideoSelector({
                           component="img"
                           src={
                             video.thumbnailPath
-                              ? `https://gafus-media.storage.yandexcloud.net/${video.thumbnailPath}`
+                              ? getCDNUrl(video.thumbnailPath)
                               : undefined
                           }
                           alt={video.displayName || video.originalName}

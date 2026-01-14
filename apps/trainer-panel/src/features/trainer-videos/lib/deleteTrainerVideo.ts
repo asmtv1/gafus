@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
-import { deleteFileFromCDN } from "@gafus/cdn-upload";
+import { deleteFileFromCDN, deleteFolderFromCDN } from "@gafus/cdn-upload";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 import type { ActionResult } from "@gafus/types";
@@ -59,6 +59,7 @@ export async function deleteTrainerVideo(
         trainerId: true,
         relativePath: true,
         originalName: true,
+        hlsManifestPath: true,
       },
     });
 
@@ -72,40 +73,62 @@ export async function deleteTrainerVideo(
       return { success: false, error: "Недостаточно прав для удаления этого видео" };
     }
 
-    // КРИТИЧНО: Сначала удаляем файл из CDN
+    // КРИТИЧНО: Сначала удаляем файлы из CDN
     // Если удаление из CDN не удалось, НЕ удаляем из БД, чтобы избежать "мусора" на CDN
     
-    // Проверяем формат пути перед удалением
-    if (!video.relativePath || video.relativePath.trim().length === 0) {
-      const error = new Error("Некорректный relativePath для удаления");
-      logger.error("Некорректный relativePath для удаления", error, {
-        videoId,
-        relativePath: video.relativePath,
-      });
-      return {
-        success: false,
-        error: "Некорректный путь к файлу. Невозможно удалить видео.",
-      };
-    }
-
-    logger.info("Начало удаления файла из CDN", { relativePath: video.relativePath });
     try {
-      await deleteFileFromCDN(video.relativePath);
-      logger.success("Файл успешно удалён из CDN", { relativePath: video.relativePath });
+      // Если видео было транскодировано в HLS, удаляем всю папку с видео
+      if (video.hlsManifestPath) {
+        // Извлекаем путь к папке видео из hlsManifestPath
+        // Пример: "trainers/{trainerId}/videocourses/{videoId}/hls/playlist.m3u8" 
+        // -> "trainers/{trainerId}/videocourses/{videoId}/"
+        const videoFolder = video.hlsManifestPath.replace("/hls/playlist.m3u8", "");
+        
+        logger.info("Начало удаления папки с HLS видео из CDN", { 
+          videoFolder,
+          hlsManifestPath: video.hlsManifestPath,
+        });
+        
+        const deletedCount = await deleteFolderFromCDN(videoFolder);
+        
+        logger.success("Папка с HLS видео успешно удалена из CDN", { 
+          videoFolder,
+          deletedFilesCount: deletedCount,
+        });
+      } else if (video.relativePath && video.relativePath.trim().length > 0) {
+        // Старые видео без HLS - удаляем оригинальный файл
+        logger.info("Начало удаления оригинального файла из CDN", { 
+          relativePath: video.relativePath,
+        });
+        
+        await deleteFileFromCDN(video.relativePath);
+        
+        logger.success("Оригинальный файл успешно удалён из CDN", { 
+          relativePath: video.relativePath,
+        });
+      } else {
+        logger.warn("Нет путей для удаления из CDN", { 
+          videoId,
+          hlsManifestPath: video.hlsManifestPath,
+          relativePath: video.relativePath,
+        });
+      }
     } catch (cdnError) {
-      logger.error("КРИТИЧЕСКАЯ ОШИБКА: Не удалось удалить файл из CDN", cdnError as Error, {
-        relativePath: video.relativePath,
+      logger.error("КРИТИЧЕСКАЯ ОШИБКА: Не удалось удалить файлы из CDN", cdnError as Error, {
         videoId,
         originalName: video.originalName,
+        hlsManifestPath: video.hlsManifestPath,
+        relativePath: video.relativePath,
       });
 
       logger.error(
-        `Failed to delete video from CDN: ${video.relativePath}`,
+        `Failed to delete video from CDN`,
         cdnError instanceof Error ? cdnError : new Error(String(cdnError)),
         {
           operation: "deleteTrainerVideo",
           action: "deleteTrainerVideo",
           videoId,
+          hlsManifestPath: video.hlsManifestPath,
           relativePath: video.relativePath,
           error: cdnError instanceof Error ? cdnError.message : String(cdnError),
           tags: ["trainer-videos", "delete", "cdn-error", "critical"],
@@ -115,7 +138,7 @@ export async function deleteTrainerVideo(
       // НЕ удаляем из БД, если CDN недоступен - это критическая ошибка
       return {
         success: false,
-        error: "Не удалось удалить файл из хранилища. Попробуйте позже или обратитесь в поддержку.",
+        error: "Не удалось удалить файлы из хранилища. Попробуйте позже или обратитесь в поддержку.",
       };
     }
 
@@ -167,6 +190,7 @@ export async function deleteTrainerVideo(
     logger.success("Видео успешно удалено из БД и CDN", {
       videoId,
       originalName: video.originalName,
+      hlsManifestPath: video.hlsManifestPath,
       relativePath: video.relativePath,
     });
 

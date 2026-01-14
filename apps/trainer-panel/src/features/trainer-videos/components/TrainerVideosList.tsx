@@ -29,6 +29,7 @@ import { deleteTrainerVideo } from "../lib/deleteTrainerVideo";
 import { updateTrainerVideoName } from "../lib/updateTrainerVideoName";
 import { getSignedVideoUrl } from "../lib/getSignedVideoUrl";
 import { HLSVideoPlayer } from "@shared/components/video/HLSVideoPlayer";
+import { getCDNUrl } from "@gafus/cdn-upload";
 
 import { formatFileSize, formatRuDate } from "../lib/format";
 import type { TrainerVideoViewModel } from "../types";
@@ -139,7 +140,7 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
           <HLSVideoPlayer
             src={signedUrl}
             controls
-            autoplay={false}
+            autoplay={true}
             style={{
               objectFit: "contain",
               width: "100%",
@@ -169,12 +170,19 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
           }}
         >
           <img
-            src={`https://gafus-media.storage.yandexcloud.net/${video.thumbnailPath}`}
+            src={getCDNUrl(video.thumbnailPath)}
             alt={video.displayName || video.originalName}
             style={{
               width: "100%",
               height: "100%",
               objectFit: "cover",
+            }}
+            onError={(e) => {
+              console.error("[VideoPlayerSection] Ошибка загрузки thumbnail:", {
+                thumbnailPath: video.thumbnailPath,
+                url: video.thumbnailPath ? getCDNUrl(video.thumbnailPath) : null,
+                error: e,
+              });
             }}
           />
           {/* Оверлей с кнопкой Play */}

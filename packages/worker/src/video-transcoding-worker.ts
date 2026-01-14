@@ -110,6 +110,8 @@ class VideoTranscodingWorker {
         const thumbnailPath = await this.generateThumbnail(inputPath, videoDir);
         thumbnailRelativePath = `${hlsBasePath}/thumbnail.jpg`;
         await this.uploadThumbnail(thumbnailPath, thumbnailRelativePath);
+        // uploadBufferToCDN добавляет префикс uploads/, поэтому сохраняем путь с префиксом
+        thumbnailRelativePath = `uploads/${thumbnailRelativePath}`;
       } catch (thumbnailError) {
         logger.warn("Не удалось сгенерировать thumbnail (не критично)", {
           error: thumbnailError instanceof Error ? thumbnailError.message : String(thumbnailError),

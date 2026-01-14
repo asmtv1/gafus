@@ -45,10 +45,10 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_TRAINER_PANEL_URL: process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || 'https://trainer-panel.gafus.ru',
   },
-  // Отключаем ESLint проверки в dev режиме для ускорения компиляции
+  // Отключаем ESLint проверки во время сборки
   // Проверки можно запускать отдельно: pnpm lint
   eslint: {
-    ignoreDuringBuilds: process.env.NODE_ENV !== 'production',
+    ignoreDuringBuilds: true,
     dirs: ["src"],
   },
 

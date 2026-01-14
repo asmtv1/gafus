@@ -1,5 +1,9 @@
 -- CreateEnum
-CREATE TYPE "TranscodingStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
+DO $$ BEGIN
+ CREATE TYPE "TranscodingStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
 
 -- AlterTable
 ALTER TABLE "TrainerVideo" ADD COLUMN "hlsManifestPath" TEXT;
