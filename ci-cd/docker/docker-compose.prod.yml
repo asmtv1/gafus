@@ -177,10 +177,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'  # Максимум 2 CPU ядра (оставляем ресурсы для других задач)
+          cpus: '0.8'  # Максимум 0.8 CPU ядра (на сервере только 1 CPU)
           memory: 2G    # Максимум 2GB памяти
         reservations:
-          cpus: '0.5'   # Минимум 0.5 CPU ядра
+          cpus: '0.2'   # Минимум 0.2 CPU ядра
           memory: 512M  # Минимум 512MB памяти
     restart: unless-stopped
     depends_on:
