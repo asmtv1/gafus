@@ -291,6 +291,7 @@ model TrainerVideo {
   
   // HLS транскодирование
   hlsManifestPath   String?             // Путь к HLS манифесту (playlist.m3u8)
+  thumbnailPath     String?             // Путь к thumbnail изображению
   transcodingStatus TranscodingStatus   @default(PENDING)
   transcodedAt      DateTime?           // Когда транскодирование завершено
   transcodingError  String?             // Текст ошибки если транскодирование провалилось

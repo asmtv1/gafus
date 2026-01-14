@@ -14,7 +14,6 @@ interface HLSVideoPlayerProps {
   className?: string;
   style?: React.CSSProperties;
   onError?: (error: Error) => void;
-  preload?: "none" | "metadata" | "auto"; // Режим предзагрузки
 }
 
 /**
@@ -33,7 +32,6 @@ export function HLSVideoPlayer({
   className,
   style,
   onError,
-  preload = "auto",
 }: HLSVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -85,8 +83,6 @@ export function HLSVideoPlayer({
           maxMaxBufferLength: 60, // Абсолютный максимум 60 секунд
           maxBufferSize: 60 * 1000 * 1000, // 60MB максимум
           maxBufferHole: 0.5, // Максимальная дыра в буфере 0.5 секунды
-          // Ленивая загрузка
-          autoStartLoad: preload !== "metadata", // НЕ начинать загрузку если preload="metadata"
         });
 
         hlsRef.current = hls;
@@ -95,34 +91,9 @@ export function HLSVideoPlayer({
         hls.loadSource(src);
         hls.attachMedia(video);
 
-        // Обработчик для начала загрузки при клике на play (для preload="metadata")
-        let handlePlay: (() => void) | null = null;
-        if (preload === "metadata") {
-          handlePlay = () => {
-            if (hlsRef.current) {
-              hlsRef.current.startLoad();
-              if (video && handlePlay) {
-                video.removeEventListener("play", handlePlay);
-              }
-            }
-          };
-          video.addEventListener("play", handlePlay);
-        }
-
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           console.log("[HLSVideoPlayer] Манифест распарсен успешно");
           setIsLoading(false);
-          
-          // Для preload="metadata" загружаем только первый сегмент для показа обложки
-          if (preload === "metadata") {
-            hls.startLoad(-1); // Начинаем загрузку с начала
-            // Останавливаем загрузку после первого сегмента
-            const fragLoadedHandler = () => {
-              hls.stopLoad();
-              hls.off(Hls.Events.FRAG_LOADED, fragLoadedHandler);
-            };
-            hls.on(Hls.Events.FRAG_LOADED, fragLoadedHandler);
-          }
           
           if (autoplay) {
             video.play().catch((err) => {
@@ -169,9 +140,6 @@ export function HLSVideoPlayer({
 
         return () => {
           console.log("[HLSVideoPlayer] Cleanup hls.js");
-          if (handlePlay && video) {
-            video.removeEventListener("play", handlePlay);
-          }
           hls.destroy();
           hlsRef.current = null;
         };
@@ -269,7 +237,6 @@ export function HLSVideoPlayer({
         muted={muted}
         controlsList="nodownload"
         disablePictureInPicture
-        preload={preload}
         style={{
           width: "100%",
           height: "100%",

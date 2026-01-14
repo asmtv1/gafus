@@ -24,7 +24,7 @@ export type {
 } from "@prisma/client";
 
 // Экспортируем enum как значение для использования в zod схемах
-export { PetType, StepType } from "@prisma/client";
+export { PetType, StepType, TranscodingStatus } from "@prisma/client";
 
 // Экспортируем пространство имён Prisma (для JsonNull, Decimal и т.д.)
 import { Prisma } from "@prisma/client";

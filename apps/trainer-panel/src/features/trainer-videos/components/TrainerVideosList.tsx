@@ -5,6 +5,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import {
   Alert,
   Box,
@@ -44,15 +45,18 @@ interface TrainerVideosListProps {
  * Компонент для отображения видео плеера с поддержкой статусов транскодирования
  */
 function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
+  const [showPlayer, setShowPlayer] = useState(false);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (video.transcodingStatus === "COMPLETED" && video.hlsManifestPath) {
+  // Загружаем signed URL только при клике на превью
+  const handleThumbnailClick = () => {
+    if (!signedUrl) {
       setIsLoading(true);
       getSignedVideoUrl(video.id)
         .then((url) => {
           setSignedUrl(url);
+          setShowPlayer(true);
         })
         .catch((error) => {
           console.error("[VideoPlayerSection] Ошибка получения signed URL:", error);
@@ -60,8 +64,10 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
         .finally(() => {
           setIsLoading(false);
         });
+    } else {
+      setShowPlayer(true);
     }
-  }, [video.id, video.transcodingStatus, video.hlsManifestPath]);
+  };
 
   // PENDING или PROCESSING - показываем loader
   if (video.transcodingStatus === "PENDING" || video.transcodingStatus === "PROCESSING") {
@@ -116,31 +122,105 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
     );
   }
 
-  // COMPLETED с HLS - показываем HLS player
-  if (video.transcodingStatus === "COMPLETED" && video.hlsManifestPath && signedUrl) {
-    return (
-      <Box
-        sx={{
-          borderTopLeftRadius: 8,
-          borderTopRightRadius: 8,
-          overflow: "hidden",
-          aspectRatio: "16/9", // Контейнер 16:9
-          bgcolor: "black", // Черный фон для letterbox/pillarbox
-        }}
-      >
-        <HLSVideoPlayer
-          src={signedUrl}
-          controls
-          autoplay={false}
-          preload="metadata"
-          style={{
-            objectFit: "contain",
-            width: "100%",
-            height: "100%",
+  // COMPLETED - показываем thumbnail или плеер
+  if (video.transcodingStatus === "COMPLETED") {
+    // Если плеер активен и есть signed URL - показываем плеер
+    if (showPlayer && signedUrl) {
+      return (
+        <Box
+          sx={{
+            borderTopLeftRadius: 8,
+            borderTopRightRadius: 8,
+            overflow: "hidden",
+            aspectRatio: "16/9",
+            bgcolor: "black",
           }}
-        />
-      </Box>
-    );
+        >
+          <HLSVideoPlayer
+            src={signedUrl}
+            controls
+            autoplay={false}
+            style={{
+              objectFit: "contain",
+              width: "100%",
+              height: "100%",
+            }}
+          />
+        </Box>
+      );
+    }
+
+    // Если есть thumbnail - показываем превью
+    if (video.thumbnailPath) {
+      return (
+        <Box
+          onClick={handleThumbnailClick}
+          sx={{
+            borderTopLeftRadius: 8,
+            borderTopRightRadius: 8,
+            overflow: "hidden",
+            aspectRatio: "16/9",
+            bgcolor: "black",
+            cursor: "pointer",
+            position: "relative",
+            "&:hover .play-overlay": {
+              opacity: 1,
+            },
+          }}
+        >
+          <img
+            src={`https://gafus-media.storage.yandexcloud.net/${video.thumbnailPath}`}
+            alt={video.displayName || video.originalName}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+          {/* Оверлей с кнопкой Play */}
+          <Box
+            className="play-overlay"
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "rgba(0, 0, 0, 0.3)",
+              opacity: 0,
+              transition: "opacity 0.2s",
+            }}
+          >
+            <PlayArrowIcon sx={{ fontSize: 64, color: "white" }} />
+          </Box>
+        </Box>
+      );
+    }
+
+    // Fallback для старых видео без thumbnail
+    if (!video.thumbnailPath && video.hlsManifestPath) {
+      return (
+        <Box
+          sx={{
+            height: 220,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "grey.100",
+            p: 2,
+            borderTopLeftRadius: 8,
+            borderTopRightRadius: 8,
+          }}
+        >
+          <Alert severity="warning" sx={{ width: "100%" }}>
+            Превью недоступно для этого видео
+          </Alert>
+        </Box>
+      );
+    }
   }
 
   // Если нет HLS - показываем предупреждение (оригинальные файлы уже удалены)

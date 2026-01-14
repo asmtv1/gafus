@@ -9,6 +9,7 @@ export interface TrainerVideoDto {
   durationSec: number | null;
   // HLS транскодирование
   hlsManifestPath?: string | null;
+  thumbnailPath?: string | null;
   transcodingStatus?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   transcodingError?: string | null;
   createdAt: Date;

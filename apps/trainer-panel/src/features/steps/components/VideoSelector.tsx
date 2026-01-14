@@ -95,8 +95,15 @@ export default function VideoSelector({
   };
 
   const handleVideoSelect = (video: TrainerVideoDto) => {
-    setSelectedVideoId(video.id);
-    onChange(getCdnUrl(video));
+    if (selectedVideoId === video.id) {
+      // Повторный клик - снимаем выбор
+      setSelectedVideoId(null);
+      onChange("");
+    } else {
+      // Выбираем новое видео
+      setSelectedVideoId(video.id);
+      onChange(getCdnUrl(video));
+    }
   };
 
   const getCdnUrl = (video: TrainerVideoDto): string => {
@@ -183,8 +190,13 @@ export default function VideoSelector({
                     >
                       <CardActionArea onClick={() => handleVideoSelect(video)}>
                         <CardMedia
-                          component="video"
-                          src={cdnUrl}
+                          component="img"
+                          src={
+                            video.thumbnailPath
+                              ? `https://gafus-media.storage.yandexcloud.net/${video.thumbnailPath}`
+                              : undefined
+                          }
+                          alt={video.displayName || video.originalName}
                           sx={{
                             height: 140,
                             objectFit: "cover",

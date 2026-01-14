@@ -102,9 +102,23 @@ class VideoTranscodingWorker {
       logger.info(`🎞️ Транскодируем в HLS с оригинальным разрешением (${targetHeight}p)...`);
       await this.transcodeToHLS(inputPath, hlsDir, targetHeight);
 
+      // 4.1. Генерируем thumbnail из первого кадра
+      logger.info(`🖼️ Генерируем thumbnail...`);
+      const hlsBasePath = `trainers/${trainerId}/videocourses/${videoId}/hls`;
+      let thumbnailRelativePath: string | null = null;
+      try {
+        const thumbnailPath = await this.generateThumbnail(inputPath, videoDir);
+        thumbnailRelativePath = `${hlsBasePath}/thumbnail.jpg`;
+        await this.uploadThumbnail(thumbnailPath, thumbnailRelativePath);
+      } catch (thumbnailError) {
+        logger.warn("Не удалось сгенерировать thumbnail (не критично)", {
+          error: thumbnailError instanceof Error ? thumbnailError.message : String(thumbnailError),
+        });
+        // Продолжаем без thumbnail
+      }
+
       // 5. Загружаем все HLS файлы в Object Storage
       logger.info(`⬆️ Загружаем HLS файлы в CDN...`);
-      const hlsBasePath = `trainers/${trainerId}/videocourses/${videoId}/hls`;
       const hlsTotalSize = await this.uploadHLSFiles(hlsDir, hlsBasePath);
 
       // 6. Обновляем БД (включая размер HLS файлов)
@@ -113,6 +127,7 @@ class VideoTranscodingWorker {
         where: { id: videoId },
         data: {
           hlsManifestPath,
+          thumbnailPath: thumbnailRelativePath,
           transcodingStatus: "COMPLETED",
           transcodedAt: new Date(),
           transcodingError: null,
@@ -253,6 +268,45 @@ class VideoTranscodingWorker {
 
     logger.success(`✅ Все ${files.length} HLS файлов загружены в CDN, общий размер: ${totalSize} байт`);
     return totalSize;
+  }
+
+  /**
+   * Генерирует thumbnail из первого кадра видео
+   * @param inputPath - Путь к исходному видео
+   * @param outputDir - Директория для сохранения thumbnail
+   * @returns Путь к созданному thumbnail файлу
+   */
+  private async generateThumbnail(inputPath: string, outputDir: string): Promise<string> {
+    const thumbnailPath = path.join(outputDir, "thumbnail.jpg");
+
+    // Извлекаем первый кадр и масштабируем до 320px ширины (высота автоматически)
+    // -ss 0.1 - берем кадр на 0.1 секунде (избегаем черного кадра)
+    // -vframes 1 - только один кадр
+    // -vf "scale=320:-1" - масштабируем до ширины 320px, высота автоматически
+    // -q:v 2 - качество JPEG (2 = высокое качество, но небольшой размер)
+    const ffmpegCommand = `ffmpeg -i "${inputPath}" -ss 0.1 -vframes 1 -vf "scale=320:-1" -q:v 2 "${thumbnailPath}"`;
+
+    logger.info(`🔧 Генерируем thumbnail: ${ffmpegCommand}`);
+
+    try {
+      await execAsync(ffmpegCommand, {
+        maxBuffer: 10 * 1024 * 1024,
+      });
+      logger.success(`✅ Thumbnail создан: ${thumbnailPath}`);
+      return thumbnailPath;
+    } catch (error) {
+      logger.error("Ошибка генерации thumbnail", error as Error);
+      throw new Error(`FFmpeg ошибка при генерации thumbnail: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Загружает thumbnail в Object Storage
+   */
+  private async uploadThumbnail(thumbnailPath: string, relativePath: string): Promise<void> {
+    const thumbnailBuffer = await fs.readFile(thumbnailPath);
+    await uploadBufferToCDN(thumbnailBuffer, relativePath, "image/jpeg");
+    logger.info(`✅ Thumbnail загружен: ${relativePath} (${thumbnailBuffer.length} байт)`);
   }
 
   /**
