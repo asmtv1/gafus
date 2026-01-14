@@ -132,7 +132,7 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
     );
   }
 
-  // Если нет HLS - показываем предупреждение (оригинальные файлы удалены)
+  // Если нет HLS - показываем предупреждение (оригинальные файлы уже удалены)
   if (video.transcodingStatus === "COMPLETED" && !video.hlsManifestPath) {
     return (
       <Box

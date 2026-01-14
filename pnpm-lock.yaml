@@ -441,6 +441,9 @@ importers:
       '@gafus/types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@gafus/video-access':
+        specifier: workspace:*
+        version: link:../../packages/video-access
       '@gafus/webpush':
         specifier: workspace:*
         version: link:../../packages/webpush
@@ -474,6 +477,9 @@ importers:
       date-fns:
         specifier: 3.6.0
         version: 3.6.0
+      hls.js:
+        specifier: ^1.6.15
+        version: 1.6.15
       next:
         specifier: 15.5.7
         version: 15.5.7(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -514,6 +520,9 @@ importers:
       '@types/bcrypt':
         specifier: 5.0.2
         version: 5.0.2
+      '@types/hls.js':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@types/node':
         specifier: 20.4.8
         version: 20.4.8
