@@ -26,6 +26,7 @@
     "@gafus/react-query": "workspace:*",
     "@gafus/statistics": "workspace:*",
     "@gafus/types": "workspace:*",
+    "@gafus/video-access": "workspace:*",
     "@gafus/webpush": "workspace:*",
     "@mui/icons-material": "7.1.0",
     "@mui/material": "7.1.0",
@@ -37,6 +38,7 @@
     "bcrypt": "6.0.0",
     "browser-image-compression": "2.0.2",
     "date-fns": "3.6.0",
+    "hls.js": "^1.6.15",
     "next": "15.5.7",
     "next-auth": "4.24.11",
     "react": "19.2.1",
@@ -52,6 +54,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
     "@types/bcrypt": "5.0.2",
+    "@types/hls.js": "^1.0.0",
     "@types/node": "20.4.8",
     "@types/react": "19.1.9",
     "@types/react-dom": "19.1.7",
