@@ -214,8 +214,11 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
   );
   const lastProcessedVideoIdRef = useRef<string | null>(null);
   const isWaitingForUpdateRef = useRef<boolean>(false);
+  const lastDeletedVideoIdRef = useRef<string | null>(null);
+  const isWaitingForDeleteRef = useRef<boolean>(false);
 
   const openDeleteDialog = (video: TrainerVideoViewModel) => {
+    isWaitingForDeleteRef.current = false;
     setVideoToDelete(video);
     setDeleteDialogOpen(true);
     setError(null);
@@ -232,6 +235,9 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
   const confirmDelete = () => {
     if (!videoToDelete) return;
 
+    isWaitingForDeleteRef.current = true;
+    lastDeletedVideoIdRef.current = null;
+
     const formData = new FormData();
     formData.append("videoId", videoToDelete.id);
 
@@ -242,12 +248,21 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
 
   // Обрабатываем результат удаления
   useEffect(() => {
-    if (deleteState.success && videoToDelete && deleteDialogOpen) {
+    if (
+      deleteState.success &&
+      videoToDelete &&
+      deleteDialogOpen &&
+      isWaitingForDeleteRef.current &&
+      lastDeletedVideoIdRef.current !== videoToDelete.id
+    ) {
+      lastDeletedVideoIdRef.current = videoToDelete.id;
+      isWaitingForDeleteRef.current = false;
       onVideoDeleted?.(videoToDelete.id);
       setDeleteDialogOpen(false);
       setVideoToDelete(null);
       setError(null);
-    } else if (deleteState.error && deleteDialogOpen) {
+    } else if (deleteState.error && deleteDialogOpen && isWaitingForDeleteRef.current) {
+      isWaitingForDeleteRef.current = false;
       setError(deleteState.error);
     }
   }, [deleteState.success, deleteState.error, videoToDelete, deleteDialogOpen, onVideoDeleted]);
