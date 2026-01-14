@@ -121,13 +121,24 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
     return (
       <Box
         sx={{
-          height: 220,
           borderTopLeftRadius: 8,
           borderTopRightRadius: 8,
           overflow: "hidden",
+          aspectRatio: "16/9", // Контейнер 16:9
+          bgcolor: "black", // Черный фон для letterbox/pillarbox
         }}
       >
-        <HLSVideoPlayer src={signedUrl} controls autoplay={false} />
+        <HLSVideoPlayer
+          src={signedUrl}
+          controls
+          autoplay={false}
+          preload="metadata"
+          style={{
+            objectFit: "contain",
+            width: "100%",
+            height: "100%",
+          }}
+        />
       </Box>
     );
   }
