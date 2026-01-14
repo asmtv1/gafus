@@ -41,11 +41,8 @@ export function HLSVideoPlayer({
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !src) {
-      console.log("[HLSVideoPlayer] Нет video элемента или src:", { video: !!video, src });
       return;
     }
-
-    console.log("[HLSVideoPlayer] Начало настройки, src:", src);
 
     // Проверяем HLS по расширению .m3u8 или по пути /manifest (signed URL)
     const isHLS = src.includes(".m3u8") || (src.includes("/api/video/") && src.includes("/manifest"));
@@ -53,11 +50,8 @@ export function HLSVideoPlayer({
     // Проверяем feature flag для HLS
     const hlsEnabled = process.env.NEXT_PUBLIC_ENABLE_HLS_PROTECTION !== "false";
 
-    console.log("[HLSVideoPlayer] Проверка формата:", { isHLS, hlsEnabled, src });
-
     // Если HLS отключён, показываем ошибку
     if (!hlsEnabled && isHLS) {
-      console.log("[HLSVideoPlayer] HLS отключён");
       setError("HLS воспроизведение временно отключено");
       setIsLoading(false);
       return;
@@ -65,10 +59,8 @@ export function HLSVideoPlayer({
 
     // Поддерживается только HLS формат
     if (isHLS) {
-      console.log("[HLSVideoPlayer] HLS формат, настраиваем hls.js");
       // HLS воспроизведение через hls.js
       if (Hls.isSupported()) {
-        console.log("[HLSVideoPlayer] hls.js поддерживается");
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: false,
@@ -87,12 +79,10 @@ export function HLSVideoPlayer({
 
         hlsRef.current = hls;
 
-        console.log("[HLSVideoPlayer] Загружаем HLS манифест:", src);
         hls.loadSource(src);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          console.log("[HLSVideoPlayer] Манифест распарсен успешно");
           setIsLoading(false);
           
           if (autoplay) {
@@ -139,12 +129,10 @@ export function HLSVideoPlayer({
         });
 
         return () => {
-          console.log("[HLSVideoPlayer] Cleanup hls.js");
           hls.destroy();
           hlsRef.current = null;
         };
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        console.log("[HLSVideoPlayer] Нативная поддержка HLS (Safari)");
         // Нативная поддержка HLS (Safari)
         video.src = src;
         setIsLoading(false);

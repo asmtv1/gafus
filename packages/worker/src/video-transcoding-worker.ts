@@ -219,7 +219,8 @@ class VideoTranscodingWorker {
     const segmentPattern = path.join(outputDir, "segment-%03d.ts");
 
     // Всегда используем оригинальное разрешение (без scale фильтра)
-    const ffmpegCommand = `ffmpeg -i "${inputPath}" -c:v libx264 -c:a aac -hls_time 6 -hls_playlist_type vod -hls_segment_filename "${segmentPattern}" -hls_list_size 0 "${playlistPath}"`;
+    // Ограничиваем до 2 потоков и снижаем приоритет, чтобы не блокировать другие задачи
+    const ffmpegCommand = `nice -n 10 ionice -c 3 ffmpeg -threads 2 -i "${inputPath}" -c:v libx264 -c:a aac -hls_time 6 -hls_playlist_type vod -hls_segment_filename "${segmentPattern}" -hls_list_size 0 "${playlistPath}"`;
 
     logger.info(`🔧 Выполняем FFmpeg команду: ${ffmpegCommand}`);
 
@@ -286,7 +287,8 @@ class VideoTranscodingWorker {
     // -vframes 1 - только один кадр
     // -vf "scale=320:-1" - масштабируем до ширины 320px, высота автоматически
     // -q:v 2 - качество JPEG (2 = высокое качество, но небольшой размер)
-    const ffmpegCommand = `ffmpeg -i "${inputPath}" -ss 0.1 -vframes 1 -vf "scale=320:-1" -q:v 2 "${thumbnailPath}"`;
+    // Ограничиваем потоки и снижаем приоритет
+    const ffmpegCommand = `nice -n 10 ionice -c 3 ffmpeg -threads 2 -i "${inputPath}" -ss 0.1 -vframes 1 -vf "scale=320:-1" -q:v 2 "${thumbnailPath}"`;
 
     logger.info(`🔧 Генерируем thumbnail: ${ffmpegCommand}`);
 

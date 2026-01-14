@@ -31,7 +31,7 @@ export async function deleteTrainerVideo(
       return { success: false, error: "Не авторизован" };
     }
 
-    if (!["TRAINER", "ADMIN"].includes(session.user.role || "")) {
+    if (!["TRAINER", "ADMIN", "MODERATOR"].includes(session.user.role || "")) {
       return { success: false, error: "Недостаточно прав" };
     }
 
@@ -67,10 +67,25 @@ export async function deleteTrainerVideo(
       return { success: false, error: "Видео не найдено" };
     }
 
-    // Проверяем владельца
-    if (video.trainerId !== trainerId) {
+    // Проверяем права доступа
+    const isAdmin = session.user.role === "ADMIN";
+    const isModerator = session.user.role === "MODERATOR";
+
+    // Проверяем владельца (только для обычных тренеров)
+    if (!isAdmin && !isModerator && video.trainerId !== trainerId) {
       logger.warn("Попытка удаления чужого видео", { videoId, trainerId, ownerId: video.trainerId });
       return { success: false, error: "Недостаточно прав для удаления этого видео" };
+    }
+
+    // Логируем удаление администратором/модератором
+    if (isAdmin || isModerator) {
+      logger.info("Удаление видео администратором/модератором", {
+        videoId,
+        deletedBy: trainerId,
+        role: session.user.role,
+        ownerId: video.trainerId,
+        originalName: video.originalName,
+      });
     }
 
     // КРИТИЧНО: Сначала удаляем файлы из CDN

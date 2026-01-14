@@ -52,26 +52,14 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
 
   // Загружаем signed URL только при клике на превью
   const handleThumbnailClick = (e: React.MouseEvent) => {
-    console.log("[VideoPlayerSection] === КЛИК НА THUMBNAIL ===", {
-      videoId: video.id,
-      hasSignedUrl: !!signedUrl,
-      isLoading,
-      eventType: e.type,
-      target: e.target,
-      currentTarget: e.currentTarget,
-    });
-    
     e.preventDefault();
     e.stopPropagation();
     
     if (!signedUrl) {
-      console.log("[VideoPlayerSection] Нет signed URL, начинаем загрузку...");
       setIsLoading(true);
       getSignedVideoUrl(video.id)
         .then((url) => {
-          console.log("[VideoPlayerSection] getSignedVideoUrl вернул:", url ? "URL получен" : "null");
           if (url) {
-            console.log("[VideoPlayerSection] Устанавливаем signed URL и показываем плеер");
             setSignedUrl(url);
             setShowPlayer(true);
           } else {
@@ -80,7 +68,6 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
               transcodingStatus: video.transcodingStatus,
               hlsManifestPath: video.hlsManifestPath,
             });
-            // Показываем ошибку пользователю
             alert("Не удалось загрузить видео. Попробуйте обновить страницу.");
           }
         })
@@ -93,11 +80,9 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
           alert("Ошибка загрузки видео. Попробуйте обновить страницу.");
         })
         .finally(() => {
-          console.log("[VideoPlayerSection] Завершена загрузка signed URL, isLoading = false");
           setIsLoading(false);
         });
     } else {
-      console.log("[VideoPlayerSection] Используем существующий signed URL, показываем плеер");
       setShowPlayer(true);
     }
   };
@@ -157,17 +142,8 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
 
   // COMPLETED - показываем thumbnail или плеер
   if (video.transcodingStatus === "COMPLETED") {
-    console.log("[VideoPlayerSection] COMPLETED статус", {
-      videoId: video.id,
-      showPlayer,
-      hasSignedUrl: !!signedUrl,
-      hasThumbnail: !!video.thumbnailPath,
-      isLoading,
-    });
-    
     // Если плеер активен и есть signed URL - показываем плеер
     if (showPlayer && signedUrl) {
-      console.log("[VideoPlayerSection] Показываем плеер с signed URL");
       return (
         <Box
           sx={{
@@ -194,22 +170,12 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
 
     // Если есть thumbnail - показываем превью
     if (video.thumbnailPath) {
-      console.log("[VideoPlayerSection] Показываем thumbnail", {
-        videoId: video.id,
-        thumbnailPath: video.thumbnailPath,
-        thumbnailUrl: getCDNUrl(video.thumbnailPath),
-      });
-      
       return (
         <Box
-          onClick={(e) => {
-            console.log("[VideoPlayerSection] onClick сработал на Box");
-            handleThumbnailClick(e);
-          }}
+          onClick={handleThumbnailClick}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              console.log("[VideoPlayerSection] onKeyDown сработал");
               handleThumbnailClick(e as unknown as React.MouseEvent);
             }
           }}
