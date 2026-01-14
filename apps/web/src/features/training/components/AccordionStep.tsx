@@ -136,16 +136,12 @@ export function AccordionStep({
   
   // Получаем офлайн URL для видео
   const offlineVideoUrl = useOfflineMediaUrl(courseType, videoUrl);
-  console.log("[AccordionStep] videoUrl из пропсов:", videoUrl);
-  console.log("[AccordionStep] offlineVideoUrl:", offlineVideoUrl);
   
   // Получаем информацию о видео для определения типа (внешнее/CDN)
   const videoInfo = useMemo(
     () => {
       const url = offlineVideoUrl || videoUrl;
-      const info = url ? getEmbeddedVideoInfo(url) : null;
-      console.log("[AccordionStep] videoInfo:", info);
-      return info;
+      return url ? getEmbeddedVideoInfo(url) : null;
     },
     [offlineVideoUrl, videoUrl],
   );

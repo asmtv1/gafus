@@ -50,7 +50,7 @@ async function getOfflineMediaBlob(
       imageKeys: imageKeys.slice(0, 5), // Первые 5 для логов
     });
 
-    // Проверяем HLS видео (приоритет, т.к. новые видео в HLS)
+    // Проверяем HLS видео (единственный поддерживаемый формат для видео тренеров)
     if (offlineCourse.mediaFiles.hls && offlineCourse.mediaFiles.hls[mediaUrl]) {
       logger.info("getOfflineMediaBlob: Found in HLS cache", {
         courseType,
@@ -63,16 +63,6 @@ async function getOfflineMediaBlob(
       // Возвращаем Blob с манифестом (для совместимости с текущим API)
       const manifestBlob = new Blob([manifestUrl], { type: "text/plain" });
       return manifestBlob;
-    }
-
-    // Проверяем MP4 видео (fallback для старых видео)
-    if (offlineCourse.mediaFiles.videos && offlineCourse.mediaFiles.videos[mediaUrl]) {
-      logger.info("getOfflineMediaBlob: Found in videos", {
-        courseType,
-        mediaUrl,
-        blobSize: offlineCourse.mediaFiles.videos[mediaUrl].size,
-      });
-      return offlineCourse.mediaFiles.videos[mediaUrl];
     }
 
     // Проверяем изображения
@@ -213,11 +203,6 @@ export function getOfflineMediaUrlSync(
 ): string | null {
   if (!mediaUrl || !courseType || !offlineCourse) {
     return mediaUrl || null;
-  }
-
-  // Проверяем видео
-  if (offlineCourse.mediaFiles.videos[mediaUrl]) {
-    return URL.createObjectURL(offlineCourse.mediaFiles.videos[mediaUrl]);
   }
 
   // Проверяем изображения

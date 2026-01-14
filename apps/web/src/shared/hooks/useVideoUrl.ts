@@ -40,18 +40,17 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
 
     if (isCDNVideo) {
       console.error("[useVideoUrl] === CDN видео, вызываем getVideoUrlForPlayback ===");
-      // Асинхронно получаем signed URL (функция сама определит HLS или MP4)
+      // Асинхронно получаем signed URL для HLS манифеста
       getVideoUrlForPlayback(videoUrl)
         .then((url) => {
           console.error("[useVideoUrl] === getVideoUrlForPlayback ВЕРНУЛ ===", url);
-          // Если url === null, это означает, что видео транскодировано, но signed URL не получен
-          // В этом случае не используем fallback на оригинальный URL, так как он удалён
+          // Если url === null, это означает, что видео ещё не транскодировано или HLS не готов
+          // В этом случае не используем fallback на оригинальный URL, так как он удалён после транскодирования
           if (url !== null) {
             setPlaybackUrl(url);
           } else {
-            // Если null, оставляем оригинальный URL только если видео ещё не транскодировано
-            // Но лучше вернуть null, чтобы показать ошибку пользователю
-            console.error("[useVideoUrl] getVideoUrlForPlayback вернул null - возможно, видео транскодировано, но signed URL не получен");
+            // Если null, возвращаем null, чтобы показать статус обработки пользователю
+            console.error("[useVideoUrl] getVideoUrlForPlayback вернул null - видео ещё обрабатывается или HLS не готов");
             setPlaybackUrl(null);
           }
         })

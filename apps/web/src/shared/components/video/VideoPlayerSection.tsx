@@ -9,7 +9,6 @@ import { getVideoMetadata } from "@shared/lib/video/getVideoMetadata";
 import { getVideoUrlForPlayback } from "@shared/lib/video/getVideoUrlForPlayback";
 import { getSignedVideoUrl } from "@shared/lib/video/getSignedVideoUrl";
 import type { VideoMetadata } from "@shared/lib/video/getVideoMetadata";
-import type { TranscodingStatus } from "@gafus/prisma";
 import styles from "@/features/training/components/AccordionStep.module.css";
 
 interface VideoPlayerSectionProps {

@@ -51,21 +51,53 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
   const [isLoading, setIsLoading] = useState(false);
 
   // Загружаем signed URL только при клике на превью
-  const handleThumbnailClick = () => {
+  const handleThumbnailClick = (e: React.MouseEvent) => {
+    console.log("[VideoPlayerSection] === КЛИК НА THUMBNAIL ===", {
+      videoId: video.id,
+      hasSignedUrl: !!signedUrl,
+      isLoading,
+      eventType: e.type,
+      target: e.target,
+      currentTarget: e.currentTarget,
+    });
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!signedUrl) {
+      console.log("[VideoPlayerSection] Нет signed URL, начинаем загрузку...");
       setIsLoading(true);
       getSignedVideoUrl(video.id)
         .then((url) => {
-          setSignedUrl(url);
-          setShowPlayer(true);
+          console.log("[VideoPlayerSection] getSignedVideoUrl вернул:", url ? "URL получен" : "null");
+          if (url) {
+            console.log("[VideoPlayerSection] Устанавливаем signed URL и показываем плеер");
+            setSignedUrl(url);
+            setShowPlayer(true);
+          } else {
+            console.error("[VideoPlayerSection] Не удалось получить signed URL (вернулся null)", {
+              videoId: video.id,
+              transcodingStatus: video.transcodingStatus,
+              hlsManifestPath: video.hlsManifestPath,
+            });
+            // Показываем ошибку пользователю
+            alert("Не удалось загрузить видео. Попробуйте обновить страницу.");
+          }
         })
         .catch((error) => {
-          console.error("[VideoPlayerSection] Ошибка получения signed URL:", error);
+          console.error("[VideoPlayerSection] Ошибка получения signed URL:", error, {
+            videoId: video.id,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+          });
+          alert("Ошибка загрузки видео. Попробуйте обновить страницу.");
         })
         .finally(() => {
+          console.log("[VideoPlayerSection] Завершена загрузка signed URL, isLoading = false");
           setIsLoading(false);
         });
     } else {
+      console.log("[VideoPlayerSection] Используем существующий signed URL, показываем плеер");
       setShowPlayer(true);
     }
   };
@@ -125,8 +157,17 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
 
   // COMPLETED - показываем thumbnail или плеер
   if (video.transcodingStatus === "COMPLETED") {
+    console.log("[VideoPlayerSection] COMPLETED статус", {
+      videoId: video.id,
+      showPlayer,
+      hasSignedUrl: !!signedUrl,
+      hasThumbnail: !!video.thumbnailPath,
+      isLoading,
+    });
+    
     // Если плеер активен и есть signed URL - показываем плеер
     if (showPlayer && signedUrl) {
+      console.log("[VideoPlayerSection] Показываем плеер с signed URL");
       return (
         <Box
           sx={{
@@ -153,9 +194,27 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
 
     // Если есть thumbnail - показываем превью
     if (video.thumbnailPath) {
+      console.log("[VideoPlayerSection] Показываем thumbnail", {
+        videoId: video.id,
+        thumbnailPath: video.thumbnailPath,
+        thumbnailUrl: getCDNUrl(video.thumbnailPath),
+      });
+      
       return (
         <Box
-          onClick={handleThumbnailClick}
+          onClick={(e) => {
+            console.log("[VideoPlayerSection] onClick сработал на Box");
+            handleThumbnailClick(e);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              console.log("[VideoPlayerSection] onKeyDown сработал");
+              handleThumbnailClick(e as unknown as React.MouseEvent);
+            }
+          }}
+          role="button"
+          tabIndex={0}
           sx={{
             borderTopLeftRadius: 8,
             borderTopRightRadius: 8,
@@ -164,8 +223,12 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
             bgcolor: "black",
             cursor: "pointer",
             position: "relative",
+            userSelect: "none",
             "&:hover .play-overlay": {
               opacity: 1,
+            },
+            "&:active": {
+              opacity: 0.9,
             },
           }}
         >
@@ -200,10 +263,25 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
               bgcolor: "rgba(0, 0, 0, 0.3)",
               opacity: 0,
               transition: "opacity 0.2s",
+              pointerEvents: "none", // Позволяем кликам проходить через оверлей
             }}
           >
             <PlayArrowIcon sx={{ fontSize: 64, color: "white" }} />
           </Box>
+          {/* Индикатор загрузки */}
+          {isLoading && (
+            <Box
+              sx={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                zIndex: 1,
+              }}
+            >
+              <CircularProgress sx={{ color: "white" }} />
+            </Box>
+          )}
         </Box>
       );
     }
