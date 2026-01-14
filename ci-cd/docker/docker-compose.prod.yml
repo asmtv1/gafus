@@ -89,8 +89,9 @@ services:
       # Yandex Cloud CDN credentials
       - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
-    # Uploads handled by CDN - no local volume needed
-    # Убрали открытые порты - доступ только через Nginx
+      # HLS Video Protection
+      - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
+      - NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${NEXT_PUBLIC_ENABLE_HLS_PROTECTION:-true}
     restart: unless-stopped
 
     depends_on:
