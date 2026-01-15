@@ -224,18 +224,11 @@ export async function saveCourseHtmlPagesOnDownload(
   trainingDays: { id: string }[]
 ): Promise<void> {
   try {
-    console.log("[HTML Storage] Starting to save HTML pages for course", {
-      courseType,
-      daysCount: trainingDays.length,
-      days: trainingDays.map((d) => d.id),
-    });
-
     let savedListPage = false;
     let savedDayPages = 0;
 
     // Сохраняем страницу списка дней
     const listPageUrl = `/trainings/${courseType}`;
-    console.log("[HTML Storage] Fetching list page", { url: listPageUrl });
     
     try {
       const response = await fetch(listPageUrl, {
@@ -246,18 +239,8 @@ export async function saveCourseHtmlPagesOnDownload(
         credentials: "include", // Включаем cookies для авторизации
       });
 
-      console.log("[HTML Storage] List page fetch response", {
-        url: listPageUrl,
-        status: response.status,
-        ok: response.ok,
-      });
-
       if (response.ok) {
         const html = await response.text();
-        console.log("[HTML Storage] List page HTML received", {
-          url: listPageUrl,
-          htmlLength: html.length,
-        });
 
         if (html && html.length > 0) {
           await saveCourseHtmlPage(courseType, listPageUrl, html);
@@ -265,12 +248,6 @@ export async function saveCourseHtmlPagesOnDownload(
           await cacheChunksFromHtml(html, listPageUrl);
           savedListPage = true;
           logger.info("Course list page HTML saved", { courseType, url: listPageUrl });
-          console.log("[HTML Storage] List page HTML saved to IndexedDB", {
-            courseType,
-            url: listPageUrl,
-          });
-        } else {
-          console.warn("[HTML Storage] List page HTML is empty", { url: listPageUrl });
         }
       } else {
         logger.warn("Failed to fetch list page HTML - non-OK response", {
@@ -278,18 +255,10 @@ export async function saveCourseHtmlPagesOnDownload(
           url: listPageUrl,
           status: response.status,
         });
-        console.warn("[HTML Storage] Failed to fetch list page - non-OK", {
-          url: listPageUrl,
-          status: response.status,
-        });
       }
     } catch (error) {
       logger.warn("Failed to fetch list page HTML", {
         courseType,
-        url: listPageUrl,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      console.error("[HTML Storage] Failed to fetch list page", {
         url: listPageUrl,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -362,21 +331,9 @@ export async function saveCourseHtmlPagesOnDownload(
       savedDayPages,
       totalPages: savedDayPages + (savedListPage ? 1 : 0),
     });
-
-    console.log("[HTML Storage] Summary", {
-      courseType,
-      daysCount: trainingDays.length,
-      savedListPage,
-      savedDayPages,
-      totalPages: savedDayPages + (savedListPage ? 1 : 0),
-    });
   } catch (error) {
     logger.error("Failed to save course HTML pages on download", error as Error, {
       courseType,
-    });
-    console.error("[HTML Storage] Failed to save HTML pages", {
-      courseType,
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -414,12 +371,6 @@ export async function getCourseHtmlPage(
     const dayMatch = pagePath.match(/^\/trainings\/[^/]+\/([^/]+)$/);
     if (dayMatch && course.htmlPages.dayPages) {
       const dayId = dayMatch[1];
-      console.log("[HTML Storage] Looking for day page HTML", {
-        courseType,
-        dayId,
-        pagePath,
-        availableDays: Object.keys(course.htmlPages.dayPages),
-      });
       
       const html = course.htmlPages.dayPages[dayId];
       if (html) {
@@ -429,21 +380,9 @@ export async function getCourseHtmlPage(
           pagePath,
           htmlLength: html.length,
         });
-        console.log("[HTML Storage] Day page HTML found", {
-          courseType,
-          dayId,
-          pagePath,
-          htmlLength: html.length,
-        });
         return html;
       } else {
         logger.warn("Day page HTML not found in IndexedDB", {
-          courseType,
-          dayId,
-          pagePath,
-          availableDays: Object.keys(course.htmlPages.dayPages || {}),
-        });
-        console.warn("[HTML Storage] Day page HTML not found", {
           courseType,
           dayId,
           pagePath,
@@ -471,14 +410,6 @@ export async function getCourseHtmlPage(
     }
 
     logger.warn("No HTML found for page path", {
-      courseType,
-      pagePath,
-      hasListPage: !!course.htmlPages.listPage,
-      dayPagesCount: course.htmlPages.dayPages ? Object.keys(course.htmlPages.dayPages).length : 0,
-      availableDays: course.htmlPages.dayPages ? Object.keys(course.htmlPages.dayPages) : [],
-    });
-
-    console.warn("[HTML Storage] No HTML found for page", {
       courseType,
       pagePath,
       hasListPage: !!course.htmlPages.listPage,

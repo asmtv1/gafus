@@ -16,6 +16,8 @@ import {
   downloadFullCourse,
   checkCourseUpdates,
 } from "@shared/lib/actions/offlineCourseActions";
+import { getVideoIdFromUrlAction } from "@shared/lib/actions/getVideoIdFromUrlAction";
+import { downloadHLSVideo } from "@shared/lib/offline/downloadHLSVideo";
 import { saveCourseHtmlPagesOnDownload } from "@shared/lib/offline/htmlPageStorage";
 import { isOnline } from "@shared/utils/offlineCacheUtils";
 
@@ -278,43 +280,129 @@ export function useOfflineCourse(): UseOfflineCourseResult {
           totalMediaFiles: totalVideos + totalImages + totalPdfs,
         });
 
-        // Разделяем видео на скачиваемые и внешние (YouTube и т.д.)
-        const downloadableVideoUrls: string[] = [];
+        // Разделяем видео на HLS (CDN) и внешние (YouTube и т.д.)
+        const hlsVideoUrls: string[] = [];
         const externalVideoUrls: string[] = [];
 
         for (const url of uniqueVideoUrls) {
           if (isExternalVideoService(url)) {
             externalVideoUrls.push(url);
           } else {
-            downloadableVideoUrls.push(url);
+            hlsVideoUrls.push(url);
           }
         }
 
-        // Скачиваем только доступные медиафайлы
+        // Получаем hlsManifestPath для каждого HLS видео
+        const hlsVideoData: { videoUrl: string; hlsManifestPath: string; videoId: string }[] = [];
+        for (const videoUrl of hlsVideoUrls) {
+          const result = await getVideoIdFromUrlAction(videoUrl);
+          if (result.success && result.hlsManifestPath && result.videoId) {
+            hlsVideoData.push({
+              videoUrl,
+              hlsManifestPath: result.hlsManifestPath,
+              videoId: result.videoId,
+            });
+          } else {
+            logger.warn("Не удалось получить hlsManifestPath для видео", {
+              videoUrl,
+              error: result.error,
+            });
+          }
+        }
+
+        // Скачиваем изображения и PDF
         const mediaFiles = await downloadAllMediaFiles(
-          downloadableVideoUrls,
+          [], // Видео больше не скачиваем через эту функцию
           uniqueImageUrls,
           uniquePdfUrls,
           (progress) => {
+            // Прогресс только для изображений и PDF
             setDownloadProgress(progress);
           },
         );
 
+        // Скачиваем HLS видео
+        const hlsVideos: Record<string, { manifest: string; segments: Record<string, Blob>; videoId: string }> = {};
+        let hlsDownloaded = 0;
+
+        // Подсчитываем общее количество файлов для прогресса
+        // Для каждого HLS видео: 1 манифест + N сегментов (примерно 30-40)
+        // Используем приблизительную оценку: 35 сегментов на видео
+        const estimatedSegmentsPerVideo = 35;
+        const totalHlsFiles = hlsVideoData.length * (1 + estimatedSegmentsPerVideo);
+        const totalMediaFiles = uniqueImageUrls.length + uniquePdfUrls.length + totalHlsFiles;
+        let downloadedMediaFiles = uniqueImageUrls.length + uniquePdfUrls.length;
+
+        // Обновляем прогресс после скачивания изображений и PDF
+        if (totalMediaFiles > 0) {
+          setDownloadProgress((downloadedMediaFiles / totalMediaFiles) * 100);
+        }
+
+        for (const { videoUrl, hlsManifestPath } of hlsVideoData) {
+          try {
+            logger.info("Начинаем скачивание HLS видео", { videoUrl, hlsManifestPath });
+
+            const hlsData = await downloadHLSVideo(
+              hlsManifestPath,
+              videoUrl,
+              (current, total) => {
+                // Обновляем общий прогресс с учётом текущего HLS видео
+                const hlsProgress = (current / total) * (1 + estimatedSegmentsPerVideo);
+                const totalDownloaded = downloadedMediaFiles + hlsProgress;
+                if (totalMediaFiles > 0) {
+                  setDownloadProgress((totalDownloaded / totalMediaFiles) * 100);
+                }
+              }
+            );
+
+            if (hlsData) {
+              hlsVideos[videoUrl] = {
+                manifest: hlsData.manifest,
+                segments: hlsData.segments,
+                videoId: hlsData.videoId,
+              };
+              hlsDownloaded++;
+              downloadedMediaFiles += 1 + Object.keys(hlsData.segments).length;
+              logger.info("HLS видео успешно скачано", {
+                videoUrl,
+                segmentsCount: Object.keys(hlsData.segments).length,
+              });
+            } else {
+              logger.error("Не удалось скачать HLS видео", new Error("Download failed"), {
+                videoUrl,
+                hlsManifestPath,
+              });
+              // Прерываем скачивание курса, если HLS видео не скачалось
+              return {
+                success: false,
+                error: `Не удалось скачать видео: ${videoUrl}`,
+              };
+            }
+          } catch (error) {
+            logger.error("Ошибка при скачивании HLS видео", error as Error, {
+              videoUrl,
+              hlsManifestPath,
+            });
+            // Прерываем скачивание курса при ошибке
+            return {
+              success: false,
+              error: `Ошибка при скачивании видео: ${error instanceof Error ? error.message : "Unknown error"}`,
+            };
+          }
+        }
+
         // Логируем результаты скачивания
-        const downloadedVideos = Object.keys(mediaFiles.videos).length;
         const downloadedImages = Object.keys(mediaFiles.images).length;
         const downloadedPdfs = Object.keys(mediaFiles.pdfs).length;
-        const skippedVideos = downloadableVideoUrls.length - downloadedVideos;
         
         logger.info("Media files download completed", {
           courseType,
           courseId: courseData.course.id,
-          downloadedVideos,
+          hlsVideos: hlsDownloaded,
           downloadedImages,
           downloadedPdfs,
-          skippedVideos,
           externalVideos: externalVideoUrls.length,
-          totalDownloaded: downloadedVideos + downloadedImages + downloadedPdfs,
+          totalDownloaded: hlsDownloaded + downloadedImages + downloadedPdfs,
         });
 
         // Сохраняем URL внешних видео отдельно (для офлайн-доступа через iframe)
@@ -335,7 +423,9 @@ export function useOfflineCourse(): UseOfflineCourseResult {
             steps: courseData.trainingDays.flatMap((day) => day.steps),
           },
           mediaFiles: {
-            ...mediaFiles,
+            hlsVideos,
+            images: mediaFiles.images,
+            pdfs: mediaFiles.pdfs,
             externalVideos, // Добавляем внешние видео URL
           },
         };

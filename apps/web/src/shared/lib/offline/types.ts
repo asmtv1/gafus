@@ -71,7 +71,11 @@ export interface OfflineCourse {
     }[];
   };
   mediaFiles: {
-    videos: Record<string, Blob>;
+    hlsVideos: Record<string, {
+      manifest: string; // Текст манифеста
+      segments: Record<string, Blob>; // Сегменты
+      videoId: string; // ID видео
+    }>;
     images: Record<string, Blob>;
     pdfs: Record<string, Blob>;
     externalVideos?: Record<string, string>; // URL внешних видео (YouTube, RuTube, VK и т.д.)

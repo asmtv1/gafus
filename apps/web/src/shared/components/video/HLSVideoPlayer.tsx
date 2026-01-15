@@ -44,8 +44,10 @@ export function HLSVideoPlayer({
       return;
     }
 
-    // Проверяем HLS по расширению .m3u8 или по пути /manifest (signed URL)
-    const isHLS = src.includes(".m3u8") || (src.includes("/api/video/") && src.includes("/manifest"));
+    // Проверяем HLS по расширению .m3u8, по пути /manifest (signed URL) или по blob URL
+    const isHLS = src.includes(".m3u8") || 
+                  (src.includes("/api/video/") && src.includes("/manifest")) ||
+                  src.startsWith("blob:");
     
     // Проверяем feature flag для HLS
     const hlsEnabled = process.env.NEXT_PUBLIC_ENABLE_HLS_PROTECTION !== "false";

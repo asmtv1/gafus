@@ -18,7 +18,123 @@ function revokeBlobUrl(url: string): void {
 }
 
 /**
- * Получает медиафайл из офлайн-хранилища по URL
+ * Извлекает имя файла из пути
+ */
+function getFileNameFromPath(path: string): string {
+  const normalized = path.trim().replace(/^\/+/, "").replace(/^\.\.\//, "");
+  const parts = normalized.split("/");
+  return parts[parts.length - 1] || normalized;
+}
+
+/**
+ * Создаёт модифицированный HLS манифест с blob URLs для сегментов
+ * @param manifest - Текст манифеста
+ * @param segments - Объект с сегментами (ключ = имя файла)
+ * @returns Объект с blob URL манифеста и массивом blob URLs сегментов для очистки
+ */
+function createOfflineHLSManifest(
+  manifest: string,
+  segments: Record<string, Blob>
+): { manifestBlobUrl: string; segmentBlobUrls: string[] } {
+  const segmentBlobUrls: string[] = [];
+  const lines = manifest.split("\n");
+
+  const modifiedLines = lines.map((line) => {
+    const trimmed = line.trim();
+    // Пропускаем комментарии и пустые строки
+    if (trimmed && !trimmed.startsWith("#")) {
+      // Извлекаем имя файла из пути
+      const segmentFileName = getFileNameFromPath(trimmed);
+      const segmentBlob = segments[segmentFileName];
+
+      if (segmentBlob) {
+        // Создаём blob URL для сегмента
+        const segmentBlobUrl = URL.createObjectURL(segmentBlob);
+        segmentBlobUrls.push(segmentBlobUrl);
+        // Заменяем путь на blob URL
+        return segmentBlobUrl;
+      } else {
+        logger.warn("Сегмент не найден в IndexedDB", {
+          segmentFileName,
+          availableSegments: Object.keys(segments),
+        });
+        // Возвращаем оригинальный путь, если сегмент не найден
+        return trimmed;
+      }
+    }
+    return line;
+  });
+
+  const modifiedManifest = modifiedLines.join("\n");
+  const manifestBlob = new Blob([modifiedManifest], {
+    type: "application/vnd.apple.mpegurl",
+  });
+  const manifestBlobUrl = URL.createObjectURL(manifestBlob);
+
+  return {
+    manifestBlobUrl,
+    segmentBlobUrls,
+  };
+}
+
+/**
+ * Получает HLS манифест URL из офлайн-хранилища
+ * @param courseType - Тип курса
+ * @param mediaUrl - URL видео
+ * @returns Blob URL для манифеста или null если не найдено
+ */
+async function getOfflineHLSManifestUrl(
+  courseType: string,
+  mediaUrl: string
+): Promise<{ manifestBlobUrl: string; segmentBlobUrls: string[] } | null> {
+  try {
+    logger.info("getOfflineHLSManifestUrl: Starting search", {
+      courseType,
+      mediaUrl,
+    });
+
+    const offlineCourse = await getOfflineCourseByType(courseType);
+    if (!offlineCourse) {
+      return null;
+    }
+
+    const hlsVideo = offlineCourse.mediaFiles.hlsVideos[mediaUrl];
+    if (!hlsVideo) {
+      logger.warn("HLS видео не найдено в IndexedDB", {
+        courseType,
+        mediaUrl,
+        availableHlsVideos: Object.keys(offlineCourse.mediaFiles.hlsVideos),
+      });
+      return null;
+    }
+
+    logger.info("HLS видео найдено в IndexedDB", {
+      courseType,
+      mediaUrl,
+      segmentsCount: Object.keys(hlsVideo.segments).length,
+    });
+
+    // Создаём модифицированный манифест с blob URLs
+    const result = createOfflineHLSManifest(hlsVideo.manifest, hlsVideo.segments);
+
+    logger.info("HLS манифест создан с blob URLs", {
+      courseType,
+      mediaUrl,
+      segmentBlobUrlsCount: result.segmentBlobUrls.length,
+    });
+
+    return result;
+  } catch (error) {
+    logger.error("getOfflineHLSManifestUrl: Failed to get offline HLS manifest", error as Error, {
+      courseType,
+      mediaUrl,
+    });
+    return null;
+  }
+}
+
+/**
+ * Получает медиафайл из офлайн-хранилища по URL (для изображений и PDF)
  * @param courseType - Тип курса
  * @param mediaUrl - URL медиафайла
  * @returns Blob если файл найден, null если нет
@@ -36,26 +152,6 @@ async function getOfflineMediaBlob(
     const offlineCourse = await getOfflineCourseByType(courseType);
     if (!offlineCourse) {
       return null;
-    }
-
-    const imageKeys = Object.keys(offlineCourse.mediaFiles.images);
-    logger.info("getOfflineMediaBlob: Course found, checking media files", {
-      courseType,
-      mediaUrl,
-      totalVideos: Object.keys(offlineCourse.mediaFiles.videos).length,
-      totalImages: imageKeys.length,
-      totalPdfs: Object.keys(offlineCourse.mediaFiles.pdfs).length,
-      imageKeys: imageKeys.slice(0, 5), // Первые 5 для логов
-    });
-
-    // Проверяем видео
-    if (offlineCourse.mediaFiles.videos[mediaUrl]) {
-      logger.info("getOfflineMediaBlob: Found in videos", {
-        courseType,
-        mediaUrl,
-        blobSize: offlineCourse.mediaFiles.videos[mediaUrl].size,
-      });
-      return offlineCourse.mediaFiles.videos[mediaUrl];
     }
 
     // Проверяем изображения
@@ -80,12 +176,9 @@ async function getOfflineMediaBlob(
       return offlineCourse.mediaFiles.pdfs[mediaUrl];
     }
 
-    const availableImageKeys = Object.keys(offlineCourse.mediaFiles.images);
     logger.warn("getOfflineMediaBlob: Media file not found in IndexedDB", {
       courseType,
       mediaUrl,
-      availableImageKeys: availableImageKeys.slice(0, 10),
-      exactMatch: offlineCourse.mediaFiles.images[mediaUrl] !== undefined,
     });
 
     return null;
@@ -108,6 +201,7 @@ export function useOfflineMediaUrl(
 ): string | null {
   const [url, setUrl] = useState<string | null>(mediaUrl || null);
   const blobUrlRef = useRef<string | null>(null);
+  const segmentBlobUrlsRef = useRef<string[]>([]);
 
   useEffect(() => {
     logger.info("useOfflineMediaUrl: Effect triggered", {
@@ -117,16 +211,23 @@ export function useOfflineMediaUrl(
       hasBlobUrl: !!blobUrlRef.current,
     });
 
-    // Очищаем предыдущий blob URL если есть
+    // Очищаем предыдущие blob URLs если есть
     if (blobUrlRef.current) {
-      logger.info("useOfflineMediaUrl: Revoking previous blob URL", {
+      logger.info("useOfflineMediaUrl: Revoking previous blob URLs", {
         courseType,
         mediaUrl,
         previousBlobUrl: blobUrlRef.current,
+        segmentBlobUrlsCount: segmentBlobUrlsRef.current.length,
       });
       revokeBlobUrl(blobUrlRef.current);
       blobUrlRef.current = null;
     }
+
+    // Очищаем blob URLs сегментов
+    for (const segmentBlobUrl of segmentBlobUrlsRef.current) {
+      revokeBlobUrl(segmentBlobUrl);
+    }
+    segmentBlobUrlsRef.current = [];
 
     if (!mediaUrl || !courseType) {
       logger.info("useOfflineMediaUrl: Missing params, using original URL", {
@@ -144,24 +245,40 @@ export function useOfflineMediaUrl(
       mediaUrl,
     });
 
-    // Пытаемся получить файл из офлайн-хранилища
-    getOfflineMediaBlob(courseType, mediaUrl)
-      .then((blob) => {
-        if (blob) {
-          const blobUrl = URL.createObjectURL(blob);
-          blobUrlRef.current = blobUrl;
-          logger.info("useOfflineMediaUrl: Blob found, created blob URL", {
+    // Сначала проверяем, является ли это HLS видео
+    getOfflineHLSManifestUrl(courseType, mediaUrl)
+      .then((hlsResult) => {
+        if (hlsResult) {
+          blobUrlRef.current = hlsResult.manifestBlobUrl;
+          segmentBlobUrlsRef.current = hlsResult.segmentBlobUrls;
+          logger.info("useOfflineMediaUrl: HLS манифест найден, создан blob URL", {
             courseType,
             mediaUrl,
-            blobSize: blob.size,
-            blobType: blob.type,
-            blobUrl,
+            manifestBlobUrl: hlsResult.manifestBlobUrl,
+            segmentBlobUrlsCount: hlsResult.segmentBlobUrls.length,
           });
-          setUrl(blobUrl);
-        } else {
-          // Если файл не найден в офлайн-хранилище, возвращаем оригинальный URL
-          setUrl(mediaUrl);
+          setUrl(hlsResult.manifestBlobUrl);
+          return;
         }
+
+        // Если не HLS, пытаемся получить обычный медиафайл
+        return getOfflineMediaBlob(courseType, mediaUrl).then((blob) => {
+          if (blob) {
+            const blobUrl = URL.createObjectURL(blob);
+            blobUrlRef.current = blobUrl;
+            logger.info("useOfflineMediaUrl: Blob found, created blob URL", {
+              courseType,
+              mediaUrl,
+              blobSize: blob.size,
+              blobType: blob.type,
+              blobUrl,
+            });
+            setUrl(blobUrl);
+          } else {
+            // Если файл не найден в офлайн-хранилище, возвращаем оригинальный URL
+            setUrl(mediaUrl);
+          }
+        });
       })
       .catch((error) => {
         logger.error("useOfflineMediaUrl: Error resolving offline media URL", error as Error, {
@@ -172,13 +289,17 @@ export function useOfflineMediaUrl(
       });
   }, [courseType, mediaUrl]);
 
-  // Очищаем blob URL при размонтировании
+  // Очищаем blob URLs при размонтировании
   useEffect(() => {
     return () => {
       if (blobUrlRef.current) {
         revokeBlobUrl(blobUrlRef.current);
         blobUrlRef.current = null;
       }
+      for (const segmentBlobUrl of segmentBlobUrlsRef.current) {
+        revokeBlobUrl(segmentBlobUrl);
+      }
+      segmentBlobUrlsRef.current = [];
     };
   }, []);
 
@@ -192,15 +313,23 @@ export function useOfflineMediaUrl(
 export function getOfflineMediaUrlSync(
   courseType: string | null,
   mediaUrl: string | null | undefined,
-  offlineCourse: { mediaFiles: { videos: Record<string, Blob>; images: Record<string, Blob>; pdfs: Record<string, Blob> } } | null,
+  offlineCourse: {
+    mediaFiles: {
+      hlsVideos: Record<string, { manifest: string; segments: Record<string, Blob>; videoId: string }>;
+      images: Record<string, Blob>;
+      pdfs: Record<string, Blob>;
+    };
+  } | null,
 ): string | null {
   if (!mediaUrl || !courseType || !offlineCourse) {
     return mediaUrl || null;
   }
 
-  // Проверяем видео
-  if (offlineCourse.mediaFiles.videos[mediaUrl]) {
-    return URL.createObjectURL(offlineCourse.mediaFiles.videos[mediaUrl]);
+  // Проверяем HLS видео
+  const hlsVideo = offlineCourse.mediaFiles.hlsVideos[mediaUrl];
+  if (hlsVideo) {
+    const result = createOfflineHLSManifest(hlsVideo.manifest, hlsVideo.segments);
+    return result.manifestBlobUrl;
   }
 
   // Проверяем изображения

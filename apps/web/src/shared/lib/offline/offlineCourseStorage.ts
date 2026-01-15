@@ -246,8 +246,14 @@ export async function getStorageSize(): Promise<number> {
       totalSize += JSON.stringify(course.course).length;
 
       // Размер медиафайлов
-      for (const blob of Object.values(course.mediaFiles.videos)) {
-        totalSize += blob.size;
+      // HLS видео (манифест + сегменты)
+      for (const hlsVideo of Object.values(course.mediaFiles.hlsVideos)) {
+        // Размер манифеста (текст)
+        totalSize += hlsVideo.manifest.length;
+        // Размер всех сегментов
+        for (const segmentBlob of Object.values(hlsVideo.segments)) {
+          totalSize += segmentBlob.size;
+        }
       }
       for (const blob of Object.values(course.mediaFiles.images)) {
         totalSize += blob.size;
