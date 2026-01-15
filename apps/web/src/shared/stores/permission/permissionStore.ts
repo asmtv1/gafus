@@ -60,13 +60,28 @@ export const usePermissionStore = create<PermissionState>()(
           return "denied";
         }
 
+        const currentPermission = Notification.permission;
+        
+        // Если разрешение уже заблокировано, не вызываем API и сразу возвращаем denied
+        if (currentPermission === "denied") {
+          const errorMsg = "Разрешение на уведомления заблокировано в настройках браузера";
+          logger.warn("⚠️ requestPermission: Разрешение уже заблокировано", {
+            operation: 'permission_already_denied'
+          });
+          set({
+            permission: "denied",
+            error: errorMsg,
+            isLoading: false,
+          });
+          return "denied";
+        }
+        
         logger.info("✅ requestPermission: Уведомления поддерживаются, запрашиваем разрешение", {
           operation: 'notifications_supported'
         });
         set({ isLoading: true, error: null });
 
         try {
-          // Простой запрос разрешения без таймаута
           logger.info("🔧 requestPermission: Запрашиваем разрешение", {
             operation: 'request_permission'
           });

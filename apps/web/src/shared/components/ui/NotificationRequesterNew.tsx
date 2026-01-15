@@ -82,13 +82,10 @@ export default function NotificationRequesterNew() {
 
   // Обработчики для диалогов
   const handleAllowNotifications = useCallback(async () => {
-    if (vapidKey) {
-      await requestPermission(vapidKey);
-      dismissModal();
-    } else {
-      logger.error("❌ NotificationRequesterNew: VAPID key not available");
-    }
-  }, [vapidKey, requestPermission, dismissModal]);
+    // requestPermission сам получит VAPID ключ, если он не передан
+    // markModalAsShown() вызывается внутри requestPermission при успешном разрешении
+    await requestPermission(vapidKey || undefined);
+  }, [vapidKey, requestPermission]);
 
   const handleDenyNotifications = useCallback(async () => {
     await removePushSubscription();
@@ -120,6 +117,16 @@ export default function NotificationRequesterNew() {
       return;
     }
 
+    // Если разрешение заблокировано, ничего не показываем
+    if (permission === "denied") {
+      return;
+    }
+
+    // Не показываем диалог, пока VAPID ключ не загрузится
+    if (vapidKey === null) {
+      return;
+    }
+
     // Определяем платформу и нужные действия
     const pushSupport = detectPushSupport();
 
@@ -145,7 +152,7 @@ export default function NotificationRequesterNew() {
     }
 
     // Другие случаи - ничего не показываем
-  }, [mounted, status, session?.user, permission, dismissedUntil, shouldShowModal, isSupported, isLoading, error, handleAllowNotifications, handleDenyNotifications]);
+  }, [mounted, status, session?.user, permission, dismissedUntil, shouldShowModal, isSupported, isLoading, error, handleAllowNotifications, handleDenyNotifications, vapidKey]);
 
   // Компонент не рендерит ничего, так как использует SweetAlert2
   return null;

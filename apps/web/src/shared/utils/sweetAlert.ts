@@ -133,21 +133,29 @@ export const showNotificationPermissionAlert = (
     },
   }).then(async (result) => {
     if (result.isConfirmed) {
-      // Показываем загрузку
       Swal.showLoading();
+      Swal.disableButtons();
+      
       try {
         await onAllow();
-        // Закрываем модальное окно после успешного выполнения
         Swal.close();
-      } catch {
-        // Показываем ошибку, но не закрываем модальное окно
+      } catch (error) {
         Swal.hideLoading();
-        Swal.showValidationMessage('Произошла ошибка при включении уведомлений');
+        Swal.enableButtons();
+        
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : 'Произошла ошибка при включении уведомлений';
+        
+        Swal.showValidationMessage(errorMessage);
       }
     } else if (result.dismiss === 'cancel') {
-      await onDeny();
-      // Закрываем модальное окно после выполнения действия
-      Swal.close();
+      try {
+        await onDeny();
+        Swal.close();
+      } catch (error) {
+        Swal.close();
+      }
     }
   });
 };

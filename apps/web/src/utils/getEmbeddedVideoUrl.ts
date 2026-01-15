@@ -8,6 +8,16 @@ export function getEmbeddedVideoInfo(url: string | null): {
     return { embedUrl: "", isShorts: false };
   }
 
+  // Blob URL для офлайн видео (HLS манифест из IndexedDB)
+  if (url.startsWith("blob:")) {
+    return {
+      embedUrl: url,
+      isShorts: false,
+      isCDN: true,
+      isHLS: true,
+    };
+  }
+
   // Проверяем на signed HLS URL (через API эндпоинт /api/video/.../manifest)
   if (url.includes("/api/video/") && url.includes("/manifest")) {
     return {

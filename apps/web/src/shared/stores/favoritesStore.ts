@@ -114,7 +114,7 @@ export const useFavoritesStore = create<FavoritesState>()(
               .getState()
               .setFavorites(updatedFavorites as unknown as CourseWithProgressData[]);
           }
-        } catch (e) {
+        } catch {
           // noop
         }
       },
@@ -134,7 +134,7 @@ export const useFavoritesStore = create<FavoritesState>()(
             // Пользователь не авторизован, не загружаем избранные
             return;
           }
-        } catch (e) {
+        } catch {
           // Если не можем проверить сессию, не загружаем
           return;
         }

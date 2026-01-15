@@ -78,7 +78,6 @@ export const usePushStore = create<PushState>()(
 
         let registration: ServiceWorkerRegistration | null = null;
         try {
-          // Используем универсальный менеджер SW
           registration = await serviceWorkerManager.register();
 
           // Проверяем доступность pushManager

@@ -27,6 +27,109 @@ function getFileNameFromPath(path: string): string {
 }
 
 /**
+ * Извлекает videoId из различных форматов URL
+ * @param url - URL видео
+ * @returns videoId или null если не удалось извлечь
+ */
+function extractVideoIdFromUrl(url: string): string | null {
+  try {
+    // Формат: /api/video/{videoId}/manifest
+    const apiMatch = url.match(/\/api\/video\/([^/]+)\//);
+    if (apiMatch) {
+      return apiMatch[1];
+    }
+
+    // Формат: trainers/{trainerId}/videocourses/{videoId}/...
+    const videocoursesMatch = url.match(/videocourses\/([^/]+)/);
+    if (videocoursesMatch) {
+      return videocoursesMatch[1];
+    }
+
+    // Старый формат: trainer-videos/{trainerId}/{videoId}.mp4
+    // Или новый формат с videoId в пути
+    const pathParts = url.split("/");
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      const part = pathParts[i];
+      // Ищем часть, которая выглядит как videoId (cuid формат)
+      if (part && part.length > 10 && /^[a-z0-9]+$/.test(part)) {
+        // Проверяем, что следующая часть - это файл или hls
+        const nextPart = pathParts[i + 1];
+        if (nextPart === "hls" || nextPart?.endsWith(".mp4") || nextPart?.endsWith(".m3u8")) {
+          return part;
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    logger.warn("Failed to extract videoId from URL", { url, error });
+    return null;
+  }
+}
+
+/**
+ * Нормализует URL видео для поиска в IndexedDB
+ * Преобразует различные форматы URL в единый формат для поиска
+ * @param url - URL видео
+ * @returns Нормализованный URL или исходный URL если не удалось нормализовать
+ */
+function normalizeVideoUrl(url: string): string {
+  try {
+    let normalized = url;
+
+    // Убираем query параметры и hash, если это полный URL
+    try {
+      const urlObj = new URL(normalized);
+      normalized = urlObj.origin + urlObj.pathname;
+    } catch {
+      // Если не удалось создать URL объект (относительный путь), работаем со строкой
+      // Убираем query параметры вручную
+      const queryIndex = normalized.indexOf("?");
+      if (queryIndex !== -1) {
+        normalized = normalized.substring(0, queryIndex);
+      }
+      const hashIndex = normalized.indexOf("#");
+      if (hashIndex !== -1) {
+        normalized = normalized.substring(0, hashIndex);
+      }
+    }
+
+    // Убираем домен, оставляем только путь
+    if (normalized.includes("storage.yandexcloud.net/gafus-media/")) {
+      normalized = normalized.split("storage.yandexcloud.net/gafus-media/")[1] || normalized;
+    } else if (normalized.includes("gafus-media.storage.yandexcloud.net/")) {
+      normalized = normalized.split("gafus-media.storage.yandexcloud.net/")[1] || normalized;
+    }
+
+    // Убираем префикс uploads/ если есть
+    if (normalized.startsWith("uploads/")) {
+      normalized = normalized.replace("uploads/", "");
+    }
+
+    // Заменяем /original.mp4 на /hls/playlist.m3u8 (старый формат на новый)
+    if (normalized.endsWith("/original.mp4") || normalized.endsWith("original.mp4")) {
+      normalized = normalized.replace(/\/original\.mp4$/, "/hls/playlist.m3u8");
+      normalized = normalized.replace(/original\.mp4$/, "/hls/playlist.m3u8");
+    }
+
+    // Заменяем .mp4 на /hls/playlist.m3u8 если это файл в папке videocourses
+    if (normalized.includes("/videocourses/") && normalized.endsWith(".mp4")) {
+      normalized = normalized.replace(/\.mp4$/, "/hls/playlist.m3u8");
+    }
+
+    // Для API URL поиск будет по videoId, возвращаем исходный URL
+    if (normalized.includes("/api/video/")) {
+      return url; // Возвращаем исходный URL, поиск будет по videoId
+    }
+
+    return normalized;
+  } catch (error) {
+    logger.warn("Failed to normalize video URL", { url, error });
+    return url;
+  }
+}
+
+/**
  * Создаёт модифицированный HLS манифест с blob URLs для сегментов
  * @param manifest - Текст манифеста
  * @param segments - Объект с сегментами (ключ = имя файла)
@@ -95,29 +198,98 @@ async function getOfflineHLSManifestUrl(
 
     const offlineCourse = await getOfflineCourseByType(courseType);
     if (!offlineCourse) {
-      return null;
-    }
-
-    const hlsVideo = offlineCourse.mediaFiles.hlsVideos[mediaUrl];
-    if (!hlsVideo) {
-      logger.warn("HLS видео не найдено в IndexedDB", {
+      logger.warn("getOfflineHLSManifestUrl: Course not found in IndexedDB", {
         courseType,
         mediaUrl,
-        availableHlsVideos: Object.keys(offlineCourse.mediaFiles.hlsVideos),
       });
       return null;
     }
 
-    logger.info("HLS видео найдено в IndexedDB", {
-      courseType,
-      mediaUrl,
-      segmentsCount: Object.keys(hlsVideo.segments).length,
-    });
+    const hlsVideos = offlineCourse.mediaFiles.hlsVideos;
+    let hlsVideo = hlsVideos[mediaUrl];
+
+    // Шаг 1: Поиск по точному совпадению
+    if (hlsVideo) {
+      logger.info("getOfflineHLSManifestUrl: Found by exact match", {
+        courseType,
+        mediaUrl,
+        segmentsCount: Object.keys(hlsVideo.segments).length,
+      });
+    } else {
+      // Шаг 2: Поиск по нормализованному URL
+      const normalizedUrl = normalizeVideoUrl(mediaUrl);
+      logger.info("getOfflineHLSManifestUrl: Trying normalized URL", {
+        courseType,
+        originalUrl: mediaUrl,
+        normalizedUrl,
+      });
+
+      // Пробуем найти по нормализованному URL
+      for (const [key, value] of Object.entries(hlsVideos)) {
+        const normalizedKey = normalizeVideoUrl(key);
+        if (normalizedKey === normalizedUrl || key === normalizedUrl) {
+          hlsVideo = value;
+          logger.info("getOfflineHLSManifestUrl: Found by normalized URL", {
+            courseType,
+            originalUrl: mediaUrl,
+            normalizedUrl,
+            matchedKey: key,
+            segmentsCount: Object.keys(hlsVideo.segments).length,
+          });
+          break;
+        }
+      }
+
+      // Шаг 3: Поиск по videoId
+      if (!hlsVideo) {
+        const videoId = extractVideoIdFromUrl(mediaUrl);
+        if (videoId) {
+          logger.info("getOfflineHLSManifestUrl: Trying search by videoId", {
+            courseType,
+            mediaUrl,
+            videoId,
+          });
+
+          for (const [key, value] of Object.entries(hlsVideos)) {
+            if (value.videoId === videoId) {
+              hlsVideo = value;
+              logger.info("getOfflineHLSManifestUrl: Found by videoId", {
+                courseType,
+                mediaUrl,
+                videoId,
+                matchedKey: key,
+                segmentsCount: Object.keys(hlsVideo.segments).length,
+              });
+              break;
+            }
+          }
+        }
+      }
+
+      // Шаг 4: Если всё ещё не найдено, логируем все доступные ключи для диагностики
+      if (!hlsVideo) {
+        const availableKeys = Object.keys(hlsVideos);
+        const availableVideoIds = Object.values(hlsVideos).map((v) => v.videoId);
+        const extractedVideoId = extractVideoIdFromUrl(mediaUrl);
+        const normalizedUrlForLog = normalizeVideoUrl(mediaUrl);
+
+        logger.warn("getOfflineHLSManifestUrl: HLS video not found after all search attempts", {
+          courseType,
+          mediaUrl,
+          normalizedUrl: normalizedUrlForLog,
+          extractedVideoId,
+          availableKeysCount: availableKeys.length,
+          availableKeys: availableKeys.slice(0, 5), // Первые 5 для логов
+          availableVideoIds: availableVideoIds.slice(0, 5),
+        });
+        return null;
+      }
+    }
 
     // Создаём модифицированный манифест с blob URLs
     const result = createOfflineHLSManifest(hlsVideo.manifest, hlsVideo.segments);
 
-    logger.info("HLS манифест создан с blob URLs", {
+    logger.info("getOfflineHLSManifestUrl: HLS manifest created with blob URLs", {
       courseType,
       mediaUrl,
       segmentBlobUrlsCount: result.segmentBlobUrls.length,

@@ -7,13 +7,13 @@ import { createWebLogger } from "@gafus/logger";
 const logger = createWebLogger("web-get-video-id-from-url");
 
 /**
- * Получает videoId и hlsManifestPath из videoUrl для скачивания HLS видео
+ * Получает videoId, hlsManifestPath и thumbnailPath из videoUrl для скачивания HLS видео
  * @param videoUrl - URL видео из CDN
- * @returns Объект с videoId и hlsManifestPath или ошибкой
+ * @returns Объект с videoId, hlsManifestPath и thumbnailPath или ошибкой
  */
 export async function getVideoIdFromUrlAction(
   videoUrl: string
-): Promise<{ success: boolean; videoId?: string; hlsManifestPath?: string; error?: string }> {
+): Promise<{ success: boolean; videoId?: string; hlsManifestPath?: string; thumbnailPath?: string; error?: string }> {
   try {
     if (!videoUrl) {
       return { success: false, error: "videoUrl не предоставлен" };
@@ -50,6 +50,7 @@ export async function getVideoIdFromUrlAction(
           select: {
             id: true,
             hlsManifestPath: true,
+            thumbnailPath: true,
           },
         });
 
@@ -57,11 +58,13 @@ export async function getVideoIdFromUrlAction(
           logger.info("Найдено видео по hlsManifestPath", {
             videoId: videoByHls.id,
             hlsManifestPath: videoByHls.hlsManifestPath,
+            thumbnailPath: videoByHls.thumbnailPath,
           });
           return {
             success: true,
             videoId: videoByHls.id,
             hlsManifestPath: videoByHls.hlsManifestPath,
+            thumbnailPath: videoByHls.thumbnailPath || undefined,
           };
         }
       }
@@ -76,6 +79,7 @@ export async function getVideoIdFromUrlAction(
           id: true,
           transcodingStatus: true,
           hlsManifestPath: true,
+          thumbnailPath: true,
         },
       });
 
@@ -85,11 +89,13 @@ export async function getVideoIdFromUrlAction(
           logger.info("Найдено видео по relativePath", {
             videoId: videoByPath.id,
             hlsManifestPath: videoByPath.hlsManifestPath,
+            thumbnailPath: videoByPath.thumbnailPath,
           });
           return {
             success: true,
             videoId: videoByPath.id,
             hlsManifestPath: videoByPath.hlsManifestPath,
+            thumbnailPath: videoByPath.thumbnailPath || undefined,
           };
         }
 

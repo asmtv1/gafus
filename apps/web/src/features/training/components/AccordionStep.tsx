@@ -601,6 +601,8 @@ export function AccordionStep({
       {videoUrl && type !== "BREAK" && (
         <VideoPlayerSection
           videoUrl={offlineVideoUrl || videoUrl}
+          originalVideoUrl={videoUrl}
+          courseType={courseType}
           videoInfo={videoInfo}
         />
       )}

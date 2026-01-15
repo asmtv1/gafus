@@ -32,31 +32,44 @@ export function useNotificationComposite() {
     return push.setUserId(userId);
   }, [push.setUserId]);
 
-  const requestPermission = useCallback(async (vapidPublicKey?: string) => {
+  const requestPermission = useCallback(async (vapidPublicKey?: string): Promise<void> => {
+    // Проверяем текущее разрешение до запроса
+    const permissionBeforeRequest = permission.permission;
+    
     const result = await permission.requestPermission();
 
     if (result === "granted") {
       ui.markModalAsShown();
 
-      if (vapidPublicKey) {
-        await push.setupPushSubscription(vapidPublicKey);
-      } else {
-        try {
+      try {
+        if (vapidPublicKey) {
+          await push.setupPushSubscription(vapidPublicKey);
+        } else {
           const { publicKey } = await getPublicKeyAction();
           if (publicKey) {
             await push.setupPushSubscription(publicKey);
           } else {
-            permission.setError("VAPID key not available for push subscription");
+            const errorMsg = "VAPID key not available for push subscription";
+            permission.setError(errorMsg);
+            throw new Error(errorMsg);
           }
-        } catch (e) {
-          logger.error("Failed to get VAPID key:", e as Error, { operation: 'error' });
-          permission.setError("VAPID key not available for push subscription");
         }
+      } catch (e) {
+        logger.error("Failed to setup push subscription:", e as Error, { operation: 'error' });
+        const errorMsg = e instanceof Error ? e.message : "Ошибка настройки push-подписки";
+        permission.setError(errorMsg);
+        throw e;
       }
     } else {
-      permission.setError("Пользователь не разрешил уведомления");
+      // Если разрешение было denied до запроса, значит оно было заблокировано
+      const wasBlockedBefore = permissionBeforeRequest === "denied";
+      const errorMsg = wasBlockedBefore
+        ? "Разрешение на уведомления заблокировано в настройках браузера"
+        : "Пользователь не разрешил уведомления";
+      permission.setError(errorMsg);
+      throw new Error(errorMsg);
     }
-  }, [permission.requestPermission, ui.markModalAsShown, push.setupPushSubscription, permission.setError]);
+  }, [permission, ui.markModalAsShown, push.setupPushSubscription]);
 
   return {
     // Состояние

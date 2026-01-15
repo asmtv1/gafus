@@ -94,6 +94,17 @@ function getCdnProxyUrl(url: string): string {
   return url;
 }
 
+/**
+ * Убеждается, что путь начинается с префикса uploads/
+ * thumbnailPath в БД хранится без этого префикса, но файлы в CDN находятся с ним
+ */
+function ensureUploadsPrefix(path: string): string {
+  if (path.startsWith("uploads/")) {
+    return path;
+  }
+  return `uploads/${path}`;
+}
+
 // Скачивание медиафайла на клиенте
 async function downloadMediaFile(url: string): Promise<Blob | null> {
   try {
@@ -292,8 +303,8 @@ export function useOfflineCourse(): UseOfflineCourseResult {
           }
         }
 
-        // Получаем hlsManifestPath для каждого HLS видео
-        const hlsVideoData: { videoUrl: string; hlsManifestPath: string; videoId: string }[] = [];
+        // Получаем hlsManifestPath и thumbnailPath для каждого HLS видео
+        const hlsVideoData: { videoUrl: string; hlsManifestPath: string; videoId: string; thumbnailPath?: string }[] = [];
         for (const videoUrl of hlsVideoUrls) {
           const result = await getVideoIdFromUrlAction(videoUrl);
           if (result.success && result.hlsManifestPath && result.videoId) {
@@ -301,6 +312,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
               videoUrl,
               hlsManifestPath: result.hlsManifestPath,
               videoId: result.videoId,
+              thumbnailPath: result.thumbnailPath,
             });
           } else {
             logger.warn("Не удалось получить hlsManifestPath для видео", {
@@ -322,14 +334,15 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         );
 
         // Скачиваем HLS видео
-        const hlsVideos: Record<string, { manifest: string; segments: Record<string, Blob>; videoId: string }> = {};
+        const hlsVideos: Record<string, { manifest: string; segments: Record<string, Blob>; videoId: string; thumbnailPath?: string }> = {};
         let hlsDownloaded = 0;
 
         // Подсчитываем общее количество файлов для прогресса
-        // Для каждого HLS видео: 1 манифест + N сегментов (примерно 30-40)
+        // Для каждого HLS видео: 1 манифест + N сегментов (примерно 30-40) + 1 thumbnail (если есть)
         // Используем приблизительную оценку: 35 сегментов на видео
         const estimatedSegmentsPerVideo = 35;
-        const totalHlsFiles = hlsVideoData.length * (1 + estimatedSegmentsPerVideo);
+        const thumbnailCount = hlsVideoData.filter((v) => v.thumbnailPath).length;
+        const totalHlsFiles = hlsVideoData.length * (1 + estimatedSegmentsPerVideo) + thumbnailCount;
         const totalMediaFiles = uniqueImageUrls.length + uniquePdfUrls.length + totalHlsFiles;
         let downloadedMediaFiles = uniqueImageUrls.length + uniquePdfUrls.length;
 
@@ -338,7 +351,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
           setDownloadProgress((downloadedMediaFiles / totalMediaFiles) * 100);
         }
 
-        for (const { videoUrl, hlsManifestPath } of hlsVideoData) {
+        for (const { videoUrl, hlsManifestPath, thumbnailPath } of hlsVideoData) {
           try {
             logger.info("Начинаем скачивание HLS видео", { videoUrl, hlsManifestPath });
 
@@ -356,16 +369,90 @@ export function useOfflineCourse(): UseOfflineCourseResult {
             );
 
             if (hlsData) {
+              // Скачиваем thumbnail если есть
+              let thumbnailBlob: Blob | null = null;
+              if (thumbnailPath) {
+                try {
+                  // Формируем CDN URL для thumbnail
+                  const thumbnailPathWithUploads = ensureUploadsPrefix(thumbnailPath);
+                  const thumbnailCdnUrl = `https://storage.yandexcloud.net/gafus-media/${thumbnailPathWithUploads}`;
+                  
+                  console.log("[useOfflineCourse] Начинаем скачивание thumbnail", {
+                    videoUrl,
+                    thumbnailPath,
+                    thumbnailCdnUrl,
+                  });
+                  
+                  logger.info("Скачиваем thumbnail для видео", {
+                    videoUrl,
+                    thumbnailPath,
+                    thumbnailCdnUrl,
+                  });
+
+                  thumbnailBlob = await downloadMediaFile(thumbnailCdnUrl);
+                  
+                  if (thumbnailBlob) {
+                    // Сохраняем thumbnail в images с ключом по thumbnailPath
+                    mediaFiles.images[thumbnailPath] = thumbnailBlob;
+                    downloadedMediaFiles++;
+                    
+                    console.log("[useOfflineCourse] Thumbnail успешно скачан и сохранен", {
+                      videoUrl,
+                      thumbnailPath,
+                      thumbnailSize: thumbnailBlob.size,
+                      imagesKeys: Object.keys(mediaFiles.images),
+                    });
+                    
+                    logger.info("Thumbnail успешно скачан", {
+                      videoUrl,
+                      thumbnailPath,
+                      thumbnailSize: thumbnailBlob.size,
+                    });
+                  } else {
+                    console.warn("[useOfflineCourse] Не удалось скачать thumbnail - blob null", {
+                      videoUrl,
+                      thumbnailPath,
+                      thumbnailCdnUrl,
+                    });
+                    
+                    logger.warn("Не удалось скачать thumbnail", {
+                      videoUrl,
+                      thumbnailPath,
+                    });
+                  }
+                } catch (error) {
+                  console.error("[useOfflineCourse] Ошибка при скачивании thumbnail", {
+                    videoUrl,
+                    thumbnailPath,
+                    error: error instanceof Error ? error.message : String(error),
+                    stack: error instanceof Error ? error.stack : undefined,
+                  });
+                  
+                  logger.warn("Ошибка при скачивании thumbnail", {
+                    videoUrl,
+                    thumbnailPath,
+                    error: error instanceof Error ? error.message : String(error),
+                  });
+                }
+              } else {
+                console.log("[useOfflineCourse] ThumbnailPath отсутствует, пропускаем скачивание", {
+                  videoUrl,
+                  hlsDataVideoId: hlsData.videoId,
+                });
+              }
+
               hlsVideos[videoUrl] = {
                 manifest: hlsData.manifest,
                 segments: hlsData.segments,
                 videoId: hlsData.videoId,
+                thumbnailPath: thumbnailPath || undefined,
               };
               hlsDownloaded++;
               downloadedMediaFiles += 1 + Object.keys(hlsData.segments).length;
               logger.info("HLS видео успешно скачано", {
                 videoUrl,
                 segmentsCount: Object.keys(hlsData.segments).length,
+                hasThumbnail: !!thumbnailBlob,
               });
             } else {
               logger.error("Не удалось скачать HLS видео", new Error("Download failed"), {
