@@ -15,11 +15,9 @@ import type { OfflineCourse } from "@shared/lib/offline/types";
 import {
   downloadFullCourse,
   checkCourseUpdates,
-  getVideoHLSInfo,
 } from "@shared/lib/actions/offlineCourseActions";
 import { saveCourseHtmlPagesOnDownload } from "@shared/lib/offline/htmlPageStorage";
 import { isOnline } from "@shared/utils/offlineCacheUtils";
-import { downloadHLSForOffline } from "@shared/lib/offline/hlsOfflineStorage";
 
 const logger = createWebLogger("web-use-offline-course");
 
@@ -94,22 +92,8 @@ function getCdnProxyUrl(url: string): string {
   return url;
 }
 
-// Проверка, является ли URL относительным путём к тренерскому видео
-function isTrainerVideoPath(url: string): boolean {
-  if (!url || url.trim() === "") {
-    return false;
-  }
-
-  // Проверяем паттерн: /uploads/trainers/.../videocourses/...
-  const trainerVideoPattern = /\/uploads\/trainers\/[^/]+\/videocourses\/[^/]+/;
-  return trainerVideoPattern.test(url);
-}
-
 // Скачивание медиафайла на клиенте
-async function downloadMediaFile(
-  url: string,
-  onProgress?: (downloaded: number, total: number) => void
-): Promise<Blob | null | { type: "hls"; data: import("@shared/lib/offline/hlsOfflineStorage").HLSManifestCache }> {
+async function downloadMediaFile(url: string): Promise<Blob | null> {
   try {
     if (!url || url.trim() === "") {
       return null;
@@ -121,57 +105,6 @@ async function downloadMediaFile(
       return null;
     }
 
-    // Проверяем если это HLS манифест (уже готовый .m3u8 URL)
-    if (url.endsWith(".m3u8")) {
-      logger.info("Downloading HLS video", { url });
-      const hlsData = await downloadHLSForOffline(url, onProgress);
-      return { type: "hls", data: hlsData };
-    }
-
-    // Проверяем, является ли это относительным путём к тренерскому видео
-    // (например, /uploads/trainers/.../videocourses/.../original.mp4)
-    // После транскодирования original.mp4 удаляется, нужно использовать HLS
-    if (isTrainerVideoPath(url) || isCDNVideo(url)) {
-      logger.info("Checking for HLS version of trainer video", { url });
-      
-      const hlsInfo = await getVideoHLSInfo(url);
-      
-      if (hlsInfo.success && hlsInfo.data?.hlsManifestUrl) {
-        logger.info("Found HLS manifest, downloading HLS video", {
-          originalUrl: url,
-          hlsManifestUrl: hlsInfo.data.hlsManifestUrl,
-        });
-        const hlsData = await downloadHLSForOffline(hlsInfo.data.hlsManifestUrl, onProgress);
-        return { type: "hls", data: hlsData };
-      } else {
-        // Видео ещё не транскодировано или не найдено
-        logger.warn("HLS version not available for video", {
-          url,
-          error: hlsInfo.error,
-        });
-        
-        // Пробуем скачать оригинальный файл (может не существовать)
-        // Это fallback для случаев, когда видео ещё не транскодировано
-        // но original.mp4 ещё существует
-        const response = await fetch(getCdnProxyUrl(url), {
-          headers: {
-            "X-Gafus-Background-Download": "1",
-          },
-        });
-        
-        if (!response.ok) {
-          logger.warn("Failed to download video file (original may be deleted after transcoding)", {
-            url,
-            status: response.status,
-          });
-          return null;
-        }
-
-        return await response.blob();
-      }
-    }
-
-    // Для других файлов (изображения, PDF) просто скачиваем через прокси
     const response = await fetch(getCdnProxyUrl(url), {
       headers: {
         "X-Gafus-Background-Download": "1",
@@ -199,12 +132,10 @@ async function downloadAllMediaFiles(
   videos: Record<string, Blob>;
   images: Record<string, Blob>;
   pdfs: Record<string, Blob>;
-  hls: Record<string, import("@shared/lib/offline/hlsOfflineStorage").HLSManifestCache>;
 }> {
   const videos: Record<string, Blob> = {};
   const images: Record<string, Blob> = {};
   const pdfs: Record<string, Blob> = {};
-  const hls: Record<string, import("@shared/lib/offline/hlsOfflineStorage").HLSManifestCache> = {};
 
   const allUrls = [
     ...videoUrls.map((url) => ({ url, type: "video" as const })),
@@ -216,27 +147,14 @@ async function downloadAllMediaFiles(
   const total = allUrls.length;
 
   for (const { url, type } of allUrls) {
-    const result = await downloadMediaFile(url, (downloaded, segmentTotal) => {
-      // Обновляем прогресс для текущего файла
-      const fileProgress = completed + (downloaded / segmentTotal);
-      const totalProgress = Math.round((fileProgress / total) * 100);
-      if (onProgress) {
-        onProgress(totalProgress);
-      }
-    });
-
-    if (result) {
+    const blob = await downloadMediaFile(url);
+    if (blob) {
       if (type === "video") {
-        // Проверяем если это HLS данные
-        if (typeof result === "object" && "type" in result && result.type === "hls") {
-          hls[url] = result.data;
-        } else if (result instanceof Blob) {
-          videos[url] = result;
-        }
-      } else if (type === "image" && result instanceof Blob) {
-        images[url] = result;
-      } else if (type === "pdf" && result instanceof Blob) {
-        pdfs[url] = result;
+        videos[url] = blob;
+      } else if (type === "image") {
+        images[url] = blob;
+      } else if (type === "pdf") {
+        pdfs[url] = blob;
       }
     }
 
@@ -246,7 +164,7 @@ async function downloadAllMediaFiles(
     }
   }
 
-  return { videos, images, pdfs, hls };
+  return { videos, images, pdfs };
 }
 
 export function useOfflineCourse(): UseOfflineCourseResult {

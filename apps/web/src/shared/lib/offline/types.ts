@@ -75,17 +75,7 @@ export interface OfflineCourse {
     images: Record<string, Blob>;
     pdfs: Record<string, Blob>;
     externalVideos?: Record<string, string>; // URL внешних видео (YouTube, RuTube, VK и т.д.)
-    hls: Record<string, HLSManifestCache>; // HLS кэш для новых видео
   };
-}
-
-/**
- * Кэш HLS манифеста и сегментов
- */
-export interface HLSManifestCache {
-  manifestUrl: string; // Оригинальный URL манифеста
-  manifest: string; // Содержимое playlist.m3u8
-  segments: Record<string, Blob>; // { "segment-000.ts": Blob, ... }
 }
 
 export interface FullCourseData {
