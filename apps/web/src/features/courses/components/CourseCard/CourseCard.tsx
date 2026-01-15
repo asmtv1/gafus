@@ -183,7 +183,6 @@ export const CourseCard = ({
         showConfirmButton: false,
         allowOutsideClick: false,
         allowEscapeKey: false,
-        allowEnterKey: false,
         customClass: {
           popup: "swal2-download-popup",
           title: "swal2-download-title",

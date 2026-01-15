@@ -15,6 +15,7 @@ import type { OfflineCourse } from "@shared/lib/offline/types";
 import {
   downloadFullCourse,
   checkCourseUpdates,
+  getVideoHLSInfo,
 } from "@shared/lib/actions/offlineCourseActions";
 import { saveCourseHtmlPagesOnDownload } from "@shared/lib/offline/htmlPageStorage";
 import { isOnline } from "@shared/utils/offlineCacheUtils";
@@ -93,6 +94,17 @@ function getCdnProxyUrl(url: string): string {
   return url;
 }
 
+// Проверка, является ли URL относительным путём к тренерскому видео
+function isTrainerVideoPath(url: string): boolean {
+  if (!url || url.trim() === "") {
+    return false;
+  }
+
+  // Проверяем паттерн: /uploads/trainers/.../videocourses/...
+  const trainerVideoPattern = /\/uploads\/trainers\/[^/]+\/videocourses\/[^/]+/;
+  return trainerVideoPattern.test(url);
+}
+
 // Скачивание медиафайла на клиенте
 async function downloadMediaFile(
   url: string,
@@ -109,13 +121,57 @@ async function downloadMediaFile(
       return null;
     }
 
-    // Проверяем если это HLS манифест
+    // Проверяем если это HLS манифест (уже готовый .m3u8 URL)
     if (url.endsWith(".m3u8")) {
       logger.info("Downloading HLS video", { url });
       const hlsData = await downloadHLSForOffline(url, onProgress);
       return { type: "hls", data: hlsData };
     }
 
+    // Проверяем, является ли это относительным путём к тренерскому видео
+    // (например, /uploads/trainers/.../videocourses/.../original.mp4)
+    // После транскодирования original.mp4 удаляется, нужно использовать HLS
+    if (isTrainerVideoPath(url) || isCDNVideo(url)) {
+      logger.info("Checking for HLS version of trainer video", { url });
+      
+      const hlsInfo = await getVideoHLSInfo(url);
+      
+      if (hlsInfo.success && hlsInfo.data?.hlsManifestUrl) {
+        logger.info("Found HLS manifest, downloading HLS video", {
+          originalUrl: url,
+          hlsManifestUrl: hlsInfo.data.hlsManifestUrl,
+        });
+        const hlsData = await downloadHLSForOffline(hlsInfo.data.hlsManifestUrl, onProgress);
+        return { type: "hls", data: hlsData };
+      } else {
+        // Видео ещё не транскодировано или не найдено
+        logger.warn("HLS version not available for video", {
+          url,
+          error: hlsInfo.error,
+        });
+        
+        // Пробуем скачать оригинальный файл (может не существовать)
+        // Это fallback для случаев, когда видео ещё не транскодировано
+        // но original.mp4 ещё существует
+        const response = await fetch(getCdnProxyUrl(url), {
+          headers: {
+            "X-Gafus-Background-Download": "1",
+          },
+        });
+        
+        if (!response.ok) {
+          logger.warn("Failed to download video file (original may be deleted after transcoding)", {
+            url,
+            status: response.status,
+          });
+          return null;
+        }
+
+        return await response.blob();
+      }
+    }
+
+    // Для других файлов (изображения, PDF) просто скачиваем через прокси
     const response = await fetch(getCdnProxyUrl(url), {
       headers: {
         "X-Gafus-Background-Download": "1",

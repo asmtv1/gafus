@@ -5,6 +5,7 @@ import { createWebLogger } from "@gafus/logger";
 import { trainingTypeSchema } from "../validation/schemas";
 import { getCurrentUserId } from "@/utils";
 import type { FullCourseData } from "../offline/types";
+import { getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
 
 const logger = createWebLogger("web-offline-course-actions");
 
@@ -290,6 +291,108 @@ export async function downloadFullCourse(
     return { success: true, data: courseData };
   } catch (error) {
     logger.error("Error downloading full course", error as Error, { courseType });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+    };
+  }
+}
+
+/**
+ * Получает информацию о HLS манифесте для видео по его URL
+ * Используется для офлайн-скачивания видео, которые были транскодированы в HLS
+ * @param videoUrl - URL видео (может быть относительным путём или CDN URL)
+ * @returns Информация о HLS манифесте или null если видео не найдено или не транскодировано
+ */
+export async function getVideoHLSInfo(
+  videoUrl: string,
+): Promise<{
+  success: boolean;
+  data?: { videoId: string; hlsManifestUrl: string };
+  error?: string;
+}> {
+  try {
+    if (!videoUrl || videoUrl.trim() === "") {
+      return { success: false, error: "URL видео не указан" };
+    }
+
+    // Определяем relativePath из videoUrl
+    let relativePath: string;
+
+    // Если это полный CDN URL
+    if (
+      videoUrl.includes("storage.yandexcloud.net") ||
+      videoUrl.includes("gafus-media.storage.yandexcloud.net")
+    ) {
+      relativePath = getRelativePathFromCDNUrl(videoUrl);
+    } else if (videoUrl.startsWith("/uploads/")) {
+      // Если это относительный путь, убираем /uploads/
+      relativePath = videoUrl.replace(/^\/uploads\//, "");
+    } else if (videoUrl.startsWith("uploads/")) {
+      // Если путь начинается без слеша
+      relativePath = videoUrl;
+    } else {
+      // Пробуем использовать как есть
+      relativePath = videoUrl;
+    }
+
+    logger.info("Getting HLS info for video", { videoUrl, relativePath });
+
+    // Ищем TrainerVideo по relativePath
+    // relativePath может быть: trainers/{trainerId}/videocourses/{videoId}/original.mp4
+    // или trainers/{trainerId}/videocourses/{videoId}/hls/playlist.m3u8
+    const trainerVideo = await prisma.trainerVideo.findFirst({
+      where: {
+        relativePath,
+      },
+      select: {
+        id: true,
+        transcodingStatus: true,
+        hlsManifestPath: true,
+      },
+    });
+
+    if (!trainerVideo) {
+      logger.warn("TrainerVideo not found", { relativePath });
+      return { success: false, error: "Видео не найдено" };
+    }
+
+    // Проверяем статус транскодирования
+    if (trainerVideo.transcodingStatus !== "COMPLETED") {
+      logger.warn("Video not transcoded yet", {
+        videoId: trainerVideo.id,
+        status: trainerVideo.transcodingStatus,
+      });
+      return {
+        success: false,
+        error: `Видео ещё обрабатывается (статус: ${trainerVideo.transcodingStatus})`,
+      };
+    }
+
+    if (!trainerVideo.hlsManifestPath) {
+      logger.warn("HLS manifest path not found", { videoId: trainerVideo.id });
+      return { success: false, error: "HLS манифест не найден" };
+    }
+
+    // Формируем полный URL к HLS манифесту
+    // hlsManifestPath хранится как: trainers/{trainerId}/videocourses/{videoId}/hls/playlist.m3u8
+    // Для скачивания нужен полный CDN URL: https://storage.yandexcloud.net/gafus-media/uploads/{hlsManifestPath}
+    const hlsManifestUrl = `https://storage.yandexcloud.net/gafus-media/uploads/${trainerVideo.hlsManifestPath}`;
+
+    logger.info("HLS info retrieved successfully", {
+      videoId: trainerVideo.id,
+      hlsManifestUrl,
+    });
+
+    return {
+      success: true,
+      data: {
+        videoId: trainerVideo.id,
+        hlsManifestUrl,
+      },
+    };
+  } catch (error) {
+    logger.error("Error getting video HLS info", error as Error, { videoUrl });
     return {
       success: false,
       error: error instanceof Error ? error.message : "Неизвестная ошибка",
