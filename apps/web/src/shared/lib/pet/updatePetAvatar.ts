@@ -2,8 +2,9 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
+import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl, getPetPhotoPath } from "@gafus/cdn-upload";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 
 import { petIdSchema } from "../validation/petSchemas";
 
@@ -16,25 +17,29 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
   const validFile = fileSchema.parse(file);
   const safePetId = petIdSchema.parse(petId);
   try {
-    // 1. Определяем расширение и формируем имя файла
+    // 1. Получаем ownerId владельца питомца и старый photoUrl
+    const existingPet = await prisma.pet.findUnique({
+      where: { id: safePetId },
+      select: { photoUrl: true, ownerId: true },
+    });
+
+    if (!existingPet?.ownerId) {
+      throw new Error("Питомец не найден или не привязан к пользователю");
+    }
+    const userId = existingPet.ownerId;
+
+    // 2. Определяем расширение и формируем путь
     const ext = validFile.name.split(".").pop();
     if (!ext) throw new Error("Не удалось определить расширение файла");
 
-    const timestamp = Date.now();
-    const fileName = `pet-${safePetId}-${timestamp}.${ext}`;
-    const relativePath = `pets/${fileName}`;
-
-    // 2. Получаем старый photoUrl для удаления
-    const existingPet = await prisma.pet.findUnique({
-      where: { id: safePetId },
-      select: { photoUrl: true },
-    });
+    const uuid = randomUUID();
+    const relativePath = getPetPhotoPath(userId, safePetId, uuid, ext);
 
     // 3. Загружаем новый файл в CDN
     const photoUrl = await uploadFileToCDN(validFile, relativePath);
 
     // 4. Удаляем старый файл из CDN (если есть)
-    if (existingPet?.photoUrl) {
+    if (existingPet.photoUrl) {
       const oldRelativePath = getRelativePathFromCDNUrl(existingPet.photoUrl);
       logger.info(`🔍 Найден старое фото питомца для удаления: ${existingPet.photoUrl} -> ${oldRelativePath}`);
       try {

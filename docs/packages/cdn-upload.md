@@ -13,22 +13,73 @@
 
 ## 📂 Структура каталогов CDN
 
-- `uploads/steps/*` — изображения и документы шагов
-- `uploads/trainer-videos/*` — личные видео тренеров из панели (`trainerId` внутри пути)
-- `uploads/public/*` — общие публичные ассеты
+```
+uploads/
+├── users/
+│   └── {userId}/
+│       ├── avatar/
+│       │   └── {uuid}.{ext}
+│       └── pets/
+│           └── {petId}/
+│               └── {uuid}.{ext}
+├── trainers/
+│   └── {trainerId}/
+│       ├── videocourses/
+│       │   └── {videoId}/
+│       │       ├── original.{ext}
+│       │       └── hls/
+│       │           ├── playlist.m3u8
+│       │           └── segment-*.ts
+│       ├── steps/
+│       │   └── {stepId}/
+│       │       └── {uuid}.{ext}
+│       └── courses/
+│           └── {courseId}/
+│               └── {uuid}.{ext}
+└── exams/
+    └── {userStepId}/
+        └── {uuid}.{ext}
+```
 
-> Для новых видео используйте относительный путь вида `trainer-videos/{trainerId}/{uuid}.mp4`. Пакет автоматически добавит префикс `uploads/`.
+**Описание:**
+- `users/{userId}/avatar/` — аватары пользователей
+- `users/{userId}/pets/{petId}/` — фото питомцев
+- `trainers/{trainerId}/steps/{stepId}/` — изображения шагов
+- `trainers/{trainerId}/courses/{courseId}/` — изображения курсов
+- `trainers/{trainerId}/videocourses/{videoId}/` — видео тренеров (HLS)
+- `exams/{userStepId}/` — видео экзаменов
+
+> Пакет автоматически добавляет префикс `uploads/` к относительным путям.
 
 ## 📦 Использование
 
-### Загрузка файла
+### Загрузка файла с использованием helper функций
+
+**Рекомендуется использовать helper функции для генерации путей:**
+
 ```typescript
-import { uploadFileToCDN } from "@gafus/cdn-upload";
+import { uploadFileToCDN, getUserAvatarPath, getPetPhotoPath, getStepImagePath, getCourseImagePath, getExamVideoPath } from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
 
-const relativePath = `trainer-videos/${trainerId}/${randomUUID()}.mp4`;
+// Аватар пользователя
+const avatarPath = getUserAvatarPath(userId, randomUUID(), "jpg");
+await uploadFileToCDN(file, avatarPath);
 
-await uploadFileToCDN(file, relativePath);
+// Фото питомца
+const petPhotoPath = getPetPhotoPath(userId, petId, randomUUID(), "jpg");
+await uploadFileToCDN(file, petPhotoPath);
+
+// Изображение шага
+const stepImagePath = getStepImagePath(trainerId, stepId, randomUUID(), "jpg");
+await uploadFileToCDN(file, stepImagePath);
+
+// Изображение курса
+const courseImagePath = getCourseImagePath(trainerId, courseId, randomUUID(), "jpg");
+await uploadFileToCDN(file, courseImagePath);
+
+// Видео экзамена
+const examVideoPath = getExamVideoPath(userStepId, randomUUID(), "webm");
+await uploadFileToCDN(file, examVideoPath);
 ```
 
 ### Генерация пресigned URL
@@ -44,7 +95,25 @@ const url = await generatePresignedUrl({
 
 ## 🔧 API
 
-- `uploadToCDN(file, options)` - Загрузка файла в CDN
-- `generatePresignedUrl(options)` - Генерация пресigned URL
-- `validateFile(file, rules)` - Валидация файла
-- `optimizeImage(image)` - Оптимизация изображения
+### Основные функции
+
+- `uploadFileToCDN(file, relativePath)` - Загрузка файла в CDN
+- `uploadBufferToCDN(buffer, relativePath, contentType)` - Загрузка Buffer в CDN
+- `deleteFileFromCDN(relativePath)` - Удаление файла из CDN
+- `deleteFolderFromCDN(folderPath)` - Рекурсивное удаление папки из CDN
+- `downloadFileFromCDN(relativePath)` - Скачивание файла из CDN
+- `streamFileFromCDN(relativePath)` - Получение ReadableStream из CDN
+
+### Helper функции для генерации путей
+
+- `getUserAvatarPath(userId, uuid, ext)` - Путь для аватара пользователя
+- `getPetPhotoPath(userId, petId, uuid, ext)` - Путь для фото питомца
+- `getStepImagePath(trainerId, stepId, uuid, ext)` - Путь для изображения шага
+- `getCourseImagePath(trainerId, courseId, uuid, ext)` - Путь для изображения курса
+- `getExamVideoPath(userStepId, uuid, ext)` - Путь для видео экзамена
+
+### Утилиты
+
+- `getCDNUrl(path)` - Преобразование относительного пути в полный CDN URL
+- `getRelativePathFromCDNUrl(cdnUrl)` - Извлечение относительного пути из полного CDN URL
+- `isCDNUrl(path)` - Проверка, является ли путь CDN URL

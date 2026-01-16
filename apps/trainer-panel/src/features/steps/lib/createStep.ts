@@ -7,7 +7,7 @@ import { prisma, StepType, Prisma } from "@gafus/prisma";
 import { validateForm } from "@shared/lib/validation/serverValidation";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
-import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
+import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl, getStepImagePath } from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
 
 import type { ActionResult, ChecklistQuestion } from "@gafus/types";
@@ -191,28 +191,7 @@ export async function createStep(
       return { error: "Вы не авторизованы" };
     }
     const authorId = session.user.id;
-
-    // Загружаем изображения в CDN (только для тренировочных, теоретических и практических шагов)
-    const imageUrls: string[] = [];
-    if ((type === "TRAINING" || type === "THEORY" || type === "PRACTICE") && imageFiles.length > 0) {
-      try {
-        logger.info(`🔄 Загружаем ${imageFiles.length} изображений в CDN`);
-        
-        for (const file of imageFiles) {
-          const ext = file.name.split(".").pop();
-          const fileName = `${randomUUID()}.${ext}`;
-          const relativePath = `steps/${fileName}`;
-          
-          const fileUrl = await uploadFileToCDN(file, relativePath);
-          imageUrls.push(fileUrl);
-        }
-        
-        logger.info(`✅ Загружено ${imageUrls.length} изображений в CDN`);
-      } catch (error) {
-        logger.error("❌ Ошибка загрузки изображений в CDN", error as Error);
-        return { error: "Не удалось загрузить изображения" };
-      }
-    }
+    const trainerId = authorId;
 
     // Удаляем изображения из CDN (для тренировочных, теоретических и практических шагов)
     if ((type === "TRAINING" || type === "THEORY" || type === "PRACTICE") && deletedImages.length > 0) {
@@ -220,15 +199,7 @@ export async function createStep(
         logger.info(`🗑️ Удаляем ${deletedImages.length} изображений из CDN`);
         
         for (const imageUrl of deletedImages) {
-          // Извлекаем относительный путь из CDN URL
-          let relativePath = imageUrl;
-          if (imageUrl.startsWith('https://gafus-media.storage.yandexcloud.net/')) {
-            relativePath = imageUrl.replace('https://gafus-media.storage.yandexcloud.net/', '');
-          }
-          if (relativePath.startsWith('/')) {
-            relativePath = relativePath.substring(1);
-          }
-          
+          const relativePath = getRelativePathFromCDNUrl(imageUrl);
           await deleteFileFromCDN(relativePath);
         }
         
@@ -245,7 +216,10 @@ export async function createStep(
       return { error: "Пользователь не найден в базе данных" };
     }
 
-    const _step = await prisma.step.create({
+    // Создаем шаг в БД сначала (получаем stepId)
+    let step;
+    try {
+      step = await prisma.step.create({
       data: {
         title,
         description,
@@ -253,7 +227,7 @@ export async function createStep(
         estimatedDurationSec,
         type: type as StepType,
         videoUrl: (type === "TRAINING" || type === "THEORY" || type === "PRACTICE") ? (videoUrl || null) : null,
-        imageUrls: (type === "TRAINING" || type === "THEORY" || type === "PRACTICE") ? imageUrls : [],
+        imageUrls: [], // Временно пустой массив, обновим после загрузки изображений
         pdfUrls: (type === "TRAINING" || type === "THEORY" || type === "PRACTICE") ? pdfUrls : [],
         checklist: checklistValue,
         requiresVideoReport: type === "EXAMINATION" ? requiresVideoReport : false,
@@ -262,6 +236,41 @@ export async function createStep(
         authorId,
       },
     });
+    } catch (error) {
+      logger.error("❌ Ошибка создания шага в БД", error as Error);
+      return { error: "Не удалось создать шаг" };
+    }
+
+    const stepId = step.id;
+
+    // Загружаем изображения в CDN с правильным путем (только для тренировочных, теоретических и практических шагов)
+    const imageUrls: string[] = [];
+    if ((type === "TRAINING" || type === "THEORY" || type === "PRACTICE") && imageFiles.length > 0) {
+      try {
+        logger.info(`🔄 Загружаем ${imageFiles.length} изображений в CDN`);
+        
+        for (const file of imageFiles) {
+          const ext = file.name.split(".").pop() || 'jpg';
+          const relativePath = getStepImagePath(trainerId, stepId, randomUUID(), ext);
+          
+          const fileUrl = await uploadFileToCDN(file, relativePath);
+          imageUrls.push(fileUrl);
+        }
+        
+        logger.info(`✅ Загружено ${imageUrls.length} изображений в CDN`);
+
+        // Обновляем шаг с загруженными изображениями
+        await prisma.step.update({
+          where: { id: stepId },
+          data: { imageUrls },
+        });
+      } catch (error) {
+        logger.error("❌ Ошибка загрузки изображений в CDN", error as Error);
+        // Откатываем создание шага при ошибке загрузки
+        await prisma.step.delete({ where: { id: stepId } });
+        return { error: "Не удалось загрузить изображения" };
+      }
+    }
 
     revalidatePath("/main-panel/steps");
 

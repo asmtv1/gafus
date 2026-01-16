@@ -1,6 +1,6 @@
 "use server";
 
-import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
+import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl, getExamVideoPath } from "@gafus/cdn-upload";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { randomUUID } from "crypto";
@@ -39,14 +39,19 @@ export async function uploadExamVideo(formData: FormData): Promise<{ success: bo
       return { success: false, error: "Размер видео не должен превышать 100MB" };
     }
 
-    logger.info(`🎥 Загружаем видео экзамена для пользователя ${session.user.id}, размер: ${(videoFile.size / 1024 / 1024).toFixed(2)}MB`);
-
-    // ВАЖНО: Удаляем старое видео перед загрузкой нового (экономия CDN)
+    // Получаем userStepId из formData
     const userStepId = formData.get("userStepId")?.toString();
-    if (userStepId) {
-      try {
-        const existingExam = await prisma.examResult.findUnique({
-          where: { userStepId },
+    
+    if (!userStepId) {
+      return { success: false, error: "userStepId обязателен для загрузки видео экзамена" };
+    }
+
+    logger.info(`🎥 Загружаем видео экзамена для userStepId ${userStepId}, размер: ${(videoFile.size / 1024 / 1024).toFixed(2)}MB`);
+
+    // Удаляем старое видео перед загрузкой нового (экономия CDN)
+    try {
+      const existingExam = await prisma.examResult.findUnique({
+        where: { userStepId },
           select: { videoReportUrl: true }
         });
 
@@ -69,17 +74,15 @@ export async function uploadExamVideo(formData: FormData): Promise<{ success: bo
           
           logger.success(`✅ Старое видео удалено перед загрузкой нового`);
         }
-      } catch (error) {
-        logger.warn(`⚠️ Не удалось удалить старое видео (не критично, продолжаем): ${error}`);
-        // Продолжаем загрузку нового видео даже если старое не удалилось
-      }
+    } catch (error) {
+      logger.warn(`⚠️ Не удалось удалить старое видео (не критично, продолжаем): ${error}`);
+      // Продолжаем загрузку нового видео даже если старое не удалилось
     }
 
-    // Генерируем уникальное имя файла
-    const fileId = randomUUID();
+    // Генерируем путь для нового видео
     const extension = videoFile.name.split('.').pop() || 'webm';
-    const fileName = `exam-video-${session.user.id}-${fileId}.${extension}`;
-    const relativePath = `exam-videos/${fileName}`;
+    const uuid = randomUUID();
+    const relativePath = getExamVideoPath(userStepId, uuid, extension);
 
     // Загружаем на CDN
     const videoUrl = await uploadFileToCDN(videoFile, relativePath);

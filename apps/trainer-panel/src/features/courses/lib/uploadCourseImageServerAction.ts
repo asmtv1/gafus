@@ -2,7 +2,9 @@
 
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { randomUUID } from "crypto";
-import { uploadFileToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
+import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl, getCourseImagePath } from "@gafus/cdn-upload";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@gafus/auth";
 
 // Создаем логгер для uploadCourseImageServerAction
 const logger = createTrainerPanelLogger('trainer-panel-upload-course-image');
@@ -29,37 +31,47 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
       throw new Error("Файл слишком большой. Максимальный размер: 10MB");
     }
 
-        const ext = file.name.split(".").pop();
-        const fileName = `${randomUUID()}.${ext}`;
-        const relativePath = `courses/${fileName}`;
+    // Получаем trainerId из сессии
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      throw new Error("Не авторизован");
+    }
+    const trainerId = session.user.id;
 
-        // Получаем старое изображение курса для удаления (если обновляем существующий курс)
-        let oldImageUrl: string | null = null;
-        if (courseId) {
-          const { prisma } = await import("@gafus/prisma");
-          const existingCourse = await prisma.course.findUnique({
-            where: { id: courseId },
-            select: { logoImg: true },
-          });
-          oldImageUrl = existingCourse?.logoImg || null;
-        }
+    // Для редактирования курс обязателен
+    if (!courseId) {
+      throw new Error("courseId обязателен для редактирования");
+    }
 
-        // Загружаем новый файл в CDN
-        const fileUrl = await uploadFileToCDN(file, relativePath);
+    // Получаем старое изображение курса для удаления
+    const { prisma } = await import("@gafus/prisma");
+    const existingCourse = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { logoImg: true },
+    });
+    const oldImageUrl = existingCourse?.logoImg || null;
 
-        // Удаляем старое изображение из CDN (если есть)
-        if (oldImageUrl) {
-          const oldRelativePath = oldImageUrl.replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
-          logger.info(`🔍 Найдено старое изображение курса для удаления: ${oldImageUrl} -> ${oldRelativePath}`);
-          try {
-            await deleteFileFromCDN(oldRelativePath);
-            logger.info(`🗑️ Старое изображение курса удалено из CDN: ${oldRelativePath}`);
-          } catch (error) {
-            logger.error(`❌ Не удалось удалить старое изображение курса: ${error}`, error as Error);
-          }
-        } else {
-          logger.info(`ℹ️ Старое изображение курса не найдено, пропускаем удаление`);
-        }
+    // Генерируем путь для нового изображения
+    const ext = file.name.split(".").pop() || 'jpg';
+    const uuid = randomUUID();
+    const relativePath = getCourseImagePath(trainerId, courseId, uuid, ext);
+
+    // Загружаем новый файл в CDN
+    const fileUrl = await uploadFileToCDN(file, relativePath);
+
+    // Удаляем старое изображение из CDN (если есть)
+    if (oldImageUrl) {
+      const oldRelativePath = getRelativePathFromCDNUrl(oldImageUrl);
+      logger.info(`🔍 Найдено старое изображение курса для удаления: ${oldImageUrl} -> ${oldRelativePath}`);
+      try {
+        await deleteFileFromCDN(oldRelativePath);
+        logger.info(`🗑️ Старое изображение курса удалено из CDN: ${oldRelativePath}`);
+      } catch (error) {
+        logger.error(`❌ Не удалось удалить старое изображение курса: ${error}`, error as Error);
+      }
+    } else {
+      logger.info(`ℹ️ Старое изображение курса не найдено, пропускаем удаление`);
+    }
 
     return fileUrl;
   } catch (error) {

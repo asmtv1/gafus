@@ -7,3 +7,10 @@ export {
   uploadBufferToCDN,
 } from "./uploadToCDN";
 export { getCDNUrl, isCDNUrl, getRelativePathFromCDNUrl } from "./utils";
+export {
+  getUserAvatarPath,
+  getPetPhotoPath,
+  getStepImagePath,
+  getCourseImagePath,
+  getExamVideoPath,
+} from "./pathHelpers";

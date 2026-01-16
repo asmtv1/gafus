@@ -1,12 +1,16 @@
 "use server";
 
-import { deleteFileFromCDN } from "@gafus/cdn-upload";
+import { deleteFileFromCDN, uploadFileToCDN, getRelativePathFromCDNUrl, getCourseImagePath } from "@gafus/cdn-upload";
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { invalidateCoursesCache } from "./invalidateCoursesCache";
 import { invalidateTrainingDaysCache } from "./invalidateTrainingDaysCache";
+import { randomUUID } from "crypto";
+import { createTrainerPanelLogger } from "@gafus/logger";
+
+const logger = createTrainerPanelLogger('trainer-panel-create-course');
 
 export interface CreateCourseInput {
   name: string;
@@ -24,7 +28,7 @@ export interface CreateCourseInput {
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
 }
 
-export async function createCourseServerAction(input: CreateCourseInput) {
+export async function createCourseServerAction(formData: FormData) {
   const session = (await getServerSession(authOptions)) as {
     user: { id: string; username: string; role: string };
   } | null;
@@ -33,38 +37,88 @@ export async function createCourseServerAction(input: CreateCourseInput) {
   }
 
   const authorId = session.user.id as string;
-  const isPrivate = !input.isPublic;
+  const trainerId = authorId;
 
-  const course = await prisma.course.create({
-    data: {
-      name: input.name,
-      type: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      description: input.description,
-      shortDesc: input.shortDesc,
-      duration: input.duration,
-      logoImg: input.logoImg,
-      isPrivate,
-      isPaid: input.isPaid,
-      showInProfile: input.showInProfile ?? true,
-      videoUrl: input.videoUrl || null,
-      equipment: input.equipment,
-      trainingLevel: input.trainingLevel,
-      author: { connect: { id: authorId } },
-      dayLinks: {
-        create: (input.trainingDays || []).map((dayId: string, index: number) => ({
-          day: { connect: { id: String(dayId) } },
-          order: index + 1, // Дни начинаются с 1, а не с 0
-        })),
+  // Извлекаем данные из FormData
+  const name = formData.get("name")?.toString() || "";
+  const shortDesc = formData.get("shortDesc")?.toString() || "";
+  const description = formData.get("description")?.toString() || "";
+  const duration = formData.get("duration")?.toString() || "";
+  const videoUrl = formData.get("videoUrl")?.toString();
+  const isPublic = formData.get("isPublic")?.toString() === "true";
+  const isPaid = formData.get("isPaid")?.toString() === "true";
+  const showInProfile = formData.get("showInProfile")?.toString() === "true";
+  const trainingDays = formData.getAll("trainingDays").map(String);
+  const allowedUsers = formData.getAll("allowedUsers").map(String);
+  const equipment = formData.get("equipment")?.toString() || "";
+  const trainingLevel = formData.get("trainingLevel")?.toString() as "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT" || "BEGINNER";
+  const logoFile = formData.get("logoImg") as File | null;
+
+  const isPrivate = !isPublic;
+
+  // Создаем курс в БД сначала (получаем courseId)
+  let course;
+  try {
+    course = await prisma.course.create({
+      data: {
+        name,
+        type: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        description,
+        shortDesc,
+        duration,
+        logoImg: "", // Временно пустая строка, обновим после загрузки файла
+        isPrivate,
+        isPaid,
+        showInProfile: showInProfile ?? true,
+        videoUrl: videoUrl || null,
+        equipment,
+        trainingLevel,
+        author: { connect: { id: authorId } },
+        dayLinks: {
+          create: (trainingDays || []).map((dayId: string, index: number) => ({
+            day: { connect: { id: String(dayId) } },
+            order: index + 1, // Дни начинаются с 1, а не с 0
+          })),
+        },
+        access: isPrivate
+          ? {
+              create: (allowedUsers || []).map((userId: string) => ({
+                user: { connect: { id: String(userId) } },
+              })),
+            }
+          : undefined,
       },
-      access: isPrivate
-        ? {
-            create: (input.allowedUsers || []).map((userId: string) => ({
-              user: { connect: { id: String(userId) } },
-            })),
-          }
-        : undefined,
-    },
-  });
+    });
+  } catch (error) {
+    logger.error("❌ Ошибка создания курса в БД", error as Error);
+    return { success: false, error: "Не удалось создать курс" };
+  }
+
+  const courseId = course.id;
+
+  // Загружаем файл изображения в CDN (если есть)
+  let logoImgUrl: string | null = null;
+  if (logoFile && logoFile.size > 0) {
+    try {
+      const ext = logoFile.name.split(".").pop() || 'jpg';
+      const uuid = randomUUID();
+      const relativePath = getCourseImagePath(trainerId, courseId, uuid, ext);
+      logoImgUrl = await uploadFileToCDN(logoFile, relativePath);
+      
+      // Обновляем курс с logoImg
+      await prisma.course.update({
+        where: { id: courseId },
+        data: { logoImg: logoImgUrl },
+      });
+      
+      logger.info(`✅ Изображение курса загружено: ${logoImgUrl}`);
+    } catch (error) {
+      // Откатываем создание курса при ошибке загрузки
+      await prisma.course.delete({ where: { id: courseId } });
+      logger.error("❌ Ошибка загрузки изображения курса", error as Error);
+      return { success: false, error: "Не удалось загрузить изображение курса" };
+    }
+  }
 
   revalidateTag("statistics");
   revalidatePath("/main-panel/statistics");
@@ -73,9 +127,9 @@ export async function createCourseServerAction(input: CreateCourseInput) {
   await invalidateCoursesCache();
   
   // Инвалидируем кэш дней курсов при создании курса с днями
-  await invalidateTrainingDaysCache(course.id);
+  await invalidateTrainingDaysCache(courseId);
 
-  return { success: true, id: course.id };
+  return { success: true, id: courseId };
 }
 
 export interface UpdateCourseInput extends CreateCourseInput {
@@ -218,7 +272,7 @@ export async function deleteCourseServerAction(courseId: string) {
 
   // Удаляем изображение курса из CDN (если есть)
   if (course?.logoImg) {
-    const relativePath = course.logoImg.replace('/uploads/', '');
+    const relativePath = getRelativePathFromCDNUrl(course.logoImg);
     try {
       await deleteFileFromCDN(relativePath);
       console.log(`🗑️ Изображение курса удалено из CDN: ${relativePath}`);

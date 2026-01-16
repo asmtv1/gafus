@@ -20,9 +20,11 @@ const logger = createTrainerPanelLogger('trainer-panel-course-media-uploader');
 
 export default function CourseMediaUploader({
   onUploadComplete,
+  onFileSelect,
   courseId,
 }: {
   onUploadComplete: (url: string) => void;
+  onFileSelect?: (file: File) => void;
   courseId?: string;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -64,14 +66,22 @@ export default function CourseMediaUploader({
       const preview = URL.createObjectURL(processedFile);
       setPreviewUrl(preview);
 
-      const formData = new FormData();
-      // Сохраняем оригинальное расширение файла
-      const extension = file.name.split('.').pop() || 'jpg';
-      const fileName = `course_${Date.now()}.${extension}`;
-      formData.append("image", processedFile, fileName);
+      // Для редактирования курса (courseId есть) - загружаем сразу
+      if (courseId) {
+        const formData = new FormData();
+        // Сохраняем оригинальное расширение файла
+        const extension = file.name.split('.').pop() || 'jpg';
+        const fileName = `course_${Date.now()}.${extension}`;
+        formData.append("image", processedFile, fileName);
 
-          const imageUrl = await uploadCourseImageServerAction(formData, courseId);
-      onUploadComplete(imageUrl);
+        const imageUrl = await uploadCourseImageServerAction(formData, courseId);
+        onUploadComplete(imageUrl);
+      } else {
+        // Для создания курса - сохраняем File в state и вызываем callback
+        onFileSelect?.(processedFile);
+        // Используем временный URL для preview
+        onUploadComplete(preview);
+      }
     } catch (err) {
       logger.error("Ошибка загрузки изображения курса", err as Error, {
         operation: 'course_image_upload_error'

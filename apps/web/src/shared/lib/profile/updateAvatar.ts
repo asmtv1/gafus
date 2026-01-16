@@ -2,8 +2,9 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
+import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl, getUserAvatarPath } from "@gafus/cdn-upload";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 
 import { getCurrentUserId } from "@/utils";
 
@@ -15,14 +16,13 @@ const fileSchema = z.instanceof(File, { message: "Файл обязателен"
 export async function updateAvatar(file: File): Promise<string> {
   const validFile = fileSchema.parse(file);
   try {
-    // 1. Определяем расширение и формируем имя файла
+    // 1. Определяем расширение и формируем путь
     const userId = await getCurrentUserId();
     const ext = validFile.name.split(".").pop();
     if (!ext) throw new Error("Не удалось определить расширение файла");
     
-    const timestamp = Date.now();
-    const fileName = `avatar-${userId}-${timestamp}.${ext}`;
-    const relativePath = `avatars/${fileName}`;
+    const uuid = randomUUID();
+    const relativePath = getUserAvatarPath(userId, uuid, ext);
 
     // 2. Получаем старый avatarUrl для удаления
     const existingProfile = await prisma.userProfile.findUnique({

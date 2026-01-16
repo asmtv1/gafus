@@ -4,7 +4,7 @@
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { revalidatePath } from "next/cache";
-import { deleteFileFromCDN } from "@gafus/cdn-upload";
+import { deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
 
 import type { ActionResult } from "@gafus/types";
 
@@ -28,7 +28,7 @@ export async function deleteSteps(_prev: ActionResult, formData: FormData): Prom
     for (const step of stepsToDelete) {
       if (step.imageUrls.length > 0) {
         for (const imageUrl of step.imageUrls) {
-          const relativePath = imageUrl.replace('/uploads/', '');
+          const relativePath = getRelativePathFromCDNUrl(imageUrl);
           try {
             await deleteFileFromCDN(relativePath);
             logger.info(`🗑️ Изображение шага удалено из CDN: ${relativePath}`);

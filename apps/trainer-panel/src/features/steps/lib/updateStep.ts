@@ -5,10 +5,12 @@ import { createTrainerPanelLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { validateForm } from "@shared/lib/validation/serverValidation";
 import { revalidatePath } from "next/cache";
-import { deleteFileFromCDN, uploadFileToCDN } from "@gafus/cdn-upload";
+import { deleteFileFromCDN, uploadFileToCDN, getRelativePathFromCDNUrl, getStepImagePath } from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
 import { Prisma } from "@gafus/prisma";
 import { invalidateTrainingDaysCache } from "@shared/lib/actions/invalidateTrainingDaysCache";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@gafus/auth";
 
 import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 
@@ -170,6 +172,14 @@ export async function updateStep(
     const checklistValue =
       hasTestQuestions && normalizedChecklist ? normalizedChecklist : Prisma.JsonNull;
 
+    // Получаем trainerId из сессии
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return { error: "Вы не авторизованы" };
+    }
+    const trainerId = session.user.id;
+    const stepId = id;
+
     // Получаем существующие изображения
     const existingStep = await prisma.step.findUnique({
       where: { id },
@@ -187,9 +197,8 @@ export async function updateStep(
         logger.info(`🔄 Загружаем ${imageFiles.length} новых изображений в CDN для обновления шага`);
         
         for (const file of imageFiles) {
-          const ext = file.name.split(".").pop();
-          const fileName = `${randomUUID()}.${ext}`;
-          const relativePath = `steps/${fileName}`;
+          const ext = file.name.split(".").pop() || 'jpg';
+          const relativePath = getStepImagePath(trainerId, stepId, randomUUID(), ext);
           
           const fileUrl = await uploadFileToCDN(file, relativePath);
           newImageUrls.push(fileUrl);
@@ -208,15 +217,7 @@ export async function updateStep(
         logger.info(`🗑️ Удаляем ${deletedImages.length} изображений, помеченных для удаления`);
         
         for (const imageUrl of deletedImages) {
-          // Извлекаем относительный путь из CDN URL
-          let relativePath = imageUrl;
-          if (imageUrl.startsWith('https://gafus-media.storage.yandexcloud.net/')) {
-            relativePath = imageUrl.replace('https://gafus-media.storage.yandexcloud.net/', '');
-          }
-          if (relativePath.startsWith('/')) {
-            relativePath = relativePath.substring(1);
-          }
-          
+          const relativePath = getRelativePathFromCDNUrl(imageUrl);
           await deleteFileFromCDN(relativePath);
         }
         

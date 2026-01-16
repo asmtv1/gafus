@@ -47,6 +47,7 @@ export default function CourseForm({
   initialValues,
   initialSelectedUsers = [],
 }: Props) {
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -132,21 +133,37 @@ export default function CourseForm({
         if (!res.success) throw new Error(res.error || "Ошибка сохранения изменений");
         showToast("Изменения сохранены", "success");
       } else {
-        const res = await createCourseServerAction({
-          name: data.name,
-          shortDesc: data.shortDesc,
-          description: data.description,
-          duration: data.duration,
-          videoUrl: data.videoUrl,
-          logoImg: data.logoImg,
-          isPublic: data.isPublic,
-          isPaid: data.isPaid,
-          showInProfile: data.showInProfile,
-          trainingDays: data.trainingDays,
-          allowedUsers: data.allowedUsers,
-          equipment: data.equipment,
-          trainingLevel: data.trainingLevel,
+        // Создаем FormData для создания курса
+        const formData = new FormData();
+        formData.append("name", data.name);
+        formData.append("shortDesc", data.shortDesc);
+        formData.append("description", data.description);
+        formData.append("duration", data.duration);
+        if (data.videoUrl) {
+          formData.append("videoUrl", data.videoUrl);
+        }
+        formData.append("isPublic", data.isPublic ? "true" : "false");
+        formData.append("isPaid", data.isPaid ? "true" : "false");
+        formData.append("showInProfile", data.showInProfile ? "true" : "false");
+        formData.append("equipment", data.equipment || "");
+        formData.append("trainingLevel", data.trainingLevel || "BEGINNER");
+        
+        // Добавляем trainingDays
+        data.trainingDays.forEach((dayId) => {
+          formData.append("trainingDays", dayId);
         });
+        
+        // Добавляем allowedUsers
+        data.allowedUsers.forEach((userId) => {
+          formData.append("allowedUsers", userId);
+        });
+        
+        // Добавляем logoFile, если есть
+        if (logoFile) {
+          formData.append("logoImg", logoFile);
+        }
+        
+        const res = await createCourseServerAction(formData);
         if (!res.success) throw new Error(res.error || "Ошибка создания курса");
         showToast("Курс успешно создан!", "success");
       }
@@ -276,7 +293,13 @@ export default function CourseForm({
           <CourseMediaUploader 
             onUploadComplete={(url) => {
               form.setValue("logoImg", url, { shouldValidate: true });
-            }} 
+            }}
+            onFileSelect={(file) => {
+              setLogoFile(file);
+              // Устанавливаем временный URL для preview
+              const previewUrl = URL.createObjectURL(file);
+              form.setValue("logoImg", previewUrl, { shouldValidate: true });
+            }}
             courseId={courseId}
           />
           {form.formState.errors.logoImg && (
