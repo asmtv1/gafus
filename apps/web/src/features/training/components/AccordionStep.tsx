@@ -137,17 +137,6 @@ export function AccordionStep({
   // Получаем офлайн URL для видео
   const offlineVideoUrl = useOfflineMediaUrl(courseType, videoUrl);
   
-  // Логируем для отладки
-  useEffect(() => {
-    if (videoUrl) {
-      console.log("[AccordionStep] Video URL for offline lookup:", {
-        courseType,
-        videoUrl,
-        offlineVideoUrl,
-      });
-    }
-  }, [courseType, videoUrl, offlineVideoUrl]);
-  
   // Получаем информацию о видео для определения типа (внешнее/CDN)
   const videoInfo = useMemo(
     () => {

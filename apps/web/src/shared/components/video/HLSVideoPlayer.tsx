@@ -37,6 +37,7 @@ export function HLSVideoPlayer({
   const hlsRef = useRef<Hls | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isBuffering, setIsBuffering] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -85,6 +86,7 @@ export function HLSVideoPlayer({
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          // Манифест загружен, но видео еще может буферизоваться
           setIsLoading(false);
           
           if (autoplay) {
@@ -92,6 +94,15 @@ export function HLSVideoPlayer({
               console.warn("Autoplay blocked:", err);
             });
           }
+        });
+
+        // Отслеживаем буферизацию
+        hls.on(Hls.Events.BUFFER_APPENDING, () => {
+          setIsBuffering(true);
+        });
+
+        hls.on(Hls.Events.BUFFER_APPENDED, () => {
+          setIsBuffering(false);
         });
 
         hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -162,15 +173,28 @@ export function HLSVideoPlayer({
       }
     }
 
-    // Обработка загрузки
+    // Обработка загрузки - используем события video для более точного определения готовности
     const handleLoadedData = () => {
       setIsLoading(false);
     };
 
+    const handleWaiting = () => {
+      setIsBuffering(true);
+    };
+
+    const handleCanPlay = () => {
+      setIsBuffering(false);
+      setIsLoading(false);
+    };
+
     video.addEventListener("loadeddata", handleLoadedData);
+    video.addEventListener("waiting", handleWaiting);
+    video.addEventListener("canplay", handleCanPlay);
 
     return () => {
       video.removeEventListener("loadeddata", handleLoadedData);
+      video.removeEventListener("waiting", handleWaiting);
+      video.removeEventListener("canplay", handleCanPlay);
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
@@ -203,22 +227,28 @@ export function HLSVideoPlayer({
     );
   }
 
+  // Показываем спиннер только при активной буферизации, не скрывая video
+  const showSpinner = isLoading || isBuffering;
+
   return (
     <Box sx={{ position: "relative", width: "100%", ...style }} className={className}>
-      {isLoading && (
+      {/* Спиннер поверх video, не скрывая его */}
+      {showSpinner && (
         <Box
           sx={{
             position: "absolute",
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            zIndex: 1,
+            zIndex: 10,
+            pointerEvents: "none",
           }}
         >
-          <CircularProgress />
+          <CircularProgress sx={{ color: "white" }} />
         </Box>
       )}
       
+      {/* Video элемент всегда виден, poster показывается браузером автоматически */}
       <video
         ref={videoRef}
         poster={poster}
@@ -231,7 +261,7 @@ export function HLSVideoPlayer({
           width: "100%",
           height: "100%",
           objectFit: "contain",
-          display: isLoading ? "none" : "block",
+          display: "block",
           backgroundColor: "black",
         }}
       />
