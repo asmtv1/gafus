@@ -5,7 +5,7 @@ import Hls from "hls.js";
 import { Box, CircularProgress, Typography } from "@mui/material";
 
 interface HLSVideoPlayerProps {
-  src: string; // URL видео (HLS манифест)
+  src: string | null; // URL видео (HLS манифест) - может быть null для ленивой загрузки
   poster?: string; // Постер видео
   autoplay?: boolean;
   controls?: boolean;
@@ -38,16 +38,40 @@ export function HLSVideoPlayer({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isBuffering, setIsBuffering] = useState(false);
+  const shouldLoadVideoRef = useRef(false);
+  const hasAttemptedPlayRef = useRef(false); // Флаг для предотвращения множественных вызовов play()
+
+  // Критично: Когда src устанавливается (пользователь кликнул на обложку), автоматически разрешаем загрузку
+  // Это гарантирует, что видео загрузится, когда VideoPlayerSection передаст src после клика
+  // Сбрасываем hasAttemptedPlayRef при изменении src (новое видео)
+  // Используем useRef вместо useState чтобы не вызывать пересоздание useEffect
+  useEffect(() => {
+    if (src && !shouldLoadVideoRef.current) {
+      shouldLoadVideoRef.current = true; // Разрешаем загрузку когда src установлен
+      hasAttemptedPlayRef.current = false; // Сбрасываем флаг для нового видео
+    }
+    // Сбрасываем флаги если src удален (возврат к обложке)
+    if (!src) {
+      shouldLoadVideoRef.current = false;
+      hasAttemptedPlayRef.current = false;
+    }
+  }, [src]); // Только src в зависимостях - флаги в ref не вызывают пересоздание эффекта
+
+  // Обработчик handlePlay и обработка события play удалены
+  // Теперь shouldLoadVideo устанавливается автоматически через useEffect при установке src
+  // Это происходит когда VideoPlayerSection передает src после клика пользователя на обложку
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !src) {
+    // Критично: не загружаем если src нет или пользователь еще не нажал Play
+    if (!video || !src || !shouldLoadVideoRef.current) {
       return;
     }
 
-    // Проверяем HLS по расширению .m3u8, по пути /manifest (signed URL) или по blob URL
+    // Проверяем HLS по расширению .m3u8, по пути /manifest (signed URL), Service Worker URL или blob URL
     const isHLS = src.includes(".m3u8") || 
                   (src.includes("/api/video/") && src.includes("/manifest")) ||
+                  src.startsWith("/offline-hls/") ||
                   src.startsWith("blob:");
     
     // Проверяем feature flag для HLS
@@ -82,16 +106,24 @@ export function HLSVideoPlayer({
 
         hlsRef.current = hls;
 
+        // Критично: загружаем HLS только после клика пользователя
         hls.loadSource(src);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          // Манифест загружен, но видео еще может буферизоваться
           setIsLoading(false);
           
-          if (autoplay) {
-            video.play().catch((err) => {
-              console.warn("Autoplay blocked:", err);
+          // Критично: Автозапуск сразу после готовности манифеста (если был клик пользователя)
+          if (shouldLoadVideoRef.current && !hasAttemptedPlayRef.current && video) {
+            hasAttemptedPlayRef.current = true;
+            // Используем requestAnimationFrame для небольшой задержки (позволяет HLS начать буферизацию)
+            requestAnimationFrame(() => {
+              if (video && video.paused) {
+                video.play().catch((err) => {
+                  console.warn("[HLSVideoPlayer] Autoplay blocked, user can click Play:", err);
+                  hasAttemptedPlayRef.current = false; // Разрешаем повторную попытку через UI
+                });
+              }
             });
           }
         });
@@ -147,14 +179,55 @@ export function HLSVideoPlayer({
         };
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
         // Нативная поддержка HLS (Safari)
+        // Критично: устанавливаем src только после клика пользователя
         video.src = src;
         setIsLoading(false);
         
-        if (autoplay) {
-          video.play().catch((err) => {
-            console.warn("Autoplay blocked:", err);
-          });
+        // Функция для попытки воспроизведения
+        const tryPlaySafari = () => {
+          if (shouldLoadVideoRef.current && !hasAttemptedPlayRef.current && video.paused) {
+            hasAttemptedPlayRef.current = true;
+            video.play().catch((err) => {
+              console.warn("[HLSVideoPlayer] Autoplay blocked, user can click Play:", err);
+              hasAttemptedPlayRef.current = false;
+            });
+          }
+        };
+        
+        // Обработчики для Safari
+        const handleSafariLoadedMetadata = () => {
+          // Проверяем readyState сразу
+          if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+            tryPlaySafari();
+          }
+        };
+        
+        const handleSafariLoadedData = () => {
+          if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+            tryPlaySafari();
+          }
+        };
+        
+        const handleSafariCanPlay = () => {
+          if (video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+            tryPlaySafari();
+          }
+        };
+        
+        video.addEventListener("loadedmetadata", handleSafariLoadedMetadata);
+        video.addEventListener("loadeddata", handleSafariLoadedData);
+        video.addEventListener("canplay", handleSafariCanPlay);
+        
+        // Критично: если видео уже готово, вызываем сразу
+        if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+          tryPlaySafari();
         }
+        
+        return () => {
+          video.removeEventListener("loadedmetadata", handleSafariLoadedMetadata);
+          video.removeEventListener("loadeddata", handleSafariLoadedData);
+          video.removeEventListener("canplay", handleSafariCanPlay);
+        };
       } else {
         console.error("[HLSVideoPlayer] HLS не поддерживается в браузере");
         setError("HLS не поддерживается в этом браузере");
@@ -174,6 +247,19 @@ export function HLSVideoPlayer({
     }
 
     // Обработка загрузки - используем события video для более точного определения готовности
+    const handleLoadedMetadata = () => {
+      // Подстраховка: если MANIFEST_PARSED не сработал, пробуем здесь
+      if (shouldLoadVideoRef.current && !hasAttemptedPlayRef.current && video.paused) {
+        if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+          hasAttemptedPlayRef.current = true;
+          video.play().catch((err) => {
+            console.warn("[HLSVideoPlayer] Autoplay blocked:", err);
+            hasAttemptedPlayRef.current = false;
+          });
+        }
+      }
+    };
+
     const handleLoadedData = () => {
       setIsLoading(false);
     };
@@ -185,13 +271,24 @@ export function HLSVideoPlayer({
     const handleCanPlay = () => {
       setIsBuffering(false);
       setIsLoading(false);
+      
+      // Подстраховка: если play() еще не был вызван (например, в MANIFEST_PARSED не сработал)
+      if (shouldLoadVideoRef.current && video.paused && !hasAttemptedPlayRef.current) {
+        hasAttemptedPlayRef.current = true;
+        video.play().catch((err) => {
+          console.warn("[HLSVideoPlayer] Autoplay blocked, user can click Play:", err);
+          hasAttemptedPlayRef.current = false;
+        });
+      }
     };
 
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
     video.addEventListener("loadeddata", handleLoadedData);
     video.addEventListener("waiting", handleWaiting);
     video.addEventListener("canplay", handleCanPlay);
 
     return () => {
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("loadeddata", handleLoadedData);
       video.removeEventListener("waiting", handleWaiting);
       video.removeEventListener("canplay", handleCanPlay);
@@ -200,7 +297,7 @@ export function HLSVideoPlayer({
         hlsRef.current = null;
       }
     };
-  }, [src, autoplay, onError]);
+  }, [src, onError]); // Убрать shouldLoadVideo и hasAttemptedPlay - используем ref
 
   if (error) {
     return (
@@ -249,9 +346,13 @@ export function HLSVideoPlayer({
       )}
       
       {/* Video элемент всегда виден, poster показывается браузером автоматически */}
+      {/* Критично: preload="none" для предотвращения загрузки до клика (подстраховка) */}
+      {/* Критично: playsinline для iOS - без него видео может не воспроизводиться или открыться на весь экран */}
       <video
         ref={videoRef}
         poster={poster}
+        preload="none"
+        playsInline
         controls={controls}
         loop={loop}
         muted={muted}

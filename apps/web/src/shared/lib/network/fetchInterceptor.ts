@@ -36,11 +36,12 @@ export function setupFetchInterceptor() {
       url.includes("gafus-media.storage.yandexcloud.net") ||
       url.includes("storage.yandexcloud.net/gafus-media");
 
-    // Игнорируем запросы к странице офлайна и статическим ресурсам
+    // Игнорируем запросы к странице офлайна, статическим ресурсам и Service Worker URLs
     if (
       url.includes("/~offline") ||
       url.includes("/_next/") ||
       url.includes("/api/ping") ||
+      url.startsWith("/offline-hls/") || // Service Worker URLs для офлайн HLS
       url.startsWith("data:") ||
       url.startsWith("blob:")
     ) {

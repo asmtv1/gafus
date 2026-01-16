@@ -218,10 +218,51 @@ export function useOfflineCourse(): UseOfflineCourseResult {
     }
   }, []);
 
+  /**
+   * Проверяет доступное место в хранилище
+   */
+  const checkStorageQuota = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
+    try {
+      if (!navigator.storage || !navigator.storage.estimate) {
+        // Если API недоступен, пропускаем проверку
+        return { available: true };
+      }
+
+      const estimate = await navigator.storage.estimate();
+      const quota = estimate.quota || 0;
+      const usage = estimate.usage || 0;
+      const available = quota - usage;
+
+      // Минимальный запас: 100 MB
+      const minRequired = 100 * 1024 * 1024;
+
+      if (available < minRequired) {
+        const availableMB = Math.round(available / (1024 * 1024));
+        return {
+          available: false,
+          error: `Недостаточно места в хранилище. Доступно: ${availableMB} MB, требуется минимум: 100 MB`,
+        };
+      }
+
+      return { available: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn("Failed to check storage quota", { error: errorMessage });
+      // При ошибке проверки разрешаем скачивание
+      return { available: true };
+    }
+  }, []);
+
   const downloadCourse = useCallback(
     async (courseType: string): Promise<{ success: boolean; error?: string }> => {
       if (isDownloading) {
         return { success: false, error: "Скачивание уже выполняется" };
+      }
+
+      // Проверяем квоту перед началом скачивания
+      const quotaCheck = await checkStorageQuota();
+      if (!quotaCheck.available) {
+        return { success: false, error: quotaCheck.error || "Недостаточно места в хранилище" };
       }
 
       setIsDownloading(true);
@@ -247,6 +288,16 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         const videoUrls: string[] = [];
         const imageUrls: string[] = [];
         const pdfUrls: string[] = [];
+        
+        // Тип для hlsVideos с версионированием
+        type HLSVideoData = {
+          manifest: string;
+          segments: Record<string, Blob>;
+          videoId: string;
+          version: string;
+          downloadedAt: number;
+          thumbnailPath?: string;
+        };
 
         // Видео курса
         if (courseData.course.videoUrl) {
@@ -334,7 +385,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         );
 
         // Скачиваем HLS видео
-        const hlsVideos: Record<string, { manifest: string; segments: Record<string, Blob>; videoId: string; thumbnailPath?: string }> = {};
+        const hlsVideos: Record<string, HLSVideoData> = {};
         let hlsDownloaded = 0;
 
         // Подсчитываем общее количество файлов для прогресса
@@ -414,6 +465,8 @@ export function useOfflineCourse(): UseOfflineCourseResult {
                 manifest: hlsData.manifest,
                 segments: hlsData.segments,
                 videoId: hlsData.videoId,
+                version: hlsData.version,
+                downloadedAt: hlsData.downloadedAt,
                 thumbnailPath: thumbnailPath || undefined,
               };
               hlsDownloaded++;
@@ -486,8 +539,26 @@ export function useOfflineCourse(): UseOfflineCourseResult {
           },
         };
 
-        // Сохраняем в IndexedDB
-        await saveOfflineCourse(offlineCourse);
+        // Сохраняем в IndexedDB с обработкой QuotaExceededError
+        try {
+          await saveOfflineCourse(offlineCourse);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const isQuotaError = 
+            error instanceof DOMException && error.name === 'QuotaExceededError' ||
+            errorMessage.includes('QuotaExceededError') ||
+            errorMessage.includes('quota') ||
+            errorMessage.includes('storage');
+          
+          if (isQuotaError) {
+            logger.error("QuotaExceededError when saving course", error as Error, { courseType });
+            return {
+              success: false,
+              error: "Недостаточно места в хранилище устройства. Освободите место и попробуйте снова.",
+            };
+          }
+          throw error; // Пробрасываем другие ошибки
+        }
 
         logger.info("Course saved to IndexedDB, starting HTML pages download", {
           courseId: courseData.course.id,

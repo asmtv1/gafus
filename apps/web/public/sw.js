@@ -36,10 +36,292 @@ async function fetchWithTimeout(request, timeoutMs) {
   }
 }
 
+// Константы для IndexedDB (дублируем для Service Worker)
+const IDB_DB_NAME = "gafus-offline-courses";
+const IDB_DB_VERSION = 1;
+const IDB_STORE_NAME = "courses";
+
+/**
+ * Открывает IndexedDB в Service Worker
+ */
+async function openIDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(IDB_DB_NAME, IDB_DB_VERSION);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE_NAME)) {
+        const store = db.createObjectStore(IDB_STORE_NAME, { keyPath: "courseId" });
+        store.createIndex("courseType", "courseType", { unique: false });
+        store.createIndex("version", "version", { unique: false });
+        store.createIndex("downloadedAt", "downloadedAt", { unique: false });
+      }
+    };
+  });
+}
+
+/**
+ * Получает курс из IndexedDB по типу
+ */
+async function getOfflineCourseByType(courseType) {
+  try {
+    const db = await openIDB();
+    const transaction = db.transaction([IDB_STORE_NAME], "readonly");
+    const store = transaction.objectStore(IDB_STORE_NAME);
+    const index = store.index("courseType");
+    
+    return new Promise((resolve, reject) => {
+      const request = index.get(courseType);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.error('[SW] Failed to get course from IndexedDB', error, { courseType });
+    return null;
+  }
+}
+
+/**
+ * Обрабатывает Range-запрос для Blob
+ */
+function handleRangeRequest(blob, rangeHeader) {
+  if (!rangeHeader) {
+    return { start: 0, end: blob.size - 1, total: blob.size };
+  }
+  
+  const matches = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+  if (!matches) {
+    return { start: 0, end: blob.size - 1, total: blob.size };
+  }
+  
+  const start = parseInt(matches[1], 10);
+  const end = matches[2] ? parseInt(matches[2], 10) : blob.size - 1;
+  
+  return {
+    start: Math.max(0, start),
+    end: Math.min(end, blob.size - 1),
+    total: blob.size
+  };
+}
+
+/**
+ * Создает Response с правильными заголовками для Range-запроса
+ */
+function createRangeResponse(blob, range) {
+  const blobSlice = blob.slice(range.start, range.end + 1);
+  const contentLength = range.end - range.start + 1;
+  
+  const headers = {
+    'Content-Type': blob.type || 'application/octet-stream',
+    'Content-Length': contentLength.toString(),
+    'Content-Range': `bytes ${range.start}-${range.end}/${range.total}`,
+    'Accept-Ranges': 'bytes',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+    'Access-Control-Allow-Headers': 'Range',
+    'Cache-Control': 'public, max-age=31536000, immutable'
+  };
+  
+  return new Response(blobSlice, {
+    status: 206,
+    statusText: 'Partial Content',
+    headers
+  });
+}
+
+/**
+ * Обрабатывает запрос к офлайн HLS манифесту
+ */
+async function handleOfflineHLSManifest(courseType, videoId) {
+  try {
+    const offlineCourse = await getOfflineCourseByType(courseType);
+    if (!offlineCourse) {
+      return null;
+    }
+    
+    const hlsVideos = offlineCourse.mediaFiles.hlsVideos;
+    
+    // Ищем видео по videoId
+    let hlsVideo = null;
+    for (const [, video] of Object.entries(hlsVideos)) {
+      if (video.videoId === videoId) {
+        hlsVideo = video;
+        break;
+      }
+    }
+    
+    if (!hlsVideo) {
+      return null;
+    }
+    
+    // Создаем модифицированный манифест с Service Worker URLs для сегментов
+    const manifestLines = hlsVideo.manifest.split('\n');
+    const modifiedLines = manifestLines.map((line) => {
+      const trimmed = line.trim();
+      // Пропускаем комментарии и пустые строки
+      if (trimmed && !trimmed.startsWith('#')) {
+        // Нормализуем имя файла и заменяем путь сегмента на Service Worker URL
+        const segmentFileName = getFileNameFromPath(trimmed);
+        return `/offline-hls/${courseType}/${videoId}/segment/${segmentFileName}`;
+      }
+      return line;
+    });
+    
+    const modifiedManifest = modifiedLines.join('\n');
+    const manifestBlob = new Blob([modifiedManifest], {
+      type: 'application/vnd.apple.mpegurl'
+    });
+    
+    return new Response(manifestBlob, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.apple.mpegurl',
+        'Content-Length': manifestBlob.size.toString(),
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Cache-Control': 'public, max-age=0, must-revalidate'
+      }
+    });
+  } catch (error) {
+    console.error('[SW] Error handling offline HLS manifest', error, { courseType, videoId });
+    return null;
+  }
+}
+
+/**
+ * Нормализует имя файла из пути (извлекает только имя файла)
+ */
+function getFileNameFromPath(path) {
+  const normalized = path.trim().replace(/^\/+/, "").replace(/^\.\.\//, "");
+  const parts = normalized.split("/");
+  return parts[parts.length - 1] || normalized;
+}
+
+/**
+ * Обрабатывает запрос к офлайн HLS сегменту
+ */
+async function handleOfflineHLSSegment(courseType, videoId, segmentName) {
+  try {
+    const offlineCourse = await getOfflineCourseByType(courseType);
+    if (!offlineCourse) {
+      return null;
+    }
+    
+    const hlsVideos = offlineCourse.mediaFiles.hlsVideos;
+    
+    // Ищем видео по videoId
+    let hlsVideo = null;
+    for (const [, video] of Object.entries(hlsVideos)) {
+      if (video.videoId === videoId) {
+        hlsVideo = video;
+        break;
+      }
+    }
+    
+    if (!hlsVideo) {
+      return null;
+    }
+    
+    // Нормализуем имя сегмента (на случай если пришло с путем)
+    const normalizedSegmentName = getFileNameFromPath(segmentName);
+    
+    // Получаем сегмент
+    const segmentBlob = hlsVideo.segments[normalizedSegmentName];
+    if (!segmentBlob) {
+      console.warn('[SW] Segment not found', {
+        courseType,
+        videoId,
+        segmentName,
+        normalizedSegmentName,
+        availableSegments: Object.keys(hlsVideo.segments).slice(0, 5)
+      });
+      return null;
+    }
+    
+    return segmentBlob;
+  } catch (error) {
+    console.error('[SW] Error handling offline HLS segment', error, { courseType, videoId, segmentName });
+    return null;
+  }
+}
+
 // Перехват fetch запросов для определения сетевых ошибок
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const isNavigationRequest = event.request.mode === 'navigate';
+  
+  // Обработка офлайн HLS запросов (должно быть ПЕРВЫМ, до других проверок)
+  if (url.pathname.startsWith('/offline-hls/')) {
+    event.respondWith(
+      (async () => {
+        try {
+          // Парсим путь: /offline-hls/{courseType}/{videoId}/manifest.m3u8
+          // или /offline-hls/{courseType}/{videoId}/segment/{segmentName}
+          const pathParts = url.pathname.split('/').filter(Boolean);
+          
+          if (pathParts.length < 3) {
+            return new Response('Invalid path', { status: 400 });
+          }
+          
+          const [, courseType, videoId, ...rest] = pathParts;
+          
+          if (!courseType || !videoId) {
+            return new Response('Missing courseType or videoId', { status: 400 });
+          }
+          
+          // Запрос к манифесту
+          if (rest.length === 1 && rest[0].endsWith('.m3u8')) {
+            const manifestResponse = await handleOfflineHLSManifest(courseType, videoId);
+            if (manifestResponse) {
+              return manifestResponse;
+            }
+            return new Response('Manifest not found', { status: 404 });
+          }
+          
+          // Запрос к сегменту
+          if (rest.length === 2 && rest[0] === 'segment') {
+            const segmentName = rest[1];
+            const segmentBlob = await handleOfflineHLSSegment(courseType, videoId, segmentName);
+            
+            if (!segmentBlob) {
+              return new Response('Segment not found', { status: 404 });
+            }
+            
+            // Обрабатываем Range-запросы
+            const rangeHeader = event.request.headers.get('Range');
+            const range = handleRangeRequest(segmentBlob, rangeHeader);
+            
+            if (rangeHeader) {
+              return createRangeResponse(segmentBlob, range);
+            }
+            
+            // Обычный запрос без Range
+            return new Response(segmentBlob, {
+              status: 200,
+              headers: {
+                'Content-Type': segmentBlob.type || 'video/mp2t',
+                'Content-Length': segmentBlob.size.toString(),
+                'Accept-Ranges': 'bytes',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+                'Access-Control-Allow-Headers': 'Range',
+                'Cache-Control': 'public, max-age=31536000, immutable'
+              }
+            });
+          }
+          
+          return new Response('Invalid path', { status: 400 });
+        } catch (error) {
+          console.error('[SW] Error in offline HLS handler', error);
+          return new Response('Internal Server Error', { status: 500 });
+        }
+      })()
+    );
+    return;
+  }
   
   // Игнорируем статические ресурсы и API
   // Также игнорируем /uploads/ - эти запросы обрабатываются через useOfflineMediaUrl

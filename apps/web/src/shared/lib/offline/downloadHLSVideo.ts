@@ -110,13 +110,13 @@ function getSegmentPath(hlsManifestPath: string, segmentFileName: string): strin
  * @param hlsManifestPath - Путь к манифесту в CDN (например, trainers/123/videocourses/456/hls/playlist.m3u8)
  * @param videoUrl - Оригинальный URL видео (для ключа в IndexedDB)
  * @param onProgress - Callback для обновления прогресса (current, total)
- * @returns Объект с манифестом и сегментами или null при ошибке
+ * @returns Объект с манифестом, сегментами, версией и timestamp или null при ошибке
  */
 export async function downloadHLSVideo(
   hlsManifestPath: string,
   videoUrl: string,
   onProgress?: (current: number, total: number) => void
-): Promise<{ manifest: string; segments: Record<string, Blob>; videoId: string } | null> {
+): Promise<{ manifest: string; segments: Record<string, Blob>; videoId: string; version: string; downloadedAt: number } | null> {
   try {
     logger.info("Начинаем скачивание HLS видео", { hlsManifestPath, videoUrl });
 
@@ -283,10 +283,20 @@ export async function downloadHLSVideo(
       ? pathParts[videoIdIndex + 1]
       : "unknown";
 
+    // Получаем версию из манифеста (hash или timestamp)
+    // Используем hash манифеста как версию для надежности
+    const manifestHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(modifiedManifest))
+      .then(buffer => Array.from(new Uint8Array(buffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+        .substring(0, 16)); // Первые 16 символов хэша
+
     return {
       manifest: modifiedManifest,
       segments,
       videoId,
+      version: manifestHash,
+      downloadedAt: Date.now(),
     };
   } catch (error) {
     logger.error("Критическая ошибка при скачивании HLS видео", error as Error, {

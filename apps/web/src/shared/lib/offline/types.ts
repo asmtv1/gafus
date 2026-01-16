@@ -75,6 +75,8 @@ export interface OfflineCourse {
       manifest: string; // Текст манифеста
       segments: Record<string, Blob>; // Сегменты
       videoId: string; // ID видео
+      version: string; // Версия видео (updatedAt или hash манифеста)
+      downloadedAt: number; // Timestamp скачивания
       thumbnailPath?: string; // Путь к thumbnail (для получения из images)
     }>;
     images: Record<string, Blob>; // Изображения, включая thumbnail видео (ключ = thumbnailPath)

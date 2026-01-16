@@ -8,7 +8,17 @@ export function getEmbeddedVideoInfo(url: string | null): {
     return { embedUrl: "", isShorts: false };
   }
 
-  // Blob URL для офлайн видео (HLS манифест из IndexedDB)
+  // Service Worker URL для офлайн видео (HLS манифест из IndexedDB через Service Worker)
+  if (url.startsWith("/offline-hls/")) {
+    return {
+      embedUrl: url,
+      isShorts: false,
+      isCDN: false, // Это Service Worker URL, не прямой CDN
+      isHLS: true,
+    };
+  }
+
+  // Blob URL для офлайн видео (старая логика, оставлена для обратной совместимости)
   if (url.startsWith("blob:")) {
     return {
       embedUrl: url,
