@@ -52,20 +52,7 @@ export function VideoPlayerSection({ videoUrl, originalVideoUrl, courseType, vid
 
   // Загружаем thumbnail из IndexedDB для офлайн режима
   useEffect(() => {
-    console.log("[VideoPlayerSection] Загрузка thumbnail из IndexedDB", {
-      isBlobUrl,
-      courseType,
-      videoUrl,
-      originalVideoUrl,
-      videoMetadataVideoId: videoMetadata?.videoId,
-    });
-
     if (!isBlobUrl || !courseType || !videoUrl) {
-      console.log("[VideoPlayerSection] Пропускаем загрузку thumbnail - условия не выполнены", {
-        isBlobUrl,
-        courseType,
-        videoUrl,
-      });
       setOfflineThumbnail(null);
       setThumbnailBlobUrl(null);
       return;
@@ -75,41 +62,17 @@ export function VideoPlayerSection({ videoUrl, originalVideoUrl, courseType, vid
     getOfflineCourseByType(courseType)
       .then((offlineCourse) => {
         if (!offlineCourse) {
-          console.log("[VideoPlayerSection] Офлайн курс не найден в IndexedDB", {
-            courseType,
-          });
           return null;
         }
-
-        console.log("[VideoPlayerSection] Офлайн курс найден", {
-          courseType,
-          hlsVideosCount: Object.keys(offlineCourse.mediaFiles.hlsVideos).length,
-          imagesCount: Object.keys(offlineCourse.mediaFiles.images).length,
-          hlsVideoKeys: Object.keys(offlineCourse.mediaFiles.hlsVideos).slice(0, 3),
-          imageKeys: Object.keys(offlineCourse.mediaFiles.images).slice(0, 3),
-        });
 
         const hlsVideos = offlineCourse.mediaFiles.hlsVideos;
         let hlsVideo = hlsVideos[videoUrl];
 
-        console.log("[VideoPlayerSection] Поиск hlsVideo", {
-          videoUrl,
-          foundByExactMatch: !!hlsVideo,
-          hlsVideoThumbnailPath: hlsVideo?.thumbnailPath,
-        });
-
         // Если не найдено по точному совпадению, ищем по videoId из метаданных
         if (!hlsVideo && videoMetadata?.videoId) {
-          console.log("[VideoPlayerSection] Ищем hlsVideo по videoId", {
-            videoId: videoMetadata.videoId,
-          });
-          for (const [key, value] of Object.entries(hlsVideos)) {
+          for (const [, value] of Object.entries(hlsVideos)) {
             if (value.videoId === videoMetadata.videoId) {
               hlsVideo = value;
-              console.log("[VideoPlayerSection] Найдено по videoId", {
-                matchedKey: key,
-                thumbnailPath: value.thumbnailPath,
-              });
               break;
             }
           }
@@ -117,52 +80,19 @@ export function VideoPlayerSection({ videoUrl, originalVideoUrl, courseType, vid
 
         // Если не найдено, пробуем найти по originalVideoUrl
         if (!hlsVideo && originalVideoUrl) {
-          console.log("[VideoPlayerSection] Ищем hlsVideo по originalVideoUrl", {
-            originalVideoUrl,
-          });
           hlsVideo = hlsVideos[originalVideoUrl];
-          if (hlsVideo) {
-            console.log("[VideoPlayerSection] Найдено по originalVideoUrl", {
-              thumbnailPath: hlsVideo.thumbnailPath,
-            });
-          }
         }
 
         // Если найдено видео и есть thumbnailPath, получаем thumbnail
         if (hlsVideo?.thumbnailPath) {
-          console.log("[VideoPlayerSection] Пытаемся получить thumbnail", {
-            thumbnailPath: hlsVideo.thumbnailPath,
-            availableImageKeys: Object.keys(offlineCourse.mediaFiles.images),
-          });
-
           const thumbnailBlob = offlineCourse.mediaFiles.images[hlsVideo.thumbnailPath];
           if (thumbnailBlob) {
-            console.log("[VideoPlayerSection] Thumbnail найден в IndexedDB", {
-              thumbnailPath: hlsVideo.thumbnailPath,
-              thumbnailSize: thumbnailBlob.size,
-              thumbnailType: thumbnailBlob.type,
-            });
-
             setOfflineThumbnail(thumbnailBlob);
             // Создаём blob URL для thumbnail
             const blobUrl = URL.createObjectURL(thumbnailBlob);
             setThumbnailBlobUrl(blobUrl);
-            
-            console.log("[VideoPlayerSection] Thumbnail blob URL создан", {
-              blobUrl,
-            });
             return;
-          } else {
-            console.warn("[VideoPlayerSection] ThumbnailPath есть, но blob не найден в images", {
-              thumbnailPath: hlsVideo.thumbnailPath,
-              availableImageKeys: Object.keys(offlineCourse.mediaFiles.images),
-            });
           }
-        } else {
-          console.log("[VideoPlayerSection] ThumbnailPath отсутствует или hlsVideo не найдено", {
-            hasHlsVideo: !!hlsVideo,
-            thumbnailPath: hlsVideo?.thumbnailPath,
-          });
         }
 
         return null;

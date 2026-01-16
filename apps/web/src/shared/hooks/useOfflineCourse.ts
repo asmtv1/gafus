@@ -377,12 +377,6 @@ export function useOfflineCourse(): UseOfflineCourseResult {
                   const thumbnailPathWithUploads = ensureUploadsPrefix(thumbnailPath);
                   const thumbnailCdnUrl = `https://storage.yandexcloud.net/gafus-media/${thumbnailPathWithUploads}`;
                   
-                  console.log("[useOfflineCourse] Начинаем скачивание thumbnail", {
-                    videoUrl,
-                    thumbnailPath,
-                    thumbnailCdnUrl,
-                  });
-                  
                   logger.info("Скачиваем thumbnail для видео", {
                     videoUrl,
                     thumbnailPath,
@@ -396,49 +390,24 @@ export function useOfflineCourse(): UseOfflineCourseResult {
                     mediaFiles.images[thumbnailPath] = thumbnailBlob;
                     downloadedMediaFiles++;
                     
-                    console.log("[useOfflineCourse] Thumbnail успешно скачан и сохранен", {
-                      videoUrl,
-                      thumbnailPath,
-                      thumbnailSize: thumbnailBlob.size,
-                      imagesKeys: Object.keys(mediaFiles.images),
-                    });
-                    
                     logger.info("Thumbnail успешно скачан", {
                       videoUrl,
                       thumbnailPath,
                       thumbnailSize: thumbnailBlob.size,
                     });
                   } else {
-                    console.warn("[useOfflineCourse] Не удалось скачать thumbnail - blob null", {
-                      videoUrl,
-                      thumbnailPath,
-                      thumbnailCdnUrl,
-                    });
-                    
                     logger.warn("Не удалось скачать thumbnail", {
                       videoUrl,
                       thumbnailPath,
                     });
                   }
                 } catch (error) {
-                  console.error("[useOfflineCourse] Ошибка при скачивании thumbnail", {
-                    videoUrl,
-                    thumbnailPath,
-                    error: error instanceof Error ? error.message : String(error),
-                    stack: error instanceof Error ? error.stack : undefined,
-                  });
-                  
                   logger.warn("Ошибка при скачивании thumbnail", {
                     videoUrl,
                     thumbnailPath,
                     error: error instanceof Error ? error.message : String(error),
                   });
                 }
-              } else {
-                console.log("[useOfflineCourse] ThumbnailPath отсутствует, пропускаем скачивание", {
-                  videoUrl,
-                  hlsDataVideoId: hlsData.videoId,
-                });
               }
 
               hlsVideos[videoUrl] = {

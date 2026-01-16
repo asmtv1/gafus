@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createWebLogger } from "@gafus/logger";
 import { getOfflineCourseByType } from "./offlineCourseStorage";
+import { useOfflineStore } from "@shared/stores/offlineStore";
 
 const logger = createWebLogger("web-offline-media-resolver");
 
@@ -365,7 +366,8 @@ async function getOfflineMediaBlob(
 
 /**
  * Хук для получения URL медиафайла с поддержкой офлайн-режима
- * Проверяет IndexedDB и возвращает blob URL если файл скачан, иначе оригинальный URL
+ * - При онлайн-статусе: возвращает оригинальный URL (интернет-версия)
+ * - При офлайн-статусе: проверяет IndexedDB и возвращает blob URL если файл скачан, иначе оригинальный URL
  */
 export function useOfflineMediaUrl(
   courseType: string | null,
@@ -374,6 +376,8 @@ export function useOfflineMediaUrl(
   const [url, setUrl] = useState<string | null>(mediaUrl || null);
   const blobUrlRef = useRef<string | null>(null);
   const segmentBlobUrlsRef = useRef<string[]>([]);
+  // Реактивная подписка на изменения онлайн-статуса
+  const isOnline = useOfflineStore((state) => state.isOnline);
 
   useEffect(() => {
     logger.info("useOfflineMediaUrl: Effect triggered", {
@@ -381,6 +385,7 @@ export function useOfflineMediaUrl(
       mediaUrl,
       currentUrl: url,
       hasBlobUrl: !!blobUrlRef.current,
+      isOnline,
     });
 
     // Очищаем предыдущие blob URLs если есть
@@ -412,7 +417,17 @@ export function useOfflineMediaUrl(
       return;
     }
 
-    logger.info("useOfflineMediaUrl: Starting blob search", {
+    // Если пользователь онлайн, используем интернет-версию (актуальную)
+    if (isOnline) {
+      logger.info("useOfflineMediaUrl: Online status, using internet version", {
+        courseType,
+        mediaUrl,
+      });
+      setUrl(mediaUrl);
+      return;
+    }
+
+    logger.info("useOfflineMediaUrl: Offline status, starting blob search", {
       courseType,
       mediaUrl,
     });
@@ -459,7 +474,7 @@ export function useOfflineMediaUrl(
         });
         setUrl(mediaUrl);
       });
-  }, [courseType, mediaUrl]);
+  }, [courseType, mediaUrl, isOnline]);
 
   // Очищаем blob URLs при размонтировании
   useEffect(() => {
