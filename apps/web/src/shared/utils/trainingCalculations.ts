@@ -1,4 +1,4 @@
-import { TrainingStatus } from "@gafus/types";
+import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 
 export type StepStates = Record<string, { status?: string }>;
 
@@ -7,6 +7,7 @@ export function calculateDayStatus(courseId: string, dayOnCourseId: string, step
   if (stepKeys.length === 0) return TrainingStatus.NOT_STARTED;
 
   // Если передан totalSteps, создаем массив статусов для всех шагов дня
+  // Это гарантирует правильный расчет даже если некоторые шаги еще не инициализированы в stepStore
   if (totalSteps !== undefined) {
     const stepStatuses: string[] = [];
     for (let i = 0; i < totalSteps; i++) {
@@ -16,29 +17,14 @@ export function calculateDayStatus(courseId: string, dayOnCourseId: string, step
       stepStatuses.push(status);
     }
 
-    if (stepStatuses.every((status) => status === TrainingStatus.COMPLETED)) {
-      return TrainingStatus.COMPLETED;
-    }
-
-    if (stepStatuses.some((status) => status === TrainingStatus.IN_PROGRESS || status === "PAUSED" || status === TrainingStatus.COMPLETED)) {
-      return TrainingStatus.IN_PROGRESS;
-    }
-
-    return TrainingStatus.NOT_STARTED;
+    return calculateDayStatusFromStatuses(stepStatuses);
   }
 
-  // Старая логика для обратной совместимости
+  // Если totalSteps не передан, используем только те шаги, которые уже есть в stepStates
+  // ВНИМАНИЕ: это может дать неточный результат, если не все шаги дня инициализированы
+  // Рекомендуется всегда передавать totalSteps для корректного расчета
   const stepStatuses = stepKeys.map((key) => stepStates[key]?.status || TrainingStatus.NOT_STARTED);
-
-  if (stepStatuses.every((status) => status === TrainingStatus.COMPLETED)) {
-    return TrainingStatus.COMPLETED;
-  }
-
-  if (stepStatuses.some((status) => status === TrainingStatus.IN_PROGRESS || status === "PAUSED" || status === TrainingStatus.COMPLETED)) {
-    return TrainingStatus.IN_PROGRESS;
-  }
-
-  return TrainingStatus.NOT_STARTED;
+  return calculateDayStatusFromStatuses(stepStatuses);
 }
 
 export function calculateCourseStatus(courseId: string, stepStates: StepStates, totalDaysInCourse?: number): TrainingStatus {
@@ -81,16 +67,5 @@ export function calculateCourseStatus(courseId: string, stepStates: StepStates, 
     return TrainingStatus.IN_PROGRESS;
   }
 
-  return TrainingStatus.NOT_STARTED;
-}
-
-// Упрощённые помощники для серверного кода
-export function calculateDayStatusFromStatuses(statuses: (string | TrainingStatus)[]): TrainingStatus {
-  if (statuses.length === 0) return TrainingStatus.NOT_STARTED;
-  const normalized = statuses.map((s) => String(s));
-  if (normalized.every((s) => s === TrainingStatus.COMPLETED)) return TrainingStatus.COMPLETED;
-  if (normalized.some((s) => s === TrainingStatus.IN_PROGRESS || s === "PAUSED" || s === TrainingStatus.COMPLETED)) {
-    return TrainingStatus.IN_PROGRESS;
-  }
   return TrainingStatus.NOT_STARTED;
 }

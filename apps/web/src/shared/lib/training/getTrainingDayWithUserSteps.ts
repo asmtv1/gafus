@@ -2,7 +2,7 @@
 
 import { prisma, isPrismaUniqueConstraintError } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
-import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
+import { calculateDayStatusFromStatuses } from "@gafus/types";
 
 import type { ChecklistQuestion, TrainingDetail } from "@gafus/types";
 

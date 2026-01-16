@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
+import { retryWithBackoff } from "@shared/utils/retryUtils";
 
 import type {
   CommentData,
@@ -172,29 +173,34 @@ export const useOfflineStore = create<OfflineState>()(
 
           for (const action of actionsToSync) {
             try {
-              await syncAction(action);
+              // Используем retryWithBackoff для экспоненциальной задержки
+              await retryWithBackoff(
+                () => syncAction(action),
+                {
+                  maxRetries: state.maxRetries,
+                  baseDelay: 1000, // 1 секунда
+                  maxDelay: 10000, // 10 секунд максимум
+                  onRetry: (attempt, error) => {
+                    logger.warn(`Retry ${attempt}/${state.maxRetries} for action ${action.type}`, {
+                      operation: 'sync_action_retry',
+                      actionType: action.type,
+                      attempt,
+                      error: error.message
+                    });
+                  }
+                }
+              );
               // Удаляем успешно синхронизированное действие
               get().removeFromSyncQueue(action.id);
             } catch (error) {
-              logger.warn(`❌ Failed to sync action ${action.type}`, {
-                operation: 'sync_action_failed',
+              // Если все попытки исчерпаны, удаляем действие
+              const syncError = error instanceof Error ? error : new Error(String(error));
+              logger.error(`Failed to sync action ${action.type} after ${state.maxRetries} attempts`, syncError, {
+                operation: 'sync_action_failed_final',
                 actionType: action.type,
-                actionId: action.id,
-                error: error instanceof Error ? error.message : String(error)
+                actionId: action.id
               });
-              
-              // Увеличиваем счетчик попыток
-              const updatedAction = { ...action, retryCount: action.retryCount + 1 };
-              
-              // Если превышено максимальное количество попыток, удаляем действие
-              if (updatedAction.retryCount >= state.maxRetries) {
-                get().removeFromSyncQueue(action.id);
-                logger.warn(`🗑️ Removed action ${action.type} after ${state.maxRetries} failed attempts`, {
-                  operation: 'action_removed_after_max_retries',
-                  actionType: action.type,
-                  maxRetries: state.maxRetries
-                });
-              }
+              get().removeFromSyncQueue(action.id);
             }
           }
 

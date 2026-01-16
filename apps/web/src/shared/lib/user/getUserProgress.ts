@@ -2,7 +2,7 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
-import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
+import { calculateDayStatusFromStatuses } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 

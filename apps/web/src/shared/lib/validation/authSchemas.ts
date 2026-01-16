@@ -1,5 +1,6 @@
 import { z } from "zod";
 import parsePhoneNumberFromString from "libphonenumber-js";
+import { normalizeTelegramInput, normalizeInstagramInput, normalizeWebsiteUrl } from "@/shared/utils/socialLinks";
 
 // ===== СХЕМЫ АУТЕНТИФИКАЦИИ =====
 
@@ -103,6 +104,86 @@ export const resetPasswordFormSchema = z.object({
 });
 
 /**
+ * Схема для Telegram username с валидацией и нормализацией
+ */
+const telegramUsernameSchema = z
+  .string()
+  .trim()
+  .max(100, "Не более 100 символов")
+  .optional()
+  .transform((val) => {
+    if (!val) return '';
+    try {
+      return normalizeTelegramInput(val);
+    } catch (error) {
+      throw new z.ZodError([{
+        code: 'custom',
+        path: ['telegram'],
+        message: error instanceof Error ? error.message : 'Некорректный Telegram username'
+      }]);
+    }
+  })
+  .refine((val) => !val || /^[a-z0-9_]{5,32}$/.test(val), {
+    message: 'Telegram username должен содержать минимум 5 символов, только латинские буквы, цифры и подчеркивание'
+  });
+
+/**
+ * Схема для Instagram username с валидацией и нормализацией
+ */
+const instagramUsernameSchema = z
+  .string()
+  .trim()
+  .max(100, "Не более 100 символов")
+  .optional()
+  .transform((val) => {
+    if (!val) return '';
+    try {
+      return normalizeInstagramInput(val);
+    } catch (error) {
+      throw new z.ZodError([{
+        code: 'custom',
+        path: ['instagram'],
+        message: error instanceof Error ? error.message : 'Некорректный Instagram username'
+      }]);
+    }
+  })
+  .refine((val) => !val || (/^[a-z0-9._]{1,30}$/.test(val) && !val.endsWith('.')), {
+    message: 'Instagram username должен содержать до 30 символов, только латинские буквы, цифры, точки и подчеркивание, не может заканчиваться точкой'
+  });
+
+/**
+ * Схема для website URL с валидацией и нормализацией
+ */
+const websiteUrlSchema = z
+  .string()
+  .trim()
+  .max(200, "Не более 200 символов")
+  .optional()
+  .transform((val) => {
+    if (!val) return '';
+    try {
+      return normalizeWebsiteUrl(val);
+    } catch (error) {
+      throw new z.ZodError([{
+        code: 'custom',
+        path: ['website'],
+        message: error instanceof Error ? error.message : 'Некорректный URL'
+      }]);
+    }
+  })
+  .refine((val) => {
+    if (!val) return true;
+    try {
+      const url = new URL(val);
+      return ['http:', 'https:'].includes(url.protocol);
+    } catch {
+      return false;
+    }
+  }, {
+    message: 'Некорректный URL. Разрешены только http:// и https:// протоколы'
+  });
+
+/**
  * Схема для профиля пользователя
  */
 export const userProfileFormSchema = z.object({
@@ -112,9 +193,9 @@ export const userProfileFormSchema = z.object({
     return new Date(value) <= new Date();
   }, "Дата не может быть в будущем"),
   about: z.string().trim().max(2000, "Не более 2000 символов").optional(),
-  telegram: z.string().trim().max(100, "Не более 100 символов").optional(),
-  instagram: z.string().trim().max(100, "Не более 100 символов").optional(),
-  website: z.string().trim().max(200, "Не более 200 символов").optional(),
+  telegram: telegramUsernameSchema,
+  instagram: instagramUsernameSchema,
+  website: websiteUrlSchema,
 });
 
 // ===== ТИПЫ =====

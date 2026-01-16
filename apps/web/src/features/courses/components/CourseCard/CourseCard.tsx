@@ -21,6 +21,7 @@ import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
 import { showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
+import { useOfflineStore } from "@shared/stores/offlineStore";
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
@@ -103,6 +104,13 @@ export const CourseCard = ({
   } = useOfflineCourse();
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  
+  // Проверяем наличие ожидающих синхронизации действий для этого курса
+  const syncQueue = useOfflineStore((state) => state.syncQueue);
+  const hasPendingSync = syncQueue.some(action => 
+    action.type === "step-status-update" && 
+    (action.data as { courseId: string }).courseId === id
+  );
 
   // Синхронизируем состояние избранного с store при изменении пропсов
   useEffect(() => {
@@ -347,6 +355,11 @@ export const CourseCard = ({
             </div>
             <div className={styles.status}>
               <span className={getStatusColor()}>{getStatusText()}</span>
+              {hasPendingSync && (
+                <span className={styles.pendingIndicator} title="Ожидает синхронизации">
+                  ⏳
+                </span>
+              )}
             </div>
           </div>
           <div className={styles.description}>

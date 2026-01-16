@@ -10,6 +10,8 @@ import TrainerCoursesSection from "./TrainerCoursesSection";
 import type { BioProps } from "@gafus/types";
 
 import { getAge, declOfNum } from "@/utils";
+import { getTelegramUrl, getInstagramUrl } from "@/shared/utils/socialLinks";
+import { InstagramIcon, TelegramIcon, WebsiteIcon } from "./SocialIcons";
 
 export default function Bio({ publicData, isOwner, username, userData }: BioProps) {
   const profile = publicData.profile;
@@ -92,9 +94,54 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           </p>
         )}
         {profile?.about && <p>О себе: {profile.about}</p>}
-        {profile?.instagram && <p>Instagram: {profile.instagram}</p>}
-        {profile?.telegram && <p>Telegram: {profile.telegram}</p>}
-        {profile?.website && <p>YouTube или сайт: {profile.website}</p>}
+        
+        {/* Социальные сети */}
+        {(profile?.instagram || profile?.telegram || profile?.website) && (
+          <div className={styles.socialLinksContainer}>
+            <h3 className={styles.socialLinksTitle}>Контакты</h3>
+            <div className={styles.socialLinksList}>
+              {profile?.instagram && (
+                <a
+                  href={getInstagramUrl(profile.instagram)}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  aria-label={`Открыть Instagram профиль ${profile.instagram} в новой вкладке`}
+                  className={`${styles.socialLink} ${styles.socialLinkInstagram}`}
+                >
+                  <InstagramIcon className={styles.socialIcon} />
+                  <span className={styles.socialLabel}>Instagram</span>
+                  <span className={styles.socialUsername}>{profile.instagram}</span>
+                </a>
+              )}
+              {profile?.telegram && (
+                <a
+                  href={getTelegramUrl(profile.telegram)}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  aria-label={`Открыть Telegram профиль ${profile.telegram} в новой вкладке`}
+                  className={`${styles.socialLink} ${styles.socialLinkTelegram}`}
+                >
+                  <TelegramIcon className={styles.socialIcon} />
+                  <span className={styles.socialLabel}>Telegram</span>
+                  <span className={styles.socialUsername}>{profile.telegram}</span>
+                </a>
+              )}
+              {profile?.website && (
+                <a
+                  href={profile.website}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  aria-label={`Открыть сайт ${profile.website} в новой вкладке`}
+                  className={`${styles.socialLink} ${styles.socialLinkWebsite}`}
+                >
+                  <WebsiteIcon className={styles.socialIcon} />
+                  <span className={styles.socialLabel}>Сайт</span>
+                  <span className={styles.socialUsername}>{profile.website}</span>
+                </a>
+              )}
+            </div>
+          </div>
+        )}
         {showEmptyNotice && <div className={styles.emptyNotice}>Информация о себе не внесена</div>}
 
         {isOwner && (

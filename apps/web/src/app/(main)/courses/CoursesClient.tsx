@@ -3,6 +3,8 @@ import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
 import { useCourseStoreActions } from "@shared/stores";
 import { useEffect, useState } from "react";
 import type { CourseWithProgressData } from "@gafus/types";
+import { useCourseProgressSync } from "@shared/hooks/useCourseProgressSync";
+import { SyncStatusIndicator } from "@shared/components/ui/SyncStatusIndicator";
 
 import styles from "./courses.module.css";
 import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
@@ -42,6 +44,9 @@ export default function CoursesClient({
   
   const { allCourses, loading, errors, fetchAllCourses, forceRefreshFavorites, setAllCourses } =
     useCourseStoreActions();
+  
+  // Добавляем синхронизацию прогресса
+  const { syncedCourses } = useCourseProgressSync();
 
   // Инициализируем данные при монтировании компонента
   useEffect(() => {
@@ -89,7 +94,7 @@ export default function CoursesClient({
     );
   }
 
-  const allCoursesData = allCourses?.data || [];
+  const allCoursesData = syncedCourses || allCourses?.data || [];
   
   // Применяем все фильтры и сортировку
   const filteredCourses = filterAndSortCourses(allCoursesData, {
@@ -120,6 +125,9 @@ export default function CoursesClient({
 
   return (
     <div className={styles.container}>
+      {/* Индикатор синхронизации */}
+      <SyncStatusIndicator className={styles.syncIndicator} />
+      
       {/* Поиск */}
       <CourseSearch 
         value={searchQuery}

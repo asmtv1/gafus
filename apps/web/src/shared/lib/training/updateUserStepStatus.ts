@@ -9,7 +9,7 @@ import { checkAndCompleteCourse } from "../user/userCourses";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@/utils";
-import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
+import { calculateDayStatusFromStatuses } from "@gafus/types";
 import {
   courseIdSchema,
   dayIdSchema,

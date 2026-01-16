@@ -1,5 +1,5 @@
 import { prisma } from "@gafus/prisma";
-import { TrainingStatus } from "@gafus/types";
+import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import { z } from "zod";
 
 export interface UserDayProgress {
@@ -29,26 +29,6 @@ const userCourseProgressSchema = z.object({
   courseId: z.string().min(1, "courseId обязателен"),
   userId: z.string().min(1, "userId обязателен"),
 });
-
-function calculateDayStatusFromStatuses(stepStatuses: string[]): TrainingStatus {
-  if (stepStatuses.length === 0) {
-    return TrainingStatus.NOT_STARTED;
-  }
-
-  const allCompleted = stepStatuses.every((status) => status === TrainingStatus.COMPLETED);
-  if (allCompleted) {
-    return TrainingStatus.COMPLETED;
-  }
-
-  const hasInProgress = stepStatuses.some((status) => status === TrainingStatus.IN_PROGRESS);
-  const hasCompleted = stepStatuses.some((status) => status === TrainingStatus.COMPLETED);
-
-  if (hasInProgress || hasCompleted) {
-    return TrainingStatus.IN_PROGRESS;
-  }
-
-  return TrainingStatus.NOT_STARTED;
-}
 
 export async function getUserProgress(
   courseId: string,

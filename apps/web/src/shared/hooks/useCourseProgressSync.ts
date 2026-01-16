@@ -117,6 +117,34 @@ export function useCourseProgressSync() {
         }
       }
       
+      // ДОБАВЛЕНО: Проверяем stepStore даже без cachedData
+      // Это позволяет обновлять статус курса на странице списка курсов
+      if (!cachedData?.data?.trainingDays) {
+        // Проверяем есть ли шаги в stepStore для этого курса
+        const courseStepKeys = Object.keys(stepStates).filter(key => 
+          key.startsWith(`${course.id}-`)
+        );
+        
+        if (courseStepKeys.length > 0) {
+          // Проверяем есть ли активные шаги (IN_PROGRESS, PAUSED, COMPLETED)
+          const hasActiveSteps = courseStepKeys.some(key => {
+            const status = stepStates[key]?.status;
+            return status === TrainingStatus.IN_PROGRESS || 
+                   status === "PAUSED" || 
+                   status === TrainingStatus.COMPLETED;
+          });
+          
+          // Если есть активные шаги, но курс помечен как NOT_STARTED
+          if (hasActiveSteps && course.userStatus === TrainingStatus.NOT_STARTED) {
+            return {
+              ...course,
+              userStatus: TrainingStatus.IN_PROGRESS,
+              startedAt: course.startedAt || null
+            };
+          }
+        }
+      }
+      
       // Если курс уже помечен как завершенный, но кэшированные данные показывают 0 завершенных дней,
       // доверяем статусу курса (возможно, кэш устарел)
       if (course.userStatus === TrainingStatus.COMPLETED && (!cachedData?.data?.trainingDays || 

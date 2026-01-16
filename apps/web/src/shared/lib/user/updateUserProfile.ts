@@ -9,15 +9,64 @@ import type { Prisma } from "@gafus/prisma";
 import type { UpdateUserProfileInput } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
+import { normalizeTelegramInput, normalizeInstagramInput, normalizeWebsiteUrl } from "@/shared/utils/socialLinks";
 
 const logger = createWebLogger('web');
 
 const updateUserProfileSchema = z.object({
   fullName: z.string().trim().max(120).optional(),
   about: z.string().trim().max(2000).optional(),
-  telegram: z.string().trim().max(100).optional(),
-  instagram: z.string().trim().max(100).optional(),
-  website: z.string().trim().max(200).optional(),
+  telegram: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((val) => {
+      if (!val) return '';
+      try {
+        return normalizeTelegramInput(val);
+      } catch (error) {
+        throw new z.ZodError([{
+          code: 'custom',
+          path: ['telegram'],
+          message: error instanceof Error ? error.message : 'Некорректный Telegram username'
+        }]);
+      }
+    }),
+  instagram: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((val) => {
+      if (!val) return '';
+      try {
+        return normalizeInstagramInput(val);
+      } catch (error) {
+        throw new z.ZodError([{
+          code: 'custom',
+          path: ['instagram'],
+          message: error instanceof Error ? error.message : 'Некорректный Instagram username'
+        }]);
+      }
+    }),
+  website: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .transform((val) => {
+      if (!val) return '';
+      try {
+        return normalizeWebsiteUrl(val);
+      } catch (error) {
+        throw new z.ZodError([{
+          code: 'custom',
+          path: ['website'],
+          message: error instanceof Error ? error.message : 'Некорректный URL'
+        }]);
+      }
+    }),
   birthDate: z.string().trim().max(100).optional(),
 });
 

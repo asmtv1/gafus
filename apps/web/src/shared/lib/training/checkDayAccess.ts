@@ -7,7 +7,7 @@ import { createWebLogger } from "@gafus/logger";
 import { getCurrentUserId } from "@/utils";
 // eslint-disable-next-line unused-imports/no-unused-imports
 import { dayIdSchema } from "../validation/schemas";
-import { calculateDayStatusFromStatuses } from "@shared/utils/trainingCalculations";
+import { calculateDayStatusFromStatuses } from "@gafus/types";
 
 const logger = createWebLogger("web-check-day-access");
 

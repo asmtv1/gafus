@@ -26,6 +26,9 @@ export * from "./utils";
 export * from "./utils/logger";
 export * from "./utils/validation";
 
+// Training calculations
+export * from "./training";
+
 // Pages
 export * from "./pages";
 

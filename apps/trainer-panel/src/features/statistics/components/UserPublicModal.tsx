@@ -3,6 +3,7 @@
 import { Close } from "@mui/icons-material";
 import { useEffect, useState } from "react";
 import { getPublicProfileAction } from "@shared/lib/actions/users";
+import { getTelegramUrl, getInstagramUrl } from "@shared/utils/socialLinks";
 
 import {
   Avatar,
@@ -113,13 +114,46 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
                 <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                   <Chip label={`Роль: ${data.role}`} size="small" variant="outlined" />
                   {data.profile?.telegram && (
-                    <Chip label={`TG: ${data.profile.telegram}`} size="small" variant="outlined" />
+                    <Chip
+                      label={`TG: ${data.profile.telegram}`}
+                      size="small"
+                      variant="outlined"
+                      component="a"
+                      href={getTelegramUrl(data.profile.telegram)}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      aria-label={`Открыть Telegram профиль ${data.profile.telegram} в новой вкладке`}
+                      clickable
+                      sx={{ cursor: 'pointer' }}
+                    />
                   )}
                   {data.profile?.instagram && (
-                    <Chip label={`IG: ${data.profile.instagram}`} size="small" variant="outlined" />
+                    <Chip
+                      label={`IG: ${data.profile.instagram}`}
+                      size="small"
+                      variant="outlined"
+                      component="a"
+                      href={getInstagramUrl(data.profile.instagram)}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      aria-label={`Открыть Instagram профиль ${data.profile.instagram} в новой вкладке`}
+                      clickable
+                      sx={{ cursor: 'pointer' }}
+                    />
                   )}
                   {data.profile?.website && (
-                    <Chip label={`Site: ${data.profile.website}`} size="small" variant="outlined" />
+                    <Chip
+                      label={`Site: ${data.profile.website}`}
+                      size="small"
+                      variant="outlined"
+                      component="a"
+                      href={data.profile.website}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      aria-label={`Открыть сайт ${data.profile.website} в новой вкладке`}
+                      clickable
+                      sx={{ cursor: 'pointer' }}
+                    />
                   )}
                 </Box>
                 {data.profile?.about && (

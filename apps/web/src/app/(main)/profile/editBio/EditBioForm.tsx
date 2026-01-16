@@ -159,33 +159,45 @@ export default function EditBioForm() {
         {/* Контактная информация */}
         <div className={styles.profile_info_section}>
           <h3>Контактная информация</h3>
-          <FormField
-            id="telegram"
-            name="telegram"
-            label="Telegram для связи"
-            placeholder="Telegram username"
-            form={form}
-            // Валидация теперь через Zod схему
-          />
+          <div>
+            <FormField
+              id="telegram"
+              name="telegram"
+              label="Telegram для связи"
+              placeholder="asmtv1"
+              form={form}
+            />
+            <p className={styles.helperText}>
+              Введите username без @ (например: asmtv1). Минимум 5 символов, только латинские буквы, цифры и подчеркивание.
+            </p>
+          </div>
 
-          <FormField
-            id="instagram"
-            name="instagram"
-            label="Ваш Instagram"
-            placeholder="Instagram username"
-            form={form}
-            // Валидация теперь через Zod схему
-          />
+          <div>
+            <FormField
+              id="instagram"
+              name="instagram"
+              label="Ваш Instagram"
+              placeholder="doghandler_lana"
+              form={form}
+            />
+            <p className={styles.helperText}>
+              Введите username без @ (например: doghandler_lana). До 30 символов, только латинские буквы, цифры, точки и подчеркивание.
+            </p>
+          </div>
 
-          <FormField
-            id="website"
-            name="website"
-            label="YouTube или сайт"
-            type="url"
-            placeholder="Website URL"
-            form={form}
-            // Валидация теперь через Zod схему
-          />
+          <div>
+            <FormField
+              id="website"
+              name="website"
+              label="YouTube или сайт"
+              type="text"
+              placeholder="youtube.com/@username или example.com"
+              form={form}
+            />
+            <p className={styles.helperText}>
+              Введите URL сайта или канала YouTube. Можно без https:// и www - они добавятся автоматически.
+            </p>
+          </div>
         </div>
 
         <div className={styles.form_buttons}>
