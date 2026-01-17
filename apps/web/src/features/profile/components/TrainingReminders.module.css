@@ -382,13 +382,15 @@
 }
 
 .addButton:hover {
-  background: #4a4a1a;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(99, 97, 40, 0.3);
+  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
 }
 
 .addButton:active {
+  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
   transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
 
 /* Информационный блок */

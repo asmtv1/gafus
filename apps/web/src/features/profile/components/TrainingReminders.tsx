@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   getTrainingReminders,
   createTrainingReminder,
@@ -31,17 +31,15 @@ export default function TrainingReminders() {
     text: string;
   } | null>(null);
 
-  // Определяем timezone браузера
-  const browserTimezone = typeof window !== "undefined" 
-    ? Intl.DateTimeFormat().resolvedOptions().timeZone 
-    : "Europe/Moscow";
-
-  // Загрузить список напоминаний
-  useEffect(() => {
-    loadReminders();
+  // Определяем timezone браузера (мемоизировано)
+  const browserTimezone = useMemo(() => {
+    return typeof window !== "undefined" 
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone 
+      : "Europe/Moscow";
   }, []);
 
-  const loadReminders = async () => {
+  // Загрузить список напоминаний (мемоизировано)
+  const loadReminders = useCallback(async () => {
     try {
       setLoading(true);
       const result = await getTrainingReminders();
@@ -54,9 +52,13 @@ export default function TrainingReminders() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // setLoading и setReminders стабильны
 
-  const handleAddReminder = async () => {
+  useEffect(() => {
+    loadReminders();
+  }, [loadReminders]);
+
+  const handleAddReminder = useCallback(async () => {
     if (reminders.length >= MAX_REMINDERS) {
       setMessage({
         type: "error",
@@ -92,14 +94,14 @@ export default function TrainingReminders() {
         text: "Произошла ошибка"
       });
     }
-  };
+  }, [reminders, browserTimezone]);
 
-  const handleDeleteReminder = async (id: string) => {
+  const handleDeleteReminder = useCallback(async (id: string) => {
     try {
       const result = await deleteTrainingReminder(id);
 
       if (result.success) {
-        setReminders(reminders.filter(r => r.id !== id));
+        setReminders(prev => prev.filter(r => r.id !== id));
         setMessage({
           type: "success",
           text: "Напоминание удалено"
@@ -116,9 +118,9 @@ export default function TrainingReminders() {
         text: "Произошла ошибка"
       });
     }
-  };
+  }, []); // Пустой массив благодаря функциональному обновлению
 
-  const handleUpdateReminder = async (
+  const handleUpdateReminder = useCallback(async (
     id: string,
     data: Partial<Omit<TrainingReminderData, 'id'>>
   ) => {
@@ -138,7 +140,7 @@ export default function TrainingReminders() {
       const result = await updateTrainingReminder(id, updateData);
 
       if (result.success && result.data) {
-        setReminders(reminders.map(r => r.id === id ? result.data! : r));
+        setReminders(prev => prev.map(r => r.id === id ? result.data! : r));
         return true;
       } else {
         setMessage({
@@ -154,7 +156,11 @@ export default function TrainingReminders() {
       });
       return false;
     }
-  };
+  }, [browserTimezone]); // Только browserTimezone, reminders не нужен благодаря функциональному обновлению
+
+  const handleCloseMessage = useCallback(() => {
+    setMessage(null);
+  }, []); // setMessage стабильна
 
   if (loading) {
     return (
@@ -180,7 +186,7 @@ export default function TrainingReminders() {
           {message.text}
           <button 
             className={styles.alertClose}
-            onClick={() => setMessage(null)}
+            onClick={handleCloseMessage}
             aria-label="Закрыть"
           >
             ×
@@ -216,8 +222,8 @@ export default function TrainingReminders() {
   );
 }
 
-// Отдельный компонент для каждого напоминания
-function ReminderItem({
+// Отдельный компонент для каждого напоминания (мемоизирован)
+const ReminderItem = memo(function ReminderItem({
   reminder,
   onUpdate,
   onDelete
@@ -370,4 +376,4 @@ function ReminderItem({
       )}
     </div>
   );
-}
+});

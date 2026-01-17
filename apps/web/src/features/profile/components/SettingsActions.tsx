@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { memo } from "react";
 
 import styles from "./SettingsActions.module.css";
 
-export default function SettingsActions() {
+const SettingsActions = () => {
   return (
     <section className={styles.section}>
       <div className={styles.buttonsContainer}>
@@ -14,5 +15,7 @@ export default function SettingsActions() {
       </div>
     </section>
   );
-}
+};
+
+export default memo(SettingsActions);
 
