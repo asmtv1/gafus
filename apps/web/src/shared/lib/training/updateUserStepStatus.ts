@@ -290,11 +290,7 @@ export async function updateUserStepStatus(
 
     // Инвалидируем кэш прогресса пользователя при изменении статуса шага
     // Используем офлайн-безопасную инвалидацию (не принудительную)
-    const cacheResult = await invalidateUserProgressCache(safeUserId, false);
-    
-    if (cacheResult.skipped) {
-      logger.warn(`[Cache] Cache invalidation skipped for user ${safeUserId} - offline mode`, { operation: 'warn' });
-    }
+    await invalidateUserProgressCache(safeUserId, false);
 
     return { success: true };
   } catch (error) {

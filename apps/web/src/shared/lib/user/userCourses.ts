@@ -28,11 +28,7 @@ export async function assignCoursesToUser(courseId: string) {
 
     // Инвалидируем кэш прогресса пользователя
     // Запись в userCourses создается только при реальном начале прохождения курса
-    const cacheResult = await invalidateUserProgressCache(userId, false);
-    
-    if (cacheResult.skipped) {
-      logger.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`, { operation: 'warn' });
-    }
+    await invalidateUserProgressCache(userId, false);
 
     return { success: true };
   } catch (error) {
@@ -87,11 +83,7 @@ export async function completeUserCourse(courseId: string) {
     }
 
     // Инвалидируем кэш прогресса пользователя
-    const cacheResult = await invalidateUserProgressCache(userId, false);
-    
-    if (cacheResult.skipped) {
-      logger.warn(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`, { operation: 'warn' });
-    }
+    await invalidateUserProgressCache(userId, false);
 
     return { success: true, data: result };
   } catch (error) {

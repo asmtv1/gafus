@@ -101,14 +101,7 @@ export async function markTheoryStepAsCompleted(
     );
 
     // Инвалидируем кэш прогресса пользователя
-    const cacheResult = await invalidateUserProgressCache(userId, false);
-
-    if (cacheResult.skipped) {
-      logger.info(`[Cache] Cache invalidation skipped for user ${userId} - offline mode`, {
-        operation: 'cache_invalidation_skipped_offline',
-        userId: userId,
-      });
-    }
+    await invalidateUserProgressCache(userId, false);
 
     logger.success("Theory step marked as completed", {
       userId,

@@ -12,7 +12,7 @@ import {
   SelectField,
 } from "@shared/components/ui/FormField";
 import { usePetZodForm } from "@shared/hooks/usePetZodForm";
-import { savePet } from "@shared/lib/pet/savePet";
+import { savePet } from "@shared/lib/pets/savePet";
 import { clearProfilePageCache } from "@shared/lib/utils/clearProfileCache";
 
 import type { PetFormSchema } from "@shared/lib/validation/petSchemas";

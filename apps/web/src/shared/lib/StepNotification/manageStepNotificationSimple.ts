@@ -7,7 +7,7 @@ import {
   pauseNotificationAction,
   resetNotificationAction,
   resumeNotificationAction,
-} from "../../../app/(main)/trainings/[courseType]/[day]/actions";
+} from "./notificationActions";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger('web');

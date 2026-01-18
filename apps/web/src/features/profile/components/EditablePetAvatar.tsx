@@ -1,7 +1,7 @@
 "use client";
 
 import EditIcon from "@mui/icons-material/Edit";
-import { updatePetAvatar } from "@shared/lib/pet/updatePetAvatar";
+import { updatePetAvatar } from "@shared/lib/pets/updatePetAvatar";
 import { createWebLogger } from "@gafus/logger";
 import imageCompression from "browser-image-compression";
 import { useSession } from "next-auth/react";

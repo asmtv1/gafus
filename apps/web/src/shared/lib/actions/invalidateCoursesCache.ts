@@ -21,76 +21,23 @@ const invalidateUserProgressSchema = z.object({
  * @returns Результат операции с информацией о статусе
  */
 export async function invalidateUserProgressCache(userId: string, force: boolean = false) {
-  const { userId: safeUserId, force: safeForce = false } = invalidateUserProgressSchema.parse({
+  const { userId: safeUserId } = invalidateUserProgressSchema.parse({
     userId,
     force,
   });
-  try {
-    // Проверяем онлайн статус через офлайн-store (если на клиенте)
-    let isOnline = true;
-    if (typeof window !== "undefined") {
-      try {
-        const { useOfflineStore } = await import("@shared/stores/offlineStore");
-        isOnline = useOfflineStore.getState().isOnline;
-      } catch {
-        isOnline = navigator.onLine;
-      }
-    }
-    
-    if (!safeForce && !isOnline) {
-      logger.warn(`[Cache] Skipping cache invalidation - user is offline (userId: ${safeUserId}, { operation: 'warn' })`);
-      
-      // Добавляем действие в очередь синхронизации для выполнения при восстановлении соединения
-      try {
-        const { addToSyncQueue, createCacheInvalidationAction } = await import(
-          "@shared/utils/offlineCacheUtils"
-        );
-        
-        const action = createCacheInvalidationAction(safeUserId, [
-          `user-${safeUserId}`,
-          "user-progress", 
-          "training", 
-          "days",
-          "courses-favorites",
-          "courses",
-          "courses-metadata",
-          "achievements",
-          "streaks"
-        ]);
-        
-        addToSyncQueue(action);
-      logger.warn(`[Cache] Cache invalidation action queued for offline sync (userId: ${safeUserId}, { operation: 'warn' })`);
-      } catch (error) {
-        logger.warn("[Cache] Failed to queue cache invalidation action:", { error, operation: 'warn' });
-      }
-      
-      return { 
-        success: true, 
-        skipped: true, 
-        reason: "offline",
-        queued: true
-      };
-    }
-    
-    logger.warn(`[Cache] Invalidating user progress cache for user: ${safeUserId} (force: ${safeForce}, online: ${isOnline}, { operation: 'warn' })`);
+  
+  logger.warn(`[Cache] Invalidating user progress cache for user: ${safeUserId}`, { operation: 'warn' });
 
-    revalidateTag(`user-${safeUserId}`);
-    revalidateTag("user-progress");
-    revalidateTag("training"); // Инвалидируем кэш дней тренировок
-    revalidateTag("days"); // Инвалидируем кэш дней тренировок
-    revalidateTag("courses-favorites"); // Инвалидируем кэш избранных курсов
-    revalidateTag("courses"); // Инвалидируем общий кэш курсов
-    revalidateTag("courses-metadata"); // Инвалидируем кэш метаданных курсов
-    revalidateTag("achievements"); // Инвалидируем кэш дат занятий для серий
-    revalidateTag("streaks"); // Инвалидируем кэш дат занятий для серий
-    
-    logger.warn(`[Cache] User progress cache invalidated successfully for user: ${safeUserId}`, { operation: 'warn' });
-    return { success: true };
-  } catch (error) {
-    logger.error("❌ Error invalidating user progress cache:", error as Error, { operation: 'error' });
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error" 
-    };
-  }
+  revalidateTag(`user-${safeUserId}`);
+  revalidateTag("user-progress");
+  revalidateTag("training");
+  revalidateTag("days");
+  revalidateTag("courses-favorites");
+  revalidateTag("courses");
+  revalidateTag("courses-metadata");
+  revalidateTag("achievements");
+  revalidateTag("streaks");
+
+  logger.warn(`[Cache] User progress cache invalidated successfully for user: ${safeUserId}`, { operation: 'warn' });
+  return { success: true };
 }
