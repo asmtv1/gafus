@@ -9,7 +9,7 @@ import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import { deletePet } from "@shared/lib/pets/deletePet";
 import { savePet } from "@shared/lib/pets/savePet";
-import { clearProfilePageCache } from "@shared/lib/utils/clearProfileCache";
+import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
 import { showEditPetAlert, showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
 
@@ -20,9 +20,9 @@ import type { PublicProfile, PetFormData } from "@gafus/types";
 
 type PetFromPublicProfile = PublicProfile['pets'][0];
 
-import { getAgeWithMonths, declOfNum } from "@/utils";
-import { Avatar, IconButton } from "@/utils/muiImports";
-import { getPetTypeLabel } from "@/utils/petType";
+import { getAgeWithMonths, declOfNum } from "@gafus/core/utils";
+import { Avatar, IconButton } from "@shared/utils/muiImports";
+import { getPetTypeLabel } from "@gafus/core/utils";
 
 // Создаем логгер для pet-list
 const logger = createWebLogger('web-pet-list');

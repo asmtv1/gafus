@@ -7,7 +7,7 @@ import { pauseNotificationClient, resumeNotificationClient, resetNotificationCli
 import { pauseUserStepServerAction, resumeUserStepServerAction } from "@shared/lib/training/pauseResumeUserStep";
 import { startUserStepServerAction } from "@shared/lib/training/startUserStepServerAction";
 import { updateStepStatusServerAction } from "@shared/lib/training/updateUserStepStatus";
-import { hapticStart, hapticComplete } from "@/utils/hapticFeedback";
+import { hapticStart, hapticComplete } from "@shared/utils/hapticFeedback";
 
 // Создаем логгер для timer store
 const logger = createWebLogger('web-timer-store');

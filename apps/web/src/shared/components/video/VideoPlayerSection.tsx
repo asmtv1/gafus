@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Box, CircularProgress, Alert, Typography } from "@/utils/muiImports";
-import { PlayArrowIcon } from "@/utils/muiImports";
+import { Box, CircularProgress, Alert, Typography } from "@shared/utils/muiImports";
+import { PlayArrowIcon } from "@shared/utils/muiImports";
 import { HLSVideoPlayer } from "./HLSVideoPlayer";
 import { getCDNUrl } from "@gafus/cdn-upload";
 import { getVideoMetadata } from "@shared/lib/video/getVideoMetadata";

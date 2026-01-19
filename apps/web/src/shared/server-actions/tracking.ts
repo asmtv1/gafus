@@ -5,12 +5,12 @@
  */
 
 import { createWebLogger } from "@gafus/logger";
-import * as trackingService from "@shared/services/tracking/trackingService";
+import * as trackingService from "@gafus/core/services/tracking";
 import type {
   TrackPresentationViewData,
   TrackPresentationEventData,
   PresentationEventType,
-} from "@shared/services/tracking/trackingService";
+} from "@gafus/core/services/tracking";
 
 const logger = createWebLogger('tracking-actions');
 

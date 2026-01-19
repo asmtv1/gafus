@@ -5,9 +5,9 @@ import Link from "next/link";
 
 import { useCachedTrainingDays } from "@shared/hooks/useCachedTrainingDays";
 import { useStepStore } from "@shared/stores/stepStore";
-import { calculateDayStatus } from "@shared/utils/trainingCalculations";
+import { calculateDayStatus } from "@gafus/core/utils/training";
 import { showLockedDayAlert, showPrivateCourseAccessDeniedAlert } from "@shared/utils/sweetAlert";
-import { LockIcon } from "@/utils/muiImports";
+import { LockIcon } from "@shared/utils/muiImports";
 import styles from "./TrainingDayList.module.css";
 
 interface TrainingDayListProps {

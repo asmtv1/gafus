@@ -1,0 +1,41 @@
+.button {
+  background-color: unset;
+  border: none;
+  position: absolute;
+  top: -4%;
+  left: 82%;
+}
+
+.icon {
+  font-size: 2.5rem;
+}
+
+.iconFavorite {
+  stroke: none;
+  fill: gold;
+}
+
+.iconNotFavorite {
+  stroke: #636128;
+  stroke-width: 1px;
+  fill: transparent;
+}
+
+.iconPending {
+  opacity: 0.7;
+}
+
+.pendingIndicator {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background-color: #ffa500;
+  border-radius: 50%;
+  border: 1px solid white;
+}
+
+.error {
+  color: red;
+}

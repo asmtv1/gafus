@@ -54,3 +54,4 @@ connection.on('reconnecting', () => {
     });
 });
 export default connection;
+//# sourceMappingURL=redis.js.map

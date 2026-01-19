@@ -6,7 +6,7 @@ import { useCourseStore } from "@shared/stores/courseStore";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { TrainingStatus } from "@gafus/types";
-import { calculateDayStatus } from "@shared/utils/trainingCalculations";
+import { calculateDayStatus } from "@gafus/core/utils/training";
 
 /**
  * Хук для синхронизации данных прогресса курсов между stores

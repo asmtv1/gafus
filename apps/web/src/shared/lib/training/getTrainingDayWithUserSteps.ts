@@ -6,10 +6,10 @@ import { calculateDayStatusFromStatuses } from "@gafus/types";
 
 import type { ChecklistQuestion, TrainingDetail } from "@gafus/types";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { dayIdSchema, trainingTypeSchema } from "../validation/schemas";
 import { NON_NUMBERED_DAY_TYPES } from "./dayTypes";
-import { checkCourseAccess } from "@shared/services/course/courseService";
+import { checkCourseAccess } from "@gafus/core/services/course";
 
 const courseTypeSchema = trainingTypeSchema;
 

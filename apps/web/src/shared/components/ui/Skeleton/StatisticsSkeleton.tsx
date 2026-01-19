@@ -1,4 +1,4 @@
-import { Skeleton, Box } from "@/utils/muiImports";
+import { Skeleton, Box } from "@shared/utils/muiImports";
 
 export default function StatisticsSkeleton() {
   return (

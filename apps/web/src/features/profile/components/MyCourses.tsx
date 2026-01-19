@@ -1,6 +1,6 @@
 import type { UserCourseInfo } from "@gafus/types";
 
-import { formatDate } from "@/utils/date";
+import { formatDate } from "@gafus/core/utils";
 
 export default function MyCourses({
   courseName,

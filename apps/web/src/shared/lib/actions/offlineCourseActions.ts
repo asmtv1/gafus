@@ -3,7 +3,7 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { trainingTypeSchema } from "../validation/schemas";
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import type { FullCourseData } from "../offline/types";
 
 const logger = createWebLogger("web-offline-course-actions");

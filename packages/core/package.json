@@ -1,0 +1,85 @@
+{
+  "name": "@gafus/core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/core/src/index.js",
+  "types": "./dist/core/src/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/core/src/index.d.ts",
+      "default": "./dist/core/src/index.js"
+    },
+    "./services/course": {
+      "types": "./dist/core/src/services/course/index.d.ts",
+      "default": "./dist/core/src/services/course/index.js"
+    },
+    "./services/user": {
+      "types": "./dist/core/src/services/user/index.d.ts",
+      "default": "./dist/core/src/services/user/index.js"
+    },
+    "./services/auth": {
+      "types": "./dist/core/src/services/auth/index.d.ts",
+      "default": "./dist/core/src/services/auth/index.js"
+    },
+    "./services/notifications": {
+      "types": "./dist/core/src/services/notifications/index.d.ts",
+      "default": "./dist/core/src/services/notifications/index.js"
+    },
+    "./services/subscriptions": {
+      "types": "./dist/core/src/services/subscriptions/index.d.ts",
+      "default": "./dist/core/src/services/subscriptions/index.js"
+    },
+    "./services/tracking": {
+      "types": "./dist/core/src/services/tracking/index.d.ts",
+      "default": "./dist/core/src/services/tracking/index.js"
+    },
+    "./services/achievements": {
+      "types": "./dist/core/src/services/achievements/index.d.ts",
+      "default": "./dist/core/src/services/achievements/index.js"
+    },
+    "./errors": {
+      "types": "./dist/core/src/errors/index.d.ts",
+      "default": "./dist/core/src/errors/index.js"
+    },
+    "./utils": {
+      "types": "./dist/core/src/utils/index.d.ts",
+      "default": "./dist/core/src/utils/index.js"
+    },
+    "./utils/social": {
+      "types": "./dist/core/src/utils/social.d.ts",
+      "default": "./dist/core/src/utils/social.js"
+    },
+    "./utils/training": {
+      "types": "./dist/core/src/utils/training.d.ts",
+      "default": "./dist/core/src/utils/training.js"
+    },
+    "./utils/retry": {
+      "types": "./dist/core/src/utils/retry.d.ts",
+      "default": "./dist/core/src/utils/retry.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/logger": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "@gafus/queues": "workspace:*",
+    "@gafus/cdn-upload": "workspace:*",
+    "@gafus/auth": "workspace:*",
+    "zod": "^3.24.1",
+    "libphonenumber-js": "^1.12.8"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "rimraf": "5.0.1",
+    "typescript": "5.8.3"
+  }
+}

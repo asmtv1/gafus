@@ -14,7 +14,7 @@ import styles from "./CourseCard.module.css";
 
 import type { CourseCardPropsWithIndex } from "@gafus/types";
 
-import { declOfNum } from "@/utils";
+import { declOfNum } from "@gafus/core/utils";
 import { SimpleCourseRating } from "../CourseRating";
 import { FavoriteButton } from "../FavoriteButton";
 import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";

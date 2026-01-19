@@ -15,6 +15,9 @@ export interface ErrorDashboardReport {
     createdAt: Date;
     updatedAt: Date;
     tags: string[];
+    status?: 'new' | 'viewed' | 'resolved' | 'archived';
+    resolvedAt?: Date | null;
+    resolvedBy?: string | null;
 }
 export interface ErrorListProps {
     errors: ErrorDashboardReport[];
@@ -28,3 +31,4 @@ export interface ErrorStatsProps {
 export interface SessionProviderWrapperProps {
     children: React.ReactNode;
 }
+//# sourceMappingURL=error-dashboard.d.ts.map

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { trackPresentationView } from "@shared/services/tracking/trackingService";
+import { trackPresentationView } from "@gafus/core/services/tracking";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger('api-track-presentation');

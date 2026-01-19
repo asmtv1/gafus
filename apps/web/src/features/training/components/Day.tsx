@@ -7,7 +7,7 @@ import type { TrainingDetail } from "@gafus/types";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useTrainingStore } from "@shared/stores/trainingStore";
 import { markTheoryStepAsCompleted } from "@shared/lib/training/markTheoryStepAsCompleted";
-import { ExpandMoreIcon } from "@/utils/muiImports";
+import { ExpandMoreIcon } from "@shared/utils/muiImports";
 import { AccordionStep } from "./AccordionStep";
 import styles from "./Day.module.css";
 

@@ -2,7 +2,7 @@
 
 import { unstable_cache } from "next/cache";
 import { prisma } from "@gafus/prisma";
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger('web-get-user-training-dates');

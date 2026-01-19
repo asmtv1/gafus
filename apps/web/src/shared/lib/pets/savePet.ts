@@ -3,7 +3,7 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 import type { Prisma, PetType } from "@gafus/prisma";
 import type { UpdatePetInput } from "@gafus/types";

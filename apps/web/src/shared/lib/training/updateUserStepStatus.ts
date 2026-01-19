@@ -8,7 +8,7 @@ import { createWebLogger } from "@gafus/logger";
 import { checkAndCompleteCourse } from "../user/userCourses";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { calculateDayStatusFromStatuses } from "@gafus/types";
 import {
   courseIdSchema,

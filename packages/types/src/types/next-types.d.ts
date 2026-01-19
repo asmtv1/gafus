@@ -28,3 +28,4 @@ export interface NextResponse {
     headers: Headers;
     cookies: Record<string, string>;
 }
+//# sourceMappingURL=next-types.d.ts.map

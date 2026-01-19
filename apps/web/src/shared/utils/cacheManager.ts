@@ -4,7 +4,7 @@ import { TrainingStatus, type CourseWithProgressData } from "@gafus/types";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useCourseStore } from "@shared/stores/courseStore";
 import { useUserStore } from "@shared/stores/userStore";
-import { calculateDayStatus as calcDay, calculateCourseStatus as calcCourse } from "@shared/utils/trainingCalculations";
+import { calculateDayStatus as calcDay, calculateCourseStatus as calcCourse } from "@gafus/core/utils/training";
 import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для cache manager
@@ -370,7 +370,7 @@ export async function syncCourseStoreWithStepStates() {
   const { useStepStore } = await import("@shared/stores/stepStore");
   const { useCourseStore } = await import("@shared/stores/courseStore");
   const { TrainingStatus } = await import("@gafus/types");
-  const { calculateCourseStatus } = await import("@shared/utils/trainingCalculations");
+  const { calculateCourseStatus } = await import("@gafus/core/utils/training");
   
   const stepStates = useStepStore.getState().stepStates;
   const courseStore = useCourseStore.getState();

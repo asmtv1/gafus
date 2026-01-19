@@ -17,6 +17,8 @@
 
     "baseUrl": ".",
     "paths": {
+      "@gafus/core": ["packages/core/src/index.ts"],
+      "@gafus/core/*": ["packages/core/src/*"],
       "@gafus/prisma": ["packages/prisma/src/index.ts"],
       "@gafus/prisma/*": ["packages/prisma/src/*"],
       "@queues": ["packages/queues/src"],

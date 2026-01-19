@@ -16,7 +16,7 @@ import CourseFilters, {
   type SortingType, 
   type RatingFilterType 
 } from "@/features/courses/components/CourseFilters";
-import { filterAndSortCourses } from "@/features/courses/utils/courseFilters";
+import { filterAndSortCourses } from "@shared/utils/courseFilters";
 
 interface CoursesClientProps {
   initialCourses?: CourseWithProgressData[] | null;

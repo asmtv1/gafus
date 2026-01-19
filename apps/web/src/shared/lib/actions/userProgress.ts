@@ -2,7 +2,7 @@
 
 import { createWebLogger } from "@gafus/logger";
 import { getUserProgress } from "@shared/lib/user/getUserProgress";
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 import { courseIdSchema } from "../validation/schemas";
 import { z } from "zod";

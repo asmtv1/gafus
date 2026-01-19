@@ -6,7 +6,7 @@ import { createWebLogger } from "@gafus/logger";
 
 import type { UserWithTrainings } from "@gafus/types";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 // Создаем логгер для getUserWithTrainings
 const logger = createWebLogger('web-get-user-with-trainings');

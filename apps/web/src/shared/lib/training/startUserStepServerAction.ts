@@ -9,7 +9,7 @@ import { TrainingStatus } from "@gafus/types";
 import { updateUserStepStatus } from "./updateUserStepStatus";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
 
 // Создаем логгер для startUserStepServerAction

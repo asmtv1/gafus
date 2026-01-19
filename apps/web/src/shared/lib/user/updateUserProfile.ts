@@ -8,8 +8,8 @@ import { createWebLogger } from "@gafus/logger";
 import type { Prisma } from "@gafus/prisma";
 import type { UpdateUserProfileInput } from "@gafus/types";
 
-import { getCurrentUserId } from "@/utils";
-import { normalizeTelegramInput, normalizeInstagramInput, normalizeWebsiteUrl } from "@/shared/utils/socialLinks";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
+import { normalizeTelegramInput, normalizeInstagramInput, normalizeWebsiteUrl } from "@gafus/core/utils/social";
 
 const logger = createWebLogger('web');
 

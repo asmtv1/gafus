@@ -26,6 +26,11 @@ export interface TrainerStepTableRow {
     title: string;
     description: string;
     durationSec: number;
+    estimatedDurationSec?: number | null;
+    author?: {
+        username: string;
+        fullName?: string | null;
+    };
     stepLinks: {
         order: number;
         day: {
@@ -45,6 +50,10 @@ export interface TrainerDayTableRow {
     title: string;
     description?: string;
     type: string;
+    author?: {
+        username: string;
+        fullName?: string | null;
+    };
     stepLinks?: {
         step: {
             id: string;
@@ -63,3 +72,4 @@ export interface IdTitleItem {
     id: string;
     title: string;
 }
+//# sourceMappingURL=trainer-panel.d.ts.map

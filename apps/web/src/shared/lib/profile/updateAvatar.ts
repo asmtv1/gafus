@@ -6,7 +6,7 @@ import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl, getUserA
 import { z } from "zod";
 import { randomUUID } from "crypto";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 // Создаем логгер для updateAvatar
 const logger = createWebLogger('web-update-avatar');

@@ -3,3 +3,4 @@ export declare enum TrainingStatus {
     IN_PROGRESS = "IN_PROGRESS",
     COMPLETED = "COMPLETED"
 }
+//# sourceMappingURL=training-status.d.ts.map

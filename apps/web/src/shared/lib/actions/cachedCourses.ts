@@ -6,8 +6,7 @@ import { prisma } from "@gafus/prisma";
 import type { Prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
-import { getCoursesWithProgress } from "@shared/services/course/courseService";
-import { getFavoritesCourses } from "@shared/services/course/favoriteService";
+import { getCoursesWithProgress, getFavoritesCourses } from "@gafus/core/services/course";
 import { optionalUserIdSchema } from "../validation/schemas";
 
 // Типы для прогресса пользователя

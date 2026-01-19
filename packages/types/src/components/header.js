@@ -1,3 +1,3 @@
-"use strict";
 // Типы для компонента Header
-Object.defineProperty(exports, "__esModule", { value: true });
+export {};
+//# sourceMappingURL=header.js.map

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import { celebrateCourseCompletion } from "@/utils/confetti";
-import { hapticAchievement } from "@/utils/hapticFeedback";
+import { celebrateCourseCompletion } from "@shared/utils/confetti";
+import { hapticAchievement } from "@shared/utils/hapticFeedback";
 import Swal from "sweetalert2";
 
 interface UseCourseCompletionCelebrationProps {

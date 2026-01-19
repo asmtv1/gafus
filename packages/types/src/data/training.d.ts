@@ -1,17 +1,25 @@
 import type { TrainingStatus } from "../utils/training-status";
+export interface ChecklistQuestion {
+    id: string;
+    question: string;
+    options: string[];
+    correctAnswer: number;
+    comment?: string;
+}
 export interface Step {
     id: string;
     title: string;
     description: string;
     durationSec: number;
+    estimatedDurationSec?: number | null;
     imageUrls: string[];
     pdfUrls: string[];
     videoUrl?: string;
     authorId: string;
     createdAt: Date;
     updatedAt: Date;
-    type?: "TRAINING" | "EXAMINATION" | "THEORY";
-    checklist?: any;
+    type?: "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE";
+    checklist?: ChecklistQuestion[];
     requiresVideoReport?: boolean;
     requiresWrittenFeedback?: boolean;
     hasTestQuestions?: boolean;
@@ -72,3 +80,4 @@ export interface TrainingDayProps {
     trainingId: string;
     courseId: string;
 }
+//# sourceMappingURL=training.d.ts.map

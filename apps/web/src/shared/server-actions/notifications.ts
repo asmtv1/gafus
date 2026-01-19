@@ -7,7 +7,7 @@
  * и добавляют авторизацию через getCurrentUserId.
  */
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
@@ -19,7 +19,7 @@ import {
   deleteStepNotification,
   createStepNotification,
   getDayFromDayOnCourseId,
-} from "@shared/services/notifications/stepNotificationService";
+} from "@gafus/core/services/notifications";
 import {
   courseIdSchema,
   stepIndexSchema,

@@ -10,7 +10,7 @@
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
 import type { NextAuthOptions } from "next-auth";
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 import { authOptions } from "@gafus/auth";
@@ -22,7 +22,7 @@ import {
   getUserSubscriptionStatus,
   getUserSubscriptionCount,
   getUserSubscriptions,
-} from "@shared/services/subscriptions/pushSubscriptionService";
+} from "@gafus/core/services/subscriptions";
 
 const logger = createWebLogger('subscription-server-actions');
 

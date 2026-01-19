@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import type { CourseReviewData, UserReviewStatus } from "@shared/server-actions";
 import { showSuccessAlert, showErrorAlert, showConfirmDialog } from "@shared/utils/sweetAlert";
-import { getCurrentUserId } from "@/utils/getCurrentUserId";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { useReviewsStore } from "@shared/stores/reviewsStore";
 import styles from "./ReviewsList.module.css";
 

@@ -4,7 +4,7 @@ import { prisma } from "@gafus/prisma";
 import { pushQueue } from "@gafus/queues";
 import { z } from "zod";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { dayNumberSchema, stepIndexSchema } from "../validation/schemas";
 
 const deleteSchema = z.object({

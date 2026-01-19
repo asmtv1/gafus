@@ -17,3 +17,4 @@ export interface EnhancedStepsTableProps {
     steps: TrainerStep[];
     onStepUpdated: () => void;
 }
+//# sourceMappingURL=steps.d.ts.map

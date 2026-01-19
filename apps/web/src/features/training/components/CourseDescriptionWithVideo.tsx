@@ -2,9 +2,9 @@ import { memo, useMemo, useCallback, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 import styles from "./CourseDescriptionWithVideo.module.css";
-import { ExpandMoreIcon } from "@/utils/muiImports";
+import { ExpandMoreIcon } from "@shared/utils/muiImports";
 
-import { getEmbeddedVideoInfo } from "@/utils";
+import { getEmbeddedVideoInfo } from "@gafus/core/utils";
 import ShareButton from "./ShareButton/ShareButton";
 
 interface Props {

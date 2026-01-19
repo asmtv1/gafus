@@ -1,4 +1,3 @@
-import type { ComponentType, ReactNode } from "../types";
 export interface ErrorReportingConfig {
     appName: string;
     environment: "development" | "staging" | "production";
@@ -18,4 +17,4 @@ export interface ErrorReport {
     userAgent?: string;
     additionalData?: Record<string, unknown>;
 }
-// ErrorReporterProps и ErrorReporterState удалены - используйте ErrorBoundary из @gafus/error-handling
+//# sourceMappingURL=reporting.d.ts.map

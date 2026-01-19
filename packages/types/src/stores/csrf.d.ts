@@ -15,3 +15,4 @@ export interface CSRFState {
     getTokenAge: () => number | null;
     shouldRefreshToken: () => boolean;
 }
+//# sourceMappingURL=csrf.d.ts.map

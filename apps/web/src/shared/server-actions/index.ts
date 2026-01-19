@@ -77,7 +77,7 @@ export type {
   UserReviewStatus,
   CourseReviewsResult,
   ReviewActionResult,
-} from "@shared/services/course/reviewService";
+} from "@gafus/core/services/course";
 
 // User & Profile Actions
 export {

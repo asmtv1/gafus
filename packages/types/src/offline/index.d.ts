@@ -1,7 +1,7 @@
 export interface OfflineAction {
     id: string;
-    type: "step-completion" | "profile-update" | "comment" | "rating" | "step-status-update" | "step-pause" | "step-resume" | "cache-invalidation";
-    data: StepCompletionData | ProfileUpdateData | CommentData | RatingData | StepStatusUpdateData | StepPauseData | StepResumeData | CacheInvalidationData;
+    type: "step-completion" | "profile-update" | "comment" | "rating" | "step-status-update" | "step-pause" | "step-resume" | "cache-invalidation" | "favorite-toggle";
+    data: StepCompletionData | ProfileUpdateData | CommentData | RatingData | StepStatusUpdateData | StepPauseData | StepResumeData | CacheInvalidationData | FavoriteToggleData;
     timestamp: number;
     retryCount: number;
     maxRetries: number;
@@ -34,7 +34,7 @@ export interface RatingData {
 }
 export interface StepStatusUpdateData {
     courseId: string;
-    day: number;
+    dayOnCourseId: string;
     stepIndex: number;
     status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
     stepTitle?: string;
@@ -42,14 +42,14 @@ export interface StepStatusUpdateData {
 }
 export interface StepPauseData {
     courseId: string;
-    day: number;
+    dayOnCourseId: string;
     stepIndex: number;
     pausedAt: number;
     timeLeft: number;
 }
 export interface StepResumeData {
     courseId: string;
-    day: number;
+    dayOnCourseId: string;
     stepIndex: number;
     resumedAt: number;
     timeLeft: number;
@@ -57,6 +57,10 @@ export interface StepResumeData {
 export interface CacheInvalidationData {
     userId: string;
     cacheKeys: string[];
+}
+export interface FavoriteToggleData {
+    courseId: string;
+    action: 'add' | 'remove';
 }
 export interface OfflineState {
     isOnline: boolean;

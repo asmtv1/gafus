@@ -1,3 +1,3 @@
-"use strict";
 // Специфичные типы для приложения trainer-panel
-Object.defineProperty(exports, "__esModule", { value: true });
+export {};
+//# sourceMappingURL=trainer-panel.js.map

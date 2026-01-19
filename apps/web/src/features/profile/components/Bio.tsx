@@ -9,8 +9,8 @@ import TrainerCoursesSection from "./TrainerCoursesSection";
 
 import type { BioProps } from "@gafus/types";
 
-import { getAge, declOfNum } from "@/utils";
-import { getTelegramUrl, getInstagramUrl } from "@/shared/utils/socialLinks";
+import { getAge, declOfNum } from "@gafus/core/utils";
+import { getTelegramUrl, getInstagramUrl } from "@gafus/core/utils/social";
 import { InstagramIcon, TelegramIcon, WebsiteIcon } from "./SocialIcons";
 
 export default function Bio({ publicData, isOwner, username, userData }: BioProps) {

@@ -4,7 +4,7 @@ import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 // eslint-disable-next-line unused-imports/no-unused-imports
 import { dayIdSchema } from "../validation/schemas";
 import { calculateDayStatusFromStatuses } from "@gafus/types";

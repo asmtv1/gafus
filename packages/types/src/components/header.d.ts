@@ -3,3 +3,4 @@ export interface HeaderProps {
     avatarUrl: string;
     trainerOnly: boolean;
 }
+//# sourceMappingURL=header.d.ts.map

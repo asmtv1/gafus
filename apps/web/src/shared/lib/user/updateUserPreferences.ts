@@ -6,7 +6,7 @@ import { createWebLogger } from "@gafus/logger";
 
 import type { UserPreferences } from "@gafus/types";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 const logger = createWebLogger('web');
 

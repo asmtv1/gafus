@@ -13,7 +13,7 @@ import {
 } from "@shared/components/ui/FormField";
 import { usePetZodForm } from "@shared/hooks/usePetZodForm";
 import { savePet } from "@shared/lib/pets/savePet";
-import { clearProfilePageCache } from "@shared/lib/utils/clearProfileCache";
+import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
 
 import type { PetFormSchema } from "@shared/lib/validation/petSchemas";
 import styles from "./AddPetForm.module.css";

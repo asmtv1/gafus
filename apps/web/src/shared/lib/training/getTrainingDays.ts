@@ -8,9 +8,9 @@ import { calculateDayStatusFromStatuses } from "@gafus/types";
 
 import type { TrainingDetail } from "@gafus/types";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { optionalTrainingTypeSchema, optionalUserIdSchema } from "../validation/schemas";
-import { checkCourseAccessById } from "@shared/services/course/courseService";
+import { checkCourseAccessById } from "@gafus/core/services/course";
 
 // Создаем логгер для getTrainingDays
 const logger = createWebLogger("web-get-training-days");

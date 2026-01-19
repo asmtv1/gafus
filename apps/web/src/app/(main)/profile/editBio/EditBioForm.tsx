@@ -4,7 +4,7 @@ import { FormField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { userProfileFormSchema } from "@shared/lib/validation/authSchemas";
 import { useUserStore } from "@shared/stores";
-import { clearProfilePageCache } from "@shared/lib/utils/clearProfileCache";
+import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";

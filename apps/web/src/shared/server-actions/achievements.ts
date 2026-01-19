@@ -6,8 +6,8 @@
 
 import { unstable_cache } from "next/cache";
 import { createWebLogger } from "@gafus/logger";
-import { getCurrentUserId } from "@/utils";
-import * as datesService from "@shared/services/achievements/datesService";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
+import * as datesService from "@gafus/core/services/achievements";
 
 const logger = createWebLogger('achievements-actions');
 

@@ -7,7 +7,7 @@ import { createWebLogger } from "@gafus/logger";
 
 import type { PushSubscriptionJSON } from "@gafus/types";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { authOptions } from "@gafus/auth";
 
 // Создаем логгер для savePushSubscription

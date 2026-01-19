@@ -5,7 +5,7 @@ import { TrainingStatus } from "@gafus/types";
 import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 import { courseIdSchema } from "../validation/schemas";
 

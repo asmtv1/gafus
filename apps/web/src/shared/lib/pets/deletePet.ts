@@ -4,7 +4,7 @@ import { deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload"
 import { prisma } from "@gafus/prisma";
 import { revalidatePath } from "next/cache";
 import { createWebLogger } from "@gafus/logger";
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { petIdSchema } from "../validation/petSchemas";
 
 const logger = createWebLogger('web-delete-pet');

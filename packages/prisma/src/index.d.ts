@@ -1,6 +1,7 @@
 export type { Course, CourseAccess, CourseReview, DayOnCourse, ErrorLog, FavoriteCourse, Pet, PrismaClient, PushSubscription, Step, StepNotification, StepOnDay, TrainingDay, TrainingLevel, TrainingStatus, User, UserCourse, UserProfile, UserRole, UserStep, UserTraining, } from "@prisma/client";
-export { PetType } from "@prisma/client";
-export { Prisma } from "@prisma/client";
+export { PetType, StepType, TranscodingStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+export { Prisma };
 import type { PrismaClient } from "@prisma/client";
 export interface DatabaseClient {
     user: PrismaClient["user"];
@@ -26,3 +27,5 @@ export interface DatabaseClient {
     $transaction: <T>(fn: (prisma: DatabaseClient) => Promise<T>) => Promise<T>;
 }
 export { prisma, default as prismaClient } from "./client";
+export declare function isPrismaUniqueConstraintError(error: unknown): boolean;
+//# sourceMappingURL=index.d.ts.map

@@ -5,7 +5,7 @@
  */
 
 import { unstable_cache, revalidatePath } from "next/cache";
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 import { getAuthoredCoursesWithStats } from "@gafus/statistics";
@@ -16,20 +16,16 @@ import {
   checkCourseAccess,
   checkCourseAccessById,
   getCourseMetadata,
-} from "@shared/services/course/courseService";
-import {
   getFavoritesCourses,
   toggleFavoriteCourse,
   addFavoriteCourse,
   removeFavoriteCourse,
-} from "@shared/services/course/favoriteService";
-import {
   getCourseReviews,
   createCourseReview,
   updateCourseReview,
   deleteCourseReview,
   rateCourse,
-} from "@shared/services/course/reviewService";
+} from "@gafus/core/services/course";
 import { invalidateUserProgressCache } from "./cache";
 
 const logger = createWebLogger('course-server-actions');

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import parsePhoneNumberFromString from "libphonenumber-js";
-import { normalizeTelegramInput, normalizeInstagramInput, normalizeWebsiteUrl } from "@/shared/utils/socialLinks";
+import { normalizeTelegramInput, normalizeInstagramInput, normalizeWebsiteUrl } from "@gafus/core/utils/social";
 
 // ===== СХЕМЫ АУТЕНТИФИКАЦИИ =====
 

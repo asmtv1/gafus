@@ -3,7 +3,7 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 // Создаем логгер для deletePushSubscription
 const logger = createWebLogger('web-delete-push-subscription');

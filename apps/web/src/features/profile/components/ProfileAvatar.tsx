@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar } from "@/utils/muiImports";
+import { Avatar } from "@shared/utils/muiImports";
 
 interface ProfileAvatarProps {
   avatarUrl: string | null;

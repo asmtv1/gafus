@@ -6,7 +6,7 @@ import { createWebLogger } from "@gafus/logger";
 
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
 
 const logger = createWebLogger('web');

@@ -6,7 +6,7 @@ import { createWebLogger } from "@gafus/logger";
 import type { PetType } from "@gafus/prisma";
 import type { CreatePetInput } from "@gafus/types";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 import { createPetSchema } from "../validation/petSchemas";
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { trackReengagementClick } from "@shared/services/tracking/trackingService";
+import { trackReengagementClick } from "@gafus/core/services/tracking";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger('api-track-reengagement-click');

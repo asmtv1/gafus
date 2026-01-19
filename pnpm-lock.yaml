@@ -562,6 +562,9 @@ importers:
       '@gafus/cdn-upload':
         specifier: workspace:^
         version: link:../../packages/cdn-upload
+      '@gafus/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@gafus/csrf':
         specifier: workspace:*
         version: link:../../packages/csrf
@@ -756,6 +759,43 @@ importers:
         version: 8.57.1
       typescript:
         specifier: ^5.3.3
+        version: 5.8.3
+
+  packages/core:
+    dependencies:
+      '@gafus/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@gafus/cdn-upload':
+        specifier: workspace:*
+        version: link:../cdn-upload
+      '@gafus/logger':
+        specifier: workspace:*
+        version: link:../logger
+      '@gafus/prisma':
+        specifier: workspace:*
+        version: link:../prisma
+      '@gafus/queues':
+        specifier: workspace:*
+        version: link:../queues
+      '@gafus/types':
+        specifier: workspace:*
+        version: link:../types
+      libphonenumber-js:
+        specifier: ^1.12.8
+        version: 1.12.8
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: 20.4.8
+        version: 20.4.8
+      rimraf:
+        specifier: 5.0.1
+        version: 5.0.1
+      typescript:
+        specifier: 5.8.3
         version: 5.8.3
 
   packages/csrf:

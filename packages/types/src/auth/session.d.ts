@@ -6,3 +6,4 @@ export interface UserSession {
         role?: string;
     };
 }
+//# sourceMappingURL=session.d.ts.map

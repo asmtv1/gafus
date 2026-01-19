@@ -6,7 +6,7 @@ import { createWebLogger } from "@gafus/logger";
 
 import type { OptimizedImageProps } from "@gafus/types";
 
-import { shouldUseLazyLoading, shouldUsePriority } from "@/utils/imageLoading";
+import { shouldUseLazyLoading, shouldUsePriority } from "@shared/utils/imageLoading";
 
 // Создаем логгер для изображений
 const logger = createWebLogger('web-optimized-image');

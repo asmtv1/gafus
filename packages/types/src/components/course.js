@@ -1,3 +1,3 @@
-"use strict";
 // Типы для компонентов курсов
-Object.defineProperty(exports, "__esModule", { value: true });
+export {};
+//# sourceMappingURL=course.js.map

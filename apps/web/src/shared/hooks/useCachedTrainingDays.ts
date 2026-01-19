@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { getTrainingDays } from "../lib/training/getTrainingDays";
 import { useTrainingStore } from "../stores/trainingStore";
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { getOfflineCourseByType } from "../lib/offline/offlineCourseStorage";
 import { checkCourseUpdates } from "../lib/actions/offlineCourseActions";
 import { isOnline } from "@shared/utils/offlineCacheUtils";

@@ -7,7 +7,7 @@ import imageCompression from "browser-image-compression";
 import { useSession } from "next-auth/react";
 import { useRef, useState, useEffect } from "react";
 
-import { Avatar, Box, IconButton, Tooltip } from "@/utils/muiImports";
+import { Avatar, Box, IconButton, Tooltip } from "@shared/utils/muiImports";
 
 // Создаем логгер для EditablePetAvatar
 const logger = createWebLogger('web-editable-pet-avatar');

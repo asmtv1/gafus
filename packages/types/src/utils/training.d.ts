@@ -14,11 +14,12 @@ export interface TrainingStep {
     title: string;
     description: string;
     durationSec: number;
+    estimatedDurationSec?: number | null;
     status: TrainingStatus;
     order: number;
     isPausedOnServer?: boolean;
     remainingSecOnServer?: number;
-    type?: "TRAINING" | "EXAMINATION" | "THEORY";
+    type?: "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE";
     checklist?: any;
     requiresVideoReport?: boolean;
     requiresWrittenFeedback?: boolean;
@@ -28,7 +29,8 @@ export interface TrainingStep {
 /** Полная информация о тренировочном дне + шаги + статус пользователя */
 export interface TrainingDetail {
     trainingDayId: string;
-    day: number;
+    dayOnCourseId: string;
+    displayDayNumber?: number | null;
     title: string;
     type: string;
     courseId: string;
@@ -37,3 +39,4 @@ export interface TrainingDetail {
     userStatus: TrainingStatus;
     steps: TrainingStep[];
 }
+//# sourceMappingURL=training.d.ts.map

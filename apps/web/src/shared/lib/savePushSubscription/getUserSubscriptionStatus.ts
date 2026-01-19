@@ -2,7 +2,7 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 // Создаем логгер для getUserSubscriptionStatus
 const logger = createWebLogger('web-get-user-subscription-status');

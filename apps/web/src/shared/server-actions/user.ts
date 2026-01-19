@@ -4,7 +4,7 @@
  * Server Actions для работы с пользователем и профилем
  */
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { getCurrentUserId as getCurrentUserIdFromAuth } from "@gafus/auth/server";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
@@ -14,13 +14,11 @@ import {
   updateUserProfile as updateUserProfileService,
   getPublicProfile as getPublicProfileService,
   updateAvatar as updateAvatarService,
-} from "@shared/services/user/profileService";
-import {
   getUserPreferences as getUserPreferencesService,
   updateUserPreferences as updateUserPreferencesService,
-} from "@shared/services/user/preferencesService";
+} from "@gafus/core/services/user";
 
-import { normalizeTelegramInput, normalizeInstagramInput, normalizeWebsiteUrl } from "@/shared/utils/socialLinks";
+import { normalizeTelegramInput, normalizeInstagramInput, normalizeWebsiteUrl } from "@gafus/core/utils/social";
 import type { UpdateUserProfileInput, UserPreferences } from "@gafus/types";
 
 const logger = createWebLogger('user-server-actions');

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useRef, useState, useEffect } from "react";
 
-import { Avatar, Box, IconButton, Tooltip } from "@/utils/muiImports";
+import { Avatar, Box, IconButton, Tooltip } from "@shared/utils/muiImports";
 
 // Создаем логгер для EditableAvatar
 const logger = createWebLogger('web-editable-avatar');

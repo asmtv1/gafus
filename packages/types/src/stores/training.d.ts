@@ -7,7 +7,7 @@ export interface TrainingState {
     cachedTrainingDays: Record<string, {
         data: {
             trainingDays: {
-                day: number;
+                dayOnCourseId: string;
                 title: string;
                 type: string;
                 courseId: string;
@@ -19,16 +19,16 @@ export interface TrainingState {
         };
         timestamp: number;
     }>;
-    getStepKey: (courseId: string, day: number, stepIndex: number) => string;
-    getDayKey: (courseId: string, day: number) => string;
-    getOpenIndex: (courseId: string, day: number) => number | null;
-    getRunningIndex: (courseId: string, day: number) => number | null;
+    getStepKey: (courseId: string, dayOnCourseId: string, stepIndex: number) => string;
+    getDayKey: (courseId: string, dayOnCourseId: string) => string;
+    getOpenIndex: (courseId: string, dayOnCourseId: string) => number | null;
+    getRunningIndex: (courseId: string, dayOnCourseId: string) => number | null;
     getCourseAssigned: (courseId: string) => boolean;
     getAssignError: (courseId: string) => string | null;
     getCachedTrainingDays: (courseType: string) => {
         data: {
             trainingDays: {
-                day: number;
+                dayOnCourseId: string;
                 title: string;
                 type: string;
                 courseId: string;
@@ -42,7 +42,7 @@ export interface TrainingState {
     };
     setCachedTrainingDays: (courseType: string, data: {
         trainingDays: {
-            day: number;
+            dayOnCourseId: string;
             title: string;
             type: string;
             courseId: string;
@@ -53,11 +53,12 @@ export interface TrainingState {
         courseVideoUrl: string | null;
     }) => void;
     clearCachedTrainingDays: (courseType?: string) => void;
-    setOpenIndex: (courseId: string, day: number, index: number | null) => void;
-    setRunningIndex: (courseId: string, day: number, index: number | null) => void;
+    setOpenIndex: (courseId: string, dayOnCourseId: string, index: number | null) => void;
+    setRunningIndex: (courseId: string, dayOnCourseId: string, index: number | null) => void;
     setCourseAssigned: (courseId: string, assigned: boolean) => void;
     setAssignError: (courseId: string, error: string | null) => void;
-    findRunningStepIndex: (courseId: string, day: number, totalSteps: number) => number | null;
-    togglePauseWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
-    resumeNotificationWithServer: (courseId: string, day: number, stepIndex: number) => Promise<void>;
+    findRunningStepIndex: (courseId: string, dayOnCourseId: string, totalSteps: number) => number | null;
+    togglePauseWithServer: (courseId: string, dayOnCourseId: string, stepIndex: number) => Promise<void>;
+    resumeNotificationWithServer: (courseId: string, dayOnCourseId: string, stepIndex: number) => Promise<void>;
 }
+//# sourceMappingURL=training.d.ts.map

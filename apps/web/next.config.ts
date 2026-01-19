@@ -31,7 +31,7 @@ const nextConfig = {
   trailingSlash: false,
   skipTrailingSlashRedirect: true,
   // Исправляем проблемы с React 19 и Next.js 14
-  transpilePackages: ['@gafus/auth', '@gafus/prisma', '@gafus/logger', '@gafus/types', '@gafus/error-handling'],
+  transpilePackages: ['@gafus/auth', '@gafus/prisma', '@gafus/logger', '@gafus/types', '@gafus/error-handling', '@gafus/core'],
   // Настройки для больших файлов (видео)
   serverRuntimeConfig: {
     // Максимальный размер body для API routes
@@ -83,6 +83,19 @@ const nextConfig = {
     // Разрешаем workspace зависимости
     config.resolve.alias = {
       ...config.resolve.alias,
+      "@gafus/core": _path.resolve(__dirname, "../../packages/core/src"),
+      "@gafus/core/services/course": _path.resolve(__dirname, "../../packages/core/src/services/course"),
+      "@gafus/core/services/user": _path.resolve(__dirname, "../../packages/core/src/services/user"),
+      "@gafus/core/services/auth": _path.resolve(__dirname, "../../packages/core/src/services/auth"),
+      "@gafus/core/services/notifications": _path.resolve(__dirname, "../../packages/core/src/services/notifications"),
+      "@gafus/core/services/subscriptions": _path.resolve(__dirname, "../../packages/core/src/services/subscriptions"),
+      "@gafus/core/services/tracking": _path.resolve(__dirname, "../../packages/core/src/services/tracking"),
+      "@gafus/core/services/achievements": _path.resolve(__dirname, "../../packages/core/src/services/achievements"),
+      "@gafus/core/errors": _path.resolve(__dirname, "../../packages/core/src/errors"),
+      "@gafus/core/utils": _path.resolve(__dirname, "../../packages/core/src/utils"),
+      "@gafus/core/utils/social": _path.resolve(__dirname, "../../packages/core/src/utils/social"),
+      "@gafus/core/utils/training": _path.resolve(__dirname, "../../packages/core/src/utils/training"),
+      "@gafus/core/utils/retry": _path.resolve(__dirname, "../../packages/core/src/utils/retry"),
       "@gafus/auth": _path.resolve(__dirname, "../../packages/auth/dist"),
       "@gafus/auth/server": _path.resolve(__dirname, "../../packages/auth/dist"),
       "@gafus/react-query": _path.resolve(__dirname, "../../packages/react-query/dist"),

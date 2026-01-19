@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserId } from "@/utils";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import {
   pauseStepNotification,
   resetStepNotification,

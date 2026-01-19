@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
-import { retryWithBackoff } from "@shared/utils/retryUtils";
+import { retryWithBackoff } from "@gafus/core/utils/retry";
 
 import type {
   CommentData,

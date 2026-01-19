@@ -11,7 +11,7 @@ import {
   resetPasswordSchema,
   usernameSchema,
 } from "@shared/lib/validation/authSchemas";
-import * as authService from "@shared/services/auth/authService";
+import * as authService from "@gafus/core/services/auth";
 
 const logger = createWebLogger('auth-actions');
 

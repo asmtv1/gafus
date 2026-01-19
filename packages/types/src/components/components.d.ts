@@ -15,3 +15,4 @@ export interface CreateDayClientProps {
     visibleSteps: CreateDayClientStep[];
     onDayCreated?: (day: TrainingDay) => void;
 }
+//# sourceMappingURL=components.d.ts.map
