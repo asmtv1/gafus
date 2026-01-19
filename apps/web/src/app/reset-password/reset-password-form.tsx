@@ -2,7 +2,7 @@
 
 import { FormField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
-import resetPasswordByToken from "@shared/lib/auth/login-utils";
+import { resetPasswordAction } from "@shared/server-actions";
 import { resetPasswordFormSchema } from "@shared/lib/validation/authSchemas";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -34,7 +34,7 @@ export default function ResetPasswordForm() {
     }
 
     try {
-      await resetPasswordByToken(token, data.password);
+      await resetPasswordAction(token, data.password);
       setSuccess(true);
       setTimeout(() => router.push("/login"), 3000);
     } catch (err: unknown) {

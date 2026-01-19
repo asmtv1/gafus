@@ -465,12 +465,12 @@ async function syncCacheInvalidation(data: { userId: string; cacheKeys: string[]
 async function syncFavoriteToggle(data: FavoriteToggleData): Promise<void> {
   try {
     // Импортируем функцию переключения избранного
-    const { toggleFavoriteCourse } = await import(
-      "@shared/lib/course/addtoFavorite"
+    const { toggleFavoriteCourseAction } = await import(
+      "@shared/server-actions"
     );
 
     // Вызываем серверное действие для переключения избранного
-    await toggleFavoriteCourse(data.courseId);
+    await toggleFavoriteCourseAction(data.courseId);
   } catch (error) {
     logger.warn("Failed to sync favorite toggle", {
       operation: 'sync_favorite_toggle_error',

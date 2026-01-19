@@ -1,7 +1,7 @@
 "use client";
 
 import { useData } from "@gafus/react-query";
-import { getCoursesWithProgress } from "@shared/lib/course/getCourses";
+import { getCoursesWithProgressAction } from "@shared/server-actions";
 
 /**
  * Хук для получения курсов пользователя с прогрессом
@@ -10,7 +10,7 @@ export function useUserCourses() {
   return useData(
     "user:courses-with-progress",
     async () => {
-      const result = await getCoursesWithProgress();
+      const result = await getCoursesWithProgressAction();
       return result.data;
     },
     {

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { trackReengagementClick } from "@shared/lib/actions/trackReengagementClick";
+import { trackReengagementClick } from "@shared/services/tracking/trackingService";
+import { createWebLogger } from "@gafus/logger";
+
+const logger = createWebLogger('api-track-reengagement-click');
 
 /**
  * API endpoint для отслеживания кликов по re-engagement уведомлениям
@@ -28,7 +31,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } catch (error) {
-    console.error("API: Error tracking reengagement click:", error);
+    logger.error("API: Error tracking reengagement click", error as Error);
     
     return NextResponse.json(
       { error: "Внутренняя ошибка сервера" },

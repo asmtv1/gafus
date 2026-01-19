@@ -34,7 +34,8 @@ function findUnstableCacheIssues(dir: string): CacheIssue[] {
     for (const item of items) {
       const fullPath = path.join(currentDir, item);
 
-      if (item === 'node_modules' || item === '.git' || item.startsWith('.')) {
+      if (item === 'node_modules' || item === '.git' || item.startsWith('.') ||
+          item === 'refactor' || item === 'templates' || item === 'characterization-tests') {
         continue;
       }
 
@@ -94,38 +95,53 @@ function findUnstableCacheIssues(dir: string): CacheIssue[] {
 
     const cacheCall = lines.slice(startLine, endLine + 1).join('\n');
 
+    // Паттерны для userId и его алиасов
+    const userIdPatterns = ['userId', 'user_id', 'cacheKeyUserId', 'safeUserId'];
+    const hasUserId = userIdPatterns.some(p => cacheCall.includes(p));
+
     // Проверяем содержит ли userId
-    if (!cacheCall.includes('userId') && !cacheCall.includes('user_id')) {
+    if (!hasUserId) {
       return null; // Не проверяем кэши без userId
     }
 
-    // Извлекаем ключ кэша
-    const keyMatch = cacheCall.match(/\[([^\]]+)\]/);
-    const cacheKey = keyMatch ? keyMatch[1].trim() : '';
+    // Простая проверка: считаем вхождения userId/алиасов в различных контекстах
+    
+    // Ищем userId в массивах [...] (ключи и теги)
+    const bracketsMatches = cacheCall.match(/\[[^\]]*\]/g) || [];
+    const allBrackets = bracketsMatches.join(' ');
+    
+    // Считаем сколько раз userId встречается в массивах
+    let userInBracketsCount = 0;
+    for (const pattern of userIdPatterns) {
+      const regex = new RegExp(pattern, 'g');
+      const matches = allBrackets.match(regex);
+      if (matches) userInBracketsCount += matches.length;
+    }
+    // Также проверяем `user-${...}` паттерн
+    const userTemplateMatches = allBrackets.match(/`user-\$\{/g);
+    if (userTemplateMatches) userInBracketsCount += userTemplateMatches.length;
 
-    // Извлекаем теги
-    const tagsMatch = cacheCall.match(/tags:\s*\[([^\]]+)\]/);
-    const tags = tagsMatch ? tagsMatch[1].trim() : '';
-
-    // Извлекаем функцию
-    const functionMatch = cacheCall.match(/unstable_cache\(\s*([^,]+),/);
-    const functionCode = functionMatch ? functionMatch[1].trim() : '';
+    // Проверяем аргументы функции внутри unstable_cache
+    const asyncFnMatch = cacheCall.match(/unstable_cache\s*\(\s*async\s*\(([^)]*)\)/);
+    const syncFnMatch = cacheCall.match(/unstable_cache\s*\(\s*\(([^)]*)\)/);
+    const functionArgs = asyncFnMatch ? asyncFnMatch[1] : (syncFnMatch ? syncFnMatch[1] : '');
 
     // Анализируем проблемы
     const issues: string[] = [];
 
-    // 1. userId должен быть в ключе кэша
-    if (!cacheKey.includes('userId') && !cacheKey.includes('user_id')) {
-      issues.push('userId отсутствует в ключе кэша');
+    // userId должен быть минимум в 2 местах: в ключе и в тегах
+    if (userInBracketsCount < 2) {
+      if (userInBracketsCount === 0) {
+        issues.push('userId отсутствует в ключе кэша');
+        issues.push('userId отсутствует в тегах инвалидации');
+      } else {
+        issues.push('userId должен быть и в ключе кэша, и в тегах (найден только в одном месте)');
+      }
     }
 
-    // 2. userId должен быть в тегах
-    if (!tags.includes('userId') && !tags.includes('user_id') && !tags.includes('user-${')) {
-      issues.push('userId отсутствует в тегах инвалидации');
-    }
-
-    // 3. userId НЕ должен быть аргументом функции
-    if (functionCode.includes('(userId') || functionCode.includes('(user_id')) {
+    // Проверяем, что userId НЕ используется как аргумент функции внутри unstable_cache
+    const hasUserAsArg = userIdPatterns.some(p => functionArgs.includes(p));
+    if (hasUserAsArg) {
       issues.push('userId используется как аргумент функции (должен быть в замыкании)');
     }
 

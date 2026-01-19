@@ -1,6 +1,8 @@
-import { getAuthoredCourses } from "@shared/lib/course/getAuthoredCourses";
-import { getCoursesWithProgress } from "@shared/lib/course/getCourses";
-import { getFavoritesCourses } from "@shared/lib/course/getFavoritesCourses";
+import {
+  getAuthoredCoursesAction,
+  getCoursesWithProgressAction,
+  getFavoritesCoursesAction,
+} from "@shared/server-actions";
 import { useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -351,7 +353,7 @@ export const useCourseStoreActions = () => {
       store.setError("all", null);
 
       try {
-        const { data } = await getCoursesWithProgress();
+        const { data } = await getCoursesWithProgressAction();
         store.setAllCourses(data, type);
         return data;
       } catch (error) {
@@ -378,7 +380,7 @@ export const useCourseStoreActions = () => {
     store.setError("favorites", null);
 
     try {
-      const { data, favoriteIds } = await getFavoritesCourses();
+      const { data, favoriteIds } = await getFavoritesCoursesAction();
       const typedData = data as unknown as CourseWithProgressData[];
       store.setFavorites(typedData);
       store.setFavoriteCourseIds(favoriteIds);
@@ -398,7 +400,7 @@ export const useCourseStoreActions = () => {
     store.setError("favorites", null);
 
     try {
-      const { data, favoriteIds } = await getFavoritesCourses();
+      const { data, favoriteIds } = await getFavoritesCoursesAction();
       const typedData = data as unknown as CourseWithProgressData[];
       store.setFavorites(typedData);
 
@@ -421,7 +423,7 @@ export const useCourseStoreActions = () => {
     store.setError("authored", null);
 
     try {
-      const data = await getAuthoredCourses();
+      const data = await getAuthoredCoursesAction();
 
       // Преобразуем AuthoredCourse в CourseWithProgressData
       const transformedData = data.map(

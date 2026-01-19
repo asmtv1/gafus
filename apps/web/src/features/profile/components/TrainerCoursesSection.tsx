@@ -5,7 +5,7 @@ import Image from "next/image";
 
 import styles from "./TrainerCoursesSection.module.css";
 import { showErrorAlert } from "@shared/utils/sweetAlert";
-import { checkCourseAccess } from "@shared/lib/course/checkCourseAccess";
+import { checkCourseAccessAction } from "@shared/server-actions";
 
 import type { PublicProfile } from "@gafus/types";
 
@@ -41,7 +41,7 @@ export default function TrainerCoursesSection({ publicData }: TrainerCoursesSect
   const handleCourseClick = async (course: { type: string; isPrivate: boolean }) => {
     // Если курс приватный, проверяем доступ
     if (course.isPrivate) {
-      const { hasAccess } = await checkCourseAccess(course.type);
+      const { hasAccess } = await checkCourseAccessAction(course.type);
       if (!hasAccess) {
         await showErrorAlert(
           "Этот курс для вас закрыт. Обратитесь к кинологу для получения доступа",

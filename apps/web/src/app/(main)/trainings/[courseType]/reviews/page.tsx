@@ -1,5 +1,4 @@
-import { getCourseReviews } from "@shared/lib/course/getCourseReviews";
-import { checkCourseAccess } from "@shared/lib/course/checkCourseAccess";
+import { getCourseReviewsAction, checkCourseAccessAction } from "@shared/server-actions/course";
 import { ReviewsList } from "@/features/courses/components/ReviewsList";
 import { redirect } from "next/navigation";
 
@@ -13,12 +12,12 @@ export default async function ReviewsPage({ params }: ReviewsPageProps) {
   const { courseType } = await params;
 
   // Проверяем доступ к курсу
-  const accessCheck = await checkCourseAccess(courseType);
+  const accessCheck = await checkCourseAccessAction(courseType);
   if (!accessCheck.hasAccess) {
     redirect("/courses");
   }
 
-  const result = await getCourseReviews(courseType);
+  const result = await getCourseReviewsAction(courseType);
 
   if (!result.success || !result.reviews) {
     redirect(`/trainings/${courseType}`);

@@ -1,6 +1,6 @@
 "use client";
 
-import { serverCheckUserConfirmed } from "@shared/lib/auth/login-utils";
+import { serverCheckUserConfirmedAction } from "@shared/server-actions";
 import { createWebLogger } from "@gafus/logger";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
@@ -20,7 +20,7 @@ export default function ConfirmClient() {
     const interval = setInterval(() => {
       startTransition(async () => {
         try {
-          const confirmed = await serverCheckUserConfirmed(phone);
+          const confirmed = await serverCheckUserConfirmedAction(phone);
           if (confirmed) {
             clearInterval(interval);
             alert("✅ Номер подтверждён. Выполняется вход...");

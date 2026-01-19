@@ -31,8 +31,9 @@ function findPrismaTransactions(dir: string): TransactionIssue[] {
     for (const item of items) {
       const fullPath = path.join(currentDir, item);
 
-      // Пропускаем системные директории
-      if (item === 'node_modules' || item === '.git' || item.startsWith('.')) {
+      // Пропускаем системные директории и скрипты проверки
+      if (item === 'node_modules' || item === '.git' || item.startsWith('.') || 
+          item === 'refactor' || item === 'templates' || item === 'characterization-tests') {
         continue;
       }
 

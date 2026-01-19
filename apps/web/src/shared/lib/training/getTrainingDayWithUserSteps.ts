@@ -9,7 +9,7 @@ import type { ChecklistQuestion, TrainingDetail } from "@gafus/types";
 import { getCurrentUserId } from "@/utils";
 import { dayIdSchema, trainingTypeSchema } from "../validation/schemas";
 import { NON_NUMBERED_DAY_TYPES } from "./dayTypes";
-import { checkCourseAccess } from "../course/checkCourseAccess";
+import { checkCourseAccess } from "@shared/services/course/courseService";
 
 const courseTypeSchema = trainingTypeSchema;
 

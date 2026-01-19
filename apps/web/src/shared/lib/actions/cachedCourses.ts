@@ -6,8 +6,8 @@ import { prisma } from "@gafus/prisma";
 import type { Prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
-import { getCoursesWithProgress } from "../course/getCourses";
-import { getFavoritesCourses } from "../course/getFavoritesCourses";
+import { getCoursesWithProgress } from "@shared/services/course/courseService";
+import { getFavoritesCourses } from "@shared/services/course/favoriteService";
 import { optionalUserIdSchema } from "../validation/schemas";
 
 // Типы для прогресса пользователя
@@ -261,12 +261,15 @@ export async function getCoursesWithProgressCached(userId?: string) {
     async () => {
       try {
         logger.warn("[React Cache] Fetching all courses with progress for user:", { safeUserId, operation: 'warn' });
-        const result = await getCoursesWithProgress(safeUserId);
+        if (!safeUserId) {
+          return { success: false, data: [], error: "User ID is required" };
+        }
+        const data = await getCoursesWithProgress(safeUserId);
         logger.warn(
-          `[React Cache] Cached ${result.data.length} courses successfully for user: ${safeUserId}`,
+          `[React Cache] Cached ${data.length} courses successfully for user: ${safeUserId}`,
           { operation: 'warn' }
         );
-        return { success: true, data: result.data };
+        return { success: true, data };
       } catch (error) {
         logger.error("❌ Error in getCoursesWithProgressCached:", error as Error, { operation: 'error' });
 
@@ -385,6 +388,9 @@ export async function getFavoritesCoursesCached(userId?: string) {
     async () => {
       try {
         logger.warn("[React Cache] Fetching favorite courses", { operation: 'warn' });
+        if (!safeUserId) {
+          return { success: false, data: [], error: "User ID is required" };
+        }
         const result = await getFavoritesCourses(safeUserId);
         logger.warn(`[React Cache] Cached ${result.data.length} favorite courses successfully`, { operation: 'warn' });
         return { success: true, data: result.data };

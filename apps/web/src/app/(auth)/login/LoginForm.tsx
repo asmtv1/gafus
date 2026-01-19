@@ -5,7 +5,7 @@ import { FormField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { loginFormSchema } from "@shared/lib/validation/authSchemas";
-import { checkUserState } from "@shared/lib/auth/login-utils";
+import { checkUserStateAction } from "@shared/server-actions";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -42,7 +42,7 @@ export default function LoginForm() {
       const username = data.username.toLowerCase().trim();
       
       // Проверяем статус подтверждения номера перед входом
-      const userState = await checkUserState(username);
+      const userState = await checkUserStateAction(username);
       
       if (!userState.confirmed && userState.phone) {
         // Если номер не подтверждён, перенаправляем на страницу подтверждения

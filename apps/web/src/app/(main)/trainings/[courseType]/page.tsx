@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import TrainingPageClient from "@features/training/components/TrainingPageClient";
 import { getTrainingDays } from "@shared/lib/training/getTrainingDays";
 import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
-import { getCourseMetadata } from "@shared/lib/course/getCourseMetadata";
+import { getCourseMetadata } from "@shared/services/course/courseService";
 import { getCurrentUserId } from "@/utils";
 import { generateCourseMetadata } from "@gafus/metadata";
 

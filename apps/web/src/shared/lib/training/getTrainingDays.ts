@@ -10,7 +10,7 @@ import type { TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@/utils";
 import { optionalTrainingTypeSchema, optionalUserIdSchema } from "../validation/schemas";
-import { checkCourseAccessById } from "../course/checkCourseAccess";
+import { checkCourseAccessById } from "@shared/services/course/courseService";
 
 // Создаем логгер для getTrainingDays
 const logger = createWebLogger("web-get-training-days");

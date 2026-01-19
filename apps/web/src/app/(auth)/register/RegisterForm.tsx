@@ -3,7 +3,7 @@
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useZodForm } from "@shared/hooks/useZodForm";
-import { registerUserAction } from "@shared/lib/auth/login-utils";
+import { registerUserAction } from "@shared/server-actions";
 import { registerFormSchema } from "@shared/lib/validation/authSchemas";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import { useRouter } from "next/navigation";

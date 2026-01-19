@@ -1,7 +1,7 @@
 // src/components/CourseRating.tsx
 "use client";
 
-import { updateCourseRatingAction } from "@shared/lib/course/updateCourseRating";
+import { updateCourseRatingAction } from "@shared/server-actions";
 import { createWebLogger } from "@gafus/logger";
 import { useState } from "react";
 

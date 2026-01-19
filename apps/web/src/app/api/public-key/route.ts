@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPublicKeyAction } from '@shared/lib/actions/publicKey';
+import { getPublicKeyAction } from '@shared/server-actions/push';
 import { createWebLogger } from '@gafus/logger';
 
 // Создаем логгер для web API

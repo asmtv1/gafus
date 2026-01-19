@@ -1,11 +1,11 @@
 import { create } from "zustand";
 import { createWebLogger } from "@gafus/logger";
-import type { CourseReviewData, UserReviewStatus } from "@shared/lib/course/getCourseReviews";
+import type { CourseReviewData, UserReviewStatus } from "@shared/server-actions";
 import {
-  createCourseReview,
-  updateCourseReview,
-  deleteCourseReview,
-} from "@shared/lib/course/manageCourseReview";
+  createCourseReviewAction,
+  updateCourseReviewAction,
+  deleteCourseReviewAction,
+} from "@shared/server-actions";
 
 const logger = createWebLogger("web-reviews-store");
 
@@ -45,7 +45,7 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
     try {
       logger.info("Добавление отзыва", { courseType, rating });
 
-      const result = await createCourseReview(courseType, rating, comment);
+      const result = await createCourseReviewAction(courseType, rating, comment);
 
       if (!result.success) {
         set({ isLoading: false, error: result.error || "Ошибка при добавлении отзыва" });
@@ -71,7 +71,7 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
     try {
       logger.info("Редактирование отзыва", { reviewId, rating });
 
-      const result = await updateCourseReview(reviewId, rating, comment);
+      const result = await updateCourseReviewAction(reviewId, rating, comment);
 
       if (!result.success) {
         set({ isLoading: false, error: result.error || "Ошибка при обновлении отзыва" });
@@ -103,7 +103,7 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
     try {
       logger.info("Удаление отзыва", { reviewId });
 
-      const result = await deleteCourseReview(reviewId);
+      const result = await deleteCourseReviewAction(reviewId);
 
       if (!result.success) {
         set({ isLoading: false, error: result.error || "Ошибка при удалении отзыва" });

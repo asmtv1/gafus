@@ -7,7 +7,7 @@ import { persist } from "zustand/middleware";
 
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { useCourseStore } from "@shared/stores/courseStore";
-import { getFavoritesCourses } from "@shared/lib/course/getFavoritesCourses";
+import { getFavoritesCoursesAction } from "@shared/server-actions";
 
 import type { FavoriteToggleData, CourseWithProgressData } from "@gafus/types";
 
@@ -141,7 +141,7 @@ export const useFavoritesStore = create<FavoritesState>()(
         
         set({ loading: true, error: null });
         try {
-          const { data, favoriteIds } = await getFavoritesCourses();
+          const { data, favoriteIds } = await getFavoritesCoursesAction();
           get().setFromServer(favoriteIds);
           // если сервер вернул готовые данные — используем их для courseStore
           try {
@@ -165,8 +165,8 @@ export const useFavoritesStore = create<FavoritesState>()(
         get().addFavoriteLocal(courseId);
 
         const doRequest = async () => {
-          const { addFavoriteCourse } = await import("@shared/lib/course/addtoFavorite");
-          await addFavoriteCourse(courseId);
+          const { addFavoriteCourseAction } = await import("@shared/server-actions");
+          await addFavoriteCourseAction(courseId);
         };
 
         // онлайн — шлём с увеличенным таймаутом и мягким ретраем, офлайн — в очередь
@@ -202,11 +202,8 @@ export const useFavoritesStore = create<FavoritesState>()(
         get().removeFavoriteLocal(courseId);
 
         const doRequest = async () => {
-          const { removeFavoriteCourse } = await import("@shared/lib/course/addtoFavorite");
-
-// Создаем логгер для favorites-store
-const logger = createWebLogger('web-favorites-store');
-          await removeFavoriteCourse(courseId);
+          const { removeFavoriteCourseAction } = await import("@shared/server-actions");
+          await removeFavoriteCourseAction(courseId);
         };
 
         if (isOnline) {
@@ -236,7 +233,7 @@ const logger = createWebLogger('web-favorites-store');
       syncWithServer: async () => {
         // простая стратегия: перезагружаем ids с сервера и объединяем
         try {
-          const { favoriteIds: serverIds } = await getFavoritesCourses();
+          const { favoriteIds: serverIds } = await getFavoritesCoursesAction();
           // объединяем локальные и серверные (локальный — источник правды)
           const local = get().favoriteIds;
           const merged = new Set<string>([...serverIds, ...Array.from(local)]);
