@@ -1,17 +1,17 @@
 import Link from "next/link";
 
 import styles from "./Bio.module.css";
-import EditableAvatar from "./EditableAvatar";
-import NotificationStatus from "./NotificationStatus";
-import PetList from "./PetList";
-import ProfileAvatar from "./ProfileAvatar";
-import TrainerCoursesSection from "./TrainerCoursesSection";
+import EditableAvatar from "../EditableAvatar";
+import NotificationStatus from "../NotificationStatus";
+import PetList from "../PetList";
+import ProfileAvatar from "../ProfileAvatar";
+import TrainerCoursesSection from "../TrainerCoursesSection";
 
 import type { BioProps } from "@gafus/types";
 
 import { getAge, declOfNum } from "@gafus/core/utils";
 import { getTelegramUrl, getInstagramUrl } from "@gafus/core/utils/social";
-import { InstagramIcon, TelegramIcon, WebsiteIcon } from "./SocialIcons";
+import { InstagramIcon, TelegramIcon, WebsiteIcon } from "../SocialIcons";
 
 export default function Bio({ publicData, isOwner, username, userData }: BioProps) {
   const profile = publicData.profile;

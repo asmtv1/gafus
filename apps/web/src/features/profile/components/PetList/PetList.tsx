@@ -13,7 +13,7 @@ import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
 import { showEditPetAlert, showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
 
-import EditablePetAvatar from "./EditablePetAvatar";
+import EditablePetAvatar from "../EditablePetAvatar";
 import styles from "./PetList.module.css";
 
 import type { PublicProfile, PetFormData } from "@gafus/types";

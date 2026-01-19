@@ -12,9 +12,9 @@ import { markPracticeStepAsCompleted } from "@shared/lib/training/markPracticeSt
 import styles from "./AccordionStep.module.css";
 import { AccessTimeIcon, PauseIcon, PlayArrowIcon, ReplayIcon } from "@shared/utils/muiImports";
 import { getEmbeddedVideoInfo } from "@gafus/core/utils";
-import { TestQuestions } from "./TestQuestions";
-import { WrittenFeedback } from "./WrittenFeedback";
-import { VideoReport } from "./VideoReport";
+import { TestQuestions } from "../TestQuestions";
+import { WrittenFeedback } from "../WrittenFeedback";
+import { VideoReport } from "../VideoReport";
 import ImageViewer from "@shared/components/ui/ImageViewer";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
 import { VideoPlayerSection } from "@shared/components/video/VideoPlayerSection";

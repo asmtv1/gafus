@@ -10,7 +10,7 @@ import { getVideoUrlForPlayback } from "@shared/lib/video/getVideoUrlForPlayback
 import { getSignedVideoUrl } from "@shared/lib/video/getSignedVideoUrl";
 import { getOfflineCourseByType } from "@shared/lib/offline/offlineCourseStorage";
 import type { VideoMetadata } from "@shared/lib/video/getVideoMetadata";
-import styles from "@/features/training/components/AccordionStep.module.css";
+import styles from "@/features/training/components/AccordionStep/AccordionStep.module.css";
 
 interface VideoPlayerSectionProps {
   videoUrl: string | null; // URL для воспроизведения (может быть blob URL для офлайн)

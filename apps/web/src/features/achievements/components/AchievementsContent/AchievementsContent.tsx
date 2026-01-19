@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useAchievementsFromStores, useAchievementsByCategoryFromStores } from "@shared/hooks/useAchievementsFromStores";
 import { AchievementsSkeleton } from "@shared/components/ui/AchievementsSkeleton";
 import { AchievementsError } from "@shared/components/ui/AchievementsError";
-import UserCoursesStatistics from "./UserCoursesStatistics";
+import UserCoursesStatistics from "../UserCoursesStatistics";
 
 import styles from "./AchievementsContent.module.css";
 

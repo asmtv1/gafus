@@ -1,6 +1,6 @@
 import type { UserWithTrainings } from "@gafus/types";
 
-import TrainingReminders from "./TrainingReminders";
+import TrainingReminders from "../TrainingReminders";
 import styles from "./PrivateProfileSection.module.css";
 
 interface PrivateProfileSectionProps {

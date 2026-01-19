@@ -1,6 +1,10 @@
 export { AccordionStep } from "./AccordionStep";
-export { default as CourseDescriptionWithVideo } from "./CourseDescriptionWithVideo";
+export { CourseDescriptionWithVideo } from "./CourseDescriptionWithVideo";
 export { Day } from "./Day";
-export { default as TrainingDayList } from "./TrainingDayList";
+export { TrainingDayList } from "./TrainingDayList";
 export { TrainingOverview } from "./TrainingOverview";
-export { default as TrainingPageClient } from "./TrainingPageClient";
+export { TrainingPageClient } from "./TrainingPageClient";
+export { VideoReport } from "./VideoReport";
+export { AccessDeniedAlert } from "./AccessDeniedAlert";
+export { TestQuestions } from "./TestQuestions";
+export { WrittenFeedback } from "./WrittenFeedback";

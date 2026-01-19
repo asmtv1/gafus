@@ -4,8 +4,8 @@ import React from "react";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { useCourseCompletionCelebration } from "@shared/hooks/useCourseCompletionCelebration";
 
-import CourseDescriptionWithVideo from "./CourseDescriptionWithVideo";
-import TrainingDayList from "./TrainingDayList";
+import CourseDescriptionWithVideo from "../CourseDescriptionWithVideo";
+import TrainingDayList from "../TrainingDayList";
 
 interface TrainingPageClientProps {
   courseType: string;

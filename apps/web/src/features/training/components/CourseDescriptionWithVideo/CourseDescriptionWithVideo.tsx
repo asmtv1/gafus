@@ -5,7 +5,7 @@ import styles from "./CourseDescriptionWithVideo.module.css";
 import { ExpandMoreIcon } from "@shared/utils/muiImports";
 
 import { getEmbeddedVideoInfo } from "@gafus/core/utils";
-import ShareButton from "./ShareButton/ShareButton";
+import ShareButton from "../ShareButton/ShareButton";
 
 interface Props {
   description: string | null;
