@@ -9,7 +9,7 @@ import React, { useEffect, useRef, useState } from "react";
 
 import styles from "./Header.module.css";
 
-import type { HeaderProps } from "@gafus/types";
+import type { HeaderProps } from "../types";
 
 export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);

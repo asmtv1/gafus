@@ -9,7 +9,7 @@ import type {
   CourseRatingProps,
   LegacyCourseRatingProps,
   ClientCourseRatingProps,
-} from "@gafus/types";
+} from "./types";
 
 import { FavoriteIcon, FavoriteBorderIcon } from "@shared/utils/muiImports";
 import { Rating } from "@shared/utils/muiImports";

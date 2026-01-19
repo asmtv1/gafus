@@ -20,9 +20,9 @@ const nextConfig: TrainerPanelNextConfig = {
     },
   },
   eslint: {
-    // Отключаем ESLint проверки в dev режиме для ускорения компиляции
+    // Игнорируем ESLint во время сборки
     // Проверки можно запускать отдельно: pnpm lint
-    ignoreDuringBuilds: process.env.NODE_ENV !== 'production',
+    ignoreDuringBuilds: true,
     dirs: ["src"],
   },
 

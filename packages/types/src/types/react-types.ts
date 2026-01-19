@@ -1,9 +1,9 @@
 // Типы для React - работают без зависимости от фреймворка
 // Используем interface augmentation для совместимости
 
-// Базовые типы React
-export type ReactNode = React.ReactNode;
-export type ComponentType<P = Record<string, unknown>> = React.ComponentType<P>;
+// Базовые типы React (заглушки, которые заменяются в runtime)
+export type ReactNode = unknown;
+export type ComponentType<P = Record<string, unknown>> = (props: P) => ReactNode;
 
 // Типы для событий форм
 export interface FormEvent {

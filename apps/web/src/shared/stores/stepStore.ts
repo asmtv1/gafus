@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
 
-import type { StepStore } from "@gafus/types";
+import type { StepStore } from "./stepStore.types";
 import { useUserStore } from "./userStore";
 
 // Создаем логгер для step store

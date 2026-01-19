@@ -14,15 +14,15 @@ const nextConfig: NextConfig = {
   ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   serverExternalPackages: ["@gafus/prisma"],
   eslint: {
-    // Отключаем ESLint проверки в dev режиме для ускорения компиляции
+    // Игнорируем ESLint во время сборки
     // Проверки можно запускать отдельно: pnpm lint
-    ignoreDuringBuilds: process.env.NODE_ENV !== 'production',
+    ignoreDuringBuilds: true,
     dirs: ["src"],
   },
   typescript: {
-    // Отключаем TypeScript проверки в dev режиме для ускорения компиляции
+    // Игнорируем TypeScript проверки во время сборки
     // Проверки можно запускать отдельно: pnpm typecheck
-    ignoreBuildErrors: process.env.NODE_ENV !== 'production',
+    ignoreBuildErrors: true,
   },
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,

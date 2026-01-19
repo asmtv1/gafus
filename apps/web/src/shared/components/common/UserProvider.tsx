@@ -5,7 +5,7 @@ import { useUserStore } from "@shared/stores";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef } from "react";
 
-import type { User } from "@gafus/types/stores/userStore";
+import type { UserData } from "@gafus/types";
 
 interface UserProviderProps {
   children: React.ReactNode;
@@ -19,8 +19,8 @@ export default function UserProvider({ children }: UserProviderProps) {
 
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
-      // Преобразуем данные сессии в формат User
-      const user: User = {
+      // Преобразуем данные сессии в формат UserData
+      const user: UserData = {
         id: session.user.id,
         username: session.user.username,
         phone: "", // Нет в сессии, можно добавить позже

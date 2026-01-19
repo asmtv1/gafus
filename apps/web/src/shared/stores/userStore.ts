@@ -1,4 +1,4 @@
-import { CACHE_DURATION, DEFAULT_USER_PREFERENCES, PREFERENCES_CACHE_DURATION } from "@gafus/types";
+import { USER_CACHE_DURATION, DEFAULT_USER_PREFERENCES, USER_PREFERENCES_CACHE_DURATION } from "@gafus/types";
 import {
   getUserPreferences,
   getUserProfile,
@@ -10,21 +10,21 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
 
-import type { UserState } from "@gafus/types";
+import type { UserStore } from "./types";
 
 // Создаем логгер для user store
 const logger = createWebLogger('web-user-store');
 
 // Утилиты для проверки кэша
-const isStale = (timestamp: number, maxAge: number = CACHE_DURATION) => {
+const isStale = (timestamp: number, maxAge: number = USER_CACHE_DURATION) => {
   return Date.now() - timestamp > maxAge;
 };
 
 const isPreferencesStale = (timestamp: number) => {
-  return Date.now() - timestamp > PREFERENCES_CACHE_DURATION;
+  return Date.now() - timestamp > USER_PREFERENCES_CACHE_DURATION;
 };
 
-export const useUserStore = create<UserState>()(
+export const useUserStore = create<UserStore>()(
   persist(
     (set, get) => ({
       // ===== СОСТОЯНИЕ =====

@@ -1,21 +1,22 @@
-import { CACHE_DURATION } from "@gafus/types";
+import { PETS_CACHE_DURATION } from "@gafus/types";
 import { createPet, deletePet, getUserPets, updatePet } from "@shared/lib/pets";
 import { createWebLogger } from "@gafus/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import type { PetsState, UpdatePetInput } from "@gafus/types";
+import type { UpdatePetInput } from "@gafus/types";
+import type { PetsStore } from "./types";
 
 // Создаем логгер для pets store
 const logger = createWebLogger('web-pets-store');
 
 // Утилиты для проверки кэша
-const isStale = (timestamp: number, maxAge: number = CACHE_DURATION) => {
+const isStale = (timestamp: number, maxAge: number = PETS_CACHE_DURATION) => {
   return Date.now() - timestamp > maxAge;
 };
 
 // ===== STORE =====
-export const usePetsStore = create<PetsState>()(
+export const usePetsStore = create<PetsStore>()(
   persist(
     (set, get) => ({
       // ===== СОСТОЯНИЕ =====

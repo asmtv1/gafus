@@ -8,7 +8,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
 
-import type { CourseReview, CourseState, CourseWithProgressData } from "@gafus/types";
+import type { CourseReview, CourseWithProgressData } from "@gafus/types";
+import type { CourseStore } from "./types";
 import { TrainingStatus } from "@gafus/types";
 
 const logger = createWebLogger('web');
@@ -22,7 +23,7 @@ const isStale = (timestamp: number, maxAge: number = IMAGE_CACHE_DURATION) => {
 };
 
 // ===== STORE =====
-export const useCourseStore = create<CourseState>()(
+export const useCourseStore = create<CourseStore>()(
   persist(
     (set, get) => ({
       // Начальное состояние (упрощено: убрано кэширование списков курсов)

@@ -2,14 +2,14 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
 
-import type { TrainingState } from "@gafus/types";
+import type { TrainingStore } from "./types";
 import { toggleStepNotificationPause } from "@shared/lib/StepNotification/toggleStepNotificationPause";
 
 // Создаем логгер для training store
 const logger = createWebLogger('web-training-store');
 
 // ===== STORE =====
-export const useTrainingStore = create<TrainingState>()(
+export const useTrainingStore = create<TrainingStore>()(
   persist(
     (set, get) => ({
       // Начальное состояние (изолированно по курсам)

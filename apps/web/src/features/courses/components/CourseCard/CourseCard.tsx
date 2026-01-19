@@ -12,7 +12,7 @@ import { Download, Refresh, Delete } from "@mui/icons-material";
 import styles from "./CourseCard.module.css";
 
 
-import type { CourseCardPropsWithIndex } from "@gafus/types";
+import type { CourseCardPropsWithIndex } from "./types";
 
 import { declOfNum } from "@gafus/core/utils";
 import { SimpleCourseRating } from "../CourseRating";

@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 
 import styles from "./TrainingOverview.module.css";
 
-import type { TrainingOverviewProps } from "@gafus/types";
+import type { TrainingOverviewProps } from "./types";
 
 export const TrainingOverview = memo(function TrainingOverview({
   title,

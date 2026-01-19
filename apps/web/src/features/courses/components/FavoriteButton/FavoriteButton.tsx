@@ -5,7 +5,7 @@ import { useOfflineStore } from "@shared/stores/offlineStore";
 import { useFavoritesStore } from "@shared/stores/favoritesStore";
 import { useState, useTransition, useEffect } from "react";
 
-import type { FavoriteButtonProps } from "@gafus/types";
+import type { FavoriteButtonProps } from "./types";
 import styles from "./FavoriteButton.module.css";
 
 export const FavoriteButton = ({ id, isFavorite = false, onUnfavorite }: FavoriteButtonProps) => {
@@ -34,6 +34,7 @@ export const FavoriteButton = ({ id, isFavorite = false, onUnfavorite }: Favorit
         try {
           const current = favIsFavorite(id);
           const updatedState = !current;
+          
           if (updatedState) {
             await addFavorite(id);
           } else {
@@ -77,7 +78,13 @@ export const FavoriteButton = ({ id, isFavorite = false, onUnfavorite }: Favorit
         }
       >
         <TurnedInIcon 
-          className={`${styles.icon} ${favorite ? styles.iconFavorite : styles.iconNotFavorite} ${pendingSync ? styles.iconPending : ""}`}
+          sx={{
+            fontSize: "2.5rem",
+            fill: favorite ? "gold" : "transparent",
+            stroke: favorite ? "none" : "#636128",
+            strokeWidth: favorite ? 0 : "1px",
+            opacity: pendingSync ? 0.7 : 1,
+          }}
         />
         {pendingSync && (
           <div className={styles.pendingIndicator} />

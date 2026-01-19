@@ -7,7 +7,7 @@ import PetList from "../PetList";
 import ProfileAvatar from "../ProfileAvatar";
 import TrainerCoursesSection from "../TrainerCoursesSection";
 
-import type { BioProps } from "@gafus/types";
+import type { BioProps } from "../../types";
 
 import { getAge, declOfNum } from "@gafus/core/utils";
 import { getTelegramUrl, getInstagramUrl } from "@gafus/core/utils/social";

@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import { createWebLogger } from "@gafus/logger";
 
-import { TrainingStatus, type TimerStore, type StepStatusUpdateData, type StepResumeData } from "@gafus/types";
+import { TrainingStatus, type StepStatusUpdateData, type StepResumeData } from "@gafus/types";
+import type { TimerStore } from "./timerStore.types";
 import { pauseNotificationClient, resumeNotificationClient, resetNotificationClient } from "@shared/lib/StepNotification/manageStepNotificationSimple";
 import { pauseUserStepServerAction, resumeUserStepServerAction } from "@shared/lib/training/pauseResumeUserStep";
 import { startUserStepServerAction } from "@shared/lib/training/startUserStepServerAction";

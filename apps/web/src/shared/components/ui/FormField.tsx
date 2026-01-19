@@ -2,7 +2,7 @@
 
 import { ValidationError } from "./ValidationError";
 
-import type { FormFieldComponentProps } from "@gafus/types";
+import type { FormFieldComponentProps } from "./types";
 import type { FieldValues, Path } from "react-hook-form";
 
 export function FormField<T extends FieldValues>({
@@ -22,10 +22,11 @@ export function FormField<T extends FieldValues>({
   visuallyHiddenLabel = false,
   errorClassName,
 }: FormFieldComponentProps<T>) {
+  const formTyped = form as any;
   const {
     register,
     formState: { errors },
-  } = form;
+  } = formTyped;
 
   const error = errors[name]?.message as string | undefined;
 

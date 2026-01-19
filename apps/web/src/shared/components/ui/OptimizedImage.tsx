@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createWebLogger } from "@gafus/logger";
 
-import type { OptimizedImageProps } from "@gafus/types";
+import type { OptimizedImageProps } from "./types";
 
 import { shouldUseLazyLoading, shouldUsePriority } from "@shared/utils/imageLoading";
 

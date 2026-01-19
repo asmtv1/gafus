@@ -24,105 +24,6 @@ export interface CourseWithProgressData {
   dayLinks: DayLink[];
 }
 
-// ===== ТИПЫ ДЛЯ COURSE STORE =====
-
-export interface CourseCache {
-  data: CourseWithProgressData[];
-  timestamp: number;
-  type?: string; // для фильтрации по типу курса
-}
-
-export type ImageCache = Record<
-  string,
-  {
-    loaded: boolean;
-    timestamp: number;
-    error: boolean;
-  }
->;
-
-export type CourseStoreStats = Record<
-  string,
-  {
-    views: number;
-    lastViewed: number;
-    rating: number | null;
-    reviews: number;
-  }
->;
-
-export interface CourseState {
-  // Кэшированные данные курсов
-  allCourses: CourseCache | null;
-  favorites: CourseCache | null;
-  authored: CourseWithProgressData[] | null;
-
-  // ID избранных курсов (для мгновенного обновления UI)
-  favoriteCourseIds: Set<string>;
-
-  // Состояние загрузки
-  loading: {
-    all: boolean;
-    favorites: boolean;
-    authored: boolean;
-  };
-
-  // Ошибки
-  errors: {
-    all: string | null;
-    favorites: string | null;
-    authored: string | null;
-  };
-
-  // Кэш изображений
-  imageCache: ImageCache;
-
-  // Статистика просмотров
-  courseStats: CourseStoreStats;
-
-  // Предзагруженные курсы
-  prefetchedCourses: Set<string>;
-
-  // Действия для курсов
-  setAllCourses: (courses: CourseWithProgressData[], type?: string) => void;
-  setFavorites: (courses: CourseWithProgressData[]) => void;
-  setAuthored: (courses: CourseWithProgressData[]) => void;
-
-  // Действия для избранного
-  addToFavorites: (courseId: string) => void;
-  removeFromFavorites: (courseId: string) => void;
-  isFavorite: (courseId: string) => boolean;
-  setFavoriteCourseIds: (courseIds: string[]) => void;
-
-  // Действия для загрузки
-  setLoading: (key: "all" | "favorites" | "authored", loading: boolean) => void;
-  setError: (key: "all" | "favorites" | "authored", error: string | null) => void;
-
-  // Действия для изображений
-  markImageLoaded: (url: string) => void;
-  markImageError: (url: string) => void;
-  isImageCached: (url: string) => boolean;
-
-  // Действия для статистики
-  setCourseStats: (stats: CourseStoreStats) => void;
-  getCourseStats: () => CourseStoreStats;
-
-  // Действия для предзагрузки
-  markPrefetched: (courseId: string) => void;
-  isPrefetched: (courseId: string) => boolean;
-
-  // SWR интеграция
-  syncWithSWR: (key: "all" | "favorites" | "authored", data: CourseWithProgressData[]) => void;
-  invalidateCache: (key: "all" | "favorites" | "authored") => void;
-  invalidateFavoritesCache: () => void;
-
-  // Утилиты
-  isStale: (cache: CourseCache | null, maxAge?: number) => boolean;
-  getCourseById: (courseId: string) => CourseWithProgressData | null;
-  getPopularCourses: (limit?: number) => CourseWithProgressData[];
-  clearCache: () => void;
-}
-
 export interface CourseReview {
   rating: number | null;
   comment: string | null;
@@ -163,8 +64,8 @@ export interface DayLink {
   };
 }
 
-// Типы для компонентов курсов
-export interface CourseCardProps {
+// Данные курса для компонентов (БЕЗ UI-специфичных полей)
+export interface CourseCardData {
   id: string;
   name: string;
   type: string;
@@ -181,8 +82,6 @@ export interface CourseCardProps {
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
   reviews: CourseReview[];
   isFavorite: boolean;
-  onToggleFavorite?: () => void;
-  onUnfavorite?: (courseId: string) => void;
 }
 
 export interface CourseWithProgress {
@@ -236,4 +135,17 @@ export interface AuthoredCourse {
       }[];
     }[];
   }[];
+}
+
+// Данные для форм курсов
+export interface CourseFormData {
+  name: string;
+  description: string;
+  shortDesc: string;
+  duration: string;
+  logoImg: string;
+  isPrivate: boolean;
+  visibleDayIds: string[];
+  allowedUserIds: string[];
+  videoUrl?: string;
 }

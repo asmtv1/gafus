@@ -5,7 +5,7 @@ import { TrainingStatus } from "@gafus/types";
 import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
 import { useOfflineStatus } from "@shared/hooks/useOfflineStatus";
 import type { OfflineCourse } from "@shared/lib/offline/types";
-import type { CourseCardPropsWithIndex } from "@gafus/types";
+import type { CourseCardPropsWithIndex } from "@/features/courses/components/CourseCard/types";
 import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
 import courseStyles from "../(main)/courses/courses.module.css";
 import styles from "./offline.module.css";

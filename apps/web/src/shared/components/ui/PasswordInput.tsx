@@ -6,7 +6,7 @@ import Image from "next/image";
 
 import { ValidationError } from "./ValidationError";
 
-import type { PasswordInputProps as Props } from "@gafus/types";
+import type { PasswordInputProps as Props } from "./types";
 import type { FC } from "react";
 
 export const PasswordInput: FC<Props> = ({
