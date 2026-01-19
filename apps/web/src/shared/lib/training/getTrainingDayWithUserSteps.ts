@@ -278,16 +278,23 @@ export async function getTrainingDayWithUserSteps(
   if (missingStepOnDayIds.length > 0) {
     try {
       const newUserSteps = await prisma.$transaction(
-        missingStepOnDayIds.map((stepOnDayId) =>
-          prisma.userStep.create({
-            data: {
-              userTrainingId,
-              stepOnDayId,
-              status: TrainingStatus.NOT_STARTED,
-            },
-            select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
-          }),
-        ),
+        async (tx) => {
+          const promises = missingStepOnDayIds.map((stepOnDayId) =>
+            tx.userStep.create({
+              data: {
+                userTrainingId,
+                stepOnDayId,
+                status: TrainingStatus.NOT_STARTED,
+              },
+              select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
+            })
+          );
+          return await Promise.all(promises);
+        },
+        {
+          maxWait: 5000, // 5 секунд ожидания начала транзакции
+          timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
+        }
       );
 
       userSteps = [...userSteps, ...(newUserSteps as UserStepWithPause[])];

@@ -36,13 +36,13 @@ export async function getUserProgressForMultipleCourses(courseIds: string[]) {
     logger.info('getUserProgressForMultipleCourses - userId:', { userId, courseIds: safeCourseIds, operation: 'info' });
     
     if (safeCourseIds.length === 0) {
-      logger.info('No course IDs provided, returning empty map', { operation: 'info' });
-      return new Map();
+      logger.info('No course IDs provided, returning empty object', { operation: 'info' });
+      return {};
     }
-    
+
     if (!userId) {
-      logger.info('No user ID found, returning empty map', { operation: 'info' });
-      return new Map();
+      logger.info('No user ID found, returning empty object', { operation: 'info' });
+      return {};
     }
     
     const progressPromises = safeCourseIds.map((courseId) => getUserProgress(courseId, userId));

@@ -103,6 +103,10 @@ export async function createStepFromTemplate(
       });
 
       return step;
+    },
+    {
+      maxWait: 5000, // 5 секунд ожидания начала транзакции
+      timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
     });
 
     logger.info('Шаг успешно создан из шаблона', {

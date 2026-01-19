@@ -89,6 +89,10 @@ export async function startUserStepServerAction(
           trainingUrl: `/trainings/${dayOnCourse.course.type}/${dayOnCourse.id}`,
         };
       },
+      {
+        maxWait: 5000, // 5 секунд ожидания начала транзакции
+        timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
+      }
     );
 
     // Обновляем статус шага (это уже использует транзакции)

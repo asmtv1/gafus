@@ -40,7 +40,20 @@
     "generate:openapi": "node scripts/generate-openapi-simple.js",
     "generate:server-actions-docs": "node scripts/generate-server-actions-docs.js",
     "test:errors": "node scripts/generate-test-errors.js",
-    "test:errors:all": "node scripts/generate-test-errors.js"
+    "test:errors:all": "node scripts/generate-test-errors.js",
+    "check:prisma-transactions": "tsx refactor/check-prisma-transactions-timeouts.ts",
+    "check:getCurrentUserId": "tsx refactor/check-getCurrentUserId-in-api-routes.ts",
+    "check:csrf": "tsx refactor/check-csrf-in-api-routes.ts",
+    "check:formdata": "tsx refactor/check-formdata-conversion.ts",
+    "check:cache": "tsx refactor/check-unstable-cache-usage.ts",
+    "check:transactions-files": "tsx refactor/check-transactions-with-files.ts",
+    "check:api-routes": "tsx refactor/check-existing-api-routes.ts",
+    "analyze:dependencies": "tsx refactor/analyze-dependencies.ts",
+    "benchmark:baseline": "node scripts/benchmark-baseline.js",
+    "test:characterization": "tsx characterization-tests/training-characterization.test.ts && tsx characterization-tests/course-characterization.test.ts && tsx characterization-tests/notifications-characterization.test.ts",
+    "check:all": "pnpm check:prisma-transactions && pnpm check:getCurrentUserId && pnpm check:csrf && pnpm check:formdata && pnpm check:cache && pnpm check:transactions-files && pnpm check:api-routes",
+    "prepare:refactor": "pnpm analyze:dependencies && pnpm benchmark:baseline && pnpm test:characterization && pnpm check:all",
+    "ready-for-refactor": "pnpm prepare:refactor && pnpm build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.899.0",
@@ -82,6 +95,7 @@
     "turbo": "2.5.4",
     "typescript": "5.8.3",
     "typescript-eslint": "8.46.2",
+    "vitest": "^4.0.17",
     "zod-to-json-schema": "^3.24.6"
   },
   "packageManager": "pnpm@10.12.4",

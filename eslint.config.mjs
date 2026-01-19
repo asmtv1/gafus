@@ -8,6 +8,7 @@ import globals from "globals";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import tseslint from "typescript-eslint";
+import customRules from "./scripts/eslint-rules.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,6 +89,7 @@ export default [
       "unused-imports": unusedImports,
       react: reactPlugin,
       "react-hooks": reactHooksPlugin,
+      "@gafus": customRules,
     },
     settings: {
       next: {
@@ -143,6 +145,11 @@ export default [
       // React rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+
+      // Кастомные правила GAFUS
+      "@gafus/no-getCurrentUserId-in-api-routes": "error",
+      "@gafus/server-action-serialization": "error",
+      "@gafus/no-client-code-in-server-actions": "error",
     },
   },
 

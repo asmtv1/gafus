@@ -87,6 +87,10 @@ export async function markTheoryStepAsCompleted(
           stepOrder: stepLink.order,
         };
       },
+      {
+        maxWait: 5000, // 5 секунд ожидания начала транзакции
+        timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
+      }
     );
 
     // Обновляем статус шага на COMPLETED (использует существующую функцию с транзакциями)

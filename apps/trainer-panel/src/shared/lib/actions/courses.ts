@@ -244,6 +244,10 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
         })),
       });
     }
+  },
+  {
+    maxWait: 10000, // 10 секунд ожидания начала транзакции
+    timeout: 20000, // 20 секунд таймаут транзакции (сложная операция)
   });
 
   revalidateTag("statistics");

@@ -98,7 +98,11 @@ async function main() {
         videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40", // Профессиональная дрессировка
       },
     }),
-  ]);
+  ],
+  {
+    maxWait: 5000, // 5 секунд ожидания начала транзакции
+    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+  });
   console.log("Курсы созданы", {
     courseCount: 4,
     courseTypes: ["home", "street", "puppy", "author"]
@@ -184,7 +188,11 @@ async function main() {
         authorId: admin.id,
       },
     }),
-  ]);
+  ],
+  {
+    maxWait: 5000, // 5 секунд ожидания начала транзакции
+    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+  });
   console.log("Базовые шаги созданы", {
     stepCount: 3,
     stepTitles: ["Базовые команды", "Работа с поводком", "Социализация"]
@@ -341,7 +349,11 @@ async function main() {
         authorId: admin.id,
       },
     }),
-  ]);
+  ],
+  {
+    maxWait: 5000, // 5 секунд ожидания начала транзакции
+    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+  });
   await prismaClient.stepOnDay.createMany({
     data: [
       { dayId: puppyDay.id, stepId: stepP1.id, order: 1 },
@@ -576,7 +588,11 @@ async function main() {
         authorId: trainer.id,
       },
     }),
-  ]);
+  ],
+  {
+    maxWait: 5000, // 5 секунд ожидания начала транзакции
+    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+  });
   console.log("Шаги тренера созданы", {
     trainerId: trainer.id,
     stepCount: 2,
@@ -664,7 +680,11 @@ async function main() {
         authorId: trainer.id,
       },
     }),
-  ]);
+  ],
+  {
+    maxWait: 5000, // 5 секунд ожидания начала транзакции
+    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+  });
 
   await prismaClient.stepOnDay.createMany({
     data: [
@@ -707,7 +727,11 @@ async function main() {
         authorId: trainer.id,
       },
     }),
-  ]);
+  ],
+  {
+    maxWait: 5000, // 5 секунд ожидания начала транзакции
+    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+  });
 
   // Добавляем тренерские дни в оба курса
   await prismaClient.dayOnCourse.createMany({
@@ -777,7 +801,11 @@ async function main() {
         order: 5,
       },
     }),
-  ]);
+  ],
+  {
+    maxWait: 5000, // 5 секунд ожидания начала транзакции
+    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+  });
   console.log("Категории шаблонов созданы", {
     categoryCount: 5,
     categories: ["Движение", "Статика", "Подзыв", "Неподбор", "Контроль состояния"]
@@ -2003,7 +2031,11 @@ async function main() {
         authorId: admin.id,
       },
     }),
-  ]);
+  ],
+  {
+    maxWait: 5000, // 5 секунд ожидания начала транзакции
+    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+  });
   console.log("Шаблоны шагов созданы из JSON", {
     templateCount: 51,
     categories: 5,

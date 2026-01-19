@@ -226,6 +226,10 @@ export async function updateUserStepStatus(
           trainingUrl: `/trainings/${dayOnCourse.course.type}/${dayOnCourse.id}`,
         };
       },
+      {
+        maxWait: 10000, // 10 секунд ожидания начала транзакции
+        timeout: 20000, // 20 секунд таймаут транзакции (сложная операция)
+      }
     );
 
     // После успешного завершения транзакции выполняем операции, которые не должны быть в транзакции
