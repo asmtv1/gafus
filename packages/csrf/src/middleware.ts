@@ -84,21 +84,22 @@ function logCSRFAttack(req: NextRequest, reason: string, token?: string): void {
 
 /**
  * Middleware для проверки CSRF токенов в API маршрутах
+ * Поддерживает динамические маршруты с параметрами (context)
  */
-export function withCSRFProtection(
-  handler: (req: NextRequest) => Promise<NextResponse> | NextResponse,
+export function withCSRFProtection<T = unknown>(
+  handler: (req: NextRequest, context?: T) => Promise<NextResponse> | NextResponse,
 ) {
-  return async (req: NextRequest): Promise<NextResponse> => {
+  return async (req: NextRequest, context?: T): Promise<NextResponse> => {
     const { pathname } = req.nextUrl;
 
     // Проверяем только небезопасные методы
     if (!CSRF_CONFIG.unsafeMethods.includes(req.method as "POST" | "PUT" | "PATCH" | "DELETE")) {
-      return handler(req);
+      return handler(req, context);
     }
 
     // Проверяем исключения
     if (isExcludedPath(pathname)) {
-      return handler(req);
+      return handler(req, context);
     }
 
     // Получаем CSRF токен из заголовков
@@ -122,7 +123,7 @@ export function withCSRFProtection(
           url: req.url,
           strictMode: CSRF_CONFIG.strictMode
         });
-        return handler(req);
+        return handler(req, context);
       }
     }
 
@@ -145,7 +146,7 @@ export function withCSRFProtection(
           tokenLength: csrfToken.length,
           strictMode: CSRF_CONFIG.strictMode
         });
-        return handler(req);
+        return handler(req, context);
       }
     }
 
@@ -170,7 +171,7 @@ export function withCSRFProtection(
             url: req.url,
             strictMode: CSRF_CONFIG.strictMode
           });
-          return handler(req);
+          return handler(req, context);
         }
       }
 
@@ -205,11 +206,11 @@ export function withCSRFProtection(
           strictMode: CSRF_CONFIG.strictMode,
           error: error instanceof Error ? error.message : String(error)
         });
-        return handler(req);
+        return handler(req, context);
       }
     }
 
-    return handler(req);
+    return handler(req, context);
   };
 }
 
