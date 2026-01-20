@@ -80,12 +80,19 @@ jobs:
           # logger использует prisma динамически, но TypeScript проверяет типы при компиляции
           # Собираем logger первым, так как prisma зависит от него статически
           cd packages/logger && pnpm build && cd ../..
-          # После сборки logger, собираем prisma (он может использовать собранный logger)
+          # После сборки logger, собираем пакеты, зависящие только от logger
+          cd packages/types && pnpm build && cd ../..
+          cd packages/queues && pnpm build && cd ../..
+          cd packages/cdn-upload && pnpm build && cd ../..
+          # Собираем prisma (зависит от logger)
           cd packages/prisma && pnpm build && cd ../..
-          # Собираем core после prisma и logger (зависит от них)
+          # Собираем auth (зависит от logger и prisma)
+          cd packages/auth && pnpm build && cd ../..
+          # Собираем core после всех зависимостей (зависит от prisma, logger, types, queues, cdn-upload, auth)
           cd packages/core && pnpm build && cd ../..
-          # Затем собираем остальные пакеты через turbo
-          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core
+          # Затем собираем остальные пакеты через turbo из корневой директории
+          cd ../..
+          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth
 
       - name: Cache build artifacts
         uses: actions/cache@v4
