@@ -96,8 +96,7 @@ jobs:
           cd packages/auth && pnpm build && cd ../..
           # Собираем core после всех зависимостей (зависит от prisma, logger, types, queues, cdn-upload, auth)
           cd packages/core && pnpm build && cd ../..
-          # Затем собираем остальные пакеты через turbo из корневой директории
-          cd ../..
+          # Затем собираем остальные пакеты через turbo (мы уже в корневой директории)
           pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth
 
       - name: Cache build artifacts
