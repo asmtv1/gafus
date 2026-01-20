@@ -1,0 +1,80 @@
+{
+  "expo": {
+    "name": "Гафус",
+    "slug": "gafus",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "gafus",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#2EC6FE"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ru.gafus.app",
+      "buildNumber": "1",
+      "associatedDomains": [
+        "applinks:gafus.ru"
+      ],
+      "simulator": {
+        "codeSigningRequired": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2EC6FE"
+      },
+      "package": "ru.gafus.app",
+      "versionCode": 1,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gafus.ru",
+              "pathPrefix": "/training"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#8936FF"
+        }
+      ],
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT"
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/gafus"
+    }
+  }
+}

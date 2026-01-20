@@ -27,6 +27,7 @@
 
 ### 🚀 Приложения (Apps)
 - [Web приложение](./apps/web.md) - Основное веб-приложение для пользователей
+- [**Mobile (React Native)**](./apps/mobile-rn.md) - Мобильное приложение iOS/Android (шаблон разработки)
 - [Trainer Panel](./apps/trainer-panel.md) - Панель управления для тренеров
 - [Admin Panel](./apps/admin-panel.md) - Панель администратора
 - [Telegram Bot](./apps/telegram-bot.md) - Telegram бот для уведомлений
@@ -53,6 +54,7 @@
 - [Обработка ошибок](./monitoring/error-handling.md) - Отслеживание ошибок
 
 ### 📚 API Документация
+- [**API Routes v1**](./api/v1-routes.md) - REST API для React Native (полная спецификация)
 - [REST API](./api/rest.md) - RESTful API endpoints
 - [Server Actions](./api/server-actions.md) - Next.js Server Actions
 - [WebSocket](./api/websocket.md) - WebSocket соединения

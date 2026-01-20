@@ -88,8 +88,10 @@ jobs:
           cd packages/logger && pnpm build && cd ../..
           # После сборки logger, собираем prisma (он может использовать собранный logger)
           cd packages/prisma && pnpm build && cd ../..
+          # Собираем core после prisma и logger (зависит от них)
+          cd packages/core && pnpm build && cd ../..
           # Затем собираем остальные пакеты через turbo
-          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger
+          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core
 
       - name: Cache build artifacts
         uses: actions/cache@v4

@@ -16,12 +16,12 @@ import type { CourseCardPropsWithIndex } from "./types";
 
 import { declOfNum } from "@gafus/core/utils";
 import { SimpleCourseRating } from "../CourseRating";
-import { FavoriteButton } from "../FavoriteButton";
 import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
 import { showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
 import { useOfflineStore } from "@shared/stores/offlineStore";
+import { FavoriteButton } from "../FavoriteButton/FavoriteButton";
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
