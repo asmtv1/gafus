@@ -19,7 +19,7 @@ export const COLORS = {
   secondary: "#009dcf", // голубой - ссылки и акценты
   
   // Фоны
-  background: "#FFF8E5", // кремовый - основной фон (как карточки в web)
+  background: "#DAD3C1", // основной фон страниц
   surface: "#ffffff", // белый - поверхности
   cardBackground: "#FFF8E5", // кремовый фон карточек
   

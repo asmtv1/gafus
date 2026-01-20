@@ -105,7 +105,7 @@ export function formatLogLine(log: ErrorDashboardReport): string {
   const context = log.additionalContext as ContainerLogAdditionalContext;
   const containerName = parseContainerName(context);
   const level = parseLogLevel(context, log.tags);
-  const timestamp = format(new Date(log.createdAt), "HH:mm:ss.SSS");
+  const timestamp = log.createdAt ? format(new Date(log.createdAt), "HH:mm:ss.SSS") : "??:??:??.???";
 
   // Извлекаем сообщение
   let message = log.message;

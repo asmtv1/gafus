@@ -64,7 +64,7 @@ function formatErrorForAI(error: ErrorDashboardReport): string {
   lines.push(`**ID:** \`${error.id}\``);
   lines.push(`**Приложение:** ${error.appName}`);
   lines.push(`**Окружение:** ${error.environment}`);
-  lines.push(`**Дата:** ${format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}`);
+  lines.push(`**Дата:** ${error.createdAt ? format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru }) : 'Не указана'}`);
   lines.push(`**URL:** ${error.url}`);
   
   if (error.userId) {
@@ -124,7 +124,7 @@ function isFatalError(error: ErrorDashboardReport): boolean {
   const lowerMessage = error.message.toLowerCase();
   const hasFatalInMessage = lowerMessage.includes('fatal') || lowerMessage.includes('critical');
   const hasFatalTag = error.tags?.includes('fatal') || error.tags?.includes('critical');
-  return hasFatalInMessage || hasFatalTag;
+  return !!(hasFatalInMessage || hasFatalTag);
 }
 
 function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSelected, onToggleSelect, selectionMode, isDeleting, isPending }: RecentErrorItemProps) {
@@ -226,10 +226,10 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
     return message.substring(0, maxLength) + '...';
   };
 
-  const timeAgo = formatDistanceToNow(new Date(error.createdAt), { 
+  const timeAgo = error.createdAt ? formatDistanceToNow(new Date(error.createdAt), { 
     addSuffix: true, 
     locale: ru 
-  });
+  }) : 'Дата неизвестна';
 
   const isFatal = isFatalError(error);
   const severityColor = getSeverityColor(error);
@@ -612,11 +612,11 @@ export default function RecentErrors() {
         });
         
         // Передаем данные ошибки для fallback поиска, если прямой поиск по ID не сработает
-        const result = await deleteError(errorId, errorBeforeDeletion ? {
+        const result = await deleteError(errorId, errorBeforeDeletion && errorBeforeDeletion.createdAt ? {
           message: errorBeforeDeletion.message,
           createdAt: errorBeforeDeletion.createdAt,
           appName: errorBeforeDeletion.appName,
-          labels: errorBeforeDeletion.labels,
+          labels: errorBeforeDeletion.labels as Record<string, string> | undefined,
         } : undefined);
         const deleteActionEndTime = Date.now();
         const deleteActionEndIso = new Date().toISOString();

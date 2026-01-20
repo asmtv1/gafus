@@ -49,7 +49,7 @@ function formatErrorForAI(error: ErrorDashboardReport): string {
   lines.push(`**ID:** \`${error.id}\``);
   lines.push(`**Приложение:** ${error.appName}`);
   lines.push(`**Окружение:** ${error.environment}`);
-  lines.push(`**Дата:** ${format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}`);
+  lines.push(`**Дата:** ${error.createdAt ? format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru }) : 'Не указана'}`);
   lines.push(`**URL:** ${error.url}`);
   
   if (error.userId) {
@@ -135,7 +135,7 @@ function isFatalError(error: ErrorDashboardReport): boolean {
   const lowerMessage = error.message.toLowerCase();
   const hasFatalInMessage = lowerMessage.includes('fatal') || lowerMessage.includes('critical');
   const hasFatalTag = error.tags?.includes('fatal') || error.tags?.includes('critical');
-  return hasFatalInMessage || hasFatalTag;
+  return !!(hasFatalInMessage || hasFatalTag);
 }
 
 /**
@@ -812,7 +812,7 @@ export default function ErrorDetailsModal({ open, onClose, error, onStatusChange
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <ScheduleIcon fontSize="small" color="action" />
                 <Typography variant="body2" color="text.secondary">
-                  Создано: {formatDistanceToNow(new Date(error.createdAt), { addSuffix: true, locale: ru })}
+                  Создано: {error.createdAt ? formatDistanceToNow(new Date(error.createdAt), { addSuffix: true, locale: ru }) : 'Дата неизвестна'}
                 </Typography>
               </Box>
               
@@ -950,7 +950,7 @@ export default function ErrorDetailsModal({ open, onClose, error, onStatusChange
                 Создано:
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                {new Date(error.createdAt).toLocaleString('ru-RU', {
+                {error.createdAt ? new Date(error.createdAt).toLocaleString('ru-RU', {
                   year: 'numeric',
                   month: '2-digit',
                   day: '2-digit',
@@ -958,10 +958,10 @@ export default function ErrorDetailsModal({ open, onClose, error, onStatusChange
                   minute: '2-digit',
                   second: '2-digit',
                   timeZoneName: 'short'
-                })}
+                }) : 'Дата неизвестна'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                ({formatDistanceToNow(new Date(error.createdAt), { addSuffix: true, locale: ru })})
+                {error.createdAt ? `(${formatDistanceToNow(new Date(error.createdAt), { addSuffix: true, locale: ru })})` : ''}
               </Typography>
             </Box>
             
@@ -970,7 +970,7 @@ export default function ErrorDetailsModal({ open, onClose, error, onStatusChange
                 Обновлено:
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                {new Date(error.updatedAt || error.createdAt).toLocaleString('ru-RU', {
+                {(error.updatedAt || error.createdAt) ? new Date(error.updatedAt || error.createdAt!).toLocaleString('ru-RU', {
                   year: 'numeric',
                   month: '2-digit',
                   day: '2-digit',
@@ -978,7 +978,7 @@ export default function ErrorDetailsModal({ open, onClose, error, onStatusChange
                   minute: '2-digit',
                   second: '2-digit',
                   timeZoneName: 'short'
-                })}
+                }) : 'Дата неизвестна'}
               </Typography>
             </Box>
 

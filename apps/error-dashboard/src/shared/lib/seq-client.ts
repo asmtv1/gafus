@@ -406,12 +406,14 @@ export class SeqClient {
             timestampNs,
             message
           ),
+          timestamp: timestamp,
+          timestampNs,
           message,
+          level,
           stack: event.Exception || null,
           appName: labels.app,
           environment: labels.environment,
           labels,
-          timestampNs,
           url: typeof properties.url === 'string' ? properties.url : '/logger',
           userAgent: typeof properties.userAgent === 'string' ? properties.userAgent : 'logger-service',
           userId: typeof properties.userId === 'string' ? properties.userId : null,
@@ -433,7 +435,11 @@ export class SeqClient {
     }
 
     // Сортируем по дате (новые сначала)
-    return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return results.sort((a, b) => {
+      const aTime = a.createdAt ? (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : a.createdAt.getTime()) : 0;
+      const bTime = b.createdAt ? (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : b.createdAt.getTime()) : 0;
+      return bTime - aTime;
+    });
   }
 
   /**
@@ -550,13 +556,19 @@ export class SeqClient {
           const logs = await this.query(fullQuery, limit, lastTimestamp);
 
           // Обрабатываем логи в порядке времени (старые сначала)
-          const sortedLogs = logs.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+          const sortedLogs = logs.sort((a, b) => {
+            const aTime = a.createdAt ? (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : a.createdAt.getTime()) : 0;
+            const bTime = b.createdAt ? (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : b.createdAt.getTime()) : 0;
+            return aTime - bTime;
+          });
 
           for (const log of sortedLogs) {
-            if (isActive && log.createdAt > lastTimestamp) {
+            if (!log.createdAt) continue;
+            const logTimestamp = typeof log.createdAt === 'string' ? new Date(log.createdAt) : log.createdAt;
+            if (isActive && logTimestamp > lastTimestamp) {
               onLog(log);
-              if (log.createdAt > lastTimestamp) {
-                lastTimestamp = log.createdAt;
+              if (logTimestamp > lastTimestamp) {
+                lastTimestamp = logTimestamp;
               }
             }
           }

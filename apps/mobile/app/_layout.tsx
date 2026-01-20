@@ -7,6 +7,7 @@ import { StyleSheet, View } from "react-native";
 
 import { QueryProvider, AuthProvider, ThemeProvider } from "@/shared/providers";
 import { ErrorBoundary, OfflineIndicator } from "@/shared/components";
+import { COLORS } from "@/constants";
 
 // Не скрывать splash screen автоматически
 SplashScreen.preventAutoHideAsync();
@@ -46,5 +47,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
 });

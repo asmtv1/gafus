@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@gafus/prisma";
+import { prisma, Prisma } from "@gafus/prisma";
 import { getLogLevel } from "@shared/lib/utils/errorSource";
 import type { ErrorDashboardReport } from "@gafus/types";
 
@@ -66,7 +66,10 @@ export async function getErrorsFromDatabase(filters?: {
     
     const errors: ErrorDashboardReport[] = errorLogs.map(log => ({
       id: log.id,
+      timestamp: log.timestamp.toISOString(),
+      timestampNs: String(log.timestamp.getTime() * 1000000),
       message: log.message,
+      level: log.level,
       stack: log.stack || null,
       appName: log.appName,
       environment: log.environment,
@@ -80,7 +83,7 @@ export async function getErrorsFromDatabase(filters?: {
       createdAt: log.timestamp,
       updatedAt: log.updatedAt,
       status: log.status as 'new' | 'viewed' | 'resolved' | 'archived',
-      resolvedAt: log.resolvedAt || null,
+      resolvedAt: log.resolvedAt ? log.resolvedAt.toISOString() : null,
       resolvedBy: log.resolvedBy || null,
       labels: {
         app: log.appName,
@@ -89,7 +92,6 @@ export async function getErrorsFromDatabase(filters?: {
         ...(log.context ? { context: log.context } : {}),
         status: log.status,
       },
-      timestampNs: String(log.timestamp.getTime() * 1000000),
     }));
     
     return { success: true, errors };
@@ -293,7 +295,7 @@ export async function syncSeqErrorToDatabase(
         userId: error.userId || null,
         sessionId: error.sessionId || null,
         componentStack: error.componentStack || null,
-        additionalContext: error.additionalContext || {},
+        additionalContext: (error.additionalContext || {}) as Prisma.InputJsonValue,
         tags: error.tags || [],
         timestamp: timestamp,
         status: 'new',

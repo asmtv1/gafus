@@ -9,7 +9,6 @@ import { COLORS, SPACING, BORDER_RADIUS } from "@/constants";
 // Картинки с сервера (production URL)
 const ASSETS_URL = "https://gafus.ru/uploads";
 const LOGO_URL = `${ASSETS_URL}/logo.png`;
-const PAW_URL = `${ASSETS_URL}/paw.png`; // Используем PNG для корректного отображения
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -23,10 +22,9 @@ export default function WelcomeScreen() {
       <View style={styles.pawContainer}>
         <Text style={styles.pawText}>гуляем</Text>
         <Image
-          source={{ uri: PAW_URL }}
+          source={require("../../assets/images/paw.png")}
           style={styles.paw}
           contentFit="contain"
-          cachePolicy="memory-disk"
         />
         <Text style={styles.pawText}>вместе</Text>
       </View>
@@ -97,8 +95,8 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   paw: {
-    width: 120,
-    height: 116,
+    width: 141,
+    height: 136,
     marginLeft: 12,
     marginTop: 10,
   },

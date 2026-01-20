@@ -42,8 +42,9 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
   const hasAdditionalContext = (error: ErrorDashboardReport): boolean => {
     try {
       const context = error.additionalContext;
-      if (typeof context === "string") {
-        return context.trim().length > 0;
+      if (context && typeof context === "string") {
+        const strContext: string = context;
+        return strContext.trim().length > 0;
       }
       return context !== null && context !== undefined;
     } catch {
