@@ -31,6 +31,14 @@ RUN cd packages/prisma \
 # Собираем все необходимые пакеты для API
 RUN pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/auth --filter @gafus/core --filter @gafus/cdn-upload --filter @gafus/api
 
+# Готовим production зависимости через pnpm deploy
+RUN pnpm deploy --legacy --filter @gafus/api --prod --no-optional /app/deploy
+# Восстанавливаем .pnpm для работы симлинков
+RUN if [ -d /app/node_modules/.pnpm ]; then \
+      mkdir -p /app/deploy/node_modules/.pnpm && \
+      cp -r /app/node_modules/.pnpm/* /app/deploy/node_modules/.pnpm/; \
+    fi
+
 # Production stage - только runtime
 FROM node:20-alpine AS runner
 
@@ -43,19 +51,10 @@ RUN adduser --system --uid 1001 hono
 # Устанавливаем только необходимые пакеты
 RUN apk add --no-cache curl wget
 
-# Копируем node_modules (включая .pnpm для pnpm workspace)
-COPY --from=base --chown=hono:nodejs /app/node_modules ./node_modules
-# Копируем workspace конфигурацию для правильного разрешения зависимостей
-COPY --from=base --chown=hono:nodejs /app/package.json ./package.json
-COPY --from=base --chown=hono:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-# Копируем packages для workspace разрешения
-COPY --from=base --chown=hono:nodejs /app/packages ./packages
-# Копируем собранные файлы API
+# Копируем production-ready структуру из deploy
+COPY --from=base --chown=hono:nodejs /app/deploy/ ./
+# Копируем собранные файлы API (перезаписываем если нужно)
 COPY --from=base --chown=hono:nodejs /app/apps/api/dist ./dist
-COPY --from=base --chown=hono:nodejs /app/apps/api/package.json ./package.json
-
-# Устанавливаем права доступа
-RUN chown -R hono:nodejs /app
 USER hono
 
 # Устанавливаем переменные окружения
