@@ -133,4 +133,77 @@ export const authApi = {
       return { success: true };
     }
   },
+
+  /**
+   * Проверяет совпадение номера телефона с логином
+   */
+  checkPhoneMatchesUsername: async (
+    username: string,
+    phone: string
+  ): Promise<ApiResponse<{ matches: boolean }>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/check-phone-match`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, phone }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || "Ошибка проверки телефона",
+          code: data.code,
+        };
+      }
+
+      return {
+        success: true,
+        data: data.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: "Ошибка подключения к серверу",
+        code: "NETWORK_ERROR",
+      };
+    }
+  },
+
+  /**
+   * Отправляет запрос на сброс пароля
+   */
+  sendPasswordResetRequest: async (
+    username: string,
+    phone: string
+  ): Promise<ApiResponse<void>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/password-reset-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, phone }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || "Ошибка отправки запроса",
+          code: data.code,
+        };
+      }
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: "Ошибка подключения к серверу",
+        code: "NETWORK_ERROR",
+      };
+    }
+  },
 };

@@ -16,6 +16,10 @@ import {
   verifyRefreshToken,
 } from "@gafus/auth/jwt";
 import { registerUser } from "@gafus/auth";
+import {
+  checkPhoneMatchesUsername,
+  sendPasswordResetRequest,
+} from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-auth");
@@ -36,6 +40,16 @@ const registerSchema = z.object({
 
 const refreshSchema = z.object({
   refreshToken: z.string().min(1),
+});
+
+const checkPhoneMatchSchema = z.object({
+  username: z.string().min(1, "Имя пользователя обязательно"),
+  phone: z.string().min(1, "Номер телефона обязателен"),
+});
+
+const passwordResetRequestSchema = z.object({
+  username: z.string().min(1, "Имя пользователя обязательно"),
+  phone: z.string().min(1, "Номер телефона обязателен"),
 });
 
 // POST /api/v1/auth/login
@@ -319,6 +333,53 @@ authRoutes.post(
     } catch (error) {
       logger.error("Logout error", error as Error);
       return c.json({ success: true }); // Не раскрываем ошибки logout
+    }
+  }
+);
+
+// POST /api/v1/auth/check-phone-match
+authRoutes.post(
+  "/check-phone-match",
+  bodyLimit({ maxSize: 5 * 1024 }),
+  zValidator("json", checkPhoneMatchSchema),
+  async (c) => {
+    try {
+      const { username, phone } = c.req.valid("json");
+
+      const matches = await checkPhoneMatchesUsername(username, phone);
+
+      return c.json({
+        success: true,
+        data: { matches },
+      });
+    } catch (error) {
+      logger.error("Check phone match error", error as Error);
+      return c.json(
+        { success: false, error: "Ошибка проверки телефона" },
+        500
+      );
+    }
+  }
+);
+
+// POST /api/v1/auth/password-reset-request
+authRoutes.post(
+  "/password-reset-request",
+  bodyLimit({ maxSize: 5 * 1024 }),
+  zValidator("json", passwordResetRequestSchema),
+  async (c) => {
+    try {
+      const { username, phone } = c.req.valid("json");
+
+      await sendPasswordResetRequest(username, phone);
+
+      return c.json({ success: true });
+    } catch (error) {
+      logger.error("Password reset request error", error as Error);
+      return c.json(
+        { success: false, error: "Ошибка отправки запроса" },
+        500
+      );
     }
   }
 );

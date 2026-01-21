@@ -495,6 +495,9 @@ importers:
       expo-status-bar:
         specifier: ~3.0.9
         version: 3.0.9(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.9)(react@19.1.0))(react@19.1.0)
+      libphonenumber-js:
+        specifier: 1.12.8
+        version: 1.12.8
       react:
         specifier: 19.1.0
         version: 19.1.0
