@@ -261,6 +261,9 @@ importers:
       '@gafus/queues':
         specifier: workspace:*
         version: link:../../packages/queues
+      '@gafus/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@hono-rate-limiter/redis':
         specifier: ^0.1.4
         version: 0.1.4(hono-rate-limiter@0.4.2(hono@4.11.4))
@@ -967,6 +970,9 @@ importers:
       rimraf:
         specifier: 5.0.1
         version: 5.0.1
+      ts-add-js-extension:
+        specifier: ^1.6.6
+        version: 1.6.6
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -10158,6 +10164,10 @@ packages:
 
   trough@2.2.0:
     resolution: {integrity: sha512-tmMpK00BjZiUyVyvrBK7knerNgmgvcV/KLVyuma/SC+TQN167GrMRciANTz09+k3zW8L8t60jWO1GpfkZdjTaw==}
+
+  ts-add-js-extension@1.6.6:
+    resolution: {integrity: sha512-rPOBNrOULi/CjVHraGrDa0vuWDmuMszmIXGNaGe2UGfrBH0/bZWTTsh82uQ+INKp9cJYziKNTCG2knzBlWvW4A==}
+    hasBin: true
 
   ts-api-utils@2.1.0:
     resolution: {integrity: sha512-CUgTZL1irw8u29bzrOD/nH85jqyc74D6SshFgujOIA7osm2Rz7dYH77agkx7H4FBNxDq7Cjf+IjaX/8zwFW+ZQ==}
@@ -21971,6 +21981,10 @@ snapshots:
   trim-lines@3.0.1: {}
 
   trough@2.2.0: {}
+
+  ts-add-js-extension@1.6.6:
+    dependencies:
+      typescript: 5.9.3
 
   ts-api-utils@2.1.0(typescript@5.8.3):
     dependencies:

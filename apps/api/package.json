@@ -23,7 +23,8 @@
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
     "@gafus/logger": "workspace:*",
-    "@gafus/cdn-upload": "workspace:*"
+    "@gafus/cdn-upload": "workspace:*",
+    "@gafus/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",
