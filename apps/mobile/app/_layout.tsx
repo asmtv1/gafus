@@ -4,6 +4,12 @@ import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, View } from "react-native";
+import { useFonts } from "expo-font";
+import {
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_700Bold,
+} from "@expo-google-fonts/montserrat";
 
 import { QueryProvider, AuthProvider, ThemeProvider } from "@/shared/providers";
 import { ErrorBoundary, OfflineIndicator } from "@/shared/components";
@@ -15,12 +21,29 @@ SplashScreen.preventAutoHideAsync();
 /**
  * Root Layout — точка входа в приложение
  * Настраивает провайдеры и базовую навигацию
+ * Загружает шрифты: Montserrat (Google Fonts) и Moscow2024 (локальный)
  */
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    // Google Fonts - Montserrat
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_700Bold,
+    // Локальный шрифт - Moscow2024
+    Moscow2024: require("../assets/fonts/MOSCOW2024.otf"),
+  });
+
   useEffect(() => {
-    // Скрываем splash screen после инициализации
-    SplashScreen.hideAsync();
-  }, []);
+    // Скрываем splash screen только после загрузки шрифтов
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  // Не рендерим контент до загрузки шрифтов
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={styles.container}>

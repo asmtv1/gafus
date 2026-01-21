@@ -1,7 +1,5 @@
 // API Configuration
-export const API_BASE_URL = __DEV__
-  ? "http://localhost:3000"
-  : "https://gafus.ru";
+export const API_BASE_URL = "https://gafus.ru";
 
 // Cache durations (в миллисекундах)
 export const CACHE_DURATIONS = {
@@ -71,4 +69,19 @@ export const TRAINING_STATUS = {
   IN_PROGRESS: "IN_PROGRESS",
   COMPLETED: "COMPLETED",
   PAUSED: "PAUSED",
+} as const;
+
+// Шрифты (соответствуют веб-версии)
+export const FONTS = {
+  // Основной шрифт - Montserrat
+  montserrat: "Montserrat_400Regular",
+  montserratBold: "Montserrat_700Bold",
+  montserratMedium: "Montserrat_500Medium",
+  
+  // Кастомный шрифт - Moscow2024
+  moscow2024: "Moscow2024",
+  
+  // Системные fallback
+  impact: "Impact", // iOS/Android системный
+  sansFallback: "System", // Системный шрифт по умолчанию
 } as const;

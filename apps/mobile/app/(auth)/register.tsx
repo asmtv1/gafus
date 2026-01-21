@@ -6,16 +6,19 @@ import {
   Platform,
   ScrollView,
   Pressable,
+  TextInput,
+  Dimensions,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import { z } from "zod";
 
-import { Button, Input } from "@/shared/components/ui";
 import { authApi } from "@/shared/lib/api";
-import { useAuthStore } from "@/shared/stores";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/constants";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // Схема валидации
 const registerSchema = z.object({
@@ -23,7 +26,7 @@ const registerSchema = z.object({
     .min(3, "Минимум 3 символа")
     .max(50, "Максимум 50 символов")
     .regex(/^[a-zA-Z0-9_]+$/, "Только латиница, цифры и _"),
-  email: z.string().email("Некорректный email").optional().or(z.literal("")),
+  phone: z.string().min(10, "Введите корректный номер телефона"),
   password: z.string().min(6, "Минимум 6 символов"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -33,7 +36,7 @@ const registerSchema = z.object({
 
 type FormErrors = {
   username?: string;
-  email?: string;
+  phone?: string;
   password?: string;
   confirmPassword?: string;
 };
@@ -46,7 +49,7 @@ export default function RegisterScreen() {
 
   const [form, setForm] = useState({
     username: "",
-    email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
   });
@@ -87,7 +90,7 @@ export default function RegisterScreen() {
       const result = await authApi.register({
         username: form.username,
         password: form.password,
-        email: form.email || undefined,
+        phone: form.phone,
       });
       
       if (result.success) {
@@ -127,72 +130,91 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Заголовок */}
-          <View style={styles.header}>
-            <Text variant="headlineMedium" style={styles.title}>
-              Регистрация
-            </Text>
-            <Text variant="bodyLarge" style={styles.subtitle}>
-              Создайте новый аккаунт
-            </Text>
+          <Text style={styles.title}>Гафус!</Text>
+
+          {/* Контейнер с логотипом и подзаголовком */}
+          <View style={styles.logoContainer}>
+            <Image
+              source={require("../../assets/images/register-logo.png")}
+              style={styles.logo}
+              contentFit="contain"
+            />
+            <Text style={styles.subtitle}>регистрация</Text>
           </View>
 
           {/* Форма */}
           <View style={styles.form}>
-            <Input
-              label="Имя пользователя"
+            {/* Username Input */}
+            <TextInput
+              style={styles.input}
               value={form.username}
               onChangeText={(v) => updateField("username", v)}
-              error={errors.username}
+              placeholder="Имя пользователя"
+              placeholderTextColor={COLORS.placeholder}
               autoCapitalize="none"
               autoCorrect={false}
             />
+            {errors.username && (
+              <Text style={styles.errorText}>{errors.username}</Text>
+            )}
 
-            <Input
-              label="Email (необязательно)"
-              value={form.email}
-              onChangeText={(v) => updateField("email", v)}
-              error={errors.email}
-              keyboardType="email-address"
+            {/* Phone Input */}
+            <TextInput
+              style={styles.input}
+              value={form.phone}
+              onChangeText={(v) => updateField("phone", v)}
+              placeholder="+7XXXXXXXXXX"
+              placeholderTextColor={COLORS.placeholder}
+              keyboardType="phone-pad"
               autoCapitalize="none"
             />
+            {errors.phone && (
+              <Text style={styles.errorText}>{errors.phone}</Text>
+            )}
 
-            <Input
-              label="Пароль"
+            {/* Информация о подтверждении */}
+            <Text style={styles.info}>
+              Требуется Подтверждение через Telegram
+            </Text>
+
+            {/* Password Input */}
+            <TextInput
+              style={styles.input}
               value={form.password}
               onChangeText={(v) => updateField("password", v)}
-              error={errors.password}
+              placeholder="Пароль"
+              placeholderTextColor={COLORS.placeholder}
               secureTextEntry
               autoCapitalize="none"
             />
+            {errors.password && (
+              <Text style={styles.errorText}>{errors.password}</Text>
+            )}
 
-            <Input
-              label="Подтвердите пароль"
+            {/* Confirm Password Input */}
+            <TextInput
+              style={styles.input}
               value={form.confirmPassword}
               onChangeText={(v) => updateField("confirmPassword", v)}
-              error={errors.confirmPassword}
+              placeholder="Повторите пароль"
+              placeholderTextColor={COLORS.placeholder}
               secureTextEntry
               autoCapitalize="none"
             />
+            {errors.confirmPassword && (
+              <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+            )}
 
-            <Button
-              label={isLoading ? "Регистрация..." : "Зарегистрироваться"}
-              onPress={handleRegister}
-              loading={isLoading}
-              disabled={isLoading}
+            {/* Кнопка регистрации */}
+            <Pressable
               style={styles.button}
-            />
-          </View>
-
-          {/* Ссылка на вход */}
-          <View style={styles.links}>
-            <View style={styles.loginRow}>
-              <Text style={styles.loginText}>Уже есть аккаунт? </Text>
-              <Link href="/login" asChild>
-                <Pressable>
-                  <Text style={styles.link}>Войти</Text>
-                </Pressable>
-              </Link>
-            </View>
+              onPress={handleRegister}
+              disabled={isLoading}
+            >
+              <Text style={styles.buttonText}>
+                {isLoading ? "регистрация..." : "зарегистрироваться"}
+              </Text>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -211,45 +233,104 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.cardBackground, // #FFF8E5 как в веб
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    padding: SPACING.xl,
-  },
-  header: {
     alignItems: "center",
-    marginBottom: SPACING.xl,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: 22,
+    gap: 16,
   },
+  // Заголовок "Гафус!" - как в веб (Impact, 110px)
   title: {
-    fontWeight: "bold",
+    fontSize: Math.min(100, SCREEN_WIDTH * 0.28),
+    fontWeight: "400",
+    color: COLORS.primary,
+    textAlign: "center",
+    fontFamily: FONTS.impact,
     marginBottom: SPACING.sm,
   },
+  // Контейнер с логотипом и подзаголовком
+  logoContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  // Логотип - 277x204
+  logo: {
+    width: Math.min(277, SCREEN_WIDTH * 0.7),
+    height: Math.min(204, SCREEN_WIDTH * 0.52),
+  },
+  // Подзаголовок "регистрация" - Impact, 40px
   subtitle: {
-    color: COLORS.textSecondary,
-  },
-  form: {
-    marginBottom: SPACING.xl,
-  },
-  button: {
-    marginTop: SPACING.md,
-  },
-  links: {
-    alignItems: "center",
-  },
-  loginRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  loginText: {
-    color: COLORS.textSecondary,
-  },
-  link: {
+    fontSize: 40,
+    fontWeight: "400",
     color: COLORS.primary,
-    fontWeight: "600",
+    textAlign: "center",
+    fontFamily: FONTS.impact,
+  },
+  // Форма
+  form: {
+    alignItems: "center",
+    gap: 5,
+  },
+  // Инпуты - 250x29, border 2px #636128
+  input: {
+    backgroundColor: COLORS.cardBackground,
+    width: 230,
+    height: 29,
+    borderWidth: 2,
+    borderColor: "#636128",
+    borderRadius: 5,
+    paddingLeft: 10,
+    fontSize: 12,
+    fontFamily: FONTS.montserrat,
+    color: COLORS.primary,
+  },
+  // Текст ошибки
+  errorText: {
+    fontSize: 9,
+    fontFamily: FONTS.montserrat,
+    marginTop: 4,
+    color: COLORS.error,
+  },
+  // Информация о подтверждении через Telegram
+  info: {
+    color: "black",
+    fontFamily: FONTS.montserrat,
+    fontStyle: "italic",
+    fontWeight: "400",
+    fontSize: 10,
+    paddingVertical: 10,
+    textAlign: "center",
+  },
+  // Кнопка регистрации
+  button: {
+    backgroundColor: COLORS.primary,
+    width: 190,
+    height: 36,
+    borderRadius: 5,
+    marginTop: 30,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  buttonText: {
+    fontFamily: FONTS.impact,
+    fontWeight: "400",
+    fontSize: 20,
+    color: "#dad3c1",
+    textAlign: "center",
   },
 });

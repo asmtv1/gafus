@@ -4,11 +4,9 @@ import { Link } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
-import { COLORS, SPACING, BORDER_RADIUS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/constants";
 
 // Картинки с сервера (production URL)
-const ASSETS_URL = "https://gafus.ru/uploads";
-const LOGO_URL = `${ASSETS_URL}/logo.png`;
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -35,17 +33,20 @@ export default function WelcomeScreen() {
       {/* Диалог с собакой - позиционирование как в веб */}
       <View style={styles.dialogContainer}>
         <Image
-          source={{ uri: LOGO_URL }}
+          source={require("../../assets/images/logo.png")}
           style={styles.logo}
           contentFit="contain"
         />
-        <View style={styles.speechBubble}>
-          <Text style={styles.speechText}>
-            Добро ГАФ пожаловать!{"\n"}
-            Я - мудрый Гафус!{"\n"}
-            Я буду помогать тебе{"\n"}
-            с тренировками!
-          </Text>
+        <View style={styles.speechBubbleWrapper}>
+          <View style={styles.speechBubble}>
+            <Text style={styles.speechText}>
+              Добро ГАФ пожаловать!{"\n"}
+              Я - мудрый Гафус!{"\n"}
+              Я буду помогать тебе{"\n"}
+              с тренировками!
+            </Text>
+          </View>
+          <View style={styles.speechBubbleTail} />
         </View>
       </View>
 
@@ -93,6 +94,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.primary,
     fontWeight: "400",
+    fontFamily: FONTS.montserrat,
   },
   paw: {
     width: 141,
@@ -101,34 +103,38 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   // Заголовок - размер как в веб (110px, но адаптировано)
+  // Используем Impact (системный) или Montserrat как fallback
   title: {
     fontSize: Math.min(110, SCREEN_WIDTH * 0.28),
     fontWeight: "400",
     color: COLORS.primary,
     marginTop: -6,
     marginBottom: 8,
+    fontFamily: FONTS.impact, // Impact для соответствия веб-версии
   },
   // Диалог - позиционирование как в веб с left: -70px
   dialogContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginLeft: -70,
+    marginLeft: -30,
     marginTop: 55,
   },
   logo: {
-    width: 250,
+    width: 230,
     height: 250,
-    marginTop: -46,
-    marginRight: 20,
+    marginTop: -40,
+    marginRight: 50,
   },
-  // Speech bubble - как в веб с top: -113px, left: -25px
+  speechBubbleWrapper: {
+    position: "relative",
+    marginTop: -250,
+    marginLeft: -85,
+  },
   speechBubble: {
     backgroundColor: "#f5f0d8",
     borderRadius: 20,
     paddingVertical: 10,
     paddingHorizontal: 10,
-    marginTop: -113,
-    marginLeft: -25,
     minWidth: 210,
     maxWidth: 280,
     shadowColor: "#000",
@@ -137,8 +143,23 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  speechBubbleTail: {
+    position: "absolute",
+    width: 0,
+    height: 0,
+    borderTopWidth: 17,
+    borderTopColor: "transparent",
+    borderBottomWidth: 23,
+    borderBottomColor: "transparent",
+    borderRightWidth: 26,
+    borderRightColor: "#f5f0d8",
+    top: 75,
+    right: 190,
+    transform: [{ rotate: "-0.8rad" }],
+  },
+  
   speechText: {
-    fontFamily: "Courier",
+    fontFamily: "Courier New", // Соответствует веб-версии
     fontSize: 14,
     lineHeight: 20,
     color: "#4a4a2a",
@@ -166,6 +187,7 @@ const styles = StyleSheet.create({
     color: COLORS.cardBackground,
     fontSize: 25,
     fontWeight: "400",
+    fontFamily: FONTS.impact, // Impact для соответствия веб-версии
   },
   registerButton: {
     backgroundColor: COLORS.cardBackground,
@@ -181,6 +203,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 25,
     fontWeight: "400",
+    fontFamily: FONTS.impact, // Impact для соответствия веб-версии
   },
   // Подпись - как в веб
   subtitle: {
@@ -192,5 +215,6 @@ const styles = StyleSheet.create({
     marginTop: "auto",
     marginBottom: SPACING.lg,
     maxWidth: 320,
+    fontFamily: FONTS.montserrat,
   },
 });
