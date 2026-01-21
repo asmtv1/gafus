@@ -5,11 +5,50 @@
 import type { Context } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { RedisStore } from "@hono-rate-limiter/redis";
-import { connection as redis } from "@gafus/queues";
+import { connection as ioredisClient } from "@gafus/queues";
+
+/**
+ * Адаптер для ioredis клиента, чтобы он соответствовал интерфейсу RedisClient
+ * из @hono-rate-limiter/redis
+ */
+const redisClientAdapter = {
+  async scriptLoad(script: string): Promise<string> {
+    const result = await ioredisClient.script("LOAD", script);
+    if (typeof result !== "string") {
+      throw new Error("scriptLoad returned non-string value");
+    }
+    return result;
+  },
+  async evalsha<T = unknown>(
+    sha1: string,
+    keys: string[],
+    args: unknown[]
+  ): Promise<T> {
+    // ioredis.evalsha принимает: sha, numkeys, ...keys, ...args
+    // args должны быть совместимы с RedisValue (string | number | Buffer)
+    const redisArgs = args.map((arg) => {
+      if (typeof arg === "string" || typeof arg === "number") {
+        return arg;
+      }
+      return String(arg);
+    });
+    return ioredisClient.evalsha(
+      sha1,
+      keys.length,
+      ...keys,
+      ...redisArgs
+    ) as Promise<T>;
+  },
+  async decr(key: string): Promise<number> {
+    return ioredisClient.decr(key);
+  },
+  async del(key: string): Promise<number> {
+    return ioredisClient.del(key);
+  },
+};
 
 const store = new RedisStore({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: redis as any,
+  client: redisClientAdapter,
   prefix: "gafus-api-rate:",
 });
 
