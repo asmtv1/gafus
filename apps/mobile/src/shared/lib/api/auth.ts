@@ -44,21 +44,43 @@ export const authApi = {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json();
-
+      // Проверяем статус перед парсингом JSON
       if (!response.ok) {
+        // Пытаемся получить JSON ошибки, но не падаем если это не JSON
+        let errorData: { error?: string; code?: string } = {};
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            errorData = await response.json();
+          }
+        } catch {
+          // Игнорируем ошибки парсинга - используем дефолтное сообщение
+        }
+
         return {
           success: false,
-          error: data.error || "Неверные учётные данные",
-          code: data.code,
+          error: errorData.error || "Неверные учётные данные",
+          code: errorData.code || `HTTP_${response.status}`,
         };
       }
+
+      // Парсим JSON только если статус OK
+      const data = await response.json();
 
       return {
         success: true,
         data: data.data,
       };
     } catch (error) {
+      // Обработка сетевых ошибок и ошибок парсинга
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        return {
+          success: false,
+          error: "Ошибка подключения к серверу",
+          code: "NETWORK_ERROR",
+        };
+      }
+
       return {
         success: false,
         error: "Ошибка подключения к серверу",
@@ -82,21 +104,40 @@ export const authApi = {
         body: JSON.stringify({ name, phone, password }),
       });
 
-      const result = await response.json();
-
+      // Проверяем статус перед парсингом JSON
       if (!response.ok) {
+        let errorData: { error?: string; code?: string } = {};
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            errorData = await response.json();
+          }
+        } catch {
+          // Игнорируем ошибки парсинга
+        }
+
         return {
           success: false,
-          error: result.error || "Ошибка регистрации",
-          code: result.code,
+          error: errorData.error || "Ошибка регистрации",
+          code: errorData.code || `HTTP_${response.status}`,
         };
       }
+
+      const result = await response.json();
 
       return {
         success: true,
         data: result.data,
       };
     } catch (error) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        return {
+          success: false,
+          error: "Ошибка подключения к серверу",
+          code: "NETWORK_ERROR",
+        };
+      }
+
       return {
         success: false,
         error: "Ошибка подключения к серверу",
@@ -148,21 +189,39 @@ export const authApi = {
         body: JSON.stringify({ username, phone }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        let errorData: { error?: string; code?: string } = {};
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            errorData = await response.json();
+          }
+        } catch {
+          // Игнорируем ошибки парсинга
+        }
+
         return {
           success: false,
-          error: data.error || "Ошибка проверки телефона",
-          code: data.code,
+          error: errorData.error || "Ошибка проверки телефона",
+          code: errorData.code || `HTTP_${response.status}`,
         };
       }
+
+      const data = await response.json();
 
       return {
         success: true,
         data: data.data,
       };
     } catch (error) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        return {
+          success: false,
+          error: "Ошибка подключения к серверу",
+          code: "NETWORK_ERROR",
+        };
+      }
+
       return {
         success: false,
         error: "Ошибка подключения к серверу",
@@ -185,20 +244,43 @@ export const authApi = {
         body: JSON.stringify({ username, phone }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        let errorData: { error?: string; code?: string } = {};
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            errorData = await response.json();
+          }
+        } catch {
+          // Игнорируем ошибки парсинга
+        }
+
         return {
           success: false,
-          error: data.error || "Ошибка отправки запроса",
-          code: data.code,
+          error: errorData.error || "Ошибка отправки запроса",
+          code: errorData.code || `HTTP_${response.status}`,
         };
+      }
+
+      // Для успешного ответа может не быть тела
+      try {
+        await response.json();
+      } catch {
+        // Игнорируем если нет JSON тела
       }
 
       return {
         success: true,
       };
     } catch (error) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        return {
+          success: false,
+          error: "Ошибка подключения к серверу",
+          code: "NETWORK_ERROR",
+        };
+      }
+
       return {
         success: false,
         error: "Ошибка подключения к серверу",
