@@ -12,6 +12,7 @@ on:
           - trainer-panel
           - error-dashboard
           - admin-panel
+          - api
           - worker
           - bull-board
           - telegram-bot
@@ -143,6 +144,11 @@ jobs:
               echo "tag=gafus-admin-panel" >> $GITHUB_OUTPUT
               echo "app-name=admin-panel" >> $GITHUB_OUTPUT
               ;;
+            api)
+              echo "dockerfile=Dockerfile-api-optimized" >> $GITHUB_OUTPUT
+              echo "tag=gafus-api" >> $GITHUB_OUTPUT
+              echo "app-name=api" >> $GITHUB_OUTPUT
+              ;;
             worker)
               echo "dockerfile=Dockerfile-worker-optimized" >> $GITHUB_OUTPUT
               echo "tag=gafus-worker" >> $GITHUB_OUTPUT
@@ -165,14 +171,15 @@ jobs:
               ;;
           esac
 
-  # Сборка приложения (если это Next.js приложение)
+  # Сборка приложения (если это Next.js приложение или API)
   build-app:
     needs: [prepare-deps, set-container-config]
     if: |
       github.event.inputs.container == 'web' ||
       github.event.inputs.container == 'trainer-panel' ||
       github.event.inputs.container == 'error-dashboard' ||
-      github.event.inputs.container == 'admin-panel'
+      github.event.inputs.container == 'admin-panel' ||
+      github.event.inputs.container == 'api'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -216,8 +223,14 @@ jobs:
 
       - name: Build ${{ needs.set-container-config.outputs.app-name }}
         run: |
-          cd apps/${{ needs.set-container-config.outputs.app-name }}
-          pnpm build
+          if [ "${{ needs.set-container-config.outputs.app-name }}" = "api" ]; then
+            # API собирается через turbo с фильтрами
+            pnpm build --filter @gafus/api
+          else
+            # Next.js приложения собираются напрямую
+            cd apps/${{ needs.set-container-config.outputs.app-name }}
+            pnpm build
+          fi
 
       - name: Cache app build
         uses: actions/cache@v4
