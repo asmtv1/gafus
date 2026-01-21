@@ -7,3 +7,5 @@ export * from './tracking';
 export * from './achievements';
 export * from './pets';
 export * from './training';
+export * from './exam';
+export * from './offline';

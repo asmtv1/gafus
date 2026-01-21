@@ -171,7 +171,7 @@ jobs:
     needs: prepare-deps
     strategy:
       matrix:
-        app: [web, trainer-panel, error-dashboard, admin-panel]
+        app: [web, trainer-panel, error-dashboard, admin-panel, api]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -290,6 +290,7 @@ jobs:
           - { name: "trainer-panel", file: "Dockerfile-trainer-panel-optimized", tag: "gafus-trainer-panel" }
           - { name: "error-dashboard", file: "Dockerfile-error-dashboard-optimized", tag: "gafus-error-dashboard" }
           - { name: "admin-panel", file: "Dockerfile-admin-panel-optimized", tag: "gafus-admin-panel" }
+          - { name: "api", file: "Dockerfile-api-optimized", tag: "gafus-api" }
           - { name: "worker", file: "Dockerfile-worker-optimized", tag: "gafus-worker" }
           - { name: "bull-board", file: "Dockerfile-bull-board-optimized", tag: "gafus-bull-board" }
           - { name: "telegram-bot", file: "Dockerfile-telegram-bot-optimized", tag: "gafus-telegram-bot" }
@@ -509,7 +510,7 @@ jobs:
             docker rm $(docker ps -aq --filter "name=gafus-*") 2>/dev/null || true
 
             # Remove all gafus containers by name explicitly
-            docker rm -f gafus-web gafus-trainer-panel gafus-error-dashboard gafus-admin-panel gafus-worker gafus-bull-board gafus-telegram-bot gafus-prisma gafus-postgres gafus-redis gafus-nginx gafus-vector gafus-seq gafus-prometheus gafus-grafana gafus-node-exporter gafus-postgres-exporter gafus-redis-exporter gafus-blackbox-exporter 2>/dev/null || true
+            docker rm -f gafus-web gafus-trainer-panel gafus-error-dashboard gafus-admin-panel gafus-api gafus-worker gafus-bull-board gafus-telegram-bot gafus-prisma gafus-postgres gafus-redis gafus-nginx gafus-vector gafus-seq gafus-prometheus gafus-grafana gafus-node-exporter gafus-postgres-exporter gafus-redis-exporter gafus-blackbox-exporter 2>/dev/null || true
 
             # Now do the normal compose cleanup
             docker-compose -f ci-cd/docker/docker-compose.prod.yml down --remove-orphans --timeout 30 || true
@@ -537,6 +538,7 @@ jobs:
               "gafus-trainer-panel"
               "gafus-error-dashboard"
               "gafus-admin-panel"
+              "gafus-api"
               "gafus-worker"
               "gafus-bull-board"
               "gafus-telegram-bot"
@@ -572,7 +574,7 @@ jobs:
             sleep 15
 
             # 2. Start application services
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate prisma worker telegram-bot
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate prisma worker telegram-bot api
             echo "⏳ Waiting for application services to be ready..."
             sleep 10
 

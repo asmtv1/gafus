@@ -17,6 +17,9 @@ import { userRoutes } from "./routes/v1/user.js";
 import { coursesRoutes } from "./routes/v1/courses.js";
 import { petsRoutes } from "./routes/v1/pets.js";
 import { trainingRoutes } from "./routes/v1/training.js";
+import { examRoutes } from "./routes/v1/exam.js";
+import { offlineRoutes } from "./routes/v1/offline.js";
+import { achievementsRoutes } from "./routes/v1/achievements.js";
 
 export const app = new Hono();
 
@@ -49,6 +52,18 @@ app.route("/api/v1/pets", petsRoutes);
 app.use("/api/v1/training/*", apiRateLimiter);
 app.use("/api/v1/training/*", authMiddleware);
 app.route("/api/v1/training", trainingRoutes);
+
+app.use("/api/v1/exam/*", apiRateLimiter);
+app.use("/api/v1/exam/*", authMiddleware);
+app.route("/api/v1/exam", examRoutes);
+
+app.use("/api/v1/offline/*", apiRateLimiter);
+app.use("/api/v1/offline/*", authMiddleware);
+app.route("/api/v1/offline", offlineRoutes);
+
+app.use("/api/v1/achievements/*", apiRateLimiter);
+app.use("/api/v1/achievements/*", authMiddleware);
+app.route("/api/v1/achievements", achievementsRoutes);
 
 // Global error handler
 app.onError(errorHandler);

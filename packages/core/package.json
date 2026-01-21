@@ -47,6 +47,14 @@
       "types": "./dist/core/src/services/training/index.d.ts",
       "default": "./dist/core/src/services/training/index.js"
     },
+    "./services/exam": {
+      "types": "./dist/core/src/services/exam/index.d.ts",
+      "default": "./dist/core/src/services/exam/index.js"
+    },
+    "./services/offline": {
+      "types": "./dist/core/src/services/offline/index.d.ts",
+      "default": "./dist/core/src/services/offline/index.js"
+    },
     "./errors": {
       "types": "./dist/core/src/errors/index.d.ts",
       "default": "./dist/core/src/errors/index.js"
