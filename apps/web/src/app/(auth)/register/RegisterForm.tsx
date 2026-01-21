@@ -78,7 +78,7 @@ export function RegisterForm() {
         className={styles.input}
         form={form}
         errorClassName={styles.errorText}
-        // Валидация теперь через Zod схему
+        autoComplete="username"
       />
 
       <FormField
@@ -91,7 +91,7 @@ export function RegisterForm() {
         type="tel"
         placeholder="+7XXXXXXXXXX"
         form={form}
-        // Валидация теперь через Zod схему
+        autoComplete="tel"
       />
 
       <p className={styles.info}>Требуется Подтверждение через Telegram</p>
@@ -112,6 +112,7 @@ export function RegisterForm() {
         label="Повторите пароль"
         placeholder="Повторите пароль"
         visuallyHiddenLabel
+        autoComplete="new-password"
         {...form.register("confirmPassword")}
         error={errors.confirmPassword?.message}
         errorClassName={styles.errorText}

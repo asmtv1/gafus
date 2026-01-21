@@ -1,5 +1,9 @@
 // API Configuration
-export const API_BASE_URL = "https://gafus.ru";
+// Production: https://api.gafus.ru (standalone API service)
+// Development: http://api.gafus.localhost (через nginx) или http://localhost:3001 (прямо)
+export const API_BASE_URL = __DEV__ 
+  ? "http://localhost:3001"  // Для разработки используйте прямое подключение или http://api.gafus.localhost через nginx
+  : "https://api.gafus.ru";  // Production API
 
 // Cache durations (в миллисекундах)
 export const CACHE_DURATIONS = {

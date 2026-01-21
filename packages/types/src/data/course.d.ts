@@ -21,64 +21,6 @@ export interface CourseWithProgressData {
     userCourses: UserCourse[];
     dayLinks: DayLink[];
 }
-export interface CourseCache {
-    data: CourseWithProgressData[];
-    timestamp: number;
-    type?: string;
-}
-export type ImageCache = Record<string, {
-    loaded: boolean;
-    timestamp: number;
-    error: boolean;
-}>;
-export type CourseStoreStats = Record<string, {
-    views: number;
-    lastViewed: number;
-    rating: number | null;
-    reviews: number;
-}>;
-export interface CourseState {
-    allCourses: CourseCache | null;
-    favorites: CourseCache | null;
-    authored: CourseWithProgressData[] | null;
-    favoriteCourseIds: Set<string>;
-    loading: {
-        all: boolean;
-        favorites: boolean;
-        authored: boolean;
-    };
-    errors: {
-        all: string | null;
-        favorites: string | null;
-        authored: string | null;
-    };
-    imageCache: ImageCache;
-    courseStats: CourseStoreStats;
-    prefetchedCourses: Set<string>;
-    setAllCourses: (courses: CourseWithProgressData[], type?: string) => void;
-    setFavorites: (courses: CourseWithProgressData[]) => void;
-    setAuthored: (courses: CourseWithProgressData[]) => void;
-    addToFavorites: (courseId: string) => void;
-    removeFromFavorites: (courseId: string) => void;
-    isFavorite: (courseId: string) => boolean;
-    setFavoriteCourseIds: (courseIds: string[]) => void;
-    setLoading: (key: "all" | "favorites" | "authored", loading: boolean) => void;
-    setError: (key: "all" | "favorites" | "authored", error: string | null) => void;
-    markImageLoaded: (url: string) => void;
-    markImageError: (url: string) => void;
-    isImageCached: (url: string) => boolean;
-    setCourseStats: (stats: CourseStoreStats) => void;
-    getCourseStats: () => CourseStoreStats;
-    markPrefetched: (courseId: string) => void;
-    isPrefetched: (courseId: string) => boolean;
-    syncWithSWR: (key: "all" | "favorites" | "authored", data: CourseWithProgressData[]) => void;
-    invalidateCache: (key: "all" | "favorites" | "authored") => void;
-    invalidateFavoritesCache: () => void;
-    isStale: (cache: CourseCache | null, maxAge?: number) => boolean;
-    getCourseById: (courseId: string) => CourseWithProgressData | null;
-    getPopularCourses: (limit?: number) => CourseWithProgressData[];
-    clearCache: () => void;
-}
 export interface CourseReview {
     rating: number | null;
     comment: string | null;
@@ -116,7 +58,7 @@ export interface DayLink {
         }[];
     };
 }
-export interface CourseCardProps {
+export interface CourseCardData {
     id: string;
     name: string;
     type: string;
@@ -133,8 +75,6 @@ export interface CourseCardProps {
     trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
     reviews: CourseReview[];
     isFavorite: boolean;
-    onToggleFavorite?: () => void;
-    onUnfavorite?: (courseId: string) => void;
 }
 export interface CourseWithProgress {
     id: string;
@@ -183,5 +123,16 @@ export interface AuthoredCourse {
             }[];
         }[];
     }[];
+}
+export interface CourseFormData {
+    name: string;
+    description: string;
+    shortDesc: string;
+    duration: string;
+    logoImg: string;
+    isPrivate: boolean;
+    visibleDayIds: string[];
+    allowedUserIds: string[];
+    videoUrl?: string;
 }
 //# sourceMappingURL=course.d.ts.map

@@ -1,3 +1,4 @@
+"use strict";
 // Типы для форм аутентификации
-export {};
+Object.defineProperty(exports, "__esModule", { value: true });
 //# sourceMappingURL=forms.js.map

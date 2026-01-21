@@ -5,3 +5,5 @@ export * from './notifications';
 export * from './subscriptions';
 export * from './tracking';
 export * from './achievements';
+export * from './pets';
+export * from './training';

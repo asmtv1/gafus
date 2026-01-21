@@ -260,6 +260,7 @@ model User {
   favoriteCourses          FavoriteCourse[]
   courseReviews            CourseReview[]
   passwordResetTokens      PasswordResetToken[]
+  refreshTokens            RefreshToken[]
   pushSubscriptions        PushSubscription[]
   stepNotifications        StepNotification[]
   reengagementCampaigns    ReengagementCampaign[]
@@ -452,6 +453,25 @@ model PasswordResetToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
+}
+
+// JWT Refresh Tokens для API авторизации (mobile и web)
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique // SHA-256 хеш токена, НЕ сам токен
+  deviceId  String? // Идентификатор устройства (для multi-device support)
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime? // null = активен, DateTime = отозван
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
 }
 
 model PushSubscription {

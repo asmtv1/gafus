@@ -22,6 +22,35 @@ gafus/
 └── .dockerignore
 ```
 
+## ⚙️ Next.js Standalone Mode
+
+Все Next.js приложения (web, trainer-panel, error-dashboard, admin-panel) используют **standalone mode** для оптимизации размера Docker образов.
+
+### Переменная окружения для Standalone Mode
+
+Standalone mode управляется следующими переменными:
+
+- **`NODE_ENV=production`** - автоматически включает standalone mode
+- **`USE_STANDALONE=true`** - явно включает standalone mode (для Docker)
+- **`DISABLE_STANDALONE=true`** - явно отключает standalone mode
+
+**Использование:**
+- **Production builds**: `NODE_ENV=production pnpm build` (standalone включен)
+- **Docker builds**: `USE_STANDALONE=true` устанавливается в Dockerfiles
+- **Dev builds**: `pnpm dev` (standalone отключен)
+- **Отключить в production**: `DISABLE_STANDALONE=true pnpm build`
+
+### Настройка в next.config.ts
+
+```typescript
+const nextConfig: NextConfig = {
+  // Включаем standalone режим для production (кроме явного отключения)
+  ...((process.env.NODE_ENV === 'production' || process.env.USE_STANDALONE === 'true') && 
+      process.env.DISABLE_STANDALONE !== 'true' && { output: 'standalone' }),
+  // ... остальная конфигурация
+};
+```
+
 ## 🔧 Dockerfile для приложений
 
 ### Web App Dockerfile

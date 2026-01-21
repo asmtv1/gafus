@@ -1,15 +1,3 @@
-export interface UpdatePetInput {
-    id?: string;
-    ownerId?: string;
-    name: string;
-    type: string;
-    breed?: string;
-    birthDate?: string;
-    heightCm?: number;
-    weightKg?: number;
-    notes?: string;
-    photoUrl?: string;
-}
 export interface Pet {
     id: string;
     name: string;

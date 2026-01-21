@@ -1,0 +1,35 @@
+{
+  "name": "@gafus/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.11.4",
+    "@hono/node-server": "^1.19.0",
+    "@hono/zod-validator": "^0.4.3",
+    "hono-rate-limiter": "^0.4.2",
+    "@hono-rate-limiter/redis": "^0.1.4",
+    "jose": "^5.10.0",
+    "bcryptjs": "^2.4.3",
+    "zod": "^3.25.56",
+    "@gafus/auth": "workspace:*",
+    "@gafus/core": "workspace:*",
+    "@gafus/prisma": "workspace:*",
+    "@gafus/queues": "workspace:*",
+    "@gafus/logger": "workspace:*",
+    "@gafus/cdn-upload": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "@types/bcryptjs": "^2.4.6",
+    "tsup": "^8.5.0",
+    "tsx": "4.19.0",
+    "typescript": "5.8.3"
+  }
+}

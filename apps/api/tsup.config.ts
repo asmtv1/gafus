@@ -1,0 +1,24 @@
+import { defineConfig } from "tsup";
+
+export default defineConfig({
+  entry: ["src/index.ts"],
+  format: ["esm"],
+  target: "node20",
+  outDir: "dist",
+  clean: true,
+  sourcemap: true,
+  splitting: false,
+  treeshake: true,
+  // Внешние зависимости (не бандлятся)
+  external: [
+    "@gafus/prisma",
+    "@gafus/auth",
+    "@gafus/core",
+    "@gafus/logger",
+    "@gafus/queues",
+    "@gafus/cdn-upload",
+    "ioredis",
+  ],
+  // Явно указываем noExternal для бандлинга
+  noExternal: [],
+});

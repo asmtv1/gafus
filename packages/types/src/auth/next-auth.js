@@ -1,4 +1,5 @@
+"use strict";
 // Типы для next-auth - заглушки без module augmentation
 // В runtime эти типы будут заменены на реальные типы next-auth
-export {};
+Object.defineProperty(exports, "__esModule", { value: true });
 //# sourceMappingURL=next-auth.js.map

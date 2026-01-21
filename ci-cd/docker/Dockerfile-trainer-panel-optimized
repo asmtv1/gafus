@@ -38,7 +38,8 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 # Копируем Prisma Query Engine рядом с клиентом (ожидаемое Prisma расположение)
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
 
-# Собираем приложение
+# Собираем приложение с standalone режимом
+ENV USE_STANDALONE=true
 RUN pnpm build --filter @gafus/trainer-panel
 
 # Production stage - только runtime

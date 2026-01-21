@@ -39,6 +39,14 @@
       "types": "./dist/core/src/services/achievements/index.d.ts",
       "default": "./dist/core/src/services/achievements/index.js"
     },
+    "./services/pets": {
+      "types": "./dist/core/src/services/pets/index.d.ts",
+      "default": "./dist/core/src/services/pets/index.js"
+    },
+    "./services/training": {
+      "types": "./dist/core/src/services/training/index.d.ts",
+      "default": "./dist/core/src/services/training/index.js"
+    },
     "./errors": {
       "types": "./dist/core/src/errors/index.d.ts",
       "default": "./dist/core/src/errors/index.js"

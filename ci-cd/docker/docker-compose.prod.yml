@@ -207,6 +207,30 @@ services:
       redis:
         condition: service_healthy
 
+  # API Service
+  api:
+    image: ghcr.io/asmtv1/gafus-api:latest
+    container_name: gafus-api
+    environment:
+      - NODE_ENV=production
+      - API_PORT=3001
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   # Telegram Bot
   telegram-bot:
     image: ghcr.io/asmtv1/gafus-telegram-bot:latest
@@ -244,6 +268,7 @@ services:
       - trainer-panel
       - error-dashboard
       - admin-panel
+      - api
       - bull-board
       - prometheus
       - grafana

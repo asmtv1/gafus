@@ -73,6 +73,10 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
         operation: 'service_worker_registered',
         scope: registration.scope
       });
+
+      // Ждем активации Service Worker перед возвратом
+      await this.waitForActivation(registration);
+
       return registration;
 
     } catch (error) {
@@ -81,6 +85,56 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
       });
       throw new Error('Service Worker registration failed');
     }
+  }
+
+  private async waitForActivation(registration: ServiceWorkerRegistration): Promise<void> {
+    // Если уже активен - возвращаемся сразу
+    if (registration.active && navigator.serviceWorker.controller) {
+      logger.info('✅ SW Manager: Service Worker already active', {
+        operation: 'service_worker_already_active'
+      });
+      return;
+    }
+
+    logger.info('⏳ SW Manager: Waiting for Service Worker activation', {
+      operation: 'waiting_for_activation'
+    });
+
+    // Ждем активации с таймаутом 10 секунд
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Service Worker activation timeout'));
+      }, 10000);
+
+      const checkActive = () => {
+        if (registration.active && navigator.serviceWorker.controller) {
+          clearTimeout(timeout);
+          logger.success('✅ SW Manager: Service Worker activated', {
+            operation: 'service_worker_activated'
+          });
+          resolve();
+        }
+      };
+
+      // Проверяем immediately
+      checkActive();
+
+      // Если installing - ждем statechange
+      if (registration.installing) {
+        registration.installing.addEventListener('statechange', checkActive);
+      }
+
+      // Если waiting - ждем controllerchange
+      if (registration.waiting) {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          clearTimeout(timeout);
+          logger.success('✅ SW Manager: Service Worker controller changed', {
+            operation: 'service_worker_controller_changed'
+          });
+          resolve();
+        });
+      }
+    });
   }
 
   private async cleanupOldRegistrations(): Promise<void> {

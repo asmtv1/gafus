@@ -27,19 +27,19 @@ cd ../..
 # Собираем web приложение (как в CI)
 echo "🌐 Сборка web приложения..."
 cd apps/web
-pnpm build
+USE_STANDALONE=true pnpm build
 cd ../..
 
 # Собираем trainer-panel (как в CI)
 echo "👨‍🏫 Сборка trainer-panel..."
 cd apps/trainer-panel
-pnpm build
+USE_STANDALONE=true pnpm build
 cd ../..
 
 # Собираем error-dashboard (как в CI)
 echo "📊 Сборка error-dashboard..."
 cd apps/error-dashboard
-pnpm build
+USE_STANDALONE=true pnpm build
 cd ../..
 
 # НЕ собираем все пакеты - в CI этого нет!

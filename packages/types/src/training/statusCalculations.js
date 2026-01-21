@@ -1,4 +1,7 @@
-import { TrainingStatus } from "../utils/training-status";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.calculateDayStatusFromStatuses = calculateDayStatusFromStatuses;
+const training_status_1 = require("../utils/training-status");
 /**
  * Единая логика расчета статуса дня на основе статусов шагов
  * Используется на клиенте и сервере для обеспечения консистентности
@@ -11,22 +14,22 @@ import { TrainingStatus } from "../utils/training-status";
  * ВАЖНО: PAUSED шаги считаются как IN_PROGRESS для расчета статуса дня
  * Это критично для синхронизации клиента и сервера!
  */
-export function calculateDayStatusFromStatuses(stepStatuses) {
+function calculateDayStatusFromStatuses(stepStatuses) {
     if (stepStatuses.length === 0) {
-        return TrainingStatus.NOT_STARTED;
+        return training_status_1.TrainingStatus.NOT_STARTED;
     }
     const normalized = stepStatuses.map((s) => String(s));
     // Все шаги завершены
-    if (normalized.every((s) => s === TrainingStatus.COMPLETED)) {
-        return TrainingStatus.COMPLETED;
+    if (normalized.every((s) => s === training_status_1.TrainingStatus.COMPLETED)) {
+        return training_status_1.TrainingStatus.COMPLETED;
     }
     // Есть хотя бы один активный шаг (IN_PROGRESS, PAUSED или COMPLETED)
     // КРИТИЧНО: PAUSED должен проверяться, иначе будет рассинхронизация!
-    if (normalized.some((s) => s === TrainingStatus.IN_PROGRESS ||
+    if (normalized.some((s) => s === training_status_1.TrainingStatus.IN_PROGRESS ||
         s === "PAUSED" ||
-        s === TrainingStatus.COMPLETED)) {
-        return TrainingStatus.IN_PROGRESS;
+        s === training_status_1.TrainingStatus.COMPLETED)) {
+        return training_status_1.TrainingStatus.IN_PROGRESS;
     }
-    return TrainingStatus.NOT_STARTED;
+    return training_status_1.TrainingStatus.NOT_STARTED;
 }
 //# sourceMappingURL=statusCalculations.js.map

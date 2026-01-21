@@ -15,14 +15,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { z } from "zod";
 
-import { authApi } from "@/shared/lib/api";
+import { useAuthStore } from "@/shared/stores";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // Схема валидации
 const registerSchema = z.object({
-  username: z.string()
+  name: z.string()
     .min(3, "Минимум 3 символа")
     .max(50, "Максимум 50 символов")
     .regex(/^[a-zA-Z0-9_]+$/, "Только латиница, цифры и _"),
@@ -35,7 +35,7 @@ const registerSchema = z.object({
 });
 
 type FormErrors = {
-  username?: string;
+  name?: string;
   phone?: string;
   password?: string;
   confirmPassword?: string;
@@ -46,9 +46,10 @@ type FormErrors = {
  */
 export default function RegisterScreen() {
   const router = useRouter();
+  const { register } = useAuthStore();
 
   const [form, setForm] = useState({
-    username: "",
+    name: "",
     phone: "",
     password: "",
     confirmPassword: "",
@@ -87,11 +88,7 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     try {
-      const result = await authApi.register({
-        username: form.username,
-        password: form.password,
-        phone: form.phone,
-      });
+      const result = await register(form.name, form.phone, form.password);
       
       if (result.success) {
         setSnackbar({ 
@@ -99,9 +96,9 @@ export default function RegisterScreen() {
           message: "Регистрация успешна! Выполняется вход..." 
         });
         
-        // Автоматический вход после регистрации
+        // Автоматический переход на главную после успешной регистрации
         setTimeout(() => {
-          router.replace("/login");
+          router.replace("/");
         }, 1500);
       } else {
         setSnackbar({ 
@@ -144,18 +141,18 @@ export default function RegisterScreen() {
 
           {/* Форма */}
           <View style={styles.form}>
-            {/* Username Input */}
+            {/* Name Input */}
             <TextInput
               style={styles.input}
-              value={form.username}
-              onChangeText={(v) => updateField("username", v)}
+              value={form.name}
+              onChangeText={(v) => updateField("name", v)}
               placeholder="Имя пользователя"
               placeholderTextColor={COLORS.placeholder}
               autoCapitalize="none"
               autoCorrect={false}
             />
-            {errors.username && (
-              <Text style={styles.errorText}>{errors.username}</Text>
+            {errors.name && (
+              <Text style={styles.errorText}>{errors.name}</Text>
             )}
 
             {/* Phone Input */}

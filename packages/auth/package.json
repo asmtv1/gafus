@@ -12,6 +12,10 @@
     "./server": {
       "types": "./dist/server.d.ts",
       "default": "./dist/server.js"
+    },
+    "./jwt": {
+      "types": "./dist/jwt.d.ts",
+      "default": "./dist/jwt.js"
     }
   },
   "scripts": {
@@ -23,6 +27,7 @@
     "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "bcryptjs": "^3.0.2",
+    "jose": "^5.10.0",
     "libphonenumber-js": "1.12.8",
     "next": "15.5.7",
     "next-auth": "4.24.11",

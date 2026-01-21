@@ -44,7 +44,8 @@ RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /
 # Собираем зависимые пакеты
 RUN pnpm build --filter @gafus/logger --filter @gafus/prisma --filter @gafus/types --filter @gafus/auth --filter @gafus/csrf --filter @gafus/error-handling --filter @gafus/react-query --filter @gafus/queues --filter @gafus/webpush --filter @gafus/reengagement
 
-# Собираем приложение
+# Собираем приложение с standalone режимом
+ENV USE_STANDALONE=true
 RUN pnpm --filter @gafus/admin-panel build
 
 # Production stage - только runtime

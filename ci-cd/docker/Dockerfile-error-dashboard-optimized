@@ -48,7 +48,8 @@ RUN pnpm --filter @gafus/error-handling run build
 RUN pnpm --filter @gafus/react-query run build
 RUN pnpm --filter @gafus/queues run build
 
-# Собираем приложение
+# Собираем приложение с standalone режимом
+ENV USE_STANDALONE=true
 RUN pnpm build --filter @gafus/error-dashboard
 
 # Production stage - только runtime

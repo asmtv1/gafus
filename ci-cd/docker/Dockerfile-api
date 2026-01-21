@@ -1,0 +1,72 @@
+# Base stage - для сборки
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+# Включаем pnpm
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+
+# Копируем файлы конфигурации
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+
+# Копируем исходный код
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+# Устанавливаем зависимости
+RUN pnpm install --frozen-lockfile
+
+# Копируем tsconfig файлы
+COPY packages/*/tsconfig.json ./packages/*/
+COPY apps/api/tsconfig.json ./apps/api/
+
+# Генерируем Prisma client (без ERD в контейнере)
+RUN cd packages/prisma \
+  && cp schema.prisma schema.prisma.bak \
+  && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
+  && mv schema.tmp schema.prisma \
+  && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
+  && mv schema.prisma.bak schema.prisma
+
+# Создаем папку для Prisma
+RUN mkdir -p /app/node_modules/.prisma
+
+# Копируем Prisma client
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/client /app/node_modules/.prisma/ \;
+RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.prisma /app/node_modules/.prisma/ \;
+
+# Копируем Prisma Query Engine
+RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
+
+# Собираем API сервис
+RUN pnpm build --filter @gafus/api
+
+# Production stage - только runtime
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Создаем пользователя
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 hono
+
+# Копируем собранное приложение
+COPY --from=base --chown=hono:nodejs /app/node_modules ./node_modules
+COPY --from=base --chown=hono:nodejs /app/packages ./packages
+COPY --from=base --chown=hono:nodejs /app/apps/api/dist ./apps/api/dist
+COPY --from=base --chown=hono:nodejs /app/apps/api/package.json ./apps/api/package.json
+
+USER hono
+
+ENV NODE_ENV=production
+ENV API_PORT=3001
+
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+
+WORKDIR /app/apps/api
+
+CMD ["node", "dist/index.js"]

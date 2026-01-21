@@ -25,22 +25,14 @@ const withPWA = withPWAInit({
 // 3. основной конфиг Next.js
 const nextConfig = {
   reactStrictMode: true,
-  // Включаем standalone режим только для production/Docker
-  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
+  // Включаем standalone режим для production (кроме явного отключения)
+  ...((process.env.NODE_ENV === 'production' || process.env.USE_STANDALONE === 'true') && 
+      process.env.DISABLE_STANDALONE !== 'true' && { output: 'standalone' }),
   // Исправляем проблемы с standalone сборкой
   trailingSlash: false,
   skipTrailingSlashRedirect: true,
   // Исправляем проблемы с React 19 и Next.js 14
   transpilePackages: ['@gafus/auth', '@gafus/prisma', '@gafus/logger', '@gafus/types', '@gafus/error-handling', '@gafus/core'],
-  // Настройки для больших файлов (видео)
-  serverRuntimeConfig: {
-    // Максимальный размер body для API routes
-    maxFileSize: 100 * 1024 * 1024, // 100MB
-  },
-  // Настройки для клиентской части
-  publicRuntimeConfig: {
-    maxFileSize: 100 * 1024 * 1024, // 100MB
-  },
   // Переменные окружения для клиентской части
   env: {
     NEXT_PUBLIC_TRAINER_PANEL_URL: process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || 'https://trainer-panel.gafus.ru',

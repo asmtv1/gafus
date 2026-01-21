@@ -2,14 +2,10 @@ import path from "path";
 
 import type { NextConfig } from "next";
 
-type TrainerPanelNextConfig = NextConfig & {
-  middlewareClientMaxBodySize?: number;
-};
-
-const nextConfig: TrainerPanelNextConfig = {
-  middlewareClientMaxBodySize: 600 * 1024 * 1024, // Allow large uploads for trainer videos (500MB)
-  // Включаем standalone режим только для production (ускоряет dev)
-  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
+const nextConfig: NextConfig = {
+  // Включаем standalone режим для production (кроме явного отключения)
+  ...((process.env.NODE_ENV === 'production' || process.env.USE_STANDALONE === 'true') && 
+      process.env.DISABLE_STANDALONE !== 'true' && { output: 'standalone' }),
   experimental: {
     // В dev режиме используем все CPU и worker threads для ускорения компиляции
     ...(process.env.NODE_ENV !== 'production' && {

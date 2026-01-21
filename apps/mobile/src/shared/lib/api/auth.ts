@@ -4,24 +4,29 @@ import { API_BASE_URL } from "@/constants";
 export interface User {
   id: string;
   username: string;
-  email: string | null;
-  name: string | null;
-  role: "USER" | "TRAINER" | "ADMIN";
-  image: string | null;
-  createdAt: string;
+  phone: string;
+  role: "USER" | "TRAINER" | "ADMIN" | "MODERATOR" | "PREMIUM";
+  profile?: {
+    fullName: string | null;
+    about: string | null;
+    telegram: string | null;
+    instagram: string | null;
+    website: string | null;
+    birthDate: string | null;
+    avatarUrl: string | null;
+  };
 }
 
 export interface LoginResponse {
   user: User;
-  token: string;
+  accessToken: string;
+  refreshToken: string;
 }
 
 export interface RegisterData {
-  username: string;
+  name: string; // Используется как username на backend
+  phone: string;
   password: string;
-  email?: string;
-  name?: string;
-  phone?: string;
 }
 
 /**
@@ -65,12 +70,16 @@ export const authApi = {
   /**
    * Регистрация нового пользователя
    */
-  register: async (data: RegisterData): Promise<ApiResponse<LoginResponse>> => {
+  register: async (
+    name: string,
+    phone: string,
+    password: string
+  ): Promise<ApiResponse<LoginResponse>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ name, phone, password }),
       });
 
       const result = await response.json();
@@ -106,7 +115,22 @@ export const authApi = {
   /**
    * Выход из системы (инвалидация токена на сервере)
    */
-  logout: async (): Promise<ApiResponse<void>> => {
-    return apiClient<void>("/api/v1/auth/logout", { method: "POST" });
+  logout: async (refreshToken: string): Promise<ApiResponse<void>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        return { success: false, error: "Ошибка logout" };
+      }
+
+      return { success: true };
+    } catch {
+      // Не раскрываем ошибки logout
+      return { success: true };
+    }
   },
 };

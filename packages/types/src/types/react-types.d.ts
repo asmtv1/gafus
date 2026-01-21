@@ -1,5 +1,5 @@
-export type ReactNode = React.ReactNode;
-export type ComponentType<P = Record<string, unknown>> = React.ComponentType<P>;
+export type ReactNode = unknown;
+export type ComponentType<P = Record<string, unknown>> = (props: P) => ReactNode;
 export interface FormEvent {
     target: {
         value: string;

@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "./dist",
+    "sourceMap": true,
+    "noEmit": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@gafus/core/services/course": ["../../packages/core/src/services/course/index.ts"],
+      "@gafus/core/services/pets": ["../../packages/core/src/services/pets/index.ts"],
+      "@gafus/core/services/training": ["../../packages/core/src/services/training/index.ts"],
+      "@gafus/core/services/user": ["../../packages/core/src/services/user/index.ts"],
+      "@gafus/core/errors": ["../../packages/core/src/errors/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

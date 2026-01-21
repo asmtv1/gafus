@@ -10,8 +10,9 @@ interface WebpackConfig {
 }
 
 const nextConfig: NextConfig = {
-  // Включаем standalone режим только для production (ускоряет dev)
-  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
+  // Включаем standalone режим для production (кроме явного отключения)
+  ...((process.env.NODE_ENV === 'production' || process.env.USE_STANDALONE === 'true') && 
+      process.env.DISABLE_STANDALONE !== 'true' && { output: 'standalone' }),
   serverExternalPackages: ["@gafus/prisma"],
   eslint: {
     // Игнорируем ESLint во время сборки
