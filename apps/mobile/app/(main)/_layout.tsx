@@ -41,6 +41,13 @@ export default function MainLayout() {
         }}
       />
       <Stack.Screen
+        name="pets/add"
+        options={{
+          headerShown: true,
+          title: "Добавить питомца",
+        }}
+      />
+      <Stack.Screen
         name="profile/edit"
         options={{
           headerShown: true,

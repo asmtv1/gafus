@@ -15,6 +15,11 @@ import { prisma } from "@gafus/prisma";
 import { getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
 import { getVideoAccessService } from "@gafus/video-access";
 
+// Проверяем, что VIDEO_ACCESS_SECRET установлен (только для логирования)
+if (process.env.NODE_ENV === "production" && !process.env.VIDEO_ACCESS_SECRET) {
+  logger.warn("[training/video/url] ВНИМАНИЕ: VIDEO_ACCESS_SECRET не установлен в production!");
+}
+
 const logger = createWebLogger("api-training");
 
 export const trainingRoutes = new Hono();
@@ -79,25 +84,65 @@ const videoUrlSchema = z.object({
 });
 
 trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) => {
+  // Логируем сразу при входе в обработчик
   try {
     logger.info("[training/video/url] === ЗАПРОС ПОЛУЧЕН ===", {
       method: c.req.method,
       path: c.req.path,
       url: c.req.url,
       hasUser: !!c.get("user"),
+      headers: {
+        contentType: c.req.header("Content-Type"),
+        hasAuth: !!c.req.header("Authorization"),
+      },
     });
 
-    const user = c.get("user");
-    if (!user) {
-      logger.error("[training/video/url] Пользователь не найден в контексте");
-      return c.json({ success: false, error: "Не авторизован", code: "UNAUTHORIZED" }, 401);
+    // Получаем пользователя
+    let user;
+    try {
+      user = c.get("user");
+      if (!user) {
+        logger.error("[training/video/url] Пользователь не найден в контексте");
+        return c.json({ success: false, error: "Не авторизован", code: "UNAUTHORIZED" }, 401);
+      }
+      logger.info("[training/video/url] Пользователь получен", { userId: user.id });
+    } catch (error) {
+      logger.error("[training/video/url] Ошибка получения пользователя", error as Error);
+      return c.json({ success: false, error: "Ошибка авторизации", code: "AUTH_ERROR" }, 401);
     }
 
-    const { videoUrl } = c.req.valid("json");
+    // Получаем и валидируем videoUrl
+    let videoUrl: string;
+    try {
+      const body = c.req.valid("json");
+      videoUrl = body.videoUrl;
+      logger.info("[training/video/url] VideoUrl получен из body", { 
+        videoUrl: videoUrl?.substring(0, 100),
+        videoUrlLength: videoUrl?.length,
+      });
+    } catch (error) {
+      logger.error("[training/video/url] Ошибка получения videoUrl из body", error as Error, {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      return c.json({ 
+        success: false, 
+        error: "Неверный формат запроса",
+        code: "VALIDATION_ERROR"
+      }, 400);
+    }
+
+    if (!videoUrl || typeof videoUrl !== "string" || videoUrl.length === 0) {
+      logger.warn("[training/video/url] videoUrl пустой или невалидный", { videoUrl });
+      return c.json({ 
+        success: false, 
+        error: "videoUrl обязателен",
+        code: "VALIDATION_ERROR"
+      }, 400);
+    }
 
     logger.info("[training/video/url] Запрос video URL", {
       userId: user.id,
-      videoUrl,
+      videoUrl: videoUrl.substring(0, 100),
     });
 
     // Внешние видео (YouTube, VK, RuTube) - возвращаем как есть
@@ -115,13 +160,6 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
       return c.json({ success: true, data: { url: videoUrl } });
     }
 
-    // Если уже HLS манифест - возвращаем как есть
-    const isHLS = videoUrl.endsWith(".m3u8") || videoUrl.includes("/hls/playlist.m3u8");
-    if (isHLS) {
-      logger.info("[training/video/url] HLS манифест, возвращаем как есть", { videoUrl });
-      return c.json({ success: true, data: { url: videoUrl } });
-    }
-
     // Для CDN видео ищем TrainerVideo и получаем signed URL
     const isCDNVideo =
       videoUrl.includes("gafus-media.storage.yandexcloud.net") ||
@@ -129,21 +167,93 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
 
     if (isCDNVideo) {
       logger.info("[training/video/url] CDN видео, ищем в БД", { videoUrl });
-      const relativePath = getRelativePathFromCDNUrl(videoUrl);
       
-      logger.info("[training/video/url] Извлеченный relativePath", { relativePath });
+      // Если уже HLS манифест - ищем по hlsManifestPath
+      const isHLS = videoUrl.endsWith(".m3u8") || videoUrl.includes("/hls/playlist.m3u8");
       
-      // Ищем по relativePath
-      const videoByPath = await prisma.trainerVideo.findFirst({
-        where: {
+      let relativePath: string;
+      try {
+        relativePath = getRelativePathFromCDNUrl(videoUrl);
+        logger.info("[training/video/url] Извлеченный relativePath", { relativePath, isHLS });
+      } catch (error) {
+        logger.error("[training/video/url] Ошибка извлечения relativePath", error as Error, { 
+          videoUrl: videoUrl.substring(0, 100),
+        });
+        return c.json({ 
+          success: false, 
+          error: "Ошибка обработки URL видео",
+          code: "INVALID_URL"
+        }, 400);
+      }
+      
+      // Ищем по relativePath (как в web версии)
+      // Вариант 1: Ищем по hlsManifestPath (если videoUrl уже указывает на .m3u8)
+      let videoByPath = null;
+      
+      try {
+        if (isHLS) {
+          const hlsManifestPath = relativePath.startsWith("uploads/")
+            ? relativePath.replace("uploads/", "")
+            : relativePath;
+
+          logger.info("[training/video/url] Поиск по hlsManifestPath", { hlsManifestPath });
+          
+          videoByPath = await prisma.trainerVideo.findFirst({
+            where: {
+              hlsManifestPath,
+              transcodingStatus: "COMPLETED",
+            },
+            select: {
+              id: true,
+              transcodingStatus: true,
+              hlsManifestPath: true,
+            },
+          });
+
+          if (videoByPath) {
+            logger.info("[training/video/url] Видео найдено по hlsManifestPath", { 
+              videoId: videoByPath.id,
+              hlsManifestPath 
+            });
+          }
+        }
+
+        // Вариант 2: Ищем по relativePath (videoUrl в Step может указывать на старый путь)
+        // После транскодирования файлы удалены, но relativePath остался
+        if (!videoByPath) {
+          logger.info("[training/video/url] Поиск по relativePath", { relativePath });
+          
+          videoByPath = await prisma.trainerVideo.findFirst({
+            where: {
+              relativePath,
+            },
+            select: {
+              id: true,
+              transcodingStatus: true,
+              hlsManifestPath: true,
+            },
+          });
+
+          if (videoByPath) {
+            logger.info("[training/video/url] Видео найдено по relativePath", { 
+              videoId: videoByPath.id,
+              relativePath 
+            });
+          }
+        }
+      } catch (error) {
+        logger.error("[training/video/url] Ошибка поиска видео в БД", error as Error, { 
           relativePath,
-        },
-        select: {
-          id: true,
-          transcodingStatus: true,
-          hlsManifestPath: true,
-        },
-      });
+          isHLS,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+        });
+        return c.json({ 
+          success: false, 
+          error: "Ошибка поиска видео в базе данных",
+          code: "DATABASE_ERROR"
+        }, 500);
+      }
 
       logger.info("[training/video/url] Результат поиска в БД", {
         found: !!videoByPath,
@@ -153,26 +263,73 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
       });
 
       if (videoByPath && videoByPath.transcodingStatus === "COMPLETED" && videoByPath.hlsManifestPath) {
-        // Генерируем signed URL
-        const videoAccessService = getVideoAccessService();
-        const token = videoAccessService.generateToken({
-          videoId: videoByPath.id,
-          userId: user.id,
-          ttlMinutes: 120,
-        });
+        try {
+          logger.info("[training/video/url] Генерация signed URL", {
+            videoId: videoByPath.id,
+            userId: user.id,
+            hasHlsManifest: !!videoByPath.hlsManifestPath,
+          });
+          
+          // Генерируем signed URL
+          let videoAccessService;
+          try {
+            videoAccessService = getVideoAccessService();
+            logger.info("[training/video/url] VideoAccessService получен");
+          } catch (error) {
+            logger.error("[training/video/url] Ошибка получения VideoAccessService", error as Error);
+            return c.json({ 
+              success: false, 
+              error: "Ошибка инициализации сервиса доступа к видео",
+              code: "SERVICE_INIT_ERROR"
+            }, 500);
+          }
+          
+          let token: string;
+          try {
+            token = videoAccessService.generateToken({
+              videoId: videoByPath.id,
+              userId: user.id,
+              ttlMinutes: 120,
+            });
+            logger.info("[training/video/url] Токен сгенерирован", { tokenLength: token.length });
+          } catch (error) {
+            logger.error("[training/video/url] Ошибка генерации токена", error as Error, {
+              videoId: videoByPath.id,
+              userId: user.id,
+            });
+            return c.json({ 
+              success: false, 
+              error: "Ошибка генерации токена доступа",
+              code: "TOKEN_GENERATION_ERROR"
+            }, 500);
+          }
 
-        // Получаем URL web приложения для manifest endpoint
-        // Manifest endpoint находится в web приложении, а не в API
-        // Используем тот же подход, что и в getSignedVideoUrl из web
-        const webAppUrl = process.env.WEB_APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://gafus.ru";
-        const signedUrl = `${webAppUrl}/api/video/${videoByPath.id}/manifest?token=${token}`;
-        logger.info("[training/video/url] Сгенерирован signed URL", { 
-          signedUrl,
-          videoId: videoByPath.id,
-          webAppUrl,
-          tokenLength: token.length,
-        });
-        return c.json({ success: true, data: { url: signedUrl } });
+          // Получаем URL web приложения для manifest endpoint
+          // Manifest endpoint находится в web приложении, а не в API
+          // Используем тот же подход, что и в getSignedVideoUrl из web
+          const webAppUrl = process.env.WEB_APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://gafus.ru";
+          const signedUrl = `${webAppUrl}/api/video/${videoByPath.id}/manifest?token=${token}`;
+          logger.info("[training/video/url] Сгенерирован signed URL", { 
+            signedUrl,
+            videoId: videoByPath.id,
+            webAppUrl,
+            tokenLength: token.length,
+          });
+          return c.json({ success: true, data: { url: signedUrl } });
+        } catch (error) {
+          logger.error("[training/video/url] Ошибка генерации signed URL", error as Error, {
+            videoId: videoByPath.id,
+            userId: user.id,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+            errorName: error instanceof Error ? error.name : undefined,
+          });
+          return c.json({ 
+            success: false, 
+            error: error instanceof Error ? error.message : "Ошибка генерации signed URL",
+            code: "TOKEN_GENERATION_ERROR"
+          }, 500);
+        }
       }
 
       logger.warn("[training/video/url] Видео не найдено или ещё обрабатывается", {
@@ -191,9 +348,28 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     logger.info("[training/video/url] Неизвестный тип видео, возвращаем как есть", { videoUrl });
     return c.json({ success: true, data: { url: videoUrl } });
   } catch (error) {
-    logger.error("Error getting video URL", error as Error, {
-      videoUrl: c.req.valid("json")?.videoUrl,
+    // Безопасное получение videoUrl для логирования
+    let videoUrlForLog = "unknown";
+    try {
+      const body = c.req.valid("json");
+      videoUrlForLog = body?.videoUrl?.substring(0, 100) || "unknown";
+    } catch {
+      // Игнорируем ошибку валидации при логировании
+    }
+
+    logger.error("[training/video/url] КРИТИЧЕСКАЯ ОШИБКА в обработчике", error as Error, {
+      videoUrl: videoUrlForLog,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      errorName: error instanceof Error ? error.name : undefined,
+      path: c.req.path,
+      method: c.req.method,
     });
-    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Внутренняя ошибка сервера",
+      code: "INTERNAL_SERVER_ERROR"
+    }, 500);
   }
 });

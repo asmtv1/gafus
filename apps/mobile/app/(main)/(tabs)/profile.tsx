@@ -1,7 +1,7 @@
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking } from "react-native";
 import { Text, Avatar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, Link } from "expo-router";
+import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 
@@ -262,11 +262,12 @@ export default function ProfileScreen() {
             )}
 
 
-            <Link href="/profile/edit" asChild>
-              <Pressable style={styles.editBioButton}>
-                <Text style={styles.editBioButtonText}>Внести/Изменить «О себе»</Text>
-              </Pressable>
-            </Link>
+            <Pressable
+              style={styles.editBioButton}
+              onPress={() => router.push("/profile/edit" as any)}
+            >
+              <Text style={styles.editBioButtonText}>Внести/Изменить «О себе»</Text>
+            </Pressable>
           </View>
 
           {/* Список питомцев */}
@@ -325,11 +326,12 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            <Link href="/pets" asChild>
-              <Pressable style={styles.addPetButton}>
-                <Text style={styles.addPetButtonText}>Добавить питомца</Text>
-              </Pressable>
-            </Link>
+            <Pressable
+              style={styles.addPetButton}
+              onPress={() => router.push("/pets/add" as any)}
+            >
+              <Text style={styles.addPetButtonText}>Добавить питомца</Text>
+            </Pressable>
           </View>
 
           {/* Кнопка смены пароля */}

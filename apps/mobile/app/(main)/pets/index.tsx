@@ -11,6 +11,8 @@ import { petsApi, type Pet, type CreatePetData } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/constants";
 
+const LOG_PREFIX = "[PetsScreen]";
+
 const PET_TYPES = [
   { value: "DOG", label: "Собака", icon: "dog" },
   { value: "CAT", label: "Кошка", icon: "cat" },
@@ -26,63 +28,160 @@ export default function PetsScreen() {
   const [editingPet, setEditingPet] = useState<Pet | null>(null);
 
   // Загрузка питомцев
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, refetch, isRefetching, error } = useQuery({
     queryKey: ["pets"],
     queryFn: petsApi.getAll,
+    onSuccess: (response) => {
+      if (__DEV__) {
+        console.log(`${LOG_PREFIX} Список питомцев загружен`, {
+          count: response.data?.length || 0,
+          success: response.success,
+        });
+      }
+    },
+    onError: (err) => {
+      if (__DEV__) {
+        console.error(`${LOG_PREFIX} Ошибка при загрузке списка питомцев`, {
+          error: err instanceof Error ? err.message : String(err),
+          errorStack: err instanceof Error ? err.stack : undefined,
+        });
+      }
+    },
   });
 
   // Создание питомца
   const createMutation = useMutation({
     mutationFn: petsApi.create,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (__DEV__) {
+        console.log(`${LOG_PREFIX} Питомец успешно создан через модальное окно`, {
+          petId: data.data?.id,
+          petName: data.data?.name,
+          petType: data.data?.type,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["pets"] });
       setModalVisible(false);
       hapticFeedback.success();
+    },
+    onError: (error) => {
+      if (__DEV__) {
+        console.error(`${LOG_PREFIX} Ошибка при создании питомца через модальное окно`, {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+        });
+      }
     },
   });
 
   // Обновление питомца
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<CreatePetData> }) =>
-      petsApi.update(id, data),
-    onSuccess: () => {
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreatePetData> }) => {
+      if (__DEV__) {
+        console.log(`${LOG_PREFIX} Начало обновления питомца`, {
+          petId: id,
+          updatedFields: Object.keys(data),
+        });
+      }
+      return petsApi.update(id, data);
+    },
+    onSuccess: (data, variables) => {
+      if (__DEV__) {
+        console.log(`${LOG_PREFIX} Питомец успешно обновлен`, {
+          petId: variables.id,
+          petName: data.data?.name,
+          petType: data.data?.type,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["pets"] });
       setModalVisible(false);
       setEditingPet(null);
       hapticFeedback.success();
+    },
+    onError: (error, variables) => {
+      if (__DEV__) {
+        console.error(`${LOG_PREFIX} Ошибка при обновлении питомца`, {
+          petId: variables.id,
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+        });
+      }
     },
   });
 
   // Удаление питомца
   const deleteMutation = useMutation({
     mutationFn: petsApi.delete,
-    onSuccess: () => {
+    onSuccess: (data, petId) => {
+      if (__DEV__) {
+        console.log(`${LOG_PREFIX} Питомец успешно удален`, {
+          petId,
+          success: data.success,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["pets"] });
       hapticFeedback.success();
+    },
+    onError: (error, petId) => {
+      if (__DEV__) {
+        console.error(`${LOG_PREFIX} Ошибка при удалении питомца`, {
+          petId,
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+        });
+      }
     },
   });
 
   const handleDelete = (pet: Pet) => {
+    if (__DEV__) {
+      console.log(`${LOG_PREFIX} Показ диалога удаления питомца`, {
+        petId: pet.id,
+        petName: pet.name,
+      });
+    }
     Alert.alert(
       "Удалить питомца",
       `Вы уверены, что хотите удалить ${pet.name}?`,
       [
-        { text: "Отмена", style: "cancel" },
+        {
+          text: "Отмена",
+          style: "cancel",
+          onPress: () => {
+            if (__DEV__) {
+              console.log(`${LOG_PREFIX} Удаление отменено пользователем`, { petId: pet.id });
+            }
+          },
+        },
         {
           text: "Удалить",
           style: "destructive",
-          onPress: () => deleteMutation.mutate(pet.id),
+          onPress: () => {
+            if (__DEV__) {
+              console.log(`${LOG_PREFIX} Пользователь подтвердил удаление`, { petId: pet.id });
+            }
+            deleteMutation.mutate(pet.id);
+          },
         },
       ]
     );
   };
 
   const handleEdit = (pet: Pet) => {
+    if (__DEV__) {
+      console.log(`${LOG_PREFIX} Открытие модального окна для редактирования питомца`, {
+        petId: pet.id,
+        petName: pet.name,
+      });
+    }
     setEditingPet(pet);
     setModalVisible(true);
   };
 
   const handleAdd = () => {
+    if (__DEV__) {
+      console.log(`${LOG_PREFIX} Открытие модального окна для добавления питомца`);
+    }
     setEditingPet(null);
     setModalVisible(true);
   };
@@ -112,14 +211,17 @@ export default function PetsScreen() {
           <View style={styles.petActions}>
             <IconButton
               icon="pencil"
-              size={20}
+              size={28}
+              iconColor="#ECE5D2"
               onPress={() => handleEdit(item)}
+              style={styles.editButton}
             />
             <IconButton
               icon="delete"
-              size={20}
-              iconColor={COLORS.error}
+              size={28}
+              iconColor="#ECE5D2"
               onPress={() => handleDelete(item)}
+              style={styles.deleteButton}
             />
           </View>
         </Card.Content>
@@ -228,13 +330,39 @@ function PetModal({
   }, [visible, pet]);
 
   const handleSave = () => {
+    const isEdit = !!pet;
+    if (__DEV__) {
+      console.log(`${LOG_PREFIX} Начало сохранения питомца через модальное окно`, {
+        isEdit,
+        petId: pet?.id,
+        name,
+        type,
+        breed,
+        birthDate,
+      });
+    }
+
     // Валидация обязательных полей
     if (!name.trim()) {
+      if (__DEV__) {
+        console.warn(`${LOG_PREFIX} Валидация не пройдена: имя питомца пустое`);
+      }
       Alert.alert("Ошибка", "Имя питомца обязательно");
       return;
     }
 
+    if (!breed.trim()) {
+      if (__DEV__) {
+        console.warn(`${LOG_PREFIX} Валидация не пройдена: порода пустая`);
+      }
+      Alert.alert("Ошибка", "Порода обязательна");
+      return;
+    }
+
     if (!birthDate.trim()) {
+      if (__DEV__) {
+        console.warn(`${LOG_PREFIX} Валидация не пройдена: дата рождения пустая`);
+      }
       Alert.alert("Ошибка", "Дата рождения обязательна");
       return;
     }
@@ -242,11 +370,17 @@ function PetModal({
     // Валидация даты
     const date = new Date(birthDate);
     if (isNaN(date.getTime())) {
+      if (__DEV__) {
+        console.warn(`${LOG_PREFIX} Валидация не пройдена: неверный формат даты`, { birthDate });
+      }
       Alert.alert("Ошибка", "Неверный формат даты");
       return;
     }
 
     if (date > new Date()) {
+      if (__DEV__) {
+        console.warn(`${LOG_PREFIX} Валидация не пройдена: дата в будущем`, { birthDate });
+      }
       Alert.alert("Ошибка", "Дата не может быть в будущем");
       return;
     }
@@ -256,24 +390,40 @@ function PetModal({
     const weight = weightKg.trim() ? parseFloat(weightKg) : undefined;
 
     if (height !== undefined && (isNaN(height) || height < 1 || height > 200)) {
+      if (__DEV__) {
+        console.warn(`${LOG_PREFIX} Валидация не пройдена: неверный рост`, { height, heightCm });
+      }
       Alert.alert("Ошибка", "Рост должен быть от 1 до 200 см");
       return;
     }
 
     if (weight !== undefined && (isNaN(weight) || weight < 0.1 || weight > 200)) {
+      if (__DEV__) {
+        console.warn(`${LOG_PREFIX} Валидация не пройдена: неверный вес`, { weight, weightKg });
+      }
       Alert.alert("Ошибка", "Вес должен быть от 0.1 до 200 кг");
       return;
     }
 
-    onSave({
+    const petData: CreatePetData = {
       name: name.trim(),
       type,
-      breed: breed.trim() || undefined,
+      breed: breed.trim(),
       birthDate: birthDate.trim(),
       heightCm: height,
       weightKg: weight,
       notes: notes.trim() || undefined,
-    });
+    };
+
+    if (__DEV__) {
+      console.log(`${LOG_PREFIX} Валидация пройдена, сохранение питомца`, {
+        isEdit,
+        petId: pet?.id,
+        petData: { ...petData, notes: petData.notes ? "[заметки есть]" : undefined },
+      });
+    }
+
+    onSave(petData);
   };
 
   return (
@@ -306,7 +456,9 @@ function PetModal({
                 placeholder="Введите имя питомца"
               />
 
-              <Text style={styles.fieldLabel}>Тип *</Text>
+              <Text style={styles.fieldLabel}>
+                Тип <Text style={styles.required}>*</Text>
+              </Text>
               <View style={styles.typeSelector}>
                 {PET_TYPES.map((t) => (
                   <Surface
@@ -336,7 +488,7 @@ function PetModal({
               </View>
 
               <Input
-                label="Порода"
+                label="Порода *"
                 value={breed}
                 onChangeText={setBreed}
                 placeholder="Введите породу"
@@ -389,15 +541,16 @@ function PetModal({
             <View style={styles.modalActions}>
               <Button
                 label="Отмена"
-                mode="outlined"
+                variant="outline"
                 onPress={onDismiss}
                 style={styles.modalButton}
               />
               <Button
                 label={pet ? "Сохранить" : "Добавить"}
+                variant="primary"
                 onPress={handleSave}
                 loading={isLoading}
-                disabled={!name.trim() || !birthDate.trim() || isLoading}
+                disabled={!name.trim() || !breed.trim() || !birthDate.trim() || isLoading}
                 style={styles.modalButton}
               />
             </View>
@@ -423,6 +576,10 @@ const styles = StyleSheet.create({
   petContent: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    minHeight: 80,
   },
   petIcon: {
     width: 60,
@@ -435,6 +592,7 @@ const styles = StyleSheet.create({
   },
   petInfo: {
     flex: 1,
+    marginRight: SPACING.sm,
   },
   petName: {
     fontWeight: "600",
@@ -448,7 +606,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   petActions: {
-    flexDirection: "row",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    marginLeft: SPACING.md,
+    flexShrink: 0,
+  },
+  editButton: {
+    margin: 0,
+    backgroundColor: "#B6C582",
+    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#9BA86A",
+  },
+  deleteButton: {
+    margin: 0,
+    backgroundColor: "#8B4513",
+    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#6B3410",
   },
   emptyContainer: {
     flex: 1,
@@ -498,6 +679,10 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
     marginTop: SPACING.sm,
+  },
+  required: {
+    color: COLORS.error,
+    fontWeight: "bold",
   },
   typeSelector: {
     flexDirection: "row",
