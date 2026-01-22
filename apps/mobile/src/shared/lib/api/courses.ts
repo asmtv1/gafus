@@ -1,5 +1,6 @@
 import { apiClient, type ApiResponse } from "./client";
 
+// Интерфейс курса соответствует CourseWithProgressData из API
 export interface Course {
   id: string;
   name: string;
@@ -7,18 +8,32 @@ export interface Course {
   shortDesc: string;
   description: string;
   logoImg: string;
-  videoUrl: string | null;
   duration: string;
-  trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
-  isActive: boolean;
-  totalDays: number;
-  version: string;
+  trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+  isPrivate: boolean;
+  isPaid: boolean;
+  avgRating: number | null;
+  createdAt: Date | string;
+  authorUsername: string;
+  userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
+  startedAt: Date | string | null;
+  completedAt: Date | string | null;
+  isFavorite: boolean;
+  reviews?: Array<{
+    rating: number | null;
+    comment: string;
+    createdAt: Date | string;
+    user: {
+      username: string;
+      profile?: {
+        avatarUrl: string | null;
+      } | null;
+    };
+  }>;
 }
 
-export interface CoursesResponse {
-  courses: Course[];
-  total: number;
-}
+// API возвращает массив курсов напрямую, а не объект с полем courses
+export type CoursesResponse = Course[];
 
 export interface CourseFilters {
   type?: string;
@@ -31,17 +46,12 @@ export interface CourseFilters {
  */
 export const coursesApi = {
   /**
-   * Получение списка всех курсов
+   * Получение списка всех курсов с прогрессом пользователя
+   * API возвращает массив курсов напрямую
    */
   getAll: async (filters?: CourseFilters): Promise<ApiResponse<CoursesResponse>> => {
-    const params = new URLSearchParams();
-    
-    if (filters?.type) params.append("type", filters.type);
-    if (filters?.level) params.append("level", filters.level);
-    if (filters?.search) params.append("search", filters.search);
-
-    const queryString = params.toString();
-    const endpoint = `/api/v1/courses${queryString ? `?${queryString}` : ""}`;
+    // API не поддерживает фильтры через query params, фильтрация делается на клиенте
+    const endpoint = `/api/v1/courses`;
 
     return apiClient<CoursesResponse>(endpoint);
   },
@@ -54,27 +64,26 @@ export const coursesApi = {
   },
 
   /**
-   * Получение избранных курсов пользователя
+   * Получение избранных курсов (как в web: { data, favoriteIds })
    */
-  getFavorites: async (): Promise<ApiResponse<Course[]>> => {
-    return apiClient<Course[]>("/api/v1/courses/favorites");
+  getFavorites: async (): Promise<
+    ApiResponse<{ data: Course[]; favoriteIds: string[] }>
+  > => {
+    return apiClient<{ data: Course[]; favoriteIds: string[] }>(
+      "/api/v1/courses/favorites"
+    );
   },
 
   /**
-   * Добавление курса в избранное
+   * Добавить/удалить из избранного (как в web: POST /favorites, action add|remove)
    */
-  addToFavorites: async (courseId: string): Promise<ApiResponse<void>> => {
-    return apiClient<void>(`/api/v1/courses/${courseId}/favorite`, {
+  toggleFavorite: async (
+    courseId: string,
+    action: "add" | "remove"
+  ): Promise<ApiResponse<{ isFavorite: boolean }>> => {
+    return apiClient<{ isFavorite: boolean }>("/api/v1/courses/favorites", {
       method: "POST",
-    });
-  },
-
-  /**
-   * Удаление курса из избранного
-   */
-  removeFromFavorites: async (courseId: string): Promise<ApiResponse<void>> => {
-    return apiClient<void>(`/api/v1/courses/${courseId}/favorite`, {
-      method: "DELETE",
+      body: { courseId, action },
     });
   },
 };

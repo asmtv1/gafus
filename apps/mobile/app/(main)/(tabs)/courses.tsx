@@ -1,59 +1,50 @@
-import { useState, useCallback, useMemo } from "react";
-import { 
-  View, 
-  StyleSheet, 
-  FlatList, 
+import { useState, useCallback, useEffect, useMemo } from "react";
+import {
+  View,
+  StyleSheet,
+  FlatList,
   RefreshControl,
   Pressable,
 } from "react-native";
-import { 
-  Text, 
-  Searchbar, 
-  Chip, 
-  IconButton,
-  Divider,
-} from "react-native-paper";
+import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Link } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 
 import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
 import { coursesApi, type Course } from "@/shared/lib/api";
-import { COLORS, SPACING, BORDER_RADIUS } from "@/constants";
-
-const LEVEL_LABELS: Record<string, string> = {
-  BEGINNER: "Начальный",
-  INTERMEDIATE: "Средний",
-  ADVANCED: "Продвинутый",
-};
+import { CourseCard } from "@/features/courses/components";
+import { COLORS, SPACING } from "@/constants";
 
 /**
- * Страница со всеми курсами
+ * Страница избранных курсов (логика как в web: список по store)
  */
-export default function CoursesScreen() {
-  const { 
-    filters, 
-    setFilter, 
-    clearFilters,
-    favorites,
-    addToFavorites,
-    removeFromFavorites,
-    isFavorite,
-  } = useCourseStore();
-
+export default function FavoritesScreen() {
+  const { favorites, removeFromFavorites, addToFavorites } = useCourseStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
 
-  // Загрузка курсов
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["courses", filters],
-    queryFn: () => coursesApi.getAll({
-      type: filters.type || undefined,
-      level: filters.level || undefined,
-      search: filters.search || undefined,
-    }),
+    queryKey: ["favorites"],
+    queryFn: () => coursesApi.getFavorites(),
   });
+
+  const payload = data?.data;
+  const favoriteCourses = payload?.data ?? [];
+
+  useEffect(() => {
+    const ids = payload?.favoriteIds;
+    if (ids === undefined) return;
+    useCourseStore.setState({
+      favorites: Array.isArray(ids) ? ids : [],
+    });
+  }, [data]);
+
+  const displayedCourses = useMemo(
+    () => favoriteCourses.filter((c) => favorites.includes(c.id)),
+    [favoriteCourses, favorites]
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -61,190 +52,77 @@ export default function CoursesScreen() {
     setRefreshing(false);
   }, [refetch]);
 
-  // Фильтруем курсы локально по поиску
-  const filteredCourses = useMemo(() => {
-    if (!data?.data?.courses) return [];
-    
-    let courses = data.data.courses;
-    
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      courses = courses.filter(
-        (c) =>
-          c.name.toLowerCase().includes(searchLower) ||
-          c.shortDesc.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    return courses;
-  }, [data?.data?.courses, filters.search]);
-
-  const handleToggleFavorite = (courseId: string) => {
-    if (isFavorite(courseId)) {
-      removeFromFavorites(courseId);
-    } else {
+  const handleUnfavorite = async (courseId: string) => {
+    removeFromFavorites(courseId);
+    setPendingIds((prev) => [...prev, courseId]);
+    try {
+      const res = await coursesApi.toggleFavorite(courseId, "remove");
+      if (res.success) await refetch();
+      else throw new Error(res.error);
+    } catch (err) {
       addToFavorites(courseId);
+      setSnackbar({
+        visible: true,
+        message: err instanceof Error ? err.message : "Ошибка удаления из избранного",
+      });
+    } finally {
+      setPendingIds((prev) => prev.filter((id) => id !== courseId));
     }
   };
 
   const renderCourseItem = ({ item }: { item: Course }) => (
-    <CourseCard 
-      course={item} 
-      isFavorite={isFavorite(item.id)}
-      onToggleFavorite={() => handleToggleFavorite(item.id)}
+    <CourseCard
+      course={item}
+      isFavorite
+      onToggleFavorite={() => handleUnfavorite(item.id)}
+      disabled={pendingIds.includes(item.id)}
     />
   );
 
-  const hasActiveFilters = filters.type || filters.level;
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Поиск */}
-      <View style={styles.searchContainer}>
-        <Searchbar
-          placeholder="Поиск курсов..."
-          value={filters.search}
-          onChangeText={(text) => setFilter("search", text)}
-          style={styles.searchbar}
-        />
+      <View style={styles.header}>
+        <Text variant="headlineSmall" style={styles.title}>
+          Избранные курсы
+        </Text>
       </View>
 
-      {/* Фильтры */}
-      <View style={styles.filtersContainer}>
-        <View style={styles.chipRow}>
-          <Chip
-            selected={filters.type === "personal"}
-            onPress={() => setFilter("type", filters.type === "personal" ? null : "personal")}
-            style={styles.chip}
-          >
-            Персональные
-          </Chip>
-          <Chip
-            selected={filters.type === "group"}
-            onPress={() => setFilter("type", filters.type === "group" ? null : "group")}
-            style={styles.chip}
-          >
-            Групповые
-          </Chip>
-        </View>
-
-        <View style={styles.chipRow}>
-          {Object.entries(LEVEL_LABELS).map(([key, label]) => (
-            <Chip
-              key={key}
-              selected={filters.level === key}
-              onPress={() => setFilter("level", filters.level === key ? null : key)}
-              style={styles.chip}
-              compact
-            >
-              {label}
-            </Chip>
-          ))}
-        </View>
-
-        {hasActiveFilters && (
-          <Pressable onPress={clearFilters} style={styles.clearFilters}>
-            <Text style={styles.clearFiltersText}>Сбросить фильтры</Text>
-          </Pressable>
-        )}
-      </View>
-
-      <Divider />
-
-      {/* Список курсов */}
       {isLoading ? (
-        <Loading fullScreen message="Загрузка курсов..." />
+        <Loading fullScreen message="Загрузка избранных курсов..." />
       ) : error ? (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Ошибка загрузки курсов</Text>
+          <Text style={styles.errorText}>
+            Ошибка загрузки избранных курсов:{" "}
+            {error instanceof Error ? error.message : "Неизвестная ошибка"}
+          </Text>
           <Pressable onPress={() => refetch()}>
             <Text style={styles.retryText}>Попробовать снова</Text>
           </Pressable>
         </View>
+      ) : displayedCourses.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>У вас пока нет избранных курсов.</Text>
+        </View>
       ) : (
         <FlatList
-          data={filteredCourses}
+          data={displayedCourses}
           renderItem={renderCourseItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {filters.search || hasActiveFilters
-                  ? "Курсы не найдены"
-                  : "Нет доступных курсов"}
-              </Text>
-            </View>
-          }
         />
       )}
-    </SafeAreaView>
-  );
-}
 
-/**
- * Карточка курса (дизайн как в веб-версии)
- */
-function CourseCard({ 
-  course, 
-  isFavorite, 
-  onToggleFavorite 
-}: { 
-  course: Course;
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
-}) {
-  return (
-    <Link href={`/training/${course.type}`} asChild>
-      <Pressable style={styles.courseCard}>
-        <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: course.logoImg }}
-            style={styles.courseImage}
-            contentFit="cover"
-            transition={200}
-          />
-        </View>
-        
-        <View style={styles.courseContent}>
-          <Text style={styles.courseTitle} numberOfLines={2}>
-            {course.name}
-          </Text>
-          
-          <View style={styles.courseMeta}>
-            <Text style={styles.metaText}>
-              <Text style={styles.metaBold}>Длительность:</Text> {course.duration}
-            </Text>
-            <Text style={styles.metaText}>
-              <Text style={styles.metaBold}>Уровень:</Text> {LEVEL_LABELS[course.trainingLevel] || course.trainingLevel}
-            </Text>
-          </View>
-          
-          <Text style={styles.courseDesc} numberOfLines={3}>
-            <Text style={styles.metaBold}>Описание:</Text> {course.shortDesc}
-          </Text>
-        </View>
-        
-        <View style={styles.authorRow}>
-          <Text style={styles.metaText}>
-            {course.totalDays} дней • {LEVEL_LABELS[course.trainingLevel]}
-          </Text>
-          <IconButton
-            icon={isFavorite ? "heart" : "heart-outline"}
-            iconColor={isFavorite ? COLORS.error : COLORS.textSecondary}
-            size={20}
-            onPress={(e) => {
-              e.stopPropagation();
-              onToggleFavorite();
-            }}
-            style={styles.favoriteButton}
-          />
-        </View>
-      </Pressable>
-    </Link>
+      <Snackbar
+        visible={snackbar.visible}
+        onDismiss={() => setSnackbar({ visible: false, message: "" })}
+        duration={3000}
+      >
+        {snackbar.message}
+      </Snackbar>
+    </SafeAreaView>
   );
 }
 
@@ -253,101 +131,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.surface,
   },
-  searchContainer: {
+  header: {
     padding: SPACING.md,
     paddingBottom: SPACING.sm,
     backgroundColor: COLORS.surface,
   },
-  searchbar: {
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.cardBackground,
-  },
-  filtersContainer: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.md,
-    backgroundColor: COLORS.surface,
-  },
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: SPACING.sm,
-    marginBottom: SPACING.sm,
-  },
-  chip: {
-    marginRight: SPACING.xs,
-  },
-  clearFilters: {
-    alignSelf: "flex-start",
-  },
-  clearFiltersText: {
-    color: COLORS.secondary,
-    fontSize: 12,
+  title: {
+    fontWeight: "600",
   },
   listContent: {
     padding: SPACING.md,
-  },
-  // Стили карточки курса (как в веб-версии)
-  courseCard: {
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    marginBottom: SPACING.md,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  imageContainer: {
-    padding: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
-    alignItems: "center",
-  },
-  courseImage: {
-    width: "100%",
-    height: 140,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  courseContent: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.sm,
-  },
-  courseTitle: {
-    fontSize: 20,
-    fontWeight: "400",
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
-  },
-  courseMeta: {
-    marginBottom: SPACING.sm,
-  },
-  metaText: {
-    fontSize: 12,
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  metaBold: {
-    fontWeight: "700",
-  },
-  courseDesc: {
-    fontSize: 12,
-    color: COLORS.text,
-    lineHeight: 18,
-  },
-  authorRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-    marginTop: SPACING.sm,
-  },
-  favoriteButton: {
-    margin: 0,
   },
   errorContainer: {
     flex: 1,
@@ -357,6 +150,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: COLORS.error,
+    textAlign: "center",
     marginBottom: SPACING.md,
   },
   retryText: {
@@ -364,11 +158,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   emptyContainer: {
-    padding: SPACING.xxl,
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
+    padding: SPACING.xxl,
   },
   emptyText: {
     color: COLORS.textSecondary,
     textAlign: "center",
+    fontSize: 16,
   },
 });

@@ -94,7 +94,7 @@ export const useCourseStore = create<CourseStore>()(
        */
       addToFavorites: (courseId) => {
         set((state) => ({
-          favorites: [...new Set([...state.favorites, courseId])],
+          favorites: [...new Set([...(state.favorites || []), courseId])],
         }));
       },
 
@@ -103,7 +103,7 @@ export const useCourseStore = create<CourseStore>()(
        */
       removeFromFavorites: (courseId) => {
         set((state) => ({
-          favorites: state.favorites.filter((id) => id !== courseId),
+          favorites: (state.favorites || []).filter((id) => id !== courseId),
         }));
       },
 
@@ -111,7 +111,8 @@ export const useCourseStore = create<CourseStore>()(
        * Проверка, находится ли курс в избранном
        */
       isFavorite: (courseId) => {
-        return get().favorites.includes(courseId);
+        const favs = get().favorites;
+        return Array.isArray(favs) && favs.includes(courseId);
       },
 
       /**
@@ -136,9 +137,17 @@ export const useCourseStore = create<CourseStore>()(
       name: "course-storage",
       storage: createJSONStorage(() => zustandStorage),
       partialize: (state) => ({
-        favorites: state.favorites,
+        favorites: Array.isArray(state.favorites) ? state.favorites : [],
         // Не персистим кэш — он должен быть свежим при каждом запуске
       }),
+      merge: (persistedState, currentState) => {
+        const merged = { ...currentState, ...persistedState };
+        // Гарантируем, что favorites всегда массив
+        if (!Array.isArray(merged.favorites)) {
+          merged.favorites = [];
+        }
+        return merged;
+      },
     }
   )
 );

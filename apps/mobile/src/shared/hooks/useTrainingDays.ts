@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { trainingApi } from "@/shared/lib/api";
+import { trainingApi, type TrainingDaysResponse } from "@/shared/lib/api";
 import { useTrainingStore } from "@/shared/stores";
+import type { ApiResponse } from "@/shared/lib/api/client";
 
 /**
  * Хук для загрузки списка дней тренировок
@@ -8,7 +9,7 @@ import { useTrainingStore } from "@/shared/stores";
 export function useTrainingDays(courseType: string) {
   const { getCachedTrainingDays, setCachedTrainingDays } = useTrainingStore();
 
-  return useQuery({
+  return useQuery<ApiResponse<TrainingDaysResponse>>({
     queryKey: ["trainingDays", courseType],
     queryFn: async () => {
       const response = await trainingApi.getDays(courseType);
@@ -24,7 +25,7 @@ export function useTrainingDays(courseType: string) {
     initialData: () => {
       const cached = getCachedTrainingDays(courseType);
       if (cached.data && !cached.isExpired) {
-        return { success: true, data: cached.data };
+        return { success: true, data: cached.data } as ApiResponse<TrainingDaysResponse>;
       }
       return undefined;
     },

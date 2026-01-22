@@ -32,15 +32,15 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Главная",
-          tabBarIcon: ({ color, size }) => renderIcon("home", color, size),
+          title: "Курсы",
+          tabBarIcon: ({ color, size }) => renderIcon("book-open-variant", color, size),
         }}
       />
       <Tabs.Screen
         name="courses"
         options={{
-          title: "Курсы",
-          tabBarIcon: ({ color, size }) => renderIcon("book-open-variant", color, size),
+          title: "Избранное",
+          tabBarIcon: ({ color, size }) => renderIcon("heart", color, size),
         }}
       />
       <Tabs.Screen

@@ -1,15 +1,18 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { View, StyleSheet, FlatList, RefreshControl, Pressable } from "react-native";
-import { Text, List, Chip, Surface } from "react-native-paper";
+import { Text, Surface } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { calculateDayStatus } from "@gafus/core/utils/training";
 
 import { Loading } from "@/shared/components/ui";
 import { useTrainingDays } from "@/shared/hooks";
 import { useStepStore } from "@/shared/stores";
 import type { TrainingDay } from "@/shared/lib/api";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/constants";
+import { showPrivateCourseAccessDeniedAlert } from "@/shared/lib/utils/alerts";
+import { CourseDescription } from "@/features/training/components";
 
 /**
  * Экран списка дней тренировок курса
@@ -20,84 +23,197 @@ export default function TrainingDaysScreen() {
 
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDays(courseType);
   const { stepStates } = useStepStore();
+  const courseData = data?.success && data.data ? data.data : undefined;
+
 
   const onRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
 
-  // Вычисляем локальный статус дня на основе шагов
-  const getDayLocalStatus = useCallback(
-    (courseId: string, dayOnCourseId: string): "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | null => {
-      const prefix = `${courseId}-${dayOnCourseId}-`;
-      const daySteps = Object.entries(stepStates).filter(([key]) => key.startsWith(prefix));
+  // Функция для ранжирования статусов (как на web)
+  const rank = useCallback((s?: string) => {
+    if (s === "COMPLETED") return 2;
+    if (s === "IN_PROGRESS" || s === "PAUSED") return 1;
+    return 0; // NOT_STARTED или неизвестно
+  }, []);
 
-      if (daySteps.length === 0) return null;
+  // Вычисляем текущий день один раз для всех элементов
+  const currentDayIndex = useMemo(() => {
+    if (!courseData?.trainingDays || !courseData.courseId) return 0;
+    
+    const effectiveCourseId = courseData.courseId || courseType;
+    const days = courseData.trainingDays;
 
-      const allCompleted = daySteps.every(([, state]) => state.status === "COMPLETED");
-      if (allCompleted) return "COMPLETED";
-
-      const anyInProgress = daySteps.some(
-        ([, state]) => state.status === "IN_PROGRESS" || state.status === "PAUSED"
+    // 1. Ищем первый день IN_PROGRESS
+    const inProgressDayIndex = days.findIndex((day) => {
+      const localStatus = calculateDayStatus(
+        effectiveCourseId,
+        day.dayOnCourseId,
+        stepStates
       );
-      if (anyInProgress) return "IN_PROGRESS";
+      const finalStatus =
+        rank(localStatus) > rank(day.userStatus || undefined)
+          ? localStatus
+          : (day.userStatus || "NOT_STARTED");
+      return finalStatus === "IN_PROGRESS";
+    });
 
-      return null;
+    if (inProgressDayIndex !== -1) return inProgressDayIndex;
+
+    // 2. Ищем последний COMPLETED и возвращаем следующий
+    let lastCompletedIndex = -1;
+    days.forEach((day, index) => {
+      const localStatus = calculateDayStatus(
+        effectiveCourseId,
+        day.dayOnCourseId,
+        stepStates
+      );
+      const finalStatus =
+        rank(localStatus) > rank(day.userStatus || undefined)
+          ? localStatus
+          : (day.userStatus || "NOT_STARTED");
+      if (finalStatus === "COMPLETED") {
+        lastCompletedIndex = index;
+      }
+    });
+
+    if (lastCompletedIndex !== -1 && lastCompletedIndex < days.length - 1) {
+      return lastCompletedIndex + 1;
+    }
+
+    // 3. По умолчанию - первый день
+    return 0;
+  }, [courseData?.courseId, courseData?.trainingDays, courseType, stepStates, rank]);
+
+  // Обработка ошибки доступа к приватному курсу
+  useEffect(() => {
+    const isAccessDenied =
+      (data && "code" in data && data.code === "FORBIDDEN") ||
+      error?.message?.includes("COURSE_ACCESS_DENIED") ||
+      (data && "error" in data && typeof data.error === "string" && data.error.includes("доступа")) ||
+      (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
+
+    if (isAccessDenied) {
+      showPrivateCourseAccessDeniedAlert(() => {
+        router.replace("/(tabs)/courses" as any);
+      });
+    }
+  }, [data, error, router]);
+
+  const handleDayPress = useCallback(
+    (day: TrainingDay) => {
+      router.push(`/training/${courseType}/${day.dayOnCourseId}`);
     },
-    [stepStates]
+    [router, courseType]
   );
 
-  const courseData = data?.data;
-
-  const handleDayPress = (day: TrainingDay) => {
-    router.push(`/training/${courseType}/${day.dayOnCourseId}`);
+  const typeLabels: Record<string, string> = {
+    base: "Базовый день",
+    regular: "Тренировочный день",
+    introduction: "Вводный блок",
+    instructions: "Инструкции",
+    diagnostics: "Диагностика",
+    summary: "Подведение итогов",
   };
 
-  const renderDayItem = ({ item, index }: { item: TrainingDay; index: number }) => {
-    const localStatus = getDayLocalStatus(courseData?.courseId || "", item.dayOnCourseId);
-    const status = localStatus || item.userStatus || "NOT_STARTED";
+  const renderDayItem = useCallback(({ item, index }: { item: TrainingDay; index: number }) => {
+    // Если нет courseId, все равно показываем дни (courseId может быть в courseData)
+    if (!courseData) {
+      if (__DEV__) {
+        console.warn("[TrainingDaysScreen] renderDayItem: courseData is undefined for index", index);
+      }
+      return null;
+    }
+    
+    const courseId = courseData.courseId;
+    
+    if (!courseId && __DEV__) {
+      console.warn("[TrainingDaysScreen] courseId is missing in courseData", courseData);
+    }
 
-    const isCompleted = status === "COMPLETED";
-    const isInProgress = status === "IN_PROGRESS";
+    // Вычисляем локальный статус дня из stepStore (как на web)
+    const effectiveCourseId = courseId || courseType;
+    const localStatus = calculateDayStatus(
+      effectiveCourseId,
+      item.dayOnCourseId,
+      stepStates
+    );
+    // Не понижаем статус: берем максимум между серверным и локальным
+    const finalStatus =
+      rank(localStatus) > rank(item.userStatus || undefined)
+        ? localStatus
+        : (item.userStatus || "NOT_STARTED");
+
+    const isCompleted = finalStatus === "COMPLETED";
+    const isInProgress = finalStatus === "IN_PROGRESS";
+    
+    // Используем предвычисленный индекс текущего дня
+    const isCurrent = index === currentDayIndex;
+
+    // Определяем цвет границы в зависимости от статуса (как на web)
+    const borderColor = isCompleted
+      ? "#B6C582" // Зеленый для завершенных (как на web)
+      : isInProgress
+        ? "#F6D86E" // Желтый для в процессе (как на web)
+        : "transparent";
+
 
     return (
       <Pressable onPress={() => handleDayPress(item)}>
-        <Surface style={[styles.dayCard, isCompleted && styles.completedCard]} elevation={1}>
-          <View style={styles.dayHeader}>
-            <View style={styles.dayNumber}>
-              <Text style={styles.dayNumberText}>{index + 1}</Text>
+        <View style={[styles.dayCardWrapper, { borderColor }]}>
+          {isCurrent && (
+            <View style={styles.currentIndicator}>
+              <Text style={styles.currentIndicatorText}>📍 Вы здесь</Text>
             </View>
-            <View style={styles.dayInfo}>
-              <Text variant="titleMedium" numberOfLines={2} style={styles.dayTitle}>
-                {item.title}
-              </Text>
-              <View style={styles.dayMeta}>
-                {item.estimatedDuration && (
-                  <Chip compact icon="clock-outline" style={styles.chip}>
-                    {item.estimatedDuration} мин
-                  </Chip>
-                )}
-                <Chip compact style={styles.chip}>
-                  {item.type}
-                </Chip>
-              </View>
-            </View>
-            <View style={styles.statusIcon}>
-              {isCompleted ? (
-                <MaterialCommunityIcons name="check-circle" size={28} color={COLORS.success} />
-              ) : isInProgress ? (
-                <MaterialCommunityIcons name="play-circle" size={28} color={COLORS.primary} />
-              ) : (
-                <MaterialCommunityIcons name="circle-outline" size={28} color={COLORS.disabled} />
+          )}
+          {/* Бейджи времени (как на web) */}
+          {((item.estimatedDuration || 0) > 0 || (item.theoryMinutes || 0) > 0) && (
+            <View style={styles.timeBadgeWrapper}>
+              {(item.estimatedDuration || 0) > 0 && (
+                <View style={styles.timeBadge}>
+                  <Text style={styles.timeBadgeText}>{item.estimatedDuration}</Text>
+                  <Text style={styles.timeBadgeLabel}>мин</Text>
+                </View>
+              )}
+              {(item.theoryMinutes || 0) > 0 && (
+                <View style={styles.timeBadgeTheory}>
+                  <Text style={styles.timeBadgeTheoryText}>{item.theoryMinutes}</Text>
+                  <Text style={styles.timeBadgeTheoryLabel}>мин</Text>
+                </View>
               )}
             </View>
-          </View>
-        </Surface>
+          )}
+          <Surface style={styles.dayCard} elevation={1}>
+            <Text style={styles.dayTitle}>{item.title}</Text>
+            <Text style={styles.subtitle}>({typeLabels[item.type] || item.type})</Text>
+            <Text style={styles.equipmentLabel}>Что понадобится:</Text>
+            <Text style={styles.equipment}>
+              {item.equipment || "вкусняшки и терпение"}
+            </Text>
+          </Surface>
+        </View>
       </Pressable>
     );
-  };
+  }, [courseData, courseType, stepStates, rank, currentDayIndex, handleDayPress]);
 
   if (isLoading) {
     return <Loading fullScreen message="Загрузка тренировок..." />;
+  }
+
+  // Специальная обработка для ошибки доступа - показываем alert и возвращаем null
+  const isAccessDenied =
+    (data && "code" in data && data.code === "FORBIDDEN") ||
+    error?.message?.includes("COURSE_ACCESS_DENIED") ||
+    (data && "error" in data && typeof data.error === "string" && data.error.includes("доступа")) ||
+    (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
+
+  if (isAccessDenied) {
+    // Alert показывается в useEffect, здесь просто возвращаем пустой экран
+    return (
+      <SafeAreaView style={styles.container}>
+        <Loading fullScreen message="Проверка доступа..." />
+      </SafeAreaView>
+    );
   }
 
   if (error || !data?.success) {
@@ -123,36 +239,62 @@ export default function TrainingDaysScreen() {
         }}
       />
       <SafeAreaView style={styles.container} edges={["bottom"]}>
-        {/* Информация о курсе */}
+        {/* Заголовок "Содержание" (как на web) */}
+        <Text style={styles.contentTitle}>Содержание</Text>
+
+        {/* Описание курса (сворачиваемое, как на web) */}
         {courseData?.courseDescription && (
-          <Surface style={styles.courseInfo} elevation={1}>
-            <Text variant="bodyMedium" style={styles.courseDescription}>
-              {courseData.courseDescription}
-            </Text>
-            {courseData.courseEquipment && (
-              <View style={styles.equipmentRow}>
-                <MaterialCommunityIcons name="dumbbell" size={16} color={COLORS.textSecondary} />
-                <Text style={styles.equipmentText}>{courseData.courseEquipment}</Text>
-              </View>
-            )}
-          </Surface>
+          <CourseDescription
+            description={courseData.courseDescription}
+            equipment={courseData.courseEquipment}
+            trainingLevel={courseData.courseTrainingLevel}
+          />
         )}
 
+        {/* Заголовок "План занятий:" (как на web) */}
+        <Text style={styles.planTitle}>План занятий:</Text>
+
         {/* Список дней */}
-        <FlatList
-          data={courseData?.trainingDays || []}
-          renderItem={renderDayItem}
-          keyExtractor={(item) => item.dayOnCourseId}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Нет дней тренировок</Text>
-            </View>
-          }
-        />
+        {courseData?.trainingDays && courseData.trainingDays.length > 0 ? (
+          <FlatList
+              data={courseData.trainingDays}
+              renderItem={renderDayItem}
+              keyExtractor={(item, idx) => {
+                // Используем dayOnCourseId как основной ключ (он должен быть уникальным)
+                return item.dayOnCourseId || item.id || `day-${idx}`;
+              }}
+              contentContainerStyle={styles.listContent}
+              style={styles.list}
+              refreshControl={
+                <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
+              }
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>Список дней пуст</Text>
+                </View>
+              }
+              removeClippedSubviews={false}
+              initialNumToRender={15}
+              maxToRenderPerBatch={15}
+              windowSize={21}
+              showsVerticalScrollIndicator={true}
+            />
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {isLoading
+                ? "Загрузка дней тренировок..."
+                : courseData
+                  ? "Нет дней тренировок"
+                  : "Не удалось загрузить данные"}
+            </Text>
+            {__DEV__ && courseData && (
+              <Text style={styles.debugText}>
+                Debug: courseId={courseData.courseId}, days={courseData.trainingDays?.length || 0}
+              </Text>
+            )}
+          </View>
+        )}
       </SafeAreaView>
     </>
   );
@@ -163,71 +305,139 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  courseInfo: {
-    margin: SPACING.md,
-    padding: SPACING.md,
-    borderRadius: 12,
-  },
-  courseDescription: {
-    color: COLORS.textSecondary,
+  contentTitle: {
+    color: "#352e2e",
+    fontFamily: FONTS.impact,
+    fontWeight: "400",
+    fontSize: 60,
+    lineHeight: 60,
+    textAlign: "center",
+    marginTop: 15,
     marginBottom: SPACING.sm,
   },
-  equipmentRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.xs,
-  },
-  equipmentText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-  listContent: {
-    padding: SPACING.md,
-    paddingTop: 0,
-  },
-  dayCard: {
-    padding: SPACING.md,
-    borderRadius: 12,
+  planTitle: {
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+    fontWeight: "600",
+    fontSize: 20,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
     marginBottom: SPACING.sm,
-    backgroundColor: COLORS.surface,
   },
-  completedCard: {
-    backgroundColor: "#E8F5E9",
-  },
-  dayHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  dayNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary + "20",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: SPACING.md,
-  },
-  dayNumberText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.primary,
-  },
-  dayInfo: {
+  list: {
     flex: 1,
   },
-  dayTitle: {
-    fontWeight: "600",
-    marginBottom: SPACING.xs,
+  listContent: {
+    paddingBottom: SPACING.xl,
   },
-  dayMeta: {
+  dayCardWrapper: {
+    marginBottom: SPACING.md,
+    marginHorizontal: SPACING.md,
+    borderRadius: 12,
+    borderWidth: 4, // Немного толще, чем на web (там 2px, но визуально кажется толще из-за структуры)
+    position: "relative",
+    backgroundColor: "#FFF8E5",
+    minHeight: 120,
+  },
+  dayCard: {
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: "#FFF8E5",
+    minHeight: 120,
+  },
+  currentIndicator: {
+    position: "absolute",
+    top: -12,
+    left: 10,
+    backgroundColor: "#636128",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+    zIndex: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
     flexDirection: "row",
-    gap: SPACING.xs,
+    alignItems: "center",
+    gap: 4,
   },
-  chip: {
-    height: 24,
+  currentIndicatorText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "600",
   },
-  statusIcon: {
-    marginLeft: SPACING.sm,
+  timeBadgeWrapper: {
+    position: "absolute",
+    top: -10,
+    right: -10,
+    zIndex: 2,
+    flexDirection: "column",
+    gap: 6,
+    alignItems: "center",
+  },
+  timeBadge: {
+    backgroundColor: "#636128",
+    borderRadius: 50,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 50,
+  },
+  timeBadgeText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  timeBadgeLabel: {
+    color: "#ffffff",
+    fontSize: 12,
+  },
+  timeBadgeTheory: {
+    backgroundColor: "#af6d34",
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timeBadgeTheoryText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  timeBadgeTheoryLabel: {
+    color: "#ffffff",
+    fontSize: 12,
+  },
+  dayTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 4,
+    color: "#352E2E",
+    paddingRight: 60, // Место для бейджей времени
+    fontFamily: FONTS.impact, // Impact как на web
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 8,
+    fontFamily: FONTS.montserrat,
+  },
+  equipmentLabel: {
+    fontSize: 14,
+    color: "#352E2E",
+    marginTop: 4,
+    marginBottom: 2,
+    fontFamily: FONTS.montserrat,
+  },
+  equipment: {
+    fontSize: 14,
+    color: "#888",
+    fontStyle: "italic",
+    fontFamily: FONTS.montserrat,
   },
   errorContainer: {
     flex: 1,
@@ -250,5 +460,11 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: COLORS.textSecondary,
+  },
+  debugText: {
+    marginTop: SPACING.md,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontFamily: "monospace",
   },
 });

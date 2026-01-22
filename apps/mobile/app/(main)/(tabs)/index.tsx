@@ -1,26 +1,50 @@
-import { View, StyleSheet, ScrollView, RefreshControl } from "react-native";
-import { Text, Avatar, Surface } from "react-native-paper";
+import { useState, useCallback, useMemo } from "react";
+import { 
+  View, 
+  StyleSheet, 
+  FlatList, 
+  RefreshControl,
+  Pressable,
+  TextInput,
+} from "react-native";
+import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Link } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Card, Loading, Button } from "@/shared/components/ui";
-import { useAuthStore, useCourseStore } from "@/shared/stores";
+import { Loading } from "@/shared/components/ui";
+import { useCourseStore } from "@/shared/stores";
 import { coursesApi, type Course } from "@/shared/lib/api";
-import { COLORS, SPACING } from "@/constants";
+import { CourseCard } from "@/features/courses/components";
+import { COLORS, SPACING, BORDER_RADIUS } from "@/constants";
+
+const LEVEL_LABELS: Record<string, string> = {
+  BEGINNER: "Начальный",
+  INTERMEDIATE: "Средний",
+  ADVANCED: "Продвинутый",
+};
 
 /**
- * Главная страница — Dashboard пользователя
+ * Страница со всеми курсами (точный дизайн как веб-версия)
  */
-export default function HomeScreen() {
-  const { user } = useAuthStore();
-  const { favorites } = useCourseStore();
-  const [refreshing, setRefreshing] = useState(false);
+export default function CoursesScreen() {
+  const queryClient = useQueryClient();
+  const {
+    filters,
+    setFilter,
+    clearFilters,
+    addToFavorites,
+    removeFromFavorites,
+    isFavorite,
+  } = useCourseStore();
 
-  // Загрузка курсов для отображения прогресса
-  const { data: coursesData, isLoading, refetch } = useQuery({
-    queryKey: ["courses-home"],
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(filters.search || "");
+  const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+
+  // Загрузка курсов
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["courses"],
     queryFn: () => coursesApi.getAll(),
   });
 
@@ -30,159 +54,167 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [refetch]);
 
-  // Получаем первые 2 избранных курса для быстрого доступа
-  const favoriteCourses = coursesData?.data?.courses.filter(
-    (c) => favorites.includes(c.id)
-  ).slice(0, 2) || [];
+  // Обновляем поиск с debounce
+  const handleSearchChange = useCallback((text: string) => {
+    setSearchQuery(text);
+    setFilter("search", text);
+  }, [setFilter]);
+
+  // Фильтруем курсы локально (как в веб-версии)
+  // API возвращает массив курсов напрямую в data
+  const filteredCourses = useMemo(() => {
+    if (!data?.data || !Array.isArray(data.data)) return [];
+    
+    let courses = data.data;
+    
+    // Фильтрация по поисковому запросу
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase().trim();
+      courses = courses.filter(
+        (c) =>
+          c.name?.toLowerCase().includes(query) ||
+          c.description?.toLowerCase().includes(query) ||
+          c.shortDesc?.toLowerCase().includes(query) ||
+          c.authorUsername?.toLowerCase().includes(query)
+      );
+    }
+    
+    // Фильтрация по типу (personal/group)
+    if (filters.type) {
+      // В API нет поля type для фильтрации, пропускаем
+      // Можно добавить фильтрацию по isPrivate если нужно
+    }
+    
+    // Фильтрация по уровню
+    if (filters.level) {
+      courses = courses.filter((c) => c.trainingLevel === filters.level);
+    }
+    
+    // Сортировка по дате создания (новые → старые)
+    courses = [...courses].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+    
+    return courses;
+  }, [data?.data, searchQuery, filters.type, filters.level]);
+
+  const handleToggleFavorite = async (courseId: string) => {
+    const wasFavorite = isFavorite(courseId);
+    if (wasFavorite) {
+      removeFromFavorites(courseId);
+    } else {
+      addToFavorites(courseId);
+    }
+    setPendingIds((prev) => [...prev, courseId]);
+    try {
+      const res = await coursesApi.toggleFavorite(
+        courseId,
+        wasFavorite ? "remove" : "add"
+      );
+      if (res.success) {
+        queryClient.invalidateQueries({ queryKey: ["favorites"] });
+      } else {
+        throw new Error(res.error ?? "Ошибка избранного");
+      }
+    } catch (err) {
+      if (wasFavorite) {
+        addToFavorites(courseId);
+      } else {
+        removeFromFavorites(courseId);
+      }
+      setSnackbar({
+        visible: true,
+        message: err instanceof Error ? err.message : "Ошибка избранного",
+      });
+    } finally {
+      setPendingIds((prev) => prev.filter((id) => id !== courseId));
+    }
+  };
+
+  const renderCourseItem = ({ item }: { item: Course }) => {
+    const courseIsFavorite = isFavorite(item.id) ?? item.isFavorite;
+
+    return (
+      <CourseCard
+        course={item}
+        isFavorite={courseIsFavorite}
+        onToggleFavorite={() => handleToggleFavorite(item.id)}
+        disabled={pendingIds.includes(item.id)}
+      />
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Приветствие */}
-        <View style={styles.header}>
-          <View style={styles.greeting}>
-            <Text variant="headlineSmall" style={styles.greetingText}>
-              Привет, {user?.name || user?.username || "Пользователь"}!
-            </Text>
-            <Text variant="bodyMedium" style={styles.subtitle}>
-              Готов к тренировке?
-            </Text>
+      {/* Поиск (как в веб-версии) */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchWrapper}>
+          <View style={styles.searchIconContainer}>
+            <Text style={styles.searchIcon}>🔍</Text>
           </View>
-          <Avatar.Text
-            size={48}
-            label={getInitials(user?.name || user?.username || "U")}
-            style={styles.avatar}
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Поиск курсов..."
+            placeholderTextColor={COLORS.textSecondary}
+            value={searchQuery}
+            onChangeText={handleSearchChange}
           />
-        </View>
-
-        {/* Быстрые действия */}
-        <Surface style={styles.quickActions} elevation={1}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Быстрые действия
-          </Text>
-          <View style={styles.actionsGrid}>
-            <Link href="/courses" asChild>
-              <Surface style={styles.actionCard} elevation={0}>
-                <Text style={styles.actionIcon}>📚</Text>
-                <Text variant="bodySmall">Все курсы</Text>
-              </Surface>
-            </Link>
-            <Link href="/achievements" asChild>
-              <Surface style={styles.actionCard} elevation={0}>
-                <Text style={styles.actionIcon}>🏆</Text>
-                <Text variant="bodySmall">Достижения</Text>
-              </Surface>
-            </Link>
-            <Link href="/profile" asChild>
-              <Surface style={styles.actionCard} elevation={0}>
-                <Text style={styles.actionIcon}>⚙️</Text>
-                <Text variant="bodySmall">Настройки</Text>
-              </Surface>
-            </Link>
-          </View>
-        </Surface>
-
-        {/* Избранные курсы */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Избранные курсы
-            </Text>
-            <Link href="/courses" asChild>
-              <Text style={styles.seeAll}>Все →</Text>
-            </Link>
-          </View>
-
-          {isLoading ? (
-            <Loading message="Загрузка..." />
-          ) : favoriteCourses.length > 0 ? (
-            favoriteCourses.map((course) => (
-              <CoursePreviewCard key={course.id} course={course} />
-            ))
-          ) : (
-            <Card style={styles.emptyCard}>
-              <Card.Content>
-                <Text style={styles.emptyText}>
-                  У вас пока нет избранных курсов
-                </Text>
-                <Link href="/courses" asChild>
-                  <Button label="Выбрать курс" style={styles.emptyButton} />
-                </Link>
-              </Card.Content>
-            </Card>
+          {searchQuery.length > 0 && (
+            <Pressable
+              style={styles.clearButton}
+              onPress={() => {
+                setSearchQuery("");
+                setFilter("search", "");
+              }}
+            >
+              <Text style={styles.clearButtonText}>✕</Text>
+            </Pressable>
           )}
         </View>
+      </View>
 
-        {/* Статистика */}
-        <Surface style={styles.statsSection} elevation={1}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Ваша статистика
-          </Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text variant="headlineMedium" style={styles.statValue}>
-                0
-              </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>
-                Дней подряд
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text variant="headlineMedium" style={styles.statValue}>
-                0
-              </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>
-                Тренировок
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text variant="headlineMedium" style={styles.statValue}>
-                0
-              </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>
-                Часов
+      {/* Список курсов */}
+      {isLoading ? (
+        <Loading fullScreen message="Загрузка курсов..." />
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Ошибка загрузки курсов</Text>
+          <Pressable onPress={() => refetch()}>
+            <Text style={styles.retryText}>Попробовать снова</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredCourses}
+          renderItem={renderCourseItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {searchQuery
+                  ? `По запросу "${searchQuery}" ничего не найдено`
+                  : "В этой категории пока нет курсов"}
               </Text>
             </View>
-          </View>
-        </Surface>
-      </ScrollView>
+          }
+        />
+      )}
+
+      <Snackbar
+        visible={snackbar.visible}
+        onDismiss={() => setSnackbar({ visible: false, message: "" })}
+        duration={3000}
+      >
+        {snackbar.message}
+      </Snackbar>
     </SafeAreaView>
   );
-}
-
-/**
- * Компонент превью курса для главной страницы
- */
-function CoursePreviewCard({ course }: { course: Course }) {
-  return (
-    <Link href={`/training/${course.type}`} asChild>
-      <Card style={styles.courseCard}>
-        <Card.Title
-          title={course.name}
-          subtitle={course.shortDesc}
-          left={(props) => (
-            <Avatar.Image {...props} source={{ uri: course.logoImg }} />
-          )}
-        />
-      </Card>
-    </Link>
-  );
-}
-
-/**
- * Получение инициалов из имени
- */
-function getInitials(name: string): string {
-  const parts = name.trim().split(" ");
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
 }
 
 const styles = StyleSheet.create({
@@ -190,96 +222,80 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  scrollContent: {
-    padding: SPACING.md,
+  // Поиск (как в веб-версии)
+  searchContainer: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: SPACING.lg,
+  searchWrapper: {
+    position: "relative",
+    width: "100%",
+    maxWidth: 600,
+    alignSelf: "center",
   },
-  greeting: {
-    flex: 1,
+  searchIconContainer: {
+    position: "absolute",
+    left: 16,
+    top: "50%",
+    transform: [{ translateY: -10 }],
+    zIndex: 1,
   },
-  greetingText: {
-    fontWeight: "bold",
+  searchIcon: {
+    fontSize: 20,
   },
-  subtitle: {
+  searchInput: {
+    width: "100%",
+    paddingVertical: 14,
+    paddingLeft: 48,
+    paddingRight: 48,
+    borderWidth: 2,
+    borderColor: "transparent",
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.cardBackground,
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "500",
+    fontFamily: "System",
+  },
+  clearButton: {
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    transform: [{ translateY: -10 }],
+    padding: 8,
+    borderRadius: 6,
+  },
+  clearButtonText: {
+    fontSize: 16,
     color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
   },
-  avatar: {
-    backgroundColor: COLORS.primary,
+  listContent: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xl,
   },
-  quickActions: {
-    padding: SPACING.md,
-    borderRadius: 12,
-    marginBottom: SPACING.lg,
-  },
-  actionsGrid: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: SPACING.md,
-  },
-  actionCard: {
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    padding: SPACING.md,
-    borderRadius: 8,
-    backgroundColor: COLORS.background,
+    padding: SPACING.xl,
   },
-  actionIcon: {
-    fontSize: 28,
-    marginBottom: SPACING.xs,
-  },
-  section: {
-    marginBottom: SPACING.lg,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  errorText: {
+    color: COLORS.error,
     marginBottom: SPACING.md,
   },
-  sectionTitle: {
+  retryText: {
+    color: COLORS.secondary,
     fontWeight: "600",
   },
-  seeAll: {
-    color: COLORS.primary,
-    fontWeight: "500",
-  },
-  courseCard: {
-    marginBottom: SPACING.sm,
-  },
-  emptyCard: {
+  emptyContainer: {
+    padding: SPACING.xxl,
     alignItems: "center",
   },
   emptyText: {
     color: COLORS.textSecondary,
     textAlign: "center",
-    marginBottom: SPACING.md,
-  },
-  emptyButton: {
-    marginTop: SPACING.sm,
-  },
-  statsSection: {
-    padding: SPACING.md,
-    borderRadius: 12,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: SPACING.md,
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statValue: {
-    fontWeight: "bold",
-    color: COLORS.primary,
-  },
-  statLabel: {
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
+    fontSize: 16,
   },
 });

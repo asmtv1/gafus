@@ -7,6 +7,8 @@ export interface TrainingDay {
   title: string;
   type: string;
   estimatedDuration: number | null;
+  theoryMinutes?: number | null;
+  equipment?: string | null;
   order: number;
   userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | null;
   completedAt: string | null;
