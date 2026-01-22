@@ -35,6 +35,16 @@ interface StepActions {
   resumeStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
   completeStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
 
+  // Инициализация шага (как в web-версии)
+  initializeStep: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    durationSec: number,
+    status: string,
+    options?: { serverPaused?: boolean; serverRemainingSec?: number }
+  ) => void;
+
   // Синхронизация с сервером
   syncFromServer: (
     courseId: string,
@@ -144,6 +154,30 @@ export const useStepStore = create<StepStore>()(
             [key]: {
               status: "COMPLETED",
               remainingSec: null,
+              updatedAt: Date.now(),
+            },
+          },
+        }));
+      },
+
+      // Инициализация шага (как в web-версии)
+      initializeStep: (courseId, dayOnCourseId, stepIndex, durationSec, status, options) => {
+        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        const current = get().stepStates[key];
+        
+        // Если шаг уже инициализирован и имеет локальные изменения - не перезаписываем
+        if (current && current.updatedAt > Date.now() - 5000) {
+          return;
+        }
+
+        set((state) => ({
+          stepStates: {
+            ...state.stepStates,
+            [key]: {
+              status: (status || "NOT_STARTED") as LocalStepState["status"],
+              remainingSec: options?.serverPaused 
+                ? (options.serverRemainingSec ?? durationSec)
+                : (status === "IN_PROGRESS" ? durationSec : null),
               updatedAt: Date.now(),
             },
           },

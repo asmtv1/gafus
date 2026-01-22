@@ -42,7 +42,7 @@ trainingRoutes.get("/days", zValidator("query", daysQuerySchema), async (c) => {
 // Получить день с шагами пользователя
 const dayQuerySchema = z.object({
   courseType: z.string().min(1, "courseType обязателен"),
-  dayOnCourseId: z.string().uuid("dayOnCourseId должен быть UUID"),
+  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"), // Принимаем cuid, а не только UUID
   createIfMissing: z.enum(["true", "false"]).optional().transform(v => v === "true"),
 });
 

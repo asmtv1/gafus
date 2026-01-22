@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { View, StyleSheet, Pressable, ScrollView } from "react-native";
 import { Text, Surface } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -27,23 +27,10 @@ export function CourseDescription({
   trainingLevel,
 }: CourseDescriptionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [contentHeight, setContentHeight] = useState<number | null>(null);
-  const contentRef = useRef<View>(null);
 
   const handleToggle = useCallback(() => {
     setIsExpanded((prev) => !prev);
   }, []);
-
-  const handleContentLayout = useCallback(
-    (event: { nativeEvent: { layout: { height: number } } }) => {
-      const { height } = event.nativeEvent.layout;
-      if (height > 0 && contentHeight === null) {
-        // Сохраняем высоту контента при первом измерении
-        setContentHeight(height);
-      }
-    },
-    [contentHeight]
-  );
 
   // Улучшенный парсер Markdown с поддержкой жирного текста, курсива, эмодзи и ссылок
   const renderMarkdown = (text: string) => {
@@ -290,39 +277,28 @@ export function CourseDescription({
       {isExpanded && (
         <View style={styles.content}>
           <Surface style={styles.contentSurface} elevation={1}>
-            <ScrollView
-              style={styles.scrollContent}
-              nestedScrollEnabled
-              showsVerticalScrollIndicator={true}
-              bounces={false}
-            >
-              <View
-                ref={contentRef}
-                onLayout={handleContentLayout}
-                style={styles.markdownContainer}
-              >
-                {renderMarkdown(description)}
+            <View style={styles.markdownContainer}>
+              {renderMarkdown(description)}
 
-                {(equipment || trainingLevel) && (
-                  <View style={styles.courseInfo}>
-                    {trainingLevel && (
-                      <View style={styles.infoItem}>
-                        <Text style={styles.infoLabel}>Уровень сложности:</Text>
-                        <Text style={styles.infoValue}>
-                          {getTrainingLevelText(trainingLevel)}
-                        </Text>
-                      </View>
-                    )}
-                    {equipment && (
-                      <View style={styles.infoItem}>
-                        <Text style={styles.infoLabel}>Необходимое оборудование:</Text>
-                        <Text style={styles.infoValue}>{equipment}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
-            </ScrollView>
+              {(equipment || trainingLevel) && (
+                <View style={styles.courseInfo}>
+                  {trainingLevel && (
+                    <View style={styles.infoItem}>
+                      <Text style={styles.infoLabel}>Уровень сложности:</Text>
+                      <Text style={styles.infoValue}>
+                        {getTrainingLevelText(trainingLevel)}
+                      </Text>
+                    </View>
+                  )}
+                  {equipment && (
+                    <View style={styles.infoItem}>
+                      <Text style={styles.infoLabel}>Необходимое оборудование:</Text>
+                      <Text style={styles.infoValue}>{equipment}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
           </Surface>
         </View>
       )}
@@ -371,7 +347,7 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "180deg" }],
   },
   content: {
-    maxHeight: 400, // Максимальная высота (аналог max-content с лимитом)
+    // Высота определяется контентом (max-content)
   },
   contentSurface: {
     backgroundColor: "#ECE5D2",
@@ -380,9 +356,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
-  },
-  scrollContent: {
-    // ScrollView автоматически подстраивается под контент до maxHeight родителя
   },
   markdownContainer: {
     padding: SPACING.md,

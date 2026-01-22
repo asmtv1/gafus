@@ -9,7 +9,7 @@ import { Button, Card } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
 import { userApi } from "@/shared/lib/api/user";
 import { petsApi, type Pet } from "@/shared/lib/api/pets";
-import { COLORS, SPACING, BORDER_RADIUS } from "@/constants";
+import { COLORS, SPACING, BORDER_RADIUS, FONTS } from "@/constants";
 
 // Функция для получения инициалов
 const getInitials = (name: string): string => {
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
     color: "#352E2E",
     textAlign: "center",
     marginBottom: SPACING.md,
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
   },
   // Баннер профиля (оливковый фон)
   profileBanner: {
@@ -471,13 +471,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#ECE5D2",
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
     lineHeight: 20,
   },
   contactInfo: {
     fontSize: 13,
     color: "#D4C4A8",
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
     opacity: 0.9,
   },
   roleBadge: {
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     color: "#ECE5D2",
     fontSize: 12,
     fontWeight: "600",
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
   },
   // Контейнер с информацией о себе
   infoContainer: {
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D4C4A8",
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
   },
   emptyNotice: {
     backgroundColor: "#FFF8E5",
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     marginBottom: SPACING.sm,
     fontSize: 14,
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
   },
   editBioButton: {
     backgroundColor: "#636128",
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     textAlign: "center",
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
   },
   // О себе
   aboutContainer: {
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#352E2E",
     marginBottom: SPACING.sm,
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   aboutText: {
     fontSize: 14,
     color: "#352E2E",
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
     lineHeight: 20,
   },
   // Социальные сети
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#352E2E",
     marginBottom: SPACING.sm,
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -630,13 +630,13 @@ const styles = StyleSheet.create({
     color: "#636128",
     minWidth: 80,
     fontSize: 14,
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
   },
   socialUsername: {
     color: "#352E2E",
     flex: 1,
     fontSize: 14,
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
   },
   // Список питомцев
   petListContainer: {
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#352E2E",
     marginBottom: SPACING.md,
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
   },
   noPets: {
     color: "#636128",
@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
     padding: SPACING.md,
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
   },
   petsList: {
     flexDirection: "column",
@@ -705,13 +705,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#352E2E",
     marginBottom: SPACING.xs,
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
   },
   petDetail: {
     fontSize: 12,
     color: "#352E2E",
     marginBottom: 2,
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
   },
   addPetButton: {
     backgroundColor: "#636128",
@@ -730,7 +730,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     textAlign: "center",
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
   },
   passwordButton: {
     backgroundColor: "#636128",
@@ -753,7 +753,7 @@ const styles = StyleSheet.create({
     color: "#ECE5D2",
     fontSize: 15,
     fontWeight: "600",
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
   },
   logoutButton: {
     backgroundColor: "#636128",
@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
     color: "#ECE5D2",
     fontSize: 15,
     fontWeight: "600",
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
   },
   // Информация (в самом низу)
   infoCard: {
@@ -790,7 +790,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.md,
-    fontFamily: "System",
+    fontFamily: FONTS.impact,
   },
   infoItem: {
     flexDirection: "row",
@@ -809,13 +809,13 @@ const styles = StyleSheet.create({
   infoItemTitle: {
     fontSize: 14,
     color: COLORS.text,
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
   },
   infoItemDesc: {
     fontSize: 12,
     color: COLORS.textSecondary,
     marginTop: 2,
-    fontFamily: "System",
+    fontFamily: FONTS.montserrat,
   },
   infoArrow: {
     fontSize: 16,

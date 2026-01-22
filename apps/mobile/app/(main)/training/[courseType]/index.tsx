@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { View, StyleSheet, FlatList, RefreshControl, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from "react-native";
 import { Text, Surface } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -239,62 +239,54 @@ export default function TrainingDaysScreen() {
         }}
       />
       <SafeAreaView style={styles.container} edges={["bottom"]}>
-        {/* Заголовок "Содержание" (как на web) */}
-        <Text style={styles.contentTitle}>Содержание</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={true}
+        >
+          {/* Заголовок "Содержание" (как на web) */}
+          <Text style={styles.contentTitle}>Содержание</Text>
 
-        {/* Описание курса (сворачиваемое, как на web) */}
-        {courseData?.courseDescription && (
-          <CourseDescription
-            description={courseData.courseDescription}
-            equipment={courseData.courseEquipment}
-            trainingLevel={courseData.courseTrainingLevel}
-          />
-        )}
-
-        {/* Заголовок "План занятий:" (как на web) */}
-        <Text style={styles.planTitle}>План занятий:</Text>
-
-        {/* Список дней */}
-        {courseData?.trainingDays && courseData.trainingDays.length > 0 ? (
-          <FlatList
-              data={courseData.trainingDays}
-              renderItem={renderDayItem}
-              keyExtractor={(item, idx) => {
-                // Используем dayOnCourseId как основной ключ (он должен быть уникальным)
-                return item.dayOnCourseId || item.id || `day-${idx}`;
-              }}
-              contentContainerStyle={styles.listContent}
-              style={styles.list}
-              refreshControl={
-                <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
-              }
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>Список дней пуст</Text>
-                </View>
-              }
-              removeClippedSubviews={false}
-              initialNumToRender={15}
-              maxToRenderPerBatch={15}
-              windowSize={21}
-              showsVerticalScrollIndicator={true}
+          {/* Описание курса (сворачиваемое, как на web) */}
+          {courseData?.courseDescription && (
+            <CourseDescription
+              description={courseData.courseDescription}
+              equipment={courseData.courseEquipment}
+              trainingLevel={courseData.courseTrainingLevel}
             />
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {isLoading
-                ? "Загрузка дней тренировок..."
-                : courseData
-                  ? "Нет дней тренировок"
-                  : "Не удалось загрузить данные"}
-            </Text>
-            {__DEV__ && courseData && (
-              <Text style={styles.debugText}>
-                Debug: courseId={courseData.courseId}, days={courseData.trainingDays?.length || 0}
+          )}
+
+          {/* Заголовок "План занятий:" (как на web) */}
+          <Text style={styles.planTitle}>План занятий:</Text>
+
+          {/* Список дней (как на web - все в одном ScrollView) */}
+          {courseData?.trainingDays && courseData.trainingDays.length > 0 ? (
+            <View style={styles.daysList}>
+              {courseData.trainingDays.map((item, index) => (
+                <View key={item.dayOnCourseId || item.id || `day-${index}`}>
+                  {renderDayItem({ item, index })}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {isLoading
+                  ? "Загрузка дней тренировок..."
+                  : courseData
+                    ? "Нет дней тренировок"
+                    : "Не удалось загрузить данные"}
               </Text>
-            )}
-          </View>
-        )}
+              {__DEV__ && courseData && (
+                <Text style={styles.debugText}>
+                  Debug: courseId={courseData.courseId}, days={courseData.trainingDays?.length || 0}
+                </Text>
+              )}
+            </View>
+          )}
+        </ScrollView>
       </SafeAreaView>
     </>
   );
@@ -304,6 +296,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  scrollContent: {
+    paddingBottom: SPACING.xl,
+    paddingHorizontal: 0,
   },
   contentTitle: {
     color: "#352e2e",
@@ -324,11 +320,8 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
   },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingBottom: SPACING.xl,
+  daysList: {
+    paddingBottom: SPACING.md,
   },
   dayCardWrapper: {
     marginBottom: SPACING.md,

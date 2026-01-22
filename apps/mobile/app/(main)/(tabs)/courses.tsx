@@ -14,7 +14,7 @@ import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
 import { coursesApi, type Course } from "@/shared/lib/api";
 import { CourseCard } from "@/features/courses/components";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/constants";
 
 /**
  * Страница избранных курсов (логика как в web: список по store)
@@ -79,18 +79,21 @@ export default function FavoritesScreen() {
     />
   );
 
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <Text style={styles.title}>
+        Избранные курсы
+      </Text>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <Text variant="headlineSmall" style={styles.title}>
-          Избранные курсы
-        </Text>
-      </View>
-
       {isLoading ? (
         <Loading fullScreen message="Загрузка избранных курсов..." />
       ) : error ? (
         <View style={styles.errorContainer}>
+          {renderHeader()}
           <Text style={styles.errorText}>
             Ошибка загрузки избранных курсов:{" "}
             {error instanceof Error ? error.message : "Неизвестная ошибка"}
@@ -101,6 +104,7 @@ export default function FavoritesScreen() {
         </View>
       ) : displayedCourses.length === 0 ? (
         <View style={styles.emptyContainer}>
+          {renderHeader()}
           <Text style={styles.emptyText}>У вас пока нет избранных курсов.</Text>
         </View>
       ) : (
@@ -108,6 +112,7 @@ export default function FavoritesScreen() {
           data={displayedCourses}
           renderItem={renderCourseItem}
           keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderHeader}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -129,24 +134,32 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
   },
   header: {
     padding: SPACING.md,
     paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
   },
   title: {
-    fontWeight: "600",
+    fontSize: 60,
+    fontWeight: "400",
+    fontFamily: FONTS.impact,
+    color: "#352E2E",
+    textAlign: "center",
+    lineHeight: 60,
+    letterSpacing: 0,
   },
   listContent: {
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
   },
   errorContainer: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
     padding: SPACING.xl,
+    paddingTop: SPACING.md,
   },
   errorText: {
     color: COLORS.error,
@@ -159,9 +172,9 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
     padding: SPACING.xxl,
+    paddingTop: SPACING.md,
   },
   emptyText: {
     color: COLORS.textSecondary,
