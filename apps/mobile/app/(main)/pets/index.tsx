@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { View, StyleSheet, FlatList, RefreshControl, Alert } from "react-native";
+import { useState, useEffect } from "react";
+import { View, StyleSheet, FlatList, RefreshControl, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { Text, FAB, Portal, Modal, Surface, IconButton } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
@@ -195,27 +195,86 @@ function PetModal({
   onSave: (data: CreatePetData) => void;
   isLoading: boolean;
 }) {
-  const [name, setName] = useState(pet?.name || "");
-  const [type, setType] = useState<"DOG" | "CAT" | "OTHER">(pet?.type || "DOG");
-  const [breed, setBreed] = useState(pet?.breed || "");
+  const [name, setName] = useState("");
+  const [type, setType] = useState<"DOG" | "CAT" | "OTHER">("DOG");
+  const [breed, setBreed] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [weightKg, setWeightKg] = useState("");
+  const [notes, setNotes] = useState("");
+
+  // Сброс формы при открытии/изменении питомца
+  useEffect(() => {
+    if (visible) {
+      if (pet) {
+        setName(pet.name || "");
+        setType(pet.type || "DOG");
+        setBreed(pet.breed || "");
+        setBirthDate(pet.birthDate ? new Date(pet.birthDate).toISOString().split("T")[0] : "");
+        setHeightCm(pet.heightCm?.toString() || "");
+        setWeightKg(pet.weightKg?.toString() || "");
+        setNotes(pet.notes || "");
+      } else {
+        // Сброс для создания нового питомца
+        setName("");
+        setType("DOG");
+        setBreed("");
+        setBirthDate("");
+        setHeightCm("");
+        setWeightKg("");
+        setNotes("");
+      }
+    }
+  }, [visible, pet]);
 
   const handleSave = () => {
-    if (!name.trim()) return;
+    // Валидация обязательных полей
+    if (!name.trim()) {
+      Alert.alert("Ошибка", "Имя питомца обязательно");
+      return;
+    }
+
+    if (!birthDate.trim()) {
+      Alert.alert("Ошибка", "Дата рождения обязательна");
+      return;
+    }
+
+    // Валидация даты
+    const date = new Date(birthDate);
+    if (isNaN(date.getTime())) {
+      Alert.alert("Ошибка", "Неверный формат даты");
+      return;
+    }
+
+    if (date > new Date()) {
+      Alert.alert("Ошибка", "Дата не может быть в будущем");
+      return;
+    }
+
+    // Валидация числовых полей
+    const height = heightCm.trim() ? parseFloat(heightCm) : undefined;
+    const weight = weightKg.trim() ? parseFloat(weightKg) : undefined;
+
+    if (height !== undefined && (isNaN(height) || height < 1 || height > 200)) {
+      Alert.alert("Ошибка", "Рост должен быть от 1 до 200 см");
+      return;
+    }
+
+    if (weight !== undefined && (isNaN(weight) || weight < 0.1 || weight > 200)) {
+      Alert.alert("Ошибка", "Вес должен быть от 0.1 до 200 кг");
+      return;
+    }
+
     onSave({
       name: name.trim(),
       type,
       breed: breed.trim() || undefined,
+      birthDate: birthDate.trim(),
+      heightCm: height,
+      weightKg: weight,
+      notes: notes.trim() || undefined,
     });
   };
-
-  // Сброс формы при открытии
-  useState(() => {
-    if (visible) {
-      setName(pet?.name || "");
-      setType(pet?.type || "DOG");
-      setBreed(pet?.breed || "");
-    }
-  });
 
   return (
     <Portal>
@@ -224,66 +283,126 @@ function PetModal({
         onDismiss={onDismiss}
         contentContainerStyle={styles.modalContent}
       >
-        <Text variant="titleLarge" style={styles.modalTitle}>
-          {pet ? "Редактировать" : "Добавить питомца"}
-        </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardView}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text variant="titleLarge" style={styles.modalTitle}>
+              {pet ? "Редактировать" : "Добавить питомца"}
+            </Text>
 
-        <Input
-          label="Имя питомца"
-          value={name}
-          onChangeText={setName}
-        />
+            {/* Основная информация */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Основная информация</Text>
 
-        <Text style={styles.fieldLabel}>Тип</Text>
-        <View style={styles.typeSelector}>
-          {PET_TYPES.map((t) => (
-            <Surface
-              key={t.value}
-              style={[
-                styles.typeOption,
-                type === t.value && styles.typeOptionSelected,
-              ]}
-              elevation={type === t.value ? 2 : 0}
-            >
-              <IconButton
-                icon={t.icon}
-                size={24}
-                iconColor={type === t.value ? COLORS.primary : COLORS.textSecondary}
-                onPress={() => setType(t.value)}
+              <Input
+                label="Имя питомца *"
+                value={name}
+                onChangeText={setName}
+                placeholder="Введите имя питомца"
               />
-              <Text
-                style={[
-                  styles.typeLabel,
-                  type === t.value && styles.typeLabelSelected,
-                ]}
-              >
-                {t.label}
-              </Text>
-            </Surface>
-          ))}
-        </View>
 
-        <Input
-          label="Порода (необязательно)"
-          value={breed}
-          onChangeText={setBreed}
-        />
+              <Text style={styles.fieldLabel}>Тип *</Text>
+              <View style={styles.typeSelector}>
+                {PET_TYPES.map((t) => (
+                  <Surface
+                    key={t.value}
+                    style={[
+                      styles.typeOption,
+                      type === t.value && styles.typeOptionSelected,
+                    ]}
+                    elevation={type === t.value ? 2 : 0}
+                  >
+                    <IconButton
+                      icon={t.icon}
+                      size={24}
+                      iconColor={type === t.value ? COLORS.primary : COLORS.textSecondary}
+                      onPress={() => setType(t.value)}
+                    />
+                    <Text
+                      style={[
+                        styles.typeLabel,
+                        type === t.value && styles.typeLabelSelected,
+                      ]}
+                    >
+                      {t.label}
+                    </Text>
+                  </Surface>
+                ))}
+              </View>
 
-        <View style={styles.modalActions}>
-          <Button
-            label="Отмена"
-            mode="outlined"
-            onPress={onDismiss}
-            style={styles.modalButton}
-          />
-          <Button
-            label={pet ? "Сохранить" : "Добавить"}
-            onPress={handleSave}
-            loading={isLoading}
-            disabled={!name.trim() || isLoading}
-            style={styles.modalButton}
-          />
-        </View>
+              <Input
+                label="Порода"
+                value={breed}
+                onChangeText={setBreed}
+                placeholder="Введите породу"
+              />
+
+              <Input
+                label="Дата рождения *"
+                value={birthDate}
+                onChangeText={setBirthDate}
+                placeholder="YYYY-MM-DD"
+                keyboardType="default"
+              />
+            </View>
+
+            {/* Физические характеристики */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Физические характеристики</Text>
+
+              <Input
+                label="Рост (см)"
+                value={heightCm}
+                onChangeText={setHeightCm}
+                placeholder="Введите рост"
+                keyboardType="numeric"
+              />
+
+              <Input
+                label="Вес (кг)"
+                value={weightKg}
+                onChangeText={setWeightKg}
+                placeholder="Введите вес"
+                keyboardType="numeric"
+              />
+            </View>
+
+            {/* Дополнительная информация */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Дополнительная информация</Text>
+
+              <Input
+                label="Заметки"
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Дополнительная информация о питомце"
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.modalActions}>
+              <Button
+                label="Отмена"
+                mode="outlined"
+                onPress={onDismiss}
+                style={styles.modalButton}
+              />
+              <Button
+                label={pet ? "Сохранить" : "Добавить"}
+                onPress={handleSave}
+                loading={isLoading}
+                disabled={!name.trim() || !birthDate.trim() || isLoading}
+                style={styles.modalButton}
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </Portal>
   );
@@ -351,12 +470,28 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: COLORS.surface,
     margin: SPACING.lg,
-    padding: SPACING.lg,
+    padding: 0,
     borderRadius: 16,
+    maxHeight: "90%",
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: SPACING.lg,
   },
   modalTitle: {
     marginBottom: SPACING.lg,
     fontWeight: "bold",
+  },
+  section: {
+    marginBottom: SPACING.lg,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.text,
+    marginBottom: SPACING.md,
   },
   fieldLabel: {
     fontSize: 12,

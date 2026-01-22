@@ -29,7 +29,7 @@ RUN cd packages/prisma \
   && mv schema.prisma.bak schema.prisma
 
 # Собираем все необходимые пакеты для API
-RUN pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/auth --filter @gafus/core --filter @gafus/cdn-upload --filter @gafus/api
+RUN pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/auth --filter @gafus/core --filter @gafus/cdn-upload --filter @gafus/video-access --filter @gafus/api
 
 # Готовим production зависимости через pnpm deploy
 RUN pnpm deploy --legacy --filter @gafus/api --prod --no-optional /app/deploy

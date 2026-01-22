@@ -24,7 +24,8 @@
     "@gafus/queues": "workspace:*",
     "@gafus/logger": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
-    "@gafus/types": "workspace:*"
+    "@gafus/types": "workspace:*",
+    "@gafus/video-access": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

@@ -17,6 +17,7 @@ export default defineConfig({
     "@gafus/logger",
     "@gafus/queues",
     "@gafus/cdn-upload",
+    "@gafus/video-access",
     "ioredis",
     "@hono/node-server",
     "hono",
