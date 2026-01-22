@@ -13,8 +13,17 @@ declare module "hono" {
 
 /**
  * Middleware для проверки JWT токена
+ * Пропускает маршруты для HLS видео (manifest и segment), которые используют токен из query
  */
 export const authMiddleware = createMiddleware(async (c, next) => {
+  const path = c.req.path;
+  
+  // Пропускаем маршруты для HLS видео - они используют токен из query параметра
+  if (path.includes("/training/video/") && (path.includes("/manifest") || path.includes("/segment"))) {
+    await next();
+    return;
+  }
+
   const authHeader = c.req.header("Authorization");
 
   if (!authHeader?.startsWith("Bearer ")) {

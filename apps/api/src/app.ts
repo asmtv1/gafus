@@ -49,6 +49,8 @@ app.use("/api/v1/pets/*", apiRateLimiter);
 app.use("/api/v1/pets/*", authMiddleware);
 app.route("/api/v1/pets", petsRoutes);
 
+// Training routes - большинство требуют JWT
+// authMiddleware пропускает маршруты /video/:videoId/manifest и /video/:videoId/segment
 app.use("/api/v1/training/*", apiRateLimiter);
 app.use("/api/v1/training/*", authMiddleware);
 app.route("/api/v1/training", trainingRoutes);

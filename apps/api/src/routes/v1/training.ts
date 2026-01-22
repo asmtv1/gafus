@@ -424,7 +424,6 @@ trainingRoutes.get(
   async (c) => {
     try {
       const { videoId } = c.req.param();
-      const user = c.get("user"); // Из authMiddleware
 
       // Получаем токен из query параметров
       const token = c.req.query("token");
@@ -440,8 +439,8 @@ trainingRoutes.get(
         return c.json({ success: false, error: "Недействительный токен" }, 403);
       }
 
-      // Проверяем, что токен для этого видео и этого пользователя
-      if (tokenData.videoId !== videoId || tokenData.userId !== user.id) {
+      // Проверяем, что токен для этого видео
+      if (tokenData.videoId !== videoId) {
         return c.json({ success: false, error: "Недостаточно прав доступа" }, 403);
       }
 
@@ -509,7 +508,6 @@ trainingRoutes.get(
     } catch (error) {
       logger.error("[training/video/:videoId/manifest] Ошибка получения манифеста", error as Error, {
         videoId: c.req.param("videoId"),
-        userId: c.get("user")?.id,
       });
       return c.json({ 
         success: false, 
@@ -528,7 +526,6 @@ trainingRoutes.get(
   async (c) => {
     try {
       const { videoId } = c.req.param();
-      const user = c.get("user"); // Из authMiddleware
 
       // Получаем токен и путь к сегменту из query параметров
       const token = c.req.query("token");
@@ -550,8 +547,8 @@ trainingRoutes.get(
         return c.json({ success: false, error: "Недействительный токен" }, 403);
       }
 
-      // Проверяем, что токен для этого видео и этого пользователя
-      if (tokenData.videoId !== videoId || tokenData.userId !== user.id) {
+      // Проверяем, что токен для этого видео
+      if (tokenData.videoId !== videoId) {
         return c.json({ success: false, error: "Недостаточно прав доступа" }, 403);
       }
 
