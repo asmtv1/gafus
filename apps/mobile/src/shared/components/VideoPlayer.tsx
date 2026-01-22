@@ -17,6 +17,10 @@ interface VideoPlayerProps {
  * Поддерживает fullscreen, управление воспроизведением
  */
 export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: VideoPlayerProps) {
+  if (__DEV__) {
+    console.log("[VideoPlayer] Инициализация:", { uri, hasPoster: !!poster, autoPlay });
+  }
+
   const videoRef = useRef<Video>(null);
   const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -68,10 +72,25 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
 
   // Handle playback status update
   const handlePlaybackStatusUpdate = useCallback((newStatus: AVPlaybackStatus) => {
-    setStatus(newStatus);
+    try {
+      setStatus(newStatus);
 
-    if (newStatus.isLoaded && newStatus.didJustFinish) {
-      onComplete?.();
+      if (newStatus.isLoaded && newStatus.didJustFinish) {
+        if (__DEV__) {
+          console.log("[VideoPlayer] Видео завершено");
+        }
+        onComplete?.();
+      }
+
+      if (newStatus.isLoaded && newStatus.error) {
+        if (__DEV__) {
+          console.error("[VideoPlayer] Ошибка воспроизведения:", newStatus.error);
+        }
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.error("[VideoPlayer] Ошибка в handlePlaybackStatusUpdate:", error);
+      }
     }
   }, [onComplete]);
 
@@ -79,6 +98,16 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
   const handlePressVideo = useCallback(() => {
     setShowControls((prev) => !prev);
   }, []);
+
+  if (__DEV__) {
+    console.log("[VideoPlayer] Рендеринг:", { 
+      uri, 
+      isLoaded, 
+      isPlaying, 
+      isBuffering,
+      hasError: status?.isLoaded && status.error 
+    });
+  }
 
   return (
     <View style={[styles.container, isFullscreen && styles.fullscreen]}>
@@ -93,6 +122,11 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
           style={styles.video}
           shouldPlay={autoPlay}
           onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+          onError={(error) => {
+            if (__DEV__) {
+              console.error("[VideoPlayer] Ошибка видео:", error);
+            }
+          }}
         />
 
         {/* Buffering indicator */}

@@ -6,6 +6,7 @@ import { zustandStorage } from "./storage";
 export interface LocalStepState {
   status: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" | "COMPLETED";
   remainingSec: number | null;
+  timeLeft: number | null; // Оставшееся время для таймера (как в web)
   updatedAt: number;
 }
 
@@ -21,19 +22,28 @@ interface StepActions {
   // Получение состояния
   getStepState: (courseId: string, dayOnCourseId: string, stepIndex: number) => LocalStepState | null;
 
-  // Обновление состояния
-  setStepState: (
-    courseId: string,
-    dayOnCourseId: string,
-    stepIndex: number,
-    state: Partial<LocalStepState>
-  ) => void;
+      // Обновление состояния
+      setStepState: (
+        courseId: string,
+        dayOnCourseId: string,
+        stepIndex: number,
+        state: Partial<LocalStepState>
+      ) => void;
+
+      // Обновление времени таймера (как в web)
+      updateTimeLeft: (
+        courseId: string,
+        dayOnCourseId: string,
+        stepIndex: number,
+        timeLeft: number
+      ) => void;
 
   // Статусы шагов
   startStep: (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => void;
   pauseStep: (courseId: string, dayOnCourseId: string, stepIndex: number, remainingSec: number) => void;
   resumeStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
   completeStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
+  resetStep: (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => void;
 
   // Инициализация шага (как в web-версии)
   initializeStep: (
@@ -97,6 +107,26 @@ export const useStepStore = create<StepStore>()(
         }));
       },
 
+      // Обновление времени таймера (как в web)
+      updateTimeLeft: (courseId, dayOnCourseId, stepIndex, timeLeft) => {
+        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        set((state) => {
+          const current = state.stepStates[key];
+          if (!current) return state;
+          return {
+            stepStates: {
+              ...state.stepStates,
+              [key]: {
+                ...current,
+                timeLeft,
+                remainingSec: timeLeft, // Синхронизируем с remainingSec
+                updatedAt: Date.now(),
+              },
+            },
+          };
+        });
+      },
+
       // Старт шага
       startStep: (courseId, dayOnCourseId, stepIndex, durationSec) => {
         const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
@@ -106,6 +136,7 @@ export const useStepStore = create<StepStore>()(
             [key]: {
               status: "IN_PROGRESS",
               remainingSec: durationSec,
+              timeLeft: durationSec, // Инициализируем timeLeft для таймера
               updatedAt: Date.now(),
             },
           },
@@ -121,6 +152,7 @@ export const useStepStore = create<StepStore>()(
             [key]: {
               status: "PAUSED",
               remainingSec,
+              timeLeft: remainingSec, // Сохраняем timeLeft при паузе
               updatedAt: Date.now(),
             },
           },
@@ -138,6 +170,8 @@ export const useStepStore = create<StepStore>()(
               [key]: {
                 ...current,
                 status: "IN_PROGRESS",
+                // Сохраняем timeLeft при возобновлении
+                timeLeft: current.timeLeft ?? current.remainingSec,
                 updatedAt: Date.now(),
               },
             },
@@ -154,6 +188,23 @@ export const useStepStore = create<StepStore>()(
             [key]: {
               status: "COMPLETED",
               remainingSec: null,
+              timeLeft: 0, // Обнуляем timeLeft при завершении
+              updatedAt: Date.now(),
+            },
+          },
+        }));
+      },
+
+      // Сброс шага (рестарт) - ставит в NOT_STARTED с исходным временем
+      resetStep: (courseId, dayOnCourseId, stepIndex, durationSec) => {
+        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        set((state) => ({
+          stepStates: {
+            ...state.stepStates,
+            [key]: {
+              status: "NOT_STARTED",
+              remainingSec: null,
+              timeLeft: durationSec, // Устанавливаем исходное время, но не запускаем
               updatedAt: Date.now(),
             },
           },
@@ -170,6 +221,10 @@ export const useStepStore = create<StepStore>()(
           return;
         }
 
+        const initialTimeLeft = options?.serverPaused 
+          ? (options.serverRemainingSec ?? durationSec)
+          : (status === "IN_PROGRESS" ? durationSec : durationSec);
+
         set((state) => ({
           stepStates: {
             ...state.stepStates,
@@ -178,6 +233,7 @@ export const useStepStore = create<StepStore>()(
               remainingSec: options?.serverPaused 
                 ? (options.serverRemainingSec ?? durationSec)
                 : (status === "IN_PROGRESS" ? durationSec : null),
+              timeLeft: initialTimeLeft, // Инициализируем timeLeft
               updatedAt: Date.now(),
             },
           },

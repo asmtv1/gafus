@@ -90,6 +90,16 @@ export async function apiClient<T>(
     config.body = JSON.stringify(body);
   }
 
+  if (__DEV__) {
+    console.log("[apiClient] Запрос:", {
+      endpoint,
+      method,
+      url: `${API_BASE_URL}${endpoint}`,
+      hasBody: !!body,
+      hasAuth: !!config.headers?.Authorization,
+    });
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
@@ -109,6 +119,18 @@ export async function apiClient<T>(
     }
 
     const data = await response.json();
+
+    if (__DEV__) {
+      console.log("[apiClient] Ответ сервера:", {
+        endpoint,
+        status: response.status,
+        ok: response.ok,
+        success: data.success,
+        hasData: !!data.data,
+        error: data.error,
+        code: data.code,
+      });
+    }
 
     if (!response.ok) {
       return {

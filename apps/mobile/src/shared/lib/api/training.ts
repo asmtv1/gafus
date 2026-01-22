@@ -159,4 +159,15 @@ export const trainingApi = {
       body: params,
     });
   },
+
+  /**
+   * Получить signed URL для видео (HLS манифест)
+   * Использует POST endpoint /api/v1/training/video/url
+   */
+  async getVideoUrl(videoUrl: string): Promise<ApiResponse<{ url: string }>> {
+    return apiClient<{ url: string }>("/api/v1/training/video/url", {
+      method: "POST",
+      body: { videoUrl },
+    });
+  },
 };

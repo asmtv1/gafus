@@ -38,7 +38,7 @@ export default function TrainingDayScreen() {
 
   // Stores
   const { getOpenIndex, setOpenIndex } = useTrainingStore();
-  const { getStepState, startStep, pauseStep, completeStep, initializeStep } = useStepStore();
+  const { getStepState, startStep, pauseStep, completeStep, initializeStep, resetStep } = useStepStore();
   const { stopTimer } = useTimerStore();
 
   // Mutations
@@ -195,6 +195,24 @@ export default function TrainingDayScreen() {
       }
     },
     [courseId, dayId, resumeStepMutation]
+  );
+
+  const handleResetStep = useCallback(
+    async (stepIndex: number, durationSec: number) => {
+      try {
+        // Останавливаем таймер если активен
+        stopTimer();
+
+        // Локальное обновление - сбрасываем в NOT_STARTED
+        resetStep(courseId, dayId, stepIndex, durationSec);
+
+        // TODO: Отправка на сервер (если нужно)
+        // await resetStepMutation.mutateAsync({...});
+      } catch (error) {
+        setSnackbar({ visible: true, message: "Ошибка сброса шага" });
+      }
+    },
+    [courseId, dayId, resetStep, stopTimer]
   );
 
   const handleCompleteStep = useCallback(
@@ -358,14 +376,15 @@ export default function TrainingDayScreen() {
     );
   }
 
-  if (__DEV__) {
-    console.log("[TrainingDayScreen] Рендеринг контента:", {
-      hasDayData: !!dayData,
-      title: dayData?.title,
-      stepsCount: dayData?.steps?.length ?? 0,
-      progress: progress.percent,
-    });
-  }
+  // Отладочное логирование (убрано для предотвращения бесконечных логов)
+  // if (__DEV__) {
+  //   console.log("[TrainingDayScreen] Рендеринг контента:", {
+  //     hasDayData: !!dayData,
+  //     title: dayData?.title,
+  //     stepsCount: dayData?.steps?.length ?? 0,
+  //     progress: progress.percent,
+  //   });
+  // }
 
   return (
     <>
@@ -403,36 +422,95 @@ export default function TrainingDayScreen() {
           {/* Список шагов */}
           <View style={styles.stepsContainer}>
             {dayData?.steps.map((step, index) => {
-              // Используем stepIndex из данных, если есть, иначе index или order
-              const stepIndex = step.stepIndex ?? step.order ?? index;
-              // Проверяем структуру данных: может быть step.step или напрямую step
-              const stepData = "step" in step && step.step ? step.step : step;
-              const durationSec = stepData.durationSec ?? 300;
-              const stepType = stepData.type || step.type;
-              const stepTitle = stepData.title || step.title;
-              
-              return (
-                <AccordionStep
-                  key={step.id || `step-${index}`}
-                  step={step}
-                  index={stepIndex}
-                  isOpen={openIndex === stepIndex}
-                  localState={getStepState(courseId, dayId, stepIndex)}
-                  courseId={courseId}
-                  dayOnCourseId={dayId}
-                  onToggle={() => handleToggleStep(stepIndex)}
-                  onStart={() => handleStartStep(stepIndex, durationSec)}
-                  onPause={(remainingSec) => handlePauseStep(stepIndex, remainingSec)}
-                  onResume={() => handleResumeStep(stepIndex)}
-                  onComplete={() =>
-                    handleCompleteStep(
-                      stepIndex,
-                      stepType === "THEORY",
-                      stepTitle
-                    )
-                  }
-                />
-              );
+              try {
+                // Используем stepIndex из данных, если есть, иначе index или order
+                const stepIndex = step.stepIndex ?? step.order ?? index;
+                // Проверяем структуру данных: может быть step.step или напрямую step
+                const stepData = "step" in step && step.step ? step.step : step;
+                const durationSec = stepData.durationSec ?? 300;
+                const stepType = stepData.type || step.type;
+                const stepTitle = stepData.title || step.title;
+                
+                // Уникальный ключ: комбинация dayId, order и index для гарантии уникальности
+                const uniqueKey = `${dayId}-${step.order ?? index}-${step.id || index}`;
+                
+                if (__DEV__) {
+                  console.log("[TrainingDayScreen] Рендеринг шага:", {
+                    index,
+                    stepIndex,
+                    uniqueKey,
+                    stepType,
+                    hasStep: !!step,
+                    hasStepData: !!stepData,
+                  });
+                }
+                
+                return (
+                  <AccordionStep
+                    key={uniqueKey}
+                    step={step}
+                    index={stepIndex}
+                    isOpen={openIndex === stepIndex}
+                    localState={getStepState(courseId, dayId, stepIndex)}
+                    courseId={courseId}
+                    dayOnCourseId={dayId}
+                    onToggle={() => {
+                      if (__DEV__) {
+                        console.log("[TrainingDayScreen] Toggle step:", stepIndex);
+                      }
+                      handleToggleStep(stepIndex);
+                    }}
+                    onStart={() => {
+                      if (__DEV__) {
+                        console.log("[TrainingDayScreen] Start step:", stepIndex, durationSec);
+                      }
+                      handleStartStep(stepIndex, durationSec);
+                    }}
+                    onPause={(remainingSec) => {
+                      if (__DEV__) {
+                        console.log("[TrainingDayScreen] Pause step:", stepIndex, remainingSec);
+                      }
+                      handlePauseStep(stepIndex, remainingSec);
+                    }}
+                    onResume={() => {
+                      if (__DEV__) {
+                        console.log("[TrainingDayScreen] Resume step:", stepIndex);
+                      }
+                      handleResumeStep(stepIndex);
+                    }}
+                    onComplete={() => {
+                      if (__DEV__) {
+                        console.log("[TrainingDayScreen] Complete step:", stepIndex);
+                      }
+                      handleCompleteStep(
+                        stepIndex,
+                        stepType === "THEORY",
+                        stepTitle
+                      );
+                    }}
+                    onReset={(durationSec) => {
+                      if (__DEV__) {
+                        console.log("[TrainingDayScreen] Reset step:", stepIndex, durationSec);
+                      }
+                      handleResetStep(stepIndex, durationSec);
+                    }}
+                  />
+                );
+              } catch (error) {
+                if (__DEV__) {
+                  console.error("[TrainingDayScreen] Ошибка при рендеринге шага:", error, {
+                    index,
+                    hasStep: !!step,
+                  });
+                }
+                return (
+                  <View key={`error-${index}`} style={{ padding: SPACING.md }}>
+                    <Text style={{ color: COLORS.error }}>
+                      Ошибка загрузки шага {index + 1}
+                    </Text>
+                  </View>
+                );
+              }
             })}
           </View>
         </ScrollView>

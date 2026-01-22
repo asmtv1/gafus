@@ -8,3 +8,4 @@ export {
   useCompletePracticeStep,
 } from "./useTrainingDay";
 export { useNetworkStatus } from "./useNetworkStatus";
+export { useVideoUrl } from "./useVideoUrl";
