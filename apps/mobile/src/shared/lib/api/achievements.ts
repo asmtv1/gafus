@@ -1,32 +1,24 @@
 import { apiClient, type ApiResponse } from "./client";
+import type { AchievementData } from "@gafus/types";
 
 export interface TrainingDatesResponse {
   dates: string[];
 }
 
-export interface UserStats {
-  totalTrainings: number;
-  totalMinutes: number;
-  currentStreak: number;
-  longestStreak: number;
-  completedCourses: number;
-}
-
 /**
- * API модуль для достижений
+ * API модуль для достижений (логика и дизайн как на web).
  */
 export const achievementsApi = {
-  /**
-   * Получить даты тренировок для календаря
-   */
   getTrainingDates: async (): Promise<ApiResponse<TrainingDatesResponse>> => {
-    return apiClient<TrainingDatesResponse>("/api/v1/achievements/training-dates");
+    return apiClient<TrainingDatesResponse>(
+      "/api/v1/achievements/training-dates"
+    );
   },
 
   /**
-   * Получить статистику пользователя
+   * Полная статистика и достижения (GET /api/v1/achievements).
    */
-  getStats: async (): Promise<ApiResponse<UserStats>> => {
-    return apiClient<UserStats>("/api/v1/achievements/stats");
+  getAchievements: async (): Promise<ApiResponse<AchievementData>> => {
+    return apiClient<AchievementData>("/api/v1/achievements");
   },
 };

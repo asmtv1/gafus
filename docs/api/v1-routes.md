@@ -502,15 +502,20 @@
 ## Achievements — Достижения
 
 ### GET `/api/v1/achievements/training-dates`
-Получить даты тренировок пользователя для календаря достижений.
+Уникальные даты тренировок пользователя (для серий и календаря).
 
 **Response:**
 ```json
 {
   "success": true,
-  "data": ["2026-01-15", "2026-01-16", ...]
+  "data": { "dates": ["2026-01-15T00:00:00.000Z", ...] }
 }
 ```
+
+### GET `/api/v1/achievements`
+Полная статистика и достижения (то же, что на web): `totalCourses`, `completedCourses`, `inProgressCourses`, `totalCompletedDays`, `overallProgress`, `currentStreak`, `longestStreak`, массив `achievements` по категориям (courses, progress, streak, special).
+
+**Response:** `{ "success": true, "data": AchievementData }`
 
 ---
 

@@ -13,6 +13,6 @@ export {
   type CompleteStepParams,
 } from "./training";
 export { petsApi, type Pet, type CreatePetData, type UpdatePetData } from "./pets";
-export { achievementsApi, type TrainingDatesResponse, type UserStats } from "./achievements";
+export { achievementsApi, type TrainingDatesResponse } from "./achievements";
 export { userApi, type UpdateProfileData, type UserPreferences } from "./user";
 export { subscriptionsApi, type PushSubscription } from "./subscriptions";

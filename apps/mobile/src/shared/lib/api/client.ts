@@ -77,13 +77,15 @@ export async function apiClient<T>(
 
   const token = skipAuth ? null : await SecureStore.getItemAsync("auth_token");
 
+  const requestHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...headers,
+  };
+
   const config: RequestInit = {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...headers,
-    },
+    headers: requestHeaders,
   };
 
   if (body && method !== "GET") {
@@ -96,7 +98,7 @@ export async function apiClient<T>(
       method,
       url: `${API_BASE_URL}${endpoint}`,
       hasBody: !!body,
-      hasAuth: !!config.headers?.Authorization,
+      hasAuth: !!requestHeaders.Authorization,
     });
   }
 
@@ -121,6 +123,7 @@ export async function apiClient<T>(
     const data = await response.json();
 
     if (__DEV__) {
+      // Детальное логирование для отладки
       console.log("[apiClient] Ответ сервера:", {
         endpoint,
         status: response.status,
@@ -129,7 +132,20 @@ export async function apiClient<T>(
         hasData: !!data.data,
         error: data.error,
         code: data.code,
+        // Полный ответ для отладки
+        fullResponse: JSON.stringify(data, null, 2),
+        responseHeaders: Object.fromEntries(response.headers.entries()),
       });
+      
+      // Для ошибок логируем полный ответ
+      if (!response.ok || !data.success) {
+        console.error("[apiClient] ОШИБКА API:", {
+          endpoint,
+          status: response.status,
+          statusText: response.statusText,
+          fullError: JSON.stringify(data, null, 2),
+        });
+      }
     }
 
     if (!response.ok) {

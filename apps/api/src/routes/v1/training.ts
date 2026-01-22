@@ -18,8 +18,10 @@ import { getVideoAccessService } from "@gafus/video-access";
 const logger = createWebLogger("api-training");
 
 // Проверяем, что VIDEO_ACCESS_SECRET установлен (только для логирования)
+// В production это критично, иначе getVideoAccessService() выбросит ошибку
 if (process.env.NODE_ENV === "production" && !process.env.VIDEO_ACCESS_SECRET) {
   logger.warn("[training/video/url] ВНИМАНИЕ: VIDEO_ACCESS_SECRET не установлен в production!");
+  logger.warn("[training/video/url] Это приведет к ошибке при попытке создать VideoAccessService");
 }
 
 export const trainingRoutes = new Hono();
@@ -273,13 +275,50 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
           // Генерируем signed URL
           let videoAccessService;
           try {
+            // Проверяем наличие VIDEO_ACCESS_SECRET перед вызовом
+            // В production это обязательно, но проверяем всегда для ясности
+            if (!process.env.VIDEO_ACCESS_SECRET) {
+              const isProduction = process.env.NODE_ENV === "production";
+              logger.warn("[training/video/url] VIDEO_ACCESS_SECRET не установлен!", {
+                nodeEnv: process.env.NODE_ENV,
+                isProduction,
+              });
+              return c.json({ 
+                success: false, 
+                error: isProduction 
+                  ? "VIDEO_ACCESS_SECRET не установлен в переменных окружения (обязательно в production)"
+                  : "VIDEO_ACCESS_SECRET не установлен в переменных окружения",
+                code: "SERVICE_NOT_CONFIGURED"
+              }, 500);
+            }
+            
             videoAccessService = getVideoAccessService();
-            logger.info("[training/video/url] VideoAccessService получен");
+            logger.info("[training/video/url] VideoAccessService получен", {
+              hasSecret: !!process.env.VIDEO_ACCESS_SECRET,
+              secretLength: process.env.VIDEO_ACCESS_SECRET?.length || 0,
+            });
           } catch (error) {
-            logger.error("[training/video/url] Ошибка получения VideoAccessService", error as Error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error("[training/video/url] Ошибка получения VideoAccessService", error as Error, {
+              errorMessage,
+              errorStack: error instanceof Error ? error.stack : undefined,
+              hasSecret: !!process.env.VIDEO_ACCESS_SECRET,
+              nodeEnv: process.env.NODE_ENV,
+              isProduction: process.env.NODE_ENV === "production",
+            });
+            
+            // Если это ошибка отсутствия VIDEO_ACCESS_SECRET, возвращаем понятное сообщение
+            if (errorMessage.includes("VIDEO_ACCESS_SECRET") || !process.env.VIDEO_ACCESS_SECRET) {
+              return c.json({ 
+                success: false, 
+                error: "VIDEO_ACCESS_SECRET не установлен в переменных окружения",
+                code: "SERVICE_NOT_CONFIGURED"
+              }, 500);
+            }
+            
             return c.json({ 
               success: false, 
-              error: "Ошибка инициализации сервиса доступа к видео",
+              error: errorMessage || "Ошибка инициализации сервиса доступа к видео",
               code: "SERVICE_INIT_ERROR"
             }, 500);
           }

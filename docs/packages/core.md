@@ -62,8 +62,8 @@ import { savePushSubscription } from "@gafus/core/services/subscriptions";
 // Трекинг
 import { trackPresentationView } from "@gafus/core/services/tracking";
 
-// Достижения
-import { getUserTrainingDates } from "@gafus/core/services/achievements";
+// Достижения (даты тренировок, статистика и расчёт достижений для API/mobile)
+import { getUserTrainingDates, getAchievementStats } from "@gafus/core/services/achievements";
 
 // Утилиты (общие)
 import { 

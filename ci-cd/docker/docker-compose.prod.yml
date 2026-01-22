@@ -218,6 +218,8 @@ services:
       - REDIS_URL=${REDIS_URL}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      # HLS Video Protection
+      - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
