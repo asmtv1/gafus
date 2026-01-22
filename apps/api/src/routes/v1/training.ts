@@ -12,7 +12,7 @@ import {
 } from "@gafus/core/services/training";
 import { createWebLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
-import { getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
+import { getRelativePathFromCDNUrl, downloadFileFromCDN } from "@gafus/cdn-upload";
 import { getVideoAccessService } from "@gafus/video-access";
 
 const logger = createWebLogger("api-training");
@@ -343,15 +343,14 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
             }, 500);
           }
 
-          // Получаем URL web приложения для manifest endpoint
-          // Manifest endpoint находится в web приложении, а не в API
-          // Используем тот же подход, что и в getSignedVideoUrl из web
-          const webAppUrl = process.env.WEB_APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://gafus.ru";
-          const signedUrl = `${webAppUrl}/api/video/${videoByPath.id}/manifest?token=${token}`;
+          // Возвращаем URL на API endpoint для манифеста (для мобильного приложения)
+          // API endpoint поддерживает JWT аутентификацию, в отличие от web endpoint
+          const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
+          const signedUrl = `${apiUrl}/api/v1/training/video/${videoByPath.id}/manifest?token=${token}`;
           logger.info("[training/video/url] Сгенерирован signed URL", { 
             signedUrl,
             videoId: videoByPath.id,
-            webAppUrl,
+            apiUrl,
             tokenLength: token.length,
           });
           return c.json({ success: true, data: { url: signedUrl } });
@@ -412,3 +411,180 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     }, 500);
   }
 });
+
+// ==================== GET /training/video/:videoId/manifest ====================
+// Получить HLS манифест с подписанными URL для сегментов
+// Для мобильного приложения (использует JWT аутентификацию)
+const videoManifestParamsSchema = z.object({
+  videoId: z.string().min(1),
+});
+
+trainingRoutes.get(
+  "/video/:videoId/manifest",
+  async (c) => {
+    try {
+      const { videoId } = c.req.param();
+      const user = c.get("user"); // Из authMiddleware
+
+      // Получаем токен из query параметров
+      const token = c.req.query("token");
+      if (!token) {
+        return c.json({ success: false, error: "Токен не предоставлен" }, 401);
+      }
+
+      // Проверяем токен доступа к видео
+      const videoAccessService = getVideoAccessService();
+      const tokenData = videoAccessService.verifyToken(token);
+
+      if (!tokenData) {
+        return c.json({ success: false, error: "Недействительный токен" }, 403);
+      }
+
+      // Проверяем, что токен для этого видео и этого пользователя
+      if (tokenData.videoId !== videoId || tokenData.userId !== user.id) {
+        return c.json({ success: false, error: "Недостаточно прав доступа" }, 403);
+      }
+
+      // Получаем информацию о видео из БД
+      const video = await prisma.trainerVideo.findUnique({
+        where: { id: videoId },
+        select: {
+          hlsManifestPath: true,
+          transcodingStatus: true,
+        },
+      });
+
+      if (!video) {
+        return c.json({ success: false, error: "Видео не найдено" }, 404);
+      }
+
+      // Проверяем статус транскодирования
+      if (video.transcodingStatus !== "COMPLETED") {
+        return c.json(
+          { 
+            success: false,
+            error: "Видео ещё обрабатывается",
+            status: video.transcodingStatus,
+          },
+          425 // 425 Too Early
+        );
+      }
+
+      if (!video.hlsManifestPath) {
+        return c.json({ success: false, error: "HLS манифест не найден" }, 404);
+      }
+
+      // Скачиваем манифест из Object Storage
+      const manifestBuffer = await downloadFileFromCDN(video.hlsManifestPath);
+      const manifestContent = manifestBuffer.toString("utf-8");
+
+      // Получаем base URL для формирования абсолютных URL
+      const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
+
+      // Парсим манифест и добавляем токены к URL сегментов
+      const lines = manifestContent.split("\n");
+      const modifiedLines = lines.map((line) => {
+        // Если строка - это URL сегмента (не начинается с # и не пустая)
+        if (line.trim() && !line.startsWith("#")) {
+          // Генерируем signed URL для сегмента
+          const segmentPath = line.trim();
+          
+          // Создаём абсолютный URL для прокси-эндпоинта сегмента
+          const segmentUrl = `${apiUrl}/api/v1/training/video/${videoId}/segment?path=${encodeURIComponent(segmentPath)}&token=${token}`;
+          
+          return segmentUrl;
+        }
+        return line;
+      });
+
+      const modifiedManifest = modifiedLines.join("\n");
+
+      // Возвращаем модифицированный манифест
+      return c.text(modifiedManifest, 200, {
+        "Content-Type": "application/vnd.apple.mpegurl",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+      });
+    } catch (error) {
+      logger.error("[training/video/:videoId/manifest] Ошибка получения манифеста", error as Error, {
+        videoId: c.req.param("videoId"),
+        userId: c.get("user")?.id,
+      });
+      return c.json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Ошибка получения манифеста",
+        code: "INTERNAL_SERVER_ERROR"
+      }, 500);
+    }
+  }
+);
+
+// ==================== GET /training/video/:videoId/segment ====================
+// Получить сегмент HLS видео
+// Для мобильного приложения (использует JWT аутентификацию)
+trainingRoutes.get(
+  "/video/:videoId/segment",
+  async (c) => {
+    try {
+      const { videoId } = c.req.param();
+      const user = c.get("user"); // Из authMiddleware
+
+      // Получаем токен и путь к сегменту из query параметров
+      const token = c.req.query("token");
+      const segmentPath = c.req.query("path");
+
+      if (!token) {
+        return c.json({ success: false, error: "Токен не предоставлен" }, 401);
+      }
+
+      if (!segmentPath) {
+        return c.json({ success: false, error: "Путь к сегменту не предоставлен" }, 400);
+      }
+
+      // Проверяем токен доступа к видео
+      const videoAccessService = getVideoAccessService();
+      const tokenData = videoAccessService.verifyToken(token);
+
+      if (!tokenData) {
+        return c.json({ success: false, error: "Недействительный токен" }, 403);
+      }
+
+      // Проверяем, что токен для этого видео и этого пользователя
+      if (tokenData.videoId !== videoId || tokenData.userId !== user.id) {
+        return c.json({ success: false, error: "Недостаточно прав доступа" }, 403);
+      }
+
+      // Скачиваем сегмент из Object Storage
+      const segmentBuffer = await downloadFileFromCDN(segmentPath);
+
+      // Определяем Content-Type на основе расширения файла
+      let contentType = "application/octet-stream";
+      if (segmentPath.endsWith(".ts")) {
+        contentType = "video/mp2t";
+      } else if (segmentPath.endsWith(".m3u8")) {
+        contentType = "application/vnd.apple.mpegurl";
+      }
+
+      // Возвращаем сегмент
+      return new Response(segmentBuffer, {
+        status: 200,
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=31536000", // 1 год для сегментов
+        },
+      });
+    } catch (error) {
+      logger.error("[training/video/:videoId/segment] Ошибка получения сегмента", error as Error, {
+        videoId: c.req.param("videoId"),
+        userId: c.get("user")?.id,
+        segmentPath: c.req.query("path"),
+      });
+      return c.json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Ошибка получения сегмента",
+        code: "INTERNAL_SERVER_ERROR"
+      }, 500);
+    }
+  }
+);
