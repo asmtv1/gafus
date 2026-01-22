@@ -389,7 +389,7 @@ jobs:
                 echo "YC_ACCESS_KEY_ID=${{ secrets.YC_ACCESS_KEY_ID }}"
                 echo "YC_SECRET_ACCESS_KEY=${{ secrets.YC_SECRET_ACCESS_KEY }}"
                 echo ""
-                echo "# Защита видео (HLS)"
+                echo "# Защита видео (HLS) - обязательно для API"
                 echo "VIDEO_ACCESS_SECRET=${{ secrets.VIDEO_ACCESS_SECRET }}"
                 echo "NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${{ secrets.NEXT_PUBLIC_ENABLE_HLS_PROTECTION || 'true' }}"
                 echo ""
@@ -415,6 +415,21 @@ jobs:
               echo "✅ .env file created"
             else
               echo "✅ .env file exists"
+              # Обновляем VIDEO_ACCESS_SECRET, если его нет или он пустой
+              VIDEO_SECRET="${{ secrets.VIDEO_ACCESS_SECRET }}"
+              if ! grep -q "^VIDEO_ACCESS_SECRET=" ci-cd/docker/.env || grep -q "^VIDEO_ACCESS_SECRET=$" ci-cd/docker/.env; then
+                echo "🔄 Updating VIDEO_ACCESS_SECRET in existing .env file..."
+                if grep -q "^# Защита видео" ci-cd/docker/.env; then
+                  # Заменяем существующую строку VIDEO_ACCESS_SECRET
+                  sed -i "s|^VIDEO_ACCESS_SECRET=.*|VIDEO_ACCESS_SECRET=${VIDEO_SECRET}|" ci-cd/docker/.env
+                else
+                  # Добавляем секцию, если её нет
+                  echo "" >> ci-cd/docker/.env
+                  echo "# Защита видео (HLS) - обязательно для API" >> ci-cd/docker/.env
+                  echo "VIDEO_ACCESS_SECRET=${VIDEO_SECRET}" >> ci-cd/docker/.env
+                fi
+                echo "✅ VIDEO_ACCESS_SECRET updated"
+              fi
             fi
 
             # Pull latest image
