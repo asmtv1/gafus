@@ -1,14 +1,15 @@
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking } from "react-native";
-import { Text, Avatar } from "react-native-paper";
+import { Text, Avatar, IconButton } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 
 import { Button, Card } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
 import { userApi } from "@/shared/lib/api/user";
-import { petsApi, type Pet } from "@/shared/lib/api/pets";
+import { petsApi, type Pet, type CreatePetData } from "@/shared/lib/api/pets";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from "@/constants";
 
 // Функция для получения инициалов
@@ -120,6 +121,7 @@ const getPetTypeLabel = (type: string) => {
  */
 export default function ProfileScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, logout } = useAuthStore();
 
   // Загрузка данных профиля
@@ -134,9 +136,40 @@ export default function ProfileScreen() {
     queryFn: () => petsApi.getAll(),
   });
 
+  // Удаление питомца
+  const deleteMutation = useMutation({
+    mutationFn: petsApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pets"] });
+      hapticFeedback.success();
+    },
+    onError: (error) => {
+      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось удалить питомца");
+    },
+  });
+
   const profile = profileData?.data?.profile;
   const pets = petsData?.data || [];
   const displayRole = getRoleLabel(user?.role);
+
+  const handleEditPet = (pet: Pet) => {
+    router.push(`/pets/edit/${pet.id}` as any);
+  };
+
+  const handleDeletePet = (pet: Pet) => {
+    Alert.alert(
+      "Удалить питомца",
+      `Вы уверены, что хотите удалить ${pet.name}?`,
+      [
+        { text: "Отмена", style: "cancel" },
+        {
+          text: "Удалить",
+          style: "destructive",
+          onPress: () => deleteMutation.mutate(pet.id),
+        },
+      ]
+    );
+  };
   const roleColor = getRoleColor(user?.role);
 
   const handleLogout = () => {
@@ -163,8 +196,6 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Обёртка как в веб-версии */}
-        <View style={styles.wrapper}>
           {/* Заголовок */}
           <Text style={styles.title}>Профиль {user?.username}</Text>
 
@@ -174,12 +205,12 @@ export default function ProfileScreen() {
               <View style={styles.avatarWrapper}>
                 {profile?.avatarUrl ? (
                   <Avatar.Image
-                    size={50}
+                    size={63}
                     source={{ uri: profile.avatarUrl }}
                   />
                 ) : (
                   <Avatar.Text
-                    size={50}
+                    size={63}
                     label={getInitials(profile?.fullName || user?.username || "U")}
                   />
                 )}
@@ -279,47 +310,72 @@ export default function ProfileScreen() {
               <View style={styles.petsList}>
                 {pets.map((pet) => (
                   <View key={pet.id} style={styles.petItem}>
-                    {pet.photoUrl ? (
-                      <Image
-                        source={{ uri: pet.photoUrl }}
-                        style={styles.petAvatar}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <View style={styles.petAvatarPlaceholder}>
-                        <Text style={styles.petAvatarText}>🐾</Text>
+                    <View style={styles.petMainInfo}>
+                      {pet.photoUrl ? (
+                        <Image
+                          source={{ uri: pet.photoUrl }}
+                          style={styles.petAvatar}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View style={styles.petAvatarPlaceholder}>
+                          <Text style={styles.petAvatarText}>🐾</Text>
+                        </View>
+                      )}
+                      <View style={styles.petInfo}>
+                        <Text style={styles.petName}>
+                          {pet.name} ({getPetTypeLabel(pet.type)})
+                        </Text>
+                        {pet.breed && <Text style={styles.petDetail}>Порода: {pet.breed}</Text>}
+                        {pet.birthDate && (() => {
+                          const age = getAgeWithMonths(pet.birthDate);
+                          if (!age) return null;
+                          
+                          // Показываем только месяцы и годы
+                          if (age.years === 0) {
+                            // Только месяцы
+                            return (
+                              <Text style={styles.petDetail}>
+                                Возраст: {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
+                              </Text>
+                            );
+                          } else {
+                            // Годы и месяцы
+                            return (
+                              <Text style={styles.petDetail}>
+                                Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
+                                {age.months > 0 && ` ${age.months} ${declOfNum(age.months, ["месяц", "месяца", "месяцев"])}`}
+                              </Text>
+                            );
+                          }
+                        })()}
+                        {pet.heightCm && <Text style={styles.petDetail}>Рост: {pet.heightCm} см</Text>}
+                        {pet.weightKg && <Text style={styles.petDetail}>Вес: {pet.weightKg} кг</Text>}
+                        {pet.notes && <Text style={styles.petDetail}>Заметки: {pet.notes}</Text>}
                       </View>
-                    )}
-                    <View style={styles.petInfo}>
-                      <Text style={styles.petName}>
-                        {pet.name} ({getPetTypeLabel(pet.type)})
-                      </Text>
-                      {pet.breed && <Text style={styles.petDetail}>Порода: {pet.breed}</Text>}
-                      {pet.birthDate && (() => {
-                        const age = getAgeWithMonths(pet.birthDate);
-                        if (!age) return null;
-                        
-                        // Показываем только месяцы и годы
-                        if (age.years === 0) {
-                          // Только месяцы
-                          return (
-                            <Text style={styles.petDetail}>
-                              Возраст: {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-                            </Text>
-                          );
-                        } else {
-                          // Годы и месяцы
-                          return (
-                            <Text style={styles.petDetail}>
-                              Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
-                              {age.months > 0 && ` ${age.months} ${declOfNum(age.months, ["месяц", "месяца", "месяцев"])}`}
-                            </Text>
-                          );
-                        }
-                      })()}
-                      {pet.heightCm && <Text style={styles.petDetail}>Рост: {pet.heightCm} см</Text>}
-                      {pet.weightKg && <Text style={styles.petDetail}>Вес: {pet.weightKg} кг</Text>}
-                      {pet.notes && <Text style={styles.petDetail}>Заметки: {pet.notes}</Text>}
+                    </View>
+                    <View style={styles.petActions}>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.petActionButton,
+                          pressed && styles.petActionButtonPressed,
+                        ]}
+                        onPress={() => handleEditPet(pet)}
+                      >
+                        <Text style={styles.petActionIcon}>✏️</Text>
+                        <Text style={styles.petActionText} numberOfLines={1}>Изменить</Text>
+                      </Pressable>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.petActionButton,
+                          styles.petActionButtonDelete,
+                          pressed && styles.petActionButtonPressed,
+                        ]}
+                        onPress={() => handleDeletePet(pet)}
+                      >
+                        <Text style={styles.petActionIcon}>🗑️</Text>
+                        <Text style={[styles.petActionText, styles.petActionTextDelete]} numberOfLines={1}>Удалить</Text>
+                      </Pressable>
                     </View>
                   </View>
                 ))}
@@ -388,7 +444,6 @@ export default function ProfileScreen() {
               <Text style={styles.infoArrow}>→</Text>
             </Pressable>
           </Card>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -401,22 +456,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.md,
-  },
-  // Обёртка как в веб-версии
-  wrapper: {
-    maxWidth: 500,
-    width: "100%",
-    alignSelf: "center",
-    padding: SPACING.md,
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   title: {
     fontSize: 28,
@@ -434,7 +473,7 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "#636128",
     borderRadius: 12,
-    padding: SPACING.sm,
+    paddingVertical: SPACING.sm + 10,
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.sm,
     shadowColor: "#000",
@@ -449,9 +488,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     borderWidth: 3,
     borderColor: "#ECE5D2",
     justifyContent: "center",
@@ -675,13 +714,18 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   petItem: {
-    flexDirection: "row",
-    gap: SPACING.md,
-    padding: SPACING.sm,
+    flexDirection: "column",
+    padding: SPACING.md,
     backgroundColor: "#ECE5D2",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#D4C4A8",
+    marginBottom: SPACING.sm,
+  },
+  petMainInfo: {
+    flexDirection: "row",
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
   },
   petAvatar: {
     width: 60,
@@ -714,6 +758,56 @@ const styles = StyleSheet.create({
     color: "#352E2E",
     marginBottom: 2,
     fontFamily: FONTS.montserrat,
+  },
+  petActions: {
+    flexDirection: "row",
+    gap: SPACING.md,
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(212, 196, 168, 0.5)",
+  },
+  petActionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+    backgroundColor: "#FFF8E5",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    minHeight: 36,
+  },
+  petActionButtonPressed: {
+    backgroundColor: "#F5F0E8",
+    borderColor: "#B6C582",
+    transform: [{ scale: 0.98 }],
+  },
+  petActionButtonDelete: {
+    backgroundColor: "#FFF8E5",
+    borderColor: "#D4C4A8",
+  },
+  petActionIcon: {
+    fontSize: 14,
+  },
+  petActionText: {
+    fontSize: 12,
+    color: "#636128",
+    fontFamily: FONTS.montserrat,
+    fontWeight: "600",
+    letterSpacing: 0.1,
+    flexShrink: 1,
+  },
+  petActionTextDelete: {
+    color: "#8B4513",
   },
   addPetButton: {
     backgroundColor: "#636128",

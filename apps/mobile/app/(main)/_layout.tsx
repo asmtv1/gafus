@@ -34,17 +34,17 @@ export default function MainLayout() {
         }}
       />
       <Stack.Screen
-        name="pets/index"
-        options={{
-          headerShown: true,
-          title: "Мои питомцы",
-        }}
-      />
-      <Stack.Screen
         name="pets/add"
         options={{
           headerShown: true,
           title: "Добавить питомца",
+        }}
+      />
+      <Stack.Screen
+        name="pets/edit/[id]"
+        options={{
+          headerShown: true,
+          title: "Редактировать питомца",
         }}
       />
       <Stack.Screen

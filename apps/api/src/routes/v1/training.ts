@@ -15,12 +15,12 @@ import { prisma } from "@gafus/prisma";
 import { getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
 import { getVideoAccessService } from "@gafus/video-access";
 
+const logger = createWebLogger("api-training");
+
 // Проверяем, что VIDEO_ACCESS_SECRET установлен (только для логирования)
 if (process.env.NODE_ENV === "production" && !process.env.VIDEO_ACCESS_SECRET) {
   logger.warn("[training/video/url] ВНИМАНИЕ: VIDEO_ACCESS_SECRET не установлен в production!");
 }
-
-const logger = createWebLogger("api-training");
 
 export const trainingRoutes = new Hono();
 
