@@ -584,12 +584,9 @@ trainingRoutes.get(
       }
 
       // Возвращаем сегмент
-      return new Response(segmentBuffer, {
-        status: 200,
-        headers: {
-          "Content-Type": contentType,
-          "Cache-Control": "public, max-age=31536000", // 1 год для сегментов
-        },
+      return c.body(segmentBuffer, 200, {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=31536000", // 1 год для сегментов
       });
     } catch (error) {
       logger.error("[training/video/:videoId/segment] Ошибка получения сегмента", error as Error, {
