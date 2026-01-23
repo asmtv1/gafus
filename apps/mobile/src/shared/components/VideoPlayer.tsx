@@ -2,7 +2,6 @@ import { useRef, useState, useCallback } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
 import { IconButton, ActivityIndicator, Text } from "react-native-paper";
-import * as ScreenOrientation from "expo-screen-orientation";
 import { COLORS, SPACING } from "@/constants";
 
 interface VideoPlayerProps {
@@ -24,7 +23,7 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
   const videoRef = useRef<Video>(null);
   const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showControls, setShowControls] = useState(true);
+  const [progressBarWidth, setProgressBarWidth] = useState(0);
 
   const isLoaded = status?.isLoaded;
   const isPlaying = isLoaded && status.isPlaying;
@@ -52,14 +51,20 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
     }
   }, [isPlaying]);
 
-  // Toggle fullscreen
+  // Toggle fullscreen используя встроенный API expo-av
   const toggleFullscreen = useCallback(async () => {
-    if (isFullscreen) {
-      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-      setIsFullscreen(false);
-    } else {
-      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-      setIsFullscreen(true);
+    if (!videoRef.current) return;
+    
+    try {
+      if (isFullscreen) {
+        await videoRef.current.dismissFullscreenPlayer();
+      } else {
+        await videoRef.current.presentFullscreenPlayer();
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.error("[VideoPlayer] Ошибка переключения fullscreen:", error);
+      }
     }
   }, [isFullscreen]);
 
@@ -94,10 +99,31 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
     }
   }, [onComplete]);
 
-  // Toggle controls visibility
-  const handlePressVideo = useCallback(() => {
-    setShowControls((prev) => !prev);
+  // Handle fullscreen update
+  const handleFullscreenUpdate = useCallback((data: { fullscreenUpdate: number }) => {
+    const { fullscreenUpdate } = data;
+    
+    if (__DEV__) {
+      console.log("[VideoPlayer] Fullscreen update:", fullscreenUpdate);
+    }
+    
+    switch (fullscreenUpdate) {
+      case Video.FULLSCREEN_UPDATE_PLAYER_DID_PRESENT:
+        setIsFullscreen(true);
+        break;
+      case Video.FULLSCREEN_UPDATE_PLAYER_DID_DISMISS:
+        setIsFullscreen(false);
+        break;
+      default:
+        // Игнорируем другие события
+        break;
+    }
   }, []);
+
+  // Handle video press - toggle play/pause
+  const handlePressVideo = useCallback(() => {
+    togglePlay();
+  }, [togglePlay]);
 
   if (__DEV__) {
     console.log("[VideoPlayer] Рендеринг:", { 
@@ -110,102 +136,124 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
   }
 
   return (
-    <View style={[styles.container, isFullscreen && styles.fullscreen]}>
-      <Pressable onPress={handlePressVideo} style={styles.videoWrapper}>
-        <Video
-          ref={videoRef}
-          source={{ uri }}
-          posterSource={poster ? { uri: poster } : undefined}
-          usePoster={!!poster}
-          posterStyle={styles.poster}
-          resizeMode={ResizeMode.CONTAIN}
-          style={styles.video}
-          shouldPlay={autoPlay}
-          onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-          onError={(error) => {
-            if (__DEV__) {
-              console.error("[VideoPlayer] Ошибка видео:", error);
-            }
-          }}
-        />
+    <View style={styles.container}>
+      {/* Video container */}
+      <View style={styles.videoContainer}>
+        <Pressable onPress={handlePressVideo} style={styles.videoWrapper}>
+          <Video
+            ref={videoRef}
+            source={{ uri }}
+            posterSource={poster ? { uri: poster } : undefined}
+            usePoster={!!poster}
+            posterStyle={styles.poster}
+            resizeMode={ResizeMode.CONTAIN}
+            style={styles.video}
+            shouldPlay={autoPlay}
+            onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+            onFullscreenUpdate={handleFullscreenUpdate}
+            onError={(error) => {
+              if (__DEV__) {
+                console.error("[VideoPlayer] Ошибка видео:", error);
+              }
+            }}
+          />
 
-        {/* Buffering indicator */}
-        {isBuffering && (
-          <View style={styles.bufferingOverlay}>
-            <ActivityIndicator size="large" color="#fff" />
+          {/* Buffering indicator */}
+          {isBuffering && (
+            <View style={styles.bufferingOverlay}>
+              <ActivityIndicator size="large" color="#fff" />
+            </View>
+          )}
+
+          {/* Play button overlay (только когда видео не играет) */}
+          {!isPlaying && (
+            <Pressable style={styles.playOverlay} onPress={togglePlay}>
+              <IconButton
+                icon="play"
+                iconColor="#fff"
+                size={64}
+                style={styles.centerPlayButton}
+              />
+            </Pressable>
+          )}
+        </Pressable>
+      </View>
+
+      {/* Controls panel снизу видео - всегда видна */}
+      <View style={styles.controlsPanel}>
+          {/* Progress bar */}
+          <View style={styles.progressContainer}>
+            <Pressable
+              style={styles.progressBar}
+              onPress={(e) => {
+                if (!isLoaded || !videoRef.current || duration === 0 || progressBarWidth === 0) return;
+                const { locationX } = e.nativeEvent;
+                const newPosition = (locationX / progressBarWidth) * duration;
+                videoRef.current.setPositionAsync(Math.max(0, Math.min(newPosition, duration)));
+              }}
+            >
+              <View
+                style={styles.progressBarBackground}
+                onLayout={(e) => {
+                  const { width } = e.nativeEvent.layout;
+                  setProgressBarWidth(width);
+                }}
+              >
+                <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+              </View>
+            </Pressable>
           </View>
-        )}
 
-        {/* Controls overlay */}
-        {showControls && (
-          <View style={styles.controlsOverlay}>
-            {/* Center controls */}
-            <View style={styles.centerControls}>
+          {/* Bottom row with controls */}
+          <View style={styles.bottomRow}>
+            {/* Time display */}
+            <Text style={styles.timeText}>
+              {formatTime(position)} / {formatTime(duration)}
+            </Text>
+
+            {/* Control buttons */}
+            <View style={styles.controlButtons}>
               <IconButton
                 icon="rewind-10"
-                iconColor="#fff"
-                size={32}
+                iconColor={COLORS.text}
+                size={24}
                 onPress={() => seek(-10)}
               />
               <IconButton
                 icon={isPlaying ? "pause" : "play"}
-                iconColor="#fff"
-                size={56}
+                iconColor={COLORS.text}
+                size={32}
                 onPress={togglePlay}
-                style={styles.playButton}
               />
               <IconButton
                 icon="fast-forward-10"
-                iconColor="#fff"
-                size={32}
+                iconColor={COLORS.text}
+                size={24}
                 onPress={() => seek(10)}
               />
-            </View>
-
-            {/* Bottom controls */}
-            <View style={styles.bottomControls}>
-              {/* Progress bar */}
-              <View style={styles.progressContainer}>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-                </View>
-              </View>
-
-              {/* Time and fullscreen */}
-              <View style={styles.bottomRow}>
-                <Text style={styles.timeText}>
-                  {formatTime(position)} / {formatTime(duration)}
-                </Text>
-                <IconButton
-                  icon={isFullscreen ? "fullscreen-exit" : "fullscreen"}
-                  iconColor="#fff"
-                  size={24}
-                  onPress={toggleFullscreen}
-                />
-              </View>
+              <IconButton
+                icon={isFullscreen ? "fullscreen-exit" : "fullscreen"}
+                iconColor={COLORS.text}
+                size={24}
+                onPress={toggleFullscreen}
+              />
             </View>
           </View>
-        )}
-      </Pressable>
+        </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    aspectRatio: 16 / 9,
-    backgroundColor: "#000",
+    backgroundColor: "#fff",
     borderRadius: 12,
     overflow: "hidden",
   },
-  fullscreen: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 999,
-    borderRadius: 0,
+  videoContainer: {
+    aspectRatio: 16 / 9,
+    backgroundColor: "#000",
+    position: "relative",
   },
   videoWrapper: {
     flex: 1,
@@ -222,31 +270,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.3)",
   },
-  controlsOverlay: {
+  playOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "space-between",
-  },
-  centerControls: {
-    flex: 1,
-    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.2)",
   },
-  playButton: {
-    marginHorizontal: SPACING.lg,
+  centerPlayButton: {
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
-  bottomControls: {
+  controlsPanel: {
+    backgroundColor: "#fff",
     padding: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
   },
   progressContainer: {
-    paddingHorizontal: SPACING.xs,
     marginBottom: SPACING.xs,
   },
   progressBar: {
+    width: "100%",
+  },
+  progressBarBackground: {
     height: 4,
-    backgroundColor: "rgba(255,255,255,0.3)",
+    backgroundColor: "#e0e0e0",
     borderRadius: 2,
+    overflow: "hidden",
   },
   progressFill: {
     height: "100%",
@@ -259,8 +308,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   timeText: {
-    color: "#fff",
+    color: COLORS.text,
     fontSize: 12,
     fontVariant: ["tabular-nums"],
+  },
+  controlButtons: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 });

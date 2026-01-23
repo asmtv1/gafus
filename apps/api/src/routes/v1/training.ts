@@ -474,8 +474,19 @@ trainingRoutes.get(
       }
 
       // Скачиваем манифест из Object Storage
+      logger.info("[training/video/:videoId/manifest] Загрузка манифеста", {
+        videoId,
+        hlsManifestPath: video.hlsManifestPath,
+      });
+      
       const manifestBuffer = await downloadFileFromCDN(video.hlsManifestPath);
       const manifestContent = manifestBuffer.toString("utf-8");
+
+      logger.info("[training/video/:videoId/manifest] Манифест загружен", {
+        videoId,
+        manifestLength: manifestContent.length,
+        firstLines: manifestContent.split("\n").slice(0, 5),
+      });
 
       // Получаем base URL для формирования абсолютных URL
       const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
@@ -498,13 +509,19 @@ trainingRoutes.get(
 
       const modifiedManifest = modifiedLines.join("\n");
 
-      // Возвращаем модифицированный манифест
-      return c.text(modifiedManifest, 200, {
-        "Content-Type": "application/vnd.apple.mpegurl",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0",
+      logger.info("[training/video/:videoId/manifest] Манифест модифицирован", {
+        videoId,
+        originalLines: lines.length,
+        modifiedLines: modifiedLines.length,
+        apiUrl,
       });
+
+      // Возвращаем модифицированный манифест
+      c.header("Content-Type", "application/vnd.apple.mpegurl");
+      c.header("Cache-Control", "no-cache, no-store, must-revalidate");
+      c.header("Pragma", "no-cache");
+      c.header("Expires", "0");
+      return c.text(modifiedManifest, 200);
     } catch (error) {
       logger.error("[training/video/:videoId/manifest] Ошибка получения манифеста", error as Error, {
         videoId: c.req.param("videoId"),

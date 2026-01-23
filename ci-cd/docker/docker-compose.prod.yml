@@ -220,6 +220,9 @@ services:
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       # HLS Video Protection
       - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
+      # Yandex Cloud Object Storage (для загрузки манифестов и сегментов)
+      - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
+      - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
