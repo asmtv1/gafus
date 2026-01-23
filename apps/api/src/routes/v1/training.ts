@@ -552,8 +552,28 @@ trainingRoutes.get(
         return c.json({ success: false, error: "Недостаточно прав доступа" }, 403);
       }
 
+      // Получаем информацию о видео для определения базового пути
+      const video = await prisma.trainerVideo.findUnique({
+        where: { id: videoId },
+        select: {
+          hlsManifestPath: true,
+          transcodingStatus: true,
+        },
+      });
+
+      if (!video || video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
+        return c.json({ success: false, error: "Видео не найдено или не готово" }, 404);
+      }
+
+      // Формируем полный путь к сегменту относительно манифеста
+      // segmentPath может быть относительным (например, "segment_001.ts")
+      const baseDir = video.hlsManifestPath.split("/").slice(0, -1).join("/");
+      const fullSegmentPath = segmentPath.startsWith("/") || segmentPath.includes("://")
+        ? segmentPath // Уже абсолютный путь
+        : `${baseDir}/${segmentPath}`; // Относительный путь
+
       // Скачиваем сегмент из Object Storage
-      const segmentBuffer = await downloadFileFromCDN(segmentPath);
+      const segmentBuffer = await downloadFileFromCDN(fullSegmentPath);
 
       // Определяем Content-Type на основе расширения файла
       let contentType = "application/octet-stream";
@@ -574,8 +594,8 @@ trainingRoutes.get(
     } catch (error) {
       logger.error("[training/video/:videoId/segment] Ошибка получения сегмента", error as Error, {
         videoId: c.req.param("videoId"),
-        userId: c.get("user")?.id,
         segmentPath: c.req.query("path"),
+        errorMessage: error instanceof Error ? error.message : String(error),
       });
       return c.json({ 
         success: false, 
