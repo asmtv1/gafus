@@ -1,5 +1,14 @@
 import { useState, useCallback } from "react";
-import { View, StyleSheet, Pressable, TextInput, ScrollView, KeyboardAvoidingView, Platform, Dimensions } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
+} from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -48,7 +57,7 @@ export default function ResetPasswordScreen() {
       setErrors((prev) => ({ ...prev, username: result.error.errors[0].message }));
       return false;
     }
-    setErrors((prev => ({ ...prev, username: undefined })));
+    setErrors((prev) => ({ ...prev, username: undefined }));
     return true;
   }, [username]);
 
@@ -58,7 +67,7 @@ export default function ResetPasswordScreen() {
       setErrors((prev) => ({ ...prev, phone: result.error.errors[0].message }));
       return false;
     }
-    setErrors((prev => ({ ...prev, phone: undefined })));
+    setErrors((prev) => ({ ...prev, phone: undefined }));
     return true;
   }, [phone]);
 
@@ -66,7 +75,7 @@ export default function ResetPasswordScreen() {
     // Валидация
     const isUsernameValid = validateUsername();
     const isPhoneValid = validatePhone();
-    
+
     if (!isUsernameValid || !isPhoneValid) {
       return;
     }
@@ -85,20 +94,20 @@ export default function ResetPasswordScreen() {
     try {
       // Проверка совпадения телефона с логином
       const checkResult = await authApi.checkPhoneMatchesUsername(username, phone);
-      
+
       if (!checkResult.success) {
-        setErrors((prev) => ({ 
-          ...prev, 
-          phone: checkResult.error || "Ошибка проверки данных" 
+        setErrors((prev) => ({
+          ...prev,
+          phone: checkResult.error || "Ошибка проверки данных",
         }));
         setIsLoading(false);
         return;
       }
 
       if (!checkResult.data?.matches) {
-        setErrors((prev) => ({ 
-          ...prev, 
-          phone: "Телефон не совпадает с именем пользователя" 
+        setErrors((prev) => ({
+          ...prev,
+          phone: "Телефон не совпадает с именем пользователя",
         }));
         setIsLoading(false);
         return;
@@ -106,11 +115,11 @@ export default function ResetPasswordScreen() {
 
       // Отправка запроса на сброс пароля
       const resetResult = await authApi.sendPasswordResetRequest(username, phone);
-      
+
       if (!resetResult.success) {
-        setSnackbar({ 
-          visible: true, 
-          message: resetResult.error || "Ошибка отправки запроса" 
+        setSnackbar({
+          visible: true,
+          message: resetResult.error || "Ошибка отправки запроса",
         });
         setIsLoading(false);
         return;
@@ -118,9 +127,9 @@ export default function ResetPasswordScreen() {
 
       setStatus("Если данные верны, вам придёт сообщение в Telegram");
     } catch (error) {
-      setSnackbar({ 
-        visible: true, 
-        message: "Ошибка отправки. Попробуйте позже." 
+      setSnackbar({
+        visible: true,
+        message: "Ошибка отправки. Попробуйте позже.",
       });
     } finally {
       setIsLoading(false);
@@ -133,7 +142,7 @@ export default function ResetPasswordScreen() {
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
@@ -187,9 +196,7 @@ export default function ResetPasswordScreen() {
               autoCorrect={false}
               autoComplete="username"
             />
-            {errors.username && (
-              <Text style={styles.errorText}>{errors.username}</Text>
-            )}
+            {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
 
             {/* Телефон Input */}
             <TextInput
@@ -206,9 +213,7 @@ export default function ResetPasswordScreen() {
               keyboardType="phone-pad"
               autoComplete="tel"
             />
-            {errors.phone && (
-              <Text style={styles.errorText}>{errors.phone}</Text>
-            )}
+            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
 
             {/* Кнопка восстановления */}
             <Pressable
@@ -231,7 +236,6 @@ export default function ResetPasswordScreen() {
             style={styles.logo}
             contentFit="contain"
           />
-
         </ScrollView>
       </KeyboardAvoidingView>
 

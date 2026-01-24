@@ -52,7 +52,9 @@ export default function EditPetScreen() {
       setName(petData.name || "");
       setType(petData.type || "DOG");
       setBreed(petData.breed || "");
-      setBirthDate(petData.birthDate ? new Date(petData.birthDate).toISOString().split("T")[0] : "");
+      setBirthDate(
+        petData.birthDate ? new Date(petData.birthDate).toISOString().split("T")[0] : "",
+      );
       setHeightCm(petData.heightCm?.toString() || "");
       setWeightKg(petData.weightKg?.toString() || "");
       setNotes(petData.notes || "");
@@ -242,10 +244,7 @@ export default function EditPetScreen() {
                 {PET_TYPES.map((t) => (
                   <Surface
                     key={t.value}
-                    style={[
-                      styles.typeOption,
-                      type === t.value && styles.typeOptionSelected,
-                    ]}
+                    style={[styles.typeOption, type === t.value && styles.typeOptionSelected]}
                     elevation={type === t.value ? 2 : 0}
                   >
                     <IconButton
@@ -254,12 +253,7 @@ export default function EditPetScreen() {
                       iconColor={type === t.value ? COLORS.primary : COLORS.textSecondary}
                       onPress={() => setType(t.value)}
                     />
-                    <Text
-                      style={[
-                        styles.typeLabel,
-                        type === t.value && styles.typeLabelSelected,
-                      ]}
-                    >
+                    <Text style={[styles.typeLabel, type === t.value && styles.typeLabelSelected]}>
                       {t.label}
                     </Text>
                   </Surface>
@@ -329,7 +323,9 @@ export default function EditPetScreen() {
                 variant="primary"
                 onPress={handleSave}
                 loading={updateMutation.isPending}
-                disabled={!name.trim() || !breed.trim() || !birthDate.trim() || updateMutation.isPending}
+                disabled={
+                  !name.trim() || !breed.trim() || !birthDate.trim() || updateMutation.isPending
+                }
                 style={styles.actionButton}
               />
             </View>

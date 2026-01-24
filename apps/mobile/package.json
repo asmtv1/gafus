@@ -1,15 +1,16 @@
 {
   "name": "@gafus/mobile",
   "version": "1.0.0",
+  "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx",
+    "start": "expo start",
+    "test": "jest",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "web": "expo start --web"
   },
   "dependencies": {
     "@expo-google-fonts/montserrat": "^0.4.2",
@@ -49,6 +50,5 @@
     "@babel/core": "^7.26.0",
     "@types/react": "19.1.17",
     "typescript": "~5.9.3"
-  },
-  "private": true
+  }
 }

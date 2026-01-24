@@ -37,14 +37,14 @@ function isPublicAsset(pathname: string): boolean {
 export default async function middleware(req: NextRequest) {
   const { nextUrl, url } = req;
   const pathname = nextUrl.pathname;
-  
-  const token = await getToken({ 
-    req, 
+
+  const token = await getToken({
+    req,
     secret: process.env.NEXTAUTH_SECRET,
     secureCookie: process.env.NODE_ENV === "production",
-    cookieName: "next-auth.session-token"
+    cookieName: "next-auth.session-token",
   });
-  
+
   // Пропускаем публичные ресурсы
   if (isPublicAsset(pathname)) {
     return NextResponse.next();
@@ -61,12 +61,15 @@ export default async function middleware(req: NextRequest) {
     if (authPages.includes(pathname)) {
       const redirectUrl = new URL("/courses", url);
       const response = NextResponse.redirect(redirectUrl, 302);
-      
+
       // Запрещаем кэширование редиректа
-      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      response.headers.set(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
+      );
       response.headers.set("Pragma", "no-cache");
       response.headers.set("Expires", "0");
-      
+
       return response;
     }
     // Если пользователь авторизован, пропускаем все остальные маршруты

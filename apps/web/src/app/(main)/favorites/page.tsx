@@ -11,7 +11,7 @@ export const revalidate = 300; // 5 минут (300 секунд) - снижае
 export const metadata = generateStaticPageMetadata(
   "Избранные курсы",
   "Ваши избранные курсы для послушания, фокуса и социализации собаки.",
-  "/favorites"
+  "/favorites",
 );
 
 export default async function FavoritesPage() {
@@ -38,11 +38,7 @@ export default async function FavoritesPage() {
   return (
     <main className={styles.container}>
       <h1 className={styles.title}>Избранные курсы</h1>
-      <FavoritesCourseList 
-        initialFavorites={favoritesData} 
-        initialError={error}
-        userId={userId}
-      />
+      <FavoritesCourseList initialFavorites={favoritesData} initialError={error} userId={userId} />
     </main>
   );
 }

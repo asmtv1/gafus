@@ -6,7 +6,7 @@
 
 .courseCard {
   list-style: none;
-  background: #FFF8E5;
+  background: #fff8e5;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -27,8 +27,8 @@
   max-width: 350px;
   padding-top: 10px;
   padding-left: 30px;
-  padding-right: 30px;  
- 
+  padding-right: 30px;
+
   display: flex;
   justify-content: center;
   align-items: center;
@@ -67,14 +67,14 @@
 .title {
   margin: 0 0 10px 0;
   font-size: 20px;
-  color: #352E2E;
+  color: #352e2e;
   line-height: 100%;
   font-weight: 400;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
 .description {
-  color: #352E2E;
+  color: #352e2e;
   font-size: 12px;
   font-weight: 400;
   font-family: var(--font-montserrat), var(--font-impact), system-ui, sans-serif;
@@ -90,7 +90,7 @@
 }
 
 .duration {
-  color: #352E2E;
+  color: #352e2e;
   font-size: 12px;
   font-weight: 400;
   font-family: var(--font-montserrat), var(--font-impact), system-ui, sans-serif;
@@ -101,7 +101,7 @@
 }
 
 .notStarted {
-  color: #352E2E
+  color: #352e2e;
 }
 
 .inProgress {
@@ -114,7 +114,7 @@
 
 .date {
   font-size: 0.8rem;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .rating {
@@ -144,7 +144,7 @@
 
 .reviews {
   font-size: 0.8rem;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .reviewsLink {
@@ -193,8 +193,8 @@
   padding: 6px 12px;
   border: 1px solid #636128;
   border-radius: 6px;
-  background: #FFF8E5;
-  color: #352E2E;
+  background: #fff8e5;
+  color: #352e2e;
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
@@ -213,7 +213,7 @@
 
 .downloadButton:hover:not(:disabled) {
   background: #636128;
-  color: #FFF8E5;
+  color: #fff8e5;
   border-color: #636128;
 }
 
@@ -259,7 +259,7 @@
 }
 
 .author::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 16%;
   left: 44%;
@@ -268,8 +268,6 @@
   height: 1px;
   background-color: #636128;
 }
-
-
 
 .authorlink {
   color: #009dcf;

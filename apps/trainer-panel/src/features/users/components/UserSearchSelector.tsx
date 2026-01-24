@@ -72,7 +72,9 @@ export default function UserSearchSelector({
             <Typography variant="body1">{option.username}</Typography>
           </li>
         )}
-        noOptionsText={searchQuery.length < 2 ? "Введите минимум 2 символа" : "Пользователи не найдены"}
+        noOptionsText={
+          searchQuery.length < 2 ? "Введите минимум 2 символа" : "Пользователи не найдены"
+        }
       />
 
       {selectedUsers.length > 0 && (
@@ -90,4 +92,3 @@ export default function UserSearchSelector({
     </Box>
   );
 }
-

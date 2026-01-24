@@ -25,7 +25,7 @@ import { Toast, useToast } from "@shared/components/ui/Toast";
 import { deleteCourseServerAction } from "@shared/lib/actions/courses";
 import { getUserProgress, type UserDetailedProgress } from "@shared/lib/actions/getUserProgress";
 // Создаем логгер для CourseStatsContent
-const logger = createTrainerPanelLogger('trainer-panel-course-stats');
+const logger = createTrainerPanelLogger("trainer-panel-course-stats");
 
 import {
   Accordion,
@@ -122,8 +122,8 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
       showToast("Курс удалён", "success");
     } catch (e) {
       logger.error("Ошибка удаления курса", e as Error, {
-        operation: 'delete_course_error',
-        courseId: course.id
+        operation: "delete_course_error",
+        courseId: course.id,
       });
       showToast("Ошибка удаления курса", "error");
     }
@@ -511,7 +511,8 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
                   return true;
                 })
                 .sort((a, b) => {
-                  const getDate = (uc: typeof a) => (dateType === "started" ? uc.startedAt : uc.completedAt);
+                  const getDate = (uc: typeof a) =>
+                    dateType === "started" ? uc.startedAt : uc.completedAt;
                   const da = getDate(a) ? new Date(getDate(a) as Date).getTime() : 0;
                   const db = getDate(b) ? new Date(getDate(b) as Date).getTime() : 0;
                   return db - da;
@@ -522,11 +523,11 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
                     userCourse={userCourse}
                     courseId={course.id}
                     onUsernameClick={() => {
-                            setSelectedUsername(userCourse.user.username);
-                            setUserModalOpen(true);
-                          }}
+                      setSelectedUsername(userCourse.user.username);
+                      setUserModalOpen(true);
+                    }}
                   />
-              ))}
+                ))}
             </Box>
           </Box>
         )}
@@ -596,9 +597,7 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
                           color="text.secondary"
                           sx={{ fontSize: { xs: "0.625rem", sm: "0.75rem" } }}
                         >
-                          {review.createdAt
-                            ? new Date(review.createdAt).toLocaleDateString()
-                            : ""}
+                          {review.createdAt ? new Date(review.createdAt).toLocaleDateString() : ""}
                         </Typography>
                       </Box>
                       <Box
@@ -682,8 +681,7 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
               negative: 0,
             },
             favoriteCount: course.socialAnalytics?.favoriteCount || 0,
-            recommendationEffectiveness:
-              course.socialAnalytics?.recommendationEffectiveness || 0,
+            recommendationEffectiveness: course.socialAnalytics?.recommendationEffectiveness || 0,
           }}
         />
       </TabPanel>
@@ -754,7 +752,8 @@ function UserProgressAccordion({
   const activeDays =
     progress?.days.filter((day) => {
       const hasActiveSteps = day.steps.some(
-        (step) => step.status === TrainingStatus.IN_PROGRESS || step.status === TrainingStatus.COMPLETED,
+        (step) =>
+          step.status === TrainingStatus.IN_PROGRESS || step.status === TrainingStatus.COMPLETED,
       );
       return hasActiveSteps;
     }) || [];
@@ -871,11 +870,7 @@ function UserProgressAccordion({
         )}
         {!loading && !error && progress && activeDays.length > 0 && (
           <Box sx={{ maxWidth: "100%", overflow: "hidden" }}>
-            <Typography
-              variant="h6"
-              gutterBottom
-              sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}
-            >
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
               Детальный прогресс
             </Typography>
             {activeDays.map((day) => {
@@ -1022,7 +1017,8 @@ function UserProgressAccordion({
                                     color="text.secondary"
                                     sx={{ fontSize: { xs: "0.625rem", sm: "0.75rem" } }}
                                   >
-                                    Начат: {new Date(step.startedAt).toLocaleString("ru-RU", {
+                                    Начат:{" "}
+                                    {new Date(step.startedAt).toLocaleString("ru-RU", {
                                       day: "2-digit",
                                       month: "2-digit",
                                       year: "numeric",

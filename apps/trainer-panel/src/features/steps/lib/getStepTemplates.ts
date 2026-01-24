@@ -36,11 +36,9 @@ export interface StepTemplateWithCategory {
  * @param categoryId - ID категории для фильтрации (необязательно)
  * @returns Список шаблонов
  */
-export async function getStepTemplates(
-  categoryId?: string
-): Promise<StepTemplateWithCategory[]> {
+export async function getStepTemplates(categoryId?: string): Promise<StepTemplateWithCategory[]> {
   try {
-    console.info('[trainer-panel] Получение списка шаблонов шагов', { categoryId });
+    console.info("[trainer-panel] Получение списка шаблонов шагов", { categoryId });
 
     const templates = await prisma.stepTemplate.findMany({
       where: {
@@ -62,20 +60,17 @@ export async function getStepTemplates(
           },
         },
       },
-      orderBy: [
-        { usageCount: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ usageCount: "desc" }, { createdAt: "desc" }],
     });
 
-    console.info('[trainer-panel] Шаблоны успешно получены', { count: templates.length });
+    console.info("[trainer-panel] Шаблоны успешно получены", { count: templates.length });
 
-    return templates.map(template => ({
+    return templates.map((template) => ({
       ...template,
       type: template.type as string,
     }));
   } catch (error) {
-    console.error('[trainer-panel] Ошибка при получении шаблонов', error);
+    console.error("[trainer-panel] Ошибка при получении шаблонов", error);
     throw error;
   }
 }
@@ -85,7 +80,7 @@ export async function getStepTemplates(
  */
 export async function getStepTemplateById(id: string): Promise<StepTemplateWithCategory | null> {
   try {
-    console.info('[trainer-panel] Получение шаблона по ID', { id });
+    console.info("[trainer-panel] Получение шаблона по ID", { id });
 
     const template = await prisma.stepTemplate.findUnique({
       where: { id },
@@ -107,7 +102,7 @@ export async function getStepTemplateById(id: string): Promise<StepTemplateWithC
     });
 
     if (!template) {
-      console.warn('[trainer-panel] Шаблон не найден', { id });
+      console.warn("[trainer-panel] Шаблон не найден", { id });
       return null;
     }
 
@@ -116,7 +111,7 @@ export async function getStepTemplateById(id: string): Promise<StepTemplateWithC
       type: template.type as string,
     };
   } catch (error) {
-    console.error('[trainer-panel] Ошибка при получении шаблона', error, { id });
+    console.error("[trainer-panel] Ошибка при получении шаблона", error, { id });
     throw error;
   }
 }
@@ -126,14 +121,14 @@ export async function getStepTemplateById(id: string): Promise<StepTemplateWithC
  */
 export async function searchStepTemplates(query: string): Promise<StepTemplateWithCategory[]> {
   try {
-    console.info('[trainer-panel] Поиск шаблонов', { query });
+    console.info("[trainer-panel] Поиск шаблонов", { query });
 
     const templates = await prisma.stepTemplate.findMany({
       where: {
         isPublic: true,
         OR: [
-          { title: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } },
+          { title: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
           { tags: { has: query.toLowerCase() } },
         ],
       },
@@ -152,21 +147,18 @@ export async function searchStepTemplates(query: string): Promise<StepTemplateWi
           },
         },
       },
-      orderBy: [
-        { usageCount: 'desc' },
-      ],
+      orderBy: [{ usageCount: "desc" }],
       take: 20,
     });
 
-    console.info('[trainer-panel] Поиск завершен', { count: templates.length, query });
+    console.info("[trainer-panel] Поиск завершен", { count: templates.length, query });
 
-    return templates.map(template => ({
+    return templates.map((template) => ({
       ...template,
       type: template.type as string,
     }));
   } catch (error) {
-    console.error('[trainer-panel] Ошибка при поиске шаблонов', error, { query });
+    console.error("[trainer-panel] Ошибка при поиске шаблонов", error, { query });
     throw error;
   }
 }
-

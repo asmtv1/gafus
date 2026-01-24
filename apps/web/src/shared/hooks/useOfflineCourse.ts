@@ -12,10 +12,7 @@ import {
 } from "@shared/lib/offline/offlineCourseStorage";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import type { OfflineCourse } from "@shared/lib/offline/types";
-import {
-  downloadFullCourse,
-  checkCourseUpdates,
-} from "@shared/lib/actions/offlineCourseActions";
+import { downloadFullCourse, checkCourseUpdates } from "@shared/lib/actions/offlineCourseActions";
 import { getVideoIdFromUrlAction } from "@shared/lib/actions/getVideoIdFromUrlAction";
 import { downloadHLSVideo } from "@shared/lib/offline/downloadHLSVideo";
 import { saveCourseHtmlPagesOnDownload } from "@shared/lib/offline/htmlPageStorage";
@@ -213,7 +210,9 @@ export function useOfflineCourse(): UseOfflineCourseResult {
     try {
       return await isCourseDownloadedByType(courseType);
     } catch (error) {
-      logger.error("Failed to check if course is downloaded by type", error as Error, { courseType });
+      logger.error("Failed to check if course is downloaded by type", error as Error, {
+        courseType,
+      });
       return false;
     }
   }, []);
@@ -221,7 +220,10 @@ export function useOfflineCourse(): UseOfflineCourseResult {
   /**
    * Проверяет доступное место в хранилище
    */
-  const checkStorageQuota = useCallback(async (): Promise<{ available: boolean; error?: string }> => {
+  const checkStorageQuota = useCallback(async (): Promise<{
+    available: boolean;
+    error?: string;
+  }> => {
     try {
       if (!navigator.storage || !navigator.storage.estimate) {
         // Если API недоступен, пропускаем проверку
@@ -288,7 +290,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         const videoUrls: string[] = [];
         const imageUrls: string[] = [];
         const pdfUrls: string[] = [];
-        
+
         // Тип для hlsVideos с версионированием
         type HLSVideoData = {
           manifest: string;
@@ -355,7 +357,12 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         }
 
         // Получаем hlsManifestPath и thumbnailPath для каждого HLS видео
-        const hlsVideoData: { videoUrl: string; hlsManifestPath: string; videoId: string; thumbnailPath?: string }[] = [];
+        const hlsVideoData: {
+          videoUrl: string;
+          hlsManifestPath: string;
+          videoId: string;
+          thumbnailPath?: string;
+        }[] = [];
         for (const videoUrl of hlsVideoUrls) {
           const result = await getVideoIdFromUrlAction(videoUrl);
           if (result.success && result.hlsManifestPath && result.videoId) {
@@ -393,7 +400,8 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         // Используем приблизительную оценку: 35 сегментов на видео
         const estimatedSegmentsPerVideo = 35;
         const thumbnailCount = hlsVideoData.filter((v) => v.thumbnailPath).length;
-        const totalHlsFiles = hlsVideoData.length * (1 + estimatedSegmentsPerVideo) + thumbnailCount;
+        const totalHlsFiles =
+          hlsVideoData.length * (1 + estimatedSegmentsPerVideo) + thumbnailCount;
         const totalMediaFiles = uniqueImageUrls.length + uniquePdfUrls.length + totalHlsFiles;
         let downloadedMediaFiles = uniqueImageUrls.length + uniquePdfUrls.length;
 
@@ -406,18 +414,14 @@ export function useOfflineCourse(): UseOfflineCourseResult {
           try {
             logger.info("Начинаем скачивание HLS видео", { videoUrl, hlsManifestPath });
 
-            const hlsData = await downloadHLSVideo(
-              hlsManifestPath,
-              videoUrl,
-              (current, total) => {
-                // Обновляем общий прогресс с учётом текущего HLS видео
-                const hlsProgress = (current / total) * (1 + estimatedSegmentsPerVideo);
-                const totalDownloaded = downloadedMediaFiles + hlsProgress;
-                if (totalMediaFiles > 0) {
-                  setDownloadProgress((totalDownloaded / totalMediaFiles) * 100);
-                }
+            const hlsData = await downloadHLSVideo(hlsManifestPath, videoUrl, (current, total) => {
+              // Обновляем общий прогресс с учётом текущего HLS видео
+              const hlsProgress = (current / total) * (1 + estimatedSegmentsPerVideo);
+              const totalDownloaded = downloadedMediaFiles + hlsProgress;
+              if (totalMediaFiles > 0) {
+                setDownloadProgress((totalDownloaded / totalMediaFiles) * 100);
               }
-            );
+            });
 
             if (hlsData) {
               // Скачиваем thumbnail если есть
@@ -427,7 +431,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
                   // Формируем CDN URL для thumbnail
                   const thumbnailPathWithUploads = ensureUploadsPrefix(thumbnailPath);
                   const thumbnailCdnUrl = `https://storage.yandexcloud.net/gafus-media/${thumbnailPathWithUploads}`;
-                  
+
                   logger.info("Скачиваем thumbnail для видео", {
                     videoUrl,
                     thumbnailPath,
@@ -435,12 +439,12 @@ export function useOfflineCourse(): UseOfflineCourseResult {
                   });
 
                   thumbnailBlob = await downloadMediaFile(thumbnailCdnUrl);
-                  
+
                   if (thumbnailBlob) {
                     // Сохраняем thumbnail в images с ключом по thumbnailPath
                     mediaFiles.images[thumbnailPath] = thumbnailBlob;
                     downloadedMediaFiles++;
-                    
+
                     logger.info("Thumbnail успешно скачан", {
                       videoUrl,
                       thumbnailPath,
@@ -503,7 +507,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         // Логируем результаты скачивания
         const downloadedImages = Object.keys(mediaFiles.images).length;
         const downloadedPdfs = Object.keys(mediaFiles.pdfs).length;
-        
+
         logger.info("Media files download completed", {
           courseType,
           courseId: courseData.course.id,
@@ -544,17 +548,18 @@ export function useOfflineCourse(): UseOfflineCourseResult {
           await saveOfflineCourse(offlineCourse);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          const isQuotaError = 
-            error instanceof DOMException && error.name === 'QuotaExceededError' ||
-            errorMessage.includes('QuotaExceededError') ||
-            errorMessage.includes('quota') ||
-            errorMessage.includes('storage');
-          
+          const isQuotaError =
+            (error instanceof DOMException && error.name === "QuotaExceededError") ||
+            errorMessage.includes("QuotaExceededError") ||
+            errorMessage.includes("quota") ||
+            errorMessage.includes("storage");
+
           if (isQuotaError) {
             logger.error("QuotaExceededError when saving course", error as Error, { courseType });
             return {
               success: false,
-              error: "Недостаточно места в хранилище устройства. Освободите место и попробуйте снова.",
+              error:
+                "Недостаточно места в хранилище устройства. Освободите место и попробуйте снова.",
             };
           }
           throw error; // Пробрасываем другие ошибки
@@ -570,7 +575,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         try {
           await saveCourseHtmlPagesOnDownload(
             courseData.course.type,
-            courseData.trainingDays.map((day) => ({ id: day.id }))
+            courseData.trainingDays.map((day) => ({ id: day.id })),
           );
           logger.info("HTML pages download completed", {
             courseType: courseData.course.type,

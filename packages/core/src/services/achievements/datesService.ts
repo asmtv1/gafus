@@ -1,6 +1,6 @@
 /**
  * Achievements Dates Service - бизнес-логика работы с датами тренировок
- * 
+ *
  * Этот модуль содержит чистую бизнес-логику без Next.js специфики.
  * Кэширование реализуется в Server Actions.
  */
@@ -8,15 +8,15 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('achievements-dates-service');
+const logger = createWebLogger("achievements-dates-service");
 
 /**
  * Получает уникальные даты, когда пользователь завершал шаги или дни тренировок
  * Используется для правильного подсчета серий занятий
- * 
+ *
  * @param userId - ID пользователя
  * @returns Массив уникальных дат занятий, отсортированных по убыванию
- * 
+ *
  * @example
  * ```typescript
  * const dates = await getUserTrainingDates("user-123");

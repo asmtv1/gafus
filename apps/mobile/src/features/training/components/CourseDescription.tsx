@@ -73,7 +73,7 @@ export function CourseDescription({
       while ((match = italicPattern2.exec(processedText)) !== null) {
         // Проверяем, не находится ли внутри жирного
         const isInsideBold = boldMatches.some(
-          (b) => match!.index >= b.start && match!.index < b.end
+          (b) => match!.index >= b.start && match!.index < b.end,
         );
         if (!isInsideBold) {
           italicMatches.push({
@@ -147,7 +147,7 @@ export function CourseDescription({
         elements.push(
           <View key={`p-${elements.length}`} style={styles.paragraphContainer}>
             {renderTextWithFormatting(paragraphText, styles.markdownParagraph)}
-          </View>
+          </View>,
         );
         currentParagraph = [];
       }
@@ -165,7 +165,7 @@ export function CourseDescription({
                 </View>
               </View>
             ))}
-          </View>
+          </View>,
         );
         listItems = [];
         inList = false;
@@ -183,7 +183,7 @@ export function CourseDescription({
         elements.push(
           <View key={`h1-${index}`} style={styles.headingContainer}>
             {renderTextWithFormatting(title, styles.markdownH1)}
-          </View>
+          </View>,
         );
         return;
       }
@@ -194,7 +194,7 @@ export function CourseDescription({
         elements.push(
           <View key={`h2-${index}`} style={styles.headingContainer}>
             {renderTextWithFormatting(title, styles.markdownH2)}
-          </View>
+          </View>,
         );
         return;
       }
@@ -205,7 +205,7 @@ export function CourseDescription({
         elements.push(
           <View key={`h3-${index}`} style={styles.headingContainer}>
             {renderTextWithFormatting(title, styles.markdownH3)}
-          </View>
+          </View>,
         );
         return;
       }
@@ -250,20 +250,12 @@ export function CourseDescription({
   return (
     <View style={styles.container}>
       <Pressable onPress={handleToggle}>
-        <Surface
-          style={[
-            styles.header,
-            isExpanded && styles.headerExpanded,
-          ]}
-          elevation={1}
-        >
+        <Surface style={[styles.header, isExpanded && styles.headerExpanded]} elevation={1}>
           <Text variant="titleMedium" style={styles.title}>
             Описание курса
           </Text>
           <View style={styles.expandControl}>
-            <Text style={styles.expandText}>
-              {isExpanded ? "Скрыть" : "Подробнее"}
-            </Text>
+            <Text style={styles.expandText}>{isExpanded ? "Скрыть" : "Подробнее"}</Text>
             <MaterialCommunityIcons
               name="chevron-down"
               size={24}
@@ -285,9 +277,7 @@ export function CourseDescription({
                   {trainingLevel && (
                     <View style={styles.infoItem}>
                       <Text style={styles.infoLabel}>Уровень сложности:</Text>
-                      <Text style={styles.infoValue}>
-                        {getTrainingLevelText(trainingLevel)}
-                      </Text>
+                      <Text style={styles.infoValue}>{getTrainingLevelText(trainingLevel)}</Text>
                     </View>
                   )}
                   {equipment && (

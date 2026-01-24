@@ -9,7 +9,7 @@ import PageLayout from "@/shared/components/PageLayout";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
-  
+
   // Проверяем права администратора
   if (!session?.user?.role || !["ADMIN", "MODERATOR"].includes(session.user.role)) {
     redirect("/main-panel");
@@ -26,19 +26,16 @@ export default async function AdminPage() {
   }
 
   return (
-    <PageLayout 
-      title="Администрирование" 
-      subtitle="Управление системой и кэшированием данных"
-    >
-      <div style={{ 
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '2rem'
-      }}>
+    <PageLayout title="Администрирование" subtitle="Управление системой и кэшированием данных">
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "2rem",
+        }}
+      >
         {/* Управление хранилищем (только для ADMIN) */}
-        {storageStats && (
-          <StorageManagement stats={storageStats} />
-        )}
+        {storageStats && <StorageManagement stats={storageStats} />}
 
         {/* Управление кэшем */}
         <CacheManagement />
@@ -46,4 +43,3 @@ export default async function AdminPage() {
     </PageLayout>
   );
 }
-

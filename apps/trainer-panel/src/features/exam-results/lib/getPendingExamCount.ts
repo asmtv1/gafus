@@ -10,7 +10,7 @@ import { authOptions } from "@gafus/auth";
  */
 export async function getPendingExamCount(): Promise<number> {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     return 0;
   }
@@ -31,13 +31,13 @@ export async function getPendingExamCount(): Promise<number> {
               course: {
                 // Если не админ, то только свои курсы
                 ...(session.user.role !== "ADMIN" && {
-                  authorId: session.user.id
-                })
-              }
-            }
-          }
-        }
-      }
+                  authorId: session.user.id,
+                }),
+              },
+            },
+          },
+        },
+      },
     });
 
     return count;
@@ -46,6 +46,3 @@ export async function getPendingExamCount(): Promise<number> {
     return 0;
   }
 }
-
-
-

@@ -2,14 +2,19 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl, getUserAvatarPath } from "@gafus/cdn-upload";
+import {
+  uploadFileToCDN,
+  deleteFileFromCDN,
+  getRelativePathFromCDNUrl,
+  getUserAvatarPath,
+} from "@gafus/cdn-upload";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 // Создаем логгер для updateAvatar
-const logger = createWebLogger('web-update-avatar');
+const logger = createWebLogger("web-update-avatar");
 
 const fileSchema = z.instanceof(File, { message: "Файл обязателен" });
 
@@ -20,7 +25,7 @@ export async function updateAvatar(file: File): Promise<string> {
     const userId = await getCurrentUserId();
     const ext = validFile.name.split(".").pop();
     if (!ext) throw new Error("Не удалось определить расширение файла");
-    
+
     const uuid = randomUUID();
     const relativePath = getUserAvatarPath(userId, uuid, ext);
 
@@ -36,7 +41,9 @@ export async function updateAvatar(file: File): Promise<string> {
     // 4. Удаляем старый файл из CDN (если есть)
     if (existingProfile?.avatarUrl) {
       const oldRelativePath = getRelativePathFromCDNUrl(existingProfile.avatarUrl);
-      logger.info(`🔍 Найден старый аватар для удаления: ${existingProfile.avatarUrl} -> ${oldRelativePath}`);
+      logger.info(
+        `🔍 Найден старый аватар для удаления: ${existingProfile.avatarUrl} -> ${oldRelativePath}`,
+      );
       try {
         await deleteFileFromCDN(oldRelativePath);
         logger.info(`🗑️ Старый аватар удален из CDN: ${oldRelativePath}`);
@@ -57,10 +64,10 @@ export async function updateAvatar(file: File): Promise<string> {
       },
     });
 
-    logger.warn("Avatar URL saved to database:", { avatarUrl, operation: 'warn' });
+    logger.warn("Avatar URL saved to database:", { avatarUrl, operation: "warn" });
     return avatarUrl;
   } catch (error) {
-    logger.error("Ошибка в updateAvatar:", error as Error, { operation: 'error' });
+    logger.error("Ошибка в updateAvatar:", error as Error, { operation: "error" });
     throw new Error("Ошибка при обновлении аватара. Попробуйте перезагрузить страницу.");
   }
 }

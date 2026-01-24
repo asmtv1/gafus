@@ -15,7 +15,9 @@ export declare function validatePushSubscriptionKeys(keys: unknown): keys is Pus
 /**
  * Валидирует push-подписку
  */
-export declare function validatePushSubscription(subscription: unknown): subscription is PushSubscriptionJSON;
+export declare function validatePushSubscription(
+  subscription: unknown,
+): subscription is PushSubscriptionJSON;
 /**
  * Валидирует email для VAPID subject
  */

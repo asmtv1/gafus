@@ -9,7 +9,7 @@ import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
 
-const logger = createWebLogger('web');
+const logger = createWebLogger("web");
 
 const pauseSchema = z.object({
   courseId: courseIdSchema,
@@ -34,82 +34,87 @@ export async function pauseUserStepServerAction(
   const userId = await getCurrentUserId();
 
   try {
-    await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-      const dayOnCourse = await tx.dayOnCourse.findUnique({
-        where: { id: safeInput.dayOnCourseId },
-        include: {
-          day: {
-            include: {
-              stepLinks: {
-                orderBy: { order: "asc" },
-                include: { step: true },
+    await prisma.$transaction(
+      async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
+        const dayOnCourse = await tx.dayOnCourse.findUnique({
+          where: { id: safeInput.dayOnCourseId },
+          include: {
+            day: {
+              include: {
+                stepLinks: {
+                  orderBy: { order: "asc" },
+                  include: { step: true },
+                },
               },
             },
           },
-        },
-      });
-      
-      if (!dayOnCourse?.day) {
-        logger.error("DayOnCourse or day not found", new Error("DayOnCourse or day not found"), {
-          operation: "pauseUserStepServerAction",
-          courseId: safeInput.courseId,
-          dayOnCourseId: safeInput.dayOnCourseId,
-          stepIndex: safeInput.stepIndex,
         });
-        throw new Error("DayOnCourse or day not found");
-      }
 
-      const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
-      if (!stepLink) throw new Error("Step not found by index");
+        if (!dayOnCourse?.day) {
+          logger.error("DayOnCourse or day not found", new Error("DayOnCourse or day not found"), {
+            operation: "pauseUserStepServerAction",
+            courseId: safeInput.courseId,
+            dayOnCourseId: safeInput.dayOnCourseId,
+            stepIndex: safeInput.stepIndex,
+          });
+          throw new Error("DayOnCourse or day not found");
+        }
 
-      // Найти/создать UserTraining
-      const userTraining =
-        (await tx.userTraining.findFirst({
-          where: { userId, dayOnCourseId: dayOnCourse.id },
-          select: { id: true },
-        })) ||
-        (await tx.userTraining.create({
-          data: { userId, dayOnCourseId: dayOnCourse.id },
-          select: { id: true },
-        }));
+        const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
+        if (!stepLink) throw new Error("Step not found by index");
 
-      // Найти/создать UserStep
-      const existing = await tx.userStep.findFirst({
-        where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
-      });
+        // Найти/создать UserTraining
+        const userTraining =
+          (await tx.userTraining.findFirst({
+            where: { userId, dayOnCourseId: dayOnCourse.id },
+            select: { id: true },
+          })) ||
+          (await tx.userTraining.create({
+            data: { userId, dayOnCourseId: dayOnCourse.id },
+            select: { id: true },
+          }));
 
-      const remaining = Math.max(Math.floor(Number(safeInput.timeLeftSec) || 0), 0);
-
-      if (existing) {
-        await tx.userStep.update({
-          where: { id: existing.id },
-          data: {
-            paused: true,
-            remainingSec: remaining,
-            updatedAt: new Date(),
-          },
+        // Найти/создать UserStep
+        const existing = await tx.userStep.findFirst({
+          where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
         });
-      } else {
-        await tx.userStep.create({
-          data: {
-            userTrainingId: userTraining.id,
-            stepOnDayId: stepLink.id,
-            paused: true,
-            remainingSec: remaining,
-          },
-        });
-      }
-    },
-    {
-      maxWait: 5000, // 5 секунд ожидания начала транзакции
-      timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
-    });
+
+        const remaining = Math.max(Math.floor(Number(safeInput.timeLeftSec) || 0), 0);
+
+        if (existing) {
+          await tx.userStep.update({
+            where: { id: existing.id },
+            data: {
+              paused: true,
+              remainingSec: remaining,
+              updatedAt: new Date(),
+            },
+          });
+        } else {
+          await tx.userStep.create({
+            data: {
+              userTrainingId: userTraining.id,
+              stepOnDayId: stepLink.id,
+              paused: true,
+              remainingSec: remaining,
+            },
+          });
+        }
+      },
+      {
+        maxWait: 5000, // 5 секунд ожидания начала транзакции
+        timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
+      },
+    );
 
     // Инвалидация кэша прогресса пользователя (офлайн-дружелюбная)
     try {
       await invalidateUserProgressCache(userId, false);
     } catch (e) {
-      logger.warn("pauseUserStepServerAction: cache invalidation skipped", { error: e, operation: 'warn' });
+      logger.warn("pauseUserStepServerAction: cache invalidation skipped", {
+        error: e,
+        operation: "warn",
+      });
     }
 
     return { success: true };
@@ -125,7 +130,7 @@ export async function pauseUserStepServerAction(
         stepIndex: safeInput.stepIndex,
         timeLeftSec: safeInput.timeLeftSec,
         tags: ["training", "step-pause", "server-action"],
-      }
+      },
     );
     throw error;
   }
@@ -140,68 +145,73 @@ export async function resumeUserStepServerAction(
   const userId = await getCurrentUserId();
 
   try {
-    await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-      const dayOnCourse = await tx.dayOnCourse.findUnique({
-        where: { id: safeInput.dayOnCourseId },
-        include: {
-          day: {
-            include: {
-              stepLinks: {
-                orderBy: { order: "asc" },
-                include: { step: true },
+    await prisma.$transaction(
+      async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
+        const dayOnCourse = await tx.dayOnCourse.findUnique({
+          where: { id: safeInput.dayOnCourseId },
+          include: {
+            day: {
+              include: {
+                stepLinks: {
+                  orderBy: { order: "asc" },
+                  include: { step: true },
+                },
               },
             },
           },
-        },
-      });
-      
-      if (!dayOnCourse?.day) {
-        logger.error("DayOnCourse or day not found", new Error("DayOnCourse or day not found"), {
-          operation: "resumeUserStepServerAction",
-          courseId: safeInput.courseId,
-          dayOnCourseId: safeInput.dayOnCourseId,
-          stepIndex: safeInput.stepIndex,
         });
-        throw new Error("DayOnCourse or day not found");
-      }
 
-      const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
-      if (!stepLink) throw new Error("Step not found by index");
+        if (!dayOnCourse?.day) {
+          logger.error("DayOnCourse or day not found", new Error("DayOnCourse or day not found"), {
+            operation: "resumeUserStepServerAction",
+            courseId: safeInput.courseId,
+            dayOnCourseId: safeInput.dayOnCourseId,
+            stepIndex: safeInput.stepIndex,
+          });
+          throw new Error("DayOnCourse or day not found");
+        }
 
-      const userTraining = await tx.userTraining.findFirst({
-        where: { userId, dayOnCourseId: dayOnCourse.id },
-        select: { id: true },
-      });
+        const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
+        if (!stepLink) throw new Error("Step not found by index");
 
-      if (!userTraining) {
-        // Нечего возобновлять
-        return;
-      }
-
-      const existing = await tx.userStep.findFirst({
-        where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
-      });
-
-      if (existing) {
-        await tx.userStep.update({
-          where: { id: existing.id },
-          data: {
-            paused: false,
-            remainingSec: null,
-            updatedAt: new Date(),
-          },
+        const userTraining = await tx.userTraining.findFirst({
+          where: { userId, dayOnCourseId: dayOnCourse.id },
+          select: { id: true },
         });
-      }
-    },
-    {
-      maxWait: 5000, // 5 секунд ожидания начала транзакции
-      timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
-    });
+
+        if (!userTraining) {
+          // Нечего возобновлять
+          return;
+        }
+
+        const existing = await tx.userStep.findFirst({
+          where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
+        });
+
+        if (existing) {
+          await tx.userStep.update({
+            where: { id: existing.id },
+            data: {
+              paused: false,
+              remainingSec: null,
+              updatedAt: new Date(),
+            },
+          });
+        }
+      },
+      {
+        maxWait: 5000, // 5 секунд ожидания начала транзакции
+        timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
+      },
+    );
 
     try {
       await invalidateUserProgressCache(userId, false);
     } catch (e) {
-      logger.warn("resumeUserStepServerAction: cache invalidation skipped", { error: e, operation: 'warn' });
+      logger.warn("resumeUserStepServerAction: cache invalidation skipped", {
+        error: e,
+        operation: "warn",
+      });
     }
 
     return { success: true };
@@ -216,7 +226,7 @@ export async function resumeUserStepServerAction(
         dayOnCourseId: safeInput.dayOnCourseId,
         stepIndex: safeInput.stepIndex,
         tags: ["training", "step-resume", "server-action"],
-      }
+      },
     );
     throw error;
   }

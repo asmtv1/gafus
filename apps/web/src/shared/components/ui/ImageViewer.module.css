@@ -164,27 +164,27 @@
   .thumbnailContainer {
     min-height: 100px;
   }
-  
+
   .modalBackdrop {
     padding: 10px;
   }
-  
+
   .modalContent {
     max-width: 95vw;
     max-height: 95vh;
   }
-  
+
   .modalImageContainer {
     height: 60vh;
     min-height: 250px;
   }
-  
+
   .closeButton {
     top: -40px;
     width: 44px;
     height: 44px;
   }
-  
+
   .modalCaption {
     font-size: 12px;
     padding: 0 10px;
@@ -195,27 +195,27 @@
   .thumbnailContainer {
     min-height: 80px;
   }
-  
+
   .modalBackdrop {
     padding: 5px;
   }
-  
+
   .modalContent {
     max-width: 98vw;
     max-height: 98vh;
   }
-  
+
   .modalImageContainer {
     height: 50vh;
     min-height: 200px;
   }
-  
+
   .closeButton {
     top: -35px;
     width: 44px;
     height: 44px;
   }
-  
+
   .modalCaption {
     font-size: 11px;
     padding: 0 5px;
@@ -228,7 +228,7 @@
     height: 80vh;
     min-height: 200px;
   }
-  
+
   .closeButton {
     top: -45px;
   }
@@ -239,11 +239,11 @@
   .thumbnailOverlay {
     opacity: 0.7; /* Показываем overlay на touch устройствах */
   }
-  
+
   .thumbnailContainer:active {
     transform: scale(0.98);
   }
-  
+
   .closeButton:active {
     transform: scale(0.9);
   }
@@ -254,16 +254,16 @@
   .thumbnailContainer {
     background-color: #2a2a2a;
   }
-  
+
   .modalImageContainer {
     background: #2a2a2a;
   }
-  
+
   .closeButton {
     background: rgba(0, 0, 0, 0.8);
     color: white;
   }
-  
+
   .closeButton:hover {
     background: rgba(0, 0, 0, 0.9);
   }
@@ -296,15 +296,15 @@
     transition: none;
     animation: none;
   }
-  
+
   .thumbnailContainer:hover {
     transform: none;
   }
-  
+
   .thumbnailContainer:hover .thumbnailImage {
     transform: none;
   }
-  
+
   .thumbnailContainer:hover .zoomIcon {
     transform: none;
   }

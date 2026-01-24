@@ -1,5 +1,5 @@
 export interface SendStepNotificationPayload {
-    notificationId: string;
+  notificationId: string;
 }
 export type { PushSubscriptionJSON } from "../data/push";
 //# sourceMappingURL=push.d.ts.map

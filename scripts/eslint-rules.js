@@ -5,16 +5,18 @@
 module.exports = {
   rules: {
     // Правило: проверка использования getCurrentUserId в API Routes
-    'no-getCurrentUserId-in-api-routes': {
+    "no-getCurrentUserId-in-api-routes": {
       meta: {
-        type: 'problem',
+        type: "problem",
         docs: {
-          description: 'Запрещает использование getCurrentUserId в API Routes, требуется getServerSession',
-          category: 'Best Practices',
+          description:
+            "Запрещает использование getCurrentUserId в API Routes, требуется getServerSession",
+          category: "Best Practices",
           recommended: true,
         },
         messages: {
-          noGetCurrentUserId: 'Использование getCurrentUserId в API Routes запрещено. Используйте getServerSession(authOptions) вместо getCurrentUserId().',
+          noGetCurrentUserId:
+            "Использование getCurrentUserId в API Routes запрещено. Используйте getServerSession(authOptions) вместо getCurrentUserId().",
         },
         schema: [],
       },
@@ -23,21 +25,25 @@ module.exports = {
           ImportDeclaration(node) {
             // Проверяем только файлы в app/api/
             const fileName = context.getFilename();
-            if (!fileName.includes('/app/api/') && !fileName.includes('\\app\\api\\')) {
+            if (!fileName.includes("/app/api/") && !fileName.includes("\\app\\api\\")) {
               return;
             }
 
             // Проверяем импорт getCurrentUserId
-            if (node.source.value === '@/utils' ||
-                node.source.value === '../utils' ||
-                node.source.value === '../../utils') {
+            if (
+              node.source.value === "@/utils" ||
+              node.source.value === "../utils" ||
+              node.source.value === "../../utils"
+            ) {
               const specifiers = node.specifiers || [];
               for (const specifier of specifiers) {
-                if (specifier.type === 'ImportSpecifier' &&
-                    specifier.imported.name === 'getCurrentUserId') {
+                if (
+                  specifier.type === "ImportSpecifier" &&
+                  specifier.imported.name === "getCurrentUserId"
+                ) {
                   context.report({
                     node: specifier,
-                    messageId: 'noGetCurrentUserId',
+                    messageId: "noGetCurrentUserId",
                   });
                 }
               }
@@ -47,16 +53,15 @@ module.exports = {
           CallExpression(node) {
             // Проверяем только файлы в app/api/
             const fileName = context.getFilename();
-            if (!fileName.includes('/app/api/') && !fileName.includes('\\app\\api\\')) {
+            if (!fileName.includes("/app/api/") && !fileName.includes("\\app\\api\\")) {
               return;
             }
 
             // Проверяем прямой вызов getCurrentUserId
-            if (node.callee.type === 'Identifier' &&
-                node.callee.name === 'getCurrentUserId') {
+            if (node.callee.type === "Identifier" && node.callee.name === "getCurrentUserId") {
               context.report({
                 node: node.callee,
-                messageId: 'noGetCurrentUserId',
+                messageId: "noGetCurrentUserId",
               });
             }
           },
@@ -65,17 +70,19 @@ module.exports = {
     },
 
     // Правило: проверка сериализации Server Actions
-    'server-action-serialization': {
+    "server-action-serialization": {
       meta: {
-        type: 'problem',
+        type: "problem",
         docs: {
-          description: 'Проверяет, что Server Actions возвращают только сериализуемые данные',
-          category: 'Best Practices',
+          description: "Проверяет, что Server Actions возвращают только сериализуемые данные",
+          category: "Best Practices",
           recommended: true,
         },
         messages: {
-          nonSerializableReturn: 'Server Actions должны возвращать только JSON-совместимые данные. Избегайте функций, классов, undefined, Symbol, Map, Set.',
-          nonSerializableParam: 'Параметры Server Actions должны быть сериализуемыми. Избегайте функций, классов, undefined, Symbol, Map, Set.',
+          nonSerializableReturn:
+            "Server Actions должны возвращать только JSON-совместимые данные. Избегайте функций, классов, undefined, Symbol, Map, Set.",
+          nonSerializableParam:
+            "Параметры Server Actions должны быть сериализуемыми. Избегайте функций, классов, undefined, Symbol, Map, Set.",
         },
         schema: [],
       },
@@ -85,28 +92,34 @@ module.exports = {
         // Вспомогательная функция для проверки сериализуемости
         function isNonSerializable(node) {
           // Проверяем на функции
-          if (node.type === 'FunctionExpression' ||
-              node.type === 'ArrowFunctionExpression' ||
-              node.type === 'FunctionDeclaration') {
+          if (
+            node.type === "FunctionExpression" ||
+            node.type === "ArrowFunctionExpression" ||
+            node.type === "FunctionDeclaration"
+          ) {
             return true;
           }
 
           // Проверяем на undefined (прямое использование)
-          if (node.type === 'Identifier' && node.name === 'undefined') {
+          if (node.type === "Identifier" && node.name === "undefined") {
             return true;
           }
 
           // Проверяем на Symbol
-          if (node.type === 'CallExpression' &&
-              node.callee.type === 'Identifier' &&
-              node.callee.name === 'Symbol') {
+          if (
+            node.type === "CallExpression" &&
+            node.callee.type === "Identifier" &&
+            node.callee.name === "Symbol"
+          ) {
             return true;
           }
 
           // Проверяем на new Map(), new Set()
-          if (node.type === 'NewExpression' &&
-              node.callee.type === 'Identifier' &&
-              ['Map', 'Set'].includes(node.callee.name)) {
+          if (
+            node.type === "NewExpression" &&
+            node.callee.type === "Identifier" &&
+            ["Map", "Set"].includes(node.callee.name)
+          ) {
             return true;
           }
 
@@ -126,8 +139,7 @@ module.exports = {
         return {
           // Проверяем наличие "use server" директивы
           ExpressionStatement(node) {
-            if (node.expression.type === 'Literal' &&
-                node.expression.value === 'use server') {
+            if (node.expression.type === "Literal" && node.expression.value === "use server") {
               isServerAction = true;
             }
           },
@@ -139,7 +151,7 @@ module.exports = {
             // Проверяем параметры функции
             if (node.params) {
               for (const param of node.params) {
-                checkSerializable(param, 'nonSerializableParam');
+                checkSerializable(param, "nonSerializableParam");
               }
             }
           },
@@ -149,7 +161,7 @@ module.exports = {
             if (!isServerAction) return;
 
             if (node.argument) {
-              checkSerializable(node.argument, 'nonSerializableReturn');
+              checkSerializable(node.argument, "nonSerializableReturn");
             }
           },
 
@@ -160,7 +172,7 @@ module.exports = {
             // Проверяем параметры
             if (node.params) {
               for (const param of node.params) {
-                checkSerializable(param, 'nonSerializableParam');
+                checkSerializable(param, "nonSerializableParam");
               }
             }
           },
@@ -169,17 +181,17 @@ module.exports = {
     },
 
     // Правило: запрет window и useOfflineStore в Server Actions
-    'no-client-code-in-server-actions': {
+    "no-client-code-in-server-actions": {
       meta: {
-        type: 'problem',
+        type: "problem",
         docs: {
-          description: 'Запрещает использование window и useOfflineStore в Server Actions',
-          category: 'Best Practices',
+          description: "Запрещает использование window и useOfflineStore в Server Actions",
+          category: "Best Practices",
           recommended: true,
         },
         messages: {
-          noWindow: 'Использование window в Server Actions запрещено.',
-          noUseOfflineStore: 'Использование useOfflineStore в Server Actions запрещено.',
+          noWindow: "Использование window в Server Actions запрещено.",
+          noUseOfflineStore: "Использование useOfflineStore в Server Actions запрещено.",
         },
         schema: [],
       },
@@ -188,8 +200,7 @@ module.exports = {
 
         return {
           ExpressionStatement(node) {
-            if (node.expression.type === 'Literal' &&
-                node.expression.value === 'use server') {
+            if (node.expression.type === "Literal" && node.expression.value === "use server") {
               isServerAction = true;
             }
           },
@@ -198,11 +209,10 @@ module.exports = {
             if (!isServerAction) return;
 
             // Проверяем window.something
-            if (node.object.type === 'Identifier' &&
-                node.object.name === 'window') {
+            if (node.object.type === "Identifier" && node.object.name === "window") {
               context.report({
                 node: node.object,
-                messageId: 'noWindow',
+                messageId: "noWindow",
               });
             }
           },
@@ -211,11 +221,10 @@ module.exports = {
             if (!isServerAction) return;
 
             // Проверяем вызов useOfflineStore
-            if (node.callee.type === 'Identifier' &&
-                node.callee.name === 'useOfflineStore') {
+            if (node.callee.type === "Identifier" && node.callee.name === "useOfflineStore") {
               context.report({
                 node: node.callee,
-                messageId: 'noUseOfflineStore',
+                messageId: "noUseOfflineStore",
               });
             }
           },
@@ -224,10 +233,10 @@ module.exports = {
             if (!isServerAction) return;
 
             // Проверяем импорт useOfflineStore
-            if (node.source.value.includes('useOfflineStore')) {
+            if (node.source.value.includes("useOfflineStore")) {
               context.report({
                 node,
-                messageId: 'noUseOfflineStore',
+                messageId: "noUseOfflineStore",
               });
             }
           },

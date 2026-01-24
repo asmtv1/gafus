@@ -8,13 +8,13 @@
 
 Проект использует собственную систему логирования по следующим причинам:
 
-| Критерий | @gafus/logger | Sentry/Datadog |
-|----------|---------------|----------------|
-| **Стоимость** | Бесплатно (self-hosted) | $26+/месяц или ограничения free tier |
-| **Контроль данных** | Полный (своя БД) | Данные у провайдера |
-| **Интеграция** | Нативная для монорепо | Требует настройки |
-| **Гибкость** | Полная кастомизация | Ограничена API провайдера |
-| **Производительность** | Pino — один из самых быстрых | Зависит от SDK |
+| Критерий               | @gafus/logger                | Sentry/Datadog                       |
+| ---------------------- | ---------------------------- | ------------------------------------ |
+| **Стоимость**          | Бесплатно (self-hosted)      | $26+/месяц или ограничения free tier |
+| **Контроль данных**    | Полный (своя БД)             | Данные у провайдера                  |
+| **Интеграция**         | Нативная для монорепо        | Требует настройки                    |
+| **Гибкость**           | Полная кастомизация          | Ограничена API провайдера            |
+| **Производительность** | Pino — один из самых быстрых | Зависит от SDK                       |
 
 ### Что уже реализовано
 
@@ -49,73 +49,69 @@ pnpm add @gafus/logger
 ### Специализированные логгеры
 
 ```typescript
-import { 
+import {
   createWebLogger,
   createTrainerPanelLogger,
   createWorkerLogger,
-  createTelegramBotLogger
-} from '@gafus/logger';
+  createTelegramBotLogger,
+} from "@gafus/logger";
 
 // Для веб-приложения
-const logger = createWebLogger('profile-page');
-logger.info('Страница загружена', { userId: '123' });
+const logger = createWebLogger("profile-page");
+logger.info("Страница загружена", { userId: "123" });
 
 // Для worker-ов
-const workerLogger = createWorkerLogger('notifications');
-workerLogger.error('Не удалось отправить push', error);
+const workerLogger = createWorkerLogger("notifications");
+workerLogger.error("Не удалось отправить push", error);
 ```
 
 ### Доступные фабрики
 
-| Фабрика | Приложение | Error Dashboard |
-|---------|------------|-----------------|
-| `createWebLogger` | web | ✅ Включен |
-| `createTrainerPanelLogger` | trainer-panel | ✅ Включен |
-| `createAdminPanelLogger` | admin-panel | ✅ Включен |
-| `createWorkerLogger` | worker | ✅ Включен |
-| `createTelegramBotLogger` | telegram-bot | ✅ Включен |
-| `createBullBoardLogger` | bull-board | ❌ Отключен |
+| Фабрика                      | Приложение      | Error Dashboard                  |
+| ---------------------------- | --------------- | -------------------------------- |
+| `createWebLogger`            | web             | ✅ Включен                       |
+| `createTrainerPanelLogger`   | trainer-panel   | ✅ Включен                       |
+| `createAdminPanelLogger`     | admin-panel     | ✅ Включен                       |
+| `createWorkerLogger`         | worker          | ✅ Включен                       |
+| `createTelegramBotLogger`    | telegram-bot    | ✅ Включен                       |
+| `createBullBoardLogger`      | bull-board      | ❌ Отключен                      |
 | `createErrorDashboardLogger` | error-dashboard | ❌ Отключен (избежание рекурсии) |
-| `createSilentLogger` | — | ❌ Только fatal |
+| `createSilentLogger`         | —               | ❌ Только fatal                  |
 
 ### Уровни логирования
 
 ```typescript
-logger.debug('Детальная информация для отладки');
-logger.info('Общая информация о работе');
-logger.warn('Предупреждение о потенциальной проблеме');
-logger.error('Ошибка', errorObject);
-logger.fatal('Критическая ошибка');
+logger.debug("Детальная информация для отладки");
+logger.info("Общая информация о работе");
+logger.warn("Предупреждение о потенциальной проблеме");
+logger.error("Ошибка", errorObject);
+logger.fatal("Критическая ошибка");
 ```
 
 ### Уровни по умолчанию
 
-| Окружение | Уровень |
-|-----------|---------|
-| development | debug |
-| test | warn |
-| production | warn |
+| Окружение   | Уровень |
+| ----------- | ------- |
+| development | debug   |
+| test        | warn    |
+| production  | warn    |
 
 ### Отправка ошибок напрямую
 
 Для отправки ошибок используйте `logger.error()` напрямую:
 
 ```typescript
-import { createWebLogger } from '@gafus/logger';
+import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('my-context');
+const logger = createWebLogger("my-context");
 
 // Отправка ошибки
-await logger.error(
-  error.message || 'Unknown error',
-  error,
-  {
-    userId: user.id,
-    operation: 'checkout',
-    additionalContext: { action: 'checkout' },
-    tags: ['error', 'checkout'],
-  }
-);
+await logger.error(error.message || "Unknown error", error, {
+  userId: user.id,
+  operation: "checkout",
+  additionalContext: { action: "checkout" },
+  tags: ["error", "checkout"],
+});
 ```
 
 ## 🏗️ Архитектура
@@ -150,6 +146,7 @@ Docker контейнеры → stdout/stderr → Vector → Seq → Error Dashb
 **Конфигурация Vector:** `ci-cd/docker/vector/vector.toml`
 
 **Преимущества:**
+
 - Видим все логи контейнеров в Seq и Error Dashboard
 - Нативная поддержка Seq (встроенный sink)
 - Автоматический парсинг Pino формата через VRL (Vector Remap Language)
@@ -177,24 +174,26 @@ ERROR_DASHBOARD_URL=https://monitor.gafus.ru/api
 
 ```typescript
 interface LoggerConfig {
-  appName: string;                    // Название приложения
-  environment: 'development' | 'production' | 'test';
-  level: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
-  enableConsole?: boolean;            // true по умолчанию
-  enableErrorDashboard?: boolean;     // false по умолчанию
-  context?: string;                   // Контекст (например, 'auth-service')
-  errorDashboardUrl?: string;         // URL для отправки
+  appName: string; // Название приложения
+  environment: "development" | "production" | "test";
+  level: "debug" | "info" | "warn" | "error" | "fatal";
+  enableConsole?: boolean; // true по умолчанию
+  enableErrorDashboard?: boolean; // false по умолчанию
+  context?: string; // Контекст (например, 'auth-service')
+  errorDashboardUrl?: string; // URL для отправки
 }
 ```
 
 ## 📊 Формат логов
 
 ### В консоли (development)
+
 ```
 [2024-01-15 10:30:45] INFO  [web:profile-page] Страница загружена {"userId":"123"}
 ```
 
 ### В error-dashboard (JSON)
+
 ```json
 {
   "timestamp": "2024-01-15T10:30:45.123Z",
@@ -229,4 +228,4 @@ packages/logger/
 
 ---
 
-*Пакет обеспечивает единое логирование для всей экосистемы GAFUS без зависимости от внешних SaaS.*
+_Пакет обеспечивает единое логирование для всей экосистемы GAFUS без зависимости от внешних SaaS._

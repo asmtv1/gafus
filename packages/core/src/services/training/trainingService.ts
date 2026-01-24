@@ -30,7 +30,11 @@ type CourseWithDayLinks = {
       stepLinks: {
         id: string;
         order: number;
-        step: { durationSec: number | null; estimatedDurationSec: number | null; type: string | null };
+        step: {
+          durationSec: number | null;
+          estimatedDurationSec: number | null;
+          type: string | null;
+        };
       }[];
     };
     userTrainings: {
@@ -48,18 +52,24 @@ function calculateDisplayDayNumber(
   currentIndex: number,
 ): number | null {
   const currentDay = dayLinks[currentIndex];
-  
-  if (NON_NUMBERED_DAY_TYPES.includes(currentDay.day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])) {
+
+  if (
+    NON_NUMBERED_DAY_TYPES.includes(currentDay.day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])
+  ) {
     return null;
   }
-  
+
   let displayNumber = 0;
   for (let i = 0; i <= currentIndex; i++) {
-    if (!NON_NUMBERED_DAY_TYPES.includes(dayLinks[i].day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])) {
+    if (
+      !NON_NUMBERED_DAY_TYPES.includes(
+        dayLinks[i].day.type as (typeof NON_NUMBERED_DAY_TYPES)[number],
+      )
+    ) {
       displayNumber++;
     }
   }
-  
+
   return displayNumber;
 }
 
@@ -238,9 +248,7 @@ export async function getTrainingDays(
       }
     }
 
-    const trainingDays = mapCourseToTrainingDays(
-      firstCourse as unknown as CourseWithDayLinks,
-    );
+    const trainingDays = mapCourseToTrainingDays(firstCourse as unknown as CourseWithDayLinks);
 
     return {
       trainingDays,
@@ -260,10 +268,7 @@ export async function getTrainingDays(
 }
 
 /** Создает UserTraining если его нет (идемпотентная операция) */
-async function ensureUserTrainingExists(
-  userId: string,
-  dayOnCourseId: string,
-): Promise<string> {
+async function ensureUserTrainingExists(userId: string, dayOnCourseId: string): Promise<string> {
   try {
     const userTraining = await prisma.userTraining.upsert({
       where: {
@@ -282,7 +287,7 @@ async function ensureUserTrainingExists(
     });
     return userTraining.id;
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
       const existing = await prisma.userTraining.findUnique({
         where: {
           userId_dayOnCourseId: {
@@ -408,7 +413,7 @@ export async function getTrainingDayWithUserSteps(
   if (!userTrainingId && options?.createIfMissing) {
     userTrainingId = await ensureUserTrainingExists(userId, foundDayOnCourseId);
   }
-  
+
   if (!userTrainingId) {
     const steps = stepLinks.map(({ step, order }) => ({
       id: step.id,
@@ -446,25 +451,31 @@ export async function getTrainingDayWithUserSteps(
   }
 
   // Получаем статусы UserStep
-  type UserStepWithPause = { id: string; stepOnDayId: string; status: string; paused?: boolean; remainingSec?: number | null };
+  type UserStepWithPause = {
+    id: string;
+    stepOnDayId: string;
+    status: string;
+    paused?: boolean;
+    remainingSec?: number | null;
+  };
   let userSteps: UserStepWithPause[] = [];
-  
+
   try {
-    userSteps = await prisma.userStep.findMany({
+    userSteps = (await prisma.userStep.findMany({
       where: { userTrainingId },
       select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
-    }) as UserStepWithPause[];
+    })) as UserStepWithPause[];
   } catch {
-    userSteps = await prisma.userStep.findMany({
+    userSteps = (await prisma.userStep.findMany({
       where: { userTrainingId },
       select: { id: true, stepOnDayId: true, status: true },
-    }) as UserStepWithPause[];
+    })) as UserStepWithPause[];
   }
 
   // Создаем недостающие UserStep записи
-  const existingStepOnDayIds = new Set(userSteps.map(us => us.stepOnDayId));
-  const allStepOnDayIds = stepLinks.map(link => link.id);
-  const missingStepOnDayIds = allStepOnDayIds.filter(id => !existingStepOnDayIds.has(id));
+  const existingStepOnDayIds = new Set(userSteps.map((us) => us.stepOnDayId));
+  const allStepOnDayIds = stepLinks.map((link) => link.id);
+  const missingStepOnDayIds = allStepOnDayIds.filter((id) => !existingStepOnDayIds.has(id));
 
   if (missingStepOnDayIds.length > 0) {
     try {
@@ -477,21 +488,27 @@ export async function getTrainingDayWithUserSteps(
                 stepOnDayId,
                 status: TrainingStatus.NOT_STARTED,
               },
-              select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
-            })
+              select: {
+                id: true,
+                stepOnDayId: true,
+                status: true,
+                paused: true,
+                remainingSec: true,
+              },
+            }),
           );
           return await Promise.all(promises);
         },
-        { maxWait: 5000, timeout: 10000 }
+        { maxWait: 5000, timeout: 10000 },
       );
 
       userSteps = [...userSteps, ...(newUserSteps as UserStepWithPause[])];
     } catch (creationError) {
       if (isPrismaUniqueConstraintError(creationError)) {
-        const refreshedSteps = await prisma.userStep.findMany({
+        const refreshedSteps = (await prisma.userStep.findMany({
           where: { userTrainingId },
           select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
-        }) as UserStepWithPause[];
+        })) as UserStepWithPause[];
         userSteps = refreshedSteps;
       } else {
         throw creationError;
@@ -502,7 +519,7 @@ export async function getTrainingDayWithUserSteps(
   const stepStatuses = Object.fromEntries(
     userSteps.map((record) => [
       record.stepOnDayId,
-      TrainingStatus[(record.status as string) as keyof typeof TrainingStatus],
+      TrainingStatus[record.status as string as keyof typeof TrainingStatus],
     ]),
   );
 
@@ -513,7 +530,7 @@ export async function getTrainingDayWithUserSteps(
   const pausedByStepId = Object.fromEntries(
     userSteps.map((record) => [record.stepOnDayId, Boolean(record.paused)]),
   );
-  
+
   const remainingByStepId = Object.fromEntries(
     userSteps.map((record) => [record.stepOnDayId, record.remainingSec ?? undefined]),
   );
@@ -532,7 +549,9 @@ export async function getTrainingDayWithUserSteps(
     isPausedOnServer: pausedByStepId[stepOnDayId] ?? false,
     remainingSecOnServer: remainingByStepId[stepOnDayId] ?? undefined,
     type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | undefined,
-    checklist: Array.isArray(step.checklist) ? (step.checklist as unknown as ChecklistQuestion[]) : null,
+    checklist: Array.isArray(step.checklist)
+      ? (step.checklist as unknown as ChecklistQuestion[])
+      : null,
     requiresVideoReport: step.requiresVideoReport,
     requiresWrittenFeedback: step.requiresWrittenFeedback,
     hasTestQuestions: step.hasTestQuestions,
@@ -540,7 +559,7 @@ export async function getTrainingDayWithUserSteps(
   }));
 
   const stepStatusesArr = stepLinks.map(
-    (stepLink) => stepStatuses[stepLink.id] ?? TrainingStatus.NOT_STARTED
+    (stepLink) => stepStatuses[stepLink.id] ?? TrainingStatus.NOT_STARTED,
   );
   const dayUserStatus = calculateDayStatusFromStatuses(stepStatusesArr);
 

@@ -42,6 +42,7 @@ uploads/
 ```
 
 **Описание:**
+
 - `users/{userId}/avatar/` — аватары пользователей
 - `users/{userId}/pets/{petId}/` — фото питомцев
 - `trainers/{trainerId}/steps/{stepId}/` — изображения шагов
@@ -58,7 +59,14 @@ uploads/
 **Рекомендуется использовать helper функции для генерации путей:**
 
 ```typescript
-import { uploadFileToCDN, getUserAvatarPath, getPetPhotoPath, getStepImagePath, getCourseImagePath, getExamVideoPath } from "@gafus/cdn-upload";
+import {
+  uploadFileToCDN,
+  getUserAvatarPath,
+  getPetPhotoPath,
+  getStepImagePath,
+  getCourseImagePath,
+  getExamVideoPath,
+} from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
 
 // Аватар пользователя
@@ -83,13 +91,14 @@ await uploadFileToCDN(file, examVideoPath);
 ```
 
 ### Генерация пресigned URL
+
 ```typescript
-import { generatePresignedUrl } from '@gafus/cdn-upload';
+import { generatePresignedUrl } from "@gafus/cdn-upload";
 
 const url = await generatePresignedUrl({
-  bucket: 'my-bucket',
-  key: 'uploads/image.jpg',
-  expiresIn: 3600 // 1 час
+  bucket: "my-bucket",
+  key: "uploads/image.jpg",
+  expiresIn: 3600, // 1 час
 });
 ```
 

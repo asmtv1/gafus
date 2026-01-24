@@ -15,4 +15,3 @@ modules:
     http:
       method: GET
       follow_redirects: true
-

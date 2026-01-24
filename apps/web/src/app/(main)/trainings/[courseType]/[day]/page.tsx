@@ -25,11 +25,9 @@ export default async function DayPage(props: {
   }
 
   // Создаем UserTraining при необходимости (только в компоненте страницы)
-  const training: TrainingDetail | null = await getTrainingDayWithUserSteps(
-    courseType, 
-    dayId,
-    { createIfMissing: true }
-  );
+  const training: TrainingDetail | null = await getTrainingDayWithUserSteps(courseType, dayId, {
+    createIfMissing: true,
+  });
 
   if (!training) {
     // Вместо throw создаем клиентский компонент с alert
@@ -47,10 +45,7 @@ export async function generateMetadata(props: {
   // Валидируем ID дня
   const dayId = dayIdSchema.parse(day);
   // Read-only вызов без создания UserTraining
-  const training: TrainingDetail | null = await getTrainingDayWithUserSteps(
-    courseType,
-    dayId,
-  );
+  const training: TrainingDetail | null = await getTrainingDayWithUserSteps(courseType, dayId);
 
   if (!training) {
     return generatePageMetadata({

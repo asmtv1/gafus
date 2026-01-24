@@ -9,12 +9,12 @@ import { createWebLogger } from "@gafus/logger";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import * as datesService from "@gafus/core/services/achievements";
 
-const logger = createWebLogger('achievements-actions');
+const logger = createWebLogger("achievements-actions");
 
 /**
  * Получает уникальные даты тренировок пользователя
  * Данные кэшируются на 5 минут для оптимизации производительности.
- * 
+ *
  * @returns Массив уникальных дат занятий
  */
 export async function getUserTrainingDatesAction(): Promise<Date[]> {
@@ -31,7 +31,7 @@ export async function getUserTrainingDatesAction(): Promise<Date[]> {
       {
         revalidate: 300, // 5 минут
         tags: ["achievements", "streaks", `user-${userId}`],
-      }
+      },
     );
 
     return await cachedFunction();

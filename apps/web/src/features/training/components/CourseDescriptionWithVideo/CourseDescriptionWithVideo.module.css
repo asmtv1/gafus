@@ -18,14 +18,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background-color: #ECE5D2;
+  background-color: #ece5d2;
   border: 1px solid #636128;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .descriptionHeader:hover {
-  background-color: #E6DCC7;
+  background-color: #e6dcc7;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -33,7 +33,7 @@
 .descriptionTitle {
   font-size: 16px;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   margin: 0;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
@@ -69,12 +69,12 @@
   justify-content: center;
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 2px solid #D4C4A8;
+  border-top: 2px solid #d4c4a8;
 }
 
 .descriptionContent {
-  color: #352E2E;
-  background-color: #ECE5D2;
+  color: #352e2e;
+  background-color: #ece5d2;
   border: 1px solid #636128;
   border-top: none;
   border-radius: 0 0 12px 12px;
@@ -102,7 +102,7 @@
 .descriptionContent p {
   margin-bottom: 1em;
   line-height: 1.6;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .descriptionContent ul,
@@ -114,7 +114,7 @@
 .descriptionContent li {
   margin-bottom: 0.5em;
   line-height: 1.5;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .descriptionContent h1,
@@ -126,7 +126,7 @@
   margin-top: 1.2em;
   margin-bottom: 0.6em;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
@@ -144,7 +144,7 @@
 
 .descriptionContent strong {
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .descriptionContent em {
@@ -153,12 +153,12 @@
 }
 
 .descriptionContent code {
-  background-color: #D4C4A8;
+  background-color: #d4c4a8;
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 0.9em;
-  color: #8B4513;
+  color: #8b4513;
 }
 
 .descriptionContent blockquote {
@@ -167,7 +167,7 @@
   margin: 1em 0;
   font-style: italic;
   color: #5a5249;
-  background-color: #D4C4A8;
+  background-color: #d4c4a8;
   padding: 12px 16px;
   border-radius: 0 8px 8px 0;
 }
@@ -187,8 +187,8 @@
 .courseInfo {
   margin: 1.5rem 0;
   padding: 1rem;
-  background-color: #F5F0E8;
-  border: 1px solid #D4C4A8;
+  background-color: #f5f0e8;
+  border: 1px solid #d4c4a8;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -209,7 +209,7 @@
 }
 
 .infoValue {
-  color: #352E2E;
+  color: #352e2e;
   font-size: 0.95em;
   line-height: 1.4;
   padding-left: 0.5rem;
@@ -224,7 +224,7 @@
 .videoContainer h3 {
   font-size: 1.2em;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   margin-bottom: 1rem;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
@@ -268,15 +268,15 @@
   .descriptionContainer {
     margin-bottom: 20px;
   }
-  
+
   .descriptionHeader {
     padding: 12px 16px;
   }
-  
+
   .descriptionTitle {
     font-size: 14px;
   }
-  
+
   .descriptionContent.expanded {
     padding: 16px;
   }
@@ -285,40 +285,40 @@
     margin-top: 16px;
     padding-top: 16px;
   }
-  
+
   .descriptionContent.collapsed {
     padding: 0 16px;
   }
-  
+
   .descriptionContent h1 {
     font-size: 1.3em;
   }
-  
+
   .descriptionContent h2 {
     font-size: 1.2em;
   }
-  
+
   .descriptionContent h3 {
     font-size: 1.1em;
   }
-  
+
   .expandIcon {
     font-size: 20px;
   }
-  
+
   .expandText {
     font-size: 12px;
   }
-  
+
   .courseInfo {
     margin: 1rem 0;
     padding: 0.75rem;
   }
-  
+
   .infoLabel {
     font-size: 0.85em;
   }
-  
+
   .infoValue {
     font-size: 0.9em;
   }

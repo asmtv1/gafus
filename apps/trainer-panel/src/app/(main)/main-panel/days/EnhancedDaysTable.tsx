@@ -29,7 +29,7 @@ import {
   CardActions,
   Chip,
   Stack,
-  Divider
+  Divider,
 } from "@mui/material";
 import { visuallyHidden } from "@mui/utils";
 import * as React from "react";
@@ -92,7 +92,10 @@ export default function EnhancedDaysTable({
       return matchesTitle || matchesStepTitle;
     });
   }, [days, normalizedQuery]);
-  const filteredDayIds = React.useMemo(() => new Set(filteredDays.map((day) => day.id)), [filteredDays]);
+  const filteredDayIds = React.useMemo(
+    () => new Set(filteredDays.map((day) => day.id)),
+    [filteredDays],
+  );
 
   React.useEffect(() => {
     setSelected((prev) => prev.filter((id) => filteredDayIds.has(id)));
@@ -162,10 +165,10 @@ export default function EnhancedDaysTable({
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return (
@@ -180,9 +183,9 @@ export default function EnhancedDaysTable({
           }}
         >
           <Typography
-            sx={{ 
+            sx={{
               flex: "1 1 100%",
-              fontSize: { xs: '1rem', sm: '1.25rem' }
+              fontSize: { xs: "1rem", sm: "1.25rem" },
             }}
             color={selected.length > 0 ? "inherit" : "text.primary"}
             variant="h6"
@@ -199,10 +202,10 @@ export default function EnhancedDaysTable({
               }}
               disabled={selected.length === 0}
               sx={{
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation',
-                minWidth: '44px',
-                minHeight: '44px'
+                WebkitTapHighlightColor: "transparent",
+                touchAction: "manipulation",
+                minWidth: "44px",
+                minHeight: "44px",
               }}
             >
               {selected.length > 0 ? <DeleteIcon /> : <FilterListIcon />}
@@ -232,23 +235,25 @@ export default function EnhancedDaysTable({
             <Stack spacing={2}>
               {visibleRows.map((row) => {
                 const isItemSelected = selected.includes(row.id);
-                const stepsList = row.stepLinks && row.stepLinks.length
-                  ? Array.from(new Set(row.stepLinks.map((sl) => sl.step.title))).join(", ")
-                  : "—";
-                const coursesList = row.dayLinks && row.dayLinks.length
-                  ? Array.from(new Set(row.dayLinks.map((dl) => dl.course.name))).join(", ")
-                  : "—";
+                const stepsList =
+                  row.stepLinks && row.stepLinks.length
+                    ? Array.from(new Set(row.stepLinks.map((sl) => sl.step.title))).join(", ")
+                    : "—";
+                const coursesList =
+                  row.dayLinks && row.dayLinks.length
+                    ? Array.from(new Set(row.dayLinks.map((dl) => dl.course.name))).join(", ")
+                    : "—";
 
                 return (
-                  <Card 
+                  <Card
                     key={row.id}
-                    sx={{ 
-                      bgcolor: isItemSelected ? 'action.selected' : 'background.paper',
-                      position: 'relative'
+                    sx={{
+                      bgcolor: isItemSelected ? "action.selected" : "background.paper",
+                      position: "relative",
                     }}
                   >
                     <CardContent sx={{ pb: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, mb: 1.5 }}>
                         <Checkbox
                           size="small"
                           checked={isItemSelected}
@@ -256,28 +261,28 @@ export default function EnhancedDaysTable({
                           sx={{ mt: -0.5 }}
                         />
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                            <Typography variant="h6" sx={{ fontSize: "1rem", fontWeight: 600 }}>
                               {row.title}
                             </Typography>
-                            <Chip 
-                              label={row.type} 
-                              size="small" 
-                              color={row.type === 'TRAINING' ? 'primary' : 'default'}
-                              sx={{ height: '20px', fontSize: '0.6875rem' }}
+                            <Chip
+                              label={row.type}
+                              size="small"
+                              color={row.type === "TRAINING" ? "primary" : "default"}
+                              sx={{ height: "20px", fontSize: "0.6875rem" }}
                             />
                           </Box>
                           {row.description && (
-                            <Typography 
-                              variant="body2" 
-                              color="text.secondary" 
-                              sx={{ 
-                                fontSize: '0.875rem',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                display: '-webkit-box',
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{
+                                fontSize: "0.875rem",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                display: "-webkit-box",
                                 WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical'
+                                WebkitBoxOrient: "vertical",
                               }}
                             >
                               {row.description}
@@ -294,7 +299,7 @@ export default function EnhancedDaysTable({
                             <Typography variant="caption" color="text.secondary">
                               Шаги:
                             </Typography>
-                            <Typography variant="body2" sx={{ fontSize: '0.875rem', mt: 0.25 }}>
+                            <Typography variant="body2" sx={{ fontSize: "0.875rem", mt: 0.25 }}>
                               {stepsList}
                             </Typography>
                           </Box>
@@ -305,7 +310,7 @@ export default function EnhancedDaysTable({
                             <Typography variant="caption" color="text.secondary">
                               Курсы:
                             </Typography>
-                            <Typography variant="body2" sx={{ fontSize: '0.875rem', mt: 0.25 }}>
+                            <Typography variant="body2" sx={{ fontSize: "0.875rem", mt: 0.25 }}>
                               {coursesList}
                             </Typography>
                           </Box>
@@ -316,7 +321,7 @@ export default function EnhancedDaysTable({
                             <Typography variant="caption" color="text.secondary">
                               Автор:
                             </Typography>
-                            <Typography variant="body2" sx={{ fontSize: '0.875rem', mt: 0.25 }}>
+                            <Typography variant="body2" sx={{ fontSize: "0.875rem", mt: 0.25 }}>
                               {renderAuthorName(row)}
                             </Typography>
                           </Box>
@@ -324,16 +329,16 @@ export default function EnhancedDaysTable({
                       </Stack>
                     </CardContent>
 
-                    <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+                    <CardActions sx={{ justifyContent: "flex-end", pt: 0 }}>
                       <IconButton
                         size="small"
                         onClick={() => onEditDay?.(row.id)}
-                        sx={{ 
-                          color: 'primary.main',
-                          WebkitTapHighlightColor: 'transparent',
-                          touchAction: 'manipulation',
-                          minWidth: '44px',
-                          minHeight: '44px'
+                        sx={{
+                          color: "primary.main",
+                          WebkitTapHighlightColor: "transparent",
+                          touchAction: "manipulation",
+                          minWidth: "44px",
+                          minHeight: "44px",
                         }}
                       >
                         <EditIcon fontSize="small" />
@@ -370,10 +375,10 @@ export default function EnhancedDaysTable({
                           direction={orderBy === id ? order : "asc"}
                           onClick={(e) => handleRequestSort(e, id)}
                           sx={{
-                            WebkitTapHighlightColor: 'transparent',
-                            touchAction: 'manipulation',
-                            minHeight: '44px',
-                            '& .MuiTableSortLabel-icon': { mr: 0.5 }
+                            WebkitTapHighlightColor: "transparent",
+                            touchAction: "manipulation",
+                            minHeight: "44px",
+                            "& .MuiTableSortLabel-icon": { mr: 0.5 },
                           }}
                         >
                           {label}
@@ -427,10 +432,10 @@ export default function EnhancedDaysTable({
                               onEditDay?.(row.id);
                             }}
                             sx={{
-                              WebkitTapHighlightColor: 'transparent',
-                              touchAction: 'manipulation',
-                              minWidth: '44px',
-                              minHeight: '44px'
+                              WebkitTapHighlightColor: "transparent",
+                              touchAction: "manipulation",
+                              minWidth: "44px",
+                              minHeight: "44px",
                             }}
                           >
                             <EditIcon />
@@ -453,18 +458,18 @@ export default function EnhancedDaysTable({
           rowsPerPageOptions={[5, 10, 25]}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            '& .MuiTablePagination-select': {
-              fontSize: { xs: '0.875rem', sm: '1rem' }
+            "& .MuiTablePagination-select": {
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             },
-            '& .MuiTablePagination-displayedRows': {
-              fontSize: { xs: '0.875rem', sm: '1rem' }
+            "& .MuiTablePagination-displayedRows": {
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             },
-            '& .MuiIconButton-root': {
-              WebkitTapHighlightColor: 'transparent',
-              touchAction: 'manipulation',
-              minWidth: '44px',
-              minHeight: '44px'
-            }
+            "& .MuiIconButton-root": {
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "manipulation",
+              minWidth: "44px",
+              minHeight: "44px",
+            },
           }}
         />
       </Paper>
@@ -472,10 +477,10 @@ export default function EnhancedDaysTable({
         <FormControlLabel
           control={<Switch checked={dense} onChange={() => setDense((d) => !d)} />}
           label="Компактный режим"
-          sx={{ 
-            fontSize: { xs: '0.875rem', sm: '1rem' },
-            WebkitTapHighlightColor: 'transparent',
-            touchAction: 'manipulation'
+          sx={{
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation",
           }}
         />
       )}

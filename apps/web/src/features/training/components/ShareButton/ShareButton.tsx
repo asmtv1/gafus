@@ -8,12 +8,16 @@ interface ShareButtonProps {
   courseDescription?: string;
 }
 
-export default function ShareButton({ courseName, courseType, courseDescription }: ShareButtonProps) {
+export default function ShareButton({
+  courseName,
+  courseType,
+  courseDescription,
+}: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}/trainings/${courseType}`;
-    const shareText = courseDescription 
+    const shareText = courseDescription
       ? `${courseName}\n\n${courseDescription}\n\n`
       : `${courseName}\n\n`;
     const shareTitle = `Курс: ${courseName}`;
@@ -45,23 +49,13 @@ export default function ShareButton({ courseName, courseType, courseDescription 
   };
 
   return (
-    <button 
-      className={styles.shareButton} 
-      onClick={handleShare}
-      title="Поделиться курсом"
-    >
-      <svg 
-        width="20" 
-        height="20" 
-        viewBox="0 0 24 24" 
-        fill="none"
-        className={styles.shareIcon}
-      >
-        <path 
-          d="M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
+    <button className={styles.shareButton} onClick={handleShare} title="Поделиться курсом">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className={styles.shareIcon}>
+        <path
+          d="M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
           strokeLinejoin="round"
         />
       </svg>
@@ -71,4 +65,3 @@ export default function ShareButton({ courseName, courseType, courseDescription 
     </button>
   );
 }
-

@@ -13,16 +13,24 @@ export default async function NewStepPage() {
   const session = await getServerSession(authOptions);
   const trainerVideos = session?.user?.id ? await getTrainerVideos(session.user.id) : [];
   return (
-    <FormPageLayout 
+    <FormPageLayout
       title="Создание шага тренировки"
       subtitle="Заполните информацию о новом шаге тренировки"
     >
       <Box sx={{ mb: 3 }}>
         <Alert severity="info" sx={{ mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 2,
+            }}
+          >
             <Box>
-              <strong>Совет:</strong> Используйте готовые шаблоны для быстрого создания шага!
-              В библиотеке доступны проверенные методики тренировок.
+              <strong>Совет:</strong> Используйте готовые шаблоны для быстрого создания шага! В
+              библиотеке доступны проверенные методики тренировок.
             </Box>
             <Button
               component={Link}

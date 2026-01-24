@@ -76,10 +76,7 @@ export default function StatisticsClient() {
   const isAdmin = session?.user?.role === "ADMIN";
 
   return (
-    <PageLayout 
-      title="Статистика" 
-      subtitle="Аналитика по вашим курсам и ученикам"
-    >
+    <PageLayout title="Статистика" subtitle="Аналитика по вашим курсам и ученикам">
       <CoursesList courses={courses} isAdmin={isAdmin} />
     </PageLayout>
   );

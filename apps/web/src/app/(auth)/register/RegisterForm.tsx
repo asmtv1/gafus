@@ -16,15 +16,17 @@ import type { RegisterFormSchema } from "@shared/lib/validation/authSchemas";
 export function RegisterForm() {
   const router = useRouter();
 
-  const { form, handleSubmit, setError, formState: { errors, isValid } } = useZodForm(
-    registerFormSchema,
-    {
-      name: "",
-      phone: "",
-      password: "",
-      confirmPassword: "",
-    }
-  );
+  const {
+    form,
+    handleSubmit,
+    setError,
+    formState: { errors, isValid },
+  } = useZodForm(registerFormSchema, {
+    name: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   const [isPending, setIsPending] = useState(false);
   const [caughtError, setCaughtError] = useState<Error | null>(null);

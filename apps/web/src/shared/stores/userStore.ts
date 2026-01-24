@@ -1,4 +1,8 @@
-import { USER_CACHE_DURATION, DEFAULT_USER_PREFERENCES, USER_PREFERENCES_CACHE_DURATION } from "@gafus/types";
+import {
+  USER_CACHE_DURATION,
+  DEFAULT_USER_PREFERENCES,
+  USER_PREFERENCES_CACHE_DURATION,
+} from "@gafus/types";
 import {
   getUserPreferences,
   getUserProfile,
@@ -13,7 +17,7 @@ import { createWebLogger } from "@gafus/logger";
 import type { UserStore } from "./types";
 
 // Создаем логгер для user store
-const logger = createWebLogger('web-user-store');
+const logger = createWebLogger("web-user-store");
 
 // Утилиты для проверки кэша
 const isStale = (timestamp: number, maxAge: number = USER_CACHE_DURATION) => {
@@ -70,12 +74,12 @@ export const useUserStore = create<UserStore>()(
 
         try {
           logger.info("🔄 Получаем профиль через server action", {
-            operation: 'fetch_profile_start'
+            operation: "fetch_profile_start",
           });
           const profile = await getUserProfile();
           logger.success("✅ Профиль получен", {
-            operation: 'fetch_profile_success',
-            profile: profile
+            operation: "fetch_profile_success",
+            profile: profile,
           });
 
           set({
@@ -90,7 +94,7 @@ export const useUserStore = create<UserStore>()(
             isLoading: false,
           });
           logger.error("Ошибка загрузки профиля", error as Error, {
-            operation: 'fetch_profile_error'
+            operation: "fetch_profile_error",
           });
         }
       },
@@ -107,7 +111,7 @@ export const useUserStore = create<UserStore>()(
 
         try {
           logger.info("🔄 Получаем настройки через server action", {
-            operation: 'fetch_preferences_start'
+            operation: "fetch_preferences_start",
           });
           const preferences = await getUserPreferences();
 
@@ -125,7 +129,7 @@ export const useUserStore = create<UserStore>()(
             isUpdatingPreferences: false,
           });
           logger.error("Ошибка загрузки настроек", error as Error, {
-            operation: 'fetch_preferences_error'
+            operation: "fetch_preferences_error",
           });
         }
       },
@@ -135,12 +139,12 @@ export const useUserStore = create<UserStore>()(
 
         try {
           logger.info("🔄 Обновляем профиль через server action", {
-            operation: 'update_profile_start'
+            operation: "update_profile_start",
           });
           const updatedProfile = await updateUserProfile(data);
           logger.success("✅ Профиль обновлен", {
-            operation: 'update_profile_success',
-            updatedProfile: updatedProfile
+            operation: "update_profile_success",
+            updatedProfile: updatedProfile,
           });
 
           set({
@@ -155,7 +159,7 @@ export const useUserStore = create<UserStore>()(
             isUpdating: false,
           });
           logger.error("Ошибка обновления профиля", error as Error, {
-            operation: 'update_profile_error'
+            operation: "update_profile_error",
           });
           throw error;
         }
@@ -166,7 +170,7 @@ export const useUserStore = create<UserStore>()(
 
         try {
           logger.info("🔄 Обновляем настройки через server action", {
-            operation: 'update_preferences_start'
+            operation: "update_preferences_start",
           });
           const updatedPreferences = await updateUserPreferences(prefs);
 
@@ -185,7 +189,7 @@ export const useUserStore = create<UserStore>()(
             isUpdatingPreferences: false,
           });
           logger.error("Ошибка обновления настроек", error as Error, {
-            operation: 'update_preferences_error'
+            operation: "update_preferences_error",
           });
           throw error;
         }
@@ -258,7 +262,7 @@ export const useUserStore = create<UserStore>()(
 );
 
 // Экспорт глобальной переменной для Safari совместимости
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).__USER_STORE__ = useUserStore;
 }

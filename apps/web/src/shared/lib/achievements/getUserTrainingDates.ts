@@ -5,7 +5,7 @@ import { prisma } from "@gafus/prisma";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('web-get-user-training-dates');
+const logger = createWebLogger("web-get-user-training-dates");
 
 /**
  * Базовая функция для получения дат занятий пользователя из БД
@@ -44,7 +44,7 @@ async function getUserTrainingDatesRaw(userId: string): Promise<Date[]> {
 
   // Объединяем все даты и оставляем уникальные по дню (без времени)
   const allDates = new Set<string>();
-  
+
   [...completedSteps, ...completedDays].forEach((item) => {
     const date = new Date(item.updatedAt);
     // Нормализуем до начала дня (00:00:00) для корректного сравнения
@@ -63,12 +63,12 @@ async function getUserTrainingDatesRaw(userId: string): Promise<Date[]> {
 /**
  * Получает уникальные даты, когда пользователь завершал шаги или дни тренировок
  * Используется для правильного подсчета серий занятий
- * 
+ *
  * Данные кэшируются на 5 минут для оптимизации производительности.
  * Кэш инвалидируется при обновлении прогресса пользователя.
- * 
+ *
  * @returns Массив уникальных дат занятий, отсортированных по убыванию (самые свежие первыми)
- * 
+ *
  * @example
  * ```typescript
  * const dates = await getUserTrainingDates();
@@ -82,20 +82,20 @@ export async function getUserTrainingDates(): Promise<Date[]> {
     // Кэшируем данные на 5 минут с тегом для инвалидации
     const cachedFunction = unstable_cache(
       async () => {
-        logger.info("[Cache] Fetching user training dates", { userId, operation: 'info' });
+        logger.info("[Cache] Fetching user training dates", { userId, operation: "info" });
         return await getUserTrainingDatesRaw(userId);
       },
       ["user-training-dates", userId],
       {
         revalidate: 300, // 5 минут - баланс между актуальностью и производительностью
         tags: ["achievements", "streaks", `user-${userId}`],
-      }
+      },
     );
 
     return await cachedFunction();
   } catch (error) {
     logger.error("Ошибка получения дат занятий", error as Error, {
-      operation: 'get_user_training_dates_error'
+      operation: "get_user_training_dates_error",
     });
 
     // Логируем ошибку через logger (отправляется в Loki)
@@ -107,10 +107,9 @@ export async function getUserTrainingDates(): Promise<Date[]> {
         action: "getUserTrainingDates",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         tags: ["achievements", "streaks", "server-action"],
-      }
+      },
     );
 
     return [];
   }
 }
-

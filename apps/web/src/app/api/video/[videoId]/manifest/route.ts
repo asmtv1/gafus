@@ -12,7 +12,7 @@ import { downloadFileFromCDN } from "@gafus/cdn-upload";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ videoId: string }> }
+  { params }: { params: Promise<{ videoId: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -62,11 +62,11 @@ export async function GET(
     // Проверяем статус транскодирования
     if (video.transcodingStatus !== "COMPLETED") {
       return NextResponse.json(
-        { 
+        {
           error: "Видео ещё обрабатывается",
           status: video.transcodingStatus,
         },
-        { status: 425 } // 425 Too Early
+        { status: 425 }, // 425 Too Early
       );
     }
 
@@ -81,8 +81,11 @@ export async function GET(
     // Получаем base URL для формирования абсолютных URL
     const headersList = await headers();
     const host = headersList.get("host");
-    const protocol = headersList.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
-    const baseUrl = host ? `${protocol}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000");
+    const protocol =
+      headersList.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
+    const baseUrl = host
+      ? `${protocol}://${host}`
+      : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     // Парсим манифест и добавляем токены к URL сегментов
     const lines = manifestContent.split("\n");
@@ -91,10 +94,10 @@ export async function GET(
       if (line.trim() && !line.startsWith("#")) {
         // Генерируем signed URL для сегмента
         const segmentPath = line.trim();
-        
+
         // Создаём абсолютный URL для прокси-эндпоинта сегмента
         const segmentUrl = `${baseUrl}/api/video/${videoId}/segment?path=${encodeURIComponent(segmentPath)}&token=${token}`;
-        
+
         return segmentUrl;
       }
       return line;
@@ -108,15 +111,12 @@ export async function GET(
       headers: {
         "Content-Type": "application/vnd.apple.mpegurl",
         "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0",
+        Pragma: "no-cache",
+        Expires: "0",
       },
     });
   } catch (error) {
     console.error("Error serving HLS manifest:", error);
-    return NextResponse.json(
-      { error: "Ошибка получения манифеста" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Ошибка получения манифеста" }, { status: 500 });
   }
 }

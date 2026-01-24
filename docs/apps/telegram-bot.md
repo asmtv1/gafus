@@ -7,17 +7,20 @@ Telegram Bot GAFUS - это автоматизированный бот для �
 ## 🎯 Основные функции
 
 ### Уведомления
+
 - **🔔 Уведомления о тренировках** - Напоминания о начале тренировок
 - **📊 Прогресс тренировок** - Уведомления о завершении этапов
 - **🏆 Достижения** - Уведомления о получении наград
 - **📅 Календарь тренировок** - Планирование и напоминания
 
 ### Аутентификация
+
 - **🔐 Сброс пароля** - Восстановление доступа через Telegram
 - **✅ Подтверждение аккаунта** - Верификация через бота
 - **🔗 Связывание аккаунтов** - Привязка Telegram к профилю
 
 ### Информационная поддержка
+
 - **📚 Справочная информация** - Помощь по использованию системы
 - **📞 Техническая поддержка** - Связь с администраторами
 - **📈 Статистика** - Личная статистика пользователя
@@ -25,6 +28,7 @@ Telegram Bot GAFUS - это автоматизированный бот для �
 ## 🏗️ Архитектура
 
 ### Структура приложения
+
 ```
 apps/telegram-bot/
 ├── bot.ts                   # Основной файл бота
@@ -34,11 +38,12 @@ apps/telegram-bot/
 ```
 
 ### Интеграция с системой
+
 ```typescript
 // bot.ts - Основная логика бота
-import { Bot } from 'grammy';
-import { PrismaClient } from '@gafus/prisma';
-import { logger } from '@gafus/logger';
+import { Bot } from "grammy";
+import { PrismaClient } from "@gafus/prisma";
+import { logger } from "@gafus/logger";
 
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN!);
 const prisma = new PrismaClient();
@@ -47,24 +52,25 @@ const prisma = new PrismaClient();
 ## 🔧 Технические особенности
 
 ### Обработка команд
+
 ```typescript
 // Команды бота
-bot.command('start', async (ctx) => {
+bot.command("start", async (ctx) => {
   const username = ctx.from?.username;
   if (username) {
     const user = await prisma.user.findUnique({
-      where: { telegramId: ctx.from?.id.toString() }
+      where: { telegramId: ctx.from?.id.toString() },
     });
-    
+
     if (user) {
       await ctx.reply(`Привет, ${user.username}! Добро пожаловать в GAFUS!`);
     } else {
-      await ctx.reply('Для использования бота необходимо связать аккаунт с профилем на сайте.');
+      await ctx.reply("Для использования бота необходимо связать аккаунт с профилем на сайте.");
     }
   }
 });
 
-bot.command('help', async (ctx) => {
+bot.command("help", async (ctx) => {
   const helpText = `
 🤖 GAFUS Bot - Помощник по обучению питомцев
 
@@ -80,30 +86,31 @@ bot.command('help', async (ctx) => {
 ```
 
 ### Сброс пароля
+
 ```typescript
-bot.command('reset_password', async (ctx) => {
-  const username = ctx.message?.text?.split(' ')[1];
-  
+bot.command("reset_password", async (ctx) => {
+  const username = ctx.message?.text?.split(" ")[1];
+
   if (!username) {
-    await ctx.reply('Пожалуйста, укажите имя пользователя: /reset_password your_username');
+    await ctx.reply("Пожалуйста, укажите имя пользователя: /reset_password your_username");
     return;
   }
 
   try {
     // Поиск пользователя
     const user = await prisma.user.findUnique({
-      where: { username }
+      where: { username },
     });
 
     if (!user) {
-      await ctx.reply('Пользователь не найден. Проверьте правильность имени пользователя.');
+      await ctx.reply("Пользователь не найден. Проверьте правильность имени пользователя.");
       return;
     }
 
     // Связывание Telegram ID с пользователем
     await prisma.user.update({
       where: { id: user.id },
-      data: { telegramId: ctx.from?.id.toString() }
+      data: { telegramId: ctx.from?.id.toString() },
     });
 
     // Генерация токена сброса пароля
@@ -112,35 +119,35 @@ bot.command('reset_password', async (ctx) => {
       data: {
         token: resetToken,
         userId: user.id,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 часа
-      }
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 часа
+      },
     });
 
     // Отправка ссылки для сброса пароля
     const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${resetToken}`;
     await ctx.reply(`Для сброса пароля перейдите по ссылке: ${resetUrl}`);
 
-    logger.info('Password reset requested via Telegram', {
+    logger.info("Password reset requested via Telegram", {
       userId: user.id,
       username: user.username,
-      telegramId: ctx.from?.id
+      telegramId: ctx.from?.id,
     });
-
   } catch (error) {
-    logger.error('Error in password reset', { error: error.message });
-    await ctx.reply('Произошла ошибка при сбросе пароля. Попробуйте позже.');
+    logger.error("Error in password reset", { error: error.message });
+    await ctx.reply("Произошла ошибка при сбросе пароля. Попробуйте позже.");
   }
 });
 ```
 
 ### Уведомления о тренировках
+
 ```typescript
 // Функция отправки уведомления о тренировке
 async function sendTrainingNotification(userId: string, trainingData: any) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { pets: true }
+      include: { pets: true },
     });
 
     if (!user?.telegramId) return;
@@ -153,61 +160,59 @@ async function sendTrainingNotification(userId: string, trainingData: any) {
 ⏱️ Шаг: ${trainingData.stepTitle}
 ⏰ Продолжительность: ${trainingData.duration} минут
 
-🐕 Питомец: ${user.pets[0]?.name || 'Ваш питомец'}
+🐕 Питомец: ${user.pets[0]?.name || "Ваш питомец"}
 
 Удачной тренировки! 🎯
     `;
 
     await bot.api.sendMessage(user.telegramId, message, {
       reply_markup: {
-        inline_keyboard: [[
-          { text: '📱 Открыть тренировку', url: trainingData.trainingUrl }
-        ]]
-      }
+        inline_keyboard: [[{ text: "📱 Открыть тренировку", url: trainingData.trainingUrl }]],
+      },
     });
 
-    logger.info('Training notification sent', {
+    logger.info("Training notification sent", {
       userId,
       telegramId: user.telegramId,
-      trainingId: trainingData.trainingId
+      trainingId: trainingData.trainingId,
     });
-
   } catch (error) {
-    logger.error('Failed to send training notification', {
+    logger.error("Failed to send training notification", {
       userId,
-      error: error.message
+      error: error.message,
     });
   }
 }
 ```
 
 ### Статистика пользователя
+
 ```typescript
-bot.command('stats', async (ctx) => {
+bot.command("stats", async (ctx) => {
   try {
     const user = await prisma.user.findUnique({
       where: { telegramId: ctx.from?.id.toString() },
       include: {
         pets: true,
         userTrainings: {
-          where: { status: 'COMPLETED' },
+          where: { status: "COMPLETED" },
           include: {
             dayOnCourse: {
-              include: { course: true }
-            }
-          }
-        }
-      }
+              include: { course: true },
+            },
+          },
+        },
+      },
     });
 
     if (!user) {
-      await ctx.reply('Аккаунт не связан. Используйте /reset_password для связи аккаунта.');
+      await ctx.reply("Аккаунт не связан. Используйте /reset_password для связи аккаунта.");
       return;
     }
 
     const completedTrainings = user.userTrainings.length;
     const totalPets = user.pets.length;
-    const completedCourses = new Set(user.userTrainings.map(t => t.dayOnCourse.courseId)).size;
+    const completedCourses = new Set(user.userTrainings.map((t) => t.dayOnCourse.courseId)).size;
 
     const statsMessage = `
 📊 Ваша статистика в GAFUS:
@@ -220,10 +225,9 @@ bot.command('stats', async (ctx) => {
     `;
 
     await ctx.reply(statsMessage);
-
   } catch (error) {
-    logger.error('Error getting user stats', { error: error.message });
-    await ctx.reply('Ошибка при получении статистики. Попробуйте позже.');
+    logger.error("Error getting user stats", { error: error.message });
+    await ctx.reply("Ошибка при получении статистики. Попробуйте позже.");
   }
 });
 ```
@@ -231,46 +235,53 @@ bot.command('stats', async (ctx) => {
 ## 🔔 Система уведомлений
 
 ### Интеграция с очередями
+
 ```typescript
-import { addJob } from '@gafus/queues';
+import { addJob } from "@gafus/queues";
 
 // Добавление задачи отправки уведомления
 async function scheduleNotification(userId: string, notificationData: any) {
-  await addJob('telegram-notifications', 'send-notification', {
-    userId,
-    ...notificationData
-  }, {
-    delay: notificationData.delay || 0,
-    attempts: 3
-  });
+  await addJob(
+    "telegram-notifications",
+    "send-notification",
+    {
+      userId,
+      ...notificationData,
+    },
+    {
+      delay: notificationData.delay || 0,
+      attempts: 3,
+    },
+  );
 }
 
 // Обработка задач уведомлений
 export async function processNotification(job: any) {
   const { userId, type, data } = job.data;
-  
+
   switch (type) {
-    case 'training_reminder':
+    case "training_reminder":
       await sendTrainingNotification(userId, data);
       break;
-    case 'achievement':
+    case "achievement":
       await sendAchievementNotification(userId, data);
       break;
-    case 'course_completed':
+    case "course_completed":
       await sendCourseCompletedNotification(userId, data);
       break;
     default:
-      logger.warn('Unknown notification type', { type, userId });
+      logger.warn("Unknown notification type", { type, userId });
   }
 }
 ```
 
 ### Типы уведомлений
+
 ```typescript
 // Уведомление о достижении
 async function sendAchievementNotification(userId: string, achievementData: any) {
   const user = await prisma.user.findUnique({
-    where: { id: userId }
+    where: { id: userId },
   });
 
   if (!user?.telegramId) return;
@@ -290,7 +301,7 @@ ${achievementData.description}
 // Уведомление о завершении курса
 async function sendCourseCompletedNotification(userId: string, courseData: any) {
   const user = await prisma.user.findUnique({
-    where: { id: userId }
+    where: { id: userId },
   });
 
   if (!user?.telegramId) return;
@@ -312,23 +323,26 @@ async function sendCourseCompletedNotification(userId: string, courseData: any) 
 ## 🔐 Безопасность
 
 ### Валидация команд
+
 ```typescript
 // Middleware для проверки авторизации
 bot.use(async (ctx, next) => {
   const telegramId = ctx.from?.id.toString();
-  
-  if (ctx.message?.text?.startsWith('/reset_password')) {
+
+  if (ctx.message?.text?.startsWith("/reset_password")) {
     // Команда сброса пароля доступна всем
     return next();
   }
 
   // Для других команд проверяем связь с аккаунтом
   const user = await prisma.user.findUnique({
-    where: { telegramId }
+    where: { telegramId },
   });
 
   if (!user) {
-    await ctx.reply('Для использования этой функции необходимо связать аккаунт с профилем на сайте.');
+    await ctx.reply(
+      "Для использования этой функции необходимо связать аккаунт с профилем на сайте.",
+    );
     return;
   }
 
@@ -337,32 +351,36 @@ bot.use(async (ctx, next) => {
 ```
 
 ### Rate limiting
+
 ```typescript
-import { rateLimit } from './utils/rateLimit';
+import { rateLimit } from "./utils/rateLimit";
 
 // Ограничение частоты запросов
-bot.use(rateLimit({
-  windowMs: 60000, // 1 минута
-  max: 10 // максимум 10 запросов в минуту
-}));
+bot.use(
+  rateLimit({
+    windowMs: 60000, // 1 минута
+    max: 10, // максимум 10 запросов в минуту
+  }),
+);
 ```
 
 ## 📊 Логирование и мониторинг
 
 ### Логирование действий
+
 ```typescript
-import { logger } from '@gafus/logger';
+import { logger } from "@gafus/logger";
 
 // Логирование всех команд
 bot.use(async (ctx, next) => {
-  const command = ctx.message?.text?.split(' ')[0];
+  const command = ctx.message?.text?.split(" ")[0];
   const userId = ctx.from?.id;
-  
-  logger.info('Telegram command received', {
+
+  logger.info("Telegram command received", {
     command,
     userId,
     username: ctx.from?.username,
-    chatId: ctx.chat?.id
+    chatId: ctx.chat?.id,
   });
 
   return next();
@@ -370,23 +388,24 @@ bot.use(async (ctx, next) => {
 ```
 
 ### Обработка ошибок
+
 ```typescript
 // Глобальный обработчик ошибок
 bot.catch((err) => {
-  logger.error('Telegram bot error', {
+  logger.error("Telegram bot error", {
     error: err.message,
     stack: err.stack,
-    update: err.ctx?.update
+    update: err.ctx?.update,
   });
 });
 
 // Обработка ошибок API
 bot.api.config.use((previous, method, payload, signal) => {
   return previous(method, payload, signal).catch((error) => {
-    logger.error('Telegram API error', {
+    logger.error("Telegram API error", {
       method,
       error: error.message,
-      payload
+      payload,
     });
     throw error;
   });
@@ -396,37 +415,39 @@ bot.api.config.use((previous, method, payload, signal) => {
 ## 🧪 Тестирование
 
 ### Unit тесты
-```typescript
-import { describe, it, expect, jest } from '@jest/globals';
 
-describe('Telegram Bot', () => {
-  it('should handle start command', async () => {
+```typescript
+import { describe, it, expect, jest } from "@jest/globals";
+
+describe("Telegram Bot", () => {
+  it("should handle start command", async () => {
     const mockCtx = {
-      from: { id: 123, username: 'testuser' },
-      reply: jest.fn()
+      from: { id: 123, username: "testuser" },
+      reply: jest.fn(),
     };
 
     await handleStartCommand(mockCtx);
-    
+
     expect(mockCtx.reply).toHaveBeenCalled();
   });
 });
 ```
 
 ### Integration тесты
-```typescript
-import { Bot } from 'grammy';
 
-describe('Bot Integration', () => {
-  it('should send notification', async () => {
-    const bot = new Bot('test-token');
-    
-    await sendTrainingNotification('user123', {
-      courseName: 'Test Course',
-      dayTitle: 'Day 1',
-      stepTitle: 'Step 1'
+```typescript
+import { Bot } from "grammy";
+
+describe("Bot Integration", () => {
+  it("should send notification", async () => {
+    const bot = new Bot("test-token");
+
+    await sendTrainingNotification("user123", {
+      courseName: "Test Course",
+      dayTitle: "Day 1",
+      stepTitle: "Step 1",
     });
-    
+
     // Проверка отправки сообщения
   });
 });
@@ -435,6 +456,7 @@ describe('Bot Integration', () => {
 ## 🚀 Развертывание
 
 ### Переменные окружения
+
 ```env
 # Telegram Bot
 TELEGRAM_BOT_TOKEN=your-bot-token
@@ -448,6 +470,7 @@ NEXT_PUBLIC_APP_URL=https://gafus.ru
 ```
 
 ### Docker
+
 ```dockerfile
 FROM node:18-alpine
 
@@ -463,9 +486,10 @@ CMD ["node", "dist/bot.js"]
 ```
 
 ### Webhook настройка
+
 ```typescript
 // Настройка webhook для продакшена
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === "production") {
   await bot.api.setWebhook(process.env.TELEGRAM_WEBHOOK_URL!);
 }
 ```
@@ -473,6 +497,7 @@ if (process.env.NODE_ENV === 'production') {
 ## 🔧 Разработка
 
 ### Команды разработки
+
 ```bash
 # Разработка
 pnpm dev                    # Запуск в режиме разработки
@@ -485,6 +510,7 @@ pnpm test:watch            # Тесты в режиме наблюдения
 ```
 
 ### Структура проекта
+
 ```typescript
 // Основные модули
 bot.ts                      # Главный файл бота
@@ -496,4 +522,4 @@ bot.ts                      # Главный файл бота
 
 ---
 
-*Telegram Bot GAFUS обеспечивает удобную интеграцию с мессенджером для уведомлений и поддержки пользователей.*
+_Telegram Bot GAFUS обеспечивает удобную интеграцию с мессенджером для уведомлений и поддержки пользователей._

@@ -22,13 +22,14 @@ model Reminder {
   timezone     String    @default("Europe/Moscow")
   metadata     Json?     // Дополнительные данные
   lastSentAt   DateTime?
-  
+
   @@index([userId, type])
   @@index([enabled, type, reminderTime])
 }
 ```
 
 **Особенности:**
+
 - Один пользователь может иметь несколько напоминаний одного типа (до 5 для "training")
 - Каждое напоминание именуется пользователем
 - Timezone определяется автоматически из браузера
@@ -72,6 +73,7 @@ if (result.success && result.data) {
 ```
 
 **Возвращает:**
+
 ```typescript
 {
   success: boolean;
@@ -95,14 +97,15 @@ interface TrainingReminderData {
 
 ```typescript
 const result = await createTrainingReminder(
-  "Утро",           // name
-  "08:00",          // reminderTime
-  "1,2,3,4,5",      // reminderDays (Пн-Пт)
-  "Europe/Moscow"   // timezone
+  "Утро", // name
+  "08:00", // reminderTime
+  "1,2,3,4,5", // reminderDays (Пн-Пт)
+  "Europe/Moscow", // timezone
 );
 ```
 
 **Проверки:**
+
 - ✅ Лимит: максимум 5 напоминаний типа "training"
 - ✅ Новое напоминание создаётся включенным (`enabled: true`)
 
@@ -116,11 +119,12 @@ const result = await updateTrainingReminder(reminderId, {
   enabled: true,
   reminderTime: "09:30",
   reminderDays: "1,2,3,4,5,6,7",
-  timezone: "Asia/Vladivostok"
+  timezone: "Asia/Vladivostok",
 });
 ```
 
 **Проверки:**
+
 - ✅ Валидация владельца (userId должен совпадать)
 - ✅ Все поля опциональны
 
@@ -133,6 +137,7 @@ const result = await deleteTrainingReminder(reminderId);
 ```
 
 **Проверки:**
+
 - ✅ Валидация владельца
 
 ## Worker для отправки
@@ -169,12 +174,11 @@ Worker использует timezone из настроек каждого нап
 
 ```typescript
 // Получаем текущее время в timezone пользователя
-const currentTime = new Date(
-  new Date().toLocaleString('en-US', { timeZone: reminder.timezone })
-);
+const currentTime = new Date(new Date().toLocaleString("en-US", { timeZone: reminder.timezone }));
 ```
 
 Это гарантирует что:
+
 - Пользователь из Москвы с временем 14:00 получит в 14:00 по Москве
 - Пользователь из Владивостока с временем 14:00 получит в 14:00 по Владивостоку
 
@@ -245,11 +249,13 @@ TrainingReminders (главный компонент)
 ### Для UI
 
 ✅ **Хорошо:**
+
 - Давать понятные названия: "Утро", "После работы"
 - Использовать чёткие временные интервалы (08:00, 14:00, 20:00)
 - Настраивать дни в соответствии с режимом
 
 ❌ **Плохо:**
+
 - Создавать все 5 напоминаний на одно время
 - Называть "Напоминание 1", "Напоминание 2"
 - Устанавливать слишком частые интервалы
@@ -280,7 +286,7 @@ await createReminder(
   "10:00",
   null, // все дни
   timezone,
-  { petId: "pet-123", vaccineName: "Rabies", dueDate: "2025-11-15" }
+  { petId: "pet-123", vaccineName: "Rabies", dueDate: "2025-11-15" },
 );
 ```
 
@@ -289,7 +295,3 @@ await createReminder(
 - [Worker Package](./worker.md) - Background jobs
 - [WebPush Package](./webpush.md) - Push-уведомления
 - [Queues Package](./queues.md) - BullMQ очереди
-
-
-
-

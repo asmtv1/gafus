@@ -13,7 +13,7 @@ export function ClientRedirect() {
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {    
+  useEffect(() => {
     // Редиректим только авторизованных пользователей с главной страницы
     if (status === "authenticated" && session?.user && pathname === "/") {
       router.replace("/courses");
@@ -22,4 +22,3 @@ export function ClientRedirect() {
 
   return null;
 }
-

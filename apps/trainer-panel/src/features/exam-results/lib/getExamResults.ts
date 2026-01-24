@@ -72,9 +72,11 @@ export interface GetExamResultsOptions {
   hideCompleted?: boolean;
 }
 
-export async function getExamResults(options?: GetExamResultsOptions): Promise<ExamResultWithDetails[]> {
+export async function getExamResults(
+  options?: GetExamResultsOptions,
+): Promise<ExamResultWithDetails[]> {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     throw new Error("Не авторизован");
   }
@@ -88,19 +90,19 @@ export async function getExamResults(options?: GetExamResultsOptions): Promise<E
       userStep: {
         // Фильтруем по статусу, если включён фильтр
         ...(options?.hideCompleted && {
-          status: "IN_PROGRESS"
+          status: "IN_PROGRESS",
         }),
         userTraining: {
           dayOnCourse: {
             course: {
               // Если не админ, то только свои курсы
               ...(!isAdmin && {
-                authorId: session.user.id
-              })
-            }
-          }
-        }
-      }
+                authorId: session.user.id,
+              }),
+            },
+          },
+        },
+      },
     },
     include: {
       reviewedBy: {
@@ -121,28 +123,28 @@ export async function getExamResults(options?: GetExamResultsOptions): Promise<E
             include: {
               user: {
                 include: {
-                  profile: true
-                }
+                  profile: true,
+                },
               },
               dayOnCourse: {
                 include: {
                   day: true,
-                  course: true
-                }
-              }
-            }
+                  course: true,
+                },
+              },
+            },
           },
           stepOnDay: {
             include: {
-              step: true
-            }
-          }
-        }
-      }
+              step: true,
+            },
+          },
+        },
+      },
     },
     orderBy: {
-      createdAt: 'desc'
-    }
+      createdAt: "desc",
+    },
   });
 
   return examResults;
@@ -150,7 +152,7 @@ export async function getExamResults(options?: GetExamResultsOptions): Promise<E
 
 export async function getExamResultsByCourse(courseId: string): Promise<ExamResultWithDetails[]> {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     throw new Error("Не авторизован");
   }
@@ -162,9 +164,9 @@ export async function getExamResultsByCourse(courseId: string): Promise<ExamResu
     where: {
       id: courseId,
       ...(!isAdmin && {
-        authorId: session.user.id
-      })
-    }
+        authorId: session.user.id,
+      }),
+    },
   });
 
   if (!course) {
@@ -176,10 +178,10 @@ export async function getExamResultsByCourse(courseId: string): Promise<ExamResu
       userStep: {
         userTraining: {
           dayOnCourse: {
-            courseId: courseId
-          }
-        }
-      }
+            courseId: courseId,
+          },
+        },
+      },
     },
     include: {
       reviewedBy: {
@@ -200,28 +202,28 @@ export async function getExamResultsByCourse(courseId: string): Promise<ExamResu
             include: {
               user: {
                 include: {
-                  profile: true
-                }
+                  profile: true,
+                },
               },
               dayOnCourse: {
                 include: {
                   day: true,
-                  course: true
-                }
-              }
-            }
+                  course: true,
+                },
+              },
+            },
           },
           stepOnDay: {
             include: {
-              step: true
-            }
-          }
-        }
-      }
+              step: true,
+            },
+          },
+        },
+      },
     },
     orderBy: {
-      createdAt: 'desc'
-    }
+      createdAt: "desc",
+    },
   });
 
   return examResults;

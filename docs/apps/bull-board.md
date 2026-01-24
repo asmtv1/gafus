@@ -7,18 +7,21 @@ Bull Board - это веб-интерфейс для мониторинга и �
 ## 🎯 Основные функции
 
 ### Мониторинг очередей
+
 - **📊 Просмотр очередей** и их статусов
 - **🔍 Детальная информация** о задачах
 - **⏱️ Мониторинг производительности** выполнения
 - **📈 Статистика** очередей и задач
 
 ### Управление задачами
+
 - **⏸️ Пауза/возобновление** задач
 - **🔄 Повторное выполнение** неудачных задач
 - **🗑️ Удаление** задач из очередей
 - **📝 Просмотр логов** выполнения
 
 ### Отладка
+
 - **🔍 Детальный просмотр** данных задач
 - **📊 Анализ ошибок** выполнения
 - **⏱️ Профилирование** времени выполнения
@@ -27,6 +30,7 @@ Bull Board - это веб-интерфейс для мониторинга и �
 ## 🏗️ Архитектура
 
 ### Структура приложения
+
 ```
 apps/bull-board/
 ├── bull-board.ts           # Основной файл конфигурации
@@ -35,30 +39,31 @@ apps/bull-board/
 ```
 
 ### Интеграция с очередями
+
 ```typescript
 // bull-board.ts - Конфигурация Bull Board
-import { createBullBoard } from '@bull-board/api';
-import { BullAdapter } from '@bull-board/api/bullAdapter';
-import { ExpressAdapter } from '@bull-board/express';
-import { Queue } from 'bull';
-import { logger } from '@gafus/logger';
+import { createBullBoard } from "@bull-board/api";
+import { BullAdapter } from "@bull-board/api/bullAdapter";
+import { ExpressAdapter } from "@bull-board/express";
+import { Queue } from "bull";
+import { logger } from "@gafus/logger";
 
 // Инициализация очередей
-const emailQueue = new Queue('email', process.env.REDIS_URL!);
-const notificationQueue = new Queue('notification', process.env.REDIS_URL!);
-const imageProcessingQueue = new Queue('image-processing', process.env.REDIS_URL!);
+const emailQueue = new Queue("email", process.env.REDIS_URL!);
+const notificationQueue = new Queue("notification", process.env.REDIS_URL!);
+const imageProcessingQueue = new Queue("image-processing", process.env.REDIS_URL!);
 
 // Создание Bull Board
 const serverAdapter = new ExpressAdapter();
-serverAdapter.setBasePath('/admin/queues');
+serverAdapter.setBasePath("/admin/queues");
 
 createBullBoard({
   queues: [
     new BullAdapter(emailQueue),
     new BullAdapter(notificationQueue),
-    new BullAdapter(imageProcessingQueue)
+    new BullAdapter(imageProcessingQueue),
   ],
-  serverAdapter
+  serverAdapter,
 });
 
 export { serverAdapter };
@@ -67,18 +72,19 @@ export { serverAdapter };
 ## 🔧 Технические особенности
 
 ### Настройка Express сервера
+
 ```typescript
 // Интеграция с Express
-import express from 'express';
-import { serverAdapter } from './bull-board';
+import express from "express";
+import { serverAdapter } from "./bull-board";
 
 const app = express();
 
 // Middleware для аутентификации
-app.use('/admin/queues', authenticateAdmin);
+app.use("/admin/queues", authenticateAdmin);
 
 // Подключение Bull Board
-app.use('/admin/queues', serverAdapter.getRouter());
+app.use("/admin/queues", serverAdapter.getRouter());
 
 const PORT = process.env.BULL_BOARD_PORT || 3003;
 app.listen(PORT, () => {
@@ -87,46 +93,50 @@ app.listen(PORT, () => {
 ```
 
 ### Аутентификация
+
 ```typescript
 // Middleware для защиты Bull Board
 function authenticateAdmin(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    res.status(401).send('Authentication required');
+
+  if (!authHeader || !authHeader.startsWith("Basic ")) {
+    res.status(401).send("Authentication required");
     return;
   }
-  
-  const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
-  const [username, password] = credentials.split(':');
-  
-  if (username === process.env.BULL_BOARD_USERNAME && 
-      password === process.env.BULL_BOARD_PASSWORD) {
+
+  const credentials = Buffer.from(authHeader.slice(6), "base64").toString();
+  const [username, password] = credentials.split(":");
+
+  if (
+    username === process.env.BULL_BOARD_USERNAME &&
+    password === process.env.BULL_BOARD_PASSWORD
+  ) {
     next();
   } else {
-    res.status(401).send('Invalid credentials');
+    res.status(401).send("Invalid credentials");
   }
 }
 ```
 
 ### Кастомные действия
+
 ```typescript
 // Добавление кастомных действий для очередей
-serverAdapter.addAction('retry-failed', async (req, res) => {
+serverAdapter.addAction("retry-failed", async (req, res) => {
   const { queueName, jobId } = req.params;
   const queue = getQueueByName(queueName);
-  
+
   try {
     const job = await queue.getJob(jobId);
     if (job) {
       await job.retry();
       res.json({ success: true });
     } else {
-      res.status(404).json({ error: 'Job not found' });
+      res.status(404).json({ error: "Job not found" });
     }
   } catch (error) {
-    logger.error('Failed to retry job', { queueName, jobId, error });
-    res.status(500).json({ error: 'Failed to retry job' });
+    logger.error("Failed to retry job", { queueName, jobId, error });
+    res.status(500).json({ error: "Failed to retry job" });
   }
 });
 ```
@@ -134,106 +144,109 @@ serverAdapter.addAction('retry-failed', async (req, res) => {
 ## 📊 Мониторинг и аналитика
 
 ### Статистика очередей
+
 ```typescript
 // Получение статистики очередей
 async function getQueueStats() {
   const stats = await Promise.all([
     emailQueue.getJobCounts(),
     notificationQueue.getJobCounts(),
-    imageProcessingQueue.getJobCounts()
+    imageProcessingQueue.getJobCounts(),
   ]);
 
   return {
     email: stats[0],
     notification: stats[1],
     imageProcessing: stats[2],
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
 
 // API endpoint для статистики
-app.get('/api/queue-stats', async (req, res) => {
+app.get("/api/queue-stats", async (req, res) => {
   try {
     const stats = await getQueueStats();
     res.json(stats);
   } catch (error) {
-    logger.error('Failed to get queue stats', { error });
-    res.status(500).json({ error: 'Failed to get statistics' });
+    logger.error("Failed to get queue stats", { error });
+    res.status(500).json({ error: "Failed to get statistics" });
   }
 });
 ```
 
 ### Мониторинг производительности
+
 ```typescript
 // Отслеживание времени выполнения задач
-emailQueue.on('completed', async (job, result) => {
+emailQueue.on("completed", async (job, result) => {
   const duration = Date.now() - job.processedOn!;
-  
-  logger.info('Job completed', {
-    queueName: 'email',
+
+  logger.info("Job completed", {
+    queueName: "email",
     jobId: job.id,
     jobName: job.name,
     duration,
-    result
+    result,
   });
 
   // Сохранение метрик
   await saveJobMetrics({
-    queueName: 'email',
+    queueName: "email",
     jobName: job.name,
     duration,
-    status: 'completed',
-    timestamp: new Date()
+    status: "completed",
+    timestamp: new Date(),
   });
 });
 
-emailQueue.on('failed', async (job, error) => {
+emailQueue.on("failed", async (job, error) => {
   const duration = Date.now() - job.processedOn!;
-  
-  logger.error('Job failed', {
-    queueName: 'email',
+
+  logger.error("Job failed", {
+    queueName: "email",
     jobId: job.id,
     jobName: job.name,
     duration,
-    error: error.message
+    error: error.message,
   });
 
   // Сохранение метрик ошибки
   await saveJobMetrics({
-    queueName: 'email',
+    queueName: "email",
     jobName: job.name,
     duration,
-    status: 'failed',
+    status: "failed",
     error: error.message,
-    timestamp: new Date()
+    timestamp: new Date(),
   });
 });
 ```
 
 ### Алертинг
+
 ```typescript
 // Система алертинга для критических ситуаций
 async function checkQueueHealth() {
   const emailStats = await emailQueue.getJobCounts();
   const notificationStats = await notificationQueue.getJobCounts();
-  
+
   // Алерт при большом количестве неудачных задач
   if (emailStats.failed > 100) {
     await sendAlert({
-      type: 'queue_health',
+      type: "queue_health",
       message: `High failure rate in email queue: ${emailStats.failed} failed jobs`,
-      severity: 'high',
-      queueName: 'email'
+      severity: "high",
+      queueName: "email",
     });
   }
-  
+
   // Алерт при застое в очереди
   if (notificationStats.waiting > 1000) {
     await sendAlert({
-      type: 'queue_stall',
+      type: "queue_stall",
       message: `Queue stall detected in notification queue: ${notificationStats.waiting} waiting jobs`,
-      severity: 'critical',
-      queueName: 'notification'
+      severity: "critical",
+      queueName: "notification",
     });
   }
 }
@@ -245,53 +258,55 @@ setInterval(checkQueueHealth, 5 * 60 * 1000);
 ## 🔧 Управление задачами
 
 ### Повторное выполнение задач
+
 ```typescript
 // API для повторного выполнения неудачных задач
-app.post('/api/queues/:queueName/retry-failed', async (req, res) => {
+app.post("/api/queues/:queueName/retry-failed", async (req, res) => {
   const { queueName } = req.params;
   const queue = getQueueByName(queueName);
-  
+
   try {
     const failedJobs = await queue.getFailed();
     let retriedCount = 0;
-    
+
     for (const job of failedJobs) {
       try {
         await job.retry();
         retriedCount++;
       } catch (error) {
-        logger.error('Failed to retry job', { jobId: job.id, error });
+        logger.error("Failed to retry job", { jobId: job.id, error });
       }
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       retriedCount,
-      totalFailed: failedJobs.length 
+      totalFailed: failedJobs.length,
     });
   } catch (error) {
-    logger.error('Failed to retry failed jobs', { queueName, error });
-    res.status(500).json({ error: 'Failed to retry jobs' });
+    logger.error("Failed to retry failed jobs", { queueName, error });
+    res.status(500).json({ error: "Failed to retry jobs" });
   }
 });
 ```
 
 ### Очистка очередей
+
 ```typescript
 // API для очистки завершенных задач
-app.delete('/api/queues/:queueName/clean', async (req, res) => {
+app.delete("/api/queues/:queueName/clean", async (req, res) => {
   const { queueName } = req.params;
   const { olderThan } = req.body; // в часах
   const queue = getQueueByName(queueName);
-  
+
   try {
     const completedJobs = await queue.getCompleted();
     const failedJobs = await queue.getFailed();
-    
-    const cutoffTime = Date.now() - (olderThan * 60 * 60 * 1000);
-    
+
+    const cutoffTime = Date.now() - olderThan * 60 * 60 * 1000;
+
     let cleanedCount = 0;
-    
+
     // Очистка завершенных задач
     for (const job of completedJobs) {
       if (job.finishedOn && job.finishedOn < cutoffTime) {
@@ -299,7 +314,7 @@ app.delete('/api/queues/:queueName/clean', async (req, res) => {
         cleanedCount++;
       }
     }
-    
+
     // Очистка неудачных задач
     for (const job of failedJobs) {
       if (job.finishedOn && job.finishedOn < cutoffTime) {
@@ -307,47 +322,48 @@ app.delete('/api/queues/:queueName/clean', async (req, res) => {
         cleanedCount++;
       }
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       cleanedCount,
-      olderThan 
+      olderThan,
     });
   } catch (error) {
-    logger.error('Failed to clean queue', { queueName, error });
-    res.status(500).json({ error: 'Failed to clean queue' });
+    logger.error("Failed to clean queue", { queueName, error });
+    res.status(500).json({ error: "Failed to clean queue" });
   }
 });
 ```
 
 ### Пауза/возобновление очередей
+
 ```typescript
 // API для управления состоянием очередей
-app.post('/api/queues/:queueName/pause', async (req, res) => {
+app.post("/api/queues/:queueName/pause", async (req, res) => {
   const { queueName } = req.params;
   const queue = getQueueByName(queueName);
-  
+
   try {
     await queue.pause();
-    logger.info('Queue paused', { queueName });
-    res.json({ success: true, status: 'paused' });
+    logger.info("Queue paused", { queueName });
+    res.json({ success: true, status: "paused" });
   } catch (error) {
-    logger.error('Failed to pause queue', { queueName, error });
-    res.status(500).json({ error: 'Failed to pause queue' });
+    logger.error("Failed to pause queue", { queueName, error });
+    res.status(500).json({ error: "Failed to pause queue" });
   }
 });
 
-app.post('/api/queues/:queueName/resume', async (req, res) => {
+app.post("/api/queues/:queueName/resume", async (req, res) => {
   const { queueName } = req.params;
   const queue = getQueueByName(queueName);
-  
+
   try {
     await queue.resume();
-    logger.info('Queue resumed', { queueName });
-    res.json({ success: true, status: 'resumed' });
+    logger.info("Queue resumed", { queueName });
+    res.json({ success: true, status: "resumed" });
   } catch (error) {
-    logger.error('Failed to resume queue', { queueName, error });
-    res.status(500).json({ error: 'Failed to resume queue' });
+    logger.error("Failed to resume queue", { queueName, error });
+    res.status(500).json({ error: "Failed to resume queue" });
   }
 });
 ```
@@ -355,19 +371,20 @@ app.post('/api/queues/:queueName/resume', async (req, res) => {
 ## 🔍 Отладка и диагностика
 
 ### Просмотр деталей задач
+
 ```typescript
 // API для получения детальной информации о задаче
-app.get('/api/queues/:queueName/jobs/:jobId', async (req, res) => {
+app.get("/api/queues/:queueName/jobs/:jobId", async (req, res) => {
   const { queueName, jobId } = req.params;
   const queue = getQueueByName(queueName);
-  
+
   try {
     const job = await queue.getJob(jobId);
-    
+
     if (!job) {
-      return res.status(404).json({ error: 'Job not found' });
+      return res.status(404).json({ error: "Job not found" });
     }
-    
+
     const jobData = {
       id: job.id,
       name: job.name,
@@ -381,36 +398,37 @@ app.get('/api/queues/:queueName/jobs/:jobId', async (req, res) => {
       finishedOn: job.finishedOn,
       attemptsMade: job.attemptsMade,
       delay: job.delay,
-      timestamp: job.timestamp
+      timestamp: job.timestamp,
     };
-    
+
     res.json(jobData);
   } catch (error) {
-    logger.error('Failed to get job details', { queueName, jobId, error });
-    res.status(500).json({ error: 'Failed to get job details' });
+    logger.error("Failed to get job details", { queueName, jobId, error });
+    res.status(500).json({ error: "Failed to get job details" });
   }
 });
 ```
 
 ### Логирование выполнения
+
 ```typescript
 // Расширенное логирование для отладки
-emailQueue.on('active', (job) => {
-  logger.info('Job started', {
-    queueName: 'email',
+emailQueue.on("active", (job) => {
+  logger.info("Job started", {
+    queueName: "email",
     jobId: job.id,
     jobName: job.name,
     data: job.data,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
-emailQueue.on('progress', (job, progress) => {
-  logger.debug('Job progress', {
-    queueName: 'email',
+emailQueue.on("progress", (job, progress) => {
+  logger.debug("Job progress", {
+    queueName: "email",
     jobId: job.id,
     progress,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 ```
@@ -418,6 +436,7 @@ emailQueue.on('progress', (job, progress) => {
 ## 🚀 Развертывание
 
 ### Переменные окружения
+
 ```env
 # Bull Board
 BULL_BOARD_PORT=3003
@@ -433,6 +452,7 @@ ALERT_EMAIL=admin@gafus.ru
 ```
 
 ### Docker
+
 ```dockerfile
 FROM node:18-alpine
 
@@ -448,6 +468,7 @@ CMD ["node", "dist/bull-board.js"]
 ```
 
 ### Nginx конфигурация
+
 ```nginx
 server {
     listen 80;
@@ -466,6 +487,7 @@ server {
 ## 🔧 Разработка
 
 ### Команды разработки
+
 ```bash
 # Разработка
 pnpm dev                    # Запуск в режиме разработки
@@ -477,6 +499,7 @@ pnpm test                   # Запуск тестов
 ```
 
 ### Структура проекта
+
 ```typescript
 // Основные модули
 bull-board.ts              # Главный файл конфигурации
@@ -488,4 +511,4 @@ bull-board.ts              # Главный файл конфигурации
 
 ---
 
-*Bull Board обеспечивает полный контроль над очередями задач и их мониторинг в экосистеме GAFUS.*
+_Bull Board обеспечивает полный контроль над очередями задач и их мониторинг в экосистеме GAFUS._

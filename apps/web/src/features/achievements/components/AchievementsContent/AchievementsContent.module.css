@@ -88,9 +88,7 @@
 .statsSection,
 .achievementsSection,
 .coursesSection {
-  
   padding: 0 32px;
-  
 }
 
 .sectionTitle {
@@ -109,11 +107,11 @@
 }
 
 .statCard {
-  background:#ECE5D2;
+  background: #ece5d2;
   border-radius: 8px;
   padding: 20px;
   text-align: center;
-  border: 1px solid #B6C582;
+  border: 1px solid #b6c582;
 }
 
 .statIcon {
@@ -209,7 +207,7 @@
 }
 
 .category {
-  background: #ECE5D2;
+  background: #ece5d2;
   border-radius: 8px;
   padding: 20px;
   border: 1px solid #e9ecef;
@@ -234,15 +232,15 @@
   gap: 12px;
   padding: 16px;
   border-radius: 8px;
-  border: 1px solid #B6C582;
+  border: 1px solid #b6c582;
 }
 
 .achievementUnlocked {
-  border-color: #B6C582
+  border-color: #b6c582;
 }
 
 .achievementLocked {
-  background: #FFF8E5;
+  background: #fff8e5;
   opacity: 0.7;
 }
 
@@ -281,7 +279,7 @@
 }
 
 .achievementProgress .progressFill {
-  background: #B6C582;
+  background: #b6c582;
 }
 
 .progressText {
@@ -359,139 +357,139 @@
     padding: 12px;
     min-height: auto;
   }
-  
+
   .header {
     margin-bottom: 20px;
   }
-  
+
   .headerContent {
     flex-direction: column;
     align-items: center;
     gap: 16px;
   }
-  
+
   .headerContent > div {
     text-align: center;
   }
-  
+
   .title {
     font-size: 32px;
     line-height: 1.1;
   }
-  
+
   .subtitle {
     font-size: 14px;
     margin-top: 16px;
   }
-  
+
   .refreshButton {
     width: 36px;
     height: 36px;
     font-size: 14px;
   }
-  
+
   .statsSection,
   .achievementsSection,
   .coursesSection {
     padding: 0 8px;
     margin-bottom: 20px;
   }
-  
+
   .sectionTitle {
     font-size: 18px;
     margin: 16px 0 12px 0;
   }
-  
+
   .statsGrid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
     margin-bottom: 16px;
   }
-  
+
   .statCard {
     padding: 16px 12px;
   }
-  
+
   .statIcon {
     font-size: 20px;
   }
-  
+
   .statValue {
     font-size: 22px;
   }
-  
+
   .statLabel {
     font-size: 12px;
   }
-  
+
   .progressSection {
     padding: 16px;
   }
-  
+
   .achievementsHeader {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
     margin-bottom: 16px;
   }
-  
+
   .achievementsCount {
     font-size: 14px;
   }
-  
+
   .achievementsPercentage {
     font-size: 12px;
   }
-  
+
   .categoriesContainer {
     gap: 16px;
   }
-  
+
   .category {
     padding: 16px;
   }
-  
+
   .categoryTitle {
     font-size: 16px;
     margin-bottom: 12px;
   }
-  
+
   .achievementsGrid {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
+
   .achievementCard {
     flex-direction: row;
     text-align: left;
     padding: 12px;
     align-items: flex-start;
   }
-  
+
   .achievementIcon {
     font-size: 20px;
     margin-right: 8px;
   }
-  
+
   .achievementTitle {
     font-size: 14px;
     margin-bottom: 4px;
   }
-  
+
   .achievementDescription {
     font-size: 12px;
     margin-bottom: 8px;
     line-height: 1.3;
   }
-  
+
   .achievementProgress {
     gap: 6px;
   }
-  
+
   .achievementProgress .progressBar {
     height: 4px;
   }
-  
+
   .progressText {
     font-size: 11px;
     min-width: 30px;
@@ -502,100 +500,100 @@
   .container {
     padding: 8px;
   }
-  
+
   .title {
     font-size: 28px;
   }
-  
+
   .statsSection,
   .achievementsSection,
   .coursesSection {
     padding: 0 4px;
   }
-  
+
   .statsGrid {
     grid-template-columns: 1fr;
     gap: 8px;
   }
-  
+
   .statCard {
     padding: 12px 8px;
   }
-  
+
   .statIcon {
     font-size: 18px;
   }
-  
+
   .statValue {
     font-size: 20px;
   }
-  
+
   .statLabel {
     font-size: 11px;
   }
-  
+
   .progressSection {
     padding: 12px;
   }
-  
+
   .category {
     padding: 12px;
   }
-  
+
   .categoryTitle {
     font-size: 15px;
   }
-  
+
   .achievementCard {
     padding: 10px;
     gap: 8px;
   }
-  
+
   .achievementIcon {
     font-size: 18px;
   }
-  
+
   .achievementTitle {
     font-size: 13px;
   }
-  
+
   .achievementDescription {
     font-size: 11px;
   }
-  
+
   .achievementProgress .progressBar {
     height: 3px;
   }
-  
+
   .progressText {
     font-size: 10px;
     min-width: 25px;
   }
-  
+
   .noData,
   .noAchievements,
   .noCourses {
     padding: 20px 12px;
   }
-  
+
   .noDataIcon,
   .noAchievementsIcon,
   .noCoursesIcon {
     font-size: 36px;
   }
-  
+
   .noData h3,
   .noAchievements h3,
   .noCourses h3 {
     font-size: 18px;
   }
-  
+
   .noData p,
   .noAchievements p,
   .noCourses p {
     font-size: 14px;
   }
-  
+
   .coursesLink {
     padding: 10px 20px;
     font-size: 14px;

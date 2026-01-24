@@ -2,7 +2,10 @@
 
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
-import { checkPhoneMatchesUsernameAction, sendPasswordResetRequestAction } from "@shared/server-actions";
+import {
+  checkPhoneMatchesUsernameAction,
+  sendPasswordResetRequestAction,
+} from "@shared/server-actions";
 import { passwordResetFormSchema } from "@shared/lib/validation/authSchemas";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { useState } from "react";
@@ -12,13 +15,16 @@ import styles from "./passwordReset.module.css";
 import type { PasswordResetFormSchema } from "@shared/lib/validation/authSchemas";
 
 export function PasswordResetForm() {
-  const { form, handleSubmit, setError, clearErrors, formState: { isValid } } = useZodForm(
-    passwordResetFormSchema,
-    {
-      username: "",
-      phone: "",
-    }
-  );
+  const {
+    form,
+    handleSubmit,
+    setError,
+    clearErrors,
+    formState: { isValid },
+  } = useZodForm(passwordResetFormSchema, {
+    username: "",
+    phone: "",
+  });
 
   const [isPending, setIsPending] = useState(false);
   const [status, setStatus] = useState("");

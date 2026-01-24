@@ -10,7 +10,7 @@ import { getSignedVideoUrl } from "./getSignedVideoUrl";
  * - Для внешних видео (YouTube, VK): возвращает оригинальный URL
  */
 export async function getVideoUrlForPlayback(
-  videoUrl: string | null | undefined
+  videoUrl: string | null | undefined,
 ): Promise<string | null> {
   if (!videoUrl) {
     return null;
@@ -41,7 +41,7 @@ export async function getVideoUrlForPlayback(
   if (isCDNVideo) {
     // Извлекаем относительный путь из CDN URL
     const relativePath = getRelativePathFromCDNUrl(videoUrl);
-    
+
     try {
       // Вариант 1: Ищем по hlsManifestPath (если videoUrl уже указывает на .m3u8)
       if (isHLS) {

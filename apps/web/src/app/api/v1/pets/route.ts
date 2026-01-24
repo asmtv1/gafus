@@ -9,7 +9,7 @@ import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError, ValidationError } from "@gafus/core/errors";
 import { z } from "zod";
 
-const logger = createWebLogger('api-pets');
+const logger = createWebLogger("api-pets");
 
 const createPetSchema = z.object({
   name: z.string().min(1, "Имя питомца обязательно"),
@@ -31,15 +31,21 @@ export async function GET() {
 
     // Динамический импорт
     const { getUserPets } = await import("@shared/lib/pets");
-    
+
     const pets = await getUserPets();
     return NextResponse.json({ success: true, data: pets });
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      return NextResponse.json({ success: false, error: error.message, code: "UNAUTHORIZED" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: error.message, code: "UNAUTHORIZED" },
+        { status: 401 },
+      );
     }
     logger.error("API: Error fetching pets", error as Error);
-    return NextResponse.json({ success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
+      { status: 500 },
+    );
   }
 }
 
@@ -55,17 +61,30 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
 
     // Динамический импорт
     const { createPet } = await import("@shared/lib/pets");
-    
+
     const pet = await createPet(parsed);
     return NextResponse.json({ success: true, data: pet });
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      return NextResponse.json({ success: false, error: error.message, code: "UNAUTHORIZED" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: error.message, code: "UNAUTHORIZED" },
+        { status: 401 },
+      );
     }
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ success: false, error: error.errors[0]?.message || "Ошибка валидации", code: "VALIDATION_ERROR" }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.errors[0]?.message || "Ошибка валидации",
+          code: "VALIDATION_ERROR",
+        },
+        { status: 400 },
+      );
     }
     logger.error("API: Error creating pet", error as Error);
-    return NextResponse.json({ success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
+      { status: 500 },
+    );
   }
 });

@@ -45,7 +45,8 @@ export function validateStepForm(data: {
 
   // Валидация ссылки на видео (необязательное поле)
   if (data.videoUrl && data.videoUrl.trim().length > 0) {
-    const urlPattern = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
+    const urlPattern =
+      /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
     if (!urlPattern.test(data.videoUrl)) {
       errors.videoUrl = "Неверный формат ссылки на видео";
     }
@@ -113,7 +114,8 @@ export function validateCourseForm(data: {
 
   // Валидация ссылки на видео (необязательное поле)
   if (data.videoUrl && data.videoUrl.trim().length > 0) {
-    const urlPattern = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
+    const urlPattern =
+      /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
     if (!urlPattern.test(data.videoUrl)) {
       errors.videoUrl = "Неверный формат ссылки на видео";
     }
@@ -224,7 +226,8 @@ export const validators = {
     (message = "Неверный формат ссылки на видео") =>
     (value: string) => {
       if (!value) return null;
-      const urlPattern = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
+      const urlPattern =
+        /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
       return urlPattern.test(value) ? null : message;
     },
 };

@@ -6,7 +6,7 @@ import { updateErrorStatus } from "@shared/lib/error-log-service";
 import { revalidateTag } from "next/cache";
 import { createErrorDashboardLogger } from "@gafus/logger";
 
-const logger = createErrorDashboardLogger('error-dashboard-update-status');
+const logger = createErrorDashboardLogger("error-dashboard-update-status");
 
 /**
  * Обновляет статус ошибки через server action
@@ -14,7 +14,7 @@ const logger = createErrorDashboardLogger('error-dashboard-update-status');
  */
 export async function updateErrorStatusAction(
   errorId: string,
-  status: 'new' | 'viewed' | 'resolved' | 'archived'
+  status: "new" | "viewed" | "resolved" | "archived",
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Получаем сессию для resolvedBy
@@ -60,4 +60,3 @@ export async function updateErrorStatusAction(
     };
   }
 }
-

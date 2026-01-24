@@ -85,10 +85,7 @@ export async function getCourseStatistics(
           },
         });
 
-  const startedStepStatuses = [
-    TrainingStatus.IN_PROGRESS,
-    TrainingStatus.COMPLETED,
-  ];
+  const startedStepStatuses = [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED];
   const userStepsRaw =
     courseIds.length === 0
       ? []
@@ -181,10 +178,7 @@ export async function getCourseStatistics(
   });
 
   const totalCourses = courses.length;
-  const totalDays = coursesRaw.reduce(
-    (sum, course) => sum + course.dayLinks.length,
-    0,
-  );
+  const totalDays = coursesRaw.reduce((sum, course) => sum + course.dayLinks.length, 0);
 
   return {
     courses,
@@ -287,10 +281,7 @@ export async function getDetailedCourseStatistics(
       const dayTrainings = userTrainings.filter((ut) => ut.dayOnCourseId === dayLink.id);
       const totalSteps = dayLink.day.stepLinks.length;
       const completedSteps = dayTrainings.reduce((sum, training) => {
-        return (
-          sum +
-          training.steps.filter((step) => step.status === "COMPLETED").length
-        );
+        return sum + training.steps.filter((step) => step.status === "COMPLETED").length;
       }, 0);
       const totalStepAttempts = dayTrainings.reduce((sum, training) => {
         return sum + training.steps.length;
@@ -301,7 +292,9 @@ export async function getDetailedCourseStatistics(
         training.steps.map((step) => {
           const createdAt = new Date(step.createdAt);
           const updatedAt = new Date(step.updatedAt);
-          return step.status === "COMPLETED" ? (updatedAt.getTime() - createdAt.getTime()) / 1000 : 0;
+          return step.status === "COMPLETED"
+            ? (updatedAt.getTime() - createdAt.getTime()) / 1000
+            : 0;
         }),
       );
       const averageTimePerStep =
@@ -344,16 +337,11 @@ export async function getDetailedCourseStatistics(
     })),
   ).get(courseId);
 
-  const startedStepStatuses = [
-    TrainingStatus.IN_PROGRESS,
-    TrainingStatus.COMPLETED,
-  ];
+  const startedStepStatuses = [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED];
   const startedStepsByCourse = groupStartedStepsByCourse(
     userTrainings.flatMap((training) =>
       training.steps
-        .filter((step) =>
-          startedStepStatuses.includes(step.status as TrainingStatus),
-        )
+        .filter((step) => startedStepStatuses.includes(step.status as TrainingStatus))
         .map((step) => ({
           courseId,
           userId: training.userId,
@@ -370,10 +358,7 @@ export async function getDetailedCourseStatistics(
     startedSteps,
   );
 
-  const progressAnalytics = await getProgressAnalytics(
-    courseId,
-    mergedUsers.userCourses,
-  );
+  const progressAnalytics = await getProgressAnalytics(courseId, mergedUsers.userCourses);
 
   return {
     id: course.id,
@@ -513,10 +498,8 @@ function mergeUserCourses(
   notStartedUsers: number;
 } {
   const merged = new Map<string, UserCourse>();
-  const getStartedAtFromSteps = (userId: string) =>
-    startedStepsMap?.get(userId)?.startedAt ?? null;
-  const hasStartedStep = (userId: string) =>
-    Boolean(startedStepsMap?.has(userId));
+  const getStartedAtFromSteps = (userId: string) => startedStepsMap?.get(userId)?.startedAt ?? null;
+  const hasStartedStep = (userId: string) => Boolean(startedStepsMap?.has(userId));
 
   // Добавляем пользователей из courseUserCourses, но только тех, кто начал хотя бы один шаг
   courseUserCourses.forEach((uc) => {
@@ -561,11 +544,7 @@ function mergeUserCourses(
         return;
       }
       const startedAt = getStartedAtFromSteps(userId);
-      const { status, completedAt } = computeStatusFromTrainings(
-        summary,
-        totalDays,
-        startedAt,
-      );
+      const { status, completedAt } = computeStatusFromTrainings(summary, totalDays, startedAt);
       if (status === TrainingStatus.NOT_STARTED) {
         return;
       }

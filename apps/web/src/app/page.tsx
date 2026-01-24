@@ -6,7 +6,8 @@ import styles from "./page.module.css";
 
 export const metadata = generatePageMetadata({
   title: "Гафус — тренировки для собак от профессиональных кинологов",
-  description: "Приложение для занятий с собакой: обучайтесь по урокам вашего кинолога, выполняйте задания каждый день, отслеживайте прогресс и получайте обратную связь.",
+  description:
+    "Приложение для занятий с собакой: обучайтесь по урокам вашего кинолога, выполняйте задания каждый день, отслеживайте прогресс и получайте обратную связь.",
   path: "/",
 });
 
@@ -20,17 +21,25 @@ export default function AuthPage() {
       </div>
       <h1 className={styles.title}>Гафус!</h1>
       <div className={styles.gafusdialog}>
-      <Image src="/uploads/logo.png" alt="logo" className={styles.logo} width={250} height={250} priority />
-      
-      <div className={styles.speechBubble}>
-        <p className={styles.speechText}>
-        Добро ГАФ пожаловать!<br />
-          Я - мудрый Гафус!
-          <br />
-          Я буду помогать тебе с тренировками!
-          <br />
-        </p>
-      </div>
+        <Image
+          src="/uploads/logo.png"
+          alt="logo"
+          className={styles.logo}
+          width={250}
+          height={250}
+          priority
+        />
+
+        <div className={styles.speechBubble}>
+          <p className={styles.speechText}>
+            Добро ГАФ пожаловать!
+            <br />
+            Я - мудрый Гафус!
+            <br />
+            Я буду помогать тебе с тренировками!
+            <br />
+          </p>
+        </div>
       </div>
       <div className={styles.buttonsContainer}>
         <Link href="/login">

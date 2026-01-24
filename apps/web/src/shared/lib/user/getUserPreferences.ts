@@ -6,7 +6,7 @@ import type { UserPreferences } from "@gafus/types";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
-const logger = createWebLogger('web');
+const logger = createWebLogger("web");
 
 export async function getUserPreferences(): Promise<UserPreferences | null> {
   try {
@@ -40,7 +40,7 @@ export async function getUserPreferences(): Promise<UserPreferences | null> {
       },
     };
   } catch (error) {
-    logger.error("Ошибка в getUserPreferences:", error as Error, { operation: 'error' });
+    logger.error("Ошибка в getUserPreferences:", error as Error, { operation: "error" });
 
     logger.error(
       error instanceof Error ? error.message : "Unknown error in getUserPreferences",
@@ -50,7 +50,7 @@ export async function getUserPreferences(): Promise<UserPreferences | null> {
         action: "getUserPreferences",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         tags: ["user", "preferences", "server-action"],
-      }
+      },
     );
 
     return null;

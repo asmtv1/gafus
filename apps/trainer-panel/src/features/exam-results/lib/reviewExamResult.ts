@@ -49,8 +49,7 @@ export async function reviewExamResult(
     const parseResult = reviewSchema.safeParse({
       userStepId: typeof rawUserStepId === "string" ? rawUserStepId : undefined,
       action: typeof rawAction === "string" ? rawAction : undefined,
-      trainerComment:
-        typeof rawTrainerComment === "string" ? rawTrainerComment : undefined,
+      trainerComment: typeof rawTrainerComment === "string" ? rawTrainerComment : undefined,
     });
 
     if (!parseResult.success) {
@@ -145,15 +144,16 @@ export async function reviewExamResult(
         : finalComment
       : null;
 
-    const pushPayload = action === "approve"
-      ? {
-          title: `"${stepTitle}" зачтён! ✅`,
-          body: "Тренер проверил ваш экзамен. Можете переходить к следующему шагу.",
-        }
-      : {
-          title: `"${stepTitle}" требует доработки ❗️`,
-          body: trimmedComment ? `Комментарий тренера: ${trimmedComment}` : defaultRejectBody,
-        };
+    const pushPayload =
+      action === "approve"
+        ? {
+            title: `"${stepTitle}" зачтён! ✅`,
+            body: "Тренер проверил ваш экзамен. Можете переходить к следующему шагу.",
+          }
+        : {
+            title: `"${stepTitle}" требует доработки ❗️`,
+            body: trimmedComment ? `Комментарий тренера: ${trimmedComment}` : defaultRejectBody,
+          };
 
     try {
       const pushResult = await sendImmediatePushNotification({
@@ -198,7 +198,7 @@ export async function reviewExamResult(
         operation: "action",
         action: "action",
         tags: [],
-      }
+      },
     );
     return { error: "Не удалось проверить экзамен" };
   }

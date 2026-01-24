@@ -43,7 +43,7 @@
 }
 
 .formSectionTitle::before {
-  content: '';
+  content: "";
   width: 4px;
   height: 20px;
   background-color: #007bff;
@@ -71,7 +71,9 @@
   color: #1a1a1a !important;
   border-radius: 6px;
   border: 1px solid #ced4da;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition:
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out;
 }
 
 .formInput:hover {
@@ -125,7 +127,6 @@
   transform: scale(0.98);
 }
 
-
 .formActions {
   display: flex;
   justify-content: flex-end;
@@ -139,7 +140,6 @@
   margin-bottom: 1.5rem;
   border-radius: 6px;
 }
-
 
 /* === АДАПТИВНОСТЬ === */
 
@@ -174,7 +174,7 @@
     padding: 1.25rem;
     border-radius: 8px;
   }
-  
+
   .formPageTitle {
     font-size: 1.5rem;
     margin-bottom: 1.25rem;
@@ -183,7 +183,7 @@
   .formContainer {
     gap: 1.25rem;
   }
-  
+
   .formSection {
     padding: 1.25rem;
     border-radius: 8px;
@@ -217,7 +217,7 @@
     padding: 0.625rem 1.5rem !important;
     font-size: 0.9375rem !important;
   }
-  
+
   .formActions {
     flex-direction: column-reverse;
     gap: 0.75rem;

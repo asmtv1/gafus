@@ -21,7 +21,7 @@ export async function getSignedVideoUrl(videoId: string): Promise<string | null>
 
     console.log("[getSignedVideoUrl] Получаем videoAccessService для videoId:", videoId);
     const videoAccessService = getVideoAccessService();
-    
+
     // Генерируем токен на 2 часа (достаточно для просмотра видео)
     const token = videoAccessService.generateToken({
       videoId,
@@ -32,14 +32,15 @@ export async function getSignedVideoUrl(videoId: string): Promise<string | null>
     // Получаем host из заголовков запроса для формирования правильного URL
     const headersList = await headers();
     const host = headersList.get("host");
-    const protocol = headersList.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
-    
+    const protocol =
+      headersList.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
+
     // Формируем URL к API эндпоинту манифеста
     // Используем host из запроса, если доступен, иначе fallback на env переменную
-    const baseUrl = host 
+    const baseUrl = host
       ? `${protocol}://${host}`
-      : (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000");
-    
+      : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
     const signedUrl = `${baseUrl}/api/video/${videoId}/manifest?token=${token}`;
     console.log("[getSignedVideoUrl] Сгенерирован signed URL:", signedUrl);
     return signedUrl;

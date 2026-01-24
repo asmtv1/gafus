@@ -53,7 +53,9 @@ export async function clearProfilePageCache(username?: string | null): Promise<v
   }
 }
 
-async function sendMessageToServiceWorker(username: string | null): Promise<ClearProfileCacheResult> {
+async function sendMessageToServiceWorker(
+  username: string | null,
+): Promise<ClearProfileCacheResult> {
   return new Promise((resolve, reject) => {
     const controller = navigator.serviceWorker.controller;
     if (!controller) {
@@ -66,7 +68,9 @@ async function sendMessageToServiceWorker(username: string | null): Promise<Clea
       reject(new Error("Service Worker response timeout"));
     }, 4000);
 
-    channel.port1.onmessage = (event: MessageEvent<ClearProfileCacheResult & { type?: string }>) => {
+    channel.port1.onmessage = (
+      event: MessageEvent<ClearProfileCacheResult & { type?: string }>,
+    ) => {
       const data = event.data;
       if (!data) return;
       // Проверяем тип сообщения для безопасности
@@ -119,13 +123,15 @@ async function clearCachesDirectly(username: string | null): Promise<number> {
           // Для HTML кэша проверяем оба варианта ключа (с __sw_html и без)
           const isHTMLCache = cacheName === HTML_CACHE_NAME;
           const hasHTMLParam = url.searchParams.has("__sw_html");
-          
+
           if (isHTMLCache) {
             // Если это HTML кэш и нет параметра __sw_html, создаем ключ с параметром и удаляем оба
             if (!hasHTMLParam) {
               const urlWithHTMLParam = new URL(url.toString());
               urlWithHTMLParam.searchParams.set("__sw_html", "1");
-              const requestWithHTMLParam = new Request(urlWithHTMLParam.toString(), { method: "GET" });
+              const requestWithHTMLParam = new Request(urlWithHTMLParam.toString(), {
+                method: "GET",
+              });
               const deletedWithParam = await cache.delete(requestWithHTMLParam);
               const deletedOriginal = await cache.delete(request);
               if (deletedWithParam || deletedOriginal) removed += 1;
@@ -159,5 +165,3 @@ async function clearCachesDirectly(username: string | null): Promise<number> {
 
   return removed;
 }
-
-

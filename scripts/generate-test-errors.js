@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Универсальный скрипт для генерации тестовых ошибок в error-dashboard
- * 
+ *
  * Использование:
  *   node scripts/generate-test-errors.js              # Все ошибки
  *   node scripts/generate-test-errors.js web          # Только web ошибки

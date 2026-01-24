@@ -95,17 +95,17 @@ export interface GetCoursesResponse {
 export enum UserRole {
   USER = "USER",
   TRAINER = "TRAINER",
-  ADMIN = "ADMIN"
+  ADMIN = "ADMIN",
 }
 
 export enum TrainingStatus {
   NOT_STARTED = "NOT_STARTED",
   IN_PROGRESS = "IN_PROGRESS",
-  COMPLETED = "COMPLETED"
+  COMPLETED = "COMPLETED",
 }
 
 export const TRAINING_LEVELS = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"] as const;
-export type TrainingLevel = typeof TRAINING_LEVELS[number];
+export type TrainingLevel = (typeof TRAINING_LEVELS)[number];
 ```
 
 ### ✅ 4. Utility Types
@@ -160,7 +160,7 @@ import { z } from "zod";
 export const createCourseSchema = z.object({
   name: z.string().min(1),
   description: z.string(),
-  isPrivate: z.boolean()
+  isPrivate: z.boolean(),
 });
 
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;
@@ -219,7 +219,7 @@ interface CourseStore {
   // ✅ Data - может быть в types
   courses: Course[];
   loading: boolean;
-  
+
   // ❌ Actions - только в приложениях
   fetchCourses: () => Promise<void>;
   addToFavorites: (id: string) => void;
@@ -370,18 +370,18 @@ apps/trainer-panel/src/
 
 ### Примеры решений
 
-| Тип | В @packages/types? | Почему |
-|-----|-------------------|--------|
-| `User` interface | ✅ Да | Доменная модель, используется везде |
-| `CourseData` | ✅ Да | Данные курса без UI |
-| `CourseCardProps` | ❌ Нет | Содержит onClick, className |
-| `TrainingStatus` enum | ✅ Да | Бизнес-логика, везде используется |
-| `CourseStore` (с методами) | ❌ Нет | Содержит actions, специфично для Zustand |
-| `CourseStateData` (без методов) | ✅ Да | Только shape данных |
-| `ApiResponse<T>` | ✅ Да | API контракт |
-| `AccordionStepProps` | ❌ Нет | UI компонент, локальное состояние |
-| `TrainerVideoViewModel` | ❌ Нет | View model, адаптация для UI |
-| `CreateCourseInput` (Zod) | ✅ Да | Валидация, используется везде |
+| Тип                             | В @packages/types? | Почему                                   |
+| ------------------------------- | ------------------ | ---------------------------------------- |
+| `User` interface                | ✅ Да              | Доменная модель, используется везде      |
+| `CourseData`                    | ✅ Да              | Данные курса без UI                      |
+| `CourseCardProps`               | ❌ Нет             | Содержит onClick, className              |
+| `TrainingStatus` enum           | ✅ Да              | Бизнес-логика, везде используется        |
+| `CourseStore` (с методами)      | ❌ Нет             | Содержит actions, специфично для Zustand |
+| `CourseStateData` (без методов) | ✅ Да              | Только shape данных                      |
+| `ApiResponse<T>`                | ✅ Да              | API контракт                             |
+| `AccordionStepProps`            | ❌ Нет             | UI компонент, локальное состояние        |
+| `TrainerVideoViewModel`         | ❌ Нет             | View model, адаптация для UI             |
+| `CreateCourseInput` (Zod)       | ✅ Да              | Валидация, используется везде            |
 
 ## Migration Strategy (для будущей работы)
 
@@ -495,4 +495,4 @@ export interface FormEvent {
 
 ---
 
-*Документ создан на основе лучших практик monorepo проектов (Turborepo, Vercel) и современных стандартов TypeScript 2026*
+_Документ создан на основе лучших практик monorepo проектов (Turborepo, Vercel) и современных стандартов TypeScript 2026_

@@ -61,11 +61,13 @@ if (typeof require !== "undefined") {
 ### Добавление новой переменной
 
 1. Добавьте в корневой `.env`:
+
 ```bash
 MY_NEW_VAR=value
 ```
 
 2. Используйте в коде:
+
 ```typescript
 const value = process.env.MY_NEW_VAR;
 ```
@@ -104,4 +106,3 @@ node -e "require('dotenv').config(); console.log(process.env.PROMETHEUS_URL)"
 - `.env.local` не должен быть в git (добавлен в .gitignore)
 - `.env` может быть в git, но без секретов (только примеры)
 - В production переменные устанавливаются через Docker environment или CI/CD
-

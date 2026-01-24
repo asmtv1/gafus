@@ -5,8 +5,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "dev": "tsc --watch"
   },
   "dependencies": {
     "@gafus/prisma": "workspace:*",
@@ -19,4 +19,3 @@
     "typescript": "^5.8.3"
   }
 }
-

@@ -65,10 +65,7 @@ export async function generateAccessToken(user: AuthUser): Promise<string> {
 /**
  * Генерирует refresh token (30 дней)
  */
-export async function generateRefreshToken(
-  userId: string,
-  tokenId: string
-): Promise<string> {
+export async function generateRefreshToken(userId: string, tokenId: string): Promise<string> {
   return new SignJWT({ sub: userId, jti: tokenId })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuer(JWT_ISSUER)
@@ -104,7 +101,7 @@ export async function verifyAccessToken(token: string): Promise<AuthUser | null>
  * Верифицирует refresh token
  */
 export async function verifyRefreshToken(
-  token: string
+  token: string,
 ): Promise<{ userId: string; tokenId: string } | null> {
   try {
     const { payload } = await jwtVerify(token, getRefreshSecret(), {

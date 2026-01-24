@@ -27,4 +27,3 @@ export interface TrainerVideoUploadResult {
   cdnUrl?: string;
   status?: number;
 }
-

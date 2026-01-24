@@ -108,6 +108,3 @@ export function hapticLight(): void {
 export function hapticHeavy(): void {
   triggerHaptic("heavy");
 }
-
-
-

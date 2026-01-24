@@ -6,10 +6,10 @@ const prismaClient = prisma;
 
 async function main() {
   const startTime = Date.now();
-  
+
   console.log("Начинаем сидирование базы данных", {
-    environment: process.env.NODE_ENV || 'development',
-    databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
+    environment: process.env.NODE_ENV || "development",
+    databaseUrl: process.env.DATABASE_URL ? "configured" : "missing",
   });
 
   const hashedPassword = await bcrypt.hash("2407041", 10);
@@ -29,90 +29,93 @@ async function main() {
     username: admin.username,
     phone: admin.phone,
     role: admin.role,
-    isConfirmed: admin.isConfirmed
+    isConfirmed: admin.isConfirmed,
   });
 
-  const [homeCourse, streetCourse, puppyCourse, authorCourse] = await prismaClient.$transaction([
-    prismaClient.course.upsert({
-      where: { type: "home" },
-      update: {},
-      create: {
-        name: "Тренировки дома",
-        type: "home",
-        description: "Как тренировать хвостика дома",
-        shortDesc: "Кратко о курсе",
-        duration: "2 недели",
-        logoImg: "/uploads/courses/3122311.jpg",
-        equipment: "Поводок, игрушки, лакомства",
-        trainingLevel: "BEGINNER",
-        authorId: admin.id,
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40", // Смешные моменты с собаками
-      },
-    }),
-    prismaClient.course.upsert({
-      where: { type: "street" },
-      update: {},
-      create: {
-        name: "Тренировки на улице",
-        type: "street",
-        description: "Как тренировать хвостика на улице",
-        shortDesc: "Кратко о курсе",
-        duration: "2 недели",
-        logoImg: "/uploads/course-logo.webp",
-        equipment: "Поводок, ошейник, лакомства",
-        trainingLevel: "INTERMEDIATE",
-        authorId: admin.id,
-        isPaid: true,
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40", // Смешные собаки на улице
-      },
-    }),
-    prismaClient.course.upsert({
-      where: { type: "puppy" },
-      update: {},
-      create: {
-        name: "Щенок на карантине",
-        type: "puppy",
-        description: "Что делать, пока он маленький",
-        shortDesc: "Кратко о курсе",
-        duration: "1 месяц",
-        logoImg: "/uploads/courses/21312123.jpeg",
-        equipment: "Игрушки, лакомства, пеленки",
-        trainingLevel: "BEGINNER",
-        authorId: admin.id,
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40", // Смешные щенки
-      },
-    }),
-    prismaClient.course.upsert({
-      where: { type: "authors" },
-      update: {},
-      create: {
-        name: "Авторский курс",
-        type: "authors",
-        description: "Супер-методика by Буй с Бугра",
-        shortDesc: "Кратко о курсе",
-        duration: "много лет",
-        logoImg: "/uploads/courses/92086288.jpg",
-        equipment: "Специальное оборудование",
-        trainingLevel: "EXPERT",
-        authorId: admin.id,
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40", // Профессиональная дрессировка
-      },
-    }),
-  ],
-  {
-    maxWait: 5000, // 5 секунд ожидания начала транзакции
-    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
-  });
+  const [homeCourse, streetCourse, puppyCourse, authorCourse] = await prismaClient.$transaction(
+    [
+      prismaClient.course.upsert({
+        where: { type: "home" },
+        update: {},
+        create: {
+          name: "Тренировки дома",
+          type: "home",
+          description: "Как тренировать хвостика дома",
+          shortDesc: "Кратко о курсе",
+          duration: "2 недели",
+          logoImg: "/uploads/courses/3122311.jpg",
+          equipment: "Поводок, игрушки, лакомства",
+          trainingLevel: "BEGINNER",
+          authorId: admin.id,
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40", // Смешные моменты с собаками
+        },
+      }),
+      prismaClient.course.upsert({
+        where: { type: "street" },
+        update: {},
+        create: {
+          name: "Тренировки на улице",
+          type: "street",
+          description: "Как тренировать хвостика на улице",
+          shortDesc: "Кратко о курсе",
+          duration: "2 недели",
+          logoImg: "/uploads/course-logo.webp",
+          equipment: "Поводок, ошейник, лакомства",
+          trainingLevel: "INTERMEDIATE",
+          authorId: admin.id,
+          isPaid: true,
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40", // Смешные собаки на улице
+        },
+      }),
+      prismaClient.course.upsert({
+        where: { type: "puppy" },
+        update: {},
+        create: {
+          name: "Щенок на карантине",
+          type: "puppy",
+          description: "Что делать, пока он маленький",
+          shortDesc: "Кратко о курсе",
+          duration: "1 месяц",
+          logoImg: "/uploads/courses/21312123.jpeg",
+          equipment: "Игрушки, лакомства, пеленки",
+          trainingLevel: "BEGINNER",
+          authorId: admin.id,
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40", // Смешные щенки
+        },
+      }),
+      prismaClient.course.upsert({
+        where: { type: "authors" },
+        update: {},
+        create: {
+          name: "Авторский курс",
+          type: "authors",
+          description: "Супер-методика by Буй с Бугра",
+          shortDesc: "Кратко о курсе",
+          duration: "много лет",
+          logoImg: "/uploads/courses/92086288.jpg",
+          equipment: "Специальное оборудование",
+          trainingLevel: "EXPERT",
+          authorId: admin.id,
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40", // Профессиональная дрессировка
+        },
+      }),
+    ],
+    {
+      maxWait: 5000, // 5 секунд ожидания начала транзакции
+      timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+    },
+  );
   console.log("Курсы созданы", {
     courseCount: 4,
-    courseTypes: ["home", "street", "puppy", "author"]
+    courseTypes: ["home", "street", "puppy", "author"],
   });
 
-  const [stepA, stepB, stepC] = await prismaClient.$transaction([
-    prismaClient.step.create({
-      data: {
-        title: "Базовые команды",
-        description: `## Основы дрессировки
+  const [stepA, stepB, stepC] = await prismaClient.$transaction(
+    [
+      prismaClient.step.create({
+        data: {
+          title: "Базовые команды",
+          description: `## Основы дрессировки
 
 **Цель:** Обучить собаку базовым командам
 
@@ -129,16 +132,16 @@ async function main() {
 ### Оборудование:
 - Лакомства
 - Поводок`,
-        durationSec: 60,
-        type: "TRAINING",
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.step.create({
-      data: {
-        title: "Работа с поводком",
-        description: `## Правильное использование поводка
+          durationSec: 60,
+          type: "TRAINING",
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.step.create({
+        data: {
+          title: "Работа с поводком",
+          description: `## Правильное использование поводка
 
 **Цель:** Научить собаку ходить рядом без натяжения
 
@@ -155,16 +158,16 @@ async function main() {
 ### Оборудование:
 - Поводок длиной 1.5-2 метра
 - Ошейник или шлейка`,
-        durationSec: 90,
-        type: "TRAINING",
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.step.create({
-      data: {
-        title: "Социализация",
-        description: `## Социализация собаки
+          durationSec: 90,
+          type: "TRAINING",
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.step.create({
+        data: {
+          title: "Социализация",
+          description: `## Социализация собаки
 
 **Цель:** Приучить собаку к различным ситуациям
 
@@ -182,27 +185,29 @@ async function main() {
 - Поводок
 - Лакомства для поощрения
 - Игрушки для отвлечения`,
-        durationSec: 120,
-        type: "TRAINING",
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
-        authorId: admin.id,
-      },
-    }),
-  ],
-  {
-    maxWait: 5000, // 5 секунд ожидания начала транзакции
-    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
-  });
+          durationSec: 120,
+          type: "TRAINING",
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
+          authorId: admin.id,
+        },
+      }),
+    ],
+    {
+      maxWait: 5000, // 5 секунд ожидания начала транзакции
+      timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+    },
+  );
   console.log("Базовые шаги созданы", {
     stepCount: 3,
-    stepTitles: ["Базовые команды", "Работа с поводком", "Социализация"]
+    stepTitles: ["Базовые команды", "Работа с поводком", "Социализация"],
   });
 
   const baseDay = await prismaClient.trainingDay.create({
     data: {
       title: "Основы дрессировки",
       type: "base",
-      equipment: "Поводок длиной 1.5-2 метра, ошейник или шлейка, лакомства, игрушки для отвлечения",
+      equipment:
+        "Поводок длиной 1.5-2 метра, ошейник или шлейка, лакомства, игрушки для отвлечения",
       description: `## День 1: Основы дрессировки
 
 **Цель дня:** Заложить фундамент для дальнейшего обучения собаки
@@ -238,7 +243,7 @@ async function main() {
   });
   console.log("Связка шагов с базовым днём выполнена", {
     dayId: baseDay.id,
-    stepCount: 3
+    stepCount: 3,
   });
 
   for (let i = 1; i <= 14; i++) {
@@ -252,7 +257,7 @@ async function main() {
   console.log("Базовый день добавлен в курсы на 14 дней", {
     dayId: baseDay.id,
     courseCount: 4,
-    durationDays: 14
+    durationDays: 14,
   });
 
   const puppyDay = await prismaClient.trainingDay.create({
@@ -291,11 +296,12 @@ async function main() {
       authorId: admin.id,
     },
   });
-  const [stepP1, stepP2] = await prismaClient.$transaction([
-    prismaClient.step.create({
-      data: {
-        title: "Игровая активность",
-        description: `## Развивающие игры для щенка
+  const [stepP1, stepP2] = await prismaClient.$transaction(
+    [
+      prismaClient.step.create({
+        data: {
+          title: "Игровая активность",
+          description: `## Развивающие игры для щенка
 
 **Цель:** Развитие координации и социализации
 
@@ -314,16 +320,16 @@ async function main() {
 - Лакомства для щенков
 
 `,
-        durationSec: 30,
-        type: "TRAINING",
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.step.create({
-      data: {
-        title: "Первые прогулки",
-        description: `## Подготовка к прогулкам
+          durationSec: 30,
+          type: "TRAINING",
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.step.create({
+        data: {
+          title: "Первые прогулки",
+          description: `## Подготовка к прогулкам
 
 **Цель:** Безопасное знакомство с внешним миром
 
@@ -343,17 +349,18 @@ async function main() {
 - Лакомства для поощрения
 
 `,
-        durationSec: 30,
-        type: "TRAINING",
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
-        authorId: admin.id,
-      },
-    }),
-  ],
-  {
-    maxWait: 5000, // 5 секунд ожидания начала транзакции
-    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
-  });
+          durationSec: 30,
+          type: "TRAINING",
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
+          authorId: admin.id,
+        },
+      }),
+    ],
+    {
+      maxWait: 5000, // 5 секунд ожидания начала транзакции
+      timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+    },
+  );
   await prismaClient.stepOnDay.createMany({
     data: [
       { dayId: puppyDay.id, stepId: stepP1.id, order: 1 },
@@ -366,14 +373,15 @@ async function main() {
   console.log("Щенячий день добавлен в курс", {
     dayId: puppyDay.id,
     courseType: "puppy",
-    stepCount: 2
+    stepCount: 2,
   });
 
   const authorDay = await prismaClient.trainingDay.create({
     data: {
       title: "Продвинутая дрессировка",
       type: "authors",
-      equipment: "Кликер, мишени для обучения, препятствия для аджилити, профессиональные лакомства",
+      equipment:
+        "Кликер, мишени для обучения, препятствия для аджилити, профессиональные лакомства",
       description: `## День 1: Продвинутая дрессировка
 
 **Цель дня:** Освоение профессиональных методов дрессировки по методике "Буй с Бугра"
@@ -437,10 +445,10 @@ async function main() {
 - Мишени и препятствия
 
 `,
-        durationSec: 120,
-        type: "EXAMINATION",
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
-        authorId: admin.id,
+      durationSec: 120,
+      type: "EXAMINATION",
+      videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
+      authorId: admin.id,
     },
   });
   await prismaClient.stepOnDay.create({
@@ -452,7 +460,7 @@ async function main() {
   console.log("Авторский день добавлен в курс", {
     dayId: authorDay.id,
     courseType: "author",
-    stepCount: 1
+    stepCount: 1,
   });
 
   await prismaClient.favoriteCourse.createMany({
@@ -465,7 +473,7 @@ async function main() {
   console.log("Курсы добавлены в избранное", {
     userId: admin.id,
     favoriteCount: 4,
-    courseTypes: ["home", "street", "puppy", "author"]
+    courseTypes: ["home", "street", "puppy", "author"],
   });
 
   await prismaClient.courseReview.createMany({
@@ -487,7 +495,7 @@ async function main() {
   });
   console.log("Отзывы добавлены", {
     reviewCount: 2,
-    averageRating: 4.5
+    averageRating: 4.5,
   });
 
   const allCourses = await prismaClient.course.findMany({
@@ -508,7 +516,7 @@ async function main() {
   }
   console.log("Средние рейтинги обновлены", {
     courseCount: allCourses.length,
-    averageRatings: allCourses.map(c => ({ id: c.id, rating: c.avgRating }))
+    averageRatings: allCourses.map((c) => ({ id: c.id, rating: c.avgRating })),
   });
   const hashedTrainerPassword = await bcrypt.hash("12341234", 10);
 
@@ -527,14 +535,15 @@ async function main() {
     trainerId: trainer.id,
     username: trainer.username,
     phone: trainer.phone,
-    role: trainer.role
+    role: trainer.role,
   });
 
-  const [trainerStep1, trainerStep2] = await prismaClient.$transaction([
-    prismaClient.step.create({
-      data: {
-        title: "Подготовительная разминка",
-        description: `## Разминка перед тренировкой
+  const [trainerStep1, trainerStep2] = await prismaClient.$transaction(
+    [
+      prismaClient.step.create({
+        data: {
+          title: "Подготовительная разминка",
+          description: `## Разминка перед тренировкой
 
 **Цель:** Подготовить собаку к активной работе
 
@@ -552,16 +561,16 @@ async function main() {
 - Лакомства для мотивации
 
 `,
-        durationSec: 45,
-        type: "TRAINING",
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
-        authorId: trainer.id,
-      },
-    }),
-    prismaClient.step.create({
-      data: {
-        title: "Обучение аппортировке",
-        description: `## Развитие навыка аппортировки
+          durationSec: 45,
+          type: "TRAINING",
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
+          authorId: trainer.id,
+        },
+      }),
+      prismaClient.step.create({
+        data: {
+          title: "Обучение аппортировке",
+          description: `## Развитие навыка аппортировки
 
 **Цель:** Научить собаку приносить и отдавать предметы
 
@@ -582,30 +591,32 @@ async function main() {
 - Поводок для контроля
 
 `,
-        durationSec: 90,
-        type: "EXAMINATION",
-        videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
-        authorId: trainer.id,
-      },
-    }),
-  ],
-  {
-    maxWait: 5000, // 5 секунд ожидания начала транзакции
-    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
-  });
+          durationSec: 90,
+          type: "EXAMINATION",
+          videoUrl: "https://www.youtube.com/watch?v=4GdobPQTB40",
+          authorId: trainer.id,
+        },
+      }),
+    ],
+    {
+      maxWait: 5000, // 5 секунд ожидания начала транзакции
+      timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+    },
+  );
   console.log("Шаги тренера созданы", {
     trainerId: trainer.id,
     stepCount: 2,
-    stepTitles: ["Подготовительная разминка", "Обучение аппортировке"]
+    stepTitles: ["Подготовительная разминка", "Обучение аппортировке"],
   });
 
-  const [trainerDay1, trainerDay2] = await prismaClient.$transaction([
-    prismaClient.trainingDay.create({
-      data: {
-        title: "Базовая физическая подготовка",
-        type: "trainer",
-        equipment: "Поводок, лакомства, игрушки для аппортировки, конусы для упражнений",
-        description: `## День 1: Базовая физическая подготовка
+  const [trainerDay1, trainerDay2] = await prismaClient.$transaction(
+    [
+      prismaClient.trainingDay.create({
+        data: {
+          title: "Базовая физическая подготовка",
+          type: "trainer",
+          equipment: "Поводок, лакомства, игрушки для аппортировки, конусы для упражнений",
+          description: `## День 1: Базовая физическая подготовка
 
 **Цель дня:** Развить физические способности собаки и подготовить к активным тренировкам
 
@@ -634,15 +645,15 @@ async function main() {
 Собака должна быть физически активной и готовой к более сложным упражнениям.
 
 `,
-        authorId: trainer.id,
-      },
-    }),
-    prismaClient.trainingDay.create({
-      data: {
-        title: "Развитие интеллектуальных навыков",
-        type: "trainer",
-        equipment: "Пазлы для собак, интерактивные игрушки, кликер, разнообразные лакомства",
-        description: `## День 2: Развитие интеллектуальных навыков
+          authorId: trainer.id,
+        },
+      }),
+      prismaClient.trainingDay.create({
+        data: {
+          title: "Развитие интеллектуальных навыков",
+          type: "trainer",
+          equipment: "Пазлы для собак, интерактивные игрушки, кликер, разнообразные лакомства",
+          description: `## День 2: Развитие интеллектуальных навыков
 
 **Цель дня:** Стимулировать умственное развитие собаки и развить концентрацию
 
@@ -677,14 +688,15 @@ async function main() {
 Собака должна проявлять интерес к решению задач и быть более сосредоточенной.
 
 `,
-        authorId: trainer.id,
-      },
-    }),
-  ],
-  {
-    maxWait: 5000, // 5 секунд ожидания начала транзакции
-    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
-  });
+          authorId: trainer.id,
+        },
+      }),
+    ],
+    {
+      maxWait: 5000, // 5 секунд ожидания начала транзакции
+      timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+    },
+  );
 
   await prismaClient.stepOnDay.createMany({
     data: [
@@ -697,41 +709,43 @@ async function main() {
   console.log("Дни тренера со связанными шагами созданы", {
     trainerId: trainer.id,
     dayCount: 2,
-    totalSteps: 4
+    totalSteps: 4,
   });
 
-  const [trainerCourse1, trainerCourse2] = await prismaClient.$transaction([
-    prismaClient.course.create({
-      data: {
-        name: "Курс тренера 1",
-        type: "trainer-course-1",
-        description: "Первый курс от тренера",
-        shortDesc: "Кратко о первом курсе",
-        duration: "3 дня",
-        logoImg: "/uploads/courses/trainer1.jpg",
-        equipment: "Базовое оборудование для тренировок",
-        trainingLevel: "INTERMEDIATE",
-        authorId: trainer.id,
-      },
-    }),
-    prismaClient.course.create({
-      data: {
-        name: "Курс тренера 2",
-        type: "trainer-course-2",
-        description: "Второй курс от тренера",
-        shortDesc: "Кратко о втором курсе",
-        duration: "5 дней",
-        logoImg: "/uploads/courses/trainer2.jpg",
-        equipment: "Продвинутое оборудование",
-        trainingLevel: "ADVANCED",
-        authorId: trainer.id,
-      },
-    }),
-  ],
-  {
-    maxWait: 5000, // 5 секунд ожидания начала транзакции
-    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
-  });
+  const [trainerCourse1, trainerCourse2] = await prismaClient.$transaction(
+    [
+      prismaClient.course.create({
+        data: {
+          name: "Курс тренера 1",
+          type: "trainer-course-1",
+          description: "Первый курс от тренера",
+          shortDesc: "Кратко о первом курсе",
+          duration: "3 дня",
+          logoImg: "/uploads/courses/trainer1.jpg",
+          equipment: "Базовое оборудование для тренировок",
+          trainingLevel: "INTERMEDIATE",
+          authorId: trainer.id,
+        },
+      }),
+      prismaClient.course.create({
+        data: {
+          name: "Курс тренера 2",
+          type: "trainer-course-2",
+          description: "Второй курс от тренера",
+          shortDesc: "Кратко о втором курсе",
+          duration: "5 дней",
+          logoImg: "/uploads/courses/trainer2.jpg",
+          equipment: "Продвинутое оборудование",
+          trainingLevel: "ADVANCED",
+          authorId: trainer.id,
+        },
+      }),
+    ],
+    {
+      maxWait: 5000, // 5 секунд ожидания начала транзакции
+      timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+    },
+  );
 
   // Добавляем тренерские дни в оба курса
   await prismaClient.dayOnCourse.createMany({
@@ -746,78 +760,82 @@ async function main() {
   console.log("Курсы тренера созданы и дни добавлены в них", {
     trainerId: trainer.id,
     courseCount: 2,
-    totalDays: 4
+    totalDays: 4,
   });
 
   // Создаем категории для шаблонов шагов
-  const [movementCategory, staticsCategory, recallCategory, refusalCategory, stateControlCategory] = await prismaClient.$transaction([
-    prismaClient.stepCategory.create({
-      data: {
-        name: "Движение",
-        description: `- движение на провисшем поводке;
+  const [movementCategory, staticsCategory, recallCategory, refusalCategory, stateControlCategory] =
+    await prismaClient.$transaction(
+      [
+        prismaClient.stepCategory.create({
+          data: {
+            name: "Движение",
+            description: `- движение на провисшем поводке;
 - движение рядом у левой и у правой ноги;
 - движение без поводка в заданном радиусе;`,
-        icon: "🚶",
-        order: 1,
-      },
-    }),
-    prismaClient.stepCategory.create({
-      data: {
-        name: "Статика",
-        description: `- Смена позиций лежать, стоять, сидеть по голосовой команде и жесту;
+            icon: "🚶",
+            order: 1,
+          },
+        }),
+        prismaClient.stepCategory.create({
+          data: {
+            name: "Статика",
+            description: `- Смена позиций лежать, стоять, сидеть по голосовой команде и жесту;
 - выдержка в статике при раздражителях в отсутствии проводника;
 - высыл по команде на место и сохранения положения столько, сколько необходимо;`,
-        icon: "⏸️",
-        order: 2,
-      },
-    }),
-    prismaClient.stepCategory.create({
-      data: {
-        name: "Подзыв",
-        description: `- подзыв по рабочей кличке;
+            icon: "⏸️",
+            order: 2,
+          },
+        }),
+        prismaClient.stepCategory.create({
+          data: {
+            name: "Подзыв",
+            description: `- подзыв по рабочей кличке;
 - подзыв по команде «ко мне»;
 - отзыв от еды, игр с другими собаками и людей;`,
-        icon: "📢",
-        order: 3,
-      },
-    }),
-    prismaClient.stepCategory.create({
-      data: {
-        name: "Неподбор",
-        description: `- запрещающая команда;
+            icon: "📢",
+            order: 3,
+          },
+        }),
+        prismaClient.stepCategory.create({
+          data: {
+            name: "Неподбор",
+            description: `- запрещающая команда;
 - отказ от лакомства от посторонних людей;
 - неподбор по умолчанию;`,
-        icon: "🚫",
-        order: 4,
-      },
-    }),
-    prismaClient.stepCategory.create({
-      data: {
-        name: "Контроль состояния",
-        description: `- импульс контроль;
+            icon: "🚫",
+            order: 4,
+          },
+        }),
+        prismaClient.stepCategory.create({
+          data: {
+            name: "Контроль состояния",
+            description: `- импульс контроль;
 - умение расслабляться в новых локациях;
 - быстрый переход от возбуждения в спокойное состояние: игра, встреча гостей и т.д.;`,
-        icon: "🧘",
-        order: 5,
+            icon: "🧘",
+            order: 5,
+          },
+        }),
+      ],
+      {
+        maxWait: 5000, // 5 секунд ожидания начала транзакции
+        timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
       },
-    }),
-  ],
-  {
-    maxWait: 5000, // 5 секунд ожидания начала транзакции
-    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
-  });
+    );
   console.log("Категории шаблонов созданы", {
     categoryCount: 5,
-    categories: ["Движение", "Статика", "Подзыв", "Неподбор", "Контроль состояния"]
+    categories: ["Движение", "Статика", "Подзыв", "Неподбор", "Контроль состояния"],
   });
 
   // Создаем шаблоны шагов из JSON
   // Создаем шаблоны шагов из JSON
-  await prismaClient.$transaction([
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Подзыв — базовый (рабочая кличка + «ко мне»)",
-        description: `## Цель
+  await prismaClient.$transaction(
+    [
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Подзыв — базовый (рабочая кличка + «ко мне»)",
+          description: `## Цель
 Научить собаку быстро и уверенно подходить по рабочей кличке и команде «ко мне», занимая фронтальную позицию.
 
 ## Оборудование
@@ -836,17 +854,17 @@ async function main() {
 - **Наиболее яркое подкрепление предоставляется собаке после лучшего выполнения команды** — за супер-быстрый и аккуратный подзыв давай самое ценное угощение.
 
 > Упражнение всегда начинается с подзыва по рабочей кличке и заканчивается командой «гуляй».`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["подзыв", "базовый", "рабочая кличка"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Подзыв — с удержанием / стимуляцией",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["подзыв", "базовый", "рабочая кличка"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Подзыв — с удержанием / стимуляцией",
+          description: `## Цель
 Усилить мотивацию собаки бегом к владельцу и повысить скорость подзыва.
 
 ## Оборудование
@@ -861,17 +879,17 @@ async function main() {
 ## Полезно знать
 - Удержание — это не наказание: оно временно повышает мотивацию.  
 - **Наиболее яркое подкрепление предоставляется собаке после лучшего выполнения команды** — если подход мгновенный и энергичный, награда должна быть высоким приоритетом.`,
-        durationSec: 40,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["подзыв", "удержание", "мотивация"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Подзыв — через провокации (игрушки / лакомства / ассистент)",
-        description: `## Цель
+          durationSec: 40,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["подзыв", "удержание", "мотивация"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Подзыв — через провокации (игрушки / лакомства / ассистент)",
+          description: `## Цель
 Научить отзыву в присутствии сильных отвлекающих стимулов.
 
 ## Оборудование
@@ -888,17 +906,17 @@ async function main() {
 - Увеличивай сложность постепенно: сначала 1 игрушка, затем 2–3, затем переходи в парк.
 
 > Наиболее яркое подкрепление предоставляется собаке после лучшего выполнения команды.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["подзыв", "провокации", "отвлечения"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Подзыв — из игры с другими собаками",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["подзыв", "провокации", "отвлечения"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Подзыв — из игры с другими собаками",
+          description: `## Цель
 Научить отзыву, когда собака вовлечена в социальную игру.
 
 ## Оборудование
@@ -914,17 +932,17 @@ async function main() {
 ## Полезно знать
 - Отзыв из игры — одна из самых сложных задач; не спеши и делай много прогрессий.  
 - **Наиболее яркое подкрепление предоставляется собаке после лучшего выполнения команды** — особенно важно при больших отвлечениях.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["подзыв", "собаки", "социализация"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Отзыв — этап 30% (короткая дистанция)",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["подзыв", "собаки", "социализация"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Отзыв — этап 30% (короткая дистанция)",
+          description: `## Цель
 Первый шаг к устойчивому отзыву: короткая дистанция, низкая сложность.
 
 ## Оборудование
@@ -939,17 +957,17 @@ async function main() {
 ## Полезно знать
 - Работай по 6–8 повторов и постепенно увеличивай дистанцию.
 - **Наиболее яркое подкрепление предоставляется собаке после лучшего выполнения команды**.`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["отзыв", "прогрессия", "30%"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Отзыв — этап 50% (средняя дистанция)",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["отзыв", "прогрессия", "30%"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Отзыв — этап 50% (средняя дистанция)",
+          description: `## Цель
 Переход к средней дистанции: сохранить скорость и точность.
 
 ## Как выполнять — пошагово
@@ -960,17 +978,17 @@ async function main() {
 ## Полезно знать
 - Вводи лёгкие провокации постепенно (шум, движение людей).  
 - За безупречный отзыв давай самое яркое подкрепление.`,
-        durationSec: 35,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["отзыв", "прогрессия", "50%"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Отзыв — этап 70% (удлинённая дистанция)",
-        description: `## Цель
+          durationSec: 35,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["отзыв", "прогрессия", "50%"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Отзыв — этап 70% (удлинённая дистанция)",
+          description: `## Цель
 Отработка отзыва на большой, но не максимальной дистанции.
 
 ## Как выполнять — пошагово
@@ -981,17 +999,17 @@ async function main() {
 ## Полезно знать
 - Контролируй безопасность: используй длинный поводок до стабильного результата.  
 - **Наиболее яркое подкрепление** — ключевой элемент закрепления.`,
-        durationSec: 40,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["отзыв", "прогрессия", "70%"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Отзыв — этап 100% (полный отзыв, контрольная задача)",
-        description: `## Цель
+          durationSec: 40,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["отзыв", "прогрессия", "70%"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Отзыв — этап 100% (полный отзыв, контрольная задача)",
+          description: `## Цель
 Контрольный отзыв: найти устойчивость на полной дистанции и в сложных условиях.
 
 ## Как выполнять — пошагово
@@ -1000,17 +1018,17 @@ async function main() {
 
 ## Полезно знать
 - Используй максимально ценное вознаграждение за идеальный отзыв; если есть сомнения — уменьшай дистанцию и повторяй этапы.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["отзыв", "экзамен", "100%", "контроль"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Провисший поводок — базовый",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["отзыв", "экзамен", "100%", "контроль"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Провисший поводок — базовый",
+          description: `## Цель
 Собака идёт рядом без натяжения поводка — спокойный и контролируемый шаг.
 
 ## Как выполнять — пошагово
@@ -1021,17 +1039,17 @@ async function main() {
 ## Полезно знать
 - Короткие, частые вознаграждения вначале, затем делай их реже.  
 - За длительные отрезки без натяжения давай более ценное подкрепление.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: movementCategory.id,
-        tags: ["поводок", "базовый", "провис"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Провисший поводок — с отвлечениями и коррекцией",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: movementCategory.id,
+          tags: ["поводок", "базовый", "провис"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Провисший поводок — с отвлечениями и коррекцией",
+          description: `## Цель
 Закрепить спокойное движение на поводке в шумной обстановке.
 
 ## Как выполнять — пошагово
@@ -1042,17 +1060,17 @@ async function main() {
 ## Полезно знать
 - Не перегружай собаку: если устала — сократи сессию.  
 - Лучшее выполнение (ровный провис в условиях отвлечений) награждай особенно щедро.`,
-        durationSec: 90,
-        type: "TRAINING",
-        categoryId: movementCategory.id,
-        tags: ["поводок", "отвлечения", "город"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Движение у ноги — базовое (рядом)",
-        description: `## Цель
+          durationSec: 90,
+          type: "TRAINING",
+          categoryId: movementCategory.id,
+          tags: ["поводок", "отвлечения", "город"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Движение у ноги — базовое (рядом)",
+          description: `## Цель
 Научить собаку держаться рядом с владельцем в синхронном движении.
 
 ## Как выполнять — пошагово
@@ -1063,17 +1081,17 @@ async function main() {
 ## Полезно знать
 - Тренируй повороты и смену темпа отдельно.  
 - За плавную, без рывков ходьбу дай самое яркое подкрепление.`,
-        durationSec: 90,
-        type: "TRAINING",
-        categoryId: movementCategory.id,
-        tags: ["рядом", "базовый", "у ноги"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Движение у ноги — с поворотами/провокациями",
-        description: `## Цель
+          durationSec: 90,
+          type: "TRAINING",
+          categoryId: movementCategory.id,
+          tags: ["рядом", "базовый", "у ноги"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Движение у ноги — с поворотами/провокациями",
+          description: `## Цель
 Сохранить позицию рядом при манёврах и отвлечениях.
 
 ## Как выполнять — пошагово
@@ -1084,17 +1102,17 @@ async function main() {
 ## Полезно знать
 - Работай партиями (например, 3 прохода по 60–90 с).  
 - Чем лучше собака удерживает позицию в непростых условиях — тем более яркая награда.`,
-        durationSec: 90,
-        type: "TRAINING",
-        categoryId: movementCategory.id,
-        tags: ["рядом", "повороты", "сложный"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Повороты на месте в ОП (90°/180°)",
-        description: `## Цель
+          durationSec: 90,
+          type: "TRAINING",
+          categoryId: movementCategory.id,
+          tags: ["рядом", "повороты", "сложный"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Повороты на месте в ОП (90°/180°)",
+          description: `## Цель
 Быстро и аккуратно занимать фронтальную позицию после поворота.
 
 ## Как выполнять — пошагово
@@ -1104,17 +1122,17 @@ async function main() {
 ## Полезно знать
 - Тренируй сначала на месте, затем в движении.  
 - За ровный и быстрый заход в ОП давай более ценное подкрепление.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: movementCategory.id,
-        tags: ["повороты", "ОП", "остановка"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Статика — высыл на место (коврик) — базовый",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: movementCategory.id,
+          tags: ["повороты", "ОП", "остановка"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Статика — высыл на место (коврик) — базовый",
+          description: `## Цель
 Научить собакe заходить на коврик и выдерживать позицию (2 лапы → 4 лапы → укладка).
 
 ## Как выполнять — пошагово
@@ -1125,17 +1143,17 @@ async function main() {
 ## Полезно знать
 - Начинай с коротких выдержек, постепенно увеличивай.  
 - За быструю и аккуратную укладку дай самое яркое подкрепление.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: staticsCategory.id,
-        tags: ["коврик", "место", "базовый"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Коврик — мобильное место: перемещение и публичные локации",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: staticsCategory.id,
+          tags: ["коврик", "место", "базовый"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Коврик — мобильное место: перемещение и публичные локации",
+          description: `## Цель
 Сделать коврик «домиком» для собаки в разных местах: она уверенно зайдёт и выдержит отвлечения.
 
 ## Как выполнять — пошагово
@@ -1146,17 +1164,17 @@ async function main() {
 ## Полезно знать
 - В новых местах сначала делай короткие сессии.  
 - Отличная выдержка на новом коврике заслуживает наилучшего поощрения.`,
-        durationSec: 120,
-        type: "TRAINING",
-        categoryId: staticsCategory.id,
-        tags: ["коврик", "публичные места", "генерализация"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Коврик — выдержка с провокациями (кафе / публичные места)",
-        description: `## Цель
+          durationSec: 120,
+          type: "TRAINING",
+          categoryId: staticsCategory.id,
+          tags: ["коврик", "публичные места", "генерализация"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Коврик — выдержка с провокациями (кафе / публичные места)",
+          description: `## Цель
 Укрепить умение не реагировать на еду/шум/людей, сохраняя положение на коврике.
 
 ## Как выполнять — пошагово
@@ -1166,17 +1184,17 @@ async function main() {
 
 ## Полезно знать
 - За успешную выдержку в сильных отвлечениях используй наилучшее подкрепление.`,
-        durationSec: 120,
-        type: "TRAINING",
-        categoryId: staticsCategory.id,
-        tags: ["коврик", "выдержка", "кафе", "провокации"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Неподбор — открытые боксы",
-        description: `## Цель
+          durationSec: 120,
+          type: "TRAINING",
+          categoryId: staticsCategory.id,
+          tags: ["коврик", "выдержка", "кафе", "провокации"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Неподбор — открытые боксы",
+          description: `## Цель
 Научить собаку обходить видимые лакомства без подбора.
 
 ## Как выполнять — пошагово
@@ -1187,17 +1205,17 @@ async function main() {
 ## Полезно знать
 - Начни с лёгких лакомств, затем повышай соблазн.  
 - За успешный обход дай особенно ценное вознаграждение.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: refusalCategory.id,
-        tags: ["неподбор", "открытые боксы"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Неподбор — закрытые боксы (сложный вариант)",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: refusalCategory.id,
+          tags: ["неподбор", "открытые боксы"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Неподбор — закрытые боксы (сложный вариант)",
+          description: `## Цель
 Проверка неподбора, когда содержание боксов скрыто.
 
 ## Как выполнять — пошагово
@@ -1208,17 +1226,17 @@ async function main() {
 ## Полезно знать
 - Следи за безопасностью (без мелких предметов).  
 - Лучшее выполнение — без попыток открыть боксы — награждай щедро.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: refusalCategory.id,
-        tags: ["неподбор", "закрытые боксы", "сложный"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Неподбор — в связке с другими командами",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: refusalCategory.id,
+          tags: ["неподбор", "закрытые боксы", "сложный"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Неподбор — в связке с другими командами",
+          description: `## Цель
 Встроить неподбор в реальные последовательности (ходьба рядом, подзыв, коврик).
 
 ## Как выполнять — пошагово
@@ -1229,17 +1247,17 @@ async function main() {
 ## Полезно знать
 - Связки готовят собаку к реальным сценариям прогулки.  
 - За безошибочное прохождение всей цепочки давай наиболее яркое подкрепление.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: refusalCategory.id,
-        tags: ["неподбор", "связки", "комплекс"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Остановка из движения по команде «стой»",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: refusalCategory.id,
+          tags: ["неподбор", "связки", "комплекс"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Остановка из движения по команде «стой»",
+          description: `## Цель
 Научить моментально останавливаться по команде во время движения.
 
 ## Как выполнять — пошагово
@@ -1250,17 +1268,17 @@ async function main() {
 ## Полезно знать
 - Тренируй на разных скоростях и поверхностях.  
 - Чёткая остановка и без рывков заслуживает наилучшей награды.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: movementCategory.id,
-        tags: ["остановка", "стой", "команда"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Удержание (техника усиления подзыва)",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: movementCategory.id,
+          tags: ["остановка", "стой", "команда"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Удержание (техника усиления подзыва)",
+          description: `## Цель
 Использовать краткое удержание, чтобы усилить мотивацию к стремительному подзыву.
 
 ## Как выполнять — пошагово
@@ -1271,17 +1289,17 @@ async function main() {
 ## Полезно знать
 - Держи удержание мягким и коротким.  
 - За энергичный старт после удержания давай лучшее подкрепление.`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["удержание", "техника", "подзыв"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Наведение (рука / мишень / поводок) — формирование траектории",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["удержание", "техника", "подзыв"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Наведение (рука / мишень / поводок) — формирование траектории",
+          description: `## Цель
 Формировать корректные траектории движения и точные заходы в позицию.
 
 ## Как выполнять — пошагово
@@ -1292,17 +1310,17 @@ async function main() {
 ## Полезно знать
 - Наведение помогает при поворотах и заходах.  
 - За чистую, выполненную траекторию давай наилучшее подкрепление.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["наведение", "мишень", "техника"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Шейпинг / маркировка предложенного поведения",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["наведение", "мишень", "техника"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Шейпинг / маркировка предложенного поведения",
+          description: `## Цель
 Формировать сложные или новых поведенческие элементы методом шейпинга и маркировки.
 
 ## Как выполнять — пошагово
@@ -1313,17 +1331,17 @@ async function main() {
 ## Полезно знать
 - Шейпинг требует терпения, но даёт точные результаты.  
 - За идеальное исполнение используй самое яркое подкрепление.`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["шейпинг", "маркировка", "поведение"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Высы́л вперёд и отзыв на место — длительная выдержка",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["шейпинг", "маркировка", "поведение"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Высы́л вперёд и отзыв на место — длительная выдержка",
+          description: `## Цель
 Научить уходу на точку и выдержке до 2–3 минут с последующим отзывом.
 
 ## Как выполнять — пошагово
@@ -1334,17 +1352,17 @@ async function main() {
 ## Полезно знать
 - Увеличивай выдержку по 15–30 секунд за сессию.  
 - Отличная выдержка и отзыв — повод дать самое яркое подкрепление.`,
-        durationSec: 120,
-        type: "TRAINING",
-        categoryId: staticsCategory.id,
-        tags: ["высыл", "выдержка", "дистанция"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Отзыв в городе — контрольная задача с ассистентом и провокациями",
-        description: `## Цель
+          durationSec: 120,
+          type: "TRAINING",
+          categoryId: staticsCategory.id,
+          tags: ["высыл", "выдержка", "дистанция"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Отзыв в городе — контрольная задача с ассистентом и провокациями",
+          description: `## Цель
 Проверить отзыв в городской среде с реальными отвлечениями.
 
 ## Как выполнять — пошагово
@@ -1354,17 +1372,17 @@ async function main() {
 ## Полезно знать
 - Помни про безопасность (дороги, прохожие).  
 - За надёжный городской отзыв давай самое ценное угощение.`,
-        durationSec: 90,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["отзыв", "город", "контроль", "провокации"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Контроль состояния — переход возбуждение → спокойствие",
-        description: `## Цель
+          durationSec: 90,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["отзыв", "город", "контроль", "провокации"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Контроль состояния — переход возбуждение → спокойствие",
+          description: `## Цель
 Научить собаку быстро переключаться из состояния возбуждения в спокойное по команде.
 
 ## Как выполнять — пошагово
@@ -1374,17 +1392,17 @@ async function main() {
 ## Полезно знать
 - Короткие и частые упражнения повышают успех.  
 - За быстрое и чистое переключение давай яркое подкрепление.`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["контроль", "возбуждение", "спокойствие"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Генерализация навыков в городской среде",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["контроль", "возбуждение", "спокойствие"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Генерализация навыков в городской среде",
+          description: `## Цель
 Перенести навыки с тренировочной площадки на реальные маршруты и места.
 
 ## Как выполнять — пошагово
@@ -1394,17 +1412,17 @@ async function main() {
 ## Полезно знать
 - Постепенная генерализация — ключ к стабильности.  
 - За успех в реальных условиях давай самое яркое подкрепление.`,
-        durationSec: 90,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["генерализация", "город", "практика"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Фокус / «Смотри на меня» (Watch Me)",
-        description: `## Цель
+          durationSec: 90,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["генерализация", "город", "практика"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Фокус / «Смотри на меня» (Watch Me)",
+          description: `## Цель
 Научить собаку смотреть владельцу в глаза по сигналу — базовый инструмент удержания внимания и профилактики отвлечений.
 
 ## Оборудование
@@ -1428,17 +1446,17 @@ async function main() {
 > Важно: подзыв по рабочей кличке и отпуск по команде «гуляй» являются обязательными компонентами каждого упражнения.
 
 > Наиболее яркое подкрепление предоставляется собаке после лучшего выполнения команды.`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["фокус", "внимание", "смотри"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Leave It — отказ от предмета в руках",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["фокус", "внимание", "смотри"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Leave It — отказ от предмета в руках",
+          description: `## Цель
 Научить собаку отказываться от предмета, который находится в твоей руке — важная безопасность в быту.
 
 ## Оборудование
@@ -1453,17 +1471,17 @@ async function main() {
 ## Полезно знать
 - Меняй скорость прогрессии в зависимости от интереса собаки к предмету.  
 - За чистый отказ давай наиболее яркое подкрепление.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: refusalCategory.id,
-        tags: ["leave it", "отказ", "нельзя"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Drop It / Give — отдача предмета",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: refusalCategory.id,
+          tags: ["leave it", "отказ", "нельзя"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Drop It / Give — отдача предмета",
+          description: `## Цель
 Научить собаку отдавать предмет по команде без сопротивления — важно для безопасных игр и отдачи находок.
 
 ## Оборудование
@@ -1478,17 +1496,17 @@ async function main() {
 ## Советы
 - Не тяните предмет силой — используйте трейд (обмен на лучшее).  
 - За спокойную и быструю отдачу давайте самое яркое подкрепление.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: refusalCategory.id,
-        tags: ["drop it", "отдача", "дай"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Экстренный отзыв (Emergency Recall)",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: refusalCategory.id,
+          tags: ["drop it", "отдача", "дай"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Экстренный отзыв (Emergency Recall)",
+          description: `## Цель
 Создать отдельный, очень сильный сигнал для немедленного возврата собаки в опасной ситуации.
 
 ## Оборудование
@@ -1507,17 +1525,17 @@ async function main() {
 
 ## Важно
 - Экстренный отзыв требует редких, но очень мощных наград; используйте его только в серьёзных ситуациях и проверяйте регулярно.`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["экстренный отзыв", "безопасность", "свисток"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Ждать у порога / Door Manners",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["экстренный отзыв", "безопасность", "свисток"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Ждать у порога / Door Manners",
+          description: `## Цель
 Научить собаку спокойно ждать у двери, не выбегать и не прыгать на гостей.
 
 ## Оборудование
@@ -1533,17 +1551,17 @@ async function main() {
 ## Советы
 - Делай небольшие шаги прогрессии, поощряй спокойствие.  
 - За идеальное ожидание у двери давай особенно яркое подкрепление.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["порог", "ждать", "двери"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Крейт / приучение к месту сна (Crate settling)",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["порог", "ждать", "двери"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Крейт / приучение к месту сна (Crate settling)",
+          description: `## Цель
 Сделать крейт/место отдыха приятным: собака спокойно и добровольно входит и остаётся в нём.
 
 ## Оборудование
@@ -1558,17 +1576,17 @@ async function main() {
 ## Полезно знать
 - Крейt — безопасное место, не наказание.  
 - За спокойную, расслабленную укладку в крейте давай яркое подкрепление.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: staticsCategory.id,
-        tags: ["крейт", "место", "покой"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Десенсибилизация к прикосновениям / Handling",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: staticsCategory.id,
+          tags: ["крейт", "место", "покой"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Десенсибилизация к прикосновениям / Handling",
+          description: `## Цель
 Привыкание к прикосновениям (груминг, ветеринарные осмотры) без стресса.
 
 ## Оборудование
@@ -1583,17 +1601,17 @@ async function main() {
 ## Советы
 - Работай короткими сессиями и укрепляй позитивную ассоциацию с прикосновениями.  
 - За спокойное принятие манипуляций — особо яркое подкрепление.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["прикосновения", "handling", "десенсибилизация"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Targeting / Touch — коснуться руки или мишени",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["прикосновения", "handling", "десенсибилизация"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Targeting / Touch — коснуться руки или мишени",
+          description: `## Цель
 Научить собаку целенаправленно касаться рукой/мишенью носом — основа для трюков и точных заходов.
 
 ## Оборудование
@@ -1608,17 +1626,17 @@ async function main() {
 ## Полезно знать
 - Targeting хорошо интегрируется в игры и трюки.  
 - За точный, быстрый контакт — самое яркое подкрепление.`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["targeting", "touch", "мишень"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Trade / «Сдай — получи» (обмен предметов)",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["targeting", "touch", "мишень"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Trade / «Сдай — получи» (обмен предметов)",
+          description: `## Цель
 Научить собаку безопасно обменивать предмет на более ценное вознаграждение.
 
 ## Оборудование
@@ -1633,17 +1651,17 @@ async function main() {
 ## Советы
 - Обмен уменьшает конфликт вокруг ресурсов — работает лучше, чем отбор силой.  
 - За спокойный обмен давай особенно яркое подкрепление.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: refusalCategory.id,
-        tags: ["trade", "обмен", "ресурсы"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Развивка разлуки / постепенное привыкание (Separation Desensitization)",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: refusalCategory.id,
+          tags: ["trade", "обмен", "ресурсы"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Развивка разлуки / постепенное привыкание (Separation Desensitization)",
+          description: `## Цель
 Постепенно приучать собаку находиться в одиночестве без тревоги.
 
 ## Оборудование
@@ -1658,17 +1676,17 @@ async function main() {
 ## Полезно знать
 - Делай маленькие шаги; при признаках сильной тревоги обратись к специалисту.  
 - За спокойные промежутки одиночества — положительное подкрепление хозяйства.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["разлука", "separation", "тревога"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Игры на самообладание / импульс-контроль",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["разлука", "separation", "тревога"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Игры на самообладание / импульс-контроль",
+          description: `## Цель
 Развивать способность ждать и контролировать порывы (еда, старт игры).
 
 ## Оборудование
@@ -1683,17 +1701,17 @@ async function main() {
 ## Советы
 - Начинай с минимального ожидания и наращивай.  
 - За выдержку давай более яркое подкрепление.`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["импульс-контроль", "самообладание", "ожидание"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Threshold / триггер-менеджмент (работа до точки кипения)",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["импульс-контроль", "самообладание", "ожидание"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Threshold / триггер-менеджмент (работа до точки кипения)",
+          description: `## Цель
 Учиться замечать и работать до того момента, когда собака «перегревается», чтобы переработать поведение в спокойной зоне.
 
 ## Как выполнять — шаги
@@ -1705,17 +1723,17 @@ async function main() {
 ## Полезно знать
 - Это профилактический подход: лучше предотвратить, чем исправлять.  
 - За своевременное переключение — самое яркое подкрепление.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["threshold", "триггеры", "профилактика"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Дистанционный свист / дистанционный отзыв",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["threshold", "триггеры", "профилактика"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Дистанционный свист / дистанционный отзыв",
+          description: `## Цель
 Развить надёжный отзыв на свист или другой дистанционный сигнал для больших площадей.
 
 ## Оборудование
@@ -1730,17 +1748,17 @@ async function main() {
 ## Советы
 - Свист должен быть один и тот же звук; используйте его экономно и только в отработанных ситуациях.  
 - За идеальный отзыв со свистом давайте самое яркое подкрепление.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: recallCategory.id,
-        tags: ["свисток", "дистанция", "отзыв"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Порядок кормления / манеры у миски (Food-bowl manners)",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: recallCategory.id,
+          tags: ["свисток", "дистанция", "отзыв"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Порядок кормления / манеры у миски (Food-bowl manners)",
+          description: `## Цель
 Воспитать аккуратные и безопасные привычки вокруг еды: ожидание, спокойствие и отдача.
 
 ## Как выполнять — шаги
@@ -1751,17 +1769,17 @@ async function main() {
 ## Полезно знать
 - Последовательность в рутине кормления уменьшает напряжение вокруг еды.  
 - За спокойное ожидание и порядок у миски — яркое подкрепление (похвала/лакомство).`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["кормление", "миска", "манеры"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Уверенность и социализация (Confidence building)",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["кормление", "миска", "манеры"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Уверенность и социализация (Confidence building)",
+          description: `## Цель
 Повышать уверенность робких или застенчивых собак через контролируемые, позитивные контакты и маленькие успехи.
 
 ## Как выполнять — шаги
@@ -1773,18 +1791,18 @@ async function main() {
 ## Советы
 - Мелкие, частые успехи укрепляют уверенность лучше, чем один большой шаг.  
 - За проявленную смелость и правильное поведение давайте самое яркое подкрепление.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["уверенность", "социализация", "робость"],
-        authorId: admin.id,
-      },
-    }),
-    // Дополнительные шаблоны — продвинутые методики
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Маркерное обучение — основа (Marker / Clicker basics)",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["уверенность", "социализация", "робость"],
+          authorId: admin.id,
+        },
+      }),
+      // Дополнительные шаблоны — продвинутые методики
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Маркерное обучение — основа (Marker / Clicker basics)",
+          description: `## Цель
 Познакомить собаку с маркером (кликером или словом-«да») — чтобы моментально отмечать правильное поведение и связать его с наградой.
 
 ## Оборудование
@@ -1802,17 +1820,17 @@ async function main() {
 - **Наиболее яркое подкрепление предоставляется собаке после лучшего выполнения команды** — особенно на этапах перехода от маркера к реальной награде.
 
 > Основано на классических принципах маркерного обучения (Karen Pryor) и широко рекомендуемо в современной практической кинологии.`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["маркер", "кликер", "основы", "обучение"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Шейпинг — формирование сложного поведения (Free shaping)",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["маркер", "кликер", "основы", "обучение"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Шейпинг — формирование сложного поведения (Free shaping)",
+          description: `## Цель
 Построить сложные команды (трюки или точные элементы поведения) путём поощрения маленьких шагов — шейпинга.
 
 ## Оборудование
@@ -1827,17 +1845,17 @@ async function main() {
 ## Полезно знать
 - Шейпинг даёт творческую, честную «путь к результату» без принуждения и идеально сочетается с маркерной тренировкой.  
 - За точную, быструю реализацию — самое яркое подкрепление.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["шейпинг", "трюки", "сложное поведение"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Контркондиционирование (Counterconditioning) — страх/реактивность",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["шейпинг", "трюки", "сложное поведение"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Контркондиционирование (Counterconditioning) — страх/реактивность",
+          description: `## Цель
 Изменить эмоциональную реакцию собаки на пугающий/провоцирующий стимул (автомобили, громкие звуки, другие собаки) с негативной на нейтрально-положительную.
 
 ## Как выполнять — шаг за шагом
@@ -1851,17 +1869,17 @@ async function main() {
 - За спокойную реакцию и снижение тревоги давай яркое подкрепление.
 
 > Этот подход подробно описан как эффективный инструмент в работе с реактивностью в современной литературе по поведению собак.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["страх", "реактивность", "контркондиционирование"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Систематическая десенсибилизация (Systematic Desensitization)",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["страх", "реактивность", "контркондиционирование"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Систематическая десенсибилизация (Systematic Desensitization)",
+          description: `## Цель
 Постепенно снизить чувствительность к раздражителю, который вызывает стресс или нежелательное поведение.
 
 ## Как выполнять — пошагово
@@ -1873,17 +1891,17 @@ async function main() {
 ## Полезно знать
 - Desensitization + counterconditioning работают лучше всего в паре.  
 - За демонстрацию спокойствия на повышенном уровне стимула — самое яркое подкрепление.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["десенсибилизация", "стресс", "постепенность"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Распознавание и работа с 'calming signals' (успокаивающие сигналы)",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["десенсибилизация", "стресс", "постепенность"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Распознавание и работа с 'calming signals' (успокаивающие сигналы)",
+          description: `## Цель
 Научить владельца замечать успокаивающие сигналы собаки (лицемерные «зевки», облизывание носа, отворачивание) — чтобы корректно реагировать и не доводить до эскалации.
 
 ## Как выполнять — пошагово
@@ -1895,17 +1913,17 @@ async function main() {
 ## Полезно знать
 - Техника — из работ Turid Rugaas; полезна для профилактики конфликтов и лучшего понимания эмоций собаки.  
 - За корректную реакцию владельца и снижение стресса собаки — яркое подкрепление (похвала, мягкий лакомство).`,
-        durationSec: 30,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["сигналы", "коммуникация", "эмоции"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Puppy socialization checklist (Ian Dunbar style)",
-        description: `## Цель
+          durationSec: 30,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["сигналы", "коммуникация", "эмоции"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Puppy socialization checklist (Ian Dunbar style)",
+          description: `## Цель
 Систематически познакомить щенка с людьми, звуками, поверхностями и опытом в безопасный период социализации.
 
 ## Как выполнять — пошагово
@@ -1917,17 +1935,17 @@ async function main() {
 ## Полезно знать
 - Ian Dunbar рекомендует раннюю и позитивную социализацию, разбитую на маленькие порции; это снижает риск будущих поведенческих проблем.  
 - За успешные знакомства давай особенно яркое подкрепление.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["щенок", "социализация", "Ian Dunbar"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Мат-процедура релаксации (Mat protocol — долгосрочная укладка)",
-        description: `## Цель
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["щенок", "социализация", "Ian Dunbar"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Мат-процедура релаксации (Mat protocol — долгосрочная укладка)",
+          description: `## Цель
 Научить собаку самостоятельно успокаиваться и оставаться в заданном месте (коврик/мат) длительное время.
 
 ## Как выполнять — шаг за шагом
@@ -1938,17 +1956,17 @@ async function main() {
 ## Полезно знать
 - Подходит для рутин (пока готовят еду, гости в доме).  
 - За долгую и спокойную выдержку — самое яркое подкрепление.`,
-        durationSec: 90,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["мат", "релаксация", "место", "выдержка"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Proofing / закрепление поведения в разных условиях",
-        description: `## Цель
+          durationSec: 90,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["мат", "релаксация", "место", "выдержка"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Proofing / закрепление поведения в разных условиях",
+          description: `## Цель
 Убедиться, что команда работает в любых условиях: дома, на улице, среди людей, при наличии провокаций.
 
 ## Как выполнять — шаг за шагом
@@ -1960,17 +1978,17 @@ async function main() {
 ## Полезно знать
 - Jean Donaldson и другие авторы подчеркивают важность «proofing» (доказательства) — без этого поведение часто «сходит» в реальном мире.  
 - За успешное выполнение при высокой сложности — наиболее яркое подкрепление.`,
-        durationSec: 75,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["закрепление", "proofing", "отвлечения"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Вариабельное подкрепление (schedules of reinforcement) — удержание поведения",
-        description: `## Цель
+          durationSec: 75,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["закрепление", "proofing", "отвлечения"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Вариабельное подкрепление (schedules of reinforcement) — удержание поведения",
+          description: `## Цель
 Перейти от частого подкрепления к переменному, чтобы поведение оставалось устойчивым в долгосрочной перспективе.
 
 ## Как выполнять — шаг за шагом
@@ -1982,17 +2000,17 @@ async function main() {
 ## Полезно знать
 - Переменные схемы подкрепления делают поведение более устойчивым и менее зависимым от постоянного лакомства.  
 - Всегда давай самое яркое подкрепление за действительно выдающееся выполнение.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["подкрепление", "мотивация", "устойчивость"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Игры на ранжирование усилий (behavioral economics — trade-off training)",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["подкрепление", "мотивация", "устойчивость"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Игры на ранжирование усилий (behavioral economics — trade-off training)",
+          description: `## Цель
 Научить собаку выбирать более выгодное поведение (например, подойти к владельцу вместо игры с предметом) — через игру обмена и стоимости.
 
 ## Как выполнять — шаг за шагом
@@ -2003,17 +2021,17 @@ async function main() {
 ## Полезно знать
 - Подходит для тренировки отдачи, неподбора и приоритезации внимания.  
 - За выбор владельца вместо соблазна — выдающееся подкрепление.`,
-        durationSec: 45,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["выбор", "приоритеты", "обмен"],
-        authorId: admin.id,
-      },
-    }),
-    prismaClient.stepTemplate.create({
-      data: {
-        title: "Профилактика проблем с собако-собачьими контактами (management + training)",
-        description: `## Цель
+          durationSec: 45,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["выбор", "приоритеты", "обмен"],
+          authorId: admin.id,
+        },
+      }),
+      prismaClient.stepTemplate.create({
+        data: {
+          title: "Профилактика проблем с собако-собачьими контактами (management + training)",
+          description: `## Цель
 Снизить вероятность эскалации конфликтов между собаками — сочетание управления и обучения.
 
 ## Как выполнять — шаг за шагом
@@ -2024,28 +2042,29 @@ async function main() {
 ## Полезно знать
 - Комбинация менеджмента (избегать критических сценариев) и постепенной тренировки часто более эффективна, чем попытки «просто исправить» поведение на месте.  
 - За удержание спокойного внимания среди других собак — яркое подкрепление.`,
-        durationSec: 60,
-        type: "TRAINING",
-        categoryId: stateControlCategory.id,
-        tags: ["собаки", "контакты", "профилактика"],
-        authorId: admin.id,
-      },
-    }),
-  ],
-  {
-    maxWait: 5000, // 5 секунд ожидания начала транзакции
-    timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
-  });
+          durationSec: 60,
+          type: "TRAINING",
+          categoryId: stateControlCategory.id,
+          tags: ["собаки", "контакты", "профилактика"],
+          authorId: admin.id,
+        },
+      }),
+    ],
+    {
+      maxWait: 5000, // 5 секунд ожидания начала транзакции
+      timeout: 10000, // 10 секунд таймаут транзакции (seed данные)
+    },
+  );
   console.log("Шаблоны шагов созданы из JSON", {
     templateCount: 51,
     categories: 5,
-    categoryNames: ["Движение", "Статика", "Подзыв", "Неподбор", "Контроль состояния"]
+    categoryNames: ["Движение", "Статика", "Подзыв", "Неподбор", "Контроль состояния"],
   });
 
   console.log("Seed успешно выполнен", {
     totalOperations: 19,
     duration: Date.now() - startTime,
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || "development",
   });
 }
 
@@ -2053,8 +2072,8 @@ main()
   .then(() => prismaClient.$disconnect())
   .catch((e) => {
     console.error("Ошибка при сидировании", e as Error, {
-      environment: process.env.NODE_ENV || 'development',
-      databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
+      environment: process.env.NODE_ENV || "development",
+      databaseUrl: process.env.DATABASE_URL ? "configured" : "missing",
     });
     prismaClient.$disconnect().finally(() => process.exit(1));
   });

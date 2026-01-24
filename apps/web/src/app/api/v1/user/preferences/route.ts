@@ -1,6 +1,6 @@
 /**
  * API Route: /api/v1/user/preferences
- * 
+ *
  * GET - Получает настройки пользователя
  * PATCH - Обновляет настройки пользователя
  */
@@ -13,18 +13,15 @@ import { getUserPreferences, updateUserPreferences } from "@gafus/core/services/
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
-const logger = createWebLogger('api-user-preferences');
+const logger = createWebLogger("api-user-preferences");
 
 // GET - Получить настройки
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: "Не авторизован" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Не авторизован" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -35,46 +32,51 @@ export async function GET() {
     logger.error("Error in preferences GET API", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // PATCH - Обновить настройки
 const updateSchema = z.object({
-  notifications: z.object({
-    push: z.boolean().optional(),
-    email: z.boolean().optional(),
-    sms: z.boolean().optional(),
-  }).optional(),
-  sound: z.object({
-    enabled: z.boolean().optional(),
-    volume: z.number().min(0).max(1).optional(),
-    trainingSounds: z.boolean().optional(),
-    achievementSounds: z.boolean().optional(),
-  }).optional(),
-  interface: z.object({
-    autoPlay: z.boolean().optional(),
-    showProgress: z.boolean().optional(),
-    showTips: z.boolean().optional(),
-    compactMode: z.boolean().optional(),
-  }).optional(),
-  privacy: z.object({
-    showProfile: z.boolean().optional(),
-    showProgress: z.boolean().optional(),
-    allowAnalytics: z.boolean().optional(),
-  }).optional(),
+  notifications: z
+    .object({
+      push: z.boolean().optional(),
+      email: z.boolean().optional(),
+      sms: z.boolean().optional(),
+    })
+    .optional(),
+  sound: z
+    .object({
+      enabled: z.boolean().optional(),
+      volume: z.number().min(0).max(1).optional(),
+      trainingSounds: z.boolean().optional(),
+      achievementSounds: z.boolean().optional(),
+    })
+    .optional(),
+  interface: z
+    .object({
+      autoPlay: z.boolean().optional(),
+      showProgress: z.boolean().optional(),
+      showTips: z.boolean().optional(),
+      compactMode: z.boolean().optional(),
+    })
+    .optional(),
+  privacy: z
+    .object({
+      showProfile: z.boolean().optional(),
+      showProgress: z.boolean().optional(),
+      allowAnalytics: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const PATCH = withCSRFProtection(async (request: NextRequest) => {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: "Не авторизован" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Не авторизован" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -88,14 +90,14 @@ export const PATCH = withCSRFProtection(async (request: NextRequest) => {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: "Неверные данные запроса", details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     logger.error("Error in preferences PATCH API", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 });

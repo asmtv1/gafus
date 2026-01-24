@@ -81,9 +81,7 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
       // Оптимистичное обновление - обновляем отзыв локально
       const state = get();
       const updatedReviews = state.reviews.map((review) =>
-        review.id === reviewId
-          ? { ...review, rating, comment: comment || null }
-          : review
+        review.id === reviewId ? { ...review, rating, comment: comment || null } : review,
       );
 
       logger.success("Отзыв обновлен", { reviewId });
@@ -144,4 +142,3 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
     });
   },
 }));
-

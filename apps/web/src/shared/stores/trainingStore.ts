@@ -6,7 +6,7 @@ import type { TrainingStore } from "./types";
 import { toggleStepNotificationPause } from "@shared/lib/StepNotification/toggleStepNotificationPause";
 
 // Создаем логгер для training store
-const logger = createWebLogger('web-training-store');
+const logger = createWebLogger("web-training-store");
 
 // ===== STORE =====
 export const useTrainingStore = create<TrainingStore>()(
@@ -20,7 +20,8 @@ export const useTrainingStore = create<TrainingStore>()(
       cachedTrainingDays: {},
 
       // ===== УТИЛИТЫ =====
-      getStepKey: (courseId, dayOnCourseId, stepIndex) => `${courseId}-${dayOnCourseId}-${stepIndex}`,
+      getStepKey: (courseId, dayOnCourseId, stepIndex) =>
+        `${courseId}-${dayOnCourseId}-${stepIndex}`,
       getDayKey: (courseId, dayOnCourseId) => `${courseId}-${dayOnCourseId}`,
 
       // ===== ГЕТТЕРЫ =====
@@ -47,7 +48,7 @@ export const useTrainingStore = create<TrainingStore>()(
       // В офлайне используется IndexedDB через useCachedTrainingDays
       getCachedTrainingDays: (courseType) => {
         const cached = get().cachedTrainingDays[courseType];
-        
+
         if (!cached) {
           return { data: null, isExpired: true };
         }
@@ -82,7 +83,6 @@ export const useTrainingStore = create<TrainingStore>()(
           set({ cachedTrainingDays: {} });
         }
       },
-
 
       // ===== ДЕЙСТВИЯ ДЛЯ ДНЯ =====
       setOpenIndex: (courseId, dayOnCourseId, index) => {
@@ -143,26 +143,30 @@ export const useTrainingStore = create<TrainingStore>()(
           await toggleStepNotificationPause(0, stepIndex, true);
         } catch (error) {
           logger.error(`togglePauseWithServer error`, error as Error, {
-            operation: 'toggle_pause_with_server_error',
+            operation: "toggle_pause_with_server_error",
             courseId: courseId,
             dayOnCourseId: dayOnCourseId,
-            stepIndex: stepIndex
+            stepIndex: stepIndex,
           });
           throw error;
         }
       },
 
-      resumeNotificationWithServer: async (courseId: string, dayOnCourseId: string, stepIndex: number) => {
+      resumeNotificationWithServer: async (
+        courseId: string,
+        dayOnCourseId: string,
+        stepIndex: number,
+      ) => {
         try {
           // TODO: Обновить toggleStepNotificationPause для использования dayOnCourseId
           // Временно используем day: 0 как заглушку, так как функция еще не обновлена
           await toggleStepNotificationPause(0, stepIndex, false);
         } catch (error) {
           logger.error(`resumeNotificationWithServer error`, error as Error, {
-            operation: 'resume_notification_with_server_error',
+            operation: "resume_notification_with_server_error",
             courseId: courseId,
             dayOnCourseId: dayOnCourseId,
-            stepIndex: stepIndex
+            stepIndex: stepIndex,
           });
           throw error;
         }

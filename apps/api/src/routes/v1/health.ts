@@ -19,10 +19,7 @@ healthRoutes.get("/health", (c) => {
 
 healthRoutes.get("/ready", async (c) => {
   try {
-    await Promise.all([
-      prisma.$queryRaw`SELECT 1`,
-      redis.ping(),
-    ]);
+    await Promise.all([prisma.$queryRaw`SELECT 1`, redis.ping()]);
     return c.json({ status: "ready" });
   } catch (error) {
     return c.json({ status: "not ready", error: String(error) }, 503);

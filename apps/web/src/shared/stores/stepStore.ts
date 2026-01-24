@@ -6,7 +6,7 @@ import type { StepStore } from "./stepStore.types";
 import { useUserStore } from "./userStore";
 
 // Создаем логгер для step store
-const logger = createWebLogger('web-step-store');
+const logger = createWebLogger("web-step-store");
 
 // ===== УТИЛИТЫ =====
 const nowSec = () => Math.floor(Date.now() / 1000);
@@ -32,13 +32,20 @@ export const useStepStore = create<StepStore>()(
       stepStates: {},
 
       // ===== УТИЛИТЫ =====
-      getStepKey: (courseId, dayOnCourseId, stepIndex) => `${courseId}-${dayOnCourseId}-${stepIndex}`,
+      getStepKey: (courseId, dayOnCourseId, stepIndex) =>
+        `${courseId}-${dayOnCourseId}-${stepIndex}`,
 
       // ===== ДЕЙСТВИЯ ДЛЯ ШАГОВ =====
-      initializeStep: (courseId, dayOnCourseId, stepIndex, durationSec, initialStatus = "NOT_STARTED", options) => {
+      initializeStep: (
+        courseId,
+        dayOnCourseId,
+        stepIndex,
+        durationSec,
+        initialStatus = "NOT_STARTED",
+        options,
+      ) => {
         const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
         const existingState = get().stepStates[stepKey];
-
 
         // Если уже есть состояние, проверяем, нужно ли обновить статус
         if (existingState) {
@@ -63,7 +70,8 @@ export const useStepStore = create<StepStore>()(
                   isPaused: false,
                   // Если повышаем с NOT_STARTED до IN_PROGRESS и нет времени, используем durationSec
                   timeLeft:
-                    initialStatus === "IN_PROGRESS" && (existingState.timeLeft == null || existingState.timeLeft <= 0)
+                    initialStatus === "IN_PROGRESS" &&
+                    (existingState.timeLeft == null || existingState.timeLeft <= 0)
                       ? durationSec
                       : existingState.timeLeft,
                 },
@@ -80,7 +88,6 @@ export const useStepStore = create<StepStore>()(
 
         // Проверяем localStorage для восстановления
         const restoredState = get().restoreStepFromLS(courseId, dayOnCourseId, stepIndex);
-
 
         // Если сервер сообщает о паузе, учитываем её при начальном состоянии,
         // но не конфликтуем с локальной PAUSE в LS (локальная имеет приоритет в оффлайне)
@@ -105,9 +112,10 @@ export const useStepStore = create<StepStore>()(
               ...baseState,
               status: "PAUSED" as const,
               isPaused: true,
-              timeLeft: typeof serverRemaining === "number" && serverRemaining > 0
-                ? serverRemaining
-                : baseState.timeLeft,
+              timeLeft:
+                typeof serverRemaining === "number" && serverRemaining > 0
+                  ? serverRemaining
+                  : baseState.timeLeft,
             };
           }
           return baseState;
@@ -271,13 +279,17 @@ export const useStepStore = create<StepStore>()(
         // Удаляем localStorage ключи (таймер и пауза)
         removeKeys(
           makeEndKey(courseId, dayOnCourseId, stepIndex),
-          makePauseKey(courseId, dayOnCourseId, stepIndex)
+          makePauseKey(courseId, dayOnCourseId, stepIndex),
         );
 
         // Определяем статус после сброса на основе предыдущего статуса
         let resetStatus: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" = "NOT_STARTED";
-        
-        if (currentState?.status === "IN_PROGRESS" || currentState?.status === "COMPLETED" || currentState?.status === "PAUSED") {
+
+        if (
+          currentState?.status === "IN_PROGRESS" ||
+          currentState?.status === "COMPLETED" ||
+          currentState?.status === "PAUSED"
+        ) {
           resetStatus = "IN_PROGRESS"; // Если был в процессе, завершен или на паузе, ставим в процесс
         }
 
@@ -298,7 +310,7 @@ export const useStepStore = create<StepStore>()(
       restoreStepFromLS: (courseId, dayOnCourseId, stepIndex) => {
         const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
         const PAUSE_KEY = makePauseKey(courseId, dayOnCourseId, stepIndex);
-        
+
         // Проверяем, есть ли данные паузы
         const pauseDataStr = loadFromLS(PAUSE_KEY);
         if (pauseDataStr) {
@@ -312,11 +324,11 @@ export const useStepStore = create<StepStore>()(
             };
           } catch (error) {
             logger.warn("Failed to parse pause data", {
-              operation: 'parse_pause_data_error',
+              operation: "parse_pause_data_error",
               courseId: courseId,
               dayOnCourseId: dayOnCourseId,
               stepIndex: stepIndex,
-              error: error instanceof Error ? error.message : String(error)
+              error: error instanceof Error ? error.message : String(error),
             });
             localStorage.removeItem(PAUSE_KEY);
           }

@@ -25,66 +25,68 @@ function formatErrorForAI(error: {
   updatedAt: Date;
 }): string {
   const lines: string[] = [];
-  
+
   lines.push(`# Ошибка: ${error.message}`);
-  lines.push('');
+  lines.push("");
   lines.push(`**ID:** \`${error.id}\``);
   lines.push(`**Приложение:** ${error.appName}`);
   lines.push(`**Окружение:** ${error.environment}`);
-  lines.push(`**Дата:** ${format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}`);
+  lines.push(
+    `**Дата:** ${format(new Date(error.createdAt), "dd.MM.yyyy HH:mm:ss", { locale: ru })}`,
+  );
   lines.push(`**URL:** ${error.url}`);
-  
+
   if (error.userId) {
     lines.push(`**User ID:** \`${error.userId}\``);
   }
-  
+
   if (error.sessionId) {
     lines.push(`**Session ID:** \`${error.sessionId}\``);
   }
-  
+
   if (error.stack) {
-    lines.push('');
-    lines.push('## Stack Trace');
-    lines.push('```');
+    lines.push("");
+    lines.push("## Stack Trace");
+    lines.push("```");
     lines.push(error.stack);
-    lines.push('```');
+    lines.push("```");
   }
-  
+
   if (error.componentStack) {
-    lines.push('');
-    lines.push('## Component Stack');
-    lines.push('```');
+    lines.push("");
+    lines.push("## Component Stack");
+    lines.push("```");
     lines.push(error.componentStack);
-    lines.push('```');
+    lines.push("```");
   }
-  
+
   if (error.additionalContext) {
-    lines.push('');
-    lines.push('## Дополнительный контекст');
-    lines.push('```json');
+    lines.push("");
+    lines.push("## Дополнительный контекст");
+    lines.push("```json");
     lines.push(JSON.stringify(error.additionalContext, null, 2));
-    lines.push('```');
+    lines.push("```");
   }
-  
+
   if (error.tags && error.tags.length > 0) {
-    lines.push('');
+    lines.push("");
     lines.push(`## Теги`);
-    lines.push(error.tags.map(tag => `- ${tag}`).join('\n'));
+    lines.push(error.tags.map((tag) => `- ${tag}`).join("\n"));
   }
-  
+
   if (error.userAgent) {
-    lines.push('');
-    lines.push('## User Agent');
+    lines.push("");
+    lines.push("## User Agent");
     lines.push(`\`${error.userAgent}\``);
   }
-  
-  return lines.join('\n');
+
+  return lines.join("\n");
 }
 
 /**
  * GET /api/errors/export
  * Export multiple errors with filters
- * 
+ *
  * Query params:
  * - format: 'json' | 'markdown' (default: 'json')
  * - ids: comma-separated list of error IDs (optional, exports specific errors)
@@ -95,11 +97,11 @@ function formatErrorForAI(error: {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const formatType = searchParams.get('format') || 'json';
-    const ids = searchParams.get('ids')?.split(',').filter(Boolean);
-    const appName = searchParams.get('appName');
-    const environment = searchParams.get('environment');
-    const limit = parseInt(searchParams.get('limit') || '100', 10);
+    const formatType = searchParams.get("format") || "json";
+    const ids = searchParams.get("ids")?.split(",").filter(Boolean);
+    const appName = searchParams.get("appName");
+    const environment = searchParams.get("environment");
+    const limit = parseInt(searchParams.get("limit") || "100", 10);
 
     // Build where clause
     const where: {
@@ -120,32 +122,29 @@ export async function GET(request: NextRequest) {
 
     const errors = await prisma.errorLog.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: limit,
     });
 
     if (errors.length === 0) {
-      return NextResponse.json(
-        { error: 'Ошибки не найдены' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Ошибки не найдены" }, { status: 404 });
     }
 
-    const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+    const timestamp = format(new Date(), "yyyy-MM-dd_HH-mm-ss");
 
-    if (formatType === 'markdown' || formatType === 'md') {
+    if (formatType === "markdown" || formatType === "md") {
       const markdownParts = errors.map((error, index) => {
         const md = formatErrorForAI(error as unknown as Parameters<typeof formatErrorForAI>[0]);
         return index === 0 ? md : `\n\n---\n\n${md}`;
       });
-      
-      const markdown = `# Экспорт ошибок (${errors.length})\n\nДата экспорта: ${format(new Date(), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}\n\n---\n\n${markdownParts.join('')}`;
-      
+
+      const markdown = `# Экспорт ошибок (${errors.length})\n\nДата экспорта: ${format(new Date(), "dd.MM.yyyy HH:mm:ss", { locale: ru })}\n\n---\n\n${markdownParts.join("")}`;
+
       return new NextResponse(markdown, {
         status: 200,
         headers: {
-          'Content-Type': 'text/markdown; charset=utf-8',
-          'Content-Disposition': `attachment; filename="errors-export-${timestamp}.md"`,
+          "Content-Type": "text/markdown; charset=utf-8",
+          "Content-Disposition": `attachment; filename="errors-export-${timestamp}.md"`,
         },
       });
     }
@@ -159,23 +158,20 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          'Content-Disposition': `attachment; filename="errors-export-${timestamp}.json"`,
+          "Content-Disposition": `attachment; filename="errors-export-${timestamp}.json"`,
         },
-      }
+      },
     );
   } catch (error) {
-    console.error('Error exporting errors:', error);
-    return NextResponse.json(
-      { error: 'Не удалось экспортировать ошибки' },
-      { status: 500 }
-    );
+    console.error("Error exporting errors:", error);
+    return NextResponse.json({ error: "Не удалось экспортировать ошибки" }, { status: 500 });
   }
 }
 
 /**
  * POST /api/errors/export
  * Export specific errors by IDs (for batch selection)
- * 
+ *
  * Body:
  * - ids: array of error IDs
  * - format: 'json' | 'markdown' (default: 'json')
@@ -183,44 +179,38 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { ids, format: formatType = 'json' } = body;
+    const { ids, format: formatType = "json" } = body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return NextResponse.json(
-        { error: 'Необходимо указать массив ID ошибок' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Необходимо указать массив ID ошибок" }, { status: 400 });
     }
 
     const errors = await prisma.errorLog.findMany({
       where: {
         id: { in: ids },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (errors.length === 0) {
-      return NextResponse.json(
-        { error: 'Ошибки не найдены' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Ошибки не найдены" }, { status: 404 });
     }
 
-    const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+    const timestamp = format(new Date(), "yyyy-MM-dd_HH-mm-ss");
 
-    if (formatType === 'markdown' || formatType === 'md') {
+    if (formatType === "markdown" || formatType === "md") {
       const markdownParts = errors.map((error, index) => {
         const md = formatErrorForAI(error as unknown as Parameters<typeof formatErrorForAI>[0]);
         return index === 0 ? md : `\n\n---\n\n${md}`;
       });
-      
-      const markdown = `# Экспорт ошибок (${errors.length})\n\nДата экспорта: ${format(new Date(), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}\n\n---\n\n${markdownParts.join('')}`;
-      
+
+      const markdown = `# Экспорт ошибок (${errors.length})\n\nДата экспорта: ${format(new Date(), "dd.MM.yyyy HH:mm:ss", { locale: ru })}\n\n---\n\n${markdownParts.join("")}`;
+
       return new NextResponse(markdown, {
         status: 200,
         headers: {
-          'Content-Type': 'text/markdown; charset=utf-8',
-          'Content-Disposition': `attachment; filename="errors-export-${timestamp}.md"`,
+          "Content-Type": "text/markdown; charset=utf-8",
+          "Content-Disposition": `attachment; filename="errors-export-${timestamp}.md"`,
         },
       });
     }
@@ -234,16 +224,12 @@ export async function POST(request: NextRequest) {
       },
       {
         headers: {
-          'Content-Disposition': `attachment; filename="errors-export-${timestamp}.json"`,
+          "Content-Disposition": `attachment; filename="errors-export-${timestamp}.json"`,
         },
-      }
+      },
     );
   } catch (error) {
-    console.error('Error exporting errors:', error);
-    return NextResponse.json(
-      { error: 'Не удалось экспортировать ошибки' },
-      { status: 500 }
-    );
+    console.error("Error exporting errors:", error);
+    return NextResponse.json({ error: "Не удалось экспортировать ошибки" }, { status: 500 });
   }
 }
-

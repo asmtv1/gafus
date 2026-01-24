@@ -35,15 +35,15 @@ export async function generateMetadata({ params }: TrainingsPageProps): Promise<
 
 export default async function TrainingsPage({ params }: TrainingsPageProps) {
   const { courseType } = await params;
-  
+
   // Получаем метаданные курса для названия
   const courseMetadata = await getCourseMetadata(courseType);
   const courseName = courseMetadata?.name;
-  
+
   // Загружаем данные с сервера для SEO и проверки завершения курса
   let serverData = null;
   let serverError = null;
-  
+
   try {
     // Получаем userId на сервере
     const userId = await getCurrentUserId();
@@ -65,7 +65,7 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
   return (
     <main className={styles.container}>
       <h2 className={styles.title}>Содержание</h2>
-      <TrainingPageClient 
+      <TrainingPageClient
         courseType={courseType}
         courseName={courseName}
         initialData={serverData}

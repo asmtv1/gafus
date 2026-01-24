@@ -39,14 +39,18 @@ const getAge = (birthDate: string | null): number | null => {
 };
 
 // Функция для получения возраста с месяцами (как в web-версии, для питомцев)
-const getAgeWithMonths = (birthDateString: string | null): { years: number; months: number } | null => {
+const getAgeWithMonths = (
+  birthDateString: string | null,
+): { years: number; months: number } | null => {
   if (!birthDateString) return null;
   try {
     const birthDate = new Date(birthDateString);
     const now = new Date();
-    
+
     // Используем UTC даты для консистентности между сервером и клиентом
-    const birthUTC = new Date(Date.UTC(birthDate.getFullYear(), birthDate.getMonth(), birthDate.getDate()));
+    const birthUTC = new Date(
+      Date.UTC(birthDate.getFullYear(), birthDate.getMonth(), birthDate.getDate()),
+    );
     const nowUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
     let years = nowUTC.getUTCFullYear() - birthUTC.getUTCFullYear();
@@ -157,37 +161,29 @@ export default function ProfileScreen() {
   };
 
   const handleDeletePet = (pet: Pet) => {
-    Alert.alert(
-      "Удалить питомца",
-      `Вы уверены, что хотите удалить ${pet.name}?`,
-      [
-        { text: "Отмена", style: "cancel" },
-        {
-          text: "Удалить",
-          style: "destructive",
-          onPress: () => deleteMutation.mutate(pet.id),
-        },
-      ]
-    );
+    Alert.alert("Удалить питомца", `Вы уверены, что хотите удалить ${pet.name}?`, [
+      { text: "Отмена", style: "cancel" },
+      {
+        text: "Удалить",
+        style: "destructive",
+        onPress: () => deleteMutation.mutate(pet.id),
+      },
+    ]);
   };
   const roleColor = getRoleColor(user?.role);
 
   const handleLogout = () => {
-    Alert.alert(
-      "Выход из аккаунта",
-      "Вы уверены, что хотите выйти?",
-      [
-        { text: "Отмена", style: "cancel" },
-        { 
-          text: "Выйти", 
-          style: "destructive",
-          onPress: async () => {
-            await logout();
-            router.replace("/login");
-          },
+    Alert.alert("Выход из аккаунта", "Вы уверены, что хотите выйти?", [
+      { text: "Отмена", style: "cancel" },
+      {
+        text: "Выйти",
+        style: "destructive",
+        onPress: async () => {
+          await logout();
+          router.replace("/login");
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const age = profile?.birthDate ? getAge(profile.birthDate) : null;
@@ -196,147 +192,145 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Заголовок */}
-          <Text style={styles.title}>Профиль {user?.username}</Text>
+        {/* Заголовок */}
+        <Text style={styles.title}>Профиль {user?.username}</Text>
 
-          {/* Баннер профиля (оливковый фон) */}
-          <View style={styles.profileBanner}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatarWrapper}>
-                {profile?.avatarUrl ? (
-                  <Avatar.Image
-                    size={63}
-                    source={{ uri: profile.avatarUrl }}
-                  />
-                ) : (
-                  <Avatar.Text
-                    size={63}
-                    label={getInitials(profile?.fullName || user?.username || "U")}
-                  />
-                )}
-              </View>
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.greeting}>
-                Привет, {profile?.fullName || user?.username}!
-              </Text>
-              <Text style={styles.contactInfo}>
-                {user?.phone || profile?.telegram ? `@${profile?.telegram || ""}` : "Контакты не указаны"}
-              </Text>
-              {displayRole && (
-                <View style={[styles.roleBadge, { backgroundColor: roleColor }]}>
-                  <Text style={styles.roleText}>{displayRole}</Text>
-                </View>
+        {/* Баннер профиля (оливковый фон) */}
+        <View style={styles.profileBanner}>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatarWrapper}>
+              {profile?.avatarUrl ? (
+                <Avatar.Image size={63} source={{ uri: profile.avatarUrl }} />
+              ) : (
+                <Avatar.Text
+                  size={63}
+                  label={getInitials(profile?.fullName || user?.username || "U")}
+                />
               )}
             </View>
           </View>
-
-          {/* Контейнер с информацией о себе */}
-          <View style={styles.infoContainer}>
-            {age !== null && (
-              <Text style={styles.infoText}>
-                Возраст: {age} {declOfNum(age, ["год", "года", "лет"])}
-              </Text>
+          <View style={styles.profileInfo}>
+            <Text style={styles.greeting}>Привет, {profile?.fullName || user?.username}!</Text>
+            <Text style={styles.contactInfo}>
+              {user?.phone || profile?.telegram
+                ? `@${profile?.telegram || ""}`
+                : "Контакты не указаны"}
+            </Text>
+            {displayRole && (
+              <View style={[styles.roleBadge, { backgroundColor: roleColor }]}>
+                <Text style={styles.roleText}>{displayRole}</Text>
+              </View>
             )}
+          </View>
+        </View>
 
-            {/* О себе */}
-            {(profile?.about || !age) && (
-              <View style={styles.aboutContainer}>
-                <Text style={styles.aboutTitle}>О СЕБЕ</Text>
-                {profile?.about ? (
-                  <View style={styles.aboutCard}>
-                    <Text style={styles.aboutText}>{profile.about}</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.emptyNotice}>Информация о себе не внесена</Text>
+        {/* Контейнер с информацией о себе */}
+        <View style={styles.infoContainer}>
+          {age !== null && (
+            <Text style={styles.infoText}>
+              Возраст: {age} {declOfNum(age, ["год", "года", "лет"])}
+            </Text>
+          )}
+
+          {/* О себе */}
+          {(profile?.about || !age) && (
+            <View style={styles.aboutContainer}>
+              <Text style={styles.aboutTitle}>О СЕБЕ</Text>
+              {profile?.about ? (
+                <View style={styles.aboutCard}>
+                  <Text style={styles.aboutText}>{profile.about}</Text>
+                </View>
+              ) : (
+                <Text style={styles.emptyNotice}>Информация о себе не внесена</Text>
+              )}
+            </View>
+          )}
+
+          {/* Социальные сети */}
+          {hasSocialLinks && (
+            <View style={styles.socialLinksContainer}>
+              <Text style={styles.socialLinksTitle}>КОНТАКТЫ</Text>
+              <View style={styles.socialLinksList}>
+                {profile?.instagram && (
+                  <Pressable
+                    style={styles.socialLink}
+                    onPress={() => Linking.openURL(`https://instagram.com/${profile.instagram}`)}
+                  >
+                    <Text style={styles.socialIcon}>📷</Text>
+                    <Text style={styles.socialLabel}>Instagram</Text>
+                    <Text style={styles.socialUsername}>{profile.instagram}</Text>
+                  </Pressable>
+                )}
+                {profile?.telegram && (
+                  <Pressable
+                    style={styles.socialLink}
+                    onPress={() => Linking.openURL(`https://t.me/${profile.telegram}`)}
+                  >
+                    <Text style={styles.socialIcon}>✈️</Text>
+                    <Text style={styles.socialLabel}>Telegram</Text>
+                    <Text style={styles.socialUsername}>{profile.telegram}</Text>
+                  </Pressable>
+                )}
+                {profile?.website && (
+                  <Pressable
+                    style={styles.socialLink}
+                    onPress={() => Linking.openURL(profile.website!)}
+                  >
+                    <Text style={styles.socialIcon}>🌐</Text>
+                    <Text style={styles.socialLabel}>Сайт</Text>
+                    <Text style={styles.socialUsername}>{profile.website}</Text>
+                  </Pressable>
                 )}
               </View>
-            )}
+            </View>
+          )}
 
-            {/* Социальные сети */}
-            {hasSocialLinks && (
-              <View style={styles.socialLinksContainer}>
-                <Text style={styles.socialLinksTitle}>КОНТАКТЫ</Text>
-                <View style={styles.socialLinksList}>
-                  {profile?.instagram && (
-                    <Pressable
-                      style={styles.socialLink}
-                      onPress={() => Linking.openURL(`https://instagram.com/${profile.instagram}`)}
-                    >
-                      <Text style={styles.socialIcon}>📷</Text>
-                      <Text style={styles.socialLabel}>Instagram</Text>
-                      <Text style={styles.socialUsername}>{profile.instagram}</Text>
-                    </Pressable>
-                  )}
-                  {profile?.telegram && (
-                    <Pressable
-                      style={styles.socialLink}
-                      onPress={() => Linking.openURL(`https://t.me/${profile.telegram}`)}
-                    >
-                      <Text style={styles.socialIcon}>✈️</Text>
-                      <Text style={styles.socialLabel}>Telegram</Text>
-                      <Text style={styles.socialUsername}>{profile.telegram}</Text>
-                    </Pressable>
-                  )}
-                  {profile?.website && (
-                    <Pressable
-                      style={styles.socialLink}
-                      onPress={() => Linking.openURL(profile.website!)}
-                    >
-                      <Text style={styles.socialIcon}>🌐</Text>
-                      <Text style={styles.socialLabel}>Сайт</Text>
-                      <Text style={styles.socialUsername}>{profile.website}</Text>
-                    </Pressable>
-                  )}
-                </View>
-              </View>
-            )}
+          <Pressable
+            style={styles.editBioButton}
+            onPress={() => router.push("/profile/edit" as any)}
+          >
+            <Text style={styles.editBioButtonText}>Внести/Изменить «О себе»</Text>
+          </Pressable>
+        </View>
 
-
-            <Pressable
-              style={styles.editBioButton}
-              onPress={() => router.push("/profile/edit" as any)}
-            >
-              <Text style={styles.editBioButtonText}>Внести/Изменить «О себе»</Text>
-            </Pressable>
-          </View>
-
-          {/* Список питомцев */}
-          <View style={styles.petListContainer}>
-            <Text style={styles.petListTitle}>Питомцы</Text>
-            {pets.length === 0 ? (
-              <Text style={styles.noPets}>Питомцы не добавлены</Text>
-            ) : (
-              <View style={styles.petsList}>
-                {pets.map((pet) => (
-                  <View key={pet.id} style={styles.petItem}>
-                    <View style={styles.petMainInfo}>
-                      {pet.photoUrl ? (
-                        <Image
-                          source={{ uri: pet.photoUrl }}
-                          style={styles.petAvatar}
-                          contentFit="cover"
-                        />
-                      ) : (
-                        <View style={styles.petAvatarPlaceholder}>
-                          <Text style={styles.petAvatarText}>🐾</Text>
-                        </View>
-                      )}
-                      <View style={styles.petInfo}>
-                        <Text style={styles.petName}>
-                          {pet.name} ({getPetTypeLabel(pet.type)})
-                        </Text>
-                        {pet.breed && <Text style={styles.petDetail}>Порода: {pet.breed}</Text>}
-                        {pet.birthDate && (() => {
+        {/* Список питомцев */}
+        <View style={styles.petListContainer}>
+          <Text style={styles.petListTitle}>Питомцы</Text>
+          {pets.length === 0 ? (
+            <Text style={styles.noPets}>Питомцы не добавлены</Text>
+          ) : (
+            <View style={styles.petsList}>
+              {pets.map((pet) => (
+                <View key={pet.id} style={styles.petItem}>
+                  <View style={styles.petMainInfo}>
+                    {pet.photoUrl ? (
+                      <Image
+                        source={{ uri: pet.photoUrl }}
+                        style={styles.petAvatar}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={styles.petAvatarPlaceholder}>
+                        <Text style={styles.petAvatarText}>🐾</Text>
+                      </View>
+                    )}
+                    <View style={styles.petInfo}>
+                      <Text style={styles.petName}>
+                        {pet.name} ({getPetTypeLabel(pet.type)})
+                      </Text>
+                      {pet.breed && <Text style={styles.petDetail}>Порода: {pet.breed}</Text>}
+                      {pet.birthDate &&
+                        (() => {
                           const age = getAgeWithMonths(pet.birthDate);
                           if (!age) return null;
-                          
+
                           // Показываем только месяцы и годы
                           if (age.years === 0) {
                             // Только месяцы
                             return (
                               <Text style={styles.petDetail}>
-                                Возраст: {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
+                                Возраст: {age.months}{" "}
+                                {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
                               </Text>
                             );
                           } else {
@@ -344,106 +338,116 @@ export default function ProfileScreen() {
                             return (
                               <Text style={styles.petDetail}>
                                 Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
-                                {age.months > 0 && ` ${age.months} ${declOfNum(age.months, ["месяц", "месяца", "месяцев"])}`}
+                                {age.months > 0 &&
+                                  ` ${age.months} ${declOfNum(age.months, ["месяц", "месяца", "месяцев"])}`}
                               </Text>
                             );
                           }
                         })()}
-                        {pet.heightCm && <Text style={styles.petDetail}>Рост: {pet.heightCm} см</Text>}
-                        {pet.weightKg && <Text style={styles.petDetail}>Вес: {pet.weightKg} кг</Text>}
-                        {pet.notes && <Text style={styles.petDetail}>Заметки: {pet.notes}</Text>}
-                      </View>
-                    </View>
-                    <View style={styles.petActions}>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.petActionButton,
-                          pressed && styles.petActionButtonPressed,
-                        ]}
-                        onPress={() => handleEditPet(pet)}
-                      >
-                        <Text style={styles.petActionIcon}>✏️</Text>
-                        <Text style={styles.petActionText} numberOfLines={1}>Изменить</Text>
-                      </Pressable>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.petActionButton,
-                          styles.petActionButtonDelete,
-                          pressed && styles.petActionButtonPressed,
-                        ]}
-                        onPress={() => handleDeletePet(pet)}
-                      >
-                        <Text style={styles.petActionIcon}>🗑️</Text>
-                        <Text style={[styles.petActionText, styles.petActionTextDelete]} numberOfLines={1}>Удалить</Text>
-                      </Pressable>
+                      {pet.heightCm && (
+                        <Text style={styles.petDetail}>Рост: {pet.heightCm} см</Text>
+                      )}
+                      {pet.weightKg && <Text style={styles.petDetail}>Вес: {pet.weightKg} кг</Text>}
+                      {pet.notes && <Text style={styles.petDetail}>Заметки: {pet.notes}</Text>}
                     </View>
                   </View>
-                ))}
-              </View>
-            )}
+                  <View style={styles.petActions}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.petActionButton,
+                        pressed && styles.petActionButtonPressed,
+                      ]}
+                      onPress={() => handleEditPet(pet)}
+                    >
+                      <Text style={styles.petActionIcon}>✏️</Text>
+                      <Text style={styles.petActionText} numberOfLines={1}>
+                        Изменить
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.petActionButton,
+                        styles.petActionButtonDelete,
+                        pressed && styles.petActionButtonPressed,
+                      ]}
+                      onPress={() => handleDeletePet(pet)}
+                    >
+                      <Text style={styles.petActionIcon}>🗑️</Text>
+                      <Text
+                        style={[styles.petActionText, styles.petActionTextDelete]}
+                        numberOfLines={1}
+                      >
+                        Удалить
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
 
-            <Pressable
-              style={styles.addPetButton}
-              onPress={() => router.push("/pets/add" as any)}
-            >
-              <Text style={styles.addPetButtonText}>Добавить питомца</Text>
-            </Pressable>
+          <Pressable style={styles.addPetButton} onPress={() => router.push("/pets/add" as any)}>
+            <Text style={styles.addPetButtonText}>Добавить питомца</Text>
+          </Pressable>
+        </View>
+
+        {/* Кнопка смены пароля */}
+        <Pressable
+          style={styles.passwordButton}
+          onPress={() => {
+            // TODO: Навигация на смену пароля
+          }}
+        >
+          <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
+        </Pressable>
+
+        {/* Выход */}
+        <Pressable style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Выйти из аккаунта</Text>
+        </Pressable>
+
+        {/* Информация (в самом низу) */}
+        <Card style={styles.infoCard}>
+          <Text style={styles.infoCardTitle}>Информация</Text>
+
+          <View style={styles.infoItem}>
+            <Text style={styles.infoIcon}>ℹ️</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoItemTitle}>О приложении</Text>
+              <Text style={styles.infoItemDesc}>Версия 1.0.0</Text>
+            </View>
           </View>
 
-          {/* Кнопка смены пароля */}
-          <Pressable style={styles.passwordButton} onPress={() => {
-            // TODO: Навигация на смену пароля
-          }}>
-            <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
-          </Pressable>
+          <View style={styles.infoDivider} />
 
-          {/* Выход */}
-          <Pressable style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>Выйти из аккаунта</Text>
-          </Pressable>
-
-          {/* Информация (в самом низу) */}
-          <Card style={styles.infoCard}>
-            <Text style={styles.infoCardTitle}>Информация</Text>
-            
-            <View style={styles.infoItem}>
-              <Text style={styles.infoIcon}>ℹ️</Text>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoItemTitle}>О приложении</Text>
-                <Text style={styles.infoItemDesc}>Версия 1.0.0</Text>
-              </View>
+          <Pressable
+            style={styles.infoItem}
+            onPress={() => {
+              // TODO: Открыть URL политики
+            }}
+          >
+            <Text style={styles.infoIcon}>🔒</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoItemTitle}>Политика конфиденциальности</Text>
             </View>
+            <Text style={styles.infoArrow}>→</Text>
+          </Pressable>
 
-            <View style={styles.infoDivider} />
+          <View style={styles.infoDivider} />
 
-            <Pressable
-              style={styles.infoItem}
-              onPress={() => {
-                // TODO: Открыть URL политики
-              }}
-            >
-              <Text style={styles.infoIcon}>🔒</Text>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoItemTitle}>Политика конфиденциальности</Text>
-              </View>
-              <Text style={styles.infoArrow}>→</Text>
-            </Pressable>
-
-            <View style={styles.infoDivider} />
-
-            <Pressable
-              style={styles.infoItem}
-              onPress={() => {
-                // TODO: Открыть email или чат поддержки
-              }}
-            >
-              <Text style={styles.infoIcon}>💬</Text>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoItemTitle}>Связаться с поддержкой</Text>
-              </View>
-              <Text style={styles.infoArrow}>→</Text>
-            </Pressable>
-          </Card>
+          <Pressable
+            style={styles.infoItem}
+            onPress={() => {
+              // TODO: Открыть email или чат поддержки
+            }}
+          >
+            <Text style={styles.infoIcon}>💬</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoItemTitle}>Связаться с поддержкой</Text>
+            </View>
+            <Text style={styles.infoArrow}>→</Text>
+          </Pressable>
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );

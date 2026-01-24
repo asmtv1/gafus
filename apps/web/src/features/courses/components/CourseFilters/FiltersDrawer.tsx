@@ -11,25 +11,25 @@ export type RatingFilterType = "ALL" | "4+" | "3+" | "ANY";
 interface FiltersDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  
+
   // Табы
   activeTab: CourseTabType;
   onTabChange: (tab: CourseTabType) => void;
-  
+
   // Фильтры
   activeLevel: TrainingLevelType;
   onLevelChange: (level: TrainingLevelType) => void;
-  
+
   activeProgress: ProgressFilterType;
   onProgressChange: (progress: ProgressFilterType) => void;
-  
+
   activeRating: RatingFilterType;
   onRatingChange: (rating: RatingFilterType) => void;
-  
+
   // Сброс и применение
   onApply: () => void;
   onReset: () => void;
-  
+
   // Функция для получения количества результатов по фильтрам
   getResultsCount?: (filters: {
     tab: CourseTabType;
@@ -90,12 +90,14 @@ export default function FiltersDrawer({
   const [localRating, setLocalRating] = useState(activeRating);
 
   // Динамически пересчитываем количество результатов
-  const previewCount = getResultsCount ? getResultsCount({
-    tab: localTab,
-    level: localLevel,
-    progress: localProgress,
-    rating: localRating,
-  }) : undefined;
+  const previewCount = getResultsCount
+    ? getResultsCount({
+        tab: localTab,
+        level: localLevel,
+        progress: localProgress,
+        rating: localRating,
+      })
+    : undefined;
 
   // Синхронизируем локальные состояния с пропсами
   useEffect(() => {
@@ -153,9 +155,9 @@ export default function FiltersDrawer({
 
   const activeFiltersCount = [
     localTab !== "free",
-    localLevel !== "ALL", 
+    localLevel !== "ALL",
     localProgress !== "ALL",
-    localRating !== "ALL"
+    localRating !== "ALL",
   ].filter(Boolean).length;
 
   return (
@@ -170,11 +172,11 @@ export default function FiltersDrawer({
           <h3 className={styles.title}>Фильтры</h3>
           <button className={styles.closeButton} onClick={onClose} aria-label="Закрыть">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path 
-                d="M18 6L6 18M6 6l12 12" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
+              <path
+                d="M18 6L6 18M6 6l12 12"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
@@ -254,11 +256,11 @@ export default function FiltersDrawer({
           {activeFiltersCount > 0 && (
             <button className={styles.resetButton} onClick={handleReset}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path 
-                  d="M2 8h12M8 4l-4 4 4 4" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
+                <path
+                  d="M2 8h12M8 4l-4 4 4 4"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
@@ -268,9 +270,7 @@ export default function FiltersDrawer({
           <button className={styles.applyButton} onClick={handleApply}>
             Показать
             {previewCount !== undefined && (
-              <span className={styles.resultsCount}>
-                {previewCount}
-              </span>
+              <span className={styles.resultsCount}>{previewCount}</span>
             )}
           </button>
         </div>
@@ -278,4 +278,3 @@ export default function FiltersDrawer({
     </>
   );
 }
-

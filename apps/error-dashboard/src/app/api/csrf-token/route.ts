@@ -3,7 +3,7 @@ import { createErrorDashboardLogger } from "@gafus/logger";
 import { NextResponse } from "next/server";
 
 // Создаем логгер для error-dashboard (отключена отправка в error-dashboard)
-const logger = createErrorDashboardLogger('error-dashboard-csrf');
+const logger = createErrorDashboardLogger("error-dashboard-csrf");
 
 export async function GET() {
   try {
@@ -12,8 +12,8 @@ export async function GET() {
     return NextResponse.json({ token });
   } catch (error) {
     logger.error("Error generating CSRF token", error as Error, {
-      operation: 'generate_csrf_token',
-      endpoint: '/api/csrf-token'
+      operation: "generate_csrf_token",
+      endpoint: "/api/csrf-token",
     });
     return NextResponse.json({ error: "Failed to generate CSRF token" }, { status: 500 });
   }

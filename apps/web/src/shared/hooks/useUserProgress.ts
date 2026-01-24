@@ -1,7 +1,10 @@
 "use client";
 
 import { useData } from "@gafus/react-query";
-import { getUserProgressForCurrentUser, getUserProgressForMultipleCourses } from "@shared/lib/actions/userProgress";
+import {
+  getUserProgressForCurrentUser,
+  getUserProgressForMultipleCourses,
+} from "@shared/lib/actions/userProgress";
 
 /**
  * Хук для получения детального прогресса пользователя по курсу
@@ -16,7 +19,7 @@ export function useUserProgress(courseId: string) {
     {
       refetchOnWindowFocus: false,
       staleTime: 300000, // 5 минут
-    }
+    },
   );
 }
 
@@ -30,7 +33,7 @@ export function useUserProgressForCourses(courseIds: string[]) {
       if (!courseIds || courseIds.length === 0) {
         return {};
       }
-      
+
       const result = await getUserProgressForMultipleCourses(courseIds);
       // Возвращаем обычный объект
       return result || {};
@@ -38,6 +41,6 @@ export function useUserProgressForCourses(courseIds: string[]) {
     {
       refetchOnWindowFocus: false,
       staleTime: 300000, // 5 минут
-    }
+    },
   );
 }

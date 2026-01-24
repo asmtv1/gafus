@@ -14,7 +14,7 @@ export function AchievementsSkeleton() {
         <div className={styles.titleSkeleton} />
         <div className={styles.subtitleSkeleton} />
       </div>
-      
+
       {/* Статистика */}
       <div className={styles.statsContainer}>
         {Array.from({ length: 4 }).map((_, index) => (
@@ -25,7 +25,7 @@ export function AchievementsSkeleton() {
           </div>
         ))}
       </div>
-      
+
       {/* Достижения по категориям */}
       <div className={styles.categoriesContainer}>
         {Array.from({ length: 3 }).map((_, categoryIndex) => (

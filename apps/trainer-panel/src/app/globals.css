@@ -1,5 +1,7 @@
 /* CSS Reset & Normalize */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -14,9 +16,9 @@ html {
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell",
+    "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   font-size: 16px;
   line-height: 1.5;
   color: #333;
@@ -27,7 +29,12 @@ main {
   display: block;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   margin: 0;
   font-weight: 600;
   line-height: 1.25;
@@ -63,22 +70,31 @@ button:disabled {
   cursor: default;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
   margin: 0;
 }
 
-input, textarea {
+input,
+textarea {
   overflow: visible;
 }
 
-button, input, textarea, select {
+button,
+input,
+textarea,
+select {
   text-transform: none;
 }
 
-button, [type="button"], [type="reset"], [type="submit"] {
+button,
+[type="button"],
+[type="reset"],
+[type="submit"] {
   appearance: button;
   -webkit-appearance: button;
 }
@@ -120,7 +136,8 @@ textarea {
   resize: vertical;
 }
 
-[type="checkbox"], [type="radio"] {
+[type="checkbox"],
+[type="radio"] {
   box-sizing: border-box;
   padding: 0;
 }
@@ -191,11 +208,11 @@ template {
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.4);
   }
-  
+
   html {
     color-scheme: dark;
   }
-  
+
   body {
     color: var(--foreground);
     background-color: var(--background);
@@ -233,26 +250,62 @@ template {
   text-align: right;
 }
 
-.mb-1 { margin-bottom: 0.25rem; }
-.mb-2 { margin-bottom: 0.5rem; }
-.mb-3 { margin-bottom: 0.75rem; }
-.mb-4 { margin-bottom: 1rem; }
-.mb-5 { margin-bottom: 1.25rem; }
-.mb-6 { margin-bottom: 1.5rem; }
+.mb-1 {
+  margin-bottom: 0.25rem;
+}
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+.mb-3 {
+  margin-bottom: 0.75rem;
+}
+.mb-4 {
+  margin-bottom: 1rem;
+}
+.mb-5 {
+  margin-bottom: 1.25rem;
+}
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
 
-.mt-1 { margin-top: 0.25rem; }
-.mt-2 { margin-top: 0.5rem; }
-.mt-3 { margin-top: 0.75rem; }
-.mt-4 { margin-top: 1rem; }
-.mt-5 { margin-top: 1.25rem; }
-.mt-6 { margin-top: 1.5rem; }
+.mt-1 {
+  margin-top: 0.25rem;
+}
+.mt-2 {
+  margin-top: 0.5rem;
+}
+.mt-3 {
+  margin-top: 0.75rem;
+}
+.mt-4 {
+  margin-top: 1rem;
+}
+.mt-5 {
+  margin-top: 1.25rem;
+}
+.mt-6 {
+  margin-top: 1.5rem;
+}
 
-.p-1 { padding: 0.25rem; }
-.p-2 { padding: 0.5rem; }
-.p-3 { padding: 0.75rem; }
-.p-4 { padding: 1rem; }
-.p-5 { padding: 1.25rem; }
-.p-6 { padding: 1.5rem; }
+.p-1 {
+  padding: 0.25rem;
+}
+.p-2 {
+  padding: 0.5rem;
+}
+.p-3 {
+  padding: 0.75rem;
+}
+.p-4 {
+  padding: 1rem;
+}
+.p-5 {
+  padding: 1.25rem;
+}
+.p-6 {
+  padding: 1.5rem;
+}
 
 /* === АДАПТИВНОСТЬ === */
 
@@ -278,12 +331,24 @@ template {
     padding: 0 0.75rem;
   }
 
-  h1 { font-size: 1.75rem; }
-  h2 { font-size: 1.5rem; }
-  h3 { font-size: 1.25rem; }
-  h4 { font-size: 1.125rem; }
-  h5 { font-size: 1rem; }
-  h6 { font-size: 0.875rem; }
+  h1 {
+    font-size: 1.75rem;
+  }
+  h2 {
+    font-size: 1.5rem;
+  }
+  h3 {
+    font-size: 1.25rem;
+  }
+  h4 {
+    font-size: 1.125rem;
+  }
+  h5 {
+    font-size: 1rem;
+  }
+  h6 {
+    font-size: 0.875rem;
+  }
 }
 
 /* Очень маленькие экраны */
@@ -296,25 +361,47 @@ template {
     padding: 0 0.5rem;
   }
 
-  h1 { font-size: 1.5rem; }
-  h2 { font-size: 1.25rem; }
-  h3 { font-size: 1.125rem; }
-  h4 { font-size: 1rem; }
-  h5 { font-size: 0.9375rem; }
-  h6 { font-size: 0.875rem; }
+  h1 {
+    font-size: 1.5rem;
+  }
+  h2 {
+    font-size: 1.25rem;
+  }
+  h3 {
+    font-size: 1.125rem;
+  }
+  h4 {
+    font-size: 1rem;
+  }
+  h5 {
+    font-size: 0.9375rem;
+  }
+  h6 {
+    font-size: 0.875rem;
+  }
 }
 
 /* Оптимизация для touch устройств */
 @media (hover: none) and (pointer: coarse) {
-  button, a, input[type="button"], input[type="submit"], 
-  [role="button"], .MuiButton-root, .MuiIconButton-root, 
-  .MuiCard-root, .MuiLink-root {
+  button,
+  a,
+  input[type="button"],
+  input[type="submit"],
+  [role="button"],
+  .MuiButton-root,
+  .MuiIconButton-root,
+  .MuiCard-root,
+  .MuiLink-root {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
 
-  button, a, input[type="button"], input[type="submit"], 
-  [role="button"], .MuiButton-root {
+  button,
+  a,
+  input[type="button"],
+  input[type="submit"],
+  [role="button"],
+  .MuiButton-root {
     min-height: 44px;
     min-width: 44px;
   }
@@ -326,17 +413,28 @@ template {
 }
 
 /* Глобальные touch-оптимизации для всех интерактивных элементов */
-a, button, input[type="button"], input[type="submit"], 
-input[type="reset"], [role="button"], [onclick],
-.MuiButton-root, .MuiIconButton-root, .MuiLink-root {
+a,
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+[role="button"],
+[onclick],
+.MuiButton-root,
+.MuiIconButton-root,
+.MuiLink-root {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
 /* Минимальные размеры для touch-элементов на мобильных */
 @media (max-width: 768px) {
-  a, button, input[type="button"], input[type="submit"], 
-  [role="button"], .MuiButton-root {
+  a,
+  button,
+  input[type="button"],
+  input[type="submit"],
+  [role="button"],
+  .MuiButton-root {
     min-height: 44px;
     min-width: 44px;
   }

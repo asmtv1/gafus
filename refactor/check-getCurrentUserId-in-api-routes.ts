@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Скрипт проверки использования getCurrentUserId в API Routes
@@ -28,7 +28,7 @@ function findGetCurrentUserIdInApiRoutes(dir: string): ApiRouteIssue[] {
     for (const item of items) {
       const fullPath = path.join(currentDir, item);
 
-      if (item === 'node_modules' || item === '.git' || item.startsWith('.')) {
+      if (item === "node_modules" || item === ".git" || item.startsWith(".")) {
         continue;
       }
 
@@ -41,10 +41,10 @@ function findGetCurrentUserIdInApiRoutes(dir: string): ApiRouteIssue[] {
 
       if (stat.isDirectory()) {
         scanDirectory(fullPath);
-      } else if (stat.isFile() && item === 'route.ts') {
+      } else if (stat.isFile() && item === "route.ts") {
         // Проверяем что это API Route (в директории app/api/)
         const relativePath = path.relative(dir, fullPath);
-        if (relativePath.includes('app/api/')) {
+        if (relativePath.includes("app/api/")) {
           scanApiRouteFile(fullPath);
         }
       }
@@ -52,18 +52,18 @@ function findGetCurrentUserIdInApiRoutes(dir: string): ApiRouteIssue[] {
   }
 
   function scanApiRouteFile(filePath: string) {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split('\n');
+    const content = fs.readFileSync(filePath, "utf-8");
+    const lines = content.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
       // Ищем использование getCurrentUserId
-      if (line.includes('getCurrentUserId')) {
+      if (line.includes("getCurrentUserId")) {
         issues.push({
           file: path.relative(process.cwd(), filePath),
           line: i + 1,
-          content: line.trim()
+          content: line.trim(),
         });
       }
     }
@@ -74,12 +74,12 @@ function findGetCurrentUserIdInApiRoutes(dir: string): ApiRouteIssue[] {
 }
 
 function main() {
-  console.log('🔍 Проверка использования getCurrentUserId в API Routes...\n');
+  console.log("🔍 Проверка использования getCurrentUserId в API Routes...\n");
 
-  const issues = findGetCurrentUserIdInApiRoutes('.');
+  const issues = findGetCurrentUserIdInApiRoutes(".");
 
   if (issues.length === 0) {
-    console.log('✅ Все API Routes правильно используют getServerSession вместо getCurrentUserId!');
+    console.log("✅ Все API Routes правильно используют getServerSession вместо getCurrentUserId!");
     process.exit(0);
   }
 
@@ -90,8 +90,8 @@ function main() {
     console.log(`   📝 ${issue.content}\n`);
   }
 
-  console.log('💡 Рекомендация:');
-  console.log('   Замените getCurrentUserId() на getServerSession(authOptions) в API Routes');
+  console.log("💡 Рекомендация:");
+  console.log("   Замените getCurrentUserId() на getServerSession(authOptions) в API Routes");
   console.log('   getCurrentUserId() помечен "use server" и не работает в API Routes');
 
   process.exit(1);

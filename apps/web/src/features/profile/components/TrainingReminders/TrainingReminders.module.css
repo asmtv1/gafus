@@ -1,10 +1,10 @@
 /* Основной контейнер */
 .container {
-  background: #FBF9F4;
+  background: #fbf9f4;
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border: 1px solid #E5DCC8;
+  border: 1px solid #e5dcc8;
 }
 
 /* Заголовок */
@@ -37,7 +37,7 @@
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #E5DCC8;
+  border: 4px solid #e5dcc8;
   border-top-color: #636128;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -112,7 +112,7 @@
 /* Карточка напоминания */
 .reminderItem {
   background: white;
-  border: 2px solid #E5DCC8;
+  border: 2px solid #e5dcc8;
   border-radius: 8px;
   padding: 16px;
   transition: all 0.3s;
@@ -188,7 +188,7 @@
   border-radius: 6px;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   background: transparent;
   transition: all 0.2s;
 }
@@ -210,7 +210,7 @@
   font-weight: 600;
   font-family: monospace;
   padding: 4px 8px;
-  background: #FFF9E6;
+  background: #fff9e6;
   border-radius: 4px;
 }
 
@@ -249,7 +249,7 @@
 .reminderDetails {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #E5DCC8;
+  border-top: 1px solid #e5dcc8;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -264,16 +264,16 @@
 .label {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 /* Time Input */
 .timeInput {
   padding: 10px 12px;
-  border: 2px solid #E5DCC8;
+  border: 2px solid #e5dcc8;
   border-radius: 8px;
   font-size: 0.9rem;
-  color: #352E2E;
+  color: #352e2e;
   background: white;
   cursor: pointer;
   transition: border-color 0.2s;
@@ -316,7 +316,7 @@
 
 .dayLabel {
   font-size: 0.9rem;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 /* Сетка дней недели */
@@ -345,7 +345,7 @@
   justify-content: center;
   padding: 8px 4px;
   background: white;
-  border: 2px solid #E5DCC8;
+  border: 2px solid #e5dcc8;
   border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 600;
@@ -357,7 +357,7 @@
 
 .dayInput:checked + .dayButtonLabel {
   background: #636128;
-  color: #FBF9F4;
+  color: #fbf9f4;
   border-color: #636128;
 }
 
@@ -371,7 +371,7 @@
   width: 100%;
   padding: 14px;
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
-  color: #FBF9F4;
+  color: #fbf9f4;
   border: none;
   border-radius: 8px;
   font-size: 0.95rem;
@@ -382,13 +382,13 @@
 }
 
 .addButton:hover {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
 }
 
 .addButton:active {
-  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
+  background: linear-gradient(135deg, #352e2e 0%, #2a2525 100%);
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
@@ -397,9 +397,9 @@
 .infoBox {
   margin-top: 20px;
   padding: 14px;
-  background: #EDF7FF;
+  background: #edf7ff;
   border-radius: 8px;
-  border: 1px solid #B3D9FF;
+  border: 1px solid #b3d9ff;
   font-size: 0.85rem;
   line-height: 1.5;
   color: #1976d2;

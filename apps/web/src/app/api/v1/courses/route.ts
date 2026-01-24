@@ -1,6 +1,6 @@
 /**
  * API Route: GET /api/v1/courses
- * 
+ *
  * Получает список курсов с прогрессом пользователя.
  */
 
@@ -10,17 +10,14 @@ import { authOptions } from "@gafus/auth";
 import { getCoursesWithProgress } from "@gafus/core/services/course";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('api-courses');
+const logger = createWebLogger("api-courses");
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: "Не авторизован" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Не авторизован" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -32,13 +29,13 @@ export async function GET() {
         headers: {
           "Cache-Control": "private, max-age=60", // 1 минута
         },
-      }
+      },
     );
   } catch (error) {
     logger.error("Error in courses API", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
         error: "Failed to get jobs",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -83,7 +83,7 @@ function getQueueByName(
     reengagementQueue: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     examCleanupQueue: any;
-  }
+  },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
   switch (name) {
@@ -104,7 +104,7 @@ async function getJobsByStatus(
   queue: any,
   queueName: string,
   status: string,
-  limit: number
+  limit: number,
 ): Promise<FailedJob[]> {
   try {
     let jobs;
@@ -142,14 +142,10 @@ async function getJobsByStatus(
         timestamp: job.timestamp,
         processedOn: job.processedOn,
         finishedOn: job.finishedOn,
-      })
+      }),
     );
   } catch (error) {
-    logger.error(
-      `Ошибка получения задач для очереди ${queueName}`,
-      error as Error
-    );
+    logger.error(`Ошибка получения задач для очереди ${queueName}`, error as Error);
     return [];
   }
 }
-

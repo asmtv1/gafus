@@ -50,7 +50,7 @@ export async function createEntity(userId: string, data: CreateEntityData): Prom
         id: true,
         name: true,
         // ... другие поля
-      }
+      },
     });
 
     return entity;
@@ -81,7 +81,7 @@ export async function getEntity(userId: string, entityId: string): Promise<Entit
         id: true,
         name: true,
         // ... другие поля
-      }
+      },
     });
 
     return entity;
@@ -104,7 +104,7 @@ export async function getUserEntities(userId: string): Promise<EntityData[]> {
         name: true,
         // ... другие поля
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
 
     return entities;
@@ -124,7 +124,7 @@ export async function getUserEntities(userId: string): Promise<EntityData[]> {
 export async function updateEntity(
   userId: string,
   entityId: string,
-  data: UpdateEntityData
+  data: UpdateEntityData,
 ): Promise<EntityData> {
   try {
     // Бизнес-валидация
@@ -137,7 +137,7 @@ export async function updateEntity(
       where: {
         id: entityId,
         userId,
-      }
+      },
     });
 
     if (!existing) {
@@ -155,7 +155,7 @@ export async function updateEntity(
         id: true,
         name: true,
         // ... другие поля
-      }
+      },
     });
 
     return updatedEntity;
@@ -180,7 +180,7 @@ export async function deleteEntity(userId: string, entityId: string): Promise<vo
       where: {
         id: entityId,
         userId,
-      }
+      },
     });
 
     if (!existing) {
@@ -189,7 +189,7 @@ export async function deleteEntity(userId: string, entityId: string): Promise<vo
 
     // Удаление
     await prisma.entity.delete({
-      where: { id: entityId }
+      where: { id: entityId },
     });
   } catch (error) {
     if (error instanceof NotFoundError) {

@@ -1,7 +1,7 @@
 .container {
-    margin: 0 auto;
-    background-color: var(--bg-1);
-    padding-bottom: 10px;
+  margin: 0 auto;
+  background-color: var(--bg-1);
+  padding-bottom: 10px;
 }
 
 .title {
@@ -14,35 +14,34 @@
   text-align: center;
 }
 
-
 .courseList {
-    display: flex;
-    gap: 20px;
-    padding: 0 20px;
-    margin-top: 22px;
-    justify-items: center;
-    align-items: center;
-    align-content: center;
-    flex-wrap: wrap;
-    justify-content: space-evenly;
+  display: flex;
+  gap: 20px;
+  padding: 0 20px;
+  margin-top: 22px;
+  justify-items: center;
+  align-items: center;
+  align-content: center;
+  flex-wrap: wrap;
+  justify-content: space-evenly;
 }
 
 .emptyState {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-secondary);
-    font-family: var(--font-montserrat), system-ui, sans-serif;
-    font-size: 16px;
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 16px;
 }
 
 .emptyState p {
-    margin: 0;
+  margin: 0;
 }
 
 /* Мобильная адаптация */
 @media (max-width: 768px) {
-    .courseList {
-        padding: 0 10px;
-        gap: 15px;
-    }
+  .courseList {
+    padding: 0 10px;
+    gap: 15px;
+  }
 }

@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
-import { 
-  View, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
+import {
+  View,
+  StyleSheet,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Pressable,
@@ -46,7 +46,7 @@ export default function LoginScreen() {
 
   const validateForm = useCallback((): boolean => {
     const result = loginSchema.safeParse({ username, password });
-    
+
     if (!result.success) {
       const fieldErrors: FormErrors = {};
       result.error.errors.forEach((err) => {
@@ -56,7 +56,7 @@ export default function LoginScreen() {
       setErrors(fieldErrors);
       return false;
     }
-    
+
     setErrors({});
     return true;
   }, [username, password]);
@@ -67,19 +67,19 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       const result = await login(username, password);
-      
+
       if (result.success) {
         router.replace("/");
       } else {
-        setSnackbar({ 
-          visible: true, 
-          message: result.error || "Ошибка авторизации" 
+        setSnackbar({
+          visible: true,
+          message: result.error || "Ошибка авторизации",
         });
       }
     } catch (error) {
-      setSnackbar({ 
-        visible: true, 
-        message: "Ошибка подключения к серверу" 
+      setSnackbar({
+        visible: true,
+        message: "Ошибка подключения к серверу",
       });
     } finally {
       setIsLoading(false);
@@ -92,7 +92,7 @@ export default function LoginScreen() {
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
@@ -108,11 +108,11 @@ export default function LoginScreen() {
 
           {/* Подзаголовок */}
           <Text style={styles.subtitle}>Авторизация</Text>
-          
+
           {/* Текст с ссылкой на регистрацию */}
           <View style={styles.registerTextContainer}>
             <Text style={styles.registerPrompt}>
-              Если у Вас еще нет аккаунта - 
+              Если у Вас еще нет аккаунта -
               <Link href="/register">
                 <Text style={styles.registerLink}>зарегистрируйтесь</Text>
               </Link>
@@ -134,9 +134,7 @@ export default function LoginScreen() {
               autoComplete="username"
               testID="username-input"
             />
-            {errors.username && (
-              <Text style={styles.errorText}>{errors.username}</Text>
-            )}
+            {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
 
             {/* Password Input */}
             <TextInput
@@ -150,9 +148,7 @@ export default function LoginScreen() {
               autoComplete="password"
               testID="password-input"
             />
-            {errors.password && (
-              <Text style={styles.errorText}>{errors.password}</Text>
-            )}
+            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
             {/* Кнопки: Регистрация и Забыли пароль */}
             <View style={styles.buttonsContainer}>

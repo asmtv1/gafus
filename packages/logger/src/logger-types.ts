@@ -1,12 +1,12 @@
 /**
  * Уровни логирования
  */
-export type LogLevel = 'debug' | 'info' | 'success' | 'warn' | 'error' | 'fatal';
+export type LogLevel = "debug" | "info" | "success" | "warn" | "error" | "fatal";
 
 /**
  * Окружения приложения
  */
-export type Environment = 'development' | 'production' | 'test';
+export type Environment = "development" | "production" | "test";
 
 /**
  * Конфигурация логгера
@@ -44,10 +44,10 @@ export interface Logger {
   warn(message: string, meta?: LogMeta): void;
   error(message: string, error?: Error, meta?: LogMeta): Promise<void>;
   fatal(message: string, error?: Error, meta?: LogMeta): Promise<void>;
-  
+
   /** Логирование только в development */
   dev(message: string, meta?: LogMeta): void;
-  
+
   /** Логирование успешных операций */
   success(message: string, meta?: LogMeta): void;
 }

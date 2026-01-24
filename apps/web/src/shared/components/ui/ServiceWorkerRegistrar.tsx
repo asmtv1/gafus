@@ -7,7 +7,7 @@ import { useEffect } from "react";
 import type { OfflineCourse } from "@shared/lib/offline/types";
 
 // Создаем логгер для ServiceWorkerRegistrar
-const logger = createWebLogger('web-service-worker-registrar');
+const logger = createWebLogger("web-service-worker-registrar");
 
 // Константы для IndexedDB (дублируем из htmlPageStorage, чтобы не зависеть от внешнего модуля)
 const DB_NAME = "gafus-offline-courses";
@@ -19,7 +19,7 @@ const STORE_NAME = "courses";
  */
 async function getCourseHtmlPageInline(
   courseType: string,
-  pagePath: string
+  pagePath: string,
 ): Promise<string | null> {
   try {
     console.log("[ServiceWorkerRegistrar] Getting HTML from IndexedDB", {
@@ -134,85 +134,88 @@ export default function ServiceWorkerRegistrar() {
   useEffect(() => {
     // Мгновенная регистрация Service Worker
     if (serviceWorkerManager.isSupported()) {
-      serviceWorkerManager.register()
-        .catch((error) => {
-          logger.warn("⚠️ Не удалось зарегистрировать Service Worker", {
-            operation: 'service_worker_registration_failed',
-            error: error instanceof Error ? error.message : String(error)
-          });
+      serviceWorkerManager.register().catch((error) => {
+        logger.warn("⚠️ Не удалось зарегистрировать Service Worker", {
+          operation: "service_worker_registration_failed",
+          error: error instanceof Error ? error.message : String(error),
         });
+      });
     }
   }, []);
 
   // Обработка сообщений от Service Worker о сетевом статусе и запросах HTML
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) {
+    if (!("serviceWorker" in navigator)) {
       return;
     }
 
     const handleMessage = async (event: MessageEvent) => {
       const { data } = event;
 
-      if (data?.type === 'NETWORK_STATUS') {
-        if (data.status === 'OFFLINE') {
-          logger.warn('Service Worker detected offline', {
-            operation: 'sw_offline_detected',
-            error: data.error
+      if (data?.type === "NETWORK_STATUS") {
+        if (data.status === "OFFLINE") {
+          logger.warn("Service Worker detected offline", {
+            operation: "sw_offline_detected",
+            error: data.error,
           });
           setOnlineStatus(false);
-        } else if (data.status === 'ONLINE') {
-          logger.info('Service Worker detected online', {
-            operation: 'sw_online_detected'
+        } else if (data.status === "ONLINE") {
+          logger.info("Service Worker detected online", {
+            operation: "sw_online_detected",
           });
           setOnlineStatus(true);
         }
       }
 
       // Обработка запроса HTML из IndexedDB
-      if (data?.type === 'NETWORK_STATUS' && data.action === 'GET_HTML_FROM_INDEXEDDB' && data.url) {
+      if (
+        data?.type === "NETWORK_STATUS" &&
+        data.action === "GET_HTML_FROM_INDEXEDDB" &&
+        data.url
+      ) {
         try {
           // Нормализуем URL (убираем trailing slash для совместимости с Service Worker)
-          const normalizedUrl = data.url.replace(/\/$/, '') || data.url;
-          
+          const normalizedUrl = data.url.replace(/\/$/, "") || data.url;
+
           // Извлекаем courseType из URL
           const match = normalizedUrl.match(/^\/trainings\/([^/]+)/);
           if (match) {
             const courseType = match[1];
-            console.log('[ServiceWorkerRegistrar] Requesting HTML from IndexedDB', {
+            console.log("[ServiceWorkerRegistrar] Requesting HTML from IndexedDB", {
               courseType,
               url: normalizedUrl,
             });
-            logger.info('Requesting HTML from IndexedDB for Service Worker', {
+            logger.info("Requesting HTML from IndexedDB for Service Worker", {
               courseType,
               url: normalizedUrl,
             });
-            
+
             const html = await getCourseHtmlPageInline(courseType, normalizedUrl);
-            
+
             if (html && navigator.serviceWorker.controller) {
               // Отправляем HTML обратно в Service Worker с нормализованным URL
               navigator.serviceWorker.controller.postMessage({
-                type: 'HTML_FROM_INDEXEDDB',
+                type: "HTML_FROM_INDEXEDDB",
                 url: normalizedUrl,
-                html
+                html,
               });
-              
-              console.log('[ServiceWorkerRegistrar] HTML sent to Service Worker', {
+
+              console.log("[ServiceWorkerRegistrar] HTML sent to Service Worker", {
                 url: normalizedUrl,
-                htmlLength: html.length
+                htmlLength: html.length,
               });
-              logger.info('HTML sent to Service Worker from IndexedDB', {
+              logger.info("HTML sent to Service Worker from IndexedDB", {
                 courseType,
                 url: normalizedUrl,
-                htmlLength: html.length
+                htmlLength: html.length,
               });
             } else {
-              console.warn('[ServiceWorkerRegistrar] HTML not found or SW not available', {
+              console.warn("[ServiceWorkerRegistrar] HTML not found or SW not available", {
                 url: normalizedUrl,
                 hasHtml: !!html,
                 hasController: !!navigator.serviceWorker.controller,
               });
-              logger.warn('HTML not found in IndexedDB or Service Worker not available', {
+              logger.warn("HTML not found in IndexedDB or Service Worker not available", {
                 courseType,
                 url: normalizedUrl,
                 hasHtml: !!html,
@@ -220,26 +223,26 @@ export default function ServiceWorkerRegistrar() {
               });
             }
           } else {
-            console.warn('[ServiceWorkerRegistrar] Failed to extract courseType from URL', {
+            console.warn("[ServiceWorkerRegistrar] Failed to extract courseType from URL", {
               url: normalizedUrl,
             });
-            logger.warn('Failed to extract courseType from URL', {
+            logger.warn("Failed to extract courseType from URL", {
               url: normalizedUrl,
             });
           }
         } catch (error) {
-          console.error('[ServiceWorkerRegistrar] Error getting HTML from IndexedDB', error);
-          logger.error('Failed to get HTML from IndexedDB for Service Worker', error as Error, {
-            url: data.url
+          console.error("[ServiceWorkerRegistrar] Error getting HTML from IndexedDB", error);
+          logger.error("Failed to get HTML from IndexedDB for Service Worker", error as Error, {
+            url: data.url,
           });
         }
       }
     };
 
-    navigator.serviceWorker.addEventListener('message', handleMessage);
+    navigator.serviceWorker.addEventListener("message", handleMessage);
 
     return () => {
-      navigator.serviceWorker.removeEventListener('message', handleMessage);
+      navigator.serviceWorker.removeEventListener("message", handleMessage);
     };
   }, [setOnlineStatus]);
 

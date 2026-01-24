@@ -34,7 +34,9 @@
       "@gafus/react-query": ["../../packages/react-query/src/index.ts"],
       "@gafus/react-query/*": ["../../packages/react-query/src/*"],
       "@gafus/ui-components": ["../../packages/ui-components/src/index.ts"],
-      "@gafus/ui-components/*": ["../../packages/ui-components/src/*"]
+      "@gafus/ui-components/*": ["../../packages/ui-components/src/*"],
+      "@gafus/core": ["../../packages/core/src/index.ts"],
+      "@gafus/core/*": ["../../packages/core/src/*"]
     },
     /* Типы */
     "typeRoots": ["./types", "../../node_modules/@types"],

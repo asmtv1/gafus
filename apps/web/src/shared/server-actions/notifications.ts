@@ -2,7 +2,7 @@
 
 /**
  * Server Actions для работы с уведомлениями шагов
- * 
+ *
  * Эти actions используют stepNotificationService для бизнес-логики
  * и добавляют авторизацию через getCurrentUserId.
  */
@@ -28,7 +28,7 @@ import {
   dayNumberSchema,
 } from "@shared/lib/validation/schemas";
 
-const logger = createWebLogger('notification-server-actions');
+const logger = createWebLogger("notification-server-actions");
 
 // ========== Schemas ==========
 
@@ -62,7 +62,7 @@ const deleteSchema = z.object({
 export async function pauseNotificationAction(
   courseId: string,
   dayOnCourseId: string,
-  stepIndex: number
+  stepIndex: number,
 ) {
   const parsed = notificationKeySchema.parse({ courseId, dayOnCourseId, stepIndex });
   try {
@@ -87,7 +87,7 @@ export async function pauseNotificationAction(
 export async function resetNotificationAction(
   courseId: string,
   dayOnCourseId: string,
-  stepIndex: number
+  stepIndex: number,
 ) {
   const parsed = notificationKeySchema.parse({ courseId, dayOnCourseId, stepIndex });
   try {
@@ -115,12 +115,23 @@ export async function resumeNotificationAction(
   stepIndex: number,
   durationSec: number,
 ) {
-  const parsed = resumeNotificationSchema.parse({ courseId, dayOnCourseId, stepIndex, durationSec });
+  const parsed = resumeNotificationSchema.parse({
+    courseId,
+    dayOnCourseId,
+    stepIndex,
+    durationSec,
+  });
   try {
     const userId = await getCurrentUserId();
     const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
 
-    await resumeStepNotification(userId, day, parsed.stepIndex, parsed.durationSec, parsed.dayOnCourseId);
+    await resumeStepNotification(
+      userId,
+      day,
+      parsed.stepIndex,
+      parsed.durationSec,
+      parsed.dayOnCourseId,
+    );
     return { success: true };
   } catch (error) {
     logger.error("Failed to resume notification", error as Error, {
@@ -139,7 +150,7 @@ export async function resumeNotificationAction(
 export async function toggleStepNotificationPauseAction(
   day: number,
   stepIndex: number,
-  pause: boolean
+  pause: boolean,
 ) {
   const parsed = togglePauseSchema.parse({ day, stepIndex, pause });
   const userId = await getCurrentUserId();
@@ -153,7 +164,7 @@ export async function toggleStepNotificationPauseAction(
 export async function deleteStepNotificationAction(
   day: number,
   stepIndex: number,
-  deleted: boolean
+  deleted: boolean,
 ) {
   const parsed = deleteSchema.parse({ day, stepIndex, deleted });
   const userId = await getCurrentUserId();
@@ -173,7 +184,7 @@ export async function createStepNotificationAction(params: {
 }) {
   try {
     const userId = await getCurrentUserId();
-    
+
     await createStepNotification({
       userId,
       day: params.day,
@@ -182,15 +193,15 @@ export async function createStepNotificationAction(params: {
       maybeUrl: params.maybeUrl,
       stepTitle: params.stepTitle,
     });
-    
+
     return { success: true };
   } catch (error) {
     logger.error("Failed to create step notification", error as Error, {
       params,
     });
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }

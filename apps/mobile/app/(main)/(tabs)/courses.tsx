@@ -1,11 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
-  Pressable,
-} from "react-native";
+import { View, StyleSheet, FlatList, RefreshControl, Pressable } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -43,7 +37,7 @@ export default function FavoritesScreen() {
 
   const displayedCourses = useMemo(
     () => favoriteCourses.filter((c) => favorites.includes(c.id)),
-    [favoriteCourses, favorites]
+    [favoriteCourses, favorites],
   );
 
   const onRefresh = useCallback(async () => {
@@ -81,9 +75,7 @@ export default function FavoritesScreen() {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.title}>
-        Избранные курсы
-      </Text>
+      <Text style={styles.title}>Избранные курсы</Text>
     </View>
   );
 
@@ -114,9 +106,7 @@ export default function FavoritesScreen() {
           keyExtractor={(item) => item.id}
           ListHeaderComponent={renderHeader}
           contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         />
       )}
 

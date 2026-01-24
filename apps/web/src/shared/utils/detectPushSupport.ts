@@ -7,7 +7,7 @@ export interface PushSupportInfo {
   isSupported: boolean;
   requiresPWA: boolean;
   isInPWA: boolean;
-  platform: 'ios' | 'android' | 'desktop';
+  platform: "ios" | "android" | "desktop";
   isMobile: boolean;
   showInstallPrompt: boolean; // true для iOS не-PWA
   showNotificationPrompt: boolean; // true для iOS PWA, Android, Desktop
@@ -24,7 +24,7 @@ function isStandaloneMode(): boolean {
   }
 
   // Для остальных браузеров (Android, Desktop)
-  if (window.matchMedia('(display-mode: standalone)').matches) {
+  if (window.matchMedia("(display-mode: standalone)").matches) {
     return true;
   }
 
@@ -34,39 +34,39 @@ function isStandaloneMode(): boolean {
 /**
  * Определяет платформу устройства
  */
-function detectPlatform(): 'ios' | 'android' | 'desktop' {
+function detectPlatform(): "ios" | "android" | "desktop" {
   const userAgent = navigator.userAgent.toLowerCase();
 
   if (/ipad|iphone|ipod/.test(userAgent)) {
-    return 'ios';
+    return "ios";
   }
 
   if (/android/.test(userAgent)) {
-    return 'android';
+    return "android";
   }
 
-  return 'desktop';
+  return "desktop";
 }
 
 /**
  * Определяет браузер
  */
-function detectBrowser(): 'safari' | 'chrome' | 'firefox' | 'other' {
+function detectBrowser(): "safari" | "chrome" | "firefox" | "other" {
   const userAgent = navigator.userAgent.toLowerCase();
 
-  if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
-    return 'safari';
+  if (userAgent.includes("safari") && !userAgent.includes("chrome")) {
+    return "safari";
   }
 
-  if (userAgent.includes('chrome')) {
-    return 'chrome';
+  if (userAgent.includes("chrome")) {
+    return "chrome";
   }
 
-  if (userAgent.includes('firefox')) {
-    return 'firefox';
+  if (userAgent.includes("firefox")) {
+    return "firefox";
   }
 
-  return 'other';
+  return "other";
 }
 
 /**
@@ -74,31 +74,29 @@ function detectBrowser(): 'safari' | 'chrome' | 'firefox' | 'other' {
  */
 function hasPushSupport(): boolean {
   return (
-    'serviceWorker' in navigator &&
-    'PushManager' in window &&
-    typeof Notification !== 'undefined'
+    "serviceWorker" in navigator && "PushManager" in window && typeof Notification !== "undefined"
   );
 }
 
 /**
  * Основная функция определения поддержки Web Push
- * 
+ *
  * @returns PushSupportInfo с информацией о платформе и действиях
  */
 export function detectPushSupport(): PushSupportInfo {
   const platform = detectPlatform();
-  const isMobile = platform === 'ios' || platform === 'android';
+  const isMobile = platform === "ios" || platform === "android";
   const isInPWA = isStandaloneMode();
   const browser = detectBrowser();
   const hasSupport = hasPushSupport();
 
   // Desktop - показываем запрос на уведомления, но не просим установить PWA
-  if (platform === 'desktop') {
+  if (platform === "desktop") {
     return {
       isSupported: hasSupport,
       requiresPWA: false,
       isInPWA: false,
-      platform: 'desktop',
+      platform: "desktop",
       isMobile: false,
       showInstallPrompt: false,
       showNotificationPrompt: hasSupport, // Показываем запрос на уведомления
@@ -106,18 +104,18 @@ export function detectPushSupport(): PushSupportInfo {
   }
 
   // iOS Safari
-  if (platform === 'ios' && browser === 'safari') {
+  if (platform === "ios" && browser === "safari") {
     // iOS в браузере - не поддерживается, нужна PWA
     if (!isInPWA) {
       return {
         isSupported: false,
         requiresPWA: true,
         isInPWA: false,
-        platform: 'ios',
+        platform: "ios",
         isMobile: true,
         showInstallPrompt: true,
         showNotificationPrompt: false,
-        reason: 'iOS Safari поддерживает Web Push только в PWA режиме',
+        reason: "iOS Safari поддерживает Web Push только в PWA режиме",
       };
     }
 
@@ -126,7 +124,7 @@ export function detectPushSupport(): PushSupportInfo {
       isSupported: hasSupport,
       requiresPWA: true,
       isInPWA: true,
-      platform: 'ios',
+      platform: "ios",
       isMobile: true,
       showInstallPrompt: false,
       showNotificationPrompt: hasSupport,
@@ -134,12 +132,12 @@ export function detectPushSupport(): PushSupportInfo {
   }
 
   // Android - поддерживается в браузере и PWA
-  if (platform === 'android') {
+  if (platform === "android") {
     return {
       isSupported: hasSupport,
       requiresPWA: false,
       isInPWA,
-      platform: 'android',
+      platform: "android",
       isMobile: true,
       showInstallPrompt: false,
       showNotificationPrompt: hasSupport,

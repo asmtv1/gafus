@@ -2,14 +2,19 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl, getPetPhotoPath } from "@gafus/cdn-upload";
+import {
+  uploadFileToCDN,
+  deleteFileFromCDN,
+  getRelativePathFromCDNUrl,
+  getPetPhotoPath,
+} from "@gafus/cdn-upload";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 
 import { petIdSchema } from "../validation/petSchemas";
 
 // Создаем логгер для updatePetAvatar
-const logger = createWebLogger('web-update-pet-avatar');
+const logger = createWebLogger("web-update-pet-avatar");
 
 const fileSchema = z.instanceof(File, { message: "Файл обязателен" });
 
@@ -41,7 +46,9 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
     // 4. Удаляем старый файл из CDN (если есть)
     if (existingPet.photoUrl) {
       const oldRelativePath = getRelativePathFromCDNUrl(existingPet.photoUrl);
-      logger.info(`🔍 Найден старое фото питомца для удаления: ${existingPet.photoUrl} -> ${oldRelativePath}`);
+      logger.info(
+        `🔍 Найден старое фото питомца для удаления: ${existingPet.photoUrl} -> ${oldRelativePath}`,
+      );
       try {
         await deleteFileFromCDN(oldRelativePath);
         logger.info(`🗑️ Старое фото питомца удалено из CDN: ${oldRelativePath}`);
@@ -58,12 +65,12 @@ export async function updatePetAvatar(file: File, petId: string): Promise<string
       data: { photoUrl },
     });
 
-    logger.warn("Pet photo URL saved to database:", { photoUrl, operation: 'warn' });
+    logger.warn("Pet photo URL saved to database:", { photoUrl, operation: "warn" });
     return photoUrl;
   } catch (error) {
     logger.error("Ошибка в updatePetAvatar:", error as Error, {
-      operation: 'update_pet_avatar_error',
-      petId: safePetId
+      operation: "update_pet_avatar_error",
+      petId: safePetId,
     });
     throw error;
   }

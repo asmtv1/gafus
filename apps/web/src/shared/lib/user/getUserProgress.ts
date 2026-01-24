@@ -9,7 +9,7 @@ import { z } from "zod";
 import { courseIdSchema, userIdSchema } from "../validation/schemas";
 
 // Создаем логгер для getUserProgress
-const logger = createWebLogger('web-get-user-progress');
+const logger = createWebLogger("web-get-user-progress");
 
 export interface UserDayProgress {
   dayOrder: number;
@@ -109,23 +109,24 @@ export async function getUserProgress(
       const userTrainingIds = userTrainings.map((t) => t.id);
 
       // Получаем реальные активные шаги (IN_PROGRESS или COMPLETED) для проверки прогресса
-      const userSteps = userTrainingIds.length > 0
-        ? await prisma.userStep.findMany({
-            where: {
-              userTrainingId: { in: userTrainingIds },
-              status: {
-                in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED],
+      const userSteps =
+        userTrainingIds.length > 0
+          ? await prisma.userStep.findMany({
+              where: {
+                userTrainingId: { in: userTrainingIds },
+                status: {
+                  in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED],
+                },
               },
-            },
-            select: {
-              id: true,
-              createdAt: true,
-            },
-            orderBy: {
-              createdAt: "asc",
-            },
-          })
-        : [];
+              select: {
+                id: true,
+                createdAt: true,
+              },
+              orderBy: {
+                createdAt: "asc",
+              },
+            })
+          : [];
 
       const hasRealProgress = userSteps.length > 0;
 
@@ -201,7 +202,11 @@ export async function getUserProgress(
             await updateCourseStatus(TrainingStatus.NOT_STARTED, null);
           }
           // Если статус NOT_STARTED, но есть startedAt (старые данные или неконсистентность) - очищаем startedAt
-          else if (userProgress.status === TrainingStatus.NOT_STARTED && userProgress.startedAt && !hasRealProgress) {
+          else if (
+            userProgress.status === TrainingStatus.NOT_STARTED &&
+            userProgress.startedAt &&
+            !hasRealProgress
+          ) {
             startedAt = null;
             await updateCourseStatus(TrainingStatus.NOT_STARTED, null);
           }
@@ -379,14 +384,16 @@ export async function getUserProgress(
         // - COMPLETED: день завершен
         const dayStatus = (() => {
           if (!userTraining) return TrainingStatus.NOT_STARTED;
-          
+
           // Создаем массив статусов для ВСЕХ шагов дня, заполняя недостающие как NOT_STARTED
           const allStepStatuses: string[] = [];
           for (const stepLink of dayLink.day.stepLinks) {
-            const userStep = (userTraining.steps || []).find((s: { stepOnDayId: string }) => s.stepOnDayId === stepLink.id);
+            const userStep = (userTraining.steps || []).find(
+              (s: { stepOnDayId: string }) => s.stepOnDayId === stepLink.id,
+            );
             allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
           }
-          
+
           return calculateDayStatusFromStatuses(allStepStatuses);
         })();
 
@@ -482,9 +489,9 @@ export async function getUserProgress(
     return result;
   } catch (error) {
     logger.error("Ошибка при получении прогресса пользователя", error as Error, {
-      operation: 'get_user_progress_error',
+      operation: "get_user_progress_error",
       courseId: courseId,
-      userId: userId
+      userId: userId,
     });
     return null;
   }

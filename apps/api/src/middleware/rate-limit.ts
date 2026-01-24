@@ -19,11 +19,7 @@ const redisClientAdapter = {
     }
     return result;
   },
-  async evalsha<T = unknown>(
-    sha1: string,
-    keys: string[],
-    args: unknown[]
-  ): Promise<T> {
+  async evalsha<T = unknown>(sha1: string, keys: string[], args: unknown[]): Promise<T> {
     // ioredis.evalsha принимает: sha, numkeys, ...keys, ...args
     // args должны быть совместимы с RedisValue (string | number | Buffer)
     const redisArgs = args.map((arg) => {
@@ -32,12 +28,7 @@ const redisClientAdapter = {
       }
       return String(arg);
     });
-    return ioredisClient.evalsha(
-      sha1,
-      keys.length,
-      ...keys,
-      ...redisArgs
-    ) as Promise<T>;
+    return ioredisClient.evalsha(sha1, keys.length, ...keys, ...redisArgs) as Promise<T>;
   },
   async decr(key: string): Promise<number> {
     return ioredisClient.decr(key);

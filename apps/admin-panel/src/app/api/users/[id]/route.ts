@@ -5,14 +5,13 @@ import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
-const logger = createAdminPanelLogger('api-users');
+const logger = createAdminPanelLogger("api-users");
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const session = (await getServerSession(authOptions)) as { user: { id: string; username: string; role: string } } | null;
+    const session = (await getServerSession(authOptions)) as {
+      user: { id: string; username: string; role: string };
+    } | null;
 
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: "Не авторизован" }, { status: 401 });
@@ -33,7 +32,7 @@ export async function PUT(
     if (username) updateData.username = username;
     if (phone) updateData.phone = phone;
     if (role) updateData.role = role;
-    
+
     // Обработка нового пароля
     if (newPassword && typeof newPassword === "string" && newPassword.trim()) {
       const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -51,8 +50,7 @@ export async function PUT(
     logger.error("Ошибка при обновлении пользователя:", error as Error);
     return NextResponse.json(
       { success: false, error: "Не удалось обновить пользователя" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

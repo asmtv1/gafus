@@ -25,15 +25,8 @@ export function StepTimer({
   onComplete,
   onPause,
 }: StepTimerProps) {
-  const {
-    activeTimer,
-    startTimer,
-    resumeTimer,
-    pauseTimer,
-    tick,
-    stopTimer,
-    isTimerActiveFor,
-  } = useTimerStore();
+  const { activeTimer, startTimer, resumeTimer, pauseTimer, tick, stopTimer, isTimerActiveFor } =
+    useTimerStore();
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isActive = isTimerActiveFor(courseId, dayOnCourseId, stepIndex);
@@ -104,12 +97,7 @@ export function StepTimer({
           <Text style={styles.timeText}>{formatTime(totalDuration)}</Text>
           <Text style={styles.label}>Нажмите для старта</Text>
         </View>
-        <IconButton
-          icon="play-circle"
-          iconColor={COLORS.primary}
-          size={64}
-          onPress={handleStart}
-        />
+        <IconButton icon="play-circle" iconColor={COLORS.primary} size={64} onPress={handleStart} />
       </View>
     );
   }
@@ -121,9 +109,7 @@ export function StepTimer({
         <Text style={[styles.timeText, remainingSec <= 10 && styles.timeTextWarning]}>
           {formatTime(remainingSec)}
         </Text>
-        <Text style={styles.label}>
-          {isRunning ? "Осталось" : "На паузе"}
-        </Text>
+        <Text style={styles.label}>{isRunning ? "Осталось" : "На паузе"}</Text>
       </View>
 
       {/* Прогресс бар */}

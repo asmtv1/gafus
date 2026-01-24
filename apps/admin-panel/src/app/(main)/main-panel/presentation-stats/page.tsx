@@ -7,7 +7,7 @@ import PresentationStatsMonitor from "@/features/presentation/components/Present
 
 export const metadata = {
   title: "Статистика по презентации | Админ панель",
-  description: "Аналитика просмотров presentation.html"
+  description: "Аналитика просмотров presentation.html",
 };
 
 /**
@@ -26,17 +26,8 @@ export default async function PresentationStatsPage() {
   }
 
   return (
-    <PageLayout
-      title="Статистика по презентации"
-      subtitle="Аналитика просмотров presentation.html"
-    >
+    <PageLayout title="Статистика по презентации" subtitle="Аналитика просмотров presentation.html">
       <PresentationStatsMonitor />
     </PageLayout>
   );
 }
-
-
-
-
-
-

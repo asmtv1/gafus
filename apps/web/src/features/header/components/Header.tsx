@@ -76,19 +76,19 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
               <div className={styles.profiltext}>Профиль</div>
             </Link>
             <Link
-                  href="/achievements/"
-                  onClick={() => setMenuOpen(false)}
-                  className={styles.menuButton}
-                >
-                  <Image
-                    src="/uploads/header/achievements.svg"
-                    alt="achievements"
-                    width={24}
-                    height={24}
-                    loading="lazy"
-                  />
-                  Достижения
-                </Link>
+              href="/achievements/"
+              onClick={() => setMenuOpen(false)}
+              className={styles.menuButton}
+            >
+              <Image
+                src="/uploads/header/achievements.svg"
+                alt="achievements"
+                width={24}
+                height={24}
+                loading="lazy"
+              />
+              Достижения
+            </Link>
             {trainerOnly && (
               <>
                 {process.env.NEXT_PUBLIC_TRAINER_PANEL_URL && (
@@ -109,13 +109,19 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                 )}
               </>
             )}
-            <Link 
-              href="/courses" 
-              onClick={() => setMenuOpen(false)} 
+            <Link
+              href="/courses"
+              onClick={() => setMenuOpen(false)}
               onMouseEnter={() => router.prefetch("/courses")}
               className={styles.menuButton}
             >
-              <Image src="/uploads/header/home.svg" alt="Home" width={24} height={24} loading="lazy" />
+              <Image
+                src="/uploads/header/home.svg"
+                alt="Home"
+                width={24}
+                height={24}
+                loading="lazy"
+              />
               Все курсы
             </Link>
             <Link
@@ -134,7 +140,13 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
               Избранное
             </Link>
             <div className={styles.menuButton}>
-              <Image src="/uploads/header/logout.svg" alt="Logout" width={24} height={24} loading="lazy" />
+              <Image
+                src="/uploads/header/logout.svg"
+                alt="Logout"
+                width={24}
+                height={24}
+                loading="lazy"
+              />
               <button
                 className={styles.logoutButton}
                 onClick={() => {

@@ -15,7 +15,16 @@ import VideoSelector from "./VideoSelector";
 
 import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 
-import { Alert, AlertTitle, Box, Button, Typography, FormControlLabel, Checkbox, FormGroup } from "@/utils/muiImports";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  Typography,
+  FormControlLabel,
+  Checkbox,
+  FormGroup,
+} from "@/utils/muiImports";
 
 interface StepFormData {
   title: string;
@@ -66,7 +75,11 @@ interface TrainerVideoViewModel {
   updatedAt: Date;
 }
 
-export default function NewStepForm({ initialData, serverAction, trainerVideos = [] }: NewStepFormProps) {
+export default function NewStepForm({
+  initialData,
+  serverAction,
+  trainerVideos = [],
+}: NewStepFormProps) {
   const hasInitial = Boolean(initialData && (initialData.title || initialData.id));
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -170,7 +183,8 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
       validate: (value: string | boolean) => {
         const strValue = String(value);
         if (!strValue) return true; // Необязательное поле
-        const urlPattern = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
+        const urlPattern =
+          /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
         return urlPattern.test(strValue) || "Неверный формат ссылки на видео";
       },
     },
@@ -181,7 +195,7 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
         if (type === "EXAMINATION") {
           const requiresVideoReport = form.watch("requiresVideoReport");
           const requiresWrittenFeedback = form.watch("requiresWrittenFeedback");
-          
+
           if (!boolValue && !requiresVideoReport && !requiresWrittenFeedback) {
             return "Выберите хотя бы один тип экзамена";
           }
@@ -202,35 +216,35 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
       formData.append("title", data.title);
       formData.append("description", data.description);
       formData.append("type", data.type);
-      
+
       // Для тренировочных, теоретических и практических шагов добавляем длительность и видео
       if (data.type === "TRAINING" || data.type === "THEORY" || data.type === "PRACTICE") {
         // Длительность только для тренировочных шагов
-      if (data.type === "TRAINING") {
-        formData.append("duration", data.duration || "");
+        if (data.type === "TRAINING") {
+          formData.append("duration", data.duration || "");
         }
         // Видео и медиа для всех типов
         if (data.videoUrl) formData.append("videoUrl", data.videoUrl);
-        
+
         // Добавляем ВСЕ файлы изображений за один запрос (благодаря bodySizeLimit: 100mb)
         imageFiles.forEach((file, index) => {
-          const extension = file.name.split('.').pop() || 'jpg';
+          const extension = file.name.split(".").pop() || "jpg";
           const fileName = `image_${Date.now()}_${index}.${extension}`;
           formData.append("images", file, fileName);
         });
-        
+
         // Добавляем удаленные изображения
         deletedImages.forEach((imageUrl) => {
           formData.append("deletedImages", imageUrl);
         });
         pdfUrls.forEach((url) => formData.append("pdfUrls", url));
       }
-      
+
       // Для перерыва добавляем только длительность
       if (data.type === "BREAK") {
         formData.append("duration", data.duration || "");
       }
-      
+
       // Для экзаменационных шагов добавляем чек-лист и типы экзамена
       if (data.type === "EXAMINATION") {
         formData.append("checklist", JSON.stringify(checklist));
@@ -267,9 +281,8 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
         // Редиректим через 2 секунды, чтобы пользователь увидел уведомление
         setTimeout(() => {
           const returnTo = searchParams.get("returnTo");
-          const redirectUrl = returnTo && returnTo.startsWith("/main-panel/steps") 
-            ? returnTo 
-            : "/main-panel/steps";
+          const redirectUrl =
+            returnTo && returnTo.startsWith("/main-panel/steps") ? returnTo : "/main-panel/steps";
           router.push(redirectUrl);
         }, 2000);
       } else {
@@ -305,8 +318,8 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
   return (
     <Box key={formKey} className={sharedStyles.formContainer}>
       {showErrorMessage && (
-        <Alert 
-          severity="error" 
+        <Alert
+          severity="error"
           className={sharedStyles.formAlert}
           onClose={() => setShowErrorMessage(false)}
         >
@@ -322,7 +335,7 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
 
       <form onSubmit={form.handleSubmit(handleSubmit)}>
         {initialData?.id ? <input type="hidden" name="id" value={initialData.id} /> : null}
-        
+
         <FormSection title="Основная информация">
           <FormField
             id="title"
@@ -345,31 +358,37 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
               { value: "EXAMINATION", label: "Экзаменационный" },
               { value: "THEORY", label: "Теоретический" },
               { value: "BREAK", label: "Перерыв" },
-              { value: "PRACTICE", label: "Тренировочный (без таймера)" }
+              { value: "PRACTICE", label: "Тренировочный (без таймера)" },
             ]}
           />
 
           <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
             <AlertTitle>Различия между типами шагов:</AlertTitle>
             <Typography variant="body2" component="div" sx={{ mt: 1 }}>
-              <strong>Тренировочный</strong> — практический шаг с таймером, требует выполнения упражнения за указанное время.
+              <strong>Тренировочный</strong> — практический шаг с таймером, требует выполнения
+              упражнения за указанное время.
               <br />
               <em>Прохождение упражнения будет зачтено после истечения таймера.</em>
               <br />
               <br />
-              <strong>Тренировочный (без таймера)</strong> — практический шаг без ограничения по времени, только примерное время прохождения.
+              <strong>Тренировочный (без таймера)</strong> — практический шаг без ограничения по
+              времени, только примерное время прохождения.
               <br />
               <em>Прохождение будет зачтено, если пользователь нажмёт кнопку "я выполнил".</em>
               <br />
               <br />
-              <strong>Теоретический</strong> — изучение материала (видео, текст, медиа), без практического выполнения.
+              <strong>Теоретический</strong> — изучение материала (видео, текст, медиа), без
+              практического выполнения.
               <br />
               <em>Прохождение будет зачтено автоматически при открытии шага.</em>
               <br />
               <br />
-              <strong>Экзаменационный</strong> — проверка знаний (тесты, видео-отчёт, письменная обратная связь), требует проверки тренером.
+              <strong>Экзаменационный</strong> — проверка знаний (тесты, видео-отчёт, письменная
+              обратная связь), требует проверки тренером.
               <br />
-              <em>Прохождение будет зачтено, только когда вы в панели тренера поставите "зачёт".</em>
+              <em>
+                Прохождение будет зачтено, только когда вы в панели тренера поставите "зачёт".
+              </em>
               <br />
               <br />
               <strong>Перерыв</strong> — пауза между упражнениями с указанием длительности.
@@ -517,7 +536,7 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Выберите, что должен предоставить пользователь для прохождения экзамена:
               </Typography>
-              
+
               <FormGroup>
                 <FormControlLabel
                   control={
@@ -556,7 +575,7 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
                   label="Письменная обратная связь"
                 />
               </FormGroup>
-              
+
               {form.formState.errors.hasTestQuestions && (
                 <Alert severity="error" className={sharedStyles.formAlert}>
                   {form.formState.errors.hasTestQuestions.message}
@@ -599,10 +618,7 @@ export default function NewStepForm({ initialData, serverAction, trainerVideos =
 
             {form.watch("hasTestQuestions") && (
               <FormSection title="Тестовые вопросы">
-                <ChecklistEditor
-                  checklist={checklist}
-                  onChange={setChecklist}
-                />
+                <ChecklistEditor checklist={checklist} onChange={setChecklist} />
               </FormSection>
             )}
           </>

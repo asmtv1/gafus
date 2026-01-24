@@ -231,7 +231,10 @@ export async function getAuthoredCoursesWithStats(authorId: string): Promise<Aut
         userData.status = TrainingStatus.COMPLETED;
       } else if (userActiveSteps.length > 0) {
         const firstActiveStepDate = userActiveSteps[0]?.createdAt;
-        if (firstActiveStepDate && (!userData.startedAt || firstActiveStepDate < userData.startedAt)) {
+        if (
+          firstActiveStepDate &&
+          (!userData.startedAt || firstActiveStepDate < userData.startedAt)
+        ) {
           userData.startedAt = firstActiveStepDate;
         }
         userData.status = TrainingStatus.IN_PROGRESS;
@@ -311,7 +314,9 @@ export async function getAuthoredCoursesWithStats(authorId: string): Promise<Aut
 
     trainings.forEach((training) => {
       const userStepsForTraining = userStepsByTrainingId.get(training.id) || [];
-      const stepStatusMap = new Map(userStepsForTraining.map((step) => [step.stepOnDayId, step.status]));
+      const stepStatusMap = new Map(
+        userStepsForTraining.map((step) => [step.stepOnDayId, step.status]),
+      );
       const dayInfo = dayInfoMap.get(training.dayOnCourseId);
       if (!dayInfo) return;
 
@@ -368,4 +373,3 @@ export async function getAuthoredCoursesWithStats(authorId: string): Promise<Aut
 
   return coursesWithStats;
 }
-

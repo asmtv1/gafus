@@ -1,6 +1,6 @@
 /**
  * API Route: POST /api/v1/auth/reset-password
- * 
+ *
  * Сбрасывает пароль по токену.
  * Публичный endpoint (не требует авторизации).
  */
@@ -10,7 +10,7 @@ import { resetPassword } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
-const logger = createWebLogger('api-auth');
+const logger = createWebLogger("api-auth");
 
 const schema = z.object({
   token: z.string().min(1, "Токен обязателен"),
@@ -29,14 +29,14 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: "Неверные данные запроса", details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     logger.error("Error in reset-password API", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

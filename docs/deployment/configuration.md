@@ -7,6 +7,7 @@
 ## 🌍 Окружения
 
 ### Development (Разработка)
+
 ```env
 # .env.development
 NODE_ENV=development
@@ -29,6 +30,7 @@ CSRF_SECRET=development-csrf-secret
 ```
 
 ### Staging (Тестирование)
+
 ```env
 # .env.staging
 NODE_ENV=production
@@ -51,6 +53,7 @@ CSRF_SECRET=staging-csrf-secret
 ```
 
 ### Production (Продакшен)
+
 ```env
 # .env.production
 NODE_ENV=production
@@ -75,6 +78,7 @@ CSRF_SECRET=very-secure-production-csrf-secret-64-chars-long
 ## 🔐 Безопасность
 
 ### Аутентификация и авторизация
+
 ```env
 # NextAuth конфигурация
 NEXTAUTH_URL=https://gafus.ru
@@ -91,6 +95,7 @@ SESSION_UPDATE_AGE=86400  # 1 день
 ```
 
 ### CSRF защита
+
 ```env
 # CSRF токены
 CSRF_SECRET=your-csrf-secret-key-32-characters-minimum
@@ -99,6 +104,7 @@ CSRF_TOKEN_MAX_AGE=3600  # 1 час
 ```
 
 ### Rate Limiting
+
 ```env
 # Ограничения запросов
 RATE_LIMIT_WINDOW_MS=900000  # 15 минут
@@ -110,6 +116,7 @@ API_RATE_LIMIT_MAX_REQUESTS=60  # максимум запросов в мину�
 ```
 
 ### Межсервисная коммуникация
+
 ```env
 # URL web-приложения для инвалидации кэша (для trainer-panel)
 NEXT_PUBLIC_WEB_APP_URL=https://gafus.ru
@@ -124,6 +131,7 @@ REVALIDATE_SECRET_TOKEN=your-secure-secret-token-here
 ## 🗄️ База данных
 
 ### PostgreSQL конфигурация
+
 ```env
 # Основные настройки
 DATABASE_URL=postgresql://username:password@host:port/database
@@ -142,6 +150,7 @@ DATABASE_SEED_ON_START=false  # только для development
 ```
 
 ### Redis конфигурация
+
 ```env
 # Основные настройки
 REDIS_URL=redis://username:password@host:port/database
@@ -162,6 +171,7 @@ REDIS_SESSION_TTL=604800  # 7 дней для сессий
 ## 📁 Файловое хранилище
 
 ### AWS S3 конфигурация
+
 ```env
 # AWS настройки
 AWS_ACCESS_KEY_ID=your-access-key
@@ -182,6 +192,7 @@ IMAGE_MAX_HEIGHT=1080
 ```
 
 ### Локальное хранилище (для разработки)
+
 ```env
 # Локальная загрузка файлов
 LOCAL_UPLOAD_PATH=./public/uploads
@@ -192,6 +203,7 @@ LOCAL_UPLOAD_ALLOWED_TYPES=image/jpeg,image/png,image/webp
 ## 🤖 Telegram Bot
 
 ### Bot конфигурация
+
 ```env
 # Основные настройки
 TELEGRAM_BOT_TOKEN=your-telegram-bot-token
@@ -211,6 +223,7 @@ TELEGRAM_RATE_LIMIT_MAX_MESSAGES=30  # максимум сообщений в м
 ## 📧 Уведомления
 
 ### Email настройки (если используется)
+
 ```env
 # SMTP настройки
 SMTP_HOST=smtp.gmail.com
@@ -225,6 +238,7 @@ EMAIL_REPLY_TO=support@gafus.ru
 ```
 
 ### Push уведомления
+
 ```env
 # VAPID ключи для Web Push
 VAPID_PUBLIC_KEY=your-vapid-public-key
@@ -240,6 +254,7 @@ PUSH_RATE_LIMIT_MS=1000  # 1 секунда между батчами
 ## 📊 Мониторинг и логирование
 
 ### Логирование
+
 ```env
 # Общие настройки
 LOG_LEVEL=warn  # debug, info, warn, error
@@ -259,6 +274,7 @@ LOG_FILE_MAX_FILES=5
 ```
 
 ### Метрики и аналитика
+
 ```env
 # Аналитика
 ANALYTICS_ENABLED=true
@@ -272,6 +288,7 @@ PERFORMANCE_SAMPLE_RATE=0.1  # 10% запросов
 ## 🔧 Оптимизация
 
 ### Кэширование
+
 ```env
 # Redis кэширование
 CACHE_ENABLED=true
@@ -284,6 +301,7 @@ BROWSER_CACHE_SHARED_MAX_AGE=86400  # 1 день для общих ресурс�
 ```
 
 ### Сжатие
+
 ```env
 # Gzip сжатие
 GZIP_ENABLED=true
@@ -296,6 +314,7 @@ BROTLI_LEVEL=4
 ```
 
 ### Оптимизация изображений
+
 ```env
 # Next.js Image Optimization
 IMAGE_OPTIMIZATION_ENABLED=true
@@ -307,6 +326,7 @@ IMAGE_SIZES=640,750,828,1080,1200,1920,2048
 ## 🌐 CDN и статические ресурсы
 
 ### CDN конфигурация
+
 ```env
 # Основные настройки
 CDN_BASE_URL=https://cdn.gafus.ru
@@ -320,6 +340,7 @@ CDN_IMAGE_FORMATS=webp,avif
 ```
 
 ### Статические ресурсы
+
 ```env
 # Пути к ресурсам
 STATIC_ASSETS_PATH=./public
@@ -333,6 +354,7 @@ ASSET_HASH_LENGTH=8
 ## 🔄 CI/CD конфигурация
 
 ### GitHub Actions (пример)
+
 ```yaml
 # .github/workflows/deploy.yml
 env:
@@ -346,6 +368,7 @@ env:
 ```
 
 ### Docker Environment
+
 ```env
 # docker-compose.prod.yml environment
 NODE_ENV=production
@@ -357,6 +380,7 @@ NEXTAUTH_URL=https://gafus.ru
 ## 📋 Проверочный список
 
 ### Перед развертыванием
+
 - [ ] Все секретные ключи сгенерированы и настроены
 - [ ] База данных настроена и миграции применены
 - [ ] Redis настроен и доступен
@@ -369,6 +393,7 @@ NEXTAUTH_URL=https://gafus.ru
 - [ ] CORS настроен правильно
 
 ### После развертывания
+
 - [ ] Все приложения запускаются без ошибок
 - [ ] База данных доступна
 - [ ] Redis работает
@@ -381,4 +406,4 @@ NEXTAUTH_URL=https://gafus.ru
 
 ---
 
-*Правильная конфигурация критически важна для стабильной работы системы в продакшене.*
+_Правильная конфигурация критически важна для стабильной работы системы в продакшене._

@@ -55,7 +55,7 @@ jobs:
           pnpm config set verify-store-integrity false
           pnpm config set auto-install-peers true
           pnpm config set dedupe-peer-dependents false
-          
+
           # Устанавливаем только production зависимости для CI
           pnpm install --frozen-lockfile --prefer-offline
 
@@ -147,7 +147,7 @@ jobs:
           pnpm config set verify-store-integrity false
           pnpm config set auto-install-peers true
           pnpm config set dedupe-peer-dependents false
-          
+
           # Установка с предпочтением кэша, но с возможностью загрузки из сети
           pnpm install --frozen-lockfile --prefer-offline
 
@@ -210,7 +210,7 @@ jobs:
           pnpm config set verify-store-integrity false
           pnpm config set auto-install-peers true
           pnpm config set dedupe-peer-dependents false
-          
+
           # Установка с предпочтением кэша, но с возможностью загрузки из сети
           pnpm install --frozen-lockfile --prefer-offline
 
@@ -285,15 +285,31 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        image: 
+        image:
           - { name: "web", file: "Dockerfile-web-optimized", tag: "gafus-web" }
-          - { name: "trainer-panel", file: "Dockerfile-trainer-panel-optimized", tag: "gafus-trainer-panel" }
-          - { name: "error-dashboard", file: "Dockerfile-error-dashboard-optimized", tag: "gafus-error-dashboard" }
-          - { name: "admin-panel", file: "Dockerfile-admin-panel-optimized", tag: "gafus-admin-panel" }
+          - {
+              name: "trainer-panel",
+              file: "Dockerfile-trainer-panel-optimized",
+              tag: "gafus-trainer-panel",
+            }
+          - {
+              name: "error-dashboard",
+              file: "Dockerfile-error-dashboard-optimized",
+              tag: "gafus-error-dashboard",
+            }
+          - {
+              name: "admin-panel",
+              file: "Dockerfile-admin-panel-optimized",
+              tag: "gafus-admin-panel",
+            }
           - { name: "api", file: "Dockerfile-api-optimized", tag: "gafus-api" }
           - { name: "worker", file: "Dockerfile-worker-optimized", tag: "gafus-worker" }
           - { name: "bull-board", file: "Dockerfile-bull-board-optimized", tag: "gafus-bull-board" }
-          - { name: "telegram-bot", file: "Dockerfile-telegram-bot-optimized", tag: "gafus-telegram-bot" }
+          - {
+              name: "telegram-bot",
+              file: "Dockerfile-telegram-bot-optimized",
+              tag: "gafus-telegram-bot",
+            }
           - { name: "prisma", file: "Dockerfile-prisma-optimized", tag: "gafus-prisma" }
     steps:
       - name: Checkout code
@@ -529,13 +545,13 @@ jobs:
 
             # Pull latest images from registry in parallel to speed up deployment
             echo "📥 Pulling latest Docker images in parallel..."
-            
+
             # Проверяем авторизацию перед загрузкой
             echo "🔍 Verifying registry access..."
             if ! docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest 2>&1 | head -5; then
               echo "⚠️ Warning: Failed to pull test image, but continuing..."
             fi
-            
+
             # Загружаем образы с детальным логированием ошибок
             images=(
               "gafus-web"
@@ -548,7 +564,7 @@ jobs:
               "gafus-telegram-bot"
               "gafus-prisma"
             )
-            
+
             pull_failed=0
             for image in "${images[@]}"; do
               echo "📥 Pulling $image..."
@@ -559,7 +575,7 @@ jobs:
                 echo "✅ Successfully pulled $image"
               fi
             done
-            
+
             if [ "$pull_failed" -ne 0 ]; then
               echo "❌ One or more docker pulls failed"
               echo "🔍 Checking registry authentication..."

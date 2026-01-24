@@ -46,13 +46,9 @@ export class ErrorBoundary extends Component<Props, State> {
           <Text variant="headlineSmall" style={styles.title}>
             Что-то пошло не так
           </Text>
-          <Text style={styles.message}>
-            Произошла ошибка при загрузке страницы.
-          </Text>
+          <Text style={styles.message}>Произошла ошибка при загрузке страницы.</Text>
           {__DEV__ && this.state.error && (
-            <Text style={styles.errorText}>
-              {this.state.error.message}
-            </Text>
+            <Text style={styles.errorText}>{this.state.error.message}</Text>
           )}
           <Button mode="contained" onPress={this.handleRetry} style={styles.button}>
             Попробовать снова

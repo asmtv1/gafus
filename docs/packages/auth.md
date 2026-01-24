@@ -7,12 +7,14 @@
 ## 🎯 Основные функции
 
 ### Аутентификация
+
 - **JWT токены** через NextAuth.js
 - **Подтверждение по SMS** для регистрации
 - **Сброс пароля** через Telegram бота
 - **Роли пользователей** (USER, TRAINER, ADMIN, MODERATOR, PREMIUM)
 
 ### Авторизация
+
 - **Middleware** для проверки прав доступа
 - **Проверка подтверждения** пользователя
 - **Валидация токенов** сброса пароля
@@ -20,13 +22,15 @@
 ## 📦 Установка и использование
 
 ### Установка
+
 ```bash
 pnpm add @gafus/auth
 ```
 
 ### Базовое использование
+
 ```typescript
-import { authOptions } from '@gafus/auth';
+import { authOptions } from "@gafus/auth";
 
 // В Next.js API route
 export default NextAuth(authOptions);
@@ -37,20 +41,22 @@ export default NextAuth(authOptions);
 ### Основные экспорты
 
 #### `authOptions`
+
 Конфигурация NextAuth.js для аутентификации.
 
 ```typescript
-import { authOptions } from '@gafus/auth';
+import { authOptions } from "@gafus/auth";
 
 // Использование в API route
 export default NextAuth(authOptions);
 ```
 
 #### `checkUserConfirmed(userId: string): Promise<boolean>`
+
 Проверяет, подтвержден ли пользователь.
 
 ```typescript
-import { checkUserConfirmed } from '@gafus/auth';
+import { checkUserConfirmed } from "@gafus/auth";
 
 const isConfirmed = await checkUserConfirmed(userId);
 if (!isConfirmed) {
@@ -59,48 +65,53 @@ if (!isConfirmed) {
 ```
 
 #### `getUserPhoneByUsername(username: string): Promise<string | null>`
+
 Получает номер телефона пользователя по имени.
 
 ```typescript
-import { getUserPhoneByUsername } from '@gafus/auth';
+import { getUserPhoneByUsername } from "@gafus/auth";
 
-const phone = await getUserPhoneByUsername('john_doe');
+const phone = await getUserPhoneByUsername("john_doe");
 ```
 
 #### `registerUser(userData: RegisterData): Promise<User>`
+
 Регистрирует нового пользователя.
 
 ```typescript
-import { registerUser } from '@gafus/auth';
+import { registerUser } from "@gafus/auth";
 
 const user = await registerUser({
-  username: 'john_doe',
-  phone: '+79123456789',
-  password: 'secure_password'
+  username: "john_doe",
+  phone: "+79123456789",
+  password: "secure_password",
 });
 ```
 
 #### `resetPasswordByToken(token: string, newPassword: string): Promise<boolean>`
+
 Сбрасывает пароль пользователя по токену.
 
 ```typescript
-import { resetPasswordByToken } from '@gafus/auth';
+import { resetPasswordByToken } from "@gafus/auth";
 
 const success = await resetPasswordByToken(token, newPassword);
 ```
 
 #### `sendTelegramPasswordResetRequest(username: string): Promise<void>`
+
 Отправляет запрос на сброс пароля через Telegram.
 
 ```typescript
-import { sendTelegramPasswordResetRequest } from '@gafus/auth';
+import { sendTelegramPasswordResetRequest } from "@gafus/auth";
 
-await sendTelegramPasswordResetRequest('john_doe');
+await sendTelegramPasswordResetRequest("john_doe");
 ```
 
 ## 🔐 Конфигурация
 
 ### Переменные окружения
+
 ```env
 # NextAuth
 NEXTAUTH_URL=http://localhost:3000
@@ -114,35 +125,40 @@ TELEGRAM_BOT_TOKEN=your-bot-token
 ```
 
 ### Роли пользователей
+
 ```typescript
 enum UserRole {
-  USER = 'USER',           // Обычный пользователь
-  TRAINER = 'TRAINER',     // Тренер
-  ADMIN = 'ADMIN',         // Администратор
-  MODERATOR = 'MODERATOR', // Модератор
-  PREMIUM = 'PREMIUM'      // Премиум пользователь
+  USER = "USER", // Обычный пользователь
+  TRAINER = "TRAINER", // Тренер
+  ADMIN = "ADMIN", // Администратор
+  MODERATOR = "MODERATOR", // Модератор
+  PREMIUM = "PREMIUM", // Премиум пользователь
 }
 ```
 
 ## 🛡️ Безопасность
 
 ### Хеширование паролей
+
 - Используется `bcryptjs` для хеширования паролей
 - Соль генерируется автоматически
 - Минимальная сложность паролей
 
 ### JWT токены
+
 - Безопасные JWT токены через NextAuth.js
 - Настраиваемое время жизни токенов
 - Автоматическое обновление токенов
 
 ### Cookies и сессии
+
 - **Срок жизни**: 30 дней для всех authentication cookies
 - **Сохранение между сеансами**: cookies не удаляются при закрытии вкладки/браузера
 - **Session token**, **CSRF token**, **Callback URL** - все имеют одинаковый срок жизни
 - **Security**: `httpOnly`, `sameSite: 'lax'`, `secure` в production
 
 ### CSRF защита
+
 - Встроенная защита от CSRF атак
 - Валидация origin для запросов
 - Безопасные cookies
@@ -150,11 +166,13 @@ enum UserRole {
 ## 📱 Интеграция с Telegram
 
 ### Подтверждение регистрации
+
 1. Пользователь регистрируется с номером телефона
 2. Система отправляет SMS с кодом подтверждения
 3. После подтверждения активируется аккаунт
 
 ### Сброс пароля
+
 1. Пользователь запрашивает сброс пароля
 2. Система отправляет ссылку через Telegram бота
 3. Пользователь переходит по ссылке и устанавливает новый пароль
@@ -176,12 +194,14 @@ if (token) {
 ```
 
 **Поведение:**
+
 - Залогиненные пользователи автоматически перенаправляются с `/`, `/login`, `/register` на `/courses`
 - Незалогиненные пользователи на защищенных страницах перенаправляются на `/`
 
 ### Проверка аутентификации
+
 ```typescript
-import { withAuth } from '@gafus/auth/server';
+import { withAuth } from "@gafus/auth/server";
 
 export default withAuth(async function handler(req, res) {
   // req.user содержит информацию о пользователе
@@ -190,30 +210,32 @@ export default withAuth(async function handler(req, res) {
 ```
 
 ### Проверка ролей
-```typescript
-import { withRole } from '@gafus/auth/server';
 
-export default withRole(['ADMIN', 'TRAINER'])(async function handler(req, res) {
+```typescript
+import { withRole } from "@gafus/auth/server";
+
+export default withRole(["ADMIN", "TRAINER"])(async function handler(req, res) {
   // Только для администраторов и тренеров
-  res.json({ message: 'Access granted' });
+  res.json({ message: "Access granted" });
 });
 ```
 
 ## 🧪 Тестирование
 
 ### Unit тесты
-```typescript
-import { registerUser, checkUserConfirmed } from '@gafus/auth';
 
-describe('Auth Package', () => {
-  it('should register user successfully', async () => {
+```typescript
+import { registerUser, checkUserConfirmed } from "@gafus/auth";
+
+describe("Auth Package", () => {
+  it("should register user successfully", async () => {
     const user = await registerUser({
-      username: 'test_user',
-      phone: '+79123456789',
-      password: 'password123'
+      username: "test_user",
+      phone: "+79123456789",
+      password: "password123",
     });
-    
-    expect(user.username).toBe('test_user');
+
+    expect(user.username).toBe("test_user");
   });
 });
 ```
@@ -221,11 +243,13 @@ describe('Auth Package', () => {
 ## 📊 Мониторинг
 
 ### Логирование
+
 - Все операции аутентификации логируются
 - Отслеживание неудачных попыток входа
 - Мониторинг подозрительной активности
 
 ### Метрики
+
 - Количество активных пользователей
 - Статистика регистраций
 - Время отклика аутентификации
@@ -233,6 +257,7 @@ describe('Auth Package', () => {
 ## 🔧 Разработка
 
 ### Структура пакета
+
 ```
 packages/auth/
 ├── src/
@@ -252,6 +277,7 @@ packages/auth/
 ```
 
 ### Зависимости
+
 - `@gafus/logger` - Логирование
 - `@gafus/prisma` - База данных
 - `bcryptjs` - Хеширование паролей
@@ -262,6 +288,7 @@ packages/auth/
 ## 🚀 Развертывание
 
 ### Переменные окружения
+
 Убедитесь, что все необходимые переменные окружения настроены:
 
 ```bash
@@ -275,6 +302,7 @@ TELEGRAM_BOT_TOKEN=your-bot-token
 ```
 
 ### Безопасность в продакшене
+
 - Используйте HTTPS для всех соединений
 - Настройте безопасные cookies
 - Ограничьте доступ к API endpoints
@@ -282,4 +310,4 @@ TELEGRAM_BOT_TOKEN=your-bot-token
 
 ---
 
-*Пакет @gafus/auth обеспечивает безопасную и надежную систему аутентификации для всей экосистемы GAFUS.*
+_Пакет @gafus/auth обеспечивает безопасную и надежную систему аутентификации для всей экосистемы GAFUS._

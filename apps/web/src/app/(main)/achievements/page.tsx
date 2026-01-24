@@ -4,7 +4,7 @@ import { generateStaticPageMetadata } from "@gafus/metadata";
 export const metadata = generateStaticPageMetadata(
   "Достижения",
   "Ваши достижения и прогресс в обучении.",
-  "/achievements"
+  "/achievements",
 );
 
 /* Страница достижений с использованием  */

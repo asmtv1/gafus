@@ -14,7 +14,7 @@ export function AdminPanelQueryProvider({ children }: { children: React.ReactNod
             refetchOnWindowFocus: false,
           },
         },
-      })
+      }),
   );
 
   return (
@@ -24,4 +24,3 @@ export function AdminPanelQueryProvider({ children }: { children: React.ReactNod
     </QueryClientProvider>
   );
 }
-

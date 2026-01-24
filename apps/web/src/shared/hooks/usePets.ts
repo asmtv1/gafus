@@ -15,7 +15,7 @@ export function useUserPets() {
     networkMode: "offlineFirst",
     retry: (failureCount, error) => {
       if (!isOnline()) return false;
-      if (error instanceof Error && error.message.includes('fetch')) {
+      if (error instanceof Error && error.message.includes("fetch")) {
         return failureCount < 2;
       }
       return failureCount < 3;

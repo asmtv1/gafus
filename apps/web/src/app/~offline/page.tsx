@@ -52,9 +52,7 @@ export default function OfflinePage() {
       try {
         await refreshDownloadedCourses();
       } catch (error) {
-        setIndexedDBError(
-          error instanceof Error ? error.message : "Ошибка загрузки курсов"
-        );
+        setIndexedDBError(error instanceof Error ? error.message : "Ошибка загрузки курсов");
       } finally {
         setIsLoading(false);
       }
@@ -83,27 +81,20 @@ export default function OfflinePage() {
     }
   }, [isOnline]);
 
-
   // Преобразуем курсы в формат для карточек
   const courseCards = useMemo(() => {
-    return downloadedCourses.map((course, index) =>
-      convertToCourseCardProps(course, index),
-    );
+    return downloadedCourses.map((course, index) => convertToCourseCardProps(course, index));
   }, [downloadedCourses]);
 
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>Нет соединения с сервером</h1>
-      
+
       {/* Заголовок и информационное сообщение */}
       <div className={styles.headerSection}>
         <div className={styles.infoBox}>
-          <p>
-            Да, вы офлайн, но вот ваши скачанные курсы, можете их проходить
-          </p>
-          <p>
-            Все скачанные курсы доступны для прохождения в офлайн-режиме
-          </p>
+          <p>Да, вы офлайн, но вот ваши скачанные курсы, можете их проходить</p>
+          <p>Все скачанные курсы доступны для прохождения в офлайн-режиме</p>
         </div>
       </div>
 
@@ -121,11 +112,7 @@ export default function OfflinePage() {
       ) : (
         <div className={styles.emptyState}>
           <div className={styles.emptyStateIcon}>
-            <svg
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -134,22 +121,17 @@ export default function OfflinePage() {
               />
             </svg>
           </div>
-          <h2 className={styles.emptyStateTitle}>
-            Нет скачанных курсов
-          </h2>
+          <h2 className={styles.emptyStateTitle}>Нет скачанных курсов</h2>
           <p className={styles.emptyStateText}>
-            У вас пока нет скачанных курсов для офлайн-доступа. Вернитесь на главную страницу
-            и скачайте курсы, чтобы использовать их без интернета.
+            У вас пока нет скачанных курсов для офлайн-доступа. Вернитесь на главную страницу и
+            скачайте курсы, чтобы использовать их без интернета.
           </p>
         </div>
       )}
 
       {/* Кнопки действий */}
       <div className={styles.actionsSection}>
-        <button
-          onClick={() => window.location.reload()}
-          className={styles.button}
-        >
+        <button onClick={() => window.location.reload()} className={styles.button}>
           Попробовать снова
         </button>
         <button
@@ -159,7 +141,6 @@ export default function OfflinePage() {
           На главную
         </button>
       </div>
-
 
       {/* Уведомление о восстановлении подключения */}
       {showConnectionRestored && (

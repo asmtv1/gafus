@@ -2,11 +2,11 @@
  * Сбор данных пользователя для персонализации сообщений
  */
 
-import { prisma } from '@gafus/prisma';
-import { createWorkerLogger } from '@gafus/logger';
-import type { UserData } from './reengagement-types';
+import { prisma } from "@gafus/prisma";
+import { createWorkerLogger } from "@gafus/logger";
+import type { UserData } from "./reengagement-types";
 
-const logger = createWorkerLogger('user-data-collector');
+const logger = createWorkerLogger("user-data-collector");
 
 /**
  * Собрать полные данные о пользователе для персонализации
@@ -21,20 +21,20 @@ export async function collectUserData(userId: string): Promise<UserData | null> 
         username: true,
         profile: {
           select: {
-            fullName: true
-          }
+            fullName: true,
+          },
         },
         pets: {
           select: {
-            name: true
+            name: true,
           },
-          take: 1
-        }
-      }
+          take: 1,
+        },
+      },
     });
 
     if (!user) {
-      logger.warn('Пользователь не найден', { userId });
+      logger.warn("Пользователь не найден", { userId });
       return null;
     }
 
@@ -42,22 +42,22 @@ export async function collectUserData(userId: string): Promise<UserData | null> 
     const userCourses = await prisma.userCourse.findMany({
       where: {
         userId,
-        status: 'COMPLETED',
+        status: "COMPLETED",
         completedAt: {
-          not: null
-        }
+          not: null,
+        },
       },
       include: {
         course: {
           select: {
             id: true,
-            name: true
-          }
-        }
+            name: true,
+          },
+        },
       },
       orderBy: {
-        completedAt: 'desc'
-      }
+        completedAt: "desc",
+      },
     });
 
     // 3. Получить оценки курсов
@@ -65,60 +65,60 @@ export async function collectUserData(userId: string): Promise<UserData | null> 
       where: {
         userId,
         rating: {
-          not: null
-        }
+          not: null,
+        },
       },
       select: {
         courseId: true,
-        rating: true
-      }
+        rating: true,
+      },
     });
 
     // Создать мапу оценок
     const ratingsMap = new Map<string, number>();
-    courseReviews.forEach(review => {
+    courseReviews.forEach((review) => {
       if (review.rating) {
         ratingsMap.set(review.courseId, review.rating);
       }
     });
 
     // Собрать данные о завершенных курсах
-    const completedCourses = userCourses.map(uc => ({
+    const completedCourses = userCourses.map((uc) => ({
       id: uc.course.id,
       name: uc.course.name,
-      rating: ratingsMap.get(uc.courseId) || 0
+      rating: ratingsMap.get(uc.courseId) || 0,
     }));
 
     // 4. Подсчитать общее количество завершенных шагов
     const totalSteps = await prisma.userStep.count({
       where: {
         userTraining: {
-          userId
+          userId,
         },
-        status: 'COMPLETED'
-      }
+        status: "COMPLETED",
+      },
     });
 
     // 5. Получить последний активный курс
     const lastActiveCourse = await prisma.userCourse.findFirst({
       where: {
         userId,
-        status: 'IN_PROGRESS'
+        status: "IN_PROGRESS",
       },
       include: {
         course: {
           select: {
-            name: true
-          }
-        }
+            name: true,
+          },
+        },
       },
       orderBy: {
-        updatedAt: 'desc'
-      }
+        updatedAt: "desc",
+      },
     });
 
     // 6. Получить статистику платформы (кешируемые данные)
-    const platformStats = await getPlatformStats() || undefined;
+    const platformStats = (await getPlatformStats()) || undefined;
 
     // Имя собаки (первая из списка)
     const dogName = user.pets[0]?.name;
@@ -130,10 +130,10 @@ export async function collectUserData(userId: string): Promise<UserData | null> 
       completedCourses,
       totalSteps,
       lastCourse: lastActiveCourse?.course.name,
-      platformStats
+      platformStats,
     };
   } catch (error) {
-    logger.error('Ошибка сбора данных пользователя', error as Error, { userId });
+    logger.error("Ошибка сбора данных пользователя", error as Error, { userId });
     return null;
   }
 }
@@ -147,14 +147,14 @@ let platformStatsCache: {
   timestamp: number;
 } = {
   data: null,
-  timestamp: 0
+  timestamp: 0,
 };
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 час
 
 async function getPlatformStats() {
   const now = Date.now();
-  
+
   // Проверяем кеш
   if (platformStatsCache.data && now - platformStatsCache.timestamp < CACHE_TTL) {
     return platformStatsCache.data;
@@ -167,11 +167,11 @@ async function getPlatformStats() {
 
     const weeklyCompletions = await prisma.userStep.count({
       where: {
-        status: 'COMPLETED',
+        status: "COMPLETED",
         updatedAt: {
-          gte: weekStart
-        }
-      }
+          gte: weekStart,
+        },
+      },
     });
 
     // Активные пользователи сегодня (завершили хотя бы 1 шаг)
@@ -179,29 +179,29 @@ async function getPlatformStats() {
     todayStart.setHours(0, 0, 0, 0);
 
     const activeTodayUsers = await prisma.userStep.groupBy({
-      by: ['userTrainingId'],
+      by: ["userTrainingId"],
       where: {
-        status: 'COMPLETED',
+        status: "COMPLETED",
         updatedAt: {
-          gte: todayStart
-        }
-      }
+          gte: todayStart,
+        },
+      },
     });
 
     const stats = {
       weeklyCompletions,
-      activeTodayUsers: activeTodayUsers.length
+      activeTodayUsers: activeTodayUsers.length,
     };
 
     // Обновляем кеш
     platformStatsCache = {
       data: stats,
-      timestamp: now
+      timestamp: now,
     };
 
     return stats;
   } catch (error) {
-    logger.error('Ошибка получения статистики платформы', error as Error);
+    logger.error("Ошибка получения статистики платформы", error as Error);
     return null;
   }
 }
@@ -220,20 +220,20 @@ export async function getBestRatedCourse(userId: string): Promise<{
         userId,
         rating: {
           not: null,
-          gte: 4 // Минимум 4 звезды
-        }
+          gte: 4, // Минимум 4 звезды
+        },
       },
       include: {
         course: {
           select: {
             id: true,
-            name: true
-          }
-        }
+            name: true,
+          },
+        },
       },
       orderBy: {
-        rating: 'desc'
-      }
+        rating: "desc",
+      },
     });
 
     if (!bestCourse || !bestCourse.rating) {
@@ -243,11 +243,10 @@ export async function getBestRatedCourse(userId: string): Promise<{
     return {
       id: bestCourse.course.id,
       name: bestCourse.course.name,
-      rating: bestCourse.rating
+      rating: bestCourse.rating,
     };
   } catch (error) {
-    logger.error('Ошибка получения лучшего курса', error as Error, { userId });
+    logger.error("Ошибка получения лучшего курса", error as Error, { userId });
     return null;
   }
 }
-

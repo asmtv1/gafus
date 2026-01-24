@@ -3,7 +3,7 @@ export {
   // Утилиты
   trimmedNonEmptyString,
   numericField,
-  
+
   // Общие схемы
   userIdSchema,
   optionalUserIdSchema,
@@ -26,12 +26,12 @@ export {
   usernameSchema,
   phoneSchema,
   passwordSchema,
-  
+
   // Формы
   registerUserSchema,
   registerFormSchema,
   resetPasswordSchema,
-  
+
   // Типы
   type RegisterUserSchema,
   type RegisterFormSchema,
@@ -45,7 +45,7 @@ export {
   petFormSchema,
   updatePetSchema,
   petIdSchema,
-  
+
   // Типы
   type CreatePetSchema,
   type PetFormSchema,
@@ -53,8 +53,4 @@ export {
 } from "./petSchemas";
 
 // ===== СЕРВЕРНАЯ ВАЛИДАЦИЯ =====
-export {
-  validatePetForm,
-  validateRegisterForm,
-  validateData,
-} from "./serverValidation";
+export { validatePetForm, validateRegisterForm, validateData } from "./serverValidation";

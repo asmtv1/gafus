@@ -56,13 +56,13 @@
   .pageContainer {
     padding: 1rem 0.75rem;
   }
-  
+
   .pageHeader {
     padding: 1.25rem 1rem;
     margin-bottom: 1rem;
     border-radius: 8px;
   }
-  
+
   .pageTitle {
     font-size: 1.5rem;
     line-height: 1.3;
@@ -73,7 +73,7 @@
     font-size: 0.95rem;
     word-wrap: break-word;
   }
-  
+
   .contentCard {
     padding: 1rem;
     margin-bottom: 1rem;
@@ -113,4 +113,3 @@
     padding: 0.75rem;
   }
 }
-

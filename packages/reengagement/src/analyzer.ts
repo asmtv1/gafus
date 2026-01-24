@@ -3,11 +3,11 @@
  * Определяет неактивных пользователей для re-engagement кампаний
  */
 
-import { prisma } from '@gafus/prisma';
-import { createWorkerLogger } from '@gafus/logger';
-import type { InactiveUser } from './reengagement-types';
+import { prisma } from "@gafus/prisma";
+import { createWorkerLogger } from "@gafus/logger";
+import type { InactiveUser } from "./reengagement-types";
 
-const logger = createWorkerLogger('reengagement-analyzer');
+const logger = createWorkerLogger("reengagement-analyzer");
 
 /**
  * Критерии неактивности
@@ -15,7 +15,7 @@ const logger = createWorkerLogger('reengagement-analyzer');
 const INACTIVITY_CRITERIA = {
   MIN_DAYS_INACTIVE: 5, // Минимум 5 дней без активности
   MIN_COMPLETED_STEPS: 2, // Минимум 2 завершенных шага в прошлом
-  MAX_ANALYSIS_DAYS: 60 // Анализируем только за последние 60 дней
+  MAX_ANALYSIS_DAYS: 60, // Анализируем только за последние 60 дней
 };
 
 /**
@@ -23,7 +23,7 @@ const INACTIVITY_CRITERIA = {
  */
 export async function findInactiveUsers(): Promise<InactiveUser[]> {
   try {
-    logger.info('Начало анализа неактивных пользователей');
+    logger.info("Начало анализа неактивных пользователей");
 
     // Дата для фильтрации
     const analysisStartDate = new Date();
@@ -37,14 +37,14 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
           some: {
             steps: {
               some: {
-                status: 'COMPLETED',
+                status: "COMPLETED",
                 updatedAt: {
-                  gte: analysisStartDate
-                }
-              }
-            }
-          }
-        }
+                  gte: analysisStartDate,
+                },
+              },
+            },
+          },
+        },
       },
       select: {
         id: true,
@@ -53,23 +53,23 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
           select: {
             steps: {
               where: {
-                status: 'COMPLETED'
+                status: "COMPLETED",
               },
               orderBy: {
-                updatedAt: 'desc'
+                updatedAt: "desc",
               },
-              take: 1
-            }
-          }
+              take: 1,
+            },
+          },
         },
         // Активная кампания
         reengagementCampaigns: {
           where: {
-            isActive: true
+            isActive: true,
           },
-          take: 1
-        }
-      }
+          take: 1,
+        },
+      },
     });
 
     logger.info(`Найдено пользователей с активностью: ${usersWithActivity.length}`);
@@ -80,7 +80,7 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
     for (const user of usersWithActivity) {
       // Найти последнюю активность
       const lastActivity = findLastActivity(user.userTrainings);
-      
+
       if (!lastActivity) {
         continue; // Нет активности - пропускаем
       }
@@ -94,7 +94,7 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
 
       // Проверить количество завершенных шагов
       const totalCompletions = await countUserCompletions(user.id);
-      
+
       if (totalCompletions < INACTIVITY_CRITERIA.MIN_COMPLETED_STEPS) {
         continue; // Недостаточно активности в прошлом
       }
@@ -107,7 +107,7 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
         lastActivityDate: lastActivity,
         daysSinceActivity,
         totalCompletions,
-        hasActiveCampaign
+        hasActiveCampaign,
       });
     }
 
@@ -115,7 +115,7 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
 
     return inactiveUsers;
   } catch (error) {
-    logger.error('Ошибка анализа неактивных пользователей', error as Error);
+    logger.error("Ошибка анализа неактивных пользователей", error as Error);
     throw error;
   }
 }
@@ -126,7 +126,7 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
 function findLastActivity(
   userTrainings: Array<{
     steps: Array<{ updatedAt: Date }>;
-  }>
+  }>,
 ): Date | null {
   let latestDate: Date | null = null;
 
@@ -159,15 +159,15 @@ async function countUserCompletions(userId: string): Promise<number> {
     const count = await prisma.userStep.count({
       where: {
         userTraining: {
-          userId
+          userId,
         },
-        status: 'COMPLETED'
-      }
+        status: "COMPLETED",
+      },
     });
 
     return count;
   } catch (error) {
-    logger.error('Ошибка подсчета завершенных шагов', error as Error, { userId });
+    logger.error("Ошибка подсчета завершенных шагов", error as Error, { userId });
     return 0;
   }
 }
@@ -175,27 +175,24 @@ async function countUserCompletions(userId: string): Promise<number> {
 /**
  * Проверить, вернулся ли пользователь (для закрытия кампании)
  */
-export async function checkUserReturned(
-  userId: string,
-  campaignStartDate: Date
-): Promise<boolean> {
+export async function checkUserReturned(userId: string, campaignStartDate: Date): Promise<boolean> {
   try {
     // Есть ли активность с момента начала кампании?
     const activitySinceCampaign = await prisma.userStep.findFirst({
       where: {
         userTraining: {
-          userId
+          userId,
         },
-        status: 'COMPLETED',
+        status: "COMPLETED",
         updatedAt: {
-          gte: campaignStartDate
-        }
-      }
+          gte: campaignStartDate,
+        },
+      },
     });
 
     return activitySinceCampaign !== null;
   } catch (error) {
-    logger.error('Ошибка проверки возврата пользователя', error as Error, { userId });
+    logger.error("Ошибка проверки возврата пользователя", error as Error, { userId });
     return false;
   }
 }
@@ -208,22 +205,21 @@ export async function getLastActivityDate(userId: string): Promise<Date | null> 
     const lastStep = await prisma.userStep.findFirst({
       where: {
         userTraining: {
-          userId
+          userId,
         },
-        status: 'COMPLETED'
+        status: "COMPLETED",
       },
       orderBy: {
-        updatedAt: 'desc'
+        updatedAt: "desc",
       },
       select: {
-        updatedAt: true
-      }
+        updatedAt: true,
+      },
     });
 
     return lastStep?.updatedAt || null;
   } catch (error) {
-    logger.error('Ошибка получения последней активности', error as Error, { userId });
+    logger.error("Ошибка получения последней активности", error as Error, { userId });
     return null;
   }
 }
-

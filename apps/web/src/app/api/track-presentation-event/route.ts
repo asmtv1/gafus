@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { trackPresentationEvent } from "@gafus/core/services/tracking";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('api-track-presentation-event');
+const logger = createWebLogger("api-track-presentation-event");
 
 /**
  * API endpoint для отслеживания событий на presentation.html
@@ -16,12 +16,9 @@ export async function POST(request: NextRequest) {
       body = text ? JSON.parse(text) : {};
     } catch (parseError) {
       logger.error("Failed to parse JSON body", parseError as Error, {
-        operation: 'parse_json_error',
+        operation: "parse_json_error",
       });
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
     }
     const {
       sessionId,
@@ -35,17 +32,14 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!sessionId || !eventType || !eventName) {
-      return NextResponse.json(
-        { error: "Не указаны обязательные параметры" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Не указаны обязательные параметры" }, { status: 400 });
     }
 
     // Находим соответствующий PresentationView
     const { prisma } = await import("@gafus/prisma");
     const view = await prisma.presentationView.findFirst({
       where: { sessionId },
-      orderBy: { firstViewAt: 'desc' },
+      orderBy: { firstViewAt: "desc" },
     });
 
     const result = await trackPresentationEvent({
@@ -62,24 +56,24 @@ export async function POST(request: NextRequest) {
 
     if (result.success) {
       // Обновляем счетчик кликов в PresentationView
-      if (eventType === 'click' && eventName === 'cta_click' && view) {
+      if (eventType === "click" && eventName === "cta_click" && view) {
         await prisma.presentationView.update({
           where: { id: view.id },
           data: {
-            ctaClicks: { increment: 1 }
-          }
+            ctaClicks: { increment: 1 },
+          },
         });
       }
 
       // Обновляем достижения секций
-      if (eventType === 'section_reached' && view) {
+      if (eventType === "section_reached" && view) {
         const sectionMap: Record<string, string> = {
-          'problem_reached': 'reachedProblem',
-          'solution_reached': 'reachedSolution',
-          'features_reached': 'reachedFeatures',
-          'comparison_reached': 'reachedComparison',
-          'goals_reached': 'reachedGoals',
-          'contact_reached': 'reachedContact',
+          problem_reached: "reachedProblem",
+          solution_reached: "reachedSolution",
+          features_reached: "reachedFeatures",
+          comparison_reached: "reachedComparison",
+          goals_reached: "reachedGoals",
+          contact_reached: "reachedContact",
         };
 
         const fieldName = sectionMap[eventName];
@@ -87,8 +81,8 @@ export async function POST(request: NextRequest) {
           await prisma.presentationView.update({
             where: { id: view.id },
             data: {
-              [fieldName]: timeOnPage
-            }
+              [fieldName]: timeOnPage,
+            },
           });
         }
       }
@@ -96,22 +90,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json(
-      { error: result.error || "Ошибка трекинга" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: result.error || "Ошибка трекинга" }, { status: 500 });
   } catch (error) {
     logger.error("API: Ошибка трекинга события presentation.html", error as Error);
 
-    return NextResponse.json(
-      { error: "Внутренняя ошибка сервера" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
   }
 }
-
-
-
-
-
-

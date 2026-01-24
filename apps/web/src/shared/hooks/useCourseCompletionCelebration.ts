@@ -28,9 +28,7 @@ export function useCourseCompletionCelebration({
     if (!trainingDays || trainingDays.length === 0) return;
 
     // Проверяем, все ли дни завершены
-    const allCompleted = trainingDays.every(
-      (day) => day.userStatus === "COMPLETED",
-    );
+    const allCompleted = trainingDays.every((day) => day.userStatus === "COMPLETED");
 
     // Если курс только что завершен (не был завершен раньше и еще не праздновали)
     if (allCompleted && !prevCompletedRef.current && !celebratedRef.current) {
@@ -83,6 +81,3 @@ export function useCourseCompletionCelebration({
     prevCompletedRef.current = allCompleted;
   }, [trainingDays, courseId, courseType]);
 }
-
-
-

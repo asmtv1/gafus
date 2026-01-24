@@ -60,14 +60,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.config = defaultConfig;
 
     // Создаем логгер с кэшированием (как в createWebLogger)
-    this.logger = LoggerFactory.createLoggerWithContext(
-      defaultConfig.appName,
-      'error-boundary',
-      {
-        enableErrorDashboard: true,
-        enableConsole: defaultConfig.logToConsole,
-      }
-    );
+    this.logger = LoggerFactory.createLoggerWithContext(defaultConfig.appName, "error-boundary", {
+      enableErrorDashboard: true,
+      enableConsole: defaultConfig.logToConsole,
+    });
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
@@ -94,7 +90,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     // Формируем метаданные для логгера
     const meta: LogMeta = {
-      operation: 'error_boundary',
+      operation: "error_boundary",
       componentStack: enhancedErrorInfo.componentStack,
       errorBoundaryName: enhancedErrorInfo.errorBoundaryName,
       url: enhancedErrorInfo.url,
@@ -102,15 +98,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       userId: enhancedErrorInfo.userId,
       sessionId: enhancedErrorInfo.sessionId,
       ...enhancedErrorInfo.additionalContext,
-      tags: ['error-boundary', 'react-error'],
+      tags: ["error-boundary", "react-error"],
     };
 
     // Отправляем ошибку напрямую через logger
-    void this.logger.error(
-      error.message || 'React component error',
-      error,
-      meta
-    );
+    void this.logger.error(error.message || "React component error", error, meta);
 
     // Вызываем пользовательский обработчик если есть
     if (this.props.onError) {
@@ -158,10 +150,7 @@ interface ErrorFallbackUIProps {
   appName?: string;
 }
 
-function ErrorFallbackUI({
-  onReset,
-  appName,
-}: ErrorFallbackUIProps) {
+function ErrorFallbackUI({ onReset, appName }: ErrorFallbackUIProps) {
   const getAppSpecificMessage = (appName?: string) => {
     switch (appName) {
       case "trainer-panel":

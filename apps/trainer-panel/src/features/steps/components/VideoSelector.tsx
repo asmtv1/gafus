@@ -58,7 +58,7 @@ export default function VideoSelector({
       if (value.includes("gafus-media.storage.yandexcloud.net")) {
         // Это видео из библиотеки - находим его ID
         const video = trainerVideos.find((v) =>
-          value.includes(v.relativePath.replace("uploads/", ""))
+          value.includes(v.relativePath.replace("uploads/", "")),
         );
         if (video) {
           setSelectedVideoId(video.id);
@@ -128,18 +128,8 @@ export default function VideoSelector({
   return (
     <Box>
       <Tabs value={mode} onChange={handleModeChange} sx={{ mb: 2 }}>
-        <Tab
-          value="external"
-          label="Внешняя ссылка"
-          icon={<LinkIcon />}
-          iconPosition="start"
-        />
-        <Tab
-          value="library"
-          label="Мои видео"
-          icon={<VideoLibraryIcon />}
-          iconPosition="start"
-        />
+        <Tab value="external" label="Внешняя ссылка" icon={<LinkIcon />} iconPosition="start" />
+        <Tab value="library" label="Мои видео" icon={<VideoLibraryIcon />} iconPosition="start" />
       </Tabs>
 
       {mode === "external" ? (
@@ -192,11 +182,7 @@ export default function VideoSelector({
                       <CardActionArea onClick={() => handleVideoSelect(video)}>
                         <CardMedia
                           component="img"
-                          src={
-                            video.thumbnailPath
-                              ? getCDNUrl(video.thumbnailPath)
-                              : undefined
-                          }
+                          src={video.thumbnailPath ? getCDNUrl(video.thumbnailPath) : undefined}
                           alt={video.displayName || video.originalName}
                           sx={{
                             height: 140,
@@ -257,4 +243,3 @@ export default function VideoSelector({
     </Box>
   );
 }
-

@@ -16,15 +16,15 @@
   gap: 8px;
 }
 
-.dayTitle  {
-    color: #636128;
-    font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
-    font-weight: 400;
-    font-size: 80px;
-    line-height: 100%;
-    letter-spacing: 0px;
-    text-align: center;
-  }
+.dayTitle {
+  color: #636128;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 80px;
+  line-height: 100%;
+  letter-spacing: 0px;
+  text-align: center;
+}
 
 .descriptionContainer {
   margin-bottom: 24px;
@@ -45,14 +45,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background-color: #ECE5D2;
+  background-color: #ece5d2;
   border: 1px solid #636128;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .descriptionHeader:hover {
-  background-color: #E6DCC7;
+  background-color: #e6dcc7;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -60,14 +60,14 @@
 .descriptionTitle {
   font-size: 16px;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   margin: 0;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
 .dayDescription {
-  color: #352E2E;
-  background-color: #ECE5D2;
+  color: #352e2e;
+  background-color: #ece5d2;
   border: 1px solid #636128;
   border-top: none;
   border-radius: 0 0 12px 12px;
@@ -95,7 +95,7 @@
 .dayDescription p {
   margin-bottom: 1em;
   line-height: 1.6;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .dayDescription ul,
@@ -107,7 +107,7 @@
 .dayDescription li {
   margin-bottom: 0.5em;
   line-height: 1.5;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .dayDescription h1,
@@ -119,7 +119,7 @@
   margin-top: 1.2em;
   margin-bottom: 0.6em;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 
@@ -137,7 +137,7 @@
 
 .dayDescription strong {
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .dayDescription em {
@@ -146,12 +146,12 @@
 }
 
 .dayDescription code {
-  background-color: #D4C4A8;
+  background-color: #d4c4a8;
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 0.9em;
-  color: #8B4513;
+  color: #8b4513;
 }
 
 .dayDescription blockquote {
@@ -160,7 +160,7 @@
   margin: 1em 0;
   font-style: italic;
   color: #5a5249;
-  background-color: #D4C4A8;
+  background-color: #d4c4a8;
   padding: 12px 16px;
   border-radius: 0 8px 8px 0;
 }
@@ -194,7 +194,7 @@
   display: flex;
   align-items: center;
   padding: 16px 20px;
-  background-color: #FFF8E5;
+  background-color: #fff8e5;
   border: 2px solid #636128;
   border-radius: 12px;
   cursor: pointer;
@@ -202,7 +202,7 @@
 }
 
 .accordionHeader:hover {
-  background-color: #FFFDF3;
+  background-color: #fffdf3;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -251,27 +251,27 @@
 .stepTitle {
   font-size: 16px;
   font-weight: 400;
-  color: #352E2E;
+  color: #352e2e;
   line-height: 1.2;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
   margin: 0;
   min-width: 0;
   word-wrap: break-word;
-text-align: center;
+  text-align: center;
 }
-.stepTitleText{
+.stepTitleText {
   display: flex;
   flex-direction: column;
 }
 
-.stepStatusConfig{
-font-size: 14px;
-font-weight: 400;
-color: #352E2E;
-line-height: 1.2;
-font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
-margin: 0;
-white-space: nowrap;
+.stepStatusConfig {
+  font-size: 14px;
+  font-weight: 400;
+  color: #352e2e;
+  line-height: 1.2;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .finished {
@@ -310,63 +310,62 @@ white-space: nowrap;
   .main {
     padding: 0 8px;
   }
-  
+
   .dayHeader {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .dayTitle {
     font-size: 24px;
   }
-  
+
   .descriptionContainer {
     margin-bottom: 20px;
   }
-  
+
   .descriptionHeader {
     padding: 12px 16px;
   }
-  
+
   .descriptionTitle {
     font-size: 14px;
   }
-  
+
   .dayDescription.expanded {
     padding: 16px;
   }
-  
+
   .dayDescription.collapsed {
     padding: 0 16px;
   }
-  
+
   .dayDescription h1 {
     font-size: 1.3em;
   }
-  
+
   .dayDescription h2 {
     font-size: 1.2em;
   }
-  
+
   .dayDescription h3 {
     font-size: 1.1em;
   }
-  
+
   .accordionHeader {
     padding: 12px 16px;
   }
-  
+
   .stepTitle {
     font-size: 14px;
   }
-  
+
   .expandIcon {
     font-size: 20px;
   }
-  
+
   .expandText {
     font-size: 12px;
   }
-
 }

@@ -18,7 +18,7 @@ export interface StepCategoryWithCount {
  */
 export async function getStepCategories(): Promise<StepCategoryWithCount[]> {
   try {
-    console.info('[trainer-panel] Получение списка категорий шаблонов');
+    console.info("[trainer-panel] Получение списка категорий шаблонов");
 
     const categories = await prisma.stepCategory.findMany({
       include: {
@@ -33,11 +33,11 @@ export async function getStepCategories(): Promise<StepCategoryWithCount[]> {
         },
       },
       orderBy: {
-        order: 'asc',
+        order: "asc",
       },
     });
 
-    const result = categories.map(category => ({
+    const result = categories.map((category) => ({
       id: category.id,
       name: category.name,
       description: category.description,
@@ -46,12 +46,11 @@ export async function getStepCategories(): Promise<StepCategoryWithCount[]> {
       templateCount: category._count.templates,
     }));
 
-    console.info('[trainer-panel] Категории успешно получены', { count: result.length });
+    console.info("[trainer-panel] Категории успешно получены", { count: result.length });
 
     return result;
   } catch (error) {
-    console.error('[trainer-panel] Ошибка при получении категорий', error);
+    console.error("[trainer-panel] Ошибка при получении категорий", error);
     throw error;
   }
 }
-

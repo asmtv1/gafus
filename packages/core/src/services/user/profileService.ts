@@ -6,10 +6,15 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { Prisma } from "@gafus/prisma";
 import type { PublicProfile } from "@gafus/types";
-import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl, getUserAvatarPath } from "@gafus/cdn-upload";
+import {
+  uploadFileToCDN,
+  deleteFileFromCDN,
+  getRelativePathFromCDNUrl,
+  getUserAvatarPath,
+} from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
 
-const logger = createWebLogger('profile-service');
+const logger = createWebLogger("profile-service");
 
 // ========== Get User Profile ==========
 
@@ -37,10 +42,7 @@ interface NormalizedProfileData {
 /**
  * Обновляет или создаёт профиль пользователя
  */
-export async function updateUserProfile(
-  userId: string,
-  data: NormalizedProfileData
-) {
+export async function updateUserProfile(userId: string, data: NormalizedProfileData) {
   const normalizedFullName = data.fullName ?? "";
   const normalizedAbout = data.about ?? "";
   const normalizedTelegram = data.telegram ?? "";
@@ -229,7 +231,7 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
   // Определяем расширение и формируем путь
   const ext = file.name.split(".").pop();
   if (!ext) throw new Error("Не удалось определить расширение файла");
-  
+
   const uuid = randomUUID();
   const relativePath = getUserAvatarPath(userId, uuid, ext);
 
@@ -245,7 +247,9 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
   // Удаляем старый файл из CDN (если есть)
   if (existingProfile?.avatarUrl) {
     const oldRelativePath = getRelativePathFromCDNUrl(existingProfile.avatarUrl);
-    logger.info(`Найден старый аватар для удаления: ${existingProfile.avatarUrl} -> ${oldRelativePath}`);
+    logger.info(
+      `Найден старый аватар для удаления: ${existingProfile.avatarUrl} -> ${oldRelativePath}`,
+    );
     try {
       await deleteFileFromCDN(oldRelativePath);
       logger.info(`Старый аватар удален из CDN: ${oldRelativePath}`);

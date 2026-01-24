@@ -9,7 +9,7 @@ export function ValidationError({ error, className = "" }: ValidationErrorProps)
   if (!error) return null;
 
   return (
-    <p className={`text-[9px] text-red-500 mt-1 font-montserrat leading-tight ${className}`}>
+    <p className={`font-montserrat mt-1 text-[9px] leading-tight text-red-500 ${className}`}>
       {error}
     </p>
   );

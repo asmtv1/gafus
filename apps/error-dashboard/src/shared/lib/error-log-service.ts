@@ -20,26 +20,26 @@ export async function getErrorsFromDatabase(filters?: {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
-    
+
     if (filters?.appName) {
       where.appName = filters.appName;
     }
-    
+
     if (filters?.environment) {
       where.environment = filters.environment;
     }
-    
+
     if (filters?.status) {
       where.status = filters.status;
     }
-    
+
     // Обработка фильтра type для совместимости
     // type: "errors" - только error и fatal
     // type: "logs" - warn, info, debug (но в БД обычно только error/fatal синхронизируются)
     // type: "all" - все уровни
     if (filters?.level) {
       // Поддержка multiple levels: "error|fatal"
-      const levels = filters.level.split('|').filter(Boolean);
+      const levels = filters.level.split("|").filter(Boolean);
       if (levels.length > 0) {
         where.level = { in: levels };
       }
@@ -52,19 +52,19 @@ export async function getErrorsFromDatabase(filters?: {
       where.level = { in: ["warn", "info", "debug"] };
     }
     // type: "all" или отсутствие type - не фильтруем по level
-    
+
     if (filters?.tags && filters.tags.length > 0) {
       where.tags = { hasEvery: filters.tags };
     }
-    
+
     const errorLogs = await prisma.errorLog.findMany({
       where,
-      orderBy: { timestamp: 'desc' },
+      orderBy: { timestamp: "desc" },
       take: filters?.limit || 50,
       skip: filters?.offset || 0,
     });
-    
-    const errors: ErrorDashboardReport[] = errorLogs.map(log => ({
+
+    const errors: ErrorDashboardReport[] = errorLogs.map((log) => ({
       id: log.id,
       timestamp: log.timestamp.toISOString(),
       timestampNs: String(log.timestamp.getTime() * 1000000),
@@ -73,8 +73,8 @@ export async function getErrorsFromDatabase(filters?: {
       stack: log.stack || null,
       appName: log.appName,
       environment: log.environment,
-      url: log.url || '',
-      userAgent: log.userAgent || '',
+      url: log.url || "",
+      userAgent: log.userAgent || "",
       userId: log.userId || null,
       sessionId: log.sessionId || null,
       componentStack: log.componentStack || null,
@@ -82,7 +82,7 @@ export async function getErrorsFromDatabase(filters?: {
       tags: log.tags,
       createdAt: log.timestamp,
       updatedAt: log.updatedAt,
-      status: log.status as 'new' | 'viewed' | 'resolved' | 'archived',
+      status: log.status as "new" | "viewed" | "resolved" | "archived",
       resolvedAt: log.resolvedAt ? log.resolvedAt.toISOString() : null,
       resolvedBy: log.resolvedBy || null,
       labels: {
@@ -93,13 +93,13 @@ export async function getErrorsFromDatabase(filters?: {
         status: log.status,
       },
     }));
-    
+
     return { success: true, errors };
   } catch (error) {
-    console.error('[getErrorsFromDatabase] Error:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    console.error("[getErrorsFromDatabase] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -115,7 +115,7 @@ export async function deleteErrorFromDatabase(
     timestamp: Date;
     appName: string;
     level: string;
-  }
+  },
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Пытаемся удалить по ID
@@ -130,15 +130,18 @@ export async function deleteErrorFromDatabase(
         (deleteError.message.includes("No record was found") ||
           deleteError.message.includes("Record to delete does not exist") ||
           deleteError.message.includes("not found for a delete"));
-      
+
       if (isRecordNotFoundError && fallbackFields) {
-        console.warn('[deleteErrorFromDatabase] Record not found by ID, trying to find by fields:', {
-          errorId,
-          message: fallbackFields.message.substring(0, 100),
-          appName: fallbackFields.appName,
-          level: fallbackFields.level,
-          timestamp: fallbackFields.timestamp.toISOString(),
-        });
+        console.warn(
+          "[deleteErrorFromDatabase] Record not found by ID, trying to find by fields:",
+          {
+            errorId,
+            message: fallbackFields.message.substring(0, 100),
+            appName: fallbackFields.appName,
+            level: fallbackFields.level,
+            timestamp: fallbackFields.timestamp.toISOString(),
+          },
+        );
 
         // Ищем запись по комбинации полей с окном ±1 секунда для timestamp
         const found = await prisma.errorLog.findFirst({
@@ -156,14 +159,14 @@ export async function deleteErrorFromDatabase(
         if (found) {
           // Удаляем найденную запись по её ID
           await prisma.errorLog.delete({ where: { id: found.id } });
-          console.warn('[deleteErrorFromDatabase] Record found and deleted by fields:', {
+          console.warn("[deleteErrorFromDatabase] Record found and deleted by fields:", {
             errorId,
             foundId: found.id,
           });
           return { success: true };
         }
 
-        console.warn('[deleteErrorFromDatabase] Record not found by fields either:', {
+        console.warn("[deleteErrorFromDatabase] Record not found by fields either:", {
           errorId,
           fallbackFields,
         });
@@ -177,10 +180,10 @@ export async function deleteErrorFromDatabase(
       throw deleteError;
     }
   } catch (error) {
-    console.error('[deleteErrorFromDatabase] Error:', error);
+    console.error("[deleteErrorFromDatabase] Error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -188,16 +191,20 @@ export async function deleteErrorFromDatabase(
 /**
  * Удаляет все ошибки из PostgreSQL
  */
-export async function deleteAllErrorsFromDatabase(): Promise<{ success: boolean; error?: string; deletedCount?: number }> {
+export async function deleteAllErrorsFromDatabase(): Promise<{
+  success: boolean;
+  error?: string;
+  deletedCount?: number;
+}> {
   try {
     const result = await prisma.errorLog.deleteMany({});
-    console.warn('[deleteAllErrorsFromDatabase] Deleted errors count:', result.count);
+    console.warn("[deleteAllErrorsFromDatabase] Deleted errors count:", result.count);
     return { success: true, deletedCount: result.count };
   } catch (error) {
-    console.error('[deleteAllErrorsFromDatabase] Error:', error);
+    console.error("[deleteAllErrorsFromDatabase] Error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -206,9 +213,9 @@ export async function deleteAllErrorsFromDatabase(): Promise<{ success: boolean;
  * Обновляет статус ошибки
  */
 export async function updateErrorStatus(
-  errorId: string, 
-  status: 'new' | 'viewed' | 'resolved' | 'archived',
-  resolvedBy?: string | null
+  errorId: string,
+  status: "new" | "viewed" | "resolved" | "archived",
+  resolvedBy?: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const updateData: {
@@ -218,7 +225,7 @@ export async function updateErrorStatus(
     } = { status };
 
     // Если статус "resolved", устанавливаем resolvedAt и resolvedBy
-    if (status === 'resolved') {
+    if (status === "resolved") {
       updateData.resolvedAt = new Date();
       updateData.resolvedBy = resolvedBy || null;
     } else {
@@ -233,10 +240,10 @@ export async function updateErrorStatus(
     });
     return { success: true };
   } catch (error) {
-    console.error('[updateErrorStatus] Error:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    console.error("[updateErrorStatus] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -247,21 +254,23 @@ export async function updateErrorStatus(
  * Если не существует - создает запись
  */
 export async function syncSeqErrorToDatabase(
-  error: ErrorDashboardReport
+  error: ErrorDashboardReport,
 ): Promise<{ success: boolean; created?: boolean; error?: string }> {
   try {
     // Извлекаем уровень из лога используя утилиту
-    const level = getLogLevel(error) || error.labels?.level || 'error';
-    
+    const level = getLogLevel(error) || error.labels?.level || "error";
+
     // Проверяем, что это error или fatal
-    if (level !== 'error' && level !== 'fatal') {
+    if (level !== "error" && level !== "fatal") {
       return { success: true, created: false }; // Не синхронизируем другие уровни
     }
 
     // Преобразуем timestamp из наносекунд в Date
-    const timestamp = error.timestampNs 
+    const timestamp = error.timestampNs
       ? new Date(Number(error.timestampNs) / 1000000)
-      : (error.createdAt ? new Date(error.createdAt) : new Date());
+      : error.createdAt
+        ? new Date(error.createdAt)
+        : new Date();
 
     // Проверяем существование по уникальной комбинации
     const existing = await prisma.errorLog.findFirst({
@@ -288,7 +297,7 @@ export async function syncSeqErrorToDatabase(
         stack: error.stack || null,
         level: level,
         appName: error.appName,
-        environment: error.labels?.environment || error.environment || 'development',
+        environment: error.labels?.environment || error.environment || "development",
         context: error.labels?.context || null,
         url: error.url || null,
         userAgent: error.userAgent || null,
@@ -298,16 +307,16 @@ export async function syncSeqErrorToDatabase(
         additionalContext: (error.additionalContext || {}) as Prisma.InputJsonValue,
         tags: error.tags || [],
         timestamp: timestamp,
-        status: 'new',
+        status: "new",
       },
     });
 
     return { success: true, created: true };
   } catch (error) {
-    console.error('[syncSeqErrorToDatabase] Error:', error);
+    console.error("[syncSeqErrorToDatabase] Error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -317,7 +326,7 @@ export async function syncSeqErrorToDatabase(
  * @deprecated Используйте syncSeqErrorToDatabase
  */
 export async function syncLokiErrorToDatabase(
-  error: ErrorDashboardReport
+  error: ErrorDashboardReport,
 ): Promise<{ success: boolean; created?: boolean; error?: string }> {
   return syncSeqErrorToDatabase(error);
 }
@@ -347,33 +356,33 @@ export async function getErrorStatsFromDatabase(): Promise<{
         status: true,
       },
     });
-    
+
     const total = allErrors.length;
-    const unresolved = allErrors.filter(e => e.status === 'new' || e.status === 'viewed').length;
-    const critical = allErrors.filter(e => e.level === 'fatal').length;
-    
+    const unresolved = allErrors.filter((e) => e.status === "new" || e.status === "viewed").length;
+    const critical = allErrors.filter((e) => e.level === "fatal").length;
+
     // Группировка по приложениям
     const byAppMap = new Map<string, number>();
-    allErrors.forEach(error => {
-      const appName = error.appName || 'unknown';
+    allErrors.forEach((error) => {
+      const appName = error.appName || "unknown";
       byAppMap.set(appName, (byAppMap.get(appName) || 0) + 1);
     });
-    
+
     const byApp: { name: string; count: number }[] = Array.from(byAppMap.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
-    
+
     // Группировка по окружениям
     const byEnvironmentMap = new Map<string, number>();
-    allErrors.forEach(error => {
-      const env = error.environment || 'unknown';
+    allErrors.forEach((error) => {
+      const env = error.environment || "unknown";
       byEnvironmentMap.set(env, (byEnvironmentMap.get(env) || 0) + 1);
     });
-    
+
     const byEnvironment: { name: string; count: number }[] = Array.from(byEnvironmentMap.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
-    
+
     return {
       success: true,
       stats: {
@@ -385,11 +394,10 @@ export async function getErrorStatsFromDatabase(): Promise<{
       },
     };
   } catch (error) {
-    console.error('[getErrorStatsFromDatabase] Error:', error);
+    console.error("[getErrorStatsFromDatabase] Error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
-

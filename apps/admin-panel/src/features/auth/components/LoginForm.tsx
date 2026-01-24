@@ -4,15 +4,15 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { 
-  Box, 
-  Button, 
-  TextField, 
-  Typography, 
-  Paper, 
-  Container, 
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Paper,
+  Container,
   Alert,
-  CircularProgress 
+  CircularProgress,
 } from "@mui/material";
 import { AdminPanelSettings as AdminIcon } from "@mui/icons-material";
 
@@ -120,4 +120,3 @@ export default function LoginForm() {
     </Container>
   );
 }
-

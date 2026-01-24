@@ -54,7 +54,7 @@ export function getEmbeddedVideoInfo(url: string | null): EmbeddedVideoInfo {
   ) {
     // Определяем HLS по расширению .m3u8
     const isHLS = url.endsWith(".m3u8");
-    
+
     return {
       embedUrl: url,
       isShorts: false,

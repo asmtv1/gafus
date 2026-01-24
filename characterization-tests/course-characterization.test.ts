@@ -7,8 +7,8 @@
  * Они должны проходить ДО и ПОСЛЕ рефакторинга.
  */
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
 function log(message: string) {
   console.log(`🧪 ${message}`);
@@ -28,26 +28,26 @@ function warn(message: string) {
 
 // Characterization Test 1: Проверка сигнатур функций
 function testFunctionSignatures() {
-  log('Проверка сигнатур функций модуля Course...');
+  log("Проверка сигнатур функций модуля Course...");
 
   const functionsToCheck = [
     {
-      file: 'apps/web/src/shared/lib/course/getCourses.ts',
-      expected: 'export async function getCourses'
+      file: "apps/web/src/shared/lib/course/getCourses.ts",
+      expected: "export async function getCourses",
     },
     {
-      file: 'apps/web/src/shared/lib/course/getCourseMetadata.ts',
-      expected: 'export async function getCourseMetadata'
+      file: "apps/web/src/shared/lib/course/getCourseMetadata.ts",
+      expected: "export async function getCourseMetadata",
     },
     {
-      file: 'apps/web/src/shared/lib/course/checkCourseAccess.ts',
-      expected: 'export async function checkCourseAccess'
-    }
+      file: "apps/web/src/shared/lib/course/checkCourseAccess.ts",
+      expected: "export async function checkCourseAccess",
+    },
   ];
 
   for (const { file, expected } of functionsToCheck) {
     try {
-      const content = readFileSync(resolve(process.cwd(), file), 'utf-8');
+      const content = readFileSync(resolve(process.cwd(), file), "utf-8");
       if (content.includes(expected)) {
         success(`Функция найдена: ${file}`);
       } else {
@@ -61,26 +61,26 @@ function testFunctionSignatures() {
 
 // Characterization Test 2: Проверка структур ответов
 function testResponseStructures() {
-  log('Проверка структур ответов функций...');
+  log("Проверка структур ответов функций...");
 
   const structuresToCheck = [
     {
-      file: 'apps/web/src/shared/lib/course/getCourses.ts',
-      expectedStructure: 'return courses;'
+      file: "apps/web/src/shared/lib/course/getCourses.ts",
+      expectedStructure: "return courses;",
     },
     {
-      file: 'apps/web/src/shared/lib/course/getCourseMetadata.ts',
-      expectedStructure: 'return {'
+      file: "apps/web/src/shared/lib/course/getCourseMetadata.ts",
+      expectedStructure: "return {",
     },
     {
-      file: 'apps/web/src/shared/lib/course/checkCourseAccess.ts',
-      expectedStructure: 'return {'
-    }
+      file: "apps/web/src/shared/lib/course/checkCourseAccess.ts",
+      expectedStructure: "return {",
+    },
   ];
 
   for (const { file, expectedStructure } of structuresToCheck) {
     try {
-      const content = readFileSync(resolve(process.cwd(), file), 'utf-8');
+      const content = readFileSync(resolve(process.cwd(), file), "utf-8");
       if (content.includes(expectedStructure)) {
         success(`Структура ответа найдена: ${expectedStructure} в ${file}`);
       } else {
@@ -94,22 +94,22 @@ function testResponseStructures() {
 
 // Characterization Test 3: Проверка импортов
 function testImports() {
-  log('Проверка импортов в модуле Course...');
+  log("Проверка импортов в модуле Course...");
 
   const filesToCheck = [
     {
-      file: 'apps/web/src/shared/lib/course/getCourses.ts',
-      expectedImports: ['prisma', 'createWebLogger']
+      file: "apps/web/src/shared/lib/course/getCourses.ts",
+      expectedImports: ["prisma", "createWebLogger"],
     },
     {
-      file: 'apps/web/src/shared/lib/course/getCourseMetadata.ts',
-      expectedImports: ['checkCourseAccess', 'prisma']
-    }
+      file: "apps/web/src/shared/lib/course/getCourseMetadata.ts",
+      expectedImports: ["checkCourseAccess", "prisma"],
+    },
   ];
 
   for (const { file, expectedImports } of filesToCheck) {
     try {
-      const content = readFileSync(resolve(process.cwd(), file), 'utf-8');
+      const content = readFileSync(resolve(process.cwd(), file), "utf-8");
       for (const imp of expectedImports) {
         if (content.includes(imp)) {
           success(`Импорт найден: ${imp} в ${file}`);
@@ -125,17 +125,17 @@ function testImports() {
 
 // Characterization Test 4: Проверка обработки ошибок
 function testErrorHandling() {
-  log('Проверка обработки ошибок...');
+  log("Проверка обработки ошибок...");
 
   const errorFiles = [
-    'apps/web/src/shared/lib/course/getCourseMetadata.ts',
-    'apps/web/src/shared/lib/course/checkCourseAccess.ts'
+    "apps/web/src/shared/lib/course/getCourseMetadata.ts",
+    "apps/web/src/shared/lib/course/checkCourseAccess.ts",
   ];
 
   for (const file of errorFiles) {
     try {
-      const content = readFileSync(resolve(process.cwd(), file), 'utf-8');
-      if (content.includes('logger.error') || content.includes('throw new Error')) {
+      const content = readFileSync(resolve(process.cwd(), file), "utf-8");
+      if (content.includes("logger.error") || content.includes("throw new Error")) {
         success(`Обработка ошибок найдена в: ${file}`);
       } else {
         warn(`Обработка ошибок не найдена в: ${file}`);
@@ -148,25 +148,24 @@ function testErrorHandling() {
 
 // Основная функция
 function runCharacterizationTests() {
-  console.log('🚀 ЗАПУСК CHARACTERIZATION TESTS ДЛЯ COURSE MODULE\n');
+  console.log("🚀 ЗАПУСК CHARACTERIZATION TESTS ДЛЯ COURSE MODULE\n");
 
   try {
     testFunctionSignatures();
-    console.log('');
+    console.log("");
 
     testResponseStructures();
-    console.log('');
+    console.log("");
 
     testImports();
-    console.log('');
+    console.log("");
 
     testErrorHandling();
-    console.log('');
+    console.log("");
 
-    success('✅ CHARACTERIZATION TESTS ЗАВЕРШЕНЫ!');
-    console.log('\n💡 Эти тесты фиксируют текущее поведение.');
-    console.log('   Они должны проходить ДО и ПОСЛЕ рефакторинга.');
-
+    success("✅ CHARACTERIZATION TESTS ЗАВЕРШЕНЫ!");
+    console.log("\n💡 Эти тесты фиксируют текущее поведение.");
+    console.log("   Они должны проходить ДО и ПОСЛЕ рефакторинга.");
   } catch (err) {
     error(`Критическая ошибка: ${err.message}`);
     process.exit(1);

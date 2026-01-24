@@ -21,6 +21,7 @@ import { useState, useEffect } from "react";
 
 import styles from "./main-panel.module.css";
 import { getPendingExamCount } from "@/features/exam-results/lib/getPendingExamCount";
+import { AIChatWidget } from "@/features/ai-chat/components/AIChatWidget";
 
 interface MainPanelLayoutProps {
   children: React.ReactNode;
@@ -81,11 +82,7 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
     <div className={styles.container}>
       {/* Мобильная шапка с кнопкой меню */}
       <div className={styles.mobileHeader}>
-        <button 
-          className={styles.menuButton} 
-          onClick={toggleMobileMenu}
-          aria-label="Открыть меню"
-        >
+        <button className={styles.menuButton} onClick={toggleMobileMenu} aria-label="Открыть меню">
           {isMobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
         </button>
         <div className={styles.mobileHeaderUser}>
@@ -101,123 +98,69 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
       </div>
 
       {/* Оверлей для закрытия меню на мобилке */}
-      {isMobileMenuOpen && (
-        <div className={styles.overlay} onClick={closeMobileMenu}></div>
-      )}
+      {isMobileMenuOpen && <div className={styles.overlay} onClick={closeMobileMenu}></div>}
 
       {/* Боковая панель */}
       <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ""}`}>
         <div className={styles.profilWrapper}>
           <div className={styles.userName}>{userName || "\u00A0"}</div>
-          <Image
-            src={avatarUrl}
-            alt="Avatar"
-            width={48}
-            height={48}
-            className={styles.avatar}
-          />
+          <Image src={avatarUrl} alt="Avatar" width={48} height={48} className={styles.avatar} />
         </div>
-        <Link 
-          href="/main-panel/statistics" 
-          className={styles.button}
-          onClick={closeMobileMenu}
-        >
+        <Link href="/main-panel/statistics" className={styles.button} onClick={closeMobileMenu}>
           <TrendingUp />
           Общая Статистика
         </Link>
-        <Link 
-          href="/main-panel/steps" 
-          className={styles.button}
-          onClick={closeMobileMenu}
-        >
+        <Link href="/main-panel/steps" className={styles.button} onClick={closeMobileMenu}>
           <FitnessCenter />
           Созданные шаги
         </Link>
-        <Link 
-          href="/main-panel/days" 
-          className={styles.button}
-          onClick={closeMobileMenu}
-        >
+        <Link href="/main-panel/days" className={styles.button} onClick={closeMobileMenu}>
           <Schedule />
           Созданные дни
         </Link>
-        <Link 
-          href="/main-panel/templates" 
-          className={styles.button}
-          onClick={closeMobileMenu}
-        >
+        <Link href="/main-panel/templates" className={styles.button} onClick={closeMobileMenu}>
           <AutoStories />
           Библиотека шаблонов
         </Link>
-        <Link 
-          href="/main-panel/my-videos" 
-          className={styles.button}
-          onClick={closeMobileMenu}
-        >
+        <Link href="/main-panel/my-videos" className={styles.button} onClick={closeMobileMenu}>
           <VideoLibrary />
           Мои видео
         </Link>
-        <Link 
-          href="/main-panel/exam-results" 
-          className={styles.button}
-          onClick={closeMobileMenu}
-        >
+        <Link href="/main-panel/exam-results" className={styles.button} onClick={closeMobileMenu}>
           <Assignment />
           Результаты экзаменов
-          {pendingExamCount > 0 && (
-            <span className={styles.badge}>
-              {pendingExamCount}
-            </span>
-          )}
+          {pendingExamCount > 0 && <span className={styles.badge}>{pendingExamCount}</span>}
         </Link>
-        <Link 
-          href="/main-panel/faq" 
-          className={styles.button}
-          onClick={closeMobileMenu}
-        >
+        <Link href="/main-panel/faq" className={styles.button} onClick={closeMobileMenu}>
           <HelpOutline />
           Частые вопросы
         </Link>
-        
+
         <div className={styles.divider}></div>
-        
-        <Link 
-          href="/main-panel/steps/new" 
-          className={styles.button}
-          onClick={closeMobileMenu}
-        >
+
+        <Link href="/main-panel/steps/new" className={styles.button} onClick={closeMobileMenu}>
           <Add />
           Создать новый шаг
         </Link>
-        <Link 
-          href="/main-panel/days/new" 
-          className={styles.button}
-          onClick={closeMobileMenu}
-        >
+        <Link href="/main-panel/days/new" className={styles.button} onClick={closeMobileMenu}>
           <Add />
           Создать новый день
         </Link>
-        <Link 
-          href="/main-panel/courses/new" 
-          className={styles.button}
-          onClick={closeMobileMenu}
-        >
+        <Link href="/main-panel/courses/new" className={styles.button} onClick={closeMobileMenu}>
           <Add />
           Создать новый курс
         </Link>
 
         <div className={styles.divider}></div>
 
-        <button 
-          className={styles.logoutButton}
-          onClick={handleLogout}
-        >
+        <button className={styles.logoutButton} onClick={handleLogout}>
           <Logout />
           Выход
         </button>
       </aside>
 
       <main className={styles.content}>{children}</main>
+      <AIChatWidget />
     </div>
   );
 }

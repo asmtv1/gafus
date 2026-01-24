@@ -11,23 +11,29 @@ export declare function getCoursesWithProgress(userId: string): Promise<CourseWi
 /**
  * Проверяет доступ пользователя к курсу по типу
  */
-export declare function checkCourseAccess(courseType: string, userId?: string): Promise<{
-    hasAccess: boolean;
+export declare function checkCourseAccess(
+  courseType: string,
+  userId?: string,
+): Promise<{
+  hasAccess: boolean;
 }>;
 /**
  * Проверяет доступ пользователя к курсу по ID
  */
-export declare function checkCourseAccessById(courseId: string, userId?: string): Promise<{
-    hasAccess: boolean;
+export declare function checkCourseAccessById(
+  courseId: string,
+  userId?: string,
+): Promise<{
+  hasAccess: boolean;
 }>;
 /**
  * Получает базовые метаданные курса для Open Graph
  */
 export declare function getCourseMetadata(courseType: string): Promise<{
-    name: string;
-    id: string;
-    description: string;
-    shortDesc: string;
-    logoImg: string;
+  name: string;
+  id: string;
+  description: string;
+  shortDesc: string;
+  logoImg: string;
 } | null>;
 //# sourceMappingURL=courseService.d.ts.map

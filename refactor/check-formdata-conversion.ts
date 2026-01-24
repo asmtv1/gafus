@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Скрипт проверки правильного преобразования FormData в Server Actions
@@ -32,7 +32,7 @@ function findFormDataIssues(dir: string): FormDataIssue[] {
     for (const item of items) {
       const fullPath = path.join(currentDir, item);
 
-      if (item === 'node_modules' || item === '.git' || item.startsWith('.')) {
+      if (item === "node_modules" || item === ".git" || item.startsWith(".")) {
         continue;
       }
 
@@ -45,15 +45,15 @@ function findFormDataIssues(dir: string): FormDataIssue[] {
 
       if (stat.isDirectory()) {
         scanDirectory(fullPath);
-      } else if (stat.isFile() && (item.endsWith('.ts') || item.endsWith('.tsx'))) {
+      } else if (stat.isFile() && (item.endsWith(".ts") || item.endsWith(".tsx"))) {
         scanFile(fullPath);
       }
     }
   }
 
   function scanFile(filePath: string) {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split('\n');
+    const content = fs.readFileSync(filePath, "utf-8");
+    const lines = content.split("\n");
 
     // Ищем Server Actions с параметром FormData
     const serverActions = findServerActionsWithFormData(content);
@@ -65,7 +65,7 @@ function findFormDataIssues(dir: string): FormDataIssue[] {
           file: path.relative(process.cwd(), filePath),
           functionName: action.name,
           line: action.line,
-          issues: functionIssues
+          issues: functionIssues,
         });
       }
     }
@@ -73,7 +73,7 @@ function findFormDataIssues(dir: string): FormDataIssue[] {
 
   function findServerActionsWithFormData(content: string): { name: string; line: number }[] {
     const actions: { name: string; line: number }[] = [];
-    const lines = content.split('\n');
+    const lines = content.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -83,11 +83,13 @@ function findFormDataIssues(dir: string): FormDataIssue[] {
         // Ищем функцию после "use server"
         for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
           const funcLine = lines[j];
-          const funcMatch = funcLine.match(/(?:export\s+)?(?:async\s+)?function\s+(\w+).*?\(.*?FormData.*?\)/);
+          const funcMatch = funcLine.match(
+            /(?:export\s+)?(?:async\s+)?function\s+(\w+).*?\(.*?FormData.*?\)/,
+          );
           if (funcMatch) {
             actions.push({
               name: funcMatch[1],
-              line: j + 1
+              line: j + 1,
             });
             break;
           }
@@ -105,30 +107,34 @@ function findFormDataIssues(dir: string): FormDataIssue[] {
     const functionContent = extractFunctionContent(content, action.line);
 
     // Проверяем наличие Object.fromEntries(formData)
-    const hasObjectFromEntries = functionContent.includes('Object.fromEntries(formData)');
+    const hasObjectFromEntries = functionContent.includes("Object.fromEntries(formData)");
 
     // Проверяем наличие отдельных обращений к файлам
     const hasSeparateFileAccess = /formData\.get\(['"`][^'"`]*['"`]\)/.test(functionContent);
 
     // Проверяем наличие множественных значений
-    const hasGetAll = functionContent.includes('formData.getAll(');
+    const hasGetAll = functionContent.includes("formData.getAll(");
 
     // Проверяем наличие прямого использования formData в Object.fromEntries
     const hasDirectFormDataInFromEntries = /Object\.fromEntries\(formData\)/.test(functionContent);
 
     if (!hasObjectFromEntries && !hasSeparateFileAccess) {
-      issues.push('FormData не преобразуется в объект (Object.fromEntries)');
+      issues.push("FormData не преобразуется в объект (Object.fromEntries)");
     }
 
     if (hasObjectFromEntries && !hasSeparateFileAccess && !hasGetAll) {
       // Проверяем что файлы не извлекаются через Object.fromEntries
-      const fromEntriesMatch = functionContent.match(/const\s+(\w+)\s*=\s*Object\.fromEntries\(formData\)/);
+      const fromEntriesMatch = functionContent.match(
+        /const\s+(\w+)\s*=\s*Object\.fromEntries\(formData\)/,
+      );
       if (fromEntriesMatch) {
         const varName = fromEntriesMatch[1];
         // Проверяем что эта переменная не используется для доступа к файлам
-        const fileAccessPattern = new RegExp(`${varName}\.[\w]+\.name|${varName}\.[\w]+\.size|${varName}\.[\w]+\.type`);
+        const fileAccessPattern = new RegExp(
+          `${varName}\.[\w]+\.name|${varName}\.[\w]+\.size|${varName}\.[\w]+\.type`,
+        );
         if (fileAccessPattern.test(functionContent)) {
-          issues.push('Файлы извлекаются через Object.fromEntries (должны через formData.get())');
+          issues.push("Файлы извлекаются через Object.fromEntries (должны через formData.get())");
         }
       }
     }
@@ -137,21 +143,21 @@ function findFormDataIssues(dir: string): FormDataIssue[] {
   }
 
   function extractFunctionContent(content: string, startLine: number): string {
-    const lines = content.split('\n');
-    let functionContent = '';
+    const lines = content.split("\n");
+    let functionContent = "";
     let braceCount = 0;
     let inFunction = false;
 
     for (let i = startLine - 1; i < lines.length; i++) {
       const line = lines[i];
-      functionContent += line + '\n';
+      functionContent += line + "\n";
 
       for (const char of line) {
-        if (char === '{') {
+        if (char === "{") {
           braceCount++;
           inFunction = true;
         }
-        if (char === '}') braceCount--;
+        if (char === "}") braceCount--;
       }
 
       if (inFunction && braceCount === 0) {
@@ -167,12 +173,12 @@ function findFormDataIssues(dir: string): FormDataIssue[] {
 }
 
 function main() {
-  console.log('🔍 Проверка преобразования FormData в Server Actions...\n');
+  console.log("🔍 Проверка преобразования FormData в Server Actions...\n");
 
-  const issues = findFormDataIssues('.');
+  const issues = findFormDataIssues(".");
 
   if (issues.length === 0) {
-    console.log('✅ Все Server Actions правильно обрабатывают FormData!');
+    console.log("✅ Все Server Actions правильно обрабатывают FormData!");
     process.exit(0);
   }
 
@@ -180,14 +186,14 @@ function main() {
 
   for (const issue of issues) {
     console.log(`📁 ${issue.file}:${issue.line} (${issue.functionName})`);
-    issue.issues.forEach(problem => {
+    issue.issues.forEach((problem) => {
       console.log(`   ❌ ${problem}`);
     });
-    console.log('');
+    console.log("");
   }
 
-  console.log('💡 Рекомендации по исправлению:');
-  console.log('   1. Преобразуйте FormData: const data = Object.fromEntries(formData);');
+  console.log("💡 Рекомендации по исправлению:");
+  console.log("   1. Преобразуйте FormData: const data = Object.fromEntries(formData);");
   console.log('   2. Обрабатывайте файлы отдельно: const file = formData.get("field") as File;');
   console.log('   3. Для множественных значений: const values = formData.getAll("field");');
 

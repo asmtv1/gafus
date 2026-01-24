@@ -11,7 +11,7 @@ import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { updatePetSchema } from "../validation/petSchemas";
 
 // Создаем логгер для updatePet
-const logger = createWebLogger('web-update-pet');
+const logger = createWebLogger("web-update-pet");
 
 export async function updatePet(data: UpdatePetInput) {
   const validatedData = updatePetSchema.parse(data);
@@ -37,12 +37,9 @@ export async function updatePet(data: UpdatePetInput) {
     if (validatedData.breed !== undefined) updateData.breed = validatedData.breed;
     if (validatedData.birthDate !== undefined)
       updateData.birthDate = new Date(validatedData.birthDate as string);
-    if (validatedData.heightCm !== undefined)
-      updateData.heightCm = validatedData.heightCm ?? null;
-    if (validatedData.weightKg !== undefined)
-      updateData.weightKg = validatedData.weightKg ?? null;
-    if (validatedData.photoUrl !== undefined)
-      updateData.photoUrl = validatedData.photoUrl || null;
+    if (validatedData.heightCm !== undefined) updateData.heightCm = validatedData.heightCm ?? null;
+    if (validatedData.weightKg !== undefined) updateData.weightKg = validatedData.weightKg ?? null;
+    if (validatedData.photoUrl !== undefined) updateData.photoUrl = validatedData.photoUrl || null;
     if (validatedData.notes !== undefined) updateData.notes = validatedData.notes ?? null;
 
     const pet = await prisma.pet.update({
@@ -55,7 +52,7 @@ export async function updatePet(data: UpdatePetInput) {
 
     return pet;
   } catch (error) {
-    logger.error("Ошибка при обновлении питомца:", error as Error, { operation: 'error' });
+    logger.error("Ошибка при обновлении питомца:", error as Error, { operation: "error" });
     throw new Error("Не удалось обновить питомца");
   }
 }

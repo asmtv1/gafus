@@ -12,11 +12,7 @@ interface CardProps extends PaperCardProps {
  */
 export function Card({ children, style, ...props }: CardProps) {
   return (
-    <PaperCard 
-      mode="elevated" 
-      style={[styles.card, style as ViewStyle]} 
-      {...props}
-    >
+    <PaperCard mode="elevated" style={[styles.card, style as ViewStyle]} {...props}>
       {children}
     </PaperCard>
   );

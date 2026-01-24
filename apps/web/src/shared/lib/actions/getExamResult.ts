@@ -31,7 +31,7 @@ export interface ExamResultData {
  */
 export async function getExamResult(userStepId: string): Promise<ExamResultData | null> {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     throw new Error("Не авторизован");
   }
@@ -42,9 +42,9 @@ export async function getExamResult(userStepId: string): Promise<ExamResultData 
       where: {
         id: userStepId,
         userTraining: {
-          userId: session.user.id
-        }
-      }
+          userId: session.user.id,
+        },
+      },
     });
 
     if (!userStep) {
@@ -54,7 +54,7 @@ export async function getExamResult(userStepId: string): Promise<ExamResultData 
     // Получаем результат экзамена
     const examResult = await prisma.examResult.findUnique({
       where: {
-        userStepId
+        userStepId,
       },
       select: {
         id: true,
@@ -79,8 +79,8 @@ export async function getExamResult(userStepId: string): Promise<ExamResultData 
           },
         },
         createdAt: true,
-        updatedAt: true
-      }
+        updatedAt: true,
+      },
     });
 
     if (!examResult) {
@@ -91,9 +91,10 @@ export async function getExamResult(userStepId: string): Promise<ExamResultData 
     let testAnswers: Record<string, number> | null = null;
     if (examResult.testAnswers) {
       try {
-        testAnswers = typeof examResult.testAnswers === 'string' 
-          ? JSON.parse(examResult.testAnswers) 
-          : examResult.testAnswers as Record<string, number>;
+        testAnswers =
+          typeof examResult.testAnswers === "string"
+            ? JSON.parse(examResult.testAnswers)
+            : (examResult.testAnswers as Record<string, number>);
       } catch (e) {
         console.error("Ошибка парсинга testAnswers:", e);
       }
@@ -101,11 +102,10 @@ export async function getExamResult(userStepId: string): Promise<ExamResultData 
 
     return {
       ...examResult,
-      testAnswers
+      testAnswers,
     };
   } catch (error) {
     console.error("Ошибка при получении результата экзамена:", error);
     throw new Error(error instanceof Error ? error.message : "Неизвестная ошибка");
   }
 }
-

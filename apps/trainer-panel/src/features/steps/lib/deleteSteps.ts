@@ -1,6 +1,5 @@
 "use server";
 
-
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { revalidatePath } from "next/cache";
@@ -9,7 +8,7 @@ import { deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload"
 import type { ActionResult } from "@gafus/types";
 
 // Создаем логгер для delete-steps
-const logger = createTrainerPanelLogger('trainer-panel-delete-steps');
+const logger = createTrainerPanelLogger("trainer-panel-delete-steps");
 
 export async function deleteSteps(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   try {
@@ -33,7 +32,9 @@ export async function deleteSteps(_prev: ActionResult, formData: FormData): Prom
             await deleteFileFromCDN(relativePath);
             logger.info(`🗑️ Изображение шага удалено из CDN: ${relativePath}`);
           } catch (error) {
-            logger.warn(`⚠️ Не удалось удалить изображение шага из CDN: ${relativePath}`, { error });
+            logger.warn(`⚠️ Не удалось удалить изображение шага из CDN: ${relativePath}`, {
+              error,
+            });
           }
         }
       }
@@ -43,9 +44,12 @@ export async function deleteSteps(_prev: ActionResult, formData: FormData): Prom
 
     revalidatePath("/main-panel/steps");
 
-    return { success: true, message: `Удалено: ${result.count}` } as { success: boolean; message: string };
+    return { success: true, message: `Удалено: ${result.count}` } as {
+      success: boolean;
+      message: string;
+    };
   } catch (error) {
-    logger.error("Ошибка при удалении шагов:", error as Error, { operation: 'error' });
+    logger.error("Ошибка при удалении шагов:", error as Error, { operation: "error" });
     logger.error(
       error instanceof Error ? error.message : "Unknown error",
       error instanceof Error ? error : new Error(String(error)),
@@ -53,7 +57,7 @@ export async function deleteSteps(_prev: ActionResult, formData: FormData): Prom
         operation: "action",
         action: "action",
         tags: [],
-      }
+      },
     );
     return { error: "Не удалось удалить шаги" };
   }

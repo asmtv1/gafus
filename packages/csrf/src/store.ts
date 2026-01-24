@@ -6,7 +6,7 @@ import { persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для CSRF Store
-const logger = createWebLogger('csrf-store');
+const logger = createWebLogger("csrf-store");
 // Типы для CSRF Store
 interface CSRFState {
   token: string | null;
@@ -119,7 +119,7 @@ export const useCSRFStore = create<CSRFState>()(
           const errorMessage = error instanceof Error ? error.message : "Неизвестная ошибка";
           logger.error("Ошибка при получении CSRF токена", new Error(errorMessage), {
             retryCount: get().retryCount,
-            lastFetched: get().lastFetched
+            lastFetched: get().lastFetched,
           });
 
           const newRetryCount = state.retryCount + 1;
@@ -210,7 +210,7 @@ export const useCSRFStore = create<CSRFState>()(
 );
 
 // Экспорт глобальной переменной для Safari совместимости
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   (window as unknown as { __CSRF_STORE__?: typeof useCSRFStore }).__CSRF_STORE__ = useCSRFStore;
 }
 
@@ -224,7 +224,7 @@ export function createCSRFFetch(token: string) {
     if (!token || token === "temp-token") {
       logger.warn("Invalid CSRF token, request may fail", {
         tokenLength: token.length,
-        tokenValue: token === "temp-token" ? "temp-token" : "invalid"
+        tokenValue: token === "temp-token" ? "temp-token" : "invalid",
       });
     }
 
@@ -271,4 +271,3 @@ export function useCSRFToken() {
     isTokenValid: isTokenValid(),
   };
 }
-

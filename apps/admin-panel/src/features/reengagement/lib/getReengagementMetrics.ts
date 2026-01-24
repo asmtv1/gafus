@@ -5,7 +5,7 @@ import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('get-reengagement-metrics');
+const logger = createWebLogger("get-reengagement-metrics");
 
 /**
  * Типы для метрик
@@ -73,7 +73,7 @@ export async function getReengagementMetrics(): Promise<{
     if (!session?.user) {
       return {
         success: false,
-        error: "Необходимо войти в систему"
+        error: "Необходимо войти в систему",
       };
     }
 
@@ -81,7 +81,7 @@ export async function getReengagementMetrics(): Promise<{
     if (session.user.role !== "ADMIN") {
       return {
         success: false,
-        error: "Недостаточно прав доступа"
+        error: "Недостаточно прав доступа",
       };
     }
 
@@ -92,90 +92,87 @@ export async function getReengagementMetrics(): Promise<{
       totalNotifications,
       clickedNotifications,
       returnedCampaigns,
-      unsubscribedCampaigns
+      unsubscribedCampaigns,
     ] = await Promise.all([
       prisma.reengagementCampaign.count(),
       prisma.reengagementCampaign.count({ where: { isActive: true } }),
       prisma.reengagementNotification.count(),
       prisma.reengagementNotification.count({ where: { clicked: true } }),
       prisma.reengagementCampaign.count({ where: { returned: true } }),
-      prisma.reengagementCampaign.count({ where: { unsubscribed: true } })
+      prisma.reengagementCampaign.count({ where: { unsubscribed: true } }),
     ]);
 
-    const clickRate = totalNotifications > 0 
-      ? (clickedNotifications / totalNotifications) * 100 
-      : 0;
-    
-    const returnRate = totalCampaigns > 0 
-      ? (returnedCampaigns / totalCampaigns) * 100 
-      : 0;
+    const clickRate =
+      totalNotifications > 0 ? (clickedNotifications / totalNotifications) * 100 : 0;
+
+    const returnRate = totalCampaigns > 0 ? (returnedCampaigns / totalCampaigns) * 100 : 0;
 
     // 2. Статистика по уровням
     const levelMetrics = await Promise.all([
       prisma.reengagementNotification.groupBy({
-        by: ['level'],
-        _count: { id: true }
+        by: ["level"],
+        _count: { id: true },
       }),
       prisma.reengagementNotification.groupBy({
-        by: ['level'],
+        by: ["level"],
         where: { clicked: true },
-        _count: { id: true }
-      })
+        _count: { id: true },
+      }),
     ]);
 
     const byLevel = {
       level1: calculateLevelMetrics(levelMetrics[0], levelMetrics[1], 1),
       level2: calculateLevelMetrics(levelMetrics[0], levelMetrics[1], 2),
-      level3: calculateLevelMetrics(levelMetrics[0], levelMetrics[1], 3)
+      level3: calculateLevelMetrics(levelMetrics[0], levelMetrics[1], 3),
     };
 
     // 3. Статистика по типам сообщений
     const typeMetrics = await Promise.all([
       prisma.reengagementNotification.groupBy({
-        by: ['messageType'],
-        _count: { id: true }
+        by: ["messageType"],
+        _count: { id: true },
       }),
       prisma.reengagementNotification.groupBy({
-        by: ['messageType'],
+        by: ["messageType"],
         where: { clicked: true },
-        _count: { id: true }
-      })
+        _count: { id: true },
+      }),
     ]);
 
     const byType = {
-      skillMaintenance: calculateTypeMetrics(typeMetrics[0], typeMetrics[1], 'skill-maintenance'),
-      weMissYou: calculateTypeMetrics(typeMetrics[0], typeMetrics[1], 'we-miss-you'),
-      dogDevelopment: calculateTypeMetrics(typeMetrics[0], typeMetrics[1], 'dog-development')
+      skillMaintenance: calculateTypeMetrics(typeMetrics[0], typeMetrics[1], "skill-maintenance"),
+      weMissYou: calculateTypeMetrics(typeMetrics[0], typeMetrics[1], "we-miss-you"),
+      dogDevelopment: calculateTypeMetrics(typeMetrics[0], typeMetrics[1], "dog-development"),
     };
 
     // 4. Последние кампании
     const recentCampaignsData = await prisma.reengagementCampaign.findMany({
       take: 20,
-      orderBy: { campaignStartDate: 'desc' },
+      orderBy: { campaignStartDate: "desc" },
       include: {
         user: {
           select: {
             username: true,
             profile: {
               select: {
-                fullName: true
-              }
-            }
-          }
+                fullName: true,
+              },
+            },
+          },
         },
         _count: {
           select: {
-            notifications: true
-          }
+            notifications: true,
+          },
         },
         notifications: {
           where: { clicked: true },
-          select: { id: true }
-        }
-      }
+          select: { id: true },
+        },
+      },
     });
 
-    const recentCampaigns: RecentCampaign[] = recentCampaignsData.map(campaign => ({
+    const recentCampaigns: RecentCampaign[] = recentCampaignsData.map((campaign) => ({
       id: campaign.id,
       userId: campaign.userId,
       userName: campaign.user.profile?.fullName || campaign.user.username,
@@ -185,15 +182,15 @@ export async function getReengagementMetrics(): Promise<{
       clicked: campaign.notifications.length,
       returned: campaign.returned,
       unsubscribed: campaign.unsubscribed,
-      isActive: campaign.isActive
+      isActive: campaign.isActive,
     }));
 
-    logger.info('Re-engagement метрики получены', {
+    logger.info("Re-engagement метрики получены", {
       totalCampaigns,
       activeCampaigns,
       totalNotifications,
       clickedNotifications,
-      clickRate: clickRate.toFixed(2)
+      clickRate: clickRate.toFixed(2),
     });
 
     return {
@@ -207,19 +204,19 @@ export async function getReengagementMetrics(): Promise<{
           returnedUsers: returnedCampaigns,
           unsubscribedUsers: unsubscribedCampaigns,
           clickRate: Math.round(clickRate * 100) / 100,
-          returnRate: Math.round(returnRate * 100) / 100
+          returnRate: Math.round(returnRate * 100) / 100,
         },
         byLevel,
         byType,
-        recentCampaigns
-      }
+        recentCampaigns,
+      },
     };
   } catch (error) {
-    logger.error('Ошибка получения метрик re-engagement', error as Error);
-    
+    logger.error("Ошибка получения метрик re-engagement", error as Error);
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }
@@ -230,11 +227,11 @@ export async function getReengagementMetrics(): Promise<{
 function calculateLevelMetrics(
   allMetrics: { level: number; _count: { id: number } }[],
   clickedMetrics: { level: number; _count: { id: number } }[],
-  level: number
+  level: number,
 ): MetricsByLevel {
-  const metric = allMetrics.find(m => m.level === level);
-  const clickedMetric = clickedMetrics.find(m => m.level === level);
-  
+  const metric = allMetrics.find((m) => m.level === level);
+  const clickedMetric = clickedMetrics.find((m) => m.level === level);
+
   if (!metric) {
     return { sent: 0, clicked: 0, clickRate: 0 };
   }
@@ -246,18 +243,18 @@ function calculateLevelMetrics(
   return {
     sent,
     clicked,
-    clickRate: Math.round(clickRate * 100) / 100
+    clickRate: Math.round(clickRate * 100) / 100,
   };
 }
 
 function calculateTypeMetrics(
   allMetrics: { messageType: string; _count: { id: number } }[],
   clickedMetrics: { messageType: string; _count: { id: number } }[],
-  type: string
+  type: string,
 ): MetricsByType {
-  const metric = allMetrics.find(m => m.messageType === type);
-  const clickedMetric = clickedMetrics.find(m => m.messageType === type);
-  
+  const metric = allMetrics.find((m) => m.messageType === type);
+  const clickedMetric = clickedMetrics.find((m) => m.messageType === type);
+
   if (!metric) {
     return { sent: 0, clicked: 0, clickRate: 0 };
   }
@@ -269,7 +266,6 @@ function calculateTypeMetrics(
   return {
     sent,
     clicked,
-    clickRate: Math.round(clickRate * 100) / 100
+    clickRate: Math.round(clickRate * 100) / 100,
   };
 }
-

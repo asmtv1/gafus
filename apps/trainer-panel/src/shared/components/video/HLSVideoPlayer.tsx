@@ -45,8 +45,9 @@ export function HLSVideoPlayer({
     }
 
     // Проверяем HLS по расширению .m3u8 или по пути /manifest (signed URL)
-    const isHLS = src.includes(".m3u8") || (src.includes("/api/video/") && src.includes("/manifest"));
-    
+    const isHLS =
+      src.includes(".m3u8") || (src.includes("/api/video/") && src.includes("/manifest"));
+
     // Проверяем feature flag для HLS
     const hlsEnabled = process.env.NEXT_PUBLIC_ENABLE_HLS_PROTECTION !== "false";
 
@@ -84,7 +85,7 @@ export function HLSVideoPlayer({
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setIsLoading(false);
-          
+
           if (autoplay) {
             video.play().catch((err) => {
               console.warn("Autoplay blocked:", err);
@@ -136,7 +137,7 @@ export function HLSVideoPlayer({
         // Нативная поддержка HLS (Safari)
         video.src = src;
         setIsLoading(false);
-        
+
         if (autoplay) {
           video.play().catch((err) => {
             console.warn("Autoplay blocked:", err);
@@ -216,7 +217,7 @@ export function HLSVideoPlayer({
           <CircularProgress />
         </Box>
       )}
-      
+
       <video
         ref={videoRef}
         poster={poster}

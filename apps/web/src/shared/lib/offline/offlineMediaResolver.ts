@@ -22,7 +22,10 @@ function revokeBlobUrl(url: string): void {
  * Извлекает имя файла из пути
  */
 function getFileNameFromPath(path: string): string {
-  const normalized = path.trim().replace(/^\/+/, "").replace(/^\.\.\//, "");
+  const normalized = path
+    .trim()
+    .replace(/^\/+/, "")
+    .replace(/^\.\.\//, "");
   const parts = normalized.split("/");
   return parts[parts.length - 1] || normalized;
 }
@@ -138,7 +141,7 @@ function normalizeVideoUrl(url: string): string {
  */
 async function getOfflineHLSManifestUrl(
   courseType: string,
-  mediaUrl: string
+  mediaUrl: string,
 ): Promise<{ manifestUrl: string; videoId: string } | null> {
   try {
     logger.info("getOfflineHLSManifestUrl: Starting search", {
@@ -265,10 +268,7 @@ async function getOfflineHLSManifestUrl(
  * @param mediaUrl - URL медиафайла
  * @returns Blob если файл найден, null если нет
  */
-async function getOfflineMediaBlob(
-  courseType: string,
-  mediaUrl: string,
-): Promise<Blob | null> {
+async function getOfflineMediaBlob(courseType: string, mediaUrl: string): Promise<Blob | null> {
   try {
     logger.info("getOfflineMediaBlob: Starting search", {
       courseType,
@@ -344,7 +344,7 @@ export function useOfflineMediaUrl(
 
     // Очищаем предыдущие blob URLs если есть (только для изображений и PDF, не для HLS)
     // HLS видео используют Service Worker URLs, которые не требуют очистки
-    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+    if (blobUrlRef.current && blobUrlRef.current.startsWith("blob:")) {
       logger.info("useOfflineMediaUrl: Revoking previous blob URL", {
         courseType,
         mediaUrl,
@@ -433,7 +433,7 @@ export function useOfflineMediaUrl(
   useEffect(() => {
     return () => {
       // Очищаем только если это blob URL (не Service Worker URL)
-      if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
+      if (blobUrlRef.current && blobUrlRef.current.startsWith("blob:")) {
         revokeBlobUrl(blobUrlRef.current);
         blobUrlRef.current = null;
       }
@@ -452,7 +452,10 @@ export function getOfflineMediaUrlSync(
   mediaUrl: string | null | undefined,
   offlineCourse: {
     mediaFiles: {
-      hlsVideos: Record<string, { manifest: string; segments: Record<string, Blob>; videoId: string }>;
+      hlsVideos: Record<
+        string,
+        { manifest: string; segments: Record<string, Blob>; videoId: string }
+      >;
       images: Record<string, Blob>;
       pdfs: Record<string, Blob>;
     };
@@ -467,7 +470,7 @@ export function getOfflineMediaUrlSync(
   if (hlsVideo) {
     return `/offline-hls/${courseType}/${hlsVideo.videoId}/manifest.m3u8`;
   }
-  
+
   // Если не найдено по точному совпадению, ищем по videoId
   const videoId = extractVideoIdFromUrl(mediaUrl);
   if (videoId) {

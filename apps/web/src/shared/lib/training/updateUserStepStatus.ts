@@ -10,14 +10,9 @@ import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { calculateDayStatusFromStatuses } from "@gafus/types";
-import {
-  courseIdSchema,
-  dayIdSchema,
-  stepIndexSchema,
-  userIdSchema,
-} from "../validation/schemas";
+import { courseIdSchema, dayIdSchema, stepIndexSchema, userIdSchema } from "../validation/schemas";
 
-const logger = createWebLogger('web');
+const logger = createWebLogger("web");
 const statusSchema = z.nativeEnum(TrainingStatus, {
   errorMap: () => ({ message: "Некорректный статус шага" }),
 });
@@ -99,12 +94,9 @@ async function updateUserTrainingStatusWithTx(
     });
     allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
   }
-  
+
   const correctedDayStatus = calculateDayStatusFromStatuses(allStepStatuses);
   const allCompleted = correctedDayStatus === TrainingStatus.COMPLETED;
-  
-  
-  
 
   // Индекс текущего шага вычисляем по порядку в дне (0..n-1)
   const firstNotCompletedIndex = userSteps.findIndex(
@@ -185,7 +177,10 @@ export async function updateUserStepStatus(
 
         const trainingDay = dayOnCourse.day;
         if (!trainingDay) {
-          logger.error("Training Day not found", new Error("Training Day not found"), { dayOnCourse, operation: 'error' });
+          logger.error("Training Day not found", new Error("Training Day not found"), {
+            dayOnCourse,
+            operation: "error",
+          });
           throw new Error("Training Day not found");
         }
 
@@ -229,11 +224,11 @@ export async function updateUserStepStatus(
       {
         maxWait: 10000, // 10 секунд ожидания начала транзакции
         timeout: 20000, // 20 секунд таймаут транзакции (сложная операция)
-      }
+      },
     );
 
     // После успешного завершения транзакции выполняем операции, которые не должны быть в транзакции
-    
+
     // Устанавливаем статус курса в IN_PROGRESS при первом активном шаге
     // Это важно для шагов без таймера, которые сразу завершаются со статусом COMPLETED
     if (safeStatus === TrainingStatus.COMPLETED || safeStatus === TrainingStatus.IN_PROGRESS) {
@@ -272,7 +267,7 @@ export async function updateUserStepStatus(
         }
       } catch (courseError) {
         logger.error("Failed to update course status to IN_PROGRESS", courseError as Error, {
-          operation: 'update_course_status_to_in_progress_error',
+          operation: "update_course_status_to_in_progress_error",
           courseId: result.courseId,
           userId: safeUserId,
           status: "IN_PROGRESS",
@@ -287,7 +282,9 @@ export async function updateUserStepStatus(
       try {
         await checkAndCompleteCourse(result.courseId);
       } catch (courseError) {
-        logger.error("Failed to check course completion:", courseError as Error, { operation: 'error' });
+        logger.error("Failed to check course completion:", courseError as Error, {
+          operation: "error",
+        });
         // Не прерываем выполнение, если проверка курса не удалась
       }
     }
@@ -298,7 +295,7 @@ export async function updateUserStepStatus(
 
     return { success: true };
   } catch (error) {
-    logger.error("❌ Error in updateUserStepStatus:", error as Error, { operation: 'error' });
+    logger.error("❌ Error in updateUserStepStatus:", error as Error, { operation: "error" });
 
     // Логируем ошибку через logger (отправляется в Loki)
     logger.error(
@@ -315,7 +312,7 @@ export async function updateUserStepStatus(
         stepTitle: safeStepTitle,
         stepOrder: safeStepOrder,
         tags: ["training", "step-update", "server-action"],
-      }
+      },
     );
 
     return { success: false };

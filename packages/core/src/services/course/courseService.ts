@@ -1,6 +1,6 @@
 /**
  * Course Service - бизнес-логика работы с курсами
- * 
+ *
  * Этот модуль содержит чистую бизнес-логику без Next.js специфики.
  */
 
@@ -9,16 +9,14 @@ import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
 import type { CourseWithExtras, CourseWithProgressData } from "@gafus/types";
 
-const logger = createWebLogger('course-service');
+const logger = createWebLogger("course-service");
 
 // ========== Get Courses With Progress ==========
 
 /**
  * Получает все доступные курсы с прогрессом пользователя
  */
-export async function getCoursesWithProgress(
-  userId: string
-): Promise<CourseWithProgressData[]> {
+export async function getCoursesWithProgress(userId: string): Promise<CourseWithProgressData[]> {
   const allCourses: CourseWithExtras[] = await prisma.course.findMany({
     where: {
       OR: [{ isPrivate: false }, { access: { some: { userId } } }],
@@ -187,7 +185,7 @@ export async function getCoursesWithProgress(
  */
 export async function checkCourseAccess(
   courseType: string,
-  userId?: string
+  userId?: string,
 ): Promise<{ hasAccess: boolean }> {
   // Если пользователь не авторизован, проверяем только публичные курсы
   if (!userId) {
@@ -233,7 +231,7 @@ export async function checkCourseAccess(
  */
 export async function checkCourseAccessById(
   courseId: string,
-  userId?: string
+  userId?: string,
 ): Promise<{ hasAccess: boolean }> {
   if (!userId) {
     const course = await prisma.course.findUnique({

@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для CSRF
-const logger = createWebLogger('csrf-utils');
+const logger = createWebLogger("csrf-utils");
 
 const CSRF_TOKEN_NAME = "csrf-token";
 const CSRF_SECRET_NAME = "csrf-secret";
@@ -103,7 +103,8 @@ export async function generateCSRFToken(): Promise<string> {
     // Сохраняем токен в cookie
     cookiesStore.set(CSRF_TOKEN_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL?.includes("https://"),
+      secure:
+        process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL?.includes("https://"),
       sameSite: "strict",
       maxAge: SECURITY_CONFIG.tokenLifetime,
       path: "/",
@@ -113,7 +114,7 @@ export async function generateCSRFToken(): Promise<string> {
   } catch (error) {
     logger.error("Error generating CSRF token", error as Error, {
       secretSize: SECURITY_CONFIG.secretSize,
-      saltSize: SECURITY_CONFIG.saltSize
+      saltSize: SECURITY_CONFIG.saltSize,
     });
 
     // В случае ошибки генерируем fallback токен
@@ -133,7 +134,7 @@ export async function verifyCSRFToken(token: string): Promise<boolean> {
     if (!isValidTokenFormat(token)) {
       logger.warn("Invalid CSRF token format", {
         tokenLength: token.length,
-        expectedFormat: "base64.base64"
+        expectedFormat: "base64.base64",
       });
       return false;
     }
@@ -146,7 +147,7 @@ export async function verifyCSRFToken(token: string): Promise<boolean> {
     if (!secret || !storedToken) {
       logger.warn("Missing CSRF secret or stored token", {
         hasSecret: !!secret,
-        hasStoredToken: !!storedToken
+        hasStoredToken: !!storedToken,
       });
       return false;
     }
@@ -155,7 +156,7 @@ export async function verifyCSRFToken(token: string): Promise<boolean> {
     if (!safeTokenCompare(storedToken, token)) {
       logger.warn("CSRF token mismatch", {
         tokenLength: token.length,
-        storedTokenLength: storedToken.length
+        storedTokenLength: storedToken.length,
       });
       return false;
     }
@@ -163,8 +164,8 @@ export async function verifyCSRFToken(token: string): Promise<boolean> {
     const [salt, hash] = token.split(".");
     if (!salt || !hash) {
       logger.warn("Invalid CSRF token structure", {
-        tokenParts: token.split('.').length,
-        expectedParts: 2
+        tokenParts: token.split(".").length,
+        expectedParts: 2,
       });
       return false;
     }
@@ -174,7 +175,7 @@ export async function verifyCSRFToken(token: string): Promise<boolean> {
     if (!safeTokenCompare(hash, expectedHash)) {
       logger.warn("CSRF token hash mismatch", {
         tokenHash: hash,
-        expectedHash: expectedHash
+        expectedHash: expectedHash,
       });
       return false;
     }
@@ -182,7 +183,7 @@ export async function verifyCSRFToken(token: string): Promise<boolean> {
     return true;
   } catch (error) {
     logger.error("Error verifying CSRF token", error as Error, {
-      tokenLength: token.length
+      tokenLength: token.length,
     });
     return false;
   }

@@ -15,14 +15,17 @@ interface TrainerVideosClientProps {
   isAdmin?: boolean;
 }
 
-export default function TrainerVideosClient({ videos: initialVideos, isAdmin = false }: TrainerVideosClientProps) {
+export default function TrainerVideosClient({
+  videos: initialVideos,
+  isAdmin = false,
+}: TrainerVideosClientProps) {
   const [videos, setVideos] = useState<TrainerVideoViewModel[]>(initialVideos);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Polling для видео со статусом PENDING или PROCESSING
   useEffect(() => {
     const videosToCheck = videos.filter(
-      (v) => v.transcodingStatus === "PENDING" || v.transcodingStatus === "PROCESSING"
+      (v) => v.transcodingStatus === "PENDING" || v.transcodingStatus === "PROCESSING",
     );
 
     if (videosToCheck.length === 0) {
@@ -59,7 +62,7 @@ export default function TrainerVideosClient({ videos: initialVideos, isAdmin = f
             };
           }
           return v;
-        })
+        }),
       );
     };
 
@@ -86,9 +89,7 @@ export default function TrainerVideosClient({ videos: initialVideos, isAdmin = f
   };
 
   const handleUpdated = (videoId: string, displayName: string | null) => {
-    setVideos((prev) =>
-      prev.map((v) => (v.id === videoId ? { ...v, displayName } : v))
-    );
+    setVideos((prev) => prev.map((v) => (v.id === videoId ? { ...v, displayName } : v)));
   };
 
   return (
@@ -100,8 +101,8 @@ export default function TrainerVideosClient({ videos: initialVideos, isAdmin = f
 
       <Divider sx={{ my: 4 }} />
 
-      <TrainerVideosList 
-        videos={videos} 
+      <TrainerVideosList
+        videos={videos}
         onVideoDeleted={handleDeleted}
         onVideoUpdated={handleUpdated}
         isAdmin={isAdmin}
@@ -109,4 +110,3 @@ export default function TrainerVideosClient({ videos: initialVideos, isAdmin = f
     </PageLayout>
   );
 }
-

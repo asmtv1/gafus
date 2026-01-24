@@ -14,9 +14,11 @@ export function calculateDayStatus(
   courseId: string,
   dayOnCourseId: string,
   stepStates: StepStates,
-  totalSteps?: number
+  totalSteps?: number,
 ): TrainingStatus {
-  const stepKeys = Object.keys(stepStates).filter((key) => key.startsWith(`${courseId}-${dayOnCourseId}-`));
+  const stepKeys = Object.keys(stepStates).filter((key) =>
+    key.startsWith(`${courseId}-${dayOnCourseId}-`),
+  );
   if (stepKeys.length === 0) return TrainingStatus.NOT_STARTED;
 
   // Если передан totalSteps, создаем массив статусов для всех шагов дня
@@ -50,12 +52,12 @@ export function calculateDayStatus(
 export function calculateCourseStatus(
   courseId: string,
   stepStates: StepStates,
-  totalDaysInCourse?: number
+  totalDaysInCourse?: number,
 ): TrainingStatus {
   const dayKeys = new Set<string>();
   Object.keys(stepStates).forEach((key) => {
     if (key.startsWith(`${courseId}-`)) {
-      const parts = key.split('-');
+      const parts = key.split("-");
       if (parts.length >= 3) {
         // Формат ключа: ${courseId}-${dayOnCourseId}-${stepIndex}
         // Сохраняем полный ключ дня: ${courseId}-${dayOnCourseId}
@@ -66,9 +68,10 @@ export function calculateCourseStatus(
 
   // Если знаем реальное количество дней курса, используем его,
   // иначе опираемся на фактически встреченные дни в локальном состоянии
-  const effectiveTotalDays = typeof totalDaysInCourse === 'number' && totalDaysInCourse > 0
-    ? totalDaysInCourse
-    : dayKeys.size;
+  const effectiveTotalDays =
+    typeof totalDaysInCourse === "number" && totalDaysInCourse > 0
+      ? totalDaysInCourse
+      : dayKeys.size;
 
   if (effectiveTotalDays === 0) return TrainingStatus.NOT_STARTED;
 
@@ -76,7 +79,7 @@ export function calculateCourseStatus(
   // Для расчета статуса курса используем все найденные dayOnCourseId
   const dayStatuses: TrainingStatus[] = [];
   dayKeys.forEach((dayKey) => {
-    const dayOnCourseId = dayKey.split('-').slice(1).join('-'); // Получаем dayOnCourseId из ключа
+    const dayOnCourseId = dayKey.split("-").slice(1).join("-"); // Получаем dayOnCourseId из ключа
     dayStatuses.push(calculateDayStatus(courseId, dayOnCourseId, stepStates));
   });
 
@@ -87,7 +90,11 @@ export function calculateCourseStatus(
     }
   }
 
-  if (dayStatuses.some((status) => status === TrainingStatus.IN_PROGRESS || status === TrainingStatus.COMPLETED)) {
+  if (
+    dayStatuses.some(
+      (status) => status === TrainingStatus.IN_PROGRESS || status === TrainingStatus.COMPLETED,
+    )
+  ) {
     return TrainingStatus.IN_PROGRESS;
   }
 

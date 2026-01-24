@@ -6,7 +6,7 @@ import { prisma } from "@gafus/prisma";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 
-const logger = createTrainerPanelLogger('trainer-panel-manage-templates');
+const logger = createTrainerPanelLogger("trainer-panel-manage-templates");
 
 interface TemplateActionResult {
   success: boolean;
@@ -18,7 +18,7 @@ interface TemplateActionResult {
  */
 export async function createStepTemplate(
   prevState: TemplateActionResult,
-  formData: FormData
+  formData: FormData,
 ): Promise<TemplateActionResult> {
   try {
     const session = await getServerSession(authOptions);
@@ -27,7 +27,7 @@ export async function createStepTemplate(
     }
 
     const userRole = (session.user as { role?: string }).role;
-    if (userRole !== 'ADMIN') {
+    if (userRole !== "ADMIN") {
       return { success: false, message: "Недостаточно прав" };
     }
 
@@ -50,19 +50,22 @@ export async function createStepTemplate(
         durationSec: durationSec ? parseInt(durationSec, 10) : null,
         type: type as "TRAINING" | "EXAMINATION",
         categoryId: categoryId || undefined,
-        tags: tags.split(",").map(t => t.trim()).filter(Boolean),
+        tags: tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
         videoUrl,
         authorId: session.user.id,
         isPublic: true,
       },
     });
 
-    logger.info('Шаблон успешно создан', { templateId: template.id });
-    revalidatePath('/main-panel/templates');
+    logger.info("Шаблон успешно создан", { templateId: template.id });
+    revalidatePath("/main-panel/templates");
 
     return { success: true, message: "Шаблон успешно создан" };
   } catch (error) {
-    logger.error('Ошибка при создании шаблона', error as Error);
+    logger.error("Ошибка при создании шаблона", error as Error);
     logger.error(
       error instanceof Error ? error.message : "Unknown error",
       error instanceof Error ? error : new Error(String(error)),
@@ -70,7 +73,7 @@ export async function createStepTemplate(
         operation: "action",
         action: "action",
         tags: [],
-      }
+      },
     );
     return { success: false, message: "Не удалось создать шаблон" };
   }
@@ -87,7 +90,7 @@ export async function deleteStepTemplate(templateId: string): Promise<TemplateAc
     }
 
     const userRole = (session.user as { role?: string }).role;
-    if (userRole !== 'ADMIN') {
+    if (userRole !== "ADMIN") {
       return { success: false, message: "Недостаточно прав" };
     }
 
@@ -95,12 +98,12 @@ export async function deleteStepTemplate(templateId: string): Promise<TemplateAc
       where: { id: templateId },
     });
 
-    logger.info('Шаблон успешно удален', { templateId });
-    revalidatePath('/main-panel/templates');
+    logger.info("Шаблон успешно удален", { templateId });
+    revalidatePath("/main-panel/templates");
 
     return { success: true, message: "Шаблон успешно удален" };
   } catch (error) {
-    logger.error('Ошибка при удалении шаблона', error as Error, { templateId });
+    logger.error("Ошибка при удалении шаблона", error as Error, { templateId });
     return { success: false, message: "Не удалось удалить шаблон" };
   }
 }
@@ -110,7 +113,7 @@ export async function deleteStepTemplate(templateId: string): Promise<TemplateAc
  */
 export async function createStepCategory(
   prevState: TemplateActionResult,
-  formData: FormData
+  formData: FormData,
 ): Promise<TemplateActionResult> {
   try {
     const session = await getServerSession(authOptions);
@@ -119,7 +122,7 @@ export async function createStepCategory(
     }
 
     const userRole = (session.user as { role?: string }).role;
-    if (userRole !== 'ADMIN') {
+    if (userRole !== "ADMIN") {
       return { success: false, message: "Недостаточно прав" };
     }
 
@@ -141,13 +144,12 @@ export async function createStepCategory(
       },
     });
 
-    logger.info('Категория успешно создана', { name });
-    revalidatePath('/main-panel/templates');
+    logger.info("Категория успешно создана", { name });
+    revalidatePath("/main-panel/templates");
 
     return { success: true, message: "Категория успешно создана" };
   } catch (error) {
-    logger.error('Ошибка при создании категории', error as Error);
+    logger.error("Ошибка при создании категории", error as Error);
     return { success: false, message: "Не удалось создать категорию" };
   }
 }
-

@@ -64,7 +64,7 @@ export default function OfflineRedirect() {
       logger.warn("Window offline event detected");
       const store = useOfflineStore.getState();
       store.setOnlineStatus(false);
-      
+
       // Немедленный редирект на страницу офлайна
       if (window.location.pathname !== "/~offline") {
         logger.warn("Redirecting to offline page from offline event");

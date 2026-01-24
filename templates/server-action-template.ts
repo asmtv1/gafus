@@ -23,10 +23,10 @@ import {
   deleteEntity,
   type CreateEntityData,
   type UpdateEntityData,
-  type EntityData
+  type EntityData,
 } from "@shared/services/entity/entityService";
 
-const logger = createWebLogger('entity-actions');
+const logger = createWebLogger("entity-actions");
 
 // Схемы валидации
 const createEntitySchema = z.object({
@@ -196,11 +196,7 @@ export async function deleteEntityAction(entityId: string) {
 import { unstable_cache } from "next/cache";
 
 function getCachedUserEntities(userId: string) {
-  return unstable_cache(
-    async () => getUserEntities(userId),
-    ["user-entities", userId],
-    {
-      tags: [`user-${userId}`, "entities"],
-    }
-  );
+  return unstable_cache(async () => getUserEntities(userId), ["user-entities", userId], {
+    tags: [`user-${userId}`, "entities"],
+  });
 }

@@ -13,6 +13,7 @@ Grafana используется для визуализации метрик и
 После первого запуска Grafana автоматически загружает следующие дашборды:
 
 ### 1. Системные метрики
+
 - Загрузка CPU (%)
 - Использование памяти (%)
 - Использование диска (%)
@@ -20,11 +21,13 @@ Grafana используется для визуализации метрик и
 - Load Average (1, 5, 15 минут)
 
 ### 2. Доступность сервисов
+
 - Статус доступности всех сервисов (Up/Down)
 - Время ответа сервисов
 - HTTP статус коды
 
 ### 3. PostgreSQL метрики
+
 - Статус PostgreSQL
 - Количество подключений
 - Cache Hit Ratio
@@ -32,6 +35,7 @@ Grafana используется для визуализации метрик и
 - Запросы (SELECT, INSERT, UPDATE, DELETE)
 
 ### 4. Redis метрики
+
 - Статус Redis
 - Использование памяти
 - Cache Hit Ratio
@@ -40,6 +44,7 @@ Grafana используется для визуализации метрик и
 - Активные подключения
 
 ### 5. Очереди BullMQ
+
 - Задания в очереди (waiting/active)
 - Завершенные задания (rate)
 - Неудачные задания (rate)
@@ -64,16 +69,19 @@ Grafana используется для визуализации метрик и
 ## Примеры запросов
 
 ### Загрузка CPU
+
 ```promql
 100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
 ```
 
 ### Использование памяти
+
 ```promql
 (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
 ```
 
 ### Доступность сервисов
+
 ```promql
 probe_success{job="services-health"}
 ```
@@ -89,6 +97,7 @@ probe_success{job="services-health"}
 ### Конфигурация
 
 Конфигурация Grafana находится в:
+
 - `ci-cd/docker/grafana/grafana.ini` - основная конфигурация
 - `ci-cd/docker/grafana/provisioning/` - автоматическая настройка datasources и dashboards
 
@@ -121,4 +130,3 @@ probe_success{job="services-health"}
 - [Документация Grafana](https://grafana.com/docs/grafana/latest/)
 - [Prometheus запросы](./PROMETHEUS_QUERIES.md)
 - [Prometheus конфигурация](../ci-cd/docker/prometheus/prometheus.yml)
-

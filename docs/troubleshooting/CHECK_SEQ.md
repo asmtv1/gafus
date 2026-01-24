@@ -155,4 +155,3 @@ docker exec gafus-seq du -sh /data
 # Проверка сетевой связности
 docker network inspect <network_name> | grep -A 10 seq
 ```
-

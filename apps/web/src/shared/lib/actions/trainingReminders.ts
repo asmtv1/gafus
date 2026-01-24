@@ -5,7 +5,7 @@ import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('training-reminders');
+const logger = createWebLogger("training-reminders");
 
 const REMINDER_TYPE = "training";
 const MAX_REMINDERS = 5;
@@ -33,14 +33,14 @@ export async function getTrainingReminders(): Promise<{
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Необходимо войти в систему"
+        error: "Необходимо войти в систему",
       };
     }
 
     const reminders = await prisma.reminder.findMany({
       where: {
         userId: session.user.id,
-        type: REMINDER_TYPE
+        type: REMINDER_TYPE,
       },
       select: {
         id: true,
@@ -48,23 +48,23 @@ export async function getTrainingReminders(): Promise<{
         enabled: true,
         reminderTime: true,
         reminderDays: true,
-        timezone: true
+        timezone: true,
       },
       orderBy: {
-        createdAt: 'asc'
-      }
+        createdAt: "asc",
+      },
     });
 
     return {
       success: true,
-      data: reminders
+      data: reminders,
     };
   } catch (error) {
-    logger.error('Ошибка получения списка напоминаний', error as Error);
-    
+    logger.error("Ошибка получения списка напоминаний", error as Error);
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }
@@ -76,7 +76,7 @@ export async function createTrainingReminder(
   name: string,
   reminderTime: string,
   reminderDays?: string,
-  timezone?: string
+  timezone?: string,
 ): Promise<{ success: boolean; data?: TrainingReminderData; error?: string }> {
   try {
     const session = await getServerSession(authOptions);
@@ -84,7 +84,7 @@ export async function createTrainingReminder(
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Необходимо войти в систему"
+        error: "Необходимо войти в систему",
       };
     }
 
@@ -94,14 +94,14 @@ export async function createTrainingReminder(
     const count = await prisma.reminder.count({
       where: {
         userId,
-        type: REMINDER_TYPE
-      }
+        type: REMINDER_TYPE,
+      },
     });
 
     if (count >= MAX_REMINDERS) {
       return {
         success: false,
-        error: `Можно создать максимум ${MAX_REMINDERS} напоминаний`
+        error: `Можно создать максимум ${MAX_REMINDERS} напоминаний`,
       };
     }
 
@@ -114,7 +114,7 @@ export async function createTrainingReminder(
         enabled: true, // Сразу включаем
         reminderTime,
         reminderDays: reminderDays || null,
-        timezone: timezone || "Europe/Moscow"
+        timezone: timezone || "Europe/Moscow",
       },
       select: {
         id: true,
@@ -122,22 +122,22 @@ export async function createTrainingReminder(
         enabled: true,
         reminderTime: true,
         reminderDays: true,
-        timezone: true
-      }
+        timezone: true,
+      },
     });
 
-    logger.info('Создано новое напоминание', { userId, name, reminderTime });
+    logger.info("Создано новое напоминание", { userId, name, reminderTime });
 
     return {
       success: true,
-      data: reminder
+      data: reminder,
     };
   } catch (error) {
-    logger.error('Ошибка создания напоминания', error as Error);
-    
+    logger.error("Ошибка создания напоминания", error as Error);
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }
@@ -153,7 +153,7 @@ export async function updateTrainingReminder(
     reminderTime?: string;
     reminderDays?: string;
     timezone?: string;
-  }
+  },
 ): Promise<{ success: boolean; data?: TrainingReminderData; error?: string }> {
   try {
     const session = await getServerSession(authOptions);
@@ -161,20 +161,20 @@ export async function updateTrainingReminder(
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Необходимо войти в систему"
+        error: "Необходимо войти в систему",
       };
     }
 
     // Проверяем что напоминание принадлежит пользователю
     const existing = await prisma.reminder.findUnique({
       where: { id },
-      select: { userId: true }
+      select: { userId: true },
     });
 
     if (!existing || existing.userId !== session.user.id) {
       return {
         success: false,
-        error: "Напоминание не найдено"
+        error: "Напоминание не найдено",
       };
     }
 
@@ -186,7 +186,7 @@ export async function updateTrainingReminder(
         ...(data.enabled !== undefined && { enabled: data.enabled }),
         ...(data.reminderTime && { reminderTime: data.reminderTime }),
         ...(data.reminderDays !== undefined && { reminderDays: data.reminderDays || null }),
-        ...(data.timezone && { timezone: data.timezone })
+        ...(data.timezone && { timezone: data.timezone }),
       },
       select: {
         id: true,
@@ -194,22 +194,22 @@ export async function updateTrainingReminder(
         enabled: true,
         reminderTime: true,
         reminderDays: true,
-        timezone: true
-      }
+        timezone: true,
+      },
     });
 
-    logger.info('Напоминание обновлено', { id, userId: session.user.id });
+    logger.info("Напоминание обновлено", { id, userId: session.user.id });
 
     return {
       success: true,
-      data: reminder
+      data: reminder,
     };
   } catch (error) {
-    logger.error('Ошибка обновления напоминания', error as Error);
-    
+    logger.error("Ошибка обновления напоминания", error as Error);
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }
@@ -218,7 +218,7 @@ export async function updateTrainingReminder(
  * Удалить напоминание
  */
 export async function deleteTrainingReminder(
-  id: string
+  id: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await getServerSession(authOptions);
@@ -226,37 +226,37 @@ export async function deleteTrainingReminder(
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Необходимо войти в систему"
+        error: "Необходимо войти в систему",
       };
     }
 
     // Проверяем что напоминание принадлежит пользователю
     const existing = await prisma.reminder.findUnique({
       where: { id },
-      select: { userId: true }
+      select: { userId: true },
     });
 
     if (!existing || existing.userId !== session.user.id) {
       return {
         success: false,
-        error: "Напоминание не найдено"
+        error: "Напоминание не найдено",
       };
     }
 
     // Удаляем
     await prisma.reminder.delete({
-      where: { id }
+      where: { id },
     });
 
-    logger.info('Напоминание удалено', { id, userId: session.user.id });
+    logger.info("Напоминание удалено", { id, userId: session.user.id });
 
     return { success: true };
   } catch (error) {
-    logger.error('Ошибка удаления напоминания', error as Error);
-    
+    logger.error("Ошибка удаления напоминания", error as Error);
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }

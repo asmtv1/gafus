@@ -5,7 +5,7 @@ import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('get-presentation-stats');
+const logger = createWebLogger("get-presentation-stats");
 
 /**
  * Типы для статистики presentation.html
@@ -90,7 +90,7 @@ export async function getPresentationStats(): Promise<{
     if (!session?.user) {
       return {
         success: false,
-        error: "Необходимо войти в систему"
+        error: "Необходимо войти в систему",
       };
     }
 
@@ -98,7 +98,7 @@ export async function getPresentationStats(): Promise<{
     if (!["ADMIN", "MODERATOR"].includes(session.user.role)) {
       return {
         success: false,
-        error: "Недостаточно прав доступа"
+        error: "Недостаточно прав доступа",
       };
     }
 
@@ -114,46 +114,49 @@ export async function getPresentationStats(): Promise<{
       readToEnd,
       stayedLong,
       clickedCTA,
-      totalClicks
+      totalClicks,
     ] = await Promise.all([
       prisma.presentationView.count(),
       // Уникальные сессии (по sessionId)
-      prisma.presentationView.groupBy({
-        by: ['sessionId'],
-        _count: { id: true }
-      }).then(result => result.length),
+      prisma.presentationView
+        .groupBy({
+          by: ["sessionId"],
+          _count: { id: true },
+        })
+        .then((result) => result.length),
       // Уникальные посетители (по visitorId, если есть)
-      prisma.presentationView.groupBy({
-        by: ['visitorId'],
-        where: { visitorId: { not: null } },
-        _count: { id: true }
-      }).then(result => result.length),
+      prisma.presentationView
+        .groupBy({
+          by: ["visitorId"],
+          where: { visitorId: { not: null } },
+          _count: { id: true },
+        })
+        .then((result) => result.length),
       prisma.presentationView.aggregate({
         _avg: { timeOnPage: true },
-        where: { timeOnPage: { not: null } }
+        where: { timeOnPage: { not: null } },
       }),
       prisma.presentationView.aggregate({
         _avg: { scrollDepth: true },
-        where: { scrollDepth: { not: null } }
+        where: { scrollDepth: { not: null } },
       }),
       prisma.presentationView.aggregate({
         _sum: { timeOnPage: true },
-        where: { timeOnPage: { not: null } }
+        where: { timeOnPage: { not: null } },
       }),
       prisma.presentationView.count({
         where: {
-          AND: [
-            { scrollDepth: { gte: 50 } },
-            { timeOnPage: { gte: 60 } }
-          ]
-        }
+          AND: [{ scrollDepth: { gte: 50 } }, { timeOnPage: { gte: 60 } }],
+        },
       }),
       prisma.presentationView.count({ where: { scrollDepth: { gte: 100 } } }),
       prisma.presentationView.count({ where: { timeOnPage: { gte: 300 } } }),
       prisma.presentationView.count({ where: { ctaClicks: { gt: 0 } } }),
-      prisma.presentationView.aggregate({
-        _sum: { ctaClicks: true }
-      }).then(r => r._sum.ctaClicks || 0)
+      prisma.presentationView
+        .aggregate({
+          _sum: { ctaClicks: true },
+        })
+        .then((r) => r._sum.ctaClicks || 0),
     ]);
 
     const avgTimeOnPage = avgTimeResult._avg.timeOnPage || 0;
@@ -163,24 +166,24 @@ export async function getPresentationStats(): Promise<{
 
     // 2. Статистика по источникам (referrer)
     const referrerStats = await prisma.presentationView.groupBy({
-      by: ['referrerDomain'],
+      by: ["referrerDomain"],
       _count: { id: true },
       _avg: { timeOnPage: true },
       where: {
-        referrerDomain: { not: null }
-      }
+        referrerDomain: { not: null },
+      },
     });
 
     const uniqueSessionsByReferrer = await prisma.presentationView.groupBy({
-      by: ['referrerDomain', 'sessionId'],
+      by: ["referrerDomain", "sessionId"],
       where: {
-        referrerDomain: { not: null }
-      }
+        referrerDomain: { not: null },
+      },
     });
 
     // Подсчитываем уникальные сессии по доменам
     const sessionsByDomain = new Map<string | null, Set<string>>();
-    uniqueSessionsByReferrer.forEach(item => {
+    uniqueSessionsByReferrer.forEach((item) => {
       const domain = item.referrerDomain;
       if (!sessionsByDomain.has(domain)) {
         sessionsByDomain.set(domain, new Set());
@@ -190,63 +193,68 @@ export async function getPresentationStats(): Promise<{
 
     // Получаем вовлечённость по источникам
     const referrerEngagement = await prisma.presentationView.groupBy({
-      by: ['referrerDomain'],
+      by: ["referrerDomain"],
       _count: { id: true },
       where: {
-        AND: [
-          { scrollDepth: { gte: 50 } },
-          { timeOnPage: { gte: 60 } }
-        ]
-      }
+        AND: [{ scrollDepth: { gte: 50 } }, { timeOnPage: { gte: 60 } }],
+      },
     });
 
-    const engagementByDomain = new Map(referrerEngagement.map(r => [r.referrerDomain, r._count.id]));
+    const engagementByDomain = new Map(
+      referrerEngagement.map((r) => [r.referrerDomain, r._count.id]),
+    );
 
-    const byReferrer = referrerStats.map(stat => {
-      const domain = stat.referrerDomain;
-      const views = stat._count.id;
-      const engagement = engagementByDomain.get(domain) || 0;
-      
-      return {
-        domain,
-        views,
-        uniqueSessions: sessionsByDomain.get(domain)?.size || 0,
-        avgTimeOnPage: Math.round((stat._avg.timeOnPage || 0) * 10) / 10,
-        deepEngagementRate: views > 0 ? Math.round((engagement / views) * 100 * 10) / 10 : 0
-      };
-    }).sort((a, b) => b.views - a.views).slice(0, 10); // Топ 10
+    const byReferrer = referrerStats
+      .map((stat) => {
+        const domain = stat.referrerDomain;
+        const views = stat._count.id;
+        const engagement = engagementByDomain.get(domain) || 0;
+
+        return {
+          domain,
+          views,
+          uniqueSessions: sessionsByDomain.get(domain)?.size || 0,
+          avgTimeOnPage: Math.round((stat._avg.timeOnPage || 0) * 10) / 10,
+          deepEngagementRate: views > 0 ? Math.round((engagement / views) * 100 * 10) / 10 : 0,
+        };
+      })
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 10); // Топ 10
 
     // 3. Статистика по UTM меткам
     const utmStats = await prisma.presentationView.groupBy({
-      by: ['utmSource', 'utmMedium', 'utmCampaign'],
+      by: ["utmSource", "utmMedium", "utmCampaign"],
       _count: { id: true },
       where: {
         OR: [
           { utmSource: { not: null } },
           { utmMedium: { not: null } },
-          { utmCampaign: { not: null } }
-        ]
-      }
+          { utmCampaign: { not: null } },
+        ],
+      },
     });
 
-    const byUTM = utmStats.map(stat => ({
-      source: stat.utmSource,
-      medium: stat.utmMedium,
-      campaign: stat.utmCampaign,
-      views: stat._count.id
-    })).sort((a, b) => b.views - a.views).slice(0, 10); // Топ 10
+    const byUTM = utmStats
+      .map((stat) => ({
+        source: stat.utmSource,
+        medium: stat.utmMedium,
+        campaign: stat.utmCampaign,
+        views: stat._count.id,
+      }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 10); // Топ 10
 
     // Статистика по устройствам
     const deviceStats = await prisma.presentationView.groupBy({
-      by: ['deviceType'],
+      by: ["deviceType"],
       _count: { id: true },
-      _avg: { timeOnPage: true }
+      _avg: { timeOnPage: true },
     });
 
-    const byDevice = deviceStats.map(stat => ({
+    const byDevice = deviceStats.map((stat) => ({
       deviceType: stat.deviceType,
       views: stat._count.id,
-      avgTimeOnPage: Math.round((stat._avg.timeOnPage || 0) * 10) / 10
+      avgTimeOnPage: Math.round((stat._avg.timeOnPage || 0) * 10) / 10,
     }));
 
     // Воронка конверсии по секциям
@@ -255,30 +263,52 @@ export async function getPresentationStats(): Promise<{
       problem: await prisma.presentationView.count({ where: { reachedProblem: { not: null } } }),
       solution: await prisma.presentationView.count({ where: { reachedSolution: { not: null } } }),
       features: await prisma.presentationView.count({ where: { reachedFeatures: { not: null } } }),
-      comparison: await prisma.presentationView.count({ where: { reachedComparison: { not: null } } }),
+      comparison: await prisma.presentationView.count({
+        where: { reachedComparison: { not: null } },
+      }),
       goals: await prisma.presentationView.count({ where: { reachedGoals: { not: null } } }),
       contact: await prisma.presentationView.count({ where: { reachedContact: { not: null } } }),
     };
 
     // Вехи прокрутки
     const scrollMilestones = await Promise.all([
-      prisma.presentationEvent.count({ where: { eventName: 'scroll_25' } }),
-      prisma.presentationEvent.count({ where: { eventName: 'scroll_50' } }),
-      prisma.presentationEvent.count({ where: { eventName: 'scroll_75' } }),
-      prisma.presentationEvent.count({ where: { eventName: 'scroll_100' } }),
+      prisma.presentationEvent.count({ where: { eventName: "scroll_25" } }),
+      prisma.presentationEvent.count({ where: { eventName: "scroll_50" } }),
+      prisma.presentationEvent.count({ where: { eventName: "scroll_75" } }),
+      prisma.presentationEvent.count({ where: { eventName: "scroll_100" } }),
     ]);
 
     const scrollMilestonesData = [
-      { milestone: 25, reached: scrollMilestones[0], percentage: totalViews > 0 ? Math.round((scrollMilestones[0] / totalViews) * 100 * 10) / 10 : 0 },
-      { milestone: 50, reached: scrollMilestones[1], percentage: totalViews > 0 ? Math.round((scrollMilestones[1] / totalViews) * 100 * 10) / 10 : 0 },
-      { milestone: 75, reached: scrollMilestones[2], percentage: totalViews > 0 ? Math.round((scrollMilestones[2] / totalViews) * 100 * 10) / 10 : 0 },
-      { milestone: 100, reached: scrollMilestones[3], percentage: totalViews > 0 ? Math.round((scrollMilestones[3] / totalViews) * 100 * 10) / 10 : 0 },
+      {
+        milestone: 25,
+        reached: scrollMilestones[0],
+        percentage:
+          totalViews > 0 ? Math.round((scrollMilestones[0] / totalViews) * 100 * 10) / 10 : 0,
+      },
+      {
+        milestone: 50,
+        reached: scrollMilestones[1],
+        percentage:
+          totalViews > 0 ? Math.round((scrollMilestones[1] / totalViews) * 100 * 10) / 10 : 0,
+      },
+      {
+        milestone: 75,
+        reached: scrollMilestones[2],
+        percentage:
+          totalViews > 0 ? Math.round((scrollMilestones[2] / totalViews) * 100 * 10) / 10 : 0,
+      },
+      {
+        milestone: 100,
+        reached: scrollMilestones[3],
+        percentage:
+          totalViews > 0 ? Math.round((scrollMilestones[3] / totalViews) * 100 * 10) / 10 : 0,
+      },
     ];
 
     // 4. Последние просмотры
     const recentViews = await prisma.presentationView.findMany({
       take: 50,
-      orderBy: { firstViewAt: 'desc' },
+      orderBy: { firstViewAt: "desc" },
       select: {
         id: true,
         sessionId: true,
@@ -289,32 +319,32 @@ export async function getPresentationStats(): Promise<{
         ctaClicks: true,
         deviceType: true,
         firstViewAt: true,
-        lastViewAt: true
-      }
+        lastViewAt: true,
+      },
     });
 
     // 5. Распределение по времени суток
     const timeDistribution = await prisma.presentationView.findMany({
       select: {
-        firstViewAt: true
-      }
+        firstViewAt: true,
+      },
     });
 
     const hoursMap = new Map<number, number>();
-    timeDistribution.forEach(view => {
+    timeDistribution.forEach((view) => {
       const hour = new Date(view.firstViewAt).getHours();
       hoursMap.set(hour, (hoursMap.get(hour) || 0) + 1);
     });
 
     const timeDistributionArray = Array.from({ length: 24 }, (_, i) => ({
       hour: i,
-      views: hoursMap.get(i) || 0
+      views: hoursMap.get(i) || 0,
     }));
 
-    logger.info('Статистика presentation.html получена', {
+    logger.info("Статистика presentation.html получена", {
       totalViews,
       uniqueSessions,
-      avgTimeOnPage: Math.round(avgTimeOnPage * 10) / 10
+      avgTimeOnPage: Math.round(avgTimeOnPage * 10) / 10,
     });
 
     return {
@@ -326,21 +356,21 @@ export async function getPresentationStats(): Promise<{
           uniqueVisitors,
           avgTimeOnPage: Math.round(avgTimeOnPage * 10) / 10,
           avgScrollDepth: Math.round(avgScrollDepth * 10) / 10,
-          totalTimeSpent: Math.round(totalTimeSpent)
+          totalTimeSpent: Math.round(totalTimeSpent),
         },
         engagement: {
           deepEngagement,
           readToEnd,
           stayedLong,
           clickedCTA,
-          avgClicksPerSession: Math.round(avgClicksPerSession * 10) / 10
+          avgClicksPerSession: Math.round(avgClicksPerSession * 10) / 10,
         },
         funnel,
         byReferrer,
         byUTM,
         byDevice,
         scrollMilestones: scrollMilestonesData,
-        recentViews: recentViews.map(view => ({
+        recentViews: recentViews.map((view) => ({
           id: view.id,
           sessionId: view.sessionId,
           referrer: view.referrer,
@@ -350,18 +380,17 @@ export async function getPresentationStats(): Promise<{
           ctaClicks: view.ctaClicks,
           deviceType: view.deviceType,
           firstViewAt: view.firstViewAt,
-          lastViewAt: view.lastViewAt
+          lastViewAt: view.lastViewAt,
         })),
-        timeDistribution: timeDistributionArray
-      }
+        timeDistribution: timeDistributionArray,
+      },
     };
   } catch (error) {
-    logger.error('Ошибка получения статистики presentation.html', error as Error);
-    
+    logger.error("Ошибка получения статистики presentation.html", error as Error);
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }
-

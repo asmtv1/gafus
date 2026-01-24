@@ -6,10 +6,7 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { getUserTrainingDates } from "./datesService";
 import { calculateCurrentStreak, calculateLongestStreak } from "./calculateStreaks";
-import {
-  calculateAchievements,
-  type AchievementStats,
-} from "./calculateAchievements";
+import { calculateAchievements, type AchievementStats } from "./calculateAchievements";
 import type { AchievementData } from "@gafus/types";
 
 const logger = createWebLogger("achievements-stats-service");
@@ -33,9 +30,7 @@ export async function getAchievementStats(userId: string): Promise<AchievementDa
   const active = userCourses.filter((uc) => uc.status !== "NOT_STARTED");
   const totalCourses = active.length;
   const completedCourses = userCourses.filter((uc) => uc.status === "COMPLETED").length;
-  const inProgressCourses = userCourses.filter(
-    (uc) => uc.status === "IN_PROGRESS"
-  ).length;
+  const inProgressCourses = userCourses.filter((uc) => uc.status === "IN_PROGRESS").length;
 
   const totalCompletedDays = completedTrainings.length;
   const startedCourseIds = active.map((uc) => uc.courseId);
@@ -62,12 +57,10 @@ export async function getAchievementStats(userId: string): Promise<AchievementDa
       const total = row._count;
       return acc + (total > 0 ? (completed / total) * 100 : 0);
     }, 0);
-    averageCourseProgress =
-      dayCounts.length > 0 ? Math.round(progressSum / dayCounts.length) : 0;
+    averageCourseProgress = dayCounts.length > 0 ? Math.round(progressSum / dayCounts.length) : 0;
   }
 
-  const overallProgress =
-    totalDays > 0 ? Math.round((totalCompletedDays / totalDays) * 100) : 0;
+  const overallProgress = totalDays > 0 ? Math.round((totalCompletedDays / totalDays) * 100) : 0;
   const totalTrainingTime = totalCompletedDays * 30;
   const longestStreak = calculateLongestStreak(trainingDates);
   const currentStreak = calculateCurrentStreak(trainingDates);

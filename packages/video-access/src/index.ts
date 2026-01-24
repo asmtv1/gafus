@@ -90,7 +90,7 @@ export class VideoAccessService {
     baseUrl: string,
     videoId: string,
     userId: string,
-    ttlMinutes: number = 60
+    ttlMinutes: number = 60,
   ): string {
     const token = this.generateToken({ videoId, userId, ttlMinutes });
 
@@ -126,7 +126,9 @@ export class VideoAccessService {
    * Используется для дополнительной защиты
    */
   generateHmacSignature(data: string): string {
-    return createHash("sha256").update(data + this.secret).digest("hex");
+    return createHash("sha256")
+      .update(data + this.secret)
+      .digest("hex");
   }
 
   /**

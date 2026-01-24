@@ -14,13 +14,20 @@ interface FavoritesCourseListProps {
   userId?: string;
 }
 
-export default function FavoritesCourseList({ 
-  initialFavorites, 
-  initialError, 
-  userId 
+export default function FavoritesCourseList({
+  initialFavorites,
+  initialError,
+  userId,
 }: FavoritesCourseListProps) {
-  const { favorites, loading, errors, fetchFavorites, forceRefreshFavorites, favoriteCourseIds, setFavorites } =
-    useCourseStoreActions();
+  const {
+    favorites,
+    loading,
+    errors,
+    fetchFavorites,
+    forceRefreshFavorites,
+    favoriteCourseIds,
+    setFavorites,
+  } = useCourseStoreActions();
   const { favoriteIds, loadFromServer, initialized } = useFavoritesStore();
   const courseStore = useCourseStore();
 
@@ -52,7 +59,15 @@ export default function FavoritesCourseList({
     else if (!initialFavorites && !favorites && !loading.favorites && userId) {
       fetchFavorites();
     }
-  }, [initialFavorites, initialError, favorites, loading.favorites, userId, setFavorites, fetchFavorites]);
+  }, [
+    initialFavorites,
+    initialError,
+    favorites,
+    loading.favorites,
+    userId,
+    setFavorites,
+    fetchFavorites,
+  ]);
 
   // Обновляем данные при фокусе на вкладке
   useEffect(() => {

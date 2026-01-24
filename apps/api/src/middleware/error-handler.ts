@@ -28,7 +28,7 @@ export const errorHandler = (err: Error, c: Context) => {
         code: "VALIDATION_ERROR",
         requestId: c.get("requestId"),
       },
-      400
+      400,
     );
   }
 
@@ -39,6 +39,6 @@ export const errorHandler = (err: Error, c: Context) => {
       code: "INTERNAL_SERVER_ERROR",
       requestId: c.get("requestId"),
     },
-    500
+    500,
   );
 };

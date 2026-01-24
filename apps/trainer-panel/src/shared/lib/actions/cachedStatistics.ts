@@ -1,13 +1,11 @@
 "use server";
 
-
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { getCourseStatistics } from "@gafus/statistics";
 import { unstable_cache } from "next/cache";
 
-
 // Создаем логгер для cachedStatistics
-const logger = createTrainerPanelLogger('trainer-panel-cached-statistics');
+const logger = createTrainerPanelLogger("trainer-panel-cached-statistics");
 
 // Кэшированная версия getCourseStatistics
 // Используем фабричный паттерн внутри async функции для соответствия "use server"
@@ -17,13 +15,17 @@ export async function getCourseStatisticsCached(userId: string, isElevated: bool
       try {
         logger.warn(
           `[React Cache] Fetching statistics for user: ${userId}, elevated: ${isElevated}`,
-          { operation: 'warn' }
+          { operation: "warn" },
         );
         const result = await getCourseStatistics(userId, isElevated);
-        logger.warn(`[React Cache] Statistics cached successfully for user: ${userId}`, { operation: 'warn' });
+        logger.warn(`[React Cache] Statistics cached successfully for user: ${userId}`, {
+          operation: "warn",
+        });
         return { success: true, data: result };
       } catch (error) {
-        logger.error("❌ Error in getCourseStatisticsCached:", error as Error, { operation: 'error' });
+        logger.error("❌ Error in getCourseStatisticsCached:", error as Error, {
+          operation: "error",
+        });
 
         logger.error(
           error instanceof Error ? error.message : "Unknown error in getCourseStatisticsCached",
@@ -35,7 +37,7 @@ export async function getCourseStatisticsCached(userId: string, isElevated: bool
             isElevated,
             errorType: error instanceof Error ? error.constructor.name : typeof error,
             tags: ["statistics", "cache", "server-action"],
-          }
+          },
         );
 
         return { success: false, error: "Что-то пошло не так при получении статистики" };
@@ -47,7 +49,7 @@ export async function getCourseStatisticsCached(userId: string, isElevated: bool
       tags: ["statistics", `user-${userId}`], // userId в тегах
     },
   );
-  
+
   return cachedFn();
 }
 
@@ -55,7 +57,7 @@ export async function getCourseStatisticsCached(userId: string, isElevated: bool
 export const searchUsersByUsernameCached = unstable_cache(
   async (search: string) => {
     try {
-      logger.warn(`[React Cache] Searching users with query: ${search}`, { operation: 'warn' });
+      logger.warn(`[React Cache] Searching users with query: ${search}`, { operation: "warn" });
 
       if (!search.trim()) return { success: true, data: [] };
 
@@ -71,10 +73,14 @@ export const searchUsersByUsernameCached = unstable_cache(
         select: { id: true, username: true },
       });
 
-      logger.warn(`[React Cache] Found ${users.length} users for query: ${search}`, { operation: 'warn' });
+      logger.warn(`[React Cache] Found ${users.length} users for query: ${search}`, {
+        operation: "warn",
+      });
       return { success: true, data: users };
     } catch (error) {
-      logger.error("❌ Error in searchUsersByUsernameCached:", error as Error, { operation: 'error' });
+      logger.error("❌ Error in searchUsersByUsernameCached:", error as Error, {
+        operation: "error",
+      });
 
       logger.error(
         error instanceof Error ? error.message : "Unknown error in searchUsersByUsernameCached",
@@ -85,7 +91,7 @@ export const searchUsersByUsernameCached = unstable_cache(
           search,
           errorType: error instanceof Error ? error.constructor.name : typeof error,
           tags: ["users", "search", "cache", "server-action"],
-        }
+        },
       );
 
       return { success: false, error: "Что-то пошло не так при поиске пользователей" };

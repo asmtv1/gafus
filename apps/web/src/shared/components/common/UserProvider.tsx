@@ -40,8 +40,7 @@ export default function UserProvider({ children }: UserProviderProps) {
       return;
     }
 
-    const nextUserId =
-      status === "authenticated" && session?.user ? session.user.id : null;
+    const nextUserId = status === "authenticated" && session?.user ? session.user.id : null;
 
     if (lastUserIdRef.current !== nextUserId) {
       lastUserIdRef.current = nextUserId;

@@ -55,9 +55,7 @@
           ],
           "Where": "ContainerName = 'gafus-web'",
           "SignalExpression": null,
-          "GroupBy": [
-            "@Level"
-          ],
+          "GroupBy": ["@Level"],
           "DisplayStyle": {
             "Type": "Pie",
             "LineFillToZeroY": false,

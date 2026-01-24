@@ -12,11 +12,13 @@
 ### 1. Адаптивный Layout и Sidebar
 
 **Файлы:**
+
 - `apps/trainer-panel/src/app/(main)/main-panel/layout.tsx`
 - `apps/trainer-panel/src/app/(main)/main-panel/main-panel.module.css`
 - `apps/trainer-panel/src/app/api/exam-results/pending-count/route.ts` (новый)
 
 **Изменения:**
+
 - **Desktop (>768px):** Фиксированный sidebar 280px слева
 - **Mobile (≤768px):** Выдвижное меню с hamburger кнопкой
 - Мобильная шапка с аватаром пользователя
@@ -25,8 +27,9 @@
 - Layout изменён на client component для управления состоянием меню
 
 **Breakpoints:**
+
 - Desktop: >768px
-- Tablet: 768px - 1024px  
+- Tablet: 768px - 1024px
 - Mobile: <768px
 - Small Mobile: <480px
 
@@ -35,6 +38,7 @@
 **Файл:** `apps/trainer-panel/src/shared/components/Dashboard.tsx`
 
 **Изменения:**
+
 - Адаптивная grid система для карточек статистики:
   - Desktop: 4 колонки
   - Tablet: 2 колонки
@@ -46,10 +50,12 @@
 ### 3. Адаптивные таблицы
 
 **Файлы:**
+
 - `apps/trainer-panel/src/app/(main)/main-panel/steps/EnhancedStepsTable.tsx`
 - `apps/trainer-panel/src/app/(main)/main-panel/days/EnhancedDaysTable.tsx`
 
 **Изменения:**
+
 - **Desktop (>768px):** Стандартное табличное представление
 - **Mobile (≤768px):** Card view с компактным отображением информации
 - Адаптивные чекбоксы для выбора элементов
@@ -57,6 +63,7 @@
 - Адаптивная пагинация
 
 **Особенности mobile view:**
+
 - Компактные карточки вместо таблиц
 - Важная информация на видном месте
 - Сворачиваемые длинные описания (2 строки)
@@ -68,6 +75,7 @@
 **Файл:** `apps/trainer-panel/src/shared/styles/FormLayout.module.css`
 
 **Изменения:**
+
 - Одноколоночный layout на мобильных устройствах
 - Адаптивные размеры полей ввода
 - Full-width кнопки на мобилке
@@ -77,10 +85,12 @@
 ### 5. Глобальные стили
 
 **Файлы:**
+
 - `apps/trainer-panel/src/app/globals.css`
 - `apps/trainer-panel/src/shared/styles/PageLayout.module.css`
 
 **Изменения:**
+
 - Адаптивные размеры шрифтов для всех устройств
 - Оптимизация заголовков (h1-h6)
 - Touch-friendly минимальные размеры кнопок (44x44px)
@@ -106,11 +116,13 @@
 ## Технические детали
 
 ### Используемые технологии
+
 - **Material-UI (MUI):** Responsive props (`sx` с breakpoints)
 - **CSS Modules:** Адаптивные стили с media queries
 - **React Hooks:** `useState`, `useEffect` для управления мобильным меню
 
 ### Паттерны адаптации
+
 1. **Desktop-first подход:** Стили для десктопа по умолчанию, затем media queries для мобилки
 2. **Conditional rendering:** Разные UI компоненты для desktop/mobile (таблицы vs карточки)
 3. **Responsive grid:** CSS Grid с адаптивными колонками
@@ -119,12 +131,14 @@
 ## Тестирование
 
 **Проверено на:**
+
 - ✅ Desktop (>1024px)
 - ✅ Tablet (768px - 1024px)
 - ✅ Mobile (375px - 768px)
 - ✅ Small Mobile (<375px)
 
 **Браузеры:**
+
 - Chrome/Edge (рекомендуется)
 - Safari
 - Firefox
@@ -132,6 +146,7 @@
 ## Функционал
 
 **Без изменений:**
+
 - Все серверные действия работают как прежде
 - Логика создания/редактирования шагов, дней, курсов
 - Таблицы с сортировкой и пагинацией
@@ -141,6 +156,7 @@
 ## Производительность
 
 **Оптимизации:**
+
 - Использование CSS для анимаций (hardware acceleration)
 - Conditional rendering для оптимизации рендера
 - Адаптивные изображения и иконки
@@ -149,6 +165,7 @@
 ## Будущие улучшения
 
 **Возможные доработки:**
+
 - PWA функционал для оффлайн работы
 - Свайпы для действий в card view
 - Pull-to-refresh для обновления данных
@@ -164,4 +181,3 @@
 ## Заключение
 
 Панель тренера полностью адаптирована под мобильные устройства с сохранением всего функционала. Desktop-first подход обеспечивает оптимальное отображение на всех устройствах.
-

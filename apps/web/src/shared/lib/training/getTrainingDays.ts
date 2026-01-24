@@ -33,7 +33,11 @@ type CourseWithDayLinks = {
       stepLinks: {
         id: string;
         order: number;
-        step: { durationSec: number | null; estimatedDurationSec: number | null; type: string | null };
+        step: {
+          durationSec: number | null;
+          estimatedDurationSec: number | null;
+          type: string | null;
+        };
       }[];
     };
     userTrainings: {
@@ -54,20 +58,26 @@ function calculateDisplayDayNumber(
   currentIndex: number,
 ): number | null {
   const currentDay = dayLinks[currentIndex];
-  
+
   // Если текущий день - не-тренировочный тип, возвращаем null
-  if (NON_NUMBERED_DAY_TYPES.includes(currentDay.day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])) {
+  if (
+    NON_NUMBERED_DAY_TYPES.includes(currentDay.day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])
+  ) {
     return null;
   }
-  
+
   // Подсчитываем количество дней до текущего, исключая не-тренировочные типы
   let displayNumber = 0;
   for (let i = 0; i <= currentIndex; i++) {
-    if (!NON_NUMBERED_DAY_TYPES.includes(dayLinks[i].day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])) {
+    if (
+      !NON_NUMBERED_DAY_TYPES.includes(
+        dayLinks[i].day.type as (typeof NON_NUMBERED_DAY_TYPES)[number],
+      )
+    ) {
       displayNumber++;
     }
   }
-  
+
   return displayNumber;
 }
 
@@ -91,15 +101,18 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
   });
 
   return firstCourse.dayLinks.map(
-    (link: {
-      id: string;
-      order: number;
-      day: CourseWithDayLinks["dayLinks"][number]["day"];
-      userTrainings: {
-        status: string;
-        steps: { stepOnDayId: string; status: string }[];
-      }[];
-    }, index: number) => {
+    (
+      link: {
+        id: string;
+        order: number;
+        day: CourseWithDayLinks["dayLinks"][number]["day"];
+        userTrainings: {
+          status: string;
+          steps: { stepOnDayId: string; status: string }[];
+        }[];
+      },
+      index: number,
+    ) => {
       // Пересчитываем номер дня, исключая "instructions"
       const displayDay = calculateDisplayDayNumber(firstCourse.dayLinks, index);
       const ut = link.userTrainings[0];
@@ -186,7 +199,13 @@ export async function getTrainingDays(
   trainingDays: (Pick<
     TrainingDetail,
     "trainingDayId" | "title" | "type" | "courseId" | "userStatus"
-  > & { dayOnCourseId: string; estimatedDuration: number; theoryMinutes: number; equipment: string; isLocked: boolean })[];
+  > & {
+    dayOnCourseId: string;
+    estimatedDuration: number;
+    theoryMinutes: number;
+    equipment: string;
+    isLocked: boolean;
+  })[];
   courseDescription: string | null;
   courseId: string | null;
   courseVideoUrl: string | null;
@@ -248,7 +267,7 @@ export async function getTrainingDays(
                         durationSec: true,
                         estimatedDurationSec: true,
                         type: true,
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       } as any,
                     },
                   },
@@ -296,9 +315,7 @@ export async function getTrainingDays(
       }
     }
 
-    const trainingDays = mapCourseToTrainingDays(
-      firstCourse as unknown as CourseWithDayLinks,
-    );
+    const trainingDays = mapCourseToTrainingDays(firstCourse as unknown as CourseWithDayLinks);
 
     return {
       trainingDays,

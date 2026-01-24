@@ -71,7 +71,7 @@ async function refreshAccessToken(): Promise<boolean> {
  */
 export async function apiClient<T>(
   endpoint: string,
-  options: ApiClientOptions = {}
+  options: ApiClientOptions = {},
 ): Promise<ApiResponse<T>> {
   const { method = "GET", body, headers = {}, skipAuth = false } = options;
 
@@ -136,7 +136,7 @@ export async function apiClient<T>(
         fullResponse: JSON.stringify(data, null, 2),
         responseHeaders: Object.fromEntries(response.headers.entries()),
       });
-      
+
       // Для ошибок логируем полный ответ
       if (!response.ok || !data.success) {
         console.error("[apiClient] ОШИБКА API:", {

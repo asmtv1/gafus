@@ -18,10 +18,14 @@ import {
   updateUserPreferences as updateUserPreferencesService,
 } from "@gafus/core/services/user";
 
-import { normalizeTelegramInput, normalizeInstagramInput, normalizeWebsiteUrl } from "@gafus/core/utils/social";
+import {
+  normalizeTelegramInput,
+  normalizeInstagramInput,
+  normalizeWebsiteUrl,
+} from "@gafus/core/utils/social";
 import type { UpdateUserProfileInput, UserPreferences } from "@gafus/types";
 
-const logger = createWebLogger('user-server-actions');
+const logger = createWebLogger("user-server-actions");
 
 // ========== Schemas ==========
 
@@ -34,15 +38,17 @@ const updateUserProfileSchema = z.object({
     .max(100)
     .optional()
     .transform((val) => {
-      if (!val) return '';
+      if (!val) return "";
       try {
         return normalizeTelegramInput(val);
       } catch (error) {
-        throw new z.ZodError([{
-          code: 'custom',
-          path: ['telegram'],
-          message: error instanceof Error ? error.message : 'Некорректный Telegram username'
-        }]);
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["telegram"],
+            message: error instanceof Error ? error.message : "Некорректный Telegram username",
+          },
+        ]);
       }
     }),
   instagram: z
@@ -51,15 +57,17 @@ const updateUserProfileSchema = z.object({
     .max(100)
     .optional()
     .transform((val) => {
-      if (!val) return '';
+      if (!val) return "";
       try {
         return normalizeInstagramInput(val);
       } catch (error) {
-        throw new z.ZodError([{
-          code: 'custom',
-          path: ['instagram'],
-          message: error instanceof Error ? error.message : 'Некорректный Instagram username'
-        }]);
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["instagram"],
+            message: error instanceof Error ? error.message : "Некорректный Instagram username",
+          },
+        ]);
       }
     }),
   website: z
@@ -68,15 +76,17 @@ const updateUserProfileSchema = z.object({
     .max(200)
     .optional()
     .transform((val) => {
-      if (!val) return '';
+      if (!val) return "";
       try {
         return normalizeWebsiteUrl(val);
       } catch (error) {
-        throw new z.ZodError([{
-          code: 'custom',
-          path: ['website'],
-          message: error instanceof Error ? error.message : 'Некорректный URL'
-        }]);
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["website"],
+            message: error instanceof Error ? error.message : "Некорректный URL",
+          },
+        ]);
       }
     }),
   birthDate: z.string().trim().max(100).optional(),
@@ -201,13 +211,16 @@ export async function getUserPreferencesAction(): Promise<UserPreferences | null
  * Обновляет настройки текущего пользователя
  */
 export async function updateUserPreferencesAction(
-  preferences: Record<string, unknown>
+  preferences: Record<string, unknown>,
 ): Promise<UserPreferences | null> {
   const safePreferences = userPreferencesSchema.parse(preferences ?? {});
   try {
     const userId = await getCurrentUserId();
     if (!userId) throw new Error("Пользователь не авторизован");
-    return updateUserPreferencesService(userId, safePreferences as Parameters<typeof updateUserPreferencesService>[1]);
+    return updateUserPreferencesService(
+      userId,
+      safePreferences as Parameters<typeof updateUserPreferencesService>[1],
+    );
   } catch (error) {
     logger.error("Ошибка в updateUserPreferences", error as Error);
     throw new Error("Ошибка при обновлении настроек");

@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
-import { 
-  Box, 
-  Card, 
-  CardContent, 
-  Typography, 
-  Chip, 
-  Accordion, 
-  AccordionSummary, 
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Chip,
+  Accordion,
+  AccordionSummary,
   AccordionDetails,
   Tabs,
   Tab,
@@ -16,9 +16,16 @@ import {
   Divider,
   Alert,
   CircularProgress,
-  TextField
+  TextField,
 } from "@/utils/muiImports";
-import { ExpandMoreIcon, VideoFileIcon, QuizIcon, EditIcon, CheckCircleIcon, CancelIcon } from "@/utils/muiImports";
+import {
+  ExpandMoreIcon,
+  VideoFileIcon,
+  QuizIcon,
+  EditIcon,
+  CheckCircleIcon,
+  CancelIcon,
+} from "@/utils/muiImports";
 import type { ChecklistQuestion } from "@gafus/types";
 import type { ExamResultWithDetails } from "../lib/getExamResults";
 import { reviewExamResult } from "../lib/reviewExamResult";
@@ -45,11 +52,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`exam-tab-${index}`}
       {...other}
     >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
   );
 }
@@ -73,8 +76,7 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
   const getReviewMeta = (result: ExamResultWithDetails) => {
     const metaParts: string[] = [];
     const updatedAt = formatDateTime(result.reviewedAt);
-    const trainerName =
-      result.reviewedBy?.profile?.fullName || result.reviewedBy?.username || null;
+    const trainerName = result.reviewedBy?.profile?.fullName || result.reviewedBy?.username || null;
 
     if (updatedAt) {
       metaParts.push(`Обновлено: ${updatedAt}`);
@@ -97,17 +99,17 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
     setActionErrors({});
   }, [examResults]);
 
-  const handleAccordionChange = (resultId: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
-    setExpandedResult(isExpanded ? resultId : false);
-  };
+  const handleAccordionChange =
+    (resultId: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
+      setExpandedResult(isExpanded ? resultId : false);
+    };
 
   const handleTabChange = (resultId: string) => (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(prev => ({ ...prev, [resultId]: newValue }));
+    setTabValue((prev) => ({ ...prev, [resultId]: newValue }));
   };
 
   const handleCommentChange =
-    (userStepId: string) =>
-    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (userStepId: string) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const { value } = event.target;
       setReviewComments((prev) => ({
         ...prev,
@@ -156,43 +158,43 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
   const getExamTypeChips = (result: ExamResultWithDetails) => {
     const chips = [];
     const step = result.userStep.stepOnDay.step;
-    
+
     if (step.hasTestQuestions && result.testScore !== null) {
       chips.push(
-        <Chip 
-          key="test" 
-          icon={<QuizIcon />} 
-          label={`Тест: ${result.testScore}/${result.testMaxScore}`} 
-          color="primary" 
+        <Chip
+          key="test"
+          icon={<QuizIcon />}
+          label={`Тест: ${result.testScore}/${result.testMaxScore}`}
+          color="primary"
           size="small"
-        />
+        />,
       );
     }
-    
+
     if (step.requiresVideoReport && result.videoReportUrl) {
       chips.push(
-        <Chip 
-          key="video" 
-          icon={<VideoFileIcon />} 
-          label="Видео отчёт" 
-          color="secondary" 
+        <Chip
+          key="video"
+          icon={<VideoFileIcon />}
+          label="Видео отчёт"
+          color="secondary"
           size="small"
-        />
+        />,
       );
     }
-    
+
     if (step.requiresWrittenFeedback && result.writtenFeedback) {
       chips.push(
-        <Chip 
-          key="written" 
-          icon={<EditIcon />} 
-          label="Письменная работа" 
-          color="success" 
+        <Chip
+          key="written"
+          icon={<EditIcon />}
+          label="Письменная работа"
+          color="success"
           size="small"
-        />
+        />,
       );
     }
-    
+
     return chips;
   };
 
@@ -200,27 +202,23 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
     const status = result.userStep.status;
     const hasTrainerReview = Boolean(result.reviewedAt);
     const isRejected = hasTrainerReview && result.isPassed === false;
-    
+
     if (status === "COMPLETED") {
       return <Chip label="Сдан" color="success" size="small" />;
     }
-    
+
     if (status === "IN_PROGRESS") {
       if (isRejected) {
         return <Chip label="Не зачтён" color="error" size="small" />;
       }
       return <Chip label="Ожидает проверки" color="warning" size="small" />;
     }
-    
+
     return <Chip label="Не начат" color="default" size="small" />;
   };
 
   if (examResults.length === 0) {
-    return (
-      <Alert severity="info">
-        Пока нет результатов экзаменов для просмотра
-      </Alert>
-    );
+    return <Alert severity="info">Пока нет результатов экзаменов для просмотра</Alert>;
   }
 
   return (
@@ -231,47 +229,39 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
         const user = result.userStep.userTraining.user;
         const course = result.userStep.userTraining.dayOnCourse.course;
         const day = result.userStep.userTraining.dayOnCourse.day;
-        
+
         return (
-          <Accordion 
-            key={result.id} 
-            expanded={expandedResult === result.id} 
+          <Accordion
+            key={result.id}
+            expanded={expandedResult === result.id}
             onChange={handleAccordionChange(result.id)}
             sx={{ mb: 2 }}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
                 <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="h6">
-                    {user.profile?.fullName || user.username}
-                  </Typography>
+                  <Typography variant="h6">{user.profile?.fullName || user.username}</Typography>
                   <Typography variant="body2" color="text.secondary">
                     {course.name} - {day.title} - {step.title}
                   </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
                   {getExamTypeChips(result)}
                   {getStatusChip(result)}
                 </Box>
               </Box>
             </AccordionSummary>
-            
+
             <AccordionDetails>
-              <Box sx={{ width: '100%' }}>
-                <Tabs 
-                  value={currentTabValue} 
+              <Box sx={{ width: "100%" }}>
+                <Tabs
+                  value={currentTabValue}
                   onChange={handleTabChange(result.id)}
                   aria-label="exam results tabs"
                 >
-                  {step.hasTestQuestions && (
-                    <Tab label="Тестовые вопросы" />
-                  )}
-                  {step.requiresVideoReport && (
-                    <Tab label="Видео отчёт" />
-                  )}
-                  {step.requiresWrittenFeedback && (
-                    <Tab label="Письменная работа" />
-                  )}
+                  {step.hasTestQuestions && <Tab label="Тестовые вопросы" />}
+                  {step.requiresVideoReport && <Tab label="Видео отчёт" />}
+                  {step.requiresWrittenFeedback && <Tab label="Письменная работа" />}
                 </Tabs>
 
                 {step.hasTestQuestions && (
@@ -283,7 +273,7 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                       <Typography variant="body1" gutterBottom>
                         Баллы: {result.testScore || 0} из {result.testMaxScore || 0}
                       </Typography>
-                      
+
                       {(() => {
                         const rawTestAnswers = result.testAnswers;
                         const rawChecklist = step.checklist;
@@ -323,7 +313,8 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                         if (!testAnswers || !checklist) {
                           return (
                             <Alert severity="info" sx={{ mt: 2 }}>
-                              Тестовые ответы недоступны. Возможно, ученик ещё не завершил тест или данные не были сохранены.
+                              Тестовые ответы недоступны. Возможно, ученик ещё не завершил тест или
+                              данные не были сохранены.
                             </Alert>
                           );
                         }
@@ -334,104 +325,135 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                               Ответы пользователя:
                             </Typography>
                             {checklist.map((question: ChecklistQuestion, index: number) => {
-                            const userAnswer = testAnswers?.[question.id];
-                            const userAnswerIndex =
-                              typeof userAnswer === "number" && userAnswer >= 0 && userAnswer < question.options.length
-                                ? userAnswer
-                                : null;
-                            const userAnswerText =
-                              userAnswerIndex !== null ? question.options[userAnswerIndex] : "Ответ не выбран";
-                            const correctAnswerIndex =
-                              typeof question.correctAnswer === "number" &&
-                              question.correctAnswer >= 0 &&
-                              question.correctAnswer < question.options.length
-                                ? question.correctAnswer
-                                : null;
-                            const correctAnswerText =
-                              correctAnswerIndex !== null
-                                ? question.options[correctAnswerIndex]
-                                : "Правильный ответ не указан";
-                            const isCorrect = userAnswerIndex !== null && userAnswerIndex === correctAnswerIndex;
-                            
-                            return (
-                              <Card key={question.id} sx={{ mb: 2, border: isCorrect ? '1px solid green' : '1px solid red' }}>
-                                <CardContent>
-                                  <Typography variant="subtitle1" gutterBottom>
-                                    {index + 1}. {question.question}
-                                  </Typography>
+                              const userAnswer = testAnswers?.[question.id];
+                              const userAnswerIndex =
+                                typeof userAnswer === "number" &&
+                                userAnswer >= 0 &&
+                                userAnswer < question.options.length
+                                  ? userAnswer
+                                  : null;
+                              const userAnswerText =
+                                userAnswerIndex !== null
+                                  ? question.options[userAnswerIndex]
+                                  : "Ответ не выбран";
+                              const correctAnswerIndex =
+                                typeof question.correctAnswer === "number" &&
+                                question.correctAnswer >= 0 &&
+                                question.correctAnswer < question.options.length
+                                  ? question.correctAnswer
+                                  : null;
+                              const correctAnswerText =
+                                correctAnswerIndex !== null
+                                  ? question.options[correctAnswerIndex]
+                                  : "Правильный ответ не указан";
+                              const isCorrect =
+                                userAnswerIndex !== null && userAnswerIndex === correctAnswerIndex;
 
-                                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                                    {isCorrect ? (
-                                      <CheckCircleIcon color="success" fontSize="small" />
-                                    ) : (
-                                      <CancelIcon color="error" fontSize="small" />
-                                    )}
-                                    <Typography
-                                      variant="subtitle2"
-                                      color={isCorrect ? "success.main" : "error.main"}
-                                      sx={{ fontWeight: 600 }}
-                                    >
-                                      {isCorrect ? "Ответ совпадает" : "Ответ не совпадает"}
-                                    </Typography>
-                                  </Box>
-
-                                  <Box sx={{ ml: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                      Ответ пользователя:
-                                    </Typography>
-                                    <Typography variant="body2" color={userAnswerIndex !== null ? "text.primary" : "text.secondary"}>
-                                      {userAnswerText}
-                                    </Typography>
-
-                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                      Правильный ответ:
-                                    </Typography>
-                                    <Typography variant="body2" color="text.primary">
-                                      {correctAnswerText}
-                                    </Typography>
-
-                                    <Divider sx={{ my: 2 }} />
-
-                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                      Варианты ответа:
-                                    </Typography>
-                                    {question.options.map((option: string, optionIndex: number) => (
-                                      <Typography
-                                        key={optionIndex}
-                                        variant="body2"
-                                        sx={{
-                                          color:
-                                            optionIndex === userAnswerIndex
-                                              ? isCorrect
-                                                ? "success.main"
-                                                : "error.main"
-                                              : optionIndex === correctAnswerIndex
-                                              ? "success.main"
-                                              : "text.secondary",
-                                          fontWeight:
-                                            optionIndex === userAnswerIndex || optionIndex === correctAnswerIndex
-                                              ? 600
-                                              : 400,
-                                        }}
-                                      >
-                                        {optionIndex === correctAnswerIndex ? "✓ " : "  "}
-                                        {option}
-                                        {optionIndex === userAnswerIndex && " (ответ пользователя)"}
-                                      </Typography>
-                                    ))}
-                                  </Box>
-                              {question.comment && (
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                  sx={{ mt: 2 }}
+                              return (
+                                <Card
+                                  key={question.id}
+                                  sx={{
+                                    mb: 2,
+                                    border: isCorrect ? "1px solid green" : "1px solid red",
+                                  }}
                                 >
-                                  Комментарий тренера: {question.comment}
-                                </Typography>
-                              )}
-                                </CardContent>
-                              </Card>
-                            );
+                                  <CardContent>
+                                    <Typography variant="subtitle1" gutterBottom>
+                                      {index + 1}. {question.question}
+                                    </Typography>
+
+                                    <Box
+                                      sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}
+                                    >
+                                      {isCorrect ? (
+                                        <CheckCircleIcon color="success" fontSize="small" />
+                                      ) : (
+                                        <CancelIcon color="error" fontSize="small" />
+                                      )}
+                                      <Typography
+                                        variant="subtitle2"
+                                        color={isCorrect ? "success.main" : "error.main"}
+                                        sx={{ fontWeight: 600 }}
+                                      >
+                                        {isCorrect ? "Ответ совпадает" : "Ответ не совпадает"}
+                                      </Typography>
+                                    </Box>
+
+                                    <Box
+                                      sx={{
+                                        ml: 2,
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 1,
+                                      }}
+                                    >
+                                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                        Ответ пользователя:
+                                      </Typography>
+                                      <Typography
+                                        variant="body2"
+                                        color={
+                                          userAnswerIndex !== null
+                                            ? "text.primary"
+                                            : "text.secondary"
+                                        }
+                                      >
+                                        {userAnswerText}
+                                      </Typography>
+
+                                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                        Правильный ответ:
+                                      </Typography>
+                                      <Typography variant="body2" color="text.primary">
+                                        {correctAnswerText}
+                                      </Typography>
+
+                                      <Divider sx={{ my: 2 }} />
+
+                                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                        Варианты ответа:
+                                      </Typography>
+                                      {question.options.map(
+                                        (option: string, optionIndex: number) => (
+                                          <Typography
+                                            key={optionIndex}
+                                            variant="body2"
+                                            sx={{
+                                              color:
+                                                optionIndex === userAnswerIndex
+                                                  ? isCorrect
+                                                    ? "success.main"
+                                                    : "error.main"
+                                                  : optionIndex === correctAnswerIndex
+                                                    ? "success.main"
+                                                    : "text.secondary",
+                                              fontWeight:
+                                                optionIndex === userAnswerIndex ||
+                                                optionIndex === correctAnswerIndex
+                                                  ? 600
+                                                  : 400,
+                                            }}
+                                          >
+                                            {optionIndex === correctAnswerIndex ? "✓ " : "  "}
+                                            {option}
+                                            {optionIndex === userAnswerIndex &&
+                                              " (ответ пользователя)"}
+                                          </Typography>
+                                        ),
+                                      )}
+                                    </Box>
+                                    {question.comment && (
+                                      <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mt: 2 }}
+                                      >
+                                        Комментарий тренера: {question.comment}
+                                      </Typography>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                              );
                             })}
                           </Box>
                         );
@@ -448,17 +470,17 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                       </Typography>
                       {result.videoReportUrl ? (
                         <Box>
-                          <video 
-                            controls 
-                            width="100%" 
-                            style={{ maxWidth: '600px' }}
+                          <video
+                            controls
+                            width="100%"
+                            style={{ maxWidth: "600px" }}
                             src={result.videoReportUrl}
                           >
                             Ваш браузер не поддерживает видео.
                           </video>
-                          <Button 
-                            variant="outlined" 
-                            href={result.videoReportUrl} 
+                          <Button
+                            variant="outlined"
+                            href={result.videoReportUrl}
                             target="_blank"
                             sx={{ mt: 1 }}
                           >
@@ -466,16 +488,25 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                           </Button>
                         </Box>
                       ) : (
-                        <Alert severity="warning">
-                          Видео отчёт не загружен
-                        </Alert>
+                        <Alert severity="warning">Видео отчёт не загружен</Alert>
                       )}
                     </Box>
                   </TabPanel>
                 )}
 
                 {step.requiresWrittenFeedback && (
-                  <TabPanel value={currentTabValue} index={step.hasTestQuestions ? (step.requiresVideoReport ? 2 : 1) : (step.requiresVideoReport ? 1 : 0)}>
+                  <TabPanel
+                    value={currentTabValue}
+                    index={
+                      step.hasTestQuestions
+                        ? step.requiresVideoReport
+                          ? 2
+                          : 1
+                        : step.requiresVideoReport
+                          ? 1
+                          : 0
+                    }
+                  >
                     <Box>
                       <Typography variant="h6" gutterBottom>
                         Письменная обратная связь
@@ -483,15 +514,13 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                       {result.writtenFeedback ? (
                         <Card>
                           <CardContent>
-                            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                            <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
                               {result.writtenFeedback}
                             </Typography>
                           </CardContent>
                         </Card>
                       ) : (
-                        <Alert severity="warning">
-                          Письменная обратная связь не предоставлена
-                        </Alert>
+                        <Alert severity="warning">Письменная обратная связь не предоставлена</Alert>
                       )}
                     </Box>
                   </TabPanel>
@@ -505,8 +534,8 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                       result.isPassed === true
                         ? "success"
                         : result.isPassed === false
-                        ? "error"
-                        : "info"
+                          ? "error"
+                          : "info"
                     }
                     sx={{ mb: 2 }}
                   >
@@ -542,9 +571,7 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                     />
 
                     {actionErrors[result.userStep.id] && (
-                      <Alert severity="error">
-                        {actionErrors[result.userStep.id]}
-                      </Alert>
+                      <Alert severity="error">{actionErrors[result.userStep.id]}</Alert>
                     )}
 
                     <Box
@@ -594,7 +621,15 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                 )}
 
                 {result.userStep.status === "COMPLETED" && (
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 2,
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <Typography variant="body2" color="text.secondary">
                       Отправлено: {formatDateTime(result.createdAt)}
                     </Typography>

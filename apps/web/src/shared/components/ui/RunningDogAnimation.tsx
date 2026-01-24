@@ -8,7 +8,7 @@ export function RunningDogAnimation() {
       <div className={styles.dog}>
         {/* Тело */}
         <div className={styles.body}></div>
-        
+
         {/* Голова */}
         <div className={styles.head}>
           <div className={styles.ear}></div>
@@ -17,7 +17,7 @@ export function RunningDogAnimation() {
           <div className={`${styles.eye} ${styles.eyeRight}`}></div>
           <div className={styles.nose}></div>
         </div>
-        
+
         {/* Передние лапы */}
         <div className={`${styles.leg} ${styles.frontLeg1}`}>
           <div className={styles.paw}></div>
@@ -25,7 +25,7 @@ export function RunningDogAnimation() {
         <div className={`${styles.leg} ${styles.frontLeg2}`}>
           <div className={styles.paw}></div>
         </div>
-        
+
         {/* Задние лапы */}
         <div className={`${styles.leg} ${styles.backLeg1}`}>
           <div className={styles.paw}></div>
@@ -33,11 +33,10 @@ export function RunningDogAnimation() {
         <div className={`${styles.leg} ${styles.backLeg2}`}>
           <div className={styles.paw}></div>
         </div>
-        
+
         {/* Хвост */}
         <div className={styles.tail}></div>
       </div>
     </div>
   );
 }
-

@@ -60,9 +60,11 @@ export default function ErrorFilters() {
     const newFilters = {
       appName: newLocalFilters.app || undefined,
       environment: newLocalFilters.environment || undefined,
-      status: (newLocalFilters.status && ['new', 'viewed', 'resolved', 'archived'].includes(newLocalFilters.status))
-        ? newLocalFilters.status as 'new' | 'viewed' | 'resolved' | 'archived'
-        : undefined,
+      status:
+        newLocalFilters.status &&
+        ["new", "viewed", "resolved", "archived"].includes(newLocalFilters.status)
+          ? (newLocalFilters.status as "new" | "viewed" | "resolved" | "archived")
+          : undefined,
     };
     setFilters(newFilters);
 
@@ -70,7 +72,10 @@ export default function ErrorFilters() {
     const params = new URLSearchParams();
     if (newLocalFilters.app) params.set("app", newLocalFilters.app);
     if (newLocalFilters.environment) params.set("env", newLocalFilters.environment);
-    if (newLocalFilters.status && ['new', 'viewed', 'resolved', 'archived'].includes(newLocalFilters.status)) {
+    if (
+      newLocalFilters.status &&
+      ["new", "viewed", "resolved", "archived"].includes(newLocalFilters.status)
+    ) {
       params.set("status", newLocalFilters.status);
     }
 
@@ -96,16 +101,17 @@ export default function ErrorFilters() {
     startTransition(async () => {
       try {
         const result = await deleteAllErrors();
-        
+
         if (result.success) {
           // Инвалидируем все варианты кэша ошибок для обновления списка
           invalidateErrors();
           setDeleteAllError(null);
         } else {
-          setDeleteAllError(result.error || 'Не удалось удалить все ошибки');
+          setDeleteAllError(result.error || "Не удалось удалить все ошибки");
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка при удалении';
+        const errorMessage =
+          error instanceof Error ? error.message : "Неизвестная ошибка при удалении";
         setDeleteAllError(errorMessage);
       }
     });
@@ -124,7 +130,7 @@ export default function ErrorFilters() {
             <FilterList sx={{ mr: 1 }} />
             <Typography variant="h6">Фильтры</Typography>
           </Box>
-          
+
           <Box display="flex" alignItems="center" gap={1}>
             <Tooltip title="Удалить все ошибки">
               <span>
@@ -226,10 +232,13 @@ export default function ErrorFilters() {
             {localFilters.status && (
               <Chip
                 label={`Статус: ${
-                  localFilters.status === 'new' ? 'Новые' :
-                  localFilters.status === 'viewed' ? 'Просмотренные' :
-                  localFilters.status === 'resolved' ? 'Решенные' :
-                  'Архивированные'
+                  localFilters.status === "new"
+                    ? "Новые"
+                    : localFilters.status === "viewed"
+                      ? "Просмотренные"
+                      : localFilters.status === "resolved"
+                        ? "Решенные"
+                        : "Архивированные"
                 }`}
                 onDelete={() => handleFilterChange("status", "")}
                 size="small"
@@ -247,13 +256,11 @@ export default function ErrorFilters() {
         aria-labelledby="delete-all-dialog-title"
         aria-describedby="delete-all-dialog-description"
       >
-        <DialogTitle id="delete-all-dialog-title">
-          Удалить все ошибки?
-        </DialogTitle>
+        <DialogTitle id="delete-all-dialog-title">Удалить все ошибки?</DialogTitle>
         <DialogContent>
           <DialogContentText id="delete-all-dialog-description">
-            Вы уверены, что хотите удалить все ошибки? Это действие нельзя отменить.
-            Все логи ошибок будут безвозвратно удалены из системы.
+            Вы уверены, что хотите удалить все ошибки? Это действие нельзя отменить. Все логи ошибок
+            будут безвозвратно удалены из системы.
           </DialogContentText>
           {deleteAllError && (
             <Alert severity="error" sx={{ mt: 2 }}>
@@ -272,7 +279,7 @@ export default function ErrorFilters() {
             disabled={isPending}
             startIcon={isPending ? <CircularProgress size={16} /> : <DeleteIcon />}
           >
-            {isPending ? 'Удаление...' : 'Удалить все'}
+            {isPending ? "Удаление..." : "Удалить все"}
           </Button>
         </DialogActions>
       </Dialog>

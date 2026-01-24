@@ -6,7 +6,7 @@ import AddPetForm from "./AddPetForm";
 export const metadata = generateStaticPageMetadata(
   "Добавить питомца",
   "Добавьте информацию о вашем питомце, чтобы начать тренировки.",
-  "/profile/addPet"
+  "/profile/addPet",
 );
 
 export default function AddPetFormPage() {

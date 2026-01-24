@@ -1,15 +1,15 @@
 // Профессиональный логгер для проекта
 // Теперь использует единый логгер @gafus/logger
 
-import { 
-  createWebLogger, 
-  createTrainerPanelLogger, 
+import {
+  createWebLogger,
+  createTrainerPanelLogger,
   createErrorDashboardLogger,
   createTelegramBotLogger,
   createWorkerLogger,
   createBullBoardLogger,
   type Logger,
-  type LogMeta
+  type LogMeta,
 } from "@gafus/logger";
 
 // Экспортируем типы для обратной совместимости
@@ -22,30 +22,30 @@ export type { LogMeta, Logger };
  */
 export function createLogger(context: string): Logger {
   // Определяем тип приложения по контексту
-  if (context.includes('web') || context.includes('client')) {
+  if (context.includes("web") || context.includes("client")) {
     return createWebLogger(context);
   }
-  
-  if (context.includes('trainer') || context.includes('panel')) {
+
+  if (context.includes("trainer") || context.includes("panel")) {
     return createTrainerPanelLogger(context);
   }
-  
-  if (context.includes('error-dashboard') || context.includes('dashboard')) {
+
+  if (context.includes("error-dashboard") || context.includes("dashboard")) {
     return createErrorDashboardLogger(context);
   }
-  
-  if (context.includes('telegram') || context.includes('bot')) {
+
+  if (context.includes("telegram") || context.includes("bot")) {
     return createTelegramBotLogger(context);
   }
-  
-  if (context.includes('worker') || context.includes('queue') || context.includes('redis')) {
+
+  if (context.includes("worker") || context.includes("queue") || context.includes("redis")) {
     return createWorkerLogger(context);
   }
-  
-  if (context.includes('bull') || context.includes('board')) {
+
+  if (context.includes("bull") || context.includes("board")) {
     return createBullBoardLogger(context);
   }
-  
+
   // По умолчанию используем web логгер
   return createWebLogger(context);
 }

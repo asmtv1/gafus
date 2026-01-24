@@ -28,21 +28,22 @@ export default function DaysClient({ days, isAdmin = false }: DaysClientProps) {
     });
   };
 
-  const uiDays = days.map((day: Day & { author?: { username: string; profile?: { fullName: string | null } | null } }) => ({
-    ...day,
-    author: day.author
-      ? {
-          username: day.author.username,
-          fullName: day.author.profile?.fullName ?? null,
-        }
-      : undefined,
-  }));
+  const uiDays = days.map(
+    (
+      day: Day & { author?: { username: string; profile?: { fullName: string | null } | null } },
+    ) => ({
+      ...day,
+      author: day.author
+        ? {
+            username: day.author.username,
+            fullName: day.author.profile?.fullName ?? null,
+          }
+        : undefined,
+    }),
+  );
 
   return (
-    <PageLayout 
-      title="Созданные дни" 
-      subtitle="Управление вашими днями тренировок"
-    >
+    <PageLayout title="Созданные дни" subtitle="Управление вашими днями тренировок">
       <EnhancedDaysTable
         days={uiDays}
         onEditDay={(id) => router.push(`/main-panel/days/${id}/edit`)}

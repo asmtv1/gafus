@@ -4,7 +4,7 @@ import { createWebLogger } from "@gafus/logger";
 import type { PublicProfile } from "@gafus/types";
 
 // Создаем логгер для getPublicProfile
-const logger = createWebLogger('web-get-public-profile');
+const logger = createWebLogger("web-get-public-profile");
 
 export async function getPublicProfile(username: string): Promise<PublicProfile | null> {
   if (!username) throw new Error("username is required");
@@ -171,7 +171,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
 
     return publicProfile;
   } catch (error) {
-    logger.error("Ошибка в getPublicProfile:", error as Error, { operation: 'error' });
+    logger.error("Ошибка в getPublicProfile:", error as Error, { operation: "error" });
     throw new Error("Не удалось загрузить публичный профиль");
   }
 }

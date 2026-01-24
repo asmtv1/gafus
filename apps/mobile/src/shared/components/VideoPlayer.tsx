@@ -54,7 +54,7 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
   // Toggle fullscreen используя встроенный API expo-av
   const toggleFullscreen = useCallback(async () => {
     if (!videoRef.current) return;
-    
+
     try {
       if (isFullscreen) {
         await videoRef.current.dismissFullscreenPlayer();
@@ -69,44 +69,50 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
   }, [isFullscreen]);
 
   // Seek forward/backward
-  const seek = useCallback(async (seconds: number) => {
-    if (!videoRef.current || !isLoaded) return;
-    const newPosition = Math.max(0, Math.min(position + seconds * 1000, duration));
-    await videoRef.current.setPositionAsync(newPosition);
-  }, [isLoaded, position, duration]);
+  const seek = useCallback(
+    async (seconds: number) => {
+      if (!videoRef.current || !isLoaded) return;
+      const newPosition = Math.max(0, Math.min(position + seconds * 1000, duration));
+      await videoRef.current.setPositionAsync(newPosition);
+    },
+    [isLoaded, position, duration],
+  );
 
   // Handle playback status update
-  const handlePlaybackStatusUpdate = useCallback((newStatus: AVPlaybackStatus) => {
-    try {
-      setStatus(newStatus);
+  const handlePlaybackStatusUpdate = useCallback(
+    (newStatus: AVPlaybackStatus) => {
+      try {
+        setStatus(newStatus);
 
-      if (newStatus.isLoaded && newStatus.didJustFinish) {
-        if (__DEV__) {
-          console.log("[VideoPlayer] Видео завершено");
+        if (newStatus.isLoaded && newStatus.didJustFinish) {
+          if (__DEV__) {
+            console.log("[VideoPlayer] Видео завершено");
+          }
+          onComplete?.();
         }
-        onComplete?.();
-      }
 
-      if (newStatus.isLoaded && newStatus.error) {
+        if (newStatus.isLoaded && newStatus.error) {
+          if (__DEV__) {
+            console.error("[VideoPlayer] Ошибка воспроизведения:", newStatus.error);
+          }
+        }
+      } catch (error) {
         if (__DEV__) {
-          console.error("[VideoPlayer] Ошибка воспроизведения:", newStatus.error);
+          console.error("[VideoPlayer] Ошибка в handlePlaybackStatusUpdate:", error);
         }
       }
-    } catch (error) {
-      if (__DEV__) {
-        console.error("[VideoPlayer] Ошибка в handlePlaybackStatusUpdate:", error);
-      }
-    }
-  }, [onComplete]);
+    },
+    [onComplete],
+  );
 
   // Handle fullscreen update
   const handleFullscreenUpdate = useCallback((data: { fullscreenUpdate: number }) => {
     const { fullscreenUpdate } = data;
-    
+
     if (__DEV__) {
       console.log("[VideoPlayer] Fullscreen update:", fullscreenUpdate);
     }
-    
+
     switch (fullscreenUpdate) {
       case Video.FULLSCREEN_UPDATE_PLAYER_DID_PRESENT:
         setIsFullscreen(true);
@@ -126,12 +132,12 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
   }, [togglePlay]);
 
   if (__DEV__) {
-    console.log("[VideoPlayer] Рендеринг:", { 
-      uri, 
-      isLoaded, 
-      isPlaying, 
+    console.log("[VideoPlayer] Рендеринг:", {
+      uri,
+      isLoaded,
+      isPlaying,
       isBuffering,
-      hasError: status?.isLoaded && status.error 
+      hasError: status?.isLoaded && status.error,
     });
   }
 
@@ -168,12 +174,7 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
           {/* Play button overlay (только когда видео не играет) */}
           {!isPlaying && (
             <Pressable style={styles.playOverlay} onPress={togglePlay}>
-              <IconButton
-                icon="play"
-                iconColor="#fff"
-                size={64}
-                style={styles.centerPlayButton}
-              />
+              <IconButton icon="play" iconColor="#fff" size={64} style={styles.centerPlayButton} />
             </Pressable>
           )}
         </Pressable>
@@ -181,65 +182,66 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
 
       {/* Controls panel снизу видео - всегда видна */}
       <View style={styles.controlsPanel}>
-          {/* Progress bar */}
-          <View style={styles.progressContainer}>
-            <Pressable
-              style={styles.progressBar}
-              onPress={(e) => {
-                if (!isLoaded || !videoRef.current || duration === 0 || progressBarWidth === 0) return;
-                const { locationX } = e.nativeEvent;
-                const newPosition = (locationX / progressBarWidth) * duration;
-                videoRef.current.setPositionAsync(Math.max(0, Math.min(newPosition, duration)));
+        {/* Progress bar */}
+        <View style={styles.progressContainer}>
+          <Pressable
+            style={styles.progressBar}
+            onPress={(e) => {
+              if (!isLoaded || !videoRef.current || duration === 0 || progressBarWidth === 0)
+                return;
+              const { locationX } = e.nativeEvent;
+              const newPosition = (locationX / progressBarWidth) * duration;
+              videoRef.current.setPositionAsync(Math.max(0, Math.min(newPosition, duration)));
+            }}
+          >
+            <View
+              style={styles.progressBarBackground}
+              onLayout={(e) => {
+                const { width } = e.nativeEvent.layout;
+                setProgressBarWidth(width);
               }}
             >
-              <View
-                style={styles.progressBarBackground}
-                onLayout={(e) => {
-                  const { width } = e.nativeEvent.layout;
-                  setProgressBarWidth(width);
-                }}
-              >
-                <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-              </View>
-            </Pressable>
-          </View>
-
-          {/* Bottom row with controls */}
-          <View style={styles.bottomRow}>
-            {/* Time display */}
-            <Text style={styles.timeText}>
-              {formatTime(position)} / {formatTime(duration)}
-            </Text>
-
-            {/* Control buttons */}
-            <View style={styles.controlButtons}>
-              <IconButton
-                icon="rewind-10"
-                iconColor={COLORS.text}
-                size={24}
-                onPress={() => seek(-10)}
-              />
-              <IconButton
-                icon={isPlaying ? "pause" : "play"}
-                iconColor={COLORS.text}
-                size={32}
-                onPress={togglePlay}
-              />
-              <IconButton
-                icon="fast-forward-10"
-                iconColor={COLORS.text}
-                size={24}
-                onPress={() => seek(10)}
-              />
-              <IconButton
-                icon={isFullscreen ? "fullscreen-exit" : "fullscreen"}
-                iconColor={COLORS.text}
-                size={24}
-                onPress={toggleFullscreen}
-              />
+              <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
             </View>
+          </Pressable>
+        </View>
+
+        {/* Bottom row with controls */}
+        <View style={styles.bottomRow}>
+          {/* Time display */}
+          <Text style={styles.timeText}>
+            {formatTime(position)} / {formatTime(duration)}
+          </Text>
+
+          {/* Control buttons */}
+          <View style={styles.controlButtons}>
+            <IconButton
+              icon="rewind-10"
+              iconColor={COLORS.text}
+              size={24}
+              onPress={() => seek(-10)}
+            />
+            <IconButton
+              icon={isPlaying ? "pause" : "play"}
+              iconColor={COLORS.text}
+              size={32}
+              onPress={togglePlay}
+            />
+            <IconButton
+              icon="fast-forward-10"
+              iconColor={COLORS.text}
+              size={24}
+              onPress={() => seek(10)}
+            />
+            <IconButton
+              icon={isFullscreen ? "fullscreen-exit" : "fullscreen"}
+              iconColor={COLORS.text}
+              size={24}
+              onPress={toggleFullscreen}
+            />
           </View>
         </View>
+      </View>
     </View>
   );
 }

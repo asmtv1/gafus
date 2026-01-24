@@ -6,7 +6,7 @@ import { verifyCSRFToken } from "./utils";
 import type { NextRequest } from "next/server";
 
 // Создаем логгер для CSRF Middleware
-const logger = createWebLogger('csrf-middleware');
+const logger = createWebLogger("csrf-middleware");
 
 // Конфигурация CSRF защиты
 const CSRF_CONFIG = {
@@ -73,12 +73,12 @@ function logCSRFAttack(req: NextRequest, reason: string, token?: string): void {
 
   logger.warn("CSRF Attack Attempt", {
     ip: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "Unknown",
-    userAgent: req.headers.get('user-agent') || 'unknown',
+    userAgent: req.headers.get("user-agent") || "unknown",
     method: req.method,
     url: req.url,
     reason: reason,
-    token: token ? 'present' : 'missing',
-    timestamp: new Date().toISOString()
+    token: token ? "present" : "missing",
+    timestamp: new Date().toISOString(),
   });
 }
 
@@ -121,7 +121,7 @@ export function withCSRFProtection<T = unknown>(
         logger.warn("CSRF token missing, but allowing in non-strict mode", {
           method: req.method,
           url: req.url,
-          strictMode: CSRF_CONFIG.strictMode
+          strictMode: CSRF_CONFIG.strictMode,
         });
         return handler(req, context);
       }
@@ -144,7 +144,7 @@ export function withCSRFProtection<T = unknown>(
           method: req.method,
           url: req.url,
           tokenLength: csrfToken.length,
-          strictMode: CSRF_CONFIG.strictMode
+          strictMode: CSRF_CONFIG.strictMode,
         });
         return handler(req, context);
       }
@@ -169,7 +169,7 @@ export function withCSRFProtection<T = unknown>(
           logger.warn("Invalid CSRF token, but allowing in non-strict mode", {
             method: req.method,
             url: req.url,
-            strictMode: CSRF_CONFIG.strictMode
+            strictMode: CSRF_CONFIG.strictMode,
           });
           return handler(req, context);
         }
@@ -180,14 +180,14 @@ export function withCSRFProtection<T = unknown>(
         logger.success("CSRF token validated successfully", {
           method: req.method,
           url: req.url,
-          tokenLength: csrfToken.length
+          tokenLength: csrfToken.length,
         });
       }
     } catch (error) {
       logger.error("Error verifying CSRF token", error as Error, {
         method: req.method,
         url: req.url,
-        tokenLength: csrfToken.length
+        tokenLength: csrfToken.length,
       });
       logCSRFAttack(req, "CSRF verification error", csrfToken);
 
@@ -204,7 +204,7 @@ export function withCSRFProtection<T = unknown>(
           method: req.method,
           url: req.url,
           strictMode: CSRF_CONFIG.strictMode,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         return handler(req, context);
       }

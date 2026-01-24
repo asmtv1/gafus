@@ -14,27 +14,29 @@
 ## 📦 Использование
 
 ### Создание воркера
+
 ```typescript
-import { createWorker } from '@gafus/worker';
+import { createWorker } from "@gafus/worker";
 
 const worker = createWorker({
-  queues: ['email', 'notification', 'image-processing'],
-  concurrency: 5
+  queues: ["email", "notification", "image-processing"],
+  concurrency: 5,
 });
 
 worker.start();
 ```
 
 ### Обработка задач
-```typescript
-import { processJob } from '@gafus/worker';
 
-processJob('email', 'send-welcome', async (job) => {
+```typescript
+import { processJob } from "@gafus/worker";
+
+processJob("email", "send-welcome", async (job) => {
   const { userId, email } = job.data;
   await sendWelcomeEmail(userId, email);
 });
 
-processJob('image-processing', 'resize', async (job) => {
+processJob("image-processing", "resize", async (job) => {
   const { imageUrl, sizes } = job.data;
   await resizeImage(imageUrl, sizes);
 });

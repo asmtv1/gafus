@@ -88,7 +88,7 @@ export const trainingApi = {
   getDay: async (
     courseType: string,
     dayOnCourseId: string,
-    createIfMissing = true
+    createIfMissing = true,
   ): Promise<ApiResponse<TrainingDayResponse>> => {
     const params = new URLSearchParams({
       courseType,
@@ -112,7 +112,7 @@ export const trainingApi = {
    * Обновить статус шага
    */
   updateStepStatus: async (
-    params: StepActionParams & { status: string; stepTitle?: string; stepOrder?: number }
+    params: StepActionParams & { status: string; stepTitle?: string; stepOrder?: number },
   ): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/training/step/status", {
       method: "POST",

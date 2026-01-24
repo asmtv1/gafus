@@ -29,7 +29,12 @@ interface VideoPlayerSectionProps {
  * - Для внешних видео (YouTube/VK): показывает iframe сразу
  * - Для CDN видео: показывает thumbnail, при клике загружает и воспроизводит видео
  */
-export function VideoPlayerSection({ videoUrl, originalVideoUrl, courseType, videoInfo }: VideoPlayerSectionProps) {
+export function VideoPlayerSection({
+  videoUrl,
+  originalVideoUrl,
+  courseType,
+  videoInfo,
+}: VideoPlayerSectionProps) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [isLoadingSignedUrl, setIsLoadingSignedUrl] = useState(false);
   const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
@@ -44,8 +49,8 @@ export function VideoPlayerSection({ videoUrl, originalVideoUrl, courseType, vid
   // Используем originalVideoUrl для метаданных, если videoUrl это Service Worker URL
   // Мемоизируем для предотвращения лишних ререндеров
   const urlForMetadata = useMemo(
-    () => (isOfflineVideo && originalVideoUrl) ? originalVideoUrl : videoUrl,
-    [isOfflineVideo, originalVideoUrl, videoUrl]
+    () => (isOfflineVideo && originalVideoUrl ? originalVideoUrl : videoUrl),
+    [isOfflineVideo, originalVideoUrl, videoUrl],
   );
 
   // Для офлайн видео signedUrl не нужен, используем videoUrl напрямую
@@ -180,92 +185,95 @@ export function VideoPlayerSection({ videoUrl, originalVideoUrl, courseType, vid
   }, [videoUrl, isOfflineVideo, signedUrl, videoId]);
 
   // Рендерим кастомную обложку с кнопкой Play
-  const renderPosterWithPlayButton = useCallback((thumbnailSrc: string | null) => {
-    return (
-      <div className={styles.videoContainer}>
-        <div
-          className={styles.videoWrapper}
-          onClick={handleThumbnailClick}
-          style={{
-            cursor: "pointer",
-            position: "relative",
-            aspectRatio: "16/9",
-            backgroundColor: "#000",
-          }}
-          onMouseEnter={(e) => {
-            const overlay = e.currentTarget.querySelector(".play-overlay") as HTMLElement;
-            if (overlay) overlay.style.opacity = "1";
-          }}
-          onMouseLeave={(e) => {
-            const overlay = e.currentTarget.querySelector(".play-overlay") as HTMLElement;
-            if (overlay) overlay.style.opacity = "0.8";
-          }}
-        >
-          {thumbnailSrc ? (
-            <img
-              src={thumbnailSrc}
-              alt="Превью видео"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
-              }}
-              onError={(e) => {
-                console.error("[VideoPlayerSection] Ошибка загрузки thumbnail:", e);
-              }}
-            />
-          ) : (
+  const renderPosterWithPlayButton = useCallback(
+    (thumbnailSrc: string | null) => {
+      return (
+        <div className={styles.videoContainer}>
+          <div
+            className={styles.videoWrapper}
+            onClick={handleThumbnailClick}
+            style={{
+              cursor: "pointer",
+              position: "relative",
+              aspectRatio: "16/9",
+              backgroundColor: "#000",
+            }}
+            onMouseEnter={(e) => {
+              const overlay = e.currentTarget.querySelector(".play-overlay") as HTMLElement;
+              if (overlay) overlay.style.opacity = "1";
+            }}
+            onMouseLeave={(e) => {
+              const overlay = e.currentTarget.querySelector(".play-overlay") as HTMLElement;
+              if (overlay) overlay.style.opacity = "0.8";
+            }}
+          >
+            {thumbnailSrc ? (
+              <img
+                src={thumbnailSrc}
+                alt="Превью видео"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                }}
+                onError={(e) => {
+                  console.error("[VideoPlayerSection] Ошибка загрузки thumbnail:", e);
+                }}
+              />
+            ) : (
+              <Box
+                sx={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <PlayArrowIcon sx={{ fontSize: 64, color: "white", opacity: 0.7 }} />
+              </Box>
+            )}
+            {/* Оверлей с кнопкой Play - всегда видна с opacity 0.8, при hover - 1 */}
             <Box
+              className="play-overlay"
               sx={{
-                width: "100%",
-                height: "100%",
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                bgcolor: "rgba(0, 0, 0, 0.3)",
+                opacity: 0.8, // Критично: всегда видна, не только при hover
+                transition: "opacity 0.2s",
+                pointerEvents: "none",
               }}
             >
-              <PlayArrowIcon sx={{ fontSize: 64, color: "white", opacity: 0.7 }} />
+              <PlayArrowIcon sx={{ fontSize: 64, color: "white" }} />
             </Box>
-          )}
-          {/* Оверлей с кнопкой Play - всегда видна с opacity 0.8, при hover - 1 */}
-          <Box
-            className="play-overlay"
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              bgcolor: "rgba(0, 0, 0, 0.3)",
-              opacity: 0.8, // Критично: всегда видна, не только при hover
-              transition: "opacity 0.2s",
-              pointerEvents: "none",
-            }}
-          >
-            <PlayArrowIcon sx={{ fontSize: 64, color: "white" }} />
-          </Box>
-          {/* Индикатор загрузки signed URL */}
-          {isLoadingSignedUrl && (
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                zIndex: 1,
-              }}
-            >
-              <CircularProgress sx={{ color: "white" }} />
-            </Box>
-          )}
+            {/* Индикатор загрузки signed URL */}
+            {isLoadingSignedUrl && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 1,
+                }}
+              >
+                <CircularProgress sx={{ color: "white" }} />
+              </Box>
+            )}
+          </div>
         </div>
-      </div>
-    );
-  }, [handleThumbnailClick, isLoadingSignedUrl]);
+      );
+    },
+    [handleThumbnailClick, isLoadingSignedUrl],
+  );
 
   // Внешние видео (YouTube/VK) - показываем iframe сразу
   if (videoMetadata?.isExternal || (videoInfo && !videoInfo.isCDN && !videoInfo.isHLS)) {
@@ -300,7 +308,15 @@ export function VideoPlayerSection({ videoUrl, originalVideoUrl, courseType, vid
   if (isLoadingMetadata) {
     return (
       <div className={styles.videoContainer}>
-        <div className={styles.videoWrapper} style={{ minHeight: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          className={styles.videoWrapper}
+          style={{
+            minHeight: "200px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <CircularProgress />
         </div>
       </div>
@@ -308,10 +324,23 @@ export function VideoPlayerSection({ videoUrl, originalVideoUrl, courseType, vid
   }
 
   // CDN видео в обработке (PENDING/PROCESSING)
-  if (videoMetadata?.transcodingStatus === "PENDING" || videoMetadata?.transcodingStatus === "PROCESSING") {
+  if (
+    videoMetadata?.transcodingStatus === "PENDING" ||
+    videoMetadata?.transcodingStatus === "PROCESSING"
+  ) {
     return (
       <div className={styles.videoContainer}>
-        <div className={styles.videoWrapper} style={{ minHeight: "200px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+        <div
+          className={styles.videoWrapper}
+          style={{
+            minHeight: "200px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+        >
           <CircularProgress />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
             {videoMetadata.transcodingStatus === "PENDING"
@@ -339,31 +368,34 @@ export function VideoPlayerSection({ videoUrl, originalVideoUrl, courseType, vid
   // CDN видео COMPLETED - показываем thumbnail или плеер
   // Для офлайн видео (isOfflineVideo) всегда показываем thumbnail или плеер
   if (
-    videoMetadata?.transcodingStatus === "COMPLETED" || 
+    videoMetadata?.transcodingStatus === "COMPLETED" ||
     (!videoMetadata && videoInfo?.isHLS) ||
     isOfflineVideo
   ) {
     // Для офлайн видео используем Service Worker URL напрямую, для онлайн - signed URL
     const playbackUrl = isOfflineVideo ? videoUrl : signedUrl;
-    
+
     // Определяем, какой thumbnail показывать как poster
-    const thumbnailSrc = isOfflineVideo && offlineThumbnail && thumbnailBlobUrl
-      ? thumbnailBlobUrl
-      : videoMetadata?.thumbnailPath
-      ? getCDNUrl(videoMetadata.thumbnailPath)
-      : null;
-    
+    const thumbnailSrc =
+      isOfflineVideo && offlineThumbnail && thumbnailBlobUrl
+        ? thumbnailBlobUrl
+        : videoMetadata?.thumbnailPath
+          ? getCDNUrl(videoMetadata.thumbnailPath)
+          : null;
+
     // Критично: Всегда показываем кастомную обложку пока !isPlaying или нет playbackUrl
     // Это гарантирует ленивую загрузку - видео не будет загружаться до клика пользователя
     if (!isPlaying || !playbackUrl) {
       return renderPosterWithPlayButton(thumbnailSrc);
     }
-    
+
     // После клика на обложку и загрузки playbackUrl показываем плеер
     if (playbackUrl) {
       return (
         <div className={styles.videoContainer}>
-          <div className={`${styles.videoWrapper} ${videoInfo?.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}>
+          <div
+            className={`${styles.videoWrapper} ${videoInfo?.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
+          >
             <HLSVideoPlayer
               src={playbackUrl}
               poster={thumbnailSrc || undefined}

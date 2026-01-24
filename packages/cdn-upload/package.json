@@ -1,9 +1,9 @@
 {
   "name": "@gafus/cdn-upload",
   "version": "1.0.0",
+  "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "license": "MIT",
   "scripts": {
     "build": "tsc",
     "lint": "eslint . --ext .ts",

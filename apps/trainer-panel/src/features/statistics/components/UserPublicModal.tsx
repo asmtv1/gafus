@@ -56,31 +56,33 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
   }, [open, username]);
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
       fullWidth
       slotProps={{
         backdrop: {
           sx: {
-            WebkitTapHighlightColor: 'transparent',
-            touchAction: 'manipulation'
-          }
-        }
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation",
+          },
+        },
       }}
     >
       <DialogTitle sx={{ pb: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography variant="h6" color="text.primary">Публичный профиль пользователя</Typography>
-          <IconButton 
-            onClick={onClose} 
+          <Typography variant="h6" color="text.primary">
+            Публичный профиль пользователя
+          </Typography>
+          <IconButton
+            onClick={onClose}
             size="small"
             sx={{
-              WebkitTapHighlightColor: 'transparent',
-              touchAction: 'manipulation',
-              minWidth: '44px',
-              minHeight: '44px'
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "manipulation",
+              minWidth: "44px",
+              minHeight: "44px",
             }}
           >
             <Close />
@@ -102,7 +104,7 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
         {data && (
           <Box>
             <Box sx={{ display: "flex", alignItems: "flex-start", mb: 3 }}>
-              <Avatar 
+              <Avatar
                 sx={{ width: 80, height: 80, mr: 2 }}
                 src={data.profile?.avatarUrl || "/uploads/avatar.svg"}
                 alt={data.username}
@@ -124,7 +126,7 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
                       rel="noopener noreferrer nofollow"
                       aria-label={`Открыть Telegram профиль ${data.profile.telegram} в новой вкладке`}
                       clickable
-                      sx={{ cursor: 'pointer' }}
+                      sx={{ cursor: "pointer" }}
                     />
                   )}
                   {data.profile?.instagram && (
@@ -138,7 +140,7 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
                       rel="noopener noreferrer nofollow"
                       aria-label={`Открыть Instagram профиль ${data.profile.instagram} в новой вкладке`}
                       clickable
-                      sx={{ cursor: 'pointer' }}
+                      sx={{ cursor: "pointer" }}
                     />
                   )}
                   {data.profile?.website && (
@@ -152,7 +154,7 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
                       rel="noopener noreferrer nofollow"
                       aria-label={`Открыть сайт ${data.profile.website} в новой вкладке`}
                       clickable
-                      sx={{ cursor: 'pointer' }}
+                      sx={{ cursor: "pointer" }}
                     />
                   )}
                 </Box>
@@ -178,7 +180,7 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
                 {data.pets.map((pet) => (
                   <Paper key={pet.id} sx={{ p: 2, flex: "1 1 260px", minWidth: 0 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                      <Avatar 
+                      <Avatar
                         sx={{ width: 48, height: 48 }}
                         src={pet.photoUrl || "/uploads/pet-avatar.jpg"}
                         alt={pet.name}

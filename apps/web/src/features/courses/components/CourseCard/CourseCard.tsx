@@ -11,7 +11,6 @@ import { Download, Refresh, Delete } from "@mui/icons-material";
 
 import styles from "./CourseCard.module.css";
 
-
 import type { CourseCardPropsWithIndex } from "./types";
 
 import { declOfNum } from "@gafus/core/utils";
@@ -25,8 +24,6 @@ import { FavoriteButton } from "../FavoriteButton/FavoriteButton";
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
-
-
 
 // Функция для получения русского названия уровня сложности
 const getTrainingLevelLabel = (level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT") => {
@@ -91,7 +88,7 @@ export const CourseCard = ({
   const [imgError, setImgError] = useState(false);
   const [isImageAlreadyCached, setIsImageAlreadyCached] = useState(false);
   const downloadModalOpenRef = useRef(false);
-  
+
   // Офлайн-функциональность
   const {
     isDownloadedByType,
@@ -104,12 +101,12 @@ export const CourseCard = ({
   } = useOfflineCourse();
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
-  
+
   // Проверяем наличие ожидающих синхронизации действий для этого курса
   const syncQueue = useOfflineStore((state) => state.syncQueue);
-  const hasPendingSync = syncQueue.some(action => 
-    action.type === "step-status-update" && 
-    (action.data as { courseId: string }).courseId === id
+  const hasPendingSync = syncQueue.some(
+    (action) =>
+      action.type === "step-status-update" && (action.data as { courseId: string }).courseId === id,
   );
 
   // Синхронизируем состояние избранного с store при изменении пропсов
@@ -141,11 +138,10 @@ export const CourseCard = ({
   const finalSrc = !logoImg
     ? DEFAULT_PLACEHOLDER
     : hasBlobUrl
-    ? offlineLogoUrl
-    : imgError
-    ? DEFAULT_PLACEHOLDER
-    : logoImg;
-
+      ? offlineLogoUrl
+      : imgError
+        ? DEFAULT_PLACEHOLDER
+        : logoImg;
 
   // Проверяем кэш изображения в useEffect
   useEffect(() => {
@@ -217,7 +213,7 @@ export const CourseCard = ({
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const result = await downloadCourse(type);
     if (isDownloadModalVisible()) {
       Swal.close();
@@ -233,12 +229,12 @@ export const CourseCard = ({
   const handleUpdate = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const result = await updateCourse(type);
     if (result.success) {
       // Обновляем состояние
       setIsDownloaded(true);
-      
+
       // Показываем информативное сообщение
       if (result.hasUpdates) {
         await showSuccessAlert(result.message || "Курс успешно обновлен");
@@ -254,7 +250,7 @@ export const CourseCard = ({
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const confirmed = await Swal.fire({
       title: "Удалить курс?",
       text: "Вы уверены, что хотите удалить курс из офлайн-хранилища?",
@@ -275,11 +271,11 @@ export const CourseCard = ({
         cancelButton: "swal2-cancel-custom",
       },
     });
-    
+
     if (!confirmed.isConfirmed) {
       return;
     }
-    
+
     const result = await deleteCourse(id);
     if (result.success) {
       setIsDownloaded(false);
@@ -317,12 +313,12 @@ export const CourseCard = ({
 
   const getReviewText = () => {
     const reviewCount = reviews?.length || 0;
-    
+
     if (reviewCount === 0) {
       // Если отзывов нет
       return userStatus === TrainingStatus.COMPLETED ? "Оставить отзыв" : "Нет отзывов";
     }
-    
+
     // Если есть отзывы
     return `${reviewCount} ${declOfNum(reviewCount, ["отзыв", "отзыва", "отзывов"])}`;
   };
@@ -330,94 +326,91 @@ export const CourseCard = ({
   return (
     <li className={styles.courseCard}>
       <div className={styles.courseCardContent}>
-      <Link
-        href={`/trainings/${type}`}
-        className={styles.link}
-        prefetch={false}
-      >
-        <div className={styles.imageContainer}>
-          <Image
-            src={finalSrc}
-            alt={`${name} logo`}
-            width={350}
-            height={200}
-            className={styles.image}
-            onError={() => setImgError(true)}
-          />
-          {isPrivate && <div className={styles.privateBadge}>Приватный</div>}
-        </div>
-
-        <div className={styles.content}>
-          <h3 className={styles.title}>{name}</h3>
-          <div className={styles.meta}>
-            <div className={styles.duration}>
-              <span><b>Длительность:</b> {duration}</span>
-            </div>
-            <div className={styles.status}>
-              <span className={getStatusColor()}>{getStatusText()}</span>
-              {hasPendingSync && (
-                <span className={styles.pendingIndicator} title="Ожидает синхронизации">
-                  ⏳
-                </span>
-              )}
-            </div>
-          </div>
-          <div className={styles.description}>
-            <p><b>Уровень сложности:</b> {getTrainingLevelLabel(trainingLevel)}</p>
-            <p><b>Описание:</b> {shortDesc}</p>
-          </div>
-
-         
-
-          {startedAt && (
-            <div className={styles.date}>
-              <b>Начат:</b>{" "}
-              {(() => {
-                if (startedAt instanceof Date) {
-                  return startedAt.toLocaleDateString("ru-RU");
-                } else if (typeof startedAt === "string") {
-                  const date = new Date(startedAt);
-                  return isNaN(date.getTime()) ? startedAt : date.toLocaleDateString("ru-RU");
-                }
-                return startedAt;
-              })()}
-            </div>
-          )}
-
-          {completedAt && (
-            <div className={styles.date}>
-              <b>Завершен:</b>{" "}
-              {(() => {
-                if (completedAt instanceof Date) {
-                  return completedAt.toLocaleDateString("ru-RU");
-                } else if (typeof completedAt === "string") {
-                  const date = new Date(completedAt);
-                  return isNaN(date.getTime()) ? completedAt : date.toLocaleDateString("ru-RU");
-                }
-                return completedAt;
-              })()}
-            </div>
-          )}
-        </div>
-      </Link>
-      <div className={styles.rating}>
-            <SimpleCourseRating 
-              courseId={id} 
-              initialRating={avgRating || 0} 
-              readOnly={userStatus !== TrainingStatus.COMPLETED}
+        <Link href={`/trainings/${type}`} className={styles.link} prefetch={false}>
+          <div className={styles.imageContainer}>
+            <Image
+              src={finalSrc}
+              alt={`${name} logo`}
+              width={350}
+              height={200}
+              className={styles.image}
+              onError={() => setImgError(true)}
             />
-            {(reviews && reviews.length > 0) || userStatus === TrainingStatus.COMPLETED ? (
-              <NextLink 
-                href={`/trainings/${type}/reviews`} 
-                className={styles.reviewsLink}
-              >
-                {getReviewText()}
-              </NextLink>
-            ) : (
-              <span className={styles.reviews}>{getReviewText()}</span>
+            {isPrivate && <div className={styles.privateBadge}>Приватный</div>}
+          </div>
+
+          <div className={styles.content}>
+            <h3 className={styles.title}>{name}</h3>
+            <div className={styles.meta}>
+              <div className={styles.duration}>
+                <span>
+                  <b>Длительность:</b> {duration}
+                </span>
+              </div>
+              <div className={styles.status}>
+                <span className={getStatusColor()}>{getStatusText()}</span>
+                {hasPendingSync && (
+                  <span className={styles.pendingIndicator} title="Ожидает синхронизации">
+                    ⏳
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className={styles.description}>
+              <p>
+                <b>Уровень сложности:</b> {getTrainingLevelLabel(trainingLevel)}
+              </p>
+              <p>
+                <b>Описание:</b> {shortDesc}
+              </p>
+            </div>
+
+            {startedAt && (
+              <div className={styles.date}>
+                <b>Начат:</b>{" "}
+                {(() => {
+                  if (startedAt instanceof Date) {
+                    return startedAt.toLocaleDateString("ru-RU");
+                  } else if (typeof startedAt === "string") {
+                    const date = new Date(startedAt);
+                    return isNaN(date.getTime()) ? startedAt : date.toLocaleDateString("ru-RU");
+                  }
+                  return startedAt;
+                })()}
+              </div>
+            )}
+
+            {completedAt && (
+              <div className={styles.date}>
+                <b>Завершен:</b>{" "}
+                {(() => {
+                  if (completedAt instanceof Date) {
+                    return completedAt.toLocaleDateString("ru-RU");
+                  } else if (typeof completedAt === "string") {
+                    const date = new Date(completedAt);
+                    return isNaN(date.getTime()) ? completedAt : date.toLocaleDateString("ru-RU");
+                  }
+                  return completedAt;
+                })()}
+              </div>
             )}
           </div>
-          </div>
+        </Link>
+        <div className={styles.rating}>
+          <SimpleCourseRating
+            courseId={id}
+            initialRating={avgRating || 0}
+            readOnly={userStatus !== TrainingStatus.COMPLETED}
+          />
+          {(reviews && reviews.length > 0) || userStatus === TrainingStatus.COMPLETED ? (
+            <NextLink href={`/trainings/${type}/reviews`} className={styles.reviewsLink}>
+              {getReviewText()}
+            </NextLink>
+          ) : (
+            <span className={styles.reviews}>{getReviewText()}</span>
+          )}
+        </div>
+      </div>
 
       <div className={styles.author}>
         <div>

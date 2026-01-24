@@ -6,13 +6,18 @@ import {
   resetStepNotification,
   resumeStepNotification,
 } from "@shared/lib/StepNotification/manageStepNotification";
-import { courseIdSchema, stepIndexSchema, positiveDurationSchema, dayIdSchema } from "@shared/lib/validation/schemas";
+import {
+  courseIdSchema,
+  stepIndexSchema,
+  positiveDurationSchema,
+  dayIdSchema,
+} from "@shared/lib/validation/schemas";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 import { prisma } from "@gafus/prisma";
 
 // Создаем логгер для notification actions
-const logger = createWebLogger('web-notification-actions');
+const logger = createWebLogger("web-notification-actions");
 
 const notificationKeySchema = z.object({
   courseId: courseIdSchema,
@@ -36,7 +41,11 @@ async function getDayFromDayOnCourseId(dayOnCourseId: string): Promise<number> {
   return dayOnCourse.order;
 }
 
-export async function pauseNotificationAction(courseId: string, dayOnCourseId: string, stepIndex: number) {
+export async function pauseNotificationAction(
+  courseId: string,
+  dayOnCourseId: string,
+  stepIndex: number,
+) {
   const parsed = notificationKeySchema.parse({ courseId, dayOnCourseId, stepIndex });
   try {
     const userId = await getCurrentUserId();
@@ -46,16 +55,20 @@ export async function pauseNotificationAction(courseId: string, dayOnCourseId: s
     return { success: true };
   } catch (error) {
     logger.error("Failed to pause notification", error as Error, {
-      operation: 'pause_notification_error',
+      operation: "pause_notification_error",
       courseId: courseId,
       dayOnCourseId: dayOnCourseId,
-      stepIndex: stepIndex
+      stepIndex: stepIndex,
     });
     throw new Error("Failed to pause notification");
   }
 }
 
-export async function resetNotificationAction(courseId: string, dayOnCourseId: string, stepIndex: number) {
+export async function resetNotificationAction(
+  courseId: string,
+  dayOnCourseId: string,
+  stepIndex: number,
+) {
   const parsed = notificationKeySchema.parse({ courseId, dayOnCourseId, stepIndex });
   try {
     const userId = await getCurrentUserId();
@@ -65,10 +78,10 @@ export async function resetNotificationAction(courseId: string, dayOnCourseId: s
     return { success: true };
   } catch (error) {
     logger.error("Failed to reset notification", error as Error, {
-      operation: 'reset_notification_error',
+      operation: "reset_notification_error",
       courseId: courseId,
       dayOnCourseId: dayOnCourseId,
-      stepIndex: stepIndex
+      stepIndex: stepIndex,
     });
     throw new Error("Failed to reset notification");
   }
@@ -80,20 +93,31 @@ export async function resumeNotificationAction(
   stepIndex: number,
   durationSec: number,
 ) {
-  const parsed = resumeNotificationSchema.parse({ courseId, dayOnCourseId, stepIndex, durationSec });
+  const parsed = resumeNotificationSchema.parse({
+    courseId,
+    dayOnCourseId,
+    stepIndex,
+    durationSec,
+  });
   try {
     const userId = await getCurrentUserId();
     const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
 
-    await resumeStepNotification(userId, day, parsed.stepIndex, parsed.durationSec, parsed.dayOnCourseId);
+    await resumeStepNotification(
+      userId,
+      day,
+      parsed.stepIndex,
+      parsed.durationSec,
+      parsed.dayOnCourseId,
+    );
     return { success: true };
   } catch (error) {
     logger.error("Failed to resume notification", error as Error, {
-      operation: 'resume_notification_error',
+      operation: "resume_notification_error",
       courseId: courseId,
       dayOnCourseId: dayOnCourseId,
       stepIndex: stepIndex,
-      durationSec: durationSec
+      durationSec: durationSec,
     });
     throw new Error("Failed to resume notification");
   }

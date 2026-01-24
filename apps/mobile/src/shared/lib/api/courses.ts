@@ -66,12 +66,8 @@ export const coursesApi = {
   /**
    * Получение избранных курсов (как в web: { data, favoriteIds })
    */
-  getFavorites: async (): Promise<
-    ApiResponse<{ data: Course[]; favoriteIds: string[] }>
-  > => {
-    return apiClient<{ data: Course[]; favoriteIds: string[] }>(
-      "/api/v1/courses/favorites"
-    );
+  getFavorites: async (): Promise<ApiResponse<{ data: Course[]; favoriteIds: string[] }>> => {
+    return apiClient<{ data: Course[]; favoriteIds: string[] }>("/api/v1/courses/favorites");
   },
 
   /**
@@ -79,7 +75,7 @@ export const coursesApi = {
    */
   toggleFavorite: async (
     courseId: string,
-    action: "add" | "remove"
+    action: "add" | "remove",
   ): Promise<ApiResponse<{ isFavorite: boolean }>> => {
     return apiClient<{ isFavorite: boolean }>("/api/v1/courses/favorites", {
       method: "POST",

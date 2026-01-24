@@ -1,6 +1,6 @@
 /**
  * API Route: /api/v1/user/profile
- * 
+ *
  * GET - Получает профиль текущего пользователя
  * PATCH - Обновляет профиль текущего пользователя
  */
@@ -13,18 +13,15 @@ import { getUserProfile, updateUserProfile } from "@gafus/core/services/user";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
-const logger = createWebLogger('api-user-profile');
+const logger = createWebLogger("api-user-profile");
 
 // GET - Получить профиль
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: "Не авторизован" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Не авторизован" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -35,7 +32,7 @@ export async function GET() {
     logger.error("Error in profile GET API", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -53,12 +50,9 @@ const updateSchema = z.object({
 export const PATCH = withCSRFProtection(async (request: NextRequest) => {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: "Не авторизован" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Не авторизован" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -72,14 +66,14 @@ export const PATCH = withCSRFProtection(async (request: NextRequest) => {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: "Неверные данные запроса", details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     logger.error("Error in profile PATCH API", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 });

@@ -33,7 +33,7 @@ SELECT id, username, email FROM "User" WHERE role = 'USER' LIMIT 5;
 -- (минимум 2 шага, чтобы пройти фильтр MIN_COMPLETED_STEPS)
 
 -- 3. Установить дату последней активности на 6 дней назад
-UPDATE "UserStep" 
+UPDATE "UserStep"
 SET "updatedAt" = NOW() - INTERVAL '6 days'
 WHERE "userTrainingId" IN (
   SELECT id FROM "UserTraining" WHERE "userId" = 'USER_ID_HERE'
@@ -49,6 +49,7 @@ AND status = 'COMPLETED';
 4. Дождитесь результата (5-10 секунд)
 
 **Ожидаемый результат:**
+
 ```
 ✅ Планировщик выполнен успешно!
 🆕 Новых кампаний: 1
@@ -59,6 +60,7 @@ AND status = 'COMPLETED';
 ### Шаг 3: Проверка метрик
 
 На странице мониторинга проверьте:
+
 - **Всего кампаний** - должно увеличиться на 1
 - **Активных кампаний** - должно увеличиться на 1
 - **Последние кампании** - новая кампания должна появиться в таблице
@@ -67,21 +69,22 @@ AND status = 'COMPLETED';
 
 ```sql
 -- Проверить созданную кампанию
-SELECT * FROM "ReengagementCampaign" 
-WHERE "userId" = 'USER_ID_HERE' 
-ORDER BY "createdAt" DESC 
+SELECT * FROM "ReengagementCampaign"
+WHERE "userId" = 'USER_ID_HERE'
+ORDER BY "createdAt" DESC
 LIMIT 1;
 
 -- Проверить уведомление
-SELECT * FROM "ReengagementNotification" 
+SELECT * FROM "ReengagementNotification"
 WHERE "campaignId" IN (
-  SELECT id FROM "ReengagementCampaign" 
+  SELECT id FROM "ReengagementCampaign"
   WHERE "userId" = 'USER_ID_HERE'
 )
 ORDER BY "createdAt" DESC;
 ```
 
 **Ожидаемые данные:**
+
 - `isActive` = `true`
 - `currentLevel` = `1`
 - `nextNotificationDate` = дата через 5 дней от последней активности
@@ -94,6 +97,7 @@ ORDER BY "createdAt" DESC;
 3. Проверьте наличие задачи `send-reengagement-notification`
 
 **Ожидаемые данные задачи:**
+
 ```json
 {
   "campaignId": "...",
@@ -111,30 +115,30 @@ ORDER BY "createdAt" DESC;
 **Файл:** `scripts/test-reengagement.js`
 
 ```javascript
-const { PrismaClient } = require('@prisma/client');
-const { findInactiveUsers } = require('@gafus/reengagement');
+const { PrismaClient } = require("@prisma/client");
+const { findInactiveUsers } = require("@gafus/reengagement");
 
 const prisma = new PrismaClient();
 
 async function testReengagement() {
   try {
-    console.log('🔍 Поиск неактивных пользователей...\n');
-    
+    console.log("🔍 Поиск неактивных пользователей...\n");
+
     const inactiveUsers = await findInactiveUsers();
-    
+
     console.log(`📊 Найдено неактивных пользователей: ${inactiveUsers.length}\n`);
-    
+
     inactiveUsers.forEach((user, index) => {
       console.log(`${index + 1}. User ID: ${user.userId}`);
       console.log(`   Дней неактивности: ${user.daysSinceActivity}`);
       console.log(`   Всего завершений: ${user.totalCompletions}`);
-      console.log(`   Активная кампания: ${user.hasActiveCampaign ? 'Да' : 'Нет'}`);
-      console.log('');
+      console.log(`   Активная кампания: ${user.hasActiveCampaign ? "Да" : "Нет"}`);
+      console.log("");
     });
-    
-    console.log('✅ Тест завершен');
+
+    console.log("✅ Тест завершен");
   } catch (error) {
-    console.error('❌ Ошибка:', error);
+    console.error("❌ Ошибка:", error);
   } finally {
     await prisma.$disconnect();
   }
@@ -157,9 +161,10 @@ node scripts/test-reengagement.js
 ### Сценарий: Пользователь ушел и вернулся
 
 **1. Создание неактивного пользователя**
+
 ```sql
 -- Установить последнюю активность на 6 дней назад
-UPDATE "UserStep" 
+UPDATE "UserStep"
 SET "updatedAt" = NOW() - INTERVAL '6 days'
 WHERE "userTrainingId" IN (
   SELECT id FROM "UserTraining" WHERE "userId" = 'TEST_USER_ID'
@@ -167,10 +172,12 @@ WHERE "userTrainingId" IN (
 ```
 
 **2. Запуск планировщика** (через админ-панель)
+
 - Должна создаться кампания уровня 1
 - Задача должна добавиться в очередь
 
 **3. Имитация возврата пользователя**
+
 ```sql
 -- Завершить новый шаг
 INSERT INTO "UserStep" ("id", "userTrainingId", "dayNumber", "stepIndex", "status", "createdAt", "updatedAt")
@@ -186,6 +193,7 @@ VALUES (
 ```
 
 **4. Повторный запуск планировщика**
+
 - Кампания должна закрыться (`isActive` = `false`, `returned` = `true`)
 
 ---
@@ -196,14 +204,14 @@ VALUES (
 
 ```sql
 -- Найти пользователя с питомцем
-SELECT u.id, u.username, p.dogName 
+SELECT u.id, u.username, p.dogName
 FROM "User" u
 LEFT JOIN "Profile" p ON u.id = p."userId"
 WHERE p."dogName" IS NOT NULL
 LIMIT 5;
 
 -- Сделать пользователя неактивным
-UPDATE "UserStep" 
+UPDATE "UserStep"
 SET "updatedAt" = NOW() - INTERVAL '6 days'
 WHERE "userTrainingId" IN (
   SELECT id FROM "UserTraining" WHERE "userId" = 'USER_WITH_DOG_ID'
@@ -211,10 +219,11 @@ WHERE "userTrainingId" IN (
 ```
 
 После запуска планировщика проверить в уведомлении:
+
 ```sql
 SELECT title, body FROM "ReengagementNotification"
 WHERE "campaignId" IN (
-  SELECT id FROM "ReengagementCampaign" 
+  SELECT id FROM "ReengagementCampaign"
   WHERE "userId" = 'USER_WITH_DOG_ID'
 );
 ```
@@ -261,11 +270,13 @@ WHERE "campaignId" IN (
 ### Проблема: Планировщик не находит пользователей
 
 **Причины:**
+
 - Нет пользователей с неактивностью 5+ дней
 - Все пользователи уже имеют активные кампании
 - Пользователи не прошли фильтр MIN_COMPLETED_STEPS (< 2 завершений)
 
 **Решение:**
+
 ```sql
 -- Проверить количество завершенных шагов
 SELECT ut."userId", COUNT(*) as completed_steps
@@ -279,11 +290,13 @@ HAVING COUNT(*) >= 2;
 ### Проблема: Уведомления не отправляются
 
 **Причины:**
+
 - Очередь BullMQ не запущена
 - Worker не обрабатывает задачи
 - У пользователя нет push-подписки
 
 **Решение:**
+
 ```bash
 # Проверить работу worker
 cd packages/worker
@@ -296,6 +309,7 @@ SELECT * FROM "PushSubscription" WHERE "userId" = 'USER_ID';
 ### Проблема: Кампании не закрываются при возврате
 
 **Причины:**
+
 - Функция `checkAndCloseReturnedCampaigns()` не вызывается
 - Дата в `updatedAt` не после `campaignStartDate`
 
@@ -316,6 +330,7 @@ SELECT * FROM "PushSubscription" WHERE "userId" = 'USER_ID';
 ### Алерты для мониторинга
 
 Настроить уведомления если:
+
 - Click rate < 5% (плохая вовлеченность)
 - Return rate < 10% (система неэффективна)
 - Нет новых кампаний > 7 дней (проблемы с планировщиком)
@@ -339,13 +354,14 @@ SELECT * FROM "PushSubscription" WHERE "userId" = 'USER_ID';
 ## 🆘 Помощь
 
 Если что-то не работает:
+
 1. Проверьте логи worker: `packages/worker/logs/`
 2. Проверьте Bull Board: `http://localhost:3007`
 3. Проверьте БД на наличие данных
 4. Проверьте настройки окружения (`.env`)
 
 **Логи находятся в:**
+
 - Worker: консоль worker процесса
 - Admin-panel: консоль браузера (F12)
 - БД: `@gafus/logger` пишет в Error Dashboard
-

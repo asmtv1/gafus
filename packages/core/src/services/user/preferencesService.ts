@@ -5,7 +5,7 @@
 import { createWebLogger } from "@gafus/logger";
 import type { UserPreferences } from "@gafus/types";
 
-const logger = createWebLogger('preferences-service');
+const logger = createWebLogger("preferences-service");
 
 // Дефолтные настройки
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -56,7 +56,7 @@ type DeepPartial<T> = {
  */
 export async function updateUserPreferences(
   userId: string,
-  preferences: DeepPartial<UserPreferences>
+  preferences: DeepPartial<UserPreferences>,
 ): Promise<UserPreferences> {
   // TODO: В будущем сохранять в БД
   logger.info("Обновление настроек пользователя", { userId, preferences });

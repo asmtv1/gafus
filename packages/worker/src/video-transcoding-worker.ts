@@ -6,11 +6,7 @@ import * as path from "path";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
-import {
-  downloadFileFromCDN,
-  uploadBufferToCDN,
-  deleteFileFromCDN,
-} from "@gafus/cdn-upload";
+import { downloadFileFromCDN, uploadBufferToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
 import type { VideoTranscodingJobData, VideoTranscodingResult } from "@gafus/types";
 
 const execAsync = promisify(exec);
@@ -38,7 +34,7 @@ class VideoTranscodingWorker {
         concurrency: 1, // Только одно транскодирование за раз (ресурсоёмко)
         removeOnComplete: { count: 100 },
         removeOnFail: { count: 50 },
-      }
+      },
     );
 
     this.setupEventHandlers();
@@ -61,7 +57,7 @@ class VideoTranscodingWorker {
    * Основная логика обработки задачи транскодирования
    */
   private async processJob(
-    job: Job<VideoTranscodingJobData, VideoTranscodingResult>
+    job: Job<VideoTranscodingJobData, VideoTranscodingResult>,
   ): Promise<VideoTranscodingResult> {
     const { videoId, trainerId, originalPath } = job.data;
 
@@ -188,7 +184,7 @@ class VideoTranscodingWorker {
   private async getVideoHeight(inputPath: string): Promise<number> {
     try {
       const { stdout } = await execAsync(
-        `ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "${inputPath}"`
+        `ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "${inputPath}"`,
       );
 
       const height = parseInt(stdout.trim(), 10);
@@ -213,7 +209,7 @@ class VideoTranscodingWorker {
   private async transcodeToHLS(
     inputPath: string,
     outputDir: string,
-    targetHeight: number
+    targetHeight: number,
   ): Promise<void> {
     const playlistPath = path.join(outputDir, "playlist.m3u8");
     const segmentPattern = path.join(outputDir, "segment-%03d.ts");
@@ -258,9 +254,7 @@ class VideoTranscodingWorker {
       totalSize += fileBuffer.length;
 
       // Определяем MIME тип
-      const contentType = file.endsWith(".m3u8")
-        ? "application/vnd.apple.mpegurl"
-        : "video/mp2t";
+      const contentType = file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : "video/mp2t";
 
       const relativePath = `${basePath}/${file}`;
 
@@ -269,7 +263,9 @@ class VideoTranscodingWorker {
       logger.info(`✅ Загружен: ${file} (${fileBuffer.length} байт)`);
     }
 
-    logger.success(`✅ Все ${files.length} HLS файлов загружены в CDN, общий размер: ${totalSize} байт`);
+    logger.success(
+      `✅ Все ${files.length} HLS файлов загружены в CDN, общий размер: ${totalSize} байт`,
+    );
     return totalSize;
   }
 

@@ -2,10 +2,7 @@
   "id": null,
   "uid": "system-metrics",
   "title": "Системные метрики",
-  "tags": [
-    "system",
-    "node-exporter"
-  ],
+  "tags": ["system", "node-exporter"],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 0,

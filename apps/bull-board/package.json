@@ -10,9 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gafus/logger": "workspace:*",
     "@bull-board/api": "^6.10.1",
     "@bull-board/express": "^6.10.1",
+    "@gafus/logger": "workspace:*",
     "@gafus/queues": "workspace:*",
     "express": "^5.1.0"
   },

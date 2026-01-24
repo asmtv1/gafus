@@ -69,11 +69,12 @@ export function HLSVideoPlayer({
     }
 
     // Проверяем HLS по расширению .m3u8, по пути /manifest (signed URL), Service Worker URL или blob URL
-    const isHLS = src.includes(".m3u8") || 
-                  (src.includes("/api/video/") && src.includes("/manifest")) ||
-                  src.startsWith("/offline-hls/") ||
-                  src.startsWith("blob:");
-    
+    const isHLS =
+      src.includes(".m3u8") ||
+      (src.includes("/api/video/") && src.includes("/manifest")) ||
+      src.startsWith("/offline-hls/") ||
+      src.startsWith("blob:");
+
     // Проверяем feature flag для HLS
     const hlsEnabled = process.env.NEXT_PUBLIC_ENABLE_HLS_PROTECTION !== "false";
 
@@ -112,7 +113,7 @@ export function HLSVideoPlayer({
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setIsLoading(false);
-          
+
           // Критично: Автозапуск сразу после готовности манифеста (если был клик пользователя)
           if (shouldLoadVideoRef.current && !hasAttemptedPlayRef.current && video) {
             hasAttemptedPlayRef.current = true;
@@ -182,7 +183,7 @@ export function HLSVideoPlayer({
         // Критично: устанавливаем src только после клика пользователя
         video.src = src;
         setIsLoading(false);
-        
+
         // Функция для попытки воспроизведения
         const tryPlaySafari = () => {
           if (shouldLoadVideoRef.current && !hasAttemptedPlayRef.current && video.paused) {
@@ -193,7 +194,7 @@ export function HLSVideoPlayer({
             });
           }
         };
-        
+
         // Обработчики для Safari
         const handleSafariLoadedMetadata = () => {
           // Проверяем readyState сразу
@@ -201,28 +202,28 @@ export function HLSVideoPlayer({
             tryPlaySafari();
           }
         };
-        
+
         const handleSafariLoadedData = () => {
           if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
             tryPlaySafari();
           }
         };
-        
+
         const handleSafariCanPlay = () => {
           if (video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
             tryPlaySafari();
           }
         };
-        
+
         video.addEventListener("loadedmetadata", handleSafariLoadedMetadata);
         video.addEventListener("loadeddata", handleSafariLoadedData);
         video.addEventListener("canplay", handleSafariCanPlay);
-        
+
         // Критично: если видео уже готово, вызываем сразу
         if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
           tryPlaySafari();
         }
-        
+
         return () => {
           video.removeEventListener("loadedmetadata", handleSafariLoadedMetadata);
           video.removeEventListener("loadeddata", handleSafariLoadedData);
@@ -271,7 +272,7 @@ export function HLSVideoPlayer({
     const handleCanPlay = () => {
       setIsBuffering(false);
       setIsLoading(false);
-      
+
       // Подстраховка: если play() еще не был вызван (например, в MANIFEST_PARSED не сработал)
       if (shouldLoadVideoRef.current && video.paused && !hasAttemptedPlayRef.current) {
         hasAttemptedPlayRef.current = true;
@@ -344,7 +345,7 @@ export function HLSVideoPlayer({
           <CircularProgress sx={{ color: "white" }} />
         </Box>
       )}
-      
+
       {/* Video элемент всегда виден, poster показывается браузером автоматически */}
       {/* Критично: preload="none" для предотвращения загрузки до клика (подстраховка) */}
       {/* Критично: playsinline для iOS - без него видео может не воспроизводиться или открыться на весь экран */}

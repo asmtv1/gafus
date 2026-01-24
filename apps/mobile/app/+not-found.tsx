@@ -15,9 +15,7 @@ export default function NotFoundScreen() {
       <Text variant="headlineMedium" style={styles.title}>
         Страница не найдена
       </Text>
-      <Text style={styles.message}>
-        Запрашиваемая страница не существует
-      </Text>
+      <Text style={styles.message}>Запрашиваемая страница не существует</Text>
       <Link href="/" asChild>
         <Button label="На главную" style={styles.button} />
       </Link>

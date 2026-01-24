@@ -18,4 +18,3 @@ const SettingsActions = () => {
 };
 
 export default memo(SettingsActions);
-

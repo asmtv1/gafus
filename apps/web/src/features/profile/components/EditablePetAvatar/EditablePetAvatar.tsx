@@ -10,7 +10,7 @@ import { useRef, useState, useEffect } from "react";
 import { Avatar, Box, IconButton, Tooltip } from "@shared/utils/muiImports";
 
 // Создаем логгер для EditablePetAvatar
-const logger = createWebLogger('web-editable-pet-avatar');
+const logger = createWebLogger("web-editable-pet-avatar");
 
 export default function EditablePetAvatar({
   petId,
@@ -58,8 +58,8 @@ export default function EditablePetAvatar({
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error("Unknown error");
       logger.error("Ошибка при сохранении avatar питомца", errorObj, {
-        operation: 'save_pet_avatar_error',
-        petId: petId
+        operation: "save_pet_avatar_error",
+        petId: petId,
       });
       setError(errorObj);
     }

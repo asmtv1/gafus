@@ -9,15 +9,15 @@ import {
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { Readable } from "stream";
 
-const logger = createTrainerPanelLogger('cdn-upload');
+const logger = createTrainerPanelLogger("cdn-upload");
 
 // Функция для очистки имени файла от недопустимых символов
 function sanitizeFileName(fileName: string): string {
   // Убираем недопустимые символы для HTTP заголовков
   // Разрешены только: A-Z, a-z, 0-9, дефис, подчеркивание, точка
   return fileName
-    .replace(/[^a-zA-Z0-9\-_.]/g, '_') // Заменяем недопустимые символы на подчеркивание
-    .replace(/_{2,}/g, '_') // Убираем множественные подчеркивания
+    .replace(/[^a-zA-Z0-9\-_.]/g, "_") // Заменяем недопустимые символы на подчеркивание
+    .replace(/_{2,}/g, "_") // Убираем множественные подчеркивания
     .substring(0, 100); // Ограничиваем длину
 }
 
@@ -35,7 +35,6 @@ export async function uploadFileToCDN(file: File, relativePath: string): Promise
   try {
     const bucketName = "gafus-media";
     const key = `uploads/${relativePath}`;
-
 
     // Конвертируем File в Buffer
     const arrayBuffer = await file.arrayBuffer();
@@ -85,7 +84,7 @@ async function uploadWithRetry(command: PutObjectCommand, maxRetries: number): P
       if (attempt < maxRetries) {
         // Экспоненциальная задержка: 1s, 2s, 4s
         const delay = Math.pow(2, attempt - 1) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
@@ -101,12 +100,12 @@ async function uploadWithRetry(command: PutObjectCommand, maxRetries: number): P
 export async function downloadFileFromCDN(relativePath: string): Promise<Buffer> {
   try {
     const bucketName = "gafus-media";
-    
+
     // Убираем ведущий слеш если есть
-    let key = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-    
+    let key = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+
     // Если путь не начинается с uploads/, добавляем его
-    if (!key.startsWith('uploads/')) {
+    if (!key.startsWith("uploads/")) {
       key = `uploads/${key}`;
     }
 
@@ -126,14 +125,14 @@ export async function downloadFileFromCDN(relativePath: string): Promise<Buffer>
     // Конвертируем stream в Buffer
     const stream = response.Body as Readable;
     const chunks: Buffer[] = [];
-    
+
     for await (const chunk of stream) {
       chunks.push(Buffer.from(chunk));
     }
-    
+
     const buffer = Buffer.concat(chunks);
     logger.info(`✅ Файл скачан из CDN: ${key}, размер: ${buffer.length} байт`);
-    
+
     return buffer;
   } catch (error) {
     logger.error(`❌ Ошибка скачивания из CDN: ${error}`);
@@ -153,12 +152,12 @@ export async function streamFileFromCDN(relativePath: string): Promise<{
 }> {
   try {
     const bucketName = "gafus-media";
-    
+
     // Убираем ведущий слеш если есть
-    let key = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-    
+    let key = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+
     // Если путь не начинается с uploads/, добавляем его
-    if (!key.startsWith('uploads/')) {
+    if (!key.startsWith("uploads/")) {
       key = `uploads/${key}`;
     }
 
@@ -199,12 +198,12 @@ export async function streamFileFromCDN(relativePath: string): Promise<{
 export async function deleteFileFromCDN(relativePath: string): Promise<void> {
   try {
     const bucketName = "gafus-media";
-    
+
     // Убираем ведущий слеш если есть
-    let key = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-    
+    let key = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+
     // Если путь не начинается с uploads/, добавляем его
-    if (!key.startsWith('uploads/')) {
+    if (!key.startsWith("uploads/")) {
       key = `uploads/${key}`;
     }
 
@@ -232,18 +231,18 @@ export async function deleteFileFromCDN(relativePath: string): Promise<void> {
 export async function deleteFolderFromCDN(folderPath: string): Promise<number> {
   try {
     const bucketName = "gafus-media";
-    
+
     // Убираем ведущий слеш если есть
-    let prefix = folderPath.startsWith('/') ? folderPath.substring(1) : folderPath;
-    
+    let prefix = folderPath.startsWith("/") ? folderPath.substring(1) : folderPath;
+
     // Если путь не начинается с uploads/, добавляем его
-    if (!prefix.startsWith('uploads/')) {
+    if (!prefix.startsWith("uploads/")) {
       prefix = `uploads/${prefix}`;
     }
-    
+
     // Убеждаемся, что путь заканчивается на /
-    if (!prefix.endsWith('/')) {
-      prefix += '/';
+    if (!prefix.endsWith("/")) {
+      prefix += "/";
     }
 
     logger.info(`🗑️ Удаляем папку из CDN: ${prefix}`);
@@ -266,20 +265,22 @@ export async function deleteFolderFromCDN(folderPath: string): Promise<number> {
         const deleteCommand = new DeleteObjectsCommand({
           Bucket: bucketName,
           Delete: {
-            Objects: listResponse.Contents.map(obj => ({ Key: obj.Key! })),
+            Objects: listResponse.Contents.map((obj) => ({ Key: obj.Key! })),
             Quiet: false,
           },
         });
 
         const deleteResponse = await s3Client.send(deleteCommand);
-        
+
         const deleted = deleteResponse.Deleted?.length || 0;
         deletedCount += deleted;
-        
+
         logger.info(`🗑️ Удалено ${deleted} файлов из ${prefix}`);
-        
+
         if (deleteResponse.Errors && deleteResponse.Errors.length > 0) {
-          logger.warn(`⚠️ Ошибки при удалении некоторых файлов: ${JSON.stringify(deleteResponse.Errors)}`);
+          logger.warn(
+            `⚠️ Ошибки при удалении некоторых файлов: ${JSON.stringify(deleteResponse.Errors)}`,
+          );
         }
       }
 
@@ -287,7 +288,7 @@ export async function deleteFolderFromCDN(folderPath: string): Promise<number> {
     } while (continuationToken);
 
     logger.info(`✅ Папка удалена из CDN: ${prefix}, всего удалено ${deletedCount} файлов`);
-    
+
     return deletedCount;
   } catch (error) {
     logger.error(`❌ Ошибка удаления папки из CDN: ${error}`);
@@ -305,13 +306,13 @@ export async function deleteFolderFromCDN(folderPath: string): Promise<number> {
 export async function uploadBufferToCDN(
   buffer: Buffer,
   relativePath: string,
-  contentType: string = "application/octet-stream"
+  contentType: string = "application/octet-stream",
 ): Promise<string> {
   try {
     const bucketName = "gafus-media";
-    
-    let key = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-    if (!key.startsWith('uploads/')) {
+
+    let key = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+    if (!key.startsWith("uploads/")) {
       key = `uploads/${key}`;
     }
 

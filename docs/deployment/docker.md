@@ -7,6 +7,7 @@
 ## 🐳 Структура Docker
 
 ### Основные контейнеры
+
 ```
 gafus/
 ├── ci-cd/docker/           # Docker файлы
@@ -35,6 +36,7 @@ Standalone mode управляется следующими переменным
 - **`DISABLE_STANDALONE=true`** - явно отключает standalone mode
 
 **Использование:**
+
 - **Production builds**: `NODE_ENV=production pnpm build` (standalone включен)
 - **Docker builds**: `USE_STANDALONE=true` устанавливается в Dockerfiles
 - **Dev builds**: `pnpm dev` (standalone отключен)
@@ -45,8 +47,8 @@ Standalone mode управляется следующими переменным
 ```typescript
 const nextConfig: NextConfig = {
   // Включаем standalone режим для production (кроме явного отключения)
-  ...((process.env.NODE_ENV === 'production' || process.env.USE_STANDALONE === 'true') && 
-      process.env.DISABLE_STANDALONE !== 'true' && { output: 'standalone' }),
+  ...((process.env.NODE_ENV === "production" || process.env.USE_STANDALONE === "true") &&
+    process.env.DISABLE_STANDALONE !== "true" && { output: "standalone" }),
   // ... остальная конфигурация
 };
 ```
@@ -54,6 +56,7 @@ const nextConfig: NextConfig = {
 ## 🔧 Dockerfile для приложений
 
 ### Web App Dockerfile
+
 ```dockerfile
 # ci-cd/docker/Dockerfile-web-optimized
 FROM node:18-alpine AS base
@@ -110,6 +113,7 @@ CMD ["node", "apps/web/server.js"]
 ```
 
 ### Trainer Panel Dockerfile
+
 ```dockerfile
 # ci-cd/docker/Dockerfile-trainer-panel-optimized
 FROM node:18-alpine AS base
@@ -157,6 +161,7 @@ CMD ["node", "apps/trainer-panel/server.js"]
 ```
 
 ### Error Dashboard Dockerfile
+
 ```dockerfile
 # ci-cd/docker/Dockerfile-error-dashboard-optimized
 FROM node:18-alpine AS base
@@ -204,6 +209,7 @@ CMD ["node", "apps/error-dashboard/server.js"]
 ```
 
 ### Telegram Bot Dockerfile
+
 ```dockerfile
 # ci-cd/docker/Dockerfile-telegram-bot-optimized
 FROM node:18-alpine AS base
@@ -246,6 +252,7 @@ CMD ["node", "apps/telegram-bot/dist/bot.js"]
 ```
 
 ### Worker Dockerfile
+
 ```dockerfile
 # ci-cd/docker/Dockerfile-worker-optimized
 FROM node:18-alpine AS base
@@ -286,6 +293,7 @@ CMD ["node", "packages/worker/dist/index.js"]
 ```
 
 ### Bull Board Dockerfile
+
 ```dockerfile
 # ci-cd/docker/Dockerfile-bull-board-optimized
 FROM node:18-alpine AS base
@@ -330,9 +338,10 @@ CMD ["node", "apps/bull-board/dist/bull-board.js"]
 ## 🚀 Docker Compose
 
 ### Production Compose
+
 ```yaml
 # ci-cd/docker/docker-compose.prod.yml
-version: '3.8'
+version: "3.8"
 
 services:
   # База данных
@@ -530,9 +539,10 @@ networks:
 ```
 
 ### Development Compose
+
 ```yaml
 # docker-compose.dev.yml
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
@@ -561,6 +571,7 @@ volumes:
 ## 🔧 Nginx конфигурация
 
 ### Основной конфиг
+
 ```nginx
 # ci-cd/nginx/nginx.conf
 user nginx;
@@ -626,6 +637,7 @@ http {
 ```
 
 ### Конфигурация для Web App
+
 ```nginx
 # ci-cd/nginx/conf.d/web.conf
 server {
@@ -676,6 +688,7 @@ server {
 ```
 
 ### Конфигурация для Trainer Panel
+
 ```nginx
 # ci-cd/nginx/conf.d/trainer-panel.conf
 server {
@@ -704,6 +717,7 @@ server {
 ## 🚀 Развертывание
 
 ### Команды развертывания
+
 ```bash
 # Сборка всех образов
 docker-compose -f ci-cd/docker/docker-compose.prod.yml build
@@ -726,6 +740,7 @@ docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d
 ```
 
 ### Health Checks
+
 ```bash
 # Проверка состояния всех сервисов
 docker-compose -f ci-cd/docker/docker-compose.prod.yml ps
@@ -747,6 +762,7 @@ curl -f http://localhost:3002/api/health
 ### Логирование
 
 #### Docker Compose логи
+
 ```bash
 # Просмотр логов конкретного сервиса
 docker-compose logs -f web
@@ -765,14 +781,17 @@ docker-compose logs > logs.txt
 Vector собирает логи из всех Docker контейнеров и отправляет их в Seq для централизованного хранения и анализа.
 
 **Доступ к Seq:**
+
 - URL: `http://localhost:5341` (или через nginx: `https://seq.gafus.ru`)
 - Логи автоматически собираются и отправляются в Seq
 
 **Настройка дашбордов в Seq:**
+
 - См. [документацию по Seq дашбордам](./seq-dashboards.md)
 - Используйте скрипт для автоматической настройки: `node scripts/setup-seq-dashboards.js`
 
 **Проверка работы Vector:**
+
 ```bash
 # Проверка статуса Vector
 docker ps | grep vector
@@ -785,6 +804,7 @@ docker logs gafus-vector | grep -i seq
 ```
 
 ### Метрики
+
 ```bash
 # Использование ресурсов
 docker stats
@@ -798,4 +818,4 @@ docker system prune -a
 
 ---
 
-*Docker обеспечивает надежное и масштабируемое развертывание всей экосистемы GAFUS.*
+_Docker обеспечивает надежное и масштабируемое развертывание всей экосистемы GAFUS._

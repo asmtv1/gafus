@@ -17,9 +17,7 @@ export async function getVisibleSteps() {
   const { id: userId, role } = user;
   const isAdminOrModerator = ["ADMIN", "MODERATOR"].includes(role);
 
-  const where = isAdminOrModerator
-    ? undefined
-    : { authorId: userId };
+  const where = isAdminOrModerator ? undefined : { authorId: userId };
 
   return prisma.step.findMany({
     where,

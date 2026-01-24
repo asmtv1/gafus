@@ -7,6 +7,7 @@
 ## Текущий статус реализации
 
 ### Реализовано (v1.3.0)
+
 - [x] Конфигурация проекта (package.json, tsconfig.json, app.json)
 - [x] MMKV Storage адаптер для Zustand
 - [x] API клиент с авторизацией
@@ -34,6 +35,7 @@
 - [x] **Календарь тренировок** (TrainingCalendar)
 
 ### В планах
+
 - [ ] Офлайн режим (скачивание курсов, WatermelonDB)
 - [ ] Загрузка аватара пользователя
 - [ ] Загрузка фото питомца
@@ -129,45 +131,46 @@ Mobile App ──HTTP/HTTPS──► API Routes (/api/v1/*) ──► Prisma ─
 
 ### Core
 
-| Технология | Версия | Назначение |
-|------------|--------|------------|
-| React Native | 0.76+ | Фреймворк |
-| Expo | SDK 52+ | Инфраструктура и нативные модули |
-| TypeScript | 5.8+ | Типизация |
+| Технология   | Версия  | Назначение                       |
+| ------------ | ------- | -------------------------------- |
+| React Native | 0.76+   | Фреймворк                        |
+| Expo         | SDK 52+ | Инфраструктура и нативные модули |
+| TypeScript   | 5.8+    | Типизация                        |
 
 ### State & Data
 
-| Технология | Назначение |
-|------------|------------|
-| Zustand | Глобальное состояние (как в web) |
-| TanStack Query (React Query) | Кэширование API запросов |
-| MMKV | Быстрое key-value хранилище |
-| WatermelonDB или SQLite | Офлайн база данных |
+| Технология                   | Назначение                       |
+| ---------------------------- | -------------------------------- |
+| Zustand                      | Глобальное состояние (как в web) |
+| TanStack Query (React Query) | Кэширование API запросов         |
+| MMKV                         | Быстрое key-value хранилище      |
+| WatermelonDB или SQLite      | Офлайн база данных               |
 
 ### UI
 
-| Технология | Назначение |
-|------------|------------|
-| React Native Paper | Material Design компоненты |
-| React Navigation | Навигация |
-| React Native Reanimated | Анимации |
-| React Native Gesture Handler | Жесты |
+| Технология                   | Назначение                 |
+| ---------------------------- | -------------------------- |
+| React Native Paper           | Material Design компоненты |
+| React Navigation             | Навигация                  |
+| React Native Reanimated      | Анимации                   |
+| React Native Gesture Handler | Жесты                      |
 
 ### Native Features
 
-| Технология | Назначение |
-|------------|------------|
-| expo-notifications | Push уведомления |
-| expo-av | Видео плеер |
-| expo-haptics | Тактильная обратная связь |
-| expo-file-system | Работа с файлами |
-| expo-secure-store | Безопасное хранение |
+| Технология         | Назначение                |
+| ------------------ | ------------------------- |
+| expo-notifications | Push уведомления          |
+| expo-av            | Видео плеер               |
+| expo-haptics       | Тактильная обратная связь |
+| expo-file-system   | Работа с файлами          |
+| expo-secure-store  | Безопасное хранение       |
 
 ### Выбор: Expo vs React Native CLI
 
 **Рекомендация: Expo (Managed Workflow)**
 
 Причины:
+
 1. Expo SDK 52+ поддерживает все нужные нативные модули
 2. EAS Build для сборки под iOS/Android без локальных зависимостей
 3. OTA обновления для быстрых исправлений
@@ -291,14 +294,14 @@ apps/mobile/
 
 ```typescript
 // Импорт типов напрямую из пакета
-import type { 
-  User, 
-  Pet, 
-  Course, 
+import type {
+  User,
+  Pet,
+  Course,
   TrainingStatus,
   UserStep,
   ApiResponse,
-  PaginatedResponse
+  PaginatedResponse,
 } from "@gafus/types";
 
 // Пример использования
@@ -312,6 +315,7 @@ const [user, setUser] = useState<User | null>(null);
 Stores из web используют Zustand, который работает в React Native. Но нужна адаптация:
 
 **Web версия (`apps/web/src/shared/stores/trainingStore.ts`):**
+
 ```typescript
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -323,12 +327,13 @@ export const useTrainingStore = create<TrainingStore>()(
     }),
     {
       name: "training-storage", // localStorage в web
-    }
-  )
+    },
+  ),
 );
 ```
 
 **Mobile версия (`apps/mobile/src/shared/stores/trainingStore.ts`):**
+
 ```typescript
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -358,8 +363,8 @@ export const useTrainingStore = create<TrainingStore>()(
     {
       name: "training-storage",
       storage: createJSONStorage(() => mmkvStorage), // MMKV вместо localStorage
-    }
-  )
+    },
+  ),
 );
 ```
 
@@ -387,30 +392,30 @@ const loginSchema = z.object({
 
 ### Что НЕ переиспользуем (создаём заново)
 
-| Категория | Причина |
-|-----------|---------|
-| UI компоненты | React Native использует View/Text вместо div/span |
-| Навигация | React Navigation вместо Next.js App Router |
-| Server Actions | Заменяем на API запросы |
-| CSS Modules | Заменяем на StyleSheet или React Native Paper |
-| next/image | Заменяем на expo-image |
-| Service Worker | Нет в RN, используем нативный офлайн |
-| localStorage | Заменяем на MMKV |
-| IndexedDB | Заменяем на SQLite/WatermelonDB |
+| Категория      | Причина                                           |
+| -------------- | ------------------------------------------------- |
+| UI компоненты  | React Native использует View/Text вместо div/span |
+| Навигация      | React Navigation вместо Next.js App Router        |
+| Server Actions | Заменяем на API запросы                           |
+| CSS Modules    | Заменяем на StyleSheet или React Native Paper     |
+| next/image     | Заменяем на expo-image                            |
+| Service Worker | Нет в RN, используем нативный офлайн              |
+| localStorage   | Заменяем на MMKV                                  |
+| IndexedDB      | Заменяем на SQLite/WatermelonDB                   |
 
 ### Таблица соответствия web → mobile
 
-| Web | Mobile |
-|-----|--------|
-| `<Link href="/path">` | `<Link href="/path">` (Expo Router) |
-| `useRouter()` | `useRouter()` (Expo Router) |
-| `localStorage` | `MMKV` |
-| `IndexedDB` | `WatermelonDB` / `SQLite` |
-| `fetch()` | `fetch()` (работает) |
-| `Image` (next/image) | `Image` (expo-image) |
-| CSS Modules | `StyleSheet.create()` |
-| `window.navigator.vibrate()` | `Haptics.impactAsync()` |
-| Service Worker cache | File System cache |
+| Web                          | Mobile                              |
+| ---------------------------- | ----------------------------------- |
+| `<Link href="/path">`        | `<Link href="/path">` (Expo Router) |
+| `useRouter()`                | `useRouter()` (Expo Router)         |
+| `localStorage`               | `MMKV`                              |
+| `IndexedDB`                  | `WatermelonDB` / `SQLite`           |
+| `fetch()`                    | `fetch()` (работает)                |
+| `Image` (next/image)         | `Image` (expo-image)                |
+| CSS Modules                  | `StyleSheet.create()`               |
+| `window.navigator.vibrate()` | `Haptics.impactAsync()`             |
+| Service Worker cache         | File System cache                   |
 
 ---
 
@@ -438,7 +443,7 @@ interface ApiResponse<T> {
 
 export async function apiClient<T>(
   endpoint: string,
-  options: ApiClientOptions = {}
+  options: ApiClientOptions = {},
 ): Promise<ApiResponse<T>> {
   const { method = "GET", body, headers = {} } = options;
 
@@ -571,11 +576,7 @@ export const trainingApi = {
   },
 
   // POST /api/v1/training/step/resume
-  resumeStep: async (data: {
-    courseId: string;
-    dayOnCourseId: string;
-    stepIndex: number;
-  }) => {
+  resumeStep: async (data: { courseId: string; dayOnCourseId: string; stepIndex: number }) => {
     return apiClient("/api/v1/training/step/resume", {
       method: "POST",
       body: data,
@@ -674,14 +675,14 @@ export type TrainingStackParamList = {
 
 ```typescript
 // Используем типы из @gafus/types напрямую
-import type { 
-  ApiResponse, 
-  User, 
-  Course, 
+import type {
+  ApiResponse,
+  User,
+  Course,
   TrainingDay,
   UserStep,
   Pet,
-  ExamResult 
+  ExamResult,
 } from "@gafus/types";
 
 // Для специфичных mobile типов создаём расширения
@@ -725,11 +726,11 @@ interface TrainingStore extends TrainingStoreState {
   // Геттеры
   getOpenIndex: (courseId: string, dayOnCourseId: string) => number | null;
   getRunningIndex: (courseId: string, dayOnCourseId: string) => number | null;
-  
+
   // Сеттеры
   setOpenIndex: (courseId: string, dayOnCourseId: string, index: number | null) => void;
   setRunningIndex: (courseId: string, dayOnCourseId: string, index: number | null) => void;
-  
+
   // Кэширование
   getCachedTrainingDays: (courseType: string) => { data: unknown; isExpired: boolean };
   setCachedTrainingDays: (courseType: string, data: unknown) => void;
@@ -812,8 +813,8 @@ export const useTrainingStore = create<TrainingStore>()(
         runningSteps: state.runningSteps,
         cachedTrainingDays: state.cachedTrainingDays,
       }),
-    }
-  )
+    },
+  ),
 );
 ```
 
@@ -952,6 +953,7 @@ npx expo install react-native-paper react-native-safe-area-context
 ### Пример: Карточка курса
 
 **Web версия (`CourseCard.tsx`):**
+
 ```tsx
 <div className={styles.card}>
   <Image src={course.logoImg} alt={course.name} />
@@ -961,6 +963,7 @@ npx expo install react-native-paper react-native-safe-area-context
 ```
 
 **Mobile версия:**
+
 ```tsx
 // src/features/courses/components/CourseCard.tsx
 import { View, StyleSheet } from "react-native";
@@ -1064,11 +1067,7 @@ export function TrainingDayList({ courseType }: TrainingDayListProps) {
               <Badge style={styles.badge}>{item.estimatedDuration} мин</Badge>
             ) : null
           }
-          style={[
-            styles.item,
-            isCompleted && styles.completed,
-            isInProgress && styles.inProgress,
-          ]}
+          style={[styles.item, isCompleted && styles.completed, isInProgress && styles.inProgress]}
         />
       </Link>
     );
@@ -1268,7 +1267,7 @@ import { offlineApi } from "@/shared/lib/api/offline";
 export async function downloadCourseForOffline(courseType: string) {
   // 1. Получаем данные курса с сервера
   const response = await offlineApi.downloadCourse(courseType);
-  
+
   if (!response.success || !response.data) {
     throw new Error(response.error || "Ошибка загрузки курса");
   }
@@ -1477,7 +1476,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const data = response.notification.request.content.data;
-        
+
         // Навигация по URL из уведомления
         if (data?.url) {
           router.push(data.url as string);
@@ -1509,7 +1508,12 @@ import Expo from "expo-server-sdk";
 
 const expo = new Expo();
 
-async function sendPushNotification(expoPushToken: string, title: string, body: string, url?: string) {
+async function sendPushNotification(
+  expoPushToken: string,
+  title: string,
+  body: string,
+  url?: string,
+) {
   if (!Expo.isExpoPushToken(expoPushToken)) {
     throw new Error("Invalid Expo Push Token");
   }
@@ -1879,8 +1883,8 @@ export const useAuthStore = create<AuthStore>()(
       name: "auth-storage",
       storage: createJSONStorage(() => mmkvStorage),
       partialize: (state) => ({ user: state.user }), // Токен НЕ в persist
-    }
-  )
+    },
+  ),
 );
 ```
 
@@ -1988,7 +1992,7 @@ const loginSchema = z.object({
 // В компоненте
 const handleLogin = async (data: unknown) => {
   const result = loginSchema.safeParse(data);
-  
+
   if (!result.success) {
     // Показываем ошибки валидации
     return;
@@ -2367,7 +2371,10 @@ const styles = StyleSheet.create({
 
 ```typescript
 // Централизованная обработка
-export async function apiClient<T>(endpoint: string, options?: ApiClientOptions): Promise<ApiResponse<T>> {
+export async function apiClient<T>(
+  endpoint: string,
+  options?: ApiClientOptions,
+): Promise<ApiResponse<T>> {
   try {
     const response = await fetch(url, config);
     // ...

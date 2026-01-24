@@ -12,14 +12,14 @@ import type {
   PresentationEventType,
 } from "@gafus/core/services/tracking";
 
-const logger = createWebLogger('tracking-actions');
+const logger = createWebLogger("tracking-actions");
 
 /**
  * Отслеживает просмотр presentation.html
  */
 export async function trackPresentationViewAction(
   data: TrackPresentationViewData,
-  eventType: PresentationEventType = "view"
+  eventType: PresentationEventType = "view",
 ) {
   return trackingService.trackPresentationView(data, eventType);
 }
@@ -27,9 +27,7 @@ export async function trackPresentationViewAction(
 /**
  * Отслеживает событие на presentation.html
  */
-export async function trackPresentationEventAction(
-  data: TrackPresentationEventData
-) {
+export async function trackPresentationEventAction(data: TrackPresentationEventData) {
   return trackingService.trackPresentationEvent(data);
 }
 

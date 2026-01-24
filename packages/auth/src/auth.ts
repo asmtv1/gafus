@@ -7,7 +7,8 @@ import type { AuthUser } from "./next-auth.d";
 
 // Импортируем CredentialsProvider напрямую
 
-const isProd = process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL?.includes("https://");
+const isProd =
+  process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL?.includes("https://");
 const cookieDomain = process.env.AUTH_COOKIE_DOMAIN?.trim() || undefined;
 
 const sessionStrategy = "jwt" as const;
@@ -66,10 +67,10 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         const t = token as any;
         const userId = String(t.id ?? "");
-        
+
         session.user.id = userId;
         session.user.username = String(t.username ?? "");
-        
+
         // Получаем актуальную роль из БД для синхронизации с изменениями в admin-panel
         // Используем роль из токена как fallback в случае ошибки
         try {
@@ -77,7 +78,7 @@ export const authOptions: NextAuthOptions = {
             where: { id: userId },
             select: { role: true },
           });
-          
+
           session.user.role = (user?.role as any) ?? t.role;
         } catch (error) {
           session.user.role = t.role as any;

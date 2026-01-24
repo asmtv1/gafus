@@ -5,4 +5,3 @@ export async function GET() {
   const csrfToken = await generateCSRFToken();
   return NextResponse.json({ token: csrfToken });
 }
-

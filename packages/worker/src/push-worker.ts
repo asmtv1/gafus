@@ -15,8 +15,8 @@ interface PushSubscriptionJSON {
   };
 }
 // Создаем логгеры для разных компонентов
-const notificationLogger = createWorkerLogger('notification-processor');
-const workerLogger = createWorkerLogger('push-worker');
+const notificationLogger = createWorkerLogger("notification-processor");
+const workerLogger = createWorkerLogger("push-worker");
 
 // Конфигурация
 const config = {
@@ -32,18 +32,18 @@ const config = {
 } as const;
 
 // Типы уведомлений (Discriminated Union)
-type NotificationType = 'step' | 'immediate';
+type NotificationType = "step" | "immediate";
 
 // Интерфейсы для типобезопасности
 interface StepNotificationData {
-  type: 'step';
+  type: "step";
   stepTitle: string;
   stepIndex: number;
   url?: string;
 }
 
 interface ImmediateNotificationData {
-  type: 'immediate';
+  type: "immediate";
   title: string;
   body: string;
   url?: string;
@@ -53,10 +53,10 @@ type NotificationData = StepNotificationData | ImmediateNotificationData;
 
 // Константы для форматирования
 const NOTIFICATION_FORMAT = {
-  SEPARATOR: '|' as const,
-  DEFAULT_ICON: '/icons/icon192.png' as const,
-  DEFAULT_BADGE: '/icons/badge-72.png' as const,
-  DEFAULT_URL: '/' as const,
+  SEPARATOR: "|" as const,
+  DEFAULT_ICON: "/icons/icon192.png" as const,
+  DEFAULT_BADGE: "/icons/badge-72.png" as const,
+  DEFAULT_URL: "/" as const,
 } as const;
 
 // Инициализация PushNotificationService
@@ -140,9 +140,9 @@ class NotificationProcessor {
         where: { userId },
       });
 
-      this.logger.info("Found subscriptions", { 
-        userId, 
-        count: subscriptions.length 
+      this.logger.info("Found subscriptions", {
+        userId,
+        count: subscriptions.length,
       });
 
       return subscriptions;
@@ -161,25 +161,25 @@ class NotificationProcessor {
     stepIndex: number;
     url?: string | null;
   }): NotificationData {
-    if (notification.type === 'immediate') {
+    if (notification.type === "immediate") {
       // Для немедленных уведомлений stepTitle содержит "title|body"
-      const stepTitle = notification.stepTitle || 'Уведомление|Проверьте детали';
+      const stepTitle = notification.stepTitle || "Уведомление|Проверьте детали";
       const separator = NOTIFICATION_FORMAT.SEPARATOR;
-      
+
       let title: string;
       let body: string;
-      
+
       if (stepTitle.includes(separator)) {
         const parts = stepTitle.split(separator, 2);
-        title = parts[0] || 'Уведомление';
-        body = parts[1] || 'Проверьте детали';
+        title = parts[0] || "Уведомление";
+        body = parts[1] || "Проверьте детали";
       } else {
         title = stepTitle;
-        body = 'Проверьте детали';
+        body = "Проверьте детали";
       }
-      
+
       return {
-        type: 'immediate',
+        type: "immediate",
         title: title.trim(),
         body: body.trim(),
         url: notification.url || undefined,
@@ -189,10 +189,8 @@ class NotificationProcessor {
       // Строгая проверка stepTitle: проверяем на null, undefined и пустую строку
       const rawStepTitle = notification.stepTitle;
       const hasStepTitle = rawStepTitle != null && rawStepTitle.trim().length > 0;
-      const stepTitle = hasStepTitle 
-        ? rawStepTitle.trim() 
-        : `Шаг ${notification.stepIndex + 1}`;
-      
+      const stepTitle = hasStepTitle ? rawStepTitle.trim() : `Шаг ${notification.stepIndex + 1}`;
+
       // Логируем, если stepTitle отсутствует
       if (!hasStepTitle) {
         this.logger.warn("StepTitle отсутствует в уведомлении, используется fallback", {
@@ -200,9 +198,9 @@ class NotificationProcessor {
           stepTitleValue: rawStepTitle,
         });
       }
-      
+
       return {
-        type: 'step',
+        type: "step",
         stepTitle,
         stepIndex: notification.stepIndex,
         url: notification.url || undefined,
@@ -212,7 +210,7 @@ class NotificationProcessor {
 
   private createNotificationPayload(notification: NotificationData): string {
     // TypeScript автоматически сузит типы благодаря Discriminated Union
-    if (notification.type === 'immediate') {
+    if (notification.type === "immediate") {
       return this.createImmediateNotificationPayload(notification);
     } else {
       return this.createStepNotificationPayload(notification);
@@ -250,7 +248,6 @@ class NotificationProcessor {
       },
     });
   }
-
 
   private async sendNotifications(
     subscriptions: PushSubscription[],
@@ -428,7 +425,7 @@ class PushWorker {
 }
 
 // Запуск worker'а
-const startupLogger = createWorkerLogger('startup');
+const startupLogger = createWorkerLogger("startup");
 startupLogger.info("Starting push-worker process...");
 
 try {

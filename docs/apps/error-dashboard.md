@@ -7,30 +7,35 @@ Error Dashboard - это система мониторинга ошибок и �
 ## 🎯 Основные функции
 
 ### Мониторинг ошибок
+
 - **🔍 Централизованный сбор** ошибок из всех приложений
 - **📊 Анализ и группировка** ошибок по типам и частоте
 - **🚨 Алертинг** при критических ошибках
 - **📈 Статистика** и тренды ошибок
 
 ### Управление ошибками
+
 - **✅ Отметка как решенные** ошибки
 - **🏷️ Тегирование** ошибок для категоризации
 - **👤 Назначение** ошибок разработчикам
 - **📝 Комментарии** и заметки по ошибкам
 
 ### Аналитика
+
 - **📊 Дашборд** с ключевыми метриками
 - **📈 Графики** частоты ошибок
 - **🔍 Фильтрация** и поиск ошибок
 - **📤 Экспорт** данных для анализа
 
 ### Мониторинг системы
+
 - **🖥️ Статус всех сервисов** (web, trainer-panel, admin-panel, bull-board)
 - **💾 Состояние баз данных** (PostgreSQL, Redis)
 - **📊 Системные метрики** (CPU, Memory, Uptime)
 - **⚡ Real-time обновление** статуса каждые 30 секунд
 
 ### Управление очередями
+
 - **📊 Статистика всех очередей** (push, reengagement, examCleanup)
 - **🔍 Мониторинг задач** (waiting, active, completed, failed, delayed)
 - **⚠️ Быстрый доступ** к проблемным задачам
@@ -40,6 +45,7 @@ Error Dashboard - это система мониторинга ошибок и �
 ## 🏗️ Архитектура
 
 ### Структура приложения
+
 ```
 apps/error-dashboard/
 ├── src/
@@ -75,6 +81,7 @@ apps/error-dashboard/
 ```
 
 ### API Endpoints
+
 ```typescript
 // API структура
 app/api/
@@ -102,18 +109,21 @@ app/api/
 ### Основные страницы
 
 #### Dashboard (Главная)
+
 - Общая статистика ошибок
 - Топ ошибок по частоте
 - Статус всех приложений
 - Последние критические ошибки
 
 #### Список ошибок
+
 - Таблица всех ошибок с фильтрацией
 - Группировка по типам и приложениям
 - Статусы (новые, в работе, решенные)
 - Поиск и сортировка
 
 #### Детали ошибки
+
 - Полная информация об ошибке
 - Stack trace и контекст
 - История изменений статуса
@@ -121,6 +131,7 @@ app/api/
 - Показывает полный `additionalContext` включая `pushSpecific` для push-уведомлений
 
 #### Статус системы
+
 - Мониторинг всех сервисов в реальном времени
 - Состояние PostgreSQL и Redis
 - Использование CPU и памяти
@@ -128,6 +139,7 @@ app/api/
 - Автоматическое обновление каждые 30 секунд
 
 #### Управление очередями
+
 - Статистика всех очередей (push, reengagement, examCleanup)
 - Мониторинг задач по статусам
 - Список проблемных задач с деталями
@@ -138,6 +150,7 @@ app/api/
 ### Компоненты интерфейса
 
 #### Фильтры ошибок
+
 ```typescript
 import { useErrorFilters } from '@/shared/hooks/useErrorFilters';
 
@@ -179,6 +192,7 @@ function ErrorFilters() {
 ```
 
 #### Статистика ошибок
+
 ```typescript
 function ErrorStats() {
   const { data: stats } = useErrorStats();
@@ -217,20 +231,21 @@ function ErrorStats() {
 ## 🔧 Технические особенности
 
 ### Сбор ошибок
+
 ```typescript
 // API endpoint для получения отчетов об ошибках
 // app/api/report/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@gafus/prisma';
-import { logger } from '@gafus/logger';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@gafus/prisma";
+import { logger } from "@gafus/logger";
 
 export async function POST(request: NextRequest) {
   try {
     const errorData = await request.json();
-    
+
     // Валидация данных
     const validatedData = validateErrorReport(errorData);
-    
+
     // Сохранение в базу данных
     const errorReport = await prisma.errorReport.create({
       data: {
@@ -244,75 +259,76 @@ export async function POST(request: NextRequest) {
         sessionId: validatedData.sessionId,
         componentStack: validatedData.componentStack,
         additionalContext: validatedData.additionalContext,
-        tags: validatedData.tags || []
-      }
+        tags: validatedData.tags || [],
+      },
     });
 
-    logger.info('Error report received', {
+    logger.info("Error report received", {
       errorId: errorReport.id,
       appName: validatedData.appName,
-      message: validatedData.message
+      message: validatedData.message,
     });
 
     return NextResponse.json({ success: true, errorId: errorReport.id });
-    
   } catch (error) {
-    logger.error('Failed to process error report', { error: error.message });
+    logger.error("Failed to process error report", { error: error.message });
     return NextResponse.json(
-      { success: false, error: 'Failed to process error report' },
-      { status: 500 }
+      { success: false, error: "Failed to process error report" },
+      { status: 500 },
     );
   }
 }
 ```
 
 ### Фильтрация и поиск
+
 ```typescript
 // Хук для фильтрации ошибок
 export function useErrorFilters() {
   const [filters, setFilters] = useState({
-    appName: '',
-    environment: '',
-    status: 'unresolved',
-    dateRange: '7d',
-    search: ''
+    appName: "",
+    environment: "",
+    status: "unresolved",
+    dateRange: "7d",
+    search: "",
   });
 
   const { data: errors, isLoading } = useQuery({
-    queryKey: ['errors', filters],
-    queryFn: () => fetchErrors(filters)
+    queryKey: ["errors", filters],
+    queryFn: () => fetchErrors(filters),
   });
 
   return {
     filters,
     setFilters,
     errors,
-    isLoading
+    isLoading,
   };
 }
 
 // Функция получения ошибок с фильтрацией
 async function fetchErrors(filters: ErrorFilters) {
   const params = new URLSearchParams();
-  
-  if (filters.appName) params.append('appName', filters.appName);
-  if (filters.environment) params.append('environment', filters.environment);
-  if (filters.status) params.append('resolved', filters.status === 'resolved' ? 'true' : 'false');
-  if (filters.search) params.append('search', filters.search);
-  
+
+  if (filters.appName) params.append("appName", filters.appName);
+  if (filters.environment) params.append("environment", filters.environment);
+  if (filters.status) params.append("resolved", filters.status === "resolved" ? "true" : "false");
+  if (filters.search) params.append("search", filters.search);
+
   const response = await fetch(`/api/errors?${params}`);
   return response.json();
 }
 ```
 
 ### Управление статусами
+
 ```typescript
 // Компонент для изменения статуса ошибки
 function ErrorStatusActions({ error }: { error: ErrorReport }) {
   const queryClient = useQueryClient();
-  
+
   const updateStatus = useMutation({
-    mutationFn: (status: 'resolved' | 'unresolved') => 
+    mutationFn: (status: 'resolved' | 'unresolved') =>
       updateErrorStatus(error.id, status),
     onSuccess: () => {
       queryClient.invalidateQueries(['errors']);
@@ -334,7 +350,7 @@ function ErrorStatusActions({ error }: { error: ErrorReport }) {
       >
         Отметить как решенную
       </Button>
-      
+
       <Button
         onClick={() => updateStatus.mutate('unresolved')}
         disabled={!error.resolved}
@@ -351,6 +367,7 @@ function ErrorStatusActions({ error }: { error: ErrorReport }) {
 ## 📋 Управление очередями
 
 ### Статистика очередей
+
 ```typescript
 // API endpoint для получения статистики всех очередей
 // app/api/queues/stats/route.ts
@@ -381,6 +398,7 @@ export async function GET() {
 ```
 
 ### Получение failed jobs
+
 ```typescript
 // API endpoint для получения проблемных задач
 // app/api/queues/jobs/route.ts
@@ -411,6 +429,7 @@ export async function GET(request: NextRequest) {
 ```
 
 ### Повторный запуск задач
+
 ```typescript
 // API endpoint для retry задач
 // app/api/queues/retry/route.ts
@@ -452,6 +471,7 @@ export async function PUT(request: NextRequest) {
 ```
 
 ### Компоненты очередей
+
 ```typescript
 // Компонент статистики очереди
 import { QueueStatsCard } from "@features/queues/components/QueueStatsCard";
@@ -474,6 +494,7 @@ function QueuesStats() {
 ```
 
 ### Список failed jobs
+
 ```typescript
 // Компонент списка проблемных задач
 import { FailedJobsList } from "@features/queues/components/FailedJobsList";
@@ -496,6 +517,7 @@ function FailedJobs() {
 ```
 
 ### Массовый retry
+
 ```typescript
 // Хук для массового retry
 import { useBulkRetry } from "@shared/hooks/useQueueJobs";
@@ -533,28 +555,25 @@ import { NextResponse } from "next/server";
 export async function GET() {
   try {
     // Проверяем статус сервисов через health endpoints
-    const [webStatus, trainerStatus, adminStatus, bullBoardStatus] = 
-      await Promise.all([
-        checkServiceHealth("Web App", "http://web:3000/api/health"),
-        checkServiceHealth("Trainer Panel", "http://trainer-panel:3001/api/health"),
-        checkServiceHealth("Admin Panel", "http://admin-panel:3006/api/health"),
-        checkServiceHealth("Bull Board", "http://bull-board:3002/health"),
-      ]);
+    const [webStatus, trainerStatus, adminStatus, bullBoardStatus] = await Promise.all([
+      checkServiceHealth("Web App", "http://web:3000/api/health"),
+      checkServiceHealth("Trainer Panel", "http://trainer-panel:3001/api/health"),
+      checkServiceHealth("Admin Panel", "http://admin-panel:3006/api/health"),
+      checkServiceHealth("Bull Board", "http://bull-board:3002/health"),
+    ]);
 
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       services: [webStatus, trainerStatus, adminStatus, bullBoardStatus],
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to get system status" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to get system status" }, { status: 500 });
   }
 }
 ```
 
 ### Компоненты статуса
+
 ```typescript
 // Компонент статуса сервиса
 import { ServiceStatusCard } from "@features/system/components/ServiceStatusCard";
@@ -575,6 +594,7 @@ function SystemStatus() {
 ```
 
 ### Системные метрики
+
 ```typescript
 // Компонент системных метрик
 import { SystemMetricsCard } from "@features/system/components/SystemMetricsCard";
@@ -589,6 +609,7 @@ function SystemMetrics() {
 ```
 
 ### Навигация между разделами
+
 ```typescript
 // Компонент навигации с вкладками
 import { NavigationTabs } from "@shared/components/NavigationTabs";
@@ -606,6 +627,7 @@ function Layout({ children }) {
 ## 📊 Аналитика и отчеты
 
 ### Дашборд метрики
+
 ```typescript
 // Хук для получения статистики
 export function useErrorStats() {
@@ -641,22 +663,23 @@ function ErrorTrendChart() {
 ```
 
 ### Экспорт данных
+
 ```typescript
 // Функция экспорта ошибок
-async function exportErrors(filters: ErrorFilters, format: 'csv' | 'json') {
+async function exportErrors(filters: ErrorFilters, format: "csv" | "json") {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value) params.append(key, value);
   });
-  params.append('format', format);
+  params.append("format", format);
 
   const response = await fetch(`/api/errors/export?${params}`);
   const blob = await response.blob();
-  
+
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
-  a.download = `errors-${new Date().toISOString().split('T')[0]}.${format}`;
+  a.download = `errors-${new Date().toISOString().split("T")[0]}.${format}`;
   a.click();
 }
 ```
@@ -664,41 +687,43 @@ async function exportErrors(filters: ErrorFilters, format: 'csv' | 'json') {
 ## 🔐 Безопасность
 
 ### Аутентификация
+
 ```typescript
 // Middleware для защиты маршрутов
-import { withAuth } from 'next-auth/middleware';
+import { withAuth } from "next-auth/middleware";
 
 export default withAuth({
   callbacks: {
     authorized: ({ token }) => {
       // Доступ только для администраторов
-      return token?.role === 'ADMIN';
+      return token?.role === "ADMIN";
     },
   },
 });
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/api/:path*']
+  matcher: ["/dashboard/:path*", "/api/:path*"],
 };
 ```
 
 ### Валидация данных
+
 ```typescript
 // Схема валидации отчетов об ошибках
-import { z } from 'zod';
+import { z } from "zod";
 
 const ErrorReportSchema = z.object({
   message: z.string().min(1),
   stack: z.string().optional(),
-  appName: z.enum(['web', 'trainer-panel', 'telegram-bot', 'error-dashboard']),
-  environment: z.enum(['development', 'production', 'staging']),
+  appName: z.enum(["web", "trainer-panel", "telegram-bot", "error-dashboard"]),
+  environment: z.enum(["development", "production", "staging"]),
   url: z.string().url().optional(),
   userAgent: z.string().optional(),
   userId: z.string().optional(),
   sessionId: z.string().optional(),
   componentStack: z.string().optional(),
   additionalContext: z.record(z.any()).optional(),
-  tags: z.array(z.string()).default([])
+  tags: z.array(z.string()).default([]),
 });
 
 function validateErrorReport(data: unknown) {
@@ -774,6 +799,7 @@ node apps/trainer-panel/test-trainer-panel-error-dashboard.js
 Ошибки появятся в соответствующих разделах с тегами и контекстом.
 
 ### Unit тесты
+
 ```typescript
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ErrorList } from './ErrorList';
@@ -785,36 +811,37 @@ test('should filter errors by app name', () => {
   ];
 
   render(<ErrorList errors={mockErrors} />);
-  
+
   fireEvent.change(screen.getByLabelText('Приложение'), {
     target: { value: 'web' }
   });
-  
+
   expect(screen.getByText('Test error 1')).toBeInTheDocument();
   expect(screen.queryByText('Test error 2')).not.toBeInTheDocument();
 });
 ```
 
 ### Integration тесты
-```typescript
-import { test, expect } from '@playwright/test';
 
-test('should create error report', async ({ page }) => {
-  await page.goto('/');
-  
+```typescript
+import { test, expect } from "@playwright/test";
+
+test("should create error report", async ({ page }) => {
+  await page.goto("/");
+
   // Симуляция отправки отчета об ошибке
   await page.evaluate(() => {
-    return fetch('/api/report', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    return fetch("/api/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        message: 'Test error',
-        appName: 'web',
-        environment: 'development'
-      })
+        message: "Test error",
+        appName: "web",
+        environment: "development",
+      }),
     });
   });
-  
+
   await page.reload();
   await expect(page.locator('[data-testid="error-item"]')).toBeVisible();
 });
@@ -823,6 +850,7 @@ test('should create error report', async ({ page }) => {
 ## 🚀 Развертывание
 
 ### Переменные окружения
+
 ```env
 # Next.js
 NEXT_PUBLIC_APP_URL=https://errors.gafus.ru
@@ -838,6 +866,7 @@ ERROR_SAMPLE_RATE=1.0
 ```
 
 ### Docker
+
 ```dockerfile
 FROM node:18-alpine AS base
 WORKDIR /app
@@ -861,6 +890,7 @@ CMD ["npm", "start"]
 ## 🔧 Разработка
 
 ### Команды разработки
+
 ```bash
 # Разработка
 pnpm dev                    # Запуск в режиме разработки (порт 3000)
@@ -873,6 +903,7 @@ pnpm test:e2e              # E2E тесты
 ```
 
 ### Структура компонентов
+
 ```typescript
 // Компоненты ошибок
 features/errors/components/
@@ -891,11 +922,13 @@ features/errors/components/
 **Дата:** 03 декабря 2025
 
 **Проблема:**
+
 - Удаление не работало из-за несовпадения `tag_*` labels между запросом на удаление и реальными labels в stream Seq
 - Запрос на удаление использовал слишком специфичные labels (`tag_fatal`, `tag_telegram_bot`, `tag_error_report`), которых может не быть в stream
 - Задержка 500ms была недостаточной для асинхронного удаления Seq
 
 **Изменения:**
+
 - Убрано использование `tag_*` labels для удаления - теперь используются только базовые labels, которые точно есть в stream
 - Используются только: `app`, `level`, `environment`, `context`, `service_name`, `container`
 - Увеличена задержка после удаления с 500ms до 2 секунд для асинхронного удаления Seq
@@ -933,6 +966,7 @@ await new Promise((resolve) => setTimeout(resolve, 2000));
 ```
 
 **Преимущества:**
+
 - Удаление работает надёжно, так как использует только базовые labels, которые всегда есть в stream
 - Нет проблем с несовпадением `tag_*` labels
 - Достаточная задержка для асинхронного удаления Seq
@@ -943,23 +977,25 @@ await new Promise((resolve) => setTimeout(resolve, 2000));
 **Дата:** 03 декабря 2025
 
 **Изменения:**
+
 - `deleteError` теперь преобразует наносекундные метки Loki в ISO 8601 (RFC3339) и использует окно ±5 мс при наличии `timestampNs`
 - `SeqClient.deleteLogs` принимает `startIso/endIso` и всегда отправляет в Seq корректные значения `start/end`, избегая `invalid start time`
 - В логах отображаются ISO-интервалы и длительность окна, что упрощает отладку
 - Добавлены рекомендации по использованию ISO меток в этом документе
-
 
 ### Version 1.2.0 - Переписана логика удаления логов
 
 **Дата:** 02 декабря 2024
 
 **Проблема:**
+
 - Неправильный парсинг ID ошибки (не учитывались дефисы в имени приложения)
 - Отсутствие валидации timestamp приводило к `Invalid Date`
 - Слишком широкое временное окно удаляло лишние логи
 - Не учитывался уровень логирования (level)
 
 **Изменения:**
+
 - Полностью переписана логика парсинга ID с учетом дефисов в именах приложений
 - Добавлена комплексная валидация timestamp и создаваемых дат
 - Сужено временное окно до ±100ms с фильтрацией по level='error'
@@ -973,7 +1009,7 @@ await new Promise((resolve) => setTimeout(resolve, 2000));
 // ID формат: app-timestamp-random
 // app может содержать дефисы: "error-dashboard-1764717287731000000-abc123"
 // Парсим справа налево:
-const parts = errorId.split('-');
+const parts = errorId.split("-");
 if (parts.length < 3) {
   return { success: false, error: "Неверный формат ID" };
 }
@@ -983,7 +1019,7 @@ const randomPart = parts[parts.length - 1];
 // Предпоследняя - timestamp (наносекунды)
 const timestampStr = parts[parts.length - 2];
 // Все остальное - app name (может содержать дефисы)
-const appName = parts.slice(0, parts.length - 2).join('-');
+const appName = parts.slice(0, parts.length - 2).join("-");
 
 // Валидация timestamp
 const timestampNs = parseInt(timestampStr, 10);
@@ -1007,7 +1043,7 @@ const endTime = new Date(errorTime.getTime() + 100);
 // Удаление с учетом app и level
 const result = await client.deleteLogs({
   appName,
-  level: 'error', // Удаляем только error level
+  level: "error", // Удаляем только error level
   startTime,
   endTime,
 });
@@ -1035,9 +1071,9 @@ if (startTime >= endTime) {
 
 ```typescript
 // Показываем информацию об удаляемой ошибке
-const confirmMessage = error 
+const confirmMessage = error
   ? `Вы уверены, что хотите удалить эту ошибку?\n\nПриложение: ${error.appName}\nСообщение: ${error.message.substring(0, 100)}\n\nЭто действие нельзя отменить.`
-  : 'Вы уверены, что хотите удалить эту ошибку?';
+  : "Вы уверены, что хотите удалить эту ошибку?";
 
 // Детальное логирование времени выполнения
 const startTime = Date.now();
@@ -1046,6 +1082,7 @@ const duration = Date.now() - startTime;
 ```
 
 **Преимущества:**
+
 - Правильный парсинг ID с дефисами в именах приложений (`error-dashboard`, `trainer-panel`)
 - Полная валидация данных предотвращает ошибки `Invalid Date`
 - Точное удаление (±100ms + level filter) не затрагивает другие логи
@@ -1057,10 +1094,11 @@ const duration = Date.now() - startTime;
 **Дата:** 02 декабря 2024
 
 **Изменения:**
+
 - Добавлена переменная окружения `SEQ_URL` в production конфигурацию Docker
 - Расширено временное окно удаления логов с ±1 до ±5 секунд для надежности
 - Улучшено логирование операций удаления для диагностики
 
 ---
 
-*Error Dashboard обеспечивает централизованный мониторинг и управление ошибками для всей экосистемы GAFUS.*
+_Error Dashboard обеспечивает централизованный мониторинг и управление ошибками для всей экосистемы GAFUS._

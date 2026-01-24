@@ -27,7 +27,7 @@ export interface ErrorDashboardReport {
   // Дополнительные поля для работы с БД
   createdAt?: Date | string;
   updatedAt?: Date | string;
-  status?: 'new' | 'viewed' | 'resolved' | 'archived';
+  status?: "new" | "viewed" | "resolved" | "archived";
   labels?: {
     app?: string;
     level?: string;

@@ -28,11 +28,11 @@ interface TrainingPageClientProps {
   initialError?: string | null;
 }
 
-export default function TrainingPageClient({ 
+export default function TrainingPageClient({
   courseType,
   courseName,
   initialData,
-  initialError
+  initialError,
 }: TrainingPageClientProps) {
   const _online = useOfflineStore((s) => s.isOnline);
 
@@ -45,10 +45,9 @@ export default function TrainingPageClient({
 
   return (
     <>
-      
       <div className="courseDescription">
-        <CourseDescriptionWithVideo 
-          description={initialData?.courseDescription || null} 
+        <CourseDescriptionWithVideo
+          description={initialData?.courseDescription || null}
           videoUrl={initialData?.courseVideoUrl || null}
           equipment={initialData?.courseEquipment || null}
           trainingLevel={initialData?.courseTrainingLevel || null}
@@ -58,7 +57,7 @@ export default function TrainingPageClient({
       </div>
 
       <h3 className="plan">План занятий:</h3>
-      <TrainingDayList 
+      <TrainingDayList
         courseType={courseType}
         initialData={initialData}
         initialError={initialError}

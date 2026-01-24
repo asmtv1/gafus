@@ -5,7 +5,7 @@
 import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для retry утилит
-const logger = createWebLogger('core-retry-utils');
+const logger = createWebLogger("core-retry-utils");
 
 export interface RetryOptions {
   maxRetries?: number;
@@ -19,14 +19,9 @@ export interface RetryOptions {
  */
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  options: RetryOptions = {}
+  options: RetryOptions = {},
 ): Promise<T> {
-  const {
-    maxRetries = 3,
-    baseDelay = 1000,
-    maxDelay = 10000,
-    onRetry
-  } = options;
+  const { maxRetries = 3, baseDelay = 1000, maxDelay = 10000, onRetry } = options;
 
   let lastError: Error;
 
@@ -35,33 +30,33 @@ export async function retryWithBackoff<T>(
       return await fn();
     } catch (error) {
       lastError = error as Error;
-      
+
       if (attempt === maxRetries) {
         logger.error(`❌ Все ${maxRetries} попыток исчерпаны`, lastError, {
-          operation: 'retry_exhausted',
+          operation: "retry_exhausted",
           maxRetries: maxRetries,
-          attempt: attempt
+          attempt: attempt,
         });
         throw lastError;
       }
 
       // Вычисляем задержку с экспоненциальным ростом
       const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
-      
+
       logger.warn(`⚠️ Попытка ${attempt}/${maxRetries} не удалась, повтор через ${delay}ms`, {
-        operation: 'retry_attempt_failed',
+        operation: "retry_attempt_failed",
         attempt: attempt,
         maxRetries: maxRetries,
         delay: delay,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
-      
+
       if (onRetry) {
         onRetry(attempt, lastError);
       }
 
       // Ждем перед следующей попыткой
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 
@@ -74,7 +69,7 @@ export async function retryWithBackoff<T>(
 export async function retryServerAction<T>(
   action: () => Promise<T>,
   actionName: string,
-  options: RetryOptions = {}
+  options: RetryOptions = {},
 ): Promise<T> {
   return retryWithBackoff(action, {
     maxRetries: 3,
@@ -82,12 +77,12 @@ export async function retryServerAction<T>(
     maxDelay: 10000,
     onRetry: (attempt, error) => {
       logger.warn(`🔄 ${actionName}: попытка ${attempt} не удалась`, {
-        operation: 'retry_with_action_failed',
+        operation: "retry_with_action_failed",
         actionName: actionName,
         attempt: attempt,
-        error: error.message
+        error: error.message,
       });
     },
-    ...options
+    ...options,
   });
 }

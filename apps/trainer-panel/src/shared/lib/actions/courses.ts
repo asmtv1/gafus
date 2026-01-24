@@ -1,6 +1,11 @@
 "use server";
 
-import { deleteFileFromCDN, uploadFileToCDN, getRelativePathFromCDNUrl, getCourseImagePath } from "@gafus/cdn-upload";
+import {
+  deleteFileFromCDN,
+  uploadFileToCDN,
+  getRelativePathFromCDNUrl,
+  getCourseImagePath,
+} from "@gafus/cdn-upload";
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
@@ -10,7 +15,7 @@ import { invalidateTrainingDaysCache } from "./invalidateTrainingDaysCache";
 import { randomUUID } from "crypto";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
-const logger = createTrainerPanelLogger('trainer-panel-create-course');
+const logger = createTrainerPanelLogger("trainer-panel-create-course");
 
 export interface CreateCourseInput {
   name: string;
@@ -51,7 +56,12 @@ export async function createCourseServerAction(formData: FormData) {
   const trainingDays = formData.getAll("trainingDays").map(String);
   const allowedUsers = formData.getAll("allowedUsers").map(String);
   const equipment = formData.get("equipment")?.toString() || "";
-  const trainingLevel = formData.get("trainingLevel")?.toString() as "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT" || "BEGINNER";
+  const trainingLevel =
+    (formData.get("trainingLevel")?.toString() as
+      | "BEGINNER"
+      | "INTERMEDIATE"
+      | "ADVANCED"
+      | "EXPERT") || "BEGINNER";
   const logoFile = formData.get("logoImg") as File | null;
 
   const isPrivate = !isPublic;
@@ -100,17 +110,17 @@ export async function createCourseServerAction(formData: FormData) {
   let logoImgUrl: string | null = null;
   if (logoFile && logoFile.size > 0) {
     try {
-      const ext = logoFile.name.split(".").pop() || 'jpg';
+      const ext = logoFile.name.split(".").pop() || "jpg";
       const uuid = randomUUID();
       const relativePath = getCourseImagePath(trainerId, courseId, uuid, ext);
       logoImgUrl = await uploadFileToCDN(logoFile, relativePath);
-      
+
       // Обновляем курс с logoImg
       await prisma.course.update({
         where: { id: courseId },
         data: { logoImg: logoImgUrl },
       });
-      
+
       logger.info(`✅ Изображение курса загружено: ${logoImgUrl}`);
     } catch (error) {
       // Откатываем создание курса при ошибке загрузки
@@ -122,10 +132,10 @@ export async function createCourseServerAction(formData: FormData) {
 
   revalidateTag("statistics");
   revalidatePath("/main-panel/statistics");
-  
+
   // Инвалидируем кэш курсов при создании нового курса
   await invalidateCoursesCache();
-  
+
   // Инвалидируем кэш дней курсов при создании курса с днями
   await invalidateTrainingDaysCache(courseId);
 
@@ -146,119 +156,121 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
 
   const desiredDayIds = (input.trainingDays || []).map((dayId: string) => String(dayId));
 
-  await prisma.$transaction(async (tx) => {
-    // Обновление основных полей
-    await tx.course.update({
-      where: { id: input.id },
-      data: {
-        name: input.name,
-        description: input.description,
-        shortDesc: input.shortDesc,
-        duration: input.duration,
-        logoImg: input.logoImg,
-        videoUrl: input.videoUrl || null,
-        isPrivate,
-        isPaid: input.isPaid,
-        showInProfile: input.showInProfile ?? true,
-        equipment: input.equipment,
-        trainingLevel: input.trainingLevel,
-      },
-    });
+  await prisma.$transaction(
+    async (tx) => {
+      // Обновление основных полей
+      await tx.course.update({
+        where: { id: input.id },
+        data: {
+          name: input.name,
+          description: input.description,
+          shortDesc: input.shortDesc,
+          duration: input.duration,
+          logoImg: input.logoImg,
+          videoUrl: input.videoUrl || null,
+          isPrivate,
+          isPaid: input.isPaid,
+          showInProfile: input.showInProfile ?? true,
+          equipment: input.equipment,
+          trainingLevel: input.trainingLevel,
+        },
+      });
 
-    // Сохраняем существующие DayOnCourse, чтобы не сбрасывать прогресс.
-    const existingDayLinks = await tx.dayOnCourse.findMany({
-      where: { courseId: input.id },
-      select: { id: true, dayId: true, order: true },
-      orderBy: { order: "asc" },
-    });
+      // Сохраняем существующие DayOnCourse, чтобы не сбрасывать прогресс.
+      const existingDayLinks = await tx.dayOnCourse.findMany({
+        where: { courseId: input.id },
+        select: { id: true, dayId: true, order: true },
+        orderBy: { order: "asc" },
+      });
 
-    const existingByDayId = new Map<string, typeof existingDayLinks>();
-    for (const link of existingDayLinks) {
-      const list = existingByDayId.get(link.dayId);
-      if (list) {
-        list.push(link);
-      } else {
-        existingByDayId.set(link.dayId, [link]);
-      }
-    }
-
-    const reusedLinks: { id: string; newOrder: number }[] = [];
-    const newLinks: { dayId: string; order: number }[] = [];
-
-    desiredDayIds.forEach((dayId, index) => {
-      const list = existingByDayId.get(dayId);
-      if (list && list.length > 0) {
-        const link = list.shift();
-        if (link) {
-          reusedLinks.push({ id: link.id, newOrder: index + 1 });
+      const existingByDayId = new Map<string, typeof existingDayLinks>();
+      for (const link of existingDayLinks) {
+        const list = existingByDayId.get(link.dayId);
+        if (list) {
+          list.push(link);
+        } else {
+          existingByDayId.set(link.dayId, [link]);
         }
-      } else {
-        newLinks.push({ dayId, order: index + 1 });
       }
-    });
 
-    const removedLinks = Array.from(existingByDayId.values()).flat();
-    if (removedLinks.length > 0) {
-      await tx.dayOnCourse.deleteMany({
-        where: { id: { in: removedLinks.map((link) => link.id) } },
+      const reusedLinks: { id: string; newOrder: number }[] = [];
+      const newLinks: { dayId: string; order: number }[] = [];
+
+      desiredDayIds.forEach((dayId, index) => {
+        const list = existingByDayId.get(dayId);
+        if (list && list.length > 0) {
+          const link = list.shift();
+          if (link) {
+            reusedLinks.push({ id: link.id, newOrder: index + 1 });
+          }
+        } else {
+          newLinks.push({ dayId, order: index + 1 });
+        }
       });
-    }
 
-    if (reusedLinks.length > 0) {
-      const tempBase = desiredDayIds.length + existingDayLinks.length + 1000;
-      for (let index = 0; index < reusedLinks.length; index += 1) {
-        const link = reusedLinks[index];
-        await tx.dayOnCourse.update({
-          where: { id: link.id },
-          data: { order: tempBase + index },
+      const removedLinks = Array.from(existingByDayId.values()).flat();
+      if (removedLinks.length > 0) {
+        await tx.dayOnCourse.deleteMany({
+          where: { id: { in: removedLinks.map((link) => link.id) } },
         });
       }
-    }
 
-    if (newLinks.length > 0) {
-      await tx.dayOnCourse.createMany({
-        data: newLinks.map((link) => ({
-          courseId: input.id,
-          dayId: link.dayId,
-          order: link.order,
-        })),
-      });
-    }
+      if (reusedLinks.length > 0) {
+        const tempBase = desiredDayIds.length + existingDayLinks.length + 1000;
+        for (let index = 0; index < reusedLinks.length; index += 1) {
+          const link = reusedLinks[index];
+          await tx.dayOnCourse.update({
+            where: { id: link.id },
+            data: { order: tempBase + index },
+          });
+        }
+      }
 
-    if (reusedLinks.length > 0) {
-      for (const link of reusedLinks) {
-        await tx.dayOnCourse.update({
-          where: { id: link.id },
-          data: { order: link.newOrder },
+      if (newLinks.length > 0) {
+        await tx.dayOnCourse.createMany({
+          data: newLinks.map((link) => ({
+            courseId: input.id,
+            dayId: link.dayId,
+            order: link.order,
+          })),
         });
       }
-    }
 
-    // Пересобираем доступ
-    await tx.courseAccess.deleteMany({ where: { courseId: input.id } });
-    if (isPrivate) {
-      await tx.courseAccess.createMany({
-        data: (input.allowedUsers || []).map((userId: string) => ({
-          courseId: input.id,
-          userId: String(userId),
-        })),
-      });
-    }
-  },
-  {
-    maxWait: 10000, // 10 секунд ожидания начала транзакции
-    timeout: 20000, // 20 секунд таймаут транзакции (сложная операция)
-  });
+      if (reusedLinks.length > 0) {
+        for (const link of reusedLinks) {
+          await tx.dayOnCourse.update({
+            where: { id: link.id },
+            data: { order: link.newOrder },
+          });
+        }
+      }
+
+      // Пересобираем доступ
+      await tx.courseAccess.deleteMany({ where: { courseId: input.id } });
+      if (isPrivate) {
+        await tx.courseAccess.createMany({
+          data: (input.allowedUsers || []).map((userId: string) => ({
+            courseId: input.id,
+            userId: String(userId),
+          })),
+        });
+      }
+    },
+    {
+      maxWait: 10000, // 10 секунд ожидания начала транзакции
+      timeout: 20000, // 20 секунд таймаут транзакции (сложная операция)
+    },
+  );
 
   revalidateTag("statistics");
   revalidatePath("/main-panel/statistics");
-  
+
   // Инвалидируем кэш курсов при обновлении курса
   await invalidateCoursesCache();
-  
+
   // Инвалидируем кэш дней курсов при обновлении курса с днями
   await invalidateTrainingDaysCache(input.id);
-  
+
   return { success: true };
 }
 
@@ -295,12 +307,12 @@ export async function deleteCourseServerAction(courseId: string) {
 
   revalidateTag("statistics");
   revalidatePath("/main-panel/statistics");
-  
+
   // Инвалидируем кэш курсов при удалении курса
   await invalidateCoursesCache();
-  
+
   // Инвалидируем кэш дней курсов при удалении курса
   await invalidateTrainingDaysCache(courseId);
-  
+
   return { success: true };
 }

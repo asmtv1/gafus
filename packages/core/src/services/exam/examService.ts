@@ -118,9 +118,7 @@ export async function getExamResult(
     };
   } catch (error) {
     logger.error("Ошибка при получении результата экзамена", error as Error);
-    throw new Error(
-      error instanceof Error ? error.message : "Неизвестная ошибка",
-    );
+    throw new Error(error instanceof Error ? error.message : "Неизвестная ошибка");
   }
 }
 
@@ -236,8 +234,6 @@ export async function submitExamResult(
     return { success: true, examResultId: examResult.id };
   } catch (error) {
     logger.error("Ошибка при сохранении результата экзамена", error as Error);
-    throw new Error(
-      error instanceof Error ? error.message : "Неизвестная ошибка",
-    );
+    throw new Error(error instanceof Error ? error.message : "Неизвестная ошибка");
   }
 }

@@ -27,9 +27,7 @@ export function calculateCurrentStreak(trainingDates: Date[] | string[]): number
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const lastDate = uniqueDates[0];
-  const daysDiff = Math.floor(
-    (today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const daysDiff = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
   if (daysDiff > 1) return 0;
 
   let streak = 0;
@@ -76,7 +74,7 @@ export function calculateLongestStreak(trainingDates: Date[] | string[]): number
     const prevDate = sortedDates[i - 1];
     const currentDate = sortedDates[i];
     const daysDiff = Math.floor(
-      (currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
+      (currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24),
     );
     if (daysDiff === 1) {
       currentStreak++;

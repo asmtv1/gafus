@@ -19,14 +19,14 @@ export function useSyncStatus() {
   });
 
   const startSync = useCallback(() => {
-    setSyncStatus(prev => ({
+    setSyncStatus((prev) => ({
       ...prev,
       isSyncing: true,
     }));
   }, []);
 
   const finishSync = useCallback((success: boolean = true) => {
-    setSyncStatus(prev => ({
+    setSyncStatus((prev) => ({
       ...prev,
       isSyncing: false,
       lastSyncTime: success ? new Date() : prev.lastSyncTime,
@@ -35,14 +35,14 @@ export function useSyncStatus() {
   }, []);
 
   const addPendingChange = useCallback(() => {
-    setSyncStatus(prev => ({
+    setSyncStatus((prev) => ({
       ...prev,
       pendingChanges: prev.pendingChanges + 1,
     }));
   }, []);
 
   const removePendingChange = useCallback(() => {
-    setSyncStatus(prev => ({
+    setSyncStatus((prev) => ({
       ...prev,
       pendingChanges: Math.max(0, prev.pendingChanges - 1),
     }));

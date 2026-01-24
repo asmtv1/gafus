@@ -24,20 +24,26 @@ function calculateDisplayDayNumber(
   currentIndex: number,
 ): number | null {
   const currentDay = dayLinks[currentIndex];
-  
+
   // Если текущий день - не-тренировочный тип, возвращаем null
-  if (NON_NUMBERED_DAY_TYPES.includes(currentDay.day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])) {
+  if (
+    NON_NUMBERED_DAY_TYPES.includes(currentDay.day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])
+  ) {
     return null;
   }
-  
+
   // Подсчитываем количество дней до текущего, исключая не-тренировочные типы
   let displayNumber = 0;
   for (let i = 0; i <= currentIndex; i++) {
-    if (!NON_NUMBERED_DAY_TYPES.includes(dayLinks[i].day.type as (typeof NON_NUMBERED_DAY_TYPES)[number])) {
+    if (
+      !NON_NUMBERED_DAY_TYPES.includes(
+        dayLinks[i].day.type as (typeof NON_NUMBERED_DAY_TYPES)[number],
+      )
+    ) {
       displayNumber++;
     }
   }
-  
+
   return displayNumber;
 }
 
@@ -85,7 +91,7 @@ async function findTrainingDayWithUserTraining(
                   title: true,
                   description: true,
                   durationSec: true,
-              estimatedDurationSec: true,
+                  estimatedDurationSec: true,
                   videoUrl: true,
                   imageUrls: true,
                   pdfUrls: true,
@@ -114,10 +120,7 @@ async function findTrainingDayWithUserTraining(
 }
 
 /** Создает UserTraining если его нет (идемпотентная операция) */
-async function ensureUserTrainingExists(
-  userId: string,
-  dayOnCourseId: string,
-): Promise<string> {
+async function ensureUserTrainingExists(userId: string, dayOnCourseId: string): Promise<string> {
   try {
     const userTraining = await prisma.userTraining.upsert({
       where: {
@@ -137,7 +140,7 @@ async function ensureUserTrainingExists(
     return userTraining.id;
   } catch (error: unknown) {
     // Если race condition - другой запрос уже создал запись, просто получаем её
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
       const existing = await prisma.userTraining.findUnique({
         where: {
           userId_dayOnCourseId: {
@@ -205,7 +208,7 @@ export async function getTrainingDayWithUserSteps(
   if (!userTrainingId && options?.createIfMissing) {
     userTrainingId = await ensureUserTrainingExists(userId, foundDayOnCourseId);
   }
-  
+
   // Если UserTraining всё ещё нет - возвращаем базовую структуру без статусов
   if (!userTrainingId) {
     const steps = stepLinks.map(({ step, order }) => ({
@@ -248,13 +251,21 @@ export async function getTrainingDayWithUserSteps(
   let pausedByStepId: Record<string, boolean> = {};
   let remainingByStepId: Record<string, number | undefined> = {};
   let userStepIds: Record<string, string> = {};
-  
+
   // Обратная совместимость: если колонок paused/remainingSec ещё нет в БД/клиенте, не падаем
-  type UserStepWithPause = { id: string; stepOnDayId: string; status: string; paused?: boolean; remainingSec?: number | null };
+  type UserStepWithPause = {
+    id: string;
+    stepOnDayId: string;
+    status: string;
+    paused?: boolean;
+    remainingSec?: number | null;
+  };
   let withPause = false;
   let userSteps: UserStepWithPause[] = [];
   try {
-    const res = (await (prisma as unknown as { userStep: { findMany: (args: unknown) => Promise<unknown> } }).userStep.findMany({
+    const res = (await (
+      prisma as unknown as { userStep: { findMany: (args: unknown) => Promise<unknown> } }
+    ).userStep.findMany({
       where: { userTrainingId },
       select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
     })) as unknown;
@@ -271,9 +282,9 @@ export async function getTrainingDayWithUserSteps(
 
   // Создаем недостающие UserStep записи для всех шагов дня
   // Это необходимо для экзаменационных шагов, которым нужен userStepId для сохранения результатов
-  const existingStepOnDayIds = new Set(userSteps.map(us => us.stepOnDayId));
-  const allStepOnDayIds = stepLinks.map(link => link.id);
-  const missingStepOnDayIds = allStepOnDayIds.filter(id => !existingStepOnDayIds.has(id));
+  const existingStepOnDayIds = new Set(userSteps.map((us) => us.stepOnDayId));
+  const allStepOnDayIds = stepLinks.map((link) => link.id);
+  const missingStepOnDayIds = allStepOnDayIds.filter((id) => !existingStepOnDayIds.has(id));
 
   if (missingStepOnDayIds.length > 0) {
     try {
@@ -286,15 +297,21 @@ export async function getTrainingDayWithUserSteps(
                 stepOnDayId,
                 status: TrainingStatus.NOT_STARTED,
               },
-              select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
-            })
+              select: {
+                id: true,
+                stepOnDayId: true,
+                status: true,
+                paused: true,
+                remainingSec: true,
+              },
+            }),
           );
           return await Promise.all(promises);
         },
         {
           maxWait: 5000, // 5 секунд ожидания начала транзакции
           timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
-        }
+        },
       );
 
       userSteps = [...userSteps, ...(newUserSteps as UserStepWithPause[])];
@@ -315,13 +332,11 @@ export async function getTrainingDayWithUserSteps(
   stepStatuses = Object.fromEntries(
     userSteps.map((record) => [
       record.stepOnDayId,
-      TrainingStatus[(record.status as string) as keyof typeof TrainingStatus],
+      TrainingStatus[record.status as string as keyof typeof TrainingStatus],
     ]),
   );
 
-  userStepIds = Object.fromEntries(
-    userSteps.map((record) => [record.stepOnDayId, record.id]),
-  );
+  userStepIds = Object.fromEntries(userSteps.map((record) => [record.stepOnDayId, record.id]));
 
   if (withPause) {
     pausedByStepId = Object.fromEntries(
@@ -372,9 +387,7 @@ export async function getTrainingDayWithUserSteps(
       remainingSecOnServer: remainingByStepId[stepOnDayId] ?? undefined,
       // Новые поля для типов экзамена
       type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | undefined,
-      checklist: Array.isArray(step.checklist)
-        ? (step.checklist as ChecklistQuestion[])
-        : null,
+      checklist: Array.isArray(step.checklist) ? (step.checklist as ChecklistQuestion[]) : null,
       requiresVideoReport: step.requiresVideoReport,
       requiresWrittenFeedback: step.requiresWrittenFeedback,
       hasTestQuestions: step.hasTestQuestions,
@@ -401,9 +414,7 @@ export async function getTrainingDayWithUserSteps(
     courseId,
     description: description ?? "",
     duration: courseDuration ?? "",
-    userStatus: userTraining
-      ? dayUserStatus
-      : TrainingStatus.NOT_STARTED,
+    userStatus: userTraining ? dayUserStatus : TrainingStatus.NOT_STARTED,
     steps,
   };
 }

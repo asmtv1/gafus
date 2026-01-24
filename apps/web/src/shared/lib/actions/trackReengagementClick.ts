@@ -3,20 +3,20 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('track-reengagement-click');
+const logger = createWebLogger("track-reengagement-click");
 
 /**
  * Отследить клик по re-engagement уведомлению
  * Вызывается из Service Worker при клике на уведомление
  */
 export async function trackReengagementClick(
-  notificationId: string
+  notificationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!notificationId) {
       return {
         success: false,
-        error: "ID уведомления не указан"
+        error: "ID уведомления не указан",
       };
     }
 
@@ -25,26 +25,25 @@ export async function trackReengagementClick(
       where: { id: notificationId },
       data: {
         clicked: true,
-        clickedAt: new Date()
-      }
+        clickedAt: new Date(),
+      },
     });
 
-    logger.info('Клик по re-engagement уведомлению отслежен', { notificationId });
+    logger.info("Клик по re-engagement уведомлению отслежен", { notificationId });
 
     return { success: true };
   } catch (error) {
     // Не логируем как ошибку, если запись не найдена (может быть устаревшее уведомление)
-    if (error instanceof Error && error.message.includes('Record to update not found')) {
-      logger.warn('Запись уведомления не найдена', { notificationId });
+    if (error instanceof Error && error.message.includes("Record to update not found")) {
+      logger.warn("Запись уведомления не найдена", { notificationId });
       return { success: true }; // Возвращаем success чтобы не ломать UX
     }
 
-    logger.error('Ошибка отслеживания клика', error as Error, { notificationId });
-    
+    logger.error("Ошибка отслеживания клика", error as Error, { notificationId });
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }
-

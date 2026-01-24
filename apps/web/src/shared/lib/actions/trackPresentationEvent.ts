@@ -3,7 +3,7 @@
 import { prisma, type Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('track-presentation-event');
+const logger = createWebLogger("track-presentation-event");
 
 interface TrackPresentationEventData {
   sessionId: string;
@@ -21,7 +21,7 @@ interface TrackPresentationEventData {
  * Отследить событие на presentation.html
  */
 export async function trackPresentationEvent(
-  data: TrackPresentationEventData
+  data: TrackPresentationEventData,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await prisma.presentationEvent.create({
@@ -51,4 +51,3 @@ export async function trackPresentationEvent(
     };
   }
 }
-

@@ -8,7 +8,7 @@ import type { UpdatePetInput } from "@gafus/types";
 import type { PetsStore } from "./types";
 
 // Создаем логгер для pets store
-const logger = createWebLogger('web-pets-store');
+const logger = createWebLogger("web-pets-store");
 
 // Утилиты для проверки кэша
 const isStale = (timestamp: number, maxAge: number = PETS_CACHE_DURATION) => {
@@ -71,7 +71,7 @@ export const usePetsStore = create<PetsStore>()(
             isLoading: false,
           });
           logger.error("Ошибка загрузки питомцев", error as Error, {
-            operation: 'load_pets_error'
+            operation: "load_pets_error",
           });
         }
       },
@@ -94,8 +94,8 @@ export const usePetsStore = create<PetsStore>()(
             isCreating: false,
           });
           logger.error("Ошибка создания питомца", error as Error, {
-            operation: 'create_pet_error',
-            petData: data
+            operation: "create_pet_error",
+            petData: data,
           });
           throw error;
         }
@@ -119,9 +119,9 @@ export const usePetsStore = create<PetsStore>()(
             isUpdating: false,
           });
           logger.error("Ошибка обновления питомца", error as Error, {
-            operation: 'update_pet_error',
+            operation: "update_pet_error",
             petId: data.id,
-            updateData: data
+            updateData: data,
           });
           throw error;
         }
@@ -145,8 +145,8 @@ export const usePetsStore = create<PetsStore>()(
             isDeleting: false,
           });
           logger.error("Ошибка удаления питомца", error as Error, {
-            operation: 'delete_pet_error',
-            petId: petId
+            operation: "delete_pet_error",
+            petId: petId,
           });
           throw error;
         }

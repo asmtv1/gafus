@@ -60,4 +60,3 @@ export async function getTrainerVideos(trainerId: string): Promise<TrainerVideoD
       : undefined,
   }));
 }
-

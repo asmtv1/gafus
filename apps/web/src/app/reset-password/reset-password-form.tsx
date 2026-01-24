@@ -14,13 +14,10 @@ export default function ResetPasswordForm() {
   const token = searchParams.get("token");
   const router = useRouter();
 
-  const { form, handleSubmit } = useZodForm(
-    resetPasswordFormSchema,
-    {
-      password: "",
-      confirmPassword: "",
-    }
-  );
+  const { form, handleSubmit } = useZodForm(resetPasswordFormSchema, {
+    password: "",
+    confirmPassword: "",
+  });
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -54,7 +51,7 @@ export default function ResetPasswordForm() {
             type="password"
             placeholder="Новый пароль"
             form={form}
-            className="w-full mb-4"
+            className="mb-4 w-full"
           />
           <FormField
             id="confirmPassword"
@@ -63,7 +60,7 @@ export default function ResetPasswordForm() {
             type="password"
             placeholder="Повторите пароль"
             form={form}
-            className="w-full mb-4"
+            className="mb-4 w-full"
           />
           <button type="submit">Сохранить</button>
           {error && <p style={{ color: "red", marginTop: "1rem" }}>{error}</p>}

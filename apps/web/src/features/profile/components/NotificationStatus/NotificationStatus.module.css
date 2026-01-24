@@ -21,9 +21,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: linear-gradient(135deg, #ECE5D2 0%, #F0E6D2 100%);
+  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
   border-radius: 8px;
-  border: 1px solid #D4C4A8;
+  border: 1px solid #d4c4a8;
   font-family: var(--font-montserrat), system-ui, sans-serif;
 }
 
@@ -125,19 +125,17 @@
 
 .allowButton {
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
-  color: #ECE5D2;
+  color: #ece5d2;
   border: 1px solid #636128;
   padding: 14px 28px;
   border-radius: 12px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s 
-ease;
+  transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
   text-decoration: none;
-  display: inline-flex
-;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 220px;
@@ -159,25 +157,23 @@ ease;
 
 .denyButton {
   background: linear-gradient(135deg, #bf7119 0%, #da0505 100%);
-    color: #ECE5D2;
-    border: 1px solid #e20e0e;
-    padding: 14px 28px;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s 
-ease;
-    box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
-    text-decoration: none;
-    display: inline-flex
-;
-    align-items: center;
-    justify-content: center;
-    min-width: 220px;
-    font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
-    position: relative;
-    overflow: hidden;
+  color: #ece5d2;
+  border: 1px solid #e20e0e;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 220px;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  position: relative;
+  overflow: hidden;
 }
 
 .denyButton:hover:not(:disabled) {

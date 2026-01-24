@@ -8,7 +8,6 @@ interface PrivateProfileSectionProps {
 }
 
 export default function PrivateProfileSection({ user: _user }: PrivateProfileSectionProps) {
-  
   return (
     <section className={styles.section}>
       <div style={{ marginBottom: "20px" }}>

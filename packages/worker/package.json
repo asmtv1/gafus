@@ -11,8 +11,8 @@
     "dev": "tsx --watch src/index.ts",
     "dev:env": "tsx --env-file=../../.env src/index.ts",
     "start": "node dist/worker/src/index.js",
-    "start:watch": "nodemon dist/worker/src/index.js --watch dist --ext js --ignore dist/**/*.map --exec 'node'",
     "start:dev": "tsx src/index.ts",
+    "start:watch": "nodemon dist/worker/src/index.js --watch dist --ext js --ignore dist/**/*.map --exec 'node'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -20,9 +20,9 @@
     "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
+    "@gafus/reengagement": "workspace:*",
     "@gafus/types": "workspace:*",
     "@gafus/webpush": "workspace:*",
-    "@gafus/reengagement": "workspace:*",
     "bullmq": "5.2.0",
     "ioredis": "5.3.2",
     "node-cron": "^3.0.3",

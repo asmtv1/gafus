@@ -51,17 +51,19 @@ done
 
 ```javascript
 // Получите токен авторизации из cookies или заголовков запросов
-const dashboard = {/* вставьте JSON из файла */};
+const dashboard = {
+  /* вставьте JSON из файла */
+};
 
-fetch('/api/dashboards', {
-  method: 'POST',
+fetch("/api/dashboards", {
+  method: "POST",
   headers: {
-    'Content-Type': 'application/json',
-    'X-Seq-ApiKey': 'your-api-key' // или используйте токен из сессии
+    "Content-Type": "application/json",
+    "X-Seq-ApiKey": "your-api-key", // или используйте токен из сессии
   },
-  body: JSON.stringify(dashboard)
+  body: JSON.stringify(dashboard),
 })
-  .then(r => r.json())
+  .then((r) => r.json())
   .then(console.log)
   .catch(console.error);
 ```

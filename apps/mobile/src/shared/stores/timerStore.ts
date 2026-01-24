@@ -18,7 +18,7 @@ interface TimerActions {
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    durationSec: number
+    durationSec: number,
   ) => void;
 
   // Возобновление таймера с оставшимся временем
@@ -26,7 +26,7 @@ interface TimerActions {
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    remainingSec: number
+    remainingSec: number,
   ) => void;
 
   // Пауза таймера

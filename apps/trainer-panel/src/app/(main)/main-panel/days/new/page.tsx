@@ -11,7 +11,7 @@ export default async function CreateDayPage() {
   }));
 
   return (
-    <FormPageLayout 
+    <FormPageLayout
       title="Создание дня тренировки"
       subtitle="Заполните информацию о новом дне тренировки и выберите шаги"
     >

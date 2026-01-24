@@ -23,12 +23,12 @@ interface BroadcastResult {
 export async function sendBroadcastPush(
   title: string,
   body: string,
-  url?: string
+  url?: string,
 ): Promise<BroadcastResult> {
   try {
     // Проверяем сессию и права доступа
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.role || session.user.role !== "ADMIN") {
       logger.warn("Попытка отправки broadcast push без прав ADMIN", {
         userId: session?.user?.id,
@@ -117,8 +117,8 @@ export async function sendBroadcastPush(
 
         return null;
       })
-      .filter((sub): sub is { endpoint: string; keys: { p256dh: string; auth: string } } => 
-        sub !== null
+      .filter(
+        (sub): sub is { endpoint: string; keys: { p256dh: string; auth: string } } => sub !== null,
       );
 
     // Инициализируем сервис отправки push-уведомлений
@@ -139,9 +139,7 @@ export async function sendBroadcastPush(
 
     // Удаляем неактивные подписки (410 Gone, 404 Not Found)
     const invalidEndpoints = result.results
-      .filter(
-        (r) => !r.success && PushNotificationService.shouldDeleteSubscription(r.error)
-      )
+      .filter((r) => !r.success && PushNotificationService.shouldDeleteSubscription(r.error))
       .map((r) => r.endpoint);
 
     if (invalidEndpoints.length > 0) {
@@ -171,7 +169,7 @@ export async function sendBroadcastPush(
     };
   } catch (error) {
     logger.error("Ошибка при массовой рассылке push-уведомлений", error as Error);
-    
+
     return {
       success: false,
       totalUsers: 0,
@@ -181,4 +179,3 @@ export async function sendBroadcastPush(
     };
   }
 }
-

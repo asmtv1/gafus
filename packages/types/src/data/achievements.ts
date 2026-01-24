@@ -12,12 +12,7 @@ export interface Achievement {
   category: AchievementCategory;
 }
 
-export type AchievementCategory = 
-  | "courses" 
-  | "progress" 
-  | "streak" 
-  | "social" 
-  | "special";
+export type AchievementCategory = "courses" | "progress" | "streak" | "social" | "special";
 
 // Основные данные достижений
 export interface AchievementData {
@@ -28,16 +23,16 @@ export interface AchievementData {
   totalCompletedDays: number;
   totalDays: number;
   overallProgress: number; // 0-100
-  
+
   // Достижения
   achievements: Achievement[];
-  
+
   // Дополнительная статистика
   totalTrainingTime: number; // в минутах
   averageCourseProgress: number; // 0-100
   longestStreak: number; // дней подряд
   currentStreak: number; // дней подряд
-  
+
   // Метаданные
   lastUpdated: Date;
   version: string;

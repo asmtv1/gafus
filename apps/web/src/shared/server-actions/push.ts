@@ -3,11 +3,11 @@
 import { validateVapidPublicKey } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('web-push-actions');
+const logger = createWebLogger("web-push-actions");
 
 /**
  * Получает публичный VAPID ключ для Web Push уведомлений
- * 
+ *
  * @returns Объект с публичным ключом и информацией о его валидности
  */
 export async function getPublicKeyAction() {
@@ -26,8 +26,8 @@ export async function getPublicKeyAction() {
 
   if (!isValid) {
     logger.error(
-      "❌ getPublicKeyAction: VAPID_PUBLIC_KEY is not valid format", 
-      new Error("Invalid VAPID key format")
+      "❌ getPublicKeyAction: VAPID_PUBLIC_KEY is not valid format",
+      new Error("Invalid VAPID key format"),
     );
     return {
       publicKey: null,

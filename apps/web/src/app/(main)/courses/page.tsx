@@ -12,7 +12,7 @@ export const revalidate = 300; // 5 минут (300 секунд) - снижае
 export const metadata = generateStaticPageMetadata(
   "Список курсов",
   "Выбирайте курсы для послушания, фокуса и социализации вашей собаки.",
-  "/courses"
+  "/courses",
 );
 
 export default async function CoursesPage() {
@@ -39,11 +39,7 @@ export default async function CoursesPage() {
   return (
     <main className={styles.container}>
       <h1 className={styles.title}>Курсы</h1>
-      <CoursesClient 
-        initialCourses={coursesData} 
-        initialError={error}
-        userId={userId}
-      />
+      <CoursesClient initialCourses={coursesData} initialError={error} userId={userId} />
     </main>
   );
 }

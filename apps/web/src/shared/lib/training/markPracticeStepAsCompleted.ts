@@ -11,7 +11,7 @@ import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
 
-const logger = createWebLogger('web-mark-practice-step-completed');
+const logger = createWebLogger("web-mark-practice-step-completed");
 
 const markPracticeStepSchema = z.object({
   courseId: courseIdSchema,
@@ -90,7 +90,7 @@ export async function markPracticeStepAsCompleted(
       {
         maxWait: 5000, // 5 секунд ожидания начала транзакции
         timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
-      }
+      },
     );
 
     // Обновляем статус шага на COMPLETED (использует существующую функцию с транзакциями)
@@ -117,7 +117,7 @@ export async function markPracticeStepAsCompleted(
     return { success: true };
   } catch (error) {
     logger.error("Failed to mark practice step as completed", error as Error, {
-      operation: 'mark_practice_step_completed_failed',
+      operation: "mark_practice_step_completed_failed",
       courseId: safeInput.courseId,
       dayOnCourseId: safeInput.dayOnCourseId,
       stepIndex: safeInput.stepIndex,
@@ -138,7 +138,7 @@ export async function markPracticeStepAsCompleted(
         stepOrder: safeInput.stepOrder,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         tags: ["training", "practice-step", "server-action"],
-      }
+      },
     );
 
     // Возвращаем ошибку, но не прерываем выполнение на клиенте
@@ -146,4 +146,3 @@ export async function markPracticeStepAsCompleted(
     return { success: false };
   }
 }
-

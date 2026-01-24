@@ -19,17 +19,11 @@ export function setupFetchInterceptor() {
   const originalFetch = window.fetch;
 
   // Переопределяем fetch
-  window.fetch = async function (
-    input: RequestInfo | URL,
-    init?: RequestInit,
-  ): Promise<Response> {
+  window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
-    const requestHeaders = input instanceof Request
-      ? input.headers
-      : new Headers(init?.headers);
-    const shouldIgnoreOffline =
-      requestHeaders.get("X-Gafus-Background-Download") === "1";
+    const requestHeaders = input instanceof Request ? input.headers : new Headers(init?.headers);
+    const shouldIgnoreOffline = requestHeaders.get("X-Gafus-Background-Download") === "1";
 
     const isMediaRequest =
       url.includes("/uploads/") ||

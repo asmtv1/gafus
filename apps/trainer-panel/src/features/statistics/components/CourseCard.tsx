@@ -86,7 +86,14 @@ export default function CourseCard({ course, onClick, isAdmin = false }: CourseC
           />
 
           <Box sx={{ flex: 1 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                mb: 1,
+              }}
+            >
               <Typography variant="h5" component="h3">
                 {course.name}
               </Typography>

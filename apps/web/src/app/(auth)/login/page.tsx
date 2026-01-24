@@ -8,7 +8,7 @@ import LoginForm from "./LoginForm";
 export const metadata = generateStaticPageMetadata(
   "Вход",
   "Войдите в свой аккаунт для доступа к тренировкам и курсам.",
-  "/login"
+  "/login",
 );
 
 export default function LoginPage() {
@@ -16,8 +16,15 @@ export default function LoginPage() {
     <main className={styles.container}>
       <h1 className={styles.title}>Гафус!</h1>
 
-      <Image src="/uploads/logo.png" alt="logo" className={styles.logo} width={303} height={303} priority />
-      
+      <Image
+        src="/uploads/logo.png"
+        alt="logo"
+        className={styles.logo}
+        width={303}
+        height={303}
+        priority
+      />
+
       <h2 className={styles.subtitle}>Авторизация</h2>
       <p className={styles.subtitle}>
         Если у Вас еще нет аккаунта -

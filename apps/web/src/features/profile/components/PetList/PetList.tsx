@@ -18,14 +18,14 @@ import styles from "./PetList.module.css";
 
 import type { PublicProfile, PetFormData } from "@gafus/types";
 
-type PetFromPublicProfile = PublicProfile['pets'][0];
+type PetFromPublicProfile = PublicProfile["pets"][0];
 
 import { getAgeWithMonths, declOfNum } from "@gafus/core/utils";
 import { Avatar, IconButton } from "@shared/utils/muiImports";
 import { getPetTypeLabel } from "@gafus/core/utils";
 
 // Создаем логгер для pet-list
-const logger = createWebLogger('web-pet-list');
+const logger = createWebLogger("web-pet-list");
 
 const handleDelete = async (
   petId: string,
@@ -36,26 +36,26 @@ const handleDelete = async (
   invalidateProfileCache: () => Promise<void>,
 ) => {
   if (isPending) return;
-  
+
   try {
     const result = await Swal.fire({
-      title: 'Удалить питомца?',
+      title: "Удалить питомца?",
       text: `Вы уверены, что хотите удалить питомца "${petName}"? Это действие нельзя отменить.`,
-      imageUrl: '/uploads/logo.png',
+      imageUrl: "/uploads/logo.png",
       imageWidth: 80,
       imageHeight: 80,
-      imageAlt: 'Гафус',
+      imageAlt: "Гафус",
       showCancelButton: true,
-      confirmButtonText: 'Да, удалить',
-      cancelButtonText: 'Отмена',
-      confirmButtonColor: '#d32f2f',
-      cancelButtonColor: '#F5F0E8',
+      confirmButtonText: "Да, удалить",
+      cancelButtonText: "Отмена",
+      confirmButtonColor: "#d32f2f",
+      cancelButtonColor: "#F5F0E8",
       customClass: {
-        popup: 'swal2-popup-custom',
-        title: 'swal2-title-custom',
-        htmlContainer: 'swal2-content-custom',
-        confirmButton: 'swal2-confirm-custom',
-        cancelButton: 'swal2-cancel-custom',
+        popup: "swal2-popup-custom",
+        title: "swal2-title-custom",
+        htmlContainer: "swal2-content-custom",
+        confirmButton: "swal2-confirm-custom",
+        cancelButton: "swal2-cancel-custom",
       },
     });
 
@@ -67,17 +67,27 @@ const handleDelete = async (
           await showSuccessAlert(`Питомец "${petName}" успешно удален!`);
           router.refresh();
         } catch (error) {
-          logger.error("Ошибка при удалении питомца", error as Error, { operation: "delete_pet_error" });
+          logger.error("Ошибка при удалении питомца", error as Error, {
+            operation: "delete_pet_error",
+          });
           await showErrorAlert("Произошла ошибка при удалении питомца");
         }
       });
     }
   } catch (error) {
-    logger.error("Ошибка при показе диалога удаления", error as Error, { operation: 'show_delete_dialog_error' });
+    logger.error("Ошибка при показе диалога удаления", error as Error, {
+      operation: "show_delete_dialog_error",
+    });
   }
 };
 
-export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[]; isOwner: boolean }) {
+export default function PetList({
+  pets,
+  isOwner,
+}: {
+  pets: PetFromPublicProfile[];
+  isOwner: boolean;
+}) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { data: session } = useSession();
@@ -103,14 +113,17 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
       breed: pet.breed || "",
       photoUrl: pet.photoUrl || "",
       notes: pet.notes || "",
-      birthDate: pet.birthDate instanceof Date ? pet.birthDate.toISOString().split("T")[0] : pet.birthDate || "",
+      birthDate:
+        pet.birthDate instanceof Date
+          ? pet.birthDate.toISOString().split("T")[0]
+          : pet.birthDate || "",
       heightCm: pet.heightCm || undefined,
       weightKg: pet.weightKg || undefined,
     };
 
     try {
       const updatedPetData = await showEditPetAlert(petForEdit);
-      
+
       if (updatedPetData) {
         startTransition(async () => {
           try {
@@ -119,13 +132,17 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
             await showSuccessAlert(`Питомец "${updatedPetData.name}" успешно обновлен!`);
             router.refresh();
           } catch (error) {
-            logger.error("Ошибка при обновлении питомца:", error as Error, { operation: "update_pet_error" });
+            logger.error("Ошибка при обновлении питомца:", error as Error, {
+              operation: "update_pet_error",
+            });
             await showErrorAlert("Произошла ошибка при обновлении питомца");
           }
         });
       }
     } catch (error) {
-      logger.error("Ошибка при открытии формы редактирования:", error as Error, { operation: 'error' });
+      logger.error("Ошибка при открытии формы редактирования:", error as Error, {
+        operation: "error",
+      });
     }
   };
 
@@ -150,33 +167,34 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
         </h3>
         <p>Порода: {pet.breed}</p>
 
-        {pet.birthDate && (() => {
-          const age = getAgeWithMonths(
-            pet.birthDate instanceof Date ? pet.birthDate.toISOString() : pet.birthDate,
-          );
-          
-          // Показываем только месяцы и годы
-          if (age.years === 0) {
-            // Только месяцы
-            return (
-              <p>
-                Возраст: {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-              </p>
+        {pet.birthDate &&
+          (() => {
+            const age = getAgeWithMonths(
+              pet.birthDate instanceof Date ? pet.birthDate.toISOString() : pet.birthDate,
             );
-          } else {
-            // Годы и месяцы
-            return (
-              <p>
-                Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
-                {age.months > 0 && (
-                  <>
-                    {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-                  </>
-                )}
-              </p>
-            );
-          }
-        })()}
+
+            // Показываем только месяцы и годы
+            if (age.years === 0) {
+              // Только месяцы
+              return (
+                <p>
+                  Возраст: {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
+                </p>
+              );
+            } else {
+              // Годы и месяцы
+              return (
+                <p>
+                  Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
+                  {age.months > 0 && (
+                    <>
+                      {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
+                    </>
+                  )}
+                </p>
+              );
+            }
+          })()}
         {pet.heightCm && <p>Рост: {pet.heightCm} см</p>}
         {pet.weightKg && <p>Вес: {pet.weightKg} кг</p>}
         {pet.notes && <p>Заметки: {pet.notes}</p>}
@@ -224,7 +242,6 @@ export default function PetList({ pets, isOwner }: { pets: PetFromPublicProfile[
           ))}
         </ul>
       )}
-
     </div>
   );
 }

@@ -54,7 +54,7 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
   const handleThumbnailClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!signedUrl) {
       setIsLoading(true);
       getSignedVideoUrl(video.id)
@@ -337,7 +337,12 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
   );
 }
 
-export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdated, isAdmin = false }: TrainerVideosListProps) {
+export default function TrainerVideosList({
+  videos,
+  onVideoDeleted,
+  onVideoUpdated,
+  isAdmin = false,
+}: TrainerVideosListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [videoToDelete, setVideoToDelete] = useState<TrainerVideoViewModel | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -346,7 +351,7 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
     {},
   );
   const [error, setError] = useState<string | null>(null);
-  
+
   // Состояние для редактирования названия
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState<string>("");
@@ -449,7 +454,7 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
     // Устанавливаем флаг ожидания нового результата
     isWaitingForUpdateRef.current = true;
     lastProcessedVideoIdRef.current = null;
-    
+
     const formData = new FormData();
     formData.append("videoId", videoId);
     formData.append("displayName", editNameValue.trim() || "");
@@ -553,7 +558,11 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
                       <IconButton
                         size="small"
                         onClick={() => startEditing(video)}
-                        sx={{ WebkitTapHighlightColor: "transparent", minWidth: "32px", minHeight: "32px" }}
+                        sx={{
+                          WebkitTapHighlightColor: "transparent",
+                          minWidth: "32px",
+                          minHeight: "32px",
+                        }}
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
@@ -591,12 +600,7 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
       </Box>
 
       {/* Диалог подтверждения удаления */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={closeDeleteDialog}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={deleteDialogOpen} onClose={closeDeleteDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Удалить видео?</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -614,12 +618,7 @@ export default function TrainerVideosList({ videos, onVideoDeleted, onVideoUpdat
           <Button onClick={closeDeleteDialog} disabled={isPending}>
             Отмена
           </Button>
-          <Button
-            onClick={confirmDelete}
-            color="error"
-            variant="contained"
-            disabled={isPending}
-          >
+          <Button onClick={confirmDelete} color="error" variant="contained" disabled={isPending}>
             {isPending ? "Удаление..." : "Удалить"}
           </Button>
         </DialogActions>

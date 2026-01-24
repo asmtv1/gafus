@@ -136,6 +136,3 @@ export function celebrateEpic(): void {
     startVelocity: 45,
   });
 }
-
-
-

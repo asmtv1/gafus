@@ -66,9 +66,7 @@ export const useNotificationUIStore = create<NotificationUIState>()(
 
         // Проверяем, не отложен ли показ
         const dismissedUntilFromStorage =
-          typeof window !== "undefined"
-            ? localStorage.getItem("notificationDismissedUntil")
-            : null;
+          typeof window !== "undefined" ? localStorage.getItem("notificationDismissedUntil") : null;
 
         const effectiveDismissedUntil =
           dismissedUntil ||

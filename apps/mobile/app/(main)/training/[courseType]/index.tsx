@@ -25,7 +25,6 @@ export default function TrainingDaysScreen() {
   const { stepStates } = useStepStore();
   const courseData = data?.success && data.data ? data.data : undefined;
 
-
   const onRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
@@ -40,21 +39,17 @@ export default function TrainingDaysScreen() {
   // Вычисляем текущий день один раз для всех элементов
   const currentDayIndex = useMemo(() => {
     if (!courseData?.trainingDays || !courseData.courseId) return 0;
-    
+
     const effectiveCourseId = courseData.courseId || courseType;
     const days = courseData.trainingDays;
 
     // 1. Ищем первый день IN_PROGRESS
     const inProgressDayIndex = days.findIndex((day) => {
-      const localStatus = calculateDayStatus(
-        effectiveCourseId,
-        day.dayOnCourseId,
-        stepStates
-      );
+      const localStatus = calculateDayStatus(effectiveCourseId, day.dayOnCourseId, stepStates);
       const finalStatus =
         rank(localStatus) > rank(day.userStatus || undefined)
           ? localStatus
-          : (day.userStatus || "NOT_STARTED");
+          : day.userStatus || "NOT_STARTED";
       return finalStatus === "IN_PROGRESS";
     });
 
@@ -63,15 +58,11 @@ export default function TrainingDaysScreen() {
     // 2. Ищем последний COMPLETED и возвращаем следующий
     let lastCompletedIndex = -1;
     days.forEach((day, index) => {
-      const localStatus = calculateDayStatus(
-        effectiveCourseId,
-        day.dayOnCourseId,
-        stepStates
-      );
+      const localStatus = calculateDayStatus(effectiveCourseId, day.dayOnCourseId, stepStates);
       const finalStatus =
         rank(localStatus) > rank(day.userStatus || undefined)
           ? localStatus
-          : (day.userStatus || "NOT_STARTED");
+          : day.userStatus || "NOT_STARTED";
       if (finalStatus === "COMPLETED") {
         lastCompletedIndex = index;
       }
@@ -90,7 +81,10 @@ export default function TrainingDaysScreen() {
     const isAccessDenied =
       (data && "code" in data && data.code === "FORBIDDEN") ||
       error?.message?.includes("COURSE_ACCESS_DENIED") ||
-      (data && "error" in data && typeof data.error === "string" && data.error.includes("доступа")) ||
+      (data &&
+        "error" in data &&
+        typeof data.error === "string" &&
+        data.error.includes("доступа")) ||
       (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
 
     if (isAccessDenied) {
@@ -104,7 +98,7 @@ export default function TrainingDaysScreen() {
     (day: TrainingDay) => {
       router.push(`/training/${courseType}/${day.dayOnCourseId}`);
     },
-    [router, courseType]
+    [router, courseType],
   );
 
   const typeLabels: Record<string, string> = {
@@ -116,85 +110,84 @@ export default function TrainingDaysScreen() {
     summary: "Подведение итогов",
   };
 
-  const renderDayItem = useCallback(({ item, index }: { item: TrainingDay; index: number }) => {
-    // Если нет courseId, все равно показываем дни (courseId может быть в courseData)
-    if (!courseData) {
-      if (__DEV__) {
-        console.warn("[TrainingDaysScreen] renderDayItem: courseData is undefined for index", index);
+  const renderDayItem = useCallback(
+    ({ item, index }: { item: TrainingDay; index: number }) => {
+      // Если нет courseId, все равно показываем дни (courseId может быть в courseData)
+      if (!courseData) {
+        if (__DEV__) {
+          console.warn(
+            "[TrainingDaysScreen] renderDayItem: courseData is undefined for index",
+            index,
+          );
+        }
+        return null;
       }
-      return null;
-    }
-    
-    const courseId = courseData.courseId;
-    
-    if (!courseId && __DEV__) {
-      console.warn("[TrainingDaysScreen] courseId is missing in courseData", courseData);
-    }
 
-    // Вычисляем локальный статус дня из stepStore (как на web)
-    const effectiveCourseId = courseId || courseType;
-    const localStatus = calculateDayStatus(
-      effectiveCourseId,
-      item.dayOnCourseId,
-      stepStates
-    );
-    // Не понижаем статус: берем максимум между серверным и локальным
-    const finalStatus =
-      rank(localStatus) > rank(item.userStatus || undefined)
-        ? localStatus
-        : (item.userStatus || "NOT_STARTED");
+      const courseId = courseData.courseId;
 
-    const isCompleted = finalStatus === "COMPLETED";
-    const isInProgress = finalStatus === "IN_PROGRESS";
-    
-    // Используем предвычисленный индекс текущего дня
-    const isCurrent = index === currentDayIndex;
+      if (!courseId && __DEV__) {
+        console.warn("[TrainingDaysScreen] courseId is missing in courseData", courseData);
+      }
 
-    // Определяем цвет границы в зависимости от статуса (как на web)
-    const borderColor = isCompleted
-      ? "#B6C582" // Зеленый для завершенных (как на web)
-      : isInProgress
-        ? "#F6D86E" // Желтый для в процессе (как на web)
-        : "transparent";
+      // Вычисляем локальный статус дня из stepStore (как на web)
+      const effectiveCourseId = courseId || courseType;
+      const localStatus = calculateDayStatus(effectiveCourseId, item.dayOnCourseId, stepStates);
+      // Не понижаем статус: берем максимум между серверным и локальным
+      const finalStatus =
+        rank(localStatus) > rank(item.userStatus || undefined)
+          ? localStatus
+          : item.userStatus || "NOT_STARTED";
 
+      const isCompleted = finalStatus === "COMPLETED";
+      const isInProgress = finalStatus === "IN_PROGRESS";
 
-    return (
-      <Pressable onPress={() => handleDayPress(item)}>
-        <View style={[styles.dayCardWrapper, { borderColor }]}>
-          {isCurrent && (
-            <View style={styles.currentIndicator}>
-              <Text style={styles.currentIndicatorText}>📍 Вы здесь</Text>
-            </View>
-          )}
-          {/* Бейджи времени (как на web) */}
-          {((item.estimatedDuration || 0) > 0 || (item.theoryMinutes || 0) > 0) && (
-            <View style={styles.timeBadgeWrapper}>
-              {(item.estimatedDuration || 0) > 0 && (
-                <View style={styles.timeBadge}>
-                  <Text style={styles.timeBadgeText}>{item.estimatedDuration}</Text>
-                  <Text style={styles.timeBadgeLabel}>мин</Text>
-                </View>
-              )}
-              {(item.theoryMinutes || 0) > 0 && (
-                <View style={styles.timeBadgeTheory}>
-                  <Text style={styles.timeBadgeTheoryText}>{item.theoryMinutes}</Text>
-                  <Text style={styles.timeBadgeTheoryLabel}>мин</Text>
-                </View>
-              )}
-            </View>
-          )}
-          <Surface style={styles.dayCard} elevation={1}>
-            <Text style={styles.dayTitle}>{item.title}</Text>
-            <Text style={styles.subtitle}>({typeLabels[item.type] || item.type})</Text>
-            <Text style={styles.equipmentLabel}>Что понадобится:</Text>
-            <Text style={styles.equipment}>
-              {item.equipment || "вкусняшки и терпение"}
-            </Text>
-          </Surface>
-        </View>
-      </Pressable>
-    );
-  }, [courseData, courseType, stepStates, rank, currentDayIndex, handleDayPress]);
+      // Используем предвычисленный индекс текущего дня
+      const isCurrent = index === currentDayIndex;
+
+      // Определяем цвет границы в зависимости от статуса (как на web)
+      const borderColor = isCompleted
+        ? "#B6C582" // Зеленый для завершенных (как на web)
+        : isInProgress
+          ? "#F6D86E" // Желтый для в процессе (как на web)
+          : "transparent";
+
+      return (
+        <Pressable onPress={() => handleDayPress(item)}>
+          <View style={[styles.dayCardWrapper, { borderColor }]}>
+            {isCurrent && (
+              <View style={styles.currentIndicator}>
+                <Text style={styles.currentIndicatorText}>📍 Вы здесь</Text>
+              </View>
+            )}
+            {/* Бейджи времени (как на web) */}
+            {((item.estimatedDuration || 0) > 0 || (item.theoryMinutes || 0) > 0) && (
+              <View style={styles.timeBadgeWrapper}>
+                {(item.estimatedDuration || 0) > 0 && (
+                  <View style={styles.timeBadge}>
+                    <Text style={styles.timeBadgeText}>{item.estimatedDuration}</Text>
+                    <Text style={styles.timeBadgeLabel}>мин</Text>
+                  </View>
+                )}
+                {(item.theoryMinutes || 0) > 0 && (
+                  <View style={styles.timeBadgeTheory}>
+                    <Text style={styles.timeBadgeTheoryText}>{item.theoryMinutes}</Text>
+                    <Text style={styles.timeBadgeTheoryLabel}>мин</Text>
+                  </View>
+                )}
+              </View>
+            )}
+            <Surface style={styles.dayCard} elevation={1}>
+              <Text style={styles.dayTitle}>{item.title}</Text>
+              <Text style={styles.subtitle}>({typeLabels[item.type] || item.type})</Text>
+              <Text style={styles.equipmentLabel}>Что понадобится:</Text>
+              <Text style={styles.equipment}>{item.equipment || "вкусняшки и терпение"}</Text>
+            </Surface>
+          </View>
+        </Pressable>
+      );
+    },
+    [courseData, courseType, stepStates, rank, currentDayIndex, handleDayPress],
+  );
 
   if (isLoading) {
     return <Loading fullScreen message="Загрузка тренировок..." />;
@@ -241,9 +234,7 @@ export default function TrainingDaysScreen() {
       <SafeAreaView style={styles.container} edges={["bottom"]}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
           showsVerticalScrollIndicator={true}
         >
           {/* Заголовок "Содержание" (как на web) */}

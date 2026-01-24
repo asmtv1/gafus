@@ -66,16 +66,13 @@ export function SystemMetricsCard({ metrics, error }: SystemMetricsCardProps) {
           <Typography variant="h6" fontWeight="bold" mb={2}>
             Системные метрики
           </Typography>
-          <Alert
-            severity="warning"
-            icon={<WarningIcon />}
-            sx={{ mt: 2 }}
-          >
+          <Alert severity="warning" icon={<WarningIcon />} sx={{ mt: 2 }}>
             <Typography variant="body2" fontWeight="medium" mb={1}>
               Метрики недоступны
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {error || "Не удалось получить метрики из Prometheus. Проверьте подключение к серверу мониторинга."}
+              {error ||
+                "Не удалось получить метрики из Prometheus. Проверьте подключение к серверу мониторинга."}
             </Typography>
           </Alert>
         </CardContent>
@@ -200,4 +197,3 @@ export function SystemMetricsCard({ metrics, error }: SystemMetricsCardProps) {
     </Card>
   );
 }
-

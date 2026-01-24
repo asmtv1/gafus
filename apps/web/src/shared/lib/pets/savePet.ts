@@ -11,7 +11,7 @@ import type { UpdatePetInput } from "@gafus/types";
 import { createPetSchema, updatePetSchema } from "../validation/petSchemas";
 
 // Создаем логгер для savePet
-const logger = createWebLogger('web-save-pet');
+const logger = createWebLogger("web-save-pet");
 
 export async function savePet({
   id,
@@ -25,7 +25,7 @@ export async function savePet({
 }: UpdatePetInput) {
   try {
     const userId = await getCurrentUserId();
-    logger.warn("Получен ownerId:", { ownerId: userId, operation: 'warn' });
+    logger.warn("Получен ownerId:", { ownerId: userId, operation: "warn" });
 
     const trimmedId = id?.trim();
 
@@ -51,11 +51,11 @@ export async function savePet({
         birthDate: parsedDate,
         owner: { connect: { id: userId } },
       };
-      logger.warn("Создание питомца с данными:", { createData, operation: 'warn' });
+      logger.warn("Создание питомца с данными:", { createData, operation: "warn" });
       const result = await prisma.pet.create({
         data: createData,
       });
-      logger.warn("Питомец создан успешно:", { result, operation: 'warn' });
+      logger.warn("Питомец создан успешно:", { result, operation: "warn" });
       return result;
     } else {
       const validatedData = updatePetSchema.parse({
@@ -68,7 +68,9 @@ export async function savePet({
         weightKg,
         notes,
       });
-      const parsedDate = validatedData.birthDate ? new Date(validatedData.birthDate as string) : undefined;
+      const parsedDate = validatedData.birthDate
+        ? new Date(validatedData.birthDate as string)
+        : undefined;
       const updateData: Prisma.PetUpdateInput = {
         name: validatedData.name !== undefined ? { set: validatedData.name } : undefined,
         type: validatedData.type !== undefined ? { set: validatedData.type as PetType } : undefined,
@@ -81,10 +83,7 @@ export async function savePet({
           validatedData.weightKg !== undefined
             ? { set: validatedData.weightKg ?? null }
             : undefined,
-        notes:
-          validatedData.notes !== undefined
-            ? { set: validatedData.notes ?? null }
-            : undefined,
+        notes: validatedData.notes !== undefined ? { set: validatedData.notes ?? null } : undefined,
         birthDate: parsedDate !== undefined ? { set: parsedDate } : undefined,
       };
       return await prisma.pet.update({
@@ -93,7 +92,7 @@ export async function savePet({
       });
     }
   } catch (error) {
-    logger.error("Ошибка в savePet:", error as Error, { operation: 'error' });
+    logger.error("Ошибка в savePet:", error as Error, { operation: "error" });
     throw new Error("Ошибка при сохранении питомца. Попробуйте перезагрузить страницу.");
   }
 }

@@ -1,6 +1,5 @@
 "use client";
 
-
 import { createWebLogger } from "@gafus/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -11,7 +10,7 @@ import { getFavoritesCoursesAction } from "@shared/server-actions";
 
 import type { FavoriteToggleData, CourseWithProgressData } from "@gafus/types";
 
-const logger = createWebLogger('web');
+const logger = createWebLogger("web");
 
 // Локальный хелпер быстрого таймаута для сетевых вызовов в избранном
 async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
@@ -122,10 +121,10 @@ export const useFavoritesStore = create<FavoritesState>()(
       loadFromServer: async () => {
         // загружаем ids с сервера один раз или по требованию
         if (get().loading) return;
-        
+
         // Проверяем, что мы в браузере и роутер инициализирован
-        if (typeof window === 'undefined') return;
-        
+        if (typeof window === "undefined") return;
+
         // Проверяем авторизацию через клиентскую сессию
         try {
           const { getSession } = await import("next-auth/react");
@@ -138,16 +137,14 @@ export const useFavoritesStore = create<FavoritesState>()(
           // Если не можем проверить сессию, не загружаем
           return;
         }
-        
+
         set({ loading: true, error: null });
         try {
           const { data, favoriteIds } = await getFavoritesCoursesAction();
           get().setFromServer(favoriteIds);
           // если сервер вернул готовые данные — используем их для courseStore
           try {
-            useCourseStore
-              .getState()
-              .setFavorites(data as unknown as CourseWithProgressData[]);
+            useCourseStore.getState().setFavorites(data as unknown as CourseWithProgressData[]);
           } catch (e) {
             // noop
           }
@@ -175,14 +172,17 @@ export const useFavoritesStore = create<FavoritesState>()(
             await withTimeout(doRequest(), 2500);
           } catch (e) {
             // Не кидаем сразу в офлайн-очередь — пробуем фоновые ретраи
-            logger.warn("addFavorite online attempt failed, retrying in background", { error: e, operation: 'warn' });
+            logger.warn("addFavorite online attempt failed, retrying in background", {
+              error: e,
+              operation: "warn",
+            });
             (async () => {
               for (let i = 0; i < 2; i++) {
                 try {
                   await withTimeout(doRequest(), 2500);
                   return;
                 } catch (err) {
-                  logger.warn("addFavorite retry failed", { error: err, operation: 'warn' });
+                  logger.warn("addFavorite retry failed", { error: err, operation: "warn" });
                 }
               }
               // Если так и не удалось — только тогда кладём в очередь
@@ -210,14 +210,17 @@ export const useFavoritesStore = create<FavoritesState>()(
           try {
             await withTimeout(doRequest(), 2500);
           } catch (e) {
-            logger.warn("removeFavorite online attempt failed, retrying in background", { error: e, operation: 'warn' });
+            logger.warn("removeFavorite online attempt failed, retrying in background", {
+              error: e,
+              operation: "warn",
+            });
             (async () => {
               for (let i = 0; i < 2; i++) {
                 try {
                   await withTimeout(doRequest(), 2500);
                   return;
                 } catch (err) {
-                  logger.warn("removeFavorite retry failed", { error: err, operation: 'warn' });
+                  logger.warn("removeFavorite retry failed", { error: err, operation: "warn" });
                 }
               }
               const data: FavoriteToggleData = { courseId, action: "remove" };
@@ -255,9 +258,7 @@ export const useFavoritesStore = create<FavoritesState>()(
         const s = state as unknown as { favoriteIds?: unknown };
         if (Array.isArray(s.favoriteIds)) {
           // восстановление Set из массива
-          (s as unknown as FavoritesState).favoriteIds = new Set(
-            s.favoriteIds as string[],
-          );
+          (s as unknown as FavoritesState).favoriteIds = new Set(s.favoriteIds as string[]);
         }
         // после ре-гидратации подгружаем актуальные данные с сервера в фоне
         // Используем requestIdleCallback для отложенной загрузки после инициализации роутера
@@ -269,8 +270,8 @@ export const useFavoritesStore = create<FavoritesState>()(
           }
         };
 
-        if (typeof window !== 'undefined') {
-          if ('requestIdleCallback' in window) {
+        if (typeof window !== "undefined") {
+          if ("requestIdleCallback" in window) {
             requestIdleCallback(loadWhenReady, { timeout: 1000 });
           } else {
             setTimeout(loadWhenReady, 500);
@@ -280,5 +281,3 @@ export const useFavoritesStore = create<FavoritesState>()(
     },
   ),
 );
-
-

@@ -13,7 +13,7 @@
       "id": 1,
       "title": "Текущий статус сервисов",
       "type": "stat",
-      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -35,16 +35,16 @@
             {
               "type": "value",
               "options": {
-                "0": {"text": "DOWN", "color": "red"},
-                "1": {"text": "UP", "color": "green"}
+                "0": { "text": "DOWN", "color": "red" },
+                "1": { "text": "UP", "color": "green" }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 1, "color": "green"}
+              { "value": null, "color": "red" },
+              { "value": 1, "color": "green" }
             ]
           }
         }
@@ -59,7 +59,7 @@
       "id": 2,
       "title": "Trainer Panel",
       "type": "stat",
-      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -81,16 +81,16 @@
             {
               "type": "value",
               "options": {
-                "0": {"text": "DOWN", "color": "red"},
-                "1": {"text": "UP", "color": "green"}
+                "0": { "text": "DOWN", "color": "red" },
+                "1": { "text": "UP", "color": "green" }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 1, "color": "green"}
+              { "value": null, "color": "red" },
+              { "value": 1, "color": "green" }
             ]
           }
         }
@@ -105,7 +105,7 @@
       "id": 3,
       "title": "Admin Panel",
       "type": "stat",
-      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -127,16 +127,16 @@
             {
               "type": "value",
               "options": {
-                "0": {"text": "DOWN", "color": "red"},
-                "1": {"text": "UP", "color": "green"}
+                "0": { "text": "DOWN", "color": "red" },
+                "1": { "text": "UP", "color": "green" }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 1, "color": "green"}
+              { "value": null, "color": "red" },
+              { "value": 1, "color": "green" }
             ]
           }
         }
@@ -151,7 +151,7 @@
       "id": 4,
       "title": "Bull Board",
       "type": "stat",
-      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -173,16 +173,16 @@
             {
               "type": "value",
               "options": {
-                "0": {"text": "DOWN", "color": "red"},
-                "1": {"text": "UP", "color": "green"}
+                "0": { "text": "DOWN", "color": "red" },
+                "1": { "text": "UP", "color": "green" }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 1, "color": "green"}
+              { "value": null, "color": "red" },
+              { "value": 1, "color": "green" }
             ]
           }
         }
@@ -197,7 +197,7 @@
       "id": 5,
       "title": "Статус доступности (график)",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 4},
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -222,16 +222,16 @@
             {
               "type": "value",
               "options": {
-                "0": {"text": "DOWN", "color": "red"},
-                "1": {"text": "UP", "color": "green"}
+                "0": { "text": "DOWN", "color": "red" },
+                "1": { "text": "UP", "color": "green" }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 1, "color": "green"}
+              { "value": null, "color": "red" },
+              { "value": 1, "color": "green" }
             ]
           }
         }
@@ -250,7 +250,7 @@
       "id": 6,
       "title": "Время ответа сервисов (секунды)",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -272,9 +272,9 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "green"},
-              {"value": 1, "color": "yellow"},
-              {"value": 2, "color": "red"}
+              { "value": null, "color": "green" },
+              { "value": 1, "color": "yellow" },
+              { "value": 2, "color": "red" }
             ]
           }
         }
@@ -284,7 +284,7 @@
       "id": 7,
       "title": "HTTP статус коды",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -306,10 +306,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"value": null, "color": "red"},
-              {"value": 200, "color": "green"},
-              {"value": 300, "color": "yellow"},
-              {"value": 400, "color": "red"}
+              { "value": null, "color": "red" },
+              { "value": 200, "color": "green" },
+              { "value": 300, "color": "yellow" },
+              { "value": 400, "color": "red" }
             ]
           }
         }

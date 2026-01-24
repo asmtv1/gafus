@@ -22,7 +22,7 @@ export default async function EditStepPage({ params }: Props) {
   const trainerVideos = session?.user?.id ? await getTrainerVideos(session.user.id) : [];
 
   return (
-    <FormPageLayout 
+    <FormPageLayout
       title="Редактирование шага тренировки"
       subtitle="Измените информацию о шаге тренировки"
     >
@@ -34,15 +34,23 @@ export default async function EditStepPage({ params }: Props) {
           title: step.title,
           description: step.description,
           durationSec: step.durationSec ?? undefined,
-          estimatedDurationSec: (step as unknown as { estimatedDurationSec?: number | null }).estimatedDurationSec ?? null,
+          estimatedDurationSec:
+            (step as unknown as { estimatedDurationSec?: number | null }).estimatedDurationSec ??
+            null,
           videoUrl: step.videoUrl,
           type: (step as unknown as { type?: string }).type || "TRAINING",
           imageUrls: step.imageUrls || [],
           pdfUrls: step.pdfUrls || [],
-          checklist: Array.isArray((step as unknown as { checklist?: unknown }).checklist) ? ((step as unknown as { checklist: ChecklistQuestion[] }).checklist) : [],
-          requiresVideoReport: (step as unknown as { requiresVideoReport?: boolean }).requiresVideoReport ?? false,
-          requiresWrittenFeedback: (step as unknown as { requiresWrittenFeedback?: boolean }).requiresWrittenFeedback ?? false,
-          hasTestQuestions: (step as unknown as { hasTestQuestions?: boolean }).hasTestQuestions ?? false,
+          checklist: Array.isArray((step as unknown as { checklist?: unknown }).checklist)
+            ? (step as unknown as { checklist: ChecklistQuestion[] }).checklist
+            : [],
+          requiresVideoReport:
+            (step as unknown as { requiresVideoReport?: boolean }).requiresVideoReport ?? false,
+          requiresWrittenFeedback:
+            (step as unknown as { requiresWrittenFeedback?: boolean }).requiresWrittenFeedback ??
+            false,
+          hasTestQuestions:
+            (step as unknown as { hasTestQuestions?: boolean }).hasTestQuestions ?? false,
         }}
       />
     </FormPageLayout>

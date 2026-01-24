@@ -3,24 +3,19 @@
  * Обеспечивает коммуникацию между приложением и SW
  */
 
-import { useEffect, useCallback } from 'react';
-import { useOfflineStore } from '@shared/stores/offlineStore';
+import { useEffect, useCallback } from "react";
+import { useOfflineStore } from "@shared/stores/offlineStore";
 import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для useServiceWorker
-const logger = createWebLogger('web-service-worker-hook');
+const logger = createWebLogger("web-service-worker-hook");
 
 export function useServiceWorker() {
-  const { 
-    isOnline, 
-    setOnlineStatus, 
-    syncQueue, 
-    syncOfflineActions 
-  } = useOfflineStore();
+  const { isOnline, setOnlineStatus, syncQueue, syncOfflineActions } = useOfflineStore();
 
   // Отправка сообщения в Service Worker
   const sendMessageToSW = useCallback((message: Record<string, unknown>) => {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage(message);
     }
   }, []);
@@ -28,13 +23,13 @@ export function useServiceWorker() {
   // Получение ответа от Service Worker
   const getMessageFromSW = useCallback((messageType: string): Promise<Record<string, unknown>> => {
     return new Promise((resolve, reject) => {
-      if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
-        reject(new Error('Service Worker not available'));
+      if (!("serviceWorker" in navigator) || !navigator.serviceWorker.controller) {
+        reject(new Error("Service Worker not available"));
         return;
       }
 
       const messageChannel = new MessageChannel();
-      
+
       messageChannel.port1.onmessage = (event) => {
         if (event.data.type === messageType) {
           resolve(event.data);
@@ -43,31 +38,33 @@ export function useServiceWorker() {
         }
       };
 
-      navigator.serviceWorker.controller.postMessage(
-        { type: 'CACHE_STATUS' },
-        [messageChannel.port2]
-      );
+      navigator.serviceWorker.controller.postMessage({ type: "CACHE_STATUS" }, [
+        messageChannel.port2,
+      ]);
 
       // Таймаут для запроса
       setTimeout(() => {
-        reject(new Error('Request timeout'));
+        reject(new Error("Request timeout"));
       }, 5000);
     });
   }, []);
 
   // Уведомление SW об изменении офлайн статуса
-  const notifyOfflineStatus = useCallback((online: boolean) => {
-    sendMessageToSW({
-      type: 'OFFLINE_STATUS',
-      isOnline: online,
-    });
-  }, [sendMessageToSW]);
+  const notifyOfflineStatus = useCallback(
+    (online: boolean) => {
+      sendMessageToSW({
+        type: "OFFLINE_STATUS",
+        isOnline: online,
+      });
+    },
+    [sendMessageToSW],
+  );
 
   // Отправка очереди синхронизации в SW
   const sendSyncQueue = useCallback(() => {
     if (syncQueue.length > 0) {
       sendMessageToSW({
-        type: 'SYNC_QUEUE',
+        type: "SYNC_QUEUE",
         actions: syncQueue,
       });
     }
@@ -76,68 +73,68 @@ export function useServiceWorker() {
   // Получение статуса кэша
   const getCacheStatus = useCallback(async () => {
     try {
-      const response = await getMessageFromSW('CACHE_STATUS_RESPONSE');
+      const response = await getMessageFromSW("CACHE_STATUS_RESPONSE");
       return response.status;
     } catch (error) {
-      logger.warn('Failed to get cache status:', { error, operation: 'warn' });
+      logger.warn("Failed to get cache status:", { error, operation: "warn" });
       return null;
     }
   }, [getMessageFromSW]);
 
   // Обработка сообщений от Service Worker
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
+    if (!("serviceWorker" in navigator)) return;
 
     const handleMessage = (event: MessageEvent) => {
       const { data } = event;
-      
+
       switch (data.type) {
-        case 'NETWORK_STATUS':
+        case "NETWORK_STATUS":
           // Сообщение от Service Worker о статусе сети
-          if (data.status === 'OFFLINE') {
-            logger.warn('Service Worker detected offline', {
-              operation: 'sw_offline_detected',
-              error: data.error
+          if (data.status === "OFFLINE") {
+            logger.warn("Service Worker detected offline", {
+              operation: "sw_offline_detected",
+              error: data.error,
             });
             setOnlineStatus(false);
-          } else if (data.status === 'ONLINE') {
-            logger.info('Service Worker detected online', {
-              operation: 'sw_online_detected'
+          } else if (data.status === "ONLINE") {
+            logger.info("Service Worker detected online", {
+              operation: "sw_online_detected",
             });
             setOnlineStatus(true);
           }
           break;
-          
-        case 'NETWORK_STATUS_CHANGED':
+
+        case "NETWORK_STATUS_CHANGED":
           setOnlineStatus(data.isOnline);
           break;
-          
-        case 'NETWORK_RESTORED':
+
+        case "NETWORK_RESTORED":
           // При восстановлении сети синхронизируем очередь
           setTimeout(() => {
             syncOfflineActions();
           }, 1000);
           break;
-          
-        case 'OFFLINE_ACTION_PROCESSED':
+
+        case "OFFLINE_ACTION_PROCESSED":
           break;
-          
-        case 'NAVIGATE':
+
+        case "NAVIGATE":
           // Навигация по URL из push-уведомления
-          if (data.url && typeof window !== 'undefined') {
+          if (data.url && typeof window !== "undefined") {
             window.location.href = data.url;
           }
           break;
-          
+
         default:
           break;
       }
     };
 
-    navigator.serviceWorker.addEventListener('message', handleMessage);
-    
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+
     return () => {
-      navigator.serviceWorker.removeEventListener('message', handleMessage);
+      navigator.serviceWorker.removeEventListener("message", handleMessage);
     };
   }, [setOnlineStatus, syncOfflineActions]);
 

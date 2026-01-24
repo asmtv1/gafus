@@ -66,17 +66,14 @@ export async function GET() {
         isLog: isLogResult,
         additionalContextType: typeof report.additionalContext,
         additionalContextLength:
-          typeof report.additionalContext === "string"
-            ? report.additionalContext.length
-            : null,
+          typeof report.additionalContext === "string" ? report.additionalContext.length : null,
         parsedContext: parsedContext
           ? {
               hasLevel: "level" in (parsedContext || {}),
               level: (parsedContext as { level?: string })?.level,
               hasPushSpecific: "pushSpecific" in (parsedContext || {}),
-              pushSpecificLevel: (
-                parsedContext as { pushSpecific?: { level?: string } }
-              )?.pushSpecific?.level,
+              pushSpecificLevel: (parsedContext as { pushSpecific?: { level?: string } })
+                ?.pushSpecific?.level,
               keys: Object.keys(parsedContext || {}),
             }
           : null,
@@ -87,9 +84,8 @@ export async function GET() {
     // Статистика
     const stats = {
       total: allReports.length,
-      fromLogger: allReports.filter((r) =>
-        isFromLogger(r as unknown as ErrorDashboardReport)
-      ).length,
+      fromLogger: allReports.filter((r) => isFromLogger(r as unknown as ErrorDashboardReport))
+        .length,
       errors: allReports.filter((r) => isError(r as unknown as ErrorDashboardReport)).length,
       logs: allReports.filter((r) => isLog(r as unknown as ErrorDashboardReport)).length,
       byApp: {} as Record<string, number>,
@@ -99,8 +95,7 @@ export async function GET() {
 
     allReports.forEach((report) => {
       stats.byApp[report.appName] = (stats.byApp[report.appName] || 0) + 1;
-      stats.byEnvironment[report.environment] =
-        (stats.byEnvironment[report.environment] || 0) + 1;
+      stats.byEnvironment[report.environment] = (stats.byEnvironment[report.environment] || 0) + 1;
 
       const level = getLogLevel(report as unknown as ErrorDashboardReport);
       if (level) {
@@ -115,7 +110,7 @@ export async function GET() {
         analysis: analysis.slice(0, 20), // Первые 20 записей для анализа
         totalAnalyzed: analysis.length,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     return NextResponse.json(
@@ -124,8 +119,7 @@ export async function GET() {
         error: error instanceof Error ? error.message : "Unknown error",
         stack: error instanceof Error ? error.stack : undefined,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

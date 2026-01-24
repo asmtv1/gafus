@@ -4,7 +4,7 @@
   max-width: 510px;
   width: 100%;
   margin: 1rem auto;
-  background: #ECE5D2;
+  background: #ece5d2;
   border-radius: 16px;
   border: 1px solid #636128;
   box-sizing: border-box;
@@ -13,7 +13,7 @@
 /* Кнопка смены пароля */
 .passwordButton {
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
-  color: #ECE5D2;
+  color: #ece5d2;
   border: 1px solid #636128;
   padding: 14px 28px;
   border-radius: 12px;
@@ -39,7 +39,7 @@
 }
 
 .passwordButton:active {
-  background: #352E2E;
+  background: #352e2e;
   transform: translateY(0);
 }
 

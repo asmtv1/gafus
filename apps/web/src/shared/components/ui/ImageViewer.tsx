@@ -56,7 +56,7 @@ export default function ImageViewer({
   return (
     <>
       {/* Миниатюра изображения */}
-      <div 
+      <div
         className={`${styles.thumbnailContainer} ${thumbnailClassName || ""}`}
         onClick={handleThumbnailClick}
         role="button"
@@ -155,7 +155,7 @@ export default function ImageViewer({
                 />
               </svg>
             </button>
-            
+
             <div className={styles.modalImageContainer}>
               {isBlobUrl(src) ? (
                 <img
@@ -182,10 +182,8 @@ export default function ImageViewer({
                 />
               )}
             </div>
-            
-            <div className={styles.modalCaption}>
-              {alt}
-            </div>
+
+            <div className={styles.modalCaption}>{alt}</div>
           </div>
         </div>
       )}

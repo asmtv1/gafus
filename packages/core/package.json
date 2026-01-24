@@ -2,10 +2,8 @@
   "name": "@gafus/core",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
-  "main": "./dist/core/src/index.js",
-  "types": "./dist/core/src/index.d.ts",
   "sideEffects": false,
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/core/src/index.d.ts",
@@ -76,22 +74,24 @@
       "default": "./dist/core/src/utils/retry.js"
     }
   },
+  "main": "./dist/core/src/index.js",
+  "types": "./dist/core/src/index.d.ts",
   "scripts": {
     "build": "tsc && ts-add-js-extension --dir dist",
-    "dev": "tsc --watch",
     "clean": "rimraf dist",
+    "dev": "tsc --watch",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gafus/prisma": "workspace:*",
-    "@gafus/logger": "workspace:*",
-    "@gafus/types": "workspace:*",
-    "@gafus/queues": "workspace:*",
-    "@gafus/cdn-upload": "workspace:*",
     "@gafus/auth": "workspace:*",
-    "zod": "^3.24.1",
-    "libphonenumber-js": "^1.12.8"
+    "@gafus/cdn-upload": "workspace:*",
+    "@gafus/logger": "workspace:*",
+    "@gafus/prisma": "workspace:*",
+    "@gafus/queues": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "libphonenumber-js": "^1.12.8",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

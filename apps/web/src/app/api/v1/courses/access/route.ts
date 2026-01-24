@@ -1,6 +1,6 @@
 /**
  * API Route: GET /api/v1/courses/access
- * 
+ *
  * Проверяет доступ пользователя к курсу.
  * Query params: courseType или courseId
  */
@@ -11,7 +11,7 @@ import { authOptions } from "@gafus/auth";
 import { checkCourseAccess, checkCourseAccessById } from "@gafus/core/services/course";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('api-courses');
+const logger = createWebLogger("api-courses");
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     if (!courseType && !courseId) {
       return NextResponse.json(
         { success: false, error: "Требуется courseType или courseId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     logger.error("Error in course access API", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

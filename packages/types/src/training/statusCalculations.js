@@ -15,21 +15,26 @@ const training_status_1 = require("../utils/training-status");
  * Это критично для синхронизации клиента и сервера!
  */
 function calculateDayStatusFromStatuses(stepStatuses) {
-    if (stepStatuses.length === 0) {
-        return training_status_1.TrainingStatus.NOT_STARTED;
-    }
-    const normalized = stepStatuses.map((s) => String(s));
-    // Все шаги завершены
-    if (normalized.every((s) => s === training_status_1.TrainingStatus.COMPLETED)) {
-        return training_status_1.TrainingStatus.COMPLETED;
-    }
-    // Есть хотя бы один активный шаг (IN_PROGRESS, PAUSED или COMPLETED)
-    // КРИТИЧНО: PAUSED должен проверяться, иначе будет рассинхронизация!
-    if (normalized.some((s) => s === training_status_1.TrainingStatus.IN_PROGRESS ||
-        s === "PAUSED" ||
-        s === training_status_1.TrainingStatus.COMPLETED)) {
-        return training_status_1.TrainingStatus.IN_PROGRESS;
-    }
+  if (stepStatuses.length === 0) {
     return training_status_1.TrainingStatus.NOT_STARTED;
+  }
+  const normalized = stepStatuses.map((s) => String(s));
+  // Все шаги завершены
+  if (normalized.every((s) => s === training_status_1.TrainingStatus.COMPLETED)) {
+    return training_status_1.TrainingStatus.COMPLETED;
+  }
+  // Есть хотя бы один активный шаг (IN_PROGRESS, PAUSED или COMPLETED)
+  // КРИТИЧНО: PAUSED должен проверяться, иначе будет рассинхронизация!
+  if (
+    normalized.some(
+      (s) =>
+        s === training_status_1.TrainingStatus.IN_PROGRESS ||
+        s === "PAUSED" ||
+        s === training_status_1.TrainingStatus.COMPLETED,
+    )
+  ) {
+    return training_status_1.TrainingStatus.IN_PROGRESS;
+  }
+  return training_status_1.TrainingStatus.NOT_STARTED;
 }
 //# sourceMappingURL=statusCalculations.js.map

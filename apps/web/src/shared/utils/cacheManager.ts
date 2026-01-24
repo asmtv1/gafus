@@ -4,11 +4,14 @@ import { TrainingStatus, type CourseWithProgressData } from "@gafus/types";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useCourseStore } from "@shared/stores/courseStore";
 import { useUserStore } from "@shared/stores/userStore";
-import { calculateDayStatus as calcDay, calculateCourseStatus as calcCourse } from "@gafus/core/utils/training";
+import {
+  calculateDayStatus as calcDay,
+  calculateCourseStatus as calcCourse,
+} from "@gafus/core/utils/training";
 import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для cache manager
-const logger = createWebLogger('web-cache-manager');
+const logger = createWebLogger("web-cache-manager");
 
 // Утилиты для работы с временем
 const nowSec = () => Math.floor(Date.now() / 1000);
@@ -33,29 +36,29 @@ export function useCacheManager() {
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    stepStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED',
+    stepStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED",
     durationSec?: number,
-    totalSteps?: number
+    totalSteps?: number,
   ) => {
     logger.info(`[CacheManager] Updating step progress`, {
-      operation: 'update_step_progress',
+      operation: "update_step_progress",
       courseId: courseId,
       dayOnCourseId: dayOnCourseId,
       stepIndex: stepIndex,
-      stepStatus: stepStatus
+      stepStatus: stepStatus,
     });
 
     // 1. Обновляем локальный стейт шага
-    if (stepStatus === 'IN_PROGRESS' && durationSec) {
+    if (stepStatus === "IN_PROGRESS" && durationSec) {
       // При запуске шага создаем полное состояние через setState
       const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
       const endTs = nowSec() + durationSec;
-      
+
       // Сохраняем endTs в localStorage для таймера
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         localStorage.setItem(makeEndKey(courseId, dayOnCourseId, stepIndex), endTs.toString());
       }
-      
+
       useStepStore.setState((state) => ({
         stepStates: {
           ...state.stepStates,
@@ -67,13 +70,13 @@ export function useCacheManager() {
           },
         },
       }));
-    } else if (stepStatus === 'IN_PROGRESS') {
+    } else if (stepStatus === "IN_PROGRESS") {
       // Возобновление уже выполнено в resumeStepWithServer
       // НЕ вызываем resumeStep снова
-    } else if (stepStatus === 'PAUSED') {
-      // Пауза уже выполнена в pauseStepWithServer  
+    } else if (stepStatus === "PAUSED") {
+      // Пауза уже выполнена в pauseStepWithServer
       // НЕ вызываем pauseStep снова
-    } else if (stepStatus === 'COMPLETED') {
+    } else if (stepStatus === "COMPLETED") {
       // Завершение: используем finishStep для очистки ключей и времени
       const { finishStep } = useStepStore.getState();
       finishStep(courseId, dayOnCourseId, stepIndex);
@@ -86,39 +89,54 @@ export function useCacheManager() {
     const currentStepStates = useStepStore.getState().stepStates;
 
     // 3. Вычисляем новый статус дня на основе всех шагов
-    const newDayStatus = totalSteps !== undefined 
-      ? calcDay(courseId, dayOnCourseId, currentStepStates, totalSteps)
-      : calcDay(courseId, dayOnCourseId, currentStepStates);
+    const newDayStatus =
+      totalSteps !== undefined
+        ? calcDay(courseId, dayOnCourseId, currentStepStates, totalSteps)
+        : calcDay(courseId, dayOnCourseId, currentStepStates);
 
     // 4. Вычисляем новый статус курса на основе всех дней
     // Получаем общее количество дней из данных курса
     const courseStore = useCourseStore.getState();
     const allCourses = courseStore.allCourses?.data || [];
-    const serverCourse = allCourses.find(c => c.id === courseId);
+    const serverCourse = allCourses.find((c) => c.id === courseId);
     const totalDays = serverCourse?.dayLinks?.length;
     const newCourseStatus = calcCourse(courseId, currentStepStates, totalDays);
 
     // 5. Обновляем кэш курсов в courseStore
-    updateCoursesCache(courseId, newCourseStatus, dayOnCourseId, stepIndex, stepStatus as 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED');
+    updateCoursesCache(
+      courseId,
+      newCourseStatus,
+      dayOnCourseId,
+      stepIndex,
+      stepStatus as "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED",
+    );
 
     logger.info(`[CacheManager] Updated`, {
-      operation: 'cache_manager_updated',
+      operation: "cache_manager_updated",
       day: newDayStatus,
-      course: newCourseStatus
+      course: newCourseStatus,
     });
   };
 
   /**
    * Вычисляет статус дня на основе статусов всех шагов
    */
-  const calculateDayStatus = (courseId: string, dayOnCourseId: string, stepStates: Record<string, { status?: string }>) => {
+  const calculateDayStatus = (
+    courseId: string,
+    dayOnCourseId: string,
+    stepStates: Record<string, { status?: string }>,
+  ) => {
     return calcDay(courseId, dayOnCourseId, stepStates);
   };
 
   /**
    * Вычисляет статус курса на основе статусов всех дней
    */
-  const calculateCourseStatus = (courseId: string, stepStates: Record<string, { status?: string }>, totalDaysInCourse?: number) => {
+  const calculateCourseStatus = (
+    courseId: string,
+    stepStates: Record<string, { status?: string }>,
+    totalDaysInCourse?: number,
+  ) => {
     return calcCourse(courseId, stepStates, totalDaysInCourse);
   };
 
@@ -130,121 +148,124 @@ export function useCacheManager() {
     courseStatus: TrainingStatus,
     dayOnCourseId: string,
     stepIndex: number,
-    stepStatus: string
+    stepStatus: string,
   ) => {
     logger.info(`[CacheManager] updateCoursesCache`, {
-      operation: 'update_courses_cache',
+      operation: "update_courses_cache",
       courseId: courseId,
       courseStatus: courseStatus,
       dayOnCourseId: dayOnCourseId,
       stepIndex: stepIndex,
-      stepStatus: stepStatus
+      stepStatus: stepStatus,
     });
-    
+
     // Обновляем все курсы в courseStore
     if (courseStore.allCourses?.data) {
       logger.info(`[CacheManager] Updating allCourses`, {
-        operation: 'updating_all_courses',
-        coursesCount: courseStore.allCourses.data.length
+        operation: "updating_all_courses",
+        coursesCount: courseStore.allCourses.data.length,
       });
-      const updatedCourses = courseStore.allCourses.data.map(course => {
+      const updatedCourses = courseStore.allCourses.data.map((course) => {
         if (course.id !== courseId) return course;
-        
+
         logger.info(`[CacheManager] Updating course`, {
-          operation: 'updating_course',
+          operation: "updating_course",
           courseId: courseId,
           courseName: course.name,
           oldStatus: course.userStatus,
-          newStatus: courseStatus
+          newStatus: courseStatus,
         });
         return {
           ...course,
           userStatus: courseStatus,
           // Обновляем startedAt если курс только начался
-          startedAt: course.startedAt || (stepStatus === 'IN_PROGRESS' ? new Date() : course.startedAt),
+          startedAt:
+            course.startedAt || (stepStatus === "IN_PROGRESS" ? new Date() : course.startedAt),
           // Обновляем completedAt если курс завершен
           completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
         };
       });
-      
+
       courseStore.setAllCourses(updatedCourses, courseStore.allCourses.type);
       logger.info(`[CacheManager] Updated allCourses successfully`, {
-        operation: 'updated_all_courses_successfully'
+        operation: "updated_all_courses_successfully",
       });
     } else {
       logger.info(`[CacheManager] No allCourses data to update`, {
-        operation: 'no_all_courses_data'
+        operation: "no_all_courses_data",
       });
     }
 
     // Обновляем избранные курсы в courseStore
     if (courseStore.favorites?.data) {
       logger.info(`[CacheManager] Updating favorites`, {
-        operation: 'updating_favorites',
-        favoritesCount: courseStore.favorites.data.length
+        operation: "updating_favorites",
+        favoritesCount: courseStore.favorites.data.length,
       });
-      const updatedFavorites = courseStore.favorites.data.map(course => {
+      const updatedFavorites = courseStore.favorites.data.map((course) => {
         if (course.id !== courseId) return course;
-        
+
         logger.info(`[CacheManager] Updating favorite course`, {
-          operation: 'updating_favorite_course',
+          operation: "updating_favorite_course",
           courseId: courseId,
           courseName: course.name,
           oldStatus: course.userStatus,
-          newStatus: courseStatus
+          newStatus: courseStatus,
         });
         return {
           ...course,
           userStatus: courseStatus,
-          startedAt: course.startedAt || (stepStatus === 'IN_PROGRESS' ? new Date() : course.startedAt),
+          startedAt:
+            course.startedAt || (stepStatus === "IN_PROGRESS" ? new Date() : course.startedAt),
           completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
         };
       });
-      
+
       courseStore.setFavorites(updatedFavorites);
       logger.info(`[CacheManager] Updated favorites successfully`, {
-        operation: 'updated_favorites_successfully'
+        operation: "updated_favorites_successfully",
       });
     } else {
       logger.info(`[CacheManager] No favorites data to update`, {
-        operation: 'no_favorites_data'
+        operation: "no_favorites_data",
       });
     }
 
     // Обновляем созданные курсы в courseStore (только для тренеров)
     if (courseStore.authored) {
       logger.info(`[CacheManager] Updating authored`, {
-        operation: 'updating_authored',
-        authoredCount: courseStore.authored.length
+        operation: "updating_authored",
+        authoredCount: courseStore.authored.length,
       });
-      const updatedAuthored = courseStore.authored.map(course => {
+      const updatedAuthored = courseStore.authored.map((course) => {
         if (course.id !== courseId) return course;
-        
+
         logger.info(`[CacheManager] Updating authored course`, {
-          operation: 'updating_authored_course',
+          operation: "updating_authored_course",
           courseId: courseId,
           courseName: course.name,
           oldStatus: course.userStatus,
-          newStatus: courseStatus
+          newStatus: courseStatus,
         });
         return {
           ...course,
           userStatus: courseStatus,
-          startedAt: course.startedAt || (stepStatus === 'IN_PROGRESS' ? new Date() : course.startedAt),
+          startedAt:
+            course.startedAt || (stepStatus === "IN_PROGRESS" ? new Date() : course.startedAt),
           completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
         };
       });
-      
+
       courseStore.setAuthored(updatedAuthored);
       logger.info(`[CacheManager] Updated authored successfully`, {
-        operation: 'updated_authored_successfully'
+        operation: "updated_authored_successfully",
       });
     } else {
       // Показываем предупреждение только для тренеров
-      if (user?.role === 'TRAINER') {
+      if (user?.role === "TRAINER") {
         logger.info(`[CacheManager] No authored data to update`, {
-          operation: 'no_authored_data',
-          userRole: user.role
+          operation: "no_authored_data",
+          userRole: user.role,
         });
       }
     }
@@ -260,97 +281,106 @@ export function useCacheManager() {
   const syncCourseStoreWithStepStates = () => {
     const allStepStates = stepStates;
     const courseStore = useCourseStore.getState();
-    
+
     // Получаем все уникальные курсы из stepStates
     const courseIds = new Set<string>();
     Object.keys(allStepStates).forEach((key) => {
-      const parts = key.split('-');
+      const parts = key.split("-");
       if (parts.length >= 2) {
         courseIds.add(parts[0]);
       }
     });
 
-  // Обновляем каждый курс на основе актуальных stepStates
-  courseIds.forEach((courseId) => {
-    // Получаем информацию о курсе для определения количества дней
-    let totalDaysInCourse: number | undefined;
-    
-    // Ищем курс в allCourses
-    if (courseStore.allCourses?.data) {
-      const course = courseStore.allCourses.data.find(c => c.id === courseId);
-      if (course) {
-        totalDaysInCourse = course.dayLinks.length;
-      }
-    }
-    
-    // Если не нашли в allCourses, ищем в favorites
-    if (!totalDaysInCourse && courseStore.favorites?.data) {
-      const course = courseStore.favorites.data.find(c => c.id === courseId);
-      if (course) {
-        totalDaysInCourse = course.dayLinks.length;
-      }
-    }
-    
-    // Если не нашли в favorites, ищем в authored
-    if (!totalDaysInCourse && courseStore.authored) {
-      const course = courseStore.authored.find(c => c.id === courseId);
-      if (course) {
-        totalDaysInCourse = course.dayLinks.length;
-      }
-    }
-    
-    const courseStatus = calculateCourseStatus(courseId, allStepStates, totalDaysInCourse);
-    
-    // Обновляем allCourses если есть
-    if (courseStore.allCourses?.data) {
-      const updatedCourses = courseStore.allCourses.data.map(course => {
-        if (course.id !== courseId) return course;
-        
-        return {
-          ...course,
-          userStatus: courseStatus,
-          // Обновляем startedAt если курс в процессе или завершен
-          startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
-          // Обновляем completedAt если курс завершен
-          completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
-        };
-      });
-      
-      courseStore.setAllCourses(updatedCourses, courseStore.allCourses.type);
-    }
+    // Обновляем каждый курс на основе актуальных stepStates
+    courseIds.forEach((courseId) => {
+      // Получаем информацию о курсе для определения количества дней
+      let totalDaysInCourse: number | undefined;
 
-    // Обновляем favorites если есть
-    if (courseStore.favorites?.data) {
-      const updatedFavorites = courseStore.favorites.data.map(course => {
-        if (course.id !== courseId) return course;
-        
-        return {
-          ...course,
-          userStatus: courseStatus,
-          startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
-          completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
-        };
-      });
-      
-      courseStore.setFavorites(updatedFavorites);
-    }
+      // Ищем курс в allCourses
+      if (courseStore.allCourses?.data) {
+        const course = courseStore.allCourses.data.find((c) => c.id === courseId);
+        if (course) {
+          totalDaysInCourse = course.dayLinks.length;
+        }
+      }
 
-    // Обновляем authored если есть
-    if (courseStore.authored) {
-      const updatedAuthored = courseStore.authored.map(course => {
-        if (course.id !== courseId) return course;
-        
-        return {
-          ...course,
-          userStatus: courseStatus,
-          startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
-          completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
-        };
-      });
-      
-      courseStore.setAuthored(updatedAuthored);
-    }
-  });
+      // Если не нашли в allCourses, ищем в favorites
+      if (!totalDaysInCourse && courseStore.favorites?.data) {
+        const course = courseStore.favorites.data.find((c) => c.id === courseId);
+        if (course) {
+          totalDaysInCourse = course.dayLinks.length;
+        }
+      }
+
+      // Если не нашли в favorites, ищем в authored
+      if (!totalDaysInCourse && courseStore.authored) {
+        const course = courseStore.authored.find((c) => c.id === courseId);
+        if (course) {
+          totalDaysInCourse = course.dayLinks.length;
+        }
+      }
+
+      const courseStatus = calculateCourseStatus(courseId, allStepStates, totalDaysInCourse);
+
+      // Обновляем allCourses если есть
+      if (courseStore.allCourses?.data) {
+        const updatedCourses = courseStore.allCourses.data.map((course) => {
+          if (course.id !== courseId) return course;
+
+          return {
+            ...course,
+            userStatus: courseStatus,
+            // Обновляем startedAt если курс в процессе или завершен
+            startedAt:
+              course.startedAt ||
+              (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
+            // Обновляем completedAt если курс завершен
+            completedAt:
+              courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
+          };
+        });
+
+        courseStore.setAllCourses(updatedCourses, courseStore.allCourses.type);
+      }
+
+      // Обновляем favorites если есть
+      if (courseStore.favorites?.data) {
+        const updatedFavorites = courseStore.favorites.data.map((course) => {
+          if (course.id !== courseId) return course;
+
+          return {
+            ...course,
+            userStatus: courseStatus,
+            startedAt:
+              course.startedAt ||
+              (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
+            completedAt:
+              courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
+          };
+        });
+
+        courseStore.setFavorites(updatedFavorites);
+      }
+
+      // Обновляем authored если есть
+      if (courseStore.authored) {
+        const updatedAuthored = courseStore.authored.map((course) => {
+          if (course.id !== courseId) return course;
+
+          return {
+            ...course,
+            userStatus: courseStatus,
+            startedAt:
+              course.startedAt ||
+              (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
+            completedAt:
+              courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
+          };
+        });
+
+        courseStore.setAuthored(updatedAuthored);
+      }
+    });
   };
 
   return {
@@ -371,14 +401,14 @@ export async function syncCourseStoreWithStepStates() {
   const { useCourseStore } = await import("@shared/stores/courseStore");
   const { TrainingStatus } = await import("@gafus/types");
   const { calculateCourseStatus } = await import("@gafus/core/utils/training");
-  
+
   const stepStates = useStepStore.getState().stepStates;
   const courseStore = useCourseStore.getState();
-  
+
   // Получаем все уникальные курсы из stepStates
   const courseIds = new Set<string>();
   Object.keys(stepStates).forEach((key) => {
-    const parts = key.split('-');
+    const parts = key.split("-");
     if (parts.length >= 2) {
       courseIds.add(parts[0]);
     }
@@ -388,48 +418,54 @@ export async function syncCourseStoreWithStepStates() {
   courseIds.forEach((courseId) => {
     // Получаем информацию о курсе для определения количества дней
     let totalDaysInCourse: number | undefined;
-    
+
     // Ищем курс в allCourses
     if (courseStore.allCourses?.data) {
-      const course = courseStore.allCourses.data.find(c => c.id === courseId);
+      const course = courseStore.allCourses.data.find((c) => c.id === courseId);
       if (course) {
         totalDaysInCourse = course.dayLinks.length;
       }
     }
-    
+
     // Если не нашли в allCourses, ищем в favorites
     if (!totalDaysInCourse && courseStore.favorites?.data) {
-      const course = courseStore.favorites.data.find(c => c.id === courseId);
+      const course = courseStore.favorites.data.find((c) => c.id === courseId);
       if (course) {
         totalDaysInCourse = course.dayLinks.length;
       }
     }
-    
+
     // Если не нашли в favorites, ищем в authored
     if (!totalDaysInCourse && courseStore.authored) {
-      const course = courseStore.authored.find(c => c.id === courseId);
+      const course = courseStore.authored.find((c) => c.id === courseId);
       if (course) {
         totalDaysInCourse = course.dayLinks.length;
       }
     }
-    
-    const courseStatus = calculateCourseStatus(courseId, stepStates as Record<string, { status?: string }>, totalDaysInCourse);
-    
+
+    const courseStatus = calculateCourseStatus(
+      courseId,
+      stepStates as Record<string, { status?: string }>,
+      totalDaysInCourse,
+    );
+
     // Обновляем allCourses если есть
     if (courseStore.allCourses?.data) {
       const updatedCourses = courseStore.allCourses.data.map((course: CourseWithProgressData) => {
         if (course.id !== courseId) return course;
-        
+
         return {
           ...course,
           userStatus: courseStatus,
           // Обновляем startedAt если курс в процессе или завершен
-          startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
+          startedAt:
+            course.startedAt ||
+            (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
           // Обновляем completedAt если курс завершен
           completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
         };
       });
-      
+
       courseStore.setAllCourses(updatedCourses, courseStore.allCourses.type);
     }
 
@@ -437,15 +473,17 @@ export async function syncCourseStoreWithStepStates() {
     if (courseStore.favorites?.data) {
       const updatedFavorites = courseStore.favorites.data.map((course: CourseWithProgressData) => {
         if (course.id !== courseId) return course;
-        
+
         return {
           ...course,
           userStatus: courseStatus,
-          startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
+          startedAt:
+            course.startedAt ||
+            (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
           completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
         };
       });
-      
+
       courseStore.setFavorites(updatedFavorites);
     }
 
@@ -453,15 +491,17 @@ export async function syncCourseStoreWithStepStates() {
     if (courseStore.authored) {
       const updatedAuthored = courseStore.authored.map((course: CourseWithProgressData) => {
         if (course.id !== courseId) return course;
-        
+
         return {
           ...course,
           userStatus: courseStatus,
-          startedAt: course.startedAt || (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
+          startedAt:
+            course.startedAt ||
+            (courseStatus !== TrainingStatus.NOT_STARTED ? new Date() : course.startedAt),
           completedAt: courseStatus === TrainingStatus.COMPLETED ? new Date() : course.completedAt,
         };
       });
-      
+
       courseStore.setAuthored(updatedAuthored);
     }
   });

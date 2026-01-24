@@ -64,9 +64,7 @@ export default function EditBioForm() {
     return (
       <div className={styles.loading_container}>
         <h1 className={styles.loading_title}>Редактировать «О себе»</h1>
-        <div className={styles.loading_content}>
-          Загрузка формы...
-        </div>
+        <div className={styles.loading_content}>Загрузка формы...</div>
       </div>
     );
   }
@@ -75,9 +73,7 @@ export default function EditBioForm() {
     return (
       <div className={styles.loading_container}>
         <h1 className={styles.loading_title}>Редактировать «О себе»</h1>
-        <div className={styles.loading_content}>
-          Загрузка профиля...
-        </div>
+        <div className={styles.loading_content}>Загрузка профиля...</div>
       </div>
     );
   }
@@ -122,91 +118,99 @@ export default function EditBioForm() {
 
       <div className={styles.form_container}>
         <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
-        
-        {/* Основная информация */}
-        <div className={styles.profile_info_section}>
-          <h3>Основная информация</h3>
-          <FormField
-            id="fullName"
-            name="fullName"
-            label="Имя и фамилия"
-            type="text"
-            placeholder="Имя и фамилия"
-            form={form}
-            // Валидация теперь через Zod схему
-          />
-
-          <FormField
-            id="birthDate"
-            name="birthDate"
-            label="Дата рождения"
-            type="date"
-            form={form}
-            // Валидация теперь через Zod схему
-          />
-
-          <FormField
-            id="about"
-            name="about"
-            label="Заметки о себе"
-            as="textarea"
-            placeholder="О себе"
-            form={form}
-            // Валидация теперь через Zod схему
-          />
-        </div>
-
-        {/* Контактная информация */}
-        <div className={styles.profile_info_section}>
-          <h3>Контактная информация</h3>
-          <div>
+          {/* Основная информация */}
+          <div className={styles.profile_info_section}>
+            <h3>Основная информация</h3>
             <FormField
-              id="telegram"
-              name="telegram"
-              label="Telegram для связи"
-              placeholder="asmtv1"
-              form={form}
-            />
-            <p className={styles.helperText}>
-              Введите username без @ (например: asmtv1). Минимум 5 символов, только латинские буквы, цифры и подчеркивание.
-            </p>
-          </div>
-
-          <div>
-            <FormField
-              id="instagram"
-              name="instagram"
-              label="Ваш Instagram"
-              placeholder="doghandler_lana"
-              form={form}
-            />
-            <p className={styles.helperText}>
-              Введите username без @ (например: doghandler_lana). До 30 символов, только латинские буквы, цифры, точки и подчеркивание.
-            </p>
-          </div>
-
-          <div>
-            <FormField
-              id="website"
-              name="website"
-              label="YouTube или сайт"
+              id="fullName"
+              name="fullName"
+              label="Имя и фамилия"
               type="text"
-              placeholder="youtube.com/@username или example.com"
+              placeholder="Имя и фамилия"
               form={form}
+              // Валидация теперь через Zod схему
             />
-            <p className={styles.helperText}>
-              Введите URL сайта или канала YouTube. Можно без https:// и www - они добавятся автоматически.
-            </p>
-          </div>
-        </div>
 
-        <div className={styles.form_buttons}>
-          <button type="submit" className={styles.form_button}>Сохранить</button>
-          <button type="button" onClick={() => router.back()} className={`${styles.form_button} ${styles.form_button_cancel}`}>
-            Вернуться без сохранения
-          </button>
-        </div>
-      </form>
+            <FormField
+              id="birthDate"
+              name="birthDate"
+              label="Дата рождения"
+              type="date"
+              form={form}
+              // Валидация теперь через Zod схему
+            />
+
+            <FormField
+              id="about"
+              name="about"
+              label="Заметки о себе"
+              as="textarea"
+              placeholder="О себе"
+              form={form}
+              // Валидация теперь через Zod схему
+            />
+          </div>
+
+          {/* Контактная информация */}
+          <div className={styles.profile_info_section}>
+            <h3>Контактная информация</h3>
+            <div>
+              <FormField
+                id="telegram"
+                name="telegram"
+                label="Telegram для связи"
+                placeholder="asmtv1"
+                form={form}
+              />
+              <p className={styles.helperText}>
+                Введите username без @ (например: asmtv1). Минимум 5 символов, только латинские
+                буквы, цифры и подчеркивание.
+              </p>
+            </div>
+
+            <div>
+              <FormField
+                id="instagram"
+                name="instagram"
+                label="Ваш Instagram"
+                placeholder="doghandler_lana"
+                form={form}
+              />
+              <p className={styles.helperText}>
+                Введите username без @ (например: doghandler_lana). До 30 символов, только латинские
+                буквы, цифры, точки и подчеркивание.
+              </p>
+            </div>
+
+            <div>
+              <FormField
+                id="website"
+                name="website"
+                label="YouTube или сайт"
+                type="text"
+                placeholder="youtube.com/@username или example.com"
+                form={form}
+              />
+              <p className={styles.helperText}>
+                Введите URL сайта или канала YouTube. Можно без https:// и www - они добавятся
+                автоматически.
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.form_buttons}>
+            <button type="submit" className={styles.form_button}>
+              Сохранить
+            </button>
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className={`${styles.form_button} ${styles.form_button_cancel}`}
+            >
+              Вернуться без сохранения
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

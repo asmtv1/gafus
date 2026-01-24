@@ -4,7 +4,7 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
-const logger = createWebLogger('track-presentation-view');
+const logger = createWebLogger("track-presentation-view");
 
 const trackPresentationViewSchema = z.object({
   sessionId: z.string().min(1),
@@ -21,7 +21,7 @@ const trackPresentationViewSchema = z.object({
   userAgent: z.string().nullable().optional(),
   ipAddress: z.string().nullable().optional(),
   language: z.string().nullable().optional(),
-  deviceType: z.enum(['mobile', 'tablet', 'desktop']).nullable().optional(),
+  deviceType: z.enum(["mobile", "tablet", "desktop"]).nullable().optional(),
   screenWidth: z.number().int().positive().nullable().optional(),
   screenHeight: z.number().int().positive().nullable().optional(),
   timeOnPage: z.number().int().nonnegative().nullable().optional(),
@@ -37,7 +37,7 @@ type TrackPresentationViewData = z.infer<typeof trackPresentationViewSchema>;
  */
 export async function trackPresentationView(
   data: TrackPresentationViewData,
-  eventType: "view" | "heartbeat" | "exit" = "view"
+  eventType: "view" | "heartbeat" | "exit" = "view",
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const safeData = trackPresentationViewSchema.parse(data);
@@ -88,9 +88,10 @@ export async function trackPresentationView(
           data: {
             lastViewAt: new Date(),
             timeOnPage: safeData.timeOnPage || existingView.timeOnPage,
-            scrollDepth: safeData.scrollDepth !== null && safeData.scrollDepth !== undefined
-              ? Math.max(safeData.scrollDepth, existingView.scrollDepth || 0)
-              : existingView.scrollDepth,
+            scrollDepth:
+              safeData.scrollDepth !== null && safeData.scrollDepth !== undefined
+                ? Math.max(safeData.scrollDepth, existingView.scrollDepth || 0)
+                : existingView.scrollDepth,
             sessionEndedAt: eventType === "exit" ? new Date() : null,
           },
         });
@@ -139,4 +140,3 @@ export async function trackPresentationView(
     };
   }
 }
-

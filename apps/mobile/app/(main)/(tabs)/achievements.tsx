@@ -1,11 +1,5 @@
 import { useMemo } from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  Pressable,
-} from "react-native";
+import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from "react-native";
 import { Text, Surface, Button } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -54,31 +48,26 @@ export default function AchievementsScreen() {
   });
 
   const data = achievementsRes?.success ? achievementsRes.data : undefined;
-  const courses = coursesRes?.success && Array.isArray(coursesRes.data)
-    ? (coursesRes.data as Course[])
-    : [];
+  const courses =
+    coursesRes?.success && Array.isArray(coursesRes.data) ? (coursesRes.data as Course[]) : [];
   const activeCourses = useMemo(
     () => courses.filter((c) => c.userStatus !== "NOT_STARTED"),
-    [courses]
+    [courses],
   );
 
   const byCategory = useMemo(() => {
     if (!data?.achievements) return {};
-    return data.achievements.reduce<Record<string, typeof data.achievements>>(
-      (acc, a) => {
-        if (!a?.category) return acc;
-        if (!acc[a.category]) acc[a.category] = [];
-        acc[a.category].push(a);
-        return acc;
-      },
-      {}
-    );
+    return data.achievements.reduce<Record<string, typeof data.achievements>>((acc, a) => {
+      if (!a?.category) return acc;
+      if (!acc[a.category]) acc[a.category] = [];
+      acc[a.category].push(a);
+      return acc;
+    }, {});
   }, [data?.achievements]);
 
   const unlockedCount = data?.achievements?.filter((a) => a.unlocked).length ?? 0;
   const totalCount = data?.achievements?.length ?? 0;
-  const completionPct =
-    totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+  const completionPct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
 
   const onRefresh = () => {
     refetchAchievements();
@@ -131,12 +120,7 @@ export default function AchievementsScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={achievementsLoading}
-            onRefresh={onRefresh}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={achievementsLoading} onRefresh={onRefresh} />}
       >
         <View style={styles.header}>
           <Text variant="headlineSmall" style={styles.title}>
@@ -152,21 +136,9 @@ export default function AchievementsScreen() {
             📊 Общая статистика
           </Text>
           <View style={styles.statsGrid}>
-            <StatCard
-              value={String(data.totalCourses ?? 0)}
-              label="Всего курсов"
-              icon="📚"
-            />
-            <StatCard
-              value={String(data.completedCourses ?? 0)}
-              label="Завершено"
-              icon="✅"
-            />
-            <StatCard
-              value={String(data.inProgressCourses ?? 0)}
-              label="В процессе"
-              icon="🔄"
-            />
+            <StatCard value={String(data.totalCourses ?? 0)} label="Всего курсов" icon="📚" />
+            <StatCard value={String(data.completedCourses ?? 0)} label="Завершено" icon="✅" />
+            <StatCard value={String(data.inProgressCourses ?? 0)} label="В процессе" icon="🔄" />
             <StatCard
               value={String(data.totalCompletedDays ?? 0)}
               label="Дней пройдено"
@@ -231,9 +203,7 @@ export default function AchievementsScreen() {
           </Text>
           <CoursesList
             courses={activeCourses}
-            onCoursePress={(type) =>
-              router.push(`/(main)/training/${type}`)
-            }
+            onCoursePress={(type) => router.push(`/(main)/training/${type}`)}
             onBrowsePress={() => router.push("/(main)/(tabs)")}
           />
         </View>
@@ -242,11 +212,7 @@ export default function AchievementsScreen() {
   );
 }
 
-function StatCard({
-  value,
-  label,
-  icon,
-}: { value: string; label: string; icon: string }) {
+function StatCard({ value, label, icon }: { value: string; label: string; icon: string }) {
   return (
     <View style={styles.statCard}>
       <Text style={styles.statIcon}>{icon}</Text>
@@ -262,15 +228,12 @@ function StatCard({
 
 function AchievementCard({
   achievement,
-}: { achievement: AchievementData["achievements"][number] }) {
+}: {
+  achievement: AchievementData["achievements"][number];
+}) {
   const unlocked = achievement.unlocked;
   return (
-    <View
-      style={[
-        styles.achievementCard,
-        !unlocked && styles.achievementLocked,
-      ]}
-    >
+    <View style={[styles.achievementCard, !unlocked && styles.achievementLocked]}>
       <Text style={[styles.achievementIcon, !unlocked && styles.lockedIcon]}>
         {achievement.icon}
       </Text>
@@ -281,17 +244,12 @@ function AchievementCard({
         >
           {achievement.title}
         </Text>
-        <Text
-          variant="bodySmall"
-          style={[styles.achievementDesc, !unlocked && styles.lockedText]}
-        >
+        <Text variant="bodySmall" style={[styles.achievementDesc, !unlocked && styles.lockedText]}>
           {achievement.description}
         </Text>
         <View style={styles.progressRow}>
           <View style={styles.progressBar}>
-            <View
-              style={[styles.progressFill, { width: `${achievement.progress}%` }]}
-            />
+            <View style={[styles.progressFill, { width: `${achievement.progress}%` }]} />
           </View>
           <Text variant="labelSmall" style={styles.progressText}>
             {achievement.progress}%
@@ -331,18 +289,13 @@ function CoursesList({
   return (
     <View style={styles.coursesList}>
       {courses.map((c) => (
-        <Pressable
-          key={c.id}
-          style={styles.courseCard}
-          onPress={() => onCoursePress(c.type)}
-        >
+        <Pressable key={c.id} style={styles.courseCard} onPress={() => onCoursePress(c.type)}>
           <Text variant="titleSmall" style={styles.courseName}>
             {c.name}
           </Text>
           <Text variant="bodySmall" style={styles.courseStatus}>
             {c.userStatus === "COMPLETED" && "✅ Завершён"}
-            {(c.userStatus === "IN_PROGRESS" || c.userStatus === "PAUSED") &&
-              "🔄 В процессе"}
+            {(c.userStatus === "IN_PROGRESS" || c.userStatus === "PAUSED") && "🔄 В процессе"}
           </Text>
           <Text variant="labelMedium" style={styles.continueLink}>
             {c.userStatus === "COMPLETED" ? "Посмотреть курс" : "Продолжить обучение"}

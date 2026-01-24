@@ -8,13 +8,15 @@ import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 
 // Создаем логгер для admin-panel-delete-user
-const logger = createAdminPanelLogger('delete-user');
+const logger = createAdminPanelLogger("delete-user");
 
 export async function deleteUser(
   prevState: Record<string, unknown>,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
-  const session = (await getServerSession(authOptions)) as { user: { id: string; username: string; role: string } } | null;
+  const session = (await getServerSession(authOptions)) as {
+    user: { id: string; username: string; role: string };
+  } | null;
 
   if (!session?.user?.id) {
     return { success: false, error: "Не авторизован" };
@@ -49,21 +51,23 @@ export async function deleteUser(
     return { success: true };
   } catch (error) {
     logger.error("Ошибка при удалении пользователя:", error as Error);
-    
+
     // Обработка специфичных ошибок Prisma
     if (error instanceof Error) {
       // Ошибка внешнего ключа или других ограничений
-      if (error.message.includes("Foreign key constraint") || error.message.includes("constraint")) {
+      if (
+        error.message.includes("Foreign key constraint") ||
+        error.message.includes("constraint")
+      ) {
         return { success: false, error: "Не удалось удалить пользователя из-за связанных данных" };
       }
-      
+
       // Пользователь не найден
       if (error.message.includes("Record to delete does not exist")) {
         return { success: false, error: "Пользователь не найден" };
       }
     }
-    
+
     return { success: false, error: "Не удалось удалить пользователя" };
   }
 }
-

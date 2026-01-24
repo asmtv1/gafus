@@ -3,21 +3,25 @@ import { createTelegramBotLogger } from "@gafus/logger";
 import { Telegraf } from "telegraf";
 
 // Создаем логгер для telegram-bot
-const logger = createTelegramBotLogger('telegram-bot');
+const logger = createTelegramBotLogger("telegram-bot");
 
 const token = process.env.TELEGRAM_BOT_TOKEN!;
 if (!token) {
-  logger.fatal("TELEGRAM_BOT_TOKEN не задан в переменных окружения", new Error("Missing Telegram Bot Token"), {
-    environment: process.env.NODE_ENV || 'development',
-    hasToken: !!process.env.TELEGRAM_BOT_TOKEN
-  });
+  logger.fatal(
+    "TELEGRAM_BOT_TOKEN не задан в переменных окружения",
+    new Error("Missing Telegram Bot Token"),
+    {
+      environment: process.env.NODE_ENV || "development",
+      hasToken: !!process.env.TELEGRAM_BOT_TOKEN,
+    },
+  );
   throw new Error("❌❌❌❌❌❌TELEGRAM_BOT_TOKEN не задан в переменных окружения");
 }
 
 logger.info("Telegram bot initializing", {
-  environment: process.env.NODE_ENV || 'development',
+  environment: process.env.NODE_ENV || "development",
   hasToken: !!token,
-  tokenLength: token.length
+  tokenLength: token.length,
 });
 
 export const bot = new Telegraf(token);
@@ -28,8 +32,8 @@ bot.catch(async (err, ctx) => {
     chatId: ctx.chat?.id,
     userId: ctx.from?.id,
     username: ctx.from?.username,
-    messageType: ctx.message ? Object.keys(ctx.message)[0] : 'unknown',
-    updateId: ctx.update.update_id
+    messageType: ctx.message ? Object.keys(ctx.message)[0] : "unknown",
+    updateId: ctx.update.update_id,
   });
   ctx.reply("Произошла ошибка. Попробуйте позже.");
 });
@@ -43,14 +47,14 @@ bot.start(async (ctx) => {
     chatId: chatId,
     userId: ctx.from?.id,
     username: ctx.from?.username,
-    payload: payload || 'none'
+    payload: payload || "none",
   });
 
   // Если пришел параметр register, сразу показываем кнопку подтверждения
   if (payload === "register") {
     logger.info("Deep-link registration initiated", {
       chatId: chatId,
-      userId: ctx.from?.id
+      userId: ctx.from?.id,
     });
 
     return ctx.reply("Добро пожаловать! Для регистрации подтвердите свой номер телефона:", {
@@ -102,7 +106,7 @@ bot.on("message", async (ctx) => {
         logger.warn("Пользователь с номером не найден в базе данных", {
           chatId: chatId,
           phone: phone,
-          operation: 'find_user_by_phone'
+          operation: "find_user_by_phone",
         });
         return ctx.reply("Пользователь с этим номером не найден.");
       }
@@ -120,29 +124,29 @@ bot.on("message", async (ctx) => {
         phone: phone,
         userId: user.id,
         username: user.username,
-        operation: 'confirm_user_telegram'
+        operation: "confirm_user_telegram",
       });
 
       await ctx.reply("✅ Вы успешно подтверждены!");
-      
+
       // Отправляем инструкцию по установке PWA
       await ctx.reply(
         "Также хотели бы сообщить, что для работы всех функций как задумано, наше приложение нужно установить на главный экран.\n\n" +
-        "Вот инструкции по установке:\n\n" +
-        "📱 Для iOS:\n" +
-        "https://gafus.ru/ios-install.html\n\n" +
-        "🤖 Для Android:\n" +
-        "https://gafus.ru/android-install.html\n\n" +
-        "После установки вы получите доступ ко всем возможностям Гафуса, включая уведомления, офлайн-режим и улучшенную производительность."
+          "Вот инструкции по установке:\n\n" +
+          "📱 Для iOS:\n" +
+          "https://gafus.ru/ios-install.html\n\n" +
+          "🤖 Для Android:\n" +
+          "https://gafus.ru/android-install.html\n\n" +
+          "После установки вы получите доступ ко всем возможностям Гафуса, включая уведомления, офлайн-режим и улучшенную производительность.",
       );
-      
+
       return;
     } catch (err) {
       await logger.error("Ошибка при обновлении пользователя", err as Error, {
         chatId: chatId,
         phone: phone,
         hasUser: !!user,
-        operation: 'update_user_telegram_id'
+        operation: "update_user_telegram_id",
       });
       ctx.reply("Произошла ошибка. Попробуйте позже.");
     }
@@ -168,17 +172,20 @@ bot.on("message", async (ctx) => {
 });
 
 // Запуск бота
-bot.launch().then(() => {
-  logger.success("Telegram bot launched successfully", {
-    environment: process.env.NODE_ENV || 'development',
-    botUsername: bot.botInfo?.username || 'unknown'
+bot
+  .launch()
+  .then(() => {
+    logger.success("Telegram bot launched successfully", {
+      environment: process.env.NODE_ENV || "development",
+      botUsername: bot.botInfo?.username || "unknown",
+    });
+  })
+  .catch((error) => {
+    logger.fatal("Failed to launch Telegram bot", error as Error, {
+      environment: process.env.NODE_ENV || "development",
+      hasToken: !!token,
+    });
   });
-}).catch((error) => {
-  logger.fatal("Failed to launch Telegram bot", error as Error, {
-    environment: process.env.NODE_ENV || 'development',
-    hasToken: !!token
-  });
-});
 
 // Graceful stop
 process.once("SIGINT", () => {

@@ -1,6 +1,6 @@
 /**
  * Tracking Service - бизнес-логика отслеживания событий
- * 
+ *
  * Этот модуль содержит чистую бизнес-логику без Next.js специфики.
  * Используется для отслеживания просмотров и событий на presentation.html,
  * а также кликов по re-engagement уведомлениям.
@@ -10,7 +10,7 @@ import { prisma, type Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
-const logger = createWebLogger('tracking-service');
+const logger = createWebLogger("tracking-service");
 
 // ========== Presentation View Tracking ==========
 
@@ -29,7 +29,7 @@ const trackPresentationViewSchema = z.object({
   userAgent: z.string().nullable().optional(),
   ipAddress: z.string().nullable().optional(),
   language: z.string().nullable().optional(),
-  deviceType: z.enum(['mobile', 'tablet', 'desktop']).nullable().optional(),
+  deviceType: z.enum(["mobile", "tablet", "desktop"]).nullable().optional(),
   screenWidth: z.number().int().positive().nullable().optional(),
   screenHeight: z.number().int().positive().nullable().optional(),
   timeOnPage: z.number().int().nonnegative().nullable().optional(),
@@ -47,7 +47,7 @@ export type PresentationEventType = "view" | "heartbeat" | "exit";
  */
 export async function trackPresentationView(
   data: TrackPresentationViewData,
-  eventType: PresentationEventType = "view"
+  eventType: PresentationEventType = "view",
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const safeData = trackPresentationViewSchema.parse(data);
@@ -98,9 +98,10 @@ export async function trackPresentationView(
           data: {
             lastViewAt: new Date(),
             timeOnPage: safeData.timeOnPage || existingView.timeOnPage,
-            scrollDepth: safeData.scrollDepth !== null && safeData.scrollDepth !== undefined
-              ? Math.max(safeData.scrollDepth, existingView.scrollDepth || 0)
-              : existingView.scrollDepth,
+            scrollDepth:
+              safeData.scrollDepth !== null && safeData.scrollDepth !== undefined
+                ? Math.max(safeData.scrollDepth, existingView.scrollDepth || 0)
+                : existingView.scrollDepth,
             sessionEndedAt: eventType === "exit" ? new Date() : null,
           },
         });
@@ -169,7 +170,7 @@ export interface TrackPresentationEventData {
  * @param data - Данные события
  */
 export async function trackPresentationEvent(
-  data: TrackPresentationEventData
+  data: TrackPresentationEventData,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await prisma.presentationEvent.create({
@@ -207,13 +208,13 @@ export async function trackPresentationEvent(
  * @param notificationId - ID уведомления
  */
 export async function trackReengagementClick(
-  notificationId: string
+  notificationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!notificationId) {
       return {
         success: false,
-        error: "ID уведомления не указан"
+        error: "ID уведомления не указан",
       };
     }
 
@@ -221,25 +222,25 @@ export async function trackReengagementClick(
       where: { id: notificationId },
       data: {
         clicked: true,
-        clickedAt: new Date()
-      }
+        clickedAt: new Date(),
+      },
     });
 
-    logger.info('Клик по re-engagement уведомлению отслежен', { notificationId });
+    logger.info("Клик по re-engagement уведомлению отслежен", { notificationId });
 
     return { success: true };
   } catch (error) {
     // Не логируем как ошибку если запись не найдена
-    if (error instanceof Error && error.message.includes('Record to update not found')) {
-      logger.warn('Запись уведомления не найдена', { notificationId });
+    if (error instanceof Error && error.message.includes("Record to update not found")) {
+      logger.warn("Запись уведомления не найдена", { notificationId });
       return { success: true };
     }
 
-    logger.error('Ошибка отслеживания клика', error as Error, { notificationId });
-    
+    logger.error("Ошибка отслеживания клика", error as Error, { notificationId });
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }

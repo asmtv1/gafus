@@ -1,6 +1,7 @@
 "use server";
 
-import { prisma, TranscodingStatus } from "@gafus/prisma";
+import type { TranscodingStatus } from "@gafus/prisma";
+import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 
@@ -19,7 +20,7 @@ type VideoStatusResult = {
  * @returns Массив статусов видео или объект с ошибкой
  */
 export async function getMultipleVideoStatuses(
-  videoIds: string[]
+  videoIds: string[],
 ): Promise<VideoStatusResult[] | { error: string }> {
   const session = await getServerSession(authOptions);
 

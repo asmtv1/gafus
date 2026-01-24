@@ -53,7 +53,11 @@
   justify-content: center;
   min-width: 20px;
   height: 20px;
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary, #4a90e2) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary) 0%,
+    var(--accent-secondary, #4a90e2) 100%
+  );
   color: white;
   font-size: 12px;
   font-weight: 700;
@@ -225,7 +229,11 @@
 }
 
 .option.active {
-  background: linear-gradient(90deg, rgba(var(--accent-primary-rgb, 74, 144, 226), 0.1) 0%, rgba(var(--accent-primary-rgb, 74, 144, 226), 0.05) 100%);
+  background: linear-gradient(
+    90deg,
+    rgba(var(--accent-primary-rgb, 74, 144, 226), 0.1) 0%,
+    rgba(var(--accent-primary-rgb, 74, 144, 226), 0.05) 100%
+  );
   color: var(--accent-primary);
   font-weight: 600;
 }

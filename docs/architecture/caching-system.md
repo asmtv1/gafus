@@ -67,6 +67,7 @@
 **Местоположение:** `packages/react-query/src/providers/QueryProvider.tsx`
 
 **Настройки:**
+
 - `staleTime`: 5 минут
 - `gcTime`: 10 минут (время хранения в памяти)
 - `refetchOnWindowFocus`: false
@@ -74,19 +75,22 @@
 - `networkMode`: "offlineFirst"
 
 **Персистентность:**
+
 - Хранится в `localStorage` с ключом `"gafus-react-query-cache"`
 - Автоматически восстанавливается при загрузке страницы
 
 **Использование:**
+
 ```typescript
 // Примеры использования
-useQuery({ queryKey: ['courses'], queryFn: fetchCourses })
-useQuery({ queryKey: ['user', userId], queryFn: fetchUser })
+useQuery({ queryKey: ["courses"], queryFn: fetchCourses });
+useQuery({ queryKey: ["user", userId], queryFn: fetchUser });
 ```
 
 **Инвалидация:**
+
 ```typescript
-queryClient.invalidateQueries({ queryKey: ['courses'] })
+queryClient.invalidateQueries({ queryKey: ["courses"] });
 ```
 
 ---
@@ -96,27 +100,32 @@ queryClient.invalidateQueries({ queryKey: ['courses'] })
 **Использование:**
 
 #### a) Офлайн-состояние
+
 - **Ключ:** `gafus-offline-store` (через Zustand persist)
 - **Данные:** статус онлайн/офлайн, очередь синхронизации
 - **Файл:** `apps/web/src/shared/stores/offlineStore.ts`
 
 #### b) Настройки уведомлений
+
 - **Ключи:**
   - `notificationsDisabledByUser`
   - `notificationModalShown`
 - **Файлы:** `pushStore.ts`, `notificationUIStore.ts`
 
 #### c) Паузы тренировок
+
 - **Ключ:** `training-{courseId}-{day}-{stepIndex}-paused`
 - **Данные:** `{ pausedAt: timestamp, timeLeft: number }`
 - **Файлы:** `stepStore.ts`, `timerStore.ts`
 
 #### d) Таймеры
+
 - **Ключ:** `timer-{courseId}-{day}-{stepIndex}-{start|end}`
 - **Данные:** timestamp начала/окончания
 - **Файл:** `cacheManager.ts`
 
 #### e) Device subscriptions
+
 - **Ключ:** `device-subscriptions`
 - **Данные:** подписки на push-уведомления
 - **Файл:** `packages/webpush/src/device-manager.ts`
@@ -130,6 +139,7 @@ queryClient.invalidateQueries({ queryKey: ['courses'] })
 **Store:** `courses`
 
 **Структура данных:**
+
 ```typescript
 interface OfflineCourse {
   courseId: string;
@@ -150,11 +160,13 @@ interface OfflineCourse {
 ```
 
 **Индексы:**
+
 - `courseType` (unique: false)
 - `version` (unique: false)
 - `downloadedAt` (unique: false)
 
 **Операции:**
+
 - `saveOfflineCourse()` - сохранение курса
 - `getOfflineCourse(courseId)` - получение по ID
 - `getOfflineCourseByType(courseType)` - получение по типу
@@ -170,7 +182,9 @@ interface OfflineCourse {
 **Кэши:**
 
 #### a) `gafus-offline-v1`
+
 **Содержимое:**
+
 - Статические chunks Next.js (`/_next/static/`)
 - HTML страницы офлайна (`/~offline`)
 - Chunks страницы офлайна
@@ -180,7 +194,9 @@ interface OfflineCourse {
 **Файл:** `apps/web/public/sw.js` (строки 36-73, 114-164)
 
 #### b) `gafus-courses-v1`
+
 **Содержимое:**
+
 - HTML страниц курсов (`/trainings/[courseType]`, `/trainings/[courseType]/[day]`)
 
 **Стратегия:** Network-First с fallback на кэш
@@ -188,13 +204,16 @@ interface OfflineCourse {
 **Файл:** `apps/web/public/sw.js` (строки 169-310)
 
 #### c) `sw-localstorage` (IndexedDB)
+
 **Содержимое:**
+
 - Эмуляция localStorage для Service Worker
 - Используется для хранения настроек SW
 
 **Файл:** `apps/web/public/sw.js` (строки 498-563)
 
 **Обработка запросов:**
+
 1. **Статические файлы** (`/_next/static/`): Cache-First
 2. **Страница офлайна** (`/~offline`): Cache-First с обновлением в фоне
 3. **Страницы курсов** (`/trainings/*`): Network-First → Cache → IndexedDB → Fallback
@@ -209,48 +228,56 @@ interface OfflineCourse {
 **Функции кэширования:**
 
 #### a) `getAllCoursesCached`
+
 - **Теги:** `["courses", "courses-all-permanent"]`
 - **Revalidate:** 20 минут
 - **Ключ:** `["courses-all-permanent"]`
 - **Данные:** Все курсы (публичные + приватные) без пользовательских данных
 
 #### b) `getUserCoursesProgressCached(userId)`
+
 - **Теги:** `["courses", "user-progress", "user-{userId}"]`
 - **Revalidate:** 5 минут
 - **Ключ:** `["user-courses-progress", userId]`
 - **Данные:** Прогресс пользователя по курсам
 
 #### c) `getCoursesWithProgressCached(userId)`
+
 - **Теги:** `["courses", "courses-all", "user-{userId}"]`
 - **Revalidate:** 5 минут
 - **Ключ:** `["courses-all", userId]`
 - **Данные:** Все курсы с прогрессом пользователя
 
 #### d) `getFavoritesCoursesCached(userId)`
+
 - **Теги:** `["courses", "courses-favorites", "user-{userId}"]`
 - **Revalidate:** 5 минут
 - **Ключ:** `["courses-favorites", userId]`
 - **Данные:** Избранные курсы пользователя
 
 #### e) `getAuthoredCoursesCached`
+
 - **Теги:** `["courses", "courses-authored"]`
 - **Revalidate:** 60 секунд
 - **Ключ:** `["courses-authored"]`
 - **Данные:** Курсы, созданные пользователем
 
 #### f) `getTrainingDaysCached(type, userId)`
+
 - **Теги:** `["training", "days", "user-{userId}"]`
 - **Revalidate:** 5 минут
 - **Ключ:** `["training-days", type, userId]`
 - **Данные:** Дни тренировок курса
 
 #### g) `getTrainingDayCached(dayId, userId)`
+
 - **Теги:** `["training", "day", "user-{userId}"]`
 - **Revalidate:** 5 минут
 - **Ключ:** `["training-day", dayId, userId]`
 - **Данные:** Конкретный день тренировки
 
 #### h) `getUserTrainingDates(userId)`
+
 - **Теги:** `["achievements", "streaks", "user-{userId}"]`
 - **Revalidate:** 5 минут
 - **Ключ:** `["user-training-dates", userId]`
@@ -277,6 +304,7 @@ interface OfflineCourse {
    - Используется для обновления конкретных страниц
 
 **Файлы:**
+
 - `apps/web/src/shared/lib/actions/cachedCourses.ts`
 - `apps/web/src/shared/lib/actions/invalidateCoursesCache.ts`
 - `apps/web/src/shared/lib/actions/invalidateAllCache.ts`
@@ -386,6 +414,7 @@ interface OfflineCourse {
 ## 🏷️ Теги кэширования Next.js
 
 ### Общие теги
+
 - `courses` - все операции с курсами
 - `courses-all` - все курсы с прогрессом
 - `courses-all-permanent` - базовый список всех курсов
@@ -398,6 +427,7 @@ interface OfflineCourse {
 - `streaks` - серии тренировок
 
 ### Пользовательские теги
+
 - `user-{userId}` - все данные пользователя
 - `user-{userId}-progress` - прогресс пользователя
 
@@ -426,6 +456,7 @@ revalidateTag("days");
 **Файл:** `apps/web/src/shared/lib/utils/clearAllCache.ts`
 
 **Очищает:**
+
 1. React Query Cache (`queryClient.clear()`)
 2. Service Worker Cache (все кэши с префиксом `gafus-`)
 3. IndexedDB (все курсы)
@@ -433,6 +464,7 @@ revalidateTag("days");
 5. IndexedDB для SW (`sw-localstorage`)
 
 **Использование:**
+
 ```typescript
 import { clearAllCache } from "@shared/lib/utils/clearAllCache";
 
@@ -482,17 +514,17 @@ await clearAllCache();
 
 ## ⚙️ Настройки времени жизни кэша
 
-| Тип данных | Revalidate | staleTime | gcTime | Примечание |
-|-----------|------------|-----------|--------|------------|
-| Все курсы (базовый) | 20 мин | - | - | Редко меняются |
-| Курсы с прогрессом | 5 мин | - | - | Прогресс меняется чаще |
-| Прогресс пользователя | 5 мин | - | - | Зависит от активности |
-| Дни тренировок | 5 мин | - | - | Могут обновляться |
-| Избранные | 5 мин | - | - | Зависит от действий пользователя |
-| React Query (общий) | - | 5 мин | 10 мин | Клиентский кэш |
-| React Query (курсы) | - | 30 сек | 5 мин | Более частые обновления |
-| React Query (профиль) | - | 1 мин | 10 мин | Средняя частота |
-| React Query (статистика) | - | 5 мин | 15 мин | Редко меняется |
+| Тип данных               | Revalidate | staleTime | gcTime | Примечание                       |
+| ------------------------ | ---------- | --------- | ------ | -------------------------------- |
+| Все курсы (базовый)      | 20 мин     | -         | -      | Редко меняются                   |
+| Курсы с прогрессом       | 5 мин      | -         | -      | Прогресс меняется чаще           |
+| Прогресс пользователя    | 5 мин      | -         | -      | Зависит от активности            |
+| Дни тренировок           | 5 мин      | -         | -      | Могут обновляться                |
+| Избранные                | 5 мин      | -         | -      | Зависит от действий пользователя |
+| React Query (общий)      | -          | 5 мин     | 10 мин | Клиентский кэш                   |
+| React Query (курсы)      | -          | 30 сек    | 5 мин  | Более частые обновления          |
+| React Query (профиль)    | -          | 1 мин     | 10 мин | Средняя частота                  |
+| React Query (статистика) | -          | 5 мин     | 15 мин | Редко меняется                   |
 
 ---
 

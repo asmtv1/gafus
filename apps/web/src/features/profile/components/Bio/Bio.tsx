@@ -50,20 +50,14 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
   return (
     <section className={styles.wrapper}>
       <h2>Профиль {username}</h2>
-      
+
       {/* Новый дизайн в стиле баннера */}
       <div className={styles.profileBanner}>
         <div className={styles.avatarContainer}>
           {isOwner ? (
-            <EditableAvatar
-              avatarUrl={profile?.avatarUrl || "/uploads/avatar.svg"}
-            />
+            <EditableAvatar avatarUrl={profile?.avatarUrl || "/uploads/avatar.svg"} />
           ) : (
-            <ProfileAvatar
-              avatarUrl={profile?.avatarUrl || null}
-              alt="Profile picture"
-              size={80}
-            />
+            <ProfileAvatar avatarUrl={profile?.avatarUrl || null} alt="Profile picture" size={80} />
           )}
         </div>
         <div className={styles.profileInfo}>
@@ -71,22 +65,21 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
             {isOwner ? `Привет, ${profile?.fullName || username}!` : profile?.fullName || username}
           </div>
           <div className={styles.contactInfo}>
-            {isOwner && userData?.phone 
-              ? `${userData.phone}` 
-              : profile?.telegram 
-                ? `@${profile.telegram}` 
+            {isOwner && userData?.phone
+              ? `${userData.phone}`
+              : profile?.telegram
+                ? `@${profile.telegram}`
                 : "Контакты не указаны"}
           </div>
           {displayRole && (
-          <div className={`${styles.roleBadge} ${getRoleClass(publicData.role!)}`}>
-            {displayRole}
-          </div>
-        )}
+            <div className={`${styles.roleBadge} ${getRoleClass(publicData.role!)}`}>
+              {displayRole}
+            </div>
+          )}
         </div>
       </div>
 
       <div className={styles.container}>
-       
         {profile?.birthDate && (
           <p>
             Возраст: {getAge(profile.birthDate)}{" "}
@@ -94,7 +87,7 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           </p>
         )}
         {profile?.about && <p>О себе: {profile.about}</p>}
-        
+
         {/* Социальные сети */}
         {(profile?.instagram || profile?.telegram || profile?.website) && (
           <div className={styles.socialLinksContainer}>
@@ -149,42 +142,36 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
             Внести/Изменить «О себе»
           </Link>
         )}
-         </div>
-        
-        <div className={styles.petList}>
-        <PetList
-          pets={pets}
-          isOwner={isOwner}
-        />
+      </div>
+
+      <div className={styles.petList}>
+        <PetList pets={pets} isOwner={isOwner} />
 
         {isOwner && (
           <Link className={`${styles.editBioButton} ${styles.addpet}`} href="/profile/addPet">
             Добавить питомца
           </Link>
         )}
-</div>
-        {publicData.role === "TRAINER" && (
-          <TrainerCoursesSection publicData={publicData} />
-        )}
-        {isOwner && (
-          <div className={styles.notificationStatus}>
-            <NotificationStatus />
-          </div>
-        )}
-        {diplomas.length > 0 && (
-          <div className={styles.diplomasSection}>
-            <h2>Diplomas</h2>
-            <ul>
-              {diplomas.map((diplom) => (
-                <li key={diplom.id}>
-                  {diplom.title}
-                  {diplom.issuedBy && ` — ${diplom.issuedBy}`}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-     
+      </div>
+      {publicData.role === "TRAINER" && <TrainerCoursesSection publicData={publicData} />}
+      {isOwner && (
+        <div className={styles.notificationStatus}>
+          <NotificationStatus />
+        </div>
+      )}
+      {diplomas.length > 0 && (
+        <div className={styles.diplomasSection}>
+          <h2>Diplomas</h2>
+          <ul>
+            {diplomas.map((diplom) => (
+              <li key={diplom.id}>
+                {diplom.title}
+                {diplom.issuedBy && ` — ${diplom.issuedBy}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

@@ -6,7 +6,7 @@ import { getStepTemplates } from "@features/steps/lib/getStepTemplates";
 import { getStepCategories } from "@features/steps/lib/getStepCategories";
 import { createStepFromTemplate } from "@features/steps/lib/createStepFromTemplate";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Библиотека шаблонов | GAFUS Trainer Panel",
@@ -14,10 +14,7 @@ export const metadata = {
 };
 
 async function TemplateLibraryContent() {
-  const [templates, categories] = await Promise.all([
-    getStepTemplates(),
-    getStepCategories(),
-  ]);
+  const [templates, categories] = await Promise.all([getStepTemplates(), getStepCategories()]);
 
   return (
     <TemplateLibrary
@@ -46,4 +43,3 @@ export default function TemplatesPage() {
     </PageLayout>
   );
 }
-

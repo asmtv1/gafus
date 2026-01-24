@@ -1,6 +1,6 @@
 /**
  * API Route: /api/v1/notifications/step
- * 
+ *
  * POST - Создаёт уведомление для шага
  * DELETE - Удаляет уведомление
  */
@@ -15,7 +15,7 @@ import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
-const logger = createWebLogger('api-notifications-step');
+const logger = createWebLogger("api-notifications-step");
 
 // Динамический импорт для избежания ошибки REDIS_URL при сборке
 async function getNotificationService() {
@@ -37,12 +37,9 @@ const createSchema = z.object({
 export const POST = withCSRFProtection(async (request: NextRequest) => {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: "Не авторизован" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Не авторизован" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -50,7 +47,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     const data = createSchema.parse(body);
 
     const { createStepNotification } = await getNotificationService();
-    
+
     await createStepNotification({
       userId,
       day: data.day,
@@ -65,14 +62,14 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: "Неверные данные запроса", details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     logger.error("Error in step notification POST API", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 });
@@ -87,12 +84,9 @@ const deleteSchema = z.object({
 export const DELETE = withCSRFProtection(async (request: NextRequest) => {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: "Не авторизован" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Не авторизован" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -100,14 +94,11 @@ export const DELETE = withCSRFProtection(async (request: NextRequest) => {
     const { day, stepIndex, deleted } = deleteSchema.parse(body);
 
     const { deleteStepNotification } = await getNotificationService();
-    
+
     const result = await deleteStepNotification(userId, day, stepIndex, deleted);
 
     if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: result.error },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
 
     return NextResponse.json({ success: true });
@@ -115,14 +106,14 @@ export const DELETE = withCSRFProtection(async (request: NextRequest) => {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: "Неверные данные запроса", details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     logger.error("Error in step notification DELETE API", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 });

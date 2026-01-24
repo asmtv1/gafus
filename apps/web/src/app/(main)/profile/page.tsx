@@ -11,7 +11,7 @@ import type { UserWithTrainings } from "@gafus/types";
 export const metadata = generateStaticPageMetadata(
   "Ваш профиль",
   "Управляйте своим аккаунтом, отслеживайте прогресс тренировок.",
-  "/profile"
+  "/profile",
 );
 
 export default async function ProfilPage({
@@ -36,9 +36,7 @@ export default async function ProfilPage({
       notFound();
     }
 
-    const userData: UserWithTrainings | null = isOwner
-      ? await getUserWithTrainings()
-      : null;
+    const userData: UserWithTrainings | null = isOwner ? await getUserWithTrainings() : null;
 
     return (
       <ProfileClient

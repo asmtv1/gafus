@@ -33,7 +33,7 @@ import { generateStaticPageMetadata } from "@gafus/metadata";
 export const metadata = generateStaticPageMetadata(
   "Список курсов",
   "Выбирайте курсы для послушания, фокуса и социализации вашей собаки.",
-  "/courses"
+  "/courses",
 );
 ```
 
@@ -45,7 +45,7 @@ import type { Metadata } from "next";
 
 export async function generateMetadata({ params }): Promise<Metadata> {
   const course = await getCourseData(params.id);
-  
+
   return generateCourseMetadata({
     name: course.name,
     description: course.description,
@@ -117,6 +117,7 @@ export const metadata = generatePageMetadata({
 ## Миграция со старого подхода
 
 ### До:
+
 ```typescript
 export const metadata = {
   title: "Курс",
@@ -132,15 +133,11 @@ export const metadata = {
 ```
 
 ### После:
+
 ```typescript
 import { generateStaticPageMetadata } from "@gafus/metadata";
 
-export const metadata = generateStaticPageMetadata(
-  "Курс",
-  "...",
-  "/courses"
-);
+export const metadata = generateStaticPageMetadata("Курс", "...", "/courses");
 ```
 
 Все остальные поля добавляются автоматически!
-

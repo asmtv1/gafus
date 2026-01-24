@@ -10,16 +10,9 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
 import { prisma } from "@gafus/prisma";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-} from "@gafus/auth/jwt";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
 import { registerUser } from "@gafus/auth";
-import {
-  checkPhoneMatchesUsername,
-  sendPasswordResetRequest,
-} from "@gafus/core/services/auth";
+import { checkPhoneMatchesUsername, sendPasswordResetRequest } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-auth");
@@ -94,10 +87,7 @@ authRoutes.post(
       // Создаём refresh token в БД
       const tokenId = crypto.randomUUID();
       const refreshToken = await generateRefreshToken(user.id, tokenId);
-      const tokenHash = crypto
-        .createHash("sha256")
-        .update(refreshToken)
-        .digest("hex");
+      const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
       await prisma.refreshToken.create({
         data: {
@@ -132,7 +122,7 @@ authRoutes.post(
       logger.error("Login error", error as Error);
       return c.json({ success: false, error: "Ошибка авторизации" }, 500);
     }
-  }
+  },
 );
 
 // POST /api/v1/auth/register
@@ -170,10 +160,7 @@ authRoutes.post(
 
       const tokenId = crypto.randomUUID();
       const refreshToken = await generateRefreshToken(user.id, tokenId);
-      const tokenHash = crypto
-        .createHash("sha256")
-        .update(refreshToken)
-        .digest("hex");
+      const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
       await prisma.refreshToken.create({
         data: {
@@ -198,11 +185,10 @@ authRoutes.post(
       });
     } catch (error) {
       logger.error("Register error", error as Error);
-      const message =
-        error instanceof Error ? error.message : "Ошибка регистрации";
+      const message = error instanceof Error ? error.message : "Ошибка регистрации";
       return c.json({ success: false, error: message }, 400);
     }
-  }
+  },
 );
 
 // POST /api/v1/auth/refresh
@@ -216,16 +202,10 @@ authRoutes.post(
 
       const payload = await verifyRefreshToken(refreshToken);
       if (!payload) {
-        return c.json(
-          { success: false, error: "Недействительный refresh token" },
-          401
-        );
+        return c.json({ success: false, error: "Недействительный refresh token" }, 401);
       }
 
-      const tokenHash = crypto
-        .createHash("sha256")
-        .update(refreshToken)
-        .digest("hex");
+      const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
       // Проверяем токен в БД
       const storedToken = await prisma.refreshToken.findUnique({
@@ -253,15 +233,12 @@ authRoutes.post(
             error: "Сессия скомпрометирована. Войдите заново.",
             code: "TOKEN_REUSE_DETECTED",
           },
-          401
+          401,
         );
       }
 
       if (!storedToken || storedToken.expiresAt < new Date()) {
-        return c.json(
-          { success: false, error: "Токен отозван или истёк" },
-          401
-        );
+        return c.json({ success: false, error: "Токен отозван или истёк" }, 401);
       }
 
       // Ротация токена (отзываем старый, создаём новый)
@@ -280,10 +257,7 @@ authRoutes.post(
       const newAccessToken = await generateAccessToken(authUser);
       const newTokenId = crypto.randomUUID();
       const newRefreshToken = await generateRefreshToken(user.id, newTokenId);
-      const newTokenHash = crypto
-        .createHash("sha256")
-        .update(newRefreshToken)
-        .digest("hex");
+      const newTokenHash = crypto.createHash("sha256").update(newRefreshToken).digest("hex");
 
       await prisma.refreshToken.create({
         data: {
@@ -308,7 +282,7 @@ authRoutes.post(
       logger.error("Refresh token error", error as Error);
       return c.json({ success: false, error: "Ошибка обновления токена" }, 500);
     }
-  }
+  },
 );
 
 // POST /api/v1/auth/logout
@@ -319,10 +293,7 @@ authRoutes.post(
   async (c) => {
     try {
       const { refreshToken } = c.req.valid("json");
-      const tokenHash = crypto
-        .createHash("sha256")
-        .update(refreshToken)
-        .digest("hex");
+      const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
       await prisma.refreshToken.updateMany({
         where: { tokenHash },
@@ -334,7 +305,7 @@ authRoutes.post(
       logger.error("Logout error", error as Error);
       return c.json({ success: true }); // Не раскрываем ошибки logout
     }
-  }
+  },
 );
 
 // POST /api/v1/auth/check-phone-match
@@ -354,12 +325,9 @@ authRoutes.post(
       });
     } catch (error) {
       logger.error("Check phone match error", error as Error);
-      return c.json(
-        { success: false, error: "Ошибка проверки телефона" },
-        500
-      );
+      return c.json({ success: false, error: "Ошибка проверки телефона" }, 500);
     }
-  }
+  },
 );
 
 // POST /api/v1/auth/password-reset-request
@@ -376,10 +344,7 @@ authRoutes.post(
       return c.json({ success: true });
     } catch (error) {
       logger.error("Password reset request error", error as Error);
-      return c.json(
-        { success: false, error: "Ошибка отправки запроса" },
-        500
-      );
+      return c.json({ success: false, error: "Ошибка отправки запроса" }, 500);
     }
-  }
+  },
 );

@@ -11,5 +11,7 @@ import { TrainingStatus } from "../utils/training-status";
  * ВАЖНО: PAUSED шаги считаются как IN_PROGRESS для расчета статуса дня
  * Это критично для синхронизации клиента и сервера!
  */
-export declare function calculateDayStatusFromStatuses(stepStatuses: (string | TrainingStatus)[]): TrainingStatus;
+export declare function calculateDayStatusFromStatuses(
+  stepStatuses: (string | TrainingStatus)[],
+): TrainingStatus;
 //# sourceMappingURL=statusCalculations.d.ts.map

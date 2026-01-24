@@ -1,15 +1,15 @@
 export interface LoginFormData {
-    username: string;
-    password: string;
+  username: string;
+  password: string;
 }
 export interface RegisterFormData {
-    name: string;
-    phone: string;
-    password: string;
-    confirmPassword: string;
+  name: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
 }
 export interface PasswordResetFormData {
-    username: string;
-    phone: string;
+  username: string;
+  phone: string;
 }
 //# sourceMappingURL=forms.d.ts.map

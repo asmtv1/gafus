@@ -28,7 +28,7 @@ import {
 } from "@gafus/core/services/course";
 import { invalidateUserProgressCache } from "./cache";
 
-const logger = createWebLogger('course-server-actions');
+const logger = createWebLogger("course-server-actions");
 
 // ========== Schemas ==========
 
@@ -134,10 +134,10 @@ export async function toggleFavoriteCourseAction(courseId: string): Promise<bool
   try {
     const userId = await getCurrentUserId();
     const isFavorite = await toggleFavoriteCourse(userId, safeCourseId);
-    
+
     // Инвалидируем кэш
     await invalidateUserProgressCache(userId, false);
-    
+
     return isFavorite;
   } catch (error) {
     logger.error("Ошибка в toggleFavoriteCourse", error as Error);
@@ -175,11 +175,11 @@ export async function getCourseReviewsAction(courseType: string) {
   try {
     const userId = await getCurrentUserId().catch(() => undefined);
     const result = await getCourseReviews(safeCourseType, userId);
-    
+
     if (!result) {
       return { success: false, error: "Курс не найден" };
     }
-    
+
     return {
       success: true,
       courseName: result.courseName,
@@ -201,16 +201,16 @@ export async function getCourseReviewsAction(courseType: string) {
 export async function createCourseReviewAction(
   courseType: string,
   rating: number,
-  comment?: string
+  comment?: string,
 ) {
   const safeCourseType = courseTypeSchema.parse(courseType);
   const safeRating = ratingSchema.parse(rating);
   const safeComment = commentSchema.parse(comment);
-  
+
   try {
     const userId = await getCurrentUserId();
     const result = await createCourseReview(userId, safeCourseType, safeRating, safeComment);
-    
+
     if (result.success) {
       // Инвалидируем кэш
       revalidatePath(`/trainings/${safeCourseType}/reviews`);
@@ -218,7 +218,7 @@ export async function createCourseReviewAction(
       revalidatePath("/courses");
       revalidatePath("/favorites");
     }
-    
+
     return result;
   } catch (error) {
     logger.error("Ошибка при создании отзыва", error as Error, { courseType, rating });
@@ -232,25 +232,21 @@ export async function createCourseReviewAction(
 /**
  * Обновляет отзыв
  */
-export async function updateCourseReviewAction(
-  reviewId: string,
-  rating: number,
-  comment?: string
-) {
+export async function updateCourseReviewAction(reviewId: string, rating: number, comment?: string) {
   const safeReviewId = z.string().trim().min(1).parse(reviewId);
   const safeRating = ratingSchema.parse(rating);
   const safeComment = commentSchema.parse(comment);
-  
+
   try {
     const userId = await getCurrentUserId();
     const result = await updateCourseReview(userId, safeReviewId, safeRating, safeComment);
-    
+
     if (result.success) {
       // Инвалидируем общие кэши
       revalidatePath("/courses");
       revalidatePath("/favorites");
     }
-    
+
     return result;
   } catch (error) {
     logger.error("Ошибка при обновлении отзыва", error as Error, { reviewId, rating });
@@ -266,16 +262,16 @@ export async function updateCourseReviewAction(
  */
 export async function deleteCourseReviewAction(reviewId: string) {
   const safeReviewId = z.string().trim().min(1).parse(reviewId);
-  
+
   try {
     const userId = await getCurrentUserId();
     const result = await deleteCourseReview(userId, safeReviewId);
-    
+
     if (result.success) {
       revalidatePath("/courses");
       revalidatePath("/favorites");
     }
-    
+
     return result;
   } catch (error) {
     logger.error("Ошибка при удалении отзыва", error as Error, { reviewId });
@@ -291,10 +287,10 @@ export async function deleteCourseReviewAction(reviewId: string) {
  */
 export async function rateCourseAction(courseId: string, rating: number | null) {
   if (rating == null) return;
-  
+
   const safeCourseId = courseIdSchema.parse(courseId);
   const safeRating = ratingSchema.parse(rating);
-  
+
   try {
     const userId = await getCurrentUserId();
     await rateCourse(userId, safeCourseId, safeRating);
@@ -309,17 +305,17 @@ export async function rateCourseAction(courseId: string, rating: number | null) 
  */
 export async function updateCourseRatingAction(
   courseId: string,
-  rating: number
+  rating: number,
 ): Promise<{ success: boolean; error?: string }> {
   const safeCourseId = courseIdSchema.parse(courseId);
   const safeRating = ratingSchema.parse(rating);
-  
+
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
       return { success: false, error: "Пользователь не авторизован" };
     }
-    
+
     const result = await rateCourse(userId, safeCourseId, safeRating);
     return result;
   } catch (error) {

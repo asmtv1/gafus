@@ -2,7 +2,7 @@ import type { NextApiRequest } from "next";
 import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для auth
-const logger = createWebLogger('auth-owner-check');
+const logger = createWebLogger("auth-owner-check");
 
 /**
  * Проверяет, является ли текущий пользователь владельцем профиля.
@@ -34,7 +34,7 @@ export async function getIsOwner(profileUsername: string, req?: NextApiRequest):
     logger.error("Error in getIsOwner", error as Error, {
       profileUsername: profileUsername,
       hasReq: !!req,
-      hasQueryUsername: !!req?.query?.username
+      hasQueryUsername: !!req?.query?.username,
     });
     return false;
   }

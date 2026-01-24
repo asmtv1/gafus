@@ -1,8 +1,8 @@
 // React-специфичные экспорты
 export { ErrorBoundary } from "./ErrorBoundary";
-export type { 
-  ErrorBoundaryProps, 
-  ErrorBoundaryState, 
+export type {
+  ErrorBoundaryProps,
+  ErrorBoundaryState,
   ErrorBoundaryConfig,
-  ErrorInfo
+  ErrorInfo,
 } from "./ErrorBoundary";

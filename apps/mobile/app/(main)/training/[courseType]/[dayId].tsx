@@ -31,14 +31,12 @@ export default function TrainingDayScreen() {
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
 
   // Загрузка данных дня
-  const { data, isLoading, error, refetch, isRefetching } = useTrainingDay(
-    courseType,
-    dayId
-  );
+  const { data, isLoading, error, refetch, isRefetching } = useTrainingDay(courseType, dayId);
 
   // Stores
   const { getOpenIndex, setOpenIndex } = useTrainingStore();
-  const { getStepState, startStep, pauseStep, completeStep, initializeStep, resetStep } = useStepStore();
+  const { getStepState, startStep, pauseStep, completeStep, initializeStep, resetStep } =
+    useStepStore();
   const { stopTimer } = useTimerStore();
 
   // Mutations
@@ -99,17 +97,10 @@ export default function TrainingDayScreen() {
             });
           }
 
-          initializeStep(
-            courseId,
-            dayId,
-            stepIndex,
-            durationSec,
-            status,
-            {
-              serverPaused: status === "PAUSED",
-              serverRemainingSec: step.remainingSec ?? step.remainingSecOnServer ?? undefined,
-            }
-          );
+          initializeStep(courseId, dayId, stepIndex, durationSec, status, {
+            serverPaused: status === "PAUSED",
+            serverRemainingSec: step.remainingSec ?? step.remainingSecOnServer ?? undefined,
+          });
           initializedCount++;
         });
 
@@ -140,7 +131,7 @@ export default function TrainingDayScreen() {
     (index: number) => {
       setOpenIndex(courseId, dayId, openIndex === index ? null : index);
     },
-    [courseId, dayId, openIndex, setOpenIndex]
+    [courseId, dayId, openIndex, setOpenIndex],
   );
 
   const handleStartStep = useCallback(
@@ -161,7 +152,7 @@ export default function TrainingDayScreen() {
         setSnackbar({ visible: true, message: "Ошибка старта шага" });
       }
     },
-    [courseId, dayId, startStep, startStepMutation]
+    [courseId, dayId, startStep, startStepMutation],
   );
 
   const handlePauseStep = useCallback(
@@ -179,7 +170,7 @@ export default function TrainingDayScreen() {
         setSnackbar({ visible: true, message: "Ошибка паузы" });
       }
     },
-    [courseId, dayId, pauseStep, pauseStepMutation]
+    [courseId, dayId, pauseStep, pauseStepMutation],
   );
 
   const handleResumeStep = useCallback(
@@ -194,7 +185,7 @@ export default function TrainingDayScreen() {
         setSnackbar({ visible: true, message: "Ошибка возобновления" });
       }
     },
-    [courseId, dayId, resumeStepMutation]
+    [courseId, dayId, resumeStepMutation],
   );
 
   const handleResetStep = useCallback(
@@ -212,7 +203,7 @@ export default function TrainingDayScreen() {
         setSnackbar({ visible: true, message: "Ошибка сброса шага" });
       }
     },
-    [courseId, dayId, resetStep, stopTimer]
+    [courseId, dayId, resetStep, stopTimer],
   );
 
   const handleCompleteStep = useCallback(
@@ -258,7 +249,7 @@ export default function TrainingDayScreen() {
       completePracticeMutation,
       dayData?.steps,
       setOpenIndex,
-    ]
+    ],
   );
 
   // Подсчёт прогресса
@@ -331,8 +322,14 @@ export default function TrainingDayScreen() {
         hasData: !!data,
         dataSuccess: data?.success,
         dataErrorType: data?.error ? typeof data.error : null,
-        dataErrorName: data?.error && typeof data.error === "object" && "name" in data.error ? (data.error as any).name : null,
-        dataErrorIssues: data?.error && typeof data.error === "object" && "issues" in data.error ? (data.error as any).issues : null,
+        dataErrorName:
+          data?.error && typeof data.error === "object" && "name" in data.error
+            ? (data.error as any).name
+            : null,
+        dataErrorIssues:
+          data?.error && typeof data.error === "object" && "issues" in data.error
+            ? (data.error as any).issues
+            : null,
         dataCode: (data as any)?.code,
         dayData: dayData ? { title: dayData.title, stepsCount: dayData.steps?.length } : null,
         finalErrorMessage: errorMessage,
@@ -351,9 +348,7 @@ export default function TrainingDayScreen() {
           <View style={styles.errorContainer}>
             <MaterialCommunityIcons name="alert-circle" size={48} color={COLORS.error} />
             <Text style={styles.errorText}>{errorMessage}</Text>
-            {errorDetails && (
-              <Text style={styles.errorDetails}>{errorDetails}</Text>
-            )}
+            {errorDetails && <Text style={styles.errorDetails}>{errorDetails}</Text>}
             {__DEV__ && (
               <Text style={styles.errorDetails}>
                 {`courseType: ${courseType}\ndayId: ${dayId}`}
@@ -397,9 +392,7 @@ export default function TrainingDayScreen() {
       <SafeAreaView style={styles.container} edges={["bottom"]}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />
-          }
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
         >
           {/* Прогресс дня */}
           <Surface style={styles.progressCard} elevation={1}>
@@ -410,9 +403,7 @@ export default function TrainingDayScreen() {
               </Text>
             </View>
             <View style={styles.progressBar}>
-              <View
-                style={[styles.progressFill, { width: `${progress.percent}%` }]}
-              />
+              <View style={[styles.progressFill, { width: `${progress.percent}%` }]} />
             </View>
             <Text style={styles.progressText}>
               Выполнено {progress.completed} из {progress.total} шагов
@@ -430,10 +421,10 @@ export default function TrainingDayScreen() {
                 const durationSec = stepData.durationSec ?? 300;
                 const stepType = stepData.type || step.type;
                 const stepTitle = stepData.title || step.title;
-                
+
                 // Уникальный ключ: комбинация dayId, order и index для гарантии уникальности
                 const uniqueKey = `${dayId}-${step.order ?? index}-${step.id || index}`;
-                
+
                 if (__DEV__) {
                   console.log("[TrainingDayScreen] Рендеринг шага:", {
                     index,
@@ -444,7 +435,7 @@ export default function TrainingDayScreen() {
                     hasStepData: !!stepData,
                   });
                 }
-                
+
                 return (
                   <AccordionStep
                     key={uniqueKey}
@@ -482,11 +473,7 @@ export default function TrainingDayScreen() {
                       if (__DEV__) {
                         console.log("[TrainingDayScreen] Complete step:", stepIndex);
                       }
-                      handleCompleteStep(
-                        stepIndex,
-                        stepType === "THEORY",
-                        stepTitle
-                      );
+                      handleCompleteStep(stepIndex, stepType === "THEORY", stepTitle);
                     }}
                     onReset={(durationSec) => {
                       if (__DEV__) {
@@ -505,9 +492,7 @@ export default function TrainingDayScreen() {
                 }
                 return (
                   <View key={`error-${index}`} style={{ padding: SPACING.md }}>
-                    <Text style={{ color: COLORS.error }}>
-                      Ошибка загрузки шага {index + 1}
-                    </Text>
+                    <Text style={{ color: COLORS.error }}>Ошибка загрузки шага {index + 1}</Text>
                   </View>
                 );
               }

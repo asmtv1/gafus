@@ -12,7 +12,7 @@ import type { CourseReview, CourseWithProgressData } from "@gafus/types";
 import type { CourseStore } from "./types";
 import { TrainingStatus } from "@gafus/types";
 
-const logger = createWebLogger('web');
+const logger = createWebLogger("web");
 
 // ===== КОНСТАНТЫ =====
 const IMAGE_CACHE_DURATION = 30 * 60 * 1000; // 30 минут для изображений
@@ -315,7 +315,7 @@ export const useCourseStore = create<CourseStore>()(
           if (Array.isArray(state.favoriteCourseIds)) {
             state.favoriteCourseIds = new Set(state.favoriteCourseIds);
           }
-          
+
           // Синхронизируем с актуальными данными из stepStore
           // Используем setTimeout чтобы избежать циклических зависимостей
           setTimeout(async () => {
@@ -323,7 +323,10 @@ export const useCourseStore = create<CourseStore>()(
               const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
               await syncCourseStoreWithStepStates();
             } catch (error) {
-              logger.warn("Failed to sync courseStore with stepStates:", { error, operation: 'warn' });
+              logger.warn("Failed to sync courseStore with stepStates:", {
+                error,
+                operation: "warn",
+              });
             }
           }, 100);
         }

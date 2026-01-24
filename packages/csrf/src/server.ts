@@ -9,5 +9,3 @@ export {
 } from "./utils";
 
 export { withCSRFProtection, createCSRFMiddleware } from "./middleware";
-
-

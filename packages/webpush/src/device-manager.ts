@@ -7,7 +7,7 @@
 import { createWorkerLogger } from "@gafus/logger";
 
 // Создаем логгер для device-manager
-const logger = createWorkerLogger('device-manager');
+const logger = createWorkerLogger("device-manager");
 
 export interface DeviceSubscription {
   id: string;
@@ -17,9 +17,9 @@ export interface DeviceSubscription {
     p256dh: string;
     auth: string;
   };
-  deviceType: 'safari' | 'chrome' | 'firefox' | 'other';
+  deviceType: "safari" | "chrome" | "firefox" | "other";
   userAgent: string;
-  platform: 'ios' | 'android' | 'desktop' | 'unknown';
+  platform: "ios" | "android" | "desktop" | "unknown";
   createdAt: Date;
   lastUsed: Date;
   isActive: boolean;
@@ -27,8 +27,8 @@ export interface DeviceSubscription {
 
 export interface DeviceInfo {
   id: string;
-  type: 'safari' | 'chrome' | 'firefox' | 'other';
-  platform: 'ios' | 'android' | 'desktop' | 'unknown';
+  type: "safari" | "chrome" | "firefox" | "other";
+  platform: "ios" | "android" | "desktop" | "unknown";
   userAgent: string;
   isPWA: boolean;
   isStandalone: boolean;
@@ -36,7 +36,10 @@ export interface DeviceInfo {
 
 export class DeviceSubscriptionManager {
   private static instance: DeviceSubscriptionManager;
-  private deviceSubscriptions: Map<string, DeviceSubscription> = new Map<string, DeviceSubscription>();
+  private deviceSubscriptions: Map<string, DeviceSubscription> = new Map<
+    string,
+    DeviceSubscription
+  >();
   private currentDeviceId: string | null = null;
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -66,7 +69,7 @@ export class DeviceSubscriptionManager {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32bit integer
     }
     return Math.abs(hash).toString(36);
@@ -75,34 +78,34 @@ export class DeviceSubscriptionManager {
   /**
    * Определяет тип устройства по User-Agent
    */
-  private detectDeviceType(): 'safari' | 'chrome' | 'firefox' | 'other' {
+  private detectDeviceType(): "safari" | "chrome" | "firefox" | "other" {
     const userAgent = navigator.userAgent.toLowerCase();
-    
-    if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
-      return 'safari';
-    } else if (userAgent.includes('chrome')) {
-      return 'chrome';
-    } else if (userAgent.includes('firefox')) {
-      return 'firefox';
+
+    if (userAgent.includes("safari") && !userAgent.includes("chrome")) {
+      return "safari";
+    } else if (userAgent.includes("chrome")) {
+      return "chrome";
+    } else if (userAgent.includes("firefox")) {
+      return "firefox";
     } else {
-      return 'other';
+      return "other";
     }
   }
 
   /**
    * Определяет платформу
    */
-  private detectPlatform(): 'ios' | 'android' | 'desktop' | 'unknown' {
+  private detectPlatform(): "ios" | "android" | "desktop" | "unknown" {
     const userAgent = navigator.userAgent.toLowerCase();
-    
+
     if (/ipad|iphone|ipod/.test(userAgent)) {
-      return 'ios';
+      return "ios";
     } else if (/android/.test(userAgent)) {
-      return 'android';
+      return "android";
     } else if (/windows|macintosh|linux/.test(userAgent)) {
-      return 'desktop';
+      return "desktop";
     } else {
-      return 'unknown';
+      return "unknown";
     }
   }
 
@@ -137,20 +140,20 @@ export class DeviceSubscriptionManager {
    */
   async createDeviceSubscription(
     vapidPublicKey: string,
-    userId: string
+    userId: string,
   ): Promise<DeviceSubscription> {
     const deviceInfo = this.getCurrentDeviceInfo();
-    
+
     // Специальная проверка для Safari iOS (требуется PWA режим)
-    if (deviceInfo.type === 'safari' && deviceInfo.platform === 'ios' && !deviceInfo.isPWA) {
+    if (deviceInfo.type === "safari" && deviceInfo.platform === "ios" && !deviceInfo.isPWA) {
       logger.warn("Safari iOS requires PWA mode for push notifications", {
         deviceType: deviceInfo.type,
         platform: deviceInfo.platform,
         isPWA: deviceInfo.isPWA,
-        userAgent: deviceInfo.userAgent
+        userAgent: deviceInfo.userAgent,
       });
       throw new Error(
-        "Для push-уведомлений на iOS добавьте сайт в главный экран через кнопку 'Поделиться' → 'На экран Домой' и запустите как приложение"
+        "Для push-уведомлений на iOS добавьте сайт в главный экран через кнопку 'Поделиться' → 'На экран Домой' и запустите как приложение",
       );
     }
 
@@ -163,7 +166,7 @@ export class DeviceSubscriptionManager {
     // Создаем новую подписку
     const registration = await navigator.serviceWorker.ready;
     const applicationServerKey = this.urlBase64ToUint8Array(vapidPublicKey);
-    
+
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: applicationServerKey as BufferSource,
@@ -177,17 +180,20 @@ export class DeviceSubscriptionManager {
     }
 
     // Проверяем endpoint для Safari
-    if (deviceInfo.type === 'safari') {
-      const isAPNSEndpoint = subscription.endpoint.includes('web.push.apple.com');
+    if (deviceInfo.type === "safari") {
+      const isAPNSEndpoint = subscription.endpoint.includes("web.push.apple.com");
       if (!isAPNSEndpoint) {
-        logger.warn("Safari создал FCM endpoint вместо APNS. Возможно, нужна перезагрузка в PWA режиме.", {
-          endpoint: subscription.endpoint,
-          deviceType: deviceInfo.type
-        });
+        logger.warn(
+          "Safari создал FCM endpoint вместо APNS. Возможно, нужна перезагрузка в PWA режиме.",
+          {
+            endpoint: subscription.endpoint,
+            deviceType: deviceInfo.type,
+          },
+        );
       } else {
         logger.info("Safari создал правильный APNS endpoint", {
           endpoint: subscription.endpoint,
-          deviceType: deviceInfo.type
+          deviceType: deviceInfo.type,
         });
       }
     }
@@ -217,7 +223,7 @@ export class DeviceSubscriptionManager {
       deviceId: deviceInfo.id,
       deviceType: deviceInfo.type,
       platform: deviceInfo.platform,
-      endpoint: subscription.endpoint.substring(0, 50) + '...'
+      endpoint: subscription.endpoint.substring(0, 50) + "...",
     });
 
     return deviceSubscription;
@@ -231,7 +237,10 @@ export class DeviceSubscriptionManager {
       const registration = await navigator.serviceWorker.ready;
       return await registration.pushManager.getSubscription();
     } catch (error) {
-      logger.warn("Failed to get existing subscription", { error: error as Error, deviceId: 'unknown' });
+      logger.warn("Failed to get existing subscription", {
+        error: error as Error,
+        deviceId: "unknown",
+      });
       return null;
     }
   }
@@ -282,21 +291,21 @@ export class DeviceSubscriptionManager {
    * Получает все активные подписки
    */
   getAllActiveSubscriptions(): DeviceSubscription[] {
-    return Array.from(this.deviceSubscriptions.values()).filter(sub => sub.isActive);
+    return Array.from(this.deviceSubscriptions.values()).filter((sub) => sub.isActive);
   }
 
   /**
    * Получает подписки по типу устройства
    */
-  getSubscriptionsByType(deviceType: DeviceSubscription['deviceType']): DeviceSubscription[] {
-    return this.getAllActiveSubscriptions().filter(sub => sub.deviceType === deviceType);
+  getSubscriptionsByType(deviceType: DeviceSubscription["deviceType"]): DeviceSubscription[] {
+    return this.getAllActiveSubscriptions().filter((sub) => sub.deviceType === deviceType);
   }
 
   /**
    * Получает подписки по платформе
    */
-  getSubscriptionsByPlatform(platform: DeviceSubscription['platform']): DeviceSubscription[] {
-    return this.getAllActiveSubscriptions().filter(sub => sub.platform === platform);
+  getSubscriptionsByPlatform(platform: DeviceSubscription["platform"]): DeviceSubscription[] {
+    return this.getAllActiveSubscriptions().filter((sub) => sub.platform === platform);
   }
 
   /**
@@ -311,25 +320,25 @@ export class DeviceSubscriptionManager {
    * Проверяет поддержку push-уведомлений
    */
   isPushSupported(): boolean {
-    return 'serviceWorker' in navigator && 'PushManager' in window;
+    return "serviceWorker" in navigator && "PushManager" in window;
   }
 
   /**
    * Проверяет поддержку уведомлений
    */
   isNotificationSupported(): boolean {
-    return typeof Notification !== 'undefined';
+    return typeof Notification !== "undefined";
   }
 
   /**
    * Конвертирует Base64URL в Uint8Array
    */
   private urlBase64ToUint8Array(base64String: string): Uint8Array {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
     const rawData = window.atob(base64);
     const outputArray = new Uint8Array(rawData.length);
-    
+
     for (let i = 0; i < rawData.length; ++i) {
       outputArray[i] = rawData.charCodeAt(i);
     }
@@ -341,7 +350,7 @@ export class DeviceSubscriptionManager {
    */
   private arrayBufferToBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
-    let binary = '';
+    let binary = "";
     for (let i = 0; i < bytes.byteLength; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
@@ -358,9 +367,9 @@ export class DeviceSubscriptionManager {
         currentDeviceId: this.currentDeviceId,
         timestamp: Date.now(),
       };
-      localStorage.setItem('device-subscriptions', JSON.stringify(data));
+      localStorage.setItem("device-subscriptions", JSON.stringify(data));
     } catch (error) {
-      logger.warn("Failed to save to localStorage", { error: error as Error, operation: 'save' });
+      logger.warn("Failed to save to localStorage", { error: error as Error, operation: "save" });
     }
   }
 
@@ -369,24 +378,24 @@ export class DeviceSubscriptionManager {
    */
   loadFromLocalStorage(): void {
     try {
-      const data = localStorage.getItem('device-subscriptions');
+      const data = localStorage.getItem("device-subscriptions");
       if (data) {
         const parsed = JSON.parse(data);
         this.deviceSubscriptions = new Map(parsed.deviceSubscriptions || []);
         this.currentDeviceId = parsed.currentDeviceId || null;
-        
+
         // Восстанавливаем Date объекты
         for (const subscription of this.deviceSubscriptions.values()) {
           subscription.createdAt = new Date(subscription.createdAt);
           subscription.lastUsed = new Date(subscription.lastUsed);
         }
-        
-        logger.info("Loaded device subscriptions from localStorage", { 
-          count: this.deviceSubscriptions.size 
+
+        logger.info("Loaded device subscriptions from localStorage", {
+          count: this.deviceSubscriptions.size,
         });
       }
     } catch (error) {
-      logger.warn("Failed to load from localStorage", { error: error as Error, operation: 'load' });
+      logger.warn("Failed to load from localStorage", { error: error as Error, operation: "load" });
     }
   }
 
@@ -396,7 +405,7 @@ export class DeviceSubscriptionManager {
   clear(): void {
     this.deviceSubscriptions.clear();
     this.currentDeviceId = null;
-    localStorage.removeItem('device-subscriptions');
+    localStorage.removeItem("device-subscriptions");
     logger.info("Device subscription manager cleared");
   }
 }

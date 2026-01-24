@@ -35,7 +35,7 @@ console.warn("🚀 Запускаем приложения в dev режиме..
 // Запускаем все приложения параллельно
 const processes = [];
 apps.forEach((app) => {
-  console.warn(`🔄 Запуск ${app.name}${app.port ? ` (порт ${app.port})` : ''}...`);
+  console.warn(`🔄 Запуск ${app.name}${app.port ? ` (порт ${app.port})` : ""}...`);
 
   let child;
   if (app.type === "next-dev") {
@@ -49,7 +49,7 @@ apps.forEach((app) => {
   } else if (app.type === "worker") {
     // Запускаем worker в dev режиме
     const childEnv = createChildEnv(envVars, {});
-    
+
     child = spawn("pnpm", ["--filter", app.filter, "dev"], {
       stdio: "pipe",
       env: childEnv,

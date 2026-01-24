@@ -13,7 +13,7 @@ import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
 
 // Создаем логгер для startUserStepServerAction
-const logger = createWebLogger('web-start-user-step-server-action');
+const logger = createWebLogger("web-start-user-step-server-action");
 
 const startStepSchema = z.object({
   courseId: courseIdSchema,
@@ -32,7 +32,13 @@ export async function startUserStepServerAction(
   status: TrainingStatus,
   durationSec: number,
 ): Promise<{ success: boolean }> {
-  const safeInput = startStepSchema.parse({ courseId, dayOnCourseId, stepIndex, status, durationSec });
+  const safeInput = startStepSchema.parse({
+    courseId,
+    dayOnCourseId,
+    stepIndex,
+    status,
+    durationSec,
+  });
   let userId: string | null = null;
   try {
     userId = await getCurrentUserId();
@@ -74,7 +80,7 @@ export async function startUserStepServerAction(
         const stepTitle = stepLink.step.title;
         if (!stepTitle || stepTitle.trim().length === 0) {
           logger.warn("StepTitle пустой или отсутствует в БД", {
-            operation: 'empty_step_title_warning',
+            operation: "empty_step_title_warning",
             stepId: stepLink.step.id,
             stepIndex: safeInput.stepIndex,
             dayOnCourseId: safeInput.dayOnCourseId,
@@ -92,7 +98,7 @@ export async function startUserStepServerAction(
       {
         maxWait: 5000, // 5 секунд ожидания начала транзакции
         timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
-      }
+      },
     );
 
     // Обновляем статус шага (это уже использует транзакции)
@@ -130,10 +136,10 @@ export async function startUserStepServerAction(
         });
       } catch (courseError) {
         logger.error("Failed to update course status", courseError as Error, {
-          operation: 'update_course_status_error',
+          operation: "update_course_status_error",
           courseId: courseId,
           userId: userId,
-          status: "IN_PROGRESS"
+          status: "IN_PROGRESS",
         });
         // Не прерываем выполнение, если обновление курса не удалось
       }
@@ -158,11 +164,11 @@ export async function startUserStepServerAction(
       });
     } catch (notificationError) {
       logger.error("❌ Failed to create step notifications", notificationError as Error, {
-        operation: 'create_step_notifications_error',
+        operation: "create_step_notifications_error",
         courseId: courseId,
         dayOnCourseId: dayOnCourseId,
         stepIndex: stepIndex,
-        userId: userId
+        userId: userId,
       });
       // Не прерываем выполнение, если уведомления не создались
     }
@@ -173,11 +179,11 @@ export async function startUserStepServerAction(
     return { success: true };
   } catch (error) {
     logger.error("💥 startUserStepServerAction failed", error as Error, {
-      operation: 'start_user_step_server_action_failed',
+      operation: "start_user_step_server_action_failed",
       courseId: courseId,
       dayOnCourseId: dayOnCourseId,
       stepIndex: stepIndex,
-      userId: userId
+      userId: userId,
     });
 
     logger.error(
@@ -193,7 +199,7 @@ export async function startUserStepServerAction(
         durationSec: safeInput.durationSec,
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         tags: ["training", "step-start", "server-action", "transaction"],
-      }
+      },
     );
 
     throw new Error("Что-то пошло не так при запуске шага тренировки");

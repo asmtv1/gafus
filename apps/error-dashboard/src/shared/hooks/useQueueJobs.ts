@@ -22,7 +22,7 @@ interface QueueJobsResponse {
 async function fetchQueueJobs(
   queue?: string,
   status: string = "failed",
-  limit: number = 50
+  limit: number = 50,
 ): Promise<QueueJobsResponse> {
   const params = new URLSearchParams();
   if (queue) params.append("queue", queue);
@@ -111,4 +111,3 @@ export function useBulkRetry() {
     },
   });
 }
-

@@ -10,11 +10,11 @@ import styles from "./courses.module.css";
 import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
 import type { CourseTabType } from "@/features/courses/components/CourseTabs/CourseTabs";
 import CourseSearch from "@/features/courses/components/CourseSearch/CourseSearch";
-import CourseFilters, { 
-  type TrainingLevelType, 
-  type ProgressFilterType, 
-  type SortingType, 
-  type RatingFilterType 
+import CourseFilters, {
+  type TrainingLevelType,
+  type ProgressFilterType,
+  type SortingType,
+  type RatingFilterType,
 } from "@/features/courses/components/CourseFilters";
 import { filterAndSortCourses } from "@shared/utils/courseFilters";
 
@@ -24,10 +24,10 @@ interface CoursesClientProps {
   userId?: string;
 }
 
-export default function CoursesClient({ 
-  initialCourses, 
-  initialError, 
-  userId 
+export default function CoursesClient({
+  initialCourses,
+  initialError,
+  userId,
 }: CoursesClientProps) {
   // Состояние фильтров
   const [activeTab, setActiveTab] = useState<CourseTabType>("free");
@@ -41,10 +41,10 @@ export default function CoursesClient({
   const handleResetFilters = () => {
     setSearchQuery(""); // Также сбрасываем поиск
   };
-  
+
   const { allCourses, loading, errors, fetchAllCourses, forceRefreshFavorites, setAllCourses } =
     useCourseStoreActions();
-  
+
   // Добавляем синхронизацию прогресса
   const { syncedCourses } = useCourseProgressSync();
 
@@ -64,7 +64,15 @@ export default function CoursesClient({
         // Ошибка уже обрабатывается в store
       });
     }
-  }, [initialCourses, initialError, allCourses, loading.all, userId, setAllCourses, fetchAllCourses]);
+  }, [
+    initialCourses,
+    initialError,
+    allCourses,
+    loading.all,
+    userId,
+    setAllCourses,
+    fetchAllCourses,
+  ]);
 
   // Слушаем глобальные изменения избранного для синхронизации состояния
   useEffect(() => {
@@ -95,7 +103,7 @@ export default function CoursesClient({
   }
 
   const allCoursesData = syncedCourses || allCourses?.data || [];
-  
+
   // Применяем все фильтры и сортировку
   const filteredCourses = filterAndSortCourses(allCoursesData, {
     tab: activeTab,
@@ -127,12 +135,9 @@ export default function CoursesClient({
     <div className={styles.container}>
       {/* Индикатор синхронизации */}
       <SyncStatusIndicator className={styles.syncIndicator} />
-      
+
       {/* Поиск */}
-      <CourseSearch 
-        value={searchQuery}
-        onChange={setSearchQuery}
-      />
+      <CourseSearch value={searchQuery} onChange={setSearchQuery} />
 
       {/* Все фильтры в выпадающих списках */}
       <CourseFilters
@@ -156,15 +161,14 @@ export default function CoursesClient({
           <CourseCard key={course.id} {...course} index={index} />
         ))}
       </ul>
-      
+
       {/* Пустое состояние */}
       {filteredCourses.length === 0 && (
         <div className={styles.emptyState}>
           <p>
-            {searchQuery 
+            {searchQuery
               ? `По запросу "${searchQuery}" ничего не найдено`
-              : "В этой категории пока нет курсов"
-            }
+              : "В этой категории пока нет курсов"}
           </p>
         </div>
       )}

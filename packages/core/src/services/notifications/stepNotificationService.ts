@@ -1,6 +1,6 @@
 /**
  * Step Notification Service - бизнес-логика работы с уведомлениями шагов
- * 
+ *
  * Этот модуль содержит чистую бизнес-логику без Next.js специфики.
  * Все операции с авторизацией выполняются в Server Actions.
  */
@@ -10,7 +10,7 @@ import { createWebLogger } from "@gafus/logger";
 import { pushQueue } from "@gafus/queues";
 import type { PushSubscription as DbPushSubscription } from "@gafus/prisma";
 
-const logger = createWebLogger('step-notification-service');
+const logger = createWebLogger("step-notification-service");
 
 // ========== Types ==========
 
@@ -28,9 +28,7 @@ export interface CreateStepNotificationParams {
 /**
  * Создает уведомление для шага тренировки с отложенной отправкой
  */
-export async function createStepNotification(
-  params: CreateStepNotificationParams
-): Promise<void> {
+export async function createStepNotification(params: CreateStepNotificationParams): Promise<void> {
   const { userId, day, stepIndex, durationSec, maybeUrl, stepTitle } = params;
   const nowTs = Math.floor(Date.now() / 1000);
   const endTs = nowTs + durationSec;
@@ -55,7 +53,7 @@ export async function createStepNotification(
 
   // Валидация stepTitle
   const hasStepTitle = stepTitle != null && stepTitle.trim().length > 0;
-  
+
   if (!hasStepTitle) {
     logger.warn("StepTitle отсутствует или пустой при создании уведомления", {
       userId,
@@ -186,9 +184,7 @@ export async function pauseStepNotification(
     },
   });
 
-  logger.info(
-    `Notification paused for user ${userId}, day ${day}, step ${stepIndex}`
-  );
+  logger.info(`Notification paused for user ${userId}, day ${day}, step ${stepIndex}`);
 }
 
 // ========== Reset Step Notification ==========
@@ -269,7 +265,7 @@ export async function resumeStepNotification(
     // Получаем stepTitle из БД, если передан dayOnCourseId
     let stepTitle: string | null = null;
     let url: string | null = null;
-    
+
     if (dayOnCourseId) {
       try {
         const dayOnCourse = await prisma.dayOnCourse.findUnique({
@@ -343,17 +339,21 @@ export async function resumeStepNotification(
       data: { jobId: job.id, paused: false },
     });
 
-    logger.info(`Notification created on resume for user ${userId}, day ${day}, step ${stepIndex}`, {
-      jobId: job.id,
-      stepTitle,
-      url,
-      dayOnCourseId,
-    });
+    logger.info(
+      `Notification created on resume for user ${userId}, day ${day}, step ${stepIndex}`,
+      {
+        jobId: job.id,
+        stepTitle,
+        url,
+        dayOnCourseId,
+      },
+    );
     return;
   }
 
   // Вычисляем оставшееся время
-  const remainingSec = Math.max(Number(durationSec) || 0, 0) || Math.max(notification.endTs - nowTs, 0);
+  const remainingSec =
+    Math.max(Number(durationSec) || 0, 0) || Math.max(notification.endTs - nowTs, 0);
   const newEndTs = nowTs + remainingSec;
 
   await prisma.stepNotification.update({
@@ -404,7 +404,7 @@ export async function toggleStepNotificationPause(
   userId: string,
   day: number,
   stepIndex: number,
-  pause: boolean
+  pause: boolean,
 ): Promise<{ success: boolean; error?: string }> {
   const now = Math.floor(Date.now() / 1000);
 
@@ -479,7 +479,7 @@ export async function deleteStepNotification(
   userId: string,
   day: number,
   stepIndex: number,
-  deleted: boolean
+  deleted: boolean,
 ): Promise<{ success: boolean; error?: string }> {
   const notif = await prisma.stepNotification.findFirst({
     where: {

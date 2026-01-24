@@ -104,7 +104,7 @@ export interface TrainingStore extends TrainingStateData {
   };
   setCachedTrainingDays: (
     courseType: string,
-    data: TrainingStateData["cachedTrainingDays"][string]["data"]
+    data: TrainingStateData["cachedTrainingDays"][string]["data"],
   ) => void;
   clearCachedTrainingDays: (courseType?: string) => void;
 
@@ -118,19 +118,19 @@ export interface TrainingStore extends TrainingStateData {
   findRunningStepIndex: (
     courseId: string,
     dayOnCourseId: string,
-    totalSteps: number
+    totalSteps: number,
   ) => number | null;
 
   // Серверные действия
   togglePauseWithServer: (
     courseId: string,
     dayOnCourseId: string,
-    stepIndex: number
+    stepIndex: number,
   ) => Promise<void>;
   resumeNotificationWithServer: (
     courseId: string,
     dayOnCourseId: string,
-    stepIndex: number
+    stepIndex: number,
   ) => Promise<void>;
 }
 

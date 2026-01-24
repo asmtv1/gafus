@@ -3,7 +3,7 @@ import { getToken } from "next-auth/jwt";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 // Создаем логгер для trainer-panel
-const logger = createTrainerPanelLogger('trainer-panel-middleware');
+const logger = createTrainerPanelLogger("trainer-panel-middleware");
 
 // Роли, которым разрешен доступ к trainer-panel
 const ALLOWED_ROLES = ["ADMIN", "MODERATOR", "TRAINER"];
@@ -28,45 +28,45 @@ function isPublicAsset(pathname: string): boolean {
 export default async function middleware(req: NextRequest) {
   const { nextUrl, url } = req;
   const pathname = nextUrl.pathname;
-  
+
   logger.info(`MIDDLEWARE START for ${pathname}`, {
     pathname: pathname,
     url: req.url,
     method: req.method,
-    operation: 'middleware_start'
-  });
-  
-  const token = await getToken({ 
-    req, 
-    secret: process.env.NEXTAUTH_SECRET,
-    secureCookie: process.env.NODE_ENV === "production",
-    cookieName: "next-auth.session-token"
+    operation: "middleware_start",
   });
 
-  logger.info('Cookies logged', {
-    cookieCount: req.cookies.getAll().length,
-    hasSessionToken: req.cookies.has('next-auth.session-token'),
-    operation: 'log_cookies'
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === "production",
+    cookieName: "next-auth.session-token",
   });
-  logger.info('Environment variables checked', {
+
+  logger.info("Cookies logged", {
+    cookieCount: req.cookies.getAll().length,
+    hasSessionToken: req.cookies.has("next-auth.session-token"),
+    operation: "log_cookies",
+  });
+  logger.info("Environment variables checked", {
     hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
     nodeEnv: process.env.NODE_ENV,
-    operation: 'check_env'
+    operation: "check_env",
   });
-  logger.info('Token retrieved', {
+  logger.info("Token retrieved", {
     hasToken: !!token,
     tokenEmail: token?.email,
     tokenRole: token?.role,
-    operation: 'get_token'
+    operation: "get_token",
   });
 
   if (token) {
-    logger.info('Token details logged', {
+    logger.info("Token details logged", {
       hasToken: !!token,
       tokenId: token?.id,
       tokenUsername: token?.username,
       tokenRole: token?.role,
-      operation: 'log_token_details'
+      operation: "log_token_details",
     });
   }
 
@@ -74,7 +74,7 @@ export default async function middleware(req: NextRequest) {
   if (isPublicAsset(pathname)) {
     logger.info(`Public asset, allowing: ${pathname}`, {
       pathname: pathname,
-      operation: 'allow_public_asset'
+      operation: "allow_public_asset",
     });
     return NextResponse.next();
   }
@@ -83,7 +83,7 @@ export default async function middleware(req: NextRequest) {
   if (pathname.startsWith("/api/")) {
     logger.info(`API route, allowing: ${pathname}`, {
       pathname: pathname,
-      operation: 'allow_api_route'
+      operation: "allow_api_route",
     });
     return NextResponse.next();
   }
@@ -95,7 +95,7 @@ export default async function middleware(req: NextRequest) {
   if (isPublicPath) {
     logger.info(`Public path, allowing: ${pathname}`, {
       pathname: pathname,
-      operation: 'allow_public_path'
+      operation: "allow_public_path",
     });
     return NextResponse.next();
   }
@@ -105,7 +105,7 @@ export default async function middleware(req: NextRequest) {
     logger.warn(`No token found for path ${pathname}, redirecting to /login`, {
       pathname: pathname,
       hasToken: !!token,
-      operation: 'redirect_no_token'
+      operation: "redirect_no_token",
     });
     return NextResponse.redirect(new URL("/login", url));
   }
@@ -117,7 +117,7 @@ export default async function middleware(req: NextRequest) {
       pathname: pathname,
       userRole: userRole,
       allowedRoles: ALLOWED_ROLES,
-      operation: 'access_denied'
+      operation: "access_denied",
     });
     return NextResponse.redirect(new URL("/login", url));
   }
@@ -126,9 +126,9 @@ export default async function middleware(req: NextRequest) {
     pathname: pathname,
     username: token.username,
     userRole: userRole,
-    operation: 'middleware_success'
+    operation: "middleware_success",
   });
-  
+
   return NextResponse.next();
 }
 

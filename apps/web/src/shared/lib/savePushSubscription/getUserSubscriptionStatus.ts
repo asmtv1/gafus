@@ -5,7 +5,7 @@ import { createWebLogger } from "@gafus/logger";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 // Создаем логгер для getUserSubscriptionStatus
-const logger = createWebLogger('web-get-user-subscription-status');
+const logger = createWebLogger("web-get-user-subscription-status");
 
 /**
  * Проверяет, есть ли у пользователя активная push-подписка
@@ -22,14 +22,13 @@ export async function getUserSubscriptionStatus() {
 
     const hasSubscription = !!subscription;
     return { hasSubscription };
-    
   } catch (error) {
     // Если пользователь не авторизован, молча возвращаем false без логирования ошибки
     if (error instanceof Error && error.message === "Пользователь не авторизован") {
       return { hasSubscription: false };
     }
-    
-    logger.error("❌ getUserSubscriptionStatus: Ошибка:", error as Error, { operation: 'error' });
+
+    logger.error("❌ getUserSubscriptionStatus: Ошибка:", error as Error, { operation: "error" });
     return { hasSubscription: false };
   }
 }
@@ -47,7 +46,9 @@ export async function getUserSubscriptionCount() {
 
     return { subscriptionCount: count };
   } catch (error) {
-    logger.error("Ошибка при получении количества подписок:", error as Error, { operation: 'error' });
+    logger.error("Ошибка при получении количества подписок:", error as Error, {
+      operation: "error",
+    });
     return { subscriptionCount: 0 };
   }
 }
@@ -67,7 +68,7 @@ export async function getUserSubscriptions() {
         createdAt: true,
         updatedAt: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     return { subscriptions };
@@ -76,8 +77,8 @@ export async function getUserSubscriptions() {
     if (error instanceof Error && error.message === "Пользователь не авторизован") {
       return { subscriptions: [] };
     }
-    
-    logger.error("Ошибка при получении списка подписок:", error as Error, { operation: 'error' });
+
+    logger.error("Ошибка при получении списка подписок:", error as Error, { operation: "error" });
     return { subscriptions: [] };
   }
 }

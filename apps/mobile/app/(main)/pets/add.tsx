@@ -185,10 +185,7 @@ export default function AddPetScreen() {
                 {PET_TYPES.map((t) => (
                   <Surface
                     key={t.value}
-                    style={[
-                      styles.typeOption,
-                      type === t.value && styles.typeOptionSelected,
-                    ]}
+                    style={[styles.typeOption, type === t.value && styles.typeOptionSelected]}
                     elevation={type === t.value ? 2 : 0}
                   >
                     <IconButton
@@ -197,12 +194,7 @@ export default function AddPetScreen() {
                       iconColor={type === t.value ? COLORS.primary : COLORS.textSecondary}
                       onPress={() => setType(t.value)}
                     />
-                    <Text
-                      style={[
-                        styles.typeLabel,
-                        type === t.value && styles.typeLabelSelected,
-                      ]}
-                    >
+                    <Text style={[styles.typeLabel, type === t.value && styles.typeLabelSelected]}>
                       {t.label}
                     </Text>
                   </Surface>
@@ -272,7 +264,9 @@ export default function AddPetScreen() {
                 variant="primary"
                 onPress={handleSave}
                 loading={createMutation.isPending}
-                disabled={!name.trim() || !breed.trim() || !birthDate.trim() || createMutation.isPending}
+                disabled={
+                  !name.trim() || !breed.trim() || !birthDate.trim() || createMutation.isPending
+                }
                 style={styles.actionButton}
               />
             </View>

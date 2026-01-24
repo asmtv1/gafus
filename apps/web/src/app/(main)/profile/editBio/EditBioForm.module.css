@@ -25,8 +25,8 @@
 
 /* Контейнер формы */
 .form_container {
-  background: #F5F0E8;
-  border: 1px solid #D4C4A8;
+  background: #f5f0e8;
+  border: 1px solid #d4c4a8;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   padding: 1.5rem;
@@ -42,7 +42,6 @@
   gap: 1.5rem;
 }
 
-
 /* Переопределение стилей FormField */
 .form :global(.mb-4) {
   margin-bottom: 0;
@@ -51,7 +50,7 @@
 .form :global(label) {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   margin-bottom: 0.5rem;
   display: block;
@@ -65,7 +64,7 @@
   padding: 0.75rem 1rem;
   font-size: 0.9rem;
   font-family: var(--font-montserrat), system-ui, sans-serif;
-  color: #352E2E;
+  color: #352e2e;
   transition: all 0.3s ease;
   width: 100%;
   box-sizing: border-box;
@@ -82,7 +81,7 @@
   padding: 0.75rem 1rem;
   font-size: 0.9rem;
   font-family: var(--font-montserrat), system-ui, sans-serif;
-  color: #352E2E;
+  color: #352e2e;
   transition: all 0.3s ease;
   width: 100%;
   box-sizing: border-box;
@@ -125,30 +124,30 @@
 }
 
 .form :global(input[type="date"])::-webkit-datetime-edit-text {
-  color: #352E2E;
+  color: #352e2e;
   padding: 0 0.25rem;
 }
 
 .form :global(input[type="date"])::-webkit-datetime-edit-month-field,
 .form :global(input[type="date"])::-webkit-datetime-edit-day-field,
 .form :global(input[type="date"])::-webkit-datetime-edit-year-field {
-  color: #352E2E;
+  color: #352e2e;
   padding: 0 0.125rem;
 }
 
 .form :global(input):focus,
 .form :global(textarea):focus {
   outline: none;
-  border-color: #B6C582;
+  border-color: #b6c582;
   box-shadow: 0 0 0 3px rgba(182, 197, 130, 0.1);
-  background-color: #FFF8E5;
+  background-color: #fff8e5;
 }
 
 .form :global(input[type="date"]):focus {
   outline: none;
-  border-color: #B6C582;
+  border-color: #b6c582;
   box-shadow: 0 0 0 3px rgba(182, 197, 130, 0.1);
-  background-color: #FFF8E5;
+  background-color: #fff8e5;
 }
 
 .form :global(textarea) {
@@ -176,7 +175,6 @@
   opacity: 0.8;
 }
 
-
 /* Контейнер для кнопок */
 .form_buttons {
   display: flex;
@@ -188,7 +186,7 @@
 /* Кнопки формы */
 .form_button {
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
-  color: #ECE5D2;
+  color: #ece5d2;
   border: 1px solid #636128;
   padding: 12px 24px;
   border-radius: 8px;
@@ -204,13 +202,13 @@
 }
 
 .form_button:hover {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
 }
 
 .form_button:active {
-  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
+  background: linear-gradient(135deg, #352e2e 0%, #2a2525 100%);
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
@@ -225,7 +223,7 @@
 
 .form_button_cancel:hover {
   background: #636128;
-  color: #ECE5D2;
+  color: #ece5d2;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
 }
@@ -237,7 +235,7 @@
 }
 
 .loading .form_button {
-  background: #D4C4A8;
+  background: #d4c4a8;
   color: #636128;
   cursor: not-allowed;
 }
@@ -253,17 +251,17 @@
 
 /* Специальные стили для секций профиля */
 .profile_info_section {
-  background: linear-gradient(135deg, #ECE5D2 0%, #F0E6D2 100%);
+  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
   border-radius: 8px;
   padding: 1rem;
-  border: 1px solid #D4C4A8;
+  border: 1px solid #d4c4a8;
   margin-bottom: 1rem;
 }
 
 .profile_info_section h3 {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   margin: 0 0 0.75rem 0;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
@@ -423,8 +421,8 @@
 }
 
 .loading_content {
-  background: #F5F0E8;
-  border: 1px solid #D4C4A8;
+  background: #f5f0e8;
+  border: 1px solid #d4c4a8;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   padding: 1.5rem;

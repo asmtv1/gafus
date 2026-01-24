@@ -12,8 +12,14 @@ const logger = createWebLogger("web-get-video-id-from-url");
  * @returns Объект с videoId, hlsManifestPath и thumbnailPath или ошибкой
  */
 export async function getVideoIdFromUrlAction(
-  videoUrl: string
-): Promise<{ success: boolean; videoId?: string; hlsManifestPath?: string; thumbnailPath?: string; error?: string }> {
+  videoUrl: string,
+): Promise<{
+  success: boolean;
+  videoId?: string;
+  hlsManifestPath?: string;
+  thumbnailPath?: string;
+  error?: string;
+}> {
   try {
     if (!videoUrl) {
       return { success: false, error: "videoUrl не предоставлен" };

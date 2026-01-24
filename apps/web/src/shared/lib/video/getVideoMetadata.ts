@@ -17,7 +17,7 @@ export interface VideoMetadata {
  * - Для внешних видео (YouTube, VK): возвращает isExternal: true
  */
 export async function getVideoMetadata(
-  videoUrl: string | null | undefined
+  videoUrl: string | null | undefined,
 ): Promise<VideoMetadata> {
   if (!videoUrl) {
     return {

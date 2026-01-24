@@ -33,34 +33,37 @@ interface QueueStatsCardProps {
 }
 
 // Конфигурация очередей с понятными названиями и описаниями
-const QUEUE_CONFIG: Record<string, { title: string; description: string; icon: React.ReactNode }> = {
-  push: {
-    title: "Push-уведомления",
-    description: "Отправка push-уведомлений пользователям о шагах тренировок и других событиях",
-    icon: <PushIcon />,
-  },
-  reengagement: {
-    title: "Re-engagement",
-    description: "Повторное вовлечение неактивных пользователей через персонализированные уведомления",
-    icon: <ReengagementIcon />,
-  },
-  examCleanup: {
-    title: "Очистка экзаменов",
-    description: "Автоматическое удаление старых видео экзаменов для освобождения места",
-    icon: <CleanupIcon />,
-  },
-};
+const QUEUE_CONFIG: Record<string, { title: string; description: string; icon: React.ReactNode }> =
+  {
+    push: {
+      title: "Push-уведомления",
+      description: "Отправка push-уведомлений пользователям о шагах тренировок и других событиях",
+      icon: <PushIcon />,
+    },
+    reengagement: {
+      title: "Re-engagement",
+      description:
+        "Повторное вовлечение неактивных пользователей через персонализированные уведомления",
+      icon: <ReengagementIcon />,
+    },
+    examCleanup: {
+      title: "Очистка экзаменов",
+      description: "Автоматическое удаление старых видео экзаменов для освобождения места",
+      icon: <CleanupIcon />,
+    },
+  };
 
 export function QueueStatsCard({ stats, onClick }: QueueStatsCardProps) {
   const totalJobs = stats.waiting + stats.active + stats.failed + stats.delayed;
   const hasAnyJobs = totalJobs > 0 || stats.completed > 0;
-  
+
   // Используем errorRate из Prometheus, если доступен, иначе вычисляем локально
-  const failureRate = stats.errorRate !== undefined 
-    ? stats.errorRate 
-    : (stats.completed + stats.failed > 0
+  const failureRate =
+    stats.errorRate !== undefined
+      ? stats.errorRate
+      : stats.completed + stats.failed > 0
         ? (stats.failed / (stats.completed + stats.failed)) * 100
-        : 0);
+        : 0;
 
   const queueConfig = QUEUE_CONFIG[stats.name] || {
     title: stats.name,
@@ -148,7 +151,7 @@ export function QueueStatsCard({ stats, onClick }: QueueStatsCardProps) {
               Нет активных задач в очереди
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-              {stats.paused 
+              {stats.paused
                 ? "Очередь приостановлена. Задачи не будут обрабатываться до возобновления."
                 : "Очередь работает нормально. Задачи на паузе или отложенные задачи не отображаются здесь, так как они временно удалены из очереди."}
             </Typography>
@@ -165,86 +168,93 @@ export function QueueStatsCard({ stats, onClick }: QueueStatsCardProps) {
               mb: 2,
             }}
           >
-          <Box>
-            <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-              <WaitingIcon fontSize="small" sx={{ color: "#2196f3" }} />
-              <Typography variant="caption" color="text.secondary">
-                В ожидании
+            <Box>
+              <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                <WaitingIcon fontSize="small" sx={{ color: "#2196f3" }} />
+                <Typography variant="caption" color="text.secondary">
+                  В ожидании
+                </Typography>
+              </Box>
+              <Typography variant="h6" fontWeight="bold">
+                {stats.waiting}
               </Typography>
             </Box>
-            <Typography variant="h6" fontWeight="bold">
-              {stats.waiting}
-            </Typography>
-          </Box>
 
-          <Box>
-            <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-              <ActiveIcon fontSize="small" sx={{ color: "#4caf50" }} />
-              <Typography variant="caption" color="text.secondary">
-                Активно
+            <Box>
+              <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                <ActiveIcon fontSize="small" sx={{ color: "#4caf50" }} />
+                <Typography variant="caption" color="text.secondary">
+                  Активно
+                </Typography>
+              </Box>
+              <Typography variant="h6" fontWeight="bold">
+                {stats.active}
               </Typography>
             </Box>
-            <Typography variant="h6" fontWeight="bold">
-              {stats.active}
-            </Typography>
-          </Box>
 
-          <Box>
-            <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-              <CompletedIcon fontSize="small" sx={{ color: "#66bb6a" }} />
-              <Typography variant="caption" color="text.secondary">
-                Завершено
+            <Box>
+              <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                <CompletedIcon fontSize="small" sx={{ color: "#66bb6a" }} />
+                <Typography variant="caption" color="text.secondary">
+                  Завершено
+                </Typography>
+              </Box>
+              <Typography variant="h6" fontWeight="bold">
+                {stats.completed}
               </Typography>
             </Box>
-            <Typography variant="h6" fontWeight="bold">
-              {stats.completed}
-            </Typography>
-          </Box>
 
-          <Box>
-            <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-              <FailedIcon fontSize="small" sx={{ color: "#f44336" }} />
-              <Typography variant="caption" color="text.secondary">
-                Ошибки
+            <Box>
+              <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                <FailedIcon fontSize="small" sx={{ color: "#f44336" }} />
+                <Typography variant="caption" color="text.secondary">
+                  Ошибки
+                </Typography>
+              </Box>
+              <Typography variant="h6" fontWeight="bold" color="error">
+                {stats.failed}
               </Typography>
             </Box>
-            <Typography variant="h6" fontWeight="bold" color="error">
-              {stats.failed}
-            </Typography>
-          </Box>
 
-          <Box>
-            <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-              <DelayedIcon fontSize="small" sx={{ color: "#ff9800" }} />
-              <Typography variant="caption" color="text.secondary">
-                Отложено
+            <Box>
+              <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                <DelayedIcon fontSize="small" sx={{ color: "#ff9800" }} />
+                <Typography variant="caption" color="text.secondary">
+                  Отложено
+                </Typography>
+              </Box>
+              <Typography variant="h6" fontWeight="bold">
+                {stats.delayed}
               </Typography>
             </Box>
-            <Typography variant="h6" fontWeight="bold">
-              {stats.delayed}
-            </Typography>
-          </Box>
 
-          <Box>
-            <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
-              <QueueIcon fontSize="small" sx={{ color: "#9c27b0" }} />
-              <Typography variant="caption" color="text.secondary">
-                Всего
+            <Box>
+              <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                <QueueIcon fontSize="small" sx={{ color: "#9c27b0" }} />
+                <Typography variant="caption" color="text.secondary">
+                  Всего
+                </Typography>
+              </Box>
+              <Typography variant="h6" fontWeight="bold">
+                {totalJobs}
               </Typography>
             </Box>
-            <Typography variant="h6" fontWeight="bold">
-              {totalJobs}
-            </Typography>
           </Box>
-        </Box>
         )}
 
         {/* Процент ошибок */}
         {(stats.completed > 0 || stats.failed > 0) && (
           <Box mb={1.5}>
-            <Tooltip title="Процент задач, которые завершились с ошибкой от общего числа завершенных задач" arrow>
+            <Tooltip
+              title="Процент задач, которые завершились с ошибкой от общего числа завершенных задач"
+              arrow
+            >
               <Box display="flex" justifyContent="space-between" mb={0.5}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                >
                   Процент ошибок
                   <InfoIcon sx={{ fontSize: 12 }} />
                 </Typography>
@@ -272,9 +282,16 @@ export function QueueStatsCard({ stats, onClick }: QueueStatsCardProps) {
         {hasAnyJobs && (stats.throughput !== undefined || stats.averageDuration !== undefined) && (
           <Box sx={{ mt: 1.5, pt: 1.5, borderTop: "1px solid", borderColor: "divider" }}>
             {stats.throughput !== undefined && stats.throughput > 0 && (
-              <Tooltip title="Сколько задач обрабатывается в секунду (рассчитывается на основе завершенных задач за последние 5 минут)" arrow>
+              <Tooltip
+                title="Сколько задач обрабатывается в секунду (рассчитывается на основе завершенных задач за последние 5 минут)"
+                arrow
+              >
                 <Box display="flex" justifyContent="space-between" mb={0.5}>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                  >
                     Производительность:
                     <InfoIcon sx={{ fontSize: 12 }} />
                   </Typography>
@@ -287,7 +304,11 @@ export function QueueStatsCard({ stats, onClick }: QueueStatsCardProps) {
             {stats.averageDuration !== undefined && stats.averageDuration > 0 && (
               <Tooltip title="Среднее время обработки одной задачи" arrow>
                 <Box display="flex" justifyContent="space-between">
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                  >
                     Среднее время:
                     <InfoIcon sx={{ fontSize: 12 }} />
                   </Typography>
@@ -315,11 +336,13 @@ export function QueueStatsCard({ stats, onClick }: QueueStatsCardProps) {
             <Box display="flex" alignItems="center" gap={1} mb={0.5}>
               <DelayedIcon sx={{ fontSize: 16, color: "warning.dark" }} />
               <Typography variant="caption" fontWeight="bold" color="warning.dark">
-                Отложено: {stats.delayed} {stats.delayed === 1 ? "задача" : stats.delayed < 5 ? "задачи" : "задач"}
+                Отложено: {stats.delayed}{" "}
+                {stats.delayed === 1 ? "задача" : stats.delayed < 5 ? "задачи" : "задач"}
               </Typography>
             </Box>
             <Typography variant="caption" color="text.secondary">
-              Задача запланирована на выполнение в будущем. Она будет обработана автоматически в назначенное время.
+              Задача запланирована на выполнение в будущем. Она будет обработана автоматически в
+              назначенное время.
             </Typography>
           </Box>
         )}
@@ -327,4 +350,3 @@ export function QueueStatsCard({ stats, onClick }: QueueStatsCardProps) {
     </Card>
   );
 }
-

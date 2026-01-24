@@ -49,7 +49,7 @@
   min-height: 120px;
   height: auto;
   padding: 14px;
-  background-color: #FFF8E5;
+  background-color: #fff8e5;
   position: relative;
 }
 
@@ -58,7 +58,7 @@
 }
 
 .card.locked::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -97,7 +97,7 @@
 }
 
 .timeBadgeTheory {
-  background-color: #E0E7FF;
+  background-color: #e0e7ff;
   color: #ffffff;
   border-radius: 999px;
   padding: 4px 10px;
@@ -123,7 +123,7 @@
 }
 
 .lockIcon {
-  color: #8B8A3B;
+  color: #8b8a3b;
   font-size: 22px;
   flex-shrink: 0;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
@@ -155,26 +155,26 @@
 }
 
 .dayOdd {
-  border: 14px solid #FFF8E5;
+  border: 14px solid #fff8e5;
 }
 .dayEven {
-  border: 14px solid #FFF8E5;
+  border: 14px solid #fff8e5;
 }
 
 .dayOdd.completed {
-  border-color: #B6C582;
+  border-color: #b6c582;
 }
 
 .dayEven.completed {
-  border-color: #B6C582;
+  border-color: #b6c582;
 }
 
 .dayOdd.inprogress {
-  border-color: #F6D86E;
+  border-color: #f6d86e;
 }
 
 .dayEven.inprogress {
-  border-color: #F6D86E;
+  border-color: #f6d86e;
 }
 
 /* Индикатор "Вы здесь" */
@@ -182,7 +182,7 @@
   position: absolute;
   top: -12px;
   left: 10px;
-  background: linear-gradient(135deg, #636128 0%, #8B8A3B 100%);
+  background: linear-gradient(135deg, #636128 0%, #8b8a3b 100%);
   color: white;
   padding: 4px 12px;
   border-radius: 16px;
@@ -197,7 +197,8 @@
 }
 
 @keyframes pulseGlow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
   }
   50% {

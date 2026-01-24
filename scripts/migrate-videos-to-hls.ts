@@ -2,10 +2,10 @@
 
 /**
  * Скрипт миграции существующих видео в HLS формат
- * 
+ *
  * Использование:
  * pnpm tsx scripts/migrate-videos-to-hls.ts [--batch-size=10] [--dry-run] [--video-id=<id>]
- * 
+ *
  * Опции:
  * --video-id=<id> - Обработать только одно видео по ID
  * --batch-size=10 - Размер порции для обработки (по умолчанию 10)
@@ -20,7 +20,7 @@ import type { VideoTranscodingJobData } from "@gafus/types";
 const args = process.argv.slice(2);
 const batchSize = parseInt(
   args.find((arg) => arg.startsWith("--batch-size="))?.split("=")[1] || "10",
-  10
+  10,
 );
 const isDryRun = args.includes("--dry-run");
 const videoId = args.find((arg) => arg.startsWith("--video-id="))?.split("=")[1];
@@ -201,7 +201,9 @@ async function migrateVideos() {
       batchNumber++;
 
       if (!isDryRun) {
-        console.log(`✅ Порция ${batchNumber - 1} обработана. Всего обработано: ${totalProcessed} / ${totalToMigrate}`);
+        console.log(
+          `✅ Порция ${batchNumber - 1} обработана. Всего обработано: ${totalProcessed} / ${totalToMigrate}`,
+        );
       }
     }
 

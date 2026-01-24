@@ -36,8 +36,18 @@ export const dynamic = "force-dynamic";
 
 export default function QueuesPage() {
   const [selectedQueue, setSelectedQueue] = useState<string | undefined>(undefined);
-  const { data: stats, error: statsError, isLoading: statsLoading, refetch: refetchStats } = useQueuesStats();
-  const { data: jobs, error: jobsError, isLoading: jobsLoading, refetch: refetchJobs } = useQueueJobs(selectedQueue);
+  const {
+    data: stats,
+    error: statsError,
+    isLoading: statsLoading,
+    refetch: refetchStats,
+  } = useQueuesStats();
+  const {
+    data: jobs,
+    error: jobsError,
+    isLoading: jobsLoading,
+    refetch: refetchJobs,
+  } = useQueueJobs(selectedQueue);
   const bulkRetry = useBulkRetry();
 
   const handleBulkRetry = async (queueName: string) => {
@@ -138,9 +148,7 @@ export default function QueuesPage() {
               color={isSystemHealthy ? "success" : "error"}
               variant="outlined"
               sx={{
-                bgcolor: isSystemHealthy
-                  ? "rgba(76, 175, 80, 0.1)"
-                  : "rgba(244, 67, 54, 0.1)",
+                bgcolor: isSystemHealthy ? "rgba(76, 175, 80, 0.1)" : "rgba(244, 67, 54, 0.1)",
                 color: isSystemHealthy ? "#2e7d32" : "#c62828",
               }}
             />
@@ -254,11 +262,7 @@ export default function QueuesPage() {
               Очереди
             </Typography>
             {selectedQueue && (
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleShowAll}
-              >
+              <Button variant="outlined" size="small" onClick={handleShowAll}>
                 Показать все
               </Button>
             )}
@@ -298,10 +302,10 @@ export default function QueuesPage() {
                     selectedQueue === "examCleanup"
                       ? "Очистка экзаменов"
                       : selectedQueue === "push"
-                      ? "Push-уведомления"
-                      : selectedQueue === "reengagement"
-                      ? "Re-engagement"
-                      : selectedQueue
+                        ? "Push-уведомления"
+                        : selectedQueue === "reengagement"
+                          ? "Re-engagement"
+                          : selectedQueue
                   }
                   color="primary"
                   size="small"
@@ -332,11 +336,7 @@ export default function QueuesPage() {
             </Box>
           )}
 
-          {jobsError && (
-            <Alert severity="error">
-              Ошибка загрузки задач: {jobsError.message}
-            </Alert>
-          )}
+          {jobsError && <Alert severity="error">Ошибка загрузки задач: {jobsError.message}</Alert>}
 
           {jobs && <FailedJobsList jobs={jobs.jobs} queueName={selectedQueue} />}
         </Box>
@@ -344,4 +344,3 @@ export default function QueuesPage() {
     </Box>
   );
 }
-

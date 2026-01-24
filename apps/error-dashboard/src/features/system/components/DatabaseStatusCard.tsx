@@ -189,7 +189,9 @@ export function DatabaseStatusCard({ database }: DatabaseStatusCardProps) {
                         <Typography
                           variant="body2"
                           fontWeight="medium"
-                          color={database.details.cacheHitRatio > 95 ? "success.main" : "warning.main"}
+                          color={
+                            database.details.cacheHitRatio > 95 ? "success.main" : "warning.main"
+                          }
                         >
                           {database.details.cacheHitRatio.toFixed(1)}%
                         </Typography>
@@ -202,7 +204,8 @@ export function DatabaseStatusCard({ database }: DatabaseStatusCardProps) {
                           borderRadius: 2,
                           bgcolor: "rgba(0,0,0,0.1)",
                           "& .MuiLinearProgress-bar": {
-                            bgcolor: database.details.cacheHitRatio > 95 ? "success.main" : "warning.main",
+                            bgcolor:
+                              database.details.cacheHitRatio > 95 ? "success.main" : "warning.main",
                           },
                         }}
                       />
@@ -241,14 +244,15 @@ export function DatabaseStatusCard({ database }: DatabaseStatusCardProps) {
                       </Typography>
                     </Box>
                   )}
-                  {database.details.waitingQueries !== undefined && database.details.waitingQueries > 0 && (
-                    <Box display="flex" alignItems="center" gap={0.5} mb={1}>
-                      <WarningIcon fontSize="small" color="warning" />
-                      <Typography variant="body2" color="warning.main">
-                        Ожидающих запросов: {database.details.waitingQueries}
-                      </Typography>
-                    </Box>
-                  )}
+                  {database.details.waitingQueries !== undefined &&
+                    database.details.waitingQueries > 0 && (
+                      <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                        <WarningIcon fontSize="small" color="warning" />
+                        <Typography variant="body2" color="warning.main">
+                          Ожидающих запросов: {database.details.waitingQueries}
+                        </Typography>
+                      </Box>
+                    )}
                 </>
               )}
 
@@ -304,14 +308,15 @@ export function DatabaseStatusCard({ database }: DatabaseStatusCardProps) {
                             variant="outlined"
                           />
                         )}
-                        {database.details.keys.evicted !== undefined && database.details.keys.evicted > 0 && (
-                          <Chip
-                            label={`Evicted: ${database.details.keys.evicted}`}
-                            size="small"
-                            color="error"
-                            variant="outlined"
-                          />
-                        )}
+                        {database.details.keys.evicted !== undefined &&
+                          database.details.keys.evicted > 0 && (
+                            <Chip
+                              label={`Evicted: ${database.details.keys.evicted}`}
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                            />
+                          )}
                       </Box>
                     </Box>
                   )}
@@ -326,7 +331,11 @@ export function DatabaseStatusCard({ database }: DatabaseStatusCardProps) {
                           variant="body2"
                           fontWeight="medium"
                           sx={{ ml: "auto" }}
-                          color={database.details.cache.hitRatio && database.details.cache.hitRatio > 80 ? "success.main" : "warning.main"}
+                          color={
+                            database.details.cache.hitRatio && database.details.cache.hitRatio > 80
+                              ? "success.main"
+                              : "warning.main"
+                          }
                         >
                           {database.details.cache.hitRatio?.toFixed(1)}%
                         </Typography>
@@ -341,7 +350,9 @@ export function DatabaseStatusCard({ database }: DatabaseStatusCardProps) {
                             bgcolor: "rgba(0,0,0,0.1)",
                             "& .MuiLinearProgress-bar": {
                               bgcolor:
-                                database.details.cache.hitRatio > 80 ? "success.main" : "warning.main",
+                                database.details.cache.hitRatio > 80
+                                  ? "success.main"
+                                  : "warning.main",
                             },
                           }}
                         />
@@ -381,4 +392,3 @@ export function DatabaseStatusCard({ database }: DatabaseStatusCardProps) {
     </Card>
   );
 }
-

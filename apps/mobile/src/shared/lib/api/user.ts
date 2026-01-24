@@ -47,7 +47,9 @@ export const userApi = {
   /**
    * Обновить настройки
    */
-  updatePreferences: async (data: Partial<UserPreferences>): Promise<ApiResponse<UserPreferences>> => {
+  updatePreferences: async (
+    data: Partial<UserPreferences>,
+  ): Promise<ApiResponse<UserPreferences>> => {
     return apiClient<UserPreferences>("/api/v1/user/preferences", {
       method: "PUT",
       body: data,

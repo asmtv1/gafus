@@ -25,17 +25,26 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
           const errorInfo = response.error
             ? {
                 errorType: typeof response.error,
-                errorName: typeof response.error === "object" && response.error !== null && "name" in response.error
-                  ? (response.error as any).name
-                  : null,
-                errorIssues: typeof response.error === "object" && response.error !== null && "issues" in response.error
-                  ? (response.error as any).issues
-                  : null,
-                errorMessage: typeof response.error === "object" && response.error !== null && "message" in response.error
-                  ? (response.error as any).message
-                  : typeof response.error === "string"
-                  ? response.error
-                  : null,
+                errorName:
+                  typeof response.error === "object" &&
+                  response.error !== null &&
+                  "name" in response.error
+                    ? (response.error as any).name
+                    : null,
+                errorIssues:
+                  typeof response.error === "object" &&
+                  response.error !== null &&
+                  "issues" in response.error
+                    ? (response.error as any).issues
+                    : null,
+                errorMessage:
+                  typeof response.error === "object" &&
+                  response.error !== null &&
+                  "message" in response.error
+                    ? (response.error as any).message
+                    : typeof response.error === "string"
+                      ? response.error
+                      : null,
               }
             : null;
 
@@ -94,17 +103,26 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
             const errorDetails = response.error
               ? {
                   type: typeof response.error,
-                  name: typeof response.error === "object" && response.error !== null && "name" in response.error
-                    ? (response.error as any).name
-                    : null,
-                  issues: typeof response.error === "object" && response.error !== null && "issues" in response.error
-                    ? (response.error as any).issues
-                    : null,
-                  message: typeof response.error === "object" && response.error !== null && "message" in response.error
-                    ? (response.error as any).message
-                    : typeof response.error === "string"
-                    ? response.error
-                    : null,
+                  name:
+                    typeof response.error === "object" &&
+                    response.error !== null &&
+                    "name" in response.error
+                      ? (response.error as any).name
+                      : null,
+                  issues:
+                    typeof response.error === "object" &&
+                    response.error !== null &&
+                    "issues" in response.error
+                      ? (response.error as any).issues
+                      : null,
+                  message:
+                    typeof response.error === "object" &&
+                    response.error !== null &&
+                    "message" in response.error
+                      ? (response.error as any).message
+                      : typeof response.error === "string"
+                        ? response.error
+                        : null,
                 }
               : null;
 
@@ -143,7 +161,7 @@ export function useStartStep() {
         variables.courseId,
         variables.dayOnCourseId,
         variables.stepIndex,
-        variables.durationSec
+        variables.durationSec,
       );
     },
     onSuccess: (_, variables) => {
@@ -169,7 +187,7 @@ export function usePauseStep() {
         variables.courseId,
         variables.dayOnCourseId,
         variables.stepIndex,
-        variables.timeLeftSec
+        variables.timeLeftSec,
       );
     },
     onSuccess: () => {
@@ -188,11 +206,7 @@ export function useResumeStep() {
   return useMutation({
     mutationFn: trainingApi.resumeStep,
     onMutate: async (variables) => {
-      resumeStepLocal(
-        variables.courseId,
-        variables.dayOnCourseId,
-        variables.stepIndex
-      );
+      resumeStepLocal(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trainingDay"] });
@@ -210,11 +224,7 @@ export function useCompleteTheoryStep() {
   return useMutation({
     mutationFn: trainingApi.completeTheoryStep,
     onMutate: async (variables) => {
-      completeStep(
-        variables.courseId,
-        variables.dayOnCourseId,
-        variables.stepIndex
-      );
+      completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trainingDay"] });
@@ -233,11 +243,7 @@ export function useCompletePracticeStep() {
   return useMutation({
     mutationFn: trainingApi.completePracticeStep,
     onMutate: async (variables) => {
-      completeStep(
-        variables.courseId,
-        variables.dayOnCourseId,
-        variables.stepIndex
-      );
+      completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trainingDay"] });

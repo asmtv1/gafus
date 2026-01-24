@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import styles from "./NotificationStatus.module.css";
 
 // Создаем логгер для NotificationStatus
-const logger = createWebLogger('web-notification-status');
+const logger = createWebLogger("web-notification-status");
 
 export default function NotificationStatus() {
   const { data: session, status } = useSession();
@@ -44,10 +44,10 @@ export default function NotificationStatus() {
     // iOS Safari в браузере (не PWA) - показываем инструкцию установки PWA
     if (pushSupport.showInstallPrompt) {
       logger.warn("⚠️ NotificationStatus: iOS Safari requires PWA mode for push notifications", {
-        operation: 'warn',
+        operation: "warn",
         userAgent: navigator.userAgent,
         isInPWA: pushSupport.isInPWA,
-        platform: pushSupport.platform
+        platform: pushSupport.platform,
       });
       showInstallPWAAlert();
       return;
@@ -56,9 +56,9 @@ export default function NotificationStatus() {
     // Если нет поддержки, не пытаемся запросить разрешение
     if (!pushSupport.isSupported || !pushSupport.showNotificationPrompt) {
       logger.warn("⚠️ NotificationStatus: Push notifications not supported", {
-        operation: 'warn',
+        operation: "warn",
         pushSupport,
-        userAgent: navigator.userAgent
+        userAgent: navigator.userAgent,
       });
       return;
     }
@@ -78,67 +78,72 @@ export default function NotificationStatus() {
         // В Safari часто бывают таймауты, логируем для отладки
         if (error instanceof Error && error.message.includes("timeout")) {
           logger.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально", {
-            operation: 'warn',
+            operation: "warn",
             error: error.message,
-            userAgent: navigator.userAgent
+            userAgent: navigator.userAgent,
           });
         } else if (error instanceof Error && error.message.includes("SW not available")) {
           logger.warn("⚠️ NotificationStatus: Service Worker недоступен", {
-            operation: 'warn',
+            operation: "warn",
             error: error.message,
-            userAgent: navigator.userAgent
+            userAgent: navigator.userAgent,
           });
         } else {
           logger.error("❌ NotificationStatus: Failed to request permission", error as Error, {
-            operation: 'error',
-            userAgent: navigator.userAgent
+            operation: "error",
+            userAgent: navigator.userAgent,
           });
         }
       }
     } else {
-      logger.error("❌ NotificationStatus: VAPID key not available", new Error("VAPID key missing"), {
-        operation: 'error'
-      });
+      logger.error(
+        "❌ NotificationStatus: VAPID key not available",
+        new Error("VAPID key missing"),
+        {
+          operation: "error",
+        },
+      );
     }
   };
 
   const handleDenyNotifications = async () => {
-    
     try {
       // Адаптивные таймауты для разных браузеров
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
       const timeoutMs = isSafari ? 45000 : 30000; // 45 сек для Safari, 30 для остальных
-      
-      
+
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
           reject(new Error("Remove subscription timeout in Safari"));
         }, timeoutMs);
       });
-      
+
       const removePromise = removePushSubscription();
       await Promise.race([removePromise, timeoutPromise]);
-      
     } catch (error) {
       console.error("❌ NotificationStatus: Ошибка при удалении подписки:", error);
       // В Safari часто бывают таймауты, показываем пользователю
       if (error instanceof Error && error.message.includes("timeout")) {
         logger.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально", {
-          operation: 'warn',
+          operation: "warn",
           error: error.message,
           userAgent: navigator.userAgent,
-          action: 'removeSubscription'
+          action: "removeSubscription",
         });
-        alert("В Safari может потребоваться больше времени для удаления подписки. Попробуйте еще раз через несколько секунд.");
+        alert(
+          "В Safari может потребоваться больше времени для удаления подписки. Попробуйте еще раз через несколько секунд.",
+        );
       } else if (error instanceof Error && error.message.includes("SW not available")) {
         logger.warn("⚠️ NotificationStatus: Service Worker недоступен в Safari", {
-          operation: 'warn',
+          operation: "warn",
           error: error.message,
           userAgent: navigator.userAgent,
-          action: 'removeSubscription'
+          action: "removeSubscription",
         });
-        alert("В Safari push-уведомления могут работать нестабильно. Добавьте сайт в главный экран для лучшей работы.");
+        alert(
+          "В Safari push-уведомления могут работать нестабильно. Добавьте сайт в главный экран для лучшей работы.",
+        );
       }
     }
   };
@@ -146,18 +151,18 @@ export default function NotificationStatus() {
   // Получаем публичный VAPID ключ и инициализируем push-уведомления при монтировании
   useEffect(() => {
     let cancelled = false;
-    
+
     (async () => {
       try {
         const { publicKey } = await getPublicKeyAction();
         if (!cancelled) {
           setVapidKey(publicKey ?? null);
         }
-        
+
         // Устанавливаем userId для push-уведомлений только если сессия загружена
         if (status === "authenticated" && session?.user?.id) {
           setUserId(session.user.id);
-          
+
           // Проверяем серверную подписку только после установки userId
           setTimeout(() => {
             checkServerSubscription();
@@ -167,10 +172,10 @@ export default function NotificationStatus() {
           return;
         } else {
           logger.warn("⚠️ NotificationStatus: No user ID found in session", {
-            operation: 'warn',
+            operation: "warn",
             status,
             hasSession: !!session,
-            hasUserId: !!session?.user?.id
+            hasUserId: !!session?.user?.id,
           });
         }
       } catch {
@@ -179,7 +184,7 @@ export default function NotificationStatus() {
         }
       }
     })();
-    
+
     return () => {
       cancelled = true;
     };

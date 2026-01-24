@@ -14,7 +14,14 @@ import { COLORS, SPACING } from "@/constants";
 /**
  * Функция для преобразования профиля в данные формы (как в веб-версии)
  */
-function mapProfileToForm(profile: { fullName?: string | null; about?: string | null; telegram?: string | null; instagram?: string | null; website?: string | null; birthDate?: string | null }): UpdateProfileData {
+function mapProfileToForm(profile: {
+  fullName?: string | null;
+  about?: string | null;
+  telegram?: string | null;
+  instagram?: string | null;
+  website?: string | null;
+  birthDate?: string | null;
+}): UpdateProfileData {
   return {
     fullName: profile.fullName || "",
     birthDate: profile.birthDate ? new Date(profile.birthDate).toISOString().split("T")[0] : "",
@@ -44,7 +51,11 @@ export default function EditProfileScreen() {
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
 
   // Загрузка профиля (как в веб-версии через fetchProfile)
-  const { data: profileData, isLoading, error } = useQuery({
+  const {
+    data: profileData,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["user-profile"],
     queryFn: () => userApi.getProfile(),
   });
@@ -123,7 +134,8 @@ export default function EditProfileScreen() {
               Редактировать «О себе»
             </Text>
             <Text style={[styles.loadingText, styles.errorText]}>
-              Ошибка загрузки профиля: {error instanceof Error ? error.message : "Неизвестная ошибка"}
+              Ошибка загрузки профиля:{" "}
+              {error instanceof Error ? error.message : "Неизвестная ошибка"}
             </Text>
           </View>
         </SafeAreaView>
@@ -201,7 +213,8 @@ export default function EditProfileScreen() {
                   autoCapitalize="none"
                 />
                 <HelperText type="info" visible={true} style={styles.helperText}>
-                  Введите username без @ (например: asmtv1). Минимум 5 символов, только латинские буквы, цифры и подчеркивание.
+                  Введите username без @ (например: asmtv1). Минимум 5 символов, только латинские
+                  буквы, цифры и подчеркивание.
                 </HelperText>
               </View>
 
@@ -214,7 +227,8 @@ export default function EditProfileScreen() {
                   autoCapitalize="none"
                 />
                 <HelperText type="info" visible={true} style={styles.helperText}>
-                  Введите username без @ (например: doghandler_lana). До 30 символов, только латинские буквы, цифры, точки и подчеркивание.
+                  Введите username без @ (например: doghandler_lana). До 30 символов, только
+                  латинские буквы, цифры, точки и подчеркивание.
                 </HelperText>
               </View>
 
@@ -228,7 +242,8 @@ export default function EditProfileScreen() {
                   keyboardType="url"
                 />
                 <HelperText type="info" visible={true} style={styles.helperText}>
-                  Введите URL сайта или канала YouTube. Можно без https:// и www - они добавятся автоматически.
+                  Введите URL сайта или канала YouTube. Можно без https:// и www - они добавятся
+                  автоматически.
                 </HelperText>
               </View>
             </View>

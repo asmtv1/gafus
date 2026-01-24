@@ -1,13 +1,13 @@
 /**
  * Push Subscription Service - бизнес-логика работы с push-подписками
- * 
+ *
  * Этот модуль содержит чистую бизнес-логику без Next.js специфики.
  */
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('push-subscription-service');
+const logger = createWebLogger("push-subscription-service");
 
 // ========== Save Push Subscription ==========
 
@@ -62,11 +62,11 @@ export async function savePushSubscription(params: SavePushSubscriptionParams) {
  */
 export async function deletePushSubscriptionByEndpoint(
   userId: string,
-  endpoint: string
+  endpoint: string,
 ): Promise<{ success: boolean; deletedCount: number }> {
-  logger.info("Deleting push subscription", { 
-    userId, 
-    endpoint: endpoint.substring(0, 50) + "..." 
+  logger.info("Deleting push subscription", {
+    userId,
+    endpoint: endpoint.substring(0, 50) + "...",
   });
 
   const result = await prisma.pushSubscription.deleteMany({
@@ -84,7 +84,7 @@ export async function deletePushSubscriptionByEndpoint(
  * Удаляет ВСЕ push-подписки пользователя
  */
 export async function deleteAllPushSubscriptions(
-  userId: string
+  userId: string,
 ): Promise<{ success: boolean; deletedCount: number }> {
   logger.info("Deleting ALL subscriptions for user", { userId });
 
@@ -102,7 +102,7 @@ export async function deleteAllPushSubscriptions(
  * Проверяет, есть ли у пользователя активная push-подписка
  */
 export async function getUserSubscriptionStatus(
-  userId: string
+  userId: string,
 ): Promise<{ hasSubscription: boolean }> {
   const subscription = await prisma.pushSubscription.findFirst({
     where: { userId },
@@ -116,7 +116,7 @@ export async function getUserSubscriptionStatus(
  * Получает количество активных push-подписок пользователя
  */
 export async function getUserSubscriptionCount(
-  userId: string
+  userId: string,
 ): Promise<{ subscriptionCount: number }> {
   const count = await prisma.pushSubscription.count({
     where: { userId },
@@ -137,7 +137,7 @@ export async function getUserSubscriptions(userId: string) {
       createdAt: true,
       updatedAt: true,
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: "desc" },
   });
 
   return { subscriptions };

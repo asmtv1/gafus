@@ -115,7 +115,7 @@
 }
 
 .speechBubble::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 0;
   height: 0;
@@ -125,7 +125,7 @@
   transform: translateY(-58%);
   rotate: -0.8rad;
 }
-.gafusdialog{
+.gafusdialog {
   position: relative;
   left: -70px;
   display: flex;
@@ -133,7 +133,7 @@
   margin-top: 55px;
 }
 .speechText {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 14px;
   line-height: 1.4;
   color: #4a4a2a;
@@ -141,7 +141,6 @@
   margin: 0;
   font-weight: 500;
 }
-
 
 /* Планшеты и больше */
 @media (min-width: 481px) {
@@ -156,9 +155,7 @@
     top: -86px;
     margin-top: -32px;
     left: 16px;
-  
   }
-  
 }
 
 /* Планшеты - улучшения для средних экранов */
@@ -167,11 +164,11 @@
     padding: 24px 32px;
     gap: 20px;
   }
-  
+
   .title {
     font-size: 120px;
   }
-  
+
   .gafusdialog {
     flex-direction: row;
     align-items: flex-start;
@@ -182,9 +179,7 @@
     top: -25px;
     margin-top: -32px;
     left: 16px;
-  
   }
-
 }
 
 /* Десктопы - полные размеры и улучшения */
@@ -198,30 +193,28 @@
     top: -25px;
     margin-top: -32px;
     left: 16px;
-  
   }
 
   .title {
     font-size: 110px;
   }
-  
+
   .buttonsContainer {
     margin-top: -40px;
   }
-  
-  
+
   .button_register,
   .button_login {
     width: 250px;
     height: 52px;
     font-size: 26px;
   }
-  
+
   .subtitle {
     font-size: 14px;
     max-width: 400px;
   }
-  
+
   .speechText {
     font-size: 15px;
   }
@@ -233,19 +226,18 @@
     padding: 48px 64px;
     gap: 32px;
   }
-  
-  
+
   .title {
     font-size: 130px;
   }
-  
+
   .button_register,
   .button_login {
     width: 280px;
     height: 56px;
     font-size: 28px;
   }
-  
+
   .subtitle {
     font-size: 16px;
     max-width: 500px;

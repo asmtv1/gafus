@@ -9,7 +9,7 @@ import { createWebLogger } from "@gafus/logger";
 import type { UserProfile, UserPreferences } from "@gafus/types";
 
 // Создаем логгер для useUserData hooks
-const logger = createWebLogger('web-use-user-data');
+const logger = createWebLogger("web-use-user-data");
 
 export function useUserProfile() {
   return useData<UserProfile | null>(
@@ -19,7 +19,7 @@ export function useUserProfile() {
         return await getUserProfile();
       } catch (error) {
         logger.error("Ошибка загрузки профиля", error as Error, {
-          operation: 'load_user_profile_error'
+          operation: "load_user_profile_error",
         });
         return null;
       }
@@ -65,7 +65,7 @@ export function useUserPreferences() {
         );
       } catch (error) {
         logger.error("Ошибка загрузки настроек", error as Error, {
-          operation: 'load_user_preferences_error'
+          operation: "load_user_preferences_error",
         });
         return {
           notifications: {
@@ -121,8 +121,8 @@ export function useUserMutations() {
       return { success: true, data: updatedProfile };
     } catch (error) {
       logger.error("Ошибка обновления профиля", error as Error, {
-        operation: 'update_user_profile_error',
-        profileData: data
+        operation: "update_user_profile_error",
+        profileData: data,
       });
       return {
         success: false,

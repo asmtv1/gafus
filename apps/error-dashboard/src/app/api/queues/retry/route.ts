@@ -10,10 +10,7 @@ export async function POST(request: NextRequest) {
     const { queueName, jobId, action } = body;
 
     if (!queueName || !jobId) {
-      return NextResponse.json(
-        { error: "queueName and jobId are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "queueName and jobId are required" }, { status: 400 });
     }
 
     logger.info("Выполнение действия с задачей", {
@@ -39,10 +36,7 @@ export async function POST(request: NextRequest) {
         queue = examCleanupQueue;
         break;
       default:
-        return NextResponse.json(
-          { error: `Unknown queue: ${queueName}` },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: `Unknown queue: ${queueName}` }, { status: 400 });
     }
 
     // Получаем задачу
@@ -51,7 +45,7 @@ export async function POST(request: NextRequest) {
     if (!job) {
       return NextResponse.json(
         { error: `Job ${jobId} not found in queue ${queueName}` },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -105,7 +99,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to perform action on job",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -117,10 +111,7 @@ export async function PUT(request: NextRequest) {
     const { queueName } = body;
 
     if (!queueName) {
-      return NextResponse.json(
-        { error: "queueName is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "queueName is required" }, { status: 400 });
     }
 
     logger.info("Массовый retry для очереди", { queueName });
@@ -142,10 +133,7 @@ export async function PUT(request: NextRequest) {
         queue = examCleanupQueue;
         break;
       default:
-        return NextResponse.json(
-          { error: `Unknown queue: ${queueName}` },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: `Unknown queue: ${queueName}` }, { status: 400 });
     }
 
     // Получаем все failed jobs
@@ -153,7 +141,7 @@ export async function PUT(request: NextRequest) {
 
     // Повторно запускаем все failed jobs
     const results = await Promise.allSettled(
-      failedJobs.map((job: { retry: () => unknown }) => job.retry())
+      failedJobs.map((job: { retry: () => unknown }) => job.retry()),
     );
 
     const successCount = results.filter((r) => r.status === "fulfilled").length;
@@ -181,8 +169,7 @@ export async function PUT(request: NextRequest) {
         error: "Failed to perform bulk retry",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

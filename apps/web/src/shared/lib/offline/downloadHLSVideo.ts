@@ -38,7 +38,7 @@ function ensureUploadsPrefix(path: string): string {
 async function downloadWithRetry(
   url: string,
   maxRetries: number = 5,
-  retryDelay: number = 1000
+  retryDelay: number = 1000,
 ): Promise<Blob | null> {
   let lastError: Error | null = null;
 
@@ -84,7 +84,10 @@ async function downloadWithRetry(
  */
 function getFileNameFromPath(path: string): string {
   // Убираем ведущие слеши и пути
-  const normalized = path.trim().replace(/^\/+/, "").replace(/^\.\.\//, "");
+  const normalized = path
+    .trim()
+    .replace(/^\/+/, "")
+    .replace(/^\.\.\//, "");
   const parts = normalized.split("/");
   return parts[parts.length - 1] || normalized;
 }
@@ -115,8 +118,14 @@ function getSegmentPath(hlsManifestPath: string, segmentFileName: string): strin
 export async function downloadHLSVideo(
   hlsManifestPath: string,
   videoUrl: string,
-  onProgress?: (current: number, total: number) => void
-): Promise<{ manifest: string; segments: Record<string, Blob>; videoId: string; version: string; downloadedAt: number } | null> {
+  onProgress?: (current: number, total: number) => void,
+): Promise<{
+  manifest: string;
+  segments: Record<string, Blob>;
+  videoId: string;
+  version: string;
+  downloadedAt: number;
+} | null> {
   try {
     logger.info("Начинаем скачивание HLS видео", { hlsManifestPath, videoUrl });
 
@@ -279,17 +288,21 @@ export async function downloadHLSVideo(
     // Формат: trainers/{trainerId}/videocourses/{videoId}/hls/playlist.m3u8
     const pathParts = hlsManifestPath.split("/");
     const videoIdIndex = pathParts.indexOf("videocourses");
-    const videoId = videoIdIndex >= 0 && videoIdIndex < pathParts.length - 1
-      ? pathParts[videoIdIndex + 1]
-      : "unknown";
+    const videoId =
+      videoIdIndex >= 0 && videoIdIndex < pathParts.length - 1
+        ? pathParts[videoIdIndex + 1]
+        : "unknown";
 
     // Получаем версию из манифеста (hash или timestamp)
     // Используем hash манифеста как версию для надежности
-    const manifestHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(modifiedManifest))
-      .then(buffer => Array.from(new Uint8Array(buffer))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('')
-        .substring(0, 16)); // Первые 16 символов хэша
+    const manifestHash = await crypto.subtle
+      .digest("SHA-256", new TextEncoder().encode(modifiedManifest))
+      .then((buffer) =>
+        Array.from(new Uint8Array(buffer))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("")
+          .substring(0, 16),
+      ); // Первые 16 символов хэша
 
     return {
       manifest: modifiedManifest,

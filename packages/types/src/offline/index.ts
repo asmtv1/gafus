@@ -1,7 +1,25 @@
 export interface OfflineAction {
   id: string;
-  type: "step-completion" | "profile-update" | "comment" | "rating" | "step-status-update" | "step-pause" | "step-resume" | "cache-invalidation" | "favorite-toggle";
-  data: StepCompletionData | ProfileUpdateData | CommentData | RatingData | StepStatusUpdateData | StepPauseData | StepResumeData | CacheInvalidationData | FavoriteToggleData;
+  type:
+    | "step-completion"
+    | "profile-update"
+    | "comment"
+    | "rating"
+    | "step-status-update"
+    | "step-pause"
+    | "step-resume"
+    | "cache-invalidation"
+    | "favorite-toggle";
+  data:
+    | StepCompletionData
+    | ProfileUpdateData
+    | CommentData
+    | RatingData
+    | StepStatusUpdateData
+    | StepPauseData
+    | StepResumeData
+    | CacheInvalidationData
+    | FavoriteToggleData;
   timestamp: number;
   retryCount: number;
   maxRetries: number;
@@ -69,7 +87,7 @@ export interface CacheInvalidationData {
 
 export interface FavoriteToggleData {
   courseId: string;
-  action: 'add' | 'remove';
+  action: "add" | "remove";
 }
 
 export interface OfflineState {

@@ -4,9 +4,7 @@ import { Alert } from "react-native";
  * Показывает alert о недоступности приватного курса
  * После закрытия выполняет callback для редиректа
  */
-export function showPrivateCourseAccessDeniedAlert(
-  onConfirm?: () => void
-): void {
+export function showPrivateCourseAccessDeniedAlert(onConfirm?: () => void): void {
   Alert.alert(
     "Курс недоступен 🔒",
     "Этот курс приватный и доступен только по приглашению. Обратитесь к кинологу для получения доступа.",
@@ -17,6 +15,6 @@ export function showPrivateCourseAccessDeniedAlert(
         style: "default",
       },
     ],
-    { cancelable: false }
+    { cancelable: false },
   );
 }

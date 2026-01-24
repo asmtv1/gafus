@@ -12,13 +12,13 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
     () =>
       videoUrl?.includes("gafus-media.storage.yandexcloud.net") ||
       videoUrl?.includes("storage.yandexcloud.net/gafus-media"),
-    [videoUrl]
+    [videoUrl],
   );
 
   // Для CDN видео не инициализируем с оригинальным URL, так как он может быть удалён после транскодирования
   // Для не-CDN видео (YouTube, VK) используем оригинальный URL сразу
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(
-    videoUrl && !isCDN ? videoUrl : null
+    videoUrl && !isCDN ? videoUrl : null,
   );
 
   useEffect(() => {
@@ -50,7 +50,9 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
             setPlaybackUrl(url);
           } else {
             // Если null, возвращаем null, чтобы показать статус обработки пользователю
-            console.error("[useVideoUrl] getVideoUrlForPlayback вернул null - видео ещё обрабатывается или HLS не готов");
+            console.error(
+              "[useVideoUrl] getVideoUrlForPlayback вернул null - видео ещё обрабатывается или HLS не готов",
+            );
             setPlaybackUrl(null);
           }
         })

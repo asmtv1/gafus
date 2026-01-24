@@ -8,7 +8,7 @@ import { Redis } from "ioredis";
 import { createWorkerLogger } from "@gafus/logger";
 
 // Создаем логгер для queues
-const logger = createWorkerLogger('redis-connection');
+const logger = createWorkerLogger("redis-connection");
 
 /**
  * REDIS_URL должен быть задан в .env, например:
@@ -16,8 +16,8 @@ const logger = createWorkerLogger('redis-connection');
  */
 if (!process.env.REDIS_URL) {
   logger.error("REDIS_URL is not set in environment variables", new Error("Missing REDIS_URL"), {
-    availableRedisVars: Object.keys(process.env).filter(key => key.includes('REDIS')),
-    environment: process.env.NODE_ENV || 'development'
+    availableRedisVars: Object.keys(process.env).filter((key) => key.includes("REDIS")),
+    environment: process.env.NODE_ENV || "development",
   });
   throw new Error("REDIS_URL is not set in environment variables");
 }
@@ -28,37 +28,37 @@ export const connection = new Redis(process.env.REDIS_URL, {
 });
 
 // Обработка событий подключения
-connection.on('connect', () => {
+connection.on("connect", () => {
   logger.info("Redis connection established", {
-    url: process.env.REDIS_URL?.replace(/\/\/.*@/, '//***@'), // Скрываем пароль в логах
+    url: process.env.REDIS_URL?.replace(/\/\/.*@/, "//***@"), // Скрываем пароль в логах
     maxRetriesPerRequest: null,
-    enableReadyCheck: false
+    enableReadyCheck: false,
   });
 });
 
-connection.on('ready', () => {
+connection.on("ready", () => {
   logger.success("Redis connection is ready", {
-    url: process.env.REDIS_URL?.replace(/\/\/.*@/, '//***@')
+    url: process.env.REDIS_URL?.replace(/\/\/.*@/, "//***@"),
   });
 });
 
-connection.on('error', (error) => {
+connection.on("error", (error) => {
   logger.error("Redis connection error", error, {
-    url: process.env.REDIS_URL?.replace(/\/\/.*@/, '//***@'),
+    url: process.env.REDIS_URL?.replace(/\/\/.*@/, "//***@"),
     errorCode: (error as any).code,
-    errno: (error as any).errno
+    errno: (error as any).errno,
   });
 });
 
-connection.on('close', () => {
+connection.on("close", () => {
   logger.warn("Redis connection closed", {
-    url: process.env.REDIS_URL?.replace(/\/\/.*@/, '//***@')
+    url: process.env.REDIS_URL?.replace(/\/\/.*@/, "//***@"),
   });
 });
 
-connection.on('reconnecting', () => {
+connection.on("reconnecting", () => {
   logger.info("Redis reconnecting", {
-    url: process.env.REDIS_URL?.replace(/\/\/.*@/, '//***@')
+    url: process.env.REDIS_URL?.replace(/\/\/.*@/, "//***@"),
   });
 });
 

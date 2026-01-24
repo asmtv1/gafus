@@ -11,7 +11,6 @@ import { ExpandMoreIcon } from "@shared/utils/muiImports";
 import { AccordionStep } from "../AccordionStep";
 import styles from "./Day.module.css";
 
-
 // Конфигурация для статусов шагов
 const STEP_STATUS_CONFIG = {
   NOT_STARTED: {
@@ -104,7 +103,7 @@ export function Day({ training, courseType }: DayProps) {
               step.title,
               step.order,
             );
-            
+
             // Обновляем локальное состояние шага на COMPLETED
             updateStepStatus(training.courseId, training.dayOnCourseId, index, "COMPLETED");
           } catch (error) {
@@ -114,11 +113,20 @@ export function Day({ training, courseType }: DayProps) {
         }
       }
     },
-    [openIndex, training.courseId, training.dayOnCourseId, training.steps, stepStates, getStepKey, setStoreOpenIndex, updateStepStatus],
+    [
+      openIndex,
+      training.courseId,
+      training.dayOnCourseId,
+      training.steps,
+      stepStates,
+      getStepKey,
+      setStoreOpenIndex,
+      updateStepStatus,
+    ],
   );
 
   const handleToggleDescription = useCallback(() => {
-    setIsDescriptionOpen(prev => !prev);
+    setIsDescriptionOpen((prev) => !prev);
   }, []);
 
   // Инициализация состояния при монтировании
@@ -132,7 +140,10 @@ export function Day({ training, courseType }: DayProps) {
           index,
           step.durationSec,
           step.status,
-          { serverPaused: Boolean(step.isPausedOnServer), serverRemainingSec: step.remainingSecOnServer },
+          {
+            serverPaused: Boolean(step.isPausedOnServer),
+            serverRemainingSec: step.remainingSecOnServer,
+          },
         );
       });
     } catch {
@@ -159,7 +170,6 @@ export function Day({ training, courseType }: DayProps) {
       setRunningIndex(activeStepIndex);
       setStoreRunningIndex(training.courseId, training.dayOnCourseId, activeStepIndex);
     }
-
   }, [
     training.courseId,
     training.dayOnCourseId,
@@ -185,25 +195,24 @@ export function Day({ training, courseType }: DayProps) {
                 ? "Диагностика"
                 : training.type === "summary"
                   ? "Подведение итогов"
-                  : training.displayDayNumber ? `День ${training.displayDayNumber}` : "День"}
+                  : training.displayDayNumber
+                    ? `День ${training.displayDayNumber}`
+                    : "День"}
         </h2>
       </div>
-      <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ''}`}>
-        <div 
-          className={styles.descriptionHeader} 
-          onClick={handleToggleDescription}
-        >
+      <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ""}`}>
+        <div className={styles.descriptionHeader} onClick={handleToggleDescription}>
           <h3 className={styles.descriptionTitle}>Описание дня</h3>
           <div className={styles.expandControl}>
-            <span className={styles.expandText}>
-              {isDescriptionOpen ? "Скрыть" : "Подробнее"}
-            </span>
-            <ExpandMoreIcon 
-              className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ''}`} 
+            <span className={styles.expandText}>{isDescriptionOpen ? "Скрыть" : "Подробнее"}</span>
+            <ExpandMoreIcon
+              className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ""}`}
             />
           </div>
         </div>
-        <div className={`${styles.dayDescription} ${isDescriptionOpen ? styles.expanded : styles.collapsed}`}>
+        <div
+          className={`${styles.dayDescription} ${isDescriptionOpen ? styles.expanded : styles.collapsed}`}
+        >
           <ReactMarkdown>{training.description || ""}</ReactMarkdown>
         </div>
       </div>
@@ -214,51 +223,46 @@ export function Day({ training, courseType }: DayProps) {
         // Получаем статус шага из store
         const stepKey = getStepKey(index);
         const stepState = stepStates[stepKey];
-        
+
         // Приоритет: локальное состояние > серверная пауза > базовый статус
         let stepStatus = stepState?.status || step.status || "NOT_STARTED";
-        
+
         // Если локально не на паузе, но сервер говорит что на паузе - показываем паузу
         if (!stepState?.isPaused && step.isPausedOnServer) {
           stepStatus = "PAUSED";
         }
-        
-        const stepStatusConfig = STEP_STATUS_CONFIG[stepStatus as keyof typeof STEP_STATUS_CONFIG] || STEP_STATUS_CONFIG.NOT_STARTED;
-        
+
+        const stepStatusConfig =
+          STEP_STATUS_CONFIG[stepStatus as keyof typeof STEP_STATUS_CONFIG] ||
+          STEP_STATUS_CONFIG.NOT_STARTED;
+
         return (
           <div key={`${step.id}-${index}`} className={styles.accordionItem}>
-            <div 
-              className={styles.accordionHeader} 
+            <div
+              className={styles.accordionHeader}
               onClick={() => handleToggleOpen(index)}
               style={{ backgroundColor: stepStatusConfig.backgroundColor }}
             >
-              <div className={styles.stepTitleContainer}> 
-              <div className={styles.expandControl}>
-                <ExpandMoreIcon 
-                  className={`${styles.expandIcon} ${openIndex === index ? styles.expanded : ''}`} 
-                />
-                
-                <span className={styles.expandText}>
-                  {openIndex === index ? "Скрыть" : "Подробнее"}
-                </span>
-              </div>
-                <h3 className={styles.stepTitle}>
-                <div className={styles.stepTitleText}>
-                  <span>
-                    {isBreakStep
-                      ? "Перерыв"
-                      : `Упражнение #${exerciseNumber}`}
-                  </span>
-                  <span>
-                    {step.type === "BREAK" ? step.title : `«${step.title}»`}
+              <div className={styles.stepTitleContainer}>
+                <div className={styles.expandControl}>
+                  <ExpandMoreIcon
+                    className={`${styles.expandIcon} ${openIndex === index ? styles.expanded : ""}`}
+                  />
+
+                  <span className={styles.expandText}>
+                    {openIndex === index ? "Скрыть" : "Подробнее"}
                   </span>
                 </div>
+                <h3 className={styles.stepTitle}>
+                  <div className={styles.stepTitleText}>
+                    <span>{isBreakStep ? "Перерыв" : `Упражнение #${exerciseNumber}`}</span>
+                    <span>{step.type === "BREAK" ? step.title : `«${step.title}»`}</span>
+                  </div>
                 </h3>
                 <div className={styles.stepStatusConfig}>
-                    <span>{stepStatusConfig.text}</span>
-                  </div>
+                  <span>{stepStatusConfig.text}</span>
+                </div>
               </div>
-              
             </div>
 
             {openIndex === index && (

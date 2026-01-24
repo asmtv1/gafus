@@ -14,6 +14,7 @@
 ## 📦 Использование
 
 ### Базовые компоненты
+
 ```typescript
 import { Button, Input, Card } from '@gafus/ui-components';
 
@@ -28,6 +29,7 @@ function MyComponent() {
 ```
 
 ### Специализированные компоненты
+
 ```typescript
 import { UserAvatar, CourseCard, TrainingProgress } from '@gafus/ui-components';
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Скрипт проверки порядка операций с файлами в транзакциях Prisma
@@ -32,7 +32,12 @@ function findFileTransactionIssues(dir: string): FileTransactionIssue[] {
     for (const item of items) {
       const fullPath = path.join(currentDir, item);
 
-      if (item === 'node_modules' || item === '.git' || item === 'refactor' || item.startsWith('.')) {
+      if (
+        item === "node_modules" ||
+        item === ".git" ||
+        item === "refactor" ||
+        item.startsWith(".")
+      ) {
         continue;
       }
 
@@ -45,21 +50,21 @@ function findFileTransactionIssues(dir: string): FileTransactionIssue[] {
 
       if (stat.isDirectory()) {
         scanDirectory(fullPath);
-      } else if (stat.isFile() && (item.endsWith('.ts') || item.endsWith('.tsx'))) {
+      } else if (stat.isFile() && (item.endsWith(".ts") || item.endsWith(".tsx"))) {
         scanFile(fullPath);
       }
     }
   }
 
   function scanFile(filePath: string) {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split('\n');
+    const content = fs.readFileSync(filePath, "utf-8");
+    const lines = content.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
       // Ищем начало транзакции
-      if (line.includes('$transaction(')) {
+      if (line.includes("$transaction(")) {
         const transactionIssue = analyzeTransactionWithFiles(content, i);
         if (transactionIssue) {
           transactionIssue.file = path.relative(process.cwd(), filePath);
@@ -69,9 +74,12 @@ function findFileTransactionIssues(dir: string): FileTransactionIssue[] {
     }
   }
 
-  function analyzeTransactionWithFiles(content: string, startLine: number): FileTransactionIssue | null {
+  function analyzeTransactionWithFiles(
+    content: string,
+    startLine: number,
+  ): FileTransactionIssue | null {
     // Находим границы транзакции
-    const lines = content.split('\n');
+    const lines = content.split("\n");
     let endLine = startLine;
     let braceCount = 0;
     let inTransaction = false;
@@ -80,61 +88,67 @@ function findFileTransactionIssues(dir: string): FileTransactionIssue[] {
       const line = lines[i];
 
       for (const char of line) {
-        if (char === '(') braceCount++;
-        if (char === ')') braceCount--;
+        if (char === "(") braceCount++;
+        if (char === ")") braceCount--;
       }
 
-      if (line.includes('$transaction(')) {
+      if (line.includes("$transaction(")) {
         inTransaction = true;
       }
 
       endLine = i;
 
-      if (inTransaction && braceCount === 0 && line.includes(');')) {
+      if (inTransaction && braceCount === 0 && line.includes(");")) {
         break;
       }
     }
 
     const transactionLines = lines.slice(startLine, endLine + 1);
-    const transactionContent = transactionLines.join('\n');
+    const transactionContent = transactionLines.join("\n");
 
     // Проверяем на наличие файловых операций внутри транзакции
     const issues: string[] = [];
 
     // 1. Проверяем наличие HTTP запросов внутри транзакции
-    const httpRequestsInside = /await\s+(?:uploadToCDN|deleteFromCDN|fetch\(|axios\.|\.post\(|\.put\(|\.delete\()/;
+    const httpRequestsInside =
+      /await\s+(?:uploadToCDN|deleteFromCDN|fetch\(|axios\.|\.post\(|\.put\(|\.delete\()/;
     if (httpRequestsInside.test(transactionContent)) {
-      issues.push('HTTP запросы (CDN upload/delete) выполняются ВНУТРИ транзакции');
+      issues.push("HTTP запросы (CDN upload/delete) выполняются ВНУТРИ транзакции");
     }
 
     // 2. Проверяем наличие файловых операций внутри транзакции
-    const fileOperationsInside = /await\s+(?:uploadFile|deleteFile|createReadStream|writeFile|unlink)/;
+    const fileOperationsInside =
+      /await\s+(?:uploadFile|deleteFile|createReadStream|writeFile|unlink)/;
     if (fileOperationsInside.test(transactionContent)) {
-      issues.push('Файловые операции выполняются ВНУТРИ транзакции');
+      issues.push("Файловые операции выполняются ВНУТРИ транзакции");
     }
 
     // 3. Проверяем наличие cleanup при ошибках (для файлов снаружи транзакции)
     // Ищем CDN upload ДО транзакции
-    const contentBeforeTransaction = lines.slice(0, startLine).join('\n');
-    const hasCdnUploadBefore = /await\s+(?:uploadToCDN|getSignedVideoUrl)/.test(contentBeforeTransaction);
+    const contentBeforeTransaction = lines.slice(0, startLine).join("\n");
+    const hasCdnUploadBefore = /await\s+(?:uploadToCDN|getSignedVideoUrl)/.test(
+      contentBeforeTransaction,
+    );
 
     if (hasCdnUploadBefore) {
       // Проверяем наличие try-catch с cleanup
       const fullFunction = getFunctionContent(content, startLine);
-      const hasCleanup = /catch.*(?:deleteFromCDN|cleanup)/.test(fullFunction) ||
-                        /try.*\$transaction.*catch.*(?:deleteFromCDN|cleanup)/.test(fullFunction);
+      const hasCleanup =
+        /catch.*(?:deleteFromCDN|cleanup)/.test(fullFunction) ||
+        /try.*\$transaction.*catch.*(?:deleteFromCDN|cleanup)/.test(fullFunction);
 
       if (!hasCleanup) {
-        issues.push('Отсутствует cleanup для CDN файлов при ошибке транзакции');
+        issues.push("Отсутствует cleanup для CDN файлов при ошибке транзакции");
       }
     }
 
     if (issues.length > 0) {
       return {
-        file: '',
+        file: "",
         line: startLine + 1,
         issues,
-        transactionContent: transactionContent.substring(0, 300) + (transactionContent.length > 300 ? '...' : '')
+        transactionContent:
+          transactionContent.substring(0, 300) + (transactionContent.length > 300 ? "..." : ""),
       };
     }
 
@@ -143,18 +157,18 @@ function findFileTransactionIssues(dir: string): FileTransactionIssue[] {
 
   function getFunctionContent(content: string, transactionStartLine: number): string {
     // Находим начало функции содержащей транзакцию
-    const lines = content.split('\n');
+    const lines = content.split("\n");
     let functionStart = transactionStartLine;
 
     for (let i = transactionStartLine; i >= 0; i--) {
       const line = lines[i];
-      if (line.includes('function') || line.includes('const') || line.includes('export')) {
+      if (line.includes("function") || line.includes("const") || line.includes("export")) {
         functionStart = i;
         break;
       }
     }
 
-    return lines.slice(functionStart, Math.min(functionStart + 50, lines.length)).join('\n');
+    return lines.slice(functionStart, Math.min(functionStart + 50, lines.length)).join("\n");
   }
 
   scanDirectory(dir);
@@ -162,12 +176,12 @@ function findFileTransactionIssues(dir: string): FileTransactionIssue[] {
 }
 
 function main() {
-  console.log('🔍 Проверка порядка операций с файлами в транзакциях...\n');
+  console.log("🔍 Проверка порядка операций с файлами в транзакциях...\n");
 
-  const issues = findFileTransactionIssues('.');
+  const issues = findFileTransactionIssues(".");
 
   if (issues.length === 0) {
-    console.log('✅ Все транзакции правильно обрабатывают файлы!');
+    console.log("✅ Все транзакции правильно обрабатывают файлы!");
     process.exit(0);
   }
 
@@ -175,23 +189,23 @@ function main() {
 
   for (const issue of issues) {
     console.log(`📁 ${issue.file}:${issue.line}`);
-    issue.issues.forEach(problem => {
+    issue.issues.forEach((problem) => {
       console.log(`   ❌ ${problem}`);
     });
-    console.log(`   📝 Транзакция: ${issue.transactionContent.replace(/\n/g, '\n      ')}\n`);
+    console.log(`   📝 Транзакция: ${issue.transactionContent.replace(/\n/g, "\n      ")}\n`);
   }
 
-  console.log('💡 Рекомендации по исправлению:');
-  console.log('   1. Выполняйте CDN upload ДО транзакции:');
-  console.log('      const fileUrl = await uploadToCDN(file); // ДО транзакции');
-  console.log('   2. НЕ выполняйте HTTP запросы внутри $transaction');
-  console.log('   3. Добавьте cleanup при ошибках:');
-  console.log('      try {');
-  console.log('        await prisma.$transaction(...);');
-  console.log('      } catch (error) {');
-  console.log('        await deleteFromCDN(fileUrl); // cleanup');
-  console.log('        throw error;');
-  console.log('      }');
+  console.log("💡 Рекомендации по исправлению:");
+  console.log("   1. Выполняйте CDN upload ДО транзакции:");
+  console.log("      const fileUrl = await uploadToCDN(file); // ДО транзакции");
+  console.log("   2. НЕ выполняйте HTTP запросы внутри $transaction");
+  console.log("   3. Добавьте cleanup при ошибках:");
+  console.log("      try {");
+  console.log("        await prisma.$transaction(...);");
+  console.log("      } catch (error) {");
+  console.log("        await deleteFromCDN(fileUrl); // cleanup");
+  console.log("        throw error;");
+  console.log("      }");
 
   process.exit(1);
 }

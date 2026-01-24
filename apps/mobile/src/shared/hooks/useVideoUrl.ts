@@ -20,36 +20,31 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
   });
 
   // Проверяем, является ли это CDN видео (мемоизируем, чтобы избежать пересчёта)
-  const isCDN = useMemo(
-    () => {
-      if (!videoUrl) {
-        if (__DEV__) {
-          console.log("[useVideoUrl] useMemo isCDN: videoUrl пустой, возвращаем false");
-        }
-        return false;
-      }
-      const result = 
-        videoUrl.includes("gafus-media.storage.yandexcloud.net") ||
-        videoUrl.includes("storage.yandexcloud.net/gafus-media");
+  const isCDN = useMemo(() => {
+    if (!videoUrl) {
       if (__DEV__) {
-        console.log("[useVideoUrl] useMemo isCDN вычислен:", { 
-          videoUrl: videoUrl.substring(0, 100), 
-          isCDN: result,
-          videoUrlLength: videoUrl.length,
-          check1: videoUrl.includes("gafus-media.storage.yandexcloud.net"),
-          check2: videoUrl.includes("storage.yandexcloud.net/gafus-media"),
-        });
+        console.log("[useVideoUrl] useMemo isCDN: videoUrl пустой, возвращаем false");
       }
-      return result;
-    },
-    [videoUrl]
-  );
+      return false;
+    }
+    const result =
+      videoUrl.includes("gafus-media.storage.yandexcloud.net") ||
+      videoUrl.includes("storage.yandexcloud.net/gafus-media");
+    if (__DEV__) {
+      console.log("[useVideoUrl] useMemo isCDN вычислен:", {
+        videoUrl: videoUrl.substring(0, 100),
+        isCDN: result,
+        videoUrlLength: videoUrl.length,
+        check1: videoUrl.includes("gafus-media.storage.yandexcloud.net"),
+        check2: videoUrl.includes("storage.yandexcloud.net/gafus-media"),
+      });
+    }
+    return result;
+  }, [videoUrl]);
 
   // Для CDN видео не инициализируем с оригинальным URL, так как он может быть удалён после транскодирования
   // Для не-CDN видео (YouTube, VK) используем оригинальный URL сразу
-  const [url, setUrl] = useState<string | null>(
-    videoUrl && !isCDN ? videoUrl : null
-  );
+  const [url, setUrl] = useState<string | null>(videoUrl && !isCDN ? videoUrl : null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,8 +59,8 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
 
   useEffect(() => {
     // Логируем ВСЕГДА для отладки
-    console.log("[useVideoUrl] ===== useEffect ВЫЗВАН =====", { 
-      videoUrl: videoUrl?.substring(0, 100) || "null", 
+    console.log("[useVideoUrl] ===== useEffect ВЫЗВАН =====", {
+      videoUrl: videoUrl?.substring(0, 100) || "null",
       isCDN,
       videoUrlLength: videoUrl?.length || 0,
       videoUrlType: typeof videoUrl,
@@ -89,8 +84,8 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
         videoUrl.includes("storage.yandexcloud.net/gafus-media");
 
       if (__DEV__) {
-        console.log("[useVideoUrl] Проверка CDN:", { 
-          isCDN: isCDNVideo, 
+        console.log("[useVideoUrl] Проверка CDN:", {
+          isCDN: isCDNVideo,
           videoUrl: videoUrl.substring(0, 100),
           videoUrlLength: videoUrl.length,
         });
@@ -114,8 +109,8 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
           .getVideoUrl(videoUrl)
           .then((response) => {
             if (__DEV__) {
-              console.log("[useVideoUrl] API ответ получен:", { 
-                success: response.success, 
+              console.log("[useVideoUrl] API ответ получен:", {
+                success: response.success,
                 hasData: !!response.data,
                 url: response.data?.url?.substring(0, 100),
                 error: response.error,
@@ -123,7 +118,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
                 // Полный ответ для отладки
                 fullResponse: JSON.stringify(response, null, 2),
               });
-              
+
               // Дополнительное логирование для ошибок
               if (!response.success) {
                 console.error("[useVideoUrl] ОШИБКА получения видео URL:", {

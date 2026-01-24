@@ -7,7 +7,7 @@ import ReengagementMonitor from "@/features/reengagement/components/Reengagement
 
 export const metadata = {
   title: "Re-engagement мониторинг | Админ панель",
-  description: "Мониторинг системы возвращения неактивных пользователей"
+  description: "Мониторинг системы возвращения неактивных пользователей",
 };
 
 /**
@@ -34,4 +34,3 @@ export default async function ReengagementPage() {
     </PageLayout>
   );
 }
-

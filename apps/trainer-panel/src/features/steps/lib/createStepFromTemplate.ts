@@ -6,7 +6,7 @@ import { prisma } from "@gafus/prisma";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 
-const logger = createTrainerPanelLogger('trainer-panel-create-step-from-template');
+const logger = createTrainerPanelLogger("trainer-panel-create-step-from-template");
 
 interface CreateStepFromTemplateResult {
   success: boolean;
@@ -20,15 +20,15 @@ interface CreateStepFromTemplateResult {
  * @returns Результат операции с ID созданного шага
  */
 export async function createStepFromTemplate(
-  templateId: string
+  templateId: string,
 ): Promise<CreateStepFromTemplateResult> {
   try {
-    logger.info('Создание шага из шаблона', { templateId });
+    logger.info("Создание шага из шаблона", { templateId });
 
     // Проверяем авторизацию
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      logger.warn('Неавторизованная попытка создания шага из шаблона');
+      logger.warn("Неавторизованная попытка создания шага из шаблона");
       return {
         success: false,
         message: "Необходима авторизация",
@@ -37,8 +37,8 @@ export async function createStepFromTemplate(
 
     // Проверяем роль пользователя
     const userRole = (session.user as { role?: string }).role;
-    if (!userRole || !['TRAINER', 'ADMIN', 'MODERATOR'].includes(userRole)) {
-      logger.warn('Недостаточно прав для создания шага', {
+    if (!userRole || !["TRAINER", "ADMIN", "MODERATOR"].includes(userRole)) {
+      logger.warn("Недостаточно прав для создания шага", {
         userId: session.user.id,
         role: userRole,
       });
@@ -54,7 +54,7 @@ export async function createStepFromTemplate(
     });
 
     if (!template) {
-      logger.warn('Шаблон не найден', { templateId });
+      logger.warn("Шаблон не найден", { templateId });
       return {
         success: false,
         message: "Шаблон не найден",
@@ -62,7 +62,7 @@ export async function createStepFromTemplate(
     }
 
     if (!template.isPublic && template.authorId !== session.user.id) {
-      logger.warn('Попытка использовать приватный шаблон', {
+      logger.warn("Попытка использовать приватный шаблон", {
         templateId,
         userId: session.user.id,
       });
@@ -73,49 +73,51 @@ export async function createStepFromTemplate(
     }
 
     // Создаем новый шаг на основе шаблона
-    const newStep = await prisma.$transaction(async (tx) => {
-      // Создаем шаг
-      const step = await tx.step.create({
-        data: {
-          title: template.title,
-          description: template.description,
-          durationSec: template.durationSec,
-          type: template.type,
-          imageUrls: template.imageUrls,
-          pdfUrls: template.pdfUrls,
-          videoUrl: template.videoUrl,
-          checklist: template.checklist ?? undefined,
-          requiresVideoReport: template.requiresVideoReport,
-          requiresWrittenFeedback: template.requiresWrittenFeedback,
-          hasTestQuestions: template.hasTestQuestions,
-          authorId: session.user!.id,
-        },
-      });
-
-      // Увеличиваем счетчик использования шаблона
-      await tx.stepTemplate.update({
-        where: { id: templateId },
-        data: {
-          usageCount: {
-            increment: 1,
+    const newStep = await prisma.$transaction(
+      async (tx) => {
+        // Создаем шаг
+        const step = await tx.step.create({
+          data: {
+            title: template.title,
+            description: template.description,
+            durationSec: template.durationSec,
+            type: template.type,
+            imageUrls: template.imageUrls,
+            pdfUrls: template.pdfUrls,
+            videoUrl: template.videoUrl,
+            checklist: template.checklist ?? undefined,
+            requiresVideoReport: template.requiresVideoReport,
+            requiresWrittenFeedback: template.requiresWrittenFeedback,
+            hasTestQuestions: template.hasTestQuestions,
+            authorId: session.user!.id,
           },
-        },
-      });
+        });
 
-      return step;
-    },
-    {
-      maxWait: 5000, // 5 секунд ожидания начала транзакции
-      timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
-    });
+        // Увеличиваем счетчик использования шаблона
+        await tx.stepTemplate.update({
+          where: { id: templateId },
+          data: {
+            usageCount: {
+              increment: 1,
+            },
+          },
+        });
 
-    logger.info('Шаг успешно создан из шаблона', {
+        return step;
+      },
+      {
+        maxWait: 5000, // 5 секунд ожидания начала транзакции
+        timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
+      },
+    );
+
+    logger.info("Шаг успешно создан из шаблона", {
       stepId: newStep.id,
       templateId,
       userId: session.user.id,
     });
 
-    revalidatePath('/main-panel/steps');
+    revalidatePath("/main-panel/steps");
 
     return {
       success: true,
@@ -123,7 +125,7 @@ export async function createStepFromTemplate(
       stepId: newStep.id,
     };
   } catch (error) {
-    logger.error('Ошибка при создании шага из шаблона', error as Error, { templateId });
+    logger.error("Ошибка при создании шага из шаблона", error as Error, { templateId });
 
     logger.error(
       error instanceof Error ? error.message : "Unknown error",
@@ -132,7 +134,7 @@ export async function createStepFromTemplate(
         operation: "action",
         action: "action",
         tags: [],
-      }
+      },
     );
 
     return {
@@ -141,4 +143,3 @@ export async function createStepFromTemplate(
     };
   }
 }
-

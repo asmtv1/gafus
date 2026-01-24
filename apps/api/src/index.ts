@@ -37,10 +37,7 @@ const shutdown = async (signal: string) => {
     logger.info("HTTP server closed");
 
     // Закрываем подключения к БД и Redis
-    await Promise.all([
-      prisma.$disconnect(),
-      redis.quit(),
-    ]);
+    await Promise.all([prisma.$disconnect(), redis.quit()]);
     logger.info("Database and Redis connections closed");
 
     clearTimeout(forceExitTimeout);

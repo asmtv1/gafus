@@ -17,7 +17,7 @@
 
 ```sql
 -- Сделать последнюю активность 6 дней назад
-UPDATE "UserStep" 
+UPDATE "UserStep"
 SET "updatedAt" = NOW() - INTERVAL '6 days'
 WHERE "userTrainingId" IN (
   SELECT id FROM "UserTraining" WHERE "userId" = (
@@ -34,7 +34,7 @@ AND status = 'COMPLETED';
 3. **Выполните SQL** чтобы установить дату 6 дней назад:
 
 ```sql
-UPDATE "UserStep" 
+UPDATE "UserStep"
 SET "updatedAt" = NOW() - INTERVAL '6 days'
 WHERE "userTrainingId" IN (
   SELECT id FROM "UserTraining" WHERE "userId" = (
@@ -52,7 +52,7 @@ WHERE "userTrainingId" IN (
 SELECT id FROM "User" WHERE username = 'asmtv1';
 
 -- 2. Найти первый курс и день
-SELECT c.id as course_id, dc.id as day_id 
+SELECT c.id as course_id, dc.id as day_id
 FROM "Course" c
 JOIN "DayOnCourse" dc ON dc."courseId" = c.id
 LIMIT 1;
@@ -73,7 +73,7 @@ SELECT id FROM "StepOnDay" WHERE "trainingDayId" = 'DAY_ID' LIMIT 3;
 
 -- Затем создайте UserStep для каждого (минимум 2)
 INSERT INTO "UserStep" ("id", "userTrainingId", "stepOnDayId", "status", "createdAt", "updatedAt")
-VALUES 
+VALUES
   (gen_random_uuid(), 'USER_TRAINING_ID', 'STEP_ID_1', 'COMPLETED', NOW() - INTERVAL '6 days', NOW() - INTERVAL '6 days'),
   (gen_random_uuid(), 'USER_TRAINING_ID', 'STEP_ID_2', 'COMPLETED', NOW() - INTERVAL '6 days', NOW() - INTERVAL '6 days'),
   (gen_random_uuid(), 'USER_TRAINING_ID', 'STEP_ID_3', 'COMPLETED', NOW() - INTERVAL '6 days', NOW() - INTERVAL '6 days');
@@ -90,6 +90,7 @@ VALUES
 3. Нажмите **"Запустить планировщик"**
 
 **Ожидаемый результат:**
+
 ```
 ✅ Планировщик выполнен успешно!
 🆕 Новых кампаний: 1
@@ -103,14 +104,14 @@ VALUES
 
 ```sql
 -- Проверить кампанию
-SELECT * FROM "ReengagementCampaign" 
+SELECT * FROM "ReengagementCampaign"
 WHERE "userId" = (SELECT id FROM "User" WHERE username = 'asmtv1')
 ORDER BY "createdAt" DESC LIMIT 1;
 
 -- Проверить уведомление
-SELECT * FROM "ReengagementNotification" 
+SELECT * FROM "ReengagementNotification"
 WHERE "campaignId" IN (
-  SELECT id FROM "ReengagementCampaign" 
+  SELECT id FROM "ReengagementCampaign"
   WHERE "userId" = (SELECT id FROM "User" WHERE username = 'asmtv1')
 )
 ORDER BY "createdAt" DESC;
@@ -124,4 +125,3 @@ ORDER BY "createdAt" DESC;
 - Изменения в коде: `docs/CHANGELOG_UX_IMPROVEMENTS.md`
 
 Готово к тестированию! 🚀
-

@@ -2,7 +2,7 @@
 
 /**
  * Server Actions для работы с push-подписками
- * 
+ *
  * Эти actions используют pushSubscriptionService для бизнес-логики
  * и добавляют авторизацию через getCurrentUserId.
  */
@@ -24,7 +24,7 @@ import {
   getUserSubscriptions,
 } from "@gafus/core/services/subscriptions";
 
-const logger = createWebLogger('subscription-server-actions');
+const logger = createWebLogger("subscription-server-actions");
 
 // ========== Schemas ==========
 
@@ -36,17 +36,22 @@ const pushSubscriptionSchema = z.object({
   }),
 });
 
-const updateSubscriptionSchema = z.object({
-  id: z.string().optional().transform((value) => (value?.trim() ? value.trim() : undefined)),
-  userId: z.string().trim().min(1, "userId обязателен"),
-  endpoint: z.string().trim().min(1, "endpoint обязателен"),
-  p256dh: z.string().trim().min(1, "p256dh обязателен"),
-  auth: z.string().trim().min(1, "auth обязателен"),
-  keys: z.object({
-    p256dh: z.string().trim().min(1, "keys.p256dh обязателен"),
-    auth: z.string().trim().min(1, "keys.auth обязателен"),
-  }),
-}).strict();
+const updateSubscriptionSchema = z
+  .object({
+    id: z
+      .string()
+      .optional()
+      .transform((value) => (value?.trim() ? value.trim() : undefined)),
+    userId: z.string().trim().min(1, "userId обязателен"),
+    endpoint: z.string().trim().min(1, "endpoint обязателен"),
+    p256dh: z.string().trim().min(1, "p256dh обязателен"),
+    auth: z.string().trim().min(1, "auth обязателен"),
+    keys: z.object({
+      p256dh: z.string().trim().min(1, "keys.p256dh обязателен"),
+      auth: z.string().trim().min(1, "keys.auth обязателен"),
+    }),
+  })
+  .strict();
 
 const deleteSubscriptionSchema = z.object({
   endpoint: z.string().trim().min(1, "endpoint обязателен").optional(),
@@ -62,10 +67,10 @@ export async function savePushSubscriptionAction(subscription: {
   keys: { p256dh: string; auth: string };
 }) {
   const validatedSubscription = pushSubscriptionSchema.parse(subscription);
-  
+
   try {
     const userId = await getCurrentUserId();
-    
+
     // Проверяем существование пользователя
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -76,7 +81,7 @@ export async function savePushSubscriptionAction(subscription: {
       logger.error("User not found in database", new Error("User not found"), {
         userId,
       });
-      
+
       // Попробуем найти пользователя по username из JWT токена
       const session = await getServerSession(authOptions as NextAuthOptions);
       if (session?.user?.username) {
@@ -84,7 +89,7 @@ export async function savePushSubscriptionAction(subscription: {
           where: { username: session.user.username },
           select: { id: true },
         });
-        
+
         if (userByUsername) {
           await savePushSubscriptionService({
             userId: userByUsername.id,
@@ -94,7 +99,7 @@ export async function savePushSubscriptionAction(subscription: {
           return { success: true };
         }
       }
-      
+
       throw new Error(`Пользователь с ID ${userId} не найден в базе данных`);
     }
 
@@ -103,7 +108,7 @@ export async function savePushSubscriptionAction(subscription: {
       endpoint: validatedSubscription.endpoint,
       keys: validatedSubscription.keys,
     });
-    
+
     return { success: true };
   } catch (error) {
     logger.error("Error saving push subscription", error as Error);
@@ -141,10 +146,10 @@ export async function updateSubscriptionAction(subscription: {
  */
 export async function deleteSubscriptionAction(endpoint?: string) {
   const { endpoint: parsedEndpoint } = deleteSubscriptionSchema.parse({ endpoint });
-  
+
   try {
     const userId = await getCurrentUserId();
-    
+
     if (parsedEndpoint) {
       // Удаляем конкретную подписку по endpoint
       logger.info("Удаление подписки для пользователя", {
@@ -157,7 +162,7 @@ export async function deleteSubscriptionAction(endpoint?: string) {
       logger.warn("Удаление ВСЕХ подписок для пользователя", { userId });
       await deleteAllPushSubscriptionsService(userId);
     }
-    
+
     return { success: true };
   } catch (error) {
     logger.error("Ошибка при удалении подписки", error as Error);

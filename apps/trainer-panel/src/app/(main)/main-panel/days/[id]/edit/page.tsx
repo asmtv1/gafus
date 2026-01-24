@@ -26,7 +26,7 @@ export default async function EditDayPage({ params }: Props) {
   }));
 
   return (
-    <FormPageLayout 
+    <FormPageLayout
       title="Редактирование дня тренировки"
       subtitle="Измените информацию о дне тренировки и выберите шаги"
     >

@@ -1,12 +1,12 @@
 import { type ReactNode } from "react";
-import { 
-  MD3LightTheme, 
-  MD3DarkTheme, 
+import {
+  MD3LightTheme,
+  MD3DarkTheme,
   PaperProvider,
   adaptNavigationTheme,
 } from "react-native-paper";
-import { 
-  DarkTheme as NavigationDarkTheme, 
+import {
+  DarkTheme as NavigationDarkTheme,
   DefaultTheme as NavigationDefaultTheme,
   ThemeProvider as NavigationThemeProvider,
 } from "@react-navigation/native";
@@ -191,9 +191,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   return (
     <PaperProvider theme={paperTheme}>
-      <NavigationThemeProvider value={navigationTheme}>
-        {children}
-      </NavigationThemeProvider>
+      <NavigationThemeProvider value={navigationTheme}>{children}</NavigationThemeProvider>
     </PaperProvider>
   );
 }

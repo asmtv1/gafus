@@ -3,11 +3,14 @@
 import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 
-import { deletePushSubscriptionByEndpoint, deleteAllPushSubscriptions } from "@shared/lib/savePushSubscription/deletePushSubscription";
+import {
+  deletePushSubscriptionByEndpoint,
+  deleteAllPushSubscriptions,
+} from "@shared/lib/savePushSubscription/deletePushSubscription";
 
 import { savePushSubscription } from "@shared/lib/savePushSubscription/savePushSubscription";
 
-const logger = createWebLogger('web-subscription-action');
+const logger = createWebLogger("web-subscription-action");
 
 const pushSubscriptionSchema = z
   .object({
@@ -43,7 +46,7 @@ export async function updateSubscriptionAction(subscription: {
     await savePushSubscription(parsedSubscription);
     return { success: true };
   } catch (error) {
-    logger.error("Ошибка при сохранении подписки:", error as Error, { operation: 'error' });
+    logger.error("Ошибка при сохранении подписки:", error as Error, { operation: "error" });
     throw new Error("Ошибка при сохранении подписки");
   }
 }
@@ -60,7 +63,7 @@ export async function deleteSubscriptionAction(endpoint?: string) {
     }
     return { success: true };
   } catch (error) {
-    logger.error("Ошибка при удалении подписки:", error as Error, { operation: 'error' });
+    logger.error("Ошибка при удалении подписки:", error as Error, { operation: "error" });
     throw new Error("Ошибка при удалении подписки");
   }
 }

@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { invalidateCoursesCache } from "./invalidateCoursesCache";
 
 // Создаем логгер для invalidate-cache-actions
-const logger = createWebLogger('admin-panel-invalidate-cache-actions');
+const logger = createWebLogger("admin-panel-invalidate-cache-actions");
 
 export interface InvalidateCacheResult {
   success: boolean;
@@ -22,11 +22,11 @@ export async function invalidateCoursesCacheAction(): Promise<InvalidateCacheRes
   try {
     // Проверяем авторизацию и права администратора
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Не авторизован"
+        error: "Не авторизован",
       };
     }
 
@@ -34,30 +34,29 @@ export async function invalidateCoursesCacheAction(): Promise<InvalidateCacheRes
     if (!session.user.role || !["ADMIN", "MODERATOR"].includes(session.user.role)) {
       return {
         success: false,
-        error: "Недостаточно прав для выполнения операции"
+        error: "Недостаточно прав для выполнения операции",
       };
     }
 
     // Инвалидируем кэш курсов
     const result = await invalidateCoursesCache();
-    
+
     if (result.success) {
       return {
         success: true,
-        message: "Кэш курсов успешно обновлен"
+        message: "Кэш курсов успешно обновлен",
       };
     } else {
       return {
         success: false,
-        error: result.error || "Ошибка при обновлении кэша"
+        error: result.error || "Ошибка при обновлении кэша",
       };
     }
   } catch (error) {
-    logger.error("Error in invalidateCoursesCacheAction:", error as Error, { operation: 'error' });
+    logger.error("Error in invalidateCoursesCacheAction:", error as Error, { operation: "error" });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка"
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }
-

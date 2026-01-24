@@ -8,12 +8,12 @@ function getPrometheusUrl(): string {
   if (process.env.PROMETHEUS_URL) {
     return process.env.PROMETHEUS_URL;
   }
-  
+
   // В production используем имя Docker сервиса
   if (process.env.NODE_ENV === "production") {
     return "http://prometheus:9090";
   }
-  
+
   // В development используем localhost
   return "http://localhost:9090";
 }
@@ -73,9 +73,9 @@ async function queryPrometheus(query: string): Promise<PrometheusQueryResult[]> 
   const data: PrometheusQueryResponse = await response.json();
 
   if (data.status !== "success") {
-    const errorMsg = data.data?.result ? 
-      `Prometheus query error: ${data.status}` : 
-      `Prometheus query error: ${data.status}. Query: ${query}`;
+    const errorMsg = data.data?.result
+      ? `Prometheus query error: ${data.status}`
+      : `Prometheus query error: ${data.status}. Query: ${query}`;
     throw new Error(errorMsg);
   }
 
@@ -105,9 +105,10 @@ async function querySingleValue(query: string): Promise<number> {
         const metricsResponse = await fetch(metricsUrl.toString());
         if (metricsResponse.ok) {
           const metricsData = await metricsResponse.json();
-          const relevantMetrics = metricsData.data?.filter((m: string) => 
-            query.includes("pg_") ? m.includes("pg_") : m.includes("redis_")
-          ) || [];
+          const relevantMetrics =
+            metricsData.data?.filter((m: string) =>
+              query.includes("pg_") ? m.includes("pg_") : m.includes("redis_"),
+            ) || [];
           // eslint-disable-next-line no-console
           console.log("[Prometheus] Available relevant metrics:", relevantMetrics.slice(0, 10));
         }
@@ -142,8 +143,8 @@ export async function getSystemMetricsFromPrometheus(): Promise<SystemMetrics> {
   try {
     // Получаем метрики памяти
     const [memTotal, memAvailable] = await Promise.all([
-      querySingleValue('node_memory_MemTotal_bytes'),
-      querySingleValue('node_memory_MemAvailable_bytes'),
+      querySingleValue("node_memory_MemTotal_bytes"),
+      querySingleValue("node_memory_MemAvailable_bytes"),
     ]);
 
     const memUsed = memTotal - memAvailable;
@@ -151,18 +152,20 @@ export async function getSystemMetricsFromPrometheus(): Promise<SystemMetrics> {
 
     // Получаем информацию о CPU
     // Количество логических ядер через count уникальных CPU
-    const cpuCountResult = await queryPrometheus('count(node_cpu_seconds_total{mode="idle"}) by (instance)');
+    const cpuCountResult = await queryPrometheus(
+      'count(node_cpu_seconds_total{mode="idle"}) by (instance)',
+    );
     const cpuCount = cpuCountResult.length > 0 ? Math.round(cpuCountResult[0].value) : 1;
-    
+
     // Модель CPU из node_cpu_info
-    const cpuInfo = await queryPrometheus('node_cpu_info');
-    const cpuModel = cpuInfo.length > 0 ? (cpuInfo[0].labels?.model_name || "Unknown") : "Unknown";
+    const cpuInfo = await queryPrometheus("node_cpu_info");
+    const cpuModel = cpuInfo.length > 0 ? cpuInfo[0].labels?.model_name || "Unknown" : "Unknown";
 
     // Получаем загрузку CPU (используем load average за 1 минуту)
-    const cpuLoad = await querySingleValue('node_load1');
+    const cpuLoad = await querySingleValue("node_load1");
 
     // Получаем uptime
-    const bootTime = await querySingleValue('node_boot_time_seconds');
+    const bootTime = await querySingleValue("node_boot_time_seconds");
     const currentTime = Date.now() / 1000;
     const uptime = currentTime - bootTime;
 
@@ -182,7 +185,7 @@ export async function getSystemMetricsFromPrometheus(): Promise<SystemMetrics> {
     };
   } catch (error) {
     throw new Error(
-      `Failed to get system metrics from Prometheus: ${error instanceof Error ? error.message : "Unknown error"}`
+      `Failed to get system metrics from Prometheus: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
@@ -249,11 +252,11 @@ export interface RedisMetrics {
  */
 export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetrics> {
   const startTime = Date.now();
-  
+
   try {
     // Проверяем доступность PostgreSQL через pg_up метрику
-    const pgUp = await querySingleValue('pg_up');
-    
+    const pgUp = await querySingleValue("pg_up");
+
     if (pgUp !== 1) {
       const responseTime = Date.now() - startTime;
       return {
@@ -268,7 +271,7 @@ export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetric
     let version: string | undefined;
     try {
       // Способ 1: через pg_stat_database_version (если доступно)
-      const versionResult = await queryPrometheus('pg_stat_database_version');
+      const versionResult = await queryPrometheus("pg_stat_database_version");
       if (versionResult.length > 0) {
         version = versionResult[0].labels?.version || String(versionResult[0].value);
         // Извлекаем только номер версии (например, "14.19")
@@ -286,7 +289,7 @@ export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetric
     let connections: number | undefined;
     try {
       // Суммируем все подключения по всем базам данных
-      connections = await querySingleValue('sum(pg_stat_database_numbackends)');
+      connections = await querySingleValue("sum(pg_stat_database_numbackends)");
     } catch {
       connections = undefined;
     }
@@ -294,7 +297,7 @@ export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetric
     // Получаем размер БД (сумма по всем базам)
     let databaseSize: number | undefined;
     try {
-      databaseSize = await querySingleValue('sum(pg_database_size_bytes)');
+      databaseSize = await querySingleValue("sum(pg_database_size_bytes)");
     } catch {
       databaseSize = undefined;
     }
@@ -303,8 +306,8 @@ export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetric
     let cacheHitRatio: number | undefined;
     try {
       // Используем текущие значения, а не rate (так как это счетчики)
-      const cacheHits = await querySingleValue('sum(pg_stat_database_blks_hit)');
-      const cacheReads = await querySingleValue('sum(pg_stat_database_blks_read)');
+      const cacheHits = await querySingleValue("sum(pg_stat_database_blks_hit)");
+      const cacheReads = await querySingleValue("sum(pg_stat_database_blks_read)");
       const total = cacheHits + cacheReads;
       if (total > 0) {
         cacheHitRatio = (cacheHits / total) * 100;
@@ -312,8 +315,8 @@ export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetric
     } catch {
       // Пробуем альтернативный способ через rate
       try {
-        const cacheHits = await querySingleValue('sum(rate(pg_stat_database_blks_hit[5m]))');
-        const cacheReads = await querySingleValue('sum(rate(pg_stat_database_blks_read[5m]))');
+        const cacheHits = await querySingleValue("sum(rate(pg_stat_database_blks_hit[5m]))");
+        const cacheReads = await querySingleValue("sum(rate(pg_stat_database_blks_read[5m]))");
         const total = cacheHits + cacheReads;
         if (total > 0) {
           cacheHitRatio = (cacheHits / total) * 100;
@@ -327,8 +330,8 @@ export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetric
     let transactions: { commits?: number; rollbacks?: number } | undefined;
     try {
       const [commits, rollbacks] = await Promise.all([
-        querySingleValue('sum(rate(pg_stat_database_xact_commit[5m]))').catch(() => 0),
-        querySingleValue('sum(rate(pg_stat_database_xact_rollback[5m]))').catch(() => 0),
+        querySingleValue("sum(rate(pg_stat_database_xact_commit[5m]))").catch(() => 0),
+        querySingleValue("sum(rate(pg_stat_database_xact_rollback[5m]))").catch(() => 0),
       ]);
       if (commits > 0 || rollbacks > 0) {
         transactions = {
@@ -341,13 +344,15 @@ export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetric
     }
 
     // Получаем статистику запросов
-    let queries: { selects?: number; inserts?: number; updates?: number; deletes?: number } | undefined;
+    let queries:
+      | { selects?: number; inserts?: number; updates?: number; deletes?: number }
+      | undefined;
     try {
       const [selects, inserts, updates, deletes] = await Promise.all([
-        querySingleValue('sum(rate(pg_stat_database_tup_fetched[5m]))').catch(() => 0),
-        querySingleValue('sum(rate(pg_stat_database_tup_inserted[5m]))').catch(() => 0),
-        querySingleValue('sum(rate(pg_stat_database_tup_updated[5m]))').catch(() => 0),
-        querySingleValue('sum(rate(pg_stat_database_tup_deleted[5m]))').catch(() => 0),
+        querySingleValue("sum(rate(pg_stat_database_tup_fetched[5m]))").catch(() => 0),
+        querySingleValue("sum(rate(pg_stat_database_tup_inserted[5m]))").catch(() => 0),
+        querySingleValue("sum(rate(pg_stat_database_tup_updated[5m]))").catch(() => 0),
+        querySingleValue("sum(rate(pg_stat_database_tup_deleted[5m]))").catch(() => 0),
       ]);
       if (selects > 0 || inserts > 0 || updates > 0 || deletes > 0) {
         queries = {
@@ -364,7 +369,7 @@ export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetric
     // Получаем количество deadlocks
     let deadlocks: number | undefined;
     try {
-      deadlocks = await querySingleValue('sum(rate(pg_stat_database_deadlocks[5m]))');
+      deadlocks = await querySingleValue("sum(rate(pg_stat_database_deadlocks[5m]))");
       deadlocks = Math.round(deadlocks);
     } catch {
       deadlocks = undefined;
@@ -387,7 +392,8 @@ export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetric
       version,
       connections: connections ? Math.round(connections) : undefined,
       databaseSize,
-      cacheHitRatio: cacheHitRatio !== undefined ? Math.round(cacheHitRatio * 100) / 100 : undefined,
+      cacheHitRatio:
+        cacheHitRatio !== undefined ? Math.round(cacheHitRatio * 100) / 100 : undefined,
       transactions,
       queries,
       deadlocks,
@@ -408,11 +414,11 @@ export async function getPostgresMetricsFromPrometheus(): Promise<PostgresMetric
  */
 export async function getRedisMetricsFromPrometheus(): Promise<RedisMetrics> {
   const startTime = Date.now();
-  
+
   try {
     // Проверяем доступность Redis через redis_up метрику
-    const redisUp = await querySingleValue('redis_up');
-    
+    const redisUp = await querySingleValue("redis_up");
+
     if (redisUp !== 1) {
       const responseTime = Date.now() - startTime;
       return {
@@ -425,7 +431,7 @@ export async function getRedisMetricsFromPrometheus(): Promise<RedisMetrics> {
     // Получаем версию Redis
     let version: string | undefined;
     try {
-      const versionResult = await queryPrometheus('redis_info_redis_version');
+      const versionResult = await queryPrometheus("redis_info_redis_version");
       if (versionResult.length > 0) {
         version = String(versionResult[0].value);
       }
@@ -437,8 +443,8 @@ export async function getRedisMetricsFromPrometheus(): Promise<RedisMetrics> {
     let memory: { used?: number; max?: number; percentage?: number } | undefined;
     try {
       const [used, max] = await Promise.all([
-        querySingleValue('redis_memory_used_bytes').catch(() => undefined),
-        querySingleValue('redis_memory_max_bytes').catch(() => undefined),
+        querySingleValue("redis_memory_used_bytes").catch(() => undefined),
+        querySingleValue("redis_memory_max_bytes").catch(() => undefined),
       ]);
       if (used !== undefined) {
         memory = {
@@ -456,12 +462,12 @@ export async function getRedisMetricsFromPrometheus(): Promise<RedisMetrics> {
     let keys: { total?: number; expired?: number; evicted?: number } | undefined;
     try {
       const [total, expired, evicted] = await Promise.all([
-        querySingleValue('sum(redis_keyspace_keys)').catch(() => undefined),
+        querySingleValue("sum(redis_keyspace_keys)").catch(() => undefined),
         // expired может быть как rate, так и просто значение
-        querySingleValue('sum(rate(redis_keyspace_keys_expired[5m]))').catch(() =>
-          querySingleValue('sum(redis_keyspace_keys_expired)').catch(() => undefined)
+        querySingleValue("sum(rate(redis_keyspace_keys_expired[5m]))").catch(() =>
+          querySingleValue("sum(redis_keyspace_keys_expired)").catch(() => undefined),
         ),
-        querySingleValue('redis_evicted_keys_total').catch(() => undefined),
+        querySingleValue("redis_evicted_keys_total").catch(() => undefined),
       ]);
       if (total !== undefined || expired !== undefined || evicted !== undefined) {
         keys = {
@@ -478,8 +484,8 @@ export async function getRedisMetricsFromPrometheus(): Promise<RedisMetrics> {
     let cache: { hits?: number; misses?: number; hitRatio?: number } | undefined;
     try {
       const [hits, misses] = await Promise.all([
-        querySingleValue('sum(rate(redis_keyspace_hits[5m]))').catch(() => 0),
-        querySingleValue('sum(rate(redis_keyspace_misses[5m]))').catch(() => 0),
+        querySingleValue("sum(rate(redis_keyspace_hits[5m]))").catch(() => 0),
+        querySingleValue("sum(rate(redis_keyspace_misses[5m]))").catch(() => 0),
       ]);
       const total = hits + misses;
       if (total > 0) {
@@ -496,7 +502,7 @@ export async function getRedisMetricsFromPrometheus(): Promise<RedisMetrics> {
     // Получаем статистику команд
     let commands: { processed?: number; perSecond?: number } | undefined;
     try {
-      const processed = await querySingleValue('sum(rate(redis_commands_processed_total[5m]))');
+      const processed = await querySingleValue("sum(rate(redis_commands_processed_total[5m]))");
       commands = {
         processed: Math.round(processed),
         perSecond: Math.round(processed),
@@ -508,7 +514,7 @@ export async function getRedisMetricsFromPrometheus(): Promise<RedisMetrics> {
     // Получаем количество подключений
     let connections: number | undefined;
     try {
-      connections = await querySingleValue('redis_connected_clients');
+      connections = await querySingleValue("redis_connected_clients");
       connections = Math.round(connections);
     } catch {
       connections = undefined;
@@ -551,10 +557,10 @@ export interface ServiceMetrics {
  */
 export async function getServiceMetricsFromPrometheus(
   serviceName: string,
-  instanceUrl: string
+  instanceUrl: string,
 ): Promise<ServiceMetrics> {
   const startTime = Date.now();
-  
+
   try {
     // Определяем service label на основе имени сервиса
     const serviceLabelMap: Record<string, string> = {
@@ -563,46 +569,47 @@ export async function getServiceMetricsFromPrometheus(
       "Admin Panel": "admin-panel",
       "Bull Board": "bull-board",
     };
-    
-    const serviceLabel = serviceLabelMap[serviceName] || serviceName.toLowerCase().replace(/\s+/g, "-");
-    
+
+    const serviceLabel =
+      serviceLabelMap[serviceName] || serviceName.toLowerCase().replace(/\s+/g, "-");
+
     // Сначала пытаемся найти по service label (более надежно)
     let successQuery = `probe_success{job="services-health",service="${serviceLabel}"}`;
     let successResult = await queryPrometheus(successQuery);
-    
+
     // Если не нашли по service label, пытаемся по instance URL
     if (successResult.length === 0) {
       // Нормализуем URL для поиска (убираем протокол и порт для более гибкого поиска)
       const urlParts = instanceUrl.replace(/^https?:\/\//, "").split("/");
       const hostPort = urlParts[0];
-      
+
       // Пробуем найти по части URL
       successQuery = `probe_success{job="services-health",instance=~".*${hostPort}.*"}`;
       successResult = await queryPrometheus(successQuery);
     }
-    
+
     // Если все еще не нашли, пробуем точное совпадение instance
     if (successResult.length === 0) {
       successQuery = `probe_success{job="services-health",instance="${instanceUrl}"}`;
       successResult = await queryPrometheus(successQuery);
     }
-    
+
     if (successResult.length === 0) {
       const responseTime = Date.now() - startTime;
       // Пробуем получить все доступные метрики для диагностики
       const allServices = await queryPrometheus('probe_success{job="services-health"}');
-      const availableServices = allServices.map(r => ({
+      const availableServices = allServices.map((r) => ({
         service: r.labels?.service || "unknown",
         instance: r.labels?.instance || "unknown",
       }));
-      
+
       return {
         status: "error",
         responseTime,
         error: `Service ${serviceName} (${serviceLabel}) not found in Prometheus metrics. Available: ${JSON.stringify(availableServices)}`,
       };
     }
-    
+
     const isOnline = successResult[0].value === 1;
 
     // Получаем HTTP статус код, если доступен
@@ -628,8 +635,8 @@ export async function getServiceMetricsFromPrometheus(
     } catch {
       // Используем время запроса к Prometheus
     }
-    
-    const responseTime = probeResponseTime || (Date.now() - startTime);
+
+    const responseTime = probeResponseTime || Date.now() - startTime;
 
     return {
       status: isOnline ? "online" : "offline",
@@ -645,7 +652,6 @@ export async function getServiceMetricsFromPrometheus(
     };
   }
 }
-
 
 /**
  * Интерфейс для метрик очереди BullMQ
@@ -678,7 +684,9 @@ export async function getQueuesMetricsFromPrometheus(): Promise<QueueMetrics[]> 
         const [waiting, active, completed, failed, delayed] = await Promise.all([
           querySingleValue(`bullmq_job_count{queue="${queueName}",state="waiting"}`).catch(() => 0),
           querySingleValue(`bullmq_job_count{queue="${queueName}",state="active"}`).catch(() => 0),
-          querySingleValue(`bullmq_job_count{queue="${queueName}",state="completed"}`).catch(() => 0),
+          querySingleValue(`bullmq_job_count{queue="${queueName}",state="completed"}`).catch(
+            () => 0,
+          ),
           querySingleValue(`bullmq_job_count{queue="${queueName}",state="failed"}`).catch(() => 0),
           querySingleValue(`bullmq_job_count{queue="${queueName}",state="delayed"}`).catch(() => 0),
         ]);
@@ -687,7 +695,7 @@ export async function getQueuesMetricsFromPrometheus(): Promise<QueueMetrics[]> 
         let throughput: number | undefined;
         try {
           throughput = await querySingleValue(
-            `sum(rate(bullmq_job_count{queue="${queueName}",state="completed"}[5m]))`
+            `sum(rate(bullmq_job_count{queue="${queueName}",state="completed"}[5m]))`,
           );
         } catch {
           // Если не удалось получить rate, оставляем undefined
@@ -696,7 +704,9 @@ export async function getQueuesMetricsFromPrometheus(): Promise<QueueMetrics[]> 
         // Получаем среднее время обработки
         let averageDuration: number | undefined;
         try {
-          averageDuration = await querySingleValue(`bullmq_job_duration_seconds{queue="${queueName}"}`);
+          averageDuration = await querySingleValue(
+            `bullmq_job_duration_seconds{queue="${queueName}"}`,
+          );
         } catch {
           // Если не удалось получить, оставляем undefined
         }
@@ -716,7 +726,8 @@ export async function getQueuesMetricsFromPrometheus(): Promise<QueueMetrics[]> 
           failed: Math.round(failed),
           delayed: Math.round(delayed),
           throughput: throughput !== undefined ? Math.round(throughput * 100) / 100 : undefined,
-          averageDuration: averageDuration !== undefined ? Math.round(averageDuration * 1000) / 1000 : undefined,
+          averageDuration:
+            averageDuration !== undefined ? Math.round(averageDuration * 1000) / 1000 : undefined,
           errorRate: errorRate !== undefined ? Math.round(errorRate * 100) / 100 : undefined,
         });
       } catch {
@@ -735,11 +746,10 @@ export async function getQueuesMetricsFromPrometheus(): Promise<QueueMetrics[]> 
     return queueMetrics;
   } catch (error) {
     throw new Error(
-      `Failed to get queues metrics from Prometheus: ${error instanceof Error ? error.message : "Unknown error"}`
+      `Failed to get queues metrics from Prometheus: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
-
 
 /**
  * Экспорт функции для выполнения произвольных PromQL запросов
@@ -771,4 +781,3 @@ export async function getErrorMetricsFromPrometheus(): Promise<ErrorMetricsFromP
 }
 
 export { queryPrometheus, querySingleValue };
-

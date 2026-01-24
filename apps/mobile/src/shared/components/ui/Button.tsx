@@ -13,13 +13,13 @@ interface ButtonProps extends Omit<PaperButtonProps, "children"> {
  * Кнопка с haptic feedback (стиль как в веб)
  * Обёртка над React Native Paper Button
  */
-export function Button({ 
-  label, 
-  haptic = true, 
-  onPress, 
+export function Button({
+  label,
+  haptic = true,
+  onPress,
   style,
   variant = "primary",
-  ...props 
+  ...props
 }: ButtonProps) {
   const handlePress = async (e: Parameters<NonNullable<PaperButtonProps["onPress"]>>[0]) => {
     if (haptic) {
@@ -34,11 +34,7 @@ export function Button({
     <PaperButton
       mode={isPrimary ? "contained" : "outlined"}
       onPress={handlePress}
-      style={[
-        styles.button, 
-        isPrimary ? styles.primaryButton : styles.outlineButton,
-        style
-      ]}
+      style={[styles.button, isPrimary ? styles.primaryButton : styles.outlineButton, style]}
       contentStyle={styles.content}
       labelStyle={[styles.label, isPrimary ? styles.primaryLabel : styles.outlineLabel]}
       buttonColor={isPrimary ? COLORS.primary : COLORS.cardBackground}

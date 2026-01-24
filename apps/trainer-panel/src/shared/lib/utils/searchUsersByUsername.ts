@@ -5,7 +5,7 @@ import { createTrainerPanelLogger } from "@gafus/logger";
 import { unstable_cache } from "next/cache";
 
 // Создаем логгер для searchUsersByUsername
-const logger = createTrainerPanelLogger('trainer-panel-search-users');
+const logger = createTrainerPanelLogger("trainer-panel-search-users");
 
 export const searchUsersByUsername = unstable_cache(
   async (search: string) => {
@@ -23,8 +23,8 @@ export const searchUsersByUsername = unstable_cache(
       });
     } catch (error) {
       logger.error("❌ Error in searchUsersByUsername", error as Error, {
-        operation: 'search_users_by_username_error',
-        search: search
+        operation: "search_users_by_username_error",
+        search: search,
       });
 
       logger.error(
@@ -36,7 +36,7 @@ export const searchUsersByUsername = unstable_cache(
           search,
           errorType: error instanceof Error ? error.constructor.name : typeof error,
           tags: ["users", "search", "server-action"],
-        }
+        },
       );
 
       throw new Error("Что-то пошло не так при поиске пользователей");

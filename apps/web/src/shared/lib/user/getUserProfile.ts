@@ -5,7 +5,7 @@ import { createWebLogger } from "@gafus/logger";
 import { getCurrentUserId as getCurrentUserIdFromAuth } from "@gafus/auth/server";
 
 // Создаем логгер для getUserProfile
-const logger = createWebLogger('web-get-user-profile');
+const logger = createWebLogger("web-get-user-profile");
 
 export async function getUserProfile() {
   let userId: string | null = null;
@@ -22,8 +22,8 @@ export async function getUserProfile() {
     return profile;
   } catch (error) {
     logger.error("Ошибка в getUserProfile", error as Error, {
-      operation: 'get_user_profile_error',
-      hasUserId: !!userId
+      operation: "get_user_profile_error",
+      hasUserId: !!userId,
     });
 
     logger.error(
@@ -34,7 +34,7 @@ export async function getUserProfile() {
         action: "getUserProfile",
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         tags: ["user", "profile", "server-action"],
-      }
+      },
     );
 
     return null;

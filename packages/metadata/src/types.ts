@@ -64,4 +64,3 @@ export interface CourseSchema {
     url: string;
   };
 }
-

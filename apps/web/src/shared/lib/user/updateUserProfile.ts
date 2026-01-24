@@ -9,9 +9,13 @@ import type { Prisma } from "@gafus/prisma";
 import type { UpdateUserProfileInput } from "@gafus/types";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { normalizeTelegramInput, normalizeInstagramInput, normalizeWebsiteUrl } from "@gafus/core/utils/social";
+import {
+  normalizeTelegramInput,
+  normalizeInstagramInput,
+  normalizeWebsiteUrl,
+} from "@gafus/core/utils/social";
 
-const logger = createWebLogger('web');
+const logger = createWebLogger("web");
 
 const updateUserProfileSchema = z.object({
   fullName: z.string().trim().max(120).optional(),
@@ -22,15 +26,17 @@ const updateUserProfileSchema = z.object({
     .max(100)
     .optional()
     .transform((val) => {
-      if (!val) return '';
+      if (!val) return "";
       try {
         return normalizeTelegramInput(val);
       } catch (error) {
-        throw new z.ZodError([{
-          code: 'custom',
-          path: ['telegram'],
-          message: error instanceof Error ? error.message : 'Некорректный Telegram username'
-        }]);
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["telegram"],
+            message: error instanceof Error ? error.message : "Некорректный Telegram username",
+          },
+        ]);
       }
     }),
   instagram: z
@@ -39,15 +45,17 @@ const updateUserProfileSchema = z.object({
     .max(100)
     .optional()
     .transform((val) => {
-      if (!val) return '';
+      if (!val) return "";
       try {
         return normalizeInstagramInput(val);
       } catch (error) {
-        throw new z.ZodError([{
-          code: 'custom',
-          path: ['instagram'],
-          message: error instanceof Error ? error.message : 'Некорректный Instagram username'
-        }]);
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["instagram"],
+            message: error instanceof Error ? error.message : "Некорректный Instagram username",
+          },
+        ]);
       }
     }),
   website: z
@@ -56,15 +64,17 @@ const updateUserProfileSchema = z.object({
     .max(200)
     .optional()
     .transform((val) => {
-      if (!val) return '';
+      if (!val) return "";
       try {
         return normalizeWebsiteUrl(val);
       } catch (error) {
-        throw new z.ZodError([{
-          code: 'custom',
-          path: ['website'],
-          message: error instanceof Error ? error.message : 'Некорректный URL'
-        }]);
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["website"],
+            message: error instanceof Error ? error.message : "Некорректный URL",
+          },
+        ]);
       }
     }),
   birthDate: z.string().trim().max(100).optional(),
@@ -132,12 +142,16 @@ export async function updateUserProfile({
     });
     return result;
   } catch (error) {
-    logger.error("❌ Ошибка в updateUserProfile:", error as Error, { operation: 'error' });
-    logger.error("📋 Детали ошибки:", {
-      name: error instanceof Error ? error.name : "Unknown",
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : "No stack",
-    } as Error, { operation: 'error' });
+    logger.error("❌ Ошибка в updateUserProfile:", error as Error, { operation: "error" });
+    logger.error(
+      "📋 Детали ошибки:",
+      {
+        name: error instanceof Error ? error.name : "Unknown",
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : "No stack",
+      } as Error,
+      { operation: "error" },
+    );
     throw new Error("Ошибка при обновлении профиля. Попробуйте перезагрузить страницу.");
   }
 }

@@ -59,14 +59,9 @@ function SortableSelectedItem<T>({
   getItemLabel,
   onRemove,
 }: SortableSelectedItemProps<T>) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: String(index) });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: String(index),
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -104,8 +99,8 @@ function SortableSelectedItem<T>({
       >
         <DragIndicatorIcon color="action" />
       </ListItemIcon>
-      <ListItemText 
-        primary={getItemLabel(item)} 
+      <ListItemText
+        primary={getItemLabel(item)}
         onClick={handleTextClick}
         sx={{
           cursor: "pointer",
@@ -140,27 +135,30 @@ export default function DualListSelector<T>({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
-  const getFilteredItems = useCallback((items: T[]): T[] => {
-    let filtered = items;
-    
-    // Фильтр по тексту
-    if (searchText.trim()) {
-      const searchLower = searchText.toLowerCase().trim();
-      filtered = filtered.filter((item) => {
-        const text = (getItemSearchText || getItemLabel)(item).toLowerCase();
-        return text.includes(searchLower);
-      });
-    }
-    
-    return filtered;
-  }, [searchText, getItemSearchText, getItemLabel]);
+  const getFilteredItems = useCallback(
+    (items: T[]): T[] => {
+      let filtered = items;
+
+      // Фильтр по тексту
+      if (searchText.trim()) {
+        const searchLower = searchText.toLowerCase().trim();
+        filtered = filtered.filter((item) => {
+          const text = (getItemSearchText || getItemLabel)(item).toLowerCase();
+          return text.includes(searchLower);
+        });
+      }
+
+      return filtered;
+    },
+    [searchText, getItemSearchText, getItemLabel],
+  );
 
   useEffect(() => {
     const filteredAllItems = getFilteredItems(allItems);
-    
+
     if (allowDuplicates) {
       // Если дубликаты разрешены, показываем все отфильтрованные элементы как доступные
       setAvailableItems(filteredAllItems);
@@ -251,14 +249,14 @@ export default function DualListSelector<T>({
                 }}
               >
                 <Typography variant="subtitle1">Доступные ({availableItems.length})</Typography>
-                <Button 
-                  size="small" 
-                  onClick={handleAddAll} 
+                <Button
+                  size="small"
+                  onClick={handleAddAll}
                   disabled={availableItems.length === 0}
                   sx={{
-                    WebkitTapHighlightColor: 'transparent',
-                    touchAction: 'manipulation',
-                    minHeight: { xs: '44px', sm: 'auto' }
+                    WebkitTapHighlightColor: "transparent",
+                    touchAction: "manipulation",
+                    minHeight: { xs: "44px", sm: "auto" },
                   }}
                 >
                   Добавить все
@@ -280,20 +278,22 @@ export default function DualListSelector<T>({
                   }}
                 />
               </Box>
-              <List sx={{ 
-                minHeight: { xs: 300, sm: 400, md: 480 },
-                maxHeight: { xs: 300, sm: 400, md: 480 },
-                overflow: "auto" 
-              }}>
+              <List
+                sx={{
+                  minHeight: { xs: 300, sm: 400, md: 480 },
+                  maxHeight: { xs: 300, sm: 400, md: 480 },
+                  overflow: "auto",
+                }}
+              >
                 {availableItems.map((item, index) => (
                   <ListItemButton
                     key={`available-${index}-${getItemId(item)}`}
                     onClick={() => handleAdd(item)}
-                    sx={{ 
+                    sx={{
                       py: 0.5,
-                      WebkitTapHighlightColor: 'transparent',
-                      touchAction: 'manipulation',
-                      minHeight: { xs: '44px', sm: 'auto' }
+                      WebkitTapHighlightColor: "transparent",
+                      touchAction: "manipulation",
+                      minHeight: { xs: "44px", sm: "auto" },
                     }}
                   >
                     <ListItemText primary={getItemLabel(item)} />
@@ -323,9 +323,9 @@ export default function DualListSelector<T>({
               onClick={handleAddAll}
               disabled={availableItems.length === 0}
               sx={{
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation',
-                minHeight: { xs: '44px', sm: 'auto' }
+                WebkitTapHighlightColor: "transparent",
+                touchAction: "manipulation",
+                minHeight: { xs: "44px", sm: "auto" },
               }}
             >
               &gt;&gt;
@@ -336,9 +336,9 @@ export default function DualListSelector<T>({
               onClick={handleRemoveAll}
               disabled={selected.length === 0}
               sx={{
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation',
-                minHeight: { xs: '44px', sm: 'auto' }
+                WebkitTapHighlightColor: "transparent",
+                touchAction: "manipulation",
+                minHeight: { xs: "44px", sm: "auto" },
               }}
             >
               &lt;&lt;
@@ -357,14 +357,14 @@ export default function DualListSelector<T>({
                 }}
               >
                 <Typography variant="subtitle1">Выбранные ({selected.length})</Typography>
-                <Button 
-                  size="small" 
-                  onClick={handleRemoveAll} 
+                <Button
+                  size="small"
+                  onClick={handleRemoveAll}
                   disabled={selected.length === 0}
                   sx={{
-                    WebkitTapHighlightColor: 'transparent',
-                    touchAction: 'manipulation',
-                    minHeight: { xs: '44px', sm: 'auto' }
+                    WebkitTapHighlightColor: "transparent",
+                    touchAction: "manipulation",
+                    minHeight: { xs: "44px", sm: "auto" },
                   }}
                 >
                   Удалить все
@@ -379,11 +379,13 @@ export default function DualListSelector<T>({
                   items={selected.map((_, index) => String(index))}
                   strategy={verticalListSortingStrategy}
                 >
-                  <List sx={{ 
-                    minHeight: { xs: 300, sm: 400, md: 480 },
-                    maxHeight: { xs: 300, sm: 400, md: 480 },
-                    overflow: "auto" 
-                  }}>
+                  <List
+                    sx={{
+                      minHeight: { xs: 300, sm: 400, md: 480 },
+                      maxHeight: { xs: 300, sm: 400, md: 480 },
+                      overflow: "auto",
+                    }}
+                  >
                     {selected.map((item, index) => (
                       <SortableSelectedItem
                         key={`selected-${getItemId(item)}-${index}`}

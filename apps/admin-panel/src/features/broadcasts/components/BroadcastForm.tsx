@@ -26,7 +26,7 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
     type: "success" | "error";
     text: string;
   } | null>(null);
-  
+
   const [isPending, startTransition] = useTransition();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,11 +51,7 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
 
     startTransition(async () => {
       try {
-        const result = await sendBroadcastPush(
-          title.trim(),
-          body.trim(),
-          url.trim() || undefined
-        );
+        const result = await sendBroadcastPush(title.trim(), body.trim(), url.trim() || undefined);
 
         if (result.success) {
           setMessage({
@@ -64,7 +60,7 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
               result.failedCount > 0 ? `Не удалось отправить: ${result.failedCount}` : ""
             }`,
           });
-          
+
           // Очищаем форму после успешной отправки
           setTitle("");
           setBody("");
@@ -87,11 +83,19 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
   return (
     <Card className={className}>
       <CardContent>
-        <Typography variant="h6" gutterBottom sx={{ mb: 2, fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{ mb: 2, fontSize: { xs: "1.1rem", sm: "1.25rem" } }}
+        >
           Массовая рассылка push-уведомлений
         </Typography>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mb: 3, fontSize: { xs: "0.875rem", sm: "0.875rem" } }}
+        >
           Отправьте push-уведомление всем пользователям, которые разрешили получать уведомления.
           Уведомление будет отправлено на все устройства пользователей.
         </Typography>
@@ -148,10 +152,10 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
               disabled={isPending}
               fullWidth
               startIcon={isPending ? <CircularProgress size={20} /> : <SendIcon />}
-              sx={{ 
+              sx={{
                 alignSelf: { xs: "stretch", sm: "flex-start" },
                 minHeight: { xs: "44px", sm: "auto" },
-                "@media (min-width: 769px)": { width: "auto" }
+                "@media (min-width: 769px)": { width: "auto" },
               }}
             >
               {isPending ? "Отправка..." : "Отправить всем"}
@@ -160,9 +164,13 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
         </form>
 
         <Box sx={{ mt: 3, p: { xs: 1.5, sm: 2 }, bgcolor: "info.light", borderRadius: 1 }}>
-          <Typography variant="body2" color="info.dark" sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
-            <strong>⚠️ Важно:</strong> Это действие отправит уведомление всем пользователям
-            с активными подписками. Используйте эту функцию ответственно и только для важных
+          <Typography
+            variant="body2"
+            color="info.dark"
+            sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}
+          >
+            <strong>⚠️ Важно:</strong> Это действие отправит уведомление всем пользователям с
+            активными подписками. Используйте эту функцию ответственно и только для важных
             объявлений.
           </Typography>
         </Box>
@@ -170,4 +178,3 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
     </Card>
   );
 }
-

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 // Создаем логгер для deletePushSubscription
-const logger = createWebLogger('web-delete-push-subscription');
+const logger = createWebLogger("web-delete-push-subscription");
 
 const endpointSchema = z.string().trim().min(1, "endpoint обязателен");
 
@@ -18,27 +18,24 @@ export async function deletePushSubscriptionByEndpoint(endpoint: string) {
   const safeEndpoint = endpointSchema.parse(endpoint);
   try {
     const userId = await getCurrentUserId();
-    logger.warn(
-      "Удаление подписки для пользователя:",
-      { 
-        userId, 
-        endpoint: safeEndpoint.substring(0, 50) + "...", 
-        operation: 'warn' 
-      }
-    );
+    logger.warn("Удаление подписки для пользователя:", {
+      userId,
+      endpoint: safeEndpoint.substring(0, 50) + "...",
+      operation: "warn",
+    });
 
     // Удаляем только конкретную подписку по endpoint
     const result = await prisma.pushSubscription.deleteMany({
-      where: { 
+      where: {
         userId,
         endpoint: safeEndpoint,
       },
     });
 
-    logger.warn("Удалено подписок:", { deletedCount: result.count, operation: 'warn' });
+    logger.warn("Удалено подписок:", { deletedCount: result.count, operation: "warn" });
     return { success: true, deletedCount: result.count };
   } catch (error) {
-    logger.error("Ошибка при удалении push-подписки:", error as Error, { operation: 'error' });
+    logger.error("Ошибка при удалении push-подписки:", error as Error, { operation: "error" });
     throw new Error("Не удалось удалить подписку на уведомления");
   }
 }
@@ -50,17 +47,17 @@ export async function deletePushSubscriptionByEndpoint(endpoint: string) {
 export async function deleteAllPushSubscriptions() {
   try {
     const userId = await getCurrentUserId();
-    logger.warn("Удаление ВСЕХ подписок для пользователя:", { userId, operation: 'warn' });
+    logger.warn("Удаление ВСЕХ подписок для пользователя:", { userId, operation: "warn" });
 
     // Удаляем все подписки пользователя
     const result = await prisma.pushSubscription.deleteMany({
       where: { userId },
     });
 
-    logger.warn("Удалено подписок:", { deletedCount: result.count, operation: 'warn' });
+    logger.warn("Удалено подписок:", { deletedCount: result.count, operation: "warn" });
     return { success: true, deletedCount: result.count };
   } catch (error) {
-    logger.error("Ошибка при удалении всех push-подписок:", error as Error, { operation: 'error' });
+    logger.error("Ошибка при удалении всех push-подписок:", error as Error, { operation: "error" });
     throw new Error("Не удалось удалить подписки на уведомления");
   }
 }

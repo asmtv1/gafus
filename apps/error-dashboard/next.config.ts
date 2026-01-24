@@ -11,8 +11,8 @@ interface WebpackConfig {
 
 const nextConfig: NextConfig = {
   // Включаем standalone режим для production (кроме явного отключения)
-  ...((process.env.NODE_ENV === 'production' || process.env.USE_STANDALONE === 'true') && 
-      process.env.DISABLE_STANDALONE !== 'true' && { output: 'standalone' }),
+  ...((process.env.NODE_ENV === "production" || process.env.USE_STANDALONE === "true") &&
+    process.env.DISABLE_STANDALONE !== "true" && { output: "standalone" }),
   serverExternalPackages: ["@gafus/prisma"],
   eslint: {
     // Игнорируем ESLint во время сборки
@@ -62,9 +62,9 @@ const nextConfig: NextConfig = {
     config.plugins = config.plugins || [];
     config.plugins.push({
       apply: (compiler: any) => {
-        compiler.hooks.emit.tap('CreateWorkerFile', (compilation: any) => {
-          compilation.assets['lib/worker.js'] = {
-            source: () => 'module.exports = {};',
+        compiler.hooks.emit.tap("CreateWorkerFile", (compilation: any) => {
+          compilation.assets["lib/worker.js"] = {
+            source: () => "module.exports = {};",
             size: () => 20,
           };
         });

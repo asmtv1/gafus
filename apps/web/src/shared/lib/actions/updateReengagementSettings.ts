@@ -5,14 +5,14 @@ import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('update-reengagement-settings');
+const logger = createWebLogger("update-reengagement-settings");
 
 /**
  * Обновить настройки re-engagement уведомлений
  */
 export async function updateReengagementSettings(
   enabled: boolean,
-  preferredTime?: string
+  preferredTime?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await getServerSession(authOptions);
@@ -20,7 +20,7 @@ export async function updateReengagementSettings(
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Необходимо войти в систему"
+        error: "Необходимо войти в систему",
       };
     }
 
@@ -33,13 +33,13 @@ export async function updateReengagementSettings(
         userId,
         enabled,
         preferredTime: preferredTime || null,
-        unsubscribedAt: enabled ? null : new Date()
+        unsubscribedAt: enabled ? null : new Date(),
       },
       update: {
         enabled,
         preferredTime: preferredTime || null,
-        unsubscribedAt: enabled ? null : new Date()
-      }
+        unsubscribedAt: enabled ? null : new Date(),
+      },
     });
 
     // Если отключили - закрыть все активные кампании
@@ -47,26 +47,26 @@ export async function updateReengagementSettings(
       await prisma.reengagementCampaign.updateMany({
         where: {
           userId,
-          isActive: true
+          isActive: true,
         },
         data: {
           isActive: false,
-          unsubscribed: true
-        }
+          unsubscribed: true,
+        },
       });
 
-      logger.info('Пользователь отписался от re-engagement уведомлений', { userId });
+      logger.info("Пользователь отписался от re-engagement уведомлений", { userId });
     } else {
-      logger.info('Пользователь включил re-engagement уведомления', { userId });
+      logger.info("Пользователь включил re-engagement уведомления", { userId });
     }
 
     return { success: true };
   } catch (error) {
-    logger.error('Ошибка обновления настроек re-engagement', error as Error);
-    
+    logger.error("Ошибка обновления настроек re-engagement", error as Error);
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }
@@ -88,7 +88,7 @@ export async function getReengagementSettings(): Promise<{
     if (!session?.user?.id) {
       return {
         success: false,
-        error: "Необходимо войти в систему"
+        error: "Необходимо войти в систему",
       };
     }
 
@@ -96,8 +96,8 @@ export async function getReengagementSettings(): Promise<{
       where: { userId: session.user.id },
       select: {
         enabled: true,
-        preferredTime: true
-      }
+        preferredTime: true,
+      },
     });
 
     // Если настройки не найдены - по умолчанию включено
@@ -106,8 +106,8 @@ export async function getReengagementSettings(): Promise<{
         success: true,
         data: {
           enabled: true,
-          preferredTime: null
-        }
+          preferredTime: null,
+        },
       };
     }
 
@@ -115,15 +115,15 @@ export async function getReengagementSettings(): Promise<{
       success: true,
       data: {
         enabled: settings.enabled,
-        preferredTime: settings.preferredTime
-      }
+        preferredTime: settings.preferredTime,
+      },
     };
   } catch (error) {
-    logger.error('Ошибка получения настроек re-engagement', error as Error);
-    
+    logger.error("Ошибка получения настроек re-engagement", error as Error);
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }

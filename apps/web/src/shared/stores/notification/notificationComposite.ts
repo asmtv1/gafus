@@ -8,7 +8,7 @@ import { usePermissionStore } from "../permission/permissionStore";
 import { usePushStore } from "../push/pushStore";
 import { useNotificationUIStore } from "../ui/notificationUIStore";
 
-const logger = createWebLogger('web');
+const logger = createWebLogger("web");
 
 /**
  * Главный хук для работы с уведомлениями
@@ -28,48 +28,54 @@ export function useNotificationComposite() {
     return push.ensureActiveSubscription();
   }, [push.ensureActiveSubscription]);
 
-  const setUserId = useCallback((userId: string) => {
-    return push.setUserId(userId);
-  }, [push.setUserId]);
+  const setUserId = useCallback(
+    (userId: string) => {
+      return push.setUserId(userId);
+    },
+    [push.setUserId],
+  );
 
-  const requestPermission = useCallback(async (vapidPublicKey?: string): Promise<void> => {
-    // Проверяем текущее разрешение до запроса
-    const permissionBeforeRequest = permission.permission;
-    
-    const result = await permission.requestPermission();
+  const requestPermission = useCallback(
+    async (vapidPublicKey?: string): Promise<void> => {
+      // Проверяем текущее разрешение до запроса
+      const permissionBeforeRequest = permission.permission;
 
-    if (result === "granted") {
-      ui.markModalAsShown();
+      const result = await permission.requestPermission();
 
-      try {
-        if (vapidPublicKey) {
-          await push.setupPushSubscription(vapidPublicKey);
-        } else {
-          const { publicKey } = await getPublicKeyAction();
-          if (publicKey) {
-            await push.setupPushSubscription(publicKey);
+      if (result === "granted") {
+        ui.markModalAsShown();
+
+        try {
+          if (vapidPublicKey) {
+            await push.setupPushSubscription(vapidPublicKey);
           } else {
-            const errorMsg = "VAPID key not available for push subscription";
-            permission.setError(errorMsg);
-            throw new Error(errorMsg);
+            const { publicKey } = await getPublicKeyAction();
+            if (publicKey) {
+              await push.setupPushSubscription(publicKey);
+            } else {
+              const errorMsg = "VAPID key not available for push subscription";
+              permission.setError(errorMsg);
+              throw new Error(errorMsg);
+            }
           }
+        } catch (e) {
+          logger.error("Failed to setup push subscription:", e as Error, { operation: "error" });
+          const errorMsg = e instanceof Error ? e.message : "Ошибка настройки push-подписки";
+          permission.setError(errorMsg);
+          throw e;
         }
-      } catch (e) {
-        logger.error("Failed to setup push subscription:", e as Error, { operation: 'error' });
-        const errorMsg = e instanceof Error ? e.message : "Ошибка настройки push-подписки";
+      } else {
+        // Если разрешение было denied до запроса, значит оно было заблокировано
+        const wasBlockedBefore = permissionBeforeRequest === "denied";
+        const errorMsg = wasBlockedBefore
+          ? "Разрешение на уведомления заблокировано в настройках браузера"
+          : "Пользователь не разрешил уведомления";
         permission.setError(errorMsg);
-        throw e;
+        throw new Error(errorMsg);
       }
-    } else {
-      // Если разрешение было denied до запроса, значит оно было заблокировано
-      const wasBlockedBefore = permissionBeforeRequest === "denied";
-      const errorMsg = wasBlockedBefore
-        ? "Разрешение на уведомления заблокировано в настройках браузера"
-        : "Пользователь не разрешил уведомления";
-      permission.setError(errorMsg);
-      throw new Error(errorMsg);
-    }
-  }, [permission, ui.markModalAsShown, push.setupPushSubscription]);
+    },
+    [permission, ui.markModalAsShown, push.setupPushSubscription],
+  );
 
   return {
     // Состояние
@@ -175,7 +181,7 @@ export function useNotificationModal() {
         stores.push.setDisabledByUser(true);
       }
     } catch (error) {
-      logger.warn("Failed to get localStorage item:", { error, operation: 'warn' });
+      logger.warn("Failed to get localStorage item:", { error, operation: "warn" });
     }
   }, [stores.push]);
 

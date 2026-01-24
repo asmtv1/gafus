@@ -1,6 +1,5 @@
 "use client";
 
-
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { createTrainingDay } from "@features/steps/lib/createTrainingDay";
 import { updateTrainingDay } from "@features/steps/lib/updateTrainingDay";
@@ -17,7 +16,7 @@ import FormSection from "@shared/components/FormSection";
 import type { IdTitleItem as Step } from "@gafus/types";
 
 // Создаем логгер для create-day-client
-const logger = createTrainerPanelLogger('trainer-panel-create-day-client');
+const logger = createTrainerPanelLogger("trainer-panel-create-day-client");
 
 // Step тип теперь импортируется из @gafus/types
 
@@ -85,7 +84,7 @@ export default function CreateDayClient({ allSteps, initialDay }: Props) {
         setSelectedSteps([]);
       }
     } catch (err) {
-      logger.error("Ошибка при сохранении:", err as Error, { operation: 'error' });
+      logger.error("Ошибка при сохранении:", err as Error, { operation: "error" });
       showToast("Ошибка при сохранении дня", "error");
     }
   };
@@ -115,11 +114,7 @@ export default function CreateDayClient({ allSteps, initialDay }: Props) {
       </FormSection>
 
       <Box className={sharedStyles.formActions}>
-        <Button 
-          variant="contained" 
-          onClick={handleSaveDay} 
-          className={sharedStyles.formButton}
-        >
+        <Button variant="contained" onClick={handleSaveDay} className={sharedStyles.formButton}>
           {isEdit ? "Сохранить изменения" : "Создать день"}
         </Button>
       </Box>

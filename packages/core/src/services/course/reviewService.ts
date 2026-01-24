@@ -6,7 +6,7 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
 
-const logger = createWebLogger('review-service');
+const logger = createWebLogger("review-service");
 
 // ========== Types ==========
 
@@ -47,7 +47,7 @@ export interface ReviewActionResult {
  */
 export async function getCourseReviews(
   courseType: string,
-  userId?: string
+  userId?: string,
 ): Promise<CourseReviewsResult | null> {
   const course = await prisma.course.findUnique({
     where: { type: courseType },
@@ -120,7 +120,7 @@ export async function createCourseReview(
   userId: string,
   courseType: string,
   rating: number,
-  comment?: string
+  comment?: string,
 ): Promise<ReviewActionResult> {
   // Находим курс
   const course = await prisma.course.findUnique({
@@ -188,7 +188,7 @@ export async function updateCourseReview(
   userId: string,
   reviewId: string,
   rating: number,
-  comment?: string
+  comment?: string,
 ): Promise<ReviewActionResult> {
   // Находим отзыв и проверяем что он принадлежит пользователю
   const review = await prisma.courseReview.findUnique({
@@ -231,7 +231,7 @@ export async function updateCourseReview(
  */
 export async function deleteCourseReview(
   userId: string,
-  reviewId: string
+  reviewId: string,
 ): Promise<ReviewActionResult> {
   const review = await prisma.courseReview.findUnique({
     where: { id: reviewId },
@@ -270,7 +270,7 @@ export async function deleteCourseReview(
 export async function rateCourse(
   userId: string,
   courseId: string,
-  rating: number
+  rating: number,
 ): Promise<ReviewActionResult> {
   // Проверяем что курс существует
   const course = await prisma.course.findUnique({

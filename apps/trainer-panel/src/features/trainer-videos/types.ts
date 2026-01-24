@@ -4,4 +4,3 @@ export type TrainerVideoViewModel = Omit<TrainerVideoDto, "createdAt" | "updated
   createdAt: string;
   updatedAt: string;
 };
-

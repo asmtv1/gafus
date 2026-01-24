@@ -1,6 +1,6 @@
 /**
  * Auth Service - бизнес-логика аутентификации
- * 
+ *
  * Этот модуль содержит чистую бизнес-логику без Next.js специфики.
  * Server Actions являются тонкими обёртками над этими функциями.
  */
@@ -15,7 +15,7 @@ import {
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('auth-service');
+const logger = createWebLogger("auth-service");
 
 /**
  * Проверяет статус подтверждения пользователя по имени
@@ -56,10 +56,7 @@ export async function serverCheckUserConfirmed(phone: string): Promise<boolean> 
  * @param phone - Номер телефона
  * @returns Результат отправки
  */
-export async function sendPasswordResetRequest(
-  username: string,
-  phone: string
-) {
+export async function sendPasswordResetRequest(username: string, phone: string) {
   logger.info("Sending password reset request", { username });
   return sendTelegramPasswordResetRequest(username, phone);
 }
@@ -71,11 +68,7 @@ export async function sendPasswordResetRequest(
  * @param password - Пароль
  * @returns Результат регистрации
  */
-export async function registerUserService(
-  name: string,
-  phone: string,
-  password: string
-) {
+export async function registerUserService(name: string, phone: string, password: string) {
   logger.info("Registering new user", { name, phone });
   return registerUser(name, phone, password);
 }
@@ -85,10 +78,7 @@ export async function registerUserService(
  * @param token - Токен сброса пароля
  * @param password - Новый пароль
  */
-export async function resetPassword(
-  token: string,
-  password: string
-): Promise<void> {
+export async function resetPassword(token: string, password: string): Promise<void> {
   logger.info("Resetting password");
   await resetPasswordByToken(token, password);
 }
@@ -99,10 +89,7 @@ export async function resetPassword(
  * @param phone - Номер телефона для проверки
  * @returns true если номера совпадают
  */
-export async function checkPhoneMatchesUsername(
-  username: string,
-  phone: string
-): Promise<boolean> {
+export async function checkPhoneMatchesUsername(username: string, phone: string): Promise<boolean> {
   logger.info("Checking phone matches username", { username });
 
   const dbPhone = await getUserPhoneByUsername(username);

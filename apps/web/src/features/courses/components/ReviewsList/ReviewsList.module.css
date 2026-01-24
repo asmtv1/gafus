@@ -10,7 +10,7 @@
 
 .title {
   font-size: 1.8rem;
-  color: #352E2E;
+  color: #352e2e;
   margin: 0;
 }
 
@@ -82,7 +82,7 @@
 
 .username {
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   font-size: 1rem;
 }
 
@@ -126,7 +126,7 @@
 .formTitle {
   margin: 0 0 20px 0;
   font-size: 1.3rem;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .formGroup {
@@ -137,7 +137,7 @@
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .textarea {
@@ -197,7 +197,7 @@
 
 .cancelButton {
   background: #fff;
-  color: #352E2E;
+  color: #352e2e;
   border: 1px solid #e0e0e0;
   padding: 12px 24px;
   border-radius: 8px;
@@ -260,7 +260,7 @@
 
 .comment p {
   margin: 0;
-  color: #352E2E;
+  color: #352e2e;
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -342,4 +342,3 @@
     font-size: 0.95rem;
   }
 }
-

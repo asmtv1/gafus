@@ -1,30 +1,52 @@
-export type { Course, CourseAccess, CourseReview, DayOnCourse, ErrorLog, FavoriteCourse, Pet, PrismaClient, PushSubscription, Step, StepNotification, StepOnDay, TrainingDay, TrainingLevel, TrainingStatus, User, UserCourse, UserProfile, UserRole, UserStep, UserTraining, } from "@prisma/client";
+export type {
+  Course,
+  CourseAccess,
+  CourseReview,
+  DayOnCourse,
+  ErrorLog,
+  FavoriteCourse,
+  Pet,
+  PrismaClient,
+  PushSubscription,
+  Step,
+  StepNotification,
+  StepOnDay,
+  TrainingDay,
+  TrainingLevel,
+  TrainingStatus,
+  User,
+  UserCourse,
+  UserProfile,
+  UserRole,
+  UserStep,
+  UserTraining,
+} from "@prisma/client";
 export { PetType, StepType, TranscodingStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 export { Prisma };
 import type { PrismaClient } from "@prisma/client";
 export interface DatabaseClient {
-    user: PrismaClient["user"];
-    course: PrismaClient["course"];
-    trainingDay: PrismaClient["trainingDay"];
-    step: PrismaClient["step"];
-    dayOnCourse: PrismaClient["dayOnCourse"];
-    stepOnDay: PrismaClient["stepOnDay"];
-    userCourse: PrismaClient["userCourse"];
-    courseAccess: PrismaClient["courseAccess"];
-    favoriteCourse: PrismaClient["favoriteCourse"];
-    courseReview: PrismaClient["courseReview"];
-    stepNotification: PrismaClient["stepNotification"];
-    errorLog: PrismaClient["errorLog"];
-    pushSubscription: PrismaClient["pushSubscription"];
-    userProfile: PrismaClient["userProfile"];
-    userTraining: PrismaClient["userTraining"];
-    userStep: PrismaClient["userStep"];
-    pet: PrismaClient["pet"];
-    $connect: () => Promise<void>;
-    $disconnect: () => Promise<void>;
-    $on: (event: string, callback: (params: unknown) => void) => void;
-    $transaction: <T>(fn: (prisma: DatabaseClient) => Promise<T>) => Promise<T>;
+  user: PrismaClient["user"];
+  course: PrismaClient["course"];
+  trainingDay: PrismaClient["trainingDay"];
+  step: PrismaClient["step"];
+  dayOnCourse: PrismaClient["dayOnCourse"];
+  stepOnDay: PrismaClient["stepOnDay"];
+  userCourse: PrismaClient["userCourse"];
+  courseAccess: PrismaClient["courseAccess"];
+  favoriteCourse: PrismaClient["favoriteCourse"];
+  courseReview: PrismaClient["courseReview"];
+  stepNotification: PrismaClient["stepNotification"];
+  errorLog: PrismaClient["errorLog"];
+  pushSubscription: PrismaClient["pushSubscription"];
+  userProfile: PrismaClient["userProfile"];
+  userTraining: PrismaClient["userTraining"];
+  userStep: PrismaClient["userStep"];
+  pet: PrismaClient["pet"];
+  $connect: () => Promise<void>;
+  $disconnect: () => Promise<void>;
+  $on: (event: string, callback: (params: unknown) => void) => void;
+  $transaction: <T>(fn: (prisma: DatabaseClient) => Promise<T>) => Promise<T>;
 }
 export { prisma, default as prismaClient } from "./client";
 export declare function isPrismaUniqueConstraintError(error: unknown): boolean;

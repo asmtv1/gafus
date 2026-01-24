@@ -73,7 +73,11 @@ export async function deleteTrainerVideo(
 
     // Проверяем владельца (только для обычных тренеров)
     if (!isAdmin && !isModerator && video.trainerId !== trainerId) {
-      logger.warn("Попытка удаления чужого видео", { videoId, trainerId, ownerId: video.trainerId });
+      logger.warn("Попытка удаления чужого видео", {
+        videoId,
+        trainerId,
+        ownerId: video.trainerId,
+      });
       return { success: false, error: "Недостаточно прав для удаления этого видео" };
     }
 
@@ -90,39 +94,39 @@ export async function deleteTrainerVideo(
 
     // КРИТИЧНО: Сначала удаляем файлы из CDN
     // Если удаление из CDN не удалось, НЕ удаляем из БД, чтобы избежать "мусора" на CDN
-    
+
     try {
       // Если видео было транскодировано в HLS, удаляем всю папку с видео
       if (video.hlsManifestPath) {
         // Извлекаем путь к папке видео из hlsManifestPath
-        // Пример: "trainers/{trainerId}/videocourses/{videoId}/hls/playlist.m3u8" 
+        // Пример: "trainers/{trainerId}/videocourses/{videoId}/hls/playlist.m3u8"
         // -> "trainers/{trainerId}/videocourses/{videoId}/"
         const videoFolder = video.hlsManifestPath.replace("/hls/playlist.m3u8", "");
-        
-        logger.info("Начало удаления папки с HLS видео из CDN", { 
+
+        logger.info("Начало удаления папки с HLS видео из CDN", {
           videoFolder,
           hlsManifestPath: video.hlsManifestPath,
         });
-        
+
         const deletedCount = await deleteFolderFromCDN(videoFolder);
-        
-        logger.success("Папка с HLS видео успешно удалена из CDN", { 
+
+        logger.success("Папка с HLS видео успешно удалена из CDN", {
           videoFolder,
           deletedFilesCount: deletedCount,
         });
       } else if (video.relativePath && video.relativePath.trim().length > 0) {
         // Старые видео без HLS - удаляем оригинальный файл
-        logger.info("Начало удаления оригинального файла из CDN", { 
+        logger.info("Начало удаления оригинального файла из CDN", {
           relativePath: video.relativePath,
         });
-        
+
         await deleteFileFromCDN(video.relativePath);
-        
-        logger.success("Оригинальный файл успешно удалён из CDN", { 
+
+        logger.success("Оригинальный файл успешно удалён из CDN", {
           relativePath: video.relativePath,
         });
       } else {
-        logger.warn("Нет путей для удаления из CDN", { 
+        logger.warn("Нет путей для удаления из CDN", {
           videoId,
           hlsManifestPath: video.hlsManifestPath,
           relativePath: video.relativePath,
@@ -147,13 +151,14 @@ export async function deleteTrainerVideo(
           relativePath: video.relativePath,
           error: cdnError instanceof Error ? cdnError.message : String(cdnError),
           tags: ["trainer-videos", "delete", "cdn-error", "critical"],
-        }
+        },
       );
 
       // НЕ удаляем из БД, если CDN недоступен - это критическая ошибка
       return {
         success: false,
-        error: "Не удалось удалить файлы из хранилища. Попробуйте позже или обратитесь в поддержку.",
+        error:
+          "Не удалось удалить файлы из хранилища. Попробуйте позже или обратитесь в поддержку.",
       };
     }
 
@@ -168,10 +173,7 @@ export async function deleteTrainerVideo(
     // Обновляем Step (ищем по videoId в URL или по полному URL)
     const updatedSteps = await prisma.step.updateMany({
       where: {
-        OR: [
-          { videoUrl: { contains: videoId } },
-          { videoUrl: fullCdnUrl },
-        ],
+        OR: [{ videoUrl: { contains: videoId } }, { videoUrl: fullCdnUrl }],
       },
       data: {
         videoUrl: null,
@@ -181,10 +183,7 @@ export async function deleteTrainerVideo(
     // Обновляем StepTemplate
     const updatedTemplates = await prisma.stepTemplate.updateMany({
       where: {
-        OR: [
-          { videoUrl: { contains: videoId } },
-          { videoUrl: fullCdnUrl },
-        ],
+        OR: [{ videoUrl: { contains: videoId } }, { videoUrl: fullCdnUrl }],
       },
       data: {
         videoUrl: null,
@@ -223,7 +222,7 @@ export async function deleteTrainerVideo(
         operation: "deleteTrainerVideo",
         action: "deleteTrainerVideo",
         tags: ["trainer-videos", "delete"],
-      }
+      },
     );
 
     return {
@@ -232,4 +231,3 @@ export async function deleteTrainerVideo(
     };
   }
 }
-

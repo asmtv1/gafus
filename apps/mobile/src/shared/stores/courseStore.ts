@@ -27,12 +27,12 @@ interface CourseActions {
   getCachedCourses: () => { data: Course[] | null; isExpired: boolean };
   setCachedCourses: (courses: Course[]) => void;
   clearCache: () => void;
-  
+
   // Избранное
   addToFavorites: (courseId: string) => void;
   removeFromFavorites: (courseId: string) => void;
   isFavorite: (courseId: string) => boolean;
-  
+
   // Фильтры
   setFilter: (key: "type" | "level" | "search", value: string | null) => void;
   clearFilters: () => void;
@@ -61,7 +61,7 @@ export const useCourseStore = create<CourseStore>()(
        */
       getCachedCourses: () => {
         const cached = get().cachedCourses;
-        
+
         if (!cached) {
           return { data: null, isExpired: true };
         }
@@ -148,6 +148,6 @@ export const useCourseStore = create<CourseStore>()(
         }
         return merged;
       },
-    }
-  )
+    },
+  ),
 );

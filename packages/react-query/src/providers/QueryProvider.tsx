@@ -31,11 +31,12 @@ export function QueryProvider({ children, client }: QueryProviderProps) {
             // Повторные попытки с более агрессивными таймаутами
             retry: (failureCount, error) => {
               // Не повторяем при сетевых ошибках или таймаутах
-              if (error instanceof Error && (
-                error.message.includes('timeout') || 
-                error.message.includes('network') ||
-                error.message.includes('fetch')
-              )) {
+              if (
+                error instanceof Error &&
+                (error.message.includes("timeout") ||
+                  error.message.includes("network") ||
+                  error.message.includes("fetch"))
+              ) {
                 return failureCount < 1; // Только одна попытка для сетевых ошибок
               }
               return failureCount < 2; // Максимум 2 попытки для других ошибок
@@ -68,9 +69,7 @@ export function QueryProvider({ children, client }: QueryProviderProps) {
   return (
     <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
       {children}
-      {process.env.NODE_ENV === "development" && (
-        <ReactQueryDevtools initialIsOpen={false} />
-      )}
+      {process.env.NODE_ENV === "development" && <ReactQueryDevtools initialIsOpen={false} />}
     </PersistQueryClientProvider>
   );
 }

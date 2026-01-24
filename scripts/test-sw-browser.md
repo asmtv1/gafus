@@ -9,26 +9,26 @@
 
 ```javascript
 // Проверка регистрации Service Worker
-navigator.serviceWorker.getRegistrations().then(regs => {
-  console.log('Зарегистрированные SW:', regs);
+navigator.serviceWorker.getRegistrations().then((regs) => {
+  console.log("Зарегистрированные SW:", regs);
   if (regs.length > 0) {
-    console.log('Активный SW:', regs[0].active);
-    console.log('Ожидающий SW:', regs[0].waiting);
-    console.log('Устанавливающийся SW:', regs[0].installing);
+    console.log("Активный SW:", regs[0].active);
+    console.log("Ожидающий SW:", regs[0].waiting);
+    console.log("Устанавливающийся SW:", regs[0].installing);
   }
 });
 
 // Проверка контроллера
-console.log('SW Controller:', navigator.serviceWorker.controller);
+console.log("SW Controller:", navigator.serviceWorker.controller);
 
 // Симуляция офлайн-запроса через fetch
-fetch('/', { cache: 'no-cache' })
-  .then(r => r.text())
-  .then(html => {
-    console.log('Ответ сервера (первые 500 символов):', html.substring(0, 500));
+fetch("/", { cache: "no-cache" })
+  .then((r) => r.text())
+  .then((html) => {
+    console.log("Ответ сервера (первые 500 символов):", html.substring(0, 500));
   })
-  .catch(err => {
-    console.log('Ошибка fetch:', err.message);
+  .catch((err) => {
+    console.log("Ошибка fetch:", err.message);
   });
 ```
 
@@ -61,15 +61,16 @@ fetch('/', { cache: 'no-cache' })
 ```javascript
 // Перехватываем все fetch запросы
 const originalFetch = window.fetch;
-window.fetch = function(...args) {
-  console.log('🔍 Fetch запрос:', args[0]);
-  return originalFetch.apply(this, args)
-    .then(response => {
-      console.log('✅ Fetch успешен:', args[0], response.status);
+window.fetch = function (...args) {
+  console.log("🔍 Fetch запрос:", args[0]);
+  return originalFetch
+    .apply(this, args)
+    .then((response) => {
+      console.log("✅ Fetch успешен:", args[0], response.status);
       return response;
     })
-    .catch(error => {
-      console.log('❌ Fetch ошибка:', args[0], error.message);
+    .catch((error) => {
+      console.log("❌ Fetch ошибка:", args[0], error.message);
       throw error;
     });
 };
@@ -82,31 +83,31 @@ window.fetch = function(...args) {
 
 ```javascript
 // Проверяем, что Service Worker перехватывает запросы
-navigator.serviceWorker.ready.then(registration => {
-  console.log('SW готов:', registration);
-  
+navigator.serviceWorker.ready.then((registration) => {
+  console.log("SW готов:", registration);
+
   // Пытаемся сделать запрос в офлайне
   // (сначала включите Offline в Network tab)
-  fetch('/', { cache: 'no-cache' })
-    .then(response => {
-      console.log('Статус ответа:', response.status);
-      console.log('Заголовки:', [...response.headers.entries()]);
+  fetch("/", { cache: "no-cache" })
+    .then((response) => {
+      console.log("Статус ответа:", response.status);
+      console.log("Заголовки:", [...response.headers.entries()]);
       return response.text();
     })
-    .then(html => {
-      console.log('HTML ответа (первые 1000 символов):');
+    .then((html) => {
+      console.log("HTML ответа (первые 1000 символов):");
       console.log(html.substring(0, 1000));
-      
+
       // Проверяем содержимое
-      if (html.includes('window.location.replace')) {
-        console.log('✅ Содержит JavaScript редирект');
+      if (html.includes("window.location.replace")) {
+        console.log("✅ Содержит JavaScript редирект");
       }
-      if (html.includes('/~offline')) {
-        console.log('✅ Содержит ссылку на страницу офлайна');
+      if (html.includes("/~offline")) {
+        console.log("✅ Содержит ссылку на страницу офлайна");
       }
     })
-    .catch(error => {
-      console.log('Ошибка:', error.message);
+    .catch((error) => {
+      console.log("Ошибка:", error.message);
     });
 });
 ```
@@ -128,6 +129,7 @@ navigator.serviceWorker.ready.then(registration => {
 Если Service Worker не работает:
 
 1. Проверьте регистрацию:
+
    ```javascript
    navigator.serviceWorker.getRegistrations().then(console.log);
    ```

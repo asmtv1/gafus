@@ -10,7 +10,7 @@ import { randomUUID } from "crypto";
 export function getUserAvatarPath(
   userId: string,
   uuid: string = randomUUID(),
-  ext: string
+  ext: string,
 ): string {
   return `users/${userId}/avatar/${uuid}.${ext}`;
 }
@@ -27,7 +27,7 @@ export function getPetPhotoPath(
   userId: string,
   petId: string,
   uuid: string = randomUUID(),
-  ext: string
+  ext: string,
 ): string {
   return `users/${userId}/pets/${petId}/${uuid}.${ext}`;
 }
@@ -44,7 +44,7 @@ export function getStepImagePath(
   trainerId: string,
   stepId: string,
   uuid: string = randomUUID(),
-  ext: string
+  ext: string,
 ): string {
   return `trainers/${trainerId}/steps/${stepId}/${uuid}.${ext}`;
 }
@@ -61,7 +61,7 @@ export function getCourseImagePath(
   trainerId: string,
   courseId: string,
   uuid: string = randomUUID(),
-  ext: string
+  ext: string,
 ): string {
   return `trainers/${trainerId}/courses/${courseId}/${uuid}.${ext}`;
 }
@@ -76,7 +76,7 @@ export function getCourseImagePath(
 export function getExamVideoPath(
   userStepId: string,
   uuid: string = randomUUID(),
-  ext: string
+  ext: string,
 ): string {
   return `exams/${userStepId}/${uuid}.${ext}`;
 }

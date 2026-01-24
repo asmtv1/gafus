@@ -23,10 +23,6 @@ export default async function StepsPage({
   const params = await searchParams;
 
   return (
-    <StepsClient
-      steps={steps as TrainerStepTableRow[]}
-      isAdmin={isAdmin}
-      searchParams={params}
-    />
+    <StepsClient steps={steps as TrainerStepTableRow[]} isAdmin={isAdmin} searchParams={params} />
   );
 }

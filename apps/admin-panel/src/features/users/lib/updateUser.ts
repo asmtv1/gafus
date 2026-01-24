@@ -5,28 +5,23 @@ import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
 
 // Создаем логгер для admin-panel-update-user
-const logger = createAdminPanelLogger('update-user');
-
-
+const logger = createAdminPanelLogger("update-user");
 
 export async function updateUser(
   prevState: Record<string, unknown>,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
-  
-
   try {
-    const session = (await getServerSession(authOptions)) as { user: { id: string; username: string; role: string } } | null;
-    
+    const session = (await getServerSession(authOptions)) as {
+      user: { id: string; username: string; role: string };
+    } | null;
 
     if (!session?.user?.id) {
-      
       return { success: false, error: "Не авторизован" };
     }
 
     // Проверяем, что пользователь является админом или модератором
     if (session.user.role !== "ADMIN" && session.user.role !== "MODERATOR") {
-      
       return { success: false, error: "Недостаточно прав" };
     }
 
@@ -64,4 +59,3 @@ export async function updateUser(
     return { success: false, error: "Не удалось обновить пользователя" };
   }
 }
-

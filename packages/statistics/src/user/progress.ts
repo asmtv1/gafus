@@ -163,9 +163,7 @@ export async function getUserProgress(
 
       const allStepStatuses: string[] = [];
       for (const stepLink of dayLink.day.stepLinks) {
-        const userStep = (userTraining.steps || []).find(
-          (s) => s.stepOnDayId === stepLink.id,
-        );
+        const userStep = (userTraining.steps || []).find((s) => s.stepOnDayId === stepLink.id);
         allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
       }
 
@@ -186,8 +184,7 @@ export async function getUserProgress(
           if (currentStatus === TrainingStatus.IN_PROGRESS) {
             stepStartedAt = userStep.createdAt;
           }
-          stepCompletedAt =
-            currentStatus === TrainingStatus.COMPLETED ? userStep.updatedAt : null;
+          stepCompletedAt = currentStatus === TrainingStatus.COMPLETED ? userStep.updatedAt : null;
         }
       }
 
@@ -230,4 +227,3 @@ export async function getUserProgress(
     days: daysProgress,
   };
 }
-

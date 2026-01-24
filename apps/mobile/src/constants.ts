@@ -1,7 +1,7 @@
 // API Configuration
 // Production: https://api.gafus.ru (standalone API service)
 // Development: http://api.gafus.localhost (через nginx) или http://localhost:3001 (прямо)
-export const API_BASE_URL =  "https://api.gafus.ru";  // Production API
+export const API_BASE_URL = "https://api.gafus.ru"; // Production API
 
 // Cache durations (в миллисекундах)
 export const CACHE_DURATIONS = {
@@ -17,22 +17,22 @@ export const COLORS = {
   primary: "#636128", // оливковый - основной акцент
   primaryDark: "#4a4a1e",
   secondary: "#009dcf", // голубой - ссылки и акценты
-  
+
   // Фоны
   background: "#DAD3C1", // основной фон страниц
   surface: "#ffffff", // белый - поверхности
   cardBackground: "#FFF8E5", // кремовый фон карточек
-  
+
   // Текст
   text: "#352E2E", // тёмно-коричневый
   textSecondary: "#37373d",
-  
+
   // Статусы
   error: "#dc3545",
   success: "#28a745",
   warning: "#ff9800",
   inProgress: "#009dcf",
-  
+
   // UI элементы
   disabled: "#9e9e9e",
   placeholder: "#bdbdbd",
@@ -79,10 +79,10 @@ export const FONTS = {
   montserrat: "Montserrat_400Regular",
   montserratBold: "Montserrat_700Bold",
   montserratMedium: "Montserrat_500Medium",
-  
+
   // Кастомный шрифт - Moscow2024
   moscow2024: "Moscow2024",
-  
+
   // Системные fallback
   impact: "Impact", // iOS/Android системный
   sansFallback: "System", // Системный шрифт по умолчанию

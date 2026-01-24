@@ -29,7 +29,7 @@ import {
   CardActions,
   Chip,
   Stack,
-  Divider
+  Divider,
 } from "@mui/material";
 import { visuallyHidden } from "@mui/utils";
 import * as React from "react";
@@ -92,7 +92,10 @@ export default function EnhancedStepsTable({
 
   // Инициализация состояния из URL или localStorage
   const getInitialOrder = (): Order => {
-    if (initialSearchParams?.order && (initialSearchParams.order === "asc" || initialSearchParams.order === "desc")) {
+    if (
+      initialSearchParams?.order &&
+      (initialSearchParams.order === "asc" || initialSearchParams.order === "desc")
+    ) {
       return initialSearchParams.order;
     }
     const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_ORDER) : null;
@@ -101,7 +104,8 @@ export default function EnhancedStepsTable({
 
   const getInitialOrderBy = (): HeadCellId => {
     if (initialSearchParams?.orderBy) {
-      const validOrderBy = baseHeadCells.find((cell) => cell.id === initialSearchParams.orderBy)?.id || "author";
+      const validOrderBy =
+        baseHeadCells.find((cell) => cell.id === initialSearchParams.orderBy)?.id || "author";
       if (initialSearchParams.orderBy === "author" || validOrderBy) {
         return initialSearchParams.orderBy as HeadCellId;
       }
@@ -115,7 +119,8 @@ export default function EnhancedStepsTable({
       const parsed = parseInt(initialSearchParams.rowsPerPage, 10);
       if ([5, 10, 25].includes(parsed)) return parsed;
     }
-    const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_ROWS_PER_PAGE) : null;
+    const saved =
+      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_ROWS_PER_PAGE) : null;
     if (saved) {
       const parsed = parseInt(saved, 10);
       if ([5, 10, 25].includes(parsed)) return parsed;
@@ -159,7 +164,8 @@ export default function EnhancedStepsTable({
       const currentOrderBy = updates.orderBy !== undefined ? updates.orderBy : orderBy;
       const currentOrder = updates.order !== undefined ? updates.order : order;
       const currentPage = updates.page !== undefined ? updates.page : page;
-      const currentRowsPerPage = updates.rowsPerPage !== undefined ? updates.rowsPerPage : rowsPerPage;
+      const currentRowsPerPage =
+        updates.rowsPerPage !== undefined ? updates.rowsPerPage : rowsPerPage;
 
       if (currentSearch) {
         params.set("search", currentSearch);
@@ -361,10 +367,10 @@ export default function EnhancedStepsTable({
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return (
@@ -381,9 +387,9 @@ export default function EnhancedStepsTable({
           }}
         >
           <Typography
-            sx={{ 
+            sx={{
               flex: "1 1 100%",
-              fontSize: { xs: '1rem', sm: '1.25rem' }
+              fontSize: { xs: "1rem", sm: "1.25rem" },
             }}
             color={selected.length > 0 ? "inherit" : "text.primary"}
             variant="h6"
@@ -400,10 +406,10 @@ export default function EnhancedStepsTable({
               }}
               disabled={selected.length === 0}
               sx={{
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation',
-                minWidth: '44px',
-                minHeight: '44px'
+                WebkitTapHighlightColor: "transparent",
+                touchAction: "manipulation",
+                minWidth: "44px",
+                minHeight: "44px",
               }}
             >
               {selected.length > 0 ? <DeleteIcon /> : <FilterListIcon />}
@@ -426,7 +432,7 @@ export default function EnhancedStepsTable({
             }}
           />
         </Box>
-        
+
         {/* Мобильное представление - карточки */}
         {isMobile ? (
           <Box sx={{ p: 2 }}>
@@ -434,15 +440,15 @@ export default function EnhancedStepsTable({
               {visibleRows.map((row) => {
                 const isItemSelected = selected.includes(row.id);
                 return (
-                  <Card 
+                  <Card
                     key={row.id}
-                    sx={{ 
-                      bgcolor: isItemSelected ? 'action.selected' : 'background.paper',
-                      position: 'relative'
+                    sx={{
+                      bgcolor: isItemSelected ? "action.selected" : "background.paper",
+                      position: "relative",
                     }}
                   >
                     <CardContent sx={{ pb: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, mb: 1.5 }}>
                         <Checkbox
                           size="small"
                           checked={isItemSelected}
@@ -450,19 +456,22 @@ export default function EnhancedStepsTable({
                           sx={{ mt: -0.5 }}
                         />
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600, mb: 0.5 }}>
+                          <Typography
+                            variant="h6"
+                            sx={{ fontSize: "1rem", fontWeight: 600, mb: 0.5 }}
+                          >
                             {row.title}
                           </Typography>
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary" 
-                            sx={{ 
-                              fontSize: '0.875rem',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              display: '-webkit-box',
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                              fontSize: "0.875rem",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              display: "-webkit-box",
                               WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical'
+                              WebkitBoxOrient: "vertical",
                             }}
                           >
                             {row.description}
@@ -473,14 +482,20 @@ export default function EnhancedStepsTable({
                       <Divider sx={{ my: 1.5 }} />
 
                       <Stack spacing={1}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
                           <Typography variant="caption" color="text.secondary">
                             Длительность:
                           </Typography>
-                          <Chip 
-                            label={`${row.durationSec} сек`} 
-                            size="small" 
-                            sx={{ height: '20px', fontSize: '0.75rem' }}
+                          <Chip
+                            label={`${row.durationSec} сек`}
+                            size="small"
+                            sx={{ height: "20px", fontSize: "0.75rem" }}
                           />
                         </Box>
 
@@ -489,7 +504,7 @@ export default function EnhancedStepsTable({
                             <Typography variant="caption" color="text.secondary">
                               Дни:
                             </Typography>
-                            <Typography variant="body2" sx={{ fontSize: '0.875rem', mt: 0.25 }}>
+                            <Typography variant="body2" sx={{ fontSize: "0.875rem", mt: 0.25 }}>
                               {renderDayNames(row)}
                             </Typography>
                           </Box>
@@ -500,7 +515,7 @@ export default function EnhancedStepsTable({
                             <Typography variant="caption" color="text.secondary">
                               Курсы:
                             </Typography>
-                            <Typography variant="body2" sx={{ fontSize: '0.875rem', mt: 0.25 }}>
+                            <Typography variant="body2" sx={{ fontSize: "0.875rem", mt: 0.25 }}>
                               {renderCourseNames(row)}
                             </Typography>
                           </Box>
@@ -511,7 +526,7 @@ export default function EnhancedStepsTable({
                             <Typography variant="caption" color="text.secondary">
                               Автор:
                             </Typography>
-                            <Typography variant="body2" sx={{ fontSize: '0.875rem', mt: 0.25 }}>
+                            <Typography variant="body2" sx={{ fontSize: "0.875rem", mt: 0.25 }}>
                               {renderAuthorName(row)}
                             </Typography>
                           </Box>
@@ -519,16 +534,16 @@ export default function EnhancedStepsTable({
                       </Stack>
                     </CardContent>
 
-                    <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+                    <CardActions sx={{ justifyContent: "flex-end", pt: 0 }}>
                       <IconButton
                         size="small"
                         onClick={() => onEditStep?.(row.id)}
-                        sx={{ 
-                          color: 'primary.main',
-                          WebkitTapHighlightColor: 'transparent',
-                          touchAction: 'manipulation',
-                          minWidth: '44px',
-                          minHeight: '44px'
+                        sx={{
+                          color: "primary.main",
+                          WebkitTapHighlightColor: "transparent",
+                          touchAction: "manipulation",
+                          minWidth: "44px",
+                          minHeight: "44px",
                         }}
                       >
                         <EditIcon fontSize="small" />
@@ -565,10 +580,10 @@ export default function EnhancedStepsTable({
                           direction={orderBy === id ? order : "asc"}
                           onClick={(e) => handleRequestSort(e, id)}
                           sx={{
-                            WebkitTapHighlightColor: 'transparent',
-                            touchAction: 'manipulation',
-                            minHeight: '44px',
-                            '& .MuiTableSortLabel-icon': { mr: 0.5 }
+                            WebkitTapHighlightColor: "transparent",
+                            touchAction: "manipulation",
+                            minHeight: "44px",
+                            "& .MuiTableSortLabel-icon": { mr: 0.5 },
                           }}
                         >
                           {label}
@@ -602,10 +617,10 @@ export default function EnhancedStepsTable({
                       </TableCell>
                       <TableCell>{row.title}</TableCell>
                       <TableCell>{row.description}</TableCell>
-                  <TableCell align="right">{row.durationSec}</TableCell>
-                  <TableCell align="right">
-                    {row.estimatedDurationSec != null ? row.estimatedDurationSec : "—"}
-                  </TableCell>
+                      <TableCell align="right">{row.durationSec}</TableCell>
+                      <TableCell align="right">
+                        {row.estimatedDurationSec != null ? row.estimatedDurationSec : "—"}
+                      </TableCell>
                       <TableCell>{renderDayNames(row)}</TableCell>
                       <TableCell>{renderCourseNames(row)}</TableCell>
                       {isAdmin && <TableCell>{renderAuthorName(row)}</TableCell>}
@@ -617,10 +632,10 @@ export default function EnhancedStepsTable({
                               onEditStep?.(row.id);
                             }}
                             sx={{
-                              WebkitTapHighlightColor: 'transparent',
-                              touchAction: 'manipulation',
-                              minWidth: '44px',
-                              minHeight: '44px'
+                              WebkitTapHighlightColor: "transparent",
+                              touchAction: "manipulation",
+                              minWidth: "44px",
+                              minHeight: "44px",
                             }}
                           >
                             <EditIcon />
@@ -643,18 +658,18 @@ export default function EnhancedStepsTable({
           rowsPerPageOptions={[5, 10, 25]}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            '& .MuiTablePagination-select': {
-              fontSize: { xs: '0.875rem', sm: '1rem' }
+            "& .MuiTablePagination-select": {
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             },
-            '& .MuiTablePagination-displayedRows': {
-              fontSize: { xs: '0.875rem', sm: '1rem' }
+            "& .MuiTablePagination-displayedRows": {
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             },
-            '& .MuiIconButton-root': {
-              WebkitTapHighlightColor: 'transparent',
-              touchAction: 'manipulation',
-              minWidth: '44px',
-              minHeight: '44px'
-            }
+            "& .MuiIconButton-root": {
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "manipulation",
+              minWidth: "44px",
+              minHeight: "44px",
+            },
           }}
         />
       </Paper>
@@ -662,10 +677,10 @@ export default function EnhancedStepsTable({
         <FormControlLabel
           control={<Switch checked={dense} onChange={() => setDense((d) => !d)} />}
           label="Компактный режим"
-          sx={{ 
-            fontSize: { xs: '0.875rem', sm: '1rem' },
-            WebkitTapHighlightColor: 'transparent',
-            touchAction: 'manipulation'
+          sx={{
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation",
           }}
         />
       )}

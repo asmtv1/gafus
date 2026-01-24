@@ -2,10 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "target": "ESNext",
-    "lib": [
-      "DOM",
-      "ESNext"
-    ],
+    "lib": ["DOM", "ESNext"],
     "jsx": "react-native",
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -19,25 +16,12 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@gafus/types": [
-        "../../packages/types/src"
-      ],
-      "@gafus/core/*": [
-        "../../packages/core/src/*"
-      ]
+      "@/*": ["./src/*"],
+      "@gafus/types": ["../../packages/types/src"],
+      "@gafus/core/*": ["../../packages/core/src/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": ["node_modules"],
   "extends": "expo/tsconfig.base"
 }

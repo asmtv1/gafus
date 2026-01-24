@@ -6,12 +6,18 @@
 // Проверяем поддержку пассивных слушателей
 let supportsPassive = false;
 try {
-  const opts = Object.defineProperty({}, 'passive', {
-    get: function() {
+  const opts = Object.defineProperty({}, "passive", {
+    get: function () {
       supportsPassive = true;
-    }
+    },
   });
-  window.addEventListener('test', () => { /* test handler */ }, opts);
+  window.addEventListener(
+    "test",
+    () => {
+      /* test handler */
+    },
+    opts,
+  );
 } catch (_e) {
   // Пассивные слушатели не поддерживаются
 }
@@ -27,14 +33,14 @@ export function addPassiveEventListener(
   element: EventTarget,
   event: string,
   handler: EventListener,
-  options: AddEventListenerOptions = {}
+  options: AddEventListenerOptions = {},
 ): void {
   // Для событий прокрутки и касаний используем пассивные слушатели
-  const scrollBlockingEvents = ['touchstart', 'touchmove', 'wheel', 'mousewheel', 'scroll'];
-  
+  const scrollBlockingEvents = ["touchstart", "touchmove", "wheel", "mousewheel", "scroll"];
+
   if (scrollBlockingEvents.includes(event)) {
     const passiveOptions = { ...options, passive: true };
-    
+
     if (supportsPassive) {
       element.addEventListener(event, handler, passiveOptions);
     } else {
@@ -58,13 +64,13 @@ export function removePassiveEventListener(
   element: EventTarget,
   event: string,
   handler: EventListener,
-  options: AddEventListenerOptions = {}
+  options: AddEventListenerOptions = {},
 ): void {
-  const scrollBlockingEvents = ['touchstart', 'touchmove', 'wheel', 'mousewheel', 'scroll'];
-  
+  const scrollBlockingEvents = ["touchstart", "touchmove", "wheel", "mousewheel", "scroll"];
+
   if (scrollBlockingEvents.includes(event)) {
     const passiveOptions = { ...options, passive: true };
-    
+
     if (supportsPassive) {
       element.removeEventListener(event, handler, passiveOptions);
     } else {
@@ -86,12 +92,12 @@ export function addOnceEventListener(
   element: EventTarget,
   event: string,
   handler: EventListener,
-  options: AddEventListenerOptions = {}
+  options: AddEventListenerOptions = {},
 ): void {
   const onceHandler = (e: Event) => {
     handler(e);
     removePassiveEventListener(element, event, onceHandler, options);
   };
-  
+
   addPassiveEventListener(element, event, onceHandler, options);
 }

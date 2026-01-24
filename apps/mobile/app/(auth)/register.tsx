@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
-import { 
-  View, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
+import {
+  View,
+  StyleSheet,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Pressable,
@@ -21,18 +21,21 @@ import { COLORS, SPACING, FONTS } from "@/constants";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // Схема валидации
-const registerSchema = z.object({
-  name: z.string()
-    .min(3, "Минимум 3 символа")
-    .max(50, "Максимум 50 символов")
-    .regex(/^[a-zA-Z0-9_]+$/, "Только латиница, цифры и _"),
-  phone: z.string().min(10, "Введите корректный номер телефона"),
-  password: z.string().min(6, "Минимум 6 символов"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Пароли не совпадают",
-  path: ["confirmPassword"],
-});
+const registerSchema = z
+  .object({
+    name: z
+      .string()
+      .min(3, "Минимум 3 символа")
+      .max(50, "Максимум 50 символов")
+      .regex(/^[a-zA-Z0-9_]+$/, "Только латиница, цифры и _"),
+    phone: z.string().min(10, "Введите корректный номер телефона"),
+    password: z.string().min(6, "Минимум 6 символов"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Пароли не совпадают",
+    path: ["confirmPassword"],
+  });
 
 type FormErrors = {
   name?: string;
@@ -68,7 +71,7 @@ export default function RegisterScreen() {
 
   const validateForm = useCallback((): boolean => {
     const result = registerSchema.safeParse(form);
-    
+
     if (!result.success) {
       const fieldErrors: FormErrors = {};
       result.error.errors.forEach((err) => {
@@ -78,7 +81,7 @@ export default function RegisterScreen() {
       setErrors(fieldErrors);
       return false;
     }
-    
+
     setErrors({});
     return true;
   }, [form]);
@@ -89,27 +92,27 @@ export default function RegisterScreen() {
     setIsLoading(true);
     try {
       const result = await register(form.name, form.phone, form.password);
-      
+
       if (result.success) {
-        setSnackbar({ 
-          visible: true, 
-          message: "Регистрация успешна! Выполняется вход..." 
+        setSnackbar({
+          visible: true,
+          message: "Регистрация успешна! Выполняется вход...",
         });
-        
+
         // Автоматический переход на главную после успешной регистрации
         setTimeout(() => {
           router.replace("/");
         }, 1500);
       } else {
-        setSnackbar({ 
-          visible: true, 
-          message: result.error || "Ошибка регистрации" 
+        setSnackbar({
+          visible: true,
+          message: result.error || "Ошибка регистрации",
         });
       }
     } catch (error) {
-      setSnackbar({ 
-        visible: true, 
-        message: "Ошибка подключения к серверу" 
+      setSnackbar({
+        visible: true,
+        message: "Ошибка подключения к серверу",
       });
     } finally {
       setIsLoading(false);
@@ -122,7 +125,7 @@ export default function RegisterScreen() {
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
@@ -151,9 +154,7 @@ export default function RegisterScreen() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            {errors.name && (
-              <Text style={styles.errorText}>{errors.name}</Text>
-            )}
+            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
 
             {/* Phone Input */}
             <TextInput
@@ -165,14 +166,10 @@ export default function RegisterScreen() {
               keyboardType="phone-pad"
               autoCapitalize="none"
             />
-            {errors.phone && (
-              <Text style={styles.errorText}>{errors.phone}</Text>
-            )}
+            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
 
             {/* Информация о подтверждении */}
-            <Text style={styles.info}>
-              Требуется Подтверждение через Telegram
-            </Text>
+            <Text style={styles.info}>Требуется Подтверждение через Telegram</Text>
 
             {/* Password Input */}
             <TextInput
@@ -184,9 +181,7 @@ export default function RegisterScreen() {
               secureTextEntry
               autoCapitalize="none"
             />
-            {errors.password && (
-              <Text style={styles.errorText}>{errors.password}</Text>
-            )}
+            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
             {/* Confirm Password Input */}
             <TextInput
@@ -203,11 +198,7 @@ export default function RegisterScreen() {
             )}
 
             {/* Кнопка регистрации */}
-            <Pressable
-              style={styles.button}
-              onPress={handleRegister}
-              disabled={isLoading}
-            >
+            <Pressable style={styles.button} onPress={handleRegister} disabled={isLoading}>
               <Text style={styles.buttonText}>
                 {isLoading ? "регистрация..." : "зарегистрироваться"}
               </Text>

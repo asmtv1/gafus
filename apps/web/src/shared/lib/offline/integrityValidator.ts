@@ -67,7 +67,7 @@ function validateManifestStructure(manifest: string): { isValid: boolean; errors
  */
 export async function validateOfflineVideo(
   courseType: string,
-  videoId: string
+  videoId: string,
 ): Promise<ValidationResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -115,7 +115,7 @@ export async function validateOfflineVideo(
 
     if (missingSegments.length > 0) {
       errors.push(
-        `Отсутствуют сегменты: ${missingSegments.slice(0, 5).join(", ")}${missingSegments.length > 5 ? ` и еще ${missingSegments.length - 5}` : ""}`
+        `Отсутствуют сегменты: ${missingSegments.slice(0, 5).join(", ")}${missingSegments.length > 5 ? ` и еще ${missingSegments.length - 5}` : ""}`,
       );
     }
 
@@ -151,7 +151,9 @@ export async function validateOfflineVideo(
       courseType,
       videoId,
     });
-    errors.push(`Ошибка при проверке целостности: ${error instanceof Error ? error.message : String(error)}`);
+    errors.push(
+      `Ошибка при проверке целостности: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return {
       isValid: false,
       errors,

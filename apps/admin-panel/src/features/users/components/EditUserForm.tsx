@@ -1,6 +1,5 @@
 "use client";
 
-
 import { createAdminPanelLogger } from "@gafus/logger";
 import { FormField, PasswordField, SelectField } from "@shared/components/ui/FormField";
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
@@ -11,7 +10,7 @@ import { useForm } from "react-hook-form";
 import { Box, Button, Dialog, DialogContent, DialogTitle, Typography } from "@/utils/muiImports";
 
 // Создаем логгер для edit-user-form
-const logger = createAdminPanelLogger('edit-user-form');
+const logger = createAdminPanelLogger("edit-user-form");
 
 interface User {
   id: string;
@@ -48,7 +47,12 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
     },
   });
 
-  const handleSubmit = async (data: { username: string; phone: string; role: string; newPassword: string }) => {
+  const handleSubmit = async (data: {
+    username: string;
+    phone: string;
+    role: string;
+    newPassword: string;
+  }) => {
     setIsPending(true);
     setFormState({});
 
@@ -98,10 +102,10 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="sm" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
       fullWidth
       PaperProps={{
         sx: {
@@ -119,7 +123,11 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
       </DialogTitle>
       <DialogContent>
         <Box component="form" onSubmit={form.handleSubmit(handleSubmit)} sx={{ mt: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", sm: "0.875rem" }, wordBreak: "break-all" }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mb: 2, fontSize: { xs: "0.875rem", sm: "0.875rem" }, wordBreak: "break-all" }}
+          >
             ID: {user.id}
           </Typography>
 
@@ -161,7 +169,11 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
             autoComplete="new-password"
           />
 
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.75rem", sm: "0.75rem" }, display: "block" }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ mb: 2, fontSize: { xs: "0.75rem", sm: "0.75rem" }, display: "block" }}
+          >
             Оставьте поле пустым, если не нужно менять пароль
           </Typography>
 
@@ -173,24 +185,26 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
             </Typography>
           )}
 
-          <Box sx={{ 
-            display: "flex", 
-            gap: 2, 
-            justifyContent: "flex-end",
-            flexDirection: { xs: "column-reverse", sm: "row" },
-            mt: 3
-          }}>
-            <Button 
-              onClick={onClose} 
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              justifyContent: "flex-end",
+              flexDirection: { xs: "column-reverse", sm: "row" },
+              mt: 3,
+            }}
+          >
+            <Button
+              onClick={onClose}
               disabled={isPending}
               fullWidth
               sx={{ "@media (min-width: 600px)": { width: "auto" } }}
             >
               Отмена
             </Button>
-            <Button 
-              type="submit" 
-              variant="contained" 
+            <Button
+              type="submit"
+              variant="contained"
               disabled={isPending}
               fullWidth
               sx={{ "@media (min-width: 600px)": { width: "auto" } }}
@@ -203,4 +217,3 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
     </Dialog>
   );
 }
-

@@ -33,7 +33,11 @@ interface ErrorListProps {
 
 export default function ErrorList({ filters = {} }: ErrorListProps) {
   // Используем TanStack Query для загрузки ошибок
-  const { data: errors, error, isLoading } = useErrors({
+  const {
+    data: errors,
+    error,
+    isLoading,
+  } = useErrors({
     ...filters,
     type: "errors" as const,
   });
@@ -182,9 +186,7 @@ export default function ErrorList({ filters = {} }: ErrorListProps) {
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
             <Box display="flex" alignItems="center">
               <BugReport sx={{ mr: 1 }} />
-              <Typography variant="h6">
-              Список ошибок
-              </Typography>
+              <Typography variant="h6">Список ошибок</Typography>
             </Box>
           </Box>
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createWorkerLogger } from "@gafus/logger";
 
-const logger = createWorkerLogger('bootstrap');
+const logger = createWorkerLogger("bootstrap");
 logger.info("Bootstrapping...");
 
 // Импортируем основную логику воркеров

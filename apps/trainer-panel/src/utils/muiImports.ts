@@ -22,6 +22,7 @@ export { default as DialogActions } from "@mui/material/DialogActions";
 export { default as DialogContent } from "@mui/material/DialogContent";
 export { default as DialogTitle } from "@mui/material/DialogTitle";
 export { default as Divider } from "@mui/material/Divider";
+export { default as Fab } from "@mui/material/Fab";
 export { default as FormControl } from "@mui/material/FormControl";
 export { default as Checkbox } from "@mui/material/Checkbox";
 export { default as FormControlLabel } from "@mui/material/FormControlLabel";

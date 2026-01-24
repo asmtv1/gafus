@@ -4,14 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import SendIcon from "@mui/icons-material/Send";
-import {
-  Alert,
-  Box,
-  Button,
-  LinearProgress,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, LinearProgress, Stack, Typography } from "@mui/material";
 
 import { formatFileSize } from "../lib/format";
 import type { TrainerVideoViewModel } from "../types";
@@ -97,17 +90,19 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
     if (!fileList || fileList.length === 0) return;
 
     const { valid, errors } = validateFiles(fileList);
-    
+
     if (errors.length > 0) {
       setError(errors.join("; "));
     }
 
     if (valid.length > 0) {
-      setFiles(valid.map((file) => ({
-        file,
-        progress: 0,
-        status: "pending",
-      })));
+      setFiles(
+        valid.map((file) => ({
+          file,
+          progress: 0,
+          status: "pending",
+        })),
+      );
       setError(null);
     }
 
@@ -143,17 +138,19 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
     if (droppedFiles.length === 0) return;
 
     const { valid, errors } = validateFiles(droppedFiles);
-    
+
     if (errors.length > 0) {
       setError(errors.join("; "));
     }
 
     if (valid.length > 0) {
-      setFiles(valid.map((file) => ({
-        file,
-        progress: 0,
-        status: "pending",
-      })));
+      setFiles(
+        valid.map((file) => ({
+          file,
+          progress: 0,
+          status: "pending",
+        })),
+      );
       setError(null);
     }
   };
@@ -166,28 +163,28 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
 
       const xhr = new XMLHttpRequest();
       xhrRefsRef.current.set(index, xhr);
-      
+
       xhr.open("POST", "/main-panel/my-videos/upload");
       xhr.withCredentials = true;
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
           const percent = Math.round((event.loaded / event.total) * 100);
-          setFiles((prev) => prev.map((f, idx) => 
-            idx === index ? { ...f, progress: percent } : f
-          ));
-          
+          setFiles((prev) =>
+            prev.map((f, idx) => (idx === index ? { ...f, progress: percent } : f)),
+          );
+
           if (percent >= 100) {
-            setFiles((prev) => prev.map((f, idx) => 
-              idx === index ? { ...f, status: "processing" } : f
-            ));
+            setFiles((prev) =>
+              prev.map((f, idx) => (idx === index ? { ...f, status: "processing" } : f)),
+            );
           }
         }
       };
 
       xhr.onload = () => {
         xhrRefsRef.current.delete(index);
-        
+
         try {
           const response = JSON.parse(xhr.responseText ?? "{}") as UploadResponse;
 
@@ -230,29 +227,33 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
 
     for (let i = 0; i < files.length; i++) {
       // Обновляем статус на "uploading"
-      setFiles((prev) => prev.map((f, idx) => 
-        idx === i ? { ...f, status: "uploading", progress: 0 } : f
-      ));
+      setFiles((prev) =>
+        prev.map((f, idx) => (idx === i ? { ...f, status: "uploading", progress: 0 } : f)),
+      );
 
       try {
         await uploadSingleFile(files[i].file, i);
-        
+
         // Обновляем статус на "completed"
-        setFiles((prev) => prev.map((f, idx) => 
-          idx === i ? { ...f, status: "completed", progress: 100 } : f
-        ));
-        
+        setFiles((prev) =>
+          prev.map((f, idx) => (idx === i ? { ...f, status: "completed", progress: 100 } : f)),
+        );
+
         uploadResults.completed++;
       } catch (error) {
         // Обновляем статус на "error"
-        setFiles((prev) => prev.map((f, idx) => 
-          idx === i ? { 
-            ...f, 
-            status: "error", 
-            error: error instanceof Error ? error.message : "Ошибка загрузки" 
-          } : f
-        ));
-        
+        setFiles((prev) =>
+          prev.map((f, idx) =>
+            idx === i
+              ? {
+                  ...f,
+                  status: "error",
+                  error: error instanceof Error ? error.message : "Ошибка загрузки",
+                }
+              : f,
+          ),
+        );
+
         uploadResults.failed++;
       }
 
@@ -263,7 +264,7 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
     }
 
     setIsUploading(false);
-    
+
     // Показываем результаты
     if (uploadResults.completed > 0) {
       setSuccess(`Успешно загружено: ${uploadResults.completed} из ${files.length}`);
@@ -297,7 +298,8 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
         Загрузка видео
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Поддерживаемые форматы: MP4, WebM, MOV. Максимальный размер — 500 МБ. До {MAX_FILES} файлов за раз.
+        Поддерживаемые форматы: MP4, WebM, MOV. Максимальный размер — 500 МБ. До {MAX_FILES} файлов
+        за раз.
       </Typography>
 
       <input
@@ -359,7 +361,12 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
                   backgroundColor: "background.paper",
                 }}
               >
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ mb: 1 }}
+                >
                   <Typography variant="body2" noWrap sx={{ flexGrow: 1, mr: 2 }}>
                     {fileState.file.name}
                   </Typography>
@@ -369,7 +376,11 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
                 </Stack>
 
                 {fileState.status === "uploading" && (
-                  <LinearProgress variant="determinate" value={fileState.progress} sx={{ mb: 0.5 }} />
+                  <LinearProgress
+                    variant="determinate"
+                    value={fileState.progress}
+                    sx={{ mb: 0.5 }}
+                  />
                 )}
                 {fileState.status === "processing" && (
                   <LinearProgress variant="indeterminate" sx={{ mb: 0.5 }} />

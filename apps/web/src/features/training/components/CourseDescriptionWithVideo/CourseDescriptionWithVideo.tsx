@@ -24,12 +24,11 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
   courseName,
   courseType,
 }: Props) {
-  const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [
-    videoUrl]);
+  const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [videoUrl]);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState<boolean>(false);
 
   const handleToggleDescription = useCallback(() => {
-    setIsDescriptionOpen(prev => !prev);
+    setIsDescriptionOpen((prev) => !prev);
   }, []);
 
   // Функция для получения текста уровня сложности
@@ -49,22 +48,19 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
   }, []);
 
   return (
-    <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ''}`}>
-      <div 
-        className={styles.descriptionHeader} 
-        onClick={handleToggleDescription}
-      >
+    <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ""}`}>
+      <div className={styles.descriptionHeader} onClick={handleToggleDescription}>
         <h3 className={styles.descriptionTitle}>Описание курса</h3>
         <div className={styles.expandControl}>
-          <span className={styles.expandText}>
-            {isDescriptionOpen ? "Скрыть" : "Подробнее"}
-          </span>
-          <ExpandMoreIcon 
-            className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ''}`} 
+          <span className={styles.expandText}>{isDescriptionOpen ? "Скрыть" : "Подробнее"}</span>
+          <ExpandMoreIcon
+            className={`${styles.expandIcon} ${isDescriptionOpen ? styles.expanded : ""}`}
           />
         </div>
       </div>
-      <div className={`${styles.descriptionContent} ${isDescriptionOpen ? styles.expanded : styles.collapsed}`}>
+      <div
+        className={`${styles.descriptionContent} ${isDescriptionOpen ? styles.expanded : styles.collapsed}`}
+      >
         <ReactMarkdown>{description ?? ""}</ReactMarkdown>
 
         {(equipment || trainingLevel) && (
@@ -104,7 +100,7 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
         {/* Кнопка поделиться в конце контента */}
         {courseName && courseType && (
           <div className={styles.shareButtonContainer}>
-            <ShareButton 
+            <ShareButton
               courseName={courseName}
               courseType={courseType}
               courseDescription={description || undefined}

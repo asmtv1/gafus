@@ -60,7 +60,7 @@ export default function LoginForm({
           onError?.(errorMessage);
         }
       }
-          } catch (err) {
+    } catch (err) {
       const errorMessage = "Произошла ошибка при входе";
       setError(errorMessage);
       onError?.(errorMessage);

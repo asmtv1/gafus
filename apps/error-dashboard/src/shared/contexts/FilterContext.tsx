@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 interface Filters {
   appName?: string;
   environment?: string;
-  status?: 'new' | 'viewed' | 'resolved' | 'archived';
+  status?: "new" | "viewed" | "resolved" | "archived";
 }
 
 interface FilterContextType {
@@ -31,8 +31,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
     if (app) filters.appName = app;
     if (env) filters.environment = env;
-    if (status && ['new', 'viewed', 'resolved', 'archived'].includes(status)) {
-      filters.status = status as 'new' | 'viewed' | 'resolved' | 'archived';
+    if (status && ["new", "viewed", "resolved", "archived"].includes(status)) {
+      filters.status = status as "new" | "viewed" | "resolved" | "archived";
     }
 
     return filters;

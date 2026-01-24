@@ -7,7 +7,7 @@ import Header from "./Header";
 
 export default async function HeaderServerWrapper() {
   let session = null;
-  
+
   try {
     session = await getServerSession(authOptions as NextAuthOptions);
   } catch (error) {

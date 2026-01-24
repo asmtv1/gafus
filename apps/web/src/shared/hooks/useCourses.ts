@@ -10,7 +10,7 @@ import { isOnline } from "@shared/utils/offlineCacheUtils";
 
 export function useCourses() {
   const store = useCourseStoreActions();
-  
+
   // Автоматически загружаем данные если их нет
   useEffect(() => {
     if (!store.allCourses && !store.loading.all) {
@@ -31,7 +31,7 @@ export function useCourses() {
 
 export function useFavorites() {
   const store = useCourseStoreActions();
-  
+
   // Автоматически загружаем данные если их нет
   useEffect(() => {
     if (!store.favorites && !store.loading.favorites) {
@@ -52,7 +52,7 @@ export function useFavorites() {
 
 export function useAuthored() {
   const store = useCourseStoreActions();
-  
+
   // Автоматически загружаем данные если их нет
   useEffect(() => {
     if (!store.authored && !store.loading.authored) {

@@ -19,7 +19,7 @@ export interface ExamSubmissionData {
 
 export async function submitExamResult(data: ExamSubmissionData) {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     throw new Error("Не авторизован");
   }
@@ -30,16 +30,16 @@ export async function submitExamResult(data: ExamSubmissionData) {
       where: {
         id: data.userStepId,
         userTraining: {
-          userId: session.user.id
-        }
+          userId: session.user.id,
+        },
       },
       include: {
         stepOnDay: {
           include: {
-            step: true
-          }
-        }
-      }
+            step: true,
+          },
+        },
+      },
     });
 
     if (!userStep) {
@@ -49,7 +49,7 @@ export async function submitExamResult(data: ExamSubmissionData) {
     // Проверяем, что это экзаменационный шаг
     if (userStep.stepOnDay.step.type !== "EXAMINATION") {
       throw new Error(
-        `Этот шаг не является экзаменационным. Тип шага: ${userStep.stepOnDay.step.type || "не определен"}`
+        `Этот шаг не является экзаменационным. Тип шага: ${userStep.stepOnDay.step.type || "не определен"}`,
       );
     }
 
@@ -68,7 +68,7 @@ export async function submitExamResult(data: ExamSubmissionData) {
       reviewedById: string | null;
       updatedAt: Date;
     }> = {
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     // Добавляем в updateData только те поля, которые были переданы
@@ -101,7 +101,7 @@ export async function submitExamResult(data: ExamSubmissionData) {
 
     const examResult = await prisma.examResult.upsert({
       where: {
-        userStepId: data.userStepId
+        userStepId: data.userStepId,
       },
       update: updateData,
       create: {
@@ -113,23 +113,23 @@ export async function submitExamResult(data: ExamSubmissionData) {
         videoReportUrl: data.videoReportUrl || null,
         writtenFeedback: data.writtenFeedback || null,
         overallScore: data.overallScore || null,
-        isPassed: data.isPassed || null
-      }
+        isPassed: data.isPassed || null,
+      },
     });
 
     // Обновляем статус шага на IN_PROGRESS
     // Статус будет изменен на COMPLETED только после проверки тренером
     await prisma.userStep.update({
       where: {
-        id: data.userStepId
+        id: data.userStepId,
       },
       data: {
-        status: "IN_PROGRESS"
-      }
+        status: "IN_PROGRESS",
+      },
     });
 
     revalidatePath("/trainings");
-    
+
     return { success: true, examResultId: examResult.id };
   } catch (error) {
     console.error("Ошибка при сохранении результата экзамена:", error);

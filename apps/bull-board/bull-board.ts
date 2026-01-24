@@ -17,16 +17,16 @@ const { pushQueue, examCleanupQueue, reengagementQueue } = await import("@gafus/
 const { createBullBoardLogger } = await import("@gafus/logger");
 
 // Создаем логгер для bull-board
-const logger = createBullBoardLogger('bull-board');
+const logger = createBullBoardLogger("bull-board");
 
 const app = express();
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath("/admin/queues");
 
 logger.info("Bull-Board initializing", {
-  environment: process.env.NODE_ENV || 'development',
+  environment: process.env.NODE_ENV || "development",
   port: process.env.PORT || 3002,
-  basePath: '/admin/queues'
+  basePath: "/admin/queues",
 });
 
 // Добавляем обработку ошибок
@@ -42,23 +42,23 @@ try {
 
   logger.success("Bull Board created successfully", {
     queueCount: 3,
-    queueNames: ['pushQueue', 'examCleanupQueue', 'reengagementQueue'],
-    basePath: '/admin/queues',
-    operation: 'create_bull_board'
+    queueNames: ["pushQueue", "examCleanupQueue", "reengagementQueue"],
+    basePath: "/admin/queues",
+    operation: "create_bull_board",
   });
 
   app.use("/admin/queues", serverAdapter.getRouter());
 } catch (error) {
   logger.error("Ошибка при создании Bull Board", error as Error, {
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env.NODE_ENV || "development",
     port: process.env.PORT || 3002,
-    operation: 'create_bull_board'
+    operation: "create_bull_board",
   });
   // Создаем fallback роут
   app.use("/admin/queues", (req, res) => {
-    res.status(500).json({ 
-      error: "Bull Board недоступен", 
-      message: error instanceof Error ? error.message : "Неизвестная ошибка" 
+    res.status(500).json({
+      error: "Bull Board недоступен",
+      message: error instanceof Error ? error.message : "Неизвестная ошибка",
     });
   });
 }
@@ -117,19 +117,21 @@ app.get("/metrics", async (req, res) => {
     ]);
 
     // Объединяем все метрики
-    const allMetrics = [
-      pushMetrics,
-      reengagementMetrics,
-      examCleanupMetrics,
-    ].filter(Boolean).join("\n\n");
+    const allMetrics = [pushMetrics, reengagementMetrics, examCleanupMetrics]
+      .filter(Boolean)
+      .join("\n\n");
 
     res.setHeader("Content-Type", "text/plain; version=0.0.4");
     res.send(allMetrics || "# No metrics available\n");
   } catch (error) {
     logger.error("Ошибка при экспорте метрик Prometheus", error as Error, {
-      operation: 'prometheus_metrics'
+      operation: "prometheus_metrics",
     });
-    res.status(500).send(`# Error exporting metrics: ${error instanceof Error ? error.message : "Unknown error"}\n`);
+    res
+      .status(500)
+      .send(
+        `# Error exporting metrics: ${error instanceof Error ? error.message : "Unknown error"}\n`,
+      );
   }
 });
 
@@ -139,9 +141,9 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3002;
 app.listen(PORT, () => {
   logger.success(`Bull-Board запущен: http://localhost:${PORT}/admin/queues`, {
     port: PORT,
-    environment: process.env.NODE_ENV || 'development',
-    basePath: '/admin/queues',
-    operation: 'start_server'
+    environment: process.env.NODE_ENV || "development",
+    basePath: "/admin/queues",
+    operation: "start_server",
   });
 });
 

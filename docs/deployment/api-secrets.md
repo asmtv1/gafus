@@ -50,8 +50,8 @@ GitHub Actions автоматически подставит эти секрет
 # ci-cd/docker/docker-compose.prod.yml
 api:
   environment:
-    - JWT_SECRET=${JWT_SECRET}           # Из GitHub Secrets
-    - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}  # Из GitHub Secrets
+    - JWT_SECRET=${JWT_SECRET} # Из GitHub Secrets
+    - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET} # Из GitHub Secrets
 ```
 
 ## Ротация секретов
@@ -65,19 +65,19 @@ api:
 
 ## Список всех необходимых секретов
 
-| Secret | Описание | Требуется для |
-|--------|----------|---------------|
-| `JWT_SECRET` | Access token secret | API service |
-| `JWT_REFRESH_SECRET` | Refresh token secret | API service |
-| `DATABASE_URL` | PostgreSQL connection | Все сервисы |
-| `REDIS_URL` | Redis connection | API, Worker |
-| `NEXTAUTH_SECRET` | NextAuth secret | Web apps |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot | Bot, Worker |
-| `VAPID_PUBLIC_KEY` | Web Push public | Web apps |
-| `VAPID_PRIVATE_KEY` | Web Push private | Worker |
-| `YC_ACCESS_KEY_ID` | Yandex Cloud CDN | Apps with uploads |
-| `YC_SECRET_ACCESS_KEY` | Yandex Cloud CDN | Apps with uploads |
-| `VIDEO_ACCESS_SECRET` | HLS protection | Apps with video |
+| Secret                 | Описание              | Требуется для     |
+| ---------------------- | --------------------- | ----------------- |
+| `JWT_SECRET`           | Access token secret   | API service       |
+| `JWT_REFRESH_SECRET`   | Refresh token secret  | API service       |
+| `DATABASE_URL`         | PostgreSQL connection | Все сервисы       |
+| `REDIS_URL`            | Redis connection      | API, Worker       |
+| `NEXTAUTH_SECRET`      | NextAuth secret       | Web apps          |
+| `TELEGRAM_BOT_TOKEN`   | Telegram bot          | Bot, Worker       |
+| `VAPID_PUBLIC_KEY`     | Web Push public       | Web apps          |
+| `VAPID_PRIVATE_KEY`    | Web Push private      | Worker            |
+| `YC_ACCESS_KEY_ID`     | Yandex Cloud CDN      | Apps with uploads |
+| `YC_SECRET_ACCESS_KEY` | Yandex Cloud CDN      | Apps with uploads |
+| `VIDEO_ACCESS_SECRET`  | HLS protection        | Apps with video   |
 
 ## Проверка конфигурации
 
@@ -98,5 +98,6 @@ docker logs gafus-api
 ```
 
 Типичные ошибки:
+
 - `JWT_SECRET must be at least 32 characters` - секрет слишком короткий
 - `JWT_SECRET is not defined` - секрет не передан в контейнер

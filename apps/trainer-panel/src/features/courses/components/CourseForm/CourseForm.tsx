@@ -147,22 +147,22 @@ export default function CourseForm({
         formData.append("showInProfile", data.showInProfile ? "true" : "false");
         formData.append("equipment", data.equipment || "");
         formData.append("trainingLevel", data.trainingLevel || "BEGINNER");
-        
+
         // Добавляем trainingDays
         data.trainingDays.forEach((dayId) => {
           formData.append("trainingDays", dayId);
         });
-        
+
         // Добавляем allowedUsers
         data.allowedUsers.forEach((userId) => {
           formData.append("allowedUsers", userId);
         });
-        
+
         // Добавляем logoFile, если есть
         if (logoFile) {
           formData.append("logoImg", logoFile);
         }
-        
+
         const res = await createCourseServerAction(formData);
         if (!res.success) throw new Error(res.error || "Ошибка создания курса");
         showToast("Курс успешно создан!", "success");
@@ -186,11 +186,7 @@ export default function CourseForm({
   return (
     <Box className={sharedStyles.formContainer}>
       {error && (
-        <Alert 
-          severity="error" 
-          className={sharedStyles.formAlert}
-          onClose={() => setError(null)}
-        >
+        <Alert severity="error" className={sharedStyles.formAlert} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -246,9 +242,7 @@ export default function CourseForm({
             form={form}
           />
           <FormControl component="fieldset" className={sharedStyles.formField}>
-            <Typography className={sharedStyles.formLabel}>
-              Уровень сложности
-            </Typography>
+            <Typography className={sharedStyles.formLabel}>Уровень сложности</Typography>
             <RadioGroup
               value={form.watch("trainingLevel")}
               onChange={(e) =>
@@ -286,11 +280,8 @@ export default function CourseForm({
         </FormSection>
 
         <FormSection title="Медиа">
-          <input
-            type="hidden"
-            {...form.register("logoImg", commonValidationRules.logoImg)}
-          />
-          <CourseMediaUploader 
+          <input type="hidden" {...form.register("logoImg", commonValidationRules.logoImg)} />
+          <CourseMediaUploader
             onUploadComplete={(url) => {
               form.setValue("logoImg", url, { shouldValidate: true });
             }}
@@ -311,12 +302,11 @@ export default function CourseForm({
 
         <FormSection title="Доступ">
           <FormControl component="fieldset" className={sharedStyles.formField}>
-            <Typography className={sharedStyles.formLabel}>
-              Тип курса
-            </Typography>
+            <Typography className={sharedStyles.formLabel}>Тип курса</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              • <strong>Публичный курс</strong> — доступен всем пользователям бесплатно<br/>
-              • <strong>Приватный курс</strong> — доступен только выбранным пользователям<br/>
+              • <strong>Публичный курс</strong> — доступен всем пользователям бесплатно
+              <br />• <strong>Приватный курс</strong> — доступен только выбранным пользователям
+              <br />
               {/* TODO: Вернуться к реализации платных курсов */}
               {/* • <strong>Платный курс</strong> — доступен всем пользователям за плату */}
             </Typography>
@@ -353,16 +343,8 @@ export default function CourseForm({
               }}
               row
             >
-              <FormControlLabel
-                value="public"
-                control={<Radio />}
-                label="Публичный курс"
-              />
-              <FormControlLabel
-                value="private"
-                control={<Radio />}
-                label="Приватный курс"
-              />
+              <FormControlLabel value="public" control={<Radio />} label="Публичный курс" />
+              <FormControlLabel value="private" control={<Radio />} label="Приватный курс" />
               {/* TODO: Вернуться к реализации платных курсов */}
               {/* <FormControlLabel
                 value="paid"
@@ -430,7 +412,7 @@ export default function CourseForm({
             ]),
           )}
         />
-        
+
         <Box className={sharedStyles.formActions}>
           <Button
             type="submit"

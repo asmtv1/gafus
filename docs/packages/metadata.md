@@ -5,6 +5,7 @@
 ## Проблемы которые решает
 
 До введения пакета:
+
 - ❌ Хаотичный подход - разные паттерны в разных местах
 - ❌ Дублирование кода (Open Graph, Twitter cards)
 - ❌ Неполные метаданные где-то есть OG, где-то нет
@@ -12,6 +13,7 @@
 - ❌ Side-effects в `generateMetadata` (создание данных в БД)
 
 После введения пакета:
+
 - ✅ Единый типобезопасный API
 - ✅ Переиспользуемые генераторы
 - ✅ Полные метаданные везде
@@ -38,22 +40,22 @@
 import { SITE_CONFIG, DEFAULT_OG_IMAGE, DESCRIPTIONS } from "@gafus/metadata";
 
 // Основная конфигурация сайта
-SITE_CONFIG.name         // "Гафус"
-SITE_CONFIG.url          // "https://gafus.ru"
-SITE_CONFIG.title        // "Гафус — Тренировки для собак"
-SITE_CONFIG.description  // "Умные пошаговые тренировки для собак онлайн с опытными кинологами"
-SITE_CONFIG.locale       // "ru_RU"
-SITE_CONFIG.themeColor   // "#DAD3C1"
+SITE_CONFIG.name; // "Гафус"
+SITE_CONFIG.url; // "https://gafus.ru"
+SITE_CONFIG.title; // "Гафус — Тренировки для собак"
+SITE_CONFIG.description; // "Умные пошаговые тренировки для собак онлайн с опытными кинологами"
+SITE_CONFIG.locale; // "ru_RU"
+SITE_CONFIG.themeColor; // "#DAD3C1"
 
 // Описания для разных аудиторий
-DESCRIPTIONS.trainers    // Описание для кинологов
-DESCRIPTIONS.students    // Описание для учеников/владельцев собак
+DESCRIPTIONS.trainers; // Описание для кинологов
+DESCRIPTIONS.students; // Описание для учеников/владельцев собак
 
 // Изображение по умолчанию
-DEFAULT_OG_IMAGE.url     // "https://gafus.ru/uploads/logo.png"
-DEFAULT_OG_IMAGE.width   // 1200
-DEFAULT_OG_IMAGE.height  // 630
-DEFAULT_OG_IMAGE.alt     // "Гафус"
+DEFAULT_OG_IMAGE.url; // "https://gafus.ru/uploads/logo.png"
+DEFAULT_OG_IMAGE.width; // 1200
+DEFAULT_OG_IMAGE.height; // 630
+DEFAULT_OG_IMAGE.alt; // "Гафус"
 ```
 
 **Использование в root layout:**
@@ -82,11 +84,12 @@ import { generateStaticPageMetadata } from "@gafus/metadata";
 export const metadata = generateStaticPageMetadata(
   "Список курсов",
   "Выбирайте курсы для послушания, фокуса и социализации вашей собаки.",
-  "/courses"
+  "/courses",
 );
 ```
 
 Генерирует:
+
 - `title`, `description`
 - `canonical` URL
 - `openGraph` (title, description, url, siteName, locale, images)
@@ -103,18 +106,18 @@ import type { Metadata } from "next";
 
 export async function generateMetadata({ params }): Promise<Metadata> {
   const course = await getCourseData(params.type);
-  
+
   if (!course) {
     return {
       title: "Курс",
       description: "Пошаговая тренировка для вашего питомца",
     };
   }
-  
+
   return generateCourseMetadata({
     name: course.name,
     description: course.description,
-    type: course.type,  // для URL /trainings/[type]
+    type: course.type, // для URL /trainings/[type]
     logoUrl: course.logoImg,
   });
 }
@@ -135,8 +138,8 @@ export const metadata = generatePageMetadata({
   imageWidth: 1200,
   imageHeight: 630,
   imageAlt: "Alt текст",
-  ogType: "article",  // "website" | "article" | "profile"
-  noIndex: false,     // true для закрытых страниц
+  ogType: "article", // "website" | "article" | "profile"
+  noIndex: false, // true для закрытых страниц
 });
 ```
 
@@ -149,7 +152,7 @@ import { generateOrganizationSchema, generateCourseSchema } from "@gafus/metadat
 
 export default function HomePage() {
   const schema = generateOrganizationSchema();
-  
+
   return (
     <>
       <script
@@ -165,10 +168,7 @@ export default function HomePage() {
 Для курсов:
 
 ```typescript
-const courseSchema = generateCourseSchema(
-  "Курс послушания",
-  "Обучение базовым командам"
-);
+const courseSchema = generateCourseSchema("Курс послушания", "Обучение базовым командам");
 ```
 
 ## Примеры миграции
@@ -176,6 +176,7 @@ const courseSchema = generateCourseSchema(
 ### Статическая страница
 
 **До:**
+
 ```typescript
 export const metadata = {
   title: "Список курсов",
@@ -190,41 +191,39 @@ export const metadata = {
 ```
 
 **После:**
+
 ```typescript
 import { generateStaticPageMetadata } from "@gafus/metadata";
 
 export const metadata = generateStaticPageMetadata(
   "Список курсов",
   "Выбирайте курсы...",
-  "/courses"
+  "/courses",
 );
 ```
 
 ### Динамическая страница
 
 **До:**
+
 ```typescript
 import { generateCourseOGMetadata } from "@/utils/metadata";
 
 export async function generateMetadata({ params }): Promise<Metadata> {
   const course = await getCourseMetadata(params.type);
-  
-  return generateCourseOGMetadata(
-    course.name,
-    course.description,
-    params.type,
-    course.logoImg
-  );
+
+  return generateCourseOGMetadata(course.name, course.description, params.type, course.logoImg);
 }
 ```
 
 **После:**
+
 ```typescript
 import { generateCourseMetadata } from "@gafus/metadata";
 
 export async function generateMetadata({ params }): Promise<Metadata> {
   const course = await getCourseMetadata(params.type);
-  
+
   return generateCourseMetadata({
     name: course.name,
     description: course.description,
@@ -243,18 +242,18 @@ export async function generateMetadata({ params }): Promise<Metadata> {
 ```typescript
 // ❌ Плохо - создает данные в БД
 export async function generateMetadata({ params }): Promise<Metadata> {
-  const data = await getOrCreateData(params.id);  // Side-effect!
+  const data = await getOrCreateData(params.id); // Side-effect!
   return generatePageMetadata({ title: data.title });
 }
 
 // ✅ Хорошо - только читает
 export async function generateMetadata({ params }): Promise<Metadata> {
-  const data = await getData(params.id);  // Read-only
-  
+  const data = await getData(params.id); // Read-only
+
   if (!data) {
     return { title: "Не найдено" };
   }
-  
+
   return generatePageMetadata({ title: data.title });
 }
 ```
@@ -268,11 +267,7 @@ Canonical URL важен для SEO:
 export const metadata = generateStaticPageMetadata("Заголовок", "Описание");
 
 // ✅ Хорошо
-export const metadata = generateStaticPageMetadata(
-  "Заголовок",
-  "Описание",
-  "/page-path"
-);
+export const metadata = generateStaticPageMetadata("Заголовок", "Описание", "/page-path");
 ```
 
 ### 3. Используйте JSON-LD на важных страницах
@@ -302,7 +297,7 @@ export default function HomePage() {
 ```typescript
 export async function generateMetadata({ params }): Promise<Metadata> {
   const data = await getData(params.id);
-  
+
   // Fallback
   if (!data) {
     return {
@@ -311,7 +306,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
       robots: { index: false, follow: false },
     };
   }
-  
+
   return generatePageMetadata({ ... });
 }
 ```
@@ -340,6 +335,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
 - ✅ `app/page.tsx` (главная)
 
 **Статистика:**
+
 - Всего страниц/layouts: 16
 - Строк кода до: ~350
 - Строк кода после: ~80
@@ -367,6 +363,7 @@ packages/metadata/
 Если нужно добавить новый тип метаданных:
 
 1. Добавьте тип в `types.ts`:
+
 ```typescript
 export interface ArticleMetadataParams {
   title: string;
@@ -376,6 +373,7 @@ export interface ArticleMetadataParams {
 ```
 
 2. Создайте генератор в `generators.ts`:
+
 ```typescript
 export function generateArticleMetadata(params: ArticleMetadataParams): Metadata {
   return generatePageMetadata({
@@ -387,6 +385,7 @@ export function generateArticleMetadata(params: ArticleMetadataParams): Metadata
 ```
 
 3. Экспортируйте в `index.ts`:
+
 ```typescript
 export { generateArticleMetadata } from "./generators";
 ```
@@ -396,4 +395,3 @@ export { generateArticleMetadata } from "./generators";
 - [Next.js Metadata Documentation](https://nextjs.org/docs/app/building-your-application/optimizing/metadata)
 - [Open Graph Protocol](https://ogp.me/)
 - [Schema.org](https://schema.org/)
-

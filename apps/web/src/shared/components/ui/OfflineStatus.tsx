@@ -1,22 +1,15 @@
 "use client";
 
-
 import { createWebLogger } from "@gafus/logger";
 import { useOfflineStatus } from "@shared/hooks/useOfflineStatus";
 import { useSyncQueue } from "@shared/hooks/useSyncQueue";
 import { useEffect, useState } from "react";
 
 // Создаем логгер для offline-status
-const logger = createWebLogger('web-offline-status');
+const logger = createWebLogger("web-offline-status");
 
 export default function OfflineStatus() {
-  const { 
-    isOnline,
-    statusIcon, 
-    statusText, 
-    statusColor, 
-    detailedStatus
-  } = useOfflineStatus();
+  const { isOnline, statusIcon, statusText, statusColor, detailedStatus } = useOfflineStatus();
   const { queueLength, hasPendingActions, lastSyncDate, formatLastSync, syncOfflineActions } =
     useSyncQueue();
   const [showDetails, setShowDetails] = useState(false);
@@ -43,7 +36,7 @@ export default function OfflineStatus() {
       // Принудительная синхронизация очереди
       await syncOfflineActions();
     } catch (error) {
-      logger.warn("Force sync failed:", { error, operation: 'warn' });
+      logger.warn("Force sync failed:", { error, operation: "warn" });
     } finally {
       setIsChecking(false);
     }
@@ -178,18 +171,12 @@ export default function OfflineStatus() {
               }}
             >
               <strong>Debug Info:</strong>
-              <br />
-              • Store isOnline: {isOnline ? "true" : "false"}
-              <br />
-              • Queue length: {queueLength}
-              <br />
-              • Last sync: {lastSyncDate ? formatLastSync() : "Never"}
-              <br />
-              • Has pending: {hasPendingActions ? "true" : "false"}
-              <br />
-              • Status color: {statusColor}
-              <br />
-              • Detailed status: {detailedStatus}
+              <br />• Store isOnline: {isOnline ? "true" : "false"}
+              <br />• Queue length: {queueLength}
+              <br />• Last sync: {lastSyncDate ? formatLastSync() : "Never"}
+              <br />• Has pending: {hasPendingActions ? "true" : "false"}
+              <br />• Status color: {statusColor}
+              <br />• Detailed status: {detailedStatus}
             </div>
           )}
         </div>

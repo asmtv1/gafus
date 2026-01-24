@@ -29,14 +29,12 @@ export function getLogLevel(error: ErrorDashboardReport): string | null {
       }
 
       // Для push-уведомлений может быть вложенный объект pushSpecific
-      if (
-        context &&
-        typeof context === "object" &&
-        "pushSpecific" in context
-      ) {
-        const pushSpecific = (context as {
-          pushSpecific?: { level?: string };
-        }).pushSpecific;
+      if (context && typeof context === "object" && "pushSpecific" in context) {
+        const pushSpecific = (
+          context as {
+            pushSpecific?: { level?: string };
+          }
+        ).pushSpecific;
         if (pushSpecific?.level) {
           return pushSpecific.level.toLowerCase();
         }
@@ -86,4 +84,3 @@ export function isLog(error: ErrorDashboardReport): boolean {
   const level = getLogLevel(error);
   return level === "warn" || level === "info" || level === "debug";
 }
-

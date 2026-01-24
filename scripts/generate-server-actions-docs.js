@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 /**
  * Генератор документации для серверных экшенов Next.js
@@ -13,7 +13,7 @@ const serverActionsDocumentation = {
   version: "1.0.0",
   description: "Документация серверных экшенов Next.js для платформы тренировок с питомцами",
   generatedFrom: "Zod схемы валидации из серверных экшенов",
-  
+
   serverActions: {
     // ===== АУТЕНТИФИКАЦИЯ =====
     auth: {
@@ -25,15 +25,15 @@ const serverActionsDocumentation = {
             type: "string",
             validation: "z.string().trim().min(1).max(100).transform(value => value.toLowerCase())",
             description: "Имя пользователя для проверки",
-            example: "john_doe"
-          }
+            example: "john_doe",
+          },
         },
         output: {
           type: "object",
           properties: {
             confirmed: { type: "boolean", example: true },
-            phone: { type: "string", nullable: true, example: "+79123456789" }
-          }
+            phone: { type: "string", nullable: true, example: "+79123456789" },
+          },
         },
         usage: `
 // В компоненте React
@@ -46,7 +46,7 @@ const handleCheckUser = async (username: string) => {
   } catch (error) {
     console.error('Error:', error.message);
   }
-};`
+};`,
       },
 
       registerUserAction: {
@@ -57,28 +57,28 @@ const handleCheckUser = async (username: string) => {
             type: "string",
             validation: "z.string().trim().min(3).max(50).regex(/^[A-Za-z0-9_]+$/)",
             description: "Имя пользователя (только английские буквы, цифры и _)",
-            example: "john_doe"
+            example: "john_doe",
           },
           phone: {
             type: "string",
             validation: "z.string().trim().min(1)",
             description: "Номер телефона в российском формате",
-            example: "+79123456789"
+            example: "+79123456789",
           },
           password: {
             type: "string",
             validation: "z.string().trim().min(6).max(100).regex(/^[A-Za-z0-9]+$/)",
             description: "Пароль (только английские буквы и цифры)",
-            example: "password123"
-          }
+            example: "password123",
+          },
         },
         output: {
           type: "object",
           description: "Результат регистрации",
           properties: {
             success: { type: "boolean", example: true },
-            error: { type: "string", nullable: true, example: "Пользователь уже существует" }
-          }
+            error: { type: "string", nullable: true, example: "Пользователь уже существует" },
+          },
         },
         usage: `
 // В форме регистрации
@@ -96,7 +96,7 @@ const handleRegister = async (name: string, phone: string, password: string) => 
   } catch (error) {
     console.error('Error:', error.message);
   }
-};`
+};`,
       },
 
       sendPasswordResetRequest: {
@@ -107,22 +107,22 @@ const handleRegister = async (name: string, phone: string, password: string) => 
             type: "string",
             validation: "z.string().trim().min(3).max(50).regex(/^[A-Za-z0-9_]+$/)",
             description: "Имя пользователя",
-            example: "john_doe"
+            example: "john_doe",
           },
           phone: {
             type: "string",
             validation: "z.string().trim().min(1)",
             description: "Номер телефона",
-            example: "+79123456789"
-          }
+            example: "+79123456789",
+          },
         },
         output: {
           type: "object",
           description: "Результат запроса сброса пароля",
           properties: {
             success: { type: "boolean", example: true },
-            message: { type: "string", example: "Запрос на сброс пароля отправлен" }
-          }
+            message: { type: "string", example: "Запрос на сброс пароля отправлен" },
+          },
         },
         usage: `
 // В форме восстановления пароля
@@ -135,7 +135,7 @@ const handlePasswordReset = async (username: string, phone: string) => {
   } catch (error) {
     console.error('Error:', error.message);
   }
-};`
+};`,
       },
 
       resetPassword: {
@@ -146,18 +146,18 @@ const handlePasswordReset = async (username: string, phone: string) => {
             type: "string",
             validation: "z.string().trim().min(1)",
             description: "Токен для сброса пароля",
-            example: "reset-token-here"
+            example: "reset-token-here",
           },
           password: {
             type: "string",
             validation: "z.string().trim().min(6).max(100).regex(/^[A-Za-z0-9]+$/)",
             description: "Новый пароль",
-            example: "newpassword123"
-          }
+            example: "newpassword123",
+          },
         },
         output: {
           type: "void",
-          description: "Функция не возвращает значение, обновляет пароль в БД"
+          description: "Функция не возвращает значение, обновляет пароль в БД",
         },
         usage: `
 // В форме сброса пароля
@@ -171,7 +171,7 @@ const handleResetPassword = async (token: string, newPassword: string) => {
   } catch (error) {
     console.error('Error:', error.message);
   }
-};`
+};`,
       },
 
       serverCheckUserConfirmed: {
@@ -182,13 +182,13 @@ const handleResetPassword = async (token: string, newPassword: string) => {
             type: "string",
             validation: "z.string().trim().min(1)",
             description: "Номер телефона для проверки",
-            example: "+79123456789"
-          }
+            example: "+79123456789",
+          },
         },
         output: {
           type: "boolean",
           description: "true если пользователь подтвержден, false если нет",
-          example: true
+          example: true,
         },
         usage: `
 // Проверка статуса по телефону
@@ -201,8 +201,8 @@ const checkConfirmed = async (phone: string) => {
   } catch (error) {
     console.error('Error:', error.message);
   }
-};`
-      }
+};`,
+      },
     },
 
     // ===== ПИТОМЦЫ =====
@@ -219,54 +219,54 @@ const checkConfirmed = async (phone: string) => {
               type: "string",
               validation: "z.string().trim().min(2).max(50).regex(/^[а-яёА-ЯЁa-zA-Z\\s-]+$/)",
               description: "Имя питомца (только буквы, пробелы и дефис)",
-              example: "Барсик"
+              example: "Барсик",
             },
             type: {
               type: "string",
               validation: "z.nativeEnum(PetType)",
               enum: ["DOG", "CAT"],
               description: "Тип питомца",
-              example: "CAT"
+              example: "CAT",
             },
             breed: {
               type: "string",
               validation: "z.string().trim().min(2).max(50)",
               description: "Порода питомца",
-              example: "Персидская"
+              example: "Персидская",
             },
             birthDate: {
               type: "string",
               validation: "z.string().trim().min(1) + дата валидация",
               format: "date",
               description: "Дата рождения питомца",
-              example: "2020-01-15"
+              example: "2020-01-15",
             },
             heightCm: {
               type: "number",
               validation: "numericField({ min: 1, max: 200 })",
               description: "Рост в сантиметрах",
-              example: 25
+              example: 25,
             },
             weightKg: {
               type: "number",
               validation: "numericField({ min: 0.1, max: 200 })",
               description: "Вес в килограммах",
-              example: 4.5
+              example: 4.5,
             },
             photoUrl: {
               type: "string",
               validation: "urlSchema",
               format: "uri",
               description: "URL фотографии питомца",
-              example: "https://example.com/cat.jpg"
+              example: "https://example.com/cat.jpg",
             },
             notes: {
               type: "string",
               validation: "z.string().trim().max(500)",
               description: "Заметки о питомце",
-              example: "Очень ласковый кот"
-            }
-          }
+              example: "Очень ласковый кот",
+            },
+          },
         },
         output: {
           type: "object",
@@ -283,8 +283,8 @@ const checkConfirmed = async (phone: string) => {
             notes: { type: "string", nullable: true },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
-            awards: { type: "array", items: { type: "object" } }
-          }
+            awards: { type: "array", items: { type: "object" } },
+          },
         },
         usage: `
 // В форме создания питомца
@@ -298,7 +298,7 @@ const handleCreatePet = async (formData: CreatePetInput) => {
   } catch (error) {
     console.error('Error creating pet:', error.message);
   }
-};`
+};`,
       },
 
       updatePet: {
@@ -313,14 +313,14 @@ const handleCreatePet = async (formData: CreatePetInput) => {
               type: "string",
               validation: "z.string().trim().min(1)",
               description: "ID питомца для обновления",
-              example: "pet-uuid-here"
+              example: "pet-uuid-here",
             },
             name: {
               type: "string",
               validation: "z.string().trim().min(2).max(50).regex(/^[а-яёА-ЯЁa-zA-Z\\s-]+$/)",
               description: "Имя питомца (только буквы, пробелы и дефис)",
               example: "Барсик",
-              optional: true
+              optional: true,
             },
             type: {
               type: "string",
@@ -328,14 +328,14 @@ const handleCreatePet = async (formData: CreatePetInput) => {
               enum: ["DOG", "CAT"],
               description: "Тип питомца",
               example: "CAT",
-              optional: true
+              optional: true,
             },
             breed: {
               type: "string",
               validation: "z.string().trim().min(2).max(50)",
               description: "Порода питомца",
               example: "Персидская",
-              optional: true
+              optional: true,
             },
             birthDate: {
               type: "string",
@@ -343,21 +343,21 @@ const handleCreatePet = async (formData: CreatePetInput) => {
               format: "date",
               description: "Дата рождения питомца",
               example: "2020-01-15",
-              optional: true
+              optional: true,
             },
             heightCm: {
               type: "number",
               validation: "numericField({ min: 1, max: 200 })",
               description: "Рост в сантиметрах",
               example: 25,
-              optional: true
+              optional: true,
             },
             weightKg: {
               type: "number",
               validation: "numericField({ min: 0.1, max: 200 })",
               description: "Вес в килограммах",
               example: 4.5,
-              optional: true
+              optional: true,
             },
             photoUrl: {
               type: "string",
@@ -365,16 +365,16 @@ const handleCreatePet = async (formData: CreatePetInput) => {
               format: "uri",
               description: "URL фотографии питомца",
               example: "https://example.com/cat.jpg",
-              optional: true
+              optional: true,
             },
             notes: {
               type: "string",
               validation: "z.string().trim().max(500).optional()",
               description: "Заметки о питомце",
               example: "Очень ласковый кот",
-              optional: true
-            }
-          }
+              optional: true,
+            },
+          },
         },
         output: {
           type: "object",
@@ -391,8 +391,8 @@ const handleCreatePet = async (formData: CreatePetInput) => {
             notes: { type: "string", nullable: true },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
-            awards: { type: "array", items: { type: "object" } }
-          }
+            awards: { type: "array", items: { type: "object" } },
+          },
         },
         usage: `
 // В форме редактирования питомца
@@ -405,7 +405,7 @@ const handleUpdatePet = async (petData: UpdatePetInput) => {
   } catch (error) {
     console.error('Error updating pet:', error.message);
   }
-};`
+};`,
       },
 
       getUserPets: {
@@ -413,7 +413,7 @@ const handleUpdatePet = async (petData: UpdatePetInput) => {
         description: "Получение списка всех питомцев текущего пользователя",
         input: {
           type: "none",
-          description: "Не требует входных параметров - использует getCurrentUserId()"
+          description: "Не требует входных параметров - использует getCurrentUserId()",
         },
         output: {
           type: "array",
@@ -440,12 +440,12 @@ const handleUpdatePet = async (petData: UpdatePetInput) => {
                     id: { type: "string", format: "uuid" },
                     title: { type: "string" },
                     description: { type: "string", nullable: true },
-                    date: { type: "string", format: "date-time" }
-                  }
-                }
-              }
-            }
-          }
+                    date: { type: "string", format: "date-time" },
+                  },
+                },
+              },
+            },
+          },
         },
         usage: `
 // В компоненте списка питомцев
@@ -474,8 +474,8 @@ const PetList = () => {
       ))}
     </div>
   );
-};`
-      }
+};`,
+      },
     },
 
     // ===== ТРЕНИРОВКИ =====
@@ -492,43 +492,43 @@ const PetList = () => {
               type: "string",
               validation: "courseIdSchema",
               description: "ID курса",
-              example: "course-uuid"
+              example: "course-uuid",
             },
             day: {
               type: "number",
               validation: "dayNumberSchema",
               minimum: 1,
               description: "Номер дня тренировки",
-              example: 1
+              example: 1,
             },
             stepIndex: {
               type: "number",
               validation: "stepIndexSchema",
               minimum: 0,
               description: "Индекс шага (начиная с 0)",
-              example: 0
+              example: 0,
             },
             status: {
               type: "string",
               validation: "TrainingStatus enum",
               enum: ["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "PAUSED"],
               description: "Статус шага",
-              example: "IN_PROGRESS"
+              example: "IN_PROGRESS",
             },
             durationSec: {
               type: "number",
               validation: "z.number().min(0)",
               minimum: 0,
               description: "Продолжительность в секундах",
-              example: 300
-            }
-          }
+              example: 300,
+            },
+          },
         },
         output: {
           type: "object",
           properties: {
-            success: { type: "boolean", example: true }
-          }
+            success: { type: "boolean", example: true },
+          },
         },
         usage: `
 // В таймер сторе
@@ -547,7 +547,7 @@ const startStep = async (courseId: string, day: number, stepIndex: number, durat
   } catch (error) {
     console.error('Error starting step:', error.message);
   }
-};`
+};`,
       },
 
       pauseResumeUserStep: {
@@ -567,10 +567,10 @@ const startStep = async (courseId: string, day: number, stepIndex: number, durat
                   type: "number",
                   validation: "z.number().min(0)",
                   description: "Оставшееся время в секундах",
-                  example: 180
-                }
-              }
-            }
+                  example: 180,
+                },
+              },
+            },
           },
           resumeUserStepServerAction: {
             input: {
@@ -580,16 +580,16 @@ const startStep = async (courseId: string, day: number, stepIndex: number, durat
               properties: {
                 courseId: { type: "string", validation: "courseIdSchema" },
                 day: { type: "number", validation: "dayNumberSchema" },
-                stepIndex: { type: "number", validation: "stepIndexSchema" }
-              }
-            }
-          }
+                stepIndex: { type: "number", validation: "stepIndexSchema" },
+              },
+            },
+          },
         },
         output: {
           type: "object",
           properties: {
-            success: { type: "boolean", example: true }
-          }
+            success: { type: "boolean", example: true },
+          },
         },
         usage: `
 // Пауза шага
@@ -614,8 +614,8 @@ const resumeStep = async (courseId: string, day: number, stepIndex: number) => {
   } catch (error) {
     console.error('Error resuming step:', error.message);
   }
-};`
-      }
+};`,
+      },
     },
 
     // ===== КУРСЫ =====
@@ -632,7 +632,7 @@ const resumeStep = async (courseId: string, day: number, stepIndex: number) => {
               type: "string",
               validation: "z.string().trim().min(1)",
               description: "ID курса",
-              example: "course-uuid"
+              example: "course-uuid",
             },
             rating: {
               type: "number",
@@ -640,13 +640,13 @@ const resumeStep = async (courseId: string, day: number, stepIndex: number) => {
               minimum: 1,
               maximum: 5,
               description: "Оценка от 1 до 5",
-              example: 5
-            }
-          }
+              example: 5,
+            },
+          },
         },
         output: {
           type: "void",
-          description: "Функция не возвращает значение, обновляет рейтинг в БД"
+          description: "Функция не возвращает значение, обновляет рейтинг в БД",
         },
         usage: `
 // В компоненте рейтинга
@@ -660,7 +660,7 @@ const handleRateCourse = async (courseId: string, rating: number) => {
   } catch (error) {
     console.error('Error rating course:', error.message);
   }
-};`
+};`,
       },
 
       toggleFavoriteCourse: {
@@ -670,12 +670,12 @@ const handleRateCourse = async (courseId: string, rating: number) => {
           type: "string",
           validation: "z.string().trim().min(1)",
           description: "ID курса",
-          example: "course-uuid"
+          example: "course-uuid",
         },
         output: {
           type: "boolean",
           description: "true если курс добавлен в избранное, false если удален",
-          example: true
+          example: true,
         },
         usage: `
 // В компоненте курса
@@ -689,8 +689,8 @@ const handleToggleFavorite = async (courseId: string) => {
   } catch (error) {
     console.error('Error toggling favorite:', error.message);
   }
-};`
-      }
+};`,
+      },
     },
 
     // ===== ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ =====
@@ -707,44 +707,44 @@ const handleToggleFavorite = async (courseId: string) => {
               validation: "z.string().trim().max(120)",
               maxLength: 120,
               description: "Полное имя",
-              example: "Иван Иванов"
+              example: "Иван Иванов",
             },
             about: {
               type: "string",
               validation: "z.string().trim().max(2000)",
               maxLength: 2000,
               description: "О себе",
-              example: "Люблю тренироваться с питомцами"
+              example: "Люблю тренироваться с питомцами",
             },
             telegram: {
               type: "string",
               validation: "z.string().trim().max(100)",
               maxLength: 100,
               description: "Telegram username",
-              example: "@ivan_ivanov"
+              example: "@ivan_ivanov",
             },
             instagram: {
               type: "string",
               validation: "z.string().trim().max(100)",
               maxLength: 100,
               description: "Instagram username",
-              example: "ivan_ivanov"
+              example: "ivan_ivanov",
             },
             website: {
               type: "string",
               validation: "z.string().trim().max(200)",
               maxLength: 200,
               description: "Веб-сайт",
-              example: "https://ivan.com"
+              example: "https://ivan.com",
             },
             birthDate: {
               type: "string",
               validation: "z.string().trim().max(100)",
               maxLength: 100,
               description: "Дата рождения",
-              example: "1990-01-01"
-            }
-          }
+              example: "1990-01-01",
+            },
+          },
         },
         output: {
           type: "object",
@@ -759,8 +759,8 @@ const handleToggleFavorite = async (courseId: string) => {
             website: { type: "string", nullable: true },
             birthDate: { type: "string", format: "date-time", nullable: true },
             createdAt: { type: "string", format: "date-time" },
-            updatedAt: { type: "string", format: "date-time" }
-          }
+            updatedAt: { type: "string", format: "date-time" },
+          },
         },
         usage: `
 // В форме профиля
@@ -774,8 +774,8 @@ const handleUpdateProfile = async (profileData: UpdateUserProfileInput) => {
   } catch (error) {
     console.error('Error updating profile:', error.message);
   }
-};`
-      }
+};`,
+      },
     },
 
     // ===== УВЕДОМЛЕНИЯ =====
@@ -791,45 +791,45 @@ const handleUpdateProfile = async (profileData: UpdateUserProfileInput) => {
             id: {
               type: "string",
               validation: "z.string().optional()",
-              description: "ID подписки (опционально)"
+              description: "ID подписки (опционально)",
             },
             userId: {
               type: "string",
               validation: "z.string().trim().min(1)",
               description: "ID пользователя",
-              example: "user-uuid"
+              example: "user-uuid",
             },
             endpoint: {
               type: "string",
               validation: "z.string().trim().min(1)",
               description: "Push endpoint",
-              example: "https://fcm.googleapis.com/fcm/send/..."
+              example: "https://fcm.googleapis.com/fcm/send/...",
             },
             p256dh: {
               type: "string",
               validation: "z.string().trim().min(1)",
-              description: "P256DH ключ"
+              description: "P256DH ключ",
             },
             auth: {
               type: "string",
               validation: "z.string().trim().min(1)",
-              description: "Auth ключ"
+              description: "Auth ключ",
             },
             keys: {
               type: "object",
               required: ["p256dh", "auth"],
               properties: {
                 p256dh: { type: "string", validation: "z.string().trim().min(1)" },
-                auth: { type: "string", validation: "z.string().trim().min(1)" }
-              }
-            }
-          }
+                auth: { type: "string", validation: "z.string().trim().min(1)" },
+              },
+            },
+          },
         },
         output: {
           type: "object",
           properties: {
-            success: { type: "boolean", example: true }
-          }
+            success: { type: "boolean", example: true },
+          },
         },
         usage: `
 // В компоненте уведомлений
@@ -851,44 +851,43 @@ const handleSubscribeToNotifications = async (subscription: PushSubscription) =>
   } catch (error) {
     console.error('Error updating subscription:', error.message);
   }
-};`
-      }
-    }
-  }
+};`,
+      },
+    },
+  },
 };
 
 async function generateServerActionsDocumentation() {
   try {
-    console.log('🚀 Генерация документации серверных экшенов...');
+    console.log("🚀 Генерация документации серверных экшенов...");
 
     // Создаем директорию для документации
-    const docsDir = path.join(__dirname, '../docs/server-actions');
+    const docsDir = path.join(__dirname, "../docs/server-actions");
     if (!fs.existsSync(docsDir)) {
       fs.mkdirSync(docsDir, { recursive: true });
     }
 
     // Генерируем JSON файл
-    const jsonPath = path.join(docsDir, 'server-actions.json');
+    const jsonPath = path.join(docsDir, "server-actions.json");
     fs.writeFileSync(jsonPath, JSON.stringify(serverActionsDocumentation, null, 2));
     console.log(`✅ JSON документация создана: ${jsonPath}`);
 
     // Генерируем Markdown документацию
-    const mdPath = path.join(docsDir, 'README.md');
+    const mdPath = path.join(docsDir, "README.md");
     const markdownContent = generateMarkdownDocumentation(serverActionsDocumentation);
     fs.writeFileSync(mdPath, markdownContent);
     console.log(`✅ Markdown документация создана: ${mdPath}`);
 
     // Генерируем HTML документацию
-    const htmlPath = path.join(docsDir, 'index.html');
+    const htmlPath = path.join(docsDir, "index.html");
     const htmlContent = generateHTMLDocumentation(serverActionsDocumentation);
     fs.writeFileSync(htmlPath, htmlContent);
     console.log(`✅ HTML документация создана: ${htmlPath}`);
 
-    console.log('🎉 Документация серверных экшенов успешно сгенерирована!');
+    console.log("🎉 Документация серверных экшенов успешно сгенерирована!");
     console.log(`📖 Откройте ${htmlPath} в браузере для просмотра документации`);
-
   } catch (error) {
-    console.error('❌ Ошибка при генерации документации:', error);
+    console.error("❌ Ошибка при генерации документации:", error);
     process.exit(1);
   }
 }
@@ -935,11 +934,14 @@ ${doc.serverActions.auth.checkUserStateAction.usage.trim()}
 **Описание:** ${doc.serverActions.pets.createPet.description}
 
 **Входные параметры:**
-${Object.entries(doc.serverActions.pets.createPet.input.properties).map(([key, prop]) => 
-  `- \`${key}\` (${prop.type}) - ${prop.description}
+${Object.entries(doc.serverActions.pets.createPet.input.properties)
+  .map(
+    ([key, prop]) =>
+      `- \`${key}\` (${prop.type}) - ${prop.description}
   - Валидация: \`${prop.validation}\`
-  - Пример: \`${prop.example}\``
-).join('\n')}
+  - Пример: \`${prop.example}\``,
+  )
+  .join("\n")}
 
 **Возвращаемое значение:**
 \`\`\`typescript
@@ -1002,11 +1004,14 @@ ${doc.serverActions.pets.getUserPets.usage.trim()}
 **Описание:** ${doc.serverActions.training.startUserStepServerAction.description}
 
 **Входные параметры:**
-${Object.entries(doc.serverActions.training.startUserStepServerAction.input.properties).map(([key, prop]) => 
-  `- \`${key}\` (${prop.type}) - ${prop.description}
+${Object.entries(doc.serverActions.training.startUserStepServerAction.input.properties)
+  .map(
+    ([key, prop]) =>
+      `- \`${key}\` (${prop.type}) - ${prop.description}
   - Валидация: \`${prop.validation}\`
-  - Пример: \`${prop.example}\``
-).join('\n')}
+  - Пример: \`${prop.example}\``,
+  )
+  .join("\n")}
 
 **Пример использования:**
 \`\`\`typescript
@@ -1062,11 +1067,14 @@ ${doc.serverActions.courses.toggleFavoriteCourse.usage.trim()}
 **Описание:** ${doc.serverActions.user.updateUserProfile.description}
 
 **Входные параметры:**
-${Object.entries(doc.serverActions.user.updateUserProfile.input.properties).map(([key, prop]) => 
-  `- \`${key}\` (${prop.type}) - ${prop.description}
+${Object.entries(doc.serverActions.user.updateUserProfile.input.properties)
+  .map(
+    ([key, prop]) =>
+      `- \`${key}\` (${prop.type}) - ${prop.description}
   - Валидация: \`${prop.validation}\`
-  - Пример: \`${prop.example}\``
-).join('\n')}
+  - Пример: \`${prop.example}\``,
+  )
+  .join("\n")}
 
 **Пример использования:**
 \`\`\`typescript
@@ -1080,11 +1088,14 @@ ${doc.serverActions.user.updateUserProfile.usage.trim()}
 **Описание:** ${doc.serverActions.notifications.updateSubscriptionAction.description}
 
 **Входные параметры:**
-${Object.entries(doc.serverActions.notifications.updateSubscriptionAction.input.properties).map(([key, prop]) => 
-  `- \`${key}\` (${prop.type}) - ${prop.description}
+${Object.entries(doc.serverActions.notifications.updateSubscriptionAction.input.properties)
+  .map(
+    ([key, prop]) =>
+      `- \`${key}\` (${prop.type}) - ${prop.description}
   - Валидация: \`${prop.validation}\`
-  - Пример: \`${prop.example}\``
-).join('\n')}
+  - Пример: \`${prop.example}\``,
+  )
+  .join("\n")}
 
 **Пример использования:**
 \`\`\`typescript
@@ -1327,10 +1338,14 @@ function generateHTMLDocumentation(doc) {
       </div>
     </div>
     
-    ${Object.entries(doc.serverActions).map(([category, actions]) => `
+    ${Object.entries(doc.serverActions)
+      .map(
+        ([category, actions]) => `
       <div class="section">
         <h2>${getCategoryTitle(category)}</h2>
-        ${Object.entries(actions).map(([actionName, action]) => `
+        ${Object.entries(actions)
+          .map(
+            ([actionName, action]) => `
           <div class="action">
             <h3>${actionName}</h3>
             <div class="action-meta">
@@ -1338,41 +1353,65 @@ function generateHTMLDocumentation(doc) {
               <strong>Описание:</strong> ${action.description}
             </div>
             
-            ${action.input && action.input.type !== 'none' ? `
+            ${
+              action.input && action.input.type !== "none"
+                ? `
               <div class="params">
                 <h4>Входные параметры:</h4>
-                ${action.input.properties ? Object.entries(action.input.properties).map(([paramName, param]) => `
+                ${
+                  action.input.properties
+                    ? Object.entries(action.input.properties)
+                        .map(
+                          ([paramName, param]) => `
                   <div class="param">
-                    <div class="param-name">${paramName}${param.optional ? ' (опционально)' : ''}</div>
-                    <div class="param-type">${param.type}${param.validation ? ` - ${param.validation}` : ''}</div>
+                    <div class="param-name">${paramName}${param.optional ? " (опционально)" : ""}</div>
+                    <div class="param-type">${param.type}${param.validation ? ` - ${param.validation}` : ""}</div>
                     <div class="param-desc">${param.description}</div>
-                    ${param.example ? `<div class="param-validation">Пример: ${param.example}</div>` : ''}
+                    ${param.example ? `<div class="param-validation">Пример: ${param.example}</div>` : ""}
                   </div>
-                `).join('') : `
+                `,
+                        )
+                        .join("")
+                    : `
                   <div class="param">
                     <div class="param-name">${action.input.description}</div>
                   </div>
-                `}
+                `
+                }
               </div>
-            ` : ''}
+            `
+                : ""
+            }
             
-            ${action.output ? `
+            ${
+              action.output
+                ? `
               <div class="params">
                 <h4>Возвращаемое значение:</h4>
                 <div class="code-block">${JSON.stringify(action.output, null, 2)}</div>
               </div>
-            ` : ''}
+            `
+                : ""
+            }
             
-            ${action.usage ? `
+            ${
+              action.usage
+                ? `
               <div class="params">
                 <h4>Пример использования:</h4>
                 <div class="code-block">${action.usage.trim()}</div>
               </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
-        `).join('')}
+        `,
+          )
+          .join("")}
       </div>
-    `).join('')}
+    `,
+      )
+      .join("")}
     
     <div class="section">
       <h2>Особенности серверных экшенов</h2>
@@ -1391,12 +1430,12 @@ function generateHTMLDocumentation(doc) {
 
 function getCategoryTitle(category) {
   const titles = {
-    auth: '🔐 Аутентификация',
-    pets: '🐕 Питомцы',
-    training: '🏃 Тренировки',
-    courses: '📚 Курсы',
-    user: '👤 Пользователь',
-    notifications: '🔔 Уведомления'
+    auth: "🔐 Аутентификация",
+    pets: "🐕 Питомцы",
+    training: "🏃 Тренировки",
+    courses: "📚 Курсы",
+    user: "👤 Пользователь",
+    notifications: "🔔 Уведомления",
   };
   return titles[category] || category;
 }

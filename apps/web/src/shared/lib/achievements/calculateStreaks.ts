@@ -4,20 +4,20 @@
 
 /**
  * Вычисляет текущую серию (сколько дней подряд пользователь занимался до сегодня)
- * 
+ *
  * Текущая серия считается от последней даты занятий назад до первого пропущенного дня.
  * Если последняя активность была вчера или сегодня, серия продолжается.
  * Если последняя активность была позавчера или раньше, серия = 0.
- * 
+ *
  * @param trainingDates - Массив дат, когда пользователь завершал шаги или дни тренировок
  * @returns Количество дней подряд в текущей серии
- * 
+ *
  * @example
  * ```typescript
  * // Пользователь занимался: сегодня, вчера, позавчера
  * const dates = [new Date('2024-01-03'), new Date('2024-01-02'), new Date('2024-01-01')];
  * calculateCurrentStreak(dates); // 3
- * 
+ *
  * // Пользователь занимался: вчера, позавчера (сегодня не занимался)
  * const dates2 = [new Date('2024-01-02'), new Date('2024-01-01')];
  * calculateCurrentStreak(dates2); // 2
@@ -32,7 +32,7 @@ export function calculateCurrentStreak(trainingDates: Date[] | string[]): number
   // Обрабатываем как Date объекты, так и строки (после сериализации)
   const normalizedDates = new Set<string>();
   trainingDates.forEach((date) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
+    const d = typeof date === "string" ? new Date(date) : date;
     if (isNaN(d.getTime())) {
       return; // Пропускаем невалидные даты
     }
@@ -68,7 +68,7 @@ export function calculateCurrentStreak(trainingDates: Date[] | string[]): number
 
   // Проверяем последовательность дней от последней даты назад
   // Создаем Set для быстрого поиска дат
-  const dateSet = new Set(uniqueDates.map(d => d.toISOString()));
+  const dateSet = new Set(uniqueDates.map((d) => d.toISOString()));
 
   // Ограничиваем максимальное количество итераций (на случай ошибок)
   const MAX_ITERATIONS = 365; // Максимум год назад
@@ -77,7 +77,7 @@ export function calculateCurrentStreak(trainingDates: Date[] | string[]): number
   // Начинаем с последней даты и идем назад, пока находим последовательные дни
   while (iterations < MAX_ITERATIONS) {
     const expectedDateStr = expectedDate.toISOString();
-    
+
     // Если эта дата есть в списке занятий, увеличиваем серию
     if (dateSet.has(expectedDateStr)) {
       streak++;
@@ -95,12 +95,12 @@ export function calculateCurrentStreak(trainingDates: Date[] | string[]): number
 
 /**
  * Вычисляет самую длинную серию занятий за все время
- * 
+ *
  * Анализирует все даты занятий и находит самую длинную последовательность дней подряд.
- * 
+ *
  * @param trainingDates - Массив дат, когда пользователь завершал шаги или дни тренировок
  * @returns Максимальное количество дней подряд в истории занятий
- * 
+ *
  * @example
  * ```typescript
  * // Пользователь занимался: 1,2,3,5,6,7 января
@@ -120,7 +120,7 @@ export function calculateLongestStreak(trainingDates: Date[] | string[]): number
   // Обрабатываем как Date объекты, так и строки (после сериализации)
   const normalizedDates = new Set<string>();
   trainingDates.forEach((date) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
+    const d = typeof date === "string" ? new Date(date) : date;
     if (isNaN(d.getTime())) {
       return; // Пропускаем невалидные даты
     }
@@ -146,7 +146,7 @@ export function calculateLongestStreak(trainingDates: Date[] | string[]): number
 
     // Вычисляем разницу в днях
     const daysDiff = Math.floor(
-      (currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
+      (currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     if (daysDiff === 1) {
@@ -161,4 +161,3 @@ export function calculateLongestStreak(trainingDates: Date[] | string[]): number
 
   return longestStreak;
 }
-

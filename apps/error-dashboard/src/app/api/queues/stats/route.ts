@@ -80,8 +80,7 @@ export async function GET() {
         error: "Failed to get queues stats from Prometheus",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

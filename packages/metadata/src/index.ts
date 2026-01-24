@@ -1,6 +1,6 @@
 /**
  * @gafus/metadata - Централизованное управление метаданными
- * 
+ *
  * Этот пакет предоставляет типобезопасные утилиты для генерации
  * метаданных (Open Graph, Twitter Cards, JSON-LD) по best practices Next.js 15
  */
@@ -25,4 +25,3 @@ export {
 
 // JSON-LD для SEO
 export { generateOrganizationSchema, generateCourseSchema, serializeJsonLd } from "./jsonld";
-

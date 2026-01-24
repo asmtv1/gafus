@@ -11,10 +11,7 @@ interface VideoTranscodingPlaceholderProps {
 /**
  * Плейсхолдер для видео в процессе транскодирования
  */
-export function VideoTranscodingPlaceholder({
-  status,
-  error,
-}: VideoTranscodingPlaceholderProps) {
+export function VideoTranscodingPlaceholder({ status, error }: VideoTranscodingPlaceholderProps) {
   if (status === "FAILED") {
     return (
       <Box
@@ -61,19 +58,19 @@ export function VideoTranscodingPlaceholder({
       }}
     >
       <CircularProgress size={60} sx={{ mb: 3 }} />
-      
+
       <Typography variant="h6" gutterBottom>
         {status === "PENDING" ? "Видео в очереди на обработку" : "Обработка видео"}
       </Typography>
-      
+
       <Typography variant="body2" color="text.secondary" gutterBottom>
         Это может занять несколько минут
       </Typography>
-      
+
       <Box sx={{ width: "100%", maxWidth: 400, mt: 2 }}>
         <LinearProgress />
       </Box>
-      
+
       <Typography variant="caption" color="text.secondary" sx={{ mt: 2 }}>
         Обновите страницу через пару минут
       </Typography>

@@ -35,7 +35,7 @@ export function generateCourseSchema(courseName: string, courseDescription: stri
 /**
  * Генерирует JSON-LD script tag для вставки в head
  * Использование в Next.js:
- * 
+ *
  * ```tsx
  * export default function Page() {
  *   const schema = generateOrganizationSchema();
@@ -54,4 +54,3 @@ export function generateCourseSchema(courseName: string, courseDescription: stri
 export function serializeJsonLd(data: Record<string, unknown>): string {
   return JSON.stringify(data);
 }
-

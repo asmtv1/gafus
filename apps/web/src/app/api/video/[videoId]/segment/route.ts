@@ -11,7 +11,7 @@ import { streamFileFromCDN } from "@gafus/cdn-upload";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ videoId: string }> }
+  { params }: { params: Promise<{ videoId: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -85,9 +85,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error serving HLS segment:", error);
-    return NextResponse.json(
-      { error: "Ошибка получения сегмента" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Ошибка получения сегмента" }, { status: 500 });
   }
 }

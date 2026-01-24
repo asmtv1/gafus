@@ -13,7 +13,7 @@ import {
 } from "@shared/lib/validation/authSchemas";
 import * as authService from "@gafus/core/services/auth";
 
-const logger = createWebLogger('auth-actions');
+const logger = createWebLogger("auth-actions");
 
 /**
  * Проверяет статус подтверждения пользователя
@@ -72,7 +72,7 @@ export async function registerUserAction(name: string, phone: string, password: 
     return await authService.registerUserService(
       result.data.name,
       result.data.phone,
-      result.data.password
+      result.data.password,
     );
   } catch (error) {
     logger.error("Error in registerUserAction", error as Error, { name, phone });
@@ -89,7 +89,7 @@ export async function resetPasswordAction(token: string, password: string) {
       token,
       password,
     });
-    
+
     await authService.resetPassword(safeToken, safePassword);
     return { success: true };
   } catch (error) {

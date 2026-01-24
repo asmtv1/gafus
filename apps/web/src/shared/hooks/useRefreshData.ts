@@ -5,7 +5,7 @@ import { isOnline } from "@shared/utils/offlineCacheUtils";
 import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для useRefreshData
-const logger = createWebLogger('web-refresh-data');
+const logger = createWebLogger("web-refresh-data");
 
 // Типы для разных страниц
 export type RefreshPageType = "home" | "courses" | "trainings" | "profile" | "achievements";
@@ -45,7 +45,7 @@ export function useRefreshData(pageType: RefreshPageType) {
       throw new Error(`Неизвестный тип страницы: ${pageType}`);
     }
 
-    logger.warn(`🔄 ${config.message}`, { operation: 'warn' });
+    logger.warn(`🔄 ${config.message}`, { operation: "warn" });
 
     // Если офлайн — не дергаем сеть, аккуратно выходим
     if (!isOnline()) {
@@ -60,10 +60,10 @@ export function useRefreshData(pageType: RefreshPageType) {
     try {
       // Определяем ключи запросов для обновления
       const queryKeys = getQueryKeysForPageType(pageType);
-      
+
       // Обновляем courseStore для курсов в зависимости от типа страницы
       const courseUpdatePromises: Promise<unknown>[] = [];
-      
+
       if (pageType === "home" || pageType === "courses") {
         courseUpdatePromises.push(fetchAllCourses());
       }
@@ -73,7 +73,7 @@ export function useRefreshData(pageType: RefreshPageType) {
       }
 
       // Инвалидируем React Query кэши для пользовательских данных
-      const userQueryKeys = queryKeys.filter(key => key.startsWith("user:"));
+      const userQueryKeys = queryKeys.filter((key) => key.startsWith("user:"));
       const userUpdatePromises = userQueryKeys.map((key: string) =>
         queryClient.invalidateQueries({ queryKey: [key] }),
       );
@@ -81,7 +81,7 @@ export function useRefreshData(pageType: RefreshPageType) {
       // Выполняем все обновления параллельно
       await Promise.all([...courseUpdatePromises, ...userUpdatePromises]);
 
-      logger.warn(`✅ ${pageType} обновлен успешно`, { operation: 'warn' });
+      logger.warn(`✅ ${pageType} обновлен успешно`, { operation: "warn" });
 
       // Возвращаем информацию об обновлении
       return {
@@ -90,7 +90,7 @@ export function useRefreshData(pageType: RefreshPageType) {
         updatedKeys: queryKeys,
       };
     } catch (error) {
-      logger.error(`❌ Ошибка обновления ${pageType}:`, error as Error, { operation: 'error' });
+      logger.error(`❌ Ошибка обновления ${pageType}:`, error as Error, { operation: "error" });
       throw error;
     }
   }, [pageType, queryClient, fetchAllCourses, fetchFavorites, fetchAuthored]);
@@ -107,35 +107,15 @@ export function useRefreshData(pageType: RefreshPageType) {
 function getQueryKeysForPageType(pageType: RefreshPageType): string[] {
   switch (pageType) {
     case "home":
-      return [
-        "user:profile", 
-        "user:with-trainings",
-        "user:achievements"
-      ];
+      return ["user:profile", "user:with-trainings", "user:achievements"];
     case "courses":
-      return [
-        "user:achievements"
-      ];
+      return ["user:achievements"];
     case "trainings":
-      return [
-        "user:with-trainings",
-        "user:profile",
-        "user:achievements"
-      ];
+      return ["user:with-trainings", "user:profile", "user:achievements"];
     case "profile":
-      return [
-        "user:profile",
-        "user:preferences",
-        "user:pets",
-        "user:achievements"
-      ];
+      return ["user:profile", "user:preferences", "user:pets", "user:achievements"];
     case "achievements":
-      return [
-        "user:achievements",
-        "user:profile",
-        "user:with-trainings",
-        "user:training-dates"
-      ];
+      return ["user:achievements", "user:profile", "user:with-trainings", "user:training-dates"];
     default:
       return [];
   }

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для useCoursePrefetch
-const logger = createWebLogger('web-course-prefetch');
+const logger = createWebLogger("web-course-prefetch");
 
 /**
  * Хук для предзагрузки курсов
@@ -23,7 +23,7 @@ export const useCoursePrefetch = () => {
       if (!allCourses) {
         fetchAllCourses().catch((error) => {
           // Игнорируем ошибки в префетчере
-          logger.warn("Ошибка при предзагрузке курсов:", { error, operation: 'warn' });
+          logger.warn("Ошибка при предзагрузке курсов:", { error, operation: "warn" });
         });
       }
     }

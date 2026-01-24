@@ -16,7 +16,7 @@ import { useState } from "react";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 // Создаем логгер для CourseMediaUploader
-const logger = createTrainerPanelLogger('trainer-panel-course-media-uploader');
+const logger = createTrainerPanelLogger("trainer-panel-course-media-uploader");
 
 export default function CourseMediaUploader({
   onUploadComplete,
@@ -46,7 +46,7 @@ export default function CourseMediaUploader({
       }
 
       let processedFile = file;
-      
+
       // Для WebP файлов применяем легкое сжатие
       if (file.type === "image/webp") {
         processedFile = await imageCompression(file, {
@@ -70,7 +70,7 @@ export default function CourseMediaUploader({
       if (courseId) {
         const formData = new FormData();
         // Сохраняем оригинальное расширение файла
-        const extension = file.name.split('.').pop() || 'jpg';
+        const extension = file.name.split(".").pop() || "jpg";
         const fileName = `course_${Date.now()}.${extension}`;
         formData.append("image", processedFile, fileName);
 
@@ -84,7 +84,7 @@ export default function CourseMediaUploader({
       }
     } catch (err) {
       logger.error("Ошибка загрузки изображения курса", err as Error, {
-        operation: 'course_image_upload_error'
+        operation: "course_image_upload_error",
       });
       setError(err instanceof Error ? err.message : "Не удалось загрузить изображение");
     } finally {

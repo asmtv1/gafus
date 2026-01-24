@@ -2,12 +2,17 @@
 
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { randomUUID } from "crypto";
-import { uploadFileToCDN, deleteFileFromCDN, getRelativePathFromCDNUrl, getCourseImagePath } from "@gafus/cdn-upload";
+import {
+  uploadFileToCDN,
+  deleteFileFromCDN,
+  getRelativePathFromCDNUrl,
+  getCourseImagePath,
+} from "@gafus/cdn-upload";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 
 // Создаем логгер для uploadCourseImageServerAction
-const logger = createTrainerPanelLogger('trainer-panel-upload-course-image');
+const logger = createTrainerPanelLogger("trainer-panel-upload-course-image");
 
 export async function uploadCourseImageServerAction(formData: FormData, courseId?: string) {
   let file: File | null = null;
@@ -52,7 +57,7 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
     const oldImageUrl = existingCourse?.logoImg || null;
 
     // Генерируем путь для нового изображения
-    const ext = file.name.split(".").pop() || 'jpg';
+    const ext = file.name.split(".").pop() || "jpg";
     const uuid = randomUUID();
     const relativePath = getCourseImagePath(trainerId, courseId, uuid, ext);
 
@@ -62,7 +67,9 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
     // Удаляем старое изображение из CDN (если есть)
     if (oldImageUrl) {
       const oldRelativePath = getRelativePathFromCDNUrl(oldImageUrl);
-      logger.info(`🔍 Найдено старое изображение курса для удаления: ${oldImageUrl} -> ${oldRelativePath}`);
+      logger.info(
+        `🔍 Найдено старое изображение курса для удаления: ${oldImageUrl} -> ${oldRelativePath}`,
+      );
       try {
         await deleteFileFromCDN(oldRelativePath);
         logger.info(`🗑️ Старое изображение курса удалено из CDN: ${oldRelativePath}`);
@@ -76,24 +83,24 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
     return fileUrl;
   } catch (error) {
     logger.error("❌ Error in uploadCourseImageServerAction", error as Error, {
-      operation: 'upload_course_image_error',
+      operation: "upload_course_image_error",
       fileName: file?.name,
-      fileSize: file?.size
+      fileSize: file?.size,
     });
-    
+
     // Отправляем ошибку в error dashboard
     if (file) {
-    logger.error(
-      error instanceof Error ? error.message : "Unknown error",
-      error instanceof Error ? error : new Error(String(error)),
-      {
-        operation: "action",
-        action: "action",
-        tags: [],
-      }
-    );
+      logger.error(
+        error instanceof Error ? error.message : "Unknown error",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: "action",
+          action: "action",
+          tags: [],
+        },
+      );
     }
-    
+
     throw error;
   }
 }

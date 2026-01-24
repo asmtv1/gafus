@@ -62,9 +62,7 @@ export async function saveOfflineCourse(data: OfflineCourse): Promise<void> {
 }
 
 // Получение курса из IndexedDB
-export async function getOfflineCourse(
-  courseId: string,
-): Promise<OfflineCourse | null> {
+export async function getOfflineCourse(courseId: string): Promise<OfflineCourse | null> {
   try {
     const db = await openDB();
     const transaction = db.transaction([STORE_NAME], "readonly");
@@ -86,9 +84,7 @@ export async function getOfflineCourse(
 }
 
 // Получение курса по типу
-export async function getOfflineCourseByType(
-  courseType: string,
-): Promise<OfflineCourse | null> {
+export async function getOfflineCourseByType(courseType: string): Promise<OfflineCourse | null> {
   try {
     const db = await openDB();
     const transaction = db.transaction([STORE_NAME], "readonly");
@@ -103,11 +99,9 @@ export async function getOfflineCourseByType(
       request.onerror = () => reject(request.error);
     });
   } catch (error) {
-    logger.error(
-      "Failed to get course by type from offline storage",
-      error as Error,
-      { courseType },
-    );
+    logger.error("Failed to get course by type from offline storage", error as Error, {
+      courseType,
+    });
     return null;
   }
 }
@@ -162,52 +156,34 @@ export async function deleteOfflineCourse(courseId: string): Promise<void> {
 }
 
 // Получение версии курса
-export async function getOfflineCourseVersion(
-  courseId: string,
-): Promise<string | null> {
+export async function getOfflineCourseVersion(courseId: string): Promise<string | null> {
   try {
     const course = await getOfflineCourse(courseId);
     return course?.version || null;
   } catch (error) {
-    logger.error(
-      "Failed to get course version from offline storage",
-      error as Error,
-      { courseId },
-    );
+    logger.error("Failed to get course version from offline storage", error as Error, { courseId });
     return null;
   }
 }
 
 // Проверка, скачан ли курс
-export async function isCourseDownloaded(
-  courseId: string,
-): Promise<boolean> {
+export async function isCourseDownloaded(courseId: string): Promise<boolean> {
   try {
     const course = await getOfflineCourse(courseId);
     return !!course;
   } catch (error) {
-    logger.error(
-      "Failed to check if course is downloaded",
-      error as Error,
-      { courseId },
-    );
+    logger.error("Failed to check if course is downloaded", error as Error, { courseId });
     return false;
   }
 }
 
 // Проверка по типу курса
-export async function isCourseDownloadedByType(
-  courseType: string,
-): Promise<boolean> {
+export async function isCourseDownloadedByType(courseType: string): Promise<boolean> {
   try {
     const course = await getOfflineCourseByType(courseType);
     return !!course;
   } catch (error) {
-    logger.error(
-      "Failed to check if course is downloaded by type",
-      error as Error,
-      { courseType },
-    );
+    logger.error("Failed to check if course is downloaded by type", error as Error, { courseType });
     return false;
   }
 }
@@ -227,10 +203,7 @@ export async function getAllDownloadedCourses(): Promise<OfflineCourse[]> {
       request.onerror = () => reject(request.error);
     });
   } catch (error) {
-    logger.error(
-      "Failed to get all downloaded courses",
-      error as Error,
-    );
+    logger.error("Failed to get all downloaded courses", error as Error);
     return [];
   }
 }

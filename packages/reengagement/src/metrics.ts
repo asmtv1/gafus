@@ -2,10 +2,10 @@
  * Метрики и аналитика re-engagement кампаний
  */
 
-import { prisma } from '@gafus/prisma';
-import { createWorkerLogger } from '@gafus/logger';
+import { prisma } from "@gafus/prisma";
+import { createWorkerLogger } from "@gafus/logger";
 
-const logger = createWorkerLogger('reengagement-metrics');
+const logger = createWorkerLogger("reengagement-metrics");
 
 /**
  * Записать ежедневные метрики
@@ -14,13 +14,13 @@ export async function recordDailyMetrics(): Promise<void> {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // Активные кампании
     const totalActive = await prisma.reengagementCampaign.count({
-      where: { isActive: true }
+      where: { isActive: true },
     });
 
     // Отправлено за день
@@ -28,9 +28,9 @@ export async function recordDailyMetrics(): Promise<void> {
       where: {
         sentAt: {
           gte: today,
-          lt: tomorrow
-        }
-      }
+          lt: tomorrow,
+        },
+      },
     });
 
     // Вернулось пользователей
@@ -39,9 +39,9 @@ export async function recordDailyMetrics(): Promise<void> {
         returned: true,
         returnedAt: {
           gte: today,
-          lt: tomorrow
-        }
-      }
+          lt: tomorrow,
+        },
+      },
     });
 
     // Метрики по уровням
@@ -62,13 +62,13 @@ export async function recordDailyMetrics(): Promise<void> {
         totalReturned,
         ...levelMetrics,
         ...typeMetrics,
-        ...effectiveness
-      }
+        ...effectiveness,
+      },
     });
 
-    logger.info('Ежедневные метрики записаны', { date: today });
+    logger.info("Ежедневные метрики записаны", { date: today });
   } catch (error) {
-    logger.error('Ошибка записи метрик', error as Error);
+    logger.error("Ошибка записи метрик", error as Error);
   }
 }
 
@@ -85,9 +85,9 @@ async function getLevelMetrics(start: Date, end: Date) {
         level,
         sentAt: {
           gte: start,
-          lt: end
-        }
-      }
+          lt: end,
+        },
+      },
     });
 
     metrics[`level${level}Sent`] = count;
@@ -100,7 +100,7 @@ async function getLevelMetrics(start: Date, end: Date) {
  * Получить метрики по типам сообщений
  */
 async function getTypeMetrics(start: Date, end: Date) {
-  const types = ['emotional', 'educational', 'motivational', 'mixed'];
+  const types = ["emotional", "educational", "motivational", "mixed"];
   const metrics: Record<string, number> = {};
 
   for (const type of types) {
@@ -109,9 +109,9 @@ async function getTypeMetrics(start: Date, end: Date) {
         messageType: type,
         sentAt: {
           gte: start,
-          lt: end
-        }
-      }
+          lt: end,
+        },
+      },
     });
 
     metrics[`${type}Sent`] = count;
@@ -132,9 +132,9 @@ async function calculateEffectiveness(start: Date, end: Date) {
     where: {
       sentAt: {
         gte: start,
-        lt: end
-      }
-    }
+        lt: end,
+      },
+    },
   });
 
   const totalClicked = await prisma.reengagementNotification.count({
@@ -142,9 +142,9 @@ async function calculateEffectiveness(start: Date, end: Date) {
       clicked: true,
       clickedAt: {
         gte: start,
-        lt: end
-      }
-    }
+        lt: end,
+      },
+    },
   });
 
   const clickRate = totalSent > 0 ? (totalClicked / totalSent) * 100 : null;
@@ -155,9 +155,9 @@ async function calculateEffectiveness(start: Date, end: Date) {
       returned: true,
       returnedAt: {
         gte: start,
-        lt: end
-      }
-    }
+        lt: end,
+      },
+    },
   });
 
   const returnRate = totalSent > 0 ? (totalReturned / totalSent) * 100 : null;
@@ -165,7 +165,6 @@ async function calculateEffectiveness(start: Date, end: Date) {
   return {
     openRate,
     clickRate,
-    returnRate
+    returnRate,
   };
 }
-

@@ -16,10 +16,34 @@ export const dynamic = "force-dynamic";
 export default function PasswordResetPage() {
   return (
     <main className={styles.container}>
-      <Image src="/uploads/paw.svg" alt="paw" className={styles.paw_absolute} width={141} height={136} />
-      <Image src="/uploads/paw.svg" alt="paw" className={styles.paw_absolute_2} width={141} height={136} />
-      <Image src="/uploads/paw.svg" alt="paw" className={styles.paw_absolute_3} width={141} height={136} />
-      <Image src="/uploads/paw.svg" alt="paw" className={styles.paw_absolute_4} width={141} height={136} />
+      <Image
+        src="/uploads/paw.svg"
+        alt="paw"
+        className={styles.paw_absolute}
+        width={141}
+        height={136}
+      />
+      <Image
+        src="/uploads/paw.svg"
+        alt="paw"
+        className={styles.paw_absolute_2}
+        width={141}
+        height={136}
+      />
+      <Image
+        src="/uploads/paw.svg"
+        alt="paw"
+        className={styles.paw_absolute_3}
+        width={141}
+        height={136}
+      />
+      <Image
+        src="/uploads/paw.svg"
+        alt="paw"
+        className={styles.paw_absolute_4}
+        width={141}
+        height={136}
+      />
       <h1 className={styles.title}>Сброс пароля</h1>
       <p className={styles.subtitle}>Введите логин и номер телефона для восстановления доступа.</p>
       <Suspense fallback={<p>Загрузка...</p>}>

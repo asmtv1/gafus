@@ -8,7 +8,7 @@ import type { UserPreferences } from "@gafus/types";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
-const logger = createWebLogger('web');
+const logger = createWebLogger("web");
 
 const userPreferencesSchema = z.object({
   notifications: z
@@ -53,7 +53,10 @@ export async function updateUserPreferences(
 
     // Пока что просто возвращаем обновленные настройки
     // В будущем можно добавить сохранение в БД
-    logger.warn("Обновление настроек пользователя:", { preferences: safePreferences, operation: 'warn' });
+    logger.warn("Обновление настроек пользователя:", {
+      preferences: safePreferences,
+      operation: "warn",
+    });
 
     // Возвращаем обновленные настройки
     return {
@@ -85,7 +88,7 @@ export async function updateUserPreferences(
       },
     };
   } catch (error) {
-    logger.error("Ошибка в updateUserPreferences:", error as Error, { operation: 'error' });
+    logger.error("Ошибка в updateUserPreferences:", error as Error, { operation: "error" });
 
     logger.error(
       error instanceof Error ? error.message : "Unknown error in updateUserPreferences",
@@ -96,7 +99,7 @@ export async function updateUserPreferences(
         errorType: error instanceof Error ? error.constructor.name : typeof error,
         preferences: safePreferences,
         tags: ["user", "preferences", "server-action"],
-      }
+      },
     );
 
     throw new Error("Ошибка при обновлении настроек");

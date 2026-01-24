@@ -2,13 +2,13 @@
 
 import { Suspense } from "react";
 import { Box, Container, Typography, Paper, Chip, Button } from "@mui/material";
-import { 
+import {
   Dashboard as DashboardIcon,
   CheckCircle as CheckIcon,
   TrendingUp as TrendingIcon,
   Schedule as ScheduleIcon,
   OpenInNew as OpenInNewIcon,
-  Storage as StorageIcon
+  Storage as StorageIcon,
 } from "@mui/icons-material";
 
 import { FilterProvider } from "@shared/contexts/FilterContext";
@@ -23,20 +23,25 @@ export const dynamic = "force-dynamic";
 export default function ModernDashboardPage() {
   return (
     <FilterProvider>
-      <Box sx={{ 
-        minHeight: "100vh", 
-        bgcolor: "#f8f9fa",
-      }}>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          bgcolor: "#f8f9fa",
+        }}
+      >
         <Container maxWidth="xl" sx={{ py: 4 }}>
           {/* Навигация */}
           <NavigationTabs />
           {/* Заголовок с пастельными цветами */}
-          <Paper elevation={1} sx={{ 
-            p: 4, 
-            mb: 4, 
-            background: "linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)",
-            border: "1px solid #e1bee7"
-          }}>
+          <Paper
+            elevation={1}
+            sx={{
+              p: 4,
+              mb: 4,
+              background: "linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)",
+              border: "1px solid #e1bee7",
+            }}
+          >
             <Box display="flex" alignItems="center" gap={2} mb={2}>
               <DashboardIcon sx={{ fontSize: 40, color: "#7b1fa2" }} />
               <Box>
@@ -48,27 +53,27 @@ export default function ModernDashboardPage() {
                 </Typography>
               </Box>
             </Box>
-            
+
             {/* Статус системы */}
             <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
-              <Chip 
-                icon={<CheckIcon />} 
-                label="Система работает" 
-                color="success" 
+              <Chip
+                icon={<CheckIcon />}
+                label="Система работает"
+                color="success"
                 variant="outlined"
                 sx={{ bgcolor: "rgba(76, 175, 80, 0.1)", color: "#2e7d32" }}
               />
-              <Chip 
-                icon={<ScheduleIcon />} 
-                label="Real-time мониторинг" 
-                color="info" 
+              <Chip
+                icon={<ScheduleIcon />}
+                label="Real-time мониторинг"
+                color="info"
                 variant="outlined"
                 sx={{ bgcolor: "rgba(33, 150, 243, 0.1)", color: "#1565c0" }}
               />
-              <Chip 
-                icon={<TrendingIcon />} 
-                label="Аналитика активна" 
-                color="warning" 
+              <Chip
+                icon={<TrendingIcon />}
+                label="Аналитика активна"
+                color="warning"
                 variant="outlined"
                 sx={{ bgcolor: "rgba(255, 152, 0, 0.1)", color: "#ef6c00" }}
               />

@@ -3,29 +3,26 @@
  * Создание, обновление и закрытие кампаний
  */
 
-import { prisma } from '@gafus/prisma';
-import { createWorkerLogger } from '@gafus/logger';
-import type { NotificationLevel, CampaignData } from './reengagement-types';
+import { prisma } from "@gafus/prisma";
+import { createWorkerLogger } from "@gafus/logger";
+import type { NotificationLevel, CampaignData } from "./reengagement-types";
 
-const logger = createWorkerLogger('campaign-manager');
+const logger = createWorkerLogger("campaign-manager");
 
 /**
  * Интервалы между уведомлениями (в днях)
  */
 const NOTIFICATION_INTERVALS = {
-  1: 5,   // Уровень 1: через 5 дней после неактивности
-  2: 12,  // Уровень 2: через 12 дней
-  3: 20,  // Уровень 3: через 20 дней
-  4: 30   // Уровень 4: через 30 дней
+  1: 5, // Уровень 1: через 5 дней после неактивности
+  2: 12, // Уровень 2: через 12 дней
+  3: 20, // Уровень 3: через 20 дней
+  4: 30, // Уровень 4: через 30 дней
 };
 
 /**
  * Создать новую кампанию для пользователя
  */
-export async function createCampaign(
-  userId: string,
-  lastActivityDate: Date
-): Promise<string> {
+export async function createCampaign(userId: string, lastActivityDate: Date): Promise<string> {
   try {
     // Рассчитать дату первого уведомления
     const nextNotificationDate = calculateNextNotificationDate(1, lastActivityDate);
@@ -37,19 +34,19 @@ export async function createCampaign(
         campaignStartDate: new Date(),
         currentLevel: 1,
         nextNotificationDate,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
-    logger.info('Создана новая re-engagement кампания', {
+    logger.info("Создана новая re-engagement кампания", {
       campaignId: campaign.id,
       userId,
-      nextNotificationDate
+      nextNotificationDate,
     });
 
     return campaign.id;
   } catch (error) {
-    logger.error('Ошибка создания кампании', error as Error, { userId });
+    logger.error("Ошибка создания кампании", error as Error, { userId });
     throw error;
   }
 }
@@ -61,7 +58,7 @@ export async function updateCampaignAfterSend(
   campaignId: string,
   notificationId: string,
   successCount: number,
-  failedCount: number
+  failedCount: number,
 ): Promise<void> {
   try {
     // Получить текущую кампанию
@@ -70,18 +67,18 @@ export async function updateCampaignAfterSend(
       select: {
         currentLevel: true,
         lastActivityDate: true,
-        totalNotificationsSent: true
-      }
+        totalNotificationsSent: true,
+      },
     });
 
     if (!campaign) {
-      logger.warn('Кампания не найдена для обновления', { campaignId });
+      logger.warn("Кампания не найдена для обновления", { campaignId });
       return;
     }
 
     const currentLevel = campaign.currentLevel as NotificationLevel;
     const nextLevel = (currentLevel + 1) as NotificationLevel;
-    
+
     // Проверяем, не последнее ли это уведомление
     const isLastLevel = currentLevel >= 4;
 
@@ -98,8 +95,8 @@ export async function updateCampaignAfterSend(
         lastNotificationSent: new Date(),
         nextNotificationDate,
         totalNotificationsSent: campaign.totalNotificationsSent + 1,
-        isActive: !isLastLevel // Деактивировать, если это было последнее уведомление
-      }
+        isActive: !isLastLevel, // Деактивировать, если это было последнее уведомление
+      },
     });
 
     // Обновить статус уведомления
@@ -109,18 +106,18 @@ export async function updateCampaignAfterSend(
         sent: true,
         sentAt: new Date(),
         successCount,
-        failedCount
-      }
+        failedCount,
+      },
     });
 
-    logger.info('Кампания обновлена после отправки', {
+    logger.info("Кампания обновлена после отправки", {
       campaignId,
       nextLevel: isLastLevel ? null : nextLevel,
       nextNotificationDate,
-      isActive: !isLastLevel
+      isActive: !isLastLevel,
     });
   } catch (error) {
-    logger.error('Ошибка обновления кампании', error as Error, { campaignId });
+    logger.error("Ошибка обновления кампании", error as Error, { campaignId });
     throw error;
   }
 }
@@ -128,23 +125,20 @@ export async function updateCampaignAfterSend(
 /**
  * Закрыть кампанию (пользователь вернулся или отписался)
  */
-export async function closeCampaign(
-  campaignId: string,
-  returned: boolean = false
-): Promise<void> {
+export async function closeCampaign(campaignId: string, returned: boolean = false): Promise<void> {
   try {
     await prisma.reengagementCampaign.update({
       where: { id: campaignId },
       data: {
         isActive: false,
         returned,
-        returnedAt: returned ? new Date() : null
-      }
+        returnedAt: returned ? new Date() : null,
+      },
     });
 
-    logger.info('Кампания закрыта', { campaignId, returned });
+    logger.info("Кампания закрыта", { campaignId, returned });
   } catch (error) {
-    logger.error('Ошибка закрытия кампании', error as Error, { campaignId });
+    logger.error("Ошибка закрытия кампании", error as Error, { campaignId });
     throw error;
   }
 }
@@ -159,10 +153,10 @@ export async function getCampaignData(campaignId: string): Promise<CampaignData 
       include: {
         notifications: {
           select: {
-            variantId: true
-          }
-        }
-      }
+            variantId: true,
+          },
+        },
+      },
     });
 
     if (!campaign) {
@@ -170,17 +164,17 @@ export async function getCampaignData(campaignId: string): Promise<CampaignData 
     }
 
     // Собрать ID отправленных вариантов
-    const sentVariantIds = campaign.notifications.map(n => n.variantId);
+    const sentVariantIds = campaign.notifications.map((n) => n.variantId);
 
     return {
       id: campaign.id,
       userId: campaign.userId,
       currentLevel: campaign.currentLevel as NotificationLevel,
       sentVariantIds,
-      lastActivityDate: campaign.lastActivityDate
+      lastActivityDate: campaign.lastActivityDate,
     };
   } catch (error) {
-    logger.error('Ошибка получения данных кампании', error as Error, { campaignId });
+    logger.error("Ошибка получения данных кампании", error as Error, { campaignId });
     return null;
   }
 }
@@ -196,29 +190,29 @@ export async function unsubscribeUser(userId: string): Promise<void> {
       create: {
         userId,
         enabled: false,
-        unsubscribedAt: new Date()
+        unsubscribedAt: new Date(),
       },
       update: {
         enabled: false,
-        unsubscribedAt: new Date()
-      }
+        unsubscribedAt: new Date(),
+      },
     });
 
     // Закрыть все активные кампании
     await prisma.reengagementCampaign.updateMany({
       where: {
         userId,
-        isActive: true
+        isActive: true,
       },
       data: {
         isActive: false,
-        unsubscribed: true
-      }
+        unsubscribed: true,
+      },
     });
 
-    logger.info('Пользователь отписан от re-engagement', { userId });
+    logger.info("Пользователь отписан от re-engagement", { userId });
   } catch (error) {
-    logger.error('Ошибка отписки пользователя', error as Error, { userId });
+    logger.error("Ошибка отписки пользователя", error as Error, { userId });
     throw error;
   }
 }
@@ -243,7 +237,7 @@ export async function createNotificationRecord(
   variantId: string,
   title: string,
   body: string,
-  url: string
+  url: string,
 ): Promise<string> {
   try {
     const notification = await prisma.reengagementNotification.create({
@@ -255,13 +249,13 @@ export async function createNotificationRecord(
         title,
         body,
         url,
-        sent: false
-      }
+        sent: false,
+      },
     });
 
     return notification.id;
   } catch (error) {
-    logger.error('Ошибка создания записи уведомления', error as Error, { campaignId });
+    logger.error("Ошибка создания записи уведомления", error as Error, { campaignId });
     throw error;
   }
 }
@@ -275,13 +269,13 @@ export async function checkAndCloseReturnedCampaigns(): Promise<number> {
     const activeCampaigns = await prisma.reengagementCampaign.findMany({
       where: {
         isActive: true,
-        returned: false
+        returned: false,
       },
       select: {
         id: true,
         userId: true,
-        campaignStartDate: true
-      }
+        campaignStartDate: true,
+      },
     });
 
     let closedCount = 0;
@@ -291,13 +285,13 @@ export async function checkAndCloseReturnedCampaigns(): Promise<number> {
       const hasActivity = await prisma.userStep.findFirst({
         where: {
           userTraining: {
-            userId: campaign.userId
+            userId: campaign.userId,
           },
-          status: 'COMPLETED',
+          status: "COMPLETED",
           updatedAt: {
-            gte: campaign.campaignStartDate
-          }
-        }
+            gte: campaign.campaignStartDate,
+          },
+        },
       });
 
       if (hasActivity) {
@@ -312,8 +306,7 @@ export async function checkAndCloseReturnedCampaigns(): Promise<number> {
 
     return closedCount;
   } catch (error) {
-    logger.error('Ошибка проверки вернувшихся пользователей', error as Error);
+    logger.error("Ошибка проверки вернувшихся пользователей", error as Error);
     return 0;
   }
 }
-

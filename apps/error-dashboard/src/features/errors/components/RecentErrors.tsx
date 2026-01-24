@@ -58,50 +58,52 @@ import type { ErrorDashboardReport } from "@gafus/types";
  */
 function formatErrorForAI(error: ErrorDashboardReport): string {
   const lines: string[] = [];
-  
+
   lines.push(`# Ошибка: ${error.message}`);
-  lines.push('');
+  lines.push("");
   lines.push(`**ID:** \`${error.id}\``);
   lines.push(`**Приложение:** ${error.appName}`);
   lines.push(`**Окружение:** ${error.environment}`);
-  lines.push(`**Дата:** ${error.createdAt ? format(new Date(error.createdAt), 'dd.MM.yyyy HH:mm:ss', { locale: ru }) : 'Не указана'}`);
+  lines.push(
+    `**Дата:** ${error.createdAt ? format(new Date(error.createdAt), "dd.MM.yyyy HH:mm:ss", { locale: ru }) : "Не указана"}`,
+  );
   lines.push(`**URL:** ${error.url}`);
-  
+
   if (error.userId) {
     lines.push(`**User ID:** \`${error.userId}\``);
   }
-  
+
   if (error.stack) {
-    lines.push('');
-    lines.push('## Stack Trace');
-    lines.push('```');
+    lines.push("");
+    lines.push("## Stack Trace");
+    lines.push("```");
     lines.push(error.stack);
-    lines.push('```');
+    lines.push("```");
   }
-  
+
   if (error.additionalContext) {
-    lines.push('');
-    lines.push('## Дополнительный контекст');
-    lines.push('```json');
+    lines.push("");
+    lines.push("## Дополнительный контекст");
+    lines.push("```json");
     lines.push(JSON.stringify(error.additionalContext, null, 2));
-    lines.push('```');
+    lines.push("```");
   }
-  
+
   if (error.tags && error.tags.length > 0) {
-    lines.push('');
+    lines.push("");
     lines.push(`## Теги`);
-    lines.push(error.tags.map(tag => `- ${tag}`).join('\n'));
+    lines.push(error.tags.map((tag) => `- ${tag}`).join("\n"));
   }
-  
-  return lines.join('\n');
+
+  return lines.join("\n");
 }
 
 /**
  * Форматирует несколько ошибок для AI
  */
 function formatMultipleErrorsForAI(errors: ErrorDashboardReport[]): string {
-  const header = `# Экспорт ошибок (${errors.length})\n\nДата экспорта: ${format(new Date(), 'dd.MM.yyyy HH:mm:ss', { locale: ru })}\n\n---\n\n`;
-  const body = errors.map(error => formatErrorForAI(error)).join('\n\n---\n\n');
+  const header = `# Экспорт ошибок (${errors.length})\n\nДата экспорта: ${format(new Date(), "dd.MM.yyyy HH:mm:ss", { locale: ru })}\n\n---\n\n`;
+  const body = errors.map((error) => formatErrorForAI(error)).join("\n\n---\n\n");
   return header + body;
 }
 
@@ -109,7 +111,7 @@ interface RecentErrorItemProps {
   error: ErrorDashboardReport;
   onViewDetails: () => void;
   onDelete?: (id: string) => void;
-  onStatusChange?: (id: string, status: 'new' | 'viewed' | 'resolved' | 'archived') => void;
+  onStatusChange?: (id: string, status: "new" | "viewed" | "resolved" | "archived") => void;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
   selectionMode?: boolean;
@@ -122,53 +124,63 @@ interface RecentErrorItemProps {
  */
 function isFatalError(error: ErrorDashboardReport): boolean {
   const lowerMessage = error.message.toLowerCase();
-  const hasFatalInMessage = lowerMessage.includes('fatal') || lowerMessage.includes('critical');
-  const hasFatalTag = error.tags?.includes('fatal') || error.tags?.includes('critical');
+  const hasFatalInMessage = lowerMessage.includes("fatal") || lowerMessage.includes("critical");
+  const hasFatalTag = error.tags?.includes("fatal") || error.tags?.includes("critical");
   return !!(hasFatalInMessage || hasFatalTag);
 }
 
-function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSelected, onToggleSelect, selectionMode, isDeleting, isPending }: RecentErrorItemProps) {
+function RecentErrorItem({
+  error,
+  onViewDetails,
+  onDelete,
+  onStatusChange,
+  isSelected,
+  onToggleSelect,
+  selectionMode,
+  isDeleting,
+  isPending,
+}: RecentErrorItemProps) {
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
 
   const getStatusColor = (status?: string) => {
     switch (status) {
-      case 'new':
-        return '#d32f2f';
-      case 'viewed':
-        return '#1976d2';
-      case 'resolved':
-        return '#2e7d32';
-      case 'archived':
-        return '#757575';
+      case "new":
+        return "#d32f2f";
+      case "viewed":
+        return "#1976d2";
+      case "resolved":
+        return "#2e7d32";
+      case "archived":
+        return "#757575";
       default:
-        return '#d32f2f';
+        return "#d32f2f";
     }
   };
 
   const getStatusLabel = (status?: string) => {
     switch (status) {
-      case 'new':
-        return 'Новая';
-      case 'viewed':
-        return 'Просмотрена';
-      case 'resolved':
-        return 'Решена';
-      case 'archived':
-        return 'Архивирована';
+      case "new":
+        return "Новая";
+      case "viewed":
+        return "Просмотрена";
+      case "resolved":
+        return "Решена";
+      case "archived":
+        return "Архивирована";
       default:
-        return 'Новая';
+        return "Новая";
     }
   };
 
   const getStatusIcon = (status?: string) => {
     switch (status) {
-      case 'new':
+      case "new":
         return <NewReleasesIcon fontSize="small" />;
-      case 'viewed':
+      case "viewed":
         return <VisibilityOutlinedIcon fontSize="small" />;
-      case 'resolved':
+      case "resolved":
         return <CheckCircleIcon fontSize="small" />;
-      case 'archived':
+      case "archived":
         return <ArchiveIcon fontSize="small" />;
       default:
         return <NewReleasesIcon fontSize="small" />;
@@ -183,7 +195,7 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
     setStatusMenuAnchor(null);
   };
 
-  const handleStatusChange = (newStatus: 'new' | 'viewed' | 'resolved' | 'archived') => {
+  const handleStatusChange = (newStatus: "new" | "viewed" | "resolved" | "archived") => {
     onStatusChange?.(error.id, newStatus);
     handleStatusMenuClose();
   };
@@ -193,7 +205,7 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
       return <ErrorIcon />;
     }
     const lowerMessage = error.message.toLowerCase();
-    if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) {
+    if (lowerMessage.includes("warning") || lowerMessage.includes("deprecated")) {
       return <WarningIcon />;
     }
     return <BugIcon />;
@@ -201,35 +213,37 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
 
   const getSeverityColor = (error: ErrorDashboardReport) => {
     if (isFatalError(error)) {
-      return '#d32f2f';
+      return "#d32f2f";
     }
     const lowerMessage = error.message.toLowerCase();
-    if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) {
-      return '#ffb74d';
+    if (lowerMessage.includes("warning") || lowerMessage.includes("deprecated")) {
+      return "#ffb74d";
     }
-    return '#7986cb';
+    return "#7986cb";
   };
 
   const getAppColor = (appName: string) => {
     const colors = {
-      'web': '#7986cb',
-      'trainer-panel': '#81c784',
-      'telegram-bot': '#ba68c8',
-      'error-dashboard': '#ffb74d',
-      'bull-board': '#f48fb1'
+      web: "#7986cb",
+      "trainer-panel": "#81c784",
+      "telegram-bot": "#ba68c8",
+      "error-dashboard": "#ffb74d",
+      "bull-board": "#f48fb1",
     };
-    return colors[appName as keyof typeof colors] || '#90a4ae';
+    return colors[appName as keyof typeof colors] || "#90a4ae";
   };
 
   const truncateMessage = (message: string, maxLength: number = 80) => {
     if (message.length <= maxLength) return message;
-    return message.substring(0, maxLength) + '...';
+    return message.substring(0, maxLength) + "...";
   };
 
-  const timeAgo = error.createdAt ? formatDistanceToNow(new Date(error.createdAt), { 
-    addSuffix: true, 
-    locale: ru 
-  }) : 'Дата неизвестна';
+  const timeAgo = error.createdAt
+    ? formatDistanceToNow(new Date(error.createdAt), {
+        addSuffix: true,
+        locale: ru,
+      })
+    : "Дата неизвестна";
 
   const isFatal = isFatalError(error);
   const severityColor = getSeverityColor(error);
@@ -239,36 +253,24 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
       sx={{
         borderRadius: 2,
         mb: 1,
-        bgcolor: isSelected 
-          ? 'action.selected' 
-          : isFatal 
-            ? 'rgba(211, 47, 47, 0.05)' 
-            : 'background.paper',
-        border: '1px solid',
-        borderColor: isSelected 
-          ? '#667eea' 
-          : isFatal 
-            ? '#d32f2f' 
-            : '#ffcdd2',
-        transition: 'all 0.2s ease',
-        '&:hover': {
-          transform: 'translateX(2px)',
+        bgcolor: isSelected
+          ? "action.selected"
+          : isFatal
+            ? "rgba(211, 47, 47, 0.05)"
+            : "background.paper",
+        border: "1px solid",
+        borderColor: isSelected ? "#667eea" : isFatal ? "#d32f2f" : "#ffcdd2",
+        transition: "all 0.2s ease",
+        "&:hover": {
+          transform: "translateX(2px)",
           boxShadow: 1,
-          borderColor: isSelected 
-            ? '#5a67d8' 
-            : isFatal 
-              ? '#b71c1c' 
-              : '#ef9a9a',
-          bgcolor: isFatal ? 'rgba(211, 47, 47, 0.08)' : undefined,
-        }
+          borderColor: isSelected ? "#5a67d8" : isFatal ? "#b71c1c" : "#ef9a9a",
+          bgcolor: isFatal ? "rgba(211, 47, 47, 0.08)" : undefined,
+        },
       }}
     >
       {selectionMode && (
-        <Checkbox
-          checked={isSelected}
-          onChange={() => onToggleSelect?.(error.id)}
-          sx={{ mr: 1 }}
-        />
+        <Checkbox checked={isSelected} onChange={() => onToggleSelect?.(error.id)} sx={{ mr: 1 }} />
       )}
       <ListItemAvatar>
         <Avatar
@@ -288,7 +290,7 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
             <Typography variant="body2" fontWeight="medium" sx={{ flex: 1 }}>
               {truncateMessage(error.message)}
             </Typography>
-            
+
             <Box component="span" display="flex" alignItems="center" gap={0.5}>
               <Chip
                 label={error.appName}
@@ -296,8 +298,8 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
                 sx={{
                   bgcolor: `${getAppColor(error.appName)}15`,
                   color: getAppColor(error.appName),
-                  fontWeight: 'bold',
-                  border: `1px solid ${getAppColor(error.appName)}30`
+                  fontWeight: "bold",
+                  border: `1px solid ${getAppColor(error.appName)}30`,
                 }}
               />
               <Chip
@@ -307,9 +309,9 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
                 sx={{
                   bgcolor: `${getStatusColor(error.status)}15`,
                   color: getStatusColor(error.status),
-                  fontWeight: 'medium',
+                  fontWeight: "medium",
                   border: `1px solid ${getStatusColor(error.status)}30`,
-                  cursor: onStatusChange ? 'pointer' : 'default',
+                  cursor: onStatusChange ? "pointer" : "default",
                 }}
                 onClick={onStatusChange ? handleStatusMenuOpen : undefined}
               />
@@ -325,7 +327,7 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
                   {error.environment}
                 </Typography>
               </Box>
-              
+
               {error.userId && (
                 <Box component="span" display="flex" alignItems="center" gap={0.5}>
                   <PersonIcon fontSize="small" color="action" />
@@ -334,30 +336,31 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
                   </Typography>
                 </Box>
               )}
-              
+
               <Typography variant="caption" color="text.secondary">
                 {timeAgo}
               </Typography>
             </Box>
-            
-            {error.status === 'resolved' && error.resolvedAt && (
+
+            {error.status === "resolved" && error.resolvedAt && (
               <Box component="span" display="flex" alignItems="center" gap={0.5} mb={0.5}>
-                <CheckCircleIcon fontSize="small" sx={{ color: '#2e7d32', fontSize: '0.875rem' }} />
+                <CheckCircleIcon fontSize="small" sx={{ color: "#2e7d32", fontSize: "0.875rem" }} />
                 <Typography variant="caption" color="text.secondary">
-                  Решена {formatDistanceToNow(new Date(error.resolvedAt), { addSuffix: true, locale: ru })}
+                  Решена{" "}
+                  {formatDistanceToNow(new Date(error.resolvedAt), { addSuffix: true, locale: ru })}
                   {error.resolvedBy && ` пользователем ${error.resolvedBy}`}
                 </Typography>
               </Box>
             )}
-            
+
             {error.url && (
-              <Typography 
-                variant="caption" 
+              <Typography
+                variant="caption"
                 color="text.secondary"
-                sx={{ 
-                  display: 'block',
-                  fontFamily: 'monospace',
-                  fontSize: '0.7rem'
+                sx={{
+                  display: "block",
+                  fontFamily: "monospace",
+                  fontSize: "0.7rem",
                 }}
               >
                 {error.url.length > 50 ? `...${error.url.slice(-47)}` : error.url}
@@ -380,34 +383,46 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
               open={Boolean(statusMenuAnchor)}
               onClose={handleStatusMenuClose}
             >
-              <MenuItem onClick={() => handleStatusChange('new')} disabled={error.status === 'new'}>
+              <MenuItem onClick={() => handleStatusChange("new")} disabled={error.status === "new"}>
                 <ListItemIcon>
-                  <NewReleasesIcon fontSize="small" sx={{ color: getStatusColor('new') }} />
+                  <NewReleasesIcon fontSize="small" sx={{ color: getStatusColor("new") }} />
                 </ListItemIcon>
                 <ListItemText primary="Новая" />
               </MenuItem>
-              <MenuItem onClick={() => handleStatusChange('viewed')} disabled={error.status === 'viewed'}>
+              <MenuItem
+                onClick={() => handleStatusChange("viewed")}
+                disabled={error.status === "viewed"}
+              >
                 <ListItemIcon>
-                  <VisibilityOutlinedIcon fontSize="small" sx={{ color: getStatusColor('viewed') }} />
+                  <VisibilityOutlinedIcon
+                    fontSize="small"
+                    sx={{ color: getStatusColor("viewed") }}
+                  />
                 </ListItemIcon>
                 <ListItemText primary="Просмотрена" />
               </MenuItem>
-              <MenuItem onClick={() => handleStatusChange('resolved')} disabled={error.status === 'resolved'}>
+              <MenuItem
+                onClick={() => handleStatusChange("resolved")}
+                disabled={error.status === "resolved"}
+              >
                 <ListItemIcon>
-                  <CheckCircleIcon fontSize="small" sx={{ color: getStatusColor('resolved') }} />
+                  <CheckCircleIcon fontSize="small" sx={{ color: getStatusColor("resolved") }} />
                 </ListItemIcon>
                 <ListItemText primary="Решена" />
               </MenuItem>
-              <MenuItem onClick={() => handleStatusChange('archived')} disabled={error.status === 'archived'}>
+              <MenuItem
+                onClick={() => handleStatusChange("archived")}
+                disabled={error.status === "archived"}
+              >
                 <ListItemIcon>
-                  <ArchiveIcon fontSize="small" sx={{ color: getStatusColor('archived') }} />
+                  <ArchiveIcon fontSize="small" sx={{ color: getStatusColor("archived") }} />
                 </ListItemIcon>
                 <ListItemText primary="Архивирована" />
               </MenuItem>
             </Menu>
           </>
         )}
-        
+
         <Tooltip title="Подробнее">
           <IconButton size="small" onClick={onViewDetails} color="primary">
             <ViewIcon fontSize="small" />
@@ -435,57 +450,65 @@ function RecentErrorItem({ error, onViewDetails, onDelete, onStatusChange, isSel
 
 export default function RecentErrors() {
   const { filters } = useFilters();
-  
+
   const errorFilters = {
     ...filters,
     limit: 50,
     offset: 0,
     type: "errors" as const,
   };
-  
+
   // Логирование для диагностики
-  console.warn('[RecentErrors] Calling useErrors with filters:', JSON.stringify(errorFilters));
-  
+  console.warn("[RecentErrors] Calling useErrors with filters:", JSON.stringify(errorFilters));
+
   const { data: errors, error, isLoading, refetch } = useErrors(errorFilters);
-  
+
   // Логирование результатов
-  console.warn('[RecentErrors] useErrors result:', {
+  console.warn("[RecentErrors] useErrors result:", {
     isLoading,
     hasError: !!error,
     errorMessage: error?.message,
     errorsCount: errors?.length || 0,
-    sampleErrors: errors?.slice(0, 2).map(e => ({ id: e.id, appName: e.appName, message: e.message.substring(0, 30) })),
+    sampleErrors: errors
+      ?.slice(0, 2)
+      .map((e) => ({ id: e.id, appName: e.appName, message: e.message.substring(0, 30) })),
   });
-  
+
   // Логирование результатов
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('[RecentErrors] useErrors result:', {
+  if (process.env.NODE_ENV === "development") {
+    console.warn("[RecentErrors] useErrors result:", {
       isLoading,
       hasError: !!error,
       errorMessage: error?.message,
       errorsCount: errors?.length || 0,
-      sampleErrors: errors?.slice(0, 3).map(e => ({ id: e.id, appName: e.appName, message: e.message.substring(0, 30) })),
+      sampleErrors: errors
+        ?.slice(0, 3)
+        .map((e) => ({ id: e.id, appName: e.appName, message: e.message.substring(0, 30) })),
     });
   }
   const [showAll, setShowAll] = useState(false);
   const [selectedError, setSelectedError] = useState<ErrorDashboardReport | null>(null);
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({
     open: false,
-    message: '',
-    severity: 'success'
+    message: "",
+    severity: "success",
   });
-  
+
   // Batch selection state
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  
+
   // Delete state
   const [isPending, startTransition] = useTransition();
   const [deletingErrorId, setDeletingErrorId] = useState<string | null>(null);
   const { invalidateErrors } = useErrorsMutation();
 
   const handleToggleSelect = (id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -502,7 +525,7 @@ export default function RecentErrors() {
     if (selectedIds.size === displayedErrors.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(displayedErrors.map(e => e.id)));
+      setSelectedIds(new Set(displayedErrors.map((e) => e.id)));
     }
   };
 
@@ -511,31 +534,34 @@ export default function RecentErrors() {
     setSelectedIds(new Set());
   };
 
-  const handleStatusChange = (errorId: string, status: 'new' | 'viewed' | 'resolved' | 'archived') => {
+  const handleStatusChange = (
+    errorId: string,
+    status: "new" | "viewed" | "resolved" | "archived",
+  ) => {
     startTransition(async () => {
       try {
         const result = await updateErrorStatusAction(errorId, status);
         if (result.success) {
           setSnackbar({
             open: true,
-            message: `Статус изменен на "${status === 'new' ? 'Новая' : status === 'viewed' ? 'Просмотрена' : status === 'resolved' ? 'Решена' : 'Архивирована'}"`,
-            severity: 'success',
+            message: `Статус изменен на "${status === "new" ? "Новая" : status === "viewed" ? "Просмотрена" : status === "resolved" ? "Решена" : "Архивирована"}"`,
+            severity: "success",
           });
           await invalidateErrors(errorFilters);
           await refetch();
         } else {
           setSnackbar({
             open: true,
-            message: result.error || 'Не удалось изменить статус',
-            severity: 'error',
+            message: result.error || "Не удалось изменить статус",
+            severity: "error",
           });
         }
       } catch (err) {
-        console.error('Failed to update status:', err);
+        console.error("Failed to update status:", err);
         setSnackbar({
           open: true,
-          message: 'Не удалось изменить статус',
-          severity: 'error',
+          message: "Не удалось изменить статус",
+          severity: "error",
         });
       }
     });
@@ -543,87 +569,96 @@ export default function RecentErrors() {
 
   const handleDeleteError = (errorId: string) => {
     // Найдем ошибку для отображения информации
-    const error = errors?.find(e => e.id === errorId);
-    const confirmMessage = error 
-      ? `Вы уверены, что хотите удалить эту ошибку?\n\nПриложение: ${error.appName}\nСообщение: ${error.message.substring(0, 100)}${error.message.length > 100 ? '...' : ''}\n\nЭто действие нельзя отменить.`
-      : 'Вы уверены, что хотите удалить эту ошибку? Это действие нельзя отменить.';
-    
+    const error = errors?.find((e) => e.id === errorId);
+    const confirmMessage = error
+      ? `Вы уверены, что хотите удалить эту ошибку?\n\nПриложение: ${error.appName}\nСообщение: ${error.message.substring(0, 100)}${error.message.length > 100 ? "..." : ""}\n\nЭто действие нельзя отменить.`
+      : "Вы уверены, что хотите удалить эту ошибку? Это действие нельзя отменить.";
+
     if (!window.confirm(confirmMessage)) {
       return;
     }
 
-    const errorBeforeDeletion = errors?.find(e => e.id === errorId);
+    const errorBeforeDeletion = errors?.find((e) => e.id === errorId);
     const operationStartTime = Date.now();
     const operationStartIso = new Date().toISOString();
-    
+
     // Вспомогательная функция для безопасного преобразования createdAt в ISO строку
     const toIsoString = (date: Date | string | undefined): string | undefined => {
       if (!date) return undefined;
       if (date instanceof Date) return date.toISOString();
-      if (typeof date === 'string') return date;
+      if (typeof date === "string") return date;
       return new Date(date).toISOString();
     };
-    
+
     const errorLabels = errorBeforeDeletion?.labels || {};
     const createdAtIso = toIsoString(errorBeforeDeletion?.createdAt);
-    
-    console.warn('[RecentErrors] Начало удаления ошибки:', { 
+
+    console.warn("[RecentErrors] Начало удаления ошибки:", {
       errorId,
       operationStartTime: operationStartIso,
-      errorBeforeDeletion: errorBeforeDeletion ? {
-        id: errorBeforeDeletion.id,
-        appName: errorBeforeDeletion.appName,
-        createdAt: createdAtIso,
-        timestampNs: errorBeforeDeletion.timestampNs,
-        message: errorBeforeDeletion.message.substring(0, 100),
-        environment: errorBeforeDeletion.environment,
-        context: errorLabels.context,
-        serviceName: errorLabels.service_name || errorLabels.serviceName,
-        container: errorLabels.container_name || errorLabels.container,
-        labels: errorBeforeDeletion.labels,
-        allLabels: errorBeforeDeletion.labels ? Object.keys(errorBeforeDeletion.labels) : [],
-        labelValues: errorBeforeDeletion.labels || {},
-      } : null,
-      totalErrorsInList: errors?.length || 0,
-      errorExistsInList: !!errorBeforeDeletion,
-    });
-    
-    setDeletingErrorId(errorId);
-    startTransition(async () => {
-      const startTime = Date.now();
-      
-      try {
-        const deleteActionStartTime = Date.now();
-        const deleteActionStartIso = new Date().toISOString();
-        
-        console.warn('[RecentErrors] Вызов deleteError server action...', {
-          errorId,
-          deleteActionStartTime: deleteActionStartIso,
-          timeSinceOperationStartMs: deleteActionStartTime - operationStartTime,
-          errorBeforeDeletion: errorBeforeDeletion ? {
+      errorBeforeDeletion: errorBeforeDeletion
+        ? {
+            id: errorBeforeDeletion.id,
             appName: errorBeforeDeletion.appName,
             createdAt: createdAtIso,
             timestampNs: errorBeforeDeletion.timestampNs,
+            message: errorBeforeDeletion.message.substring(0, 100),
             environment: errorBeforeDeletion.environment,
             context: errorLabels.context,
             serviceName: errorLabels.service_name || errorLabels.serviceName,
+            container: errorLabels.container_name || errorLabels.container,
             labels: errorBeforeDeletion.labels,
-          } : null,
+            allLabels: errorBeforeDeletion.labels ? Object.keys(errorBeforeDeletion.labels) : [],
+            labelValues: errorBeforeDeletion.labels || {},
+          }
+        : null,
+      totalErrorsInList: errors?.length || 0,
+      errorExistsInList: !!errorBeforeDeletion,
+    });
+
+    setDeletingErrorId(errorId);
+    startTransition(async () => {
+      const startTime = Date.now();
+
+      try {
+        const deleteActionStartTime = Date.now();
+        const deleteActionStartIso = new Date().toISOString();
+
+        console.warn("[RecentErrors] Вызов deleteError server action...", {
+          errorId,
+          deleteActionStartTime: deleteActionStartIso,
+          timeSinceOperationStartMs: deleteActionStartTime - operationStartTime,
+          errorBeforeDeletion: errorBeforeDeletion
+            ? {
+                appName: errorBeforeDeletion.appName,
+                createdAt: createdAtIso,
+                timestampNs: errorBeforeDeletion.timestampNs,
+                environment: errorBeforeDeletion.environment,
+                context: errorLabels.context,
+                serviceName: errorLabels.service_name || errorLabels.serviceName,
+                labels: errorBeforeDeletion.labels,
+              }
+            : null,
         });
-        
+
         // Передаем данные ошибки для fallback поиска, если прямой поиск по ID не сработает
-        const result = await deleteError(errorId, errorBeforeDeletion && errorBeforeDeletion.createdAt ? {
-          message: errorBeforeDeletion.message,
-          createdAt: errorBeforeDeletion.createdAt,
-          appName: errorBeforeDeletion.appName,
-          labels: errorBeforeDeletion.labels as Record<string, string> | undefined,
-        } : undefined);
+        const result = await deleteError(
+          errorId,
+          errorBeforeDeletion && errorBeforeDeletion.createdAt
+            ? {
+                message: errorBeforeDeletion.message,
+                createdAt: errorBeforeDeletion.createdAt,
+                appName: errorBeforeDeletion.appName,
+                labels: errorBeforeDeletion.labels as Record<string, string> | undefined,
+              }
+            : undefined,
+        );
         const deleteActionEndTime = Date.now();
         const deleteActionEndIso = new Date().toISOString();
         const deleteActionDuration = deleteActionEndTime - deleteActionStartTime;
         const duration = deleteActionEndTime - startTime;
-        
-        console.warn('[RecentErrors] Результат deleteError:', {
+
+        console.warn("[RecentErrors] Результат deleteError:", {
           success: result.success,
           message: result.message,
           error: result.error,
@@ -633,44 +668,44 @@ export default function RecentErrors() {
           totalDurationMs: duration,
           timeSinceOperationStartMs: deleteActionEndTime - operationStartTime,
         });
-        
+
         if (result.success) {
           setSnackbar({
             open: true,
-            message: result.message || 'Ошибка успешно удалена',
-            severity: 'success',
+            message: result.message || "Ошибка успешно удалена",
+            severity: "success",
           });
-          
+
           const cacheInvalidationStartTime = Date.now();
           const cacheInvalidationStartIso = new Date().toISOString();
-          
-          console.warn('[RecentErrors] Инвалидация кэша ошибок...', {
+
+          console.warn("[RecentErrors] Инвалидация кэша ошибок...", {
             errorId,
             cacheInvalidationStartTime: cacheInvalidationStartIso,
             timeSinceDeleteActionMs: cacheInvalidationStartTime - deleteActionEndTime,
             timeSinceOperationStartMs: cacheInvalidationStartTime - operationStartTime,
           });
-          
+
           // Даём Seq применить удаление, затем принудительно обновляем кэш
           await new Promise((resolve) => setTimeout(resolve, 600));
           await invalidateErrors(errorFilters);
-          
+
           const refetchStartTime = Date.now();
           const refetchStartIso = new Date().toISOString();
           await refetch();
           const refetchEndTime = Date.now();
           const refetchEndIso = new Date().toISOString();
           const refetchDuration = refetchEndTime - refetchStartTime;
-          
+
           // Проверяем, осталась ли ошибка в списке после удаления
           const verificationTime = Date.now();
           const verificationIso = new Date().toISOString();
           const errorsAfterDeletion = errors;
-          const errorStillInList = errorsAfterDeletion?.some(e => e.id === errorId);
-          const foundErrorAfterDeletion = errorsAfterDeletion?.find(e => e.id === errorId);
+          const errorStillInList = errorsAfterDeletion?.some((e) => e.id === errorId);
+          const foundErrorAfterDeletion = errorsAfterDeletion?.find((e) => e.id === errorId);
           const totalErrorsAfter = errorsAfterDeletion?.length || 0;
-          
-          console.warn('[RecentErrors] Состояние после удаления и refetch:', {
+
+          console.warn("[RecentErrors] Состояние после удаления и refetch:", {
             errorId,
             verificationTime: verificationIso,
             deleteActionDurationMs: deleteActionDuration,
@@ -683,106 +718,126 @@ export default function RecentErrors() {
             errorStillInList,
             totalErrorsAfter,
             totalErrorsBefore: errors?.length || 0,
-            errorBeforeDeletion: errorBeforeDeletion ? {
-              appName: errorBeforeDeletion.appName,
-              createdAt: createdAtIso,
-              timestampNs: errorBeforeDeletion.timestampNs,
-              environment: errorBeforeDeletion.environment,
-              context: errorLabels.context,
-              serviceName: errorLabels.service_name || errorLabels.serviceName,
-              container: errorLabels.container_name || errorLabels.container,
-              labels: errorBeforeDeletion.labels,
-            } : null,
-            errorAfterDeletion: foundErrorAfterDeletion ? {
-              id: foundErrorAfterDeletion.id,
-              appName: foundErrorAfterDeletion.appName,
-              createdAt: toIsoString(foundErrorAfterDeletion.createdAt),
-              timestampNs: foundErrorAfterDeletion.timestampNs,
-              environment: foundErrorAfterDeletion.environment,
-              context: (foundErrorAfterDeletion.labels || {}).context,
-              serviceName: (foundErrorAfterDeletion.labels || {}).service_name || (foundErrorAfterDeletion.labels || {}).serviceName,
-              container: (foundErrorAfterDeletion.labels || {}).container_name || (foundErrorAfterDeletion.labels || {}).container,
-              labels: foundErrorAfterDeletion.labels,
-              allLabels: foundErrorAfterDeletion.labels ? Object.keys(foundErrorAfterDeletion.labels) : [],
-              labelValues: foundErrorAfterDeletion.labels || {},
-              message: foundErrorAfterDeletion.message.substring(0, 200),
-            } : null,
+            errorBeforeDeletion: errorBeforeDeletion
+              ? {
+                  appName: errorBeforeDeletion.appName,
+                  createdAt: createdAtIso,
+                  timestampNs: errorBeforeDeletion.timestampNs,
+                  environment: errorBeforeDeletion.environment,
+                  context: errorLabels.context,
+                  serviceName: errorLabels.service_name || errorLabels.serviceName,
+                  container: errorLabels.container_name || errorLabels.container,
+                  labels: errorBeforeDeletion.labels,
+                }
+              : null,
+            errorAfterDeletion: foundErrorAfterDeletion
+              ? {
+                  id: foundErrorAfterDeletion.id,
+                  appName: foundErrorAfterDeletion.appName,
+                  createdAt: toIsoString(foundErrorAfterDeletion.createdAt),
+                  timestampNs: foundErrorAfterDeletion.timestampNs,
+                  environment: foundErrorAfterDeletion.environment,
+                  context: (foundErrorAfterDeletion.labels || {}).context,
+                  serviceName:
+                    (foundErrorAfterDeletion.labels || {}).service_name ||
+                    (foundErrorAfterDeletion.labels || {}).serviceName,
+                  container:
+                    (foundErrorAfterDeletion.labels || {}).container_name ||
+                    (foundErrorAfterDeletion.labels || {}).container,
+                  labels: foundErrorAfterDeletion.labels,
+                  allLabels: foundErrorAfterDeletion.labels
+                    ? Object.keys(foundErrorAfterDeletion.labels)
+                    : [],
+                  labelValues: foundErrorAfterDeletion.labels || {},
+                  message: foundErrorAfterDeletion.message.substring(0, 200),
+                }
+              : null,
           });
-          
+
           if (errorStillInList && foundErrorAfterDeletion) {
-            console.error('[RecentErrors] ОШИБКА ВСЁ ЕЩЁ В СПИСКЕ ПОСЛЕ УДАЛЕНИЯ!', {
+            console.error("[RecentErrors] ОШИБКА ВСЁ ЕЩЁ В СПИСКЕ ПОСЛЕ УДАЛЕНИЯ!", {
               errorId,
               verificationTime: verificationIso,
               timeSinceDeleteActionMs: verificationTime - deleteActionEndTime,
               timeSinceOperationStartMs: verificationTime - operationStartTime,
-            errorDetails: {
-              id: foundErrorAfterDeletion.id,
-              appName: foundErrorAfterDeletion.appName,
-              createdAt: toIsoString(foundErrorAfterDeletion.createdAt),
-              timestampNs: foundErrorAfterDeletion.timestampNs,
-              environment: foundErrorAfterDeletion.environment,
-              context: (foundErrorAfterDeletion.labels || {}).context,
-              serviceName: (foundErrorAfterDeletion.labels || {}).service_name || (foundErrorAfterDeletion.labels || {}).serviceName,
-              container: (foundErrorAfterDeletion.labels || {}).container_name || (foundErrorAfterDeletion.labels || {}).container,
-              labels: foundErrorAfterDeletion.labels,
-              allLabels: foundErrorAfterDeletion.labels ? Object.keys(foundErrorAfterDeletion.labels) : [],
-              labelValues: foundErrorAfterDeletion.labels || {},
-              message: foundErrorAfterDeletion.message,
-            },
-            comparisonWithOriginal: {
-              timestampsMatch: errorBeforeDeletion?.timestampNs === foundErrorAfterDeletion.timestampNs,
-              labelsMatch: JSON.stringify(errorBeforeDeletion?.labels || {}) === JSON.stringify(foundErrorAfterDeletion.labels || {}),
-              originalTimestampNs: errorBeforeDeletion?.timestampNs,
-              foundTimestampNs: foundErrorAfterDeletion.timestampNs,
-              originalLabels: errorBeforeDeletion?.labels || {},
-              foundLabels: foundErrorAfterDeletion.labels || {},
-            },
+              errorDetails: {
+                id: foundErrorAfterDeletion.id,
+                appName: foundErrorAfterDeletion.appName,
+                createdAt: toIsoString(foundErrorAfterDeletion.createdAt),
+                timestampNs: foundErrorAfterDeletion.timestampNs,
+                environment: foundErrorAfterDeletion.environment,
+                context: (foundErrorAfterDeletion.labels || {}).context,
+                serviceName:
+                  (foundErrorAfterDeletion.labels || {}).service_name ||
+                  (foundErrorAfterDeletion.labels || {}).serviceName,
+                container:
+                  (foundErrorAfterDeletion.labels || {}).container_name ||
+                  (foundErrorAfterDeletion.labels || {}).container,
+                labels: foundErrorAfterDeletion.labels,
+                allLabels: foundErrorAfterDeletion.labels
+                  ? Object.keys(foundErrorAfterDeletion.labels)
+                  : [],
+                labelValues: foundErrorAfterDeletion.labels || {},
+                message: foundErrorAfterDeletion.message,
+              },
+              comparisonWithOriginal: {
+                timestampsMatch:
+                  errorBeforeDeletion?.timestampNs === foundErrorAfterDeletion.timestampNs,
+                labelsMatch:
+                  JSON.stringify(errorBeforeDeletion?.labels || {}) ===
+                  JSON.stringify(foundErrorAfterDeletion.labels || {}),
+                originalTimestampNs: errorBeforeDeletion?.timestampNs,
+                foundTimestampNs: foundErrorAfterDeletion.timestampNs,
+                originalLabels: errorBeforeDeletion?.labels || {},
+                foundLabels: foundErrorAfterDeletion.labels || {},
+              },
             });
           } else {
-            console.warn('[RecentErrors] Ошибка успешно удалена из списка', {
+            console.warn("[RecentErrors] Ошибка успешно удалена из списка", {
               errorId,
               durationMs: duration,
             });
           }
         } else {
           // Показываем конкретную ошибку пользователю
-          const errorMessage = result.error || 'Не удалось удалить ошибку';
-          
-          console.error('[RecentErrors] Не удалось удалить ошибку:', {
+          const errorMessage = result.error || "Не удалось удалить ошибку";
+
+          console.error("[RecentErrors] Не удалось удалить ошибку:", {
             errorId,
             error: errorMessage,
             durationMs: duration,
           });
-          
+
           setSnackbar({
             open: true,
             message: errorMessage,
-            severity: 'error',
+            severity: "error",
           });
         }
       } catch (error) {
         const duration = Date.now() - startTime;
-        const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка при удалении';
-        
-        console.error('[RecentErrors] Исключение при удалении ошибки:', {
+        const errorMessage =
+          error instanceof Error ? error.message : "Неизвестная ошибка при удалении";
+
+        console.error("[RecentErrors] Исключение при удалении ошибки:", {
           errorId,
           error,
           errorMessage,
           durationMs: duration,
         });
-        
+
         setSnackbar({
           open: true,
           message: `Ошибка удаления: ${errorMessage}`,
-          severity: 'error',
+          severity: "error",
         });
       } finally {
         setDeletingErrorId(null);
         const operationEndTime = Date.now();
         const operationEndIso = new Date().toISOString();
         const totalOperationDuration = operationEndTime - operationStartTime;
-        
-        console.warn('[RecentErrors] Завершение удаления ошибки', {
+
+        console.warn("[RecentErrors] Завершение удаления ошибки", {
           errorId,
           operationStartTime: operationStartIso,
           operationEndTime: operationEndIso,
@@ -793,84 +848,87 @@ export default function RecentErrors() {
     });
   };
 
-
   const handleCopySelectedForAI = async () => {
     if (!errors) return;
-    const selectedErrors = errors.filter(e => selectedIds.has(e.id));
+    const selectedErrors = errors.filter((e) => selectedIds.has(e.id));
     if (selectedErrors.length === 0) return;
 
     try {
       const markdown = formatMultipleErrorsForAI(selectedErrors);
       await navigator.clipboard.writeText(markdown);
-      setSnackbar({ 
-        open: true, 
-        message: `Скопировано ${selectedErrors.length} ошибок для AI`, 
-        severity: 'success' 
+      setSnackbar({
+        open: true,
+        message: `Скопировано ${selectedErrors.length} ошибок для AI`,
+        severity: "success",
       });
       handleCancelSelection();
     } catch (err) {
-      console.error('Failed to copy:', err);
-      setSnackbar({ open: true, message: 'Не удалось скопировать', severity: 'error' });
+      console.error("Failed to copy:", err);
+      setSnackbar({ open: true, message: "Не удалось скопировать", severity: "error" });
     }
   };
 
   const handleDownloadSelectedJSON = () => {
     if (!errors) return;
-    const selectedErrors = errors.filter(e => selectedIds.has(e.id));
+    const selectedErrors = errors.filter((e) => selectedIds.has(e.id));
     if (selectedErrors.length === 0) return;
 
     try {
-      const json = JSON.stringify({
-        exportedAt: new Date().toISOString(),
-        count: selectedErrors.length,
-        errors: selectedErrors,
-      }, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
+      const json = JSON.stringify(
+        {
+          exportedAt: new Date().toISOString(),
+          count: selectedErrors.length,
+          errors: selectedErrors,
+        },
+        null,
+        2,
+      );
+      const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `errors-export-${format(new Date(), 'yyyy-MM-dd_HH-mm-ss')}.json`;
+      a.download = `errors-export-${format(new Date(), "yyyy-MM-dd_HH-mm-ss")}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      setSnackbar({ 
-        open: true, 
-        message: `Экспортировано ${selectedErrors.length} ошибок в JSON`, 
-        severity: 'success' 
+      setSnackbar({
+        open: true,
+        message: `Экспортировано ${selectedErrors.length} ошибок в JSON`,
+        severity: "success",
       });
       handleCancelSelection();
     } catch (err) {
-      console.error('Failed to download:', err);
-      setSnackbar({ open: true, message: 'Не удалось скачать файл', severity: 'error' });
+      console.error("Failed to download:", err);
+      setSnackbar({ open: true, message: "Не удалось скачать файл", severity: "error" });
     }
   };
 
   const handleDownloadSelectedMarkdown = () => {
     if (!errors) return;
-    const selectedErrors = errors.filter(e => selectedIds.has(e.id));
+    const selectedErrors = errors.filter((e) => selectedIds.has(e.id));
     if (selectedErrors.length === 0) return;
 
     try {
       const markdown = formatMultipleErrorsForAI(selectedErrors);
-      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const blob = new Blob([markdown], { type: "text/markdown" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `errors-export-${format(new Date(), 'yyyy-MM-dd_HH-mm-ss')}.md`;
+      a.download = `errors-export-${format(new Date(), "yyyy-MM-dd_HH-mm-ss")}.md`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      setSnackbar({ 
-        open: true, 
-        message: `Экспортировано ${selectedErrors.length} ошибок в Markdown`, 
-        severity: 'success' 
+      setSnackbar({
+        open: true,
+        message: `Экспортировано ${selectedErrors.length} ошибок в Markdown`,
+        severity: "success",
       });
       handleCancelSelection();
     } catch (err) {
-      console.error('Failed to download:', err);
-      setSnackbar({ open: true, message: 'Не удалось скачать файл', severity: 'error' });
+      console.error("Failed to download:", err);
+      setSnackbar({ open: true, message: "Не удалось скачать файл", severity: "error" });
     }
   };
 
@@ -890,7 +948,7 @@ export default function RecentErrors() {
     return (
       <Card>
         <CardContent>
-          <Alert 
+          <Alert
             severity="error"
             action={
               <IconButton color="inherit" size="small" onClick={() => refetch()}>
@@ -909,9 +967,7 @@ export default function RecentErrors() {
     return (
       <Card>
         <CardContent>
-          <Alert severity="info">
-            Нет недавних ошибок
-          </Alert>
+          <Alert severity="info">Нет недавних ошибок</Alert>
         </CardContent>
       </Card>
     );
@@ -926,13 +982,13 @@ export default function RecentErrors() {
           <Typography variant="h5" component="h3" fontWeight="bold">
             Список ошибок
           </Typography>
-          
+
           <Box display="flex" alignItems="center" gap={1}>
             <Tooltip title={selectionMode ? "Отменить выбор" : "Выбрать для экспорта"}>
-              <IconButton 
+              <IconButton
                 color={selectionMode ? "secondary" : "default"}
-                size="small" 
-                onClick={() => selectionMode ? handleCancelSelection() : setSelectionMode(true)}
+                size="small"
+                onClick={() => (selectionMode ? handleCancelSelection() : setSelectionMode(true))}
                 disabled={!errors || errors.length === 0}
               >
                 {selectionMode ? <CloseIcon /> : <SelectAllIcon />}
@@ -948,31 +1004,45 @@ export default function RecentErrors() {
 
         {/* Selection toolbar */}
         {selectionMode && (
-          <Paper 
-            elevation={3} 
-            sx={{ 
-              p: 2, 
-              mb: 2, 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
+          <Paper
+            elevation={3}
+            sx={{
+              p: 2,
+              mb: 2,
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              color: "white",
               borderRadius: 2,
             }}
           >
-            <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+              flexWrap="wrap"
+              gap={1}
+            >
               <Box display="flex" alignItems="center" gap={2}>
                 <Checkbox
-                  checked={errors ? selectedIds.size === (showAll ? errors : errors.slice(0, 20)).length : false}
-                  indeterminate={selectedIds.size > 0 && errors && selectedIds.size < (showAll ? errors : errors.slice(0, 20)).length}
+                  checked={
+                    errors
+                      ? selectedIds.size === (showAll ? errors : errors.slice(0, 20)).length
+                      : false
+                  }
+                  indeterminate={
+                    selectedIds.size > 0 &&
+                    errors &&
+                    selectedIds.size < (showAll ? errors : errors.slice(0, 20)).length
+                  }
                   onChange={handleSelectAll}
-                  sx={{ color: 'white', '&.Mui-checked': { color: 'white' } }}
+                  sx={{ color: "white", "&.Mui-checked": { color: "white" } }}
                 />
                 <Typography variant="body2">
-                  {selectedIds.size > 0 
-                    ? `Выбрано: ${selectedIds.size}` 
-                    : 'Выберите ошибки для экспорта'}
+                  {selectedIds.size > 0
+                    ? `Выбрано: ${selectedIds.size}`
+                    : "Выберите ошибки для экспорта"}
                 </Typography>
               </Box>
-              
+
               <Box display="flex" alignItems="center" gap={1}>
                 <Tooltip title="Копировать для AI (Markdown)">
                   <span>
@@ -982,17 +1052,17 @@ export default function RecentErrors() {
                       startIcon={<CopyIcon />}
                       onClick={handleCopySelectedForAI}
                       disabled={selectedIds.size === 0}
-                      sx={{ 
-                        bgcolor: 'rgba(255,255,255,0.2)', 
-                        '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
-                        textTransform: 'none',
+                      sx={{
+                        bgcolor: "rgba(255,255,255,0.2)",
+                        "&:hover": { bgcolor: "rgba(255,255,255,0.3)" },
+                        textTransform: "none",
                       }}
                     >
                       Для AI
                     </Button>
                   </span>
                 </Tooltip>
-                
+
                 <Tooltip title="Скачать как JSON">
                   <span>
                     <Button
@@ -1001,18 +1071,18 @@ export default function RecentErrors() {
                       startIcon={<DownloadIcon />}
                       onClick={handleDownloadSelectedJSON}
                       disabled={selectedIds.size === 0}
-                      sx={{ 
-                        color: 'white', 
-                        borderColor: 'rgba(255,255,255,0.5)',
-                        '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' },
-                        textTransform: 'none',
+                      sx={{
+                        color: "white",
+                        borderColor: "rgba(255,255,255,0.5)",
+                        "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
+                        textTransform: "none",
                       }}
                     >
                       JSON
                     </Button>
                   </span>
                 </Tooltip>
-                
+
                 <Tooltip title="Скачать как Markdown">
                   <span>
                     <Button
@@ -1021,11 +1091,11 @@ export default function RecentErrors() {
                       startIcon={<DownloadIcon />}
                       onClick={handleDownloadSelectedMarkdown}
                       disabled={selectedIds.size === 0}
-                      sx={{ 
-                        color: 'white', 
-                        borderColor: 'rgba(255,255,255,0.5)',
-                        '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' },
-                        textTransform: 'none',
+                      sx={{
+                        color: "white",
+                        borderColor: "rgba(255,255,255,0.5)",
+                        "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
+                        textTransform: "none",
                       }}
                     >
                       MD
@@ -1040,8 +1110,8 @@ export default function RecentErrors() {
         <List sx={{ p: 0 }}>
           {displayedErrors.map((err, index) => (
             <Box key={err.id}>
-              <RecentErrorItem 
-                error={err} 
+              <RecentErrorItem
+                error={err}
                 onViewDetails={() => setSelectedError(err)}
                 onDelete={handleDeleteError}
                 onStatusChange={handleStatusChange}
@@ -1062,9 +1132,9 @@ export default function RecentErrors() {
               variant="outlined"
               size="small"
               onClick={() => setShowAll(!showAll)}
-              sx={{ textTransform: 'none' }}
+              sx={{ textTransform: "none" }}
             >
-              {showAll ? 'Показать меньше' : `Показать все (${errors.length})`}
+              {showAll ? "Показать меньше" : `Показать все (${errors.length})`}
             </Button>
           </Box>
         )}
@@ -1085,18 +1155,17 @@ export default function RecentErrors() {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}
-        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
         <Alert
-          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
           severity={snackbar.severity}
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
         >
           {snackbar.message}
         </Alert>
       </Snackbar>
-
     </Card>
   );
 }

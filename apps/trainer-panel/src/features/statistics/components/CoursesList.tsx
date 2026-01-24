@@ -50,7 +50,11 @@ export default function CoursesList({ courses, isAdmin = false }: CoursesListPro
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
         {courseItems.map((course) => (
           <Box key={course.id} sx={{ flex: "1 1 400px", minWidth: 0 }}>
-            <CourseCard course={course} onClick={() => handleCourseClick(course)} isAdmin={isAdmin} />
+            <CourseCard
+              course={course}
+              onClick={() => handleCourseClick(course)}
+              isAdmin={isAdmin}
+            />
           </Box>
         ))}
       </Box>

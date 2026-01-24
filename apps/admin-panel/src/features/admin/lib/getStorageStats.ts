@@ -9,15 +9,15 @@ export interface StorageStats {
   withVideo: number;
   withoutVideo: number;
   deletedVideos: number;
-  
+
   // По статусам
   completedWithVideo: number;
   pendingWithVideo: number;
-  
+
   // Старые экзамены (кандидаты на удаление)
   completedOlderThan30Days: number;
   pendingOlderThan90Days: number;
-  
+
   // Причины удаления
   deletedByReplacement: number;
   deletedByAutoCleanupCompleted: number;
@@ -30,7 +30,7 @@ export interface StorageStats {
  */
 export async function getStorageStats(): Promise<StorageStats> {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user) {
     throw new Error("Не авторизован");
   }
@@ -47,13 +47,13 @@ export async function getStorageStats(): Promise<StorageStats> {
     // Общие статистики
     const totalExamResults = await prisma.examResult.count();
     const withVideo = await prisma.examResult.count({
-      where: { videoReportUrl: { not: null }, videoDeletedAt: null }
+      where: { videoReportUrl: { not: null }, videoDeletedAt: null },
     });
     const withoutVideo = await prisma.examResult.count({
-      where: { OR: [{ videoReportUrl: null }, { videoDeletedAt: { not: null } }] }
+      where: { OR: [{ videoReportUrl: null }, { videoDeletedAt: { not: null } }] },
     });
     const deletedVideos = await prisma.examResult.count({
-      where: { videoDeletedAt: { not: null } }
+      where: { videoDeletedAt: { not: null } },
     });
 
     // По статусам
@@ -61,16 +61,16 @@ export async function getStorageStats(): Promise<StorageStats> {
       where: {
         videoReportUrl: { not: null },
         videoDeletedAt: null,
-        userStep: { status: "COMPLETED" }
-      }
+        userStep: { status: "COMPLETED" },
+      },
     });
 
     const pendingWithVideo = await prisma.examResult.count({
       where: {
         videoReportUrl: { not: null },
         videoDeletedAt: null,
-        userStep: { status: "IN_PROGRESS" }
-      }
+        userStep: { status: "IN_PROGRESS" },
+      },
     });
 
     // Кандидаты на удаление
@@ -79,8 +79,8 @@ export async function getStorageStats(): Promise<StorageStats> {
         videoReportUrl: { not: null },
         videoDeletedAt: null,
         userStep: { status: "COMPLETED" },
-        updatedAt: { lt: thirtyDaysAgo }
-      }
+        updatedAt: { lt: thirtyDaysAgo },
+      },
     });
 
     const pendingOlderThan90Days = await prisma.examResult.count({
@@ -88,21 +88,21 @@ export async function getStorageStats(): Promise<StorageStats> {
         videoReportUrl: { not: null },
         videoDeletedAt: null,
         userStep: { status: "IN_PROGRESS" },
-        createdAt: { lt: ninetyDaysAgo }
-      }
+        createdAt: { lt: ninetyDaysAgo },
+      },
     });
 
     // Причины удаления
     const deletedByReplacement = await prisma.examResult.count({
-      where: { videoDeleteReason: "replaced" }
+      where: { videoDeleteReason: "replaced" },
     });
 
     const deletedByAutoCleanupCompleted = await prisma.examResult.count({
-      where: { videoDeleteReason: "auto_cleanup_completed" }
+      where: { videoDeleteReason: "auto_cleanup_completed" },
     });
 
     const deletedByAutoCleanupPending = await prisma.examResult.count({
-      where: { videoDeleteReason: "auto_cleanup_pending" }
+      where: { videoDeleteReason: "auto_cleanup_pending" },
     });
 
     return {
@@ -116,11 +116,10 @@ export async function getStorageStats(): Promise<StorageStats> {
       pendingOlderThan90Days,
       deletedByReplacement,
       deletedByAutoCleanupCompleted,
-      deletedByAutoCleanupPending
+      deletedByAutoCleanupPending,
     };
   } catch (error) {
     console.error("Ошибка при получении статистики хранилища:", error);
     throw new Error(error instanceof Error ? error.message : "Неизвестная ошибка");
   }
 }
-

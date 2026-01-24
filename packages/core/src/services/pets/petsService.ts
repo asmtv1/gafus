@@ -105,11 +105,7 @@ export async function createPet(userId: string, data: CreatePetInput) {
 /**
  * Обновить питомца
  */
-export async function updatePet(
-  petId: string,
-  userId: string,
-  data: UpdatePetInput
-) {
+export async function updatePet(petId: string, userId: string, data: UpdatePetInput) {
   // Проверяем, что питомец принадлежит пользователю
   const existingPet = await prisma.pet.findFirst({
     where: {

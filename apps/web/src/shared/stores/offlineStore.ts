@@ -18,7 +18,7 @@ import type {
 } from "@gafus/types";
 
 // Создаем логгер для offline store
-const logger = createWebLogger('web-offline-store');
+const logger = createWebLogger("web-offline-store");
 
 export const useOfflineStore = create<OfflineState>()(
   persist(
@@ -36,18 +36,18 @@ export const useOfflineStore = create<OfflineState>()(
       // Установка статуса онлайн/офлайн
       setOnlineStatus: (isOnline: boolean) => {
         const currentState = get();
-        
+
         // Если статус не изменился, ничего не делаем
         if (currentState.isOnline === isOnline) {
           return;
         }
-        
+
         logger.info("Online status changed", {
-          operation: 'online_status_change',
+          operation: "online_status_change",
           isOnline,
-          navigatorOnLine: typeof navigator !== 'undefined' ? navigator.onLine : undefined
+          navigatorOnLine: typeof navigator !== "undefined" ? navigator.onLine : undefined,
         });
-        
+
         set({ isOnline });
 
         // Если стали онлайн, пытаемся синхронизировать очередь
@@ -55,14 +55,14 @@ export const useOfflineStore = create<OfflineState>()(
           const state = get();
           if (state.syncQueue.length > 0) {
             const now = Date.now();
-            if (!state.lastSyncAttempt || (now - state.lastSyncAttempt) >= state.syncCooldown) {
+            if (!state.lastSyncAttempt || now - state.lastSyncAttempt >= state.syncCooldown) {
               setTimeout(() => {
                 try {
                   get().syncOfflineActions();
                 } catch (error) {
                   logger.warn("Failed to sync offline actions (online)", {
-                    operation: 'sync_offline_actions_online_error',
-                    error: error instanceof Error ? error.message : String(error)
+                    operation: "sync_offline_actions_online_error",
+                    error: error instanceof Error ? error.message : String(error),
                   });
                 }
               }, 1000);
@@ -99,15 +99,15 @@ export const useOfflineStore = create<OfflineState>()(
           if (get().isOnline) {
             const now = Date.now();
             const state = get();
-            
-            if (!state.lastSyncAttempt || (now - state.lastSyncAttempt) >= state.syncCooldown) {
+
+            if (!state.lastSyncAttempt || now - state.lastSyncAttempt >= state.syncCooldown) {
               setTimeout(() => {
                 try {
                   get().syncOfflineActions();
                 } catch (error) {
                   logger.warn("Failed to sync offline actions (retry)", {
-                    operation: 'sync_offline_actions_retry_error',
-                    error: error instanceof Error ? error.message : String(error)
+                    operation: "sync_offline_actions_retry_error",
+                    error: error instanceof Error ? error.message : String(error),
                   });
                 }
               }, 100);
@@ -115,9 +115,9 @@ export const useOfflineStore = create<OfflineState>()(
           }
         } catch (error) {
           logger.warn("Failed to add action to sync queue", {
-            operation: 'add_action_to_sync_queue_error',
+            operation: "add_action_to_sync_queue_error",
             actionType: action.type,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
         }
       },
@@ -138,7 +138,7 @@ export const useOfflineStore = create<OfflineState>()(
       cleanupOldActions: () => {
         const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 дней
         const now = Date.now();
-        
+
         set((state) => ({
           syncQueue: state.syncQueue.filter((action) => {
             const age = now - action.timestamp;
@@ -162,7 +162,7 @@ export const useOfflineStore = create<OfflineState>()(
           }
 
           // Проверяем таймаут между попытками синхронизации
-          if (state.lastSyncAttempt && (now - state.lastSyncAttempt) < state.syncCooldown) {
+          if (state.lastSyncAttempt && now - state.lastSyncAttempt < state.syncCooldown) {
             return;
           }
 
@@ -174,43 +174,43 @@ export const useOfflineStore = create<OfflineState>()(
           for (const action of actionsToSync) {
             try {
               // Используем retryWithBackoff для экспоненциальной задержки
-              await retryWithBackoff(
-                () => syncAction(action),
-                {
-                  maxRetries: state.maxRetries,
-                  baseDelay: 1000, // 1 секунда
-                  maxDelay: 10000, // 10 секунд максимум
-                  onRetry: (attempt, error) => {
-                    logger.warn(`Retry ${attempt}/${state.maxRetries} for action ${action.type}`, {
-                      operation: 'sync_action_retry',
-                      actionType: action.type,
-                      attempt,
-                      error: error.message
-                    });
-                  }
-                }
-              );
+              await retryWithBackoff(() => syncAction(action), {
+                maxRetries: state.maxRetries,
+                baseDelay: 1000, // 1 секунда
+                maxDelay: 10000, // 10 секунд максимум
+                onRetry: (attempt, error) => {
+                  logger.warn(`Retry ${attempt}/${state.maxRetries} for action ${action.type}`, {
+                    operation: "sync_action_retry",
+                    actionType: action.type,
+                    attempt,
+                    error: error.message,
+                  });
+                },
+              });
               // Удаляем успешно синхронизированное действие
               get().removeFromSyncQueue(action.id);
             } catch (error) {
               // Если все попытки исчерпаны, удаляем действие
               const syncError = error instanceof Error ? error : new Error(String(error));
-              logger.error(`Failed to sync action ${action.type} after ${state.maxRetries} attempts`, syncError, {
-                operation: 'sync_action_failed_final',
-                actionType: action.type,
-                actionId: action.id
-              });
+              logger.error(
+                `Failed to sync action ${action.type} after ${state.maxRetries} attempts`,
+                syncError,
+                {
+                  operation: "sync_action_failed_final",
+                  actionType: action.type,
+                  actionId: action.id,
+                },
+              );
               get().removeFromSyncQueue(action.id);
             }
           }
 
           // Обновляем время последней синхронизации
           set({ lastSyncTime: now });
-          
         } catch (error) {
           logger.warn("Failed to sync offline actions (main)", {
-            operation: 'sync_offline_actions_main_error',
-            error: error instanceof Error ? error.message : String(error)
+            operation: "sync_offline_actions_main_error",
+            error: error instanceof Error ? error.message : String(error),
           });
         }
       },
@@ -223,8 +223,8 @@ export const useOfflineStore = create<OfflineState>()(
         syncErrors: state.syncErrors,
         lastSyncAttempt: state.lastSyncAttempt,
       }),
-    }
-  )
+    },
+  ),
 );
 
 // Функция синхронизации конкретного действия
@@ -368,15 +368,15 @@ async function syncStepStatusUpdate(data: StepStatusUpdateData): Promise<void> {
       dayOnCourseId,
       data.stepIndex,
       data.status as TrainingStatus,
-      data.stepTitle
+      data.stepTitle,
     );
   } catch (error) {
     logger.warn("Failed to sync step status update", {
-      operation: 'sync_step_status_update_error',
+      operation: "sync_step_status_update_error",
       courseId: data.courseId,
       dayOnCourseId: (data as { dayOnCourseId?: string }).dayOnCourseId,
       stepIndex: data.stepIndex,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
@@ -395,15 +395,19 @@ async function syncStepPause(data: StepPauseData): Promise<void> {
     }
     await Promise.allSettled([
       pauseUserStepServerAction(data.courseId, dayOnCourseId, data.stepIndex, data.timeLeft),
-      pauseNotificationClient({ courseId: data.courseId, dayOnCourseId, stepIndex: data.stepIndex }),
+      pauseNotificationClient({
+        courseId: data.courseId,
+        dayOnCourseId,
+        stepIndex: data.stepIndex,
+      }),
     ]);
   } catch (error) {
     logger.warn("Failed to sync step pause", {
-      operation: 'sync_step_pause_error',
+      operation: "sync_step_pause_error",
       courseId: data.courseId,
       dayOnCourseId: (data as { dayOnCourseId?: string }).dayOnCourseId,
       stepIndex: data.stepIndex,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
@@ -422,15 +426,20 @@ async function syncStepResume(data: StepResumeData): Promise<void> {
     }
     await Promise.allSettled([
       resumeUserStepServerAction(data.courseId, dayOnCourseId, data.stepIndex),
-      resumeNotificationClient({ courseId: data.courseId, dayOnCourseId, stepIndex: data.stepIndex, durationSec: data.timeLeft }),
+      resumeNotificationClient({
+        courseId: data.courseId,
+        dayOnCourseId,
+        stepIndex: data.stepIndex,
+        durationSec: data.timeLeft,
+      }),
     ]);
   } catch (error) {
     logger.warn("Failed to sync step resume", {
-      operation: 'sync_step_resume_error',
+      operation: "sync_step_resume_error",
       courseId: data.courseId,
       dayOnCourseId: (data as { dayOnCourseId?: string }).dayOnCourseId,
       stepIndex: data.stepIndex,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
@@ -446,16 +455,16 @@ async function syncCacheInvalidation(data: { userId: string; cacheKeys: string[]
 
     // Принудительно инвалидируем кэш (force = true)
     await invalidateUserProgressCache(data.userId, true);
-    
+
     logger.info(`[OfflineStore] Cache invalidation synced for user ${data.userId}`, {
-      operation: 'cache_invalidation_synced',
-      userId: data.userId
+      operation: "cache_invalidation_synced",
+      userId: data.userId,
     });
   } catch (error) {
     logger.warn("Failed to sync cache invalidation", {
-      operation: 'sync_cache_invalidation_error',
+      operation: "sync_cache_invalidation_error",
       userId: data.userId,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
@@ -465,18 +474,16 @@ async function syncCacheInvalidation(data: { userId: string; cacheKeys: string[]
 async function syncFavoriteToggle(data: FavoriteToggleData): Promise<void> {
   try {
     // Импортируем функцию переключения избранного
-    const { toggleFavoriteCourseAction } = await import(
-      "@shared/server-actions"
-    );
+    const { toggleFavoriteCourseAction } = await import("@shared/server-actions");
 
     // Вызываем серверное действие для переключения избранного
     await toggleFavoriteCourseAction(data.courseId);
   } catch (error) {
     logger.warn("Failed to sync favorite toggle", {
-      operation: 'sync_favorite_toggle_error',
+      operation: "sync_favorite_toggle_error",
       courseId: data.courseId,
       action: data.action,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
@@ -490,7 +497,7 @@ export function initializeOfflineStore() {
   // Инициализируем статус на основе navigator.onLine
   const isOnline = navigator.onLine;
   const initialState = useOfflineStore.getState();
-  
+
   if (initialState.isOnline !== isOnline) {
     useOfflineStore.getState().setOnlineStatus(isOnline);
   }

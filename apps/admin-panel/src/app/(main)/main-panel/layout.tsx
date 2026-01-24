@@ -2,12 +2,13 @@ import { authOptions } from "@gafus/auth";
 import Image from "next/image";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
-import { 
+import {
   People,
   AdminPanelSettings,
   Notifications,
   TrendingUp,
-  Assessment
+  Assessment,
+  SmartToy as SmartToyIcon,
 } from "@mui/icons-material";
 
 import MobileMenu from "@/shared/components/MobileMenu";
@@ -25,22 +26,12 @@ export default async function MainPanelLayout({ children }: { children: React.Re
   return (
     <div className={styles.container}>
       {/* Мобильное меню */}
-      <MobileMenu 
-        userName={userName}
-        avatarUrl={avatarUrl}
-        userRole={session.user.role}
-      />
+      <MobileMenu userName={userName} avatarUrl={avatarUrl} userRole={session.user.role} />
 
       <aside className={styles.sidebar}>
         <div className={styles.profilWrapper}>
           <div className={styles.userName}>{userName || "\u00A0"}</div>
-          <Image
-            src={avatarUrl}
-            alt="Avatar"
-            width={48}
-            height={48}
-            className={styles.avatar}
-          />
+          <Image src={avatarUrl} alt="Avatar" width={48} height={48} className={styles.avatar} />
         </div>
 
         {/* Основное меню */}
@@ -75,6 +66,10 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             <Link href="/main-panel/presentation-stats" className={styles.button}>
               <Assessment sx={{ mr: 1.5, fontSize: 20 }} />
               Стата по презентации
+            </Link>
+            <Link href="/main-panel/ai-chat-configs" className={styles.button}>
+              <SmartToyIcon sx={{ mr: 1.5, fontSize: 20 }} />
+              AI чат тренеров
             </Link>
           </>
         )}

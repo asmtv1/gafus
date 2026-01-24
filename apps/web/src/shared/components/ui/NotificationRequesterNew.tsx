@@ -9,7 +9,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState, useCallback, useRef } from "react";
 
 // Создаем логгер для notification-requester-new
-const logger = createWebLogger('web-notification-requester-new');
+const logger = createWebLogger("web-notification-requester-new");
 
 export default function NotificationRequesterNew() {
   const { data: session, status } = useSession();
@@ -40,18 +40,18 @@ export default function NotificationRequesterNew() {
   // Получаем публичный VAPID ключ и инициализируем push-уведомления при монтировании
   useEffect(() => {
     let cancelled = false;
-    
+
     (async () => {
       try {
         const { publicKey } = await getPublicKeyAction();
         if (!cancelled) {
           setVapidKey(publicKey ?? null);
         }
-        
+
         // Устанавливаем userId для push-уведомлений только если сессия загружена
         if (status === "authenticated" && session?.user?.id) {
           setUserId(session.user.id);
-          
+
           // Проверяем серверную подписку только после установки userId
           setTimeout(() => {
             checkServerSubscription();
@@ -60,21 +60,25 @@ export default function NotificationRequesterNew() {
           // Сессия еще загружается, не логируем предупреждение
           return;
         } else {
-          logger.warn("⚠️ NotificationRequesterNew: No user ID found in session", { 
-            operation: 'warn',
+          logger.warn("⚠️ NotificationRequesterNew: No user ID found in session", {
+            operation: "warn",
             status,
             hasSession: !!session,
-            hasUserId: !!session?.user?.id
+            hasUserId: !!session?.user?.id,
           });
         }
       } catch (e) {
         if (!cancelled) {
           setVapidKey(null);
-          logger.error("❌ NotificationRequesterNew: Failed to fetch VAPID public key", e as Error, { operation: 'error' });
+          logger.error(
+            "❌ NotificationRequesterNew: Failed to fetch VAPID public key",
+            e as Error,
+            { operation: "error" },
+          );
         }
       }
     })();
-    
+
     return () => {
       cancelled = true;
     };
@@ -146,13 +150,26 @@ export default function NotificationRequesterNew() {
         handleAllowNotifications,
         handleDenyNotifications,
         isLoading,
-        error
+        error,
       );
       return;
     }
 
     // Другие случаи - ничего не показываем
-  }, [mounted, status, session?.user, permission, dismissedUntil, shouldShowModal, isSupported, isLoading, error, handleAllowNotifications, handleDenyNotifications, vapidKey]);
+  }, [
+    mounted,
+    status,
+    session?.user,
+    permission,
+    dismissedUntil,
+    shouldShowModal,
+    isSupported,
+    isLoading,
+    error,
+    handleAllowNotifications,
+    handleDenyNotifications,
+    vapidKey,
+  ]);
 
   // Компонент не рендерит ничего, так как использует SweetAlert2
   return null;

@@ -236,16 +236,16 @@
   .container {
     padding: 16px;
   }
-  
+
   .statsContainer {
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
   }
-  
+
   .achievementsGrid {
     grid-template-columns: 1fr;
   }
-  
+
   .compactGrid {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -255,7 +255,7 @@
   .statsContainer {
     grid-template-columns: 1fr;
   }
-  
+
   .compactGrid {
     grid-template-columns: repeat(2, 1fr);
   }

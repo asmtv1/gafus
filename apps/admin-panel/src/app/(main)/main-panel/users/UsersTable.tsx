@@ -88,7 +88,6 @@ export default function UsersTable({
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
-
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
@@ -156,10 +155,10 @@ export default function UsersTable({
           sx={{ maxWidth: { xs: "100%", sm: 400 } }}
         />
       </Box>
-      <TableContainer 
-        sx={{ 
+      <TableContainer
+        sx={{
           maxHeight: { xs: "none", sm: 600 },
-          display: { xs: "none", sm: "block" }
+          display: { xs: "none", sm: "block" },
         }}
       >
         <Table stickyHeader>
@@ -313,19 +312,25 @@ export default function UsersTable({
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: "flex", gap: 1 }}>
-                    <IconButton 
-                      size="small" 
-                      onClick={() => onEditUser(user)} 
+                    <IconButton
+                      size="small"
+                      onClick={() => onEditUser(user)}
                       color="primary"
-                      sx={{ minWidth: { xs: "44px", sm: "auto" }, minHeight: { xs: "44px", sm: "auto" } }}
+                      sx={{
+                        minWidth: { xs: "44px", sm: "auto" },
+                        minHeight: { xs: "44px", sm: "auto" },
+                      }}
                     >
                       <EditIcon />
                     </IconButton>
-                    <IconButton 
-                      size="small" 
-                      onClick={() => onDeleteUser(user.id)} 
+                    <IconButton
+                      size="small"
+                      onClick={() => onDeleteUser(user.id)}
                       color="error"
-                      sx={{ minWidth: { xs: "44px", sm: "auto" }, minHeight: { xs: "44px", sm: "auto" } }}
+                      sx={{
+                        minWidth: { xs: "44px", sm: "auto" },
+                        minHeight: { xs: "44px", sm: "auto" },
+                      }}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -443,17 +448,17 @@ export default function UsersTable({
             </Box>
 
             <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
-              <IconButton 
-                size="small" 
-                onClick={() => onEditUser(user)} 
+              <IconButton
+                size="small"
+                onClick={() => onEditUser(user)}
                 color="primary"
                 sx={{ minWidth: { xs: "44px", sm: "auto" }, minHeight: { xs: "44px", sm: "auto" } }}
               >
                 <EditIcon />
               </IconButton>
-              <IconButton 
-                size="small" 
-                onClick={() => onDeleteUser(user.id)} 
+              <IconButton
+                size="small"
+                onClick={() => onDeleteUser(user.id)}
                 color="error"
                 sx={{ minWidth: { xs: "44px", sm: "auto" }, minHeight: { xs: "44px", sm: "auto" } }}
               >
@@ -474,12 +479,18 @@ export default function UsersTable({
               Назад
             </Button>
             <Typography variant="body2" sx={{ px: 2 }}>
-              {page * rowsPerPage + 1}-{Math.min((page + 1) * rowsPerPage, users.length)} из {users.length}
+              {page * rowsPerPage + 1}-{Math.min((page + 1) * rowsPerPage, users.length)} из{" "}
+              {users.length}
             </Typography>
             <Button
               variant="outlined"
               size="small"
-              onClick={() => handlePageChange(null, Math.min(Math.ceil(users.length / rowsPerPage) - 1, page + 1))}
+              onClick={() =>
+                handlePageChange(
+                  null,
+                  Math.min(Math.ceil(users.length / rowsPerPage) - 1, page + 1),
+                )
+              }
               disabled={page >= Math.ceil(users.length / rowsPerPage) - 1}
             >
               Вперед
@@ -490,4 +501,3 @@ export default function UsersTable({
     </Paper>
   );
 }
-

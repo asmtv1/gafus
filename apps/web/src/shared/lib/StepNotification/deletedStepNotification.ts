@@ -23,7 +23,11 @@ const deleteSchema = z.object({
  * @param jobId - ID задачи в очереди (если известен)
  */
 export async function deletedStepNotification(day: number, stepIndex: number, deleted: boolean) {
-  const { day: safeDay, stepIndex: safeStepIndex, deleted: isDeleted } = deleteSchema.parse({
+  const {
+    day: safeDay,
+    stepIndex: safeStepIndex,
+    deleted: isDeleted,
+  } = deleteSchema.parse({
     day,
     stepIndex,
     deleted,

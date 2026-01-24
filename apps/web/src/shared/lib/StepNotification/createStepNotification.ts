@@ -4,7 +4,7 @@ import { pushQueue } from "@gafus/queues";
 import type { PushSubscription as DbPushSubscription } from "@gafus/prisma";
 
 // Создаем логгер для createStepNotification
-const logger = createWebLogger('web-create-step-notification');
+const logger = createWebLogger("web-create-step-notification");
 
 // Функция для логирования через logger (отправляется в Loki)
 function logToErrorDashboard(
@@ -63,7 +63,7 @@ export async function createStepNotificationsForUserStep({
 
   // Валидация stepTitle: проверяем, что он не пустой
   const hasStepTitle = stepTitle != null && stepTitle.trim().length > 0;
-  
+
   if (!hasStepTitle) {
     logToErrorDashboard("StepTitle отсутствует или пустой при создании уведомления", "warn", {
       userId,
@@ -150,7 +150,7 @@ export async function createStepNotificationsForUserStep({
       timestamp: new Date().toISOString(),
     });
 
-    logger.error("Error adding job to queue:", err as Error, { operation: 'error' });
+    logger.error("Error adding job to queue:", err as Error, { operation: "error" });
     throw err;
   }
 }

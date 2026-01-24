@@ -40,7 +40,7 @@ coursesRoutes.get("/", async (c) => {
         headers: {
           "Cache-Control": "private, max-age=60",
         },
-      }
+      },
     );
   } catch (error) {
     logger.error("Error in courses API", error as Error);
@@ -61,10 +61,7 @@ coursesRoutes.get("/access", zValidator("query", accessQuerySchema), async (c) =
     const { courseType, courseId } = c.req.valid("query");
 
     if (!courseType && !courseId) {
-      return c.json(
-        { success: false, error: "Требуется courseType или courseId" },
-        400
-      );
+      return c.json({ success: false, error: "Требуется courseType или courseId" }, 400);
     }
 
     let result: { hasAccess: boolean };
@@ -103,36 +100,32 @@ const toggleFavoriteSchema = z.object({
   action: z.enum(["toggle", "add", "remove"]).default("toggle"),
 });
 
-coursesRoutes.post(
-  "/favorites",
-  zValidator("json", toggleFavoriteSchema),
-  async (c) => {
-    try {
-      const user = c.get("user");
-      const { courseId, action } = c.req.valid("json");
+coursesRoutes.post("/favorites", zValidator("json", toggleFavoriteSchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { courseId, action } = c.req.valid("json");
 
-      let isFavorite: boolean;
+    let isFavorite: boolean;
 
-      switch (action) {
-        case "add":
-          await addFavoriteCourse(user.id, courseId);
-          isFavorite = true;
-          break;
-        case "remove":
-          await removeFavoriteCourse(user.id, courseId);
-          isFavorite = false;
-          break;
-        default:
-          isFavorite = await toggleFavoriteCourse(user.id, courseId);
-      }
-
-      return c.json({ success: true, data: { isFavorite } });
-    } catch (error) {
-      logger.error("Error in favorites POST API", error as Error);
-      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    switch (action) {
+      case "add":
+        await addFavoriteCourse(user.id, courseId);
+        isFavorite = true;
+        break;
+      case "remove":
+        await removeFavoriteCourse(user.id, courseId);
+        isFavorite = false;
+        break;
+      default:
+        isFavorite = await toggleFavoriteCourse(user.id, courseId);
     }
+
+    return c.json({ success: true, data: { isFavorite } });
+  } catch (error) {
+    logger.error("Error in favorites POST API", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
-);
+});
 
 // ==================== GET /courses/metadata ====================
 // Получить метаданные курса для OG
@@ -155,7 +148,7 @@ coursesRoutes.get("/metadata", zValidator("query", metadataQuerySchema), async (
         headers: {
           "Cache-Control": "public, max-age=3600",
         },
-      }
+      },
     );
   } catch (error) {
     logger.error("Error in course metadata API", error as Error);
@@ -199,41 +192,29 @@ const createReviewSchema = z
     message: "Требуется courseType или courseId",
   });
 
-coursesRoutes.post(
-  "/reviews",
-  zValidator("json", createReviewSchema),
-  async (c) => {
-    try {
-      const user = c.get("user");
-      const data = c.req.valid("json");
+coursesRoutes.post("/reviews", zValidator("json", createReviewSchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const data = c.req.valid("json");
 
-      let result;
+    let result;
 
-      if (data.courseType) {
-        result = await createCourseReview(
-          user.id,
-          data.courseType,
-          data.rating,
-          data.comment
-        );
-      } else if (data.courseId) {
-        result = await rateCourse(user.id, data.courseId, data.rating);
-      }
-
-      if (!result?.success) {
-        return c.json(
-          { success: false, error: result?.error || "Не удалось создать отзыв" },
-          400
-        );
-      }
-
-      return c.json({ success: true });
-    } catch (error) {
-      logger.error("Error in reviews POST API", error as Error);
-      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    if (data.courseType) {
+      result = await createCourseReview(user.id, data.courseType, data.rating, data.comment);
+    } else if (data.courseId) {
+      result = await rateCourse(user.id, data.courseId, data.rating);
     }
+
+    if (!result?.success) {
+      return c.json({ success: false, error: result?.error || "Не удалось создать отзыв" }, 400);
+    }
+
+    return c.json({ success: true });
+  } catch (error) {
+    logger.error("Error in reviews POST API", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
-);
+});
 
 // ==================== PATCH /courses/reviews ====================
 // Обновить отзыв
@@ -243,27 +224,23 @@ const updateReviewSchema = z.object({
   comment: z.string().optional(),
 });
 
-coursesRoutes.patch(
-  "/reviews",
-  zValidator("json", updateReviewSchema),
-  async (c) => {
-    try {
-      const user = c.get("user");
-      const { reviewId, rating, comment } = c.req.valid("json");
+coursesRoutes.patch("/reviews", zValidator("json", updateReviewSchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { reviewId, rating, comment } = c.req.valid("json");
 
-      const result = await updateCourseReview(user.id, reviewId, rating, comment);
+    const result = await updateCourseReview(user.id, reviewId, rating, comment);
 
-      if (!result.success) {
-        return c.json({ success: false, error: result.error }, 400);
-      }
-
-      return c.json({ success: true });
-    } catch (error) {
-      logger.error("Error in reviews PATCH API", error as Error);
-      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    if (!result.success) {
+      return c.json({ success: false, error: result.error }, 400);
     }
+
+    return c.json({ success: true });
+  } catch (error) {
+    logger.error("Error in reviews PATCH API", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
-);
+});
 
 // ==================== DELETE /courses/reviews ====================
 // Удалить отзыв
@@ -271,24 +248,20 @@ const deleteReviewSchema = z.object({
   reviewId: z.string().min(1, "reviewId обязателен"),
 });
 
-coursesRoutes.delete(
-  "/reviews",
-  zValidator("json", deleteReviewSchema),
-  async (c) => {
-    try {
-      const user = c.get("user");
-      const { reviewId } = c.req.valid("json");
+coursesRoutes.delete("/reviews", zValidator("json", deleteReviewSchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { reviewId } = c.req.valid("json");
 
-      const result = await deleteCourseReview(user.id, reviewId);
+    const result = await deleteCourseReview(user.id, reviewId);
 
-      if (!result.success) {
-        return c.json({ success: false, error: result.error }, 400);
-      }
-
-      return c.json({ success: true });
-    } catch (error) {
-      logger.error("Error in reviews DELETE API", error as Error);
-      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    if (!result.success) {
+      return c.json({ success: false, error: result.error }, 400);
     }
+
+    return c.json({ success: true });
+  } catch (error) {
+    logger.error("Error in reviews DELETE API", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
-);
+});

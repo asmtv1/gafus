@@ -26,12 +26,12 @@ export default async function EditCoursePage({ params }: PageProps) {
   });
 
   const days = await getVisibleDays();
-  
+
   // Убираем дубликаты по id, оставляя только уникальные дни
-  const uniqueDays = days.filter((day, index, self) => 
-    index === self.findIndex(d => d.id === day.id)
+  const uniqueDays = days.filter(
+    (day, index, self) => index === self.findIndex((d) => d.id === day.id),
   );
-  
+
   const formattedDays = uniqueDays.map((day: { id: string | number; title: string }) => ({
     id: String(day.id),
     title: day.title,
@@ -39,7 +39,7 @@ export default async function EditCoursePage({ params }: PageProps) {
 
   if (!course) {
     return (
-      <FormPageLayout 
+      <FormPageLayout
         title="Редактирование курса"
         subtitle="Измените информацию о курсе и выберите тренировочные дни"
       >
@@ -72,7 +72,7 @@ export default async function EditCoursePage({ params }: PageProps) {
     : [];
 
   return (
-    <FormPageLayout 
+    <FormPageLayout
       title="Редактирование курса"
       subtitle="Измените информацию о курсе и выберите тренировочные дни"
     >

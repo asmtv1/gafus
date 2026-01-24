@@ -40,10 +40,8 @@ export default function WelcomeScreen() {
         <View style={styles.speechBubbleWrapper}>
           <View style={styles.speechBubble}>
             <Text style={styles.speechText}>
-              Добро ГАФ пожаловать!{"\n"}
-              Я - мудрый Гафус!{"\n"}
-              Я буду помогать тебе{"\n"}
-              с тренировками!
+              Добро ГАФ пожаловать!{"\n"}Я - мудрый Гафус!{"\n"}Я буду помогать тебе{"\n"}с
+              тренировками!
             </Text>
           </View>
           <View style={styles.speechBubbleTail} />
@@ -157,7 +155,7 @@ const styles = StyleSheet.create({
     right: 190,
     transform: [{ rotate: "-0.8rad" }],
   },
-  
+
   speechText: {
     fontFamily: "Courier New", // Соответствует веб-версии
     fontSize: 14,

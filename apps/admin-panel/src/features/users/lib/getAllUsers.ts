@@ -6,10 +6,12 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 
 // Создаем логгер для admin-panel-get-all-users
-const logger = createAdminPanelLogger('get-all-users');
+const logger = createAdminPanelLogger("get-all-users");
 
 export async function getAllUsers() {
-  const session = (await getServerSession(authOptions)) as { user: { id: string; username: string; role: string } } | null;
+  const session = (await getServerSession(authOptions)) as {
+    user: { id: string; username: string; role: string };
+  } | null;
 
   if (!session?.user?.id) {
     redirect("/login");
@@ -52,4 +54,3 @@ export async function getAllUsers() {
     throw new Error("Не удалось получить список пользователей");
   }
 }
-

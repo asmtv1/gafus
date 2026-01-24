@@ -5,7 +5,7 @@ import { createWebLogger } from "@gafus/logger";
 import type { UseQueryOptions } from "@tanstack/react-query";
 
 // Создаем логгер для react-query
-const logger = createWebLogger('react-query-optimized');
+const logger = createWebLogger("react-query-optimized");
 
 // Типы данных для оптимизации
 interface CourseData {
@@ -85,10 +85,10 @@ export function useUserProfileData<T extends UserProfileData>(
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
     logger.info(`User profile loaded: ${key}`, {
-      dataType: 'user-profile',
+      dataType: "user-profile",
       key: key,
       hasData: !!result.data,
-      strategy: 'user-profile'
+      strategy: "user-profile",
     });
   }
 
@@ -109,10 +109,10 @@ export function useStatisticsData<T extends StatisticsData>(
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
     logger.info(`Statistics loaded: ${key}`, {
-      dataType: 'statistics',
+      dataType: "statistics",
       key: key,
       hasData: !!result.data,
-      strategy: 'statistics'
+      strategy: "statistics",
     });
   }
 
@@ -120,10 +120,7 @@ export function useStatisticsData<T extends StatisticsData>(
 }
 
 // Хук для поиска
-export function useSearchData<T>(
-  key: string | null,
-  fetcher?: () => Promise<T>,
-) {
+export function useSearchData<T>(key: string | null, fetcher?: () => Promise<T>) {
   const config = useMemo(() => cacheConfigs.search, []);
 
   const result = useData<T>(key, fetcher, {
@@ -133,10 +130,10 @@ export function useSearchData<T>(
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
     logger.info(`Search data loaded: ${key}`, {
-      dataType: 'search',
+      dataType: "search",
       key: key,
       hasData: !!result.data,
-      strategy: 'search'
+      strategy: "search",
     });
   }
 
@@ -144,10 +141,7 @@ export function useSearchData<T>(
 }
 
 // Хук для real-time данных
-export function useRealTimeData<T>(
-  key: string | null,
-  fetcher?: () => Promise<T>,
-) {
+export function useRealTimeData<T>(key: string | null, fetcher?: () => Promise<T>) {
   const config = useMemo(() => cacheConfigs["real-time"], []);
 
   const result = useData<T>(key, fetcher, {
@@ -157,10 +151,10 @@ export function useRealTimeData<T>(
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
     logger.info(`Real-time data loaded: ${key}`, {
-      dataType: 'real-time',
+      dataType: "real-time",
       key: key,
       hasData: !!result.data,
-      strategy: 'real-time'
+      strategy: "real-time",
     });
   }
 
@@ -182,10 +176,10 @@ export function useOptimizedData<T>(
   // Логирование в development режиме
   if (process.env.NODE_ENV === "development" && result.data) {
     logger.info(`Data loaded with ${strategy} strategy: ${key}`, {
-      dataType: 'optimized',
+      dataType: "optimized",
       key: key,
       hasData: !!result.data,
-      strategy: strategy
+      strategy: strategy,
     });
   }
 

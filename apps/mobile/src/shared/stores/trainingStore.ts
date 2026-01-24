@@ -125,6 +125,6 @@ export const useTrainingStore = create<TrainingStore>()(
         runningSteps: state.runningSteps,
         // Не персистим кэш — он должен быть свежим
       }),
-    }
-  )
+    },
+  ),
 );

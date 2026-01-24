@@ -29,7 +29,7 @@ examRoutes.get("/result", zValidator("query", resultQuerySchema), async (c) => {
     if (!result) {
       return c.json(
         { success: false, error: "Шаг не найден или нет доступа", code: "NOT_FOUND" },
-        404
+        404,
       );
     }
 
@@ -64,16 +64,10 @@ examRoutes.post("/submit", zValidator("json", submitExamSchema), async (c) => {
     return c.json({ success: true, data: result });
   } catch (error) {
     if (error instanceof Error && error.message.includes("не найден")) {
-      return c.json(
-        { success: false, error: error.message, code: "NOT_FOUND" },
-        404
-      );
+      return c.json({ success: false, error: error.message, code: "NOT_FOUND" }, 404);
     }
     if (error instanceof Error && error.message.includes("не является экзаменационным")) {
-      return c.json(
-        { success: false, error: error.message, code: "VALIDATION_ERROR" },
-        400
-      );
+      return c.json({ success: false, error: error.message, code: "VALIDATION_ERROR" }, 400);
     }
     logger.error("Error submitting exam result", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);

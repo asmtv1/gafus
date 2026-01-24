@@ -15,10 +15,7 @@ import {
   DialogActions,
   Alert,
 } from "@mui/material";
-import {
-  Delete as DeleteIcon,
-  Add as AddIcon,
-} from "@mui/icons-material";
+import { Delete as DeleteIcon, Add as AddIcon } from "@mui/icons-material";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -47,7 +44,7 @@ export default function AdminTemplateManager({
     if (!selectedTemplate) return;
 
     const result = await onDeleteTemplate(selectedTemplate.id);
-    
+
     if (result.success) {
       setSuccess(result.message);
       setDeleteDialogOpen(false);
@@ -77,7 +74,11 @@ export default function AdminTemplateManager({
         <Button variant="contained" startIcon={<AddIcon />} href="/main-panel/templates/new">
           Создать шаблон
         </Button>
-        <Button variant="outlined" startIcon={<AddIcon />} href="/main-panel/templates/categories/new">
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          href="/main-panel/templates/categories/new"
+        >
           Создать категорию
         </Button>
       </Box>
@@ -86,21 +87,34 @@ export default function AdminTemplateManager({
         Шаблоны ({templates.length})
       </Typography>
 
-      <Box sx={{ 
-        display: 'grid', 
-        gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
-        gap: 2 
-      }}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" },
+          gap: 2,
+        }}
+      >
         {templates.map((template) => (
           <Box key={template.id}>
-              <Card>
+            <Card>
               <CardContent>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "start", mb: 1 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "start",
+                    mb: 1,
+                  }}
+                >
                   <Typography variant="h6" sx={{ flexGrow: 1 }}>
                     {template.title}
                   </Typography>
                   <Box>
-                    <IconButton size="small" color="error" onClick={() => handleDeleteClick(template)}>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDeleteClick(template)}
+                    >
                       <DeleteIcon />
                     </IconButton>
                   </Box>
@@ -110,7 +124,9 @@ export default function AdminTemplateManager({
                   <Chip
                     label={template.category.name}
                     size="small"
-                    icon={template.category.icon ? <span>{template.category.icon}</span> : undefined}
+                    icon={
+                      template.category.icon ? <span>{template.category.icon}</span> : undefined
+                    }
                     sx={{ mb: 1 }}
                   />
                 )}
@@ -129,17 +145,19 @@ export default function AdminTemplateManager({
 
                 {/* Markdown описание полноценно, с GFM */}
                 {template.description && (
-                  <Box sx={{
-                    mt: 1.5,
-                    color: 'text.secondary',
-                    '& p': { margin: 0 },
-                    '& ul, & ol': { pl: 3, my: 1 },
-                    '& code': { bgcolor: 'action.hover', px: 0.5, py: 0.2, borderRadius: 0.5 },
-                    '& pre': { bgcolor: 'action.hover', p: 1, borderRadius: 1, overflow: 'auto' },
-                    '& a': { color: 'primary.main', textDecoration: 'underline' },
-                    '& table': { width: '100%', borderCollapse: 'collapse', my: 1 },
-                    '& th, & td': { border: '1px solid', borderColor: 'divider', p: 0.5 },
-                  }}>
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      color: "text.secondary",
+                      "& p": { margin: 0 },
+                      "& ul, & ol": { pl: 3, my: 1 },
+                      "& code": { bgcolor: "action.hover", px: 0.5, py: 0.2, borderRadius: 0.5 },
+                      "& pre": { bgcolor: "action.hover", p: 1, borderRadius: 1, overflow: "auto" },
+                      "& a": { color: "primary.main", textDecoration: "underline" },
+                      "& table": { width: "100%", borderCollapse: "collapse", my: 1 },
+                      "& th, & td": { border: "1px solid", borderColor: "divider", p: 0.5 },
+                    }}
+                  >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {template.description}
                     </ReactMarkdown>
@@ -151,23 +169,23 @@ export default function AdminTemplateManager({
         ))}
       </Box>
 
-      <Dialog 
-        open={deleteDialogOpen} 
+      <Dialog
+        open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         slotProps={{
           backdrop: {
             sx: {
-              WebkitTapHighlightColor: 'transparent',
-              touchAction: 'manipulation'
-            }
-          }
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "manipulation",
+            },
+          },
         }}
       >
         <DialogTitle>Удалить шаблон?</DialogTitle>
         <DialogContent>
           <Typography>
-            Вы уверены, что хотите удалить шаблон "{selectedTemplate?.title}"?
-            Это действие нельзя отменить.
+            Вы уверены, что хотите удалить шаблон "{selectedTemplate?.title}"? Это действие нельзя
+            отменить.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -180,4 +198,3 @@ export default function AdminTemplateManager({
     </Box>
   );
 }
-

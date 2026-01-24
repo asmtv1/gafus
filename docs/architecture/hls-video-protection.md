@@ -83,6 +83,7 @@ uploads/trainers/{trainerId}/videocourses/{videoId}/
 ```
 
 **Преимущества:**
+
 - Все файлы одного видео в одной папке
 - Легко удалять (deleteFolderFromCDN)
 - Логическая иерархия
@@ -109,12 +110,12 @@ enum TranscodingStatus {
 
 model TrainerVideo {
   // ... существующие поля ...
-  
+
   hlsManifestPath   String?             // trainers/{trainerId}/videocourses/{videoId}/hls/playlist.m3u8
   transcodingStatus TranscodingStatus   @default(PENDING)
   transcodedAt      DateTime?
   transcodingError  String?             // Текст ошибки если провалилось
-  
+
   @@index([transcodingStatus])
 }
 ```
@@ -148,9 +149,11 @@ const tokenData = service.verifyToken(token);
 Возвращает HLS манифест с подписанными URL сегментов.
 
 **Query параметры:**
+
 - `token` (required) - JWT токен доступа
 
 **Заголовки ответа:**
+
 ```
 Content-Type: application/vnd.apple.mpegurl
 Cache-Control: no-cache, no-store, must-revalidate
@@ -161,10 +164,12 @@ Cache-Control: no-cache, no-store, must-revalidate
 Возвращает HLS сегмент (`.ts` файл).
 
 **Query параметры:**
+
 - `token` (required) - JWT токен доступа
 - `path` (required) - Относительный путь к сегменту
 
 **Заголовки ответа:**
+
 ```
 Content-Type: video/mp2t
 Cache-Control: public, max-age=31536000, immutable
@@ -183,6 +188,7 @@ Cache-Control: public, max-age=31536000, immutable
 ```
 
 **Возможности:**
+
 - Воспроизведение только HLS формата
 - Поддержка hls.js для HLS
 - Нативная поддержка HLS в Safari
@@ -251,6 +257,7 @@ pnpm tsx scripts/migrate-videos-to-hls.ts --batch-size=50
 ```
 
 **Что делает:**
+
 1. Находит все видео без `hlsManifestPath`
 2. Устанавливает `transcodingStatus = PENDING`
 3. Добавляет задачи в очередь транскодирования
@@ -269,10 +276,12 @@ pnpm tsx scripts/migrate-videos-to-hls.ts --batch-size=50
 ### Не абсолютная защита
 
 ⚠️ Технически возможно:
+
 - Скачать все сегменты вручную (сложнее чем один файл)
 - Записать экран во время воспроизведения
 
 ✅ Защищает от:
+
 - Простого скачивания через браузер
 - Массового копирования контента
 - Распространения прямых ссылок
@@ -315,6 +324,7 @@ NEXT_PUBLIC_ENABLE_HLS_PROTECTION=false # Отключить HLS (показыв
 URL: `/admin/queues` (доступ только для ADMIN)
 
 **Метрики:**
+
 - Размер очереди `video-transcoding`
 - Активные задачи
 - Завершённые задачи
@@ -329,6 +339,7 @@ const logger = createWorkerLogger("video-transcoding-worker");
 ```
 
 **Логируется:**
+
 - Начало/завершение транскодирования
 - Ошибки FFmpeg
 - Размер файлов
@@ -341,6 +352,7 @@ const logger = createWorkerLogger("video-transcoding-worker");
 **Причина:** Worker не запущен или перегружен
 
 **Решение:**
+
 1. Проверить что worker запущен: `docker ps | grep worker`
 2. Проверить логи: `docker logs gafus-worker`
 3. Проверить очередь в Bull Board
@@ -350,6 +362,7 @@ const logger = createWorkerLogger("video-transcoding-worker");
 **Причина:** Ошибка FFmpeg или недостаточно места
 
 **Решение:**
+
 1. Проверить `transcodingError` в БД
 2. Проверить логи worker
 3. Повторить транскодирование вручную
@@ -359,6 +372,7 @@ const logger = createWorkerLogger("video-transcoding-worker");
 **Причина:** Проблема с токеном или CORS
 
 **Решение:**
+
 1. Проверить что токен валиден
 2. Проверить CORS настройки в Object Storage
 3. Проверить Network tab в DevTools

@@ -4,7 +4,7 @@ import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 
 // Создаем логгер для NextAuth
-const logger = createWebLogger('web-nextauth');
+const logger = createWebLogger("web-nextauth");
 
 let handler;
 
@@ -12,7 +12,7 @@ try {
   handler = NextAuth(authOptions as NextAuthOptions);
 } catch (err) {
   logger.error("Ошибка инициализации authOptions", err as Error, {
-    operation: 'nextauth_initialization_error'
+    operation: "nextauth_initialization_error",
   });
   throw err;
 }

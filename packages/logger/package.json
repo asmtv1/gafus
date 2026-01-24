@@ -1,14 +1,14 @@
 {
   "name": "@gafus/logger",
   "version": "1.1.0",
-  "type": "module",
   "description": "Единый логгер для всех приложений Gafus с интеграцией в error-dashboard",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "dev": "tsc --watch"
   },
   "dependencies": {
     "pino": "^9.0.0",

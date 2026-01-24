@@ -10,7 +10,7 @@ import {
 } from "./notificationActions";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('web');
+const logger = createWebLogger("web");
 
 export interface NotificationAction {
   courseId: string;
@@ -26,10 +26,14 @@ export async function pauseNotificationClient(
   action: NotificationAction,
 ): Promise<{ success: boolean }> {
   try {
-    const result = await pauseNotificationAction(action.courseId, action.dayOnCourseId, action.stepIndex);
+    const result = await pauseNotificationAction(
+      action.courseId,
+      action.dayOnCourseId,
+      action.stepIndex,
+    );
     return result;
   } catch (error) {
-    logger.error("Failed to pause notification:", error as Error, { operation: 'error' });
+    logger.error("Failed to pause notification:", error as Error, { operation: "error" });
     return { success: false };
   }
 }
@@ -41,10 +45,14 @@ export async function resetNotificationClient(
   action: NotificationAction,
 ): Promise<{ success: boolean }> {
   try {
-    const result = await resetNotificationAction(action.courseId, action.dayOnCourseId, action.stepIndex);
+    const result = await resetNotificationAction(
+      action.courseId,
+      action.dayOnCourseId,
+      action.stepIndex,
+    );
     return result;
   } catch (error) {
-    logger.error("Failed to reset notification:", error as Error, { operation: 'error' });
+    logger.error("Failed to reset notification:", error as Error, { operation: "error" });
     return { success: false };
   }
 }
@@ -68,7 +76,7 @@ export async function resumeNotificationClient(
     );
     return result;
   } catch (error) {
-    logger.error("Failed to resume notification:", error as Error, { operation: 'error' });
+    logger.error("Failed to resume notification:", error as Error, { operation: "error" });
     return { success: false };
   }
 }

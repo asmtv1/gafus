@@ -7,6 +7,7 @@ Trainer Panel - это административная панель для тр
 ## 🎯 Основные функции
 
 ### Для тренеров
+
 - **👥 Управление пользователями** - Просмотр и редактирование профилей
 - **📝 Создание контента** - Разработка курсов и шагов тренировок
 - **📊 Аналитика** - Статистика использования и прогресса
@@ -16,6 +17,7 @@ Trainer Panel - это административная панель для тр
 > Вся серверная логика по сбору статистики вынесена в пакет `@gafus/statistics`, поэтому внутри приложения остаются только UI-компоненты и server actions-обёртки.
 
 ### Для администраторов
+
 - **🔧 Системное управление** - Настройка системы
 - **👤 Управление ролями** - Назначение прав доступа
 - **📊 Общая статистика** - Системная аналитика
@@ -25,6 +27,7 @@ Trainer Panel - это административная панель для тр
 ## 🏗️ Архитектура
 
 ### Структура приложения
+
 ```
 apps/trainer-panel/
 ├── src/
@@ -51,6 +54,7 @@ apps/trainer-panel/
 ```
 
 ### Роутинг
+
 ```typescript
 // App Router структура
 app/
@@ -67,6 +71,7 @@ app/
 ## 🎨 UI и UX
 
 ### Дизайн система
+
 - **Material-UI** компоненты
 - **Data Grid** для таблиц данных
 - **Charts** для визуализации статистики
@@ -75,12 +80,14 @@ app/
 ### Основные страницы
 
 #### Dashboard
+
 - Общая статистика системы
 - Активные курсы и пользователи
 - Последние экзамены и результаты
 - Быстрые действия
 
 #### Управление курсами
+
 - Создание и редактирование курсов
 - Управление днями тренировок
 - Создание шагов и экзаменов
@@ -94,6 +101,7 @@ app/
   - **Логотип курса** (обязательно загрузить изображение)
 
 #### Мои видео
+
 - Загрузка личных видео в CDN (папка `uploads/trainer-videos`)
 - Полоса прогресса для длинных загрузок (до 200 МБ)
 - Автоматическое сохранение метаданных (размер, расширение, дата)
@@ -101,12 +109,14 @@ app/
 - Использование загруженных видео в шагах, экзаменах и курсах
 
 #### Управление пользователями
+
 - Список всех пользователей
 - Детальная информация о пользователях
 - Управление ролями и правами
 - Статистика активности
 
 #### Результаты экзаменов
+
 - Список всех сданных экзаменов по курсам тренера
 - **Фильтрация:** Toggle "Скрыть зачтённые экзамены" для управления отображением
 - **Статистика:** Счётчики всего/ожидающих/зачтённых экзаменов
@@ -118,12 +128,14 @@ app/
 - Статусы: "Ожидает проверки" (IN_PROGRESS), "Зачтено" (COMPLETED)
 
 #### Статистика
+
 - Графики прогресса пользователей
 - Аналитика по курсам
 - Отчеты по экзаменам
 - Экспорт данных
 
 #### Push-рассылка (только ADMIN)
+
 - **Массовая отправка уведомлений** - Отправка push-уведомлений всем пользователям с активными подписками
 - **Форма рассылки:**
   - Заголовок уведомления (до 100 символов)
@@ -141,28 +153,30 @@ app/
 ## 🔧 Технические особенности
 
 ### Валидация данных
+
 - Для всех серверных экшенов используется `zod` (версия ^3.24.1) из зависимостей приложения, чтобы обеспечивать типобезопасную проверку форм и запросов.
 
 ### Material-UI интеграция
+
 ```typescript
 // Настройка темы
-import { createTheme } from '@mui/material/styles';
+import { createTheme } from "@mui/material/styles";
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
+      main: "#1976d2",
     },
     secondary: {
-      main: '#dc004e',
+      main: "#dc004e",
     },
   },
   components: {
     MuiDataGrid: {
       styleOverrides: {
         root: {
-          '& .MuiDataGrid-cell': {
-            borderBottom: '1px solid #e0e0e0',
+          "& .MuiDataGrid-cell": {
+            borderBottom: "1px solid #e0e0e0",
           },
         },
       },
@@ -172,6 +186,7 @@ const theme = createTheme({
 ```
 
 ### Data Grid для таблиц
+
 ```typescript
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 
@@ -197,6 +212,7 @@ function UsersTable({ users }: { users: User[] }) {
 ```
 
 ### Charts и аналитика
+
 ```typescript
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -219,12 +235,13 @@ function StatisticsChart({ data }: { data: any[] }) {
 ## 📊 Управление данными
 
 ### React Query для серверного состояния
+
 ```typescript
 import { useQuery, useMutation, useQueryClient } from '@gafus/react-query';
 
 function CoursesManager() {
   const queryClient = useQueryClient();
-  
+
   const { data: courses, isLoading } = useQuery({
     queryKey: ['courses'],
     queryFn: fetchCourses
@@ -247,6 +264,7 @@ function CoursesManager() {
 ```
 
 ### Формы с валидацией
+
 ```typescript
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -285,54 +303,57 @@ function CourseForm() {
 ## 🔐 Безопасность и авторизация
 
 ### Ролевая модель доступа
+
 ```typescript
-import { withRole } from '@gafus/auth/server';
+import { withRole } from "@gafus/auth/server";
 
 // Только для тренеров и администраторов
-export default withRole(['TRAINER', 'ADMIN'])(async function handler(req, res) {
+export default withRole(["TRAINER", "ADMIN"])(async function handler(req, res) {
   const users = await getUsers();
   res.json({ users });
 });
 
 // Только для администраторов
-export default withRole(['ADMIN'])(async function handler(req, res) {
+export default withRole(["ADMIN"])(async function handler(req, res) {
   const systemStats = await getSystemStats();
   res.json({ stats: systemStats });
 });
 ```
 
 ### Middleware для защиты маршрутов
+
 ```typescript
 // middleware.ts
-import { withAuth } from 'next-auth/middleware';
+import { withAuth } from "next-auth/middleware";
 
 export default withAuth({
   callbacks: {
     authorized: ({ token, req }) => {
       const { pathname } = req.nextUrl;
-      
+
       // Проверка роли для разных маршрутов
-      if (pathname.startsWith('/main-panel/admin')) {
-        return token?.role === 'ADMIN';
+      if (pathname.startsWith("/main-panel/admin")) {
+        return token?.role === "ADMIN";
       }
-      
-      if (pathname.startsWith('/main-panel')) {
-        return ['TRAINER', 'ADMIN', 'MODERATOR'].includes(token?.role);
+
+      if (pathname.startsWith("/main-panel")) {
+        return ["TRAINER", "ADMIN", "MODERATOR"].includes(token?.role);
       }
-      
+
       return !!token;
     },
   },
 });
 
 export const config = {
-  matcher: ['/main-panel/:path*']
+  matcher: ["/main-panel/:path*"],
 };
 ```
 
 ## 📈 Аналитика и отчеты
 
 ### Статистика пользователей
+
 ```typescript
 function UserStatistics() {
   const { data: stats } = useQuery({
@@ -363,6 +384,7 @@ function UserStatistics() {
 ```
 
 ### Экспорт данных
+
 ```typescript
 function ExportData() {
   const exportUsers = useMutation({
@@ -388,6 +410,7 @@ function ExportData() {
 ## 🧪 Тестирование
 
 ### Unit тесты компонентов
+
 ```typescript
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CourseForm } from './CourseForm';
@@ -395,13 +418,13 @@ import { CourseForm } from './CourseForm';
 test('should create course successfully', async () => {
   const mockCreateCourse = jest.fn();
   render(<CourseForm onCreateCourse={mockCreateCourse} />);
-  
+
   fireEvent.change(screen.getByLabelText('Название курса'), {
     target: { value: 'Тестовый курс' }
   });
-  
+
   fireEvent.click(screen.getByText('Создать курс'));
-  
+
   expect(mockCreateCourse).toHaveBeenCalledWith({
     name: 'Тестовый курс',
     description: '',
@@ -411,19 +434,20 @@ test('should create course successfully', async () => {
 ```
 
 ### E2E тесты
-```typescript
-import { test, expect } from '@playwright/test';
 
-test('trainer can create course', async ({ page }) => {
-  await page.goto('/main-panel/courses');
+```typescript
+import { test, expect } from "@playwright/test";
+
+test("trainer can create course", async ({ page }) => {
+  await page.goto("/main-panel/courses");
   await page.click('[data-testid="create-course-button"]');
-  
-  await page.fill('[data-testid="course-name"]', 'Новый курс');
-  await page.fill('[data-testid="course-description"]', 'Описание курса');
-  await page.selectOption('[data-testid="training-level"]', 'BEGINNER');
-  
+
+  await page.fill('[data-testid="course-name"]', "Новый курс");
+  await page.fill('[data-testid="course-description"]', "Описание курса");
+  await page.selectOption('[data-testid="training-level"]', "BEGINNER");
+
   await page.click('[data-testid="save-course"]');
-  
+
   await expect(page.locator('[data-testid="success-message"]')).toBeVisible();
 });
 ```
@@ -431,6 +455,7 @@ test('trainer can create course', async ({ page }) => {
 ## 🚀 Развертывание
 
 ### Переменные окружения
+
 ```env
 # Next.js
 NEXT_PUBLIC_APP_URL=https://trainer.gafus.ru
@@ -445,6 +470,7 @@ TRAINER_PANEL_ALLOWED_ROLES=TRAINER,ADMIN,MODERATOR
 ```
 
 ### Docker
+
 ```dockerfile
 FROM node:18-alpine AS base
 WORKDIR /app
@@ -468,6 +494,7 @@ CMD ["npm", "start"]
 ## 🔧 Разработка
 
 ### Команды разработки
+
 ```bash
 # Разработка
 pnpm dev                    # Запуск в режиме разработки (порт 3001)
@@ -480,6 +507,7 @@ pnpm typecheck             # Проверка типов
 ```
 
 ### Структура компонентов
+
 ```typescript
 // Переиспользуемые компоненты
 shared/components/
@@ -497,40 +525,42 @@ shared/components/
 ## 📊 Мониторинг
 
 ### Логирование действий
+
 ```typescript
-import { logger } from '@gafus/logger';
+import { logger } from "@gafus/logger";
 
 // Логирование действий тренера
-logger.info('Trainer action', {
-  action: 'course_created',
+logger.info("Trainer action", {
+  action: "course_created",
   trainerId: trainer.id,
   courseId: course.id,
-  courseName: course.name
+  courseName: course.name,
 });
 
 // Логирование push-рассылок
-logger.info('Broadcast push notification sent', {
+logger.info("Broadcast push notification sent", {
   adminId: admin.id,
   totalSubscriptions: 150,
   sentCount: 148,
-  failedCount: 2
+  failedCount: 2,
 });
 ```
 
 ### Метрики производительности
+
 ```typescript
 // Отслеживание времени загрузки
 const startTime = Date.now();
 const users = await fetchUsers();
 const loadTime = Date.now() - startTime;
 
-logger.info('Performance metric', {
-  operation: 'fetch_users',
+logger.info("Performance metric", {
+  operation: "fetch_users",
   duration: loadTime,
-  recordCount: users.length
+  recordCount: users.length,
 });
 ```
 
 ---
 
-*Trainer Panel предоставляет мощные инструменты для управления системой обучения домашних животных и анализа результатов.*
+_Trainer Panel предоставляет мощные инструменты для управления системой обучения домашних животных и анализа результатов._

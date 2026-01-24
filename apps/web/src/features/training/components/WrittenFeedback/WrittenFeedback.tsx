@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, Card, CardContent, TextField, Typography, Alert, CircularProgress } from "@mui/material";
+import {
+  Button,
+  Card,
+  CardContent,
+  TextField,
+  Typography,
+  Alert,
+  CircularProgress,
+} from "@mui/material";
 import { submitExamResult } from "@/shared/lib/actions/submitExamResult";
 import { getExamResult } from "@/shared/lib/actions/getExamResult";
 
@@ -43,23 +51,25 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
     if (feedback.trim().length < 10) {
       return;
     }
-    
+
     setIsSubmitting(true);
     setSubmitError(null);
-    
+
     try {
       await submitExamResult({
         userStepId,
         stepId,
         writtenFeedback: feedback.trim(),
         overallScore: 100, // Письменная работа считается выполненной
-        isPassed: true
+        isPassed: true,
       });
-      
+
       setIsSubmitted(true);
       onComplete(feedback);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Ошибка при сохранении обратной связи");
+      setSubmitError(
+        error instanceof Error ? error.message : "Ошибка при сохранении обратной связи",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -105,10 +115,10 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
       <Typography variant="h6" gutterBottom>
         Письменная обратная связь
       </Typography>
-      
+
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Пожалуйста, напишите ваши мысли о пройденном материале, что вы поняли, 
-        какие у вас есть вопросы или комментарии.
+        Пожалуйста, напишите ваши мысли о пройденном материале, что вы поняли, какие у вас есть
+        вопросы или комментарии.
       </Typography>
 
       {isSubmitted && !isReviewed && (
@@ -118,10 +128,7 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
       )}
 
       {isReviewed && (
-        <Alert 
-          severity={isPassed ? "success" : "error"} 
-          sx={{ mb: 2 }}
-        >
+        <Alert severity={isPassed ? "success" : "error"} sx={{ mb: 2 }}>
           <Typography variant="subtitle2" gutterBottom>
             {isPassed ? "Экзамен зачтён" : "Экзамен не зачтён"}
           </Typography>
@@ -131,15 +138,13 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
             </Typography>
           )}
           {examResult && (examResult.reviewedAt || getTrainerName()) && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mt: 1 }}
-            >
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
               {[
                 examResult.reviewedAt && `Проверено: ${formatDateTime(examResult.reviewedAt)}`,
-                getTrainerName() && `Тренер: ${getTrainerName()}`
-              ].filter(Boolean).join(" • ")}
+                getTrainerName() && `Тренер: ${getTrainerName()}`,
+              ]
+                .filter(Boolean)
+                .join(" • ")}
             </Typography>
           )}
         </Alert>
@@ -157,7 +162,7 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
             disabled={isSubmitted}
             variant="outlined"
           />
-          
+
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
             Минимум 10 символов
           </Typography>
@@ -169,11 +174,11 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
           {submitError}
         </Alert>
       )}
-      
+
       <div style={{ display: "flex", gap: "16px", marginTop: "16px" }}>
         {!isSubmitted ? (
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={handleSubmit}
             disabled={feedback.trim().length < 10 || isSubmitting}
           >

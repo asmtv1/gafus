@@ -1,6 +1,6 @@
 /**
  * API Route: POST /api/v1/auth/register
- * 
+ *
  * Регистрирует нового пользователя.
  * Публичный endpoint (не требует авторизации).
  */
@@ -10,7 +10,7 @@ import { registerUserService } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
-const logger = createWebLogger('api-auth');
+const logger = createWebLogger("api-auth");
 
 const schema = z.object({
   name: z.string().min(1, "Имя обязательно"),
@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: "Неверные данные запроса", details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     logger.error("Error in register API", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

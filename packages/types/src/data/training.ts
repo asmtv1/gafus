@@ -21,7 +21,7 @@ export interface Step {
   authorId: string;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Новые поля для типов экзамена
   type?: "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE";
   checklist?: ChecklistQuestion[]; // JSON с тестовыми вопросами

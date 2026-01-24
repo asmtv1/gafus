@@ -22,7 +22,7 @@ export default function PetsProvider({ children }: PetsProviderProps) {
         hasFetched.current = false;
       });
     }
-    
+
     // Сбрасываем флаг при logout
     if (status === "unauthenticated") {
       hasFetched.current = false;

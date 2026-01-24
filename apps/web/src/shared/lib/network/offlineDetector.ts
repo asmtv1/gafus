@@ -46,7 +46,7 @@ async function checkRealConnection(): Promise<boolean> {
   } catch (error) {
     isCheckingConnection = false;
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     // Игнорируем ошибки отмены запроса (AbortError)
     if (errorMessage.includes("aborted") || errorMessage.includes("AbortError")) {
       return false;
@@ -67,7 +67,7 @@ function saveCurrentUrl(): void {
   if (typeof window === "undefined") return;
 
   const currentPath = window.location.pathname;
-  
+
   // Не сохраняем URL если уже на странице офлайна или это статический ресурс
   if (
     currentPath === OFFLINE_PAGE ||
@@ -100,7 +100,7 @@ function restorePreviousUrl(): void {
 
   try {
     const currentPath = window.location.pathname;
-    
+
     // Редиректим только если мы на странице офлайна
     if (currentPath !== OFFLINE_PAGE) {
       // Очищаем сохраненный URL если есть (для совместимости)
@@ -111,18 +111,18 @@ function restorePreviousUrl(): void {
       }
       return;
     }
-    
+
     logger.info("Redirecting from offline page to /courses", {
       operation: "restore_previous_url",
     });
-    
+
     // Очищаем сохраненный URL (для совместимости)
     try {
       sessionStorage.removeItem(STORAGE_KEY);
     } catch (e) {
       // Игнорируем ошибки
     }
-    
+
     // Всегда редиректим на /courses
     setTimeout(() => {
       try {
@@ -132,7 +132,7 @@ function restorePreviousUrl(): void {
       } catch (error) {
         logger.error("Failed to execute redirect", error as Error, {
           operation: "restore_previous_url_execute_error",
-      });
+        });
         // Fallback
         try {
           if (window.location.pathname === OFFLINE_PAGE) {
@@ -140,15 +140,14 @@ function restorePreviousUrl(): void {
           }
         } catch (fallbackError) {
           logger.error("Fallback redirect also failed", fallbackError as Error);
-    }
+        }
       }
     }, 100);
-    
   } catch (error) {
     logger.error("Failed to restore previous URL", error as Error);
     // Fallback на /courses
     try {
-    if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
+      if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
         setTimeout(() => {
           if (window.location.pathname === OFFLINE_PAGE) {
             window.location.replace("/courses");
@@ -178,7 +177,7 @@ async function shouldRedirectToOffline(): Promise<boolean> {
   }
 
   const currentPath = window.location.pathname;
-  
+
   // Не редиректим если уже на странице офлайна
   if (currentPath === OFFLINE_PAGE) {
     return false;
@@ -197,9 +196,9 @@ async function shouldRedirectToOffline(): Promise<boolean> {
   // URL паттерны: /trainings/[courseType] (список дней) или /trainings/[courseType]/[dayId] (страница дня)
   const trainingDayMatch = currentPath.match(/^\/trainings\/([^/]+)\/([^/]+)$/);
   const trainingListMatch = currentPath.match(/^\/trainings\/([^/]+)$/);
-  
+
   const courseType = trainingDayMatch?.[1] || trainingListMatch?.[1];
-  
+
   if (courseType) {
     try {
       const isDownloaded = await isCourseDownloadedByType(courseType);
@@ -238,7 +237,7 @@ async function redirectToOffline(): Promise<void> {
 
   // Сохранение URL больше не нужно - при восстановлении соединения
   // всегда редиректим на /courses, а не на сохраненный URL
-  
+
   logger.info("Redirecting to offline page", {
     operation: "redirect_to_offline",
   });
@@ -263,8 +262,8 @@ function handleOfflineEvent(): void {
   // Проверяем асинхронно, не находимся ли мы на странице скачанного курса
   shouldRedirectToOffline().then((shouldRedirect) => {
     if (shouldRedirect) {
-    redirectToOffline();
-  }
+      redirectToOffline();
+    }
   });
 
   // Параллельно проверяем реальное подключение для корректности статуса
@@ -309,7 +308,7 @@ function handleOnlineEvent(): void {
           // Небольшая задержка перед редиректом для надежности
           setTimeout(() => {
             if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
-          restorePreviousUrl();
+              restorePreviousUrl();
             }
           }, 300);
         }
@@ -372,8 +371,8 @@ function startPeriodicCheck(): void {
           operation: "periodic_check_online_restore",
         });
         setTimeout(() => {
-      if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
-        restorePreviousUrl();
+          if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
+            restorePreviousUrl();
           }
         }, 300);
       }
@@ -417,7 +416,7 @@ export function initializeOfflineDetector(): void {
   // Инициализируем статус на основе navigator.onLine
   const initialOnline = navigator.onLine;
   const store = useOfflineStore.getState();
-  
+
   if (store.isOnline !== initialOnline) {
     store.setOnlineStatus(initialOnline);
   }
@@ -432,16 +431,20 @@ export function initializeOfflineDetector(): void {
     // Проверяем асинхронно, не находимся ли мы на странице скачанного курса
     shouldRedirectToOffline().then((shouldRedirect) => {
       if (shouldRedirect) {
-      redirectToOffline();
-    }
+        redirectToOffline();
+      }
     });
-    
+
     // Параллельно проверяем реальное подключение для корректности статуса
     checkRealConnection()
       .then((isOnline) => {
         store.setOnlineStatus(isOnline);
         // Если подключение есть, возвращаемся на предыдущую страницу
-        if (isOnline && typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
+        if (
+          isOnline &&
+          typeof window !== "undefined" &&
+          window.location.pathname === OFFLINE_PAGE
+        ) {
           restorePreviousUrl();
         }
       })

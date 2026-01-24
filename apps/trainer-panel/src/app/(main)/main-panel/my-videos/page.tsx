@@ -30,4 +30,3 @@ export default async function MyVideosPage() {
 
   return <TrainerVideosClient videos={serialized} isAdmin={isAdmin} />;
 }
-

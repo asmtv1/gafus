@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Prometheus для локальной разработки
@@ -6,12 +6,12 @@ services:
     image: prom/prometheus:latest
     container_name: gafus-prometheus-local
     command:
-      - '--config.file=/etc/prometheus/prometheus.local.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=7d'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.enable-lifecycle'
+      - "--config.file=/etc/prometheus/prometheus.local.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
     ports:
       - "9090:9090"
     volumes:
@@ -31,10 +31,10 @@ services:
     image: prom/node-exporter:latest
     container_name: gafus-node-exporter-local
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--path.rootfs=/rootfs'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     ports:
       - "9100:9100"
     volumes:
@@ -74,7 +74,7 @@ services:
     image: prom/blackbox-exporter:latest
     container_name: gafus-blackbox-exporter-local
     command:
-      - '--config.file=/etc/blackbox_exporter/config.yml'
+      - "--config.file=/etc/blackbox_exporter/config.yml"
     ports:
       - "9115:9115"
     volumes:
@@ -86,8 +86,8 @@ services:
     image: datalust/seq:latest
     container_name: gafus-seq-local
     ports:
-      - "5341:80"      # Web UI
-      - "5342:5341"    # Ingestion API
+      - "5341:80" # Web UI
+      - "5342:5341" # Ingestion API
     environment:
       - ACCEPT_EULA=Y
       - SEQ_FIRSTRUN_NOAUTHENTICATION=true
@@ -100,10 +100,10 @@ services:
     image: timberio/vector:latest-alpine
     container_name: gafus-vector-local
     command:
-      - '--config-dir'
-      - '/etc/vector'
+      - "--config-dir"
+      - "/etc/vector"
     ports:
-      - "8686:8686"  # Vector API
+      - "8686:8686" # Vector API
     volumes:
       - ./vector:/etc/vector
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
@@ -117,4 +117,3 @@ volumes:
   prometheus_local_data:
   seq_local_data:
   vector_local_data:
-

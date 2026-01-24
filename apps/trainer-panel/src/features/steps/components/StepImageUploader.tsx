@@ -17,7 +17,7 @@ import { useState, useRef, useEffect } from "react";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { getCDNUrl } from "@gafus/cdn-upload";
 
-const logger = createTrainerPanelLogger('trainer-panel-step-image-uploader');
+const logger = createTrainerPanelLogger("trainer-panel-step-image-uploader");
 
 interface StepImageUploaderProps {
   onImagesChange: (files: File[]) => void;
@@ -69,7 +69,8 @@ export default function StepImageUploader({
     try {
       const processedFiles: File[] = [];
       for (const file of newFiles) {
-        if (file.size > 5 * 1024 * 1024) { // Максимум 5MB для шагов
+        if (file.size > 5 * 1024 * 1024) {
+          // Максимум 5MB для шагов
           throw new Error(`Файл ${file.name} слишком большой. Максимальный размер: 5MB`);
         }
 
@@ -93,16 +94,16 @@ export default function StepImageUploader({
       // Добавляем новые файлы к существующим
       const updatedFiles = [...files, ...processedFiles];
       setFiles(updatedFiles);
-      
+
       // Уведомляем родительский компонент о новых файлах
       onImagesChange(updatedFiles);
 
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     } catch (err) {
       logger.error("Ошибка обработки изображений шага", err as Error, {
-        operation: 'step_images_processing_error'
+        operation: "step_images_processing_error",
       });
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -114,18 +115,18 @@ export default function StepImageUploader({
     // Если это существующее изображение из БД
     if (index < images.length) {
       const imageUrlToDelete = images[index];
-      
+
       // Добавляем в список удаленных (НЕ удаляем из CDN сразу!)
       const newDeletedImages = [...deletedImages, imageUrlToDelete];
       setDeletedImages(newDeletedImages);
-      
+
       // Уведомляем родительский компонент об удаленных изображениях
       onDeletedImagesChange?.(newDeletedImages);
-      
+
       // Убираем из отображаемых изображений
       const newImages = images.filter((_, i) => i !== index);
       setImages(newImages);
-      
+
       logger.info(`🗑️ Изображение помечено для удаления: ${imageUrlToDelete}`);
     } else {
       // Если это новый файл (еще не загруженный в CDN)
@@ -136,7 +137,7 @@ export default function StepImageUploader({
     }
 
     logger.info(`🗑️ Удалено изображение шага (индекс: ${index})`, {
-      operation: 'step_image_remove',
+      operation: "step_image_remove",
       remainingCount: images.length + files.length - 1,
     });
   };
@@ -173,16 +174,16 @@ export default function StepImageUploader({
         disabled={isProcessing || totalImages >= maxImages}
         onClick={handleAddImages}
         sx={{
-          WebkitTapHighlightColor: 'transparent',
-          touchAction: 'manipulation',
-          minHeight: { xs: '44px', sm: 'auto' }
+          WebkitTapHighlightColor: "transparent",
+          touchAction: "manipulation",
+          minHeight: { xs: "44px", sm: "auto" },
         }}
       >
         Добавить изображения
       </Button>
 
       {isProcessing && (
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, mt: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2, mt: 2 }}>
           <CircularProgress size={20} sx={{ mr: 1 }} />
           <Typography variant="body2">Обработка изображений...</Typography>
         </Box>
@@ -190,24 +191,28 @@ export default function StepImageUploader({
 
       {/* Галерея изображений */}
       {totalImages > 0 && (
-        <Box sx={{ 
-          display: 'grid', 
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-          gap: 2,
-          mt: 2
-        }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+            gap: 2,
+            mt: 2,
+          }}
+        >
           {/* Существующие изображения из БД */}
           {images.map((imageUrl, index) => (
-            <Card key={`existing-${index}`} sx={{ position: 'relative' }}>
+            <Card key={`existing-${index}`} sx={{ position: "relative" }}>
               <CardMedia
                 component="img"
                 height="200"
                 image={getCDNUrl(imageUrl)}
                 alt={`Изображение ${index + 1}`}
-                sx={{ objectFit: 'cover' }}
+                sx={{ objectFit: "cover" }}
               />
               <CardContent sx={{ p: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box
+                  sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                >
                   <Typography variant="caption" color="text.secondary">
                     Изображение {index + 1}
                   </Typography>
@@ -217,10 +222,10 @@ export default function StepImageUploader({
                     onClick={() => handleRemoveImage(index)}
                     disabled={isProcessing}
                     sx={{
-                      WebkitTapHighlightColor: 'transparent',
-                      touchAction: 'manipulation',
-                      minWidth: '44px',
-                      minHeight: '44px'
+                      WebkitTapHighlightColor: "transparent",
+                      touchAction: "manipulation",
+                      minWidth: "44px",
+                      minHeight: "44px",
                     }}
                   >
                     <DeleteIcon fontSize="small" />
@@ -232,16 +237,18 @@ export default function StepImageUploader({
 
           {/* Новые файлы (еще не загруженные) */}
           {files.map((file, index) => (
-            <Card key={`new-${index}`} sx={{ position: 'relative' }}>
+            <Card key={`new-${index}`} sx={{ position: "relative" }}>
               <CardMedia
                 component="img"
                 height="200"
                 image={URL.createObjectURL(file)}
                 alt={`Новое изображение ${index + 1}`}
-                sx={{ objectFit: 'cover' }}
+                sx={{ objectFit: "cover" }}
               />
               <CardContent sx={{ p: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box
+                  sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                >
                   <Typography variant="caption" color="text.secondary">
                     Новое изображение {index + 1}
                   </Typography>
@@ -251,10 +258,10 @@ export default function StepImageUploader({
                     onClick={() => handleRemoveImage(images.length + index)}
                     disabled={isProcessing}
                     sx={{
-                      WebkitTapHighlightColor: 'transparent',
-                      touchAction: 'manipulation',
-                      minWidth: '44px',
-                      minHeight: '44px'
+                      WebkitTapHighlightColor: "transparent",
+                      touchAction: "manipulation",
+                      minWidth: "44px",
+                      minHeight: "44px",
                     }}
                   >
                     <DeleteIcon fontSize="small" />
@@ -268,11 +275,11 @@ export default function StepImageUploader({
 
       {/* Сообщение если нет изображений */}
       {totalImages === 0 && !isProcessing && (
-        <Card sx={{ p: 3, textAlign: 'center', border: '2px dashed #ccc' }}>
+        <Card sx={{ p: 3, textAlign: "center", border: "2px dashed #ccc" }}>
           <Typography variant="body2" color="text.secondary">
             Изображения не добавлены
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
             Нажмите "Добавить изображения" для загрузки
           </Typography>
         </Card>

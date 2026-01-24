@@ -9,7 +9,7 @@ export default async function NewCoursePage() {
   // Проверяем, что steps не undefined и является массивом
   if (!steps || !Array.isArray(steps)) {
     return (
-      <FormPageLayout 
+      <FormPageLayout
         title="Создание нового курса"
         subtitle="Заполните информацию о новом курсе и выберите тренировочные дни"
       >
@@ -25,7 +25,7 @@ export default async function NewCoursePage() {
     title: day.title,
   }));
   return (
-    <FormPageLayout 
+    <FormPageLayout
       title="Создание нового курса"
       subtitle="Заполните информацию о новом курсе и выберите тренировочные дни"
     >

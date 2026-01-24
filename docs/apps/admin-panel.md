@@ -23,12 +23,14 @@ Admin Panel - это веб-приложение на Next.js 15 для упра
 ### Роли
 
 Доступ к панели имеют только следующие роли:
+
 - **ADMIN** - полный доступ
 - **MODERATOR** - модераторский доступ
 
 ### Middleware
 
 Middleware проверяет:
+
 1. Наличие валидной сессии NextAuth
 2. Роль пользователя (ADMIN или MODERATOR)
 3. Редирект на `/login` при отсутствии доступа
@@ -184,7 +186,7 @@ server {
     listen 443 ssl;
     http2 on;
     server_name admin.gafus.ru;
-    
+
     location / {
         proxy_pass http://gafus-admin-panel:3006/;
         # ... proxy settings
@@ -203,6 +205,7 @@ server {
 ### Security headers
 
 Настроены в Nginx:
+
 - `Strict-Transport-Security`
 - `X-Frame-Options: DENY`
 - `X-Content-Type-Options: nosniff`
@@ -239,11 +242,11 @@ server {
 ```typescript
 import { createErrorDashboardLogger } from "@gafus/logger";
 
-const logger = createErrorDashboardLogger('admin-panel-middleware');
+const logger = createErrorDashboardLogger("admin-panel-middleware");
 
-logger.info('User authenticated', { userId, role });
-logger.warn('Access denied', { userId, requiredRole });
-logger.error('Authentication failed', error);
+logger.info("User authenticated", { userId, role });
+logger.warn("Access denied", { userId, requiredRole });
+logger.error("Authentication failed", error);
 ```
 
 ## Мониторинг
@@ -255,6 +258,7 @@ logger.error('Authentication failed', error);
 ## Roadmap
 
 Будущая функциональность (в разработке):
+
 - Управление пользователями
 - Управление курсами и тренировками
 - Модерация контента
@@ -289,4 +293,3 @@ logger.error('Authentication failed', error);
 - [NextAuth конфигурация](../packages/auth.md)
 - [Deployment руководство](../deployment/docker.md)
 - [Error Dashboard](./error-dashboard.md)
-

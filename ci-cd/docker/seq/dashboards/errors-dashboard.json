@@ -55,9 +55,7 @@
           ],
           "Where": "@Level in ['Error', 'Fatal', 'Warning'] or @Exception is not null",
           "SignalExpression": null,
-          "GroupBy": [
-            "ContainerName"
-          ],
+          "GroupBy": ["ContainerName"],
           "DisplayStyle": {
             "Type": "Bar",
             "LineFillToZeroY": false,
@@ -93,9 +91,7 @@
           ],
           "Where": "@Level in ['Error', 'Fatal', 'Warning'] or @Exception is not null",
           "SignalExpression": null,
-          "GroupBy": [
-            "@Level"
-          ],
+          "GroupBy": ["@Level"],
           "DisplayStyle": {
             "Type": "Pie",
             "LineFillToZeroY": false,

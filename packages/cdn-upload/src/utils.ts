@@ -9,13 +9,13 @@
  */
 export function getCDNUrl(path: string): string {
   // Если уже полный URL, возвращаем как есть
-  if (path.startsWith('http')) {
+  if (path.startsWith("http")) {
     return path;
   }
-  
+
   // Убираем ведущий слеш если есть
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+
   // Возвращаем полный CDN URL
   return `https://storage.yandexcloud.net/gafus-media/${cleanPath}`;
 }
@@ -28,15 +28,15 @@ export function getCDNUrl(path: string): string {
  */
 export function getRelativePathFromCDNUrl(cdnUrl: string): string {
   // Новый формат: https://storage.yandexcloud.net/gafus-media/uploads/...
-  if (cdnUrl.startsWith('https://storage.yandexcloud.net/gafus-media/')) {
-    return cdnUrl.replace('https://storage.yandexcloud.net/gafus-media/', '');
+  if (cdnUrl.startsWith("https://storage.yandexcloud.net/gafus-media/")) {
+    return cdnUrl.replace("https://storage.yandexcloud.net/gafus-media/", "");
   }
-  
+
   // Старый формат: https://gafus-media.storage.yandexcloud.net/uploads/...
-  if (cdnUrl.startsWith('https://gafus-media.storage.yandexcloud.net/')) {
-    return cdnUrl.replace('https://gafus-media.storage.yandexcloud.net/', '');
+  if (cdnUrl.startsWith("https://gafus-media.storage.yandexcloud.net/")) {
+    return cdnUrl.replace("https://gafus-media.storage.yandexcloud.net/", "");
   }
-  
+
   // Если это не CDN URL, возвращаем как есть
   return cdnUrl;
 }
@@ -47,6 +47,8 @@ export function getRelativePathFromCDNUrl(cdnUrl: string): string {
  * @returns true если это CDN URL
  */
 export function isCDNUrl(path: string): boolean {
-  return path.startsWith('https://storage.yandexcloud.net/gafus-media/') ||
-         path.startsWith('https://gafus-media.storage.yandexcloud.net/'); // Поддержка старого формата
+  return (
+    path.startsWith("https://storage.yandexcloud.net/gafus-media/") ||
+    path.startsWith("https://gafus-media.storage.yandexcloud.net/")
+  ); // Поддержка старого формата
 }

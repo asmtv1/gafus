@@ -19,13 +19,14 @@ import type { LoginFormSchema } from "@shared/lib/validation/authSchemas";
 export default function LoginForm() {
   const [caughtError, setCaughtError] = useState<Error | null>(null);
   const { token: csrfToken, loading: csrfLoading, error: csrfError } = useCSRFStore();
-  const { form, handleSubmit, formState: { errors } } = useZodForm(
-    loginFormSchema,
-    {
-      username: "",
-      password: "",
-    }
-  );
+  const {
+    form,
+    handleSubmit,
+    formState: { errors },
+  } = useZodForm(loginFormSchema, {
+    username: "",
+    password: "",
+  });
   const router = useRouter();
 
   if (caughtError) {
@@ -40,10 +41,10 @@ export default function LoginForm() {
 
     try {
       const username = data.username.toLowerCase().trim();
-      
+
       // Проверяем статус подтверждения номера перед входом
       const userState = await checkUserStateAction(username);
-      
+
       if (!userState.confirmed && userState.phone) {
         // Если номер не подтверждён, перенаправляем на страницу подтверждения
         router.push(`/confirm?phone=${encodeURIComponent(userState.phone)}`);
@@ -107,7 +108,11 @@ export default function LoginForm() {
         </Link>
       </div>
       <button className={styles.button} type="submit" disabled={csrfLoading}>
-        {csrfLoading ? "Загрузка..." : <Image src="/uploads/login-paw.png" alt="Войти" width={140} height={135} />}
+        {csrfLoading ? (
+          "Загрузка..."
+        ) : (
+          <Image src="/uploads/login-paw.png" alt="Войти" width={140} height={135} />
+        )}
       </button>
     </form>
   );

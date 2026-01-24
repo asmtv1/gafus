@@ -5,7 +5,7 @@ import { deleteFileFromCDN } from "@gafus/cdn-upload";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 
-const logger = createWorkerLogger('exam-cleanup-worker');
+const logger = createWorkerLogger("exam-cleanup-worker");
 
 // Конфигурация
 const config = {
@@ -44,7 +44,7 @@ class ExamCleanupProcessor {
           videoReportUrl: { not: null },
           videoDeletedAt: null, // Видео еще не удалено
           userStep: { status: "COMPLETED" },
-          updatedAt: { lt: thirtyDaysAgo }
+          updatedAt: { lt: thirtyDaysAgo },
         },
         select: {
           id: true,
@@ -55,15 +55,17 @@ class ExamCleanupProcessor {
               status: true,
               userTraining: {
                 select: {
-                  user: { select: { username: true } }
-                }
-              }
-            }
-          }
-        }
+                  user: { select: { username: true } },
+                },
+              },
+            },
+          },
+        },
       });
 
-      this.logger.info(`📋 Найдено ${completedExams.length} зачтенных экзаменов старше 30 дней для удаления`);
+      this.logger.info(
+        `📋 Найдено ${completedExams.length} зачтенных экзаменов старше 30 дней для удаления`,
+      );
 
       // 2. Находим незачтенные экзамены старше 90 дней с видео
       const pendingExams = await prisma.examResult.findMany({
@@ -71,7 +73,7 @@ class ExamCleanupProcessor {
           videoReportUrl: { not: null },
           videoDeletedAt: null,
           userStep: { status: "IN_PROGRESS" },
-          createdAt: { lt: ninetyDaysAgo }
+          createdAt: { lt: ninetyDaysAgo },
         },
         select: {
           id: true,
@@ -82,15 +84,17 @@ class ExamCleanupProcessor {
               status: true,
               userTraining: {
                 select: {
-                  user: { select: { username: true } }
-                }
-              }
-            }
-          }
-        }
+                  user: { select: { username: true } },
+                },
+              },
+            },
+          },
+        },
       });
 
-      this.logger.info(`📋 Найдено ${pendingExams.length} незачтенных экзаменов старше 90 дней для удаления`);
+      this.logger.info(
+        `📋 Найдено ${pendingExams.length} незачтенных экзаменов старше 90 дней для удаления`,
+      );
 
       // 3. Удаляем видео для зачтенных экзаменов
       for (const exam of completedExams) {
@@ -98,12 +102,15 @@ class ExamCleanupProcessor {
           await this.deleteExamVideo(
             exam.videoReportUrl!,
             exam.userStepId,
-            'auto_cleanup_completed',
-            exam.userStep.userTraining.user.username
+            "auto_cleanup_completed",
+            exam.userStep.userTraining.user.username,
           );
           deleted++;
         } catch (error) {
-          this.logger.error(`❌ Ошибка при удалении видео для зачтенного экзамена ${exam.id}`, error as Error);
+          this.logger.error(
+            `❌ Ошибка при удалении видео для зачтенного экзамена ${exam.id}`,
+            error as Error,
+          );
           errors++;
         }
       }
@@ -114,12 +121,15 @@ class ExamCleanupProcessor {
           await this.deleteExamVideo(
             exam.videoReportUrl!,
             exam.userStepId,
-            'auto_cleanup_pending',
-            exam.userStep.userTraining.user.username
+            "auto_cleanup_pending",
+            exam.userStep.userTraining.user.username,
           );
           deleted++;
         } catch (error) {
-          this.logger.error(`❌ Ошибка при удалении видео для незачтенного экзамена ${exam.id}`, error as Error);
+          this.logger.error(
+            `❌ Ошибка при удалении видео для незачтенного экзамена ${exam.id}`,
+            error as Error,
+          );
           errors++;
         }
       }
@@ -140,13 +150,18 @@ class ExamCleanupProcessor {
     videoUrl: string,
     userStepId: string,
     reason: string,
-    username: string
+    username: string,
   ): Promise<void> {
     try {
       // Извлекаем относительный путь из CDN URL
-      const relativePath = videoUrl.replace('https://gafus-media.storage.yandexcloud.net/uploads/', '');
-      
-      this.logger.info(`🗑️ Удаляем видео: ${relativePath} (пользователь: ${username}, причина: ${reason})`);
+      const relativePath = videoUrl.replace(
+        "https://gafus-media.storage.yandexcloud.net/uploads/",
+        "",
+      );
+
+      this.logger.info(
+        `🗑️ Удаляем видео: ${relativePath} (пользователь: ${username}, причина: ${reason})`,
+      );
 
       // Удаляем файл с CDN
       await deleteFileFromCDN(relativePath);
@@ -157,8 +172,8 @@ class ExamCleanupProcessor {
         data: {
           videoReportUrl: null,
           videoDeletedAt: new Date(),
-          videoDeleteReason: reason
-        }
+          videoDeleteReason: reason,
+        },
       });
 
       this.logger.success(`✅ Видео успешно удалено: ${relativePath}`);
@@ -197,7 +212,7 @@ class ExamCleanupWorker {
       this.logger.success("✅ Задача очистки завершена", {
         jobId: job.id,
         deleted: result.deleted,
-        errors: result.errors
+        errors: result.errors,
       });
     } catch (error) {
       this.logger.error("❌ Задача очистки провалилась", error as Error, {
@@ -246,7 +261,7 @@ export function startExamCleanupWorker() {
 // Если файл запущен напрямую
 if (require.main === module) {
   logger.info("🚀 Запуск exam-cleanup-worker процесса...");
-  
+
   try {
     startExamCleanupWorker();
   } catch (error) {
@@ -254,4 +269,3 @@ if (require.main === module) {
     process.exit(1);
   }
 }
-

@@ -5,11 +5,7 @@ import { updateCourseRatingAction } from "@shared/server-actions";
 import { createWebLogger } from "@gafus/logger";
 import { useState } from "react";
 
-import type {
-  CourseRatingProps,
-  LegacyCourseRatingProps,
-  ClientCourseRatingProps,
-} from "./types";
+import type { CourseRatingProps, LegacyCourseRatingProps, ClientCourseRatingProps } from "./types";
 
 import { FavoriteIcon, FavoriteBorderIcon } from "@shared/utils/muiImports";
 import { Rating } from "@shared/utils/muiImports";
@@ -17,7 +13,7 @@ import { showCourseRatingAlert, showErrorAlert, showSuccessAlert } from "@shared
 import styles from "./CourseRating.module.css";
 
 // Создаем логгер для CourseRating
-const logger = createWebLogger('web-course-rating');
+const logger = createWebLogger("web-course-rating");
 
 // StyledRating теперь использует CSS модуль
 
@@ -29,7 +25,6 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
 }) => {
   const [rating, setRating] = useState(initialRating);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
 
   const handleRatingChange = async (event: React.SyntheticEvent, newValue: number | null) => {
     if (newValue === null || isSubmitting) return;
@@ -49,17 +44,17 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
         await showSuccessAlert("Рейтинг сохранен");
       } else {
         logger.error("Ошибка при сохранении рейтинга", new Error(result.error || "Unknown error"), {
-          operation: 'save_rating_error',
+          operation: "save_rating_error",
           courseId: courseId,
-          rating: newValue
+          rating: newValue,
         });
         await showErrorAlert(result.error || "Ошибка при сохранении рейтинга");
       }
     } catch (error) {
       logger.error("Ошибка при сохранении рейтинга", error as Error, {
-        operation: 'save_rating_exception',
+        operation: "save_rating_exception",
         courseId: courseId,
-        rating: newValue
+        rating: newValue,
       });
       await showErrorAlert("Ошибка при сохранении рейтинга");
     } finally {
@@ -125,7 +120,6 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
   const [rating, setRating] = useState(initialRating);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-
   const handleRatingChange = async (newValue: number) => {
     if (isSubmitting) return;
 
@@ -143,17 +137,17 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
         await showSuccessAlert("Рейтинг сохранен");
       } else {
         logger.error("Ошибка при сохранении рейтинга", new Error(result.error || "Unknown error"), {
-          operation: 'save_rating_error',
+          operation: "save_rating_error",
           courseId: courseId,
-          rating: newValue
+          rating: newValue,
         });
         await showErrorAlert(result.error || "Ошибка при сохранении рейтинга");
       }
     } catch (error) {
       logger.error("Ошибка при сохранении рейтинга", error as Error, {
-        operation: 'save_rating_exception',
+        operation: "save_rating_exception",
         courseId: courseId,
-        rating: newValue
+        rating: newValue,
       });
       await showErrorAlert("Ошибка при сохранении рейтинга");
     } finally {
@@ -167,9 +161,7 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
         <span
           key={heart}
           onClick={() => handleRatingChange(heart)}
-          className={`${styles.simpleRatingHeart} ${
-            readOnly ? styles.readOnly : ''
-          } ${
+          className={`${styles.simpleRatingHeart} ${readOnly ? styles.readOnly : ""} ${
             heart <= (rating || 0) ? styles.filled : styles.empty
           }`}
         >
@@ -177,9 +169,7 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
         </span>
       ))}
       {rating !== null && rating !== undefined && (
-        <span className={styles.simpleRatingValue}>
-          {rating === 0 ? "0" : rating.toFixed(1)}
-        </span>
+        <span className={styles.simpleRatingValue}>{rating === 0 ? "0" : rating.toFixed(1)}</span>
       )}
     </div>
   );

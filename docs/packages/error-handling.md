@@ -14,11 +14,13 @@
 ## 📦 Установка и использование
 
 ### Установка
+
 ```bash
 pnpm add @gafus/error-handling
 ```
 
 ### Базовое использование
+
 ```typescript
 import { ErrorBoundary } from '@gafus/error-handling';
 
@@ -40,15 +42,15 @@ React компонент для перехвата ошибок в дочерн�
 ```typescript
 interface ErrorBoundaryProps {
   children: ReactNode;
-  fallback?: ReactNode;           // Кастомный UI при ошибке
-  config?: ErrorBoundaryConfig;   // Конфигурация
+  fallback?: ReactNode; // Кастомный UI при ошибке
+  config?: ErrorBoundaryConfig; // Конфигурация
   onError?: (error: Error, errorInfo: ErrorInfo) => void; // Callback при ошибке
 }
 
 interface ErrorBoundaryConfig {
-  appName: string;           // Название приложения
-  environment?: string;      // Окружение (по умолчанию process.env.NODE_ENV)
-  logToConsole?: boolean;    // Логировать в консоль (по умолчанию true)
+  appName: string; // Название приложения
+  environment?: string; // Окружение (по умолчанию process.env.NODE_ENV)
+  logToConsole?: boolean; // Логировать в консоль (по умолчанию true)
   showErrorDetails?: boolean; // Показывать детали ошибки (по умолчанию false)
 }
 ```
@@ -56,6 +58,7 @@ interface ErrorBoundaryConfig {
 ### Примеры
 
 #### Базовое использование
+
 ```typescript
 import { ErrorBoundary } from '@gafus/error-handling';
 
@@ -74,6 +77,7 @@ function App() {
 ```
 
 #### Кастомный fallback
+
 ```typescript
 import { ErrorBoundary } from '@gafus/error-handling';
 
@@ -98,6 +102,7 @@ function App() {
 ```
 
 #### Обработка ошибок с callback
+
 ```typescript
 import { ErrorBoundary } from '@gafus/error-handling';
 
@@ -111,7 +116,7 @@ function App() {
   };
 
   return (
-    <ErrorBoundary 
+    <ErrorBoundary
       config={{ appName: 'web' }}
       onError={handleError}
     >
@@ -126,36 +131,33 @@ function App() {
 Для отправки ошибок используйте `logger.error()` из `@gafus/logger`:
 
 ```typescript
-import { createWebLogger } from '@gafus/logger';
+import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('my-context');
+const logger = createWebLogger("my-context");
 
 // Отправка ошибки
-await logger.error(
-  error.message || 'Unknown error',
-  error,
-  {
-    userId: '123',
-    operation: 'save_profile',
-    additionalContext: { action: 'save_profile' },
-    tags: ['error', 'profile'],
-  }
-);
+await logger.error(error.message || "Unknown error", error, {
+  userId: "123",
+  operation: "save_profile",
+  additionalContext: { action: "save_profile" },
+  tags: ["error", "profile"],
+});
 ```
 
 ## 📊 Структура отчётов об ошибках
 
 ### ErrorInfo интерфейс
+
 ```typescript
 interface ErrorInfo {
-  componentStack?: string;   // React component stack
+  componentStack?: string; // React component stack
   errorBoundaryName?: string; // Название Error Boundary
-  appName: string;           // Название приложения
-  url: string;              // URL страницы
-  userAgent: string;        // User Agent браузера
-  timestamp: number;        // Время возникновения
-  userId?: string;          // ID пользователя
-  sessionId?: string;       // ID сессии
+  appName: string; // Название приложения
+  url: string; // URL страницы
+  userAgent: string; // User Agent браузера
+  timestamp: number; // Время возникновения
+  userId?: string; // ID пользователя
+  sessionId?: string; // ID сессии
   additionalContext?: Record<string, unknown>; // Дополнительный контекст
 }
 ```
@@ -187,4 +189,4 @@ packages/error-handling/
 
 ---
 
-*Для логирования и серверной обработки ошибок используйте `@gafus/logger`.*
+_Для логирования и серверной обработки ошибок используйте `@gafus/logger`._

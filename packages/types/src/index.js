@@ -10,7 +10,11 @@ export * from "./stores/notification";
 export * from "./stores/step";
 export * from "./stores/timer";
 export * from "./stores/training";
-export { CACHE_DURATION, DEFAULT_USER_PREFERENCES, PREFERENCES_CACHE_DURATION, } from "./stores/userStore";
+export {
+  CACHE_DURATION,
+  DEFAULT_USER_PREFERENCES,
+  PREFERENCES_CACHE_DURATION,
+} from "./stores/userStore";
 // Utils
 export * from "./utils";
 export * from "./utils/logger";

@@ -27,10 +27,7 @@ export async function clearCourseCache(courseType: string): Promise<void> {
       const pathname = url.pathname;
 
       // Удаляем страницу списка дней
-      if (
-        pathname === `/trainings/${courseType}` ||
-        pathname === `/trainings/${courseType}/`
-      ) {
+      if (pathname === `/trainings/${courseType}` || pathname === `/trainings/${courseType}/`) {
         await cache.delete(request);
         deletedCount++;
         logger.info("Deleted course list page from cache", {
@@ -41,9 +38,7 @@ export async function clearCourseCache(courseType: string): Promise<void> {
       }
 
       // Удаляем страницы дней курса: /trainings/[courseType]/[dayId]
-      const dayPageMatch = pathname.match(
-        /^\/trainings\/([^/]+)\/([^/]+)$/
-      );
+      const dayPageMatch = pathname.match(/^\/trainings\/([^/]+)\/([^/]+)$/);
       if (dayPageMatch && dayPageMatch[1] === courseType) {
         await cache.delete(request);
         deletedCount++;

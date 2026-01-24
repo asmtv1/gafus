@@ -14,35 +14,43 @@
 ## 📦 Использование
 
 ### Создание очереди
-```typescript
-import { createQueue } from '@gafus/queues';
 
-const emailQueue = createQueue('email', {
+```typescript
+import { createQueue } from "@gafus/queues";
+
+const emailQueue = createQueue("email", {
   redis: {
-    host: 'localhost',
-    port: 6379
-  }
+    host: "localhost",
+    port: 6379,
+  },
 });
 ```
 
 ### Добавление задачи
-```typescript
-import { addJob } from '@gafus/queues';
 
-await addJob('email', 'send-welcome', {
-  userId: '123',
-  email: 'user@example.com'
-}, {
-  delay: 5000, // Задержка 5 секунд
-  attempts: 3  // 3 попытки
-});
+```typescript
+import { addJob } from "@gafus/queues";
+
+await addJob(
+  "email",
+  "send-welcome",
+  {
+    userId: "123",
+    email: "user@example.com",
+  },
+  {
+    delay: 5000, // Задержка 5 секунд
+    attempts: 3, // 3 попытки
+  },
+);
 ```
 
 ### Обработка задач
-```typescript
-import { processQueue } from '@gafus/queues';
 
-processQueue('email', 'send-welcome', async (job) => {
+```typescript
+import { processQueue } from "@gafus/queues";
+
+processQueue("email", "send-welcome", async (job) => {
   const { userId, email } = job.data;
   await sendWelcomeEmail(userId, email);
 });

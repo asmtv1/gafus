@@ -17,11 +17,13 @@ declare module "hono" {
  */
 export const authMiddleware = createMiddleware(async (c, next) => {
   const path = c.req.path;
-  
+
   // Пропускаем маршруты для HLS видео - они используют токен из query параметра
   // Путь может быть /api/v1/training/video/... или /training/video/...
-  if ((path.includes("/training/video/") || path.includes("/api/v1/training/video/")) && 
-      (path.includes("/manifest") || path.includes("/segment"))) {
+  if (
+    (path.includes("/training/video/") || path.includes("/api/v1/training/video/")) &&
+    (path.includes("/manifest") || path.includes("/segment"))
+  ) {
     await next();
     return;
   }

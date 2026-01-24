@@ -27,7 +27,7 @@ export interface PendingExamResult {
  */
 export async function getPendingExamResults(): Promise<PendingExamResult[]> {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user) {
     throw new Error("Не авторизован");
   }
@@ -48,12 +48,12 @@ export async function getPendingExamResults(): Promise<PendingExamResult[]> {
               course: {
                 // Если не админ, то только свои курсы
                 ...(session.user.role !== "ADMIN" && {
-                  authorId: session.user.id
-                })
-              }
-            }
-          }
-        }
+                  authorId: session.user.id,
+                }),
+              },
+            },
+          },
+        },
       },
       include: {
         userStep: {
@@ -62,24 +62,24 @@ export async function getPendingExamResults(): Promise<PendingExamResult[]> {
               include: {
                 user: {
                   select: {
-                    username: true
-                  }
+                    username: true,
+                  },
                 },
                 dayOnCourse: {
                   include: {
                     course: {
                       select: {
-                        name: true
-                      }
+                        name: true,
+                      },
                     },
                     day: {
                       select: {
-                        title: true
-                      }
-                    }
-                  }
-                }
-              }
+                        title: true,
+                      },
+                    },
+                  },
+                },
+              },
             },
             stepOnDay: {
               include: {
@@ -89,28 +89,29 @@ export async function getPendingExamResults(): Promise<PendingExamResult[]> {
                     hasTestQuestions: true,
                     requiresWrittenFeedback: true,
                     requiresVideoReport: true,
-                    checklist: true
-                  }
-                }
-              }
-            }
-          }
-        }
+                    checklist: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: {
-        createdAt: "desc"
-      }
+        createdAt: "desc",
+      },
     });
 
     // Преобразуем в нужный формат
-    return examResults.map(result => {
+    return examResults.map((result) => {
       // Парсим testAnswers
       let testAnswers: Record<string, number> | null = null;
       if (result.testAnswers) {
         try {
-          testAnswers = typeof result.testAnswers === 'string' 
-            ? JSON.parse(result.testAnswers) 
-            : result.testAnswers as Record<string, number>;
+          testAnswers =
+            typeof result.testAnswers === "string"
+              ? JSON.parse(result.testAnswers)
+              : (result.testAnswers as Record<string, number>);
         } catch (e) {
           console.error("Ошибка парсинга testAnswers:", e);
         }
@@ -131,7 +132,7 @@ export async function getPendingExamResults(): Promise<PendingExamResult[]> {
         testMaxScore: result.testMaxScore,
         writtenFeedback: result.writtenFeedback,
         videoReportUrl: result.videoReportUrl,
-        submittedAt: result.createdAt
+        submittedAt: result.createdAt,
       };
     });
   } catch (error) {
@@ -139,4 +140,3 @@ export async function getPendingExamResults(): Promise<PendingExamResult[]> {
     throw new Error(error instanceof Error ? error.message : "Неизвестная ошибка");
   }
 }
-

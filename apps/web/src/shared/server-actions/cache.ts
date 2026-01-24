@@ -4,7 +4,7 @@ import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('web-cache-actions');
+const logger = createWebLogger("web-cache-actions");
 
 const invalidateUserProgressSchema = z.object({
   userId: z.string().trim().min(1, "userId обязателен"),
@@ -13,9 +13,9 @@ const invalidateUserProgressSchema = z.object({
 
 /**
  * Инвалидирует кэш прогресса конкретного пользователя
- * Используется при изменении прогресса пользователя (добавление в избранное, 
+ * Используется при изменении прогресса пользователя (добавление в избранное,
  * начало шага, обновление статуса шага, назначение курса)
- * 
+ *
  * @param userId - ID пользователя
  * @param force - Принудительная инвалидация (игнорирует офлайн статус)
  * @returns Результат операции с информацией о статусе
@@ -25,7 +25,7 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
     userId,
     force,
   });
-  
+
   logger.info(`[Cache] Invalidating user progress cache for user: ${safeUserId}`);
 
   revalidateTag(`user-${safeUserId}`);
@@ -67,7 +67,7 @@ export async function invalidateTrainingCache(userId?: string) {
 
   revalidateTag("training");
   revalidateTag("days");
-  
+
   if (userId) {
     revalidateTag(`user-${userId}`);
   }

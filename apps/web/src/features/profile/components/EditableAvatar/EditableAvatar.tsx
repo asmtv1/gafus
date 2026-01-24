@@ -11,7 +11,7 @@ import { useRef, useState, useEffect } from "react";
 import { Avatar, Box, IconButton, Tooltip } from "@shared/utils/muiImports";
 
 // Создаем логгер для EditableAvatar
-const logger = createWebLogger('web-editable-avatar');
+const logger = createWebLogger("web-editable-avatar");
 
 export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null }) {
   const router = useRouter();
@@ -53,8 +53,8 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error("Unknown error");
       logger.error("Ошибка при сохранении avatar", errorObj, {
-        operation: 'save_avatar_error',
-        userId: session?.user?.id
+        operation: "save_avatar_error",
+        userId: session?.user?.id,
       });
       setError(errorObj);
     }
@@ -66,17 +66,18 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
     }
   }, [currentAvatarUrl]);
 
-  const displayedUrl = currentAvatarUrl && !imageError
-    ? cacheBuster
-      ? `${currentAvatarUrl}?cb=${cacheBuster}`
-      : currentAvatarUrl
-    : "/uploads/avatar.svg";
+  const displayedUrl =
+    currentAvatarUrl && !imageError
+      ? cacheBuster
+        ? `${currentAvatarUrl}?cb=${cacheBuster}`
+        : currentAvatarUrl
+      : "/uploads/avatar.svg";
 
   const handleImageError = () => {
     logger.warn("Ошибка загрузки аватара", {
-      operation: 'avatar_load_error',
+      operation: "avatar_load_error",
       avatarUrl: currentAvatarUrl,
-      displayedUrl
+      displayedUrl,
     });
     setImageError(true);
   };
@@ -95,9 +96,9 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
           height: 120,
         }}
       >
-        <Avatar 
-          alt="Аватар" 
-          src={displayedUrl} 
+        <Avatar
+          alt="Аватар"
+          src={displayedUrl}
           sx={{ width: 120, height: 120 }}
           imgProps={{
             onError: handleImageError,

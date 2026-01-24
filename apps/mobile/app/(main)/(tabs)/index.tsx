@@ -1,12 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { 
-  View, 
-  StyleSheet, 
-  FlatList, 
-  RefreshControl,
-  Pressable,
-  TextInput,
-} from "react-native";
+import { View, StyleSheet, FlatList, RefreshControl, Pressable, TextInput } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -28,14 +21,8 @@ const LEVEL_LABELS: Record<string, string> = {
  */
 export default function CoursesScreen() {
   const queryClient = useQueryClient();
-  const {
-    filters,
-    setFilter,
-    clearFilters,
-    addToFavorites,
-    removeFromFavorites,
-    isFavorite,
-  } = useCourseStore();
+  const { filters, setFilter, clearFilters, addToFavorites, removeFromFavorites, isFavorite } =
+    useCourseStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState(filters.search || "");
@@ -55,18 +42,21 @@ export default function CoursesScreen() {
   }, [refetch]);
 
   // Обновляем поиск с debounce
-  const handleSearchChange = useCallback((text: string) => {
-    setSearchQuery(text);
-    setFilter("search", text);
-  }, [setFilter]);
+  const handleSearchChange = useCallback(
+    (text: string) => {
+      setSearchQuery(text);
+      setFilter("search", text);
+    },
+    [setFilter],
+  );
 
   // Фильтруем курсы локально (как в веб-версии)
   // API возвращает массив курсов напрямую в data
   const filteredCourses = useMemo(() => {
     if (!data?.data || !Array.isArray(data.data)) return [];
-    
+
     let courses = data.data;
-    
+
     // Фильтрация по поисковому запросу
     if (searchQuery) {
       const query = searchQuery.toLowerCase().trim();
@@ -75,28 +65,28 @@ export default function CoursesScreen() {
           c.name?.toLowerCase().includes(query) ||
           c.description?.toLowerCase().includes(query) ||
           c.shortDesc?.toLowerCase().includes(query) ||
-          c.authorUsername?.toLowerCase().includes(query)
+          c.authorUsername?.toLowerCase().includes(query),
       );
     }
-    
+
     // Фильтрация по типу (personal/group)
     if (filters.type) {
       // В API нет поля type для фильтрации, пропускаем
       // Можно добавить фильтрацию по isPrivate если нужно
     }
-    
+
     // Фильтрация по уровню
     if (filters.level) {
       courses = courses.filter((c) => c.trainingLevel === filters.level);
     }
-    
+
     // Сортировка по дате создания (новые → старые)
     courses = [...courses].sort((a, b) => {
       const dateA = new Date(a.createdAt || 0).getTime();
       const dateB = new Date(b.createdAt || 0).getTime();
       return dateB - dateA;
     });
-    
+
     return courses;
   }, [data?.data, searchQuery, filters.type, filters.level]);
 
@@ -109,10 +99,7 @@ export default function CoursesScreen() {
     }
     setPendingIds((prev) => [...prev, courseId]);
     try {
-      const res = await coursesApi.toggleFavorite(
-        courseId,
-        wasFavorite ? "remove" : "add"
-      );
+      const res = await coursesApi.toggleFavorite(courseId, wasFavorite ? "remove" : "add");
       if (res.success) {
         queryClient.invalidateQueries({ queryKey: ["favorites"] });
       } else {
@@ -191,9 +178,7 @@ export default function CoursesScreen() {
           renderItem={renderCourseItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>

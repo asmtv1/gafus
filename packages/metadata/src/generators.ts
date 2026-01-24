@@ -70,9 +70,7 @@ export function generateCourseMetadata(params: CourseMetadataParams): Metadata {
   const { name, description, type, logoUrl } = params;
 
   // Нормализуем URL изображения
-  const imageUrl = logoUrl.startsWith("http")
-    ? logoUrl
-    : `${SITE_CONFIG.url}${logoUrl}`;
+  const imageUrl = logoUrl.startsWith("http") ? logoUrl : `${SITE_CONFIG.url}${logoUrl}`;
 
   return generatePageMetadata({
     title: name,
@@ -99,4 +97,3 @@ export function generateStaticPageMetadata(
     path,
   });
 }
-

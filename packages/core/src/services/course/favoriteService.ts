@@ -8,7 +8,7 @@ import { TrainingStatus } from "@gafus/types";
 import type { Course, CourseAccess, CourseReview, FavoriteCourse } from "@gafus/prisma";
 import type { CourseWithProgressData } from "@gafus/types";
 
-const logger = createWebLogger('favorite-service');
+const logger = createWebLogger("favorite-service");
 
 // ========== Get Favorites Courses ==========
 
@@ -16,7 +16,7 @@ const logger = createWebLogger('favorite-service');
  * Получает список избранных курсов пользователя с прогрессом
  */
 export async function getFavoritesCourses(
-  userId: string
+  userId: string,
 ): Promise<{ data: CourseWithProgressData[]; favoriteIds: string[] }> {
   const userFavorites = await prisma.favoriteCourse.findMany({
     where: { userId },
@@ -107,10 +107,7 @@ export async function getFavoritesCourses(
  * Добавляет или удаляет курс из избранного
  * @returns true если курс добавлен, false если удалён
  */
-export async function toggleFavoriteCourse(
-  userId: string,
-  courseId: string
-): Promise<boolean> {
+export async function toggleFavoriteCourse(userId: string, courseId: string): Promise<boolean> {
   const existing = await prisma.favoriteCourse.findUnique({
     where: {
       userId_courseId: {
@@ -144,10 +141,7 @@ export async function toggleFavoriteCourse(
 /**
  * Добавляет курс в избранное (идемпотентная операция)
  */
-export async function addFavoriteCourse(
-  userId: string,
-  courseId: string
-): Promise<void> {
+export async function addFavoriteCourse(userId: string, courseId: string): Promise<void> {
   const existing = await prisma.favoriteCourse.findUnique({
     where: {
       userId_courseId: {
@@ -170,10 +164,7 @@ export async function addFavoriteCourse(
 /**
  * Удаляет курс из избранного (идемпотентная операция)
  */
-export async function removeFavoriteCourse(
-  userId: string,
-  courseId: string
-): Promise<void> {
+export async function removeFavoriteCourse(userId: string, courseId: string): Promise<void> {
   await prisma.favoriteCourse.deleteMany({
     where: {
       userId,

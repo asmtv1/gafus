@@ -17,7 +17,7 @@ import {
   CircularProgress,
   Alert,
   Button,
-  Chip
+  Chip,
 } from "@mui/material";
 import {
   Visibility,
@@ -26,12 +26,9 @@ import {
   TrendingUp,
   Language,
   Refresh,
-  Link as LinkIcon
+  Link as LinkIcon,
 } from "@mui/icons-material";
-import {
-  getPresentationStats,
-  type PresentationStats
-} from "../lib/getPresentationStats";
+import { getPresentationStats, type PresentationStats } from "../lib/getPresentationStats";
 
 /**
  * Компонент отображения статистики по presentation.html
@@ -50,9 +47,9 @@ export default function PresentationStatsMonitor() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const result = await getPresentationStats();
-      
+
       if (result.success && result.data) {
         setStats(result.data);
       } else {
@@ -80,7 +77,6 @@ export default function PresentationStatsMonitor() {
     return `${hours} ч ${remainingMinutes} мин`;
   };
 
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" p={4}>
@@ -99,9 +95,9 @@ export default function PresentationStatsMonitor() {
 
   return (
     <Box>
-      <Box 
-        display="flex" 
-        justifyContent="space-between" 
+      <Box
+        display="flex"
+        justifyContent="space-between"
         alignItems={{ xs: "flex-start", sm: "center" }}
         flexDirection={{ xs: "column", sm: "row" }}
         gap={{ xs: 2, sm: 0 }}
@@ -111,7 +107,11 @@ export default function PresentationStatsMonitor() {
           <Typography variant="h5" gutterBottom sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}>
             Статистика по презентации
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}
+          >
             Аналитика просмотров presentation.html
           </Typography>
         </Box>
@@ -121,12 +121,12 @@ export default function PresentationStatsMonitor() {
           onClick={loadStats}
           disabled={loading}
           fullWidth
-          sx={{ 
+          sx={{
             minHeight: { xs: "44px", sm: "auto" },
-            "@media (min-width: 600px)": { 
+            "@media (min-width: 600px)": {
               width: "auto",
-              alignSelf: "flex-start"
-            } 
+              alignSelf: "flex-start",
+            },
           }}
         >
           Обновить
@@ -140,14 +140,21 @@ export default function PresentationStatsMonitor() {
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                  <Typography
+                    color="text.secondary"
+                    gutterBottom
+                    sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  >
                     Всего просмотров
                   </Typography>
                   <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {stats.overview.totalViews}
                   </Typography>
                 </Box>
-                <Visibility color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
+                <Visibility
+                  color="primary"
+                  sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }}
+                />
               </Box>
             </CardContent>
           </Card>
@@ -158,17 +165,28 @@ export default function PresentationStatsMonitor() {
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                  <Typography
+                    color="text.secondary"
+                    gutterBottom
+                    sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  >
                     Уникальных посетителей
                   </Typography>
                   <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {stats.overview.uniqueVisitors || stats.overview.uniqueSessions}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  >
                     Сессий: {stats.overview.uniqueSessions}
                   </Typography>
                 </Box>
-                <People color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
+                <People
+                  color="primary"
+                  sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }}
+                />
               </Box>
             </CardContent>
           </Card>
@@ -179,19 +197,33 @@ export default function PresentationStatsMonitor() {
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                  <Typography
+                    color="text.secondary"
+                    gutterBottom
+                    sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  >
                     Глубокая вовлечённость
                   </Typography>
                   <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {stats.engagement.deepEngagement}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
-                    {stats.overview.totalViews > 0 
-                      ? Math.round((stats.engagement.deepEngagement / stats.overview.totalViews) * 100 * 10) / 10 
-                      : 0}%
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  >
+                    {stats.overview.totalViews > 0
+                      ? Math.round(
+                          (stats.engagement.deepEngagement / stats.overview.totalViews) * 100 * 10,
+                        ) / 10
+                      : 0}
+                    %
                   </Typography>
                 </Box>
-                <TrendingUp color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
+                <TrendingUp
+                  color="primary"
+                  sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }}
+                />
               </Box>
             </CardContent>
           </Card>
@@ -202,17 +234,28 @@ export default function PresentationStatsMonitor() {
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography color="text.secondary" gutterBottom sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                  <Typography
+                    color="text.secondary"
+                    gutterBottom
+                    sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  >
                     Клики по CTA
                   </Typography>
                   <Typography variant="h4" sx={{ fontSize: { xs: "1.5rem", sm: "2rem" } }}>
                     {stats.engagement.clickedCTA}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  >
                     {Math.round(stats.engagement.avgClicksPerSession * 10) / 10} на сессию
                   </Typography>
                 </Box>
-                <LinkIcon color="primary" sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }} />
+                <LinkIcon
+                  color="primary"
+                  sx={{ fontSize: { xs: 32, sm: 48 }, flexShrink: 0, ml: 1 }}
+                />
               </Box>
             </CardContent>
           </Card>
@@ -229,13 +272,14 @@ export default function PresentationStatsMonitor() {
                   <Typography color="text.secondary" gutterBottom>
                     Дочитали до конца
                   </Typography>
-                  <Typography variant="h4">
-                    {stats.engagement.readToEnd}
-                  </Typography>
+                  <Typography variant="h4">{stats.engagement.readToEnd}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {stats.overview.totalViews > 0 
-                      ? Math.round((stats.engagement.readToEnd / stats.overview.totalViews) * 100 * 10) / 10 
-                      : 0}%
+                    {stats.overview.totalViews > 0
+                      ? Math.round(
+                          (stats.engagement.readToEnd / stats.overview.totalViews) * 100 * 10,
+                        ) / 10
+                      : 0}
+                    %
                   </Typography>
                 </Box>
                 <TrendingUp color="primary" sx={{ fontSize: 48 }} />
@@ -252,13 +296,14 @@ export default function PresentationStatsMonitor() {
                   <Typography color="text.secondary" gutterBottom>
                     Провели 5+ минут
                   </Typography>
-                  <Typography variant="h4">
-                    {stats.engagement.stayedLong}
-                  </Typography>
+                  <Typography variant="h4">{stats.engagement.stayedLong}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {stats.overview.totalViews > 0 
-                      ? Math.round((stats.engagement.stayedLong / stats.overview.totalViews) * 100 * 10) / 10 
-                      : 0}%
+                    {stats.overview.totalViews > 0
+                      ? Math.round(
+                          (stats.engagement.stayedLong / stats.overview.totalViews) * 100 * 10,
+                        ) / 10
+                      : 0}
+                    %
                   </Typography>
                 </Box>
                 <AccessTime color="primary" sx={{ fontSize: 48 }} />
@@ -293,9 +338,7 @@ export default function PresentationStatsMonitor() {
                   <Typography color="text.secondary" gutterBottom>
                     Средняя прокрутка
                   </Typography>
-                  <Typography variant="h4">
-                    {stats.overview.avgScrollDepth}%
-                  </Typography>
+                  <Typography variant="h4">{stats.overview.avgScrollDepth}%</Typography>
                 </Box>
                 <TrendingUp color="primary" sx={{ fontSize: 48 }} />
               </Box>
@@ -308,15 +351,19 @@ export default function PresentationStatsMonitor() {
       {stats.byReferrer.length > 0 && (
         <Card sx={{ mb: 4 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}
+            >
               Статистика по источникам (Referrer)
             </Typography>
 
             {/* Десктопная таблица */}
-            <TableContainer 
-              sx={{ 
+            <TableContainer
+              sx={{
                 overflowX: "auto",
-                display: { xs: "none", sm: "block" }
+                display: { xs: "none", sm: "block" },
               }}
             >
               <Table size="small">
@@ -345,13 +392,19 @@ export default function PresentationStatsMonitor() {
                       <TableCell align="center">{ref.views}</TableCell>
                       <TableCell align="center">{ref.uniqueSessions}</TableCell>
                       <TableCell align="center">
-                        {ref.avgTimeOnPage > 0 ? formatTime(Math.round(ref.avgTimeOnPage)) : '-'}
+                        {ref.avgTimeOnPage > 0 ? formatTime(Math.round(ref.avgTimeOnPage)) : "-"}
                       </TableCell>
                       <TableCell align="center">
-                        <Chip 
-                          label={`${ref.deepEngagementRate}%`} 
-                          size="small" 
-                          color={ref.deepEngagementRate > 30 ? "success" : ref.deepEngagementRate > 15 ? "warning" : "default"}
+                        <Chip
+                          label={`${ref.deepEngagementRate}%`}
+                          size="small"
+                          color={
+                            ref.deepEngagementRate > 30
+                              ? "success"
+                              : ref.deepEngagementRate > 15
+                                ? "warning"
+                                : "default"
+                          }
                         />
                       </TableCell>
                     </TableRow>
@@ -376,7 +429,11 @@ export default function PresentationStatsMonitor() {
                     {ref.domain ? (
                       <>
                         <Language fontSize="small" />
-                        <Typography variant="subtitle1" fontWeight="medium" sx={{ wordBreak: "break-all" }}>
+                        <Typography
+                          variant="subtitle1"
+                          fontWeight="medium"
+                          sx={{ wordBreak: "break-all" }}
+                        >
                           {ref.domain}
                         </Typography>
                       </>
@@ -412,7 +469,7 @@ export default function PresentationStatsMonitor() {
                         Среднее время
                       </Typography>
                       <Typography variant="body2">
-                        {ref.avgTimeOnPage > 0 ? formatTime(Math.round(ref.avgTimeOnPage)) : '-'}
+                        {ref.avgTimeOnPage > 0 ? formatTime(Math.round(ref.avgTimeOnPage)) : "-"}
                       </Typography>
                     </Box>
 
@@ -421,10 +478,16 @@ export default function PresentationStatsMonitor() {
                         Вовлечённость
                       </Typography>
                       <Box sx={{ mt: 0.5 }}>
-                        <Chip 
-                          label={`${ref.deepEngagementRate}%`} 
-                          size="small" 
-                          color={ref.deepEngagementRate > 30 ? "success" : ref.deepEngagementRate > 15 ? "warning" : "default"}
+                        <Chip
+                          label={`${ref.deepEngagementRate}%`}
+                          size="small"
+                          color={
+                            ref.deepEngagementRate > 30
+                              ? "success"
+                              : ref.deepEngagementRate > 15
+                                ? "warning"
+                                : "default"
+                          }
                         />
                       </Box>
                     </Box>
@@ -444,36 +507,49 @@ export default function PresentationStatsMonitor() {
           </Typography>
           <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: 1 }}>
             {[
-              { name: 'Hero', value: stats.funnel.hero, label: 'Начало просмотра' },
-              { name: 'Problem', value: stats.funnel.problem, label: 'Проблемы' },
-              { name: 'Solution', value: stats.funnel.solution, label: 'Решение' },
-              { name: 'Features', value: stats.funnel.features, label: 'Возможности' },
-              { name: 'Comparison', value: stats.funnel.comparison, label: 'Сравнение' },
-              { name: 'Goals', value: stats.funnel.goals, label: 'Цели' },
-              { name: 'Contact', value: stats.funnel.contact, label: 'Контакты' },
+              { name: "Hero", value: stats.funnel.hero, label: "Начало просмотра" },
+              { name: "Problem", value: stats.funnel.problem, label: "Проблемы" },
+              { name: "Solution", value: stats.funnel.solution, label: "Решение" },
+              { name: "Features", value: stats.funnel.features, label: "Возможности" },
+              { name: "Comparison", value: stats.funnel.comparison, label: "Сравнение" },
+              { name: "Goals", value: stats.funnel.goals, label: "Цели" },
+              { name: "Contact", value: stats.funnel.contact, label: "Контакты" },
             ].map((section, index) => {
-              const percentage = stats.funnel.hero > 0 
-                ? Math.round((section.value / stats.funnel.hero) * 100 * 10) / 10 
-                : 0;
+              const percentage =
+                stats.funnel.hero > 0
+                  ? Math.round((section.value / stats.funnel.hero) * 100 * 10) / 10
+                  : 0;
               return (
                 <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
                   <Paper sx={{ p: { xs: 1.5, sm: 2 } }}>
-                    <Typography variant="subtitle1" gutterBottom sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
+                    <Typography
+                      variant="subtitle1"
+                      gutterBottom
+                      sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                    >
                       {section.name}
                     </Typography>
-                    <Typography variant="h6" color="primary" sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
+                    <Typography
+                      variant="h6"
+                      color="primary"
+                      sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}
+                    >
                       {section.value} ({percentage}%)
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                    >
                       {section.label}
                     </Typography>
                     <Box
                       sx={{
                         mt: 1,
                         height: 8,
-                        bgcolor: 'primary.main',
+                        bgcolor: "primary.main",
                         borderRadius: 1,
-                        width: `${percentage}%`
+                        width: `${percentage}%`,
                       }}
                     />
                   </Paper>
@@ -493,24 +569,36 @@ export default function PresentationStatsMonitor() {
           <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: 1 }}>
             {stats.scrollMilestones.map((milestone, index) => (
               <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-                <Paper sx={{ p: { xs: 1.5, sm: 2 }, textAlign: 'center' }}>
-                  <Typography variant="h6" color="primary" sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
+                <Paper sx={{ p: { xs: 1.5, sm: 2 }, textAlign: "center" }}>
+                  <Typography
+                    variant="h6"
+                    color="primary"
+                    sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}
+                  >
                     {milestone.milestone}%
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  >
                     {milestone.reached} пользователей
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  >
                     {milestone.percentage}% от всех
                   </Typography>
                   <Box
                     sx={{
                       mt: 1,
                       height: 8,
-                      bgcolor: 'primary.main',
+                      bgcolor: "primary.main",
                       borderRadius: 1,
                       width: `${milestone.percentage}%`,
-                      mx: 'auto'
+                      mx: "auto",
                     }}
                   />
                 </Paper>
@@ -524,14 +612,18 @@ export default function PresentationStatsMonitor() {
       {stats.byDevice.length > 0 && (
         <Card sx={{ mb: 4 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}
+            >
               Статистика по устройствам
             </Typography>
             {/* Десктопная таблица */}
-            <TableContainer 
-              sx={{ 
+            <TableContainer
+              sx={{
                 overflowX: "auto",
-                display: { xs: "none", sm: "block" }
+                display: { xs: "none", sm: "block" },
               }}
             >
               <Table size="small">
@@ -545,12 +637,12 @@ export default function PresentationStatsMonitor() {
                 <TableBody>
                   {stats.byDevice.map((device, index) => (
                     <TableRow key={index}>
-                      <TableCell>
-                        {device.deviceType || 'Неизвестно'}
-                      </TableCell>
+                      <TableCell>{device.deviceType || "Неизвестно"}</TableCell>
                       <TableCell align="center">{device.views}</TableCell>
                       <TableCell align="center">
-                        {device.avgTimeOnPage > 0 ? formatTime(Math.round(device.avgTimeOnPage)) : '-'}
+                        {device.avgTimeOnPage > 0
+                          ? formatTime(Math.round(device.avgTimeOnPage))
+                          : "-"}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -576,7 +668,7 @@ export default function PresentationStatsMonitor() {
                         Устройство
                       </Typography>
                       <Typography variant="body1" fontWeight="medium">
-                        {device.deviceType || 'Неизвестно'}
+                        {device.deviceType || "Неизвестно"}
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", gap: 2 }}>
@@ -593,7 +685,9 @@ export default function PresentationStatsMonitor() {
                           Среднее время
                         </Typography>
                         <Typography variant="body2">
-                          {device.avgTimeOnPage > 0 ? formatTime(Math.round(device.avgTimeOnPage)) : '-'}
+                          {device.avgTimeOnPage > 0
+                            ? formatTime(Math.round(device.avgTimeOnPage))
+                            : "-"}
                         </Typography>
                       </Box>
                     </Box>
@@ -609,15 +703,19 @@ export default function PresentationStatsMonitor() {
       {stats.byUTM.length > 0 && (
         <Card sx={{ mb: 4 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}
+            >
               Статистика по UTM меткам
             </Typography>
 
             {/* Десктопная таблица */}
-            <TableContainer 
-              sx={{ 
+            <TableContainer
+              sx={{
                 overflowX: "auto",
-                display: { xs: "none", sm: "block" }
+                display: { xs: "none", sm: "block" },
               }}
             >
               <Table size="small">
@@ -632,9 +730,9 @@ export default function PresentationStatsMonitor() {
                 <TableBody>
                   {stats.byUTM.map((utm, index) => (
                     <TableRow key={index}>
-                      <TableCell>{utm.source || '-'}</TableCell>
-                      <TableCell>{utm.medium || '-'}</TableCell>
-                      <TableCell>{utm.campaign || '-'}</TableCell>
+                      <TableCell>{utm.source || "-"}</TableCell>
+                      <TableCell>{utm.medium || "-"}</TableCell>
+                      <TableCell>{utm.campaign || "-"}</TableCell>
                       <TableCell align="center">{utm.views}</TableCell>
                     </TableRow>
                   ))}
@@ -660,7 +758,7 @@ export default function PresentationStatsMonitor() {
                         Source
                       </Typography>
                       <Typography variant="body2" fontWeight="medium">
-                        {utm.source || '-'}
+                        {utm.source || "-"}
                       </Typography>
                     </Box>
                     <Box>
@@ -668,7 +766,7 @@ export default function PresentationStatsMonitor() {
                         Medium
                       </Typography>
                       <Typography variant="body2" fontWeight="medium">
-                        {utm.medium || '-'}
+                        {utm.medium || "-"}
                       </Typography>
                     </Box>
                     <Box>
@@ -676,7 +774,7 @@ export default function PresentationStatsMonitor() {
                         Campaign
                       </Typography>
                       <Typography variant="body2" fontWeight="medium">
-                        {utm.campaign || '-'}
+                        {utm.campaign || "-"}
                       </Typography>
                     </Box>
                     <Box>
@@ -703,42 +801,38 @@ export default function PresentationStatsMonitor() {
           </Typography>
 
           {/* Десктопная таблица */}
-          <TableContainer 
-            sx={{ 
+          <TableContainer
+            sx={{
               overflowX: "auto",
-              display: { xs: "none", sm: "block" }
+              display: { xs: "none", sm: "block" },
             }}
           >
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell>Дата</TableCell>
-                    <TableCell>Источник</TableCell>
-                    <TableCell align="center">Время</TableCell>
-                    <TableCell align="center">Прокрутка</TableCell>
-                    <TableCell align="center">Клики CTA</TableCell>
-                    <TableCell align="center">Устройство</TableCell>
+                  <TableCell>Источник</TableCell>
+                  <TableCell align="center">Время</TableCell>
+                  <TableCell align="center">Прокрутка</TableCell>
+                  <TableCell align="center">Клики CTA</TableCell>
+                  <TableCell align="center">Устройство</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {stats.recentViews.map((view) => (
                   <TableRow key={view.id}>
                     <TableCell>
-                      {new Date(view.firstViewAt).toLocaleString('ru-RU', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
+                      {new Date(view.firstViewAt).toLocaleString("ru-RU", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
                       })}
                     </TableCell>
                     <TableCell>
                       {view.referrerDomain ? (
-                        <Chip 
-                          label={view.referrerDomain} 
-                          size="small" 
-                          icon={<LinkIcon />}
-                        />
+                        <Chip label={view.referrerDomain} size="small" icon={<LinkIcon />} />
                       ) : (
                         <Typography color="text.secondary" variant="body2">
                           Прямой переход
@@ -746,19 +840,19 @@ export default function PresentationStatsMonitor() {
                       )}
                     </TableCell>
                     <TableCell align="center">
-                      {view.timeOnPage ? formatTime(view.timeOnPage) : '-'}
+                      {view.timeOnPage ? formatTime(view.timeOnPage) : "-"}
                     </TableCell>
                     <TableCell align="center">
-                      {view.scrollDepth !== null ? `${view.scrollDepth}%` : '-'}
+                      {view.scrollDepth !== null ? `${view.scrollDepth}%` : "-"}
                     </TableCell>
                     <TableCell align="center">
                       {view.ctaClicks > 0 ? (
                         <Chip label={view.ctaClicks} size="small" color="primary" />
-                      ) : '-'}
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
-                    <TableCell align="center">
-                      {view.deviceType || '-'}
-                    </TableCell>
+                    <TableCell align="center">{view.deviceType || "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -783,12 +877,12 @@ export default function PresentationStatsMonitor() {
                       Дата
                     </Typography>
                     <Typography variant="body2" fontWeight="medium">
-                      {new Date(view.firstViewAt).toLocaleString('ru-RU', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
+                      {new Date(view.firstViewAt).toLocaleString("ru-RU", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
                       })}
                     </Typography>
                   </Box>
@@ -799,11 +893,7 @@ export default function PresentationStatsMonitor() {
                     </Typography>
                     <Box sx={{ mt: 0.5 }}>
                       {view.referrerDomain ? (
-                        <Chip 
-                          label={view.referrerDomain} 
-                          size="small" 
-                          icon={<LinkIcon />}
-                        />
+                        <Chip label={view.referrerDomain} size="small" icon={<LinkIcon />} />
                       ) : (
                         <Typography color="text.secondary" variant="body2">
                           Прямой переход
@@ -818,7 +908,7 @@ export default function PresentationStatsMonitor() {
                         Время
                       </Typography>
                       <Typography variant="body2">
-                        {view.timeOnPage ? formatTime(view.timeOnPage) : '-'}
+                        {view.timeOnPage ? formatTime(view.timeOnPage) : "-"}
                       </Typography>
                     </Box>
                     <Box>
@@ -826,7 +916,7 @@ export default function PresentationStatsMonitor() {
                         Прокрутка
                       </Typography>
                       <Typography variant="body2">
-                        {view.scrollDepth !== null ? `${view.scrollDepth}%` : '-'}
+                        {view.scrollDepth !== null ? `${view.scrollDepth}%` : "-"}
                       </Typography>
                     </Box>
                     <Box>
@@ -845,9 +935,7 @@ export default function PresentationStatsMonitor() {
                       <Typography variant="caption" color="text.secondary">
                         Устройство
                       </Typography>
-                      <Typography variant="body2">
-                        {view.deviceType || '-'}
-                      </Typography>
+                      <Typography variant="body2">{view.deviceType || "-"}</Typography>
                     </Box>
                   </Box>
                 </Box>
@@ -867,20 +955,28 @@ export default function PresentationStatsMonitor() {
           <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mt: 1 }}>
             {stats.timeDistribution.map((item) => (
               <Grid size={{ xs: 6, sm: 4, md: 3 }} key={item.hour}>
-                <Paper sx={{ p: { xs: 1.5, sm: 2 }, textAlign: 'center' }}>
-                  <Typography variant="h6" color="primary" sx={{ fontSize: { xs: "0.875rem", sm: "1.25rem" } }}>
+                <Paper sx={{ p: { xs: 1.5, sm: 2 }, textAlign: "center" }}>
+                  <Typography
+                    variant="h6"
+                    color="primary"
+                    sx={{ fontSize: { xs: "0.875rem", sm: "1.25rem" } }}
+                  >
                     {item.hour}:00
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  >
                     {item.views} просмотров
                   </Typography>
                   <Box
                     sx={{
                       mt: 1,
                       height: 8,
-                      bgcolor: 'primary.main',
+                      bgcolor: "primary.main",
                       borderRadius: 1,
-                      width: `${(item.views / Math.max(...stats.timeDistribution.map(t => t.views))) * 100}%`
+                      width: `${(item.views / Math.max(...stats.timeDistribution.map((t) => t.views))) * 100}%`,
                     }}
                   />
                 </Paper>
@@ -892,4 +988,3 @@ export default function PresentationStatsMonitor() {
     </Box>
   );
 }
-

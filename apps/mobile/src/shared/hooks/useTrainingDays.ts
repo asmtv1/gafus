@@ -13,12 +13,12 @@ export function useTrainingDays(courseType: string) {
     queryKey: ["trainingDays", courseType],
     queryFn: async () => {
       const response = await trainingApi.getDays(courseType);
-      
+
       if (response.success && response.data) {
         // Сохраняем в локальный кэш
         setCachedTrainingDays(courseType, response.data);
       }
-      
+
       return response;
     },
     // Используем кэш из store как initialData

@@ -2,7 +2,7 @@
  * Типы для re-engagement системы
  */
 
-export type MessageType = 'emotional' | 'educational' | 'motivational' | 'mixed';
+export type MessageType = "emotional" | "educational" | "motivational" | "mixed";
 
 export type NotificationLevel = 1 | 2 | 3 | 4;
 
@@ -68,4 +68,3 @@ export interface ReengagementJobData {
   userId: string;
   level: NotificationLevel;
 }
-

@@ -21,29 +21,43 @@ export interface StepStore {
     stepIndex: number,
     durationSec: number,
     initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED",
-    options?: { serverPaused?: boolean; serverRemainingSec?: number }
+    options?: { serverPaused?: boolean; serverRemainingSec?: number },
   ) => void;
   startStep: (
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    durationSec: number
+    durationSec: number,
   ) => Promise<boolean>;
   pauseStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => Promise<void>;
   resumeStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
   finishStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
-  resetStep: (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => void;
+  resetStep: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    durationSec: number,
+  ) => void;
   updateStepStatus: (
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED"
+    status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED",
   ) => void;
 
   // Восстановление и синхронизация
-  restoreStepFromLS: (courseId: string, dayOnCourseId: string, stepIndex: number) => StepState | null;
+  restoreStepFromLS: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+  ) => StepState | null;
   syncTimeWithLocalStorage: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
-  updateTimeLeft: (courseId: string, dayOnCourseId: string, stepIndex: number, timeLeft: number) => void;
+  updateTimeLeft: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    timeLeft: number,
+  ) => void;
 
   // Очистка данных
   clearAllSteps: () => void;

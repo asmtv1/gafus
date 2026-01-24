@@ -14,7 +14,7 @@ import webpush from "web-push";
 import { createWorkerLogger } from "@gafus/logger";
 
 // Создаем логгер для webpush сервиса
-const logger = createWorkerLogger('webpush-service');
+const logger = createWorkerLogger("webpush-service");
 
 // Валидация
 const validateVapidPublicKey = (key: string) => !!key && key.length >= 20;
@@ -160,7 +160,7 @@ export class PushNotificationService {
   private formatIOSCompatiblePayload(payload: string | Record<string, unknown>): string {
     // Парсим безопасно
     let payloadObj: Record<string, unknown> = {};
-    
+
     if (typeof payload === "string") {
       try {
         payloadObj = JSON.parse(payload) as Record<string, unknown>;
@@ -190,13 +190,13 @@ export class PushNotificationService {
       // Специальные опции для iOS Safari
       actions: payloadObj.actions || [
         {
-          action: 'open',
-          title: 'Открыть',
+          action: "open",
+          title: "Открыть",
         },
         {
-          action: 'close',
-          title: 'Закрыть',
-        }
+          action: "close",
+          title: "Закрыть",
+        },
       ],
       vibrate: payloadObj.vibrate || [200, 100, 200],
       timestamp: payloadObj.timestamp || Date.now(),
@@ -263,12 +263,18 @@ export class PushNotificationService {
       const statusCode = errorObj?.statusCode;
       const body = errorObj?.body;
 
-      logger.error("Failed to send push notification", err instanceof Error ? err : new Error(String(err)), {
-        endpoint: subscription.endpoint.substring(0, 50) + "...",
-        serviceType: subscription.endpoint.includes("web.push.apple.com") ? "iOS Safari" : "Other",
-        statusCode,
-        body,
-      });
+      logger.error(
+        "Failed to send push notification",
+        err instanceof Error ? err : new Error(String(err)),
+        {
+          endpoint: subscription.endpoint.substring(0, 50) + "...",
+          serviceType: subscription.endpoint.includes("web.push.apple.com")
+            ? "iOS Safari"
+            : "Other",
+          statusCode,
+          body,
+        },
+      );
 
       return {
         success: false,
@@ -277,8 +283,8 @@ export class PushNotificationService {
           statusCode || body
             ? { statusCode: statusCode ?? null, body: body ?? String(err) }
             : err instanceof Error
-            ? err.message
-            : String(err),
+              ? err.message
+              : String(err),
       };
     }
   }
@@ -349,7 +355,8 @@ export class PushNotificationService {
       if (typeof body === "string") {
         const lower = body.toLowerCase();
         return (
-          (lower.includes("subscription") && (lower.includes("expired") || lower.includes("invalid"))) ||
+          (lower.includes("subscription") &&
+            (lower.includes("expired") || lower.includes("invalid"))) ||
           lower.includes("not found") ||
           lower.includes("gone")
         );
@@ -360,7 +367,9 @@ export class PushNotificationService {
       const errorLower = error.toLowerCase();
       return (
         errorLower.includes("subscription") &&
-        (errorLower.includes("expired") || errorLower.includes("invalid") || errorLower.includes("not found"))
+        (errorLower.includes("expired") ||
+          errorLower.includes("invalid") ||
+          errorLower.includes("not found"))
       );
     }
 

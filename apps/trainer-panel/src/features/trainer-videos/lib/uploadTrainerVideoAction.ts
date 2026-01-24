@@ -61,10 +61,10 @@ export async function uploadTrainerVideoAction(
   }
 
   const trainerId = session.user.id;
-  
+
   // Генерируем videoId заранее для структурированного пути
   const videoId = randomUUID();
-  
+
   // Новая структура: trainers/{trainerId}/videocourses/{videoId}/original.{extension}
   const objectKey = `trainers/${trainerId}/videocourses/${videoId}/original.${extension}`;
 
@@ -98,7 +98,7 @@ export async function uploadTrainerVideoAction(
     // Добавляем задачу транскодирования в очередь (динамический импорт для избежания ошибок на build)
     try {
       const { videoTranscodingQueue } = await import("@gafus/queues");
-      
+
       const jobData: VideoTranscodingJobData = {
         videoId: video.id,
         trainerId,
@@ -138,7 +138,7 @@ export async function uploadTrainerVideoAction(
         operation: "trainerVideoUpload",
         action: "trainerVideoUpload",
         tags: ["trainer-videos", "upload"],
-      }
+      },
     );
 
     return { success: false, error: "Не удалось загрузить видео", status: 500 };
@@ -179,4 +179,3 @@ function getMimeType(file: File, extension: string): string {
       return "video/mp4";
   }
 }
-

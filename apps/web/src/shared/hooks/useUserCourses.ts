@@ -17,7 +17,7 @@ export function useUserCourses() {
       refetchOnWindowFocus: false,
       staleTime: 300000, // 5 минут
       placeholderData: (previousData) => previousData,
-    }
+    },
   );
 }
 
@@ -26,10 +26,8 @@ export function useUserCourses() {
  */
 export function useUserStartedCourses() {
   const { data, error, isLoading } = useUserCourses();
-  
-  const startedCourses = data?.filter(course => 
-    course.userStatus !== "NOT_STARTED"
-  ) || [];
+
+  const startedCourses = data?.filter((course) => course.userStatus !== "NOT_STARTED") || [];
 
   return {
     data: startedCourses,

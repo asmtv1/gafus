@@ -132,4 +132,3 @@ export interface StepStatisticsData {
   steps: StepStats[];
   totalSteps: number;
 }
-

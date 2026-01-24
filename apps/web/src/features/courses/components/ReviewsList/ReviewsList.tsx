@@ -15,7 +15,12 @@ interface ReviewsListProps {
   userStatus?: UserReviewStatus;
 }
 
-export function ReviewsList({ courseType, courseName, reviews: initialReviews, userStatus: initialUserStatus }: ReviewsListProps) {
+export function ReviewsList({
+  courseType,
+  courseName,
+  reviews: initialReviews,
+  userStatus: initialUserStatus,
+}: ReviewsListProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const [rating, setRating] = useState<number>(0);
@@ -23,7 +28,8 @@ export function ReviewsList({ courseType, courseName, reviews: initialReviews, u
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Store
-  const { reviews, userStatus, isLoading, error, setReviews, addReview, editReview, removeReview } = useReviewsStore();
+  const { reviews, userStatus, isLoading, error, setReviews, addReview, editReview, removeReview } =
+    useReviewsStore();
 
   // Инициализация store данными с сервера
   useEffect(() => {
@@ -53,8 +59,8 @@ export function ReviewsList({ courseType, courseName, reviews: initialReviews, u
               star <= currentRating
                 ? styles.starFilled
                 : interactive
-                ? styles.starInteractive
-                : styles.starEmpty
+                  ? styles.starInteractive
+                  : styles.starEmpty
             }
             onClick={interactive ? () => setRating(star) : undefined}
             style={interactive ? { cursor: "pointer" } : undefined}
@@ -100,9 +106,7 @@ export function ReviewsList({ courseType, courseName, reviews: initialReviews, u
       }
 
       if (success) {
-        await showSuccessAlert(
-          editingReviewId ? "Отзыв обновлен" : "Отзыв добавлен"
-        );
+        await showSuccessAlert(editingReviewId ? "Отзыв обновлен" : "Отзыв добавлен");
         handleCancelEdit();
         // Перезагружаем страницу для обновления рейтинга курса
         window.location.reload();
@@ -117,7 +121,7 @@ export function ReviewsList({ courseType, courseName, reviews: initialReviews, u
   const handleDelete = async (reviewId: string) => {
     const confirmed = await showConfirmDialog(
       "Удалить отзыв?",
-      "Вы уверены что хотите удалить свой отзыв?"
+      "Вы уверены что хотите удалить свой отзыв?",
     );
 
     if (!confirmed) return;
@@ -137,8 +141,7 @@ export function ReviewsList({ courseType, courseName, reviews: initialReviews, u
     }
   };
 
-  const canLeaveReview =
-    userStatus?.hasCompleted && !userStatus?.userReview && !isEditing;
+  const canLeaveReview = userStatus?.hasCompleted && !userStatus?.userReview && !isEditing;
 
   return (
     <div className={styles.container}>

@@ -26,16 +26,24 @@ const withPWA = withPWAInit({
 const nextConfig = {
   reactStrictMode: true,
   // Включаем standalone режим для production (кроме явного отключения)
-  ...((process.env.NODE_ENV === 'production' || process.env.USE_STANDALONE === 'true') && 
-      process.env.DISABLE_STANDALONE !== 'true' && { output: 'standalone' }),
+  ...((process.env.NODE_ENV === "production" || process.env.USE_STANDALONE === "true") &&
+    process.env.DISABLE_STANDALONE !== "true" && { output: "standalone" }),
   // Исправляем проблемы с standalone сборкой
   trailingSlash: false,
   skipTrailingSlashRedirect: true,
   // Исправляем проблемы с React 19 и Next.js 14
-  transpilePackages: ['@gafus/auth', '@gafus/prisma', '@gafus/logger', '@gafus/types', '@gafus/error-handling', '@gafus/core'],
+  transpilePackages: [
+    "@gafus/auth",
+    "@gafus/prisma",
+    "@gafus/logger",
+    "@gafus/types",
+    "@gafus/error-handling",
+    "@gafus/core",
+  ],
   // Переменные окружения для клиентской части
   env: {
-    NEXT_PUBLIC_TRAINER_PANEL_URL: process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || 'https://trainer-panel.gafus.ru',
+    NEXT_PUBLIC_TRAINER_PANEL_URL:
+      process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || "https://trainer-panel.gafus.ru",
   },
   // ESLint проверки: игнорируем во время сборки
   // Проверки можно запускать отдельно: pnpm lint
@@ -54,8 +62,8 @@ const nextConfig = {
   ],
 
   // Исправляем проблемы с clientReferenceManifest в Next.js 14
-  serverExternalPackages: ['sharp'],
-  
+  serverExternalPackages: ["sharp"],
+
   // Оптимизации для bundle
   experimental: {
     optimizePackageImports: [
@@ -65,7 +73,7 @@ const nextConfig = {
       "@emotion/styled",
     ],
     serverActions: {
-      bodySizeLimit: '100mb', // Лимит для Server Actions (для загрузки видео)
+      bodySizeLimit: "100mb", // Лимит для Server Actions (для загрузки видео)
     },
   },
 
@@ -75,17 +83,41 @@ const nextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       "@gafus/core": _path.resolve(__dirname, "../../packages/core/src"),
-      "@gafus/core/services/course": _path.resolve(__dirname, "../../packages/core/src/services/course"),
-      "@gafus/core/services/user": _path.resolve(__dirname, "../../packages/core/src/services/user"),
-      "@gafus/core/services/auth": _path.resolve(__dirname, "../../packages/core/src/services/auth"),
-      "@gafus/core/services/notifications": _path.resolve(__dirname, "../../packages/core/src/services/notifications"),
-      "@gafus/core/services/subscriptions": _path.resolve(__dirname, "../../packages/core/src/services/subscriptions"),
-      "@gafus/core/services/tracking": _path.resolve(__dirname, "../../packages/core/src/services/tracking"),
-      "@gafus/core/services/achievements": _path.resolve(__dirname, "../../packages/core/src/services/achievements"),
+      "@gafus/core/services/course": _path.resolve(
+        __dirname,
+        "../../packages/core/src/services/course",
+      ),
+      "@gafus/core/services/user": _path.resolve(
+        __dirname,
+        "../../packages/core/src/services/user",
+      ),
+      "@gafus/core/services/auth": _path.resolve(
+        __dirname,
+        "../../packages/core/src/services/auth",
+      ),
+      "@gafus/core/services/notifications": _path.resolve(
+        __dirname,
+        "../../packages/core/src/services/notifications",
+      ),
+      "@gafus/core/services/subscriptions": _path.resolve(
+        __dirname,
+        "../../packages/core/src/services/subscriptions",
+      ),
+      "@gafus/core/services/tracking": _path.resolve(
+        __dirname,
+        "../../packages/core/src/services/tracking",
+      ),
+      "@gafus/core/services/achievements": _path.resolve(
+        __dirname,
+        "../../packages/core/src/services/achievements",
+      ),
       "@gafus/core/errors": _path.resolve(__dirname, "../../packages/core/src/errors"),
       "@gafus/core/utils": _path.resolve(__dirname, "../../packages/core/src/utils"),
       "@gafus/core/utils/social": _path.resolve(__dirname, "../../packages/core/src/utils/social"),
-      "@gafus/core/utils/training": _path.resolve(__dirname, "../../packages/core/src/utils/training"),
+      "@gafus/core/utils/training": _path.resolve(
+        __dirname,
+        "../../packages/core/src/utils/training",
+      ),
       "@gafus/core/utils/retry": _path.resolve(__dirname, "../../packages/core/src/utils/retry"),
       "@gafus/auth": _path.resolve(__dirname, "../../packages/auth/dist"),
       "@gafus/auth/server": _path.resolve(__dirname, "../../packages/auth/dist"),
@@ -102,7 +134,7 @@ const nextConfig = {
     if (isServer) {
       config.externals = config.externals || [];
       config.externals.push({
-        'sharp': 'commonjs sharp',
+        sharp: "commonjs sharp",
       });
     }
 
@@ -110,9 +142,9 @@ const nextConfig = {
     config.plugins = config.plugins || [];
     config.plugins.push({
       apply: (compiler: any) => {
-        compiler.hooks.emit.tap('CreateWorkerFile', (compilation: any) => {
-          compilation.assets['lib/worker.js'] = {
-            source: () => 'module.exports = {};',
+        compiler.hooks.emit.tap("CreateWorkerFile", (compilation: any) => {
+          compilation.assets["lib/worker.js"] = {
+            source: () => "module.exports = {};",
             size: () => 20,
           };
         });
@@ -162,7 +194,10 @@ const nextConfig = {
       {
         source: "/presentation.html",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400" },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
+          },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Content-Type", value: "text/html; charset=utf-8" },
         ],
@@ -171,7 +206,10 @@ const nextConfig = {
       {
         source: "/test-dog.html",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400" },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
+          },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Content-Type", value: "text/html; charset=utf-8" },
         ],

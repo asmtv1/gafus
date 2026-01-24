@@ -1,4 +1,3 @@
-
 import { SessionProviderWrapper } from "@/features/auth/components/SessionProviderWrapper";
 import { CSRFProvider } from "@gafus/csrf";
 import { AdminPanelQueryProvider } from "@shared/providers/QueryProvider";
@@ -25,4 +24,3 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     </html>
   );
 }
-

@@ -1,30 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Typography,
-} from "@/utils/muiImports";
+import { Accordion, AccordionDetails, AccordionSummary, Box, Typography } from "@/utils/muiImports";
 import { ExpandMoreIcon } from "@/utils/muiImports";
 
 export function FAQContent() {
   const [expanded, setExpanded] = useState<string | false>(false);
 
-  const handleChange =
-    (panel: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
-      setExpanded(isExpanded ? panel : false);
-    };
+  const handleChange = (panel: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpanded(isExpanded ? panel : false);
+  };
 
   return (
     <Box>
-      <Accordion
-        expanded={expanded === "panel1"}
-        onChange={handleChange("panel1")}
-        sx={{ mb: 2 }}
-      >
+      <Accordion expanded={expanded === "panel1"} onChange={handleChange("panel1")} sx={{ mb: 2 }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography variant="h6">Как создать курс на платформе</Typography>
         </AccordionSummary>
@@ -44,4 +33,3 @@ export function FAQContent() {
     </Box>
   );
 }
-

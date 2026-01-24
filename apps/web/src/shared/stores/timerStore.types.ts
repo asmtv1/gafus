@@ -15,7 +15,7 @@ export interface TimerStore {
     stepIndex: number,
     onTimeUpdate: (timeLeft: number) => void,
     onFinish: () => void,
-    isRestore?: boolean
+    isRestore?: boolean,
   ) => boolean;
   stopTimer: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
   stopAllTimers: () => void;
@@ -26,7 +26,7 @@ export interface TimerStore {
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    durationSec: number
+    durationSec: number,
   ) => Promise<void>;
 
   finishStepWithServer: (
@@ -34,13 +34,13 @@ export interface TimerStore {
     dayOnCourseId: string,
     stepIndex: number,
     stepTitle: string,
-    stepOrder: number
+    stepOrder: number,
   ) => Promise<void>;
   resetStepWithServer: (
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    durationSec: number
+    durationSec: number,
   ) => Promise<void>;
 
   // Управление уведомлениями
@@ -50,16 +50,20 @@ export interface TimerStore {
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    durationSec: number
+    durationSec: number,
   ) => Promise<void>;
 
   // Пауза и возобновление шага с сервером
-  pauseStepWithServer: (courseId: string, dayOnCourseId: string, stepIndex: number) => Promise<void>;
+  pauseStepWithServer: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+  ) => Promise<void>;
   resumeStepWithServer: (
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    durationSec: number
+    durationSec: number,
   ) => Promise<void>;
 
   // Офлайн функции для паузы и возобновления

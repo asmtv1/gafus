@@ -1,6 +1,6 @@
 export declare enum TrainingStatus {
-    NOT_STARTED = "NOT_STARTED",
-    IN_PROGRESS = "IN_PROGRESS",
-    COMPLETED = "COMPLETED"
+  NOT_STARTED = "NOT_STARTED",
+  IN_PROGRESS = "IN_PROGRESS",
+  COMPLETED = "COMPLETED",
 }
 //# sourceMappingURL=training-status.d.ts.map

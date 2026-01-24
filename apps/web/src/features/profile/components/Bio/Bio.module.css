@@ -33,7 +33,7 @@
 .avatarContainer .MuiAvatar-root {
   width: 50px !important;
   height: 50px !important;
-  border: 3px solid #ECE5D2;
+  border: 3px solid #ece5d2;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -47,14 +47,14 @@
 .greeting {
   font-size: 1rem;
   font-weight: 600;
-  color: #ECE5D2;
+  color: #ece5d2;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
   line-height: 1.2;
 }
 
 .contactInfo {
   font-size: 0.8rem;
-  color: #D4C4A8;
+  color: #d4c4a8;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   opacity: 0.9;
 }
@@ -62,7 +62,7 @@
 .wrapper h2 {
   font-size: 1.75rem;
   font-weight: 400;
-  color: #352E2E;
+  color: #352e2e;
   margin: 0;
   text-align: center;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
@@ -76,19 +76,18 @@
   width: 100%;
   margin: 0 auto;
   padding: 1rem;
-  background: #F5F0E8;
+  background: #f5f0e8;
   border-radius: 16px;
-  border: 1px solid #D4C4A8;
+  border: 1px solid #d4c4a8;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: relative;
   overflow: hidden;
 }
 
-
 .container h1 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   margin: 0;
   text-align: center;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
@@ -96,12 +95,12 @@
 
 .container p {
   font-size: 0.9rem;
-  color: #352E2E;
+  color: #352e2e;
   margin: 0.5rem 0;
   padding: 0.8rem 1rem;
-  background: linear-gradient(135deg, #ECE5D2 0%, #F0E6D2 100%);
+  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
   border-radius: 12px;
-  border: 1px solid #D4C4A8;
+  border: 1px solid #d4c4a8;
   width: 100%;
   box-sizing: border-box;
   font-family: var(--font-montserrat), system-ui, sans-serif;
@@ -111,11 +110,10 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-
 .container div {
   font-size: 0.95rem;
   color: #636128;
-  background: #FFF8E5;
+  background: #fff8e5;
   border-radius: 8px;
   text-align: center;
   font-style: italic;
@@ -126,7 +124,7 @@
 
 .container button {
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
-  color: #ECE5D2;
+  color: #ece5d2;
   border: 1px solid #636128;
   padding: 10px 20px;
   border-radius: 12px;
@@ -142,9 +140,8 @@
   overflow: hidden;
 }
 
-
 .container button:hover {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
 }
@@ -154,7 +151,7 @@
 }
 
 .container button:active {
-  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
+  background: linear-gradient(135deg, #352e2e 0%, #2a2525 100%);
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
@@ -164,7 +161,7 @@
   width: 100%;
   min-width: auto;
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
-  color: #ECE5D2;
+  color: #ece5d2;
   border: 1px solid #636128;
   padding: 14px 28px;
   border-radius: 12px;
@@ -182,36 +179,36 @@
 }
 
 .addpet:hover {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
-  color: #ECE5D2;
+  color: #ece5d2;
 }
 
 .addpet:active {
-  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
+  background: linear-gradient(135deg, #352e2e 0%, #2a2525 100%);
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
 
 .roleBadge {
-  background: #8B4513;
-  color: #ECE5D2;
+  background: #8b4513;
+  color: #ece5d2;
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 600;
   display: inline-block;
   margin: 0.3rem 0;
-  border: 1px solid #8B4513;
+  border: 1px solid #8b4513;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
   width: fit-content;
   max-width: none;
 }
 
 .roleBadge.admin {
-  background: #8B4513;
-  border-color: #8B4513;
+  background: #8b4513;
+  border-color: #8b4513;
 }
 
 .roleBadge.moderator {
@@ -220,22 +217,22 @@
 }
 
 .roleBadge.trainer {
-  background: #352E2E;
-  border-color: #352E2E;
+  background: #352e2e;
+  border-color: #352e2e;
 }
 
 .roleBadge.premium {
-  background: #B6C582;
-  color: #352E2E;
-  border-color: #B6C582;
+  background: #b6c582;
+  color: #352e2e;
+  border-color: #b6c582;
 }
 
 .emptyNotice {
-  background: #FFF8E5;
+  background: #fff8e5;
   color: #636128;
   padding: 1rem;
   border-radius: 8px;
-  border: 1px dashed #D4C4A8;
+  border: 1px dashed #d4c4a8;
   text-align: center;
   font-style: italic;
   margin: 0.5rem 0;
@@ -248,15 +245,15 @@
   width: 100%;
   margin-top: 1.5rem;
   padding: 1.2rem;
-  background: #F5F0E8;
+  background: #f5f0e8;
   border-radius: 12px;
-  border: 1px solid #D4C4A8;
+  border: 1px solid #d4c4a8;
 }
 
 .diplomasSection h2 {
   font-size: 1.3rem;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   margin-bottom: 1rem;
   text-align: center;
   border-bottom: 2px solid #636128;
@@ -271,31 +268,30 @@
 }
 
 .diplomasSection li {
-  background: #ECE5D2;
+  background: #ece5d2;
   padding: 0.8rem;
   margin: 0.4rem 0;
   border-radius: 8px;
   border-left: 3px solid #636128;
-  border: 1px solid #D4C4A8;
+  border: 1px solid #d4c4a8;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
-  color: #352E2E;
+  color: #352e2e;
   font-family: var(--font-montserrat), system-ui, sans-serif;
 }
 
 .diplomasSection li:hover {
   transform: translateX(3px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  background: #F5F0E8;
+  background: #f5f0e8;
 }
-
 
 /* Стили для секции питомцев */
 .petList {
   width: 100%;
   margin: 1.5rem 0;
-  background: #F5F0E8;
-  border: 1px solid #D4C4A8;
+  background: #f5f0e8;
+  border: 1px solid #d4c4a8;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   position: relative;
@@ -305,21 +301,20 @@
   padding: 1rem;
 }
 
-
 /* Улучшенные hover эффекты для карточек */
 .container p:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  background: #F0E6D2;
-  border-color: #B6C582;
+  background: #f0e6d2;
+  border-color: #b6c582;
 }
 
 /* Улучшенные стили для пустого уведомления */
 .emptyNotice {
-  background: #FFF8E5;
+  background: #fff8e5;
   color: #636128;
   padding: 1.5rem;
   border-radius: 12px;
-  border: 2px dashed #D4C4A8;
+  border: 2px dashed #d4c4a8;
   text-align: center;
   font-style: italic;
   margin: 1rem 0;
@@ -548,7 +543,7 @@
 
 .buttonLink {
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
-  color: #ECE5D2;
+  color: #ece5d2;
   border: 1px solid #636128;
   padding: 10px 20px;
   border-radius: 12px;
@@ -564,14 +559,14 @@
 }
 
 .buttonLink:hover {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
-  color: #ECE5D2;
+  color: #ece5d2;
 }
 
 .buttonLink:active {
-  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
+  background: linear-gradient(135deg, #352e2e 0%, #2a2525 100%);
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
@@ -581,16 +576,16 @@
   width: 100%;
   margin-top: 1rem;
   padding: 1rem;
-  background: linear-gradient(135deg, #ECE5D2 0%, #F0E6D2 100%);
+  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
   border-radius: 12px;
-  border: 1px solid #D4C4A8;
+  border: 1px solid #d4c4a8;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .socialLinksTitle {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #352E2E;
+  color: #352e2e;
   margin: 0 0 0.75rem 0;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   text-transform: uppercase;
@@ -611,23 +606,23 @@
   padding: 0.75rem 1rem;
   background: var(--bg-1);
   border-radius: 8px;
-  border: 1px solid #D4C4A8;
+  border: 1px solid #d4c4a8;
   text-decoration: none;
-  color: #352E2E;
+  color: #352e2e;
   transition: all 0.2s ease;
   min-height: 44px; /* Для touch targets */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .socialLink:hover {
-  background: #FFF8E5;
-  border-color: #B6C582;
+  background: #fff8e5;
+  border-color: #b6c582;
   transform: translateX(4px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .socialLink:focus {
-  outline: 2px solid #B6C582;
+  outline: 2px solid #b6c582;
   outline-offset: 2px;
   border-radius: 8px;
 }
@@ -653,7 +648,7 @@
 }
 
 .socialUsername {
-  color: #352E2E;
+  color: #352e2e;
   flex: 1;
   font-size: 0.9rem;
   font-family: var(--font-montserrat), system-ui, sans-serif;
@@ -662,17 +657,24 @@
 
 /* Фирменные цвета платформ при hover */
 .socialLinkInstagram:hover {
-  background: linear-gradient(135deg, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 100%);
+  background: linear-gradient(
+    135deg,
+    #fdf497 0%,
+    #fdf497 5%,
+    #fd5949 45%,
+    #d6249f 60%,
+    #285aeb 100%
+  );
   border-color: #d6249f;
 }
 
 .socialLinkInstagram:hover .socialLabel,
 .socialLinkInstagram:hover .socialUsername {
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 .socialLinkInstagram:hover .socialIcon {
-  fill: #FFFFFF;
+  fill: #ffffff;
 }
 
 .socialLinkTelegram:hover {
@@ -682,23 +684,23 @@
 
 .socialLinkTelegram:hover .socialLabel,
 .socialLinkTelegram:hover .socialUsername {
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 .socialLinkTelegram:hover .socialIcon {
-  fill: #FFFFFF;
+  fill: #ffffff;
 }
 
 .socialLinkWebsite:hover {
-  background: linear-gradient(135deg, #B6C582 0%, #9BA86A 100%);
-  border-color: #9BA86A;
+  background: linear-gradient(135deg, #b6c582 0%, #9ba86a 100%);
+  border-color: #9ba86a;
 }
 
 .socialLinkWebsite:hover .socialLabel,
 .socialLinkWebsite:hover .socialUsername {
-  color: #352E2E;
+  color: #352e2e;
 }
 
 .socialLinkWebsite:hover .socialIcon {
-  fill: #352E2E;
+  fill: #352e2e;
 }

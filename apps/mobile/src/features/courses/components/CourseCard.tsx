@@ -160,9 +160,7 @@ export function CourseCard({
         </Link>
         <View style={styles.rating}>
           <SimpleRating rating={course.avgRating} />
-          <Text style={styles.reviews}>
-            {getReviewText(reviewsCount, course.userStatus)}
-          </Text>
+          <Text style={styles.reviews}>{getReviewText(reviewsCount, course.userStatus)}</Text>
         </View>
       </View>
       <View style={styles.author}>

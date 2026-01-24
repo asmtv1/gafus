@@ -4,7 +4,7 @@ import { getToken } from "next-auth/jwt";
 import { createErrorDashboardLogger } from "@gafus/logger";
 
 // Создаем логгер для admin-panel (отключена отправка в error-dashboard)
-const logger = createErrorDashboardLogger('admin-panel-middleware');
+const logger = createErrorDashboardLogger("admin-panel-middleware");
 
 // Роли, которым разрешен доступ к admin-panel
 const ALLOWED_ROLES = ["ADMIN", "MODERATOR"];
@@ -30,54 +30,54 @@ function isPublicAsset(pathname: string): boolean {
 export default async function middleware(req: NextRequest) {
   const { nextUrl, url } = req;
   const pathname = nextUrl.pathname;
-    
+
   logger.info(`MIDDLEWARE START for ${pathname}`, {
     pathname: pathname,
     url: url,
     method: req.method,
-    operation: 'middleware_start'
+    operation: "middleware_start",
   });
-  
-  logger.info('Request headers logged', {
-    hasAuth: req.headers.has('authorization'),
-    hasUserAgent: req.headers.has('user-agent'),
-    operation: 'log_headers'
+
+  logger.info("Request headers logged", {
+    hasAuth: req.headers.has("authorization"),
+    hasUserAgent: req.headers.has("user-agent"),
+    operation: "log_headers",
   });
-  
+
   // Логируем cookies для отладки
   const cookies = req.cookies;
-  logger.info('Cookies logged', {
+  logger.info("Cookies logged", {
     cookieCount: Object.keys(cookies).length,
-    hasSessionToken: cookies.has('next-auth.session-token'),
-    operation: 'log_cookies'
+    hasSessionToken: cookies.has("next-auth.session-token"),
+    operation: "log_cookies",
   });
-  
-  logger.info('Environment variables checked', {
+
+  logger.info("Environment variables checked", {
     hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
     nodeEnv: process.env.NODE_ENV,
-    operation: 'check_env'
+    operation: "check_env",
   });
-  
-  const token = await getToken({ 
-    req, 
+
+  const token = await getToken({
+    req,
     secret: process.env.NEXTAUTH_SECRET,
     secureCookie: process.env.NODE_ENV === "production",
-    cookieName: "next-auth.session-token"
+    cookieName: "next-auth.session-token",
   });
-  
-  logger.info('Token retrieved', {
+
+  logger.info("Token retrieved", {
     hasToken: !!token,
     tokenEmail: token?.email,
     tokenRole: token?.role,
-    operation: 'get_token'
+    operation: "get_token",
   });
   if (token) {
-    logger.info('Token details logged', {
+    logger.info("Token details logged", {
       hasToken: !!token,
       tokenId: token?.id,
       tokenUsername: token?.username,
       tokenRole: token?.role,
-      operation: 'log_token_details'
+      operation: "log_token_details",
     });
   }
 
@@ -99,10 +99,10 @@ export default async function middleware(req: NextRequest) {
 
   // Проверяем авторизацию
   if (!token) {
-    logger.warn('Redirecting to login - no token', {
+    logger.warn("Redirecting to login - no token", {
       pathname: pathname,
       hasToken: !!token,
-      operation: 'redirect_no_token'
+      operation: "redirect_no_token",
     });
     return NextResponse.redirect(new URL("/login", url));
   }
@@ -112,17 +112,17 @@ export default async function middleware(req: NextRequest) {
     tokenId: token.id,
     tokenUsername: token.username,
     tokenRole: token.role,
-    operation: 'token_found'
+    operation: "token_found",
   });
 
   // Проверяем роль пользователя
   const userRole = token.role as string;
   if (!ALLOWED_ROLES.includes(userRole)) {
-    logger.warn('Redirecting to login - insufficient role', {
+    logger.warn("Redirecting to login - insufficient role", {
       pathname: pathname,
       userRole: userRole,
       allowedRoles: ALLOWED_ROLES,
-      operation: 'redirect_insufficient_role'
+      operation: "redirect_insufficient_role",
     });
     return NextResponse.redirect(new URL("/login", url));
   }
@@ -130,7 +130,7 @@ export default async function middleware(req: NextRequest) {
   logger.success(`MIDDLEWARE SUCCESS for ${pathname}`, {
     pathname: pathname,
     userRole: userRole,
-    operation: 'middleware_success'
+    operation: "middleware_success",
   });
   return NextResponse.next();
 }
@@ -148,4 +148,3 @@ export const config = {
     "/((?!api/|_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons/|static/|workbox-).*)",
   ],
 };
-

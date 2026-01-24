@@ -4,7 +4,7 @@ import {
   NotFoundError,
   ConflictError,
   InternalServiceError,
-  ValidationError
+  ValidationError,
 } from "./ServiceError";
 
 /**
@@ -22,41 +22,41 @@ export function handlePrismaError(error: unknown, context?: string): never {
   // Обрабатываем известные Prisma ошибки
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
-      case 'P2002': {
+      case "P2002": {
         // Уникальное ограничение нарушено
         const field = error.meta?.target as string[] | undefined;
-        const fieldName = field ? field.join(', ') : 'данные';
+        const fieldName = field ? field.join(", ") : "данные";
         throw new ConflictError(`Запись с такими ${fieldName} уже существует`);
       }
 
-      case 'P2025': {
+      case "P2025": {
         // Запись не найдена
         throw new NotFoundError(context || "Ресурс", undefined);
       }
 
-      case 'P2003': {
+      case "P2003": {
         // Нарушение внешнего ключа
         throw new ValidationError("Нарушение целостности данных (внешний ключ)");
       }
 
-      case 'P2014': {
+      case "P2014": {
         // Нарушение обязательного поля
         throw new ValidationError("Нарушение ограничения (обязательное поле)");
       }
 
-      case 'P2000': {
+      case "P2000": {
         // Значение слишком длинное
         throw new ValidationError("Введенные данные превышают допустимую длину");
       }
 
-      case 'P2001': {
+      case "P2001": {
         // Запись не найдена (старая версия)
         throw new NotFoundError(context || "Ресурс", undefined);
       }
 
       default: {
         // Неизвестная Prisma ошибка
-        throw new InternalServiceError(`Ошибка базы данных: ${error.code}. ${context || ''}`);
+        throw new InternalServiceError(`Ошибка базы данных: ${error.code}. ${context || ""}`);
       }
     }
   }

@@ -92,9 +92,7 @@ export async function checkDayAccess(
       },
     });
 
-    const userTrainingMap = new Map(
-      userTrainings.map((ut) => [ut.dayOnCourseId, ut.steps]),
-    );
+    const userTrainingMap = new Map(userTrainings.map((ut) => [ut.dayOnCourseId, ut.steps]));
 
     // Проверяем, что все дни кроме summary завершены
     for (const day of allDays) {
@@ -133,4 +131,3 @@ export async function checkDayAccess(
     return { allowed: false, reason: "Ошибка при проверке доступа" };
   }
 }
-

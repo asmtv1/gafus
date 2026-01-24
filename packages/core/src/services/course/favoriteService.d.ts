@@ -6,8 +6,8 @@ import type { CourseWithProgressData } from "@gafus/types";
  * Получает список избранных курсов пользователя с прогрессом
  */
 export declare function getFavoritesCourses(userId: string): Promise<{
-    data: CourseWithProgressData[];
-    favoriteIds: string[];
+  data: CourseWithProgressData[];
+  favoriteIds: string[];
 }>;
 /**
  * Добавляет или удаляет курс из избранного

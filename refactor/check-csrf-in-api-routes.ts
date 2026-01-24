@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Скрипт проверки CSRF защиты в API Routes
@@ -16,16 +16,16 @@ interface CsrfIssue {
 }
 
 const EXCLUDED_PATHS = [
-  '/api/auth/',
-  '/api/csrf-token',
-  '/api/webhook/',
-  '/api/track-presentation',      // tracking endpoints
-  '/api/track-presentation-event',
-  '/api/track-reengagement-click',
-  '/api/public-key',              // GET запросы
-  '/api/ping',
-  '/api/health',
-  '/api/revalidate/',
+  "/api/auth/",
+  "/api/csrf-token",
+  "/api/webhook/",
+  "/api/track-presentation", // tracking endpoints
+  "/api/track-presentation-event",
+  "/api/track-reengagement-click",
+  "/api/public-key", // GET запросы
+  "/api/ping",
+  "/api/health",
+  "/api/revalidate/",
 ];
 
 function findCsrfIssues(dir: string): CsrfIssue[] {
@@ -42,7 +42,7 @@ function findCsrfIssues(dir: string): CsrfIssue[] {
     for (const item of items) {
       const fullPath = path.join(currentDir, item);
 
-      if (item === 'node_modules' || item === '.git' || item.startsWith('.')) {
+      if (item === "node_modules" || item === ".git" || item.startsWith(".")) {
         continue;
       }
 
@@ -55,9 +55,9 @@ function findCsrfIssues(dir: string): CsrfIssue[] {
 
       if (stat.isDirectory()) {
         scanDirectory(fullPath);
-      } else if (stat.isFile() && item === 'route.ts') {
+      } else if (stat.isFile() && item === "route.ts") {
         const relativePath = path.relative(dir, fullPath);
-        if (relativePath.includes('app/api/')) {
+        if (relativePath.includes("app/api/")) {
           scanApiRouteFile(fullPath, relativePath);
         }
       }
@@ -65,16 +65,14 @@ function findCsrfIssues(dir: string): CsrfIssue[] {
   }
 
   function scanApiRouteFile(filePath: string, relativePath: string) {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split('\n');
+    const content = fs.readFileSync(filePath, "utf-8");
+    const lines = content.split("\n");
 
     // Определяем путь API route
-    const apiPath = '/' + relativePath.split('app/api/')[1].replace('/route.ts', '');
+    const apiPath = "/" + relativePath.split("app/api/")[1].replace("/route.ts", "");
 
     // Проверяем исключения
-    const isExcluded = EXCLUDED_PATHS.some(excludedPath =>
-      apiPath.startsWith(excludedPath)
-    );
+    const isExcluded = EXCLUDED_PATHS.some((excludedPath) => apiPath.startsWith(excludedPath));
 
     if (isExcluded) {
       return;
@@ -88,20 +86,20 @@ function findCsrfIssues(dir: string): CsrfIssue[] {
       const startLine = func.line;
 
       // Только мутирующие операции проверяем на CSRF
-      if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
         continue;
       }
 
       // Проверяем наличие withCSRFProtection
       const functionContent = getFunctionContent(lines, startLine);
-      const hasCsrfProtection = functionContent.includes('withCSRFProtection');
+      const hasCsrfProtection = functionContent.includes("withCSRFProtection");
 
       if (!hasCsrfProtection) {
         issues.push({
           file: path.relative(process.cwd(), filePath),
           method,
           hasCsrfProtection: false,
-          line: startLine
+          line: startLine,
         });
       }
     }
@@ -109,7 +107,7 @@ function findCsrfIssues(dir: string): CsrfIssue[] {
 
   function findExportedFunctions(content: string): { name: string; line: number }[] {
     const functions: { name: string; line: number }[] = [];
-    const lines = content.split('\n');
+    const lines = content.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -120,7 +118,7 @@ function findCsrfIssues(dir: string): CsrfIssue[] {
       if (match) {
         functions.push({
           name: match[1],
-          line: i + 1
+          line: i + 1,
         });
       }
     }
@@ -129,7 +127,7 @@ function findCsrfIssues(dir: string): CsrfIssue[] {
   }
 
   function getFunctionContent(lines: string[], startLine: number): string {
-    let content = '';
+    let content = "";
     let braceCount = 0;
     let inFunction = false;
 
@@ -137,17 +135,17 @@ function findCsrfIssues(dir: string): CsrfIssue[] {
       const line = lines[i];
 
       for (const char of line) {
-        if (char === '{') braceCount++;
-        if (char === '}') braceCount--;
+        if (char === "{") braceCount++;
+        if (char === "}") braceCount--;
       }
 
-      content += line + '\n';
+      content += line + "\n";
 
       if (braceCount === 0 && inFunction) {
         break;
       }
 
-      if (line.includes('=')) {
+      if (line.includes("=")) {
         inFunction = true;
       }
     }
@@ -160,14 +158,14 @@ function findCsrfIssues(dir: string): CsrfIssue[] {
 }
 
 function main() {
-  console.log('🔍 Проверка CSRF защиты в API Routes...\n');
+  console.log("🔍 Проверка CSRF защиты в API Routes...\n");
 
-  const issues = findCsrfIssues('.');
+  const issues = findCsrfIssues(".");
 
   if (issues.length === 0) {
-    console.log('✅ Все мутирующие API Routes имеют CSRF защиту!');
-    console.log('\n📋 Исключенные пути (не требуют CSRF):');
-    EXCLUDED_PATHS.forEach(path => console.log(`   - ${path}`));
+    console.log("✅ Все мутирующие API Routes имеют CSRF защиту!");
+    console.log("\n📋 Исключенные пути (не требуют CSRF):");
+    EXCLUDED_PATHS.forEach((path) => console.log(`   - ${path}`));
     process.exit(0);
   }
 
@@ -178,11 +176,11 @@ function main() {
     console.log(`   🔴 ${issue.method} без withCSRFProtection\n`);
   }
 
-  console.log('💡 Рекомендация:');
-  console.log('   Добавьте withCSRFProtection для всех мутирующих операций:');
-  console.log('   export const POST = withCSRFProtection(async (request) => { ... })');
-  console.log('\n📋 Исключенные пути (не требуют CSRF):');
-  EXCLUDED_PATHS.forEach(path => console.log(`   - ${path}`));
+  console.log("💡 Рекомендация:");
+  console.log("   Добавьте withCSRFProtection для всех мутирующих операций:");
+  console.log("   export const POST = withCSRFProtection(async (request) => { ... })");
+  console.log("\n📋 Исключенные пути (не требуют CSRF):");
+  EXCLUDED_PATHS.forEach((path) => console.log(`   - ${path}`));
 
   process.exit(1);
 }

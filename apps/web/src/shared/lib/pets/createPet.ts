@@ -11,7 +11,7 @@ import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { createPetSchema } from "../validation/petSchemas";
 
 // Создаем логгер для createPet
-const logger = createWebLogger('web-create-pet');
+const logger = createWebLogger("web-create-pet");
 
 export async function createPet(data: CreatePetInput) {
   const validatedData = createPetSchema.parse(data);
@@ -37,7 +37,7 @@ export async function createPet(data: CreatePetInput) {
 
     return pet;
   } catch (error) {
-    logger.error("Ошибка при создании питомца:", error as Error, { operation: 'error' });
+    logger.error("Ошибка при создании питомца:", error as Error, { operation: "error" });
     throw new Error("Не удалось создать питомца");
   }
 }

@@ -6,7 +6,7 @@ import { createWebLogger } from "@gafus/logger";
 import { useCSRFStore } from "../store";
 
 // Создаем логгер для CSRF Provider
-const logger = createWebLogger('csrf-provider');
+const logger = createWebLogger("csrf-provider");
 
 // ===== ТИПЫ =====
 interface CSRFContextType {
@@ -80,7 +80,7 @@ export function CSRFProvider({
       if (logErrors) {
         logger.error("CSRF Provider retry failed", new Error(message), {
           retryCount: retryCount,
-          maxRetries: maxRetries
+          maxRetries: maxRetries,
         });
       }
     }
@@ -111,7 +111,7 @@ export function CSRFProvider({
         if (logErrors) {
           logger.error("CSRF Provider initialization failed", new Error(message), {
             retryCount: retryCount,
-            maxRetries: maxRetries
+            maxRetries: maxRetries,
           });
         }
       }
@@ -129,7 +129,7 @@ export function CSRFProvider({
       if (logErrors) {
         logger.error("CSRF Store error", new Error(error), {
           retryCount: retryCount,
-          maxRetries: maxRetries
+          maxRetries: maxRetries,
         });
       }
     } else if (!error && hasError) {

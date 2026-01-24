@@ -1,7 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, Card, CardContent, FormControl, FormControlLabel, Radio, RadioGroup, Typography, Alert, CircularProgress } from "@mui/material";
+import {
+  Button,
+  Card,
+  CardContent,
+  FormControl,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
+  Typography,
+  Alert,
+  CircularProgress,
+} from "@mui/material";
 import { submitExamResult } from "@/shared/lib/actions/submitExamResult";
 import { getExamResult } from "@/shared/lib/actions/getExamResult";
 
@@ -15,7 +26,13 @@ interface TestQuestionsProps {
   onReset: () => void;
 }
 
-export function TestQuestions({ checklist, userStepId, stepId, onComplete, onReset }: TestQuestionsProps) {
+export function TestQuestions({
+  checklist,
+  userStepId,
+  stepId,
+  onComplete,
+  onReset,
+}: TestQuestionsProps) {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -45,21 +62,21 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
   }, [userStepId]);
 
   const handleAnswerChange = (questionId: string, answerIndex: number) => {
-    setAnswers(prev => ({
+    setAnswers((prev) => ({
       ...prev,
-      [questionId]: answerIndex
+      [questionId]: answerIndex,
     }));
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setSubmitError(null);
-    
+
     try {
       const score = getScore();
       const overallScore = Math.round((score.correct / score.total) * 100);
       const isPassed = overallScore >= 70; // 70% для прохождения
-      
+
       await submitExamResult({
         userStepId,
         stepId,
@@ -67,9 +84,9 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
         testScore: score.correct,
         testMaxScore: score.total,
         overallScore,
-        isPassed
+        isPassed,
       });
-      
+
       setIsSubmitted(true);
       setShowResults(true);
       onComplete(answers);
@@ -90,7 +107,7 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
 
   const getScore = () => {
     let correct = 0;
-    checklist.forEach(question => {
+    checklist.forEach((question) => {
       if (answers[question.id] === question.correctAnswer) {
         correct++;
       }
@@ -133,7 +150,7 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
       <Typography variant="h6" gutterBottom>
         Тестовые вопросы
       </Typography>
-      
+
       {isSubmitted && !isReviewed && (
         <Alert severity="info" sx={{ mb: 2 }}>
           Ваши ответы сохранены. Ожидайте проверки тренером.
@@ -141,10 +158,7 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
       )}
 
       {isReviewed && (
-        <Alert 
-          severity={isPassed ? "success" : "error"} 
-          sx={{ mb: 2 }}
-        >
+        <Alert severity={isPassed ? "success" : "error"} sx={{ mb: 2 }}>
           <Typography variant="subtitle2" gutterBottom>
             {isPassed ? "Экзамен зачтён" : "Экзамен не зачтён"}
           </Typography>
@@ -154,27 +168,25 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
             </Typography>
           )}
           {examResult && (examResult.reviewedAt || getTrainerName()) && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mt: 1 }}
-            >
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
               {[
                 examResult.reviewedAt && `Проверено: ${formatDateTime(examResult.reviewedAt)}`,
-                getTrainerName() && `Тренер: ${getTrainerName()}`
-              ].filter(Boolean).join(" • ")}
+                getTrainerName() && `Тренер: ${getTrainerName()}`,
+              ]
+                .filter(Boolean)
+                .join(" • ")}
             </Typography>
           )}
         </Alert>
       )}
-      
+
       {checklist.map((question, index) => (
         <Card key={question.id} sx={{ mb: 2 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
               Вопрос {index + 1}: {question.question}
             </Typography>
-            
+
             <FormControl component="fieldset">
               <RadioGroup
                 value={answers[question.id] ?? ""}
@@ -218,11 +230,11 @@ export function TestQuestions({ checklist, userStepId, stepId, onComplete, onRes
           {submitError}
         </Alert>
       )}
-      
+
       <div style={{ display: "flex", gap: "16px", marginTop: "16px" }}>
         {!isSubmitted ? (
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={handleSubmit}
             disabled={Object.keys(answers).length !== checklist.length || isSubmitting}
           >

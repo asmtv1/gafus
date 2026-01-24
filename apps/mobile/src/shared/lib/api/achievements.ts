@@ -10,9 +10,7 @@ export interface TrainingDatesResponse {
  */
 export const achievementsApi = {
   getTrainingDates: async (): Promise<ApiResponse<TrainingDatesResponse>> => {
-    return apiClient<TrainingDatesResponse>(
-      "/api/v1/achievements/training-dates"
-    );
+    return apiClient<TrainingDatesResponse>("/api/v1/achievements/training-dates");
   },
 
   /**

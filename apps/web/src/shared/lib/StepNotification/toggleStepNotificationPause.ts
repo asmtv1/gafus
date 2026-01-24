@@ -22,7 +22,11 @@ const toggleSchema = z.object({
  * @param jobId -  ID задачи в очереди
  */
 export async function toggleStepNotificationPause(day: number, stepIndex: number, pause: boolean) {
-  const { day: safeDay, stepIndex: safeStepIndex, pause: safePause } = toggleSchema.parse({
+  const {
+    day: safeDay,
+    stepIndex: safeStepIndex,
+    pause: safePause,
+  } = toggleSchema.parse({
     day,
     stepIndex,
     pause,

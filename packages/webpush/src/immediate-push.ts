@@ -7,7 +7,7 @@ import { prisma } from "@gafus/prisma";
 import { pushQueue } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 
-const logger = createWorkerLogger('immediate-push');
+const logger = createWorkerLogger("immediate-push");
 
 export interface ImmediatePushOptions {
   userId: string;
@@ -20,10 +20,10 @@ export interface ImmediatePushOptions {
 
 /**
  * Отправляет немедленное пуш-уведомление пользователю
- * 
+ *
  * @param options - Параметры уведомления
  * @returns Promise<{ success: boolean; notificationId?: string; error?: string }>
- * 
+ *
  * @example
  * await sendImmediatePushNotification({
  *   userId: "user123",
@@ -33,7 +33,7 @@ export interface ImmediatePushOptions {
  * });
  */
 export async function sendImmediatePushNotification(
-  options: ImmediatePushOptions
+  options: ImmediatePushOptions,
 ): Promise<{ success: boolean; notificationId?: string; error?: string }> {
   try {
     const { userId, title, body, url, icon, badge } = options;
@@ -45,15 +45,15 @@ export async function sendImmediatePushNotification(
       where: { userId },
       select: {
         endpoint: true,
-        keys: true
-      }
+        keys: true,
+      },
     });
 
     if (subscriptions.length === 0) {
       logger.warn("У пользователя нет активных подписок", { userId });
-      return { 
-        success: false, 
-        error: "У пользователя нет активных подписок" 
+      return {
+        success: false,
+        error: "У пользователя нет активных подписок",
       };
     }
 
@@ -70,18 +70,18 @@ export async function sendImmediatePushNotification(
         type: "immediate", // Явно указываем тип уведомления
         url: url || "/",
         subscription: {
-          subscriptions: subscriptions.map(sub => ({
+          subscriptions: subscriptions.map((sub) => ({
             endpoint: sub.endpoint,
-            keys: sub.keys as Record<string, string>
+            keys: sub.keys as Record<string, string>,
           })),
-          count: subscriptions.length
-        }
-      }
+          count: subscriptions.length,
+        },
+      },
     });
 
-    logger.info("StepNotification создан", { 
+    logger.info("StepNotification создан", {
       notificationId: notification.id,
-      subscriptionCount: subscriptions.length 
+      subscriptionCount: subscriptions.length,
     });
 
     // Добавляем задачу в очередь с delay = 0 (немедленная отправка)
@@ -94,36 +94,34 @@ export async function sendImmediatePushNotification(
         backoff: { type: "exponential", delay: 1000 },
         removeOnComplete: true,
         removeOnFail: false,
-      }
+      },
     );
 
     // Обновляем notification с jobId
     await prisma.stepNotification.update({
       where: { id: notification.id },
-      data: { jobId: job.id }
+      data: { jobId: job.id },
     });
 
     logger.success("Задача добавлена в очередь", {
       notificationId: notification.id,
       jobId: job.id,
-      userId
+      userId,
     });
 
-    return { 
-      success: true, 
-      notificationId: notification.id 
+    return {
+      success: true,
+      notificationId: notification.id,
     };
-
   } catch (error) {
     logger.error("Ошибка отправки немедленного пуш-уведомления", error as Error, {
       userId: options.userId,
-      title: options.title
+      title: options.title,
     });
-    
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Неизвестная ошибка" 
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
     };
   }
 }
-

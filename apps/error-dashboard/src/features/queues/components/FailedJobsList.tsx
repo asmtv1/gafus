@@ -100,9 +100,7 @@ export function FailedJobsList({ jobs, queueName }: FailedJobsListProps) {
   if (jobs.length === 0) {
     return (
       <Alert severity="success" sx={{ borderRadius: 2 }}>
-        {queueName
-          ? `Нет проблемных задач в очереди ${queueName}`
-          : "Нет проблемных задач"}
+        {queueName ? `Нет проблемных задач в очереди ${queueName}` : "Нет проблемных задач"}
       </Alert>
     );
   }
@@ -307,4 +305,3 @@ export function FailedJobsList({ jobs, queueName }: FailedJobsListProps) {
     </Card>
   );
 }
-

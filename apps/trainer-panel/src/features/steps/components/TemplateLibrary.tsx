@@ -33,7 +33,9 @@ import type { StepCategoryWithCount } from "../lib/getStepCategories";
 interface TemplateLibraryProps {
   initialTemplates: StepTemplateWithCategory[];
   categories: StepCategoryWithCount[];
-  onUseTemplate: (templateId: string) => Promise<{ success: boolean; message: string; stepId?: string }>;
+  onUseTemplate: (
+    templateId: string,
+  ) => Promise<{ success: boolean; message: string; stepId?: string }>;
 }
 
 export default function TemplateLibrary({
@@ -63,7 +65,7 @@ export default function TemplateLibrary({
         (t) =>
           t.title.toLowerCase().includes(query) ||
           t.description.toLowerCase().includes(query) ||
-          t.tags.some((tag) => tag.toLowerCase().includes(query))
+          t.tags.some((tag) => tag.toLowerCase().includes(query)),
       );
     }
 
@@ -166,11 +168,13 @@ export default function TemplateLibrary({
             : "Шаблоны отсутствуют"}
         </Alert>
       ) : (
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
-          gap: 3
-        }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" },
+            gap: 3,
+          }}
+        >
           {filteredTemplates.map((template) => (
             <Box key={template.id}>
               <Card
@@ -186,7 +190,14 @@ export default function TemplateLibrary({
                 }}
               >
                 <CardContent sx={{ flexGrow: 1 }}>
-                  <Box sx={{ display: "flex", alignItems: "start", justifyContent: "space-between", mb: 1 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "start",
+                      justifyContent: "space-between",
+                      mb: 1,
+                    }}
+                  >
                     <Typography variant="h6" component="h3" sx={{ flexGrow: 1 }}>
                       {template.title}
                     </Typography>
@@ -204,19 +215,21 @@ export default function TemplateLibrary({
                     </Box>
                   )}
 
-                  <Box sx={{
-                    mb: 2,
-                    color: 'text.secondary',
-                    '& p': { margin: 0 },
-                    '& ul, & ol': { pl: 3, my: 1 },
-                    '& code': { bgcolor: 'action.hover', px: 0.5, py: 0.2, borderRadius: 0.5 },
-                    '& pre': { bgcolor: 'action.hover', p: 1, borderRadius: 1, overflow: 'auto' },
-                    '& a': { color: 'primary.main', textDecoration: 'underline' },
-                    '& table': { width: '100%', borderCollapse: 'collapse', my: 1 },
-                    '& th, & td': { border: '1px solid', borderColor: 'divider', p: 0.5 },
-                  }}>
+                  <Box
+                    sx={{
+                      mb: 2,
+                      color: "text.secondary",
+                      "& p": { margin: 0 },
+                      "& ul, & ol": { pl: 3, my: 1 },
+                      "& code": { bgcolor: "action.hover", px: 0.5, py: 0.2, borderRadius: 0.5 },
+                      "& pre": { bgcolor: "action.hover", p: 1, borderRadius: 1, overflow: "auto" },
+                      "& a": { color: "primary.main", textDecoration: "underline" },
+                      "& table": { width: "100%", borderCollapse: "collapse", my: 1 },
+                      "& th, & td": { border: "1px solid", borderColor: "divider", p: 0.5 },
+                    }}
+                  >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {template.description || ''}
+                      {template.description || ""}
                     </ReactMarkdown>
                   </Box>
 
@@ -235,12 +248,20 @@ export default function TemplateLibrary({
                         <Chip key={tag} label={tag} size="small" variant="outlined" />
                       ))}
                       {template.tags.length > 3 && (
-                        <Chip label={`+${template.tags.length - 3}`} size="small" variant="outlined" />
+                        <Chip
+                          label={`+${template.tags.length - 3}`}
+                          size="small"
+                          variant="outlined"
+                        />
                       )}
                     </Box>
                   )}
 
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mt: 2 }}
+                  >
                     Использовано: {template.usageCount} раз
                   </Typography>
                 </CardContent>
@@ -264,4 +285,3 @@ export default function TemplateLibrary({
     </Box>
   );
 }
-

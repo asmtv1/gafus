@@ -9,24 +9,23 @@ async function ExamResultsContent({ hideCompleted }: { hideCompleted: boolean })
   try {
     const session = await getServerSession(authOptions);
     const isAdmin = session?.user?.role === "ADMIN";
-    
+
     // Всегда загружаем ВСЕ результаты, фильтрация на клиенте
     const examResults = await getExamResults({ hideCompleted: false });
-    
+
     return (
       <Box>
-        <Typography variant="h4" gutterBottom sx={{ color: 'text.primary' }}>
+        <Typography variant="h4" gutterBottom sx={{ color: "text.primary" }}>
           Результаты экзаменов
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          {isAdmin 
+          {isAdmin
             ? "Просмотр результатов экзаменов всех пользователей всех курсов"
-            : "Просмотр результатов экзаменов по вашим курсам"
-          }
+            : "Просмотр результатов экзаменов по вашим курсам"}
         </Typography>
-        
-        <ExamResultsListWithFilter 
-          initialExamResults={examResults} 
+
+        <ExamResultsListWithFilter
+          initialExamResults={examResults}
           initialHideCompleted={hideCompleted}
         />
       </Box>
@@ -34,7 +33,8 @@ async function ExamResultsContent({ hideCompleted }: { hideCompleted: boolean })
   } catch (error) {
     return (
       <Alert severity="error">
-        Ошибка при загрузке результатов экзаменов: {error instanceof Error ? error.message : 'Неизвестная ошибка'}
+        Ошибка при загрузке результатов экзаменов:{" "}
+        {error instanceof Error ? error.message : "Неизвестная ошибка"}
       </Alert>
     );
   }
@@ -47,17 +47,24 @@ export default async function ExamResultsPage({
 }) {
   const params = await searchParams;
   // По умолчанию фильтр включён (hideCompleted = true)
-  const hideCompleted = params.hideCompleted !== undefined 
-    ? params.hideCompleted === 'true' 
-    : true;
+  const hideCompleted = params.hideCompleted !== undefined ? params.hideCompleted === "true" : true;
 
   return (
     <Box sx={{ p: 3 }}>
-      <Suspense fallback={
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-          <CircularProgress />
-        </Box>
-      }>
+      <Suspense
+        fallback={
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: "200px",
+            }}
+          >
+            <CircularProgress />
+          </Box>
+        }
+      >
         <ExamResultsContent hideCompleted={hideCompleted} />
       </Suspense>
     </Box>

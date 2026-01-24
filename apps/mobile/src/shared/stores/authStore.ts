@@ -15,7 +15,7 @@ interface AuthActions {
   register: (
     name: string,
     phone: string,
-    password: string
+    password: string,
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -159,6 +159,6 @@ export const useAuthStore = create<AuthStore>()(
       storage: createJSONStorage(() => zustandStorage),
       // Персистим только данные пользователя
       partialize: (state) => ({ user: state.user }),
-    }
-  )
+    },
+  ),
 );

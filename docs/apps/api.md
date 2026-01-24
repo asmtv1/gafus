@@ -78,16 +78,17 @@ X-Device-Id: <device_identifier>  // опционально
 ### Token Reuse Detection
 
 При повторном использовании refresh token (возможная кража):
+
 - Все токены пользователя отзываются
 - Возвращается код `TOKEN_REUSE_DETECTED`
 - Пользователь должен авторизоваться заново
 
 ## Rate Limiting
 
-| Endpoint | Лимит | Окно |
-|----------|-------|------|
-| Auth routes | 10 запросов | 15 минут |
-| API routes | 100 запросов | 1 минута |
+| Endpoint    | Лимит        | Окно     |
+| ----------- | ------------ | -------- |
+| Auth routes | 10 запросов  | 15 минут |
+| API routes  | 100 запросов | 1 минута |
 
 ## Environment Variables
 
@@ -108,13 +109,16 @@ NODE_ENV=production                 # Окружение
 ### Development
 
 **Вариант 1: Прямой запуск**
+
 ```bash
 cd apps/api
 pnpm dev
 ```
+
 API доступен на http://localhost:3001
 
 **Вариант 2: Через nginx (рекомендуется)**
+
 ```bash
 # 1. Запустить API
 cd apps/api
@@ -125,6 +129,7 @@ pnpm dev
 ```
 
 Преимущества через nginx:
+
 - Тестирование CORS с правильными origins
 - Проверка rate limiting
 - Эмуляция production окружения
@@ -162,9 +167,10 @@ docker run -p 3001:3001 \
 ### CORS
 
 Разрешённые origins:
+
 - Production: gafus.ru, trainer.gafus.ru, admin.gafus.ru
 - Development: localhost:3000, localhost:3002, localhost:3003
-- Mobile: exp://, *.exp.direct
+- Mobile: exp://, \*.exp.direct
 
 ### Rate Limiting
 
@@ -175,6 +181,7 @@ docker run -p 3001:3001 \
 ## Graceful Shutdown
 
 При получении SIGTERM/SIGINT:
+
 1. Прекращает приём новых подключений
 2. Ждёт завершения активных запросов (до 10 сек)
 3. Закрывает подключения к PostgreSQL и Redis

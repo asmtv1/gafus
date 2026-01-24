@@ -3,7 +3,7 @@ import { createWebLogger } from "@gafus/logger";
 import { addPassiveEventListener, removePassiveEventListener } from "../utils/eventListeners";
 
 // Создаем логгер для usePreloadComponents
-const logger = createWebLogger('web-preload-components');
+const logger = createWebLogger("web-preload-components");
 
 // Типы для предзагрузки
 export interface PreloadConfig {
@@ -25,11 +25,13 @@ export function usePreloadComponents(configs: PreloadConfig[]) {
       await config.component();
 
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`✅ Preloaded component with ${config.priority} priority`, { operation: 'warn' });
+        logger.warn(`✅ Preloaded component with ${config.priority} priority`, {
+          operation: "warn",
+        });
       }
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`⚠️ Failed to preload component:`, { error, operation: 'warn' });
+        logger.warn(`⚠️ Failed to preload component:`, { error, operation: "warn" });
       }
     }
   }, []);
@@ -61,11 +63,11 @@ export function useInteractionPreload() {
       await config.component();
 
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`✅ Preloaded component on interaction`, { operation: 'warn' });
+        logger.warn(`✅ Preloaded component on interaction`, { operation: "warn" });
       }
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`⚠️ Failed to preload component:`, { error, operation: 'warn' });
+        logger.warn(`⚠️ Failed to preload component:`, { error, operation: "warn" });
       }
     }
   }, []);
@@ -98,11 +100,11 @@ export function useVisibilityPreload() {
       await config.component();
 
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`✅ Preloaded component on visibility`, { operation: 'warn' });
+        logger.warn(`✅ Preloaded component on visibility`, { operation: "warn" });
       }
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`⚠️ Failed to preload component:`, { error, operation: 'warn' });
+        logger.warn(`⚠️ Failed to preload component:`, { error, operation: "warn" });
       }
     }
   }, []);

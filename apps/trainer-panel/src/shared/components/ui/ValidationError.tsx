@@ -11,12 +11,7 @@ export function ValidationError({ error, className = "", onClose }: ValidationEr
   if (!error) return null;
 
   return (
-    <Alert 
-      severity="error" 
-      sx={{ mt: 1, mb: 2 }} 
-      className={className}
-      onClose={onClose}
-    >
+    <Alert severity="error" sx={{ mt: 1, mb: 2 }} className={className} onClose={onClose}>
       {error}
     </Alert>
   );
@@ -35,12 +30,7 @@ export function ValidationErrors({ errors, className = "", onClose }: Validation
   if (errorMessages.length === 0) return null;
 
   return (
-    <Alert 
-      severity="error" 
-      sx={{ mt: 2, mb: 2 }} 
-      className={className}
-      onClose={onClose}
-    >
+    <Alert severity="error" sx={{ mt: 2, mb: 2 }} className={className} onClose={onClose}>
       <AlertTitle>Ошибки в форме:</AlertTitle>
       <ul style={{ margin: 0, paddingLeft: 20 }}>
         {errorMessages.map((error, index) => (

@@ -9,7 +9,7 @@ import type { OptimizedImageProps } from "./types";
 import { shouldUseLazyLoading, shouldUsePriority } from "@shared/utils/imageLoading";
 
 // Создаем логгер для изображений
-const logger = createWebLogger('web-optimized-image');
+const logger = createWebLogger("web-optimized-image");
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
@@ -49,19 +49,19 @@ export default function OptimizedImage({
 
   const handleError = () => {
     logger.warn(`❌ OptimizedImage: Ошибка загрузки изображения`, {
-      operation: 'image_load_error',
+      operation: "image_load_error",
       src: src,
       retryCount: retryCount,
-      isSafariBrowser: isSafariBrowser
+      isSafariBrowser: isSafariBrowser,
     });
-    
+
     // Попробуем перезагрузить изображение несколько раз
     if (retryCount < 2) {
-      setRetryCount(prev => prev + 1);
+      setRetryCount((prev) => prev + 1);
       setImgError(false);
       return;
     }
-    
+
     setImgError(true);
     onError?.();
   };

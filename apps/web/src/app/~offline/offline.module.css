@@ -25,7 +25,7 @@
   margin: 0 auto 16px;
   width: 64px;
   height: 64px;
-  background-color: #FFF8E5;
+  background-color: #fff8e5;
   border: 2px solid #636128;
   border-radius: 50%;
   display: flex;
@@ -48,7 +48,7 @@
 }
 
 .infoBox {
-  background-color: #FFF8E5;
+  background-color: #fff8e5;
   border: 2px solid #636128;
   border-radius: 12px;
   padding: 24px;
@@ -96,7 +96,7 @@
 .emptyState {
   max-width: 600px;
   margin: 0 auto;
-  background-color: #FFF8E5;
+  background-color: #fff8e5;
   border: 2px solid #636128;
   border-radius: 12px;
   padding: 48px 32px;
@@ -107,7 +107,7 @@
   margin: 0 auto 16px;
   width: 64px;
   height: 64px;
-  background-color: #E6E1CE;
+  background-color: #e6e1ce;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -150,7 +150,7 @@
 
 .button {
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
-  color: #ECE5D2;
+  color: #ece5d2;
   border: 1px solid #636128;
   padding: 12px 24px;
   border-radius: 8px;
@@ -170,13 +170,13 @@
 }
 
 .button:hover {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352E2E 100%);
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
 }
 
 .button:active {
-  background: linear-gradient(135deg, #352E2E 0%, #2a2525 100%);
+  background: linear-gradient(135deg, #352e2e 0%, #2a2525 100%);
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
@@ -195,7 +195,7 @@
 
 .buttonSecondary:hover {
   background: #636128;
-  color: #ECE5D2;
+  color: #ece5d2;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
 }

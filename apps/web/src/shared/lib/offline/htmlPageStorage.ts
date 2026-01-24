@@ -17,7 +17,7 @@ async function cacheChunksFromHtml(html: string, pageUrl: string): Promise<void>
   try {
     const baseUrl = new URL(pageUrl, window.location.origin).origin;
     const chunksToCache = new Set<string>();
-    
+
     // Ищем все script теги с chunks
     const scriptRegex = /<script[^>]+src=["']([^"']+)["']/gi;
     let match;
@@ -28,7 +28,7 @@ async function cacheChunksFromHtml(html: string, pageUrl: string): Promise<void>
         chunksToCache.add(fullUrl);
       }
     }
-    
+
     // Ищем все link теги с CSS chunks
     const linkRegex = /<link[^>]+href=["']([^"']+)["']/gi;
     while ((match = linkRegex.exec(html)) !== null) {
@@ -38,20 +38,22 @@ async function cacheChunksFromHtml(html: string, pageUrl: string): Promise<void>
         chunksToCache.add(fullUrl);
       }
     }
-    
+
     // Ищем chunks в __NEXT_DATA__
-    const nextDataMatch = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([^<]+)<\/script>/i);
+    const nextDataMatch = html.match(
+      /<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([^<]+)<\/script>/i,
+    );
     if (nextDataMatch) {
       try {
         const nextData = JSON.parse(nextDataMatch[1]);
         const baseUrlObj = new URL(pageUrl, window.location.origin);
-        
+
         // Извлекаем chunks из разных мест в __NEXT_DATA__
         // Next.js хранит chunks в pageProps, buildId и других местах
         if (nextData.buildId) {
           // Можно использовать buildId для предсказания путей к chunks
         }
-        
+
         // Ищем все упоминания /_next/static/ в JSON
         const jsonString = JSON.stringify(nextData);
         const chunkPathRegex = /"\/_next\/static\/[^"]+"/g;
@@ -68,18 +70,18 @@ async function cacheChunksFromHtml(html: string, pageUrl: string): Promise<void>
         });
       }
     }
-    
+
     if (chunksToCache.size === 0) {
       logger.info("No chunks found in HTML", { pageUrl });
       return;
     }
-    
+
     logger.info("Found chunks to cache", {
       pageUrl,
       chunksCount: chunksToCache.size,
       chunks: Array.from(chunksToCache).slice(0, 5), // Первые 5 для логов
     });
-    
+
     // Открываем кэш и кэшируем chunks
     const cache = await caches.open(OFFLINE_CACHE_NAME);
     const cachePromises = Array.from(chunksToCache).map(async (chunkUrl) => {
@@ -89,7 +91,7 @@ async function cacheChunksFromHtml(html: string, pageUrl: string): Promise<void>
         if (cached) {
           return; // Уже закэширован
         }
-        
+
         const response = await fetch(chunkUrl);
         if (response.ok) {
           await cache.put(chunkUrl, response.clone());
@@ -107,9 +109,9 @@ async function cacheChunksFromHtml(html: string, pageUrl: string): Promise<void>
         });
       }
     });
-    
+
     await Promise.allSettled(cachePromises);
-    
+
     logger.info("Chunks caching completed", {
       pageUrl,
       totalChunks: chunksToCache.size,
@@ -128,7 +130,7 @@ async function cacheChunksFromHtml(html: string, pageUrl: string): Promise<void>
 export async function saveCourseHtmlPage(
   courseType: string,
   pagePath: string,
-  html: string
+  html: string,
 ): Promise<void> {
   try {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -179,7 +181,10 @@ export async function saveCourseHtmlPage(
         pagePath,
         htmlLength: html.length,
       });
-    } else if (pagePath === `/trainings/${courseType}` || pagePath === `/trainings/${courseType}/`) {
+    } else if (
+      pagePath === `/trainings/${courseType}` ||
+      pagePath === `/trainings/${courseType}/`
+    ) {
       // Страница списка дней: /trainings/[courseType]
       course.htmlPages.listPage = html;
       logger.info("List page HTML saved to IndexedDB", {
@@ -221,7 +226,7 @@ export async function saveCourseHtmlPage(
  */
 export async function saveCourseHtmlPagesOnDownload(
   courseType: string,
-  trainingDays: { id: string }[]
+  trainingDays: { id: string }[],
 ): Promise<void> {
   try {
     let savedListPage = false;
@@ -229,7 +234,7 @@ export async function saveCourseHtmlPagesOnDownload(
 
     // Сохраняем страницу списка дней
     const listPageUrl = `/trainings/${courseType}`;
-    
+
     try {
       const response = await fetch(listPageUrl, {
         method: "GET",
@@ -268,13 +273,13 @@ export async function saveCourseHtmlPagesOnDownload(
     for (const day of trainingDays) {
       const dayId = day.id;
       const dayPageUrl = `/trainings/${courseType}/${dayId}`;
-      
+
       logger.info("Attempting to fetch day page HTML", {
         courseType,
         dayId,
         url: dayPageUrl,
       });
-      
+
       try {
         const response = await fetch(dayPageUrl, {
           method: "GET",
@@ -286,7 +291,7 @@ export async function saveCourseHtmlPagesOnDownload(
 
         if (response.ok) {
           const html = await response.text();
-          
+
           if (html && html.length > 0) {
             await saveCourseHtmlPage(courseType, dayPageUrl, html);
             // Кэшируем chunks из HTML
@@ -343,7 +348,7 @@ export async function saveCourseHtmlPagesOnDownload(
  */
 export async function getCourseHtmlPage(
   courseType: string,
-  pagePath: string
+  pagePath: string,
 ): Promise<string | null> {
   try {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -371,7 +376,7 @@ export async function getCourseHtmlPage(
     const dayMatch = pagePath.match(/^\/trainings\/[^/]+\/([^/]+)$/);
     if (dayMatch && course.htmlPages.dayPages) {
       const dayId = dayMatch[1];
-      
+
       const html = course.htmlPages.dayPages[dayId];
       if (html) {
         logger.info("Day page HTML found in IndexedDB", {
@@ -390,7 +395,7 @@ export async function getCourseHtmlPage(
         });
       }
     }
-    
+
     // Страница списка дней: /trainings/[courseType]
     if (pagePath === `/trainings/${courseType}` || pagePath === `/trainings/${courseType}/`) {
       const html = course.htmlPages.listPage;
@@ -426,4 +431,3 @@ export async function getCourseHtmlPage(
     return null;
   }
 }
-

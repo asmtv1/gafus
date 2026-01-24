@@ -14,8 +14,9 @@
 ## 📦 Использование
 
 ### Серверная защита
+
 ```typescript
-import { csrfMiddleware } from '@gafus/csrf';
+import { csrfMiddleware } from "@gafus/csrf";
 
 export default csrfMiddleware(async function handler(req, res) {
   // API логика защищена от CSRF
@@ -23,12 +24,13 @@ export default csrfMiddleware(async function handler(req, res) {
 ```
 
 ### Клиентская интеграция
+
 ```typescript
 import { useCsrfToken } from '@gafus/csrf/react';
 
 function MyForm() {
   const csrfToken = useCsrfToken();
-  
+
   return (
     <form>
       <input type="hidden" name="_csrf" value={csrfToken} />

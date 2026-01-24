@@ -38,9 +38,10 @@ export async function updateTrainerVideoName(
     const displayNameValue = formData.get("displayName");
     const parsed = updateNameSchema.safeParse({
       videoId: formData.get("videoId"),
-      displayName: displayNameValue === null || displayNameValue === "" 
-        ? undefined 
-        : String(displayNameValue).trim() || undefined,
+      displayName:
+        displayNameValue === null || displayNameValue === ""
+          ? undefined
+          : String(displayNameValue).trim() || undefined,
     });
 
     if (!parsed.success) {
@@ -70,10 +71,10 @@ export async function updateTrainerVideoName(
     }
 
     if (video.trainerId !== trainerId) {
-      logger.warn("Попытка редактирования чужого видео", { 
-        videoId, 
-        trainerId, 
-        ownerId: video.trainerId 
+      logger.warn("Попытка редактирования чужого видео", {
+        videoId,
+        trainerId,
+        ownerId: video.trainerId,
       });
       return { success: false, error: "Недостаточно прав для редактирования этого видео" };
     }
@@ -86,8 +87,8 @@ export async function updateTrainerVideoName(
       },
     });
 
-    logger.success("Название видео успешно обновлено", { 
-      videoId, 
+    logger.success("Название видео успешно обновлено", {
+      videoId,
       originalName: video.originalName,
       displayName: displayName || null,
     });
@@ -105,7 +106,7 @@ export async function updateTrainerVideoName(
         operation: "action",
         action: "action",
         tags: [],
-      }
+      },
     );
 
     return {
@@ -114,4 +115,3 @@ export async function updateTrainerVideoName(
     };
   }
 }
-

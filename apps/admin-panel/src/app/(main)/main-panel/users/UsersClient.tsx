@@ -51,9 +51,7 @@ export default function UsersClient({ users }: UsersClientProps) {
     // Фильтрация по нику
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      result = result.filter((user) =>
-        user.username.toLowerCase().includes(query)
-      );
+      result = result.filter((user) => user.username.toLowerCase().includes(query));
     }
 
     // Сортировка
@@ -151,8 +149,8 @@ export default function UsersClient({ users }: UsersClientProps) {
   };
 
   return (
-    <PageLayout 
-      title="Пользователи платформы" 
+    <PageLayout
+      title="Пользователи платформы"
       subtitle="Список всех зарегистрированных пользователей"
     >
       {message && (
@@ -187,4 +185,3 @@ export default function UsersClient({ users }: UsersClientProps) {
     </PageLayout>
   );
 }
-

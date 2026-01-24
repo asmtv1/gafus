@@ -2,10 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { Tabs, Tab, Paper } from "@mui/material";
-import {
-  Dashboard as DashboardIcon,
-  Queue as QueueIcon,
-} from "@mui/icons-material";
+import { Dashboard as DashboardIcon, Queue as QueueIcon } from "@mui/icons-material";
 
 export function NavigationTabs() {
   const pathname = usePathname();
@@ -22,12 +19,12 @@ export function NavigationTabs() {
   };
 
   return (
-    <Paper 
-      elevation={1} 
-      sx={{ 
+    <Paper
+      elevation={1}
+      sx={{
         mb: 4,
         borderRadius: 2,
-        overflow: "hidden"
+        overflow: "hidden",
       }}
     >
       <Tabs
@@ -67,4 +64,3 @@ export function NavigationTabs() {
     </Paper>
   );
 }
-

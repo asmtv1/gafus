@@ -34,7 +34,7 @@ export const FavoriteButton = ({ id, isFavorite = false, onUnfavorite }: Favorit
         try {
           const current = favIsFavorite(id);
           const updatedState = !current;
-          
+
           if (updatedState) {
             await addFavorite(id);
           } else {
@@ -58,9 +58,9 @@ export const FavoriteButton = ({ id, isFavorite = false, onUnfavorite }: Favorit
   };
 
   // Проверяем, есть ли ожидающие синхронизации действия для этого курса
-  const pendingSync = syncQueue.some(action => 
-    action.type === "favorite-toggle" && 
-    (action.data as { courseId: string }).courseId === id
+  const pendingSync = syncQueue.some(
+    (action) =>
+      action.type === "favorite-toggle" && (action.data as { courseId: string }).courseId === id,
   );
 
   return (
@@ -70,14 +70,14 @@ export const FavoriteButton = ({ id, isFavorite = false, onUnfavorite }: Favorit
         disabled={isPending}
         className={styles.button}
         title={
-          !isOnline 
+          !isOnline
             ? "Офлайн режим - изменения будут синхронизированы при восстановлении сети"
             : pendingSync
-            ? "Ожидает синхронизации с сервером"
-            : "Добавить в избранное"
+              ? "Ожидает синхронизации с сервером"
+              : "Добавить в избранное"
         }
       >
-        <TurnedInIcon 
+        <TurnedInIcon
           sx={{
             fontSize: "2.5rem",
             fill: favorite ? "gold" : "transparent",
@@ -86,9 +86,7 @@ export const FavoriteButton = ({ id, isFavorite = false, onUnfavorite }: Favorit
             opacity: pendingSync ? 0.7 : 1,
           }}
         />
-        {pendingSync && (
-          <div className={styles.pendingIndicator} />
-        )}
+        {pendingSync && <div className={styles.pendingIndicator} />}
       </button>
       {error && <p className={styles.error}>Ошибка: {error.message}</p>}
     </>

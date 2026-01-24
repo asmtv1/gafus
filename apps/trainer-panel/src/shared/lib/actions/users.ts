@@ -6,7 +6,7 @@ import { createTrainerPanelLogger } from "@gafus/logger";
 import type { PublicProfile } from "@gafus/types";
 
 // Создаем логгер для users actions
-const logger = createTrainerPanelLogger('trainer-panel-users-actions');
+const logger = createTrainerPanelLogger("trainer-panel-users-actions");
 
 export async function getPublicProfileAction(
   username: string,
@@ -123,8 +123,8 @@ export async function getPublicProfileAction(
     return { success: true, data };
   } catch (error) {
     logger.error("getPublicProfileAction error", error as Error, {
-      operation: 'get_public_profile_error',
-      username: username
+      operation: "get_public_profile_error",
+      username: username,
     });
     return { success: false, error: "Не удалось получить профиль пользователя" };
   }

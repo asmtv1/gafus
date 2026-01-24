@@ -2,42 +2,42 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    cluster: 'gafus'
-    environment: 'production'
+    cluster: "gafus"
+    environment: "production"
 
 scrape_configs:
-  - job_name: 'node-exporter'
+  - job_name: "node-exporter"
     static_configs:
-      - targets: ['host.docker.internal:9100']
+      - targets: ["host.docker.internal:9100"]
         labels:
-          instance: 'gafus-server'
-          job: 'node-exporter'
+          instance: "gafus-server"
+          job: "node-exporter"
 
-  - job_name: 'postgres-exporter'
+  - job_name: "postgres-exporter"
     static_configs:
-      - targets: ['postgres-exporter:9187']
+      - targets: ["postgres-exporter:9187"]
         labels:
-          instance: 'gafus-postgres'
-          job: 'postgres-exporter'
+          instance: "gafus-postgres"
+          job: "postgres-exporter"
 
-  - job_name: 'redis-exporter'
+  - job_name: "redis-exporter"
     static_configs:
-      - targets: ['redis-exporter:9121']
+      - targets: ["redis-exporter:9121"]
         labels:
-          instance: 'gafus-redis'
-          job: 'redis-exporter'
+          instance: "gafus-redis"
+          job: "redis-exporter"
 
   # Health checks для сервисов через blackbox_exporter
-  - job_name: 'services-health'
+  - job_name: "services-health"
     metrics_path: /probe
     params:
       module: [http_2xx]
     static_configs:
       - targets:
-          - http://web:3000/api/health          # Web App
-          - http://trainer-panel:3001/api/health  # Trainer Panel
-          - http://admin-panel:3006/api/health    # Admin Panel
-          - http://bull-board:3002/health         # Bull Board
+          - http://web:3000/api/health # Web App
+          - http://trainer-panel:3001/api/health # Trainer Panel
+          - http://admin-panel:3006/api/health # Admin Panel
+          - http://bull-board:3002/health # Bull Board
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -47,28 +47,27 @@ scrape_configs:
         replacement: blackbox-exporter:9115
       # Добавляем метку service на основе URL
       - source_labels: [instance]
-        regex: 'http://web:3000.*'
+        regex: "http://web:3000.*"
         target_label: service
-        replacement: 'web-app'
+        replacement: "web-app"
       - source_labels: [instance]
-        regex: 'http://trainer-panel:3001.*'
+        regex: "http://trainer-panel:3001.*"
         target_label: service
-        replacement: 'trainer-panel'
+        replacement: "trainer-panel"
       - source_labels: [instance]
-        regex: 'http://admin-panel:3006.*'
+        regex: "http://admin-panel:3006.*"
         target_label: service
-        replacement: 'admin-panel'
+        replacement: "admin-panel"
       - source_labels: [instance]
-        regex: 'http://bull-board:3002.*'
+        regex: "http://bull-board:3002.*"
         target_label: service
-        replacement: 'bull-board'
+        replacement: "bull-board"
 
   # Метрики очередей BullMQ из bull-board
-  - job_name: 'bullmq-queues'
+  - job_name: "bullmq-queues"
     metrics_path: /metrics
     static_configs:
-      - targets: ['bull-board:3002']
+      - targets: ["bull-board:3002"]
         labels:
-          instance: 'production-bull-board'
-          job: 'bullmq-queues'
-
+          instance: "production-bull-board"
+          job: "bullmq-queues"

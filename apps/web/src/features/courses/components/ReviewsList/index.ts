@@ -1,2 +1,1 @@
 export { ReviewsList } from "./ReviewsList";
-

@@ -95,7 +95,7 @@ export const authApi = {
   register: async (
     name: string,
     phone: string,
-    password: string
+    password: string,
   ): Promise<ApiResponse<LoginResponse>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
@@ -180,7 +180,7 @@ export const authApi = {
    */
   checkPhoneMatchesUsername: async (
     username: string,
-    phone: string
+    phone: string,
   ): Promise<ApiResponse<{ matches: boolean }>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/check-phone-match`, {
@@ -233,10 +233,7 @@ export const authApi = {
   /**
    * Отправляет запрос на сброс пароля
    */
-  sendPasswordResetRequest: async (
-    username: string,
-    phone: string
-  ): Promise<ApiResponse<void>> => {
+  sendPasswordResetRequest: async (username: string, phone: string): Promise<ApiResponse<void>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/password-reset-request`, {
         method: "POST",

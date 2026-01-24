@@ -75,19 +75,21 @@ curl -X POST "http://your-seq-server:5341/api/dashboards" \
 
 ```javascript
 // Замените JSON содержимым из файла
-const dashboard = {/* JSON из файла */};
+const dashboard = {
+  /* JSON из файла */
+};
 
-fetch('/api/dashboards', {
-  method: 'POST',
+fetch("/api/dashboards", {
+  method: "POST",
   headers: {
-    'Content-Type': 'application/json',
-    'X-Seq-ApiKey': 'your-api-key'
+    "Content-Type": "application/json",
+    "X-Seq-ApiKey": "your-api-key",
   },
-  body: JSON.stringify(dashboard)
+  body: JSON.stringify(dashboard),
 })
-  .then(r => r.json())
-  .then(data => {
-    console.log('Dashboard created:', data);
+  .then((r) => r.json())
+  .then((data) => {
+    console.log("Dashboard created:", data);
     window.location.reload(); // Обновить страницу для просмотра
   })
   .catch(console.error);
@@ -143,6 +145,7 @@ node scripts/setup-seq-dashboards.js
 6. Сохраните
 
 Повторите для всех контейнеров:
+
 - `ContainerName = 'gafus-trainer-panel'` → Сигнал: `Logs: Trainer Panel`
 - `ContainerName = 'gafus-error-dashboard'` → Сигнал: `Logs: Error Dashboard`
 - `ContainerName = 'gafus-admin-panel'` → Сигнал: `Logs: Admin Panel`
@@ -262,16 +265,19 @@ Level in ('Error', 'Fatal', 'Warning')
 ### Комбинированные фильтры
 
 Ошибки конкретного контейнера:
+
 ```
 ContainerName = 'gafus-web' and Level in ('Error', 'Fatal')
 ```
 
 Ошибки с контекстом:
+
 ```
 Level = 'Error' and Context != null
 ```
 
 Ошибки с stack trace:
+
 ```
 Level in ('Error', 'Fatal') and Exception != null
 ```
@@ -313,16 +319,19 @@ Timestamp > @2024-01-01T00:00:00Z
 ### Поле ContainerName отсутствует в логах
 
 1. Проверьте, что Vector использует `docker_logs` source type:
+
    ```bash
    docker exec gafus-vector cat /etc/vector/vector.toml | grep "type = \"docker_logs\""
    ```
 
 2. Убедитесь, что Vector перезапущен после изменения конфигурации:
+
    ```bash
    docker restart gafus-vector
    ```
 
 3. Проверьте логи Vector на наличие ошибок:
+
    ```bash
    docker logs gafus-vector | tail -50
    ```
@@ -366,16 +375,19 @@ Timestamp > @2024-01-01T00:00:00Z
 ### Логи не поступают в Seq
 
 1. Проверьте, что Vector запущен:
+
    ```bash
    docker ps | grep vector
    ```
 
 2. Проверьте доступность Seq:
+
    ```bash
    curl http://localhost:5341/api
    ```
 
 3. Проверьте логи Vector:
+
    ```bash
    docker logs gafus-vector | tail -100
    ```

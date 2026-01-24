@@ -4,10 +4,7 @@
  */
 import { Hono } from "hono";
 
-import {
-  getUserTrainingDates,
-  getAchievementStats,
-} from "@gafus/core/services/achievements";
+import { getUserTrainingDates, getAchievementStats } from "@gafus/core/services/achievements";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-achievements");
@@ -23,10 +20,7 @@ achievementsRoutes.get("/training-dates", async (c) => {
     const dates = await getUserTrainingDates(user.id);
     const datesAsStrings = dates.map((d) => d.toISOString());
 
-    return c.json(
-      { success: true, data: { dates: datesAsStrings } },
-      { headers: CACHE_HEADERS }
-    );
+    return c.json({ success: true, data: { dates: datesAsStrings } }, { headers: CACHE_HEADERS });
   } catch (error) {
     logger.error("Error in training-dates API", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);

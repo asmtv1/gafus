@@ -1,4 +1,3 @@
-
 import { SessionProviderWrapper } from "@features/errors/components/SessionProviderWrapper";
 import { CSRFProvider } from "@gafus/csrf";
 import { ErrorDashboardQueryProvider } from "@shared/providers/QueryProvider";

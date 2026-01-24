@@ -7,7 +7,7 @@ import { createWebLogger } from "@gafus/logger";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { petIdSchema } from "../validation/petSchemas";
 
-const logger = createWebLogger('web-delete-pet');
+const logger = createWebLogger("web-delete-pet");
 
 export async function deletePet(petId: string, pathToRevalidate?: string) {
   const safePetId = petIdSchema.parse(petId);
@@ -47,7 +47,7 @@ export async function deletePet(petId: string, pathToRevalidate?: string) {
       revalidatePath(pathToRevalidate);
     }
   } catch (error) {
-    logger.error("Ошибка при удалении питомца:", error as Error, { operation: 'error' });
+    logger.error("Ошибка при удалении питомца:", error as Error, { operation: "error" });
     throw new Error("Не удалось удалить питомца");
   }
 }

@@ -4,12 +4,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger('web-api-revalidate-training-days');
+const logger = createWebLogger("web-api-revalidate-training-days");
 
 /**
  * API маршрут для инвалидации кэша дней тренировок
  * Вызывается из trainer-panel при обновлении курса
- * 
+ *
  * POST /api/revalidate/training-days
  * Headers: Authorization: Bearer <secret-token> (опционально)
  * Body: { courseId?: string } // опционально для инвалидации конкретного курса
@@ -18,23 +18,23 @@ export async function POST(request: Request) {
   try {
     // Проверяем авторизацию через сессию
     const session = await getServerSession(authOptions);
-    
+
     // Разрешаем доступ только ADMIN и TRAINER
     if (!session?.user || !["ADMIN", "TRAINER"].includes(session.user.role)) {
       // Также проверяем секретный токен для межсервисных вызовов
       const authHeader = request.headers.get("authorization");
       const secretToken = process.env.REVALIDATE_SECRET_TOKEN;
-      
+
       if (!secretToken || authHeader !== `Bearer ${secretToken}`) {
         logger.warn("[Cache] Unauthorized attempt to invalidate training days cache", {
           userId: session?.user?.id,
           role: session?.user?.role,
           hasAuthHeader: !!authHeader,
-          operation: 'warn'
+          operation: "warn",
         });
         return NextResponse.json(
           { success: false, error: "Недостаточно прав доступа" },
-          { status: 403 }
+          { status: 403 },
         );
       }
     }
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       userId: session?.user?.id,
       role: session?.user?.role,
       courseId,
-      operation: 'warn'
+      operation: "warn",
     });
 
     // Инвалидируем теги кэша дней тренировок
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     logger.warn("[Cache] Training days cache invalidated successfully", {
       userId: session?.user?.id,
       courseId,
-      operation: 'warn'
+      operation: "warn",
     });
 
     return NextResponse.json({
@@ -66,16 +66,16 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     logger.error("❌ Error invalidating training days cache:", error as Error, {
-      operation: 'error',
-      endpoint: '/api/revalidate/training-days'
+      operation: "error",
+      endpoint: "/api/revalidate/training-days",
     });
-    
+
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

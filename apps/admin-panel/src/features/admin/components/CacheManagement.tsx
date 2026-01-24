@@ -3,15 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, CardHeader, Typography } from "@mui/material";
 import { invalidateCoursesCacheAction } from "@/shared/lib/actions/invalidateCacheActions";
 import { invalidateAllCache } from "@/shared/lib/actions/invalidateAllCache";
 
@@ -53,7 +45,11 @@ export default function CacheManagement({ className }: CacheManagementProps) {
   };
 
   const handleInvalidateAllCache = async () => {
-    if (!confirm('⚠️ Вы уверены? Это сбросит весь кэш для ВСЕХ пользователей. Они получат обновленные данные при следующей загрузке приложения (браузер и PWA).')) {
+    if (
+      !confirm(
+        "⚠️ Вы уверены? Это сбросит весь кэш для ВСЕХ пользователей. Они получат обновленные данные при следующей загрузке приложения (браузер и PWA).",
+      )
+    ) {
       return;
     }
 
@@ -81,7 +77,11 @@ export default function CacheManagement({ className }: CacheManagementProps) {
         <Typography variant="h6" component="h2" sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
           Управление кэшем
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}
+        >
           Управление серверным кэшированием данных
         </Typography>
       </CardHeader>
@@ -96,18 +96,25 @@ export default function CacheManagement({ className }: CacheManagementProps) {
                 onClick={handleInvalidateAllCache}
                 disabled={isInvalidatingAll || isInvalidating}
                 fullWidth
-                sx={{ 
+                sx={{
                   mb: 1,
                   minHeight: { xs: "44px", sm: "auto" },
-                  "@media (min-width: 769px)": { width: "auto" } 
+                  "@media (min-width: 769px)": { width: "auto" },
                 }}
               >
-                {isInvalidatingAll ? "⏳ Сброс кэша..." : "🗑️ Сбросить весь кэш для всех пользователей"}
+                {isInvalidatingAll
+                  ? "⏳ Сброс кэша..."
+                  : "🗑️ Сбросить весь кэш для всех пользователей"}
               </Button>
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
-                <strong>⚠️ Важно:</strong> Эта кнопка сбрасывает ВСЕ данные кэша для всех пользователей. 
-                Используйте после крупных обновлений функционала. Пользователи автоматически получат 
-                обновленные данные при следующей загрузке приложения (браузер и PWA).
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}
+              >
+                <strong>⚠️ Важно:</strong> Эта кнопка сбрасывает ВСЕ данные кэша для всех
+                пользователей. Используйте после крупных обновлений функционала. Пользователи
+                автоматически получат обновленные данные при следующей загрузке приложения (браузер
+                и PWA).
               </Typography>
             </Box>
           )}
@@ -120,24 +127,26 @@ export default function CacheManagement({ className }: CacheManagementProps) {
               onClick={handleInvalidateCoursesCache}
               disabled={isInvalidating || isInvalidatingAll}
               fullWidth
-              sx={{ 
+              sx={{
                 mb: 1,
                 minHeight: { xs: "44px", sm: "auto" },
-                "@media (min-width: 769px)": { width: "auto" } 
+                "@media (min-width: 769px)": { width: "auto" },
               }}
             >
               {isInvalidating ? "⏳ Обновление..." : "🔄 Обновить кэш курсов"}
             </Button>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}>
-              Принудительно обновляет кэш всех курсов на сервере. Используйте после массовых изменений курсов.
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ fontSize: { xs: "0.875rem", sm: "0.875rem" } }}
+            >
+              Принудительно обновляет кэш всех курсов на сервере. Используйте после массовых
+              изменений курсов.
             </Typography>
           </Box>
 
           {message && (
-            <Alert 
-              severity={message.startsWith("✅") ? "success" : "error"}
-              sx={{ mt: 2 }}
-            >
+            <Alert severity={message.startsWith("✅") ? "success" : "error"} sx={{ mt: 2 }}>
               {message}
             </Alert>
           )}
@@ -146,4 +155,3 @@ export default function CacheManagement({ className }: CacheManagementProps) {
     </Card>
   );
 }
-

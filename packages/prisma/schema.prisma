@@ -267,6 +267,8 @@ model User {
   reengagementSettings     ReengagementSettings?
   reminders                Reminder[]
   trainerVideos            TrainerVideo[]
+  trainerAIChats           TrainerAIChat[]
+  trainerAIConfig          TrainerAIConfig?
   passwordResetRequestedAt DateTime?
   createdAt                DateTime               @default(now())
   updatedAt                DateTime               @default(now())
@@ -841,4 +843,35 @@ model ErrorLog {
   @@index([environment, timestamp(sort: Desc)])
   @@index([status, timestamp(sort: Desc)])
   @@index([createdAt(sort: Desc)])
+}
+
+// AI Chat для тренеров
+model TrainerAIChat {
+  id        String   @id @default(cuid())
+  trainerId String
+  role      String   // "user" | "assistant"
+  content   String   @db.Text // Для больших сообщений
+  model     String?  // Модель, которая использовалась для этого сообщения
+  tokensUsed Int?    // Количество использованных токенов (для мониторинга)
+  createdAt DateTime @default(now())
+  
+  trainer   User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  
+  @@index([trainerId, createdAt(sort: Desc)])
+  @@index([trainerId])
+}
+
+model TrainerAIConfig {
+  id        String   @id @default(cuid())
+  trainerId String  @unique
+  provider  String  @default("openrouter") // "openrouter" | "deepseek"
+  apiKey    String? @db.VarChar(500) // Опциональный индивидуальный ключ (зашифрованный AES-256-GCM). Если null - используется общий ключ из env
+  model     String  @default("meta-llama/llama-3.3-70b-instruct") // Модель по умолчанию для OpenRouter
+  enabled   Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  trainer   User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  
+  @@index([trainerId])
 }

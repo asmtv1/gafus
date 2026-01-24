@@ -14,6 +14,7 @@
 ## 📦 Использование
 
 ### Настройка провайдера
+
 ```typescript
 import { QueryProvider } from '@gafus/react-query';
 
@@ -27,6 +28,7 @@ function App() {
 ```
 
 ### Использование хуков
+
 ```typescript
 import { useQuery, useMutation } from '@gafus/react-query';
 

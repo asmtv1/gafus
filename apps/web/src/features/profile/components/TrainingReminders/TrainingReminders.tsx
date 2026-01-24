@@ -6,7 +6,7 @@ import {
   createTrainingReminder,
   updateTrainingReminder,
   deleteTrainingReminder,
-  type TrainingReminderData
+  type TrainingReminderData,
 } from "@shared/lib/actions/trainingReminders";
 import styles from "./TrainingReminders.module.css";
 
@@ -17,7 +17,7 @@ const DAYS_OF_WEEK = [
   { id: "4", label: "Чт" },
   { id: "5", label: "Пт" },
   { id: "6", label: "Сб" },
-  { id: "7", label: "Вс" }
+  { id: "7", label: "Вс" },
 ];
 
 const DEFAULT_TIME = "09:00";
@@ -33,8 +33,8 @@ export default function TrainingReminders() {
 
   // Определяем timezone браузера (мемоизировано)
   const browserTimezone = useMemo(() => {
-    return typeof window !== "undefined" 
-      ? Intl.DateTimeFormat().resolvedOptions().timeZone 
+    return typeof window !== "undefined"
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
       : "Europe/Moscow";
   }, []);
 
@@ -62,36 +62,31 @@ export default function TrainingReminders() {
     if (reminders.length >= MAX_REMINDERS) {
       setMessage({
         type: "error",
-        text: `Можно создать максимум ${MAX_REMINDERS} напоминаний`
+        text: `Можно создать максимум ${MAX_REMINDERS} напоминаний`,
       });
       return;
     }
 
     try {
       const name = `задай название ${reminders.length + 1}`;
-      const result = await createTrainingReminder(
-        name,
-        DEFAULT_TIME,
-        undefined,
-        browserTimezone
-      );
+      const result = await createTrainingReminder(name, DEFAULT_TIME, undefined, browserTimezone);
 
       if (result.success && result.data) {
         setReminders([...reminders, result.data]);
         setMessage({
           type: "success",
-          text: "Напоминание создано"
+          text: "Напоминание создано",
         });
       } else {
         setMessage({
           type: "error",
-          text: result.error || "Не удалось создать напоминание"
+          text: result.error || "Не удалось создать напоминание",
         });
       }
     } catch {
       setMessage({
         type: "error",
-        text: "Произошла ошибка"
+        text: "Произошла ошибка",
       });
     }
   }, [reminders, browserTimezone]);
@@ -101,62 +96,62 @@ export default function TrainingReminders() {
       const result = await deleteTrainingReminder(id);
 
       if (result.success) {
-        setReminders(prev => prev.filter(r => r.id !== id));
+        setReminders((prev) => prev.filter((r) => r.id !== id));
         setMessage({
           type: "success",
-          text: "Напоминание удалено"
+          text: "Напоминание удалено",
         });
       } else {
         setMessage({
           type: "error",
-          text: result.error || "Не удалось удалить"
+          text: result.error || "Не удалось удалить",
         });
       }
     } catch {
       setMessage({
         type: "error",
-        text: "Произошла ошибка"
+        text: "Произошла ошибка",
       });
     }
   }, []); // Пустой массив благодаря функциональному обновлению
 
-  const handleUpdateReminder = useCallback(async (
-    id: string,
-    data: Partial<Omit<TrainingReminderData, 'id'>>
-  ) => {
-    try {
-      const updateData: {
-        name?: string;
-        enabled?: boolean;
-        reminderTime?: string;
-        reminderDays?: string;
-        timezone?: string;
-      } = {
-        ...data,
-        reminderDays: data.reminderDays === null ? undefined : data.reminderDays,
-        timezone: browserTimezone
-      };
+  const handleUpdateReminder = useCallback(
+    async (id: string, data: Partial<Omit<TrainingReminderData, "id">>) => {
+      try {
+        const updateData: {
+          name?: string;
+          enabled?: boolean;
+          reminderTime?: string;
+          reminderDays?: string;
+          timezone?: string;
+        } = {
+          ...data,
+          reminderDays: data.reminderDays === null ? undefined : data.reminderDays,
+          timezone: browserTimezone,
+        };
 
-      const result = await updateTrainingReminder(id, updateData);
+        const result = await updateTrainingReminder(id, updateData);
 
-      if (result.success && result.data) {
-        setReminders(prev => prev.map(r => r.id === id ? result.data! : r));
-        return true;
-      } else {
+        if (result.success && result.data) {
+          setReminders((prev) => prev.map((r) => (r.id === id ? result.data! : r)));
+          return true;
+        } else {
+          setMessage({
+            type: "error",
+            text: result.error || "Не удалось обновить",
+          });
+          return false;
+        }
+      } catch {
         setMessage({
           type: "error",
-          text: result.error || "Не удалось обновить"
+          text: "Произошла ошибка",
         });
         return false;
       }
-    } catch {
-      setMessage({
-        type: "error",
-        text: "Произошла ошибка"
-      });
-      return false;
-    }
-  }, [browserTimezone]); // Только browserTimezone, reminders не нужен благодаря функциональному обновлению
+    },
+    [browserTimezone],
+  ); // Только browserTimezone, reminders не нужен благодаря функциональному обновлению
 
   const handleCloseMessage = useCallback(() => {
     setMessage(null);
@@ -184,11 +179,7 @@ export default function TrainingReminders() {
       {message && (
         <div className={`${styles.alert} ${styles[message.type]}`}>
           {message.text}
-          <button 
-            className={styles.alertClose}
-            onClick={handleCloseMessage}
-            aria-label="Закрыть"
-          >
+          <button className={styles.alertClose} onClick={handleCloseMessage} aria-label="Закрыть">
             ×
           </button>
         </div>
@@ -206,17 +197,14 @@ export default function TrainingReminders() {
       </div>
 
       {reminders.length < MAX_REMINDERS && (
-        <button
-          onClick={handleAddReminder}
-          className={styles.addButton}
-        >
+        <button onClick={handleAddReminder} className={styles.addButton}>
           + Добавить напоминание ({reminders.length}/{MAX_REMINDERS})
         </button>
       )}
 
       <div className={styles.infoBox}>
-        <strong>ℹ️ Как это работает:</strong> Создайте несколько напоминаний в разное время.
-        Мы будем присылать вам дружеские напоминания о тренировках в выбранное время и дни.
+        <strong>ℹ️ Как это работает:</strong> Создайте несколько напоминаний в разное время. Мы
+        будем присылать вам дружеские напоминания о тренировках в выбранное время и дни.
       </div>
     </div>
   );
@@ -226,17 +214,17 @@ export default function TrainingReminders() {
 const ReminderItem = memo(function ReminderItem({
   reminder,
   onUpdate,
-  onDelete
+  onDelete,
 }: {
   reminder: TrainingReminderData;
-  onUpdate: (id: string, data: Partial<Omit<TrainingReminderData, 'id'>>) => Promise<boolean>;
+  onUpdate: (id: string, data: Partial<Omit<TrainingReminderData, "id">>) => Promise<boolean>;
   onDelete: (id: string) => void;
 }) {
   const [name, setName] = useState(reminder.name);
   const [enabled, setEnabled] = useState(reminder.enabled);
   const [reminderTime, setReminderTime] = useState(reminder.reminderTime);
   const [selectedDays, setSelectedDays] = useState<string[]>(
-    reminder.reminderDays ? reminder.reminderDays.split(",") : []
+    reminder.reminderDays ? reminder.reminderDays.split(",") : [],
   );
   const [allDays, setAllDays] = useState(!reminder.reminderDays);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -263,19 +251,19 @@ const ReminderItem = memo(function ReminderItem({
 
   const handleDayToggle = async (dayId: string) => {
     const newSelectedDays = selectedDays.includes(dayId)
-      ? selectedDays.filter(d => d !== dayId)
+      ? selectedDays.filter((d) => d !== dayId)
       : [...selectedDays, dayId];
-    
+
     setSelectedDays(newSelectedDays);
-    await onUpdate(reminder.id, { 
-      reminderDays: newSelectedDays.length > 0 ? newSelectedDays.join(",") : undefined 
+    await onUpdate(reminder.id, {
+      reminderDays: newSelectedDays.length > 0 ? newSelectedDays.join(",") : undefined,
     });
   };
 
   const handleAllDaysToggle = async () => {
     const newAllDays = !allDays;
     setAllDays(newAllDays);
-    
+
     if (newAllDays) {
       setSelectedDays([]);
       await onUpdate(reminder.id, { reminderDays: undefined });
@@ -283,7 +271,7 @@ const ReminderItem = memo(function ReminderItem({
   };
 
   return (
-    <div className={`${styles.reminderItem} ${isExpanded ? styles.expanded : ''}`}>
+    <div className={`${styles.reminderItem} ${isExpanded ? styles.expanded : ""}`}>
       <div className={styles.reminderHeader}>
         <label className={styles.switchLabel}>
           <input
@@ -344,7 +332,7 @@ const ReminderItem = memo(function ReminderItem({
           {/* Дни недели */}
           <div className={styles.settingGroup}>
             <label className={styles.label}>Дни</label>
-            
+
             <label className={styles.dayCheckbox}>
               <input
                 type="checkbox"

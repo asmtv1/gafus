@@ -140,7 +140,9 @@ export async function getDetailedStepStatistics(
     "Ноябрь",
     "Декабрь",
   ];
-  const activityByMonth: Record<string, number> = Object.fromEntries(months.map((month) => [month, 0]));
+  const activityByMonth: Record<string, number> = Object.fromEntries(
+    months.map((month) => [month, 0]),
+  );
 
   let totalCompletionTimeSec = 0;
   let completionCount = 0;
@@ -187,4 +189,3 @@ export async function getDetailedStepStatistics(
     completionRate,
   };
 }
-

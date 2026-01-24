@@ -9,12 +9,14 @@
 ## 🎯 Основные функции
 
 ### Типобезопасность
+
 - **Общие интерфейсы** для всех приложений
 - **Валидация типов** на этапе компиляции
 - **Единообразные типы** для API и компонентов
 - **Утилиты типов** для сложных операций
 
 ### Категории типов
+
 - **Auth** - Типы аутентификации и авторизации
 - **Components** - Типы для React компонентов
 - **Data** - Типы данных и API
@@ -25,18 +27,20 @@
 ## 📦 Установка и использование
 
 ### Установка
+
 ```bash
 pnpm add @gafus/types
 ```
 
 ### Базовое использование
+
 ```typescript
-import { User, Pet, Course } from '@gafus/types';
+import { User, Pet, Course } from "@gafus/types";
 
 const user: User = {
-  id: '123',
-  username: 'john_doe',
-  role: 'USER'
+  id: "123",
+  username: "john_doe",
+  role: "USER",
 };
 ```
 
@@ -45,6 +49,7 @@ const user: User = {
 ### Auth типы
 
 #### `User`
+
 Основной тип пользователя.
 
 ```typescript
@@ -61,13 +66,15 @@ interface User {
 ```
 
 #### `UserRole`
+
 Роли пользователей в системе.
 
 ```typescript
-type UserRole = 'USER' | 'TRAINER' | 'ADMIN' | 'MODERATOR' | 'PREMIUM';
+type UserRole = "USER" | "TRAINER" | "ADMIN" | "MODERATOR" | "PREMIUM";
 ```
 
 #### `UserProfile`
+
 Профиль пользователя.
 
 ```typescript
@@ -89,6 +96,7 @@ interface UserProfile {
 ### Data типы
 
 #### `Pet`
+
 Тип домашнего животного.
 
 ```typescript
@@ -109,13 +117,15 @@ interface Pet {
 ```
 
 #### `PetType`
+
 Типы домашних животных.
 
 ```typescript
-type PetType = 'DOG' | 'CAT';
+type PetType = "DOG" | "CAT";
 ```
 
 #### `Course`
+
 Тип курса обучения.
 
 ```typescript
@@ -140,13 +150,15 @@ interface Course {
 ```
 
 #### `TrainingLevel`
+
 Уровни сложности тренировок.
 
 ```typescript
-type TrainingLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
+type TrainingLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
 ```
 
 #### `Step`
+
 Тип шага тренировки.
 
 ```typescript
@@ -170,22 +182,25 @@ interface Step {
 ```
 
 #### `StepType`
+
 Типы шагов тренировок.
 
 ```typescript
-type StepType = 'TRAINING' | 'EXAMINATION';
+type StepType = "TRAINING" | "EXAMINATION";
 ```
 
 #### `TrainingStatus`
+
 Статусы тренировок.
 
 ```typescript
-type TrainingStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+type TrainingStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
 ```
 
 ### Store типы
 
 #### `UserState`
+
 Состояние пользователя в store.
 
 ```typescript
@@ -198,6 +213,7 @@ interface UserState {
 ```
 
 #### `UserPreferences`
+
 Настройки пользователя.
 
 ```typescript
@@ -206,11 +222,12 @@ interface UserPreferences {
   emailNotifications: boolean;
   pushNotifications: boolean;
   language: string;
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
 }
 ```
 
 #### `PetsState`
+
 Состояние питомцев в store.
 
 ```typescript
@@ -223,6 +240,7 @@ interface PetsState {
 ```
 
 #### `CreatePetInput`
+
 Входные данные для создания питомца.
 
 ```typescript
@@ -241,13 +259,14 @@ interface CreatePetInput {
 ### Component типы
 
 #### `FormField`
+
 Тип для полей форм.
 
 ```typescript
 interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'password' | 'number' | 'date' | 'file';
+  type: "text" | "email" | "password" | "number" | "date" | "file";
   required: boolean;
   placeholder?: string;
   validation?: ValidationRule[];
@@ -255,11 +274,12 @@ interface FormField {
 ```
 
 #### `ValidationRule`
+
 Правила валидации.
 
 ```typescript
 interface ValidationRule {
-  type: 'required' | 'minLength' | 'maxLength' | 'pattern' | 'custom';
+  type: "required" | "minLength" | "maxLength" | "pattern" | "custom";
   value?: any;
   message: string;
 }
@@ -268,6 +288,7 @@ interface ValidationRule {
 ### Error Handling типы
 
 #### `ErrorInfo`
+
 Информация об ошибке.
 
 ```typescript
@@ -282,6 +303,7 @@ interface ErrorInfo {
 ```
 
 #### `ErrorBoundaryConfig`
+
 Конфигурация для Error Boundary.
 
 ```typescript
@@ -295,6 +317,7 @@ interface ErrorBoundaryConfig {
 ### Utility типы
 
 #### `ApiResponse<T>`
+
 Стандартный ответ API.
 
 ```typescript
@@ -307,6 +330,7 @@ interface ApiResponse<T> {
 ```
 
 #### `PaginatedResponse<T>`
+
 Пагинированный ответ API.
 
 ```typescript
@@ -322,6 +346,7 @@ interface PaginatedResponse<T> {
 ```
 
 #### `FormState<T>`
+
 Состояние формы.
 
 ```typescript
@@ -339,6 +364,7 @@ interface FormState<T> {
 ### Training типы
 
 #### `UserTraining`
+
 Тренировка пользователя.
 
 ```typescript
@@ -354,6 +380,7 @@ interface UserTraining {
 ```
 
 #### `UserStep`
+
 Шаг тренировки пользователя.
 
 ```typescript
@@ -372,6 +399,7 @@ interface UserStep {
 ### Exam типы
 
 #### `ExamResult`
+
 Результат экзамена.
 
 ```typescript
@@ -394,6 +422,7 @@ interface ExamResult {
 ### Notification типы
 
 #### `PushSubscription`
+
 Push подписка.
 
 ```typescript
@@ -411,6 +440,7 @@ interface PushSubscription {
 ```
 
 #### `StepNotification`
+
 Уведомление о шаге.
 
 ```typescript
@@ -437,20 +467,23 @@ interface StepNotification {
 ### Generic типы
 
 #### `Optional<T, K extends keyof T>`
+
 Делает указанные поля необязательными.
 
 ```typescript
-type PartialUser = Optional<User, 'telegramId' | 'isConfirmed'>;
+type PartialUser = Optional<User, "telegramId" | "isConfirmed">;
 ```
 
 #### `RequiredFields<T, K extends keyof T>`
+
 Делает указанные поля обязательными.
 
 ```typescript
-type RequiredUser = RequiredFields<User, 'telegramId'>;
+type RequiredUser = RequiredFields<User, "telegramId">;
 ```
 
 #### `PickByType<T, U>`
+
 Выбирает поля определенного типа.
 
 ```typescript
@@ -460,6 +493,7 @@ type StringFields = PickByType<User, string>;
 ### Validation типы
 
 #### `ValidationSchema<T>`
+
 Схема валидации для типа.
 
 ```typescript
@@ -469,6 +503,7 @@ type ValidationSchema<T> = {
 ```
 
 #### `FormErrors<T>`
+
 Ошибки формы для типа.
 
 ```typescript
@@ -478,47 +513,55 @@ type FormErrors<T> = Partial<Record<keyof T, string>>;
 ## 🧪 Тестирование
 
 ### Мокирование типов
+
 ```typescript
-import { User, Pet, Course } from '@gafus/types';
+import { User, Pet, Course } from "@gafus/types";
 
 const mockUser: User = {
-  id: '1',
-  username: 'test_user',
-  phone: '+79123456789',
-  role: 'USER',
+  id: "1",
+  username: "test_user",
+  phone: "+79123456789",
+  role: "USER",
   isConfirmed: true,
   createdAt: new Date(),
-  updatedAt: new Date()
+  updatedAt: new Date(),
 };
 
 const mockPet: Pet = {
-  id: '1',
-  ownerId: '1',
-  name: 'Buddy',
-  type: 'DOG',
-  breed: 'Golden Retriever',
+  id: "1",
+  ownerId: "1",
+  name: "Buddy",
+  type: "DOG",
+  breed: "Golden Retriever",
   birthDate: new Date(),
   createdAt: new Date(),
-  updatedAt: new Date()
+  updatedAt: new Date(),
 };
 ```
 
 ### Type Guards
+
 ```typescript
-import { User, Pet } from '@gafus/types';
+import { User, Pet } from "@gafus/types";
 
 function isUser(obj: any): obj is User {
-  return obj && typeof obj.id === 'string' && typeof obj.username === 'string';
+  return obj && typeof obj.id === "string" && typeof obj.username === "string";
 }
 
 function isPet(obj: any): obj is Pet {
-  return obj && typeof obj.id === 'string' && typeof obj.name === 'string' && ['DOG', 'CAT'].includes(obj.type);
+  return (
+    obj &&
+    typeof obj.id === "string" &&
+    typeof obj.name === "string" &&
+    ["DOG", "CAT"].includes(obj.type)
+  );
 }
 ```
 
 ## 🔧 Разработка
 
 ### Структура пакета
+
 ```
 packages/types/
 ├── src/
@@ -548,26 +591,29 @@ packages/types/
 ```
 
 ### Зависимости
+
 - `react-hook-form` - Типы для форм
 - `@gafus/logger` - Логирование
 
 ## 🚀 Использование в проектах
 
 ### В веб-приложении
+
 ```typescript
-import { User, Pet, Course, TrainingStatus } from '@gafus/types';
+import { User, Pet, Course, TrainingStatus } from "@gafus/types";
 
 function UserDashboard({ user }: { user: User }) {
   const [pets, setPets] = useState<Pet[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
-  
+
   // Типобезопасное использование
 }
 ```
 
 ### В панели тренера
+
 ```typescript
-import { User, Course, TrainingLevel } from '@gafus/types';
+import { User, Course, TrainingLevel } from "@gafus/types";
 
 function CourseEditor({ course }: { course: Course }) {
   // Типобезопасное редактирование курса
@@ -575,14 +621,18 @@ function CourseEditor({ course }: { course: Course }) {
 ```
 
 ### В API routes
-```typescript
-import { ApiResponse, User, CreatePetInput } from '@gafus/types';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse<User>>) {
+```typescript
+import { ApiResponse, User, CreatePetInput } from "@gafus/types";
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ApiResponse<User>>,
+) {
   // Типобезопасные API endpoints
 }
 ```
 
 ---
 
-*Пакет @gafus/types обеспечивает типобезопасность и единообразие типов во всей экосистеме GAFUS.*
+_Пакет @gafus/types обеспечивает типобезопасность и единообразие типов во всей экосистеме GAFUS._

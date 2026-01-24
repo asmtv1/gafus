@@ -20,30 +20,49 @@ interface StepActions {
   getStepKey: (courseId: string, dayOnCourseId: string, stepIndex: number) => string;
 
   // Получение состояния
-  getStepState: (courseId: string, dayOnCourseId: string, stepIndex: number) => LocalStepState | null;
+  getStepState: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+  ) => LocalStepState | null;
 
-      // Обновление состояния
-      setStepState: (
-        courseId: string,
-        dayOnCourseId: string,
-        stepIndex: number,
-        state: Partial<LocalStepState>
-      ) => void;
+  // Обновление состояния
+  setStepState: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    state: Partial<LocalStepState>,
+  ) => void;
 
-      // Обновление времени таймера (как в web)
-      updateTimeLeft: (
-        courseId: string,
-        dayOnCourseId: string,
-        stepIndex: number,
-        timeLeft: number
-      ) => void;
+  // Обновление времени таймера (как в web)
+  updateTimeLeft: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    timeLeft: number,
+  ) => void;
 
   // Статусы шагов
-  startStep: (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => void;
-  pauseStep: (courseId: string, dayOnCourseId: string, stepIndex: number, remainingSec: number) => void;
+  startStep: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    durationSec: number,
+  ) => void;
+  pauseStep: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    remainingSec: number,
+  ) => void;
   resumeStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
   completeStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
-  resetStep: (courseId: string, dayOnCourseId: string, stepIndex: number, durationSec: number) => void;
+  resetStep: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    durationSec: number,
+  ) => void;
 
   // Инициализация шага (как в web-версии)
   initializeStep: (
@@ -52,14 +71,14 @@ interface StepActions {
     stepIndex: number,
     durationSec: number,
     status: string,
-    options?: { serverPaused?: boolean; serverRemainingSec?: number }
+    options?: { serverPaused?: boolean; serverRemainingSec?: number },
   ) => void;
 
   // Синхронизация с сервером
   syncFromServer: (
     courseId: string,
     dayOnCourseId: string,
-    steps: Array<{ stepIndex: number; status: string; remainingSec: number | null }>
+    steps: Array<{ stepIndex: number; status: string; remainingSec: number | null }>,
   ) => void;
 
   // Очистка
@@ -215,24 +234,28 @@ export const useStepStore = create<StepStore>()(
       initializeStep: (courseId, dayOnCourseId, stepIndex, durationSec, status, options) => {
         const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
         const current = get().stepStates[key];
-        
+
         // Если шаг уже инициализирован и имеет локальные изменения - не перезаписываем
         if (current && current.updatedAt > Date.now() - 5000) {
           return;
         }
 
-        const initialTimeLeft = options?.serverPaused 
+        const initialTimeLeft = options?.serverPaused
           ? (options.serverRemainingSec ?? durationSec)
-          : (status === "IN_PROGRESS" ? durationSec : durationSec);
+          : status === "IN_PROGRESS"
+            ? durationSec
+            : durationSec;
 
         set((state) => ({
           stepStates: {
             ...state.stepStates,
             [key]: {
               status: (status || "NOT_STARTED") as LocalStepState["status"],
-              remainingSec: options?.serverPaused 
+              remainingSec: options?.serverPaused
                 ? (options.serverRemainingSec ?? durationSec)
-                : (status === "IN_PROGRESS" ? durationSec : null),
+                : status === "IN_PROGRESS"
+                  ? durationSec
+                  : null,
               timeLeft: initialTimeLeft, // Инициализируем timeLeft
               updatedAt: Date.now(),
             },
@@ -243,16 +266,16 @@ export const useStepStore = create<StepStore>()(
       // Синхронизация с данными сервера
       syncFromServer: (courseId, dayOnCourseId, steps) => {
         const updates: Record<string, LocalStepState> = {};
-        
+
         for (const step of steps) {
           const key = `${courseId}-${dayOnCourseId}-${step.stepIndex}`;
           const current = get().stepStates[key];
-          
+
           // Если локальное состояние новее — не перезаписываем
           if (current && current.updatedAt > Date.now() - 5000) {
             continue;
           }
-          
+
           updates[key] = {
             status: step.status as LocalStepState["status"],
             remainingSec: step.remainingSec,
@@ -287,6 +310,6 @@ export const useStepStore = create<StepStore>()(
     {
       name: "step-storage",
       storage: createJSONStorage(() => zustandStorage),
-    }
-  )
+    },
+  ),
 );

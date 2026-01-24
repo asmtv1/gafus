@@ -11,8 +11,18 @@ interface TrainingCalendarProps {
 
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const MONTHS = [
-  "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+  "Январь",
+  "Февраль",
+  "Март",
+  "Апрель",
+  "Май",
+  "Июнь",
+  "Июль",
+  "Август",
+  "Сентябрь",
+  "Октябрь",
+  "Ноябрь",
+  "Декабрь",
 ];
 
 /**
@@ -25,10 +35,7 @@ export function TrainingCalendar({
   onDayPress,
 }: TrainingCalendarProps) {
   // Преобразуем даты в Set для быстрого поиска
-  const trainingDatesSet = useMemo(
-    () => new Set(trainingDates),
-    [trainingDates]
-  );
+  const trainingDatesSet = useMemo(() => new Set(trainingDates), [trainingDates]);
 
   // Генерируем дни месяца
   const calendarDays = useMemo(() => {
@@ -44,7 +51,13 @@ export function TrainingCalendar({
     let startDayOfWeek = firstDay.getDay() - 1;
     if (startDayOfWeek < 0) startDayOfWeek = 6;
 
-    const days: Array<{ date: string; day: number; isCurrentMonth: boolean; isTraining: boolean; isToday: boolean }> = [];
+    const days: Array<{
+      date: string;
+      day: number;
+      isCurrentMonth: boolean;
+      isTraining: boolean;
+      isToday: boolean;
+    }> = [];
 
     // Дни предыдущего месяца
     const prevMonth = new Date(year, monthIndex, 0);

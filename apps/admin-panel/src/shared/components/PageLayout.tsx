@@ -24,10 +24,7 @@ export default function PageLayout({ title, subtitle, children }: PageLayoutProp
           </Typography>
         )}
       </Box>
-      <Box className={styles.contentCard}>
-        {children}
-      </Box>
+      <Box className={styles.contentCard}>{children}</Box>
     </Box>
   );
 }
-

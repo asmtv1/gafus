@@ -8,10 +8,10 @@ interface CourseSearchProps {
   placeholder?: string;
 }
 
-export default function CourseSearch({ 
-  value, 
-  onChange, 
-  placeholder = "Поиск курсов..." 
+export default function CourseSearch({
+  value,
+  onChange,
+  placeholder = "Поиск курсов...",
 }: CourseSearchProps) {
   const [localValue, setLocalValue] = useState(value);
 
@@ -32,18 +32,12 @@ export default function CourseSearch({
   return (
     <div className={styles.searchContainer}>
       <div className={styles.searchWrapper}>
-        <svg 
-          className={styles.searchIcon} 
-          width="20" 
-          height="20" 
-          viewBox="0 0 20 20" 
-          fill="none"
-        >
-          <path 
-            d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM19 19l-4.35-4.35" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
+        <svg className={styles.searchIcon} width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM19 19l-4.35-4.35"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
             strokeLinejoin="round"
           />
         </svg>
@@ -62,10 +56,10 @@ export default function CourseSearch({
             aria-label="Очистить поиск"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path 
-                d="M12 4L4 12M4 4l8 8" 
-                stroke="currentColor" 
-                strokeWidth="2" 
+              <path
+                d="M12 4L4 12M4 4l8 8"
+                stroke="currentColor"
+                strokeWidth="2"
                 strokeLinecap="round"
               />
             </svg>
@@ -75,5 +69,3 @@ export default function CourseSearch({
     </div>
   );
 }
-
-

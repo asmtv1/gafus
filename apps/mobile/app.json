@@ -15,9 +15,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "ru.gafus.app",
       "buildNumber": "1",
-      "associatedDomains": [
-        "applinks:gafus.ru"
-      ],
+      "associatedDomains": ["applinks:gafus.ru"],
       "simulator": {
         "codeSigningRequired": false
       }
@@ -39,10 +37,7 @@
               "pathPrefix": "/training"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
