@@ -22,11 +22,10 @@ export function FormField<T extends FieldValues>({
   visuallyHiddenLabel = false,
   errorClassName,
 }: FormFieldComponentProps<T>) {
-  const formTyped = form as any;
   const {
     register,
     formState: { errors },
-  } = formTyped;
+  } = form;
 
   const error = errors[name]?.message as string | undefined;
 

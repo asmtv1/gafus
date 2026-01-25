@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
-import { AuthorizationError, ValidationError } from "@gafus/core/errors";
+import { AuthorizationError } from "@gafus/core/errors";
 import { z } from "zod";
 
 const logger = createWebLogger("api-exam-submit");

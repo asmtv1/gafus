@@ -1,5 +1,7 @@
 // UI-специфичные типы для shared компонентов
 
+import type { UseFormReturn, FieldValues } from "react-hook-form";
+
 export interface OptimizedImageProps {
   src: string;
   alt: string;
@@ -85,7 +87,7 @@ export interface DualListSelectorProps<T> {
   className?: string;
 }
 
-export interface FormFieldComponentProps<T extends Record<string, unknown>> {
+export interface FormFieldComponentProps<T extends FieldValues> {
   id: string;
   label?: string;
   name: string;
@@ -93,7 +95,7 @@ export interface FormFieldComponentProps<T extends Record<string, unknown>> {
   placeholder?: string;
   as?: "input" | "textarea" | "select";
   rules?: Record<string, unknown>;
-  form: unknown; // UseFormReturn из react-hook-form
+  form: UseFormReturn<T>;
   options?: { value: string; label: string }[];
   className?: string;
   disabled?: boolean;

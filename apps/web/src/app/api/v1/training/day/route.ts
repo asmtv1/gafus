@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
-import { AuthorizationError, ValidationError } from "@gafus/core/errors";
+import { AuthorizationError } from "@gafus/core/errors";
 import { z } from "zod";
 
 const logger = createWebLogger("api-training-day");
