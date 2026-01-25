@@ -1,6 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
+  binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x", "darwin-arm64"]
 }
 
 // generator erd {
@@ -853,6 +853,7 @@ model TrainerAIChat {
   content   String   @db.Text // Для больших сообщений
   model     String?  // Модель, которая использовалась для этого сообщения
   tokensUsed Int?    // Количество использованных токенов (для мониторинга)
+  attachments Json?  // Вложения (метаданные: name, type, size)
   createdAt DateTime @default(now())
   
   trainer   User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)

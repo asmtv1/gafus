@@ -399,6 +399,7 @@ jobs:
                 echo "# Next.js публичные переменные"
                 echo "NEXT_PUBLIC_SITE_URL=https://gafus.ru"
                 echo "NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer.gafus.ru"
+                echo "NEXT_PUBLIC_APP_URL=https://trainer.gafus.ru"
                 echo ""
                 echo "# Анализ бандла (только для разработки)"
                 echo "ANALYZE=false"
@@ -410,6 +411,9 @@ jobs:
                 echo "GRAFANA_ADMIN_USER=${{ secrets.GRAFANA_ADMIN_USER }}"
                 echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
                 echo "GRAFANA_SECRET_KEY=${{ secrets.GRAFANA_SECRET_KEY }}"
+                echo ""
+                echo "# OpenRouter AI API"
+                echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}"
               } > ci-cd/docker/.env
               chmod 600 ci-cd/docker/.env
               echo "✅ .env file created"

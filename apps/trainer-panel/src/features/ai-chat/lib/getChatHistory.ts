@@ -12,6 +12,7 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   tokensUsed?: number | null;
+  attachments?: any;
   createdAt: Date;
 }
 
@@ -47,10 +48,14 @@ export async function getChatHistory(
       where: { trainerId },
     });
 
-    // Получаем сообщения с пагинацией
+    // Получаем последние N сообщений
+    // Сортируем по createdAt (от новых к старым), затем по id для стабильности при одинаковом времени
     const messages = await prisma.trainerAIChat.findMany({
       where: { trainerId },
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { createdAt: "desc" },
+        { id: "desc" }, // Дополнительная сортировка по ID для стабильности
+      ],
       take: pageSize,
       skip: page * pageSize,
       select: {
@@ -58,20 +63,31 @@ export async function getChatHistory(
         role: true,
         content: true,
         tokensUsed: true,
+        attachments: true,
         createdAt: true,
       },
     });
 
     const hasMore = total > (page + 1) * pageSize;
 
+    // Переворачиваем массив для правильного порядка отображения (от старых к новым)
+    // И дополнительно сортируем по createdAt и id для гарантии правильного порядка
+    const sortedMessages = [...messages].reverse().sort((a, b) => {
+      const timeDiff = a.createdAt.getTime() - b.createdAt.getTime();
+      if (timeDiff !== 0) return timeDiff;
+      // Если время одинаковое, сортируем по ID (раньше созданный = меньший ID в cuid)
+      return a.id.localeCompare(b.id);
+    });
+
     return {
       success: true,
       data: {
-        messages: messages.map((msg) => ({
+        messages: sortedMessages.map((msg) => ({
           id: msg.id,
           role: msg.role as "user" | "assistant",
           content: msg.content,
           tokensUsed: msg.tokensUsed,
+          attachments: msg.attachments,
           createdAt: msg.createdAt,
         })),
         hasMore,

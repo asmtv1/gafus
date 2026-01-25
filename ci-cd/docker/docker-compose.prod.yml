@@ -92,6 +92,10 @@ services:
       # HLS Video Protection
       - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
       - NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${NEXT_PUBLIC_ENABLE_HLS_PROTECTION:-true}
+      # OpenRouter AI API
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      # Next.js публичные переменные для trainer-panel
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL:-https://trainer.gafus.ru}
     restart: unless-stopped
 
     depends_on:

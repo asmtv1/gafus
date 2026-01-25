@@ -43,6 +43,9 @@ export { default as Tab } from "@mui/material/Tab";
 export { default as Tabs } from "@mui/material/Tabs";
 export { default as TextField } from "@mui/material/TextField";
 export { default as Typography } from "@mui/material/Typography";
+export { default as Tooltip } from "@mui/material/Tooltip";
+export { default as Fade } from "@mui/material/Fade";
+export { default as Zoom } from "@mui/material/Zoom";
 
 // Material-UI таблицы
 export { default as Table } from "@mui/material/Table";

@@ -1,128 +1,178 @@
-"use client";
-
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Box, Typography, IconButton, Paper } from "@/utils/muiImports";
-import { ContentCopy as ContentCopyIcon } from "@mui/icons-material";
-import type { ChatMessage as ChatMessageType } from "../lib/getChatHistory";
+import { Box, Typography, IconButton, Paper, Tooltip } from "@/utils/muiImports";
+import { 
+  ContentCopy as ContentCopyIcon,
+  AttachFile as AttachFileIcon,
+  Check as CheckIcon,
+  SmartToy as BotIcon,
+  Person as PersonIcon,
+} from "@mui/icons-material";
+import type { Message } from "ai";
 
 interface ChatMessageProps {
-  message: ChatMessageType;
+  message: Message & { tokensUsed?: number | null };
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
+  const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(message.content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Игнорируем ошибки копирования
-    }
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const formatTime = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return "только что";
-    if (minutes < 60) return `${minutes} мин. назад`;
-    if (hours < 24) return `${hours} ч. назад`;
-    if (days < 7) return `${days} дн. назад`;
-    return new Date(date).toLocaleDateString("ru-RU");
+    return new Intl.DateTimeFormat("ru-RU", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
   };
-
-  const isUser = message.role === "user";
 
   return (
     <Box
       sx={{
         display: "flex",
-        justifyContent: isUser ? "flex-end" : "flex-start",
+        flexDirection: "column",
+        alignItems: isUser ? "flex-end" : "flex-start",
         mb: 2,
+        width: "100%",
       }}
     >
-      <Paper
-        elevation={1}
+      <Box
         sx={{
-          maxWidth: "80%",
-          p: 2,
-          bgcolor: isUser ? "primary.light" : "grey.100",
-          color: isUser ? "primary.contrastText" : "text.primary",
+          display: "flex",
+          flexDirection: isUser ? "row-reverse" : "row",
+          alignItems: "flex-end",
+          gap: 1,
+          maxWidth: "85%",
         }}
       >
+        {/* Avatar */}
         <Box
           sx={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: isUser ? "primary.main" : "white",
+            color: isUser ? "white" : "primary.main",
+            boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
+            border: isUser ? "none" : "1px solid",
+            borderColor: "divider",
+            flexShrink: 0,
+            mb: 0.5,
           }}
         >
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="caption" sx={{ display: "block", mb: 1, opacity: 0.7 }}>
-              {isUser ? "Вы" : "AI"}
-            </Typography>
-            <ReactMarkdown
-              components={{
-                p: ({ children }) => (
-                  <Typography variant="body2" component="div" sx={{ mb: 1 }}>
-                    {children}
-                  </Typography>
-                ),
-                code: ({ children }) => (
-                  <Box
-                    component="code"
-                    sx={{
-                      bgcolor: "rgba(0,0,0,0.1)",
-                      px: 0.5,
-                      py: 0.25,
-                      borderRadius: 0.5,
-                      fontSize: "0.875rem",
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    {children}
-                  </Box>
-                ),
-                pre: ({ children }) => (
-                  <Box
-                    component="pre"
-                    sx={{
-                      bgcolor: "rgba(0,0,0,0.1)",
-                      p: 1,
-                      borderRadius: 1,
-                      overflow: "auto",
-                      fontSize: "0.875rem",
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    {children}
-                  </Box>
-                ),
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
-            <Typography variant="caption" sx={{ display: "block", mt: 1, opacity: 0.6 }}>
-              {formatTime(message.createdAt)}
-            </Typography>
-          </Box>
-          <IconButton size="small" onClick={handleCopy} sx={{ alignSelf: "flex-start" }}>
-            <ContentCopyIcon fontSize="small" />
-          </IconButton>
+          {isUser ? <PersonIcon sx={{ fontSize: 16 }} /> : <BotIcon sx={{ fontSize: 16 }} />}
         </Box>
-        {copied && (
-          <Typography variant="caption" sx={{ display: "block", mt: 0.5, color: "success.main" }}>
-            Скопировано!
-          </Typography>
-        )}
-      </Paper>
+
+        <Paper
+          elevation={0}
+          sx={{
+            p: "10px 16px",
+            borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+            bgcolor: isUser ? "primary.main" : "white",
+            color: isUser ? "white" : "text.primary",
+            boxShadow: isUser 
+              ? "0 2px 8px rgba(25, 118, 210, 0.2)" 
+              : "0 2px 8px rgba(0,0,0,0.05)",
+            border: isUser ? "none" : "1px solid",
+            borderColor: "divider",
+            position: "relative",
+            "&:hover .copy-button": { opacity: 1 },
+          }}
+        >
+          <ReactMarkdown
+            components={{
+              p: ({ children }) => (
+                <Typography variant="body2" component="div" sx={{ mb: 0.5, lineHeight: 1.5 }}>
+                  {children}
+                </Typography>
+              ),
+              code: ({ children }) => (
+                <Box
+                  component="code"
+                  sx={{
+                    bgcolor: isUser ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.05)",
+                    px: 0.5,
+                    borderRadius: 0.5,
+                    fontFamily: "monospace",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  {children}
+                </Box>
+              ),
+              ul: ({ children }) => <Box component="ul" sx={{ pl: 2, mb: 1 }}>{children}</Box>,
+              ol: ({ children }) => <Box component="ol" sx={{ pl: 2, mb: 1 }}>{children}</Box>,
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
+
+          {message.experimental_attachments && message.experimental_attachments.length > 0 && (
+            <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 0.5 }}>
+              {message.experimental_attachments.map((att: any, i: number) => (
+                <Box 
+                  key={i} 
+                  sx={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: 1,
+                    bgcolor: isUser ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.03)",
+                    p: "4px 8px",
+                    borderRadius: 1.5,
+                    fontSize: "0.75rem",
+                    border: "1px solid",
+                    borderColor: isUser ? "rgba(255,255,255,0.2)" : "divider",
+                  }}
+                >
+                  <AttachFileIcon sx={{ fontSize: 14 }} />
+                  <Typography variant="caption" noWrap sx={{ maxWidth: '100%', fontWeight: 500 }}>
+                    {att.name}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          <Box sx={{ 
+            display: "flex", 
+            justifyContent: "space-between", 
+            alignItems: "center", 
+            mt: 0.5,
+            minWidth: 40 
+          }}>
+            <Typography variant="caption" sx={{ opacity: 0.6, fontSize: "0.65rem" }}>
+              {formatTime(message.createdAt || new Date())}
+            </Typography>
+            
+            {!isUser && (
+              <Tooltip title={copied ? "Скопировано" : "Копировать"}>
+                <IconButton 
+                  className="copy-button"
+                  size="small" 
+                  onClick={handleCopy} 
+                  sx={{ 
+                    p: 0.2, 
+                    ml: 1, 
+                    opacity: 0, 
+                    transition: "opacity 0.2s",
+                    color: "inherit"
+                  }}
+                >
+                  {copied ? <CheckIcon sx={{ fontSize: 14 }} /> : <ContentCopyIcon sx={{ fontSize: 14 }} />}
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        </Paper>
+      </Box>
     </Box>
   );
 }

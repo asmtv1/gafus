@@ -8,7 +8,6 @@ import {
   Notifications,
   TrendingUp,
   Assessment,
-  SmartToy as SmartToyIcon,
 } from "@mui/icons-material";
 
 import MobileMenu from "@/shared/components/MobileMenu";
@@ -66,10 +65,6 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             <Link href="/main-panel/presentation-stats" className={styles.button}>
               <Assessment sx={{ mr: 1.5, fontSize: 20 }} />
               Стата по презентации
-            </Link>
-            <Link href="/main-panel/ai-chat-configs" className={styles.button}>
-              <SmartToyIcon sx={{ mr: 1.5, fontSize: 20 }} />
-              AI чат тренеров
             </Link>
           </>
         )}
