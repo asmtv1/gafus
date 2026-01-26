@@ -35,6 +35,7 @@
       "@gafus/core/services/achievements": [
         "../../packages/core/src/services/achievements/index.ts"
       ],
+      "@gafus/core/services/notes": ["../../packages/core/src/services/notes/index.ts"],
       "@gafus/core/errors": ["../../packages/core/src/errors/index.ts"],
       "@gafus/core/utils": ["../../packages/core/src/utils/index.ts"],
       "@gafus/core/utils/social": ["../../packages/core/src/utils/social.ts"],

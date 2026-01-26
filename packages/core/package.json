@@ -49,6 +49,10 @@
       "types": "./dist/core/src/services/exam/index.d.ts",
       "default": "./dist/core/src/services/exam/index.js"
     },
+    "./services/notes": {
+      "types": "./dist/core/src/services/notes/index.d.ts",
+      "default": "./dist/core/src/services/notes/index.js"
+    },
     "./services/offline": {
       "types": "./dist/core/src/services/offline/index.d.ts",
       "default": "./dist/core/src/services/offline/index.js"

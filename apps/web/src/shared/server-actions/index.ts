@@ -88,3 +88,6 @@ export {
   getUserPreferencesAction,
   updateUserPreferencesAction,
 } from "./user";
+
+// Notes Actions
+export { getStudentNotes } from "./notes";

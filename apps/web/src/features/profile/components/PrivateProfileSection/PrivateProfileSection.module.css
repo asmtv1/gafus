@@ -1,7 +1,7 @@
 /* Основной контейнер */
 .section {
   padding: 20px;
-  max-width: 510px;
+  max-width: 500px;
   width: 100%;
   margin: 1rem auto;
   background: #ece5d2;
@@ -44,11 +44,19 @@
 }
 
 /* Мобильные стили */
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .section {
     padding: 16px;
     margin: 0.5rem 8px;
     max-width: calc(100vw - 16px);
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .section {
+    padding: 1.5rem;
+    margin: 1rem auto;
+    max-width: 500px;
   }
 
   .passwordButton {
@@ -64,6 +72,13 @@
     padding: 12px;
     margin: 0.5rem 4px;
     max-width: calc(100vw - 8px);
+  }
+
+  .passwordButton {
+    width: 100%;
+    text-align: center;
+    padding: 12px 20px;
+    font-size: 0.9rem;
   }
 
   .passwordButton {

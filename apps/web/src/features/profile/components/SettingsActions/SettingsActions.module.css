@@ -1,7 +1,7 @@
 /* Основной контейнер */
 .section {
   padding: 20px;
-  max-width: 510px;
+  max-width: 500px;
   width: 100%;
   margin: 1rem auto;
   background: #ece5d2;
@@ -63,13 +63,27 @@
 }
 
 /* Мобильные стили */
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .section {
     padding: 16px;
     margin: 0.5rem 8px;
     max-width: calc(100vw - 16px);
     padding-left: max(16px, env(safe-area-inset-left));
     padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .button {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    min-height: 48px;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .section {
+    padding: 1.5rem;
+    margin: 1rem auto;
+    max-width: 500px;
   }
 
   .button {

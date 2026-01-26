@@ -1,0 +1,211 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: 500px;
+  margin: 1rem auto;
+  padding: 1rem;
+  background-color: var(--bg-1);
+  border-radius: 12px;
+  border: 1px solid var(--bg-2);
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 400;
+  color: #352e2e;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+}
+
+.loading,
+.error,
+.empty {
+  text-align: center;
+  padding: 2rem;
+  color: #636128;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 0.95rem;
+}
+
+.error {
+  color: #dc3545;
+}
+
+.empty {
+  background: #fff8e5;
+  color: #636128;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px dashed #d4c4a8;
+  font-style: italic;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.notesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.noteCard {
+  padding: 1.2rem;
+  background: #f5f0e8;
+  border-radius: 12px;
+  border: 1px solid #d4c4a8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.noteCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  border-color: #b6c582;
+}
+
+.noteTitle {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: #352e2e;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #636128;
+}
+
+.noteMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.trainerInfo {
+  font-weight: 600;
+  color: #636128;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid #d4c4a8;
+}
+
+.noteDate {
+  font-size: 0.85rem;
+  color: #636128;
+  font-style: italic;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tag {
+  padding: 0.3rem 0.8rem;
+  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: #636128;
+  border: 1px solid #d4c4a8;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 500;
+}
+
+.entries {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.entry {
+  padding: 1rem;
+  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
+  border-radius: 12px;
+  border: 1px solid #d4c4a8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.entry:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: #fff8e5;
+  border-color: #b6c582;
+}
+
+.entryContent {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+  color: #352e2e;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 0.95rem;
+}
+
+.entryMeta {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.entryDate {
+  font-size: 0.75rem;
+  color: #636128;
+  font-style: italic;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .container {
+    padding: 1.5rem;
+    margin: 1rem auto;
+    gap: 1.5rem;
+    max-width: 500px;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .noteCard {
+    padding: 1.5rem;
+  }
+
+  .noteTitle {
+    font-size: 1.3rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .container {
+    padding: 20px;
+    margin: 20px auto;
+    gap: 16px;
+    max-width: 500px;
+  }
+
+  .title {
+    font-size: 2.5rem;
+  }
+
+  .noteCard {
+    padding: 2rem;
+  }
+
+  .noteTitle {
+    font-size: 1.5rem;
+  }
+}
