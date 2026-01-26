@@ -269,6 +269,8 @@ model User {
   trainerVideos            TrainerVideo[]
   trainerAIChats           TrainerAIChat[]
   trainerAIConfig          TrainerAIConfig?
+  trainerNotes             TrainerNote[]          @relation("TrainerNotes")
+  studentNotes             TrainerNoteStudent[]   @relation("StudentNotes")
   passwordResetRequestedAt DateTime?
   createdAt                DateTime               @default(now())
   updatedAt                DateTime               @default(now())
@@ -282,25 +284,25 @@ enum TranscodingStatus {
 }
 
 model TrainerVideo {
-  id           String   @id @default(cuid())
+  id           String  @id @default(cuid())
   trainerId    String
-  trainer      User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  trainer      User    @relation(fields: [trainerId], references: [id], onDelete: Cascade)
   relativePath String
   originalName String
   displayName  String?
   mimeType     String
   fileSize     Int
   durationSec  Int?
-  
+
   // HLS транскодирование
-  hlsManifestPath   String?             // Путь к HLS манифесту (playlist.m3u8)
-  thumbnailPath     String?             // Путь к thumbnail изображению
-  transcodingStatus TranscodingStatus   @default(PENDING)
-  transcodedAt      DateTime?           // Когда транскодирование завершено
-  transcodingError  String?             // Текст ошибки если транскодирование провалилось
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  hlsManifestPath   String? // Путь к HLS манифесту (playlist.m3u8)
+  thumbnailPath     String? // Путь к thumbnail изображению
+  transcodingStatus TranscodingStatus @default(PENDING)
+  transcodedAt      DateTime? // Когда транскодирование завершено
+  transcodingError  String? // Текст ошибки если транскодирование провалилось
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([trainerId], name: "idx_trainer_videos_trainer")
   @@index([transcodingStatus])
@@ -847,32 +849,74 @@ model ErrorLog {
 
 // AI Chat для тренеров
 model TrainerAIChat {
-  id        String   @id @default(cuid())
-  trainerId String
-  role      String   // "user" | "assistant"
-  content   String   @db.Text // Для больших сообщений
-  model     String?  // Модель, которая использовалась для этого сообщения
-  tokensUsed Int?    // Количество использованных токенов (для мониторинга)
-  attachments Json?  // Вложения (метаданные: name, type, size)
-  createdAt DateTime @default(now())
-  
-  trainer   User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  
+  id          String   @id @default(cuid())
+  trainerId   String
+  role        String // "user" | "assistant"
+  content     String   @db.Text // Для больших сообщений
+  model       String? // Модель, которая использовалась для этого сообщения
+  tokensUsed  Int? // Количество использованных токенов (для мониторинга)
+  attachments Json? // Вложения (метаданные: name, type, size)
+  createdAt   DateTime @default(now())
+
+  trainer User @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
   @@index([trainerId, createdAt(sort: Desc)])
   @@index([trainerId])
 }
 
 model TrainerAIConfig {
   id        String   @id @default(cuid())
-  trainerId String  @unique
-  provider  String  @default("openrouter") // "openrouter" | "deepseek"
-  apiKey    String? @db.VarChar(500) // Опциональный индивидуальный ключ (зашифрованный AES-256-GCM). Если null - используется общий ключ из env
-  model     String  @default("meta-llama/llama-3.3-70b-instruct") // Модель по умолчанию для OpenRouter
-  enabled   Boolean @default(true)
+  trainerId String   @unique
+  provider  String   @default("openrouter") // "openrouter" | "deepseek"
+  apiKey    String?  @db.VarChar(500) // Опциональный индивидуальный ключ (зашифрованный AES-256-GCM). Если null - используется общий ключ из env
+  model     String   @default("meta-llama/llama-3.3-70b-instruct") // Модель по умолчанию для OpenRouter
+  enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  trainer   User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  
+
+  trainer User @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
   @@index([trainerId])
+}
+
+model TrainerNote {
+  id        String               @id @default(cuid())
+  trainerId String // ID тренера, создавшего заметку
+  title     String?              @db.VarChar(200) // Заголовок заметки (опционально)
+  tags      String[] // Теги заметки (массив строк)
+  trainer   User                 @relation("TrainerNotes", fields: [trainerId], references: [id], onDelete: Cascade)
+  students  TrainerNoteStudent[] // Связь многие-ко-многим с учениками
+  entries   TrainerNoteEntry[] // Текстовые записи внутри заметки
+  createdAt DateTime             @default(now())
+
+  @@index([trainerId, createdAt(sort: Desc)]) // Для запросов всех заметок тренера
+}
+
+// Отдельные текстовые записи внутри заметки
+model TrainerNoteEntry {
+  id                 String      @id @default(cuid())
+  noteId             String
+  content            String      @db.Text // Текст записи (валидация длины в Zod: max 10000 символов)
+  order              Int         @default(0) // Порядок отображения записей
+  isVisibleToStudent Boolean     @default(false) // Видна ли запись ученику
+  note               TrainerNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([noteId, order]) // Для сортировки записей внутри заметки
+}
+
+// Промежуточная таблица для связи многие-ко-многим между TrainerNote и User (учениками)
+model TrainerNoteStudent {
+  id        String      @id @default(cuid())
+  noteId    String
+  studentId String
+  note      TrainerNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  student   User        @relation("StudentNotes", fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([noteId, studentId]) // Один ученик может быть связан с заметкой только один раз
+  @@index([noteId])
+  @@index([studentId])
+  @@index([studentId, createdAt(sort: Desc)]) // Для запросов заметок по конкретному ученику
 }

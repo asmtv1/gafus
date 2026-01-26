@@ -16,6 +16,7 @@ import {
   Close as CloseIcon,
   Logout,
   VideoLibrary,
+  Note,
 } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 
@@ -130,6 +131,10 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           <Assignment />
           Результаты экзаменов
           {pendingExamCount > 0 && <span className={styles.badge}>{pendingExamCount}</span>}
+        </Link>
+        <Link href="/main-panel/notes" className={styles.button} onClick={closeMobileMenu}>
+          <Note />
+          Заметки
         </Link>
         <Link href="/main-panel/faq" className={styles.button} onClick={closeMobileMenu}>
           <HelpOutline />
