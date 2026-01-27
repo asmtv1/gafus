@@ -26,57 +26,57 @@ const customLightTheme = {
     error: COLORS.error,
   },
   fonts: {
-    ...MD3LightTheme.fonts,
+    ...(MD3LightTheme.fonts ?? {}),
     default: {
-      ...MD3LightTheme.fonts.default,
+      ...(MD3LightTheme.fonts?.default ?? {}),
       fontFamily: FONTS.montserrat,
     },
     bodyLarge: {
-      ...MD3LightTheme.fonts.bodyLarge,
+      ...(MD3LightTheme.fonts?.bodyLarge ?? {}),
       fontFamily: FONTS.montserrat,
     },
     bodyMedium: {
-      ...MD3LightTheme.fonts.bodyMedium,
+      ...(MD3LightTheme.fonts?.bodyMedium ?? {}),
       fontFamily: FONTS.montserrat,
     },
     bodySmall: {
-      ...MD3LightTheme.fonts.bodySmall,
+      ...(MD3LightTheme.fonts?.bodySmall ?? {}),
       fontFamily: FONTS.montserrat,
     },
     headlineLarge: {
-      ...MD3LightTheme.fonts.headlineLarge,
+      ...(MD3LightTheme.fonts?.headlineLarge ?? {}),
       fontFamily: FONTS.montserrat,
     },
     headlineMedium: {
-      ...MD3LightTheme.fonts.headlineMedium,
+      ...(MD3LightTheme.fonts?.headlineMedium ?? {}),
       fontFamily: FONTS.montserrat,
     },
     headlineSmall: {
-      ...MD3LightTheme.fonts.headlineSmall,
+      ...(MD3LightTheme.fonts?.headlineSmall ?? {}),
       fontFamily: FONTS.montserrat,
     },
     titleLarge: {
-      ...MD3LightTheme.fonts.titleLarge,
+      ...(MD3LightTheme.fonts?.titleLarge ?? {}),
       fontFamily: FONTS.montserrat,
     },
     titleMedium: {
-      ...MD3LightTheme.fonts.titleMedium,
+      ...(MD3LightTheme.fonts?.titleMedium ?? {}),
       fontFamily: FONTS.montserrat,
     },
     titleSmall: {
-      ...MD3LightTheme.fonts.titleSmall,
+      ...(MD3LightTheme.fonts?.titleSmall ?? {}),
       fontFamily: FONTS.montserrat,
     },
     labelLarge: {
-      ...MD3LightTheme.fonts.labelLarge,
+      ...(MD3LightTheme.fonts?.labelLarge ?? {}),
       fontFamily: FONTS.montserrat,
     },
     labelMedium: {
-      ...MD3LightTheme.fonts.labelMedium,
+      ...(MD3LightTheme.fonts?.labelMedium ?? {}),
       fontFamily: FONTS.montserrat,
     },
     labelSmall: {
-      ...MD3LightTheme.fonts.labelSmall,
+      ...(MD3LightTheme.fonts?.labelSmall ?? {}),
       fontFamily: FONTS.montserrat,
     },
   },
@@ -92,57 +92,57 @@ const customDarkTheme = {
     secondary: COLORS.secondary,
   },
   fonts: {
-    ...MD3DarkTheme.fonts,
+    ...(MD3DarkTheme.fonts ?? {}),
     default: {
-      ...MD3DarkTheme.fonts.default,
+      ...(MD3DarkTheme.fonts?.default ?? {}),
       fontFamily: FONTS.montserrat,
     },
     bodyLarge: {
-      ...MD3DarkTheme.fonts.bodyLarge,
+      ...(MD3DarkTheme.fonts?.bodyLarge ?? {}),
       fontFamily: FONTS.montserrat,
     },
     bodyMedium: {
-      ...MD3DarkTheme.fonts.bodyMedium,
+      ...(MD3DarkTheme.fonts?.bodyMedium ?? {}),
       fontFamily: FONTS.montserrat,
     },
     bodySmall: {
-      ...MD3DarkTheme.fonts.bodySmall,
+      ...(MD3DarkTheme.fonts?.bodySmall ?? {}),
       fontFamily: FONTS.montserrat,
     },
     headlineLarge: {
-      ...MD3DarkTheme.fonts.headlineLarge,
+      ...(MD3DarkTheme.fonts?.headlineLarge ?? {}),
       fontFamily: FONTS.montserrat,
     },
     headlineMedium: {
-      ...MD3DarkTheme.fonts.headlineMedium,
+      ...(MD3DarkTheme.fonts?.headlineMedium ?? {}),
       fontFamily: FONTS.montserrat,
     },
     headlineSmall: {
-      ...MD3DarkTheme.fonts.headlineSmall,
+      ...(MD3DarkTheme.fonts?.headlineSmall ?? {}),
       fontFamily: FONTS.montserrat,
     },
     titleLarge: {
-      ...MD3DarkTheme.fonts.titleLarge,
+      ...(MD3DarkTheme.fonts?.titleLarge ?? {}),
       fontFamily: FONTS.montserrat,
     },
     titleMedium: {
-      ...MD3DarkTheme.fonts.titleMedium,
+      ...(MD3DarkTheme.fonts?.titleMedium ?? {}),
       fontFamily: FONTS.montserrat,
     },
     titleSmall: {
-      ...MD3DarkTheme.fonts.titleSmall,
+      ...(MD3DarkTheme.fonts?.titleSmall ?? {}),
       fontFamily: FONTS.montserrat,
     },
     labelLarge: {
-      ...MD3DarkTheme.fonts.labelLarge,
+      ...(MD3DarkTheme.fonts?.labelLarge ?? {}),
       fontFamily: FONTS.montserrat,
     },
     labelMedium: {
-      ...MD3DarkTheme.fonts.labelMedium,
+      ...(MD3DarkTheme.fonts?.labelMedium ?? {}),
       fontFamily: FONTS.montserrat,
     },
     labelSmall: {
-      ...MD3DarkTheme.fonts.labelSmall,
+      ...(MD3DarkTheme.fonts?.labelSmall ?? {}),
       fontFamily: FONTS.montserrat,
     },
   },

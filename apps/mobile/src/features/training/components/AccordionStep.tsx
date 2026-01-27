@@ -1,12 +1,10 @@
-import { View, StyleSheet, Pressable } from "react-native";
-import { Text, Surface, Divider, IconButton } from "react-native-paper";
+import { View, StyleSheet, Pressable, ScrollView } from "react-native";
+import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-native-reanimated";
 import { useEffect, useState } from "react";
 
-import { StepTimer } from "./StepTimer";
-import { Button } from "@/shared/components/ui";
-import { VideoPlayer } from "@/shared/components";
+import { Button, MarkdownText, VideoPlayer } from "@/shared/components";
 import type { UserStep } from "@/shared/lib/api";
 import type { LocalStepState } from "@/shared/stores";
 import { useStepStore, useTimerStore } from "@/shared/stores";
@@ -44,6 +42,7 @@ export function AccordionStep({
   onPause,
   onResume,
   onComplete,
+  onReset,
 }: AccordionStepProps) {
   if (__DEV__) {
     console.log("[AccordionStep] Рендеринг шага:", {
@@ -158,9 +157,11 @@ export function AccordionStep({
 
           tick();
 
-          // Обновляем timeLeft в stepStore после каждого тика
+          // Обновляем timeLeft в stepStore после каждого тика (только если шаг уже создан)
           const updatedTimer = useTimerStoreDirect.getState().activeTimer;
+          const stepState = useStepStore.getState().getStepState(courseId, dayOnCourseId, index);
           if (
+            stepState &&
             updatedTimer &&
             updatedTimer.courseId === courseId &&
             updatedTimer.dayOnCourseId === dayOnCourseId &&
@@ -207,7 +208,7 @@ export function AccordionStep({
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: heightAnim.value,
-    maxHeight: heightAnim.value * 500, // Достаточная максимальная высота
+    maxHeight: heightAnim.value * 3000, // чтобы контент не обрезался, скролл внутри
   }));
 
   // Иконка статуса
@@ -243,7 +244,7 @@ export function AccordionStep({
   }
 
   return (
-    <Surface style={[styles.container, isCompleted && styles.completedContainer]} elevation={1}>
+    <View style={[styles.container, isCompleted && styles.completedContainer]}>
       <View style={styles.surfaceContent}>
         {/* Заголовок (всегда видимый) */}
         <Pressable onPress={onToggle} style={styles.header}>
@@ -295,10 +296,72 @@ export function AccordionStep({
         {/* Контент (раскрывающийся) */}
         <Animated.View style={[styles.content, animatedStyle]}>
           {isOpen && (
-            <>
+            <ScrollView
+              style={styles.stepContentScroll}
+              contentContainerStyle={styles.stepContentScrollContent}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+            >
               <Divider style={styles.divider} />
 
-              {/* Видео для всех шагов (кроме перерывов) */}
+              {/* Информационные карточки для разных типов шагов (как в web) */}
+              {isTheory && (
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoCardTitle}>Теоретический шаг</Text>
+                  {stepData.estimatedDurationSec && stepData.estimatedDurationSec > 0 && (
+                    <View style={styles.estimatedTimeBadge}>
+                      <Text style={styles.estimatedTimeBadgeText}>
+                        Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {isPractice && (
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoCardTitle}>Упражнение без таймера</Text>
+                  {stepData.estimatedDurationSec && stepData.estimatedDurationSec > 0 && (
+                    <View style={styles.estimatedTimeBadge}>
+                      <Text style={styles.estimatedTimeBadgeText}>
+                        Примерное время: ~{Math.round(stepData.estimatedDurationSec / 60)} мин
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {isExamination && (
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoCardTitle}>Экзаменационный шаг</Text>
+                  {stepData.estimatedDurationSec && stepData.estimatedDurationSec > 0 && (
+                    <View style={styles.estimatedTimeBadge}>
+                      <Text style={styles.estimatedTimeBadgeText}>
+                        Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Описание перед видео */}
+              {(() => {
+                const description =
+                  (stepData && "description" in stepData && stepData.description) ||
+                  (step && "description" in step && step.description);
+                if (!description || typeof description !== "string" || description.trim() === "")
+                  return null;
+                return (
+                  <View style={styles.descriptionSection}>
+                    <Text style={styles.descriptionSectionTitle}>Описание:</Text>
+                    <View style={styles.descriptionSectionContent}>
+                      <MarkdownText text={description} />
+                    </View>
+                  </View>
+                );
+              })()}
+
+              {/* Видео (после описания) */}
               {!isBreak &&
                 videoUrl &&
                 typeof videoUrl === "string" &&
@@ -313,84 +376,13 @@ export function AccordionStep({
                       </View>
                     );
                   }
-
-                  if (videoError || !playbackUrl) {
-                    if (__DEV__) {
-                      console.warn(
-                        "[AccordionStep] Ошибка загрузки видео:",
-                        videoError || "URL не получен",
-                      );
-                    }
-                    return null;
-                  }
-
+                  if (videoError || !playbackUrl) return null;
                   return (
                     <View style={styles.videoContainer}>
                       <VideoPlayer uri={playbackUrl} onComplete={onComplete} />
                     </View>
                   );
                 })()}
-
-              {/* Описание */}
-              {(() => {
-                try {
-                  const description = stepData?.description || step?.description;
-                  if (!description || typeof description !== "string") {
-                    return null;
-                  }
-                  // Простая обработка markdown для отображения
-                  const cleanDescription = description
-                    .replace(/#{1,6}\s/g, "") // Удаляем заголовки
-                    .replace(/\*\*/g, "") // Удаляем жирный текст
-                    .replace(/---/g, "") // Удаляем разделители
-                    .replace(/\n{3,}/g, "\n\n"); // Убираем множественные переносы
-
-                  return (
-                    <View style={styles.descriptionContainer}>
-                      <Text style={styles.description}>{cleanDescription}</Text>
-                    </View>
-                  );
-                } catch (error) {
-                  if (__DEV__) {
-                    console.error("[AccordionStep] Ошибка при отображении описания:", error);
-                  }
-                  return null;
-                }
-              })()}
-
-              {/* Информационные карточки для разных типов шагов */}
-              {isTheory && (
-                <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>Теоретический шаг</Text>
-                  {stepData.estimatedDurationSec && stepData.estimatedDurationSec > 0 && (
-                    <Text style={styles.infoCardText}>
-                      Примерное время: ~{Math.round(stepData.estimatedDurationSec / 60)} мин
-                    </Text>
-                  )}
-                </View>
-              )}
-
-              {isPractice && (
-                <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>Упражнение без таймера</Text>
-                  {stepData.estimatedDurationSec && stepData.estimatedDurationSec > 0 && (
-                    <Text style={styles.infoCardText}>
-                      Примерное время: ~{Math.round(stepData.estimatedDurationSec / 60)} мин
-                    </Text>
-                  )}
-                </View>
-              )}
-
-              {isExamination && (
-                <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>Экзаменационный шаг</Text>
-                  {stepData.estimatedDurationSec && stepData.estimatedDurationSec > 0 && (
-                    <Text style={styles.infoCardText}>
-                      Этот шаг займёт ~{Math.round(stepData.estimatedDurationSec / 60)} мин
-                    </Text>
-                  )}
-                </View>
-              )}
 
               {/* Таймер для тренировочных шагов и перерывов (как в web) */}
               {showTimer &&
@@ -433,10 +425,10 @@ export function AccordionStep({
                             {status === "NOT_STARTED" && (
                               <IconButton
                                 icon="play-circle"
-                                iconColor={COLORS.primary}
-                                size={48}
+                                iconColor={WEB.circleBtnBorder}
+                                size={28}
+                                style={styles.circleBtn}
                                 onPress={() => {
-                                  // Запускаем таймер в store
                                   startTimer(courseId, dayOnCourseId, index, duration);
                                   onStart();
                                 }}
@@ -445,10 +437,10 @@ export function AccordionStep({
                             {status === "IN_PROGRESS" && isActuallyRunning && (
                               <IconButton
                                 icon="pause-circle"
-                                iconColor={COLORS.warning}
-                                size={48}
+                                iconColor={WEB.circleBtnBorder}
+                                size={28}
+                                style={styles.circleBtn}
                                 onPress={() => {
-                                  // Останавливаем таймер в store
                                   const remaining = pauseTimer();
                                   if (remaining !== null) {
                                     onPause(remaining);
@@ -460,26 +452,24 @@ export function AccordionStep({
                               status === "PAUSED") && (
                               <IconButton
                                 icon="play-circle"
-                                iconColor={COLORS.primary}
-                                size={48}
+                                iconColor={WEB.circleBtnBorder}
+                                size={28}
+                                style={styles.circleBtn}
                                 onPress={() => {
                                   const remaining =
                                     localState?.timeLeft ?? localState?.remainingSec ?? duration;
-                                  // Возобновляем таймер в store
                                   startTimer(courseId, dayOnCourseId, index, remaining);
                                   onResume();
                                 }}
                               />
                             )}
-                            {/* Кнопка рестарт (всегда видна) */}
                             <IconButton
                               icon="replay"
-                              iconColor={COLORS.textSecondary}
-                              size={40}
+                              iconColor={WEB.circleBtnBorder}
+                              size={22}
+                              style={styles.circleBtnReset}
                               onPress={() => {
-                                // Останавливаем текущий таймер
                                 stopTimer();
-                                // Сбрасываем шаг в NOT_STARTED (на паузу)
                                 if (onReset) {
                                   onReset(duration);
                                 }
@@ -497,37 +487,77 @@ export function AccordionStep({
                   }
                 })()}
 
-              {/* Кнопки действий */}
+              {/* Кнопки действий — как в web: PRACTICE «Я выполнил» / «Упражнение выполнено», THEORY «Прочитано» */}
               <View style={styles.actions}>
-                {isCompleted ? (
+                {isPractice ? (
+                  isCompleted ? (
+                    <View style={styles.completedBadge}>
+                      <Text style={styles.completedBadgeCheck}>✓</Text>
+                      <Text style={styles.completedBadgeText}>Упражнение выполнено</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.completeAction}>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.completeBtn,
+                          pressed && styles.completeBtnPressed,
+                        ]}
+                        onPress={() => {
+                          console.log("[Я выполнил] Нажатие, вызываем onComplete", {
+                            courseId,
+                            dayOnCourseId,
+                            index,
+                          });
+                          onComplete();
+                        }}
+                      >
+                        <Text style={styles.completeBtnText}>Я выполнил</Text>
+                      </Pressable>
+                    </View>
+                  )
+                ) : isTheory && !isCompleted ? (
+                  <Button label="Прочитано" onPress={onComplete} icon="check" />
+                ) : isCompleted ? (
                   <View style={styles.completedBadge}>
                     <MaterialCommunityIcons name="check" size={16} color={COLORS.success} />
                     <Text style={styles.completedText}>Выполнено</Text>
                   </View>
-                ) : isTheory ? (
-                  <Button label="Прочитано" onPress={onComplete} icon="check" />
-                ) : !isInProgress && !isPaused ? (
-                  <Button label="Начать" onPress={onStart} icon="play" />
-                ) : (
-                  <View />
-                )}
+                ) : null}
               </View>
-            </>
+            </ScrollView>
           )}
         </Animated.View>
       </View>
-    </Surface>
+    </View>
   );
 }
 
+// Цвета как в web AccordionStep.module.css
+const WEB = {
+  stepBorder: "#636128",
+  stepBg: "#fff8e5",
+  timerCardBg: "#fffdf3",
+  timerCardBorder: "#d5d0bb",
+  completeBtnBg: "#636128",
+  completeBtnText: "#ece5d2",
+  completedBadgeBg: "#b6c582",
+  completedBadgeText: "#155724",
+  circleBtnBorder: "#b6c582",
+  estimatedBadgeBg: "#e0e7ff",
+  estimatedBadgeText: "#1e3a8a",
+};
+
 const styles = StyleSheet.create({
   container: {
+    borderWidth: 2,
+    borderColor: WEB.stepBorder,
     borderRadius: 12,
-    marginBottom: SPACING.sm,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    backgroundColor: WEB.stepBg,
   },
   surfaceContent: {
     overflow: "hidden",
-    borderRadius: 12,
   },
   completedContainer: {
     backgroundColor: "#F5FFF5",
@@ -535,7 +565,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    padding: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: 0,
   },
   stepNumber: {
     width: 32,
@@ -579,44 +610,100 @@ const styles = StyleSheet.create({
   content: {
     overflow: "hidden",
   },
+  stepContentScroll: {
+    maxHeight: 3000,
+  },
+  stepContentScrollContent: {
+    paddingBottom: 0,
+  },
   divider: {
     marginHorizontal: SPACING.md,
   },
-  descriptionContainer: {
-    padding: SPACING.md,
-    paddingTop: SPACING.sm,
+  descriptionSection: {
+    marginTop: SPACING.md,
+    paddingHorizontal: 0,
   },
-  description: {
-    color: COLORS.textSecondary,
-    lineHeight: 20,
+  descriptionSectionTitle: {
+    fontWeight: "700",
+    color: COLORS.text,
+    marginBottom: 6,
     fontSize: 14,
+  },
+  descriptionSectionContent: {
+    backgroundColor: WEB.timerCardBg,
+    borderWidth: 2,
+    borderColor: WEB.timerCardBorder,
+    borderRadius: 12,
+    padding: 12,
+    paddingHorizontal: 14,
   },
   actions: {
     padding: SPACING.md,
     paddingTop: 0,
   },
+  completeAction: {
+    marginTop: SPACING.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  completeBtn: {
+    backgroundColor: WEB.completeBtnBg,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    minWidth: 200,
+    maxWidth: 220,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  completeBtnPressed: {
+    opacity: 0.9,
+  },
+  completeBtnText: {
+    color: WEB.completeBtnText,
+    fontSize: 15,
+    fontWeight: "600",
+  },
   completedBadge: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: SPACING.xs,
-    padding: SPACING.sm,
-    backgroundColor: COLORS.success + "15",
-    borderRadius: 8,
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    backgroundColor: WEB.completedBadgeBg,
+    marginTop: SPACING.sm,
+    alignSelf: "center",
+  },
+  completedBadgeCheck: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: WEB.completedBadgeText,
+    width: 24,
+    textAlign: "center",
+  },
+  completedBadgeText: {
+    color: WEB.completedBadgeText,
+    fontSize: 15,
+    fontWeight: "600",
   },
   completedText: {
     color: COLORS.success,
     fontWeight: "600",
   },
   videoContainer: {
-    padding: SPACING.md,
-    paddingTop: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: 0,
   },
   infoCard: {
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
+    padding: 14,
+    paddingHorizontal: 0,
+    backgroundColor: WEB.timerCardBg,
+    borderWidth: 2,
+    borderColor: WEB.timerCardBorder,
     borderRadius: 12,
-    marginVertical: SPACING.sm,
+    marginTop: 10,
     alignItems: "center",
   },
   infoCardTitle: {
@@ -630,32 +717,49 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: "center",
   },
+  estimatedTimeBadge: {
+    marginTop: 8,
+    alignSelf: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: WEB.estimatedBadgeBg,
+  },
+  estimatedTimeBadgeText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: WEB.estimatedBadgeText,
+  },
   timerCard: {
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
+    padding: 14,
+    paddingHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: WEB.timerCardBg,
+    borderWidth: 2,
+    borderColor: WEB.timerCardBorder,
     borderRadius: 12,
-    marginVertical: SPACING.sm,
+    alignItems: "center",
   },
   timerHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.xs,
-    marginBottom: SPACING.md,
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   timerHeaderText: {
     fontSize: 14,
     color: COLORS.text,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   timerControls: {
     alignItems: "center",
   },
   timerDisplay: {
     fontSize: 48,
-    fontWeight: "bold",
+    fontWeight: "600",
     color: COLORS.text,
     fontVariant: ["tabular-nums"],
-    marginBottom: SPACING.md,
+    marginVertical: 8,
     fontFamily: "monospace",
   },
   timerButtons: {
@@ -663,6 +767,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: SPACING.sm,
+    paddingVertical: 8,
+  },
+  circleBtn: {
+    width: 55,
+    height: 55,
+    borderRadius: 28,
+    borderWidth: 4,
+    borderColor: WEB.circleBtnBorder,
+    backgroundColor: "transparent",
+  },
+  circleBtnReset: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 4,
+    borderColor: WEB.circleBtnBorder,
+    backgroundColor: "transparent",
   },
   videoLoadingContainer: {
     aspectRatio: 16 / 9,

@@ -48,6 +48,7 @@ export interface TrainingDayResponse {
   dayOnCourseId: string;
   title: string;
   type: string;
+  description?: string;
   steps: UserStep[];
 }
 
@@ -64,6 +65,10 @@ export interface StartStepParams extends StepActionParams {
 
 export interface PauseStepParams extends StepActionParams {
   timeLeftSec: number;
+}
+
+export interface ResetStepParams extends StepActionParams {
+  durationSec?: number;
 }
 
 export interface CompleteStepParams extends StepActionParams {
@@ -135,6 +140,16 @@ export const trainingApi = {
    */
   resumeStep: async (params: StepActionParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/training/step/resume", {
+      method: "POST",
+      body: params,
+    });
+  },
+
+  /**
+   * Сбросить шаг (таймер) в NOT_STARTED
+   */
+  resetStep: async (params: ResetStepParams): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/training/step/reset", {
       method: "POST",
       body: params,
     });

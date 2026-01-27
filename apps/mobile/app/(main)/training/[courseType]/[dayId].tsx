@@ -7,12 +7,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 
 import { Loading } from "@/shared/components/ui";
+import { MarkdownText } from "@/shared/components";
 import { AccordionStep } from "@/features/training/components";
 import {
   useTrainingDay,
   useStartStep,
   usePauseStep,
   useResumeStep,
+  useResetStep,
   useCompleteTheoryStep,
   useCompletePracticeStep,
 } from "@/shared/hooks";
@@ -29,13 +31,14 @@ export default function TrainingDayScreen() {
   }>();
 
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
 
   // Загрузка данных дня
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDay(courseType, dayId);
 
   // Stores
   const { getOpenIndex, setOpenIndex } = useTrainingStore();
-  const { getStepState, startStep, pauseStep, completeStep, initializeStep, resetStep } =
+  const { getStepState, startStep, pauseStep, resumeStep, completeStep, initializeStep } =
     useStepStore();
   const { stopTimer } = useTimerStore();
 
@@ -43,6 +46,7 @@ export default function TrainingDayScreen() {
   const startStepMutation = useStartStep();
   const pauseStepMutation = usePauseStep();
   const resumeStepMutation = useResumeStep();
+  const resetStepMutation = useResetStep();
   const completeTheoryMutation = useCompleteTheoryStep();
   const completePracticeMutation = useCompletePracticeStep();
 
@@ -176,6 +180,7 @@ export default function TrainingDayScreen() {
   const handleResumeStep = useCallback(
     async (stepIndex: number) => {
       try {
+        resumeStep(courseId, dayId, stepIndex);
         await resumeStepMutation.mutateAsync({
           courseId,
           dayOnCourseId: dayId,
@@ -185,58 +190,72 @@ export default function TrainingDayScreen() {
         setSnackbar({ visible: true, message: "Ошибка возобновления" });
       }
     },
-    [courseId, dayId, resumeStepMutation],
+    [courseId, dayId, resumeStep, resumeStepMutation],
   );
 
   const handleResetStep = useCallback(
     async (stepIndex: number, durationSec: number) => {
       try {
-        // Останавливаем таймер если активен
         stopTimer();
-
-        // Локальное обновление - сбрасываем в NOT_STARTED
-        resetStep(courseId, dayId, stepIndex, durationSec);
-
-        // TODO: Отправка на сервер (если нужно)
-        // await resetStepMutation.mutateAsync({...});
+        await resetStepMutation.mutateAsync({
+          courseId,
+          dayOnCourseId: dayId,
+          stepIndex,
+          durationSec,
+        });
       } catch (error) {
         setSnackbar({ visible: true, message: "Ошибка сброса шага" });
       }
     },
-    [courseId, dayId, resetStep, stopTimer],
+    [courseId, dayId, resetStepMutation, stopTimer],
   );
 
   const handleCompleteStep = useCallback(
-    async (stepIndex: number, isTheory: boolean, stepTitle?: string) => {
+    async (
+      stepIndex: number,
+      isTheory: boolean,
+      stepTitle?: string,
+      stepOrder?: number,
+    ) => {
+      console.log("[Я выполнил] handleCompleteStep вызван", {
+        stepIndex,
+        isTheory,
+        stepTitle,
+        stepOrder,
+        courseId,
+        dayId,
+      });
       try {
-        // Останавливаем таймер если активен
+        console.log("[Я выполнил] stopTimer, completeStep");
         stopTimer();
-
-        // Локальное обновление
         completeStep(courseId, dayId, stepIndex);
 
-        // Отправка на сервер
         const params = {
           courseId,
           dayOnCourseId: dayId,
           stepIndex,
           stepTitle,
+          stepOrder,
         };
+        console.log("[Я выполнил] params для API:", params);
 
         if (isTheory) {
+          console.log("[Я выполнил] вызов completeTheoryMutation.mutateAsync");
           await completeTheoryMutation.mutateAsync(params);
         } else {
+          console.log("[Я выполнил] вызов completePracticeMutation.mutateAsync");
           await completePracticeMutation.mutateAsync(params);
         }
 
+        console.log("[Я выполнил] mutateAsync успешно, показываем snackbar");
         setSnackbar({ visible: true, message: "Шаг выполнен!" });
 
-        // Автоматически открываем следующий шаг
         const nextIndex = stepIndex + 1;
         if (dayData?.steps && nextIndex < dayData.steps.length) {
           setOpenIndex(courseId, dayId, nextIndex);
         }
       } catch (error) {
+        console.error("[Я выполнил] ошибка в handleCompleteStep:", error);
         setSnackbar({ visible: true, message: "Ошибка сохранения" });
       }
     },
@@ -410,17 +429,48 @@ export default function TrainingDayScreen() {
             </Text>
           </Surface>
 
+          {/* Описание дня (как в web) */}
+          {(dayData?.description && dayData.description.trim() !== "") && (
+            <View style={styles.descriptionDayContainer}>
+              <Pressable
+                onPress={() => setIsDescriptionOpen((o) => !o)}
+                style={[
+                  styles.descriptionDayHeader,
+                  isDescriptionOpen && styles.descriptionDayHeaderExpanded,
+                ]}
+              >
+                <Text style={styles.descriptionDayTitle}>Описание дня</Text>
+                <View style={styles.descriptionDayExpand}>
+                  <Text style={styles.descriptionDayExpandText}>
+                    {isDescriptionOpen ? "Скрыть" : "Подробнее"}
+                  </Text>
+                  <MaterialCommunityIcons
+                    name="chevron-down"
+                    size={24}
+                    color={COLORS.primary}
+                    style={[styles.descriptionDayIcon, isDescriptionOpen && styles.descriptionDayIconExpanded]}
+                  />
+                </View>
+              </Pressable>
+              {isDescriptionOpen && (
+                <View style={styles.descriptionDayContent}>
+                  <MarkdownText text={dayData.description} />
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Список шагов */}
           <View style={styles.stepsContainer}>
             {dayData?.steps.map((step, index) => {
               try {
                 // Используем stepIndex из данных, если есть, иначе index или order
                 const stepIndex = step.stepIndex ?? step.order ?? index;
-                // Проверяем структуру данных: может быть step.step или напрямую step
                 const stepData = "step" in step && step.step ? step.step : step;
                 const durationSec = stepData.durationSec ?? 300;
                 const stepType = stepData.type || step.type;
                 const stepTitle = stepData.title || step.title;
+                const stepOrder = stepData.order ?? index;
 
                 // Уникальный ключ: комбинация dayId, order и index для гарантии уникальности
                 const uniqueKey = `${dayId}-${step.order ?? index}-${step.id || index}`;
@@ -470,10 +520,18 @@ export default function TrainingDayScreen() {
                       handleResumeStep(stepIndex);
                     }}
                     onComplete={() => {
-                      if (__DEV__) {
-                        console.log("[TrainingDayScreen] Complete step:", stepIndex);
-                      }
-                      handleCompleteStep(stepIndex, stepType === "THEORY", stepTitle);
+                      console.log("[Я выполнил] onComplete от AccordionStep", {
+                        stepIndex,
+                        stepType,
+                        stepTitle,
+                        stepOrder,
+                      });
+                      handleCompleteStep(
+                        stepIndex,
+                        stepType === "THEORY",
+                        stepTitle,
+                        stepOrder,
+                      );
                     }}
                     onReset={(durationSec) => {
                       if (__DEV__) {
@@ -551,6 +609,56 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 12,
     color: COLORS.textSecondary,
+  },
+  descriptionDayContainer: {
+    marginBottom: SPACING.lg,
+    width: "100%",
+    maxWidth: 500,
+  },
+  descriptionDayHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: SPACING.md,
+    paddingHorizontal: 20,
+    backgroundColor: "#ece5d2",
+    borderWidth: 1,
+    borderColor: "#636128",
+    borderRadius: 12,
+  },
+  descriptionDayHeaderExpanded: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  descriptionDayTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#352e2e",
+  },
+  descriptionDayExpand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.xs,
+  },
+  descriptionDayExpandText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: COLORS.primary,
+  },
+  descriptionDayIcon: {
+    transform: [{ rotate: "0deg" }],
+  },
+  descriptionDayIconExpanded: {
+    transform: [{ rotate: "180deg" }],
+  },
+  descriptionDayContent: {
+    backgroundColor: "#ece5d2",
+    borderWidth: 1,
+    borderColor: "#636128",
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 20,
   },
   stepsContainer: {
     gap: SPACING.sm,

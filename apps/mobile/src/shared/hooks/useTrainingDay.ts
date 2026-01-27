@@ -215,6 +215,29 @@ export function useResumeStep() {
 }
 
 /**
+ * Хук для сброса шага (таймера)
+ */
+export function useResetStep() {
+  const queryClient = useQueryClient();
+  const { resetStep: resetStepLocal } = useStepStore();
+
+  return useMutation({
+    mutationFn: trainingApi.resetStep,
+    onMutate: async (variables) => {
+      resetStepLocal(
+        variables.courseId,
+        variables.dayOnCourseId,
+        variables.stepIndex,
+        variables.durationSec ?? 0,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trainingDay"] });
+    },
+  });
+}
+
+/**
  * Хук для завершения теоретического шага
  */
 export function useCompleteTheoryStep() {

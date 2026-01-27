@@ -11,6 +11,7 @@ import { createWebLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { getRelativePathFromCDNUrl, downloadFileFromCDN } from "@gafus/cdn-upload";
 import { getVideoAccessService } from "@gafus/video-access";
+import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 
 const logger = createWebLogger("api-training");
 
@@ -75,6 +76,416 @@ trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
+
+// ==================== POST /training/step/start ====================
+const startStepBodySchema = z.object({
+  courseId: z.string().min(1, "courseId обязателен"),
+  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  status: z.literal("IN_PROGRESS").optional(),
+  durationSec: z.number().int().min(0, "durationSec >= 0"),
+});
+
+trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { dayOnCourseId, stepIndex, durationSec } = c.req.valid("json");
+
+    await prisma.$transaction(
+      async (tx) => {
+        const dayOnCourse = await tx.dayOnCourse.findUnique({
+          where: { id: dayOnCourseId },
+          include: {
+            day: {
+              include: {
+                stepLinks: { include: { step: true }, orderBy: { order: "asc" } },
+              },
+            },
+          },
+        });
+
+        if (!dayOnCourse?.day) {
+          throw new Error("DayOnCourse or day not found");
+        }
+
+        const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+        if (!stepLink?.step) {
+          throw new Error("Step not found");
+        }
+
+        const userTraining =
+          (await tx.userTraining.findFirst({
+            where: { userId: user.id, dayOnCourseId },
+            select: { id: true },
+          })) ??
+          (await tx.userTraining.create({
+            data: { userId: user.id, dayOnCourseId },
+            select: { id: true },
+          }));
+
+        const existing = await tx.userStep.findFirst({
+          where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
+        });
+        if (existing) {
+          await tx.userStep.update({
+            where: { id: existing.id },
+            data: {
+              status: TrainingStatus.IN_PROGRESS,
+              paused: false,
+              remainingSec: durationSec,
+            },
+          });
+        } else {
+          await tx.userStep.create({
+            data: {
+              userTrainingId: userTraining.id,
+              stepOnDayId: stepLink.id,
+              status: TrainingStatus.IN_PROGRESS,
+              paused: false,
+              remainingSec: durationSec,
+            },
+          });
+        }
+
+        const stepOnDayIds = dayOnCourse.day.stepLinks.map((l) => l.id);
+        const userStepsAfter = await tx.userStep.findMany({
+          where: { userTrainingId: userTraining.id },
+        });
+        const allStepStatuses = stepOnDayIds.map(
+          (id) =>
+            userStepsAfter.find((s) => s.stepOnDayId === id)?.status ?? TrainingStatus.NOT_STARTED,
+        );
+        const dayStatus = calculateDayStatusFromStatuses(allStepStatuses);
+        const firstNotCompleted = allStepStatuses.findIndex((s) => s !== TrainingStatus.COMPLETED);
+        const nextIndex = firstNotCompleted === -1 ? stepOnDayIds.length - 1 : firstNotCompleted;
+
+        await tx.userTraining.update({
+          where: { id: userTraining.id },
+          data: { status: dayStatus, currentStepIndex: nextIndex },
+        });
+      },
+      { timeout: 10000 },
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DayOnCourse or day not found") {
+      return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
+    }
+    if (error instanceof Error && error.message === "Step not found") {
+      return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+    }
+    logger.error("Error starting step", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
+// ==================== POST /training/step/pause ====================
+const pauseStepBodySchema = z.object({
+  courseId: z.string().min(1, "courseId обязателен"),
+  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  timeLeftSec: z.number().int().min(0, "timeLeftSec >= 0"),
+});
+
+trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { dayOnCourseId, stepIndex, timeLeftSec } = c.req.valid("json");
+
+    const dayOnCourse = await prisma.dayOnCourse.findUnique({
+      where: { id: dayOnCourseId },
+      include: {
+        day: {
+          include: {
+            stepLinks: { orderBy: { order: "asc" } },
+          },
+        },
+      },
+    });
+
+    if (!dayOnCourse?.day) {
+      return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+    if (!stepLink) {
+      return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    const userTraining = await prisma.userTraining.findFirst({
+      where: { userId: user.id, dayOnCourseId },
+      select: { id: true },
+    });
+    if (!userTraining) {
+      return c.json({ success: false, error: "Тренировка не найдена", code: "NOT_FOUND" }, 404);
+    }
+
+    const existing = await prisma.userStep.findFirst({
+      where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
+    });
+    if (!existing) {
+      return c.json({ success: false, error: "Шаг пользователя не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    await prisma.userStep.update({
+      where: { id: existing.id },
+      data: { paused: true, remainingSec: timeLeftSec },
+    });
+
+    return c.json({ success: true });
+  } catch (error) {
+    logger.error("Error pausing step", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
+// ==================== POST /training/step/resume ====================
+const resumeStepBodySchema = z.object({
+  courseId: z.string().min(1, "courseId обязателен"),
+  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+});
+
+trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { dayOnCourseId, stepIndex } = c.req.valid("json");
+
+    const dayOnCourse = await prisma.dayOnCourse.findUnique({
+      where: { id: dayOnCourseId },
+      include: {
+        day: {
+          include: {
+            stepLinks: { orderBy: { order: "asc" } },
+          },
+        },
+      },
+    });
+
+    if (!dayOnCourse?.day) {
+      return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+    if (!stepLink) {
+      return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    const userTraining = await prisma.userTraining.findFirst({
+      where: { userId: user.id, dayOnCourseId },
+      select: { id: true },
+    });
+    if (!userTraining) {
+      return c.json({ success: false, error: "Тренировка не найдена", code: "NOT_FOUND" }, 404);
+    }
+
+    const existing = await prisma.userStep.findFirst({
+      where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
+    });
+    if (!existing) {
+      return c.json({ success: false, error: "Шаг пользователя не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    await prisma.userStep.update({
+      where: { id: existing.id },
+      data: { paused: false },
+    });
+
+    return c.json({ success: true });
+  } catch (error) {
+    logger.error("Error resuming step", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
+// ==================== POST /training/step/reset ====================
+const resetStepBodySchema = z.object({
+  courseId: z.string().min(1, "courseId обязателен"),
+  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  durationSec: z.number().int().min(0, "durationSec >= 0").optional(),
+});
+
+trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { dayOnCourseId, stepIndex } = c.req.valid("json");
+
+    const dayOnCourse = await prisma.dayOnCourse.findUnique({
+      where: { id: dayOnCourseId },
+      include: {
+        day: {
+          include: {
+            stepLinks: { orderBy: { order: "asc" } },
+          },
+        },
+      },
+    });
+
+    if (!dayOnCourse?.day) {
+      return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+    if (!stepLink) {
+      return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    const userTraining = await prisma.userTraining.findFirst({
+      where: { userId: user.id, dayOnCourseId },
+      select: { id: true },
+    });
+    if (!userTraining) {
+      return c.json({ success: false, error: "Тренировка не найдена", code: "NOT_FOUND" }, 404);
+    }
+
+    const existing = await prisma.userStep.findFirst({
+      where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
+    });
+    if (!existing) {
+      return c.json({ success: true });
+    }
+
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.userStep.update({
+          where: { id: existing.id },
+          data: { status: TrainingStatus.NOT_STARTED, paused: false, remainingSec: null },
+        });
+
+        const stepOnDayIds = dayOnCourse.day.stepLinks.map((l) => l.id);
+        const userStepsAfter = await tx.userStep.findMany({
+          where: { userTrainingId: userTraining.id },
+        });
+        const allStepStatuses = stepOnDayIds.map(
+          (id) =>
+            userStepsAfter.find((s) => s.stepOnDayId === id)?.status ?? TrainingStatus.NOT_STARTED,
+        );
+        const dayStatus = calculateDayStatusFromStatuses(allStepStatuses);
+        const firstNotCompleted = allStepStatuses.findIndex((s) => s !== TrainingStatus.COMPLETED);
+        const nextIndex = firstNotCompleted === -1 ? stepOnDayIds.length - 1 : firstNotCompleted;
+
+        await tx.userTraining.update({
+          where: { id: userTraining.id },
+          data: { status: dayStatus, currentStepIndex: nextIndex },
+        });
+      },
+      { timeout: 10000 },
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    logger.error("Error resetting step", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
+// ==================== POST /training/step/complete/practice ====================
+const completePracticeBodySchema = z.object({
+  courseId: z.string().min(1, "courseId обязателен"),
+  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  stepTitle: z.string().optional(),
+  stepOrder: z.number().int().min(0).optional(),
+});
+
+trainingRoutes.post(
+  "/step/complete/practice",
+  zValidator("json", completePracticeBodySchema),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const { dayOnCourseId, stepIndex } = c.req.valid("json");
+
+      await prisma.$transaction(
+        async (tx) => {
+          const dayOnCourse = await tx.dayOnCourse.findUnique({
+            where: { id: dayOnCourseId },
+            include: {
+              day: {
+                include: {
+                  stepLinks: { include: { step: true }, orderBy: { order: "asc" } },
+                },
+              },
+            },
+          });
+
+          if (!dayOnCourse?.day) {
+            throw new Error("DayOnCourse or day not found");
+          }
+
+          const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+          if (!stepLink?.step) {
+            throw new Error("Step not found");
+          }
+
+          const userTraining =
+            (await tx.userTraining.findFirst({
+              where: { userId: user.id, dayOnCourseId },
+              select: { id: true },
+            })) ??
+            (await tx.userTraining.create({
+              data: { userId: user.id, dayOnCourseId },
+              select: { id: true },
+            }));
+
+          const existing = await tx.userStep.findFirst({
+            where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
+          });
+          if (existing) {
+            await tx.userStep.update({
+              where: { id: existing.id },
+              data: { status: TrainingStatus.COMPLETED },
+            });
+          } else {
+            await tx.userStep.create({
+              data: {
+                userTrainingId: userTraining.id,
+                stepOnDayId: stepLink.id,
+                status: TrainingStatus.COMPLETED,
+              },
+            });
+          }
+
+          const stepOnDayIds = dayOnCourse.day.stepLinks.map((l) => l.id);
+          const userStepsAfter = await tx.userStep.findMany({
+            where: { userTrainingId: userTraining.id },
+          });
+          const allStepStatuses = stepOnDayIds.map(
+            (id) =>
+              userStepsAfter.find((s) => s.stepOnDayId === id)?.status ?? TrainingStatus.NOT_STARTED,
+          );
+          const dayStatus = calculateDayStatusFromStatuses(allStepStatuses);
+          const allCompleted = dayStatus === TrainingStatus.COMPLETED;
+          const firstNotCompleted = allStepStatuses.findIndex((s) => s !== TrainingStatus.COMPLETED);
+          const nextIndex =
+            allCompleted ? stepOnDayIds.length - 1 : firstNotCompleted === -1 ? 0 : firstNotCompleted;
+
+          await tx.userTraining.update({
+            where: { id: userTraining.id },
+            data: {
+              status: dayStatus,
+              currentStepIndex: nextIndex,
+            },
+          });
+        },
+        { timeout: 10000 },
+      );
+
+      return c.json({ success: true });
+    } catch (error) {
+      if (error instanceof Error && error.message === "DayOnCourse or day not found") {
+        return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
+      }
+      if (error instanceof Error && error.message === "Step not found") {
+        return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+      }
+      logger.error("Error completing practice step", error as Error);
+      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    }
+  },
+);
 
 // ==================== POST /training/video/url ====================
 // Получить URL для воспроизведения видео (HLS манифест)

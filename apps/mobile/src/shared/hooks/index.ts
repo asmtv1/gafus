@@ -4,6 +4,7 @@ export {
   useStartStep,
   usePauseStep,
   useResumeStep,
+  useResetStep,
   useCompleteTheoryStep,
   useCompletePracticeStep,
 } from "./useTrainingDay";

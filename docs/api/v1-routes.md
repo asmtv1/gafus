@@ -242,6 +242,25 @@
 
 ---
 
+### POST `/api/v1/training/step/reset`
+
+Сбросить шаг (таймер) в NOT_STARTED. Обнуляет paused и remainingSec, пересчитывает статус дня.
+
+**Body:**
+
+```json
+{
+  "courseId": "uuid",
+  "dayOnCourseId": "uuid",
+  "stepIndex": 0,
+  "durationSec": 300
+}
+```
+
+`durationSec` — опционально.
+
+---
+
 ### POST `/api/v1/training/step/complete/theory`
 
 Завершить теоретический шаг.

@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
 import { IconButton, ActivityIndicator, Text } from "react-native-paper";
@@ -11,19 +11,64 @@ interface VideoPlayerProps {
   autoPlay?: boolean;
 }
 
+/** HLS/manifest URL без .m3u8 в пути — на Android нужен overrideFileExtensionAndroid */
+function getVideoSource(uri: string): { uri: string; overrideFileExtensionAndroid?: string } {
+  const isHls =
+    uri.includes("/manifest") ||
+    uri.includes(".m3u8") ||
+    uri.includes("/hls/");
+  return isHls ? { uri, overrideFileExtensionAndroid: "m3u8" } : { uri };
+}
+
 /**
  * Видео плеер на базе expo-av
- * Поддерживает fullscreen, управление воспроизведением
+ * Поддерживает fullscreen, HLS (manifest), управление воспроизведением
  */
 export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: VideoPlayerProps) {
   if (__DEV__) {
-    console.log("[VideoPlayer] Инициализация:", { uri, hasPoster: !!poster, autoPlay });
+    console.log("[VideoPlayer] Инициализация:", { uri: uri?.slice(0, 60), hasPoster: !!poster, autoPlay });
   }
 
   const videoRef = useRef<Video>(null);
+  const source = useMemo(() => getVideoSource(uri), [uri]);
   const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [progressBarWidth, setProgressBarWidth] = useState(0);
+
+  // Явная загрузка через loadAsync: для HLS/manifest expo-av иногда не переходит в isLoaded
+  // при одной только передаче source. downloadAsync: false — обход багов на iOS 16.6+.
+  useEffect(() => {
+    if (!uri?.trim()) return;
+    let cancelled = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const doLoad = () => {
+      const v = videoRef.current;
+      if (!v) return;
+      v.loadAsync(source, { progressUpdateIntervalMillis: 1000 }, false)
+        .then((nextStatus) => {
+          if (!cancelled) setStatus(nextStatus);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg === "Operation Stopped") {
+            // Прерывание при размонтировании/remount — один повтор после паузы
+            retryTimeout = setTimeout(doLoad, 200);
+            return;
+          }
+          if (__DEV__ && !String(msg).includes("already loaded")) {
+            console.warn("[VideoPlayer] loadAsync:", msg);
+          }
+        });
+    };
+
+    doLoad();
+    return () => {
+      cancelled = true;
+      if (retryTimeout) clearTimeout(retryTimeout);
+    };
+  }, [uri, source]);
 
   const isLoaded = status?.isLoaded;
   const isPlaying = isLoaded && status.isPlaying;
@@ -51,9 +96,15 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
     }
   }, [isPlaying]);
 
-  // Toggle fullscreen используя встроенный API expo-av
+  // Toggle fullscreen используя встроенный API expo-av. Не вызывать до загрузки видео.
   const toggleFullscreen = useCallback(async () => {
     if (!videoRef.current) return;
+    if (!isLoaded && !isFullscreen) {
+      if (__DEV__) {
+        console.warn("[VideoPlayer] Fullscreen недоступен: видео ещё не загружено");
+      }
+      return;
+    }
 
     try {
       if (isFullscreen) {
@@ -62,11 +113,12 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
         await videoRef.current.presentFullscreenPlayer();
       }
     } catch (error) {
-      if (__DEV__) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (__DEV__ && !msg.includes("video is not loaded")) {
         console.error("[VideoPlayer] Ошибка переключения fullscreen:", error);
       }
     }
-  }, [isFullscreen]);
+  }, [isFullscreen, isLoaded]);
 
   // Seek forward/backward
   const seek = useCallback(
@@ -148,18 +200,22 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
         <Pressable onPress={handlePressVideo} style={styles.videoWrapper}>
           <Video
             ref={videoRef}
-            source={{ uri }}
+            source={undefined}
             posterSource={poster ? { uri: poster } : undefined}
             usePoster={!!poster}
             posterStyle={styles.poster}
             resizeMode={ResizeMode.CONTAIN}
             style={styles.video}
             shouldPlay={autoPlay}
+            progressUpdateIntervalMillis={1000}
             onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
             onFullscreenUpdate={handleFullscreenUpdate}
             onError={(error) => {
               if (__DEV__) {
-                console.error("[VideoPlayer] Ошибка видео:", error);
+                const msg = typeof error === "string" ? error : (error as Error)?.message ?? "";
+                if (msg !== "Operation Stopped") {
+                  console.error("[VideoPlayer] Ошибка видео:", error);
+                }
               }
             }}
           />
@@ -235,9 +291,10 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
             />
             <IconButton
               icon={isFullscreen ? "fullscreen-exit" : "fullscreen"}
-              iconColor={COLORS.text}
+              iconColor={isLoaded ? COLORS.text : COLORS.textSecondary}
               size={24}
               onPress={toggleFullscreen}
+              disabled={!isLoaded && !isFullscreen}
             />
           </View>
         </View>
