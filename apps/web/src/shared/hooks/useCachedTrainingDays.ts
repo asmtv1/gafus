@@ -3,6 +3,7 @@
 import { createWebLogger } from "@gafus/logger";
 import { useCallback, useEffect, useState } from "react";
 
+import { checkCourseAccessAction } from "@shared/server-actions/course";
 import { getTrainingDays } from "../lib/training/getTrainingDays";
 import { useTrainingStore } from "../stores/trainingStore";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
@@ -61,6 +62,14 @@ export function useCachedTrainingDays(
     setError(null);
 
     try {
+      // Ошибка доступа (платный/приватный курс без прав) — не показываем кэш и офлайн
+      if (initialError?.includes("COURSE_ACCESS_DENIED")) {
+        useTrainingStore.getState().clearCachedTrainingDays(courseType);
+        setError(initialError);
+        setLoading(false);
+        return;
+      }
+
       // Приоритет 1: Проверяем IndexedDB (офлайн версия) - ВСЕГДА ПЕРВЫМ
       try {
         const offlineCourse = await getOfflineCourseByType(courseType);
@@ -143,11 +152,16 @@ export function useCachedTrainingDays(
         });
       }
 
-      // Приоритет 2: Если есть серверные данные, используем их (только если онлайн)
-      // Серверные данные имеют приоритет над кратким кэшем для актуальности
+      // Приоритет 2: Если есть серверные данные — проверяем доступ на клиенте (страховка от кэша RSC)
       if (initialData && isOnline()) {
+        const { hasAccess } = await checkCourseAccessAction(courseType);
+        if (!hasAccess) {
+          useTrainingStore.getState().clearCachedTrainingDays(courseType);
+          setError("COURSE_ACCESS_DENIED");
+          setLoading(false);
+          return;
+        }
         logger.info("[Cache] Using initial server data", { courseType, operation: "info" });
-        // Сохраняем в краткий кэш для предотвращения дублирующих запросов
         setCachedTrainingDays(courseType, initialData);
         setLoading(false);
         return;
@@ -233,13 +247,15 @@ export function useCachedTrainingDays(
     }
   }
 
-  // Если есть данные в кэше, не показываем ошибку даже если она была
-  // Это позволяет избежать мигания ошибки при загрузке офлайн данных
-  const finalError = data ? null : error;
-  const finalLoading = data ? false : loading; // Если данные есть, не показываем loading
+  // При ошибке доступа (серверной или initial) не показываем кэшированные данные
+  const isAccessDenied =
+    error?.includes("COURSE_ACCESS_DENIED") || initialError?.includes("COURSE_ACCESS_DENIED");
+  const dataToReturn = isAccessDenied ? null : data;
+  const finalError = isAccessDenied ? initialError || error : dataToReturn ? null : error;
+  const finalLoading = dataToReturn ? false : loading;
 
   return {
-    data,
+    data: dataToReturn,
     loading: finalLoading,
     error: finalError,
     refetch,

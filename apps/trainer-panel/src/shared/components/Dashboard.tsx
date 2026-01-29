@@ -443,9 +443,21 @@ export default function Dashboard() {
                           {course.name}
                         </Typography>
                         <Chip
-                          label={!course.isPrivate ? "Публичный" : "Приватный"}
+                          label={
+                            course.isPaid
+                              ? "Платный"
+                              : !course.isPrivate
+                                ? "Публичный"
+                                : "Приватный"
+                          }
                           size="small"
-                          color={!course.isPrivate ? "success" : "default"}
+                          color={
+                            course.isPaid
+                              ? "warning"
+                              : !course.isPrivate
+                                ? "success"
+                                : "default"
+                          }
                           sx={{
                             fontSize: { xs: "0.6875rem", sm: "0.8125rem" },
                             height: { xs: "20px", sm: "24px" },

@@ -6,6 +6,9 @@ import { useEffect, useState } from "react";
 
 import { Button, MarkdownText, VideoPlayer } from "@/shared/components";
 import type { UserStep } from "@/shared/lib/api";
+import { TestQuestionsBlock, type ChecklistQuestion } from "./TestQuestionsBlock";
+import { VideoReportBlock } from "./VideoReportBlock";
+import { WrittenFeedbackBlock } from "./WrittenFeedbackBlock";
 import type { LocalStepState } from "@/shared/stores";
 import { useStepStore, useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
@@ -14,7 +17,10 @@ import { COLORS, SPACING } from "@/constants";
 
 interface AccordionStepProps {
   step: UserStep;
+  /** Индекс шага для API/store (stepIndex). */
   index: number;
+  /** Номер для отображения в UI: 1, 2, 3… в рамках текущего дня. */
+  stepNumber?: number;
   isOpen: boolean;
   localState: LocalStepState | null;
   courseId: string;
@@ -33,6 +39,7 @@ interface AccordionStepProps {
 export function AccordionStep({
   step,
   index,
+  stepNumber,
   isOpen,
   localState,
   courseId,
@@ -248,18 +255,36 @@ export function AccordionStep({
       <View style={styles.surfaceContent}>
         {/* Заголовок (всегда видимый) */}
         <Pressable onPress={onToggle} style={styles.header}>
-          <View style={styles.stepNumber}>
-            <Text style={styles.stepNumberText}>{index + 1}</Text>
+          <View
+            style={[
+              styles.stepNumber,
+              isBreak && styles.stepNumberBreak,
+              !isBreak && stepNumber != null && styles.stepNumberExercise,
+            ]}
+          >
+            <Text style={styles.stepNumberText} numberOfLines={1}>
+              {isBreak
+                ? "Перерыв"
+                : stepNumber != null
+                  ? `Упражнение #${stepNumber}`
+                  : `#${index + 1}`}
+            </Text>
           </View>
 
           <View style={styles.headerContent}>
             <Text variant="titleSmall" numberOfLines={2} style={styles.title}>
-              {stepData?.title || step?.title || "Шаг без названия"}
+              {isBreak ? stepData?.title || step?.title : `«${stepData?.title || step?.title || "Шаг"}»`}
             </Text>
             <View style={styles.meta}>
               <MaterialCommunityIcons name={getTypeIcon()} size={14} color={COLORS.textSecondary} />
               <Text style={styles.metaText}>
-                {isTheory ? "Теория" : isPractice ? "Практика" : "Материал"}
+                {isBreak
+                  ? "Перерыв"
+                  : isTheory
+                    ? "Теория"
+                    : isPractice
+                      ? "Практика"
+                      : "Материал"}
               </Text>
               {(() => {
                 try {
@@ -343,6 +368,54 @@ export function AccordionStep({
                   )}
                 </View>
               )}
+
+              {/* Блок экзамена: тест, письменная связь, видео (как на web) */}
+              {isExamination &&
+                "userStepId" in step &&
+                typeof (step as { userStepId?: string }).userStepId === "string" && (
+                  <View style={styles.descriptionSection}>
+                    <Text style={styles.descriptionSectionTitle}>Экзамен:</Text>
+                    <View style={styles.descriptionSectionContent}>
+                      {"hasTestQuestions" in step &&
+                        (step as { hasTestQuestions?: boolean }).hasTestQuestions &&
+                        "checklist" in step &&
+                        Array.isArray((step as { checklist?: unknown }).checklist) &&
+                        ((step as { checklist: ChecklistQuestion[] }).checklist.length > 0) && (
+                          <TestQuestionsBlock
+                            checklist={(step as { checklist: ChecklistQuestion[] }).checklist}
+                            userStepId={(step as { userStepId: string }).userStepId}
+                            stepId={
+                              (stepData && "id" in stepData && stepData.id) ||
+                              ("id" in step && (step as { id: string }).id) ||
+                              ""
+                            }
+                          />
+                        )}
+                      {"requiresWrittenFeedback" in step &&
+                        (step as { requiresWrittenFeedback?: boolean }).requiresWrittenFeedback && (
+                          <WrittenFeedbackBlock
+                            userStepId={(step as { userStepId: string }).userStepId}
+                            stepId={
+                              (stepData && "id" in stepData && stepData.id) ||
+                              ("id" in step && (step as { id: string }).id) ||
+                              ""
+                            }
+                          />
+                        )}
+                      {"requiresVideoReport" in step &&
+                        (step as { requiresVideoReport?: boolean }).requiresVideoReport && (
+                          <VideoReportBlock
+                            userStepId={(step as { userStepId: string }).userStepId}
+                            stepId={
+                              (stepData && "id" in stepData && stepData.id) ||
+                              ("id" in step && (step as { id: string }).id) ||
+                              ""
+                            }
+                          />
+                        )}
+                    </View>
+                  </View>
+                )}
 
               {/* Описание перед видео */}
               {(() => {
@@ -576,6 +649,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: SPACING.sm,
+  },
+  stepNumberBreak: {
+    minWidth: 56,
+    width: undefined,
+    paddingHorizontal: 8,
+  },
+  stepNumberExercise: {
+    minWidth: 90,
+    width: undefined,
+    paddingHorizontal: 6,
   },
   stepNumberText: {
     fontSize: 14,

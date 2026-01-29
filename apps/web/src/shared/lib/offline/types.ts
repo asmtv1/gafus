@@ -21,6 +21,7 @@ export interface OfflineCourse {
       logoImg: string;
       isPrivate: boolean;
       isPaid: boolean;
+      priceRub?: number | null;
       avgRating: number | null;
       trainingLevel: string;
       createdAt: string;
@@ -99,6 +100,7 @@ export interface FullCourseData {
     logoImg: string;
     isPrivate: boolean;
     isPaid: boolean;
+    priceRub: number | null;
     avgRating: number | null;
     trainingLevel: string;
     createdAt: string;

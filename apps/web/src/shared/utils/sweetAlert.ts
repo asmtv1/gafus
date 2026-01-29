@@ -96,6 +96,41 @@ export const showConfirmDialog = async (title: string, text: string): Promise<bo
   return result.isConfirmed;
 };
 
+/** Диалог «Курс платный»: Оплатить | Закрыть. При «Оплатить» — onPay, при «Закрыть» — onClose (если передан). */
+export const showPaidCourseAccessAlert = async (
+  course: { name: string; priceRub: number },
+  onPay: () => void,
+  onClose?: () => void,
+): Promise<void> => {
+  const result = await Swal.fire({
+    title: "Курс платный",
+    text:
+      `Оплатите «${course.name}» для доступа к занятиям.` +
+      (course.priceRub > 0 ? ` Стоимость: ${course.priceRub} ₽.` : ""),
+    imageUrl: "/uploads/logo.png",
+    imageWidth: 80,
+    imageHeight: 80,
+    imageAlt: "Гафус",
+    showCancelButton: true,
+    confirmButtonText: "Оплатить",
+    cancelButtonText: "Закрыть",
+    confirmButtonColor: customTheme.confirmButtonColor,
+    cancelButtonColor: customTheme.cancelButtonColor,
+    customClass: {
+      popup: "swal2-popup-custom",
+      title: "swal2-title-custom",
+      htmlContainer: "swal2-content-custom",
+      confirmButton: "swal2-confirm-custom",
+      cancelButton: "swal2-cancel-custom",
+    },
+  });
+  if (result.isConfirmed) {
+    onPay();
+  } else if (result.dismiss === "cancel" && onClose) {
+    onClose();
+  }
+};
+
 // Стилизованный запрос разрешения на уведомления
 export const showNotificationPermissionAlert = (
   onAllow: () => void,

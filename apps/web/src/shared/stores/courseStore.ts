@@ -445,8 +445,10 @@ export const useCourseStoreActions = () => {
           shortDesc: "", // дефолтное значение
           duration: "", // дефолтное значение
           logoImg: course.logoImg,
-          isPrivate: false, // дефолтное значение
-          isPaid: false, // дефолтное значение
+          isPrivate: false,
+          isPaid: false,
+          priceRub: null,
+          hasAccess: true,
           avgRating: course.avgRating,
           trainingLevel: "BEGINNER" as const, // дефолтное значение
           createdAt: new Date(), // дефолтное значение

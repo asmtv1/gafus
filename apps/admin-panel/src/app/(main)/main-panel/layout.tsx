@@ -8,6 +8,7 @@ import {
   Notifications,
   TrendingUp,
   Assessment,
+  ShoppingCart,
 } from "@mui/icons-material";
 
 import MobileMenu from "@/shared/components/MobileMenu";
@@ -58,13 +59,17 @@ export default async function MainPanelLayout({ children }: { children: React.Re
           </>
         )}
 
-        {/* Статистика по презентации для ADMIN и MODERATOR */}
+        {/* Статистика по презентации и покупки курсов для ADMIN и MODERATOR */}
         {["ADMIN", "MODERATOR"].includes(session.user.role) && (
           <>
             <div className={styles.divider}></div>
             <Link href="/main-panel/presentation-stats" className={styles.button}>
               <Assessment sx={{ mr: 1.5, fontSize: 20 }} />
               Стата по презентации
+            </Link>
+            <Link href="/main-panel/purchases" className={styles.button}>
+              <ShoppingCart sx={{ mr: 1.5, fontSize: 20 }} />
+              Покупки курсов
             </Link>
           </>
         )}

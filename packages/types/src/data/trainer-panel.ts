@@ -22,11 +22,18 @@ export interface TrainerCourseFormData {
   logoImg: string;
   isPublic: boolean;
   isPaid: boolean;
+  priceRub: number | null;
   showInProfile: boolean;
   trainingDays: string[];
   allowedUsers: string[];
   equipment: string;
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+}
+
+// Результат создания платежа (API)
+export interface CreatePaymentResult {
+  paymentId: string;
+  confirmationUrl: string;
 }
 
 // Строка для таблицы шагов (данные без UI-специфичных полей)

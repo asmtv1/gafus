@@ -10,3 +10,4 @@ export * from "./training";
 export * from "./exam";
 export * from "./notes";
 export * from "./offline";
+export * from "./payments";

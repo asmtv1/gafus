@@ -2,6 +2,7 @@ import {
   Category,
   Edit as EditIcon,
   Lock as LockIcon,
+  MonetizationOn as PaidIcon,
   Person,
   Public as PublicIcon,
   Star,
@@ -110,10 +111,22 @@ export default function CourseCard({ course, onClick, isAdmin = false }: CourseC
 
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
               <Chip
-                icon={course.isPrivate ? <LockIcon /> : <PublicIcon />}
-                label={course.isPrivate ? "Приватный" : "Публичный"}
+                icon={
+                  course.isPaid ? (
+                    <PaidIcon />
+                  ) : course.isPrivate ? (
+                    <LockIcon />
+                  ) : (
+                    <PublicIcon />
+                  )
+                }
+                label={
+                  course.isPaid ? "Платный" : course.isPrivate ? "Приватный" : "Публичный"
+                }
                 size="small"
-                color={course.isPrivate ? "default" : "success"}
+                color={
+                  course.isPaid ? "warning" : course.isPrivate ? "default" : "success"
+                }
                 variant="outlined"
               />
               {course.trainingLevel && (

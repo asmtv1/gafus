@@ -17,7 +17,11 @@ import { declOfNum } from "@gafus/core/utils";
 import { SimpleCourseRating } from "../CourseRating";
 import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
-import { showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
+import {
+  showSuccessAlert,
+  showErrorAlert,
+  showPaidCourseAccessAlert,
+} from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { FavoriteButton } from "../FavoriteButton/FavoriteButton";
@@ -63,6 +67,9 @@ export const CourseCard = ({
   duration,
   logoImg,
   isPrivate = false,
+  isPaid = false,
+  priceRub,
+  hasAccess = true,
   userStatus = TrainingStatus.NOT_STARTED,
   startedAt,
   completedAt,
@@ -74,6 +81,7 @@ export const CourseCard = ({
   reviews,
   isFavorite: propIsFavorite,
   onUnfavorite,
+  onPaidCourseClick,
   index: _index = 0,
 }: CourseCardPropsWithIndex) => {
   const {
@@ -323,10 +331,26 @@ export const CourseCard = ({
     return `${reviewCount} ${declOfNum(reviewCount, ["отзыв", "отзыва", "отзывов"])}`;
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (isPaid && !hasAccess) {
+      e.preventDefault();
+      const price = priceRub ?? 0;
+      void showPaidCourseAccessAlert(
+        { name, priceRub: price },
+        () => onPaidCourseClick?.({ id, name, type, priceRub: price }),
+      );
+    }
+  };
+
   return (
     <li className={styles.courseCard}>
       <div className={styles.courseCardContent}>
-        <Link href={`/trainings/${type}`} className={styles.link} prefetch={false}>
+        <Link
+          href={`/trainings/${type}`}
+          className={styles.link}
+          prefetch={false}
+          onClick={handleCardClick}
+        >
           <div className={styles.imageContainer}>
             <Image
               src={finalSrc}
@@ -337,6 +361,7 @@ export const CourseCard = ({
               onError={() => setImgError(true)}
             />
             {isPrivate && <div className={styles.privateBadge}>Приватный</div>}
+            {isPaid && <div className={styles.paidBadge}>Платный</div>}
           </div>
 
           <div className={styles.content}>
@@ -429,17 +454,29 @@ export const CourseCard = ({
       {!isChecking && (
         <div className={styles.offlineActions}>
           {!isDownloaded ? (
-            <button
-              className={styles.downloadButton}
-              onClick={handleDownload}
-              disabled={isDownloading}
-              title="Скачать курс для офлайн-доступа"
-            >
-              <Download className={styles.buttonIcon} />
-              <span>
-                {isDownloading ? `Скачивание ${Math.round(downloadProgress)}%` : "Скачать"}
-              </span>
-            </button>
+            isPaid && !hasAccess ? (
+              <button
+                className={styles.downloadButton}
+                type="button"
+                disabled
+                title="Оплатите курс для скачивания"
+              >
+                <Download className={styles.buttonIcon} />
+                <span>Оплатите для скачивания</span>
+              </button>
+            ) : (
+              <button
+                className={styles.downloadButton}
+                onClick={handleDownload}
+                disabled={isDownloading}
+                title="Скачать курс для офлайн-доступа"
+              >
+                <Download className={styles.buttonIcon} />
+                <span>
+                  {isDownloading ? `Скачивание ${Math.round(downloadProgress)}%` : "Скачать"}
+                </span>
+              </button>
+            )
           ) : (
             <>
               <button

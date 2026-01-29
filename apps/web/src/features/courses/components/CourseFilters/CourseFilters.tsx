@@ -114,7 +114,7 @@ export default function CourseFilters({
 
   // Подсчитываем активные фильтры (не по умолчанию)
   const activeFiltersCount = [
-    activeTab !== "free",
+    activeTab !== "all",
     activeLevel !== "ALL",
     activeProgress !== "ALL",
     activeRating !== "ALL",
@@ -122,7 +122,7 @@ export default function CourseFilters({
 
   // Сброс всех фильтров к значениям по умолчанию
   const handleResetFilters = () => {
-    onTabChange("free");
+    onTabChange("all");
     onLevelChange("ALL");
     onProgressChange("ALL");
     onRatingChange("ALL");

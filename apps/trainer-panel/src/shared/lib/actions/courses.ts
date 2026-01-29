@@ -26,6 +26,7 @@ export interface CreateCourseInput {
   logoImg: string;
   isPublic: boolean;
   isPaid: boolean;
+  priceRub: number | null;
   showInProfile: boolean;
   trainingDays: string[];
   allowedUsers: string[];
@@ -52,6 +53,13 @@ export async function createCourseServerAction(formData: FormData) {
   const videoUrl = formData.get("videoUrl")?.toString();
   const isPublic = formData.get("isPublic")?.toString() === "true";
   const isPaid = formData.get("isPaid")?.toString() === "true";
+  const priceRubRaw = formData.get("priceRub")?.toString();
+  const priceRub = priceRubRaw ? parseFloat(priceRubRaw) : null;
+  if (isPaid) {
+    if (priceRub == null || Number.isNaN(priceRub) || priceRub < 1 || priceRub > 999_999) {
+      return { success: false, error: "Для платного курса укажите цену от 1 до 999 999 ₽" };
+    }
+  }
   const showInProfile = formData.get("showInProfile")?.toString() === "true";
   const trainingDays = formData.getAll("trainingDays").map(String);
   const allowedUsers = formData.getAll("allowedUsers").map(String);
@@ -79,6 +87,7 @@ export async function createCourseServerAction(formData: FormData) {
         logoImg: "", // Временно пустая строка, обновим после загрузки файла
         isPrivate,
         isPaid,
+        priceRub: isPaid && priceRub != null ? priceRub : null,
         showInProfile: showInProfile ?? true,
         videoUrl: videoUrl || null,
         equipment,
@@ -152,6 +161,10 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   } | null;
   if (!session?.user?.id) return { success: false, error: "Не авторизован" };
 
+  if (input.isPaid && (input.priceRub == null || input.priceRub < 1 || input.priceRub > 999_999)) {
+    return { success: false, error: "Для платного курса укажите цену от 1 до 999 999 ₽" };
+  }
+
   const isPrivate = !input.isPublic;
 
   const desiredDayIds = (input.trainingDays || []).map((dayId: string) => String(dayId));
@@ -170,6 +183,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
           videoUrl: input.videoUrl || null,
           isPrivate,
           isPaid: input.isPaid,
+          priceRub: input.isPaid && input.priceRub != null ? input.priceRub : null,
           showInProfile: input.showInProfile ?? true,
           equipment: input.equipment,
           trainingLevel: input.trainingLevel,
@@ -245,15 +259,43 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
         }
       }
 
-      // Пересобираем доступ
-      await tx.courseAccess.deleteMany({ where: { courseId: input.id } });
-      if (isPrivate) {
-        await tx.courseAccess.createMany({
-          data: (input.allowedUsers || []).map((userId: string) => ({
-            courseId: input.id,
-            userId: String(userId),
-          })),
+      // Пересобираем доступ: для платного курса не удаляем CourseAccess (оплатившие сохраняют доступ)
+      if (input.isPaid) {
+        const allowedSet = new Set((input.allowedUsers || []).map(String));
+        const existingAccess = await tx.courseAccess.findMany({
+          where: { courseId: input.id },
+          select: { userId: true },
         });
+        const paidUserIds = await tx.payment
+          .findMany({
+            where: { courseId: input.id, status: "SUCCEEDED" },
+            select: { userId: true },
+          })
+          .then((rows) => new Set(rows.map((r) => r.userId)));
+        const toRemove = existingAccess
+          .filter((a) => !allowedSet.has(a.userId) && !paidUserIds.has(a.userId))
+          .map((a) => a.userId);
+        if (toRemove.length > 0) {
+          await tx.courseAccess.deleteMany({
+            where: { courseId: input.id, userId: { in: toRemove } },
+          });
+        }
+        for (const userId of allowedSet) {
+          const exists = existingAccess.some((a) => a.userId === userId);
+          if (!exists) {
+            await tx.courseAccess.create({ data: { courseId: input.id, userId } });
+          }
+        }
+      } else {
+        await tx.courseAccess.deleteMany({ where: { courseId: input.id } });
+        if (isPrivate) {
+          await tx.courseAccess.createMany({
+            data: (input.allowedUsers || []).map((userId: string) => ({
+              courseId: input.id,
+              userId: String(userId),
+            })),
+          });
+        }
       }
     },
     {

@@ -8,6 +8,10 @@ import { SyncStatusIndicator } from "@shared/components/ui/SyncStatusIndicator";
 
 import styles from "./courses.module.css";
 import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
+import {
+  PaidCourseDrawer,
+  type PaidCourseDrawerCourse,
+} from "@/features/courses/components/PaidCourseDrawer";
 import type { CourseTabType } from "@/features/courses/components/CourseTabs/CourseTabs";
 import CourseSearch from "@/features/courses/components/CourseSearch/CourseSearch";
 import CourseFilters, {
@@ -17,6 +21,69 @@ import CourseFilters, {
   type RatingFilterType,
 } from "@/features/courses/components/CourseFilters";
 import { filterAndSortCourses } from "@shared/utils/courseFilters";
+
+const COURSES_FILTERS_STORAGE_KEY = "courses-filters";
+
+const VALID_TABS: CourseTabType[] = ["all", "free", "paid", "private"];
+const VALID_LEVELS: TrainingLevelType[] = ["ALL", "BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"];
+const VALID_SORTING: SortingType[] = ["newest", "rating", "name", "progress"];
+
+function loadFiltersFromStorage(): {
+  tab: CourseTabType;
+  level: TrainingLevelType;
+  progress: ProgressFilterType;
+  rating: RatingFilterType;
+  search: string;
+  sorting: SortingType;
+} {
+  if (typeof window === "undefined") {
+    return {
+      tab: "all",
+      level: "ALL",
+      progress: "ALL",
+      rating: "ALL",
+      search: "",
+      sorting: "newest",
+    };
+  }
+  try {
+    const raw = localStorage.getItem(COURSES_FILTERS_STORAGE_KEY);
+    if (!raw) return getDefaultFilters();
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      tab: VALID_TABS.includes(parsed.tab as CourseTabType) ? (parsed.tab as CourseTabType) : "all",
+      level: VALID_LEVELS.includes(parsed.level as TrainingLevelType)
+        ? (parsed.level as TrainingLevelType)
+        : "ALL",
+      progress:
+        typeof parsed.progress === "string" &&
+        ["ALL", "NOT_STARTED", "IN_PROGRESS", "COMPLETED"].includes(parsed.progress)
+          ? (parsed.progress as ProgressFilterType)
+          : "ALL",
+      rating:
+        typeof parsed.rating === "string" && ["ALL", "4+", "3+", "ANY"].includes(parsed.rating)
+          ? (parsed.rating as RatingFilterType)
+          : "ALL",
+      search: typeof parsed.search === "string" ? parsed.search : "",
+      sorting: VALID_SORTING.includes(parsed.sorting as SortingType)
+        ? (parsed.sorting as SortingType)
+        : "newest",
+    };
+  } catch {
+    return getDefaultFilters();
+  }
+}
+
+function getDefaultFilters() {
+  return {
+    tab: "all" as CourseTabType,
+    level: "ALL" as TrainingLevelType,
+    progress: "ALL" as ProgressFilterType,
+    rating: "ALL" as RatingFilterType,
+    search: "",
+    sorting: "newest" as SortingType,
+  };
+}
 
 interface CoursesClientProps {
   initialCourses?: CourseWithProgressData[] | null;
@@ -29,17 +96,23 @@ export default function CoursesClient({
   initialError,
   userId,
 }: CoursesClientProps) {
-  // Состояние фильтров
-  const [activeTab, setActiveTab] = useState<CourseTabType>("free");
-  const [activeLevel, setActiveLevel] = useState<TrainingLevelType>("ALL");
-  const [activeProgress, setActiveProgress] = useState<ProgressFilterType>("ALL");
-  const [activeRating, setActiveRating] = useState<RatingFilterType>("ALL");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [activeSorting, setActiveSorting] = useState<SortingType>("newest");
+  const [filters, setFilters] = useState(() => loadFiltersFromStorage());
+  const { tab: activeTab, level: activeLevel, progress: activeProgress, rating: activeRating, search: searchQuery, sorting: activeSorting } = filters;
+  const [paidDrawerCourse, setPaidDrawerCourse] = useState<PaidCourseDrawerCourse | null>(null);
 
-  // Функция сброса всех фильтров
+  const setActiveTab = (tab: CourseTabType) => setFilters((prev) => ({ ...prev, tab }));
+  const setActiveLevel = (level: TrainingLevelType) => setFilters((prev) => ({ ...prev, level }));
+  const setActiveProgress = (progress: ProgressFilterType) => setFilters((prev) => ({ ...prev, progress }));
+  const setActiveRating = (rating: RatingFilterType) => setFilters((prev) => ({ ...prev, rating }));
+  const setSearchQuery = (search: string) => setFilters((prev) => ({ ...prev, search }));
+  const setActiveSorting = (sorting: SortingType) => setFilters((prev) => ({ ...prev, sorting }));
+
+  useEffect(() => {
+    localStorage.setItem(COURSES_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+  }, [filters]);
+
   const handleResetFilters = () => {
-    setSearchQuery(""); // Также сбрасываем поиск
+    setFilters((prev) => ({ ...prev, search: "" }));
   };
 
   const { allCourses, loading, errors, fetchAllCourses, forceRefreshFavorites, setAllCourses } =
@@ -158,9 +231,21 @@ export default function CoursesClient({
       {/* Список курсов */}
       <ul className={styles.courseList}>
         {filteredCourses.map((course, index) => (
-          <CourseCard key={course.id} {...course} index={index} />
+          <CourseCard
+            key={course.id}
+            {...course}
+            index={index}
+            onPaidCourseClick={setPaidDrawerCourse}
+          />
         ))}
       </ul>
+
+      <PaidCourseDrawer
+        open={!!paidDrawerCourse}
+        course={paidDrawerCourse}
+        onClose={() => setPaidDrawerCourse(null)}
+        userId={userId}
+      />
 
       {/* Пустое состояние */}
       {filteredCourses.length === 0 && (

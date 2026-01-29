@@ -55,6 +55,18 @@
   font-weight: 500;
 }
 
+.paidBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(40, 120, 80, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 .content {
   padding-top: 10px;
   padding-left: 30px;

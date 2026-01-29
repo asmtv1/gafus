@@ -40,9 +40,9 @@ interface FiltersDrawerProps {
 }
 
 const tabOptions = [
+  { id: "all" as CourseTabType, label: "Все" },
   { id: "free" as CourseTabType, label: "Бесплатные" },
-  // TODO: Вернуться к реализации платных курсов
-  // { id: "paid" as CourseTabType, label: "Платные" },
+  { id: "paid" as CourseTabType, label: "Платные" },
   { id: "private" as CourseTabType, label: "Приватные" },
 ];
 

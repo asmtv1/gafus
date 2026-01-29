@@ -276,10 +276,7 @@ export async function getCoursesWithProgressCached(userId?: string) {
           safeUserId,
           operation: "warn",
         });
-        if (!safeUserId) {
-          return { success: false, data: [], error: "User ID is required" };
-        }
-        const data = await getCoursesWithProgress(safeUserId);
+        const data = await getCoursesWithProgress(safeUserId ?? undefined);
         logger.warn(
           `[React Cache] Cached ${data.length} courses successfully for user: ${safeUserId}`,
           { operation: "warn" },

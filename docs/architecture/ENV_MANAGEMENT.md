@@ -19,6 +19,11 @@
 PROMETHEUS_URL=http://localhost:9090
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
+
+# ЮKassa (платные курсы, только для apps/web)
+YOOKASSA_SHOP_ID=   # идентификатор магазина из ЛК ЮKassa
+YOOKASSA_SECRET_KEY= # секретный ключ (не публиковать)
+
 # ... остальные переменные
 ```
 

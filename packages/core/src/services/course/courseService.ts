@@ -13,111 +13,89 @@ const logger = createWebLogger("course-service");
 
 // ========== Get Courses With Progress ==========
 
+const courseSelect = {
+  id: true,
+  name: true,
+  type: true,
+  description: true,
+  shortDesc: true,
+  duration: true,
+  logoImg: true,
+  isPrivate: true,
+  isPaid: true,
+  priceRub: true,
+  avgRating: true,
+  trainingLevel: true,
+  createdAt: true,
+  author: { select: { username: true } },
+  reviews: {
+    include: {
+      user: {
+        select: { id: true, username: true, profile: { select: { avatarUrl: true } } },
+      },
+    },
+  },
+  favoritedBy: true,
+  access: { include: { user: { select: { id: true } } } },
+  userCourses: {
+    include: {
+      user: { include: { profile: { select: { avatarUrl: true } } } },
+    },
+  },
+  dayLinks: {
+    include: {
+      day: {
+        include: {
+          stepLinks: { include: { step: { select: { title: true } } } },
+        },
+      },
+    },
+  },
+} as const;
+
 /**
- * Получает все доступные курсы с прогрессом пользователя
+ * Получает все доступные курсы с прогрессом пользователя. При отсутствии userId (гость) — только публичные курсы, hasAccess для платных false.
  */
-export async function getCoursesWithProgress(userId: string): Promise<CourseWithProgressData[]> {
-  const allCourses: CourseWithExtras[] = await prisma.course.findMany({
-    where: {
-      OR: [{ isPrivate: false }, { access: { some: { userId } } }],
-    },
-    select: {
-      id: true,
-      name: true,
-      type: true,
-      description: true,
-      shortDesc: true,
-      duration: true,
-      logoImg: true,
-      isPrivate: true,
-      isPaid: true,
-      avgRating: true,
-      trainingLevel: true,
-      createdAt: true,
-      author: {
+export async function getCoursesWithProgress(
+  userId?: string,
+): Promise<CourseWithProgressData[]> {
+  // Возвращаем все курсы (бесплатные, платные, приватные); фильтрация по табам — на клиенте
+  const allCourses = await prisma.course.findMany({
+    select: courseSelect,
+  });
+
+  const userCourses = userId
+    ? await prisma.userCourse.findMany({
+        where: { userId },
         select: {
-          username: true,
+          courseId: true,
+          status: true,
+          startedAt: true,
+          completedAt: true,
         },
-      },
-      reviews: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              profile: {
-                select: {
-                  avatarUrl: true,
-                },
-              },
-            },
-          },
-        },
-      },
-      favoritedBy: true,
-      access: {
-        include: {
-          user: {
-            select: { id: true },
-          },
-        },
-      },
-      userCourses: {
-        include: {
-          user: {
-            include: {
-              profile: {
-                select: {
-                  avatarUrl: true,
-                },
-              },
-            },
-          },
-        },
-      },
-      dayLinks: {
-        include: {
-          day: {
-            include: {
-              stepLinks: {
-                include: {
-                  step: {
-                    select: {
-                      title: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
+      })
+    : [];
 
-  const userCourses = await prisma.userCourse.findMany({
-    where: { userId },
-    select: {
-      courseId: true,
-      status: true,
-      startedAt: true,
-      completedAt: true,
-    },
-  });
-
-  const userFavorites = await prisma.favoriteCourse.findMany({
-    where: { userId },
-    select: { courseId: true },
-  });
-
-  const favoriteCourseIds = new Set(userFavorites.map((f) => f.courseId));
+  const userFavorites = userId
+    ? await prisma.favoriteCourse.findMany({
+        where: { userId },
+        select: { courseId: true },
+      })
+    : [];
+  const favoriteCourseIds = new Set(userFavorites.map((f: { courseId: string }) => f.courseId));
 
   return allCourses.map((course) => {
-    const userCourse = userCourses.find((uc) => uc.courseId === course.id);
+    const userCourse = userId ? userCourses.find((uc) => uc.courseId === course.id) : null;
 
     const userStatus = userCourse?.status
       ? (userCourse.status as TrainingStatus)
       : TrainingStatus.NOT_STARTED;
+
+    const hasAccess = course.isPaid
+      ? !!(userId && course.access.some((a: { user: { id: string } }) => a.user.id === userId))
+      : !course.isPrivate
+        ? true
+        : course.access.length > 0;
 
     return {
       id: course.id,
@@ -129,6 +107,8 @@ export async function getCoursesWithProgress(userId: string): Promise<CourseWith
       logoImg: course.logoImg,
       isPrivate: course.isPrivate,
       isPaid: course.isPaid,
+      priceRub: course.priceRub != null ? Number(course.priceRub) : null,
+      hasAccess,
       avgRating: course.avgRating,
       trainingLevel: course.trainingLevel,
       createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
@@ -187,42 +167,27 @@ export async function checkCourseAccess(
   courseType: string,
   userId?: string,
 ): Promise<{ hasAccess: boolean }> {
-  // Если пользователь не авторизован, проверяем только публичные курсы
   if (!userId) {
     const course = await prisma.course.findUnique({
       where: { type: courseType },
-      select: { isPrivate: true },
+      select: { isPrivate: true, isPaid: true },
     });
-
-    if (!course) {
-      return { hasAccess: false };
-    }
-
+    if (!course) return { hasAccess: false };
+    if (course.isPaid) return { hasAccess: false };
     return { hasAccess: !course.isPrivate };
   }
 
-  // Для авторизованного пользователя проверяем доступ
   const course = await prisma.course.findUnique({
     where: { type: courseType },
     select: {
       isPrivate: true,
-      access: {
-        where: { userId },
-        select: { userId: true },
-      },
+      isPaid: true,
+      access: { where: { userId }, select: { userId: true } },
     },
   });
-
-  if (!course) {
-    return { hasAccess: false };
-  }
-
-  // Публичный курс доступен всем
-  if (!course.isPrivate) {
-    return { hasAccess: true };
-  }
-
-  // Приватный курс доступен только пользователям с доступом
+  if (!course) return { hasAccess: false };
+  if (course.isPaid) return { hasAccess: course.access.length > 0 };
+  if (!course.isPrivate) return { hasAccess: true };
   return { hasAccess: course.access.length > 0 };
 }
 
@@ -236,13 +201,10 @@ export async function checkCourseAccessById(
   if (!userId) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { isPrivate: true },
+      select: { isPrivate: true, isPaid: true },
     });
-
-    if (!course) {
-      return { hasAccess: false };
-    }
-
+    if (!course) return { hasAccess: false };
+    if (course.isPaid) return { hasAccess: false };
     return { hasAccess: !course.isPrivate };
   }
 
@@ -250,22 +212,27 @@ export async function checkCourseAccessById(
     where: { id: courseId },
     select: {
       isPrivate: true,
-      access: {
-        where: { userId },
-        select: { userId: true },
-      },
+      isPaid: true,
+      access: { where: { userId }, select: { userId: true } },
     },
   });
-
-  if (!course) {
-    return { hasAccess: false };
-  }
-
-  if (!course.isPrivate) {
-    return { hasAccess: true };
-  }
-
-  return { hasAccess: course.access.length > 0 };
+  const result = !course
+    ? { hasAccess: false }
+    : course.isPaid
+      ? { hasAccess: course.access.length > 0 }
+      : !course.isPrivate
+        ? { hasAccess: true }
+        : { hasAccess: course.access.length > 0 };
+  // [PAID-ACCESS] debug (логи в терминале сервера)
+  console.log("[PAID-ACCESS] checkCourseAccessById", {
+    courseId,
+    userId,
+    isPrivate: course?.isPrivate,
+    isPaid: course?.isPaid,
+    accessCount: course?.access?.length ?? 0,
+    hasAccess: result.hasAccess,
+  });
+  return result;
 }
 
 // ========== Get Course Metadata ==========
@@ -282,6 +249,9 @@ export async function getCourseMetadata(courseType: string) {
       shortDesc: true,
       logoImg: true,
       description: true,
+      isPaid: true,
+      isPrivate: true,
+      priceRub: true,
     },
   });
 

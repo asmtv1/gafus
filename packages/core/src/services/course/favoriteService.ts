@@ -61,6 +61,8 @@ export async function getFavoritesCourses(
       },
     ) => {
       const userCourse = userCourses.find((uc) => uc.courseId === course.id);
+      const c = course as Course & { isPaid: boolean; access: { userId: string }[] };
+      const hasAccess = c.isPaid ? c.access.some((a) => a.userId === userId) : !c.isPrivate ? true : c.access.length > 0;
 
       return {
         id: course.id,
@@ -72,6 +74,8 @@ export async function getFavoritesCourses(
         logoImg: course.logoImg,
         isPrivate: course.isPrivate,
         isPaid: course.isPaid,
+        priceRub: course.priceRub != null ? Number(course.priceRub) : null,
+        hasAccess,
         avgRating: course.avgRating,
         trainingLevel: course.trainingLevel,
         createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),

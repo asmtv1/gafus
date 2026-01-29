@@ -2,10 +2,14 @@
 
 import { useCourseStore, useCourseStoreActions } from "@shared/stores";
 import { useFavoritesStore } from "@shared/stores/favoritesStore";
-import { useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo, useState } from "react";
 import type { CourseWithProgressData } from "@gafus/types";
 
 import { CourseCard } from "../../../features/courses/components/CourseCard/CourseCard";
+import {
+  PaidCourseDrawer,
+  type PaidCourseDrawerCourse,
+} from "@/features/courses/components/PaidCourseDrawer";
 import styles from "./favorites.module.css";
 
 interface FavoritesCourseListProps {
@@ -30,15 +34,19 @@ export default function FavoritesCourseList({
   } = useCourseStoreActions();
   const { favoriteIds, loadFromServer, initialized } = useFavoritesStore();
   const courseStore = useCourseStore();
+  const [paidDrawerCourse, setPaidDrawerCourse] = useState<PaidCourseDrawerCourse | null>(null);
 
   // Мемоизируем функцию обновления избранного
   const handleUnfavorite = useCallback(
     (_courseId: string) => {
-      // Принудительно обновляем кэш для синхронизации с сервером
       forceRefreshFavorites();
     },
     [forceRefreshFavorites],
   );
+
+  const handlePaidCourseClick = useCallback((c: PaidCourseDrawerCourse) => {
+    setPaidDrawerCourse(c);
+  }, []);
 
   // Инициализируем данные при монтировании компонента
   useEffect(() => {
@@ -156,6 +164,9 @@ export default function FavoritesCourseList({
             duration: course.duration || "",
             logoImg: course.logoImg,
             isPrivate: course.isPrivate || false,
+            isPaid: course.isPaid ?? false,
+            priceRub: course.priceRub ?? null,
+            hasAccess: course.hasAccess ?? true,
             userStatus: course.userStatus || "NOT_STARTED",
             startedAt: course.startedAt,
             completedAt: course.completedAt,
@@ -170,10 +181,22 @@ export default function FavoritesCourseList({
           };
 
           return (
-            <CourseCard key={course.id} {...courseCardProps} onUnfavorite={handleUnfavorite} />
+            <CourseCard
+              key={course.id}
+              {...courseCardProps}
+              onUnfavorite={handleUnfavorite}
+              onPaidCourseClick={handlePaidCourseClick}
+            />
           );
         })}
       </ul>
+
+      <PaidCourseDrawer
+        open={!!paidDrawerCourse}
+        course={paidDrawerCourse}
+        onClose={() => setPaidDrawerCourse(null)}
+        userId={userId}
+      />
     </div>
   );
 }

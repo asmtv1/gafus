@@ -21,17 +21,11 @@ export default function MainLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="training/[courseType]/index"
-        options={{
-          headerShown: true,
-          title: "Тренировка",
-        }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="training/[courseType]/[dayId]"
-        options={{
-          headerShown: true,
-          title: "День тренировки",
-        }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="pets/add"

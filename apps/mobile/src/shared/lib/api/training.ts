@@ -46,6 +46,7 @@ export interface UserStep {
 export interface TrainingDayResponse {
   trainingDayId: string;
   dayOnCourseId: string;
+  displayDayNumber?: number;
   title: string;
   type: string;
   description?: string;

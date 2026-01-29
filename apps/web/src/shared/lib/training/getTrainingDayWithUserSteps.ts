@@ -51,13 +51,16 @@ function calculateDisplayDayNumber(
 async function findTrainingDayWithUserTraining(
   courseType: string,
   dayOnCourseId: string,
-  userId: string,
+  userId: string | null,
 ) {
-  // Проверяем доступ к курсу перед запросом к БД
-  const accessCheck = await checkCourseAccess(courseType);
+  // Проверяем доступ к курсу перед запросом к БД (для платного/приватного нужен userId)
+  const accessCheck = await checkCourseAccess(courseType, userId ?? undefined);
   if (!accessCheck.hasAccess) {
     return null;
   }
+
+  // Для гостя (userId === null) передаём несуществующий id, чтобы userTrainings были пусты
+  const userIdForQuery = userId ?? "";
 
   // Используем ID дня для прямого поиска в БД
   return prisma.dayOnCourse.findFirst({
@@ -107,7 +110,7 @@ async function findTrainingDayWithUserTraining(
         },
       },
       userTrainings: {
-        where: { userId },
+        where: { userId: userIdForQuery },
         select: {
           id: true,
           status: true,

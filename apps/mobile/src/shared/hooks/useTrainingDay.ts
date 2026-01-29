@@ -77,16 +77,12 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
           }
 
           // Синхронизируем состояния шагов с сервера
-          // API может возвращать разные структуры данных
-          const steps = response.data.steps.map((s: any, index: number) => {
-            // Используем stepIndex, если есть, иначе order или index
-            const stepIndex = s.stepIndex ?? s.order ?? index;
-            return {
-              stepIndex,
-              status: s.status || "NOT_STARTED",
-              remainingSec: s.remainingSec ?? s.remainingSecOnServer ?? null,
-            };
-          });
+          // API использует 0-based индекс массива (stepLinks[stepIndex])
+          const steps = response.data.steps.map((s: any, index: number) => ({
+            stepIndex: index,
+            status: s.status || "NOT_STARTED",
+            remainingSec: s.remainingSec ?? s.remainingSecOnServer ?? null,
+          }));
 
           if (__DEV__) {
             console.log("[useTrainingDay] Синхронизация шагов:", {

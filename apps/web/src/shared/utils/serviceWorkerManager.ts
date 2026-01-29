@@ -79,16 +79,19 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
 
       return registration;
     } catch (error) {
-      logger.error("❌ SW Manager: Registration failed", error as Error, {
+      logger.warn("⚠️ SW Manager: Registration failed (push/offline may be unavailable)", {
         operation: "service_worker_registration_failed",
+        error: error instanceof Error ? error.message : String(error),
       });
       throw new Error("Service Worker registration failed");
     }
   }
 
   private async waitForActivation(registration: ServiceWorkerRegistration): Promise<void> {
-    // Если уже активен - возвращаемся сразу
-    if (registration.active && navigator.serviceWorker.controller) {
+    // Успех: SW активен (controller может быть null до перезагрузки страницы)
+    const isActive = () => !!registration.active;
+
+    if (isActive()) {
       logger.info("✅ SW Manager: Service Worker already active", {
         operation: "service_worker_already_active",
       });
@@ -99,15 +102,36 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
       operation: "waiting_for_activation",
     });
 
-    // Ждем активации с таймаутом 10 секунд
+    const ACTIVATION_MS = 15000;
+    const FALLBACK_MS = 5000;
+
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error("Service Worker activation timeout"));
-      }, 10000);
+        if (registration.waiting || registration.installing) {
+          // SW зарегистрирован, но ещё не активен (ожидает skipWaiting или перезагрузки) — не считаем ошибкой
+          logger.warn("⚠️ SW Manager: Activation pending (will control page after reload)", {
+            operation: "service_worker_activation_pending",
+          });
+          resolve();
+        } else {
+          reject(new Error("Service Worker activation timeout"));
+        }
+      }, ACTIVATION_MS);
+
+      const fallback = setTimeout(() => {
+        if (registration.waiting) {
+          clearTimeout(timeout);
+          logger.info("SW Manager: Registration ready, activation after reload", {
+            operation: "service_worker_waiting_ok",
+          });
+          resolve();
+        }
+      }, FALLBACK_MS);
 
       const checkActive = () => {
-        if (registration.active && navigator.serviceWorker.controller) {
+        if (isActive()) {
           clearTimeout(timeout);
+          clearTimeout(fallback);
           logger.success("✅ SW Manager: Service Worker activated", {
             operation: "service_worker_activated",
           });
@@ -115,23 +139,25 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
         }
       };
 
-      // Проверяем immediately
       checkActive();
 
-      // Если installing - ждем statechange
       if (registration.installing) {
         registration.installing.addEventListener("statechange", checkActive);
       }
 
-      // Если waiting - ждем controllerchange
       if (registration.waiting) {
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          clearTimeout(timeout);
-          logger.success("✅ SW Manager: Service Worker controller changed", {
-            operation: "service_worker_controller_changed",
-          });
-          resolve();
-        });
+        navigator.serviceWorker.addEventListener(
+          "controllerchange",
+          () => {
+            clearTimeout(timeout);
+            clearTimeout(fallback);
+            logger.success("✅ SW Manager: Service Worker controller changed", {
+              operation: "service_worker_controller_changed",
+            });
+            resolve();
+          },
+          { once: true },
+        );
       }
     });
   }
@@ -169,7 +195,7 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
     try {
       return await this.register();
     } catch {
-      logger.error("SW Manager: Failed to get registration", new Error("Registration failed"), {
+      logger.warn("SW Manager: No registration (push unavailable)", {
         operation: "get_registration_failed",
       });
       return null;

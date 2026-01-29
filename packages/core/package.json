@@ -57,6 +57,10 @@
       "types": "./dist/core/src/services/offline/index.d.ts",
       "default": "./dist/core/src/services/offline/index.js"
     },
+    "./services/payments": {
+      "types": "./dist/core/src/services/payments/index.d.ts",
+      "default": "./dist/core/src/services/payments/index.js"
+    },
     "./errors": {
       "types": "./dist/core/src/errors/index.d.ts",
       "default": "./dist/core/src/errors/index.js"

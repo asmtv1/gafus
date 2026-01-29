@@ -70,6 +70,7 @@ export default function CourseForm({
       logoImg: "",
       isPublic: true,
       isPaid: false,
+      priceRub: null as number | null,
       showInProfile: true,
       trainingDays: [],
       allowedUsers: [],
@@ -90,6 +91,7 @@ export default function CourseForm({
         logoImg: initialValues.logoImg ?? "",
         isPublic: initialValues.isPublic ?? true,
         isPaid: initialValues.isPaid ?? false,
+        priceRub: initialValues.priceRub ?? null,
         showInProfile: initialValues.showInProfile ?? true,
         trainingDays: initialValues.trainingDays ?? [],
         allowedUsers: initialValues.allowedUsers ?? [],
@@ -124,6 +126,7 @@ export default function CourseForm({
           logoImg: data.logoImg,
           isPublic: data.isPublic,
           isPaid: data.isPaid,
+          priceRub: data.priceRub ?? null,
           showInProfile: data.showInProfile,
           trainingDays: data.trainingDays,
           allowedUsers: data.allowedUsers,
@@ -144,6 +147,9 @@ export default function CourseForm({
         }
         formData.append("isPublic", data.isPublic ? "true" : "false");
         formData.append("isPaid", data.isPaid ? "true" : "false");
+        if (data.isPaid && data.priceRub != null) {
+          formData.append("priceRub", String(data.priceRub));
+        }
         formData.append("showInProfile", data.showInProfile ? "true" : "false");
         formData.append("equipment", data.equipment || "");
         formData.append("trainingLevel", data.trainingLevel || "BEGINNER");
@@ -306,9 +312,7 @@ export default function CourseForm({
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               • <strong>Публичный курс</strong> — доступен всем пользователям бесплатно
               <br />• <strong>Приватный курс</strong> — доступен только выбранным пользователям
-              <br />
-              {/* TODO: Вернуться к реализации платных курсов */}
-              {/* • <strong>Платный курс</strong> — доступен всем пользователям за плату */}
+              <br />• <strong>Платный курс</strong> — доступен всем пользователям за плату
             </Typography>
             <RadioGroup
               value={(() => {
@@ -316,8 +320,7 @@ export default function CourseForm({
                 const isPaid = form.watch("isPaid");
                 if (isPublic && !isPaid) return "public";
                 if (!isPublic && !isPaid) return "private";
-                // TODO: Вернуться к реализации платных курсов
-                // if (isPaid) return "paid";
+                if (isPaid) return "paid";
                 return "public";
               })()}
               onChange={(e) => {
@@ -325,34 +328,44 @@ export default function CourseForm({
                 if (value === "public") {
                   form.setValue("isPublic", true);
                   form.setValue("isPaid", false);
-                  // Очищаем список разрешённых пользователей
+                  form.setValue("priceRub", null);
                   setSelectedUsers([]);
                   form.setValue("allowedUsers", []);
                 } else if (value === "private") {
                   form.setValue("isPublic", false);
                   form.setValue("isPaid", false);
+                  form.setValue("priceRub", null);
+                } else if (value === "paid") {
+                  form.setValue("isPublic", true);
+                  form.setValue("isPaid", true);
+                  form.setValue("priceRub", form.watch("priceRub") ?? 0);
+                  setSelectedUsers([]);
+                  form.setValue("allowedUsers", []);
                 }
-                // TODO: Вернуться к реализации платных курсов
-                // else if (value === "paid") {
-                //   form.setValue("isPublic", true);
-                //   form.setValue("isPaid", true);
-                //   // Очищаем список разрешённых пользователей
-                //   setSelectedUsers([]);
-                //   form.setValue("allowedUsers", []);
-                // }
               }}
               row
             >
               <FormControlLabel value="public" control={<Radio />} label="Публичный курс" />
               <FormControlLabel value="private" control={<Radio />} label="Приватный курс" />
-              {/* TODO: Вернуться к реализации платных курсов */}
-              {/* <FormControlLabel
-                value="paid"
-                control={<Radio />}
-                label="Платный курс"
-              /> */}
+              <FormControlLabel value="paid" control={<Radio />} label="Платный курс" />
             </RadioGroup>
           </FormControl>
+          {form.watch("isPaid") && (
+            <Box className={sharedStyles.formField} sx={{ maxWidth: 200 }}>
+              <FormField
+                id="priceRub"
+                name="priceRub"
+                label="Цена, ₽"
+                type="number"
+                form={form}
+                rules={{
+                  required: "Укажите цену",
+                  min: { value: 1, message: "Минимум 1 ₽" },
+                  max: { value: 999999, message: "Максимум 999 999 ₽" },
+                }}
+              />
+            </Box>
+          )}
           <FormControl component="fieldset" className={sharedStyles.formField}>
             <FormGroup>
               <FormControlLabel

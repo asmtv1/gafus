@@ -1,50 +1,56 @@
 #!/bin/bash
+# Полная очистка кэша и артефактов сборки.
+# Освобождает ~20GB (.turbo ~16GB + .next ~4GB + dist, cache).
 
-echo "🧹 Очищаем кэш проекта (без удаления node_modules и .next)..."
+set -e
+cd "$(dirname "$0")/.."
 
-# Очищаем кэш Turborepo (основной источник размера)
+echo "🧹 Очищаем весь кэш и артефакты сборки..."
+
+# 1. Turborepo — основной объём (~16GB)
 if [ -d ".turbo" ]; then
-  echo "  Удаляем .turbo кэш..."
+  echo "  Удаляем .turbo..."
   rm -rf .turbo
-  echo "  ✅ .turbo очищен"
+  echo "  ✅ .turbo удалён"
 fi
 
-# Очищаем кэш Next.js внутри .next папок (но не сами .next)
-for dir in apps/*; do
-  if [ -d "$dir/.next/cache" ]; then
-    echo "  Очищаем кэш Next.js в $dir..."
-    rm -rf "$dir/.next/cache"
-    echo "  ✅ Кэш Next.js очищен в $dir"
+# 2. Next.js — билды и кэш во всех apps (~4GB)
+for dir in apps/*/; do
+  if [ -d "${dir}.next" ]; then
+    echo "  Удаляем ${dir}.next..."
+    rm -rf "${dir}.next"
+    echo "  ✅ ${dir}.next удалён"
   fi
 done
 
-# Очищаем кэш ESLint
-if [ -f ".eslintcache" ]; then
-  echo "  Удаляем .eslintcache..."
-  rm -f .eslintcache
-  echo "  ✅ .eslintcache удален"
-fi
+# 3. dist во всех packages и apps
+for dir in apps/*/ packages/*/; do
+  if [ -d "${dir}dist" ]; then
+    echo "  Удаляем ${dir}dist..."
+    rm -rf "${dir}dist"
+    echo "  ✅ ${dir}dist удалён"
+  fi
+done
 
-# Очищаем кэш Prettier
-if [ -d ".prettier-cache" ]; then
-  echo "  Удаляем .prettier-cache..."
-  rm -rf .prettier-cache
-  echo "  ✅ .prettier-cache удален"
-fi
+# 4. coverage
+find . -maxdepth 4 -type d -name "coverage" ! -path "*/node_modules/*" -exec rm -rf {} + 2>/dev/null || true
+echo "  ✅ coverage удалён"
 
-# Очищаем кэш pnpm (опционально, но безопасно)
-echo "  Очищаем неиспользуемые пакеты из pnpm store..."
-pnpm store prune
+# 5. Кэши линтеров/форматтеров
+[ -f ".eslintcache" ] && rm -f .eslintcache && echo "  ✅ .eslintcache удалён"
+[ -d ".prettier-cache" ] && rm -rf .prettier-cache && echo "  ✅ .prettier-cache удалён"
 
-# Очищаем временные файлы
-echo "  Удаляем временные файлы..."
-find . -name "*.tsbuildinfo" -not -path "*/node_modules/*" -delete 2>/dev/null
-find . -name ".DS_Store" -delete 2>/dev/null
+# 6. Временные и кэш-файлы
+find . -name "*.tsbuildinfo" ! -path "*/node_modules/*" -delete 2>/dev/null || true
+find . -name ".DS_Store" -delete 2>/dev/null || true
+[ -d ".cache" ] && rm -rf .cache && echo "  ✅ .cache удалён"
+
+# 7. Очистка неиспользуемых пакетов в pnpm store
+echo "  Очищаем pnpm store (prune)..."
+pnpm store prune 2>/dev/null || true
 
 echo ""
-echo "✅ Кэш очищен!"
-echo ""
-echo "💡 Размер проекта должен уменьшиться примерно на 9-10GB"
-echo "💡 При следующей сборке кэш пересоздастся автоматически"
+echo "✅ Кэш и артефакты очищены."
+echo "💡 Ожидаемо освобождено ~20GB. Для сборки заново: pnpm build"
 
 

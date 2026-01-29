@@ -11,6 +11,7 @@ import { useTrainingDays } from "@/shared/hooks";
 import { useStepStore } from "@/shared/stores";
 import type { TrainingDay } from "@/shared/lib/api";
 import { COLORS, SPACING, FONTS } from "@/constants";
+import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
 import { showPrivateCourseAccessDeniedAlert } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
 
@@ -101,15 +102,6 @@ export default function TrainingDaysScreen() {
     [router, courseType],
   );
 
-  const typeLabels: Record<string, string> = {
-    base: "Базовый день",
-    regular: "Тренировочный день",
-    introduction: "Вводный блок",
-    instructions: "Инструкции",
-    diagnostics: "Диагностика",
-    summary: "Подведение итогов",
-  };
-
   const renderDayItem = useCallback(
     ({ item, index }: { item: TrainingDay; index: number }) => {
       // Если нет courseId, все равно показываем дни (courseId может быть в courseData)
@@ -178,7 +170,7 @@ export default function TrainingDaysScreen() {
             )}
             <Surface style={styles.dayCard} elevation={1}>
               <Text style={styles.dayTitle}>{item.title}</Text>
-              <Text style={styles.subtitle}>({typeLabels[item.type] || item.type})</Text>
+              <Text style={styles.subtitle}>({DAY_TYPE_LABELS[item.type] ?? item.type})</Text>
               <Text style={styles.equipmentLabel}>Что понадобится:</Text>
               <Text style={styles.equipment}>{item.equipment || "вкусняшки и терпение"}</Text>
             </Surface>
@@ -225,13 +217,12 @@ export default function TrainingDaysScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: "Тренировка",
-        }}
-      />
-      <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+          <Text style={styles.backText}>Назад</Text>
+        </Pressable>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
@@ -288,9 +279,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: 4,
+  },
+  backText: {
+    fontSize: 17,
+    color: COLORS.primary,
+    fontWeight: "500",
+  },
   scrollContent: {
     paddingBottom: SPACING.xl,
     paddingHorizontal: 0,
+    paddingTop: SPACING.md,
   },
   contentTitle: {
     color: "#352e2e",
@@ -299,7 +303,7 @@ const styles = StyleSheet.create({
     fontSize: 60,
     lineHeight: 60,
     textAlign: "center",
-    marginTop: 15,
+    marginTop: SPACING.md,
     marginBottom: SPACING.sm,
   },
   planTitle: {

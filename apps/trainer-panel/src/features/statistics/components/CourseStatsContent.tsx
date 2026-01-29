@@ -6,6 +6,7 @@ import {
   Edit as EditIcon,
   ExpandMore as ExpandMoreIcon,
   Lock as LockIcon,
+  MonetizationOn as PaidIcon,
   Person,
   Public as PublicIcon,
   Star,
@@ -178,10 +179,22 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
             }}
           >
             <Chip
-              icon={course.isPrivate ? <LockIcon /> : <PublicIcon />}
-              label={course.isPrivate ? "Приватный" : "Публичный"}
+              icon={
+                course.isPaid ? (
+                  <PaidIcon />
+                ) : course.isPrivate ? (
+                  <LockIcon />
+                ) : (
+                  <PublicIcon />
+                )
+              }
+              label={
+                course.isPaid ? "Платный" : course.isPrivate ? "Приватный" : "Публичный"
+              }
               size="medium"
-              color={course.isPrivate ? "default" : "success"}
+              color={
+                course.isPaid ? "warning" : course.isPrivate ? "default" : "success"
+              }
               variant="outlined"
               sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
             />

@@ -246,6 +246,7 @@ export async function getTrainingDays(
         equipment: true,
         trainingLevel: true,
         isPrivate: true,
+        isPaid: true,
         dayLinks: {
           orderBy: { order: "asc" },
           select: {
@@ -302,11 +303,25 @@ export async function getTrainingDays(
       };
     }
 
-    // Проверяем доступ к приватному курсу
-    if (firstCourse.isPrivate) {
+    // Проверяем доступ к приватному или платному курсу
+    // [PAID-ACCESS] debug
+    console.log("[PAID-ACCESS] getTrainingDays check", {
+      courseId: firstCourse.id,
+      courseType: safeType,
+      isPrivate: firstCourse.isPrivate,
+      isPaid: firstCourse.isPaid,
+      userId: currentUserId,
+      willCheckAccess: firstCourse.isPrivate || firstCourse.isPaid,
+    });
+    if (firstCourse.isPrivate || firstCourse.isPaid) {
       const hasAccess = await checkCourseAccessById(firstCourse.id, currentUserId);
+      console.log("[PAID-ACCESS] checkCourseAccessById result", {
+        courseId: firstCourse.id,
+        userId: currentUserId,
+        hasAccess: hasAccess.hasAccess,
+      });
       if (!hasAccess.hasAccess) {
-        logger.warn("Попытка доступа к приватному курсу без разрешения", {
+        logger.warn("Попытка доступа к курсу без разрешения", {
           operation: "get_training_days_access_denied",
           courseId: firstCourse.id,
           userId: currentUserId,

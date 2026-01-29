@@ -2,7 +2,7 @@ import { useCallback, useMemo, useEffect } from "react";
 import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from "react-native";
 import { Text, Surface, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, Stack } from "expo-router";
+import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 
@@ -19,7 +19,8 @@ import {
   useCompletePracticeStep,
 } from "@/shared/hooks";
 import { useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, FONTS, SPACING } from "@/constants";
+import { getDayTitle } from "@/shared/lib/training/dayTypes";
 
 /**
  * Экран дня тренировки с шагами
@@ -29,6 +30,7 @@ export default function TrainingDayScreen() {
     courseType: string;
     dayId: string;
   }>();
+  const router = useRouter();
 
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
@@ -84,16 +86,14 @@ export default function TrainingDayScreen() {
       try {
         let initializedCount = 0;
         dayData.steps.forEach((step, index) => {
-          // Используем stepIndex из данных, если есть, иначе index или order
-          const stepIndex = step.stepIndex ?? step.order ?? index;
-          // Проверяем структуру данных: может быть step.step или напрямую step
+          // API использует 0-based индекс массива (stepLinks[index])
           const stepData = "step" in step && step.step ? step.step : step;
           const durationSec = stepData.durationSec ?? 300;
           const status = step.status || "NOT_STARTED";
 
           if (__DEV__ && index < 3) {
             console.log(`[TrainingDayScreen] Инициализация шага ${index}:`, {
-              stepIndex,
+              index,
               hasNestedStep: "step" in step && !!step.step,
               durationSec,
               status,
@@ -101,7 +101,7 @@ export default function TrainingDayScreen() {
             });
           }
 
-          initializeStep(courseId, dayId, stepIndex, durationSec, status, {
+          initializeStep(courseId, dayId, index, durationSec, status, {
             serverPaused: status === "PAUSED",
             serverRemainingSec: step.remainingSec ?? step.remainingSecOnServer ?? undefined,
           });
@@ -279,9 +279,7 @@ export default function TrainingDayScreen() {
 
     const total = dayData.steps.length;
     const completed = dayData.steps.filter((s, index) => {
-      // Используем stepIndex из данных, если есть, иначе index или order
-      const stepIndex = s.stepIndex ?? s.order ?? index;
-      const localState = getStepState(courseId, dayId, stepIndex);
+      const localState = getStepState(courseId, dayId, index);
       return (localState?.status || s.status) === "COMPLETED";
     }).length;
 
@@ -357,13 +355,12 @@ export default function TrainingDayScreen() {
 
     return (
       <>
-        <Stack.Screen
-          options={{
-            headerShown: true,
-            title: "День тренировки",
-          }}
-        />
-        <SafeAreaView style={styles.container}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+          <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+            <Text style={styles.backText}>Назад</Text>
+          </Pressable>
           <View style={styles.errorContainer}>
             <MaterialCommunityIcons name="alert-circle" size={48} color={COLORS.error} />
             <Text style={styles.errorText}>{errorMessage}</Text>
@@ -402,17 +399,26 @@ export default function TrainingDayScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: dayData?.title || "День тренировки",
-        }}
-      />
-      <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+          <Text style={styles.backText}>Назад</Text>
+        </Pressable>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
         >
+          {/* Заголовок дня по типу (как на web Day.tsx) */}
+          {dayData && (
+            <View style={styles.dayHeader}>
+              <Text style={styles.dayTitle}>
+                {getDayTitle(dayData.type, dayData.displayDayNumber)}
+              </Text>
+              <View style={styles.dayHeaderDivider} />
+            </View>
+          )}
+
           {/* Прогресс дня */}
           <Surface style={styles.progressCard} elevation={1}>
             <View style={styles.progressHeader}>
@@ -460,101 +466,97 @@ export default function TrainingDayScreen() {
             </View>
           )}
 
-          {/* Список шагов */}
+          {/* Список шагов — нумерация как на web: BREAK без номера, остальные «Упражнение #N» */}
           <View style={styles.stepsContainer}>
-            {dayData?.steps.map((step, index) => {
-              try {
-                // Используем stepIndex из данных, если есть, иначе index или order
-                const stepIndex = step.stepIndex ?? step.order ?? index;
-                const stepData = "step" in step && step.step ? step.step : step;
-                const durationSec = stepData.durationSec ?? 300;
-                const stepType = stepData.type || step.type;
-                const stepTitle = stepData.title || step.title;
-                const stepOrder = stepData.order ?? index;
+            {(() => {
+              let exerciseCounter = 0;
+              return (dayData?.steps ?? []).map((step, index) => {
+                try {
+                  const stepData = "step" in step && step.step ? step.step : step;
+                  const durationSec = stepData.durationSec ?? 300;
+                  const stepType = stepData.type || step.type;
+                  const stepTitle = stepData.title || step.title;
+                  const isBreakStep = stepType === "BREAK";
+                  const exerciseNumber = isBreakStep ? undefined : ++exerciseCounter;
 
-                // Уникальный ключ: комбинация dayId, order и index для гарантии уникальности
-                const uniqueKey = `${dayId}-${step.order ?? index}-${step.id || index}`;
+                  const uniqueKey = `${dayId}-${step.order ?? index}-${step.id || index}`;
 
-                if (__DEV__) {
-                  console.log("[TrainingDayScreen] Рендеринг шага:", {
-                    index,
-                    stepIndex,
-                    uniqueKey,
-                    stepType,
-                    hasStep: !!step,
-                    hasStepData: !!stepData,
-                  });
-                }
+                  if (__DEV__) {
+                    console.log("[TrainingDayScreen] Рендеринг шага:", {
+                      index,
+                      uniqueKey,
+                      stepType,
+                      exerciseNumber,
+                      hasStep: !!step,
+                      hasStepData: !!stepData,
+                    });
+                  }
 
-                return (
-                  <AccordionStep
-                    key={uniqueKey}
-                    step={step}
-                    index={stepIndex}
-                    isOpen={openIndex === stepIndex}
-                    localState={getStepState(courseId, dayId, stepIndex)}
+                  return (
+                    <AccordionStep
+                      key={uniqueKey}
+                      step={step}
+                      index={index}
+                      stepNumber={exerciseNumber}
+                    isOpen={openIndex === index}
+                    localState={getStepState(courseId, dayId, index)}
                     courseId={courseId}
                     dayOnCourseId={dayId}
                     onToggle={() => {
                       if (__DEV__) {
-                        console.log("[TrainingDayScreen] Toggle step:", stepIndex);
+                        console.log("[TrainingDayScreen] Toggle step:", index);
                       }
-                      handleToggleStep(stepIndex);
+                      handleToggleStep(index);
                     }}
                     onStart={() => {
                       if (__DEV__) {
-                        console.log("[TrainingDayScreen] Start step:", stepIndex, durationSec);
+                        console.log("[TrainingDayScreen] Start step:", index, durationSec);
                       }
-                      handleStartStep(stepIndex, durationSec);
+                      handleStartStep(index, durationSec);
                     }}
                     onPause={(remainingSec) => {
                       if (__DEV__) {
-                        console.log("[TrainingDayScreen] Pause step:", stepIndex, remainingSec);
+                        console.log("[TrainingDayScreen] Pause step:", index, remainingSec);
                       }
-                      handlePauseStep(stepIndex, remainingSec);
+                      handlePauseStep(index, remainingSec);
                     }}
                     onResume={() => {
                       if (__DEV__) {
-                        console.log("[TrainingDayScreen] Resume step:", stepIndex);
+                        console.log("[TrainingDayScreen] Resume step:", index);
                       }
-                      handleResumeStep(stepIndex);
+                      handleResumeStep(index);
                     }}
                     onComplete={() => {
                       console.log("[Я выполнил] onComplete от AccordionStep", {
-                        stepIndex,
+                        index,
                         stepType,
                         stepTitle,
-                        stepOrder,
                       });
-                      handleCompleteStep(
-                        stepIndex,
-                        stepType === "THEORY",
-                        stepTitle,
-                        stepOrder,
-                      );
+                      handleCompleteStep(index, stepType === "THEORY", stepTitle, index);
                     }}
-                    onReset={(durationSec) => {
+                    onReset={(durationSecReset) => {
                       if (__DEV__) {
-                        console.log("[TrainingDayScreen] Reset step:", stepIndex, durationSec);
+                        console.log("[TrainingDayScreen] Reset step:", index, durationSecReset);
                       }
-                      handleResetStep(stepIndex, durationSec);
+                      handleResetStep(index, durationSecReset);
                     }}
                   />
-                );
-              } catch (error) {
-                if (__DEV__) {
-                  console.error("[TrainingDayScreen] Ошибка при рендеринге шага:", error, {
-                    index,
-                    hasStep: !!step,
-                  });
+                  );
+                } catch (error) {
+                  if (__DEV__) {
+                    console.error("[TrainingDayScreen] Ошибка при рендеринге шага:", error, {
+                      index,
+                      hasStep: !!step,
+                    });
+                  }
+                  return (
+                    <View key={`error-${index}`} style={{ padding: SPACING.md }}>
+                      <Text style={{ color: COLORS.error }}>Ошибка загрузки шага {index + 1}</Text>
+                    </View>
+                  );
                 }
-                return (
-                  <View key={`error-${index}`} style={{ padding: SPACING.md }}>
-                    <Text style={{ color: COLORS.error }}>Ошибка загрузки шага {index + 1}</Text>
-                  </View>
-                );
-              }
-            })}
+              });
+            })()}
           </View>
         </ScrollView>
 
@@ -575,6 +577,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: 4,
+  },
+  backText: {
+    fontSize: 17,
+    color: COLORS.primary,
+    fontWeight: "500",
+  },
+  dayHeader: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    marginBottom: SPACING.md,
+  },
+  dayTitle: {
+    color: COLORS.border,
+    fontFamily: FONTS.impact,
+    fontWeight: "400",
+    fontSize: 64,
+    lineHeight: 72,
+    textAlign: "center",
+  },
+  dayHeaderDivider: {
+    alignSelf: "stretch",
+    height: 2,
+    backgroundColor: COLORS.border,
+    borderRadius: 1,
+    marginTop: SPACING.sm,
   },
   scrollContent: {
     padding: SPACING.md,

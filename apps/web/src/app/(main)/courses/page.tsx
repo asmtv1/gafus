@@ -20,20 +20,18 @@ export default async function CoursesPage() {
   const session = await getServerSession(authOptions as NextAuthOptions);
   const userId = session?.user?.id;
 
-  let coursesData = null;
-  let error = null;
+  let coursesData: Awaited<ReturnType<typeof getCoursesWithProgressCached>>["data"] | null = null;
+  let error: string | null = null;
 
-  if (userId) {
-    try {
-      const result = await getCoursesWithProgressCached(userId);
-      if (result.success) {
-        coursesData = result.data;
-      } else {
-        error = result.error;
-      }
-    } catch (err) {
-      error = err instanceof Error ? err.message : "Ошибка загрузки курсов";
+  try {
+    const result = await getCoursesWithProgressCached(userId ?? undefined);
+    if (result.success) {
+      coursesData = result.data;
+    } else {
+      error = result.error ?? null;
     }
+  } catch (err) {
+    error = err instanceof Error ? err.message : "Ошибка загрузки курсов";
   }
 
   return (

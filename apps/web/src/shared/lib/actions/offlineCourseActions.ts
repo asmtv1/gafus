@@ -1,5 +1,6 @@
 "use server";
 
+import { checkCourseAccessById } from "@gafus/core/services/course";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { trainingTypeSchema } from "../validation/schemas";
@@ -109,6 +110,7 @@ export async function downloadFullCourse(
         logoImg: true,
         isPrivate: true,
         isPaid: true,
+        priceRub: true,
         avgRating: true,
         trainingLevel: true,
         createdAt: true,
@@ -165,6 +167,17 @@ export async function downloadFullCourse(
 
     if (!course) {
       return { success: false, error: "Курс не найден" };
+    }
+
+    // Платный курс без доступа — скачивать нельзя
+    if (course.isPaid) {
+      const access = await checkCourseAccessById(course.id, userId);
+      if (!access.hasAccess) {
+        return {
+          success: false,
+          error: "Платный курс доступен для скачивания после оплаты",
+        };
+      }
     }
 
     // Формируем структуру данных курса
@@ -248,6 +261,7 @@ export async function downloadFullCourse(
         logoImg: course.logoImg,
         isPrivate: course.isPrivate,
         isPaid: course.isPaid,
+        priceRub: course.priceRub != null ? Number(course.priceRub) : null,
         avgRating: course.avgRating,
         trainingLevel: course.trainingLevel,
         createdAt: course.createdAt.toISOString(),

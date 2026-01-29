@@ -38,19 +38,26 @@ export default function TrainerCoursesSection({ publicData }: TrainerCoursesSect
     return null;
   }
 
-  const handleCourseClick = async (course: { type: string; isPrivate: boolean }) => {
-    // Если курс приватный, проверяем доступ
-    if (course.isPrivate) {
+  const handleCourseClick = async (course: {
+    type: string;
+    isPrivate: boolean;
+    isPaid?: boolean;
+  }) => {
+    if (course.isPrivate || course.isPaid) {
       const { hasAccess } = await checkCourseAccessAction(course.type);
       if (!hasAccess) {
-        await showErrorAlert(
-          "Этот курс для вас закрыт. Обратитесь к кинологу для получения доступа",
-        );
+        if (course.isPaid) {
+          await showErrorAlert(
+            "Этот курс платный. Оплатите для доступа к занятиям.",
+          );
+        } else {
+          await showErrorAlert(
+            "Этот курс для вас закрыт. Обратитесь к кинологу для получения доступа",
+          );
+        }
         return;
       }
     }
-
-    // Если доступ есть или курс публичный, переходим
     router.push(`/trainings/${course.type}`);
   };
 
@@ -75,6 +82,7 @@ export default function TrainerCoursesSection({ publicData }: TrainerCoursesSect
                     className={styles.courseImage}
                   />
                   {course.isPrivate && <span className={styles.privateBadge}>Приватный</span>}
+                  {course.isPaid && <span className={styles.paidBadge}>Платный</span>}
                 </div>
                 <div className={styles.courseInfo}>
                   <h3 className={styles.courseName}>{course.name}</h3>
@@ -82,6 +90,11 @@ export default function TrainerCoursesSection({ publicData }: TrainerCoursesSect
                     <p className={styles.courseDescription}>{course.shortDesc}</p>
                   )}
                   <div className={styles.courseMeta}>
+                    {course.isPaid && course.priceRub != null && course.priceRub > 0 && (
+                      <span className={styles.coursePrice}>
+                        <strong>Цена:</strong> {course.priceRub} ₽
+                      </span>
+                    )}
                     <span className={styles.courseDuration}>
                       <strong>Длительность:</strong> {course.duration}
                     </span>
