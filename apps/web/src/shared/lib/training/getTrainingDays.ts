@@ -156,6 +156,9 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
         } else if (step.type === "BREAK") {
           // BREAK не учитывается в расчётах времени
           continue;
+        } else if (step.type === "DIARY") {
+          // DIARY не учитывается в расчётах времени
+          continue;
         } else {
           // Все нетренировочные шаги считаем теорией/экзаменом
           theoryExamSeconds += step.estimatedDurationSec ?? 0;

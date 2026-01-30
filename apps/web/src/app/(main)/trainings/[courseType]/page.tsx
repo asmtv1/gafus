@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import TrainingPageClient from "@features/training/components/TrainingPageClient";
 import { getTrainingDays } from "@shared/lib/training/getTrainingDays";
@@ -46,52 +47,9 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
   try {
     userId = await getCurrentUserId();
   } catch (_) {
-    // Гость: платный курс — предложение оплаты, приватный — сообщение о недоступности
-    if (courseMetadata?.isPaid && courseMetadata?.id) {
-      const serverError = "COURSE_ACCESS_DENIED";
-      const courseForPay = {
-        id: courseMetadata.id,
-        name: courseMetadata.name ?? "",
-        type: courseType,
-        priceRub: courseMetadata.priceRub != null ? Number(courseMetadata.priceRub) : 0,
-      };
-      const courseOutline = await getCourseOutline(courseType);
-      const courseDescription =
-        courseMetadata.description ?? courseMetadata.shortDesc ?? null;
-      return (
-        <main className={styles.container}>
-          <h2 className={styles.title}>Содержание</h2>
-          <TrainingPageClient
-            courseType={courseType}
-            courseName={courseName}
-            initialData={null}
-            initialError={serverError}
-            accessDenied
-            accessDeniedReason="paid"
-            courseForPay={courseForPay}
-            courseOutline={courseOutline}
-            courseDescription={courseDescription}
-            userId={undefined}
-          />
-        </main>
-      );
-    }
-    if (courseMetadata?.isPrivate) {
-      return (
-        <main className={styles.container}>
-          <h2 className={styles.title}>Содержание</h2>
-          <TrainingPageClient
-            courseType={courseType}
-            courseName={courseName}
-            initialData={null}
-            initialError="COURSE_ACCESS_DENIED"
-            accessDenied
-            accessDeniedReason="private"
-            courseForPay={null}
-            userId={undefined}
-          />
-        </main>
-      );
+    // Гость: платный или приватный курс — редирект на главную (страница требует авторизации)
+    if (courseMetadata?.isPaid || courseMetadata?.isPrivate) {
+      redirect("/");
     }
   }
 
@@ -152,6 +110,12 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
     accessDeniedReason === "paid" && courseMetadata
       ? courseMetadata.description ?? courseMetadata.shortDesc ?? null
       : null;
+  const courseVideoUrl =
+    accessDeniedReason === "paid" && courseMetadata ? courseMetadata.videoUrl ?? null : null;
+  const courseEquipment =
+    accessDeniedReason === "paid" && courseMetadata ? courseMetadata.equipment ?? null : null;
+  const courseTrainingLevel =
+    accessDeniedReason === "paid" && courseMetadata ? courseMetadata.trainingLevel ?? null : null;
 
   return (
     <main className={styles.container}>
@@ -166,6 +130,9 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
         courseForPay={courseForPay}
         courseOutline={courseOutline}
         courseDescription={courseDescription}
+        courseVideoUrl={courseVideoUrl}
+        courseEquipment={courseEquipment}
+        courseTrainingLevel={courseTrainingLevel}
         userId={userId ?? undefined}
       />
     </main>

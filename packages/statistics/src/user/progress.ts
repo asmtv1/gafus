@@ -13,6 +13,10 @@ export interface UserDayProgress {
     status: TrainingStatus;
     startedAt: Date | null;
     completedAt: Date | null;
+    /** Тип шага (DIARY и др.) */
+    stepType?: string;
+    /** Текст записи дневника успехов (только для шагов типа DIARY) */
+    diaryContent?: string | null;
   }[];
 }
 
@@ -107,6 +111,7 @@ export async function getUserProgress(
               step: {
                 select: {
                   title: true,
+                  type: true,
                 },
               },
             },
@@ -155,6 +160,15 @@ export async function getUserProgress(
     ]),
   );
 
+  const diaryEntries = await prisma.diaryEntry.findMany({
+    where: {
+      userId: safeUserId,
+      dayOnCourse: { courseId: safeCourseId },
+    },
+    select: { content: true, dayOnCourseId: true },
+  });
+  const diaryByDay = new Map(diaryEntries.map((e) => [e.dayOnCourseId, e.content]));
+
   const daysProgress = courseDays.map((dayLink) => {
     const userTraining = userTrainingMap.get(dayLink.id);
 
@@ -188,12 +202,18 @@ export async function getUserProgress(
         }
       }
 
+      const stepType = stepLink.step.type;
+      const diaryContent =
+        stepType === "DIARY" ? (diaryByDay.get(dayLink.id) ?? null) : undefined;
+
       return {
         stepOrder: stepLink.order,
         stepTitle: stepLink.step.title,
         status: stepStatus,
         startedAt: stepStartedAt,
         completedAt: stepCompletedAt,
+        stepType,
+        ...(diaryContent !== undefined && { diaryContent }),
       };
     });
 

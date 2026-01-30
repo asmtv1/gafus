@@ -9,6 +9,9 @@ import { useTimerStore } from "@shared/stores/timerStore";
 import { useCacheManager } from "@shared/utils/cacheManager";
 import { useSyncStatus } from "@shared/hooks/useSyncStatus";
 import { markPracticeStepAsCompleted } from "@shared/lib/training/markPracticeStepAsCompleted";
+import { markDiaryStepAsCompleted } from "@shared/lib/training/markDiaryStepAsCompleted";
+import { saveDiaryEntry } from "@shared/lib/actions/saveDiaryEntry";
+import { getDiaryEntries } from "@shared/lib/actions/getDiaryEntries";
 import styles from "./AccordionStep.module.css";
 import { AccessTimeIcon, PauseIcon, PlayArrowIcon, ReplayIcon } from "@shared/utils/muiImports";
 import { getEmbeddedVideoInfo } from "@gafus/core/utils";
@@ -74,7 +77,7 @@ interface AccordionStepProps {
   onReset: (stepIndex: number) => void;
 
   // Новые поля для типов экзамена
-  type?: "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE";
+  type?: "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY";
   checklist?: ChecklistQuestion[];
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;
@@ -109,6 +112,13 @@ export function AccordionStep({
 }: AccordionStepProps) {
   // Состояние для отслеживания загрузки
   const [isPausing, setIsPausing] = useState(false);
+  // Состояние для шага «Дневник успехов»
+  const [diaryContent, setDiaryContent] = useState("");
+  const [isSavingDiary, setIsSavingDiary] = useState(false);
+  const [diaryError, setDiaryError] = useState<string | null>(null);
+  const [previousEntries, setPreviousEntries] = useState<
+    { id: string; content: string; dayOrder: number; dayTitle: string; createdAt: Date }[]
+  >([]);
 
   const { stepStates, initializeStep, resumeStep, resetStep, updateTimeLeft, finishStep } =
     useStepStore();
@@ -147,6 +157,24 @@ export function AccordionStep({
     [courseId, dayOnCourseId, stepIndex],
   );
   const stepState = stepStates[stepKey];
+
+  // Загрузка предыдущих записей дневника при открытии шага DIARY
+  useEffect(() => {
+    if (type !== "DIARY" || !courseId) return;
+    getDiaryEntries(courseId).then((result) => {
+      if (result.success && result.entries) {
+        setPreviousEntries(
+          result.entries.map((e) => ({
+            id: e.id,
+            content: e.content,
+            dayOrder: e.dayOrder,
+            dayTitle: e.dayTitle,
+            createdAt: e.createdAt instanceof Date ? e.createdAt : new Date(e.createdAt),
+          })),
+        );
+      }
+    });
+  }, [type, courseId]);
 
   // Получаем состояние таймера через хук
   const { timers } = useTimerStore();
@@ -517,6 +545,52 @@ export function AccordionStep({
     removePendingChange,
   ]);
 
+  const handleSaveDiary = useCallback(async () => {
+    setDiaryError(null);
+    if (!diaryContent.trim()) {
+      setDiaryError("Введите текст записи");
+      return;
+    }
+    setIsSavingDiary(true);
+    const saveResult = await saveDiaryEntry(dayOnCourseId, diaryContent.trim());
+    if (!saveResult.success) {
+      setDiaryError(saveResult.error ?? "Не удалось сохранить");
+      setIsSavingDiary(false);
+      return;
+    }
+    try {
+      await markDiaryStepAsCompleted(courseId, dayOnCourseId, stepIndex, stepTitle, stepOrder);
+      updateStepProgress(courseId, dayOnCourseId, stepIndex, "COMPLETED", undefined, totalSteps);
+      onRun(-1);
+      setDiaryContent("");
+      const entriesResult = await getDiaryEntries(courseId);
+      if (entriesResult.success && entriesResult.entries) {
+        setPreviousEntries(
+          entriesResult.entries.map((e) => ({
+            id: e.id,
+            content: e.content,
+            dayOrder: e.dayOrder,
+            dayTitle: e.dayTitle,
+            createdAt: e.createdAt instanceof Date ? e.createdAt : new Date(e.createdAt),
+          })),
+        );
+      }
+    } catch (error) {
+      setDiaryError("Не удалось отметить шаг выполненным");
+    }
+    setIsSavingDiary(false);
+  }, [
+    diaryContent,
+    dayOnCourseId,
+    courseId,
+    stepIndex,
+    stepTitle,
+    stepOrder,
+    totalSteps,
+    updateStepProgress,
+    onRun,
+  ]);
+
   if (!stepState) return null;
 
   return (
@@ -569,6 +643,15 @@ export function AccordionStep({
               Примерное время: ~{Math.round(estimatedDurationSec / 60)} мин
             </div>
           )}
+        </div>
+      )}
+
+      {/* Для шага «Дневник успехов» */}
+      {type === "DIARY" && (
+        <div className={styles.timerCard}>
+          <div className={styles.timerHeader}>
+            <span>Дневник успехов</span>
+          </div>
         </div>
       )}
 
@@ -668,8 +751,8 @@ export function AccordionStep({
         />
       )}
 
-      {/* Таймер только для тренировочных шагов и перерывов */}
-      {type !== "EXAMINATION" && type !== "THEORY" && type !== "PRACTICE" && (
+      {/* Таймер только для тренировочных шагов и перерывов (DIARY исключён) */}
+      {type !== "EXAMINATION" && type !== "THEORY" && type !== "PRACTICE" && type !== "DIARY" && (
         <div className={styles.timerCard}>
           <div className={styles.timerHeader}>
             <AccessTimeIcon fontSize="small" />
@@ -722,6 +805,55 @@ export function AccordionStep({
             </button>
           ) : (
             <div className={styles.completedBadge}>Упражнение выполнено</div>
+          )}
+        </div>
+      )}
+
+      {type === "DIARY" && (
+        <div className={styles.stepInfo}>
+          {stepState.status !== "COMPLETED" ? (
+            <>
+              <div className={styles.sectionTitle}>Ваша запись:</div>
+              <textarea
+                className={styles.diaryTextarea}
+                value={diaryContent}
+                onChange={(e) => setDiaryContent(e.target.value)}
+                placeholder="Опишите свои успехи за сегодня..."
+                rows={5}
+                maxLength={10000}
+              />
+              {diaryError && (
+                <div className={styles.diaryError} role="alert">
+                  {diaryError}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handleSaveDiary}
+                disabled={isSavingDiary || !diaryContent.trim()}
+                className={styles.completeBtn}
+              >
+                {isSavingDiary ? "Сохранение…" : "Сохранить"}
+              </button>
+            </>
+          ) : (
+            <div className={styles.completedBadge}>Запись сохранена</div>
+          )}
+          {previousEntries.length > 0 && (
+            <>
+              <div className={styles.sectionTitle}>Предыдущие записи:</div>
+              <ul className={styles.diaryEntriesList}>
+                {previousEntries.map((e) => (
+                  <li key={e.id} className={styles.diaryEntryItem}>
+                    <strong>День {e.dayOrder}. {e.dayTitle}</strong>
+                    <span className={styles.diaryEntryDate}>
+                      {e.createdAt.toLocaleDateString("ru-RU")}
+                    </span>
+                    <p className={styles.diaryEntryContent}>{e.content}</p>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
       )}

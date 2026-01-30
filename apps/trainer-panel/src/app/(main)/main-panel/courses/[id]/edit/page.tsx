@@ -1,7 +1,10 @@
 import { CourseForm } from "@features/courses/components/CourseForm";
 import { getVisibleDays } from "@features/courses/lib/getVisibleDays";
+import { getTrainerVideos } from "@features/trainer-videos/lib/getTrainerVideos";
+import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { Typography } from "@mui/material";
+import { getServerSession } from "next-auth";
 import FormPageLayout from "@shared/components/FormPageLayout";
 
 interface PageProps {
@@ -10,6 +13,8 @@ interface PageProps {
 
 export default async function EditCoursePage({ params }: PageProps) {
   const { id } = await params;
+  const session = await getServerSession(authOptions);
+  const trainerVideos = session?.user?.id ? await getTrainerVideos(session.user.id) : [];
 
   // Загружаем курс
   const course = await prisma.course.findUnique({
@@ -84,6 +89,7 @@ export default async function EditCoursePage({ params }: PageProps) {
         courseId={course.id}
         initialValues={initialValues}
         initialSelectedUsers={initialSelectedUsers}
+        trainerVideos={trainerVideos}
       />
     </FormPageLayout>
   );

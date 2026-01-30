@@ -260,6 +260,9 @@ export async function getCourseMetadata(courseType: string) {
       isPaid: true,
       isPrivate: true,
       priceRub: true,
+      videoUrl: true,
+      equipment: true,
+      trainingLevel: true,
     },
   });
 

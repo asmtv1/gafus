@@ -118,6 +118,8 @@ export interface UserDayProgress {
     status: TrainingStatus;
     startedAt: Date | null;
     completedAt: Date | null;
+    stepType?: string;
+    diaryContent?: string | null;
   }[];
 }
 

@@ -126,6 +126,8 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
         trainingSeconds += step.estimatedDurationSec ?? 0;
       } else if (step.type === "BREAK") {
         continue;
+      } else if (step.type === "DIARY") {
+        continue;
       } else {
         theoryExamSeconds += step.estimatedDurationSec ?? 0;
       }
@@ -428,7 +430,7 @@ export async function getTrainingDayWithUserSteps(
       order: order,
       isPausedOnServer: false,
       remainingSecOnServer: undefined,
-      type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | undefined,
+      type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | undefined,
       checklist: step.checklist,
       requiresVideoReport: step.requiresVideoReport,
       requiresWrittenFeedback: step.requiresWrittenFeedback,
@@ -548,7 +550,7 @@ export async function getTrainingDayWithUserSteps(
     order: order,
     isPausedOnServer: pausedByStepId[stepOnDayId] ?? false,
     remainingSecOnServer: remainingByStepId[stepOnDayId] ?? undefined,
-    type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | undefined,
+    type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | undefined,
     checklist: Array.isArray(step.checklist)
       ? (step.checklist as unknown as ChecklistQuestion[])
       : null,

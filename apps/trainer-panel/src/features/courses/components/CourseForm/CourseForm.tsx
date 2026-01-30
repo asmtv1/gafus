@@ -1,7 +1,9 @@
 "use client";
 
+import VideoSelector from "@features/steps/components/VideoSelector";
 import UserSearchSelector from "@features/users/components/UserSearchSelector";
 import { useCSRFStore } from "@gafus/csrf";
+import type { TrainerVideoDto } from "@gafus/types";
 import { DualListSelector, MarkdownInput } from "@shared/components/common";
 import { FormField, TextAreaField } from "@shared/components/ui/FormField";
 import { Toast, useToast } from "@shared/components/ui/Toast";
@@ -38,6 +40,7 @@ interface Props {
   courseId?: string;
   initialValues?: Partial<CourseFormData>;
   initialSelectedUsers?: { id: string; username: string }[];
+  trainerVideos?: TrainerVideoDto[];
 }
 
 export default function CourseForm({
@@ -46,6 +49,7 @@ export default function CourseForm({
   courseId,
   initialValues,
   initialSelectedUsers = [],
+  trainerVideos = [],
 }: Props) {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -282,15 +286,16 @@ export default function CourseForm({
               ))}
             </RadioGroup>
           </FormControl>
-          <FormField
-            id="videoUrl"
-            label="Ссылка на видео"
-            name="videoUrl"
-            placeholder="https://youtube.com/..., https://vk.com/video..."
-            form={form}
-            rules={commonValidationRules.videoUrl}
-            helperText="Поддерживаются: YouTube, Rutube, Vimeo, VK Video"
-          />
+          <Box className={sharedStyles.formField}>
+            <Typography className={sharedStyles.formLabel}>Ссылка на видео</Typography>
+            <VideoSelector
+              value={form.watch("videoUrl") ?? ""}
+              onChange={(value) => form.setValue("videoUrl", value, { shouldValidate: true })}
+              trainerVideos={trainerVideos}
+              error={form.formState.errors.videoUrl?.message}
+              helperText="Поддерживаются: YouTube, Rutube, Vimeo, VK Video или видео из библиотеки"
+            />
+          </Box>
         </FormSection>
 
         <FormSection title="Медиа">

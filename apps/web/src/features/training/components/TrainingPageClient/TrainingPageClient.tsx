@@ -43,6 +43,9 @@ interface TrainingPageClientProps {
   courseForPay?: PaidCourseDrawerCourse | null;
   courseOutline?: { title: string; order: number }[];
   courseDescription?: string | null;
+  courseVideoUrl?: string | null;
+  courseEquipment?: string | null;
+  courseTrainingLevel?: string | null;
   userId?: string;
 }
 
@@ -56,6 +59,9 @@ export default function TrainingPageClient({
   courseForPay = null,
   courseOutline = [],
   courseDescription = null,
+  courseVideoUrl = null,
+  courseEquipment = null,
+  courseTrainingLevel = null,
   userId,
 }: TrainingPageClientProps) {
   const _online = useOfflineStore((s) => s.isOnline);
@@ -151,12 +157,16 @@ export default function TrainingPageClient({
       const justPaid = searchParams.get("paid") === "1";
       return (
         <>
-          {courseDescription && (
-            <div className={styles.descriptionSection}>
-              <h3 className={styles.outlineTitle}>Описание курса</h3>
-              <p className={styles.descriptionText}>{courseDescription}</p>
-            </div>
-          )}
+          <div className="courseDescription">
+            <CourseDescriptionWithVideo
+              description={courseDescription ?? null}
+              videoUrl={courseVideoUrl ?? null}
+              equipment={courseEquipment ?? null}
+              trainingLevel={courseTrainingLevel ?? null}
+              courseName={courseForPay?.name}
+              courseType={courseType}
+            />
+          </div>
           {courseOutline.length > 0 && (
             <div className={styles.outlineSection}>
               <h3 className={styles.outlineTitle}>В курс входит</h3>

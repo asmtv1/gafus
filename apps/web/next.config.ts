@@ -87,6 +87,10 @@ const nextConfig = {
         __dirname,
         "../../packages/core/src/services/course",
       ),
+      "@gafus/core/services/diary": _path.resolve(
+        __dirname,
+        "../../packages/core/src/services/diary",
+      ),
       "@gafus/core/services/user": _path.resolve(
         __dirname,
         "../../packages/core/src/services/user",

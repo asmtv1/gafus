@@ -978,82 +978,106 @@ function UserProgressAccordion({
                           key={step.stepOrder}
                           sx={{
                             display: "flex",
-                            flexDirection: { xs: "column", sm: "row" },
-                            alignItems: { xs: "flex-start", sm: "center" },
+                            flexDirection: "column",
                             gap: { xs: 0.5, sm: 1 },
-                            mb: 0.5,
+                            mb: 1,
                             pl: { xs: 1, sm: 2 },
                             maxWidth: "100%",
                           }}
                         >
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              flex: 1,
-                              fontSize: { xs: "0.75rem", sm: "0.875rem" },
-                              wordBreak: "break-word",
-                              minWidth: 0,
-                            }}
-                          >
-                            {step.stepOrder}. {step.stepTitle}
-                          </Typography>
                           <Box
                             sx={{
                               display: "flex",
-                              alignItems: "center",
+                              flexDirection: { xs: "column", sm: "row" },
+                              alignItems: { xs: "flex-start", sm: "center" },
                               gap: { xs: 0.5, sm: 1 },
-                              flexWrap: "wrap",
-                              flexShrink: 0,
                             }}
                           >
-                            {step.status === TrainingStatus.COMPLETED && step.completedAt ? (
-                              <Chip
-                                label={new Date(step.completedAt).toLocaleString("ru-RU", {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                                color="success"
-                                size="small"
-                                sx={{ fontSize: { xs: "0.625rem", sm: "0.75rem" } }}
-                              />
-                            ) : (
-                              <>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                flex: 1,
+                                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                                wordBreak: "break-word",
+                                minWidth: 0,
+                              }}
+                            >
+                              {step.stepOrder}. {step.stepTitle}
+                            </Typography>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: { xs: 0.5, sm: 1 },
+                                flexWrap: "wrap",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {step.status === TrainingStatus.COMPLETED && step.completedAt ? (
                                 <Chip
-                                  label={
-                                    step.status === TrainingStatus.IN_PROGRESS
-                                      ? "В процессе"
-                                      : "Не начат"
-                                  }
-                                  color={
-                                    step.status === TrainingStatus.IN_PROGRESS
-                                      ? "warning"
-                                      : "default"
-                                  }
+                                  label={new Date(step.completedAt).toLocaleString("ru-RU", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                  color="success"
                                   size="small"
                                   sx={{ fontSize: { xs: "0.625rem", sm: "0.75rem" } }}
                                 />
-                                {step.status === TrainingStatus.IN_PROGRESS && step.startedAt && (
-                                  <Typography
-                                    variant="caption"
-                                    color="text.secondary"
+                              ) : (
+                                <>
+                                  <Chip
+                                    label={
+                                      step.status === TrainingStatus.IN_PROGRESS
+                                        ? "В процессе"
+                                        : "Не начат"
+                                    }
+                                    color={
+                                      step.status === TrainingStatus.IN_PROGRESS
+                                        ? "warning"
+                                        : "default"
+                                    }
+                                    size="small"
                                     sx={{ fontSize: { xs: "0.625rem", sm: "0.75rem" } }}
-                                  >
-                                    Начат:{" "}
-                                    {new Date(step.startedAt).toLocaleString("ru-RU", {
-                                      day: "2-digit",
-                                      month: "2-digit",
-                                      year: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </Typography>
-                                )}
-                              </>
-                            )}
+                                  />
+                                  {step.status === TrainingStatus.IN_PROGRESS && step.startedAt && (
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ fontSize: { xs: "0.625rem", sm: "0.75rem" } }}
+                                    >
+                                      Начат:{" "}
+                                      {new Date(step.startedAt).toLocaleString("ru-RU", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </Typography>
+                                  )}
+                                </>
+                              )}
+                            </Box>
                           </Box>
+                          {"diaryContent" in step && step.diaryContent && (
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontSize: { xs: "0.75rem", sm: "0.8125rem" },
+                                color: "text.secondary",
+                                whiteSpace: "pre-wrap",
+                                wordBreak: "break-word",
+                                pl: 1,
+                                borderLeft: 2,
+                                borderColor: "divider",
+                              }}
+                            >
+                              {step.diaryContent}
+                            </Typography>
+                          )}
                         </Box>
                       ))}
                     </Box>

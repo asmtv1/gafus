@@ -45,6 +45,7 @@ enum StepType {
   THEORY // Теоретический
   BREAK // Перерыв
   PRACTICE // Тренировочный (без таймера)
+  DIARY // Дневник успехов
 }
 
 model Course {
@@ -178,13 +179,29 @@ model DayOnCourse {
   dayId    String
   order    Int
 
-  course Course      @relation(fields: [courseId], references: [id])
-  day    TrainingDay @relation(fields: [dayId], references: [id])
-
+  course        Course        @relation(fields: [courseId], references: [id])
+  day           TrainingDay   @relation(fields: [dayId], references: [id])
   userTrainings UserTraining[]
+  diaryEntries  DiaryEntry[]
 
   @@unique([courseId, order]) // порядок уникален в курсе
   @@index([courseId, order])
+}
+
+model DiaryEntry {
+  id             String   @id @default(cuid())
+  userId         String
+  dayOnCourseId  String
+  content        String   @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayOnCourse DayOnCourse @relation(fields: [dayOnCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayOnCourseId])
+  @@index([userId])
+  @@index([dayOnCourseId])
 }
 
 model StepOnDay {
@@ -275,6 +292,7 @@ model User {
   trainerAIConfig          TrainerAIConfig?
   trainerNotes             TrainerNote[]          @relation("TrainerNotes")
   studentNotes             TrainerNoteStudent[]   @relation("StudentNotes")
+  diaryEntries             DiaryEntry[]
   passwordResetRequestedAt DateTime?
   createdAt                DateTime               @default(now())
   updatedAt                DateTime               @default(now())

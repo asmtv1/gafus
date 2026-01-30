@@ -557,6 +557,53 @@
   }
 }
 
+/* Дневник успехов */
+.diaryTextarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border: 2px solid #d5d0bb;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.diaryError {
+  color: #b71c1c;
+  font-size: 0.9rem;
+}
+
+.diaryEntriesList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.diaryEntryItem {
+  padding: 12px;
+  background: #fffdf3;
+  border: 1px solid #d5d0bb;
+  border-radius: 8px;
+}
+
+.diaryEntryDate {
+  display: block;
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 4px;
+}
+
+.diaryEntryContent {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 @media (max-width: 480px) {
   .imagesGrid {
     gap: 0.5rem;

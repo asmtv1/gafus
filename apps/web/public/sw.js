@@ -482,14 +482,21 @@ self.addEventListener('fetch', (event) => {
           try {
             // Пытаемся загрузить HTML страницы из сети (Network-First)
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const timeoutMs = 10000; // 10s — даём время на редирект/ответ сервера, иначе попадаем в IndexedDB и белый экран
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
             
             const response = await fetch(event.request, {
               cache: 'no-cache',
-              signal: controller.signal
+              signal: controller.signal,
+              redirect: 'manual' // не следовать редиректу — отдавать 302 браузеру (иначе под /trainings/xxx кэшируется HTML с / и белый экран)
             });
             
             clearTimeout(timeoutId);
+            
+            // Редирект (3xx) — отдаём как есть, браузер сам перейдёт
+            if (response.status >= 300 && response.status < 400) {
+              return response;
+            }
             
             // Если запрос успешен (200), кэшируем HTML и возвращаем
             if (response.ok) {
@@ -505,15 +512,7 @@ self.addEventListener('fetch', (event) => {
               return response;
             }
             
-            // Если ответ - это redirect (3xx) или ошибка (4xx, 5xx),
-            // возвращаем ответ как есть, не пытаясь загружать из кэша/IndexedDB
-            // Это стандартное поведение для корректной обработки редиректов и ошибок браузером
-            if (response.status >= 300 && response.status < 400) {
-              // Redirect - возвращаем как есть
-              return response;
-            }
-            
-            // Для ошибок (4xx, 5xx) также возвращаем как есть
+            // Ошибки (4xx, 5xx) — возвращаем как есть
             if (response.status >= 400) {
               return response;
             }
@@ -598,32 +597,9 @@ self.addEventListener('fetch', (event) => {
             return cachedAfterRequest;
           }
           
-          // Если HTML нет в кэше и сеть недоступна, возвращаем базовый HTML
-          // который позволит Next.js загрузиться на клиенте
-          // Клиент загрузит данные из IndexedDB через useCachedTrainingDays
-          const baseHtml = `<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Загрузка...</title>
-</head>
-<body>
-  <div id="__next"></div>
-  <script>
-    // Next.js обработает навигацию на клиенте
-    // Данные будут загружены из IndexedDB через useCachedTrainingDays
-  </script>
-</body>
-</html>`;
-          
-          return new Response(baseHtml, {
-            status: 200,
-            headers: {
-              'Content-Type': 'text/html; charset=utf-8',
-              'Cache-Control': 'no-cache'
-            }
-          });
+          // Нет HTML (сеть упала/таймаут, кэш пуст, IndexedDB не ответил) — редирект на / вместо пустой оболочки (белый экран)
+          const origin = new URL(event.request.url).origin;
+          return Response.redirect(origin + '/', 302);
         } catch (outerError) {
           // Защита от любых необработанных ошибок
           // Всегда возвращаем валидный Response, чтобы не показать ошибку пользователю

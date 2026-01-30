@@ -167,8 +167,8 @@ export default function NewStepForm({
           return "Укажите примерное время";
         }
 
-        // Для тренировочных шагов поле не используется и не обязательно
-        if (type === "TRAINING" && !strValue) return true;
+        // Для тренировочных и дневника поле не используется и не обязательно
+        if ((type === "TRAINING" || type === "DIARY") && !strValue) return true;
 
         const num = parseInt(strValue, 10);
         if (Number.isNaN(num) || num <= 0) {
@@ -246,6 +246,12 @@ export default function NewStepForm({
         formData.append("duration", data.duration || "");
       }
 
+      // Для дневника успехов — только title/description/type (без длительности, видео, чеклиста)
+      if (data.type === "DIARY") {
+        formData.append("duration", "");
+        formData.append("estimatedDurationMinutes", "");
+      }
+
       // Для экзаменационных шагов добавляем чек-лист и типы экзамена
       if (data.type === "EXAMINATION") {
         formData.append("checklist", JSON.stringify(checklist));
@@ -254,8 +260,13 @@ export default function NewStepForm({
         formData.append("hasTestQuestions", String(data.hasTestQuestions));
       }
 
-      // Оценочное время (минуты) только для теоретических и экзаменационных шагов
-      if (data.type !== "TRAINING" && data.type !== "BREAK" && data.estimatedDurationMinutes) {
+      // Оценочное время (минуты) только для теоретических и экзаменационных шагов (не для TRAINING, BREAK, DIARY)
+      if (
+        data.type !== "TRAINING" &&
+        data.type !== "BREAK" &&
+        data.type !== "DIARY" &&
+        data.estimatedDurationMinutes
+      ) {
         formData.append("estimatedDurationMinutes", data.estimatedDurationMinutes);
       }
 
@@ -360,6 +371,7 @@ export default function NewStepForm({
               { value: "THEORY", label: "Теоретический" },
               { value: "BREAK", label: "Перерыв" },
               { value: "PRACTICE", label: "Тренировочный (без таймера)" },
+              { value: "DIARY", label: "Дневник успехов" },
             ]}
           />
 
@@ -395,6 +407,10 @@ export default function NewStepForm({
               <strong>Перерыв</strong> — пауза между упражнениями с указанием длительности.
               <br />
               <em>Прохождение упражнения будет зачтено после истечения таймера.</em>
+              <br />
+              <br />
+              <strong>Дневник успехов</strong> — шаг с текстовой записью пользователя, видна история
+              записей по курсу.
             </Typography>
           </Alert>
 
@@ -498,6 +514,13 @@ export default function NewStepForm({
               />
             </FormSection>
           </>
+        ) : form.watch("type") === "DIARY" ? (
+          <FormSection title="Дневник успехов">
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Пользователь увидит текстовое поле и сможет сохранить запись. История записей по курсу
+              отображается в блоке «Предыдущие записи».
+            </Typography>
+          </FormSection>
         ) : form.watch("type") === "PRACTICE" ? (
           <>
             <FormSection title="Примерное время">

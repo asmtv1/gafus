@@ -85,8 +85,9 @@ export async function createStep(
         },
         duration: (value: unknown) => {
           const v = String(value ?? "");
-          // Для экзаменационных, теоретических и практических шагов длительность не обязательна
-          if (type === "EXAMINATION" || type === "THEORY" || type === "PRACTICE") return null;
+          // Для экзаменационных, теоретических, практических и дневника длительность не обязательна
+          if (type === "EXAMINATION" || type === "THEORY" || type === "PRACTICE" || type === "DIARY")
+            return null;
           // Для тренировочных и перерыва длительность обязательна
           if (type === "TRAINING" || type === "BREAK") {
             if (!v || v.trim().length === 0) return "Длительность обязательна";
@@ -112,7 +113,7 @@ export async function createStep(
         type: (value: unknown) => {
           const v = String(value ?? "");
           if (!v || v.trim().length === 0) return "Тип шага обязателен";
-          if (!["TRAINING", "EXAMINATION", "THEORY", "BREAK", "PRACTICE"].includes(v))
+          if (!["TRAINING", "EXAMINATION", "THEORY", "BREAK", "PRACTICE", "DIARY"].includes(v))
             return "Неверный тип шага";
           return null;
         },
@@ -171,9 +172,12 @@ export async function createStep(
       }
     }
 
-    const duration = type === "TRAINING" || type === "BREAK" ? parseInt(durationStr, 10) : null;
+    const duration =
+      type === "TRAINING" || type === "BREAK" ? parseInt(durationStr, 10) : null;
     const estimatedDurationSec =
-      type === "TRAINING" || estimatedDurationMinutesStr.trim().length === 0
+      type === "TRAINING" ||
+      type === "DIARY" ||
+      estimatedDurationMinutesStr.trim().length === 0
         ? null
         : parseInt(estimatedDurationMinutesStr, 10) * 60;
     const checklist =

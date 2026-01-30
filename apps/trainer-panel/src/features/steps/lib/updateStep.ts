@@ -97,7 +97,7 @@ export async function updateStep(
         type: (value: unknown) => {
           const v = String(value ?? "");
           if (!v || v.trim().length === 0) return "Тип шага обязателен";
-          if (!["TRAINING", "EXAMINATION", "THEORY", "BREAK", "PRACTICE"].includes(v))
+          if (!["TRAINING", "EXAMINATION", "THEORY", "BREAK", "PRACTICE", "DIARY"].includes(v))
             return "Неверный тип шага";
           return null;
         },
@@ -156,9 +156,12 @@ export async function updateStep(
       }
     }
 
-    const duration = type === "TRAINING" || type === "BREAK" ? parseInt(durationStr, 10) : null;
+    const duration =
+      type === "TRAINING" || type === "BREAK" ? parseInt(durationStr, 10) : null;
     const estimatedDurationSec =
-      type === "TRAINING" || estimatedDurationMinutesStr.trim().length === 0
+      type === "TRAINING" ||
+      type === "DIARY" ||
+      estimatedDurationMinutesStr.trim().length === 0
         ? null
         : parseInt(estimatedDurationMinutesStr, 10) * 60;
     const checklist =
@@ -243,14 +246,15 @@ export async function updateStep(
         description,
         durationSec: duration,
         estimatedDurationSec,
-        type: type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE",
+        type: type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY",
         videoUrl:
           type === "TRAINING" || type === "THEORY" || type === "PRACTICE" ? videoUrl || null : null,
         imageUrls:
           type === "TRAINING" || type === "THEORY" || type === "PRACTICE"
             ? [...remainingImageUrls, ...newImageUrls]
             : [],
-        pdfUrls: type === "TRAINING" || type === "THEORY" || type === "PRACTICE" ? pdfUrls : [],
+        pdfUrls:
+          type === "TRAINING" || type === "THEORY" || type === "PRACTICE" ? pdfUrls : [],
         checklist: checklistValue,
         requiresVideoReport: type === "EXAMINATION" ? requiresVideoReport : false,
         requiresWrittenFeedback: type === "EXAMINATION" ? requiresWrittenFeedback : false,

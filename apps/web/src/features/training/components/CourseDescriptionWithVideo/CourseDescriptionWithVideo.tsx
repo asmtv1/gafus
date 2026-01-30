@@ -5,6 +5,7 @@ import styles from "./CourseDescriptionWithVideo.module.css";
 import { ExpandMoreIcon } from "@shared/utils/muiImports";
 
 import { getEmbeddedVideoInfo } from "@gafus/core/utils";
+import { VideoPlayerSection } from "@shared/components/video/VideoPlayerSection";
 import ShareButton from "../ShareButton/ShareButton";
 
 interface Props {
@@ -80,20 +81,29 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
           </div>
         )}
 
-        {videoInfo && videoInfo.embedUrl && (
+        {videoUrl && videoInfo && (
           <div className={styles.videoContainer}>
             <h3>Видео презентация курса:</h3>
-            <div
-              className={`${styles.videoWrapper} ${videoInfo.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
-            >
-              <iframe
-                src={videoInfo.embedUrl}
-                title="Видео презентация курса"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className={styles.videoIframe}
+            {videoInfo.isCDN || videoInfo.isHLS ? (
+              <VideoPlayerSection
+                videoUrl={videoUrl}
+                originalVideoUrl={videoUrl}
+                courseType={courseType ?? null}
+                videoInfo={videoInfo}
               />
-            </div>
+            ) : videoInfo.embedUrl ? (
+              <div
+                className={`${styles.videoWrapper} ${videoInfo.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
+              >
+                <iframe
+                  src={videoInfo.embedUrl}
+                  title="Видео презентация курса"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className={styles.videoIframe}
+                />
+              </div>
+            ) : null}
           </div>
         )}
 

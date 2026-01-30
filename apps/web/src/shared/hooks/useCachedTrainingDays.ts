@@ -92,6 +92,8 @@ export function useCachedTrainingDays(
                   trainingSeconds += step.durationSec ?? 0;
                 } else if (step.type === "PRACTICE") {
                   trainingSeconds += step.estimatedDurationSec ?? 0;
+                } else if (step.type === "DIARY") {
+                  // DIARY не учитывается в расчётах времени
                 } else if (step.type !== "BREAK") {
                   theoryExamSeconds += step.estimatedDurationSec ?? 0;
                 }
