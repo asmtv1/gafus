@@ -2,6 +2,7 @@
 
 import { Alert, AlertTitle, Box, Typography } from "@mui/material";
 import MarkdownInput from "@shared/components/common/MarkdownInput";
+import PersonalizationPlaceholdersHint from "@shared/components/PersonalizationPlaceholdersHint";
 import { FormField, SelectField } from "@shared/components/ui/FormField";
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
 import { commonValidationRules } from "@shared/hooks/useFormValidation";
@@ -118,6 +119,8 @@ export default function TrainingDayForm({
           </em>
         </Typography>
       </Alert>
+
+      <PersonalizationPlaceholdersHint />
 
       <FormField
         id="equipment"

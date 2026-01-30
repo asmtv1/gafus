@@ -42,14 +42,18 @@ export async function GET(request: NextRequest) {
       createIfMissing: parsed.createIfMissing,
     });
 
-    if (!result) {
+    if (!result.training) {
       return NextResponse.json(
         { success: false, error: "День тренировки не найден", code: "NOT_FOUND" },
         { status: 404 },
       );
     }
 
-    return NextResponse.json({ success: true, data: result });
+    return NextResponse.json({
+      success: true,
+      data: result.training,
+      requiresPersonalization: result.requiresPersonalization,
+    });
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return NextResponse.json(

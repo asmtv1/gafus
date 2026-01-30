@@ -22,6 +22,11 @@ dist
 build
 .next
 out
+# Скомпилированные артефакты в core/src (Next.js использует только .ts из src)
+packages/core/src/**/*.js
+packages/core/src/**/*.d.ts
+packages/core/src/**/*.js.map
+packages/core/src/**/*.d.ts.map
 
 # Logs
 logs

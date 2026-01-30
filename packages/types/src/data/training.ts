@@ -75,6 +75,19 @@ export interface UserStep {
   updatedAt: Date;
 }
 
+/** Данные персонализации курса (имя, пол, имя питомца, пол питомца, склонения) — ответ getTrainingDays */
+export interface UserCoursePersonalization {
+  userDisplayName: string;
+  userGender: "male" | "female";
+  petName: string;
+  petGender?: "male" | "female" | null;
+  petNameGen?: string | null;
+  petNameDat?: string | null;
+  petNameAcc?: string | null;
+  petNameIns?: string | null;
+  petNamePre?: string | null;
+}
+
 // Типы для компонентов тренировок
 export interface TrainingStepProps {
   step: Step;

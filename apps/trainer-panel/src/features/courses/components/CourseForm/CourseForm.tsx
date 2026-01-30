@@ -56,6 +56,10 @@ export default function CourseForm({
     useState<{ id: string; username: string }[]>(initialSelectedUsers);
   const router = useRouter();
   const { data: session } = useSession();
+  const canCreatePaidCourse =
+    !!session?.user &&
+    (session.user.role === "ADMIN" ||
+      (session.user as { username?: string }).username?.toLowerCase() === "gafus");
   const { invalidateStatistics } = useStatisticsMutation();
   const { open, message, severity, showToast, closeToast } = useToast();
 
@@ -72,6 +76,7 @@ export default function CourseForm({
       isPaid: false,
       priceRub: null as number | null,
       showInProfile: true,
+      isPersonalized: false,
       trainingDays: [],
       allowedUsers: [],
       equipment: "",
@@ -93,6 +98,7 @@ export default function CourseForm({
         isPaid: initialValues.isPaid ?? false,
         priceRub: initialValues.priceRub ?? null,
         showInProfile: initialValues.showInProfile ?? true,
+        isPersonalized: initialValues.isPersonalized ?? false,
         trainingDays: initialValues.trainingDays ?? [],
         allowedUsers: initialValues.allowedUsers ?? [],
         equipment: initialValues.equipment ?? "",
@@ -128,6 +134,7 @@ export default function CourseForm({
           isPaid: data.isPaid,
           priceRub: data.priceRub ?? null,
           showInProfile: data.showInProfile,
+          isPersonalized: data.isPersonalized,
           trainingDays: data.trainingDays,
           allowedUsers: data.allowedUsers,
           equipment: data.equipment,
@@ -151,6 +158,7 @@ export default function CourseForm({
           formData.append("priceRub", String(data.priceRub));
         }
         formData.append("showInProfile", data.showInProfile ? "true" : "false");
+        formData.append("isPersonalized", data.isPersonalized ? "true" : "false");
         formData.append("equipment", data.equipment || "");
         formData.append("trainingLevel", data.trainingLevel || "BEGINNER");
 
@@ -312,7 +320,11 @@ export default function CourseForm({
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               • <strong>Публичный курс</strong> — доступен всем пользователям бесплатно
               <br />• <strong>Приватный курс</strong> — доступен только выбранным пользователям
-              <br />• <strong>Платный курс</strong> — доступен всем пользователям за плату
+              {canCreatePaidCourse && (
+                <>
+                  <br />• <strong>Платный курс</strong> — доступен всем пользователям за плату
+                </>
+              )}
             </Typography>
             <RadioGroup
               value={(() => {
@@ -347,7 +359,14 @@ export default function CourseForm({
             >
               <FormControlLabel value="public" control={<Radio />} label="Публичный курс" />
               <FormControlLabel value="private" control={<Radio />} label="Приватный курс" />
-              <FormControlLabel value="paid" control={<Radio />} label="Платный курс" />
+              {(canCreatePaidCourse || form.watch("isPaid")) && (
+                <FormControlLabel
+                  value="paid"
+                  control={<Radio />}
+                  label="Платный курс"
+                  disabled={!canCreatePaidCourse}
+                />
+              )}
             </RadioGroup>
           </FormControl>
           {form.watch("isPaid") && (
@@ -382,6 +401,20 @@ export default function CourseForm({
             </FormGroup>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               Если включено, курс будет отображаться в вашем публичном профиле для всех посетителей
+            </Typography>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={form.watch("isPersonalized")}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      form.setValue("isPersonalized", e.target.checked);
+                    }}
+                  />
+                }
+                label="Персонализированный курс"
+              />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {"В текстах шагов можно использовать плейсхолдеры имени ученика и питомца ({{userName}}, {{petName}} и др.)"}
             </Typography>
           </FormControl>
         </FormSection>

@@ -6,3 +6,4 @@ export * from "./video";
 export * from "./social";
 export * from "./training";
 export * from "./retry";
+export * from "./personalization";

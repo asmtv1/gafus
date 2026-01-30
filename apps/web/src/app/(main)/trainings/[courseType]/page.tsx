@@ -3,8 +3,7 @@ import type { Metadata } from "next";
 import TrainingPageClient from "@features/training/components/TrainingPageClient";
 import { getTrainingDays } from "@shared/lib/training/getTrainingDays";
 import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
-import { getCourseMetadata } from "@gafus/core/services/course";
-import { checkCourseAccessById } from "@gafus/core/services/course";
+import { getCourseMetadata, getCourseOutline, checkCourseAccessById } from "@gafus/core/services/course";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { generateCourseMetadata } from "@gafus/metadata";
 
@@ -47,6 +46,7 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
   try {
     userId = await getCurrentUserId();
   } catch (_) {
+    // Гость: платный курс — предложение оплаты, приватный — сообщение о недоступности
     if (courseMetadata?.isPaid && courseMetadata?.id) {
       const serverError = "COURSE_ACCESS_DENIED";
       const courseForPay = {
@@ -55,6 +55,9 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
         type: courseType,
         priceRub: courseMetadata.priceRub != null ? Number(courseMetadata.priceRub) : 0,
       };
+      const courseOutline = await getCourseOutline(courseType);
+      const courseDescription =
+        courseMetadata.description ?? courseMetadata.shortDesc ?? null;
       return (
         <main className={styles.container}>
           <h2 className={styles.title}>Содержание</h2>
@@ -66,6 +69,25 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
             accessDenied
             accessDeniedReason="paid"
             courseForPay={courseForPay}
+            courseOutline={courseOutline}
+            courseDescription={courseDescription}
+            userId={undefined}
+          />
+        </main>
+      );
+    }
+    if (courseMetadata?.isPrivate) {
+      return (
+        <main className={styles.container}>
+          <h2 className={styles.title}>Содержание</h2>
+          <TrainingPageClient
+            courseType={courseType}
+            courseName={courseName}
+            initialData={null}
+            initialError="COURSE_ACCESS_DENIED"
+            accessDenied
+            accessDeniedReason="private"
+            courseForPay={null}
             userId={undefined}
           />
         </main>
@@ -77,25 +99,31 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
   let serverError: string | null = null;
 
   if (userId) {
-    try {
-      const data = await getTrainingDays(courseType, userId);
-      if (courseMetadata?.isPaid && courseMetadata?.id) {
-        const { hasAccess } = await checkCourseAccessById(courseMetadata.id, userId);
-        if (!hasAccess) {
-          serverError = "COURSE_ACCESS_DENIED";
-        } else {
-          serverData = data;
-          await checkAndCompleteCourse(data.trainingDays, data.courseId);
-        }
-      } else {
-        serverData = data;
-        await checkAndCompleteCourse(data.trainingDays, data.courseId);
-      }
-    } catch (error) {
-      if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
+    // Платный курс: сначала проверяем оплачен ли курс, без оплаты не грузим данные
+    if (courseMetadata?.isPaid && courseMetadata?.id) {
+      const { hasAccess } = await checkCourseAccessById(courseMetadata.id, userId);
+      if (!hasAccess) {
         serverError = "COURSE_ACCESS_DENIED";
       } else {
-        serverError = null;
+        try {
+          const data = await getTrainingDays(courseType, userId);
+          serverData = data;
+          await checkAndCompleteCourse(data.trainingDays, data.courseId);
+        } catch (error) {
+          if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
+            serverError = "COURSE_ACCESS_DENIED";
+          }
+        }
+      }
+    } else {
+      try {
+        const data = await getTrainingDays(courseType, userId);
+        serverData = data;
+        await checkAndCompleteCourse(data.trainingDays, data.courseId);
+      } catch (error) {
+        if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
+          serverError = "COURSE_ACCESS_DENIED";
+        }
       }
     }
   }
@@ -118,6 +146,13 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
       : "private"
     : null;
 
+  const courseOutline =
+    accessDeniedReason === "paid" && courseType ? await getCourseOutline(courseType) : [];
+  const courseDescription =
+    accessDeniedReason === "paid" && courseMetadata
+      ? courseMetadata.description ?? courseMetadata.shortDesc ?? null
+      : null;
+
   return (
     <main className={styles.container}>
       <h2 className={styles.title}>Содержание</h2>
@@ -129,6 +164,8 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
         accessDenied={accessDenied}
         accessDeniedReason={accessDeniedReason}
         courseForPay={courseForPay}
+        courseOutline={courseOutline}
+        courseDescription={courseDescription}
         userId={userId ?? undefined}
       />
     </main>

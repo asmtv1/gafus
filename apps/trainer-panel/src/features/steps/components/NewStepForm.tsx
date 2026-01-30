@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 
 import sharedStyles from "@shared/styles/FormLayout.module.css";
 import FormSection from "@shared/components/FormSection";
+import PersonalizationPlaceholdersHint from "@shared/components/PersonalizationPlaceholdersHint";
 import ChecklistEditor from "./ChecklistEditor";
 import StepImageUploader from "./StepImageUploader";
 import VideoSelector from "./VideoSelector";
@@ -396,6 +397,8 @@ export default function NewStepForm({
               <em>Прохождение упражнения будет зачтено после истечения таймера.</em>
             </Typography>
           </Alert>
+
+          <PersonalizationPlaceholdersHint />
 
           <Box className={sharedStyles.formField}>
             <Typography className={sharedStyles.formLabel}>Описание *</Typography>

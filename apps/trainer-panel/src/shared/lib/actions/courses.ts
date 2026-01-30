@@ -17,6 +17,13 @@ import { createTrainerPanelLogger } from "@gafus/logger";
 
 const logger = createTrainerPanelLogger("trainer-panel-create-course");
 
+/** Платные курсы могут создавать только admin и тренер с ником gafus */
+function canCreatePaidCourse(session: { user: { role: string; username?: string } }): boolean {
+  const role = session.user.role;
+  const username = session.user.username?.toLowerCase();
+  return role === "ADMIN" || username === "gafus";
+}
+
 export interface CreateCourseInput {
   name: string;
   shortDesc: string;
@@ -28,6 +35,7 @@ export interface CreateCourseInput {
   isPaid: boolean;
   priceRub: number | null;
   showInProfile: boolean;
+  isPersonalized: boolean;
   trainingDays: string[];
   allowedUsers: string[];
   equipment: string;
@@ -56,11 +64,15 @@ export async function createCourseServerAction(formData: FormData) {
   const priceRubRaw = formData.get("priceRub")?.toString();
   const priceRub = priceRubRaw ? parseFloat(priceRubRaw) : null;
   if (isPaid) {
+    if (!canCreatePaidCourse(session)) {
+      return { success: false, error: "Создавать платные курсы могут только администратор и тренер gafus" };
+    }
     if (priceRub == null || Number.isNaN(priceRub) || priceRub < 1 || priceRub > 999_999) {
       return { success: false, error: "Для платного курса укажите цену от 1 до 999 999 ₽" };
     }
   }
   const showInProfile = formData.get("showInProfile")?.toString() === "true";
+  const isPersonalized = formData.get("isPersonalized")?.toString() === "true";
   const trainingDays = formData.getAll("trainingDays").map(String);
   const allowedUsers = formData.getAll("allowedUsers").map(String);
   const equipment = formData.get("equipment")?.toString() || "";
@@ -89,6 +101,7 @@ export async function createCourseServerAction(formData: FormData) {
         isPaid,
         priceRub: isPaid && priceRub != null ? priceRub : null,
         showInProfile: showInProfile ?? true,
+        isPersonalized: isPersonalized ?? false,
         videoUrl: videoUrl || null,
         equipment,
         trainingLevel,
@@ -161,6 +174,11 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   } | null;
   if (!session?.user?.id) return { success: false, error: "Не авторизован" };
 
+  if (input.isPaid) {
+    if (!canCreatePaidCourse(session)) {
+      return { success: false, error: "Создавать платные курсы могут только администратор и тренер gafus" };
+    }
+  }
   if (input.isPaid && (input.priceRub == null || input.priceRub < 1 || input.priceRub > 999_999)) {
     return { success: false, error: "Для платного курса укажите цену от 1 до 999 999 ₽" };
   }
@@ -185,6 +203,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
           isPaid: input.isPaid,
           priceRub: input.isPaid && input.priceRub != null ? input.priceRub : null,
           showInProfile: input.showInProfile ?? true,
+          isPersonalized: input.isPersonalized ?? false,
           equipment: input.equipment,
           trainingLevel: input.trainingLevel,
         },

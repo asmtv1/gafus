@@ -5,6 +5,9 @@ import { checkDayAccess } from "@shared/lib/training/checkDayAccess";
 import { generatePageMetadata } from "@gafus/metadata";
 import { dayIdSchema } from "@shared/lib/validation/schemas";
 import { AccessDeniedAlert } from "@features/training/components/AccessDeniedAlert";
+import { getCourseMetadata } from "@gafus/core/services/course";
+import { checkCourseAccessById } from "@gafus/core/services/course";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 import type { Metadata } from "next";
 import type { TrainingDetail } from "@gafus/types";
@@ -25,12 +28,30 @@ export default async function DayPage(props: {
   }
 
   // Создаем UserTraining при необходимости (только в компоненте страницы)
-  const training: TrainingDetail | null = await getTrainingDayWithUserSteps(courseType, dayId, {
+  const { training, requiresPersonalization } = await getTrainingDayWithUserSteps(courseType, dayId, {
     createIfMissing: true,
   });
 
+  if (requiresPersonalization) {
+    redirect(`/trainings/${courseType}?personalize=1`);
+  }
+
   if (!training) {
-    // Вместо throw создаем клиентский компонент с alert
+    // Платный курс без оплаты — редирект на страницу курса с предложением оплаты (ЮKassa)
+    const courseMetadata = await getCourseMetadata(courseType);
+    if (courseMetadata?.isPaid && courseMetadata.id) {
+      let userId: string | null = null;
+      try {
+        userId = await getCurrentUserId();
+      } catch {
+        // Гость на платном — редирект на список, там покажут оплату
+        redirect(`/trainings/${courseType}`);
+      }
+      const { hasAccess } = await checkCourseAccessById(courseMetadata.id, userId);
+      if (!hasAccess) {
+        redirect(`/trainings/${courseType}`);
+      }
+    }
     return <AccessDeniedAlert courseType={courseType} />;
   }
 
@@ -45,7 +66,7 @@ export async function generateMetadata(props: {
   // Валидируем ID дня
   const dayId = dayIdSchema.parse(day);
   // Read-only вызов без создания UserTraining
-  const training: TrainingDetail | null = await getTrainingDayWithUserSteps(courseType, dayId);
+  const { training } = await getTrainingDayWithUserSteps(courseType, dayId);
 
   if (!training) {
     return generatePageMetadata({

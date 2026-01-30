@@ -5,6 +5,7 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   ExpandMore as ExpandMoreIcon,
+  Face as FaceIcon,
   Lock as LockIcon,
   MonetizationOn as PaidIcon,
   Person,
@@ -198,6 +199,16 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
               variant="outlined"
               sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
             />
+            {course.isPersonalized && (
+              <Chip
+                icon={<FaceIcon />}
+                label="Персонализированный"
+                size="medium"
+                color="secondary"
+                variant="outlined"
+                sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+              />
+            )}
             <Chip
               icon={<Person />}
               label={`${course.totalUsers || 0} пользователей`}

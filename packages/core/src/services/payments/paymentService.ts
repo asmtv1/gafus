@@ -102,6 +102,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
   const returnUrl = `${origin.replace(/\/$/, "")}/trainings/${course.type}?paid=1`;
   const body = {
     amount: { value: amountRub.toFixed(2), currency: "RUB" },
+    capture: true, // списание сразу при оплате, без ручного подтверждения в ЛК
     confirmation: { type: "redirect" as const, return_url: returnUrl },
     description: `Оплата курса`,
   };

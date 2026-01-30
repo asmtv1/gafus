@@ -211,6 +211,8 @@ export async function getTrainingDays(
   courseVideoUrl: string | null;
   courseEquipment: string | null;
   courseTrainingLevel: string | null;
+  courseIsPersonalized: boolean;
+  userCoursePersonalization: import("@gafus/types").UserCoursePersonalization | null;
 }> {
   try {
     // Если userId не передан, получаем его
@@ -247,6 +249,22 @@ export async function getTrainingDays(
         trainingLevel: true,
         isPrivate: true,
         isPaid: true,
+        isPersonalized: true,
+        userCourses: {
+          where: { userId: currentUserId },
+          take: 1,
+          select: {
+            userDisplayName: true,
+            userGender: true,
+            petName: true,
+            petGender: true,
+            petNameGen: true,
+            petNameDat: true,
+            petNameAcc: true,
+            petNameIns: true,
+            petNamePre: true,
+          },
+        },
         dayLinks: {
           orderBy: { order: "asc" },
           select: {
@@ -300,26 +318,14 @@ export async function getTrainingDays(
         courseVideoUrl: null,
         courseEquipment: null,
         courseTrainingLevel: null,
+        courseIsPersonalized: false,
+        userCoursePersonalization: null,
       };
     }
 
     // Проверяем доступ к приватному или платному курсу
-    // [PAID-ACCESS] debug
-    console.log("[PAID-ACCESS] getTrainingDays check", {
-      courseId: firstCourse.id,
-      courseType: safeType,
-      isPrivate: firstCourse.isPrivate,
-      isPaid: firstCourse.isPaid,
-      userId: currentUserId,
-      willCheckAccess: firstCourse.isPrivate || firstCourse.isPaid,
-    });
     if (firstCourse.isPrivate || firstCourse.isPaid) {
       const hasAccess = await checkCourseAccessById(firstCourse.id, currentUserId);
-      console.log("[PAID-ACCESS] checkCourseAccessById result", {
-        courseId: firstCourse.id,
-        userId: currentUserId,
-        hasAccess: hasAccess.hasAccess,
-      });
       if (!hasAccess.hasAccess) {
         logger.warn("Попытка доступа к курсу без разрешения", {
           operation: "get_training_days_access_denied",
@@ -332,6 +338,26 @@ export async function getTrainingDays(
 
     const trainingDays = mapCourseToTrainingDays(firstCourse as unknown as CourseWithDayLinks);
 
+    const uc = firstCourse.userCourses?.[0];
+    const hasPersonalization =
+      uc?.userDisplayName != null && String(uc.userDisplayName).trim() !== "";
+    const userCoursePersonalization = hasPersonalization
+      ? {
+          userDisplayName: String(uc!.userDisplayName).trim(),
+          userGender: (uc!.userGender === "female" ? "female" : "male") as "male" | "female",
+          petName: String(uc!.petName ?? "").trim(),
+          petGender:
+            (uc!.petGender === "female" || uc!.petGender === "male"
+              ? uc!.petGender
+              : null) as "male" | "female" | null,
+          petNameGen: uc!.petNameGen?.trim() ?? null,
+          petNameDat: uc!.petNameDat?.trim() ?? null,
+          petNameAcc: uc!.petNameAcc?.trim() ?? null,
+          petNameIns: uc!.petNameIns?.trim() ?? null,
+          petNamePre: uc!.petNamePre?.trim() ?? null,
+        }
+      : null;
+
     return {
       trainingDays,
       courseDescription: firstCourse.description,
@@ -339,6 +365,8 @@ export async function getTrainingDays(
       courseVideoUrl: firstCourse.videoUrl,
       courseEquipment: firstCourse.equipment,
       courseTrainingLevel: firstCourse.trainingLevel,
+      courseIsPersonalized: firstCourse.isPersonalized ?? false,
+      userCoursePersonalization,
     };
   } catch (error) {
     logger.error("Ошибка в getTrainingDays", error as Error, {

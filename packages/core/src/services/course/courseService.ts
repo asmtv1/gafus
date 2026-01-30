@@ -54,14 +54,21 @@ const courseSelect = {
 } as const;
 
 /**
- * Получает все доступные курсы с прогрессом пользователя. При отсутствии userId (гость) — только публичные курсы, hasAccess для платных false.
+ * Получает курсы, доступные пользователю для отображения на /courses:
+ * - все публичные (бесплатные и платные);
+ * - приватные только если у пользователя есть запись в CourseAccess.
  */
 export async function getCoursesWithProgress(
   userId?: string,
 ): Promise<CourseWithProgressData[]> {
-  // Возвращаем все курсы (бесплатные, платные, приватные); фильтрация по табам — на клиенте
   const allCourses = await prisma.course.findMany({
     select: courseSelect,
+  });
+
+  const accessibleCourses = allCourses.filter((course) => {
+    if (!course.isPrivate) return true;
+    if (!userId) return false;
+    return course.access.some((a: { user: { id: string } }) => a.user.id === userId);
   });
 
   const userCourses = userId
@@ -84,7 +91,7 @@ export async function getCoursesWithProgress(
     : [];
   const favoriteCourseIds = new Set(userFavorites.map((f: { courseId: string }) => f.courseId));
 
-  return allCourses.map((course) => {
+  return accessibleCourses.map((course) => {
     const userCourse = userId ? userCourses.find((uc) => uc.courseId === course.id) : null;
 
     const userStatus = userCourse?.status
@@ -95,7 +102,7 @@ export async function getCoursesWithProgress(
       ? !!(userId && course.access.some((a: { user: { id: string } }) => a.user.id === userId))
       : !course.isPrivate
         ? true
-        : course.access.length > 0;
+        : !!(userId && course.access.some((a: { user: { id: string } }) => a.user.id === userId));
 
     return {
       id: course.id,
@@ -180,13 +187,20 @@ export async function checkCourseAccess(
   const course = await prisma.course.findUnique({
     where: { type: courseType },
     select: {
+      id: true,
       isPrivate: true,
       isPaid: true,
       access: { where: { userId }, select: { userId: true } },
     },
   });
   if (!course) return { hasAccess: false };
-  if (course.isPaid) return { hasAccess: course.access.length > 0 };
+  if (course.isPaid) {
+    const paid = await prisma.payment.findFirst({
+      where: { courseId: course.id, userId, status: "SUCCEEDED" },
+      select: { id: true },
+    });
+    return { hasAccess: !!paid };
+  }
   if (!course.isPrivate) return { hasAccess: true };
   return { hasAccess: course.access.length > 0 };
 }
@@ -210,28 +224,22 @@ export async function checkCourseAccessById(
 
   const course = await prisma.course.findUnique({
     where: { id: courseId },
-    select: {
-      isPrivate: true,
-      isPaid: true,
-      access: { where: { userId }, select: { userId: true } },
-    },
+    select: { isPrivate: true, isPaid: true, access: { where: { userId }, select: { userId: true } } },
   });
-  const result = !course
-    ? { hasAccess: false }
-    : course.isPaid
-      ? { hasAccess: course.access.length > 0 }
-      : !course.isPrivate
-        ? { hasAccess: true }
-        : { hasAccess: course.access.length > 0 };
-  // [PAID-ACCESS] debug (логи в терминале сервера)
-  console.log("[PAID-ACCESS] checkCourseAccessById", {
-    courseId,
-    userId,
-    isPrivate: course?.isPrivate,
-    isPaid: course?.isPaid,
-    accessCount: course?.access?.length ?? 0,
-    hasAccess: result.hasAccess,
-  });
+  let result: { hasAccess: boolean };
+  if (!course) {
+    result = { hasAccess: false };
+  } else if (course.isPaid) {
+    const paid = await prisma.payment.findFirst({
+      where: { courseId, userId, status: "SUCCEEDED" },
+      select: { id: true },
+    });
+    result = { hasAccess: !!paid };
+  } else if (!course.isPrivate) {
+    result = { hasAccess: true };
+  } else {
+    result = { hasAccess: course.access.length > 0 };
+  }
   return result;
 }
 
@@ -256,4 +264,25 @@ export async function getCourseMetadata(courseType: string) {
   });
 
   return course;
+}
+
+/**
+ * Оглавление курса (дни по порядку) — публичная структура, без проверки доступа.
+ * Используется на странице платного курса, чтобы показать, что входит в покупку.
+ */
+export async function getCourseOutline(courseType: string): Promise<{ title: string; order: number }[]> {
+  const course = await prisma.course.findFirst({
+    where: { type: courseType },
+    select: {
+      dayLinks: {
+        orderBy: { order: "asc" },
+        select: {
+          order: true,
+          day: { select: { title: true } },
+        },
+      },
+    },
+  });
+  if (!course) return [];
+  return course.dayLinks.map((link) => ({ title: link.day.title, order: link.order }));
 }

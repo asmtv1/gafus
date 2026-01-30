@@ -61,6 +61,7 @@ model Course {
   isPaid        Boolean       @default(false)
   priceRub      Decimal?      @db.Decimal(10, 2) // Цена в рублях; null для бесплатных/приватных
   showInProfile Boolean       @default(true)
+  isPersonalized Boolean      @default(false) // Персонализация: имя, пол, имя питомца в текстах шагов
 
   authorId String
   author   User   @relation(fields: [authorId], references: [id])
@@ -357,6 +358,16 @@ model UserCourse {
   status      TrainingStatus @default(NOT_STARTED)
   startedAt   DateTime?
   completedAt DateTime?
+  // Персонализация курса (только для isPersonalized курсов)
+  userDisplayName String?
+  userGender      String?   // "male" | "female" для склонения имени ученика
+  petName         String?
+  petGender       String?   // "male" | "female" для склонения клички питомца
+  petNameGen      String?   // родительный (ручная правка)
+  petNameDat      String?   // дательный (ручная правка)
+  petNameAcc      String?   // винительный (ручная правка)
+  petNameIns      String?   // творительный (ручная правка)
+  petNamePre      String?   // предложный (ручная правка)
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   course      Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   createdAt   DateTime       @default(now())

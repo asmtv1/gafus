@@ -1,6 +1,7 @@
 import {
   Category,
   Edit as EditIcon,
+  Face as FaceIcon,
   Lock as LockIcon,
   MonetizationOn as PaidIcon,
   Person,
@@ -129,6 +130,15 @@ export default function CourseCard({ course, onClick, isAdmin = false }: CourseC
                 }
                 variant="outlined"
               />
+              {course.isPersonalized && (
+                <Chip
+                  icon={<FaceIcon />}
+                  label="Персонализированный"
+                  size="small"
+                  color="secondary"
+                  variant="outlined"
+                />
+              )}
               {course.trainingLevel && (
                 <Chip
                   icon={<TrendingUp />}

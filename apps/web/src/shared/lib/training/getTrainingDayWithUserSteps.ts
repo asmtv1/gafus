@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma, isPrismaUniqueConstraintError } from "@gafus/prisma";
+import { replacePersonalizationPlaceholders } from "@gafus/core/utils";
 import { TrainingStatus } from "@gafus/types";
 import { calculateDayStatusFromStatuses } from "@gafus/types";
 
@@ -75,6 +76,7 @@ async function findTrainingDayWithUserTraining(
       course: {
         select: {
           duration: true,
+          isPersonalized: true,
         },
       },
       day: {
@@ -162,26 +164,76 @@ async function ensureUserTrainingExists(userId: string, dayOnCourseId: string): 
   }
 }
 
+/** Результат getTrainingDayWithUserSteps: тренировка и флаг необходимости персонализации */
+export type GetTrainingDayWithUserStepsResult = {
+  training: TrainingDetail | null;
+  requiresPersonalization?: boolean;
+};
+
 /** Получаем детали дня + статусы шагов (read-only для metadata) */
 export async function getTrainingDayWithUserSteps(
   courseType: string,
   dayOnCourseId: string,
   options?: { createIfMissing?: boolean },
-): Promise<TrainingDetail | null> {
+): Promise<GetTrainingDayWithUserStepsResult> {
   const safeCourseType = courseTypeSchema.parse(courseType);
   const safeDayId = dayIdSchema.parse(dayOnCourseId);
   const userId = await getCurrentUserId();
   const found = await findTrainingDayWithUserTraining(safeCourseType, safeDayId, userId);
-  if (!found) return null;
+  if (!found) return { training: null };
 
   const {
     id: foundDayOnCourseId,
     order: physicalOrder,
     courseId,
-    course: { duration: courseDuration },
+    course: courseSelect,
     day: { id: trainingDayId, title, description, type, stepLinks },
     userTrainings,
   } = found;
+
+  const courseDuration = courseSelect.duration;
+  const isPersonalized = (courseSelect as { isPersonalized?: boolean }).isPersonalized === true;
+
+  const userCourse = userId
+    ? await prisma.userCourse.findUnique({
+        where: { userId_courseId: { userId, courseId } },
+        select: {
+          userDisplayName: true,
+          userGender: true,
+          petName: true,
+          petGender: true,
+          petNameGen: true,
+          petNameDat: true,
+          petNameAcc: true,
+          petNameIns: true,
+          petNamePre: true,
+        },
+      })
+    : null;
+  const requiresPersonalization =
+    isPersonalized &&
+    (!userCourse || !String(userCourse.userDisplayName ?? "").trim());
+
+  const personalization =
+    isPersonalized && userCourse?.userDisplayName?.trim()
+      ? {
+          userDisplayName: String(userCourse.userDisplayName).trim(),
+          userGender: (userCourse.userGender === "female" ? "female" : "male") as "male" | "female",
+          petName: String(userCourse.petName ?? "").trim(),
+          petGender:
+            (userCourse.petGender === "female" || userCourse.petGender === "male"
+              ? userCourse.petGender
+              : null) as "male" | "female" | null,
+          petNameGen: userCourse.petNameGen?.trim() ?? null,
+          petNameDat: userCourse.petNameDat?.trim() ?? null,
+          petNameAcc: userCourse.petNameAcc?.trim() ?? null,
+          petNameIns: userCourse.petNameIns?.trim() ?? null,
+          petNamePre: userCourse.petNamePre?.trim() ?? null,
+        }
+      : null;
+
+  const applyPlaceholders = (text: string): string =>
+    personalization ? replacePersonalizationPlaceholders(text, personalization) : text;
 
   // Используем foundDayOnCourseId (ID из DayOnCourse) для всех операций
   // Это правильный ID, который должен использоваться вместо параметра dayOnCourseId
@@ -216,8 +268,8 @@ export async function getTrainingDayWithUserSteps(
   if (!userTrainingId) {
     const steps = stepLinks.map(({ step, order }) => ({
       id: step.id,
-      title: step.title,
-      description: step.description,
+      title: applyPlaceholders(step.title),
+      description: applyPlaceholders(step.description),
       durationSec: step.durationSec ?? 0,
       estimatedDurationSec: step.estimatedDurationSec ?? null,
       videoUrl: step.videoUrl ?? "",
@@ -236,16 +288,19 @@ export async function getTrainingDayWithUserSteps(
     }));
 
     return {
-      trainingDayId,
-      dayOnCourseId: correctDayOnCourseId, // Используем правильный ID из DayOnCourse
-      displayDayNumber,
-      title,
-      type,
-      courseId,
-      description: description ?? "",
-      duration: courseDuration ?? "",
-      userStatus: TrainingStatus.NOT_STARTED,
-      steps,
+      training: {
+        trainingDayId,
+        dayOnCourseId: correctDayOnCourseId, // Используем правильный ID из DayOnCourse
+        displayDayNumber,
+        title: applyPlaceholders(title),
+        type,
+        courseId,
+        description: applyPlaceholders(description ?? ""),
+        duration: courseDuration ?? "",
+        userStatus: TrainingStatus.NOT_STARTED,
+        steps,
+      },
+      requiresPersonalization: requiresPersonalization || undefined,
     };
   }
 
@@ -376,8 +431,8 @@ export async function getTrainingDayWithUserSteps(
       order: number;
     }) => ({
       id: step.id,
-      title: step.title,
-      description: step.description,
+      title: applyPlaceholders(step.title),
+      description: applyPlaceholders(step.description),
       durationSec: step.durationSec ?? 0,
       estimatedDurationSec: step.estimatedDurationSec ?? null,
       videoUrl: step.videoUrl ?? "",
@@ -409,15 +464,18 @@ export async function getTrainingDayWithUserSteps(
   const dayUserStatus = calculateDayStatusFromStatuses(stepStatusesArr);
 
   return {
-    trainingDayId,
-    dayOnCourseId: correctDayOnCourseId, // Используем правильный ID из DayOnCourse
-    displayDayNumber: displayDayNumber, // Опциональное поле для отображения номера дня
-    title,
-    type,
-    courseId,
-    description: description ?? "",
-    duration: courseDuration ?? "",
-    userStatus: userTraining ? dayUserStatus : TrainingStatus.NOT_STARTED,
-    steps,
+    training: {
+      trainingDayId,
+      dayOnCourseId: correctDayOnCourseId, // Используем правильный ID из DayOnCourse
+      displayDayNumber: displayDayNumber, // Опциональное поле для отображения номера дня
+      title: applyPlaceholders(title),
+      type,
+      courseId,
+      description: applyPlaceholders(description ?? ""),
+      duration: courseDuration ?? "",
+      userStatus: userTraining ? dayUserStatus : TrainingStatus.NOT_STARTED,
+      steps,
+    },
+    requiresPersonalization: requiresPersonalization || undefined,
   };
 }

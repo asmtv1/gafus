@@ -1,6 +1,17 @@
 import Swal from "sweetalert2";
 import type { PetFormData } from "@gafus/types";
 
+/** Экранирование для подстановки в HTML (value="...") — защита от XSS */
+function escapeHtml(s: string): string {
+  if (typeof s !== "string") return "";
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Настройки темы под ваш дизайн
 const customTheme = {
   confirmButtonColor: "#FFF8E5",
@@ -354,6 +365,203 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
   });
 
   return formData || null;
+};
+
+/** Данные формы персонализации курса */
+export interface PersonalizationFormData {
+  userDisplayName: string;
+  userGender: "male" | "female";
+  petName: string;
+  petGender?: "male" | "female" | null;
+  petNameGen?: string | null;
+  petNameDat?: string | null;
+  petNameAcc?: string | null;
+  petNameIns?: string | null;
+  petNamePre?: string | null;
+}
+
+/** Опции для показа формы персонализации */
+export interface ShowPersonalizationAlertOptions {
+  initialValues?: PersonalizationFormData | null;
+  getDeclinedName: (
+    name: string,
+    gender?: "male" | "female",
+  ) => Promise<{
+    genitive: string;
+    dative: string;
+    accusative: string;
+    instrumental: string;
+    prepositional: string;
+  }>;
+}
+
+/** Форма персонализации курса (имя, пол, имя питомца, склонения). При отмене возвращает null. */
+export const showPersonalizationAlert = async (
+  options: ShowPersonalizationAlertOptions,
+): Promise<PersonalizationFormData | null> => {
+  const { initialValues, getDeclinedName } = options;
+  const u = initialValues?.userDisplayName ?? "";
+  const g = initialValues?.userGender ?? "male";
+  const p = initialValues?.petName ?? "";
+  const pGender = initialValues?.petGender ?? "";
+  const pGen = initialValues?.petNameGen ?? "";
+  const pDat = initialValues?.petNameDat ?? "";
+  const pAcc = initialValues?.petNameAcc ?? "";
+  const pIns = initialValues?.petNameIns ?? "";
+  const pPre = initialValues?.petNamePre ?? "";
+
+  const html = `
+    <div style="text-align: left; margin: 20px 0;">
+      <div class="swal-personalization-intro" style="margin-bottom: 16px; padding: 14px 16px; background: #EBE8E0; border-radius: 10px; font-size: 14px; color: #505050; line-height: 1.55; text-align: center; font-family: inherit; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+        Эта информация нужна для вашего полного погружения в курс. Пожалуйста, не пишите выдуманные вещи, чтобы не портить себе впечатление от курса.
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Ваше имя *</label>
+        <input id="personalization-userName" type="text" value="${escapeHtml(u)}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Как к вам обращаться">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Пол *</label>
+        <select id="personalization-userGender" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;">
+          <option value="male" ${g === "male" ? "selected" : ""}>Мужской</option>
+          <option value="female" ${g === "female" ? "selected" : ""}>Женский</option>
+        </select>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Имя питомца *</label>
+        <input id="personalization-petName" type="text" value="${escapeHtml(p)}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Кличка питомца">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Пол питомца</label>
+        <select id="personalization-petGender" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;">
+          <option value="" ${pGender === "" ? "selected" : ""}>Не указан</option>
+          <option value="male" ${pGender === "male" ? "selected" : ""}>Мужской</option>
+          <option value="female" ${pGender === "female" ? "selected" : ""}>Женский</option>
+        </select>
+        <span style="font-size: 12px; color: #666;">Нужен для правильного склонения клички</span>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Родительный (кого? — нет кого)</label>
+        <input id="personalization-petNameGen" type="text" value="${escapeHtml(pGen)}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Например: Барсика">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Дательный (кому?)</label>
+        <input id="personalization-petNameDat" type="text" value="${escapeHtml(pDat)}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Например: Барсику">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Винительный (кого? — вижу кого)</label>
+        <input id="personalization-petNameAcc" type="text" value="${escapeHtml(pAcc)}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Например: Барсика">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Творительный (кем?)</label>
+        <input id="personalization-petNameIns" type="text" value="${escapeHtml(pIns)}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Например: Барсиком">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Предложный (о ком?)</label>
+        <input id="personalization-petNamePre" type="text" value="${escapeHtml(pPre)}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Например: о Барсике">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <button type="button" id="personalization-fill-declensions" style="padding: 8px 16px; background: #636128; color: #FFF8E5; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;">Подставить склонения</button>
+      </div>
+    </div>
+  `;
+
+  const fillDeclensions = async () => {
+    const petNameEl = document.getElementById("personalization-petName") as HTMLInputElement | null;
+    const petGenderEl = document.getElementById("personalization-petGender") as HTMLSelectElement | null;
+    const genEl = document.getElementById("personalization-petNameGen") as HTMLInputElement | null;
+    const datEl = document.getElementById("personalization-petNameDat") as HTMLInputElement | null;
+    const accEl = document.getElementById("personalization-petNameAcc") as HTMLInputElement | null;
+    const insEl = document.getElementById("personalization-petNameIns") as HTMLInputElement | null;
+    const preEl = document.getElementById("personalization-petNamePre") as HTMLInputElement | null;
+    const petName = petNameEl?.value?.trim();
+    if (!petName || !genEl || !datEl || !accEl || !insEl || !preEl) return;
+    try {
+      const petGenderVal = petGenderEl?.value;
+      const gender =
+        petGenderVal === "female" || petGenderVal === "male"
+          ? (petGenderVal as "male" | "female")
+          : undefined;
+      const { genitive, dative, accusative, instrumental, prepositional } =
+        await getDeclinedName(petName, gender);
+      genEl.value = genitive;
+      datEl.value = dative;
+      accEl.value = accusative;
+      insEl.value = instrumental;
+      preEl.value = prepositional;
+    } catch (_) {
+      // ignore
+    }
+  };
+
+  const { value: formData, isConfirmed } = await Swal.fire({
+    title: "Персонализация курса",
+    html,
+    imageUrl: "/uploads/logo.png",
+    imageWidth: 80,
+    imageHeight: 80,
+    imageAlt: "Гафус",
+    showCancelButton: true,
+    confirmButtonText: "Сохранить",
+    cancelButtonText: "Отмена",
+    confirmButtonColor: customTheme.confirmButtonColor,
+    cancelButtonColor: "#F5F0E8",
+    customClass: {
+      popup: "swal2-popup-custom",
+      title: "swal2-title-custom",
+      htmlContainer: "swal2-content-custom",
+      confirmButton: "swal2-confirm-custom",
+      cancelButton: "swal2-cancel-custom",
+    },
+    focusConfirm: false,
+    allowOutsideClick: false,
+    didOpen: () => {
+      const petNameEl = document.getElementById("personalization-petName");
+      const btn = document.getElementById("personalization-fill-declensions");
+      petNameEl?.addEventListener("blur", () => void fillDeclensions());
+      btn?.addEventListener("click", () => void fillDeclensions());
+    },
+    preConfirm: () => {
+      const userName = (document.getElementById("personalization-userName") as HTMLInputElement)?.value?.trim();
+      const userGender = (document.getElementById("personalization-userGender") as HTMLSelectElement)?.value as string;
+      const petName = (document.getElementById("personalization-petName") as HTMLInputElement)?.value?.trim();
+      const petGenderEl = document.getElementById("personalization-petGender") as HTMLSelectElement | null;
+      const petGender =
+        petGenderEl?.value === "male" || petGenderEl?.value === "female"
+          ? (petGenderEl.value as "male" | "female")
+          : null;
+      const petNameGen = (document.getElementById("personalization-petNameGen") as HTMLInputElement)?.value?.trim() || undefined;
+      const petNameDat = (document.getElementById("personalization-petNameDat") as HTMLInputElement)?.value?.trim() || undefined;
+      const petNameAcc = (document.getElementById("personalization-petNameAcc") as HTMLInputElement)?.value?.trim() || undefined;
+      const petNameIns = (document.getElementById("personalization-petNameIns") as HTMLInputElement)?.value?.trim() || undefined;
+      const petNamePre = (document.getElementById("personalization-petNamePre") as HTMLInputElement)?.value?.trim() || undefined;
+      if (!userName) {
+        Swal.showValidationMessage("Укажите ваше имя");
+        return false;
+      }
+      if (userGender !== "male" && userGender !== "female") {
+        Swal.showValidationMessage("Выберите пол");
+        return false;
+      }
+      if (!petName) {
+        Swal.showValidationMessage("Укажите имя питомца");
+        return false;
+      }
+      return {
+        userDisplayName: userName,
+        userGender: userGender as "male" | "female",
+        petName,
+        petGender,
+        petNameGen: petNameGen || null,
+        petNameDat: petNameDat || null,
+        petNameAcc: petNameAcc || null,
+        petNameIns: petNameIns || null,
+        petNamePre: petNamePre || null,
+      };
+    },
+  });
+
+  if (!isConfirmed) return null;
+  return formData as PersonalizationFormData;
 };
 
 // Сообщение о заблокированном дне "Подведение итогов"

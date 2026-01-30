@@ -24,6 +24,7 @@ export interface TrainerCourseFormData {
   isPaid: boolean;
   priceRub: number | null;
   showInProfile: boolean;
+  isPersonalized: boolean;
   trainingDays: string[];
   allowedUsers: string[];
   equipment: string;

@@ -59,6 +59,7 @@ export default async function EditCoursePage({ params }: PageProps) {
     isPaid: course.isPaid ?? false,
     priceRub: course.priceRub != null ? Number(course.priceRub) : null,
     showInProfile: (course as { showInProfile?: boolean }).showInProfile ?? true,
+    isPersonalized: (course as { isPersonalized?: boolean }).isPersonalized ?? false,
     trainingDays: course.dayLinks.map((dl: { day: { id: string } }) => dl.day.id),
     allowedUsers: course.isPrivate ? course.access.map((a: { userId: string }) => a.userId) : [],
     equipment: course.equipment,

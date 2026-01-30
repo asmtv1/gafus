@@ -1,5 +1,6 @@
 "use client";
 
+import type { UserCoursePersonalization } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 import { useCallback, useEffect, useState } from "react";
 
@@ -14,7 +15,7 @@ import { isOnline } from "@shared/utils/offlineCacheUtils";
 // Создаем логгер для use-cached-training-days
 const logger = createWebLogger("web-use-cached-training-days");
 
-interface TrainingDaysData {
+export interface TrainingDaysData {
   trainingDays: {
     trainingDayId: string;
     dayOnCourseId: string;
@@ -30,6 +31,8 @@ interface TrainingDaysData {
   courseDescription: string | null;
   courseId: string | null;
   courseVideoUrl: string | null;
+  courseIsPersonalized?: boolean;
+  userCoursePersonalization?: UserCoursePersonalization | null;
 }
 
 interface UseCachedTrainingDaysOptions {
@@ -112,6 +115,8 @@ export function useCachedTrainingDays(
             courseDescription: offlineCourse.course.metadata.description,
             courseId: offlineCourse.courseId,
             courseVideoUrl: offlineCourse.course.metadata.videoUrl,
+            courseIsPersonalized: false,
+            userCoursePersonalization: null,
           };
 
           setCachedTrainingDays(courseType, offlineData);

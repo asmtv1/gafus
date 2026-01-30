@@ -1,5 +1,7 @@
 // State shape для тренировок (БЕЗ методов)
 
+import type { UserCoursePersonalization } from "../data/training";
+
 export type DayStatus = "COMPLETED" | "IN_PROGRESS" | "NOT_STARTED";
 
 export interface TrainingStateData {
@@ -24,6 +26,8 @@ export interface TrainingStateData {
         courseDescription: string | null;
         courseId: string | null;
         courseVideoUrl: string | null;
+        courseIsPersonalized?: boolean;
+        userCoursePersonalization?: UserCoursePersonalization | null;
       };
       timestamp: number;
     }

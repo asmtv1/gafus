@@ -17,11 +17,7 @@ import { declOfNum } from "@gafus/core/utils";
 import { SimpleCourseRating } from "../CourseRating";
 import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
-import {
-  showSuccessAlert,
-  showErrorAlert,
-  showPaidCourseAccessAlert,
-} from "@shared/utils/sweetAlert";
+import { showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { FavoriteButton } from "../FavoriteButton/FavoriteButton";
@@ -331,17 +327,6 @@ export const CourseCard = ({
     return `${reviewCount} ${declOfNum(reviewCount, ["отзыв", "отзыва", "отзывов"])}`;
   };
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    if (isPaid && !hasAccess) {
-      e.preventDefault();
-      const price = priceRub ?? 0;
-      void showPaidCourseAccessAlert(
-        { name, priceRub: price },
-        () => onPaidCourseClick?.({ id, name, type, priceRub: price }),
-      );
-    }
-  };
-
   return (
     <li className={styles.courseCard}>
       <div className={styles.courseCardContent}>
@@ -349,7 +334,6 @@ export const CourseCard = ({
           href={`/trainings/${type}`}
           className={styles.link}
           prefetch={false}
-          onClick={handleCardClick}
         >
           <div className={styles.imageContainer}>
             <Image

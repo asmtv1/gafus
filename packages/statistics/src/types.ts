@@ -28,6 +28,7 @@ export interface CourseStats {
   avgRating: number | null;
   isPrivate: boolean;
   isPaid: boolean;
+  isPersonalized: boolean;
   totalUsers: number;
   completedUsers: number;
   inProgressUsers: number;

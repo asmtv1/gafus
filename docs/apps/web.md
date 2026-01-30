@@ -62,7 +62,8 @@ app/
 │   ├── register/
 │   └── reset-password/
 ├── (main)/
-│   ├── dashboard/
+│   ├── contacts/              # Контакты и реквизиты (публичная)
+│   ├── terms/                  # Пользовательское соглашение и оферта
 │   ├── courses/
 │   ├── profile/
 │   ├── statistics/
@@ -375,6 +376,13 @@ NEXT_PUBLIC_API_URL=https://api.gafus.ru
 # PWA
 NEXT_PUBLIC_PWA_NAME=GAFUS
 NEXT_PUBLIC_PWA_SHORT_NAME=GAFUS
+
+# Контакты и реквизиты (страница /contacts, оферта /terms, футер)
+# При запуске через pnpm dev:env подхватываются из корневого .env; после изменения .env — перезапустить dev
+NEXT_PUBLIC_CONTACT_EMAIL=email@example.com
+NEXT_PUBLIC_CONTACT_PHONE=+7 999 123-45-67
+NEXT_PUBLIC_CONTACT_FIO=Иванов Иван Иванович
+NEXT_PUBLIC_CONTACT_INN=123456789012
 ```
 
 ### Docker
