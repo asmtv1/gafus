@@ -21,21 +21,20 @@ function sanitizeFileName(fileName: string): string {
     .substring(0, 100); // Ограничиваем длину
 }
 
-// P2 Security: Fail-fast проверка S3 credentials в production (runtime только)
+// P2 Security: Fail-fast проверка S3 credentials в production только на сервере.
+// На клиенте модуль может подтягиваться из-за общих реэкспортов (getCDNUrl и т.д.) — ключи там не нужны и не доступны.
 const YC_ACCESS_KEY_ID = process.env.YC_ACCESS_KEY_ID;
 const YC_SECRET_ACCESS_KEY = process.env.YC_SECRET_ACCESS_KEY;
 
-// Проверяем credentials только в runtime, не во время build
 if (
   process.env.NODE_ENV === "production" &&
-  typeof window !== "undefined" // Runtime check (client-side)
+  typeof window === "undefined" &&
+  (!YC_ACCESS_KEY_ID || !YC_SECRET_ACCESS_KEY)
 ) {
-  if (!YC_ACCESS_KEY_ID || !YC_SECRET_ACCESS_KEY) {
-    throw new Error(
-      "CRITICAL: YC_ACCESS_KEY_ID and YC_SECRET_ACCESS_KEY must be set in production. " +
-        "Check your environment variables configuration.",
-    );
-  }
+  throw new Error(
+    "CRITICAL: YC_ACCESS_KEY_ID and YC_SECRET_ACCESS_KEY must be set in production. " +
+      "Check your environment variables configuration.",
+  );
 }
 
 // Дополнительная проверка при первом вызове функций (для server-side runtime)
