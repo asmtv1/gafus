@@ -7,7 +7,10 @@ import { isCourseDownloadedByType } from "@shared/lib/offline/offlineCourseStora
 const logger = createWebLogger("web-offline-detector");
 
 const STORAGE_KEY = "offline_previous_url";
-const PING_INTERVAL = 8000; // 8 секунд
+const PING_INTERVAL =
+  typeof process !== "undefined" && process.env.NODE_ENV === "development"
+    ? 6000000
+    : 8000; // в dev реже (60 с), в проде 8 с
 const PING_TIMEOUT = 3000; // 3 секунды
 const OFFLINE_PAGE = "/~offline";
 

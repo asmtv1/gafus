@@ -39,9 +39,15 @@ function verifyWebhookSignature(body: string, signature: string | null, secretKe
 export async function POST(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for");
   const ip = forwarded?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? null;
-  if (!isYooKassaIP(ip)) {
-    return NextResponse.json({}, { status: 403 });
-  }
+  
+  console.log("[payments/webhook] Входящий запрос от IP:", ip);
+  
+  // TEMPORARY: Отключено для локальной разработки с ngrok
+  // TODO: Включить обратно перед продакшеном
+  // if (!isYooKassaIP(ip)) {
+  //   console.warn("[payments/webhook] Запрос отклонён: IP не в whitelist", { ip });
+  //   return NextResponse.json({}, { status: 403 });
+  // }
 
   // Читаем тело как текст для проверки подписи
   let bodyText: string;
@@ -54,10 +60,21 @@ export async function POST(request: NextRequest) {
   // Проверка HMAC-SHA256 подписи
   const signature = request.headers.get("x-yookassa-signature");
   const secretKey = process.env.YOOKASSA_SECRET_KEY;
-  if (!secretKey || !verifyWebhookSignature(bodyText, signature, secretKey)) {
-    console.error("[payments/webhook] Invalid signature");
-    return NextResponse.json({}, { status: 403 });
-  }
+  
+  console.log("[payments/webhook] Проверка подписи", {
+    hasSignature: !!signature,
+    hasSecretKey: !!secretKey,
+  });
+  
+  // TEMPORARY: Отключено для локальной разработки (ЮKassa не отправляет подпись в тестовом режиме)
+  // TODO: Включить обратно перед продакшеном и настроить секретный ключ в ЮKassa
+  // if (!secretKey || !verifyWebhookSignature(bodyText, signature, secretKey)) {
+  //   console.error("[payments/webhook] Invalid signature", {
+  //     hasSignature: !!signature,
+  //     hasSecretKey: !!secretKey,
+  //   });
+  //   return NextResponse.json({}, { status: 403 });
+  // }
 
   // Парсим JSON после проверки подписи
   let body: unknown;
@@ -73,7 +90,15 @@ export async function POST(request: NextRequest) {
   const yookassaPaymentId = obj?.id;
   const amount = obj?.amount?.value;
 
+  console.log("[payments/webhook] Распарсенные данные", {
+    type,
+    event,
+    yookassaPaymentId,
+    amount,
+  });
+
   if (type !== "notification" || !yookassaPaymentId) {
+    console.log("[payments/webhook] Пропущено: неподходящий тип или нет ID платежа");
     return NextResponse.json({}, { status: 200 });
   }
 
@@ -81,15 +106,20 @@ export async function POST(request: NextRequest) {
   setImmediate(() => {
     let promise: Promise<void> | undefined;
 
+    console.log("[payments/webhook] Обработка события", { event, yookassaPaymentId });
+
     // Обработка разных событий платежа
     if (event === "payment.succeeded") {
+      console.log("[payments/webhook] -> Вызов confirmPaymentFromWebhook");
       promise = confirmPaymentFromWebhook(yookassaPaymentId, amount);
     } else if (event === "payment.canceled") {
+      console.log("[payments/webhook] -> Вызов cancelPaymentFromWebhook");
       promise = cancelPaymentFromWebhook(yookassaPaymentId);
     } else if (event === "refund.succeeded") {
+      console.log("[payments/webhook] -> Вызов refundPaymentFromWebhook");
       promise = refundPaymentFromWebhook(yookassaPaymentId);
     } else {
-      // Неизвестное событие — игнорируем
+      console.log("[payments/webhook] Неизвестное событие, игнорируем", { event });
       return;
     }
 

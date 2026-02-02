@@ -39,6 +39,3 @@ export async function getStudentNotes(): Promise<StudentNote[]> {
     return [];
   }
 }
-
-// Re-export types for convenience
-export type { StudentNote, StudentNoteEntry } from "@gafus/core/services/notes";

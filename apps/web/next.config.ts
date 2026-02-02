@@ -22,9 +22,54 @@ const withPWA = withPWAInit({
   // PWA манифест и метатеги остаются активными
 });
 
+// Общие алиасы для webpack и Turbopack (workspace-пакеты)
+const gafusAliases = {
+  "@gafus/core": _path.resolve(__dirname, "../../packages/core/src"),
+  "@gafus/core/services/course": _path.resolve(__dirname, "../../packages/core/src/services/course"),
+  "@gafus/core/services/diary": _path.resolve(__dirname, "../../packages/core/src/services/diary"),
+  "@gafus/core/services/user": _path.resolve(__dirname, "../../packages/core/src/services/user"),
+  "@gafus/core/services/auth": _path.resolve(__dirname, "../../packages/core/src/services/auth"),
+  "@gafus/core/services/notifications": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/notifications",
+  ),
+  "@gafus/core/services/subscriptions": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/subscriptions",
+  ),
+  "@gafus/core/services/tracking": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/tracking",
+  ),
+  "@gafus/core/services/achievements": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/achievements",
+  ),
+  "@gafus/core/errors": _path.resolve(__dirname, "../../packages/core/src/errors"),
+  "@gafus/core/utils": _path.resolve(__dirname, "../../packages/core/src/utils"),
+  "@gafus/core/utils/social": _path.resolve(__dirname, "../../packages/core/src/utils/social"),
+  "@gafus/core/utils/training": _path.resolve(__dirname, "../../packages/core/src/utils/training"),
+  "@gafus/core/utils/retry": _path.resolve(__dirname, "../../packages/core/src/utils/retry"),
+  "@gafus/auth": _path.resolve(__dirname, "../../packages/auth/dist"),
+  "@gafus/auth/server": _path.resolve(__dirname, "../../packages/auth/dist"),
+  "@gafus/react-query": _path.resolve(__dirname, "../../packages/react-query/dist"),
+  "@gafus/types": _path.resolve(__dirname, "../../packages/types/src"),
+  "@gafus/csrf": _path.resolve(__dirname, "../../packages/csrf/src"),
+  "@gafus/error-handling": _path.resolve(__dirname, "../../packages/error-handling/dist"),
+  "@gafus/prisma": _path.resolve(__dirname, "../../packages/prisma/dist"),
+  "@gafus/webpush": _path.resolve(__dirname, "../../packages/webpush/dist"),
+  "@gafus/logger": _path.resolve(__dirname, "../../packages/logger/dist"),
+};
+
 // 3. основной конфиг Next.js
 const nextConfig = {
-  reactStrictMode: true,
+  // В dev выключен: один рендер вместо двух — быстрее отклик на ввод
+  reactStrictMode: process.env.NODE_ENV !== "development",
+
+  // Turbopack (next dev --turbo): быстрее HMR и холодный старт
+  turbopack: {
+    resolveAlias: gafusAliases,
+  },
   // Включаем standalone режим для production (кроме явного отключения)
   ...((process.env.NODE_ENV === "production" || process.env.USE_STANDALONE === "true") &&
     process.env.DISABLE_STANDALONE !== "true" && { output: "standalone" }),
@@ -79,60 +124,7 @@ const nextConfig = {
 
   // Webpack конфигурация для workspace зависимостей
   webpack: (config: WebpackConfig, { isServer }: { isServer: boolean }) => {
-    // Разрешаем workspace зависимости
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@gafus/core": _path.resolve(__dirname, "../../packages/core/src"),
-      "@gafus/core/services/course": _path.resolve(
-        __dirname,
-        "../../packages/core/src/services/course",
-      ),
-      "@gafus/core/services/diary": _path.resolve(
-        __dirname,
-        "../../packages/core/src/services/diary",
-      ),
-      "@gafus/core/services/user": _path.resolve(
-        __dirname,
-        "../../packages/core/src/services/user",
-      ),
-      "@gafus/core/services/auth": _path.resolve(
-        __dirname,
-        "../../packages/core/src/services/auth",
-      ),
-      "@gafus/core/services/notifications": _path.resolve(
-        __dirname,
-        "../../packages/core/src/services/notifications",
-      ),
-      "@gafus/core/services/subscriptions": _path.resolve(
-        __dirname,
-        "../../packages/core/src/services/subscriptions",
-      ),
-      "@gafus/core/services/tracking": _path.resolve(
-        __dirname,
-        "../../packages/core/src/services/tracking",
-      ),
-      "@gafus/core/services/achievements": _path.resolve(
-        __dirname,
-        "../../packages/core/src/services/achievements",
-      ),
-      "@gafus/core/errors": _path.resolve(__dirname, "../../packages/core/src/errors"),
-      "@gafus/core/utils": _path.resolve(__dirname, "../../packages/core/src/utils"),
-      "@gafus/core/utils/social": _path.resolve(__dirname, "../../packages/core/src/utils/social"),
-      "@gafus/core/utils/training": _path.resolve(
-        __dirname,
-        "../../packages/core/src/utils/training",
-      ),
-      "@gafus/core/utils/retry": _path.resolve(__dirname, "../../packages/core/src/utils/retry"),
-      "@gafus/auth": _path.resolve(__dirname, "../../packages/auth/dist"),
-      "@gafus/auth/server": _path.resolve(__dirname, "../../packages/auth/dist"),
-      "@gafus/react-query": _path.resolve(__dirname, "../../packages/react-query/dist"),
-      "@gafus/types": _path.resolve(__dirname, "../../packages/types/src"),
-      "@gafus/csrf": _path.resolve(__dirname, "../../packages/csrf/src"),
-      "@gafus/error-handling": _path.resolve(__dirname, "../../packages/error-handling/dist"),
-      "@gafus/prisma": _path.resolve(__dirname, "../../packages/prisma/dist"),
-      "@gafus/webpush": _path.resolve(__dirname, "../../packages/webpush/dist"),
-      "@gafus/logger": _path.resolve(__dirname, "../../packages/logger/dist"),
-    };
+    config.resolve.alias = { ...config.resolve.alias, ...gafusAliases };
 
     // Исправляем проблемы с standalone сборкой и clientReferenceManifest
     if (isServer) {

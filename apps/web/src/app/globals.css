@@ -1,3 +1,6 @@
+/* Импорты должны быть в начале файла */
+@import "@shared/utils/sweetAlert.css";
+
 /* responsive skeleton */
 html,
 body {
@@ -68,9 +71,6 @@ body {
 /* print */
 @media print {
 }
-
-/* Импортируем стили для SweetAlert2 */
-@import "@shared/utils/sweetAlert.css";
 
 /* Оптимизация для touch устройств */
 @media (hover: none) and (pointer: coarse) {

@@ -92,13 +92,29 @@ export function setupFetchInterceptor() {
       // Проверяем navigator.onLine еще раз после ошибки
       const isNavigatorOffline = !navigator.onLine;
 
-      if ((isNetworkError || isNavigatorOffline) && !shouldIgnoreOffline && !isMediaRequest) {
+      // Проверяем, является ли запрос same-origin (только для таких ставим offline)
+      let isSameOrigin = false;
+      try {
+        const requestUrl = new URL(url, window.location.origin);
+        isSameOrigin = requestUrl.origin === window.location.origin;
+      } catch {
+        // Если не удалось распарсить URL, считаем same-origin (для относительных путей)
+        isSameOrigin = !url.startsWith("http://") && !url.startsWith("https://");
+      }
+
+      if (
+        (isNetworkError || isNavigatorOffline) &&
+        !shouldIgnoreOffline &&
+        !isMediaRequest &&
+        isSameOrigin
+      ) {
         const currentStore = useOfflineStore.getState();
         if (currentStore.isOnline) {
           logger.warn("Network error detected, setting offline status", {
             url,
             error: errorMessage,
             navigatorOnLine: navigator.onLine,
+            isSameOrigin,
           });
           currentStore.setOnlineStatus(false);
           // Редирект обрабатывается в offlineDetector

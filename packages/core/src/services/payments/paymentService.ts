@@ -175,42 +175,87 @@ export async function confirmPaymentFromWebhook(
   yookassaPaymentId: string,
   amountFromYookassa?: string,
 ): Promise<void> {
+  console.log("=== [confirmPaymentFromWebhook] НАЧАЛО ОБРАБОТКИ ===");
+  console.log("  yookassaPaymentId:", yookassaPaymentId);
+  console.log("  amountFromYookassa:", amountFromYookassa);
+
   const payment = await prisma.payment.findFirst({
     where: { yookassaPaymentId, status: "PENDING" },
     select: { id: true, userId: true, courseId: true, amountRub: true },
   });
-  if (!payment) return;
+  
+  if (!payment) {
+    console.log("  ❌ Платёж не найден или уже обработан");
+    return;
+  }
+
+  console.log("  ✅ Платёж найден:");
+  console.log("    paymentId:", payment.id);
+  console.log("    userId:", payment.userId);
+  console.log("    courseId:", payment.courseId);
+  console.log("    amountRub:", payment.amountRub.toString());
 
   // Проверка суммы (защита от MITM)
   if (amountFromYookassa) {
     const expectedAmount = Number(payment.amountRub);
     const actualAmount = parseFloat(amountFromYookassa);
+    console.log("  💰 Проверка суммы:");
+    console.log("    Ожидается:", expectedAmount);
+    console.log("    Получено:", actualAmount);
+    console.log("    Разница:", Math.abs(expectedAmount - actualAmount));
+    
     if (Math.abs(expectedAmount - actualAmount) > 0.01) {
-      logger.error("Сумма платежа не совпадает: " + JSON.stringify({
+      console.log("  ❌ ОШИБКА: Сумма не совпадает! Доступ НЕ выдаётся");
+      logger.error("Сумма платежа не совпадает", new Error("Amount mismatch"), {
         paymentId: payment.id,
         expected: expectedAmount,
         actual: actualAmount,
-      }));
+      });
       return; // НЕ выдавать доступ
     }
+    console.log("  ✅ Сумма совпадает");
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.courseAccess.upsert({
-      where: { courseId_userId: { courseId: payment.courseId, userId: payment.userId } },
-      create: { courseId: payment.courseId, userId: payment.userId },
-      update: {},
+  console.log("  🔄 Создание CourseAccess и обновление Payment...");
+  
+  try {
+    await prisma.$transaction(async (tx) => {
+      const courseAccess = await tx.courseAccess.upsert({
+        where: { courseId_userId: { courseId: payment.courseId, userId: payment.userId } },
+        create: { courseId: payment.courseId, userId: payment.userId },
+        update: {},
+      });
+      console.log("  ✅ CourseAccess создан/обновлён:");
+      console.log("    courseId:", courseAccess.courseId);
+      console.log("    userId:", courseAccess.userId);
+
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: { status: "SUCCEEDED" },
+      });
+      console.log("  ✅ Payment обновлён:");
+      console.log("    paymentId:", updatedPayment.id);
+      console.log("    status:", updatedPayment.status);
     });
-    await tx.payment.update({
-      where: { id: payment.id },
-      data: { status: "SUCCEEDED" },
+    
+    console.log("🎉 УСПЕХ! Платёж подтверждён, доступ выдан");
+    console.log("=== [confirmPaymentFromWebhook] КОНЕЦ ===\n");
+    
+    logger.info("Платёж подтверждён, доступ выдан", {
+      paymentId: payment.id,
+      userId: payment.userId,
+      courseId: payment.courseId,
     });
-  });
-  logger.info("Платёж подтверждён, доступ выдан", {
-    paymentId: payment.id,
-    userId: payment.userId,
-    courseId: payment.courseId,
-  });
+  } catch (error) {
+    console.log("❌ ОШИБКА при создании доступа:");
+    console.error(error);
+    logger.error("Ошибка транзакции", error as Error, {
+      paymentId: payment.id,
+      userId: payment.userId,
+      courseId: payment.courseId,
+    });
+    throw error;
+  }
 }
 
 /**

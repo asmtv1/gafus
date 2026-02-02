@@ -132,7 +132,8 @@ export default function ServiceWorkerRegistrar() {
   const setOnlineStatus = useOfflineStore((s) => s.setOnlineStatus);
 
   useEffect(() => {
-    // Мгновенная регистрация Service Worker
+    // В dev не регистрируем SW — меньше нагрузка, быстрее отклик
+    if (process.env.NODE_ENV === "development") return;
     if (serviceWorkerManager.isSupported()) {
       serviceWorkerManager.register().catch((error) => {
         logger.warn("⚠️ Не удалось зарегистрировать Service Worker", {
@@ -154,9 +155,24 @@ export default function ServiceWorkerRegistrar() {
 
       if (data?.type === "NETWORK_STATUS") {
         if (data.status === "OFFLINE") {
+          // Игнорируем aborted-ошибки: они часто возникают при HMR/навигации, не означают реальный офлайн
+          const errorMessage = data.error || "";
+          const isAbortError =
+            errorMessage.includes("aborted") ||
+            errorMessage.includes("AbortError") ||
+            errorMessage.includes("signal is aborted");
+
+          if (isAbortError) {
+            logger.info("Service Worker reported aborted request, ignoring", {
+              operation: "sw_offline_ignored",
+              error: errorMessage,
+            });
+            return;
+          }
+
           logger.warn("Service Worker detected offline", {
             operation: "sw_offline_detected",
-            error: data.error,
+            error: errorMessage,
           });
           setOnlineStatus(false);
         } else if (data.status === "ONLINE") {

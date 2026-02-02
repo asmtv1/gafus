@@ -174,14 +174,26 @@ export async function checkCourseAccess(
   courseType: string,
   userId?: string,
 ): Promise<{ hasAccess: boolean }> {
+  console.log("\n=== [checkCourseAccess] ПРОВЕРКА ДОСТУПА ===");
+  console.log("  courseType:", courseType);
+  console.log("  userId:", userId || "(гость)");
+
   if (!userId) {
     const course = await prisma.course.findUnique({
       where: { type: courseType },
       select: { isPrivate: true, isPaid: true },
     });
-    if (!course) return { hasAccess: false };
-    if (course.isPaid) return { hasAccess: false };
-    return { hasAccess: !course.isPrivate };
+    if (!course) {
+      console.log("  ❌ Курс не найден");
+      return { hasAccess: false };
+    }
+    if (course.isPaid) {
+      console.log("  ❌ Платный курс, гость -> нет доступа");
+      return { hasAccess: false };
+    }
+    const result = { hasAccess: !course.isPrivate };
+    console.log("  🔓 Гость, публичный курс:", result.hasAccess ? "✅ доступ есть" : "❌ нет доступа");
+    return result;
   }
 
   const course = await prisma.course.findUnique({
@@ -193,16 +205,33 @@ export async function checkCourseAccess(
       access: { where: { userId }, select: { userId: true } },
     },
   });
-  if (!course) return { hasAccess: false };
-  if (course.isPaid) {
-    const paid = await prisma.payment.findFirst({
-      where: { courseId: course.id, userId, status: "SUCCEEDED" },
-      select: { id: true },
-    });
-    return { hasAccess: !!paid };
+  
+  if (!course) {
+    console.log("  ❌ Курс не найден");
+    return { hasAccess: false };
   }
-  if (!course.isPrivate) return { hasAccess: true };
-  return { hasAccess: course.access.length > 0 };
+  
+  console.log("  📋 Курс найден:");
+  console.log("    courseId:", course.id);
+  console.log("    isPaid:", course.isPaid);
+  console.log("    isPrivate:", course.isPrivate);
+  console.log("    accessRecordsCount:", course.access.length);
+  console.log("    accessRecords:", JSON.stringify(course.access));
+  
+  // Для платных и приватных курсов проверяем наличие доступа в CourseAccess
+  if (course.isPaid || course.isPrivate) {
+    const hasAccess = course.access.length > 0;
+    console.log("  🔐 Платный/приватный курс:");
+    console.log("    Записей в CourseAccess:", course.access.length);
+    console.log("    Результат:", hasAccess ? "✅ доступ есть" : "❌ нет доступа");
+    console.log("=== [checkCourseAccess] КОНЕЦ ===\n");
+    return { hasAccess };
+  }
+  
+  // Публичные бесплатные курсы доступны всем
+  console.log("  ✅ Публичный бесплатный курс -> доступ есть");
+  console.log("=== [checkCourseAccess] КОНЕЦ ===\n");
+  return { hasAccess: true };
 }
 
 /**
@@ -226,21 +255,18 @@ export async function checkCourseAccessById(
     where: { id: courseId },
     select: { isPrivate: true, isPaid: true, access: { where: { userId }, select: { userId: true } } },
   });
-  let result: { hasAccess: boolean };
+  
   if (!course) {
-    result = { hasAccess: false };
-  } else if (course.isPaid) {
-    const paid = await prisma.payment.findFirst({
-      where: { courseId, userId, status: "SUCCEEDED" },
-      select: { id: true },
-    });
-    result = { hasAccess: !!paid };
-  } else if (!course.isPrivate) {
-    result = { hasAccess: true };
-  } else {
-    result = { hasAccess: course.access.length > 0 };
+    return { hasAccess: false };
   }
-  return result;
+  
+  // Для платных и приватных курсов проверяем наличие доступа в CourseAccess
+  if (course.isPaid || course.isPrivate) {
+    return { hasAccess: course.access.length > 0 };
+  }
+  
+  // Публичные бесплатные курсы доступны всем
+  return { hasAccess: true };
 }
 
 // ========== Get Course Metadata ==========
