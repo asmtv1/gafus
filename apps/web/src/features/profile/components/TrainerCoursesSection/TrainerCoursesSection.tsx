@@ -43,21 +43,23 @@ export default function TrainerCoursesSection({ publicData }: TrainerCoursesSect
     isPrivate: boolean;
     isPaid?: boolean;
   }) => {
-    if (course.isPrivate || course.isPaid) {
+    // Для платных курсов всегда переходим на страницу курса (там покажем предложение оплаты)
+    if (course.isPaid) {
+      router.push(`/trainings/${course.type}`);
+      return;
+    }
+
+    // Для приватных курсов проверяем доступ
+    if (course.isPrivate) {
       const { hasAccess } = await checkCourseAccessAction(course.type);
       if (!hasAccess) {
-        if (course.isPaid) {
-          await showErrorAlert(
-            "Этот курс платный. Оплатите для доступа к занятиям.",
-          );
-        } else {
-          await showErrorAlert(
-            "Этот курс для вас закрыт. Обратитесь к кинологу для получения доступа",
-          );
-        }
+        await showErrorAlert(
+          "Этот курс для вас закрыт. Обратитесь к кинологу для получения доступа",
+        );
         return;
       }
     }
+    
     router.push(`/trainings/${course.type}`);
   };
 

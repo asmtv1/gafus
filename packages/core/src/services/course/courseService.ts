@@ -65,10 +65,18 @@ export async function getCoursesWithProgress(
     select: courseSelect,
   });
 
+  // Фильтруем курсы для отображения на /courses:
+  // 1. Публичные платные курсы показываем всем (чтобы можно было купить)
+  // 2. Публичные бесплатные курсы показываем всем
+  // 3. Приватные курсы только с доступом
   const accessibleCourses = allCourses.filter((course) => {
-    if (!course.isPrivate) return true;
-    if (!userId) return false;
-    return course.access.some((a: { user: { id: string } }) => a.user.id === userId);
+    // Приватные курсы только с доступом в CourseAccess
+    if (course.isPrivate) {
+      if (!userId) return false;
+      return course.access.some((a: { user: { id: string } }) => a.user.id === userId);
+    }
+    // Публичные курсы (платные и бесплатные) показываем всем
+    return true;
   });
 
   const userCourses = userId

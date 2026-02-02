@@ -166,6 +166,36 @@ const nextConfig = {
 };
 ```
 
+## Логика доступа к курсам
+
+### `getCoursesWithProgress(userId?: string)`
+
+Возвращает список курсов, доступных для отображения на странице `/courses`:
+
+**Правила фильтрации:**
+1. **Публичные платные курсы** (`isPrivate: false, isPaid: true`) — показываются всем пользователям для возможности покупки
+2. **Публичные бесплатные курсы** (`isPrivate: false, isPaid: false`) — показываются всем
+3. **Приватные курсы** (`isPrivate: true`) — показываются только пользователям с записью в `CourseAccess`
+
+**Поле `hasAccess`:**
+- Для платных курсов: `true` только если есть запись в `CourseAccess` (курс оплачен)
+- Для публичных бесплатных: всегда `true`
+- Для приватных: `true` если есть запись в `CourseAccess`
+
+**Пример:**
+```typescript
+const courses = await getCoursesWithProgress(userId);
+// courses[0].isPaid = true, hasAccess = false → показываем курс с предложением оплаты
+// courses[1].isPaid = false, isPrivate = false → показываем курс, доступ есть
+// courses[2].isPrivate = true, hasAccess = false → курс не включён в список
+```
+
+### `checkCourseAccess(courseType: string, userId?: string)`
+
+Проверяет доступ пользователя к курсу по типу:
+- Платные и приватные курсы требуют запись в `CourseAccess`
+- Публичные бесплатные курсы доступны всем
+
 ## Зависимости
 
 - `@gafus/prisma` - ORM
