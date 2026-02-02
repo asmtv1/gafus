@@ -559,7 +559,7 @@ export async function GET() {
       checkServiceHealth("Web App", "http://web:3000/api/health"),
       checkServiceHealth("Trainer Panel", "http://trainer-panel:3001/api/health"),
       checkServiceHealth("Admin Panel", "http://admin-panel:3006/api/health"),
-      checkServiceHealth("Bull Board", "http://bull-board:3002/health"),
+      checkServiceHealth("Bull Board", "http://bull-board:3000/health"),
     ]);
 
     return NextResponse.json({
@@ -731,48 +731,21 @@ function validateErrorReport(data: unknown) {
 }
 ```
 
+### Защита от индексации
+
+Error Dashboard (monitor.gafus.ru) — внутренний инструмент, не предназначенный для публичного поиска. Реализована тройная защита:
+
+1. **metadata** — `robots: { index: false, follow: false }` в layout
+2. **robots.txt** — `Disallow: /` для всех ботов
+3. **nginx** — заголовок `X-Robots-Tag: noindex, nofollow` на уровне сервера
+
+Для удаления уже проиндексированных страниц используйте [Google Search Console](https://search.google.com/search-console) и [Яндекс.Вебмастер](https://webmaster.yandex.ru).
+
 ## 🧪 Тестирование
 
 ### Генерация тестовых ошибок
 
-Для проверки работы error-dashboard можно сгенерировать тестовые ошибки из всех приложений и пакетов.
-
-#### Универсальный скрипт
-
-Используйте универсальный скрипт для генерации ошибок:
-
-```bash
-# Все тесты (все приложения и пакеты)
-pnpm test:errors
-
-# Конкретный тест
-node scripts/generate-test-errors.js web
-node scripts/generate-test-errors.js logger
-node scripts/generate-test-errors.js auth
-
-# Список доступных тестов
-node scripts/generate-test-errors.js --help
-```
-
-#### Доступные тесты
-
-- `logger` - ошибки из пакета logger
-- `error-handling` - ошибки из пакета error-handling
-- `auth` - ошибки аутентификации
-- `prisma` - ошибки базы данных
-- `queues` - ошибки очередей
-- `webpush` - ошибки push-уведомлений
-- `csrf` - ошибки CSRF защиты
-- `types` - ошибки типов
-- `react-query` - ошибки React Query
-- `web` - ошибки web приложения
-- `trainer-panel` - ошибки trainer panel
-- `telegram-bot` - ошибки telegram бота
-- `bull-board` - ошибки bull board
-
-#### Индивидуальные тесты
-
-Каждый пакет/приложение имеет свой тестовый скрипт:
+Для проверки работы error-dashboard можно запустить тестовые скрипты в пакетах и приложениях:
 
 ```bash
 # Logger

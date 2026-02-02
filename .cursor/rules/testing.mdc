@@ -13,22 +13,12 @@ alwaysApply: true
 ## Test Structure
 ```typescript
 describe("Feature Name", () => {
-  beforeEach(() => {
-    // Setup
-  });
-
-  afterEach(() => {
-    // Cleanup
-  });
+  beforeEach(() => { /* Setup */ });
+  afterEach(() => { /* Cleanup */ });
 
   it("should do something", () => {
-    // Arrange
     const input = "test";
-    
-    // Act
     const result = myFunction(input);
-    
-    // Assert
     expect(result).toBe("expected");
   });
 });
@@ -42,17 +32,13 @@ describe("myAction", () => {
   it("should return success for valid input", async () => {
     const formData = new FormData();
     formData.append("name", "Test");
-    
     const result = await myAction(formData);
-    
     expect(result.success).toBe(true);
   });
 
   it("should return error for invalid input", async () => {
     const formData = new FormData();
-    
     const result = await myAction(formData);
-    
     expect(result.error).toBeDefined();
   });
 });

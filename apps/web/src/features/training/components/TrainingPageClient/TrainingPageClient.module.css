@@ -143,3 +143,33 @@
 .outlineItem {
   margin-bottom: 4px;
 }
+
+/* Success notification после оплаты */
+.successNotification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(76, 175, 80, 0.4);
+  z-index: 9999;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-align: center;
+  animation: slideDown 0.3s ease-out;
+  max-width: 90%;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}

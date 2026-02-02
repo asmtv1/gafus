@@ -40,17 +40,16 @@ export async function generateMetadata({ params }: TrainingsPageProps): Promise<
 export default async function TrainingsPage({ params }: TrainingsPageProps) {
   const { courseType } = await params;
 
-  const courseMetadata = await getCourseMetadata(courseType);
+  // async-parallel: независимые запросы выполняем параллельно (Vercel React Best Practices)
+  const [courseMetadata, userIdResult] = await Promise.all([
+    getCourseMetadata(courseType),
+    getCurrentUserId().then((id) => id as string).catch(() => null),
+  ]);
   const courseName = courseMetadata?.name;
+  const userId = userIdResult;
 
-  let userId: string | null = null;
-  try {
-    userId = await getCurrentUserId();
-  } catch (_) {
-    // Гость: платный или приватный курс — редирект на главную (страница требует авторизации)
-    if (courseMetadata?.isPaid || courseMetadata?.isPrivate) {
-      redirect("/");
-    }
+  if (!userId && courseMetadata && (courseMetadata.isPaid || courseMetadata.isPrivate)) {
+    redirect("/");
   }
 
   let serverData: Awaited<ReturnType<typeof getTrainingDays>> | null = null;

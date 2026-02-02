@@ -9,6 +9,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Gafus Error Dashboard",
   description: "Дашборд для мониторинга ошибок в системе Gafus",
+  robots: { index: false, follow: false },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

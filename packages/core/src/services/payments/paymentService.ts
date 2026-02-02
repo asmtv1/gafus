@@ -8,6 +8,7 @@ import { createWebLogger } from "@gafus/logger";
 const logger = createWebLogger("payment-service");
 
 const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
+const MAX_AMOUNT_RUB = 100000; // Максимальная сумма платежа: 100 000 рублей
 
 export interface CreatePaymentParams {
   userId: string;
@@ -50,6 +51,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
   if (!course.isPaid) return { success: false, error: "Курс не является платным" };
   const amountRub = course.priceRub != null ? Number(course.priceRub) : null;
   if (amountRub == null || amountRub < 0.01) return { success: false, error: "У курса не указана цена" };
+  if (amountRub > MAX_AMOUNT_RUB) return { success: false, error: "Некорректная цена курса" };
 
   const existingAccess = await prisma.courseAccess.findUnique({
     where: { courseId_userId: { courseId, userId } },
@@ -169,12 +171,29 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
 /**
  * Обработка webhook payment.succeeded: выдача доступа и обновление статуса платежа (идемпотентно).
  */
-export async function confirmPaymentFromWebhook(yookassaPaymentId: string): Promise<void> {
+export async function confirmPaymentFromWebhook(
+  yookassaPaymentId: string,
+  amountFromYookassa?: string,
+): Promise<void> {
   const payment = await prisma.payment.findFirst({
     where: { yookassaPaymentId, status: "PENDING" },
-    select: { id: true, userId: true, courseId: true },
+    select: { id: true, userId: true, courseId: true, amountRub: true },
   });
   if (!payment) return;
+
+  // Проверка суммы (защита от MITM)
+  if (amountFromYookassa) {
+    const expectedAmount = Number(payment.amountRub);
+    const actualAmount = parseFloat(amountFromYookassa);
+    if (Math.abs(expectedAmount - actualAmount) > 0.01) {
+      logger.error("Сумма платежа не совпадает: " + JSON.stringify({
+        paymentId: payment.id,
+        expected: expectedAmount,
+        actual: actualAmount,
+      }));
+      return; // НЕ выдавать доступ
+    }
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.courseAccess.upsert({
@@ -188,6 +207,54 @@ export async function confirmPaymentFromWebhook(yookassaPaymentId: string): Prom
     });
   });
   logger.info("Платёж подтверждён, доступ выдан", {
+    paymentId: payment.id,
+    userId: payment.userId,
+    courseId: payment.courseId,
+  });
+}
+
+/**
+ * Обработка webhook payment.canceled: обновление статуса платежа на CANCELED (идемпотентно).
+ */
+export async function cancelPaymentFromWebhook(yookassaPaymentId: string): Promise<void> {
+  const payment = await prisma.payment.findFirst({
+    where: { yookassaPaymentId, status: "PENDING" },
+    select: { id: true },
+  });
+  if (!payment) return;
+
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: { status: "CANCELED" },
+  });
+  logger.info("Платёж отменён", { paymentId: payment.id });
+}
+
+/**
+ * Обработка webhook refund.succeeded: удаление доступа и обновление статуса платежа на REFUNDED (идемпотентно).
+ */
+export async function refundPaymentFromWebhook(yookassaPaymentId: string): Promise<void> {
+  const payment = await prisma.payment.findFirst({
+    where: { yookassaPaymentId, status: "SUCCEEDED" },
+    select: { id: true, userId: true, courseId: true },
+  });
+  if (!payment) return;
+
+  await prisma.$transaction(async (tx) => {
+    // Удалить доступ к курсу
+    await tx.courseAccess
+      .delete({
+        where: { courseId_userId: { courseId: payment.courseId, userId: payment.userId } },
+      })
+      .catch(() => {}); // игнорируем если доступа уже нет
+
+    // Обновить статус платежа
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: { status: "REFUNDED" },
+    });
+  });
+  logger.info("Платёж возвращён, доступ удалён", {
     paymentId: payment.id,
     userId: payment.userId,
     courseId: payment.courseId,

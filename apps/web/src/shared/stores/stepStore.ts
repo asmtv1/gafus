@@ -18,11 +18,32 @@ const makeEndKey = (courseId: string, dayOnCourseId: string, idx: number) =>
   `training-${courseId}-${dayOnCourseId}-${idx}-end`;
 const makePauseKey = (courseId: string, dayOnCourseId: string, idx: number) =>
   `training-${courseId}-${dayOnCourseId}-${idx}-paused`;
-const getStepStorageKey = () => `step-storage:${getUserScopeId()}`;
+const STORAGE_VERSION = "v1";
+const getStepStorageKey = () => `step-storage:${STORAGE_VERSION}:${getUserScopeId()}`;
 
-const saveToLS = (key: string, val: string | number) => localStorage.setItem(key, val.toString());
-const loadFromLS = (key: string): string | null => localStorage.getItem(key);
-const removeKeys = (...keys: string[]) => keys.forEach((key) => localStorage.removeItem(key));
+function saveToLS(key: string, val: string | number): void {
+  try {
+    localStorage.setItem(key, val.toString());
+  } catch {
+    // Quota exceeded or private mode
+  }
+}
+
+function loadFromLS(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function removeKeys(...keys: string[]): void {
+  try {
+    keys.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // ignore
+  }
+}
 
 // ===== STORE =====
 export const useStepStore = create<StepStore>()(
@@ -185,7 +206,11 @@ export const useStepStore = create<StepStore>()(
           pausedAt: Date.now(),
           timeLeft: currentStep?.timeLeft || 0,
         };
-        localStorage.setItem(PAUSE_KEY, JSON.stringify(pauseData));
+        try {
+          localStorage.setItem(PAUSE_KEY, JSON.stringify(pauseData));
+        } catch {
+          // Quota exceeded or private mode
+        }
 
         set((state) => ({
           stepStates: {
@@ -462,9 +487,27 @@ export const useStepStore = create<StepStore>()(
     {
       name: "step-storage",
       storage: createJSONStorage(() => ({
-        getItem: (_name) => localStorage.getItem(getStepStorageKey()),
-        setItem: (_name, value) => localStorage.setItem(getStepStorageKey(), value),
-        removeItem: (_name) => localStorage.removeItem(getStepStorageKey()),
+        getItem: (_name) => {
+          try {
+            return localStorage.getItem(getStepStorageKey());
+          } catch {
+            return null;
+          }
+        },
+        setItem: (_name, value) => {
+          try {
+            localStorage.setItem(getStepStorageKey(), value);
+          } catch {
+            // Quota exceeded or private mode
+          }
+        },
+        removeItem: (_name) => {
+          try {
+            localStorage.removeItem(getStepStorageKey());
+          } catch {
+            // ignore
+          }
+        },
       })),
       partialize: (state) => ({
         stepStates: state.stepStates,

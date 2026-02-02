@@ -68,6 +68,7 @@ export default function TrainingPageClient({
   const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const personalizationShownRef = useRef(false);
@@ -101,6 +102,25 @@ export default function TrainingPageClient({
     courseType,
     trainingDays: initialData?.trainingDays,
   });
+
+  // Обработка успешной оплаты: показываем notification и автоматически обновляем через 5 секунд
+  useEffect(() => {
+    if (searchParams.get("paid") === "1" && !accessDenied) {
+      setShowPaymentSuccess(true);
+
+      // Очистить параметр из URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("paid");
+      window.history.replaceState({}, "", url.pathname);
+
+      // Автоматически обновить через 5 секунд (чтобы подтянуть доступ после webhook)
+      const timeout = setTimeout(() => {
+        router.refresh();
+      }, 5000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [searchParams, accessDenied, router]);
 
   const isAccessDenied =
     accessDenied || initialError === "COURSE_ACCESS_DENIED";
@@ -271,6 +291,12 @@ export default function TrainingPageClient({
 
   return (
     <>
+      {showPaymentSuccess && (
+        <div className={styles.successNotification}>
+          Оплата прошла успешно! Доступ к курсу откроется через несколько секунд...
+        </div>
+      )}
+
       <div className="courseDescription">
         <CourseDescriptionWithVideo
           description={initialData?.courseDescription || null}

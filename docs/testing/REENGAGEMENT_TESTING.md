@@ -92,7 +92,7 @@ ORDER BY "createdAt" DESC;
 
 ### Шаг 5: Проверка очереди BullMQ
 
-1. Откройте Bull Board: `http://localhost:3007`
+1. Откройте Bull Board: `http://localhost:3003`
 2. Перейдите в очередь `reengagement`
 3. Проверьте наличие задачи `send-reengagement-notification`
 
@@ -356,7 +356,7 @@ SELECT * FROM "PushSubscription" WHERE "userId" = 'USER_ID';
 Если что-то не работает:
 
 1. Проверьте логи worker: `packages/worker/logs/`
-2. Проверьте Bull Board: `http://localhost:3007`
+2. Проверьте Bull Board: `http://localhost:3003`
 3. Проверьте БД на наличие данных
 4. Проверьте настройки окружения (`.env`)
 

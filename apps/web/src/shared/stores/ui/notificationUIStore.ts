@@ -3,9 +3,36 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// Константа для периода отложения напоминания (10 дней)
 const NOTIFICATION_REMIND_DELAY_DAYS = 10;
 const NOTIFICATION_REMIND_DELAY_MS = NOTIFICATION_REMIND_DELAY_DAYS * 24 * 60 * 60 * 1000;
+
+const STORAGE_VERSION = "v1";
+const KEY_MODAL_SHOWN = `${STORAGE_VERSION}:notificationModalShown`;
+const KEY_DISMISSED_UNTIL = `${STORAGE_VERSION}:notificationDismissedUntil`;
+
+function safeGetItem(key: string): string | null {
+  try {
+    return typeof window !== "undefined" ? localStorage.getItem(key) : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    if (typeof window !== "undefined") localStorage.setItem(key, value);
+  } catch {
+    // Quota exceeded or private mode
+  }
+}
+
+function safeRemoveItem(key: string): void {
+  try {
+    if (typeof window !== "undefined") localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
 
 interface NotificationUIState {
   showModal: boolean;
@@ -34,39 +61,27 @@ export const useNotificationUIStore = create<NotificationUIState>()(
 
       dismissModal: () => {
         set({ showModal: false });
-        // Откладываем показ на 10 дней (в миллисекундах)
         const dismissedUntil = Date.now() + NOTIFICATION_REMIND_DELAY_MS;
         set({ dismissedUntil });
-
-        if (typeof window !== "undefined") {
-          localStorage.setItem("notificationDismissedUntil", dismissedUntil.toString());
-        }
+        safeSetItem(KEY_DISMISSED_UNTIL, dismissedUntil.toString());
       },
 
       markModalAsShown: () => {
         set({ modalShown: true, dismissedUntil: null });
-        if (typeof window !== "undefined") {
-          localStorage.setItem("notificationModalShown", "true");
-          localStorage.removeItem("notificationDismissedUntil");
-        }
+        safeSetItem(KEY_MODAL_SHOWN, "true");
+        safeRemoveItem(KEY_DISMISSED_UNTIL);
       },
 
       shouldShowModal: (hasPermission: boolean, isSupported: boolean) => {
         const { modalShown, dismissedUntil } = get();
 
-        // Если разрешение уже дано - не показываем
-        const modalShownInStorage =
-          typeof window !== "undefined"
-            ? localStorage.getItem("notificationModalShown") === "true"
-            : false;
+        const modalShownInStorage = safeGetItem(KEY_MODAL_SHOWN) === "true";
 
         if (modalShown || modalShownInStorage) {
           return false;
         }
 
-        // Проверяем, не отложен ли показ
-        const dismissedUntilFromStorage =
-          typeof window !== "undefined" ? localStorage.getItem("notificationDismissedUntil") : null;
+        const dismissedUntilFromStorage = safeGetItem(KEY_DISMISSED_UNTIL);
 
         const effectiveDismissedUntil =
           dismissedUntil ||
@@ -80,9 +95,7 @@ export const useNotificationUIStore = create<NotificationUIState>()(
         // Если время прошло - очищаем dismissedUntil
         if (effectiveDismissedUntil && Date.now() >= effectiveDismissedUntil) {
           set({ dismissedUntil: null });
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("notificationDismissedUntil");
-          }
+          safeRemoveItem(KEY_DISMISSED_UNTIL);
         }
 
         return isSupported && !hasPermission;

@@ -61,6 +61,14 @@
       "types": "./dist/core/src/services/payments/index.d.ts",
       "default": "./dist/core/src/services/payments/index.js"
     },
+    "./services/diary": {
+      "types": "./dist/core/src/services/diary/index.d.ts",
+      "default": "./dist/core/src/services/diary/index.js"
+    },
+    "./services/video": {
+      "types": "./dist/core/src/services/video/index.d.ts",
+      "default": "./dist/core/src/services/video/index.js"
+    },
     "./errors": {
       "types": "./dist/core/src/errors/index.d.ts",
       "default": "./dist/core/src/errors/index.js"

@@ -5,6 +5,7 @@ import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { getVideoAccessService } from "@gafus/video-access";
 import { downloadFileFromCDN } from "@gafus/cdn-upload";
+import { checkVideoAccess } from "@gafus/core/services/video";
 
 /**
  * API для получения HLS манифеста с подписанными URL для сегментов
@@ -59,6 +60,19 @@ export async function GET(
       return NextResponse.json({ error: "Видео не найдено" }, { status: 404 });
     }
 
+    // P0 Security: Проверяем права доступа к видео (IDOR protection)
+    const hasAccess = await checkVideoAccess({
+      userId: session.user.id,
+      videoId,
+    });
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "Недостаточно прав для просмотра этого видео" },
+        { status: 403 },
+      );
+    }
+
     // Проверяем статус транскодирования
     if (video.transcodingStatus !== "COMPLETED") {
       return NextResponse.json(
@@ -95,8 +109,15 @@ export async function GET(
         // Генерируем signed URL для сегмента
         const segmentPath = line.trim();
 
+        // P2 Security: Генерируем короткоживущий токен для каждого сегмента (TTL 5 min)
+        const segmentToken = videoAccessService.generateToken({
+          videoId,
+          userId: session.user.id,
+          ttlMinutes: 5, // Короткий TTL для segments
+        });
+
         // Создаём абсолютный URL для прокси-эндпоинта сегмента
-        const segmentUrl = `${baseUrl}/api/video/${videoId}/segment?path=${encodeURIComponent(segmentPath)}&token=${token}`;
+        const segmentUrl = `${baseUrl}/api/video/${videoId}/segment?path=${encodeURIComponent(segmentPath)}&token=${segmentToken}`;
 
         return segmentUrl;
       }

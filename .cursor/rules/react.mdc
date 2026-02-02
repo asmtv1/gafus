@@ -34,29 +34,6 @@ alwaysApply: true
 - Use arrow functions for inline handlers
 - Debounce/throttle expensive operations
 
-## Example: Component Structure
-```typescript
-interface ButtonProps {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-}
-
-export function Button({ label, onClick, disabled = false }: ButtonProps) {
-  const handleClick = useCallback(() => {
-    if (!disabled) {
-      onClick();
-    }
-  }, [disabled, onClick]);
-
-  return (
-    <button onClick={handleClick} disabled={disabled}>
-      {label}
-    </button>
-  );
-}
-```
-
 ## Material-UI Usage
 - Import from `@mui/material` and `@mui/icons-material`
 - Use `sx` prop for styling (not `style`)

@@ -4,6 +4,7 @@ import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { getVideoAccessService } from "@gafus/video-access";
 import { streamFileFromCDN } from "@gafus/cdn-upload";
+import { checkVideoAccess } from "@gafus/core/services/video";
 
 /**
  * API для получения HLS сегмента
@@ -36,6 +37,17 @@ export async function GET(
       return NextResponse.json({ error: "Путь к сегменту не предоставлен" }, { status: 400 });
     }
 
+    // P0 Security: Валидация segmentPath для защиты от path traversal
+    if (segmentPath.includes("..") || segmentPath.includes("/") || segmentPath.includes("\\")) {
+      return NextResponse.json({ error: "Недопустимый путь к сегменту" }, { status: 400 });
+    }
+
+    // Валидация формата файла (только .ts, .m3u8, .vtt)
+    const validSegmentPattern = /^[a-zA-Z0-9._-]+\.(ts|m3u8|vtt)$/;
+    if (!validSegmentPattern.test(segmentPath)) {
+      return NextResponse.json({ error: "Недопустимый формат сегмента" }, { status: 400 });
+    }
+
     // Проверяем токен
     const tokenData = videoAccessService.verifyToken(token);
 
@@ -61,6 +73,19 @@ export async function GET(
       return NextResponse.json({ error: "Видео не найдено" }, { status: 404 });
     }
 
+    // P0 Security: Проверяем права доступа к видео (IDOR protection)
+    const hasAccess = await checkVideoAccess({
+      userId: session.user.id,
+      videoId,
+    });
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "Недостаточно прав для просмотра этого видео" },
+        { status: 403 },
+      );
+    }
+
     if (video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
       return NextResponse.json({ error: "Видео не готово" }, { status: 425 });
     }
@@ -72,6 +97,18 @@ export async function GET(
     // Получаем stream для сегмента из Object Storage
     const { stream, contentLength, contentType } = await streamFileFromCDN(fullSegmentPath);
 
+    // P1 Security: Строгая CORS policy вместо "*"
+    const origin = request.headers.get("origin");
+    const allowedOrigins = [
+      process.env.NEXT_PUBLIC_APP_URL || "https://gafus.ru",
+      "http://localhost:3000",
+      "https://gafus.ru",
+      "https://www.gafus.ru",
+    ].filter((url): url is string => Boolean(url));
+
+    const corsOrigin =
+      origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+
     // Возвращаем сегмент через streaming
     return new NextResponse(stream, {
       status: 200,
@@ -79,7 +116,9 @@ export async function GET(
         "Content-Type": contentType || "video/mp2t",
         "Content-Length": contentLength.toString(),
         "Cache-Control": "public, max-age=31536000, immutable",
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": corsOrigin,
+        "Access-Control-Allow-Credentials": "true",
+        Vary: "Origin",
         "Accept-Ranges": "bytes",
       },
     });

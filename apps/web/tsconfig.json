@@ -38,6 +38,7 @@
       ],
       "@gafus/core/services/notes": ["../../packages/core/src/services/notes/index.ts"],
       "@gafus/core/services/payments": ["../../packages/core/src/services/payments/index.ts"],
+      "@gafus/core/services/video": ["../../packages/core/src/services/video/index.ts"],
       "@gafus/core/errors": ["../../packages/core/src/errors/index.ts"],
       "@gafus/core/utils": ["../../packages/core/src/utils/index.ts"],
       "@gafus/core/utils/social": ["../../packages/core/src/utils/social.ts"],

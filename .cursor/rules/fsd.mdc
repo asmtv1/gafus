@@ -55,12 +55,12 @@ src/
 ```typescript
 "use server";
 import { z } from "zod";
-import { getServerSession } from "next-auth";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId"; // apps/web
 
 export async function myAction(formData: FormData) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return { error: "Не авторизован" };
-  
+  const userId = await getCurrentUserId().catch(() => null);
+  if (!userId) return { error: "Не авторизован" };
+
   try {
     const data = schema.parse(Object.fromEntries(formData));
     // ... logic
@@ -72,10 +72,11 @@ export async function myAction(formData: FormData) {
   }
 }
 ```
+Для проверки роли используй `getServerSession(authOptions)` из `next-auth` и `authOptions` из `@gafus/auth`.
 
 ### Discriminated Union
 ```typescript
-type Data = 
+type Data =
   | { type: 'step'; stepTitle: string; stepIndex: number }
   | { type: 'immediate'; title: string; body: string };
 
@@ -87,10 +88,5 @@ function process(data: Data) {
 ```
 
 ## See Also
-- `typescript.mdc` - TypeScript best practices
-- `nextjs.mdc` - Next.js patterns
-- `database.mdc` - Prisma usage
-- `react.mdc` - React patterns
-- `error-handling.mdc` - Error handling
-- `security.mdc` - Security practices
-- `performance.mdc` - Performance optimization
+- `typescript.mdc`, `nextjs.mdc`, `database.mdc`, `react.mdc`
+- `error-handling.mdc`, `security.mdc`, `performance.mdc`

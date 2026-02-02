@@ -58,6 +58,14 @@ services:
       # HLS Video Protection
       - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
       - NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${NEXT_PUBLIC_ENABLE_HLS_PROTECTION:-true}
+      # ЮKassa (платные курсы, API route в web)
+      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
+      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      # Реквизиты для страницы контактов
+      - NEXT_PUBLIC_CONTACT_EMAIL=${NEXT_PUBLIC_CONTACT_EMAIL}
+      - NEXT_PUBLIC_CONTACT_PHONE=${NEXT_PUBLIC_CONTACT_PHONE}
+      - NEXT_PUBLIC_CONTACT_FIO=${NEXT_PUBLIC_CONTACT_FIO}
+      - NEXT_PUBLIC_CONTACT_INN=${NEXT_PUBLIC_CONTACT_INN}
     # Uploads handled by CDN - no local volume needed
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped

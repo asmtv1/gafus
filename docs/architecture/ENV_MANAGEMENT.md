@@ -21,8 +21,15 @@ DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
 
 # ЮKassa (платные курсы, только для apps/web)
+# В production подставляются из GitHub Secrets (ci-cd, deploy-only, build-single-container)
 YOOKASSA_SHOP_ID=   # идентификатор магазина из ЛК ЮKassa
 YOOKASSA_SECRET_KEY= # секретный ключ (не публиковать)
+
+# Реквизиты для ЮKassa (страница контактов apps/web)
+NEXT_PUBLIC_CONTACT_EMAIL=
+NEXT_PUBLIC_CONTACT_PHONE=
+NEXT_PUBLIC_CONTACT_FIO=
+NEXT_PUBLIC_CONTACT_INN=
 
 # ... остальные переменные
 ```

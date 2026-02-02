@@ -22,7 +22,7 @@ export function calculateCurrentStreak(trainingDates: Date[] | string[]): number
 
   const uniqueDates = Array.from(normalizedDates)
     .map((iso) => new Date(iso))
-    .sort((a, b) => b.getTime() - a.getTime());
+    .toSorted((a, b) => b.getTime() - a.getTime());
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -65,7 +65,7 @@ export function calculateLongestStreak(trainingDates: Date[] | string[]): number
 
   const sortedDates = Array.from(normalizedDates)
     .map((iso) => new Date(iso))
-    .sort((a, b) => a.getTime() - b.getTime());
+    .toSorted((a, b) => a.getTime() - b.getTime());
 
   let longestStreak = 1;
   let currentStreak = 1;

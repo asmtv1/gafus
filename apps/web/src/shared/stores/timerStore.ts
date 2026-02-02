@@ -25,7 +25,13 @@ const nowSec = () => Math.floor(Date.now() / 1000);
 const makeEndKey = (courseId: string, dayOnCourseId: string, idx: number) =>
   `training-${courseId}-${dayOnCourseId}-${idx}-end`;
 
-const loadFromLS = (key: string): string | null => localStorage.getItem(key);
+function loadFromLS(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
 
 // Быстрый локальный таймаут для серверных действий (мобайлы)
 const SERVER_ACTION_TIMEOUT_MS = 1000;
@@ -469,22 +475,27 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       // Останавливаем таймер
       get().stopTimer(courseId, dayOnCourseId, stepIndex);
 
-      // Сохраняем состояние паузы в localStorage
       const PAUSE_KEY = `training-${courseId}-${dayOnCourseId}-${stepIndex}-paused`;
       const pauseData = {
         pausedAt: Date.now(),
-        timeLeft: 0, // Будет обновлено из stepStore
+        timeLeft: 0,
       };
-      localStorage.setItem(PAUSE_KEY, JSON.stringify(pauseData));
+      try {
+        localStorage.setItem(PAUSE_KEY, JSON.stringify(pauseData));
+      } catch {
+        // Quota exceeded or private mode
+      }
     },
 
-    // Возобновление шага в офлайн режиме
     resumeStepOffline: (courseId, dayOnCourseId, stepIndex) => {
       if (typeof window === "undefined") return;
 
-      // Удаляем данные паузы из localStorage
       const PAUSE_KEY = `training-${courseId}-${dayOnCourseId}-${stepIndex}-paused`;
-      localStorage.removeItem(PAUSE_KEY);
+      try {
+        localStorage.removeItem(PAUSE_KEY);
+      } catch {
+        // ignore
+      }
     },
 
     // Пауза шага с синхронизацией на сервер (optimistic + быстрый таймаут)

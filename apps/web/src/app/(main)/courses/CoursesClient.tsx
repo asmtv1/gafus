@@ -47,7 +47,8 @@ function loadFiltersFromStorage(): {
     };
   }
   try {
-    const raw = localStorage.getItem(COURSES_FILTERS_STORAGE_KEY);
+    const raw =
+      typeof window !== "undefined" ? localStorage.getItem(COURSES_FILTERS_STORAGE_KEY) : null;
     if (!raw) return getDefaultFilters();
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     return {
@@ -108,7 +109,13 @@ export default function CoursesClient({
   const setActiveSorting = (sorting: SortingType) => setFilters((prev) => ({ ...prev, sorting }));
 
   useEffect(() => {
-    localStorage.setItem(COURSES_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(COURSES_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+      }
+    } catch {
+      // Quota exceeded or private mode
+    }
   }, [filters]);
 
   const handleResetFilters = () => {

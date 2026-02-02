@@ -14,13 +14,22 @@ alwaysApply: true
 ```
 packages/
 ├── auth/           # Authentication & authorization
+├── core/           # Business logic, services
+├── cdn-upload/     # CDN uploads
+├── csrf/           # CSRF protection
+├── error-handling/ # Error reporting, ErrorBoundary
+├── logger/         # Logging (Pino, error-dashboard transport)
+├── metadata/       # SEO metadata, JSON-LD
 ├── prisma/         # Database & ORM
-├── logger/         # Logging system
-├── error-handling/ # Error reporting
 ├── queues/         # BullMQ queues
+├── react-query/    # React Query hooks & provider
+├── reengagement/   # Reengagement emails
+├── statistics/     # Course/user statistics
+├── types/          # Shared TypeScript types
+├── ui-components/  # Shared UI (e.g. LoginForm)
+├── video-access/   # Video access & signing
 ├── webpush/        # Push notifications
-├── worker/         # Background jobs
-└── types/          # Shared TypeScript types
+└── worker/         # Background jobs
 ```
 
 ## App Structure (Next.js 15 App Router)

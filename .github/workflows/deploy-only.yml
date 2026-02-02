@@ -142,6 +142,16 @@ jobs:
               echo "GRAFANA_ADMIN_USER=${{ secrets.GRAFANA_ADMIN_USER }}"
               echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
               echo "GRAFANA_SECRET_KEY=${{ secrets.GRAFANA_SECRET_KEY }}"
+              echo ""
+              echo "# ЮKassa (платные курсы)"
+              echo "YOOKASSA_SHOP_ID=${{ secrets.YOOKASSA_SHOP_ID }}"
+              echo "YOOKASSA_SECRET_KEY=${{ secrets.YOOKASSA_SECRET_KEY }}"
+              echo ""
+              echo "# Реквизиты для ЮKassa (контакты на сайте)"
+              echo "NEXT_PUBLIC_CONTACT_EMAIL=${{ secrets.NEXT_PUBLIC_CONTACT_EMAIL }}"
+              echo "NEXT_PUBLIC_CONTACT_PHONE=${{ secrets.NEXT_PUBLIC_CONTACT_PHONE }}"
+              echo "NEXT_PUBLIC_CONTACT_FIO=${{ secrets.NEXT_PUBLIC_CONTACT_FIO }}"
+              echo "NEXT_PUBLIC_CONTACT_INN=${{ secrets.NEXT_PUBLIC_CONTACT_INN }}"
             } > ci-cd/docker/.env
 
             # Set secure permissions for .env file

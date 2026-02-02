@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useZodForm } from "@shared/hooks/useZodForm";
@@ -26,6 +28,8 @@ export function RegisterForm() {
     phone: "",
     password: "",
     confirmPassword: "",
+    acceptUserAgreement: false,
+    acceptOffer: false,
   });
 
   const [isPending, setIsPending] = useState(false);
@@ -119,6 +123,40 @@ export function RegisterForm() {
         error={errors.confirmPassword?.message}
         errorClassName={styles.errorText}
       />
+
+      <label className={styles.checkboxRow}>
+        <input
+          type="checkbox"
+          {...form.register("acceptUserAgreement")}
+          aria-invalid={!!errors.acceptUserAgreement}
+        />
+        <span className={styles.checkboxLabel}>
+          Я принимаю{" "}
+          <Link href="/terms" className={styles.checkboxLink} target="_blank" rel="noopener noreferrer">
+            пользовательское соглашение
+          </Link>
+        </span>
+      </label>
+      {errors.acceptUserAgreement?.message && (
+        <span className={styles.errorText}>{errors.acceptUserAgreement.message}</span>
+      )}
+
+      <label className={styles.checkboxRow}>
+        <input
+          type="checkbox"
+          {...form.register("acceptOffer")}
+          aria-invalid={!!errors.acceptOffer}
+        />
+        <span className={styles.checkboxLabel}>
+          Я принимаю{" "}
+          <Link href="/terms" className={styles.checkboxLink} target="_blank" rel="noopener noreferrer">
+            условия оферты
+          </Link>
+        </span>
+      </label>
+      {errors.acceptOffer?.message && (
+        <span className={styles.errorText}>{errors.acceptOffer.message}</span>
+      )}
 
       <button className={styles.button} type="submit" disabled={isPending || !isValid}>
         {isPending ? "регистрация..." : "зарегистрироваться"}

@@ -2497,7 +2497,7 @@ await BackgroundFetch.registerTaskAsync("SYNC_PROGRESS", {
 
 ### Внутренняя документация
 
-- [API Routes v1](./v1-routes.md)
+- [API Routes v1](../api/v1-routes.md)
 - [@gafus/types](../packages/types.md)
 - [Web приложение](./web.md)
 

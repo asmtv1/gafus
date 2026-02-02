@@ -26,17 +26,44 @@ export class VideoAccessService {
   private secret: string;
 
   constructor(secret?: string) {
-    this.secret = secret || process.env.VIDEO_ACCESS_SECRET || this.generateDefaultSecret();
+    // P0 Security: Валидация секрета
+    const actualSecret = secret?.trim() || process.env.VIDEO_ACCESS_SECRET?.trim();
+
+    if (!actualSecret) {
+      this.secret = this.generateDefaultSecret();
+    } else if (actualSecret.length < 32) {
+      throw new Error(
+        "VIDEO_ACCESS_SECRET must be at least 32 characters. " +
+          "Generate with: openssl rand -base64 32",
+      );
+    } else {
+      this.secret = actualSecret;
+    }
   }
 
   /**
    * Генерирует секрет по умолчанию (если не задан в env)
    */
   private generateDefaultSecret(): string {
-    // В production обязательно должен быть установлен VIDEO_ACCESS_SECRET
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("VIDEO_ACCESS_SECRET must be set in production");
+    // P0 Security: Улучшенная production detection
+    const nodeEnv = (process.env.NODE_ENV || "").toLowerCase().trim();
+    const isProd = nodeEnv === "production" || nodeEnv === "prod";
+
+    if (isProd) {
+      throw new Error(
+        "VIDEO_ACCESS_SECRET must be set in production. " +
+          "Generate with: openssl rand -base64 32",
+      );
     }
+
+    // Предупреждение в staging/test
+    if (nodeEnv === "staging" || nodeEnv === "test") {
+      console.warn(
+        "⚠️  Using random VIDEO_ACCESS_SECRET. " +
+          "All tokens will be invalidated on restart!",
+      );
+    }
+
     return randomBytes(32).toString("hex");
   }
 

@@ -129,4 +129,4 @@ probe_success{job="services-health"}
 
 - [Документация Grafana](https://grafana.com/docs/grafana/latest/)
 - [Prometheus запросы](./PROMETHEUS_QUERIES.md)
-- [Prometheus конфигурация](../ci-cd/docker/prometheus/prometheus.yml)
+- [Prometheus конфигурация](../../ci-cd/docker/prometheus/prometheus.yml)

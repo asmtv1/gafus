@@ -49,20 +49,20 @@ enum StepType {
 }
 
 model Course {
-  id            String        @id @default(cuid())
-  name          String
-  type          String        @unique @db.VarChar(50)
-  description   String        @default("")
-  equipment     String        @default("")
-  trainingLevel TrainingLevel
-  shortDesc     String        @default("")
-  duration      String
-  logoImg       String
-  isPrivate     Boolean       @default(false)
-  isPaid        Boolean       @default(false)
-  priceRub      Decimal?      @db.Decimal(10, 2) // Цена в рублях; null для бесплатных/приватных
-  showInProfile Boolean       @default(true)
-  isPersonalized Boolean      @default(false) // Персонализация: имя, пол, имя питомца в текстах шагов
+  id             String        @id @default(cuid())
+  name           String
+  type           String        @unique @db.VarChar(50)
+  description    String        @default("")
+  equipment      String        @default("")
+  trainingLevel  TrainingLevel
+  shortDesc      String        @default("")
+  duration       String
+  logoImg        String
+  isPrivate      Boolean       @default(false)
+  isPaid         Boolean       @default(false)
+  priceRub       Decimal?      @db.Decimal(10, 2) // Цена в рублях; null для бесплатных/приватных
+  showInProfile  Boolean       @default(true)
+  isPersonalized Boolean       @default(false) // Персонализация: имя, пол, имя питомца в текстах шагов
 
   authorId String
   author   User   @relation(fields: [authorId], references: [id])
@@ -179,8 +179,8 @@ model DayOnCourse {
   dayId    String
   order    Int
 
-  course        Course        @relation(fields: [courseId], references: [id])
-  day           TrainingDay   @relation(fields: [dayId], references: [id])
+  course        Course         @relation(fields: [courseId], references: [id])
+  day           TrainingDay    @relation(fields: [dayId], references: [id])
   userTrainings UserTraining[]
   diaryEntries  DiaryEntry[]
 
@@ -189,12 +189,12 @@ model DayOnCourse {
 }
 
 model DiaryEntry {
-  id             String   @id @default(cuid())
-  userId         String
-  dayOnCourseId  String
-  content        String   @db.Text
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String
+  dayOnCourseId String
+  content       String   @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   dayOnCourse DayOnCourse @relation(fields: [dayOnCourseId], references: [id], onDelete: Cascade)
@@ -293,6 +293,7 @@ model User {
   trainerNotes             TrainerNote[]          @relation("TrainerNotes")
   studentNotes             TrainerNoteStudent[]   @relation("StudentNotes")
   diaryEntries             DiaryEntry[]
+  userVideoProgresses      UserVideoProgress[]
   passwordResetRequestedAt DateTime?
   createdAt                DateTime               @default(now())
   updatedAt                DateTime               @default(now())
@@ -323,11 +324,28 @@ model TrainerVideo {
   transcodedAt      DateTime? // Когда транскодирование завершено
   transcodingError  String? // Текст ошибки если транскодирование провалилось
 
+  userVideoProgresses UserVideoProgress[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([trainerId], name: "idx_trainer_videos_trainer")
   @@index([transcodingStatus])
+}
+
+model UserVideoProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  videoId         String
+  lastPositionSec Int
+  updatedAt       DateTime @updatedAt
+
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video TrainerVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([userId])
+  @@index([videoId])
 }
 
 model UserProfile {
@@ -371,25 +389,25 @@ model Training {
 }
 
 model UserCourse {
-  userId      String
-  courseId    String
-  status      TrainingStatus @default(NOT_STARTED)
-  startedAt   DateTime?
-  completedAt DateTime?
+  userId          String
+  courseId        String
+  status          TrainingStatus @default(NOT_STARTED)
+  startedAt       DateTime?
+  completedAt     DateTime?
   // Персонализация курса (только для isPersonalized курсов)
   userDisplayName String?
-  userGender      String?   // "male" | "female" для склонения имени ученика
+  userGender      String? // "male" | "female" для склонения имени ученика
   petName         String?
-  petGender       String?   // "male" | "female" для склонения клички питомца
-  petNameGen      String?   // родительный (ручная правка)
-  petNameDat      String?   // дательный (ручная правка)
-  petNameAcc      String?   // винительный (ручная правка)
-  petNameIns      String?   // творительный (ручная правка)
-  petNamePre      String?   // предложный (ручная правка)
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course      Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @default(now())
+  petGender       String? // "male" | "female" для склонения клички питомца
+  petNameGen      String? // родительный (ручная правка)
+  petNameDat      String? // дательный (ручная правка)
+  petNameAcc      String? // винительный (ручная правка)
+  petNameIns      String? // творительный (ручная правка)
+  petNamePre      String? // предложный (ручная правка)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course          Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now())
 
   @@id([userId, courseId])
 }
@@ -464,16 +482,16 @@ enum PaymentStatus {
 }
 
 model Payment {
-  id                 String        @id @default(cuid())
-  userId             String
-  courseId           String
-  amountRub          Decimal       @db.Decimal(10, 2)
-  currency           String        @default("RUB")
-  yookassaPaymentId  String?       @unique
-  confirmationUrl    String?
-  status             PaymentStatus @default(PENDING)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                String        @id @default(cuid())
+  userId            String
+  courseId          String
+  amountRub         Decimal       @db.Decimal(10, 2)
+  currency          String        @default("RUB")
+  yookassaPaymentId String?       @unique
+  confirmationUrl   String?
+  status            PaymentStatus @default(PENDING)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)

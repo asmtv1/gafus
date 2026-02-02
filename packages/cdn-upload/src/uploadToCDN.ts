@@ -21,17 +21,54 @@ function sanitizeFileName(fileName: string): string {
     .substring(0, 100); // Ограничиваем длину
 }
 
+// P2 Security: Fail-fast проверка S3 credentials в production (runtime только)
+const YC_ACCESS_KEY_ID = process.env.YC_ACCESS_KEY_ID;
+const YC_SECRET_ACCESS_KEY = process.env.YC_SECRET_ACCESS_KEY;
+
+// Проверяем credentials только в runtime, не во время build
+if (
+  process.env.NODE_ENV === "production" &&
+  typeof window !== "undefined" // Runtime check (client-side)
+) {
+  if (!YC_ACCESS_KEY_ID || !YC_SECRET_ACCESS_KEY) {
+    throw new Error(
+      "CRITICAL: YC_ACCESS_KEY_ID and YC_SECRET_ACCESS_KEY must be set in production. " +
+        "Check your environment variables configuration.",
+    );
+  }
+}
+
+// Дополнительная проверка при первом вызове функций (для server-side runtime)
+let hasCheckedCredentials = false;
+function checkCredentials() {
+  if (hasCheckedCredentials) return;
+  hasCheckedCredentials = true;
+
+  if (process.env.NODE_ENV === "production") {
+    if (!YC_ACCESS_KEY_ID || !YC_SECRET_ACCESS_KEY) {
+      logger.error(
+        "CRITICAL: YC_ACCESS_KEY_ID and YC_SECRET_ACCESS_KEY are not set in production!",
+      );
+      throw new Error(
+        "CRITICAL: YC_ACCESS_KEY_ID and YC_SECRET_ACCESS_KEY must be set in production.",
+      );
+    }
+  }
+}
+
 // Конфигурация для Yandex Object Storage (S3-совместимый)
 const s3Client = new S3Client({
   endpoint: "https://storage.yandexcloud.net",
   region: "ru-central1",
   credentials: {
-    accessKeyId: process.env.YC_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.YC_SECRET_ACCESS_KEY || "",
+    accessKeyId: YC_ACCESS_KEY_ID || "dev-only-fallback",
+    secretAccessKey: YC_SECRET_ACCESS_KEY || "dev-only-fallback",
   },
 });
 
 export async function uploadFileToCDN(file: File, relativePath: string): Promise<string> {
+  checkCredentials(); // P2 Security: Runtime check
+
   try {
     const bucketName = "gafus-media";
     const key = `uploads/${relativePath}`;
@@ -98,6 +135,8 @@ async function uploadWithRetry(command: PutObjectCommand, maxRetries: number): P
  * @returns Buffer с содержимым файла
  */
 export async function downloadFileFromCDN(relativePath: string): Promise<Buffer> {
+  checkCredentials(); // P2 Security: Runtime check
+
   try {
     const bucketName = "gafus-media";
 
@@ -150,6 +189,8 @@ export async function streamFileFromCDN(relativePath: string): Promise<{
   contentLength: number;
   contentType: string;
 }> {
+  checkCredentials(); // P2 Security: Runtime check
+
   try {
     const bucketName = "gafus-media";
 
@@ -196,6 +237,8 @@ export async function streamFileFromCDN(relativePath: string): Promise<{
  * @param relativePath - Относительный путь к файлу (без uploads/)
  */
 export async function deleteFileFromCDN(relativePath: string): Promise<void> {
+  checkCredentials(); // P2 Security: Runtime check
+
   try {
     const bucketName = "gafus-media";
 
@@ -229,6 +272,8 @@ export async function deleteFileFromCDN(relativePath: string): Promise<void> {
  * @returns Количество удалённых файлов
  */
 export async function deleteFolderFromCDN(folderPath: string): Promise<number> {
+  checkCredentials(); // P2 Security: Runtime check
+
   try {
     const bucketName = "gafus-media";
 
@@ -308,6 +353,8 @@ export async function uploadBufferToCDN(
   relativePath: string,
   contentType: string = "application/octet-stream",
 ): Promise<string> {
+  checkCredentials(); // P2 Security: Runtime check
+
   try {
     const bucketName = "gafus-media";
 

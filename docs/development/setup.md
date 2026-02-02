@@ -447,15 +447,6 @@ pnpm --filter @gafus/trainer-panel dev 2>&1 | tee trainer.log
 # Анализ размера bundle
 pnpm analyze:web
 pnpm analyze:trainer
-
-# Поиск неиспользуемых функций
-pnpm find:unused
-
-# Генерация документации API
-pnpm generate:openapi
-
-# Генерация документации Server Actions
-pnpm generate:server-actions-docs
 ```
 
 ### Скрипты разработки

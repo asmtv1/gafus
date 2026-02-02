@@ -85,6 +85,39 @@
   letter-spacing: 0px;
   padding: 10px 0 10px 0px;
 }
+
+.checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  color: black;
+  width: 250px;
+  margin-top: 4px;
+}
+
+.checkboxRow input[type="checkbox"] {
+  flex-shrink: 0;
+  margin-top: 2px;
+  accent-color: var(--bg-2);
+}
+
+.checkboxLabel {
+  flex: 1;
+}
+
+.checkboxLink {
+  color: var(--bg-2);
+  text-decoration: underline;
+}
+
+.checkboxLink:hover {
+  text-decoration: none;
+}
+
 .button {
   background-color: var(--bg-2);
   width: 190px;

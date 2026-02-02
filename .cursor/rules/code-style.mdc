@@ -41,45 +41,11 @@ import { myUtil } from "./utils";
 - Keep comments up to date
 - Use TODO comments for future work
 
-```typescript
-/**
- * Создает типобезопасные данные уведомления на основе записи из БД
- * @param notification - Запись из таблицы StepNotification
- * @returns Типобезопасный объект NotificationData
- */
-function createNotificationData(notification: DbNotification): NotificationData {
-  // Парсим title и body из stepTitle для немедленных уведомлений
-  if (notification.type === 'immediate') {
-    // ...
-  }
-}
-```
-
 ## Functions
 - Keep functions small (< 50 lines)
 - One responsibility per function
 - Use early returns for guards
 - Prefer pure functions when possible
-
-```typescript
-// ✅ Good - Early return
-function processUser(user: User | null) {
-  if (!user) return null;
-  if (!user.isActive) return null;
-  
-  return transformUser(user);
-}
-
-// ❌ Bad - Nested conditions
-function processUser(user: User | null) {
-  if (user) {
-    if (user.isActive) {
-      return transformUser(user);
-    }
-  }
-  return null;
-}
-```
 
 ## Async/Await
 - Always use async/await (not .then())
@@ -90,5 +56,5 @@ function processUser(user: User | null) {
 - Avoid magic numbers - use named constants
 - Avoid abbreviations in names
 - Use descriptive variable names
-- Keep code DRY (Don't Repeat Yourself)
+- Keep code DRY
 - Follow SOLID principles

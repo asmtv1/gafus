@@ -86,39 +86,35 @@ export function sortCourses(
   courses: CourseWithProgressData[],
   sorting: SortingType,
 ): CourseWithProgressData[] {
-  const sorted = [...courses];
-
   switch (sorting) {
     case "newest":
-      // Сортировка по дате создания (новые → старые)
-      return sorted.sort(
+      return courses.toSorted(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
 
     case "rating":
-      // Сортировка по рейтингу (высокий → низкий)
-      return sorted.sort((a, b) => {
+      return courses.toSorted((a, b) => {
         const ratingA = a.avgRating ?? 0;
         const ratingB = b.avgRating ?? 0;
         return ratingB - ratingA;
       });
 
     case "name":
-      // Сортировка по названию (А → Я)
-      return sorted.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+      return courses.toSorted((a, b) => a.name.localeCompare(b.name, "ru"));
 
     case "progress": {
-      // Сортировка по прогрессу (завершённые → в процессе → не начатые)
       const statusOrder = {
         [TrainingStatus.COMPLETED]: 0,
         [TrainingStatus.IN_PROGRESS]: 1,
         [TrainingStatus.NOT_STARTED]: 2,
       };
-      return sorted.sort((a, b) => statusOrder[a.userStatus] - statusOrder[b.userStatus]);
+      return courses.toSorted(
+        (a, b) => statusOrder[a.userStatus] - statusOrder[b.userStatus],
+      );
     }
 
     default:
-      return sorted;
+      return [...courses];
   }
 }
 

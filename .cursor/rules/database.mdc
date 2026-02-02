@@ -56,13 +56,3 @@ const user = await prisma.user.findUnique({
   include: { posts: true }
 });
 ```
-
-## Discriminated Union in Schema
-```prisma
-model StepNotification {
-  id       String @id @default(uuid())
-  type     String @default("step") // "step" | "immediate"
-  // ... other fields
-  @@index([type]) // Index for type-based queries
-}
-```

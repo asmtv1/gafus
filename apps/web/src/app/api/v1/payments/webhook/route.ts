@@ -2,8 +2,13 @@
  * API: POST /api/v1/payments/webhook — уведомления ЮKassa о статусе платежа
  */
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac } from "crypto";
 import { prisma } from "@gafus/prisma";
-import { confirmPaymentFromWebhook } from "@gafus/core/services/payments";
+import {
+  confirmPaymentFromWebhook,
+  cancelPaymentFromWebhook,
+  refundPaymentFromWebhook,
+} from "@gafus/core/services/payments";
 import { invalidateUserProgressCache } from "@shared/lib/actions/invalidateCoursesCache";
 import { invalidateCoursesCache } from "@shared/server-actions/cache";
 
@@ -22,6 +27,15 @@ function isYooKassaIP(ip: string | null): boolean {
   return YOOKASSA_IP_PREFIXES.some((prefix) => ip.startsWith(prefix));
 }
 
+/**
+ * Проверка HMAC-SHA256 подписи от ЮKassa для защиты от подделки webhook
+ */
+function verifyWebhookSignature(body: string, signature: string | null, secretKey: string): boolean {
+  if (!signature) return false;
+  const hash = createHmac("sha256", secretKey).update(body).digest("hex");
+  return hash === signature;
+}
+
 export async function POST(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for");
   const ip = forwarded?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? null;
@@ -29,25 +43,57 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({}, { status: 403 });
   }
 
+  // Читаем тело как текст для проверки подписи
+  let bodyText: string;
+  try {
+    bodyText = await request.text();
+  } catch {
+    return NextResponse.json({}, { status: 400 });
+  }
+
+  // Проверка HMAC-SHA256 подписи
+  const signature = request.headers.get("x-yookassa-signature");
+  const secretKey = process.env.YOOKASSA_SECRET_KEY;
+  if (!secretKey || !verifyWebhookSignature(bodyText, signature, secretKey)) {
+    console.error("[payments/webhook] Invalid signature");
+    return NextResponse.json({}, { status: 403 });
+  }
+
+  // Парсим JSON после проверки подписи
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(bodyText);
   } catch {
     return NextResponse.json({}, { status: 400 });
   }
 
   const type = (body as { type?: string }).type;
   const event = (body as { event?: string }).event;
-  const obj = (body as { object?: { id?: string } }).object;
+  const obj = (body as { object?: { id?: string; amount?: { value?: string } } }).object;
   const yookassaPaymentId = obj?.id;
+  const amount = obj?.amount?.value;
 
-  if (type !== "notification" || event !== "payment.succeeded" || !yookassaPaymentId) {
+  if (type !== "notification" || !yookassaPaymentId) {
     return NextResponse.json({}, { status: 200 });
   }
 
   // Ответ 200 сразу; тяжёлую обработку — после (fire-and-forget)
   setImmediate(() => {
-    confirmPaymentFromWebhook(yookassaPaymentId)
+    let promise: Promise<void> | undefined;
+
+    // Обработка разных событий платежа
+    if (event === "payment.succeeded") {
+      promise = confirmPaymentFromWebhook(yookassaPaymentId, amount);
+    } else if (event === "payment.canceled") {
+      promise = cancelPaymentFromWebhook(yookassaPaymentId);
+    } else if (event === "refund.succeeded") {
+      promise = refundPaymentFromWebhook(yookassaPaymentId);
+    } else {
+      // Неизвестное событие — игнорируем
+      return;
+    }
+
+    promise
       .then(() =>
         prisma.payment
           .findFirst({

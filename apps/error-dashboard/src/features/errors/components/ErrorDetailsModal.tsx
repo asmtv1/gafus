@@ -235,14 +235,22 @@ function highlightStackTrace(stack: string): React.ReactNode {
   });
 }
 
+/** Экранирование HTML для безопасного вывода в dangerouslySetInnerHTML */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 /**
- * Подсвечивает синтаксис JSON
+ * Подсвечивает синтаксис JSON (ключи и значения экранируются перед вставкой в HTML)
  */
 function highlightJSON(json: string): React.ReactNode {
-  // Простая подсветка JSON с помощью regex
   const highlighted = json
-    .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
-    .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+    .replace(/"([^"]*)":/g, (_, key) => `<span class="json-key">"${escapeHtml(key)}"</span>:`)
+    .replace(/: "([^"]*)"/g, (_, val) => `: <span class="json-string">"${escapeHtml(val)}"</span>`)
     .replace(/: (\d+)/g, ': <span class="json-number">$1</span>')
     .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
     .replace(/: (null)/g, ': <span class="json-null">$1</span>');
@@ -462,28 +470,26 @@ function AdditionalContextSection({
 
   const jsonString = JSON.stringify(additionalContext, null, 2);
 
-  // Подсветка JSON синтаксиса
+  // Подсветка JSON синтаксиса (ключи и значения экранируются)
   const renderJsonWithHighlight = (json: string) => {
     const lines = json.split("\n");
     return lines.map((line, index) => {
-      // Ключ: "key":
-      let highlighted = line.replace(/"([^"]+)":/g, '<span style="color: #60a5fa">"$1"</span>:');
-      // Строковое значение: "value"
+      let highlighted = line.replace(
+        /"([^"]*)":/g,
+        (_, key) => `<span style="color: #60a5fa">"${escapeHtml(key)}"</span>:`,
+      );
       highlighted = highlighted.replace(
         /: "([^"]*)"/g,
-        ': <span style="color: #34d399">"$1"</span>',
+        (_, val) => `: <span style="color: #34d399">"${escapeHtml(val)}"</span>`,
       );
-      // Числовое значение
       highlighted = highlighted.replace(
         /: (\d+\.?\d*)/g,
         ': <span style="color: #fbbf24">$1</span>',
       );
-      // Boolean значения
       highlighted = highlighted.replace(
         /: (true|false)/g,
         ': <span style="color: #a78bfa">$1</span>',
       );
-      // null
       highlighted = highlighted.replace(/: (null)/g, ': <span style="color: #f87171">$1</span>');
 
       return (

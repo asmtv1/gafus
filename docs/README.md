@@ -1,106 +1,104 @@
 # Документация проекта GAFUS
 
-Добро пожаловать в документацию комплексной системы управления фитнес-тренировками GAFUS!
+Система управления фитнес-тренировками для домашних животных (монорепо: Next.js 15, TypeScript, Prisma, BullMQ).
 
-## 📋 Содержание
+## Содержание
 
-### 🏗️ Архитектура и обзор
+### Обзор и архитектура
 
-- [Обзор проекта](./overview/README.md) - Общее описание системы
-- [Архитектура](./architecture/README.md) - Архитектурные решения и паттерны
-- [Технологический стек](./tech-stack/README.md) - Используемые технологии
+- [Обзор проекта](./overview/README.md)
+- [Архитектура](./architecture/README.md)
+- [Технологический стек](./tech-stack/README.md)
 
-### 📦 Пакеты (Packages)
+### Пакеты (packages)
 
-- [@gafus/auth](./packages/auth.md) - Система аутентификации и авторизации
-- [@gafus/prisma](./packages/prisma.md) - База данных и ORM
-- [@gafus/types](./packages/types.md) - Общие типы TypeScript
-- [@gafus/logger](./packages/logger.md) - Система логирования
-- [@gafus/error-handling](./packages/error-handling.md) - Обработка ошибок
-- [@gafus/csrf](./packages/csrf.md) - Защита от CSRF атак
-- [@gafus/cdn-upload](./packages/cdn-upload.md) - Загрузка файлов в CDN
-- [@gafus/queues](./packages/queues.md) - Система очередей
-- [@gafus/react-query](./packages/react-query.md) - Управление состоянием
-- [@gafus/webpush](./packages/webpush.md) - Push уведомления (обновлено в v2.5: немедленные уведомления)
-- [@gafus/worker](./packages/worker.md) - Фоновые задачи
-- [@gafus/ui-components](./packages/ui-components.md) - UI компоненты
-- [Шаблоны шагов](./packages/step-templates.md) - Система шаблонов шагов тренировок
-- [Экзаменационные шаги](./packages/examination-steps.md) - Система экзаменов и проверки знаний (v2.5: пуш-уведомления при зачёте)
+- [@gafus/auth](./packages/auth.md) — аутентификация и авторизация
+- [@gafus/prisma](./packages/prisma.md) — БД и ORM
+- [@gafus/types](./packages/types.md) — общие типы TypeScript
+- [@gafus/logger](./packages/logger.md) — логирование
+- [@gafus/error-handling](./packages/error-handling.md) — обработка ошибок
+- [@gafus/csrf](./packages/csrf.md) — защита от CSRF
+- [@gafus/cdn-upload](./packages/cdn-upload.md) — загрузка в CDN
+- [@gafus/queues](./packages/queues.md) — очереди BullMQ
+- [@gafus/react-query](./packages/react-query.md) — серверное состояние
+- [@gafus/webpush](./packages/webpush.md) — push-уведомления
+- [@gafus/worker](./packages/worker.md) — фоновые задачи
+- [@gafus/ui-components](./packages/ui-components.md) — UI-компоненты
+- [@gafus/metadata](./packages/metadata.md) — метаданные и SEO
+- [@gafus/core](./packages/core.md) — бизнес-логика
+- [Шаблоны шагов](./packages/step-templates.md)
+- [Экзаменационные шаги](./packages/examination-steps.md)
+- [Напоминания](./packages/reminders.md)
+- [Статистика](./packages/statistics.md)
 
-### 🚀 Приложения (Apps)
+### Приложения (apps)
 
-- [Web приложение](./apps/web.md) - Основное веб-приложение для пользователей
-- [**Mobile (React Native)**](./apps/mobile-rn.md) - Мобильное приложение iOS/Android (шаблон разработки)
-- [Trainer Panel](./apps/trainer-panel.md) - Панель управления для тренеров
-- [Admin Panel](./apps/admin-panel.md) - Панель администратора
-- [Telegram Bot](./apps/telegram-bot.md) - Telegram бот для уведомлений
-- [Error Dashboard](./apps/error-dashboard.md) - Панель мониторинга ошибок
-- [Bull Board](./apps/bull-board.md) - Мониторинг очередей
+- [Web](./apps/web.md)
+- [Mobile (React Native)](./apps/mobile-rn.md)
+- [Trainer Panel](./apps/trainer-panel.md)
+- [Admin Panel](./apps/admin-panel.md)
+- [API (v1)](./apps/api.md)
+- [Telegram Bot](./apps/telegram-bot.md)
+- [Error Dashboard](./apps/error-dashboard.md)
+- [Bull Board](./apps/bull-board.md)
 
-### 🛠️ Разработка
+### Разработка
 
-- [Настройка окружения](./development/setup.md) - Первоначальная настройка
-- [Структура проекта](./development/project-structure.md) - Организация кода
-- [Соглашения по коду](./development/coding-standards.md) - Стандарты разработки
-- [Тестирование](./development/testing.md) - Стратегия тестирования
+- [Настройка окружения](./development/setup.md)
 
-### 🚀 Развертывание
+### Развёртывание
 
-- [Конфигурация](./deployment/configuration.md) - Настройка переменных окружения
-- [Платные курсы и ЮKassa](./payments/yookassa.md) - Оплата платных курсов, webhook, переменные YOOKASSA_*
-- [Docker](./deployment/docker.md) - Контейнеризация
-- [Просмотр логов Loki](./deployment/loki-logs.md) - Как посмотреть логи из Loki
-- [CI/CD](./deployment/ci-cd.md) - Непрерывная интеграция и развертывание
+- [Конфигурация](./deployment/configuration.md)
+- [Docker](./deployment/docker.md)
+- [Логи контейнеров](./deployment/container-logs.md)
+- [Дашборды Seq](./deployment/seq-dashboards.md)
+- [Секреты API](./deployment/api-secrets.md)
+- [Платные курсы и ЮKassa](./payments/yookassa.md)
 
-### 📊 Мониторинг и обслуживание
+### Мониторинг
 
-- [Мониторинг](./monitoring/README.md) - Системы мониторинга
-- [Grafana](./monitoring/GRAFANA.md) - Визуализация метрик
-- [Prometheus запросы](./monitoring/PROMETHEUS_QUERIES.md) - Примеры запросов для графиков
-- [Логирование](./monitoring/logging.md) - Централизованное логирование
-- [Обработка ошибок](./monitoring/error-handling.md) - Отслеживание ошибок
+- [Мониторинг](./monitoring/README.md)
+- [Grafana](./monitoring/GRAFANA.md)
+- [Prometheus-запросы](./monitoring/PROMETHEUS_QUERIES.md)
 
-### 📚 API Документация
+### API
 
-- [**API Routes v1**](./api/v1-routes.md) - REST API для React Native (полная спецификация)
-- [REST API](./api/rest.md) - RESTful API endpoints
-- [Server Actions](./api/server-actions.md) - Next.js Server Actions
-- [WebSocket](./api/websocket.md) - WebSocket соединения
+- [API Routes v1](./api/v1-routes.md) — REST API для мобильного приложения и интеграций
+- [Обзор API](./api/README.md)
 
-## 🎯 Быстрый старт
+### Тестирование
 
-1. **Клонирование репозитория**
+- [Очистка кэша PWA](./testing/CACHE_CLEAR_TEST.md)
+- [Re-engagement](./testing/REENGAGEMENT_TESTING.md), [быстрый тест](./testing/QUICK_TEST_REENGAGEMENT.md)
+- [Service Worker и офлайн-режим](./testing/SERVICE_WORKER_OFFLINE.md)
+- [Тестовый пользователь](./testing/TEST_USER_CREATED.md)
 
-   ```bash
-   git clone <repository-url>
-   cd gafus
-   ```
+### Решение проблем
 
-2. **Установка зависимостей**
+- [Troubleshooting](./troubleshooting/README.md)
+- [Проверка Seq](./troubleshooting/CHECK_SEQ.md)
 
-   ```bash
-   pnpm install
-   ```
+### Юридическое
 
-3. **Настройка окружения**
+- [Оферта (клаузулы)](./legal/oferta-clauses.md)
+- [Публичная оферта](./legal/public-offer-full.md)
 
-   ```bash
-   pnpm setup:env
-   ```
+### Прочее
 
-4. **Запуск в режиме разработки**
-   ```bash
-   pnpm dev
-   ```
-
-## 📞 Поддержка
-
-Если у вас есть вопросы или проблемы:
-
-- Создайте issue в репозитории
-- Обратитесь к команде разработки
-- Проверьте раздел [Troubleshooting](./troubleshooting/README.md)
+- [Презентация для тренеров](./PRESENTATION_FOR_TRAINERS.md)
 
 ---
 
-_Последнее обновление: $(date)_
+## Быстрый старт
+
+```bash
+git clone <repository-url>
+cd gafus
+pnpm install
+pnpm setup:env
+pnpm dev
+```
+
+Поддержка: issue в репозитории, раздел [Troubleshooting](./troubleshooting/README.md).
+
+_Обновлено: февраль 2026_

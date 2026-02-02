@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Оплата платных курсов реализована через [ЮKassa](https://yookassa.ru). Создавать платные курсы в тренер-панели могут только администратор и тренер с ником **gafus** (см. docs/apps/trainer-panel.md). Пользователь нажимает «Оплатить» в drawer платного курса → создаётся платёж в БД и в ЮKassa → редирект на страницу оплаты ЮKassa → после успешной оплаты webhook создаёт доступ к курсу.
+Оплата платных курсов реализована через [ЮKassa](https://yookassa.ru). Создавать платные курсы в тренер-панели могут только администратор и тренер с ником **gafus** (см. [Trainer Panel](../apps/trainer-panel.md)). Пользователь нажимает «Оплатить» в drawer платного курса → создаётся платёж в БД и в ЮKassa → редирект на страницу оплаты ЮKassa → после успешной оплаты webhook создаёт доступ к курсу.
 
 ## Схема Payment (Prisma)
 
@@ -13,11 +13,16 @@
 
 1. Пользователь кликает по платному курсу без доступа (страница курсов, избранное или прямой URL `/trainings/{type}`) → показывается SweetAlert2 с призывом «Оплатить» или «Закрыть». «Закрыть» — просто закрыть; при прямом заходе на страницу тренировки — редирект на `/courses`.
 2. «Оплатить» → открывается PaidCourseDrawer (название, цена, «Оплатить» / «Закрыть»), затем POST `/api/v1/payments/create` с `{ courseId }` и заголовком `x-csrf-token`.
-3. API (создание платежа): проверка сессии, rate limit, создание Payment (PENDING), запрос к ЮKassa POST /v3/payments с `capture: true` (списание сразу при оплате), Idempotence-Key и amount.value строкой (из Course.priceRub).
+3. API (создание платежа): проверка сессии, rate limit, создание Payment (PENDING), запрос к ЮKassa POST /v3/payments с `capture: true` (списание сразу при оплате), Idempotence-Key и amount.value строкой (из Course.priceRub). Максимальная сумма платежа: 100 000 рублей.
 4. Ответ API: `{ confirmationUrl }` → `window.location.href = confirmationUrl`.
-5. Пользователь оплачивает на стороне ЮKassa и возвращается по return_url.
-6. ЮKassa отправляет webhook POST `/api/v1/payments/webhook` (event: payment.succeeded).
-7. Webhook: проверка IP по whitelist ЮKassa, ответ 200 сразу, затем создание CourseAccess и обновление Payment.status = SUCCEEDED, инвалидация кэша курсов.
+5. Пользователь оплачивает на стороне ЮKassa и возвращается по return_url (`/trainings/{type}?paid=1`).
+6. ЮKassa отправляет webhook POST `/api/v1/payments/webhook` (event: payment.succeeded, payment.canceled или refund.succeeded).
+7. Webhook: проверка IP по whitelist ЮKassa + проверка HMAC-SHA256 подписи, ответ 200 сразу, затем:
+   - **payment.succeeded**: создание CourseAccess, обновление Payment.status = SUCCEEDED, проверка суммы платежа
+   - **payment.canceled**: обновление Payment.status = CANCELED
+   - **refund.succeeded**: удаление CourseAccess, обновление Payment.status = REFUNDED
+   - Инвалидация кэша курсов
+8. При возврате с ?paid=1: показывается success notification, автоматическое обновление через 5 секунд для подтягивания доступа.
 
 ## Переменные окружения
 
@@ -29,6 +34,8 @@ YOOKASSA_SHOP_ID=ваш_shop_id
 YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 ```
 
+В production эти переменные и реквизиты для страницы контактов (`NEXT_PUBLIC_CONTACT_EMAIL`, `NEXT_PUBLIC_CONTACT_PHONE`, `NEXT_PUBLIC_CONTACT_FIO`, `NEXT_PUBLIC_CONTACT_INN`) подставляются из GitHub Secrets при деплое (ci-cd.yml, deploy-only.yml, build-single-container.yml → ci-cd/docker/.env).
+
 - **YOOKASSA_SHOP_ID** — идентификатор магазина из личного кабинета ЮKassa.
 - **YOOKASSA_SECRET_KEY** — секретный ключ (не публиковать).
 
@@ -37,8 +44,9 @@ YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 ## Webhook в личном кабинете ЮKassa
 
 1. URL уведомлений: `https://ваш-домен.ru/api/v1/payments/webhook` (только HTTPS в production).
-2. Подписаться на событие: **payment.succeeded**.
+2. Подписаться на события: **payment.succeeded**, **payment.canceled**, **refund.succeeded**.
 3. Локальная разработка: нужен HTTPS (ngrok или аналог), указать URL туннеля в кабинете ЮKassa.
+4. **Безопасность**: webhook проверяет IP whitelist ЮKassa + HMAC-SHA256 подпись в заголовке `X-Yookassa-Signature`.
 
 ## Маршруты API
 
@@ -54,8 +62,9 @@ YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 ## Курс не открывается после оплаты
 
 1. **Webhook должен доходить до сервера.** В личном кабинете ЮKassa указан URL уведомлений (например `https://gafus.ru/api/v1/payments/webhook`). ЮKassa отправляет туда POST при успешной оплате. Если сайт на localhost, webhook не придёт — нужен туннель (ngrok) с HTTPS и этот URL в настройках ЮKassa.
-2. **Гонка при возврате.** Пользователь нажимает «Вернуться на сайт» почти сразу после оплаты; webhook может обработаться на секунду позже. После возврата на страницу курса (с параметром `?paid=1`) показывается подсказка и кнопка «Обновить» — нажать её через несколько секунд, чтобы подтянуть доступ.
+2. **Гонка при возврате.** Пользователь нажимает «Вернуться на сайт» почти сразу после оплаты; webhook может обработаться на секунду позже. После возврата на страницу курса (с параметром `?paid=1`) показывается success notification и страница автоматически обновляется через 5 секунд для подтягивания доступа.
 3. **Проверка:** в БД должны появиться запись `Payment` со статусом `SUCCEEDED` и запись `CourseAccess` для пары courseId + userId.
+4. **Безопасность webhook:** если webhook падает с ошибкой подписи (403), проверьте что `YOOKASSA_SECRET_KEY` совпадает с ключом в личном кабинете ЮKassa.
 
 ## Документация ЮKassa
 

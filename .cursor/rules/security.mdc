@@ -11,6 +11,8 @@ alwaysApply: true
 - Use role-based access control (RBAC)
 
 ## Authorization
+Для проверки только факта входа в apps/web используй `getCurrentUserId()` из `@shared/utils/getCurrentUserId`. Для проверки роли — `getServerSession(authOptions)` и `authOptions` из `@gafus/auth`:
+
 ```typescript
 "use server";
 
@@ -19,16 +21,15 @@ import { authOptions } from "@gafus/auth";
 
 export async function protectedAction() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user) {
     return { error: "Не авторизован" };
   }
-  
-  // Check role
+
   if (!["ADMIN", "TRAINER"].includes(session.user.role)) {
     return { error: "Недостаточно прав доступа" };
   }
-  
+
   // ... action logic
 }
 ```
@@ -45,18 +46,8 @@ export async function protectedAction() {
 - Use parameterized queries (Prisma handles this)
 
 ## File Uploads
-```typescript
-// Validate file type and size
-const maxSize = 100 * 1024 * 1024; // 100MB
-
-if (!file.type.startsWith('video/')) {
-  return { error: "Файл должен быть видео" };
-}
-
-if (file.size > maxSize) {
-  return { error: "Размер файла превышает лимит" };
-}
-```
+- Validate file type and size (e.g. video: type, max 100MB)
+- Return clear error messages in Russian
 
 ## Environment Variables
 - Never expose secrets to client

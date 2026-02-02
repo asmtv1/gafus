@@ -68,6 +68,21 @@ export const useOfflineStore = create<OfflineState>()(
               }, 1000);
             }
           }
+
+          // ДОБАВЛЕНО: Синхронизация video progress из IndexedDB
+          setTimeout(async () => {
+            try {
+              const { syncVideoProgressFromIndexedDB } = await import(
+                "@shared/lib/video/videoProgressStorage"
+              );
+              await syncVideoProgressFromIndexedDB();
+            } catch (error) {
+              logger.warn("Failed to sync video progress", {
+                operation: "sync_video_progress_error",
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }, 1500); // Через 1.5 сек после основной синхронизации
         }
       },
 

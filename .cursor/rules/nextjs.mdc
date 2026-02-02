@@ -50,7 +50,7 @@ export async function createItem(formData: FormData) {
     revalidatePath("/items");
     return { success: true };
   } catch (error) {
-    return { error: "Failed to create item" };
+    return { error: "Не удалось создать элемент" };
   }
 }
 ```

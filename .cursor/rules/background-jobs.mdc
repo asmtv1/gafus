@@ -14,7 +14,6 @@ alwaysApply: true
 ```typescript
 import { pushQueue } from "@gafus/queues";
 
-// Add job to queue
 await pushQueue.add(
   "job-name",
   { data: "payload" },
@@ -45,7 +44,6 @@ class MyWorker {
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 50 },
     });
-
     this.setupEventHandlers();
   }
 
@@ -56,37 +54,22 @@ class MyWorker {
       logger.success("Job completed", { jobId: job.id });
     } catch (error) {
       logger.error("Job failed", error as Error, { jobId: job.id });
-      throw error; // BullMQ will retry
+      throw error;
     }
   }
 
   private setupEventHandlers(): void {
-    this.worker.on("completed", (job) => {
-      logger.success("Job completed", { jobId: job.id });
-    });
-
-    this.worker.on("failed", (job, err) => {
-      logger.error("Job failed", err as Error, { jobId: job?.id });
-    });
+    this.worker.on("completed", (job) => logger.success("Job completed", { jobId: job.id }));
+    this.worker.on("failed", (job, err) => logger.error("Job failed", err as Error, { jobId: job?.id }));
   }
 }
 ```
 
 ## Cron Jobs
 ```typescript
-import { Queue } from "bullmq";
-
-// Schedule recurring job
-await queue.add(
-  "cleanup-job",
-  {},
-  {
-    repeat: {
-      pattern: "0 3 * * *", // Daily at 3 AM MSK
-      tz: "Europe/Moscow"
-    }
-  }
-);
+await queue.add("cleanup-job", {}, {
+  repeat: { pattern: "0 3 * * *", tz: "Europe/Moscow" }
+});
 ```
 
 ## Best Practices

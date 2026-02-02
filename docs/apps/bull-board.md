@@ -2,7 +2,7 @@
 
 ## 📋 Обзор
 
-Bull Board - это веб-интерфейс для мониторинга и управления очередями задач (Bull Queues) в экосистеме GAFUS. Предоставляет инструменты для просмотра, управления и отладки фоновых задач.
+Bull Board — веб-интерфейс для мониторинга и управления очередями BullMQ в экосистеме GAFUS. Предоставляет инструменты для просмотра, управления и отладки фоновых задач.
 
 ## 🎯 Основные функции
 
@@ -40,33 +40,22 @@ apps/bull-board/
 
 ### Интеграция с очередями
 
+В проекте используются очереди BullMQ из `@gafus/queues`. Пример конфигурации:
+
 ```typescript
-// bull-board.ts - Конфигурация Bull Board
+// bull-board.ts
 import { createBullBoard } from "@bull-board/api";
-import { BullAdapter } from "@bull-board/api/bullAdapter";
-import { ExpressAdapter } from "@bull-board/express";
-import { Queue } from "bull";
-import { logger } from "@gafus/logger";
-
-// Инициализация очередей
-const emailQueue = new Queue("email", process.env.REDIS_URL!);
-const notificationQueue = new Queue("notification", process.env.REDIS_URL!);
-const imageProcessingQueue = new Queue("image-processing", process.env.REDIS_URL!);
-
-// Создание Bull Board
-const serverAdapter = new ExpressAdapter();
-serverAdapter.setBasePath("/admin/queues");
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
+import { pushQueue, reengagementQueue, examCleanupQueue } from "@gafus/queues";
 
 createBullBoard({
   queues: [
-    new BullAdapter(emailQueue),
-    new BullAdapter(notificationQueue),
-    new BullAdapter(imageProcessingQueue),
+    new BullMQAdapter(pushQueue),
+    new BullMQAdapter(reengagementQueue),
+    new BullMQAdapter(examCleanupQueue),
   ],
-  serverAdapter,
+  serverAdapter: expressAdapter,
 });
-
-export { serverAdapter };
 ```
 
 ## 🔧 Технические особенности

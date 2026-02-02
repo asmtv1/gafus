@@ -282,7 +282,7 @@ export const useCourseStore = create<CourseStore>()(
               (state.courseStats[course.id]?.views || 0) *
               (state.courseStats[course.id]?.rating || 1),
           }))
-          .sort((a, b) => b.popularity - a.popularity)
+          .toSorted((a, b) => b.popularity - a.popularity)
           .slice(0, limit)
           .map(({ popularity: _popularity, ...course }) => course);
       },

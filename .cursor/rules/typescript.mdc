@@ -27,7 +27,7 @@ alwaysApply: true
 ## Example: Discriminated Union
 ```typescript
 // ✅ Good - Type-safe with discriminated union
-type NotificationData = 
+type NotificationData =
   | { type: 'step'; stepTitle: string; stepIndex: number }
   | { type: 'immediate'; title: string; body: string };
 

@@ -243,25 +243,7 @@ ffmpeg -i input.mp4 -c:v libx264 -c:a aac \
 
 ## Миграция существующих видео
 
-### Скрипт миграции
-
-```bash
-# Dry-run (без изменений)
-pnpm tsx scripts/migrate-videos-to-hls.ts --dry-run
-
-# Миграция 10 видео
-pnpm tsx scripts/migrate-videos-to-hls.ts --batch-size=10
-
-# Миграция 50 видео
-pnpm tsx scripts/migrate-videos-to-hls.ts --batch-size=50
-```
-
-**Что делает:**
-
-1. Находит все видео без `hlsManifestPath`
-2. Устанавливает `transcodingStatus = PENDING`
-3. Добавляет задачи в очередь транскодирования
-4. После транскодирования оригинальные MP4 файлы удаляются
+✅ Миграция завершена. Все видео конвертированы в HLS. Новые видео автоматически транскодируются при загрузке.
 
 ## Безопасность
 

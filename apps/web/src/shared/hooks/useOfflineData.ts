@@ -35,13 +35,18 @@ type OfflineDataType = StepCompletionData | ProfileUpdateData | CommentData | Ra
 export function useOfflineData() {
   const { addToSyncQueue } = useOfflineStore();
 
+  const OFFLINE_STORAGE_VERSION = "v1";
+
   const saveOffline = (type: string, data: OfflineDataType) => {
-    // Сохраняем данные в localStorage для offline использования
-    const key = `gafus-offline-${type}`;
-    const existing = localStorage.getItem(key);
-    const items = existing ? JSON.parse(existing) : [];
-    items.push({ ...data, timestamp: Date.now() });
-    localStorage.setItem(key, JSON.stringify(items));
+    const key = `${OFFLINE_STORAGE_VERSION}:gafus-offline-${type}`;
+    try {
+      const existing = localStorage.getItem(key);
+      const items = existing ? JSON.parse(existing) : [];
+      items.push({ ...data, timestamp: Date.now() });
+      localStorage.setItem(key, JSON.stringify(items));
+    } catch {
+      // Quota exceeded or private mode
+    }
   };
 
   // Экспортируем функции, чтобы использовать их снаружи и избежать неиспользуемых переменных

@@ -16,7 +16,6 @@ import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger('feature-name');
 
-// Log levels
 logger.info("Operation started", { userId });
 logger.success("Operation completed", { result });
 logger.warn("Potential issue", { details });
@@ -28,7 +27,6 @@ logger.error("Operation failed", error as Error, { context });
 "use server";
 
 import { createWebLogger } from "@gafus/logger";
-import { reportErrorToDashboard } from "@shared/lib/actions/reportError";
 
 const logger = createWebLogger('action-name');
 
@@ -38,59 +36,21 @@ export async function myAction(data: FormData) {
     logger.success("Action completed");
     return { success: true };
   } catch (error) {
-    logger.error("Action failed", error as Error);
-    
-    await reportErrorToDashboard({
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      appName: "web",
-      environment: process.env.NODE_ENV || "development",
-      additionalContext: { action: "myAction" },
-      tags: ["server-action"],
-    });
-    
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    logger.error("Action failed", error as Error, { action: "myAction" });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Неизвестная ошибка"
     };
   }
 }
 ```
+Критичные ошибки при настроенных `ENABLE_ERROR_DASHBOARD` и `ERROR_DASHBOARD_URL` автоматически отправляются в error-dashboard через транспорт логгера (@gafus/logger). Отдельный вызов reportError не нужен.
 
 ## Client-Side Error Handling
-```typescript
-"use client";
-
-import { useState } from "react";
-
-export function MyComponent() {
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async () => {
-    try {
-      setError(null);
-      const result = await myAction(formData);
-      
-      if (!result.success) {
-        setError(result.error || "Unknown error");
-        return;
-      }
-      
-      // Success handling
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Unknown error");
-      console.error("Unexpected error:", error);
-    }
-  };
-
-  return (
-    <>
-      {error && <Alert severity="error">{error}</Alert>}
-      {/* ... component UI */}
-    </>
-  );
-}
-```
+- Показывать пользователю сообщения через state (`error`, `setError`)
+- Проверять `result.success` / `result.error` из server actions
+- Не показывать внутренние детали ошибок
+- Сообщения пользователю — на русском
 
 ## Best Practices
 - Never expose internal error details to users

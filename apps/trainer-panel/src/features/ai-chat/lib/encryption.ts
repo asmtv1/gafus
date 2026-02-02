@@ -19,8 +19,15 @@ function getEncryptionKey(): Buffer {
     throw new Error("AI_API_KEY_ENCRYPTION_KEY must be at least 16 characters");
   }
 
-  // Используем фиксированную соль из env или генерируем (для консистентности)
-  const salt = process.env.AI_API_KEY_ENCRYPTION_SALT || "gafus-ai-enc-salt";
+  // Соль обязательна в production; в dev допустим дефолт для локальной разработки
+  const salt =
+    process.env.AI_API_KEY_ENCRYPTION_SALT ||
+    (process.env.NODE_ENV === "production" ? "" : "gafus-ai-enc-salt-dev");
+  if (!salt || salt.length < SALT_LENGTH) {
+    throw new Error(
+      "AI_API_KEY_ENCRYPTION_SALT must be set in production and at least 16 characters",
+    );
+  }
   const saltString = salt.slice(0, SALT_LENGTH);
 
   // Генерируем 32-байтный ключ через PBKDF2

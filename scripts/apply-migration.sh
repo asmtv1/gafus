@@ -2,25 +2,18 @@
 
 set -e
 
-# Загружаем переменные из .env (если файл существует)
-if [ -f .env ]; then
-  echo "✅ Найден файл .env, загружаем переменные..."
-  export $(grep -v '^#' .env | grep -v '^$' | xargs)
-else
-  echo "⚠️  Файл .env не найден, используем системные переменные"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# .env имеет приоритет, иначе — дефолтное подключение к локальной БД
+if [ -f "$ROOT_DIR/.env" ]; then
+  export $(grep -v '^#' "$ROOT_DIR/.env" | grep -v '^$' | xargs)
 fi
 
-SCHEMA_PATH="packages/prisma/schema.prisma"
-
-# Проверяем наличие DATABASE_URL
-if [ -z "$DATABASE_URL" ]; then
-  echo "❌ Ошибка: DATABASE_URL не найден в переменных окружения"
-  echo "💡 Убедитесь, что файл .env существует и содержит DATABASE_URL"
-  exit 1
-fi
+export DATABASE_URL="${DATABASE_URL:-postgresql://postgres:1488@localhost:5432/dog_trainer}"
 
 echo "🔄 Применяем миграции..."
-DATABASE_URL=$DATABASE_URL pnpm exec prisma migrate deploy --schema=$SCHEMA_PATH
+cd "$ROOT_DIR/packages/prisma" && DATABASE_URL="$DATABASE_URL" pnpm db:migrate:deploy
 
 echo "✅ Миграции применены успешно!"
 

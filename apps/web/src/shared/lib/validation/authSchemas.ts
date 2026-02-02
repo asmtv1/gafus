@@ -51,11 +51,16 @@ export const registerUserSchema = z.object({
 });
 
 /**
- * Схема для формы регистрации с подтверждением пароля
+ * Схема для формы регистрации с подтверждением пароля и согласием с документами
  */
+const acceptRequired = (message: string) =>
+  z.boolean().refine((v) => v === true, message);
+
 export const registerFormSchema = registerUserSchema
   .extend({
     confirmPassword: z.string().min(1, "Подтвердите пароль"),
+    acceptUserAgreement: acceptRequired("Необходимо принять пользовательское соглашение"),
+    acceptOffer: acceptRequired("Необходимо принять условия оферты"),
   })
   .superRefine(({ password, confirmPassword }, ctx) => {
     if (password !== confirmPassword) {

@@ -55,7 +55,7 @@ async function getUserTrainingDatesRaw(userId: string): Promise<Date[]> {
   // Преобразуем обратно в Date объекты и сортируем по убыванию
   const uniqueDates = Array.from(allDates)
     .map((iso) => new Date(iso))
-    .sort((a, b) => b.getTime() - a.getTime());
+    .toSorted((a, b) => b.getTime() - a.getTime());
 
   return uniqueDates;
 }

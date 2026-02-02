@@ -13,28 +13,16 @@ alwaysApply: true
 ## JSDoc Format
 ```typescript
 /**
- * Отправляет немедленное пуш-уведомление пользователю
- * 
- * @param options - Параметры уведомления
+ * Краткое описание на русском
+ *
+ * @param options - Параметры
  * @param options.userId - ID пользователя
- * @param options.title - Заголовок уведомления
- * @param options.body - Текст уведомления
- * @param options.url - URL для перехода при клике
- * @returns Результат отправки с ID уведомления или ошибкой
- * 
+ * @returns Результат с полями success/error
+ *
  * @example
- * ```typescript
- * const result = await sendImmediatePushNotification({
- *   userId: "user-123",
- *   title: "Экзамен зачтён! ✅",
- *   body: "Тренер проверил ваш экзамен.",
- *   url: "/trainings/personal/1"
- * });
- * ```
+ * const result = await myFn({ userId: "123" });
  */
-export async function sendImmediatePushNotification(
-  options: SendImmediatePushNotificationOptions
-): Promise<{ success: boolean; notificationId?: string; error?: string }> {
+export async function myFn(options: Options): Promise<Result> {
   // ...
 }
 ```
@@ -48,31 +36,12 @@ export async function sendImmediatePushNotification(
 ## Documentation Structure
 ```
 docs/
-├── README.md              # Overview
-├── architecture/          # Architecture decisions
-├── packages/             # Package documentation
-├── apps/                 # Application documentation
-├── deployment/           # Deployment guides
-└── troubleshooting/      # Common issues
-```
-
-## Changelog Format
-```markdown
-### Version X.Y.Z - Feature Name
-
-**Дата:** DD Month YYYY
-
-**Изменения:**
-- Feature 1
-- Feature 2
-- Bug fix
-
-**Техническая архитектура:**
-[Code examples]
-
-**Преимущества:**
-- Benefit 1
-- Benefit 2
+├── README.md
+├── architecture/
+├── packages/
+├── apps/
+├── deployment/
+└── troubleshooting/
 ```
 
 ## Best Practices
