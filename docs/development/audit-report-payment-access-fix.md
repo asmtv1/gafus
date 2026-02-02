@@ -1,7 +1,7 @@
 # Отчёт: Исправление проблемы с открытием курса после оплаты
 
 **Дата:** 2 февраля 2026  
-**Статус:** ✅ Исправлено
+**Статус:** ✅ Исправлено и подготовлено к production
 
 ## Описание проблемы
 
@@ -89,10 +89,40 @@ return { hasAccess: true };
 - ✅ Линтер: ошибок нет
 - ✅ TypeScript: компиляция успешна
 - ✅ Документация обновлена
+- ✅ Production build: успешна
+- ✅ Отладочные логи удалены
+- ✅ Проверки безопасности восстановлены (IP whitelist, HMAC подпись)
 
 ## Связанные файлы
 
 - `packages/core/src/services/payments/paymentService.ts` — логика обработки webhook
+- `packages/core/src/services/course/courseService.ts` — проверка доступа к курсу
 - `apps/web/src/app/api/v1/payments/webhook/route.ts` — эндпоинт webhook
 - `apps/web/src/app/api/v1/payments/create/route.ts` — создание платежа
 - `apps/web/src/features/training/components/TrainingPageClient/TrainingPageClient.tsx` — UI страницы курса
+
+## Подготовка к production
+
+### Что было сделано:
+
+1. **Восстановлены проверки безопасности:**
+   - IP whitelist для webhook (только адреса ЮKassa)
+   - HMAC-SHA256 проверка подписи
+
+2. **Удалено отладочное логирование:**
+   - Убраны подробные `console.log` из webhook endpoint
+   - Убраны подробные `console.log` из `confirmPaymentFromWebhook`
+   - Убраны подробные `console.log` из `checkCourseAccess`
+   - Оставлены только критичные логи через `@gafus/logger`
+
+3. **Проверено:**
+   - ✅ Сборка проходит без ошибок
+   - ✅ TypeScript типы корректны
+   - ✅ Линтер не находит ошибок
+
+### Важно для production:
+
+В production окружении убедитесь, что:
+1. `YOOKASSA_SECRET_KEY` соответствует ключу из боевого магазина ЮKassa
+2. В личном кабинете ЮKassa настроен webhook URL: `https://ваш-домен.ru/api/v1/payments/webhook`
+3. Включены события: `payment.succeeded`, `payment.canceled`, `refund.succeeded`

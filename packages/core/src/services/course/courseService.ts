@@ -174,26 +174,14 @@ export async function checkCourseAccess(
   courseType: string,
   userId?: string,
 ): Promise<{ hasAccess: boolean }> {
-  console.log("\n=== [checkCourseAccess] ПРОВЕРКА ДОСТУПА ===");
-  console.log("  courseType:", courseType);
-  console.log("  userId:", userId || "(гость)");
-
   if (!userId) {
     const course = await prisma.course.findUnique({
       where: { type: courseType },
       select: { isPrivate: true, isPaid: true },
     });
-    if (!course) {
-      console.log("  ❌ Курс не найден");
-      return { hasAccess: false };
-    }
-    if (course.isPaid) {
-      console.log("  ❌ Платный курс, гость -> нет доступа");
-      return { hasAccess: false };
-    }
-    const result = { hasAccess: !course.isPrivate };
-    console.log("  🔓 Гость, публичный курс:", result.hasAccess ? "✅ доступ есть" : "❌ нет доступа");
-    return result;
+    if (!course) return { hasAccess: false };
+    if (course.isPaid) return { hasAccess: false };
+    return { hasAccess: !course.isPrivate };
   }
 
   const course = await prisma.course.findUnique({
@@ -207,30 +195,15 @@ export async function checkCourseAccess(
   });
   
   if (!course) {
-    console.log("  ❌ Курс не найден");
     return { hasAccess: false };
   }
   
-  console.log("  📋 Курс найден:");
-  console.log("    courseId:", course.id);
-  console.log("    isPaid:", course.isPaid);
-  console.log("    isPrivate:", course.isPrivate);
-  console.log("    accessRecordsCount:", course.access.length);
-  console.log("    accessRecords:", JSON.stringify(course.access));
-  
   // Для платных и приватных курсов проверяем наличие доступа в CourseAccess
   if (course.isPaid || course.isPrivate) {
-    const hasAccess = course.access.length > 0;
-    console.log("  🔐 Платный/приватный курс:");
-    console.log("    Записей в CourseAccess:", course.access.length);
-    console.log("    Результат:", hasAccess ? "✅ доступ есть" : "❌ нет доступа");
-    console.log("=== [checkCourseAccess] КОНЕЦ ===\n");
-    return { hasAccess };
+    return { hasAccess: course.access.length > 0 };
   }
   
   // Публичные бесплатные курсы доступны всем
-  console.log("  ✅ Публичный бесплатный курс -> доступ есть");
-  console.log("=== [checkCourseAccess] КОНЕЦ ===\n");
   return { hasAccess: true };
 }
 
