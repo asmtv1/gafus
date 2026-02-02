@@ -37,21 +37,20 @@ if (
   );
 }
 
-// Дополнительная проверка при первом вызове функций (для server-side runtime)
+// Дополнительная проверка при первом вызове S3-функций — только на сервере (клиент не вызывает их).
 let hasCheckedCredentials = false;
 function checkCredentials() {
+  if (typeof window !== "undefined") return;
   if (hasCheckedCredentials) return;
   hasCheckedCredentials = true;
 
-  if (process.env.NODE_ENV === "production") {
-    if (!YC_ACCESS_KEY_ID || !YC_SECRET_ACCESS_KEY) {
-      logger.error(
-        "CRITICAL: YC_ACCESS_KEY_ID and YC_SECRET_ACCESS_KEY are not set in production!",
-      );
-      throw new Error(
-        "CRITICAL: YC_ACCESS_KEY_ID and YC_SECRET_ACCESS_KEY must be set in production.",
-      );
-    }
+  if (process.env.NODE_ENV === "production" && (!YC_ACCESS_KEY_ID || !YC_SECRET_ACCESS_KEY)) {
+    logger.error(
+      "CRITICAL: YC_ACCESS_KEY_ID and YC_SECRET_ACCESS_KEY are not set in production!",
+    );
+    throw new Error(
+      "CRITICAL: YC_ACCESS_KEY_ID and YC_SECRET_ACCESS_KEY must be set in production.",
+    );
   }
 }
 
