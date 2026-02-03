@@ -14,13 +14,51 @@ export async function invalidateCoursesCache() {
   try {
     logger.warn("[Cache] Invalidating courses cache...", { operation: "warn" });
 
-    // Инвалидируем все теги, связанные с курсами
+    // Инвалидируем все теги, связанные с курсами (для trainer-panel)
     revalidateTag("courses");
     revalidateTag("courses-all");
     revalidateTag("courses-all-permanent");
     revalidateTag("courses-favorites");
     revalidateTag("courses-authored");
     revalidateTag("courses-metadata");
+
+    // Инвалидируем кэш курсов на web (через API, т.к. это отдельный Next.js процесс)
+    try {
+      const webUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.gafus.ru";
+      const revalidateUrl = `${webUrl}/api/revalidate/courses`;
+      const secretToken = process.env.REVALIDATE_SECRET_TOKEN;
+
+      if (secretToken) {
+        const response = await fetch(revalidateUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${secretToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          logger.warn("[Cache] Failed to invalidate web courses cache", {
+            status: response.status,
+            operation: "warn",
+          });
+        } else {
+          logger.warn("[Cache] Web courses cache invalidated successfully", {
+            operation: "warn",
+          });
+        }
+      } else {
+        logger.warn("[Cache] REVALIDATE_SECRET_TOKEN not set, skipping web cache invalidation", {
+          operation: "warn",
+        });
+      }
+    } catch (webCacheError) {
+      // Логируем, но не прерываем выполнение — кэш trainer-panel уже инвалидирован
+      logger.warn("[Cache] Error invalidating web courses cache (non-critical)", {
+        error: webCacheError instanceof Error ? webCacheError.message : String(webCacheError),
+        operation: "warn",
+      });
+    }
 
     logger.warn("[Cache] Courses cache invalidated successfully", { operation: "warn" });
     return { success: true };

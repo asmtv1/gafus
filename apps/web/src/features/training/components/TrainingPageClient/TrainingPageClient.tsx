@@ -113,12 +113,20 @@ export default function TrainingPageClient({
       url.searchParams.delete("paid");
       window.history.replaceState({}, "", url.pathname);
 
+      // Скрыть уведомление через 6 секунд
+      const hideTimeout = setTimeout(() => {
+        setShowPaymentSuccess(false);
+      }, 6000);
+
       // Автоматически обновить через 5 секунд (чтобы подтянуть доступ после webhook)
-      const timeout = setTimeout(() => {
+      const refreshTimeout = setTimeout(() => {
         router.refresh();
       }, 5000);
 
-      return () => clearTimeout(timeout);
+      return () => {
+        clearTimeout(hideTimeout);
+        clearTimeout(refreshTimeout);
+      };
     }
   }, [searchParams, accessDenied, router]);
 

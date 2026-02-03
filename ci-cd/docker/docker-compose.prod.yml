@@ -50,6 +50,7 @@ services:
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
       - NEXT_PUBLIC_TRAINER_PANEL_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL}
       - ERROR_DASHBOARD_URL=${ERROR_DASHBOARD_URL}
+      - REVALIDATE_SECRET_TOKEN=${REVALIDATE_SECRET_TOKEN}
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
       - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@gafus.ru}
       # Yandex Cloud CDN credentials
@@ -104,6 +105,8 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       # Next.js публичные переменные для trainer-panel
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL:-https://trainer.gafus.ru}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+      - REVALIDATE_SECRET_TOKEN=${REVALIDATE_SECRET_TOKEN}
     restart: unless-stopped
 
     depends_on:
