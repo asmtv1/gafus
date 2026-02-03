@@ -96,6 +96,7 @@ temp/
 !.vscode/extensions.json
 .idea
 .cursor/
+.agents/
 .DS_Store
 *.suo
 *.ntvs*

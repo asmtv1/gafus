@@ -24,8 +24,13 @@ export default function PersonalizationPlaceholdersHint() {
       <Typography variant="body2" component="div" sx={{ mt: 1 }}>
         <strong>Имя питомца:</strong>{" "}
         <code>{"{{petName}}"}</code> — им.; <code>{"{{petNameGen}}"}</code> — род.;{" "}
-        <code>{"{{petNameDat}}"}</code> — дат.; <code>{"{{petNameAcc}}"}</code> — вин. (учим {"{{petNameAcc}}"} держать);{" "}
+        <code>{"{{petNameDat}}"}</code> — дат.; <code>{"{{petNameAcc}}"}</code> — вин.;{" "}
         <code>{"{{petNameIns}}"}</code> — твор.; <code>{"{{petNamePre}}"}</code> — предл.
+      </Typography>
+      <Typography variant="body2" component="div" sx={{ mt: 1 }}>
+        <strong>Согласование по полу:</strong>{" "}
+        <code>{"{{userGenderPronoun:Он|Она}}"}</code>, <code>{"{{userGenderAdj:серьёзен|серьёзна}}"}</code>,{" "}
+        <code>{"{{petGenderPronoun:он|она}}"}</code>, <code>{"{{petGenderAdj:готов|готова}}"}</code> — подставляется вариант по полу ученика или питомца.
       </Typography>
     </Alert>
   );

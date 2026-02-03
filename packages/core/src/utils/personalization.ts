@@ -72,8 +72,10 @@ export interface PersonalizationData {
 
 /**
  * Заменяет плейсхолдеры персонализации в тексте.
- * Имя пользователя и питомца склоняются по всем шести падежам через declineRussianName.
- * Для питомца все падежи кроме именительного можно переопределить из data (petNameGen, petNameDat, petNameAcc, petNameIns, petNamePre).
+ * Имена: {{userName}}, {{userNameGen}}, … {{userNamePre}}; {{petName}}, {{petNameGen}}, … {{petNamePre}}.
+ * Согласование по полу: {{userGenderPronoun:Он|Она}}, {{userGenderAdj:серьёзен|серьёзна}},
+ * {{userGenderVerb:ждал|ждала}}, {{userGenderPoss:его|её}} (и аналогично petGender*).
+ * Для питомца при petGender === null используется мужской вариант.
  */
 export function replacePersonalizationPlaceholders(
   text: string,
@@ -108,5 +110,20 @@ export function replacePersonalizationPlaceholders(
   result = result.replace(/\{\{petNameAcc\}\}/g, petAcc);
   result = result.replace(/\{\{petNameIns\}\}/g, petIns);
   result = result.replace(/\{\{petNamePre\}\}/g, petPre);
+
+  const userIsFemale = personalization.userGender === "female";
+  const petIsFemale = personalization.petGender === "female";
+  const pickUser = (male: string, female: string) => (userIsFemale ? female : male);
+  const pickPet = (male: string, female: string) => (petIsFemale ? female : male);
+
+  result = result.replace(
+    /\{\{userGender(Pronoun|Adj|Verb|Poss):([^|]+)\|([^}]*)\}\}/g,
+    (_, _kind, maleVal, femaleVal) => pickUser(maleVal, femaleVal),
+  );
+  result = result.replace(
+    /\{\{petGender(Pronoun|Adj|Verb|Poss):([^|]+)\|([^}]*)\}\}/g,
+    (_, _kind, maleVal, femaleVal) => pickPet(maleVal, femaleVal),
+  );
+
   return result;
 }
