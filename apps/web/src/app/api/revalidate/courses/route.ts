@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
+import { revalidateTag, revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
@@ -51,6 +51,10 @@ export async function POST(request: Request) {
     revalidateTag("courses-all-permanent");
     revalidateTag("courses-favorites");
     revalidateTag("courses-metadata");
+
+    // Инвалидируем ISR кэш страниц с курсами
+    revalidatePath("/courses", "page");
+    revalidatePath("/favorites", "page");
 
     logger.warn("[Cache] Courses cache invalidated successfully", {
       userId: session?.user?.id,

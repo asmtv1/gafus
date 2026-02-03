@@ -75,7 +75,10 @@
 
 ### Решение проблем
 
-- [Troubleshooting](./troubleshooting/README.md)
+- [Troubleshooting](./troubleshooting/README.md) — общие проблемы и решения
+- [Server Actions 404/503](./troubleshooting/server-actions-404.md) — ошибки Server Actions
+- [Инвалидация кеша между приложениями](./troubleshooting/cache-invalidation-cross-app.md)
+- [Платный курс не открывается](./troubleshooting/paid-course-not-opening.md)
 - [Проверка Seq](./troubleshooting/CHECK_SEQ.md)
 
 ### Юридическое

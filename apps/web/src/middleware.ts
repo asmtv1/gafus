@@ -38,13 +38,6 @@ export default async function middleware(req: NextRequest) {
   const { nextUrl, url } = req;
   const pathname = nextUrl.pathname;
 
-  const token = await getToken({
-    req,
-    secret: process.env.NEXTAUTH_SECRET,
-    secureCookie: process.env.NODE_ENV === "production",
-    cookieName: "next-auth.session-token",
-  });
-
   // Пропускаем публичные ресурсы
   if (isPublicAsset(pathname)) {
     return NextResponse.next();
@@ -54,6 +47,23 @@ export default async function middleware(req: NextRequest) {
   if (pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
+
+  // Пропускаем Server Actions (POST запросы к страницам)
+  if (req.method === "POST" && req.headers.get("content-type")?.includes("multipart/form-data")) {
+    return NextResponse.next();
+  }
+
+  // Пропускаем Next.js action endpoints
+  if (req.headers.get("next-action")) {
+    return NextResponse.next();
+  }
+
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === "production",
+    cookieName: "next-auth.session-token",
+  });
 
   // Перенаправляем авторизованных пользователей на /courses
   if (token) {

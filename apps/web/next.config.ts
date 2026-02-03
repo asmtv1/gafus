@@ -119,6 +119,14 @@ const nextConfig = {
     ],
     serverActions: {
       bodySizeLimit: "100mb", // Лимит для Server Actions (для загрузки видео)
+      allowedOrigins: [
+        "gafus.ru",
+        "https://gafus.ru",
+        "web.gafus.localhost",
+        "http://web.gafus.localhost",
+        "localhost:3002",
+        "http://localhost:3002",
+      ],
     },
   },
 
@@ -161,6 +169,14 @@ const nextConfig = {
         source: "/_next/static/:path*",
         headers: [
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+      // Server Actions endpoints - короткий кеш для HMR
+      {
+        source: "/_next/data/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-cache, no-store, must-revalidate" },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },

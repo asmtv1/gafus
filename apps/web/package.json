@@ -6,11 +6,13 @@
     "analyze": "node scripts/analyze-bundle.js",
     "analyze:build": "ANALYZE=true npm run build",
     "build": "next build",
+    "build:clean": "bash scripts/clear-build-cache.sh && next build",
     "dev": "PORT=3002 next dev",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
     "start": "PORT=3002 next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "bash scripts/clear-build-cache.sh"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

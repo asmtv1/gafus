@@ -42,6 +42,16 @@ export function setupFetchInterceptor() {
       return originalFetch(input, init);
     }
 
+    // Проверяем, является ли это Server Action запросом
+    const isServerAction =
+      init?.method === "POST" &&
+      (requestHeaders.get("next-action") || requestHeaders.get("x-nextjs-data"));
+
+    // Для Server Actions не применяем offline проверки (они имеют свою логику)
+    if (isServerAction && shouldIgnoreOffline) {
+      return originalFetch(input, init);
+    }
+
     // Проверяем локальный offline-статус перед запросом
     const store = useOfflineStore.getState();
     if (!store.isOnline && !shouldIgnoreOffline && !isMediaRequest) {
@@ -69,6 +79,13 @@ export function setupFetchInterceptor() {
           logger.info("Network restored, setting online status", { url });
           store.setOnlineStatus(true);
         }
+      } else if (response.status === 404 && isServerAction) {
+        // 404 для Server Action может быть признаком старого кеша билда
+        logger.warn("Server Action not found (404) - возможно устаревший билд", {
+          url,
+          status: response.status,
+          headers: Object.fromEntries(response.headers.entries()),
+        });
       }
 
       return response;

@@ -156,6 +156,30 @@ npx prisma migrate status
 
 ## 🌐 Проблемы сети
 
+### Server Actions 404/503
+
+**Симптомы:**
+
+- `POST https://gafus.ru/courses 404 (Not Found)`
+- `UnrecognizedActionError: Server Action "..." was not found`
+- Приложение падает в офлайн без причины
+
+**Решения:**
+
+```bash
+# Очистка кеша билда
+cd apps/web
+pnpm clean
+
+# Сборка с чистым кешем
+pnpm build:clean
+
+# Проверка переменных окружения
+echo $NEXTAUTH_SECRET
+```
+
+📖 **Подробная документация:** [server-actions-404.md](./server-actions-404.md)
+
 ### CORS ошибки
 
 **Симптомы:**
