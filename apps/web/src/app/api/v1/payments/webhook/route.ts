@@ -53,18 +53,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({}, { status: 400 });
   }
 
-  // Проверка HMAC-SHA256 подписи (секрет обрезаем — в .env часто попадает \n)
+  // Подпись: при настройке через «Интеграция → HTTP-уведомления» ЮKassa может не присылать
+  // X-Yookassa-Signature (заголовок часто только у webhook, созданных через API). Если подпись
+  // есть — проверяем; если нет — полагаемся на проверку IP выше.
   const signature = request.headers.get("x-yookassa-signature")?.trim() ?? null;
   const secretKey = process.env.YOOKASSA_SECRET_KEY?.trim();
-  
-  if (!secretKey || !verifyWebhookSignature(bodyText, signature, secretKey)) {
-    console.error("[payments/webhook] Invalid signature", {
-      hasKey: !!secretKey,
-      keyLen: secretKey?.length ?? 0,
-      hasSignature: !!signature,
-      signatureLen: signature?.length ?? 0,
-    });
-    return NextResponse.json({}, { status: 403 });
+  if (signature) {
+    if (!secretKey || !verifyWebhookSignature(bodyText, signature, secretKey)) {
+      console.error("[payments/webhook] Invalid signature");
+      return NextResponse.json({}, { status: 403 });
+    }
   }
 
   // Парсим JSON после проверки подписи
