@@ -53,12 +53,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({}, { status: 400 });
   }
 
-  // Проверка HMAC-SHA256 подписи
-  const signature = request.headers.get("x-yookassa-signature");
-  const secretKey = process.env.YOOKASSA_SECRET_KEY;
+  // Проверка HMAC-SHA256 подписи (секрет обрезаем — в .env часто попадает \n)
+  const signature = request.headers.get("x-yookassa-signature")?.trim() ?? null;
+  const secretKey = process.env.YOOKASSA_SECRET_KEY?.trim();
   
   if (!secretKey || !verifyWebhookSignature(bodyText, signature, secretKey)) {
-    console.error("[payments/webhook] Invalid signature");
+    console.error("[payments/webhook] Invalid signature", {
+      hasKey: !!secretKey,
+      keyLen: secretKey?.length ?? 0,
+      hasSignature: !!signature,
+      signatureLen: signature?.length ?? 0,
+    });
     return NextResponse.json({}, { status: 403 });
   }
 
