@@ -30,18 +30,26 @@ interface Props {
     equipment: string;
     stepIds: string[];
   };
+  /** Предвыбранные шаги при переходе со страницы шагов (например, «создать день из выбранных») */
+  initialStepIds?: string[];
 }
 
-export default function CreateDayClient({ allSteps, initialDay }: Props) {
+export default function CreateDayClient({ allSteps, initialDay, initialStepIds }: Props) {
   const isEdit = Boolean(initialDay?.id);
   const router = useRouter();
-  const [selectedSteps, setSelectedSteps] = useState<Step[]>(
-    initialDay
-      ? initialDay.stepIds
-          .map((sid) => allSteps.find((s) => s.id === sid))
-          .filter((s): s is Step => Boolean(s))
-      : [],
-  );
+  const [selectedSteps, setSelectedSteps] = useState<Step[]>(() => {
+    if (initialDay) {
+      return initialDay.stepIds
+        .map((sid) => allSteps.find((s) => s.id === sid))
+        .filter((s): s is Step => Boolean(s));
+    }
+    if (initialStepIds?.length) {
+      return initialStepIds
+        .map((sid) => allSteps.find((s) => s.id === sid))
+        .filter((s): s is Step => Boolean(s));
+    }
+    return [];
+  });
   const [dayInfo, setDayInfo] = useState({
     title: initialDay?.title ?? "",
     type: initialDay?.type ?? "regular",

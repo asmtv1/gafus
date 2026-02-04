@@ -103,13 +103,14 @@ export function sortCourses(
       return courses.toSorted((a, b) => a.name.localeCompare(b.name, "ru"));
 
     case "progress": {
-      const statusOrder = {
+      const statusOrder: Record<TrainingStatus, number> = {
         [TrainingStatus.COMPLETED]: 0,
         [TrainingStatus.IN_PROGRESS]: 1,
         [TrainingStatus.NOT_STARTED]: 2,
+        [TrainingStatus.PAUSED]: 1, // PAUSED сортируется как IN_PROGRESS
       };
       return courses.toSorted(
-        (a, b) => statusOrder[a.userStatus] - statusOrder[b.userStatus],
+        (a, b) => (statusOrder[a.userStatus] ?? 2) - (statusOrder[b.userStatus] ?? 2),
       );
     }
 

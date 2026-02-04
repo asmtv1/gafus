@@ -99,7 +99,11 @@ class NotificationProcessor {
     }
 
     // Создаем типобезопасные данные на основе поля type из БД
-    const notificationData = this.createNotificationData(notification);
+    // Приводим type к нужному union типу
+    const notificationData = this.createNotificationData({
+      ...notification,
+      type: notification.type as "step" | "immediate",
+    });
     const payload = this.createNotificationPayload(notificationData);
     const results = await this.sendNotifications(subscriptions, payload);
 
@@ -156,7 +160,7 @@ class NotificationProcessor {
    * Создает типобезопасные данные уведомления на основе записи из БД
    */
   private createNotificationData(notification: {
-    type: string;
+    type: "step" | "immediate";
     stepTitle?: string | null;
     stepIndex: number;
     url?: string | null;

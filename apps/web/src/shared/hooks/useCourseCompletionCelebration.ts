@@ -3,6 +3,8 @@ import { celebrateCourseCompletion } from "@shared/utils/confetti";
 import { hapticAchievement } from "@shared/utils/hapticFeedback";
 import Swal from "sweetalert2";
 
+const STORAGE_KEY_PREFIX = "courseCompletionCelebrationSeen_";
+
 interface UseCourseCompletionCelebrationProps {
   courseId: string;
   courseType: string;
@@ -12,42 +14,37 @@ interface UseCourseCompletionCelebrationProps {
 }
 
 /**
- * Хук для празднования завершения курса
- * Показывает конфетти и уведомление когда все дни завершены
+ * Хук для празднования завершения курса.
+ * Показывает конфетти и уведомление один раз за курс (факт показа хранится в localStorage).
  */
 export function useCourseCompletionCelebration({
   courseId,
   courseType,
   trainingDays,
 }: UseCourseCompletionCelebrationProps): void {
-  // Используем ref для отслеживания предыдущего состояния
-  const prevCompletedRef = useRef<boolean>(false);
   const celebratedRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!trainingDays || trainingDays.length === 0) return;
+    if (!courseId || !trainingDays || trainingDays.length === 0) return;
 
-    // Проверяем, все ли дни завершены
     const allCompleted = trainingDays.every((day) => day.userStatus === "COMPLETED");
+    if (!allCompleted) return;
 
-    // Если курс только что завершен (не был завершен раньше и еще не праздновали)
-    if (allCompleted && !prevCompletedRef.current && !celebratedRef.current) {
-      // Отмечаем что уже праздновали (для предотвращения повторных вызовов)
-      celebratedRef.current = true;
-      prevCompletedRef.current = true;
+    const storageKey = `${STORAGE_KEY_PREFIX}${courseId}`;
+    const alreadySeen =
+      typeof window !== "undefined" && localStorage.getItem(storageKey) === "1";
+    if (alreadySeen || celebratedRef.current) return;
 
-      // Небольшая задержка для лучшего UX
-      setTimeout(() => {
-        // Haptic feedback
-        hapticAchievement();
+    celebratedRef.current = true;
+    localStorage.setItem(storageKey, "1");
 
-        // Конфетти
-        celebrateCourseCompletion();
+    const timeoutId = setTimeout(() => {
+      hapticAchievement();
+      celebrateCourseCompletion();
 
-        // Показываем красивое уведомление
-        Swal.fire({
-          title: "🎉 Курс завершен!",
-          html: `
+      Swal.fire({
+        title: "🎉 Курс завершен!",
+        html: `
             <p style="font-size: 18px; margin-bottom: 12px;">
               Поздравляем с завершением курса!
             </p>
@@ -55,29 +52,27 @@ export function useCourseCompletionCelebration({
               Вы большой молодец! 🌟
             </p>
           `,
-          imageUrl: "/uploads/logo.png",
-          imageWidth: 120,
-          imageHeight: 120,
-          imageAlt: "Гафус",
-          confirmButtonText: "Спасибо! 🎊",
-          confirmButtonColor: "#636128",
-          customClass: {
-            popup: "swal2-popup-custom",
-            title: "swal2-title-custom",
-            htmlContainer: "swal2-content-custom",
-            confirmButton: "swal2-confirm-custom",
-          },
-          showClass: {
-            popup: "animate__animated animate__bounceIn",
-          },
-          hideClass: {
-            popup: "animate__animated animate__fadeOut",
-          },
-        });
-      }, 500);
-    }
+        imageUrl: "/uploads/logo.png",
+        imageWidth: 120,
+        imageHeight: 120,
+        imageAlt: "Гафус",
+        confirmButtonText: "Спасибо! 🎊",
+        confirmButtonColor: "#636128",
+        customClass: {
+          popup: "swal2-popup-custom",
+          title: "swal2-title-custom",
+          htmlContainer: "swal2-content-custom",
+          confirmButton: "swal2-confirm-custom",
+        },
+        showClass: {
+          popup: "animate__animated animate__bounceIn",
+        },
+        hideClass: {
+          popup: "animate__animated animate__fadeOut",
+        },
+      });
+    }, 500);
 
-    // Обновляем предыдущее состояние
-    prevCompletedRef.current = allCompleted;
+    return () => clearTimeout(timeoutId);
   }, [trainingDays, courseId, courseType]);
 }

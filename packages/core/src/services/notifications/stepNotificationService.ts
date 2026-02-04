@@ -85,6 +85,7 @@ export async function createStepNotification(params: CreateStepNotificationParam
       endTs,
       url: maybeUrl,
       stepTitle: hasStepTitle ? stepTitle.trim() : null,
+      type: "step",
       subscription: {
         subscriptions: subscriptions.map((sub: DbPushSubscription) => ({
           endpoint: sub.endpoint,

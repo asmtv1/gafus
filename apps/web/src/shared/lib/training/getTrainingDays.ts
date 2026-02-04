@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_cache } from "next/cache";
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
@@ -239,7 +240,11 @@ export async function getTrainingDays(
       userId: currentUserId,
       typeParam: safeType,
     });
-    const courseWhere = safeType ? { type: safeType } : {};
+
+    // Оборачиваем в unstable_cache для корректной инвалидации через теги
+    const cachedFunction = unstable_cache(
+      async () => {
+        const courseWhere = safeType ? { type: safeType } : {};
 
     const firstCourse = await prisma.course.findFirst({
       where: courseWhere,
@@ -361,16 +366,25 @@ export async function getTrainingDays(
         }
       : null;
 
-    return {
-      trainingDays,
-      courseDescription: firstCourse.description,
-      courseId: firstCourse.id,
-      courseVideoUrl: firstCourse.videoUrl,
-      courseEquipment: firstCourse.equipment,
-      courseTrainingLevel: firstCourse.trainingLevel,
-      courseIsPersonalized: firstCourse.isPersonalized ?? false,
-      userCoursePersonalization,
-    };
+        return {
+          trainingDays,
+          courseDescription: firstCourse.description,
+          courseId: firstCourse.id,
+          courseVideoUrl: firstCourse.videoUrl,
+          courseEquipment: firstCourse.equipment,
+          courseTrainingLevel: firstCourse.trainingLevel,
+          courseIsPersonalized: firstCourse.isPersonalized ?? false,
+          userCoursePersonalization,
+        };
+      },
+      ["training-days", currentUserId, safeType ?? "all"],
+      {
+        revalidate: 300, // 5 минут - баланс между актуальностью и производительностью
+        tags: ["training", "days", `user-${currentUserId}`],
+      },
+    );
+
+    return await cachedFunction();
   } catch (error) {
     logger.error("Ошибка в getTrainingDays", error as Error, {
       operation: "get_training_days_error",

@@ -15,6 +15,7 @@ export default async function StepsPage({
     order?: string;
     page?: string;
     rowsPerPage?: string;
+    onlyOrphanSteps?: string;
   }>;
 }) {
   const session = await getServerSession(authOptions);

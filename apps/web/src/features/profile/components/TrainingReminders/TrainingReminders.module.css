@@ -120,6 +120,8 @@
   border-radius: 8px;
   padding: 16px;
   transition: all 0.3s;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .reminderItem.expanded {
@@ -131,6 +133,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 /* Переключатель */
@@ -187,6 +190,7 @@
 /* Поле названия */
 .nameInput {
   flex: 1;
+  min-width: 0;
   padding: 8px 12px;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -209,6 +213,7 @@
 
 /* Превью времени */
 .timePreview {
+  flex-shrink: 0;
   font-size: 0.9rem;
   color: #636128;
   font-weight: 600;
@@ -220,6 +225,7 @@
 
 /* Кнопки */
 .expandButton {
+  flex-shrink: 0;
   background: none;
   border: none;
   font-size: 1.2rem;
@@ -234,11 +240,20 @@
 }
 
 .deleteButton {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   background: none;
   border: none;
-  font-size: 1.5rem;
+  border-radius: 6px;
+  font-size: 1.25rem;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 0;
   color: #c62828;
   transition: all 0.2s;
   line-height: 1;
@@ -246,7 +261,7 @@
 
 .deleteButton:hover {
   color: #8b0000;
-  transform: scale(1.2);
+  background: rgba(198, 40, 40, 0.08);
 }
 
 /* Детали напоминания */
@@ -523,10 +538,17 @@
     padding: 3px 6px;
   }
 
-  .expandButton,
-  .deleteButton {
+  .expandButton {
     font-size: 1rem;
     padding: 2px 4px;
+  }
+
+  .deleteButton {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    font-size: 1.1rem;
   }
 
   .daysGrid {

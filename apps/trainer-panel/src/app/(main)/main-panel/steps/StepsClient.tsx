@@ -19,6 +19,7 @@ interface StepsClientProps {
     order?: string;
     page?: string;
     rowsPerPage?: string;
+    onlyOrphanSteps?: string;
   };
 }
 
@@ -45,10 +46,17 @@ export default function StepsClient({
     router.push(`/main-panel/steps/${id}/edit?returnTo=${encodeURIComponent(returnUrl)}`);
   };
 
+  const handleCreateDayFromSteps = (stepIds: string[]) => {
+    const params = new URLSearchParams();
+    stepIds.forEach((id) => params.append("stepIds", id));
+    router.push(`/main-panel/days/new?${params.toString()}`);
+  };
+
   const uiSteps = (steps || []).map(
     (
       s: TrainerStepTableRow & {
         author?: { username: string; profile?: { fullName: string | null } | null };
+        createdAt?: Date;
       },
     ) => ({
       id: s.id,
@@ -56,6 +64,7 @@ export default function StepsClient({
       description: s.description,
       durationSec: s.durationSec,
       estimatedDurationSec: s.estimatedDurationSec ?? null,
+      createdAt: s.createdAt,
       author: s.author
         ? {
             username: s.author.username,
@@ -81,6 +90,7 @@ export default function StepsClient({
         steps={uiSteps}
         onEditStep={handleEditStep}
         onDeleteSteps={handleDelete}
+        onCreateDayFromSteps={handleCreateDayFromSteps}
         isAdmin={isAdmin}
         initialSearchParams={initialSearchParams}
       />

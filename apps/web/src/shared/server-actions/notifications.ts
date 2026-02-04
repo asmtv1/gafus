@@ -77,7 +77,10 @@ export async function pauseNotificationAction(
       dayOnCourseId,
       stepIndex,
     });
-    throw new Error("Failed to pause notification");
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to pause notification",
+    };
   }
 }
 
@@ -102,7 +105,10 @@ export async function resetNotificationAction(
       dayOnCourseId,
       stepIndex,
     });
-    throw new Error("Failed to reset notification");
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to reset notification",
+    };
   }
 }
 
@@ -140,7 +146,10 @@ export async function resumeNotificationAction(
       stepIndex,
       durationSec,
     });
-    throw new Error("Failed to resume notification");
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to resume notification",
+    };
   }
 }
 

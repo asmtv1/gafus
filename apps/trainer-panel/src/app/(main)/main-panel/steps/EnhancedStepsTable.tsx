@@ -1,11 +1,13 @@
 "use client";
 
+import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   Box,
+  Button,
   Checkbox,
   FormControlLabel,
   IconButton,
@@ -44,6 +46,7 @@ type Order = "asc" | "desc";
 const baseHeadCells = [
   { id: "title", label: "Название", numeric: false },
   { id: "description", label: "Описание", numeric: false },
+  { id: "createdAt", label: "Дата создания", numeric: false },
   { id: "durationSec", label: "Длительность (сек)", numeric: true },
   { id: "estimatedDurationSec", label: "Оценка (сек)", numeric: true },
   { id: "days", label: "Дни", numeric: false },
@@ -61,6 +64,7 @@ interface EnhancedStepsTableProps {
   steps: Step[];
   onEditStep?: (id: string) => void;
   onDeleteSteps?: (ids: string[]) => void;
+  onCreateDayFromSteps?: (stepIds: string[]) => void;
   isAdmin?: boolean;
   initialSearchParams?: {
     search?: string;
@@ -68,13 +72,25 @@ interface EnhancedStepsTableProps {
     order?: string;
     page?: string;
     rowsPerPage?: string;
+    onlyOrphanSteps?: string;
   };
+}
+
+function formatCreatedAt(createdAt: Date | undefined): string {
+  if (!createdAt) return "—";
+  const d = new Date(createdAt);
+  return d.toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 export default function EnhancedStepsTable({
   steps,
   onEditStep,
   onDeleteSteps,
+  onCreateDayFromSteps,
   isAdmin = false,
   initialSearchParams,
 }: EnhancedStepsTableProps) {
@@ -140,6 +156,11 @@ export default function EnhancedStepsTable({
     return initialSearchParams?.search || "";
   };
 
+  const getInitialOnlyOrphanSteps = (): boolean => {
+    const v = initialSearchParams?.onlyOrphanSteps;
+    return v === "1" || v === "true";
+  };
+
   const [order, setOrder] = React.useState<Order>(getInitialOrder());
   const [orderBy, setOrderBy] = React.useState<HeadCellId>(getInitialOrderBy());
   const [selected, setSelected] = React.useState<readonly string[]>([]);
@@ -147,6 +168,7 @@ export default function EnhancedStepsTable({
   const [dense, setDense] = React.useState(false);
   const [rowsPerPage, setRowsPerPage] = React.useState(getInitialRowsPerPage());
   const [searchQuery, setSearchQuery] = React.useState(getInitialSearch());
+  const [onlyOrphanSteps, setOnlyOrphanSteps] = React.useState(getInitialOnlyOrphanSteps());
 
   // Функция для обновления URL с текущими параметрами
   const updateURL = React.useCallback(
@@ -156,47 +178,40 @@ export default function EnhancedStepsTable({
       order?: Order;
       page?: number;
       rowsPerPage?: number;
+      onlyOrphanSteps?: boolean;
     }) => {
       const params = new URLSearchParams();
 
-      // Используем текущие значения состояния или обновленные значения
       const currentSearch = updates.search !== undefined ? updates.search : searchQuery;
       const currentOrderBy = updates.orderBy !== undefined ? updates.orderBy : orderBy;
       const currentOrder = updates.order !== undefined ? updates.order : order;
       const currentPage = updates.page !== undefined ? updates.page : page;
       const currentRowsPerPage =
         updates.rowsPerPage !== undefined ? updates.rowsPerPage : rowsPerPage;
+      const currentOnlyOrphan =
+        updates.onlyOrphanSteps !== undefined ? updates.onlyOrphanSteps : onlyOrphanSteps;
 
-      if (currentSearch) {
-        params.set("search", currentSearch);
-      }
-
-      if (currentOrderBy) {
-        params.set("orderBy", currentOrderBy);
-      }
-
-      if (currentOrder) {
-        params.set("order", currentOrder);
-      }
-
-      if (currentPage > 0) {
-        params.set("page", currentPage.toString());
-      }
-
-      if (currentRowsPerPage) {
-        params.set("rowsPerPage", currentRowsPerPage.toString());
-      }
+      if (currentSearch) params.set("search", currentSearch);
+      if (currentOrderBy) params.set("orderBy", currentOrderBy);
+      if (currentOrder) params.set("order", currentOrder);
+      if (currentPage > 0) params.set("page", currentPage.toString());
+      if (currentRowsPerPage) params.set("rowsPerPage", currentRowsPerPage.toString());
+      if (currentOnlyOrphan) params.set("onlyOrphanSteps", "1");
 
       const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
       router.replace(newUrl, { scroll: false });
     },
-    [router, pathname, searchQuery, orderBy, order, page, rowsPerPage],
+    [router, pathname, searchQuery, orderBy, order, page, rowsPerPage, onlyOrphanSteps],
   );
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredSteps = React.useMemo(() => {
-    if (!normalizedQuery) return steps;
-    return steps.filter((step) => {
+    let result = steps;
+    if (onlyOrphanSteps) {
+      result = result.filter((step) => !step.stepLinks?.length);
+    }
+    if (!normalizedQuery) return result;
+    return result.filter((step) => {
       const matchesTitle = (step.title || "").toLowerCase().includes(normalizedQuery);
       const matchesDayTitle =
         step.stepLinks?.some((link) =>
@@ -204,7 +219,7 @@ export default function EnhancedStepsTable({
         ) ?? false;
       return matchesTitle || matchesDayTitle;
     });
-  }, [steps, normalizedQuery]);
+  }, [steps, normalizedQuery, onlyOrphanSteps]);
   const filteredStepIds = React.useMemo(
     () => new Set(filteredSteps.map((step) => step.id)),
     [filteredSteps],
@@ -324,6 +339,10 @@ export default function EnhancedStepsTable({
           if (!step.author) return "";
           return (step.author.fullName || step.author.username || "").toLowerCase();
         }
+        if (orderBy === "createdAt") {
+          const d = (step as Step & { createdAt?: Date }).createdAt;
+          return d ? new Date(d).toISOString() : "";
+        }
 
         // Безопасный доступ к свойствам Step
         const value = step[orderBy as keyof Step];
@@ -396,6 +415,17 @@ export default function EnhancedStepsTable({
           >
             {selected.length > 0 ? `${selected.length} выбрано` : "Шаги тренинга"}
           </Typography>
+          {selected.length > 0 && onCreateDayFromSteps && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => onCreateDayFromSteps([...selected])}
+              sx={{ mr: 1 }}
+            >
+              Создать день из выбранных шагов
+            </Button>
+          )}
           <Tooltip title={selected.length > 0 ? "Удалить" : "Фильтр"}>
             <IconButton
               onClick={() => {
@@ -417,20 +447,45 @@ export default function EnhancedStepsTable({
           </Tooltip>
         </Toolbar>
         <Box sx={{ px: { xs: 2, sm: 2 }, pb: 1 }}>
-          <TextField
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            size="small"
-            placeholder="Поиск по названию шага или дня"
-            fullWidth
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 2,
             }}
-          />
+          >
+            <TextField
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              size="small"
+              placeholder="Поиск по названию шага или дня"
+              sx={{ flex: "1 1 200px", minWidth: 0 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={onlyOrphanSteps}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setOnlyOrphanSteps(checked);
+                    setPage(0);
+                    updateURL({ onlyOrphanSteps: checked, page: 0 });
+                  }}
+                  size="small"
+                />
+              }
+              label="Шаги вне дней"
+              sx={{ flexShrink: 0 }}
+            />
+          </Box>
         </Box>
 
         {/* Мобильное представление - карточки */}
@@ -482,6 +537,20 @@ export default function EnhancedStepsTable({
                       <Divider sx={{ my: 1.5 }} />
 
                       <Stack spacing={1}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Typography variant="caption" color="text.secondary">
+                            Дата создания:
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>
+                            {formatCreatedAt((row as Step & { createdAt?: Date }).createdAt)}
+                          </Typography>
+                        </Box>
                         <Box
                           sx={{
                             display: "flex",
@@ -617,6 +686,9 @@ export default function EnhancedStepsTable({
                       </TableCell>
                       <TableCell>{row.title}</TableCell>
                       <TableCell>{row.description}</TableCell>
+                      <TableCell>
+                        {formatCreatedAt((row as Step & { createdAt?: Date }).createdAt)}
+                      </TableCell>
                       <TableCell align="right">{row.durationSec}</TableCell>
                       <TableCell align="right">
                         {row.estimatedDurationSec != null ? row.estimatedDurationSec : "—"}

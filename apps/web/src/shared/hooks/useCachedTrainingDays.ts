@@ -1,6 +1,6 @@
 "use client";
 
-import type { UserCoursePersonalization } from "@gafus/types";
+import type { UserCoursePersonalization, TrainingStatus } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 import { useCallback, useEffect, useState } from "react";
 
@@ -16,18 +16,18 @@ import { isOnline } from "@shared/utils/offlineCacheUtils";
 const logger = createWebLogger("web-use-cached-training-days");
 
 export interface TrainingDaysData {
-  trainingDays: {
+  trainingDays: Array<{
     trainingDayId: string;
     dayOnCourseId: string;
     title: string;
     type: string;
     courseId: string;
-    userStatus: string;
+    userStatus: TrainingStatus | string; // Принимаем оба типа для совместимости
     estimatedDuration?: number;
     theoryMinutes?: number;
     equipment?: string;
     isLocked?: boolean;
-  }[];
+  }>;
   courseDescription: string | null;
   courseId: string | null;
   courseVideoUrl: string | null;
