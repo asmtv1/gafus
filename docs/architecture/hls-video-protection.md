@@ -161,19 +161,19 @@ Cache-Control: no-cache, no-store, must-revalidate
 
 ### GET /api/video/[videoId]/segment
 
-Возвращает HLS сегмент (`.ts` файл).
+Возвращает HLS сегмент (`.ts` файл). Поддерживает **Range-запросы** (обязательно для воспроизведения на мобильных браузерах iOS/Android).
 
 **Query параметры:**
 
 - `token` (required) - JWT токен доступа
 - `path` (required) - Относительный путь к сегменту
 
+**Запрос:** опционально заголовок `Range: bytes=start-end` (один диапазон).
+
 **Заголовки ответа:**
 
-```
-Content-Type: video/mp2t
-Cache-Control: public, max-age=31536000, immutable
-```
+- Обычный ответ (200): `Content-Type: video/mp2t`, `Content-Length`, `Accept-Ranges: bytes`
+- При Range (206 Partial Content): дополнительно `Content-Range: bytes start-end/total`
 
 ## Клиентские компоненты
 
@@ -358,6 +358,12 @@ const logger = createWorkerLogger("video-transcoding-worker");
 1. Проверить что токен валиден
 2. Проверить CORS настройки в Object Storage
 3. Проверить Network tab в DevTools
+
+### На мобильном браузере вечная загрузка (десктоп ок)
+
+**Причина:** iOS и Android требуют поддержки HTTP byte-range запросов для медиа. Без неё плеер не получает сегменты.
+
+**Решение:** API сегмента `/api/video/[videoId]/segment` обрабатывает заголовок `Range`, возвращает 206 Partial Content и `Content-Range`. Убедиться что деплой использует версию с поддержкой Range в `streamFileFromCDN` и segment route.
 
 ## CORS настройка (Yandex Object Storage)
 

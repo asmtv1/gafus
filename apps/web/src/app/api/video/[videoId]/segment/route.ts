@@ -94,8 +94,15 @@ export async function GET(
     const baseDir = video.hlsManifestPath.split("/").slice(0, -1).join("/");
     const fullSegmentPath = `${baseDir}/${segmentPath}`;
 
-    // Получаем stream для сегмента из Object Storage
-    const { stream, contentLength, contentType } = await streamFileFromCDN(fullSegmentPath);
+    // Поддержка Range обязательна для мобильных (iOS/Android), иначе HLS вечно грузится
+    const rangeHeader = request.headers.get("range");
+    const validRange =
+      rangeHeader?.startsWith("bytes=") && !rangeHeader.includes(",")
+        ? rangeHeader
+        : undefined;
+
+    const { stream, contentLength, contentType, contentRange, isPartialContent } =
+      await streamFileFromCDN(fullSegmentPath, validRange);
 
     // P1 Security: Строгая CORS policy вместо "*"
     const origin = request.headers.get("origin");
@@ -109,18 +116,22 @@ export async function GET(
     const corsOrigin =
       origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
 
-    // Возвращаем сегмент через streaming
+    const headers: Record<string, string> = {
+      "Content-Type": contentType || "video/mp2t",
+      "Content-Length": contentLength.toString(),
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Access-Control-Allow-Origin": corsOrigin,
+      "Access-Control-Allow-Credentials": "true",
+      Vary: "Origin",
+      "Accept-Ranges": "bytes",
+    };
+    if (contentRange) {
+      headers["Content-Range"] = contentRange;
+    }
+
     return new NextResponse(stream, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType || "video/mp2t",
-        "Content-Length": contentLength.toString(),
-        "Cache-Control": "public, max-age=31536000, immutable",
-        "Access-Control-Allow-Origin": corsOrigin,
-        "Access-Control-Allow-Credentials": "true",
-        Vary: "Origin",
-        "Accept-Ranges": "bytes",
-      },
+      status: isPartialContent ? 206 : 200,
+      headers,
     });
   } catch (error) {
     console.error("Error serving HLS segment:", error);

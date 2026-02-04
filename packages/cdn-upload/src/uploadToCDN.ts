@@ -160,16 +160,25 @@ export async function downloadFileFromCDN(relativePath: string): Promise<Buffer>
   }
 }
 
-/**
- * Получает ReadableStream для файла из Object Storage (для streaming)
- * @param relativePath - Относительный путь к файлу (без uploads/)
- * @returns Объект с stream и metadata
- */
-export async function streamFileFromCDN(relativePath: string): Promise<{
+/** Результат streamFileFromCDN: stream и метаданные, при Range — contentRange и isPartialContent */
+export type StreamFileFromCDNResult = {
   stream: ReadableStream;
   contentLength: number;
   contentType: string;
-}> {
+  contentRange?: string;
+  isPartialContent?: boolean;
+};
+
+/**
+ * Получает ReadableStream для файла из Object Storage (для streaming).
+ * Поддержка Range нужна для мобильных браузеров (iOS/Android), иначе HLS зависает.
+ * @param relativePath - Относительный путь к файлу (без uploads/)
+ * @param range - Опциональный HTTP Range (например "bytes=0-1048575")
+ */
+export async function streamFileFromCDN(
+  relativePath: string,
+  range?: string,
+): Promise<StreamFileFromCDNResult> {
   checkCredentials(); // P2 Security: Runtime check
 
   try {
@@ -183,11 +192,12 @@ export async function streamFileFromCDN(relativePath: string): Promise<{
       key = `uploads/${key}`;
     }
 
-    logger.info(`📡 Стримим файл из CDN: ${key}`);
+    logger.info(`📡 Стримим файл из CDN: ${key}${range ? ` (Range: ${range})` : ""}`);
 
     const command = new GetObjectCommand({
       Bucket: bucketName,
       Key: key,
+      ...(range ? { Range: range } : {}),
     });
 
     const response = await s3Client.send(command);
@@ -200,13 +210,21 @@ export async function streamFileFromCDN(relativePath: string): Promise<{
     const nodeStream = response.Body as Readable;
     const webStream = Readable.toWeb(nodeStream) as ReadableStream;
 
-    logger.info(`✅ Стрим создан для: ${key}, размер: ${response.ContentLength || 0} байт`);
+    const contentLength = response.ContentLength ?? 0;
+    logger.info(`✅ Стрим создан для: ${key}, размер: ${contentLength} байт`);
 
-    return {
+    const result: StreamFileFromCDNResult = {
       stream: webStream,
-      contentLength: response.ContentLength || 0,
+      contentLength,
       contentType: response.ContentType || "application/octet-stream",
     };
+
+    if (response.ContentRange) {
+      result.contentRange = response.ContentRange;
+      result.isPartialContent = true;
+    }
+
+    return result;
   } catch (error) {
     logger.error(`❌ Ошибка создания стрима из CDN: ${error}`);
     throw error;

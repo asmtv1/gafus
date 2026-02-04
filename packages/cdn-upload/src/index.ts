@@ -1,3 +1,4 @@
+export type { StreamFileFromCDNResult } from "./uploadToCDN";
 export {
   uploadFileToCDN,
   deleteFileFromCDN,
