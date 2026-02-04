@@ -54,7 +54,7 @@ FFmpeg транскодирует в HLS (720p или исходное если 
         ↓
 getSignedVideoUrl() генерирует JWT токен (TTL 2 часа)
         ↓
-HLSVideoPlayer получает URL манифеста с токеном
+CourseVideoPlayer получает URL манифеста с токеном
         ↓
 GET /api/video/{videoId}/manifest?token=<jwt>
         ↓
@@ -179,22 +179,32 @@ Cache-Control: no-cache, no-store, must-revalidate
 
 ## Клиентские компоненты
 
-### HLSVideoPlayer
+### CourseVideoPlayer (apps/web)
+
+Кастомный плеер для страниц курсов: один контейнер с обложкой и `<video>`, по клику — инициализация HLS без смены DOM.
 
 ```typescript
-<HLSVideoPlayer
-  src={signedManifestUrl}
-  controls
+<CourseVideoPlayer
+  poster={thumbnailSrc}
+  playbackUrl={signedManifestUrl}
+  isLoading={shouldLoadVideo && !signedUrl}
+  onPlayRequest={() => setShouldLoadVideo(true)}
+  initialTimeSec={progress?.lastPositionSec}
+  onSaveProgress={handleSaveProgress}
   onError={(error) => console.error(error)}
+  videoClassName={styles.videoIframe}
+  wrapperClassName={styles.videoWrapper}
 />
 ```
 
 **Возможности:**
 
-- Воспроизведение только HLS формата
-- Поддержка hls.js для HLS
+- Обложка → по клику воспроизведение без переключения экрана (один и тот же video element)
+- Динамическая подгрузка hls.js при появлении playbackUrl
 - Нативная поддержка HLS в Safari
-- Показ статуса обработки, если HLS ещё не готов
+- Resume (initialTimeSec) и сохранение прогресса
+
+В **trainer-panel** по-прежнему используется отдельный компонент `HLSVideoPlayer` для превью видео в списке.
 
 ### VideoTranscodingPlaceholder
 
@@ -299,7 +309,7 @@ NEXT_PUBLIC_ENABLE_HLS_PROTECTION=true  # Включить HLS
 NEXT_PUBLIC_ENABLE_HLS_PROTECTION=false # Отключить HLS (показывает ошибку)
 ```
 
-При `false` - HLSVideoPlayer показывает ошибку для HLS видео. Воспроизведение MP4 напрямую не поддерживается.
+При `false` - плеер показывает ошибку для HLS видео. Воспроизведение MP4 напрямую не поддерживается.
 
 ## Мониторинг
 

@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Box, CircularProgress, Alert, Typography } from "@shared/utils/muiImports";
-import { PlayArrowIcon } from "@shared/utils/muiImports";
-import dynamic from "next/dynamic";
+import { CircularProgress, Alert, Typography } from "@shared/utils/muiImports";
 import { getCDNUrl } from "@gafus/cdn-upload";
+import { CourseVideoPlayer } from "@shared/components/video/CourseVideoPlayer";
 import { getVideoMetadata } from "@shared/lib/video/getVideoMetadata";
 import { getVideoUrlForPlayback } from "@shared/lib/video/getVideoUrlForPlayback";
 import { getSignedVideoUrl } from "@shared/lib/video/getSignedVideoUrl";
@@ -17,19 +16,6 @@ import {
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import type { VideoMetadata } from "@shared/lib/video/getVideoMetadata";
 import styles from "@/features/training/components/AccordionStep/AccordionStep.module.css";
-
-// Динамический импорт HLSVideoPlayer (~250KB экономии начального bundle)
-const HLSVideoPlayer = dynamic(
-  () => import("./HLSVideoPlayer").then((mod) => ({ default: mod.HLSVideoPlayer })),
-  {
-    loading: () => (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "200px" }}>
-        <CircularProgress />
-      </div>
-    ),
-    ssr: false, // Плеер используется только на клиенте
-  }
-);
 
 interface VideoPlayerSectionProps {
   videoUrl: string | null; // URL для воспроизведения (может быть blob URL для офлайн)
@@ -340,127 +326,22 @@ export function VideoPlayerSection({
           ? getCDNUrl(videoMetadata.thumbnailPath)
           : null;
 
-    // Для офлайн видео сразу монтируем плеер (не экономим трафик т.к. уже локально)
-    // Для онлайн видео сначала показываем кастомную обложку
-    if (!isOfflineVideo && !shouldLoadVideo) {
-      // Показываем кастомную обложку с кнопкой play (не загружаем видео)
-      return (
-        <div className={styles.videoContainer}>
-          <div
-            className={`${styles.videoWrapper} ${videoInfo?.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
-            style={{
-              position: "relative",
-              cursor: "pointer",
-              backgroundColor: "#000",
-            }}
-            onClick={() => {
-              setShouldLoadVideo(true);
-            }}
-          >
-            {/* Thumbnail */}
-            {thumbnailSrc && (
-              <img
-                src={thumbnailSrc}
-                alt="Превью видео"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
-            )}
-            {/* Кнопка Play поверх thumbnail */}
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                backgroundColor: "rgba(0, 0, 0, 0.7)",
-                borderRadius: "50%",
-                width: { xs: "60px", sm: "80px" },
-                height: { xs: "60px", sm: "80px" },
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "background-color 0.2s",
-                "&:hover": {
-                  backgroundColor: "rgba(0, 0, 0, 0.85)",
-                },
-              }}
-            >
-              <PlayArrowIcon sx={{ fontSize: { xs: "40px", sm: "50px" }, color: "#fff" }} />
-            </Box>
-          </div>
-        </div>
-      );
-    }
-
-    // Пользователь кликнул или это офлайн видео - показываем плеер
-    // Пока playbackUrl грузится — оставляем обложку (без спиннера), чтобы не было переключения экранов
-    if (!playbackUrl) {
-      return (
-        <div className={styles.videoContainer}>
-          <div
-            className={`${styles.videoWrapper} ${videoInfo?.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
-            style={{
-              position: "relative",
-              backgroundColor: "#000",
-            }}
-          >
-            {thumbnailSrc && (
-              <img
-                src={thumbnailSrc}
-                alt="Превью видео"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
-            )}
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                backgroundColor: "rgba(0, 0, 0, 0.7)",
-                borderRadius: "50%",
-                width: { xs: "60px", sm: "80px" },
-                height: { xs: "60px", sm: "80px" },
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <CircularProgress size={32} sx={{ color: "#fff" }} />
-            </Box>
-          </div>
-        </div>
-      );
-    }
-
-    // Показываем плеер (автоплей будет в HLSVideoPlayer после loadedmetadata)
+    // Один кастомный плеер: обложка и <video> в одном контейнере, по клику — HLS без смены DOM
     return (
       <div className={styles.videoContainer}>
-        <div
-          className={`${styles.videoWrapper} ${videoInfo?.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
-        >
-          <HLSVideoPlayer
-            src={playbackUrl}
-            poster={thumbnailSrc || undefined}
-            controls
-            className={styles.videoIframe}
-            initialTimeSec={initialTimeSec}
-            onSaveProgress={handleSaveProgress}
-            onError={(error) => {
-              console.error("Video playback error:", error);
-            }}
-          />
-        </div>
+        <CourseVideoPlayer
+          poster={thumbnailSrc}
+          playbackUrl={playbackUrl}
+          isLoading={!isOfflineVideo && shouldLoadVideo && !signedUrl}
+          onPlayRequest={() => setShouldLoadVideo(true)}
+          initialTimeSec={initialTimeSec}
+          onSaveProgress={handleSaveProgress}
+          onError={(error) => {
+            console.error("Video playback error:", error);
+          }}
+          videoClassName={styles.videoIframe}
+          wrapperClassName={`${styles.videoWrapper} ${videoInfo?.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
+        />
       </div>
     );
   }
