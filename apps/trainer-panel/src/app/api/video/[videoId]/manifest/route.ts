@@ -51,8 +51,6 @@ export async function GET(
       select: {
         hlsManifestPath: true,
         transcodingStatus: true,
-        relativePath: true,
-        trainerId: true,
       },
     });
 

@@ -27,6 +27,7 @@
     "lint": "turbo run lint",
     "lint:all": "pnpm -r run lint",
     "lint:fix": "eslint --cache --fix \"{apps,packages}/**/*.{js,ts,tsx}\"",
+    "migrate:video-cuid": "tsx scripts/migrate-video-paths-to-cuid.ts",
     "optimize:all": "pnpm analyze:web",
     "setup:env": "node scripts/setup-env.js",
     "start": "node scripts/start-all.js",

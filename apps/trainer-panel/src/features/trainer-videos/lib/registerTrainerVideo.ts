@@ -3,6 +3,7 @@ import { prisma } from "@gafus/prisma";
 import type { TrainerVideoDto } from "@gafus/types";
 
 interface RegisterTrainerVideoInput {
+  id?: string;
   trainerId: string;
   relativePath: string;
   originalName: string;
@@ -14,10 +15,11 @@ interface RegisterTrainerVideoInput {
 export async function registerTrainerVideo(
   input: RegisterTrainerVideoInput,
 ): Promise<TrainerVideoDto> {
-  const { durationSec = null, ...rest } = input;
+  const { id, durationSec = null, ...rest } = input;
 
   return prisma.trainerVideo.create({
     data: {
+      ...(id ? { id } : {}),
       ...rest,
       durationSec,
     },

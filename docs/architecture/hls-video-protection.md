@@ -30,9 +30,9 @@
 ```
 Тренер загружает MP4
         ↓
-uploadTrainerVideoAction (генерирует videoId)
+uploadTrainerVideoAction (генерирует id = CUID, создаёт запись с этим id)
         ↓
-Загрузка в Object Storage: trainers/{trainerId}/videocourses/{videoId}/original.mp4
+Загрузка в Object Storage: trainers/{trainerId}/videocourses/{id}/original.mp4
         ↓
 Задача добавляется в очередь video-transcoding
         ↓
@@ -81,6 +81,8 @@ uploads/trainers/{trainerId}/videocourses/{videoId}/
       ├── playlist.m3u8 (манифест)
       └── segment-000.ts, segment-001.ts, ... (~30-40 файлов)
 ```
+
+**Идентификатор пути:** В путях CDN всегда используется `TrainerVideo.id` (CUID). Оригинал при загрузке кладётся в `videocourses/{id}/original.{ext}`; после транскодирования HLS — в `videocourses/{id}/hls/`. Проверка доступа к видео (IDOR) выполняется только по `videoId` (см. checkVideoAccess в @gafus/core).
 
 **Преимущества:**
 

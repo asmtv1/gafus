@@ -1,7 +1,7 @@
 "use server";
 
+import { extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
 import { prisma } from "@gafus/prisma";
-import { getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
 import type { TranscodingStatus } from "@gafus/prisma";
 
 export interface VideoMetadata {
@@ -12,9 +12,8 @@ export interface VideoMetadata {
 }
 
 /**
- * Получает метаданные видео по videoUrl
- * - Для CDN видео: ищет TrainerVideo и возвращает thumbnailPath, videoId, transcodingStatus
- * - Для внешних видео (YouTube, VK): возвращает isExternal: true
+ * Получает метаданные видео по videoUrl.
+ * Для CDN: извлекает videoId из пути (videocourses/{videoId}/...) и ищет по id.
  */
 export async function getVideoMetadata(
   videoUrl: string | null | undefined,
@@ -28,7 +27,6 @@ export async function getVideoMetadata(
     };
   }
 
-  // Внешние видео (YouTube, VK, RuTube) - возвращаем как есть
   const externalPatterns = [
     /youtube\.com/,
     /youtu\.be/,
@@ -47,76 +45,57 @@ export async function getVideoMetadata(
     };
   }
 
-  // Проверяем, является ли это CDN видео
   const isCDNVideo =
     videoUrl.includes("gafus-media.storage.yandexcloud.net") ||
     videoUrl.includes("storage.yandexcloud.net/gafus-media");
 
-  const isHLS = videoUrl.endsWith(".m3u8") || videoUrl.includes("/hls/playlist.m3u8");
-
-  // Если это CDN видео, пытаемся найти TrainerVideo
-  if (isCDNVideo) {
-    // Извлекаем относительный путь из CDN URL
-    const relativePath = getRelativePathFromCDNUrl(videoUrl);
-
-    try {
-      // Вариант 1: Ищем по hlsManifestPath (если videoUrl уже указывает на .m3u8)
-      if (isHLS) {
-        const hlsManifestPath = relativePath.startsWith("uploads/")
-          ? relativePath.replace("uploads/", "")
-          : relativePath;
-
-        const videoByHls = await prisma.trainerVideo.findFirst({
-          where: {
-            hlsManifestPath,
-          },
-          select: {
-            id: true,
-            thumbnailPath: true,
-            transcodingStatus: true,
-          },
-        });
-
-        if (videoByHls) {
-          return {
-            thumbnailPath: videoByHls.thumbnailPath,
-            videoId: videoByHls.id,
-            transcodingStatus: videoByHls.transcodingStatus,
-            isExternal: false,
-          };
-        }
-      }
-
-      // Вариант 2: Ищем по relativePath
-      const videoByPath = await prisma.trainerVideo.findFirst({
-        where: {
-          relativePath,
-        },
-        select: {
-          id: true,
-          thumbnailPath: true,
-          transcodingStatus: true,
-        },
-      });
-
-      if (videoByPath) {
-        return {
-          thumbnailPath: videoByPath.thumbnailPath,
-          videoId: videoByPath.id,
-          transcodingStatus: videoByPath.transcodingStatus,
-          isExternal: false,
-        };
-      }
-    } catch (error) {
-      console.error("[getVideoMetadata] Ошибка при поиске видео:", error);
-    }
+  if (!isCDNVideo) {
+    return {
+      thumbnailPath: null,
+      videoId: null,
+      transcodingStatus: null,
+      isExternal: false,
+    };
   }
 
-  // Видео не найдено или не CDN
-  return {
-    thumbnailPath: null,
-    videoId: null,
-    transcodingStatus: null,
-    isExternal: false,
-  };
+  const videoId = extractVideoIdFromCdnUrl(videoUrl);
+  if (!videoId) {
+    return {
+      thumbnailPath: null,
+      videoId: null,
+      transcodingStatus: null,
+      isExternal: false,
+    };
+  }
+
+  try {
+    const video = await prisma.trainerVideo.findUnique({
+      where: { id: videoId },
+      select: { id: true, thumbnailPath: true, transcodingStatus: true },
+    });
+
+    if (!video) {
+      return {
+        thumbnailPath: null,
+        videoId: null,
+        transcodingStatus: null,
+        isExternal: false,
+      };
+    }
+
+    return {
+      thumbnailPath: video.thumbnailPath,
+      videoId: video.id,
+      transcodingStatus: video.transcodingStatus,
+      isExternal: false,
+    };
+  } catch (error) {
+    console.error("[getVideoMetadata] Ошибка при поиске видео:", error);
+    return {
+      thumbnailPath: null,
+      videoId: null,
+      transcodingStatus: null,
+      isExternal: false,
+    };
+  }
 }

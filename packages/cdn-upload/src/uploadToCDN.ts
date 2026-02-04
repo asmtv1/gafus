@@ -1,10 +1,11 @@
 import {
-  S3Client,
-  PutObjectCommand,
+  CopyObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   ListObjectsV2Command,
-  DeleteObjectsCommand,
+  PutObjectCommand,
+  S3Client,
 } from "@aws-sdk/client-s3";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { Readable } from "stream";
@@ -229,6 +230,47 @@ export async function streamFileFromCDN(
     logger.error(`❌ Ошибка создания стрима из CDN: ${error}`);
     throw error;
   }
+}
+
+/**
+ * Нормализует относительный путь к ключу S3 (с префиксом uploads/)
+ */
+function toS3Key(relativePath: string): string {
+  let key = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+  if (!key.startsWith("uploads/")) {
+    key = `uploads/${key}`;
+  }
+  return key;
+}
+
+/**
+ * Копирует один объект в том же бакете (для миграции путей).
+ * @param sourceRelativePath - Относительный путь к источнику (с или без uploads/)
+ * @param destRelativePath - Относительный путь к назначению (с или без uploads/)
+ */
+export async function copyObjectInCDN(
+  sourceRelativePath: string,
+  destRelativePath: string,
+): Promise<void> {
+  checkCredentials();
+
+  const bucketName = "gafus-media";
+  const sourceKey = toS3Key(sourceRelativePath);
+  const destKey = toS3Key(destRelativePath);
+
+  logger.info(`📋 Копируем объект в CDN: ${sourceKey} → ${destKey}`);
+
+  const copySource = encodeURI(`${bucketName}/${sourceKey}`);
+
+  const command = new CopyObjectCommand({
+    Bucket: bucketName,
+    CopySource: copySource,
+    Key: destKey,
+  });
+
+  await s3Client.send(command);
+
+  logger.info(`✅ Объект скопирован в CDN: ${destKey}`);
 }
 
 /**

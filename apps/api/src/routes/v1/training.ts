@@ -10,7 +10,7 @@ import { getTrainingDays, getTrainingDayWithUserSteps } from "@gafus/core/servic
 import { createWebLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import type { TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
-import { getRelativePathFromCDNUrl, downloadFileFromCDN } from "@gafus/cdn-upload";
+import { downloadFileFromCDN, extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
 import { getVideoAccessService } from "@gafus/video-access";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 
@@ -583,248 +583,90 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
       videoUrl.includes("storage.yandexcloud.net/gafus-media");
 
     if (isCDNVideo) {
-      logger.info("[training/video/url] CDN видео, ищем в БД", { videoUrl });
-
-      // Если уже HLS манифест - ищем по hlsManifestPath
-      const isHLS = videoUrl.endsWith(".m3u8") || videoUrl.includes("/hls/playlist.m3u8");
-
-      let relativePath: string;
-      try {
-        relativePath = getRelativePathFromCDNUrl(videoUrl);
-        logger.info("[training/video/url] Извлеченный relativePath", { relativePath, isHLS });
-      } catch (error) {
-        logger.error("[training/video/url] Ошибка извлечения relativePath", error as Error, {
+      const videoId = extractVideoIdFromCdnUrl(videoUrl);
+      if (!videoId) {
+        logger.warn("[training/video/url] Не удалось извлечь videoId из CDN URL", {
           videoUrl: videoUrl.substring(0, 100),
         });
         return c.json(
-          {
-            success: false,
-            error: "Ошибка обработки URL видео",
-            code: "INVALID_URL",
-          },
+          { success: false, error: "Некорректный URL видео", code: "INVALID_URL" },
           400,
         );
       }
 
-      // Ищем по relativePath (как в web версии)
-      // Вариант 1: Ищем по hlsManifestPath (если videoUrl уже указывает на .m3u8)
-      let videoByPath = null;
-
+      let video;
       try {
-        if (isHLS) {
-          const hlsManifestPath = relativePath.startsWith("uploads/")
-            ? relativePath.replace("uploads/", "")
-            : relativePath;
-
-          logger.info("[training/video/url] Поиск по hlsManifestPath", { hlsManifestPath });
-
-          videoByPath = await prisma.trainerVideo.findFirst({
-            where: {
-              hlsManifestPath,
-              transcodingStatus: "COMPLETED",
-            },
-            select: {
-              id: true,
-              transcodingStatus: true,
-              hlsManifestPath: true,
-            },
-          });
-
-          if (videoByPath) {
-            logger.info("[training/video/url] Видео найдено по hlsManifestPath", {
-              videoId: videoByPath.id,
-              hlsManifestPath,
-            });
-          }
-        }
-
-        // Вариант 2: Ищем по relativePath (videoUrl в Step может указывать на старый путь)
-        // После транскодирования файлы удалены, но relativePath остался
-        if (!videoByPath) {
-          logger.info("[training/video/url] Поиск по relativePath", { relativePath });
-
-          videoByPath = await prisma.trainerVideo.findFirst({
-            where: {
-              relativePath,
-            },
-            select: {
-              id: true,
-              transcodingStatus: true,
-              hlsManifestPath: true,
-            },
-          });
-
-          if (videoByPath) {
-            logger.info("[training/video/url] Видео найдено по relativePath", {
-              videoId: videoByPath.id,
-              relativePath,
-            });
-          }
-        }
-      } catch (error) {
-        logger.error("[training/video/url] Ошибка поиска видео в БД", error as Error, {
-          relativePath,
-          isHLS,
-          errorMessage: error instanceof Error ? error.message : String(error),
-          errorStack: error instanceof Error ? error.stack : undefined,
+        video = await prisma.trainerVideo.findUnique({
+          where: { id: videoId },
+          select: { id: true, transcodingStatus: true, hlsManifestPath: true },
         });
+      } catch (error) {
+        logger.error("[training/video/url] Ошибка поиска видео в БД", error as Error, { videoId });
         return c.json(
-          {
-            success: false,
-            error: "Ошибка поиска видео в базе данных",
-            code: "DATABASE_ERROR",
-          },
+          { success: false, error: "Ошибка поиска видео в базе данных", code: "DATABASE_ERROR" },
           500,
         );
       }
 
-      logger.info("[training/video/url] Результат поиска в БД", {
-        found: !!videoByPath,
-        videoId: videoByPath?.id,
-        transcodingStatus: videoByPath?.transcodingStatus,
-        hasHlsManifest: !!videoByPath?.hlsManifestPath,
-      });
+      if (!video || video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
+        logger.warn("[training/video/url] Видео не найдено или ещё обрабатывается", {
+          videoId,
+          transcodingStatus: video?.transcodingStatus,
+        });
+        return c.json(
+          { success: false, error: "Видео не найдено или ещё обрабатывается", code: "NOT_FOUND" },
+          404,
+        );
+      }
 
-      if (
-        videoByPath &&
-        videoByPath.transcodingStatus === "COMPLETED" &&
-        videoByPath.hlsManifestPath
-      ) {
-        try {
-          logger.info("[training/video/url] Генерация signed URL", {
-            videoId: videoByPath.id,
-            userId: user.id,
-            hasHlsManifest: !!videoByPath.hlsManifestPath,
-          });
-
-          // Генерируем signed URL
-          let videoAccessService;
-          try {
-            // Проверяем наличие VIDEO_ACCESS_SECRET перед вызовом
-            // В production это обязательно, но проверяем всегда для ясности
-            if (!process.env.VIDEO_ACCESS_SECRET) {
-              const isProduction = process.env.NODE_ENV === "production";
-              logger.warn("[training/video/url] VIDEO_ACCESS_SECRET не установлен!", {
-                nodeEnv: process.env.NODE_ENV,
-                isProduction,
-              });
-              return c.json(
-                {
-                  success: false,
-                  error: isProduction
-                    ? "VIDEO_ACCESS_SECRET не установлен в переменных окружения (обязательно в production)"
-                    : "VIDEO_ACCESS_SECRET не установлен в переменных окружения",
-                  code: "SERVICE_NOT_CONFIGURED",
-                },
-                500,
-              );
-            }
-
-            videoAccessService = getVideoAccessService();
-            logger.info("[training/video/url] VideoAccessService получен", {
-              hasSecret: !!process.env.VIDEO_ACCESS_SECRET,
-              secretLength: process.env.VIDEO_ACCESS_SECRET?.length || 0,
-            });
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.error(
-              "[training/video/url] Ошибка получения VideoAccessService",
-              error as Error,
-              {
-                errorMessage,
-                errorStack: error instanceof Error ? error.stack : undefined,
-                hasSecret: !!process.env.VIDEO_ACCESS_SECRET,
-                nodeEnv: process.env.NODE_ENV,
-                isProduction: process.env.NODE_ENV === "production",
-              },
-            );
-
-            // Если это ошибка отсутствия VIDEO_ACCESS_SECRET, возвращаем понятное сообщение
-            if (errorMessage.includes("VIDEO_ACCESS_SECRET") || !process.env.VIDEO_ACCESS_SECRET) {
-              return c.json(
-                {
-                  success: false,
-                  error: "VIDEO_ACCESS_SECRET не установлен в переменных окружения",
-                  code: "SERVICE_NOT_CONFIGURED",
-                },
-                500,
-              );
-            }
-
-            return c.json(
-              {
-                success: false,
-                error: errorMessage || "Ошибка инициализации сервиса доступа к видео",
-                code: "SERVICE_INIT_ERROR",
-              },
-              500,
-            );
-          }
-
-          let token: string;
-          try {
-            token = videoAccessService.generateToken({
-              videoId: videoByPath.id,
-              userId: user.id,
-              ttlMinutes: 120,
-            });
-            logger.info("[training/video/url] Токен сгенерирован", { tokenLength: token.length });
-          } catch (error) {
-            logger.error("[training/video/url] Ошибка генерации токена", error as Error, {
-              videoId: videoByPath.id,
-              userId: user.id,
-            });
-            return c.json(
-              {
-                success: false,
-                error: "Ошибка генерации токена доступа",
-                code: "TOKEN_GENERATION_ERROR",
-              },
-              500,
-            );
-          }
-
-          // Возвращаем URL на API endpoint для манифеста (для мобильного приложения)
-          // API endpoint поддерживает JWT аутентификацию, в отличие от web endpoint
-          const apiUrl =
-            process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
-          const signedUrl = `${apiUrl}/api/v1/training/video/${videoByPath.id}/manifest?token=${token}`;
-          logger.info("[training/video/url] Сгенерирован signed URL", {
-            signedUrl,
-            videoId: videoByPath.id,
-            apiUrl,
-            tokenLength: token.length,
-          });
-          return c.json({ success: true, data: { url: signedUrl } });
-        } catch (error) {
-          logger.error("[training/video/url] Ошибка генерации signed URL", error as Error, {
-            videoId: videoByPath.id,
-            userId: user.id,
-            errorMessage: error instanceof Error ? error.message : String(error),
-            errorStack: error instanceof Error ? error.stack : undefined,
-            errorName: error instanceof Error ? error.name : undefined,
+      try {
+        if (!process.env.VIDEO_ACCESS_SECRET) {
+          const isProduction = process.env.NODE_ENV === "production";
+          logger.warn("[training/video/url] VIDEO_ACCESS_SECRET не установлен!", {
+            nodeEnv: process.env.NODE_ENV,
+            isProduction,
           });
           return c.json(
             {
               success: false,
-              error: error instanceof Error ? error.message : "Ошибка генерации signed URL",
-              code: "TOKEN_GENERATION_ERROR",
+              error: isProduction
+                ? "VIDEO_ACCESS_SECRET не установлен в переменных окружения (обязательно в production)"
+                : "VIDEO_ACCESS_SECRET не установлен в переменных окружения",
+              code: "SERVICE_NOT_CONFIGURED",
             },
             500,
           );
         }
-      }
 
-      logger.warn("[training/video/url] Видео не найдено или ещё обрабатывается", {
-        videoUrl,
-        relativePath,
-        found: !!videoByPath,
-        transcodingStatus: videoByPath?.transcodingStatus,
-      });
-      return c.json(
-        { success: false, error: "Видео не найдено или ещё обрабатывается", code: "NOT_FOUND" },
-        404,
-      );
+        const videoAccessService = getVideoAccessService();
+        const token = videoAccessService.generateToken({
+          videoId: video.id,
+          userId: user.id,
+          ttlMinutes: 120,
+        });
+
+        const apiUrl =
+          process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
+        const signedUrl = `${apiUrl}/api/v1/training/video/${video.id}/manifest?token=${token}`;
+        logger.info("[training/video/url] Сгенерирован signed URL", {
+          videoId: video.id,
+          apiUrl,
+        });
+        return c.json({ success: true, data: { url: signedUrl } });
+      } catch (error) {
+        logger.error("[training/video/url] Ошибка генерации signed URL", error as Error, {
+          videoId: video.id,
+          userId: user.id,
+        });
+        return c.json(
+          {
+            success: false,
+            error: error instanceof Error ? error.message : "Ошибка генерации signed URL",
+            code: "TOKEN_GENERATION_ERROR",
+          },
+          500,
+        );
+      }
     }
 
     // Для других URL возвращаем как есть

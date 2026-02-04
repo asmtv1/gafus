@@ -52,3 +52,14 @@ export function isCDNUrl(path: string): boolean {
     path.startsWith("https://gafus-media.storage.yandexcloud.net/")
   ); // Поддержка старого формата
 }
+
+/**
+ * Извлекает videoId (TrainerVideo.id) из CDN URL видео.
+ * Путь в CDN: .../videocourses/{videoId}/...
+ * @param cdnUrl - полный CDN URL или относительный путь
+ * @returns videoId или null
+ */
+export function extractVideoIdFromCdnUrl(cdnUrl: string): string | null {
+  const match = cdnUrl.match(/videocourses\/([^/]+)/);
+  return match ? match[1] : null;
+}

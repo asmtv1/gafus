@@ -37,11 +37,21 @@ export async function GET(
     const tokenData = videoAccessService.verifyToken(token);
 
     if (!tokenData) {
+      console.log("[manifest] 403: недействительный или просроченный токен", {
+        videoId,
+        userId: session.user.id,
+      });
       return NextResponse.json({ error: "Недействительный токен" }, { status: 403 });
     }
 
     // Проверяем, что токен для этого видео и этого пользователя
     if (tokenData.videoId !== videoId || tokenData.userId !== session.user.id) {
+      console.log("[manifest] 403: несовпадение токена и сессии", {
+        videoId,
+        sessionUserId: session.user.id,
+        tokenVideoId: tokenData.videoId,
+        tokenUserId: tokenData.userId,
+      });
       return NextResponse.json({ error: "Недостаточно прав доступа" }, { status: 403 });
     }
 
@@ -51,7 +61,6 @@ export async function GET(
       select: {
         hlsManifestPath: true,
         transcodingStatus: true,
-        relativePath: true,
         trainerId: true,
       },
     });
@@ -67,6 +76,11 @@ export async function GET(
     });
 
     if (!hasAccess) {
+      console.log("[manifest] 403: нет доступа к видео (checkVideoAccess)", {
+        videoId,
+        userId: session.user.id,
+        trainerId: video.trainerId,
+      });
       return NextResponse.json(
         { error: "Недостаточно прав для просмотра этого видео" },
         { status: 403 },

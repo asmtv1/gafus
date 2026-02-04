@@ -398,20 +398,46 @@ export function VideoPlayerSection({
     }
 
     // Пользователь кликнул или это офлайн видео - показываем плеер
-    // Показываем loading пока загружается playbackUrl
+    // Пока playbackUrl грузится — оставляем обложку (без спиннера), чтобы не было переключения экранов
     if (!playbackUrl) {
       return (
         <div className={styles.videoContainer}>
           <div
-            className={styles.videoWrapper}
+            className={`${styles.videoWrapper} ${videoInfo?.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: "200px",
+              position: "relative",
+              backgroundColor: "#000",
             }}
           >
-            <CircularProgress />
+            {thumbnailSrc && (
+              <img
+                src={thumbnailSrc}
+                alt="Превью видео"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                }}
+              />
+            )}
+            <Box
+              sx={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                backgroundColor: "rgba(0, 0, 0, 0.7)",
+                borderRadius: "50%",
+                width: { xs: "60px", sm: "80px" },
+                height: { xs: "60px", sm: "80px" },
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CircularProgress size={32} sx={{ color: "#fff" }} />
+            </Box>
           </div>
         </div>
       );

@@ -1,6 +1,6 @@
 "use server";
 
-import { randomUUID } from "crypto";
+import { createId } from "@paralleldrive/cuid2";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 
@@ -61,17 +61,15 @@ export async function uploadTrainerVideoAction(
   }
 
   const trainerId = session.user.id;
+  const id = createId();
 
-  // Генерируем videoId заранее для структурированного пути
-  const videoId = randomUUID();
-
-  // Новая структура: trainers/{trainerId}/videocourses/{videoId}/original.{extension}
-  const objectKey = `trainers/${trainerId}/videocourses/${videoId}/original.${extension}`;
+  // Путь с CUID (TrainerVideo.id) — один идентификатор в CDN и БД
+  const objectKey = `trainers/${trainerId}/videocourses/${id}/original.${extension}`;
 
   try {
     logger.info("Начало загрузки видео в CDN", {
       trainerId,
-      videoId,
+      videoId: id,
       fileName: file.name,
       mimeType,
       fileSize: file.size,
@@ -81,6 +79,7 @@ export async function uploadTrainerVideoAction(
     const storedRelativePath = `uploads/${objectKey}`;
 
     const video = await registerTrainerVideo({
+      id,
       trainerId,
       relativePath: storedRelativePath,
       originalName: file.name,
@@ -91,7 +90,7 @@ export async function uploadTrainerVideoAction(
 
     logger.success("Видео успешно загружено", {
       trainerId,
-      videoId: video.id,
+      videoId: id,
       relativePath: storedRelativePath,
     });
 

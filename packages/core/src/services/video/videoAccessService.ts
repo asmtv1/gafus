@@ -17,7 +17,9 @@ export interface CheckVideoAccessParams {
  *
  * Пользователь имеет доступ если:
  * 1. Он является владельцем видео (trainerId === userId)
- * 2. Он имеет активный CourseAccess к курсу, содержащему это видео
+ * 2. Видео входит в курс, к которому у пользователя есть доступ:
+ *    - публичный бесплатный курс (isPrivate=false, isPaid=false) — доступ всем;
+ *    - платный/приватный — нужна запись CourseAccess (или оплата).
  *
  * @param params - userId и videoId
  * @returns true если доступ разрешен, false если запрещен
@@ -26,13 +28,9 @@ export async function checkVideoAccess(params: CheckVideoAccessParams): Promise<
   const { userId, videoId } = params;
 
   try {
-    // Получаем информацию о видео
     const video = await prisma.trainerVideo.findUnique({
       where: { id: videoId },
-      select: {
-        id: true,
-        trainerId: true,
-      },
+      select: { id: true, trainerId: true },
     });
 
     if (!video) {
@@ -40,27 +38,21 @@ export async function checkVideoAccess(params: CheckVideoAccessParams): Promise<
       return false;
     }
 
-    // Проверка 1: Пользователь = владелец видео
     if (video.trainerId === userId) {
       logger.info("Video access granted: user is owner", { userId, videoId });
       return true;
     }
 
-    // Проверка 2: Пользователь имеет CourseAccess к курсу с этим видео
-    const courseAccess = await prisma.courseAccess.findFirst({
+    // Шаги хранят videoUrl с CUID в пути — проверяем вхождение videoId
+    const coursesWithVideo = await prisma.course.findMany({
       where: {
-        userId,
-        course: {
-          dayLinks: {
-            some: {
-              day: {
-                stepLinks: {
-                  some: {
-                    step: {
-                      videoUrl: {
-                        contains: videoId,
-                      },
-                    },
+        dayLinks: {
+          some: {
+            day: {
+              stepLinks: {
+                some: {
+                  step: {
+                    videoUrl: { contains: videoId },
                   },
                 },
               },
@@ -68,19 +60,36 @@ export async function checkVideoAccess(params: CheckVideoAccessParams): Promise<
           },
         },
       },
+      select: {
+        id: true,
+        isPrivate: true,
+        isPaid: true,
+        access: { where: { userId }, select: { userId: true } },
+      },
     });
 
-    if (courseAccess) {
-      logger.info("Video access granted: user has course access", { userId, videoId });
-      return true;
+    for (const course of coursesWithVideo) {
+      const isPublicFree = !course.isPrivate && !course.isPaid;
+      const hasExplicitAccess = course.access.length > 0;
+      if (isPublicFree || hasExplicitAccess) {
+        logger.info("Video access granted: course access", {
+          userId,
+          videoId,
+          courseId: course.id,
+          isPublicFree,
+        });
+        return true;
+      }
     }
 
-    // Доступ запрещен
-    logger.warn("Video access denied: no permissions", { userId, videoId, trainerId: video.trainerId });
+    logger.warn("Video access denied: no permissions", {
+      userId,
+      videoId,
+      trainerId: video.trainerId,
+    });
     return false;
   } catch (error) {
     logger.error("Video access check error", error as Error, { userId, videoId });
-    // Fail-secure: при ошибке запрещаем доступ
     return false;
   }
 }

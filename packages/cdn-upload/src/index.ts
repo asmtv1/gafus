@@ -1,13 +1,19 @@
 export type { StreamFileFromCDNResult } from "./uploadToCDN";
 export {
-  uploadFileToCDN,
+  copyObjectInCDN,
   deleteFileFromCDN,
+  deleteFolderFromCDN,
   downloadFileFromCDN,
   streamFileFromCDN,
-  deleteFolderFromCDN,
   uploadBufferToCDN,
+  uploadFileToCDN,
 } from "./uploadToCDN";
-export { getCDNUrl, isCDNUrl, getRelativePathFromCDNUrl } from "./utils";
+export {
+  extractVideoIdFromCdnUrl,
+  getCDNUrl,
+  getRelativePathFromCDNUrl,
+  isCDNUrl,
+} from "./utils";
 export {
   getUserAvatarPath,
   getPetPhotoPath,
