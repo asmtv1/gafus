@@ -41,6 +41,9 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
 
   useEffect(() => {
     if (!videoUrl) {
+      if (__DEV__) {
+        console.log("[useVideoUrl] videoUrl пустой, сбрасываем состояние");
+      }
       setUrl(null);
       setIsLoading(false);
       setError(null);
@@ -48,7 +51,17 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
     }
 
     const isCDNVideo = isCdnUrl(videoUrl);
+    if (__DEV__) {
+      console.log("[useVideoUrl] Проверка URL:", {
+        videoUrl: videoUrl.slice(0, 80),
+        isCDNVideo,
+      });
+    }
+
     if (!isCDNVideo) {
+      if (__DEV__) {
+        console.log("[useVideoUrl] Внешнее видео, используем напрямую");
+      }
       setUrl(videoUrl);
       setIsLoading(false);
       setError(null);
@@ -59,10 +72,25 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
     setIsLoading(true);
     setError(null);
 
+    if (__DEV__) {
+      console.log("[useVideoUrl] Запрос signed URL для CDN видео:", urlForRequest.slice(0, 80));
+    }
+
     trainingApi
       .getVideoUrl(urlForRequest)
       .then((response) => {
         if (!mountedRef.current) return;
+        
+        if (__DEV__) {
+          console.log("[useVideoUrl] Ответ от API:", {
+            success: response.success,
+            hasUrl: !!response.data?.url,
+            url: response.data?.url?.slice(0, 80),
+            error: response.error,
+            code: response.code,
+          });
+        }
+
         if (response.success && response.data?.url) {
           setUrl(response.data.url);
           setError(null);
@@ -70,14 +98,22 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
           setUrl(null);
           setError(null);
         } else {
-          setError(response.error || "Не удалось получить URL видео");
+          const errorMsg = response.error || "Не удалось получить URL видео";
+          if (__DEV__) {
+            console.error("[useVideoUrl] Ошибка получения URL:", errorMsg);
+          }
+          setError(errorMsg);
           setUrl(null);
         }
       })
       .catch((err) => {
         if (!mountedRef.current) return;
+        const errorMsg = err instanceof Error ? err.message : "Ошибка загрузки видео";
+        if (__DEV__) {
+          console.error("[useVideoUrl] Ошибка запроса:", errorMsg, err);
+        }
         setUrl(null);
-        setError(err instanceof Error ? err.message : "Ошибка загрузки видео");
+        setError(errorMsg);
       })
       .finally(() => {
         if (mountedRef.current) {

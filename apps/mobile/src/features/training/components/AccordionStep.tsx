@@ -2,7 +2,7 @@ import { View, StyleSheet, Pressable, ScrollView } from "react-native";
 import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-native-reanimated";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 
 import { Button, MarkdownText, VideoPlayer } from "@/shared/components";
 import type { UserStep } from "@/shared/lib/api";
@@ -36,7 +36,7 @@ interface AccordionStepProps {
 /**
  * Компонент аккордеона для шага тренировки
  */
-export function AccordionStep({
+function AccordionStepComponent({
   step,
   index,
   stepNumber,
@@ -92,6 +92,7 @@ export function AccordionStep({
 
   // Получаем videoUrl для хука (должен быть на верхнем уровне)
   const videoUrl = stepData?.videoUrl || step?.videoUrl;
+  const [videoRetryKey, setVideoRetryKey] = useState(0);
 
   if (__DEV__) {
     console.log("[AccordionStep] Video URL:", {
@@ -103,12 +104,15 @@ export function AccordionStep({
     });
   }
 
+  // Запрашиваем signed URL только для открытого шага — иначе 4 параллельных запроса и каскад перерендеров ломают загрузку
   const {
     url: playbackUrl,
     isLoading: isLoadingVideo,
     error: videoError,
   } = useVideoUrl(
-    videoUrl && typeof videoUrl === "string" && videoUrl.trim() !== "" ? videoUrl : null,
+    isOpen && videoUrl && typeof videoUrl === "string" && videoUrl.trim() !== ""
+      ? videoUrl
+      : null,
   );
 
   if (__DEV__ && videoUrl) {
@@ -434,28 +438,26 @@ export function AccordionStep({
                 );
               })()}
 
-              {/* Видео (после описания) */}
+              {/* Видео (после описания) — без IIFE для стабильности */}
               {!isBreak &&
                 videoUrl &&
                 typeof videoUrl === "string" &&
-                videoUrl.trim() !== "" &&
-                (() => {
-                  if (isLoadingVideo) {
-                    return (
-                      <View style={styles.videoContainer}>
-                        <View style={styles.videoLoadingContainer}>
-                          <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
-                        </View>
+                videoUrl.trim() !== "" && (
+                  <View style={styles.videoContainer}>
+                    {isLoadingVideo ? (
+                      <View style={styles.videoLoadingContainer}>
+                        <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
                       </View>
-                    );
-                  }
-                  if (videoError || !playbackUrl) return null;
-                  return (
-                    <View style={styles.videoContainer}>
-                      <VideoPlayer uri={playbackUrl} onComplete={onComplete} />
-                    </View>
-                  );
-                })()}
+                    ) : videoError || !playbackUrl ? null : (
+                      <VideoPlayer
+                        key={`${playbackUrl}-${videoRetryKey}`}
+                        uri={playbackUrl}
+                        onComplete={onComplete}
+                        onRetry={() => setVideoRetryKey((k) => k + 1)}
+                      />
+                    )}
+                  </View>
+                )}
 
               {/* Таймер для тренировочных шагов и перерывов (как в web) */}
               {showTimer &&
@@ -880,4 +882,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
   },
+});
+
+// Мемоизация: перерендериваем только если изменились критичные пропсы
+export const AccordionStep = memo(AccordionStepComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.step.id === nextProps.step.id &&
+    prevProps.index === nextProps.index &&
+    prevProps.isOpen === nextProps.isOpen &&
+    prevProps.stepNumber === nextProps.stepNumber &&
+    prevProps.localState?.status === nextProps.localState?.status &&
+    prevProps.localState?.timeLeft === nextProps.localState?.timeLeft &&
+    prevProps.localState?.remainingSec === nextProps.localState?.remainingSec
+  );
 });

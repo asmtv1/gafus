@@ -1,17 +1,81 @@
 .filtersContainer {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
+  width: 100%;
+  max-width: 600px;
+  margin: 10px auto 20px;
   padding: 0 20px;
-  margin: 20px 0;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Чипы выбранных фильтров — в стиле кнопок Сортировка/Фильтры */
+.activeFiltersChips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 10px;
+  min-width: 0;
+}
+
+.activeFilterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 10px 10px 10px 16px;
+  background: var(--bg-2);
+  border: 2px solid var(--bg-3);
+  border-radius: 12px;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.activeFilterChipLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.activeFilterChipRemove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.activeFilterChipRemove:hover {
+  background: var(--bg-3);
+  color: var(--text-primary);
 }
 
 .controlsRow {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: 260px;
-  margin-bottom: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .sortButton,
@@ -277,6 +341,23 @@
     gap: 8px;
   }
 
+  .activeFiltersChips {
+    gap: 8px;
+  }
+
+  .activeFilterChip {
+    padding: 8px 8px 8px 14px;
+    font-size: 13px;
+  }
+
+  .activeFilterChipRemove {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    font-size: 1.05rem;
+  }
+
   .filterButton {
     padding: 8px 12px;
     font-size: 13px;
@@ -307,6 +388,13 @@
   .option {
     padding: 10px 14px;
     font-size: 13px;
+  }
+}
+
+/* 600px–768px: компактное выравнивание, как на остальных разрешениях */
+@media (min-width: 600px) and (max-width: 768px) {
+  .activeFiltersChips {
+    justify-content: flex-start;
   }
 }
 
@@ -357,5 +445,22 @@
     left: 50%;
     transform: translateX(-50%);
     min-width: 280px;
+  }
+
+  .activeFiltersChips {
+    gap: 8px;
+  }
+
+  .activeFilterChip {
+    padding: 8px 8px 8px 12px;
+    font-size: 13px;
+  }
+
+  .activeFilterChipRemove {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    font-size: 1.05rem;
   }
 }

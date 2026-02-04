@@ -9,6 +9,7 @@ import { zValidator } from "@hono/zod-validator";
 import { getTrainingDays, getTrainingDayWithUserSteps } from "@gafus/core/services/training";
 import { createWebLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
+import type { TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
 import { getRelativePathFromCDNUrl, downloadFileFromCDN } from "@gafus/cdn-upload";
 import { getVideoAccessService } from "@gafus/video-access";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
@@ -161,7 +162,7 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
 
         await tx.userTraining.update({
           where: { id: userTraining.id },
-          data: { status: dayStatus, currentStepIndex: nextIndex },
+          data: { status: dayStatus as PrismaTrainingStatus, currentStepIndex: nextIndex },
         });
       },
       { timeout: 10000 },
@@ -368,7 +369,7 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
 
         await tx.userTraining.update({
           where: { id: userTraining.id },
-          data: { status: dayStatus, currentStepIndex: nextIndex },
+          data: { status: dayStatus as PrismaTrainingStatus, currentStepIndex: nextIndex },
         });
       },
       { timeout: 10000 },
@@ -465,7 +466,7 @@ trainingRoutes.post(
           await tx.userTraining.update({
             where: { id: userTraining.id },
             data: {
-              status: dayStatus,
+              status: dayStatus as PrismaTrainingStatus,
               currentStepIndex: nextIndex,
             },
           });
@@ -937,16 +938,20 @@ trainingRoutes.get("/video/:videoId/manifest", async (c) => {
     const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
 
     // Парсим манифест и добавляем токены к URL сегментов
+    const segmentBaseUrl = `${apiUrl}/api/v1/training/video/${videoId}/segment`;
     const lines = manifestContent.split("\n");
     const modifiedLines = lines.map((line) => {
-      // Если строка - это URL сегмента (не начинается с # и не пустая)
+      // Строки с URI= (EXT-X-MAP, EXT-X-KEY и т.д.) — перезаписываем путь на прокси
+      const uriMatch = line.match(/URI="([^"]+)"/);
+      if (uriMatch) {
+        const segmentPath = uriMatch[1].trim();
+        const segmentUrl = `${segmentBaseUrl}?path=${encodeURIComponent(segmentPath)}&token=${token}`;
+        return line.replace(uriMatch[0], `URI="${segmentUrl}"`);
+      }
+      // Обычная строка сегмента (не комментарий)
       if (line.trim() && !line.startsWith("#")) {
-        // Генерируем signed URL для сегмента
         const segmentPath = line.trim();
-
-        // Создаём абсолютный URL для прокси-эндпоинта сегмента
-        const segmentUrl = `${apiUrl}/api/v1/training/video/${videoId}/segment?path=${encodeURIComponent(segmentPath)}&token=${token}`;
-
+        const segmentUrl = `${segmentBaseUrl}?path=${encodeURIComponent(segmentPath)}&token=${token}`;
         return segmentUrl;
       }
       return line;

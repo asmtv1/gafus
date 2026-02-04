@@ -47,6 +47,36 @@ const sortingOptions = [
   { id: "progress" as SortingType, label: "По прогрессу", icon: "📊" },
 ];
 
+const tabLabels: Record<CourseTabType, string> = {
+  all: "Все",
+  free: "Бесплатные",
+  paid: "Платные",
+  private: "Приватные",
+};
+
+const levelLabels: Record<TrainingLevelType, string> = {
+  ALL: "Все уровни",
+  BEGINNER: "Начальный",
+  INTERMEDIATE: "Средний",
+  ADVANCED: "Продвинутый",
+  EXPERT: "Экспертный",
+};
+
+const progressLabels: Record<ProgressFilterType, string> = {
+  ALL: "Все курсы",
+  NOT_STARTED: "Не начатые",
+  IN_PROGRESS: "В процессе",
+  COMPLETED: "Завершённые",
+  PAUSED: "На паузе",
+};
+
+const ratingLabels: Record<RatingFilterType, string> = {
+  ALL: "Все курсы",
+  "4+": "4+ звезды",
+  "3+": "3+ звезды",
+  ANY: "С рейтингом",
+};
+
 function Dropdown({
   isOpen,
   onClose,
@@ -130,6 +160,37 @@ export default function CourseFilters({
     // Вызываем дополнительный коллбек если передан
     onResetFilters?.();
   };
+
+  // Список активных фильтров (не «все») для отображения чипами
+  const activeFiltersList: { id: string; label: string; onClear: () => void }[] = [];
+  if (activeTab !== "all") {
+    activeFiltersList.push({
+      id: "tab",
+      label: tabLabels[activeTab],
+      onClear: () => onTabChange("all"),
+    });
+  }
+  if (activeLevel !== "ALL") {
+    activeFiltersList.push({
+      id: "level",
+      label: levelLabels[activeLevel],
+      onClear: () => onLevelChange("ALL"),
+    });
+  }
+  if (activeProgress !== "ALL") {
+    activeFiltersList.push({
+      id: "progress",
+      label: progressLabels[activeProgress],
+      onClear: () => onProgressChange("ALL"),
+    });
+  }
+  if (activeRating !== "ALL") {
+    activeFiltersList.push({
+      id: "rating",
+      label: ratingLabels[activeRating],
+      onClear: () => onRatingChange("ALL"),
+    });
+  }
 
   return (
     <>
@@ -227,6 +288,25 @@ export default function CourseFilters({
             )}
           </button>
         </div>
+
+        {/* Выбранные фильтры — чипы с крестиком для сброса в «все» */}
+        {activeFiltersList.length > 0 && (
+          <div className={styles.activeFiltersChips}>
+            {activeFiltersList.map((item) => (
+              <span key={item.id} className={styles.activeFilterChip}>
+                <span className={styles.activeFilterChipLabel}>{item.label}</span>
+                <button
+                  type="button"
+                  className={styles.activeFilterChipRemove}
+                  onClick={item.onClear}
+                  aria-label={`Сбросить: ${item.label}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Drawer с фильтрами */}

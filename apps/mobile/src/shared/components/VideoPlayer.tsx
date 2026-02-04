@@ -1,6 +1,8 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
-import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
+import { useEvent, useEventListener } from "expo";
+import { useVideoPlayer, VideoView } from "expo-video";
+import type { VideoSource } from "expo-video";
 import { IconButton, ActivityIndicator, Text } from "react-native-paper";
 import { COLORS, SPACING } from "@/constants";
 
@@ -8,227 +10,167 @@ interface VideoPlayerProps {
   uri: string;
   poster?: string;
   onComplete?: () => void;
+  onRetry?: () => void;
   autoPlay?: boolean;
 }
 
-/** HLS/manifest URL без .m3u8 в пути — на Android нужен overrideFileExtensionAndroid */
-function getVideoSource(uri: string): { uri: string; overrideFileExtensionAndroid?: string } {
+/**
+ * Источник для expo-video: HLS manifest без .m3u8 в пути — явно задаём contentType: 'hls'
+ */
+function getVideoSource(uri: string): VideoSource {
   const isHls =
     uri.includes("/manifest") ||
     uri.includes(".m3u8") ||
-    uri.includes("/hls/");
-  return isHls ? { uri, overrideFileExtensionAndroid: "m3u8" } : { uri };
+    uri.includes("/hls/") ||
+    (uri.includes("/video/") && uri.includes("manifest"));
+
+  if (isHls) {
+    return { uri, contentType: "hls" };
+  }
+  return uri;
 }
 
 /**
- * Видео плеер на базе expo-av
- * Поддерживает fullscreen, HLS (manifest), управление воспроизведением
+ * Видео плеер на базе expo-video (HLS через contentType: 'hls')
  */
-export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: VideoPlayerProps) {
-  if (__DEV__) {
-    console.log("[VideoPlayer] Инициализация:", { uri: uri?.slice(0, 60), hasPoster: !!poster, autoPlay });
-  }
-
-  const videoRef = useRef<Video>(null);
-  const source = useMemo(() => getVideoSource(uri), [uri]);
-  const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+export function VideoPlayer({ uri, poster, onComplete, onRetry, autoPlay = false }: VideoPlayerProps) {
+  const videoViewRef = useRef<VideoView>(null);
   const [progressBarWidth, setProgressBarWidth] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [positionSec, setPositionSec] = useState(0);
+  const [durationSec, setDurationSec] = useState(0);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
-  // Явная загрузка через loadAsync: для HLS/manifest expo-av иногда не переходит в isLoaded
-  // при одной только передаче source. downloadAsync: false — обход багов на iOS 16.6+.
-  useEffect(() => {
-    if (!uri?.trim()) return;
-    let cancelled = false;
-    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+  const source = useMemo(() => getVideoSource(uri), [uri]);
 
-    const doLoad = () => {
-      const v = videoRef.current;
-      if (!v) return;
-      v.loadAsync(source, { progressUpdateIntervalMillis: 1000 }, false)
-        .then((nextStatus) => {
-          if (!cancelled) setStatus(nextStatus);
-        })
-        .catch((err: unknown) => {
-          if (cancelled) return;
-          const msg = err instanceof Error ? err.message : String(err);
-          if (msg === "Operation Stopped") {
-            // Прерывание при размонтировании/remount — один повтор после паузы
-            retryTimeout = setTimeout(doLoad, 200);
-            return;
-          }
-          if (__DEV__ && !String(msg).includes("already loaded")) {
-            console.warn("[VideoPlayer] loadAsync:", msg);
-          }
-        });
-    };
+  useEffect(() => setPlaybackError(null), [uri]);
 
-    doLoad();
-    return () => {
-      cancelled = true;
-      if (retryTimeout) clearTimeout(retryTimeout);
-    };
-  }, [uri, source]);
+  const player = useVideoPlayer(source, (p) => {
+    p.timeUpdateEventInterval = 1;
+    if (autoPlay) p.play();
+  });
 
-  const isLoaded = status?.isLoaded;
-  const isPlaying = isLoaded && status.isPlaying;
-  const isBuffering = isLoaded && status.isBuffering;
-  const duration = isLoaded ? status.durationMillis || 0 : 0;
-  const position = isLoaded ? status.positionMillis || 0 : 0;
-  const progress = duration > 0 ? position / duration : 0;
+  const { status } = useEvent(player, "statusChange", { status: player.status });
+  const { isPlaying } = useEvent(player, "playingChange", { isPlaying: player.playing });
 
-  // Форматирование времени
-  const formatTime = (millis: number): string => {
-    const totalSec = Math.floor(millis / 1000);
-    const mins = Math.floor(totalSec / 60);
-    const secs = totalSec % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  // Toggle play/pause
-  const togglePlay = useCallback(async () => {
-    if (!videoRef.current) return;
-
-    if (isPlaying) {
-      await videoRef.current.pauseAsync();
-    } else {
-      await videoRef.current.playAsync();
-    }
-  }, [isPlaying]);
-
-  // Toggle fullscreen используя встроенный API expo-av. Не вызывать до загрузки видео.
-  const toggleFullscreen = useCallback(async () => {
-    if (!videoRef.current) return;
-    if (!isLoaded && !isFullscreen) {
+  useEventListener(player, "statusChange", (payload: { status?: string; error?: { message?: string } }) => {
+    if (payload.status === "error" && payload.error?.message) {
+      setPlaybackError(payload.error.message);
       if (__DEV__) {
-        console.warn("[VideoPlayer] Fullscreen недоступен: видео ещё не загружено");
+        console.warn("[VideoPlayer] Ошибка воспроизведения:", payload.error.message, { uri: uri?.slice(0, 80) });
       }
-      return;
+    } else {
+      setPlaybackError(null);
     }
+  });
 
-    try {
-      if (isFullscreen) {
-        await videoRef.current.dismissFullscreenPlayer();
-      } else {
-        await videoRef.current.presentFullscreenPlayer();
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (__DEV__ && !msg.includes("video is not loaded")) {
-        console.error("[VideoPlayer] Ошибка переключения fullscreen:", error);
-      }
+  useEventListener(player, "playToEnd", () => {
+    onComplete?.();
+  });
+
+  useEventListener(player, "timeUpdate", () => {
+    setPositionSec(player.currentTime);
+    if (player.duration > 0 && durationSec !== player.duration) {
+      setDurationSec(player.duration);
     }
-  }, [isFullscreen, isLoaded]);
+  });
 
-  // Seek forward/backward
-  const seek = useCallback(
-    async (seconds: number) => {
-      if (!videoRef.current || !isLoaded) return;
-      const newPosition = Math.max(0, Math.min(position + seconds * 1000, duration));
-      await videoRef.current.setPositionAsync(newPosition);
-    },
-    [isLoaded, position, duration],
-  );
+  useEventListener(player, "sourceLoad", (e) => {
+    if (e.duration > 0) setDurationSec(e.duration);
+  });
 
-  // Handle playback status update
-  const handlePlaybackStatusUpdate = useCallback(
-    (newStatus: AVPlaybackStatus) => {
-      try {
-        setStatus(newStatus);
+  const isLoaded = status === "readyToPlay";
+  const hasError = status === "error";
+  const isBuffering = status === "loading";
+  const progress = durationSec > 0 ? positionSec / durationSec : 0;
 
-        if (newStatus.isLoaded && newStatus.didJustFinish) {
-          if (__DEV__) {
-            console.log("[VideoPlayer] Видео завершено");
-          }
-          onComplete?.();
-        }
-
-        if (newStatus.isLoaded && newStatus.error) {
-          if (__DEV__) {
-            console.error("[VideoPlayer] Ошибка воспроизведения:", newStatus.error);
-          }
-        }
-      } catch (error) {
-        if (__DEV__) {
-          console.error("[VideoPlayer] Ошибка в handlePlaybackStatusUpdate:", error);
-        }
-      }
-    },
-    [onComplete],
-  );
-
-  // Handle fullscreen update
-  const handleFullscreenUpdate = useCallback((data: { fullscreenUpdate: number }) => {
-    const { fullscreenUpdate } = data;
-
-    if (__DEV__) {
-      console.log("[VideoPlayer] Fullscreen update:", fullscreenUpdate);
-    }
-
-    switch (fullscreenUpdate) {
-      case Video.FULLSCREEN_UPDATE_PLAYER_DID_PRESENT:
-        setIsFullscreen(true);
-        break;
-      case Video.FULLSCREEN_UPDATE_PLAYER_DID_DISMISS:
-        setIsFullscreen(false);
-        break;
-      default:
-        // Игнорируем другие события
-        break;
-    }
+  const formatTime = useCallback((sec: number): string => {
+    const mins = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${mins}:${s.toString().padStart(2, "0")}`;
   }, []);
 
-  // Handle video press - toggle play/pause
-  const handlePressVideo = useCallback(() => {
-    togglePlay();
-  }, [togglePlay]);
+  const togglePlay = useCallback(() => {
+    if (isPlaying) player.pause();
+    else player.play();
+  }, [isPlaying, player]);
 
-  if (__DEV__) {
-    console.log("[VideoPlayer] Рендеринг:", {
-      uri,
-      isLoaded,
-      isPlaying,
-      isBuffering,
-      hasError: status?.isLoaded && status.error,
-    });
-  }
+  const seek = useCallback(
+    (seconds: number) => {
+      if (!isLoaded) return;
+      player.seekBy(seconds);
+    },
+    [isLoaded, player],
+  );
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (isFullscreen) {
+        await videoViewRef.current?.exitFullscreen();
+      } else {
+        await videoViewRef.current?.enterFullscreen();
+      }
+    } catch {
+      // игнорируем ошибки fullscreen
+    }
+  }, [isFullscreen]);
+
+  const handleProgressPress = useCallback(
+    (e: { nativeEvent: { locationX: number } }) => {
+      if (!isLoaded || durationSec <= 0 || progressBarWidth <= 0) return;
+      const newSec = (e.nativeEvent.locationX / progressBarWidth) * durationSec;
+      player.currentTime = Math.max(0, Math.min(newSec, durationSec));
+      setPositionSec(player.currentTime);
+    },
+    [isLoaded, durationSec, progressBarWidth, player],
+  );
+
+  // Синхронизация duration из плеера при смене статуса
+  useEffect(() => {
+    if (status === "readyToPlay" && player.duration > 0) {
+      setDurationSec(player.duration);
+    }
+  }, [status, player.duration]);
 
   return (
     <View style={styles.container}>
-      {/* Video container */}
       <View style={styles.videoContainer}>
-        <Pressable onPress={handlePressVideo} style={styles.videoWrapper}>
-          <Video
-            ref={videoRef}
-            source={undefined}
-            posterSource={poster ? { uri: poster } : undefined}
-            usePoster={!!poster}
-            posterStyle={styles.poster}
-            resizeMode={ResizeMode.CONTAIN}
+        <Pressable onPress={togglePlay} style={styles.videoWrapper}>
+          <VideoView
+            ref={videoViewRef}
+            player={player}
             style={styles.video}
-            shouldPlay={autoPlay}
-            progressUpdateIntervalMillis={1000}
-            onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-            onFullscreenUpdate={handleFullscreenUpdate}
-            onError={(error) => {
-              if (__DEV__) {
-                const msg = typeof error === "string" ? error : (error as Error)?.message ?? "";
-                if (msg !== "Operation Stopped") {
-                  console.error("[VideoPlayer] Ошибка видео:", error);
-                }
-              }
-            }}
+            contentFit="contain"
+            nativeControls={false}
+            fullscreenOptions={{ enable: true }}
+            onFullscreenEnter={() => setIsFullscreen(true)}
+            onFullscreenExit={() => setIsFullscreen(false)}
           />
-
-          {/* Buffering indicator */}
-          {isBuffering && (
+          {hasError && (
+            <View style={styles.errorOverlay}>
+              <Text style={styles.errorText}>
+                Ошибка загрузки видео
+                {playbackError ? `\n${playbackError}` : ""}
+              </Text>
+              {onRetry && (
+                <View style={styles.retryRow}>
+                  <IconButton
+                    icon="refresh"
+                    iconColor="#fff"
+                    size={32}
+                    onPress={onRetry}
+                  />
+                  <Text style={styles.retryText}>Повторить</Text>
+                </View>
+              )}
+            </View>
+          )}
+          {isBuffering && !hasError && (
             <View style={styles.bufferingOverlay}>
               <ActivityIndicator size="large" color="#fff" />
             </View>
           )}
-
-          {/* Play button overlay (только когда видео не играет) */}
-          {!isPlaying && (
+          {!isPlaying && !hasError && (
             <Pressable style={styles.playOverlay} onPress={togglePlay}>
               <IconButton icon="play" iconColor="#fff" size={64} style={styles.centerPlayButton} />
             </Pressable>
@@ -236,59 +178,30 @@ export function VideoPlayer({ uri, poster, onComplete, autoPlay = false }: Video
         </Pressable>
       </View>
 
-      {/* Controls panel снизу видео - всегда видна */}
       <View style={styles.controlsPanel}>
-        {/* Progress bar */}
         <View style={styles.progressContainer}>
-          <Pressable
-            style={styles.progressBar}
-            onPress={(e) => {
-              if (!isLoaded || !videoRef.current || duration === 0 || progressBarWidth === 0)
-                return;
-              const { locationX } = e.nativeEvent;
-              const newPosition = (locationX / progressBarWidth) * duration;
-              videoRef.current.setPositionAsync(Math.max(0, Math.min(newPosition, duration)));
-            }}
-          >
+          <Pressable style={styles.progressBar} onPress={handleProgressPress}>
             <View
               style={styles.progressBarBackground}
-              onLayout={(e) => {
-                const { width } = e.nativeEvent.layout;
-                setProgressBarWidth(width);
-              }}
+              onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
             >
               <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
             </View>
           </Pressable>
         </View>
-
-        {/* Bottom row with controls */}
         <View style={styles.bottomRow}>
-          {/* Time display */}
           <Text style={styles.timeText}>
-            {formatTime(position)} / {formatTime(duration)}
+            {formatTime(positionSec)} / {formatTime(durationSec)}
           </Text>
-
-          {/* Control buttons */}
           <View style={styles.controlButtons}>
-            <IconButton
-              icon="rewind-10"
-              iconColor={COLORS.text}
-              size={24}
-              onPress={() => seek(-10)}
-            />
+            <IconButton icon="rewind-10" iconColor={COLORS.text} size={24} onPress={() => seek(-10)} />
             <IconButton
               icon={isPlaying ? "pause" : "play"}
               iconColor={COLORS.text}
               size={32}
               onPress={togglePlay}
             />
-            <IconButton
-              icon="fast-forward-10"
-              iconColor={COLORS.text}
-              size={24}
-              onPress={() => seek(10)}
-            />
+            <IconButton icon="fast-forward-10" iconColor={COLORS.text} size={24} onPress={() => seek(10)} />
             <IconButton
               icon={isFullscreen ? "fullscreen-exit" : "fullscreen"}
               iconColor={isLoaded ? COLORS.text : COLORS.textSecondary}
@@ -319,9 +232,30 @@ const styles = StyleSheet.create({
   },
   video: {
     flex: 1,
+    width: "100%",
+    height: "100%",
   },
-  poster: {
-    resizeMode: "cover",
+  errorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.7)",
+  },
+  errorText: {
+    color: "#fff",
+    fontSize: 16,
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  retryRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  retryText: {
+    color: "#fff",
+    fontSize: 14,
   },
   bufferingOverlay: {
     ...StyleSheet.absoluteFillObject,
