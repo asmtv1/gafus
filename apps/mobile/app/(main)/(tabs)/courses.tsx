@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { View, StyleSheet, FlatList, RefreshControl, Pressable } from "react-native";
+import { View, StyleSheet, RefreshControl, Pressable } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -100,10 +101,11 @@ export default function FavoritesScreen() {
           <Text style={styles.emptyText}>У вас пока нет избранных курсов.</Text>
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={displayedCourses}
           renderItem={renderCourseItem}
           keyExtractor={(item) => item.id}
+          estimatedItemSize={380}
           ListHeaderComponent={renderHeader}
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}

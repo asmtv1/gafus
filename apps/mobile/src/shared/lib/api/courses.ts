@@ -41,6 +41,29 @@ export interface CourseFilters {
   search?: string;
 }
 
+export interface CourseReview {
+  id: string;
+  rating: number | null;
+  comment: string;
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    profile?: {
+      avatarUrl: string | null;
+    } | null;
+  };
+}
+
+export interface CourseReviewsResponse {
+  courseName: string;
+  reviews: CourseReview[];
+  userStatus: {
+    hasCompleted: boolean;
+    userReview: CourseReview | null;
+  };
+}
+
 /**
  * API модуль для работы с курсами
  */
@@ -64,6 +87,17 @@ export const coursesApi = {
   },
 
   /**
+   * Проверить доступ к курсу
+   */
+  checkAccess: async (
+    courseType: string,
+  ): Promise<ApiResponse<{ hasAccess: boolean }>> => {
+    return apiClient<{ hasAccess: boolean }>(
+      `/api/v1/courses/access?courseType=${courseType}`,
+    );
+  },
+
+  /**
    * Получение избранных курсов (как в web: { data, favoriteIds })
    */
   getFavorites: async (): Promise<ApiResponse<{ data: Course[]; favoriteIds: string[] }>> => {
@@ -80,6 +114,51 @@ export const coursesApi = {
     return apiClient<{ isFavorite: boolean }>("/api/v1/courses/favorites", {
       method: "POST",
       body: { courseId, action },
+    });
+  },
+
+  /**
+   * Получение отзывов к курсу
+   */
+  getReviews: async (courseType: string): Promise<ApiResponse<CourseReviewsResponse>> => {
+    return apiClient<CourseReviewsResponse>(`/api/v1/courses/reviews?courseType=${courseType}`);
+  },
+
+  /**
+   * Создание отзыва
+   */
+  createReview: async (
+    courseType: string,
+    rating: number,
+    comment: string,
+  ): Promise<ApiResponse<CourseReview>> => {
+    return apiClient<CourseReview>(`/api/v1/courses/reviews`, {
+      method: "POST",
+      body: { courseType, rating, comment },
+    });
+  },
+
+  /**
+   * Обновление отзыва
+   */
+  updateReview: async (
+    reviewId: string,
+    rating: number,
+    comment: string,
+  ): Promise<ApiResponse<void>> => {
+    return apiClient<void>(`/api/v1/courses/reviews`, {
+      method: "PATCH",
+      body: { reviewId, rating, comment },
+    });
+  },
+
+  /**
+   * Удаление отзыва
+   */
+  deleteReview: async (reviewId: string): Promise<ApiResponse<void>> => {
+    return apiClient<void>(`/api/v1/courses/reviews`, {
+      method: "DELETE",
+      body: { reviewId },
     });
   },
 };

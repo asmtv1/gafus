@@ -90,7 +90,7 @@ export default function TrainingDaysScreen() {
 
     if (isAccessDenied) {
       showPrivateCourseAccessDeniedAlert(() => {
-        router.replace("/(tabs)/courses" as any);
+        router.replace({ pathname: "/(tabs)/courses" });
       });
     }
   }, [data, error, router]);

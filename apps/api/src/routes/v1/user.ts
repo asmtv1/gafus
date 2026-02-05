@@ -7,11 +7,39 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
 import { prisma } from "@gafus/prisma";
+import { getPublicProfile } from "@gafus/core/services/user";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-user");
 
 export const userRoutes = new Hono();
+
+// GET /api/v1/user/profile/public?username= — публичный профиль (без auth)
+const publicProfileQuerySchema = z.object({
+  username: z.string().min(1, "username обязателен"),
+});
+
+userRoutes.get("/profile/public", async (c) => {
+  try {
+    const query = c.req.query("username");
+    const parsed = publicProfileQuerySchema.safeParse({ username: query });
+    if (!parsed.success) {
+      return c.json({ success: false, error: "Требуется username" }, 400);
+    }
+    const { username } = parsed.data;
+    const profile = await getPublicProfile(username);
+    if (!profile) {
+      return c.json({ success: false, error: "Профиль не найден" }, 404);
+    }
+    return c.json(
+      { success: true, data: profile },
+      { headers: { "Cache-Control": "public, max-age=300" } },
+    );
+  } catch (error) {
+    logger.error("Error in public profile API", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
 
 // Schemas
 const updateProfileSchema = z.object({

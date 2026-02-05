@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { Box, CircularProgress } from "@shared/utils/muiImports";
+import { CircularProgress } from "@shared/utils/muiImports";
 import { PlayArrowIcon } from "@shared/utils/muiImports";
+
+import styles from "./CourseVideoPlayer.module.css";
 
 export interface CourseVideoPlayerProps {
   poster: string | null;
@@ -171,56 +173,31 @@ export function CourseVideoPlayer({
 
   return (
     <div
-      className={wrapperClassName}
-      style={{
-        position: "relative",
-        width: "100%",
-        backgroundColor: "#000",
-        cursor: showPlayButton ? "pointer" : undefined,
-      }}
+      className={`${wrapperClassName ?? ""} ${styles.root}`.trim()}
+      data-clickable={showPlayButton ? true : undefined}
     >
       <video
         ref={videoRef}
         poster={poster ?? undefined}
         controls
         preload="none"
-        className={videoClassName}
+        className={`${videoClassName ?? ""} ${styles.video}`.trim()}
         playsInline
-        style={{ width: "100%", height: "auto", display: "block" }}
       />
       {showOverlay && (
-        <Box
-          component="button"
+        <button
           type="button"
+          className={styles.overlay}
           aria-label={showPlayButton ? "Воспроизвести" : "Загрузка"}
           onClick={handleOverlayClick}
           disabled={!showPlayButton}
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            backgroundColor: "rgba(0, 0, 0, 0.7)",
-            borderRadius: "50%",
-            width: { xs: "60px", sm: "80px" },
-            height: { xs: "60px", sm: "80px" },
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "none",
-            cursor: showPlayButton ? "pointer" : "default",
-            padding: 0,
-            "&:hover": showPlayButton
-              ? { backgroundColor: "rgba(0, 0, 0, 0.85)" }
-              : undefined,
-          }}
         >
           {showPlayButton ? (
-            <PlayArrowIcon sx={{ fontSize: { xs: "40px", sm: "50px" }, color: "#fff" }} />
+            <PlayArrowIcon className={styles.playIcon} />
           ) : (
-            <CircularProgress size={32} sx={{ color: "#fff" }} />
+            <CircularProgress className={styles.loadingIcon} size={32} />
           )}
-        </Box>
+        </button>
       )}
     </div>
   );

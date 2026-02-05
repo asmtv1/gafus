@@ -3,6 +3,17 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { zustandStorage } from "./storage";
 import type { Course } from "@/shared/lib/api";
 import { CACHE_DURATIONS } from "@/constants";
+import type {
+  CourseTabType,
+  TrainingLevelType,
+  ProgressFilterType,
+  RatingFilterType,
+  SortingType,
+  CourseFiltersState,
+} from "@/shared/utils/courseFilters";
+import { DEFAULT_COURSE_FILTERS } from "@/shared/utils/courseFilters";
+
+const COURSES_FILTERS_STORAGE_KEY = "courses-filters";
 
 interface CachedData<T> {
   data: T;
@@ -10,32 +21,27 @@ interface CachedData<T> {
 }
 
 interface CourseState {
-  // Кэш списка курсов
   cachedCourses: CachedData<Course[]> | null;
-  // Избранные курсы (ID)
   favorites: string[];
-  // Выбранные фильтры
-  filters: {
-    type: string | null;
-    level: string | null;
-    search: string;
-  };
+  filters: CourseFiltersState;
 }
 
 interface CourseActions {
-  // Кэширование
   getCachedCourses: () => { data: Course[] | null; isExpired: boolean };
   setCachedCourses: (courses: Course[]) => void;
   clearCache: () => void;
 
-  // Избранное
   addToFavorites: (courseId: string) => void;
   removeFromFavorites: (courseId: string) => void;
   isFavorite: (courseId: string) => boolean;
 
-  // Фильтры
-  setFilter: (key: "type" | "level" | "search", value: string | null) => void;
+  setFilter: <K extends keyof CourseFiltersState>(
+    key: K,
+    value: CourseFiltersState[K],
+  ) => void;
+  setFilters: (f: Partial<CourseFiltersState>) => void;
   clearFilters: () => void;
+  getFilters: () => CourseFiltersState;
 }
 
 type CourseStore = CourseState & CourseActions;
@@ -47,14 +53,9 @@ type CourseStore = CourseState & CourseActions;
 export const useCourseStore = create<CourseStore>()(
   persist(
     (set, get) => ({
-      // Начальное состояние
       cachedCourses: null,
       favorites: [],
-      filters: {
-        type: null,
-        level: null,
-        search: "",
-      },
+      filters: { ...DEFAULT_COURSE_FILTERS },
 
       /**
        * Получение кэшированных курсов с проверкой актуальности
@@ -115,38 +116,69 @@ export const useCourseStore = create<CourseStore>()(
         return Array.isArray(favs) && favs.includes(courseId);
       },
 
-      /**
-       * Установка фильтра
-       */
       setFilter: (key, value) => {
         set((state) => ({
           filters: { ...state.filters, [key]: value },
         }));
       },
 
-      /**
-       * Сброс всех фильтров
-       */
-      clearFilters: () => {
-        set({
-          filters: { type: null, level: null, search: "" },
-        });
+      setFilters: (f) => {
+        set((state) => ({
+          filters: { ...state.filters, ...f },
+        }));
       },
+
+      clearFilters: () => {
+        set({ filters: { ...DEFAULT_COURSE_FILTERS } });
+      },
+
+      getFilters: () => get().filters,
     }),
     {
       name: "course-storage",
       storage: createJSONStorage(() => zustandStorage),
       partialize: (state) => ({
         favorites: Array.isArray(state.favorites) ? state.favorites : [],
-        // Не персистим кэш — он должен быть свежим при каждом запуске
+        filters: state.filters,
       }),
       merge: (persistedState, currentState) => {
-        const merged = { ...currentState, ...persistedState };
-        // Гарантируем, что favorites всегда массив
-        if (!Array.isArray(merged.favorites)) {
-          merged.favorites = [];
+        const persisted =
+          persistedState && typeof persistedState === "object"
+            ? (persistedState as Partial<CourseState>)
+            : {};
+        const merged = {
+          ...currentState,
+          ...persisted,
+        } as CourseState;
+        if (!Array.isArray(merged.favorites)) merged.favorites = [];
+        if (!merged.filters || typeof merged.filters !== "object") {
+          merged.filters = { ...DEFAULT_COURSE_FILTERS };
         }
-        return merged;
+        const f = merged.filters as unknown as Record<string, unknown>;
+        const validTab = ["all", "free", "paid", "private"].includes(
+          (f.tab as string) ?? "",
+        );
+        const validLevel = ["ALL", "BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"].includes(
+          (f.level as string) ?? "",
+        );
+        const validProgress = ["ALL", "NOT_STARTED", "IN_PROGRESS", "COMPLETED", "PAUSED"].includes(
+          (f.progress as string) ?? "",
+        );
+        const validRating = ["ALL", "4+", "3+", "ANY"].includes(
+          (f.rating as string) ?? "",
+        );
+        const validSorting = ["newest", "rating", "name", "progress"].includes(
+          (f.sorting as string) ?? "",
+        );
+        merged.filters = {
+          tab: validTab ? (f.tab as CourseTabType) : DEFAULT_COURSE_FILTERS.tab,
+          level: validLevel ? (f.level as TrainingLevelType) : DEFAULT_COURSE_FILTERS.level,
+          progress: validProgress ? (f.progress as ProgressFilterType) : DEFAULT_COURSE_FILTERS.progress,
+          rating: validRating ? (f.rating as RatingFilterType) : DEFAULT_COURSE_FILTERS.rating,
+          search: typeof f.search === "string" ? f.search : DEFAULT_COURSE_FILTERS.search,
+          sorting: validSorting ? (f.sorting as SortingType) : DEFAULT_COURSE_FILTERS.sorting,
+        };
+        return merged as CourseStore;
       },
     },
   ),

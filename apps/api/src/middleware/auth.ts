@@ -18,6 +18,12 @@ declare module "hono" {
 export const authMiddleware = createMiddleware(async (c, next) => {
   const path = c.req.path;
 
+  // Публичный профиль по username — без авторизации
+  if (path.includes("/user/profile/public") || path.endsWith("/profile/public")) {
+    await next();
+    return;
+  }
+
   // Пропускаем маршруты для HLS видео - они используют токен из query параметра
   // Путь может быть /api/v1/training/video/... или /training/video/...
   if (

@@ -6,6 +6,11 @@ import type { VideoSource } from "expo-video";
 import { IconButton, ActivityIndicator, Text } from "react-native-paper";
 import { COLORS, SPACING } from "@/constants";
 
+/** Скорости воспроизведения для обучающих видео */
+const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 1.75, 2] as const;
+const DOUBLE_TAP_DELAY_MS = 400;
+const SEEK_SECONDS = 10;
+
 interface VideoPlayerProps {
   uri: string;
   poster?: string;
@@ -39,7 +44,12 @@ export function VideoPlayer({ uri, poster, onComplete, onRetry, autoPlay = false
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [positionSec, setPositionSec] = useState(0);
   const [durationSec, setDurationSec] = useState(0);
+  const [bufferedSec, setBufferedSec] = useState(0);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [speedIndex, setSpeedIndex] = useState(0);
+  const lastTapRef = useRef<{ time: number; x: number } | null>(null);
+  const singleTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoAreaWidthRef = useRef(0);
 
   const source = useMemo(() => getVideoSource(uri), [uri]);
 
@@ -47,7 +57,9 @@ export function VideoPlayer({ uri, poster, onComplete, onRetry, autoPlay = false
 
   const player = useVideoPlayer(source, (p) => {
     p.timeUpdateEventInterval = 1;
+    p.playbackRate = PLAYBACK_SPEEDS[0];
     if (autoPlay) p.play();
+    else p.pause();
   });
 
   const { status } = useEvent(player, "statusChange", { status: player.status });
@@ -68,10 +80,14 @@ export function VideoPlayer({ uri, poster, onComplete, onRetry, autoPlay = false
     onComplete?.();
   });
 
-  useEventListener(player, "timeUpdate", () => {
+  useEventListener(player, "timeUpdate", (payload: { bufferedPosition?: number }) => {
     setPositionSec(player.currentTime);
     if (player.duration > 0 && durationSec !== player.duration) {
       setDurationSec(player.duration);
+    }
+    const buf = payload?.bufferedPosition ?? player.bufferedPosition;
+    if (typeof buf === "number" && buf >= 0) {
+      setBufferedSec(buf);
     }
   });
 
@@ -125,23 +141,78 @@ export function VideoPlayer({ uri, poster, onComplete, onRetry, autoPlay = false
     [isLoaded, durationSec, progressBarWidth, player],
   );
 
-  // Синхронизация duration из плеера при смене статуса
   useEffect(() => {
     if (status === "readyToPlay" && player.duration > 0) {
       setDurationSec(player.duration);
     }
   }, [status, player.duration]);
 
+  useEffect(() => {
+    player.playbackRate = PLAYBACK_SPEEDS[speedIndex];
+  }, [speedIndex, player]);
+
+  useEffect(() => () => {
+    if (singleTapTimeoutRef.current) {
+      clearTimeout(singleTapTimeoutRef.current);
+    }
+  }, []);
+
+  const cycleSpeed = useCallback(() => {
+    setSpeedIndex((i) => (i + 1) % PLAYBACK_SPEEDS.length);
+  }, []);
+
+  const handleVideoTouchEnd = useCallback(
+    (e: { nativeEvent: { locationX: number } }) => {
+      if (isFullscreen) return;
+      const x = e.nativeEvent.locationX;
+      const w = videoAreaWidthRef.current;
+      const now = Date.now();
+      const last = lastTapRef.current;
+
+      if (last && now - last.time < DOUBLE_TAP_DELAY_MS && Math.abs(x - last.x) < 80) {
+        if (singleTapTimeoutRef.current) {
+          clearTimeout(singleTapTimeoutRef.current);
+          singleTapTimeoutRef.current = null;
+        }
+        lastTapRef.current = null;
+        if (w > 0) {
+          if (x < w * 0.4) seek(-SEEK_SECONDS);
+          else if (x > w * 0.6) seek(SEEK_SECONDS);
+          else togglePlay();
+        }
+        return;
+      }
+
+      lastTapRef.current = { time: now, x };
+      if (singleTapTimeoutRef.current) clearTimeout(singleTapTimeoutRef.current);
+      if (!player.playing) {
+        singleTapTimeoutRef.current = setTimeout(() => {
+          singleTapTimeoutRef.current = null;
+          togglePlay();
+        }, DOUBLE_TAP_DELAY_MS);
+      }
+    },
+    [isFullscreen, player, seek, togglePlay],
+  );
+
+  const bufferedProgress = durationSec > 0 && bufferedSec >= 0 ? bufferedSec / durationSec : 0;
+
   return (
     <View style={styles.container}>
-      <View style={styles.videoContainer}>
-        <Pressable onPress={togglePlay} style={styles.videoWrapper}>
+      <View
+        style={styles.videoContainer}
+        onLayout={(e) => {
+          videoAreaWidthRef.current = e.nativeEvent.layout.width;
+        }}
+        onTouchEnd={handleVideoTouchEnd}
+      >
+        <View style={styles.videoWrapper}>
           <VideoView
             ref={videoViewRef}
             player={player}
             style={styles.video}
             contentFit="contain"
-            nativeControls={false}
+            nativeControls={true}
             fullscreenOptions={{ enable: true }}
             onFullscreenEnter={() => setIsFullscreen(true)}
             onFullscreenExit={() => setIsFullscreen(false)}
@@ -171,11 +242,11 @@ export function VideoPlayer({ uri, poster, onComplete, onRetry, autoPlay = false
             </View>
           )}
           {!isPlaying && !hasError && (
-            <Pressable style={styles.playOverlay} onPress={togglePlay}>
+            <View style={styles.playOverlay} pointerEvents="none">
               <IconButton icon="play" iconColor="#fff" size={64} style={styles.centerPlayButton} />
-            </Pressable>
+            </View>
           )}
-        </Pressable>
+        </View>
       </View>
 
       <View style={styles.controlsPanel}>
@@ -185,6 +256,9 @@ export function VideoPlayer({ uri, poster, onComplete, onRetry, autoPlay = false
               style={styles.progressBarBackground}
               onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
             >
+              {bufferedProgress > 0 && (
+                <View style={[styles.progressBuffered, { width: `${Math.min(bufferedProgress, 1) * 100}%` }]} />
+              )}
               <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
             </View>
           </Pressable>
@@ -194,14 +268,17 @@ export function VideoPlayer({ uri, poster, onComplete, onRetry, autoPlay = false
             {formatTime(positionSec)} / {formatTime(durationSec)}
           </Text>
           <View style={styles.controlButtons}>
-            <IconButton icon="rewind-10" iconColor={COLORS.text} size={24} onPress={() => seek(-10)} />
+            <IconButton icon="rewind-10" iconColor={COLORS.text} size={24} onPress={() => seek(-SEEK_SECONDS)} />
             <IconButton
               icon={isPlaying ? "pause" : "play"}
               iconColor={COLORS.text}
               size={32}
               onPress={togglePlay}
             />
-            <IconButton icon="fast-forward-10" iconColor={COLORS.text} size={24} onPress={() => seek(10)} />
+            <IconButton icon="fast-forward-10" iconColor={COLORS.text} size={24} onPress={() => seek(SEEK_SECONDS)} />
+            <Pressable onPress={cycleSpeed} style={styles.speedButton}>
+              <Text style={styles.speedText}>{PLAYBACK_SPEEDS[speedIndex]}×</Text>
+            </Pressable>
             <IconButton
               icon={isFullscreen ? "fullscreen-exit" : "fullscreen"}
               iconColor={isLoaded ? COLORS.text : COLORS.textSecondary}
@@ -289,11 +366,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0e0e0",
     borderRadius: 2,
     overflow: "hidden",
+    position: "relative",
+  },
+  progressBuffered: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.15)",
+    borderRadius: 2,
   },
   progressFill: {
-    height: "100%",
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
     backgroundColor: COLORS.primary,
     borderRadius: 2,
+  },
+  speedButton: {
+    paddingHorizontal: SPACING.xs,
+    justifyContent: "center",
+    minWidth: 36,
+  },
+  speedText: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
   },
   bottomRow: {
     flexDirection: "row",

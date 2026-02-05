@@ -157,7 +157,10 @@ export default function ProfileScreen() {
   const displayRole = getRoleLabel(user?.role);
 
   const handleEditPet = (pet: Pet) => {
-    router.push(`/pets/edit/${pet.id}` as any);
+    router.push({
+      pathname: "/pets/edit/[id]",
+      params: { id: pet.id },
+    });
   };
 
   const handleDeletePet = (pet: Pet) => {
@@ -287,7 +290,7 @@ export default function ProfileScreen() {
 
           <Pressable
             style={styles.editBioButton}
-            onPress={() => router.push("/profile/edit" as any)}
+            onPress={() => router.push({ pathname: "/profile/edit" })}
           >
             <Text style={styles.editBioButtonText}>Внести/Изменить «О себе»</Text>
           </Pressable>
@@ -386,7 +389,7 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          <Pressable style={styles.addPetButton} onPress={() => router.push("/pets/add" as any)}>
+          <Pressable style={styles.addPetButton} onPress={() => router.push({ pathname: "/pets/add" })}>
             <Text style={styles.addPetButtonText}>Добавить питомца</Text>
           </Pressable>
         </View>

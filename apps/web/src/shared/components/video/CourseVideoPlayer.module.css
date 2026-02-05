@@ -1,0 +1,86 @@
+/* Стили плеера в дизайн-системе web (tokens, как в AccordionStep / completeBtn) */
+.root {
+  position: relative;
+  width: 100%;
+  background-color: #000;
+}
+
+.root[data-clickable] {
+  cursor: pointer;
+}
+
+.video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  min-width: 60px;
+  min-height: 60px;
+  background: linear-gradient(135deg, var(--bg-2, #636128) 0%, #4a4a1a 100%);
+  color: #ece5d2;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.35);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.overlay:hover:not(:disabled) {
+  transform: translate(-50%, -50%) scale(1.05);
+  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.45);
+}
+
+.overlay:active:not(:disabled) {
+  transform: translate(-50%, -50%) scale(0.98);
+}
+
+.overlay:focus {
+  outline: 2px solid var(--bg-2, #636128);
+  outline-offset: 2px;
+}
+
+.overlay:disabled {
+  cursor: default;
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
+  color: #ece5d2;
+}
+
+.playIcon {
+  width: 40px;
+  height: 40px;
+  color: inherit;
+}
+
+.loadingIcon {
+  width: 32px;
+  height: 32px;
+  color: inherit;
+}
+
+@media (min-width: 600px) {
+  .overlay {
+    width: 80px;
+    height: 80px;
+    min-width: 80px;
+    min-height: 80px;
+  }
+
+  .playIcon {
+    width: 50px;
+    height: 50px;
+  }
+}

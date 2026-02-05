@@ -105,16 +105,21 @@ function AccordionStepComponent({
     });
   }
 
-  // Запрашиваем signed URL только для открытого шага — иначе 4 параллельных запроса и каскад перерендеров ломают загрузку
+  // Как на web: запрашиваем signed URL только после нажатия «Смотреть» — сначала обложка с кнопкой Play
+  const [userRequestedPlay, setUserRequestedPlay] = useState(false);
   const {
     url: playbackUrl,
     isLoading: isLoadingVideo,
     error: videoError,
   } = useVideoUrl(
-    isOpen && videoUrl && typeof videoUrl === "string" && videoUrl.trim() !== ""
+    isOpen && userRequestedPlay && videoUrl && typeof videoUrl === "string" && videoUrl.trim() !== ""
       ? videoUrl
       : null,
   );
+
+  useEffect(() => {
+    if (!isOpen) setUserRequestedPlay(false);
+  }, [isOpen]);
 
   useEffect(() => {
     lastPlaybackUrlRef.current = null;
@@ -446,13 +451,21 @@ function AccordionStepComponent({
                 );
               })()}
 
-              {/* Видео (после описания) — без IIFE для стабильности */}
+              {/* Видео: сначала обложка с кнопкой Play (как на web), по нажатию — загрузка и плеер */}
               {!isBreak &&
                 videoUrl &&
                 typeof videoUrl === "string" &&
                 videoUrl.trim() !== "" && (
                   <View style={styles.videoContainer}>
-                    {isLoadingVideo ? (
+                    {!userRequestedPlay ? (
+                      <Pressable
+                        style={styles.videoCover}
+                        onPress={() => setUserRequestedPlay(true)}
+                      >
+                        <MaterialCommunityIcons name="play-circle-outline" size={72} color="#fff" />
+                        <Text style={styles.videoCoverText}>Смотреть видео</Text>
+                      </Pressable>
+                    ) : isLoadingVideo ? (
                       <View style={styles.videoLoadingContainer}>
                         <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
                       </View>
@@ -788,6 +801,18 @@ const styles = StyleSheet.create({
   videoContainer: {
     paddingVertical: SPACING.sm,
     paddingHorizontal: 0,
+  },
+  videoCover: {
+    aspectRatio: 16 / 9,
+    backgroundColor: "#1a1a1a",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  videoCoverText: {
+    marginTop: SPACING.sm,
+    fontSize: 16,
+    color: "#fff",
   },
   infoCard: {
     padding: 14,

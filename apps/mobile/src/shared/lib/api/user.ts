@@ -16,6 +16,40 @@ export interface UserPreferences {
   language: string;
 }
 
+/** Курс в публичном профиле кинолога */
+export interface PublicProfileCourse {
+  id: string;
+  name: string;
+  type: string;
+  logoImg: string;
+  shortDesc: string;
+  duration: string;
+  isPrivate: boolean;
+  isPaid: boolean;
+  priceRub: number | null;
+  avgRating: number | null;
+  trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+}
+
+/** Публичный профиль (структура как в API / profile из web) */
+export interface PublicProfile {
+  username: string;
+  role: string;
+  profile: {
+    fullName: string | null;
+    birthDate: string | null;
+    about: string | null;
+    telegram: string | null;
+    instagram: string | null;
+    website: string | null;
+    avatarUrl: string | null;
+  } | null;
+  diplomas?: { id: string; title: string; issuedBy: string | null; issuedAt: string }[];
+  pets?: unknown[];
+  /** Курсы кинолога (только при role === TRAINER) */
+  courses?: PublicProfileCourse[];
+}
+
 /**
  * API модуль для работы с профилем пользователя
  */
@@ -25,6 +59,13 @@ export const userApi = {
    */
   getProfile: async (): Promise<ApiResponse<User>> => {
     return apiClient<User>("/api/v1/user/profile");
+  },
+
+  /**
+   * Получить публичный профиль по username
+   */
+  getPublicProfile: async (username: string): Promise<ApiResponse<PublicProfile>> => {
+    return apiClient<PublicProfile>(`/api/v1/user/profile/public?username=${username}`);
   },
 
   /**

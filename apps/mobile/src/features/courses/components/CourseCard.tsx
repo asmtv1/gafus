@@ -1,6 +1,6 @@
-import { View, StyleSheet, Pressable } from "react-native";
+import { View, StyleSheet, Pressable, Alert } from "react-native";
 import { Text, IconButton } from "react-native-paper";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { Image } from "expo-image";
 
 import { COLORS, SPACING, BORDER_RADIUS } from "@/constants";
@@ -63,25 +63,39 @@ function getReviewText(reviewsCount: number, userStatus: string): string {
   return `${reviewsCount} ${decl(reviewsCount)}`;
 }
 
-function SimpleRating({ rating }: { rating: number | null }) {
+function SimpleRating({
+  rating,
+  readOnly,
+  onPress,
+}: {
+  rating: number | null;
+  readOnly?: boolean;
+  onPress?: () => void;
+}) {
   if (!rating || rating === 0) {
-    return <Text style={styles.noRatingText}>Нет рейтинга</Text>;
+    return (
+      <Pressable onPress={readOnly ? onPress : undefined}>
+        <Text style={styles.noRatingText}>Нет рейтинга</Text>
+      </Pressable>
+    );
   }
   return (
-    <View style={styles.ratingContainer}>
-      {[1, 2, 3, 4, 5].map((heart) => (
-        <Text
-          key={heart}
-          style={[
-            styles.ratingHeart,
-            heart <= (rating ?? 0) ? styles.ratingHeartFilled : styles.ratingHeartEmpty,
-          ]}
-        >
-          ♥
-        </Text>
-      ))}
-      <Text style={styles.ratingValue}>{rating.toFixed(1)}</Text>
-    </View>
+    <Pressable onPress={readOnly ? onPress : undefined}>
+      <View style={styles.ratingContainer}>
+        {[1, 2, 3, 4, 5].map((heart) => (
+          <Text
+            key={heart}
+            style={[
+              styles.ratingHeart,
+              heart <= (rating ?? 0) ? styles.ratingHeartFilled : styles.ratingHeartEmpty,
+            ]}
+          >
+            ♥
+          </Text>
+        ))}
+        <Text style={styles.ratingValue}>{rating.toFixed(1)}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -102,9 +116,38 @@ export function CourseCard({
   onToggleFavorite,
   disabled = false,
 }: CourseCardProps) {
+  const router = useRouter();
   const reviewsCount = course.reviews?.length ?? 0;
   const formattedStartedAt = formatDate(course.startedAt);
   const formattedCompletedAt = formatDate(course.completedAt);
+
+  const handleRatingPress = () => {
+    if (course.userStatus !== "COMPLETED") {
+      Alert.alert(
+        "Курс не завершен",
+        "Оценивать курс можно только после его завершения",
+        [{ text: "OK" }],
+      );
+    }
+  };
+
+  const handleReviewsPress = () => {
+    if (reviewsCount > 0 || course.userStatus === "COMPLETED") {
+      router.push({
+        pathname: "/training/[courseType]/reviews",
+        params: { courseType: course.type },
+      });
+    }
+  };
+
+  const handleAuthorPress = () => {
+    if (course.authorUsername) {
+      router.push({
+        pathname: "/profile/[username]",
+        params: { username: course.authorUsername },
+      });
+    }
+  };
 
   return (
     <View style={styles.courseCard}>
@@ -159,15 +202,36 @@ export function CourseCard({
           </Pressable>
         </Link>
         <View style={styles.rating}>
-          <SimpleRating rating={course.avgRating} />
-          <Text style={styles.reviews}>{getReviewText(reviewsCount, course.userStatus)}</Text>
+          <SimpleRating
+            rating={course.avgRating}
+            readOnly={course.userStatus !== "COMPLETED"}
+            onPress={handleRatingPress}
+          />
+          <Pressable
+            onPress={handleReviewsPress}
+            disabled={reviewsCount === 0 && course.userStatus !== "COMPLETED"}
+          >
+            <Text
+              style={[
+                styles.reviews,
+                (reviewsCount > 0 || course.userStatus === "COMPLETED") &&
+                  styles.reviewsClickable,
+              ]}
+            >
+              {getReviewText(reviewsCount, course.userStatus)}
+            </Text>
+          </Pressable>
         </View>
       </View>
       <View style={styles.author}>
-        <Text style={styles.authorText}>
-          Автор курса:{" "}
-          <Text style={styles.authorLink}>{course.authorUsername ?? "Неизвестный автор"}</Text>
-        </Text>
+        <Pressable onPress={handleAuthorPress} disabled={!course.authorUsername}>
+          <Text style={styles.authorText}>
+            Автор курса:{" "}
+            <Text style={styles.authorLink}>
+              {course.authorUsername ?? "Неизвестный автор"}
+            </Text>
+          </Text>
+        </Pressable>
         <IconButton
           icon={isFavorite ? "heart" : "heart-outline"}
           iconColor={isFavorite ? COLORS.error : COLORS.textSecondary}
@@ -284,6 +348,10 @@ const styles = StyleSheet.create({
   ratingValue: { marginLeft: 8, color: "#666", fontSize: 12 },
   noRatingText: { color: "#b0b0b0", fontSize: 12 },
   reviews: { fontSize: 12, color: "#352E2E" },
+  reviewsClickable: {
+    color: "#009dcf",
+    textDecorationLine: "underline",
+  },
   author: {
     flexDirection: "row",
     justifyContent: "space-between",
