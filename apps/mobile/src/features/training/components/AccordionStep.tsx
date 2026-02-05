@@ -2,7 +2,7 @@ import { View, StyleSheet, Pressable, ScrollView } from "react-native";
 import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-native-reanimated";
-import { useEffect, useState, memo } from "react";
+import { useEffect, useState, memo, useRef } from "react";
 
 import { Button, MarkdownText, VideoPlayer } from "@/shared/components";
 import type { UserStep } from "@/shared/lib/api";
@@ -93,6 +93,7 @@ function AccordionStepComponent({
   // Получаем videoUrl для хука (должен быть на верхнем уровне)
   const videoUrl = stepData?.videoUrl || step?.videoUrl;
   const [videoRetryKey, setVideoRetryKey] = useState(0);
+  const lastPlaybackUrlRef = useRef<string | null>(null);
 
   if (__DEV__) {
     console.log("[AccordionStep] Video URL:", {
@@ -114,6 +115,13 @@ function AccordionStepComponent({
       ? videoUrl
       : null,
   );
+
+  useEffect(() => {
+    lastPlaybackUrlRef.current = null;
+  }, [videoUrl]);
+  useEffect(() => {
+    if (playbackUrl) lastPlaybackUrlRef.current = playbackUrl;
+  }, [playbackUrl]);
 
   if (__DEV__ && videoUrl) {
     console.log("[AccordionStep] Video URL состояние:", {
@@ -448,10 +456,10 @@ function AccordionStepComponent({
                       <View style={styles.videoLoadingContainer}>
                         <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
                       </View>
-                    ) : videoError || !playbackUrl ? null : (
+                    ) : videoError || !(playbackUrl ?? lastPlaybackUrlRef.current) ? null : (
                       <VideoPlayer
-                        key={`${playbackUrl}-${videoRetryKey}`}
-                        uri={playbackUrl}
+                        key={`${playbackUrl ?? lastPlaybackUrlRef.current}-${videoRetryKey}`}
+                        uri={playbackUrl ?? lastPlaybackUrlRef.current ?? ""}
                         onComplete={onComplete}
                         onRetry={() => setVideoRetryKey((k) => k + 1)}
                       />

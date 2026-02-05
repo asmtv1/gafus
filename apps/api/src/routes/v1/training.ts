@@ -2,7 +2,7 @@
  * Training Routes
  * Endpoints для работы с тренировками
  */
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
@@ -647,7 +647,8 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
 
         const apiUrl =
           process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
-        const signedUrl = `${apiUrl}/api/v1/training/video/${video.id}/manifest?token=${token}`;
+        // .m3u8 в пути нужен для нативных плееров (iOS/Android), иначе возможна ошибка "Operation Stopped"
+        const signedUrl = `${apiUrl}/api/v1/training/video/${video.id}/manifest.m3u8?token=${token}`;
         logger.info("[training/video/url] Сгенерирован signed URL", {
           videoId: video.id,
           apiUrl,
@@ -702,16 +703,11 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
   }
 });
 
-// ==================== GET /training/video/:videoId/manifest ====================
-// Получить HLS манифест с подписанными URL для сегментов
-// Для мобильного приложения (использует JWT аутентификацию)
-const videoManifestParamsSchema = z.object({
-  videoId: z.string().min(1),
-});
-
-trainingRoutes.get("/video/:videoId/manifest", async (c) => {
+// ==================== GET /training/video/:videoId/manifest[.m3u8] ====================
+// Получить HLS манифест с подписанными URL для сегментов (для мобильного приложения)
+async function handleVideoManifest(c: Context) {
   try {
-    const { videoId } = c.req.param();
+    const videoId = c.req.param("videoId");
 
     // Получаем токен из query параметров
     const token = c.req.query("token");
@@ -827,7 +823,10 @@ trainingRoutes.get("/video/:videoId/manifest", async (c) => {
       500,
     );
   }
-});
+}
+
+trainingRoutes.get("/video/:videoId/manifest", handleVideoManifest);
+trainingRoutes.get("/video/:videoId/manifest.m3u8", handleVideoManifest);
 
 // ==================== GET /training/video/:videoId/segment ====================
 // Получить сегмент HLS видео
