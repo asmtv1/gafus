@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loading } from "@/shared/components/ui";
 import { achievementsApi, coursesApi, type Course } from "@/shared/lib/api";
 import type { AchievementData } from "@gafus/types";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/constants";
 
 const CARD_BG = "#ECE5D2";
 const CARD_BORDER = "#B6C582";
@@ -325,8 +325,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   title: {
-    fontWeight: "700",
-    color: "#352e2e",
+    fontSize: 28,
+    fontWeight: "400",
+    fontFamily: FONTS.impact,
+    color: "#352E2E",
+    textAlign: "center",
   },
   subtitle: {
     color: "#666",

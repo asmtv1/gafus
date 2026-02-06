@@ -7,8 +7,11 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
 import { prisma } from "@gafus/prisma";
-import { getPublicProfile } from "@gafus/core/services/user";
+import { getPublicProfile, updateAvatar } from "@gafus/core/services/user";
 import { createWebLogger } from "@gafus/logger";
+
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const logger = createWebLogger("api-user");
 
@@ -143,6 +146,45 @@ userRoutes.put("/profile", zValidator("json", updateProfileSchema), async (c) =>
   } catch (error) {
     logger.error("Error updating profile", error as Error);
     return c.json({ success: false, error: "Ошибка обновления профиля" }, 500);
+  }
+});
+
+// POST /api/v1/user/avatar — загрузка аватара (multipart/form-data, поле "file")
+userRoutes.post("/avatar", async (c) => {
+  try {
+    const user = c.get("user");
+    const body = await c.req.parseBody();
+    const file = body["file"];
+
+    if (!file || typeof file === "string") {
+      return c.json({ success: false, error: "Файл не найден" }, 400);
+    }
+
+    if (!ALLOWED_AVATAR_TYPES.includes((file as File).type)) {
+      return c.json(
+        {
+          success: false,
+          error: "Неподдерживаемый тип файла. Разрешены: JPEG, PNG, WebP, GIF",
+        },
+        400,
+      );
+    }
+
+    if ((file as File).size > MAX_AVATAR_SIZE) {
+      return c.json(
+        { success: false, error: "Файл слишком большой. Максимум 5 МБ" },
+        400,
+      );
+    }
+
+    const avatarUrl = await updateAvatar(user.id, file as File);
+    return c.json({ success: true, data: { avatarUrl } });
+  } catch (error) {
+    logger.error("Error uploading avatar", error as Error);
+    return c.json(
+      { success: false, error: "Ошибка загрузки аватара" },
+      500,
+    );
   }
 });
 

@@ -12,8 +12,12 @@ import {
   createPet,
   updatePet,
   deletePet,
+  updatePetPhoto,
 } from "@gafus/core/services/pets";
 import { createWebLogger } from "@gafus/logger";
+
+const MAX_PET_PHOTO_SIZE = 2 * 1024 * 1024; // 2MB
+const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const logger = createWebLogger("api-pets");
 
@@ -85,6 +89,48 @@ petsRoutes.get("/:petId", async (c) => {
   } catch (error) {
     logger.error("Error fetching pet", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
+// ==================== POST /pets/:petId/photo ====================
+// Загрузить фото питомца (multipart/form-data, поле "file")
+petsRoutes.post("/:petId/photo", async (c) => {
+  try {
+    const user = c.get("user");
+    const petId = c.req.param("petId");
+    const body = await c.req.parseBody();
+    const file = body["file"];
+
+    if (!file || typeof file === "string") {
+      return c.json({ success: false, error: "Файл не найден" }, 400);
+    }
+
+    const f = file as File;
+    if (!ALLOWED_PHOTO_TYPES.includes(f.type)) {
+      return c.json(
+        {
+          success: false,
+          error: "Неподдерживаемый тип файла. Разрешены: JPEG, PNG, WebP, GIF",
+        },
+        400,
+      );
+    }
+
+    if (f.size > MAX_PET_PHOTO_SIZE) {
+      return c.json(
+        { success: false, error: "Файл слишком большой. Максимум 2 МБ" },
+        400,
+      );
+    }
+
+    const photoUrl = await updatePetPhoto(petId, user.id, f);
+    return c.json({ success: true, data: { photoUrl } });
+  } catch (error) {
+    logger.error("Error uploading pet photo", error as Error);
+    return c.json(
+      { success: false, error: "Ошибка загрузки фото питомца" },
+      500,
+    );
   }
 });
 

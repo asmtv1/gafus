@@ -1,15 +1,19 @@
 import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useTheme } from "react-native-paper";
+
+import { COLORS } from "@/constants";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 
+/** Цвет неактивного таба (иконка и подпись) */
+const TAB_INACTIVE = "#6A6A6A";
+/** Фон нижней панели табов */
+const TAB_BAR_BG = "#F5F0E8";
+
 /**
- * Layout для нижней навигации (tabs)
+ * Layout нижней навигации — цвета из дизайна приложения, не зависят от темы.
  */
 export default function TabsLayout() {
-  const theme = useTheme();
-
   const renderIcon = (name: IconName, color: string, size: number) => (
     <MaterialCommunityIcons name={name} size={size} color={color} />
   );
@@ -18,16 +22,17 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.outline,
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: TAB_INACTIVE,
         tabBarStyle: {
+          backgroundColor: TAB_BAR_BG,
           borderTopWidth: 1,
-          borderTopColor: theme.colors.outlineVariant,
+          borderTopColor: COLORS.borderLight,
         },
         headerStyle: {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: COLORS.surface,
         },
-        headerTintColor: theme.colors.onSurface,
+        headerTintColor: COLORS.text,
       }}
     >
       <Tabs.Screen

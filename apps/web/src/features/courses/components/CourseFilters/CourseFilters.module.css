@@ -117,11 +117,7 @@
   justify-content: center;
   min-width: 20px;
   height: 20px;
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary) 0%,
-    var(--accent-secondary, #4a90e2) 100%
-  );
+  background: #352e2e;
   color: white;
   font-size: 12px;
   font-weight: 700;

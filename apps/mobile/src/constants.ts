@@ -38,6 +38,8 @@ export const COLORS = {
   placeholder: "#bdbdbd",
   border: "#636128", // оливковый - границы
   borderLight: "rgba(99, 97, 40, 0.2)",
+  /** Текст и иконки на оливковом фоне (как на web) */
+  onPrimary: "#ECE5D2",
 } as const;
 
 // Размеры экрана и отступы

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { View, StyleSheet, Pressable, Text, Modal } from "react-native";
 
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+
 import type {
   CourseTabType,
   TrainingLevelType,
@@ -10,6 +12,9 @@ import type {
 } from "@/shared/utils/courseFilters";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
 import { FiltersModal } from "./FiltersModal";
+
+/** Цвет надписей на оливковом (как на web: светлый контраст) */
+const LABEL_ON_PRIMARY = "#ECE5D2";
 
 const SORT_OPTIONS: { id: SortingType; label: string }[] = [
   { id: "newest", label: "Новые → Старые" },
@@ -126,8 +131,6 @@ export function CourseFilters({
     });
   }
 
-  const sortLabel = SORT_OPTIONS.find((o) => o.id === activeSorting)?.label ?? "Сортировка";
-
   return (
     <View style={styles.container}>
       <View style={styles.controlsRow}>
@@ -135,15 +138,28 @@ export function CourseFilters({
           style={styles.sortButton}
           onPress={() => setSortModalVisible(true)}
         >
-          <Text style={styles.sortIcon}>⇅</Text>
-          <Text style={styles.sortButtonText}>{sortLabel}</Text>
+          <MaterialCommunityIcons
+            name="swap-vertical"
+            size={20}
+            color={LABEL_ON_PRIMARY}
+          />
+          <Text style={styles.sortButtonText}>Сортировка</Text>
+          <MaterialCommunityIcons
+            name="chevron-down"
+            size={18}
+            color={LABEL_ON_PRIMARY}
+          />
         </Pressable>
 
         <Pressable
           style={styles.filterButton}
           onPress={() => setFiltersModalVisible(true)}
         >
-          <Text style={styles.filterIcon}>☰</Text>
+          <MaterialCommunityIcons
+            name="tune-variant"
+            size={20}
+            color={LABEL_ON_PRIMARY}
+          />
           <Text style={styles.filterButtonText}>Фильтры</Text>
           {activeFiltersCount > 0 && (
             <View style={styles.badge}>
@@ -160,7 +176,11 @@ export function CourseFilters({
               <Text style={styles.chipLabel} numberOfLines={1}>
                 {chip.label}
               </Text>
-              <Pressable style={styles.chipRemove} onPress={chip.onClear}>
+              <Pressable
+                style={styles.chipRemove}
+                onPress={chip.onClear}
+                accessibilityLabel={`Сбросить: ${chip.label}`}
+              >
                 <Text style={styles.chipRemoveText}>×</Text>
               </Pressable>
             </View>
@@ -229,8 +249,9 @@ export function CourseFilters({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    marginBottom: 20,
+    gap: 12,
     maxWidth: 600,
     alignSelf: "center",
     width: "100%",
@@ -239,97 +260,120 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: SPACING.sm,
+    gap: 12,
   },
   sortButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.sm,
+    gap: 6,
     paddingVertical: 12,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.cardBackground,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight,
-  },
-  sortIcon: {
-    fontSize: 18,
-    color: COLORS.textSecondary,
+    borderWidth: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+    minWidth: 0,
   },
   sortButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.text,
-    fontFamily: FONTS.montserrat,
     flex: 1,
+    fontSize: 12,
+    fontWeight: "600",
+    color: LABEL_ON_PRIMARY,
+    fontFamily: FONTS.montserrat,
   },
   filterButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.sm,
+    gap: 6,
     paddingVertical: 12,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.cardBackground,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight,
-  },
-  filterIcon: {
-    fontSize: 18,
-    color: COLORS.textSecondary,
+    borderWidth: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+    minWidth: 0,
   },
   filterButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
-    color: COLORS.text,
+    color: LABEL_ON_PRIMARY,
     fontFamily: FONTS.montserrat,
   },
   badge: {
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.text,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 6,
+    marginLeft: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   badgeText: {
     fontSize: 12,
     fontWeight: "700",
     color: "#fff",
+    fontFamily: FONTS.montserrat,
   },
   chipsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: SPACING.sm,
-    marginTop: SPACING.sm,
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 12,
   },
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.cardBackground,
+    gap: 8,
+    backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.lg,
-    paddingLeft: SPACING.sm + 2,
-    paddingRight: SPACING.xs,
-    paddingVertical: 8,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight,
+    paddingLeft: 16,
+    paddingRight: 10,
+    paddingVertical: 10,
+    borderWidth: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   chipLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
-    color: COLORS.text,
-    maxWidth: 120,
+    color: LABEL_ON_PRIMARY,
+    fontFamily: FONTS.montserrat,
+    maxWidth: 160,
   },
   chipRemove: {
-    padding: 4,
-    marginLeft: 4,
+    width: 24,
+    height: 24,
+    minWidth: 24,
+    minHeight: 24,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
   chipRemoveText: {
     fontSize: 18,
-    color: COLORS.textSecondary,
+    color: LABEL_ON_PRIMARY,
+    fontFamily: FONTS.montserrat,
+    lineHeight: 20,
   },
   sortOverlay: {
     flex: 1,

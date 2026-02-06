@@ -26,7 +26,7 @@ import {
   type RatingFilterType,
   type SortingType,
 } from "@/shared/utils/courseFilters";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/constants";
 
 /**
  * Страница со всеми курсами: поиск и фильтры как в web.
@@ -137,6 +137,7 @@ export default function CoursesScreen() {
 
   const listHeader = (
     <View style={styles.headerFilters}>
+      <Text style={styles.pageTitle}>Курсы</Text>
       <CourseSearch
         value={filters.search}
         onChange={(v) => setFilter("search", v)}
@@ -190,6 +191,7 @@ export default function CoursesScreen() {
               </Text>
             </View>
           }
+        >
         </FlashList>
       )}
 
@@ -212,8 +214,17 @@ const styles = StyleSheet.create({
   headerFilters: {
     paddingBottom: SPACING.sm,
   },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: "400",
+    color: "#352E2E",
+    textAlign: "center",
+    marginTop: SPACING.md,
+    marginBottom: SPACING.md,
+    fontFamily: FONTS.impact,
+  },
   listContent: {
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.sm,
     paddingTop: SPACING.xs,
     paddingBottom: SPACING.xl,
   },

@@ -1,4 +1,7 @@
+import * as SecureStore from "expo-secure-store";
+
 import { apiClient, type ApiResponse } from "./client";
+import { API_BASE_URL } from "@/constants";
 
 const LOG_PREFIX = "[PetsAPI]";
 
@@ -168,5 +171,43 @@ export const petsApi = {
       }
       throw error;
     }
+  },
+
+  /**
+   * Загрузить фото питомца (multipart/form-data).
+   */
+  uploadPhoto: async (
+    petId: string,
+    uri: string,
+    mimeType: string,
+    fileName: string,
+  ): Promise<ApiResponse<{ photoUrl: string }>> => {
+    const token = await SecureStore.getItemAsync("auth_token");
+    if (!token) {
+      return { success: false, error: "Не авторизован", code: "UNAUTHORIZED" };
+    }
+
+    const formData = new FormData();
+    formData.append("file", {
+      uri,
+      type: mimeType,
+      name: fileName,
+    } as unknown as Blob);
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/pets/${petId}/photo`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || "Ошибка загрузки фото",
+        code: data.code,
+      };
+    }
+    return data;
   },
 };

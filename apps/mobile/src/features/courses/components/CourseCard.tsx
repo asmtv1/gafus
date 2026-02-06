@@ -3,7 +3,7 @@ import { Text, IconButton } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
 import { Image } from "expo-image";
 
-import { COLORS, SPACING, BORDER_RADIUS } from "@/constants";
+import { SPACING, FONTS, COLORS, BORDER_RADIUS } from "@/constants";
 import type { Course } from "@/shared/lib/api";
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -159,8 +159,14 @@ export function CourseCard({
                 source={{ uri: course.logoImg }}
                 style={styles.courseImage}
                 contentFit="cover"
+                contentPosition="center"
                 transition={200}
               />
+              {course.isPaid && (
+                <View style={styles.paidBadge}>
+                  <Text style={styles.paidBadgeText}>Платный</Text>
+                </View>
+              )}
               {course.isPrivate && (
                 <View style={styles.privateBadge}>
                   <Text style={styles.privateBadgeText}>Приватный</Text>
@@ -169,39 +175,54 @@ export function CourseCard({
             </View>
             <View style={styles.content}>
               <Text style={styles.title}>{course.name}</Text>
-              <View style={styles.meta}>
-                <Text style={styles.duration}>
+              <View style={styles.metaBlock}>
+                <Text style={styles.metaText}>
                   <Text style={styles.metaBold}>Длительность:</Text> {course.duration}
                 </Text>
-                <View>
-                  <Text style={[styles.status, { color: getStatusColor(course.userStatus) }]}>
-                    {getStatusText(course.userStatus)}
+                <View style={styles.metaRowWithStatus}>
+                  <Text style={styles.metaText}>
+                    <Text style={styles.metaBold}>Уровень сложности:</Text>{" "}
+                    {LEVEL_LABELS[course.trainingLevel] ?? course.trainingLevel}
                   </Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: getStatusColor(course.userStatus) + "20" },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: getStatusColor(course.userStatus) },
+                      ]}
+                    >
+                      {getStatusText(course.userStatus)}
+                    </Text>
+                  </View>
                 </View>
               </View>
-              <View style={styles.description}>
-                <Text style={styles.descriptionText}>
-                  <Text style={styles.metaBold}>Уровень сложности:</Text>{" "}
-                  {LEVEL_LABELS[course.trainingLevel] ?? course.trainingLevel}
-                </Text>
-                <Text style={styles.descriptionText}>
-                  <Text style={styles.metaBold}>Описание:</Text> {course.shortDesc}
-                </Text>
+              <View style={styles.descriptionSection}>
+                <Text style={styles.descriptionLabel}>Описание</Text>
+                <Text style={styles.descriptionBody}>{course.shortDesc}</Text>
               </View>
-              {formattedStartedAt && (
-                <Text style={styles.date}>
-                  <Text style={styles.metaBold}>Начат:</Text> {formattedStartedAt}
-                </Text>
-              )}
-              {formattedCompletedAt && (
-                <Text style={styles.date}>
-                  <Text style={styles.metaBold}>Завершен:</Text> {formattedCompletedAt}
-                </Text>
+              {(formattedStartedAt || formattedCompletedAt) && (
+                <View style={styles.datesRow}>
+                  {formattedStartedAt && (
+                    <Text style={styles.date}>
+                      <Text style={styles.metaBold}>Начат:</Text> {formattedStartedAt}
+                    </Text>
+                  )}
+                  {formattedCompletedAt && (
+                    <Text style={styles.date}>
+                      <Text style={styles.metaBold}>Завершен:</Text> {formattedCompletedAt}
+                    </Text>
+                  )}
+                </View>
               )}
             </View>
           </Pressable>
         </Link>
-        <View style={styles.rating}>
+        <View style={styles.ratingRow}>
           <SimpleRating
             rating={course.avgRating}
             readOnly={course.userStatus !== "COMPLETED"}
@@ -210,10 +231,11 @@ export function CourseCard({
           <Pressable
             onPress={handleReviewsPress}
             disabled={reviewsCount === 0 && course.userStatus !== "COMPLETED"}
+            style={styles.reviewsTouchable}
           >
             <Text
               style={[
-                styles.reviews,
+                styles.reviewsText,
                 (reviewsCount > 0 || course.userStatus === "COMPLETED") &&
                   styles.reviewsClickable,
               ]}
@@ -223,145 +245,233 @@ export function CourseCard({
           </Pressable>
         </View>
       </View>
-      <View style={styles.author}>
-        <Pressable onPress={handleAuthorPress} disabled={!course.authorUsername}>
+      <View style={styles.authorSection}>
+        <Pressable
+          onPress={handleAuthorPress}
+          disabled={!course.authorUsername}
+          style={styles.authorContent}
+        >
           <Text style={styles.authorText}>
-            Автор курса:{" "}
+            <Text style={styles.authorLabel}>Автор курса:</Text>{" "}
             <Text style={styles.authorLink}>
               {course.authorUsername ?? "Неизвестный автор"}
             </Text>
           </Text>
+          <IconButton
+            icon={isFavorite ? "bookmark" : "bookmark-outline"}
+            iconColor={isFavorite ? "#E6B800" : COLORS.primary}
+            size={24}
+            onPress={onToggleFavorite}
+            disabled={disabled}
+            style={styles.favoriteButton}
+          />
         </Pressable>
-        <IconButton
-          icon={isFavorite ? "heart" : "heart-outline"}
-          iconColor={isFavorite ? COLORS.error : COLORS.textSecondary}
-          size={20}
-          onPress={onToggleFavorite}
-          disabled={disabled}
-          style={styles.favoriteButton}
-        />
       </View>
     </View>
   );
 }
 
+const PAD = SPACING.md;
+const GAP = SPACING.sm;
+const GAP_MD = SPACING.md;
+
 const styles = StyleSheet.create({
   courseCard: {
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: SPACING.md,
-    borderWidth: 2,
-    borderColor: "#636128",
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-    maxWidth: 310,
-    alignSelf: "center",
     width: "100%",
+    alignSelf: "stretch",
   },
   courseCardContent: {
     flexDirection: "column",
     flex: 1,
   },
-  link: {},
+  link: { width: "100%" },
   imageContainer: {
     width: "100%",
-    paddingTop: 10,
-    paddingHorizontal: 30,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingTop: PAD,
+    paddingHorizontal: PAD,
     position: "relative",
+    alignSelf: "stretch",
+    overflow: "hidden",
   },
   courseImage: {
-    width: 245,
-    height: 140,
+    width: "100%",
+    aspectRatio: 16 / 9,
+    maxHeight: 180,
     borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.onPrimary,
+    alignSelf: "center",
+  },
+  paidBadge: {
+    position: "absolute",
+    bottom: 8,
+    left: PAD + 8,
+    backgroundColor: "rgba(40, 120, 80, 0.9)",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+  },
+  paidBadgeText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "600",
+    fontFamily: FONTS.montserrat,
   },
   privateBadge: {
     position: "absolute",
-    top: 18,
-    right: 38,
-    backgroundColor: "rgba(255, 0, 0, 0.9)",
+    top: PAD + 8,
+    right: PAD + 8,
+    backgroundColor: "rgba(220, 53, 69, 0.9)",
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 4,
   },
   privateBadgeText: {
     color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "500",
+    fontSize: 11,
+    fontWeight: "600",
+    fontFamily: FONTS.montserrat,
   },
   content: {
-    paddingTop: 10,
-    paddingLeft: 30,
-    paddingRight: 10,
-    flex: 1,
+    width: "100%",
+    minWidth: 0,
+    paddingHorizontal: PAD,
+    paddingTop: GAP_MD,
+    paddingBottom: GAP,
   },
   title: {
-    marginBottom: 10,
-    fontSize: 20,
-    color: "#352E2E",
-    lineHeight: 20,
-    fontWeight: "400",
-    fontFamily: "System",
+    fontSize: 18,
+    fontWeight: "700",
+    color: COLORS.text,
+    fontFamily: FONTS.impact,
+    marginBottom: GAP_MD,
   },
-  meta: {
+  metaBlock: {
+    flexDirection: "column",
+    gap: 6,
+    marginBottom: GAP_MD,
+  },
+  metaRowWithStatus: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
+    gap: GAP,
   },
-  duration: {
-    color: "#352E2E",
+  metaText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontFamily: FONTS.montserrat,
+  },
+  metaBold: { fontWeight: "700", fontFamily: FONTS.montserrat },
+  statusBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  statusText: {
     fontSize: 12,
-    fontWeight: "400",
-    fontFamily: "System",
+    fontWeight: "600",
+    fontFamily: FONTS.montserrat,
   },
-  status: { fontSize: 12, fontWeight: "500" },
-  metaBold: { fontWeight: "700" },
-  description: { marginBottom: 10 },
-  descriptionText: {
-    color: "#352E2E",
-    fontSize: 12,
-    fontWeight: "400",
-    fontFamily: "System",
-    marginBottom: 4,
+  descriptionSection: {
+    width: "100%",
+    minWidth: 0,
+    marginTop: GAP,
+    marginBottom: GAP,
+    overflow: "hidden",
   },
-  date: { fontSize: 12, color: "#352E2E", marginBottom: 4 },
-  rating: {
+  descriptionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.primary,
+    marginBottom: 6,
+    fontFamily: FONTS.montserrat,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  descriptionBody: {
+    fontSize: 14,
+    color: COLORS.text,
+    lineHeight: 20,
+    fontFamily: FONTS.montserrat,
+    flexShrink: 1,
+    maxWidth: "100%",
+  },
+  datesRow: {
+    flexDirection: "column",
+    gap: 4,
+  },
+  date: {
+    fontSize: 13,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+  },
+  ratingRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 22,
-    marginTop: "auto",
-    paddingTop: 10,
-    paddingLeft: 30,
-    paddingRight: 10,
-    flexWrap: "wrap",
+    justifyContent: "space-between",
+    paddingVertical: GAP_MD,
+    paddingHorizontal: PAD,
+    minHeight: 40,
   },
-  ratingContainer: { flexDirection: "row", alignItems: "center", gap: 2 },
-  ratingHeart: { fontSize: 16 },
-  ratingHeartFilled: { color: "#ff6d75" },
+  ratingContainer: { flexDirection: "row", alignItems: "center", gap: 4 },
+  ratingHeart: { fontSize: 18 },
+  ratingHeartFilled: { color: "#e63946" },
   ratingHeartEmpty: { color: "#b0b0b0" },
-  ratingValue: { marginLeft: 8, color: "#666", fontSize: 12 },
-  noRatingText: { color: "#b0b0b0", fontSize: 12 },
-  reviews: { fontSize: 12, color: "#352E2E" },
+  ratingValue: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontFamily: FONTS.montserrat,
+  },
+  noRatingText: {
+    color: COLORS.placeholder,
+    fontSize: 13,
+    fontFamily: FONTS.montserrat,
+  },
+  reviewsTouchable: {
+    justifyContent: "center",
+  },
+  reviewsText: {
+    fontSize: 13,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+  },
   reviewsClickable: {
-    color: "#009dcf",
+    color: COLORS.secondary,
     textDecorationLine: "underline",
   },
-  author: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 30,
+  authorSection: {
     borderTopWidth: 1,
-    borderTopColor: "rgba(99, 97, 40, 0.2)",
+    borderTopColor: "#E5DDD0",
   },
-  authorText: { color: "#37373d", fontSize: 14, fontFamily: "System" },
-  authorLink: { color: "#009dcf" },
-  favoriteButton: { margin: 0 },
+  authorContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: PAD,
+    minHeight: 48,
+  },
+  authorText: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 14,
+    fontFamily: FONTS.montserrat,
+  },
+  authorLabel: { fontWeight: "700", fontFamily: FONTS.montserrat },
+  authorLink: { color: COLORS.secondary, fontWeight: "600" },
+  favoriteButton: {
+    margin: 0,
+    marginRight: -8,
+  },
 });

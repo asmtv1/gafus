@@ -135,13 +135,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
-    fontSize: 60,
+    fontSize: 28,
     fontWeight: "400",
     fontFamily: FONTS.impact,
     color: "#352E2E",
     textAlign: "center",
-    lineHeight: 60,
-    letterSpacing: 0,
+    marginBottom: SPACING.md,
   },
   listContent: {
     paddingHorizontal: SPACING.md,

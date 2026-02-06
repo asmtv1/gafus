@@ -1,5 +1,8 @@
+import * as SecureStore from "expo-secure-store";
+
 import { apiClient, type ApiResponse } from "./client";
 import type { User } from "./auth";
+import { API_BASE_URL } from "@/constants";
 
 export interface UpdateProfileData {
   fullName?: string;
@@ -95,5 +98,43 @@ export const userApi = {
       method: "PUT",
       body: data,
     });
+  },
+
+  /**
+   * Загрузить аватар (multipart/form-data).
+   * uri — локальный URI из ImagePicker (file:// или content://).
+   */
+  uploadAvatar: async (
+    uri: string,
+    mimeType: string,
+    fileName: string,
+  ): Promise<ApiResponse<{ avatarUrl: string }>> => {
+    const token = await SecureStore.getItemAsync("auth_token");
+    if (!token) {
+      return { success: false, error: "Не авторизован", code: "UNAUTHORIZED" };
+    }
+
+    const formData = new FormData();
+    formData.append("file", {
+      uri,
+      type: mimeType,
+      name: fileName,
+    } as unknown as Blob);
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/user/avatar`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || "Ошибка загрузки аватара",
+        code: data.code,
+      };
+    }
+    return data;
   },
 };

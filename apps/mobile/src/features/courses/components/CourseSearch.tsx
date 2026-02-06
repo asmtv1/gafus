@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet, TextInput, Pressable } from "react-native";
-import { Text } from "react-native-paper";
 
-import { COLORS, SPACING, BORDER_RADIUS } from "@/constants";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+
+import { COLORS, SPACING, BORDER_RADIUS, FONTS } from "@/constants";
 
 const DEBOUNCE_MS = 300;
 
@@ -41,17 +42,31 @@ export function CourseSearch({
   return (
     <View style={styles.searchContainer}>
       <View style={styles.searchWrapper}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <View style={styles.searchIconWrap} pointerEvents="none">
+          <MaterialCommunityIcons
+            name="magnify"
+            size={20}
+            color={COLORS.onPrimary}
+          />
+        </View>
         <TextInput
           style={styles.searchInput}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={COLORS.onPrimary}
           value={localValue}
           onChangeText={setLocalValue}
         />
         {localValue.length > 0 && (
-          <Pressable style={styles.clearButton} onPress={handleClear}>
-            <Text style={styles.clearButtonText}>✕</Text>
+          <Pressable
+            style={styles.clearButton}
+            onPress={handleClear}
+            accessibilityLabel="Очистить поиск"
+          >
+            <MaterialCommunityIcons
+              name="close"
+              size={16}
+              color={COLORS.onPrimary}
+            />
           </Pressable>
         )}
       </View>
@@ -61,22 +76,23 @@ export function CourseSearch({
 
 const styles = StyleSheet.create({
   searchContainer: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    paddingBottom: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    paddingTop: 20,
+    paddingBottom: 10,
+    maxWidth: 600,
+    width: "100%",
+    alignSelf: "center",
   },
   searchWrapper: {
     position: "relative",
     width: "100%",
-    maxWidth: 600,
-    alignSelf: "center",
   },
-  searchIcon: {
+  searchIconWrap: {
     position: "absolute",
     left: 16,
-    top: "50%",
-    marginTop: -10,
-    fontSize: 18,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
     zIndex: 1,
   },
   searchInput: {
@@ -84,24 +100,26 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingLeft: 48,
     paddingRight: 48,
-    borderWidth: 2,
-    borderColor: "transparent",
+    borderWidth: 0,
     borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.cardBackground,
-    color: COLORS.text,
+    backgroundColor: COLORS.primary,
+    color: COLORS.onPrimary,
     fontSize: 15,
+    fontFamily: FONTS.montserrat,
     fontWeight: "500",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   clearButton: {
     position: "absolute",
     right: 12,
-    top: "50%",
-    marginTop: -14,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
     padding: 8,
     borderRadius: 6,
-  },
-  clearButtonText: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
   },
 });

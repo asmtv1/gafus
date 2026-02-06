@@ -2,6 +2,7 @@ import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput } from "react
 import { Text, Avatar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useState } from "react";
@@ -21,7 +22,7 @@ const formatDate = (date: string) => {
 };
 
 /**
- * Компонент рейтинга (звездочки-сердечки)
+ * Рейтинг: изначально 5 пустых сердечек (♡), по нажатию — выбранное количество заполняется (♥).
  */
 function RatingStars({
   rating,
@@ -32,25 +33,31 @@ function RatingStars({
   interactive?: boolean;
   onRatingChange?: (rating: number) => void;
 }) {
+  const selected = Math.max(0, Math.min(5, Math.round(rating)));
   return (
     <View style={styles.starsContainer}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Pressable
-          key={star}
-          onPress={() => interactive && onRatingChange?.(star)}
-          disabled={!interactive}
-        >
-          <Text
-            style={[
-              styles.star,
-              star <= rating ? styles.starFilled : styles.starEmpty,
-              interactive && styles.starInteractive,
-            ]}
+      {[1, 2, 3, 4, 5].map((value) => {
+        const filled = value <= selected;
+        return (
+          <Pressable
+            key={value}
+            style={styles.starPressable}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            onPress={() => interactive && onRatingChange?.(value)}
+            disabled={!interactive}
           >
-            ♥
-          </Text>
-        </Pressable>
-      ))}
+            <Text
+              style={[
+                styles.star,
+                filled ? styles.starFilled : styles.starEmpty,
+                interactive && styles.starInteractive,
+              ]}
+            >
+              {filled ? "♥" : "♡"}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -185,6 +192,10 @@ export default function ReviewsScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Загрузка..." }} />
+        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+          <Text style={styles.backRowText}>Назад</Text>
+        </Pressable>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Загрузка отзывов...</Text>
         </View>
@@ -199,6 +210,14 @@ export default function ReviewsScreen() {
           title: `Отзывы к курсу "${reviewsData?.courseName || ""}"`,
         }}
       />
+      <Pressable
+        style={styles.backRow}
+        onPress={() => router.back()}
+        hitSlop={12}
+      >
+        <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+        <Text style={styles.backRowText}>Назад</Text>
+      </Pressable>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Отзывы к курсу &quot;{reviewsData?.courseName}&quot;</Text>
 
@@ -275,6 +294,7 @@ export default function ReviewsScreen() {
 
               return (
                 <View key={review.id} style={styles.reviewCard}>
+                  {/* Строка 1: автор + дата слева, кнопки редактирования справа */}
                   <View style={styles.reviewHeader}>
                     <View style={styles.userInfo}>
                       {review.user.profile?.avatarUrl ? (
@@ -295,35 +315,38 @@ export default function ReviewsScreen() {
                         <Text style={styles.date}>{formatDate(review.createdAt)}</Text>
                       </View>
                     </View>
-                    <View style={styles.ratingAndActions}>
-                      <RatingStars rating={review.rating || 0} />
-                      {isOwnReview && !isEditing && (
-                        <View style={styles.reviewActions}>
-                          <Pressable
-                            style={styles.actionButton}
-                            onPress={() => handleStartEdit(review)}
-                            disabled={
-                              createMutation.isPending ||
-                              updateMutation.isPending ||
-                              deleteMutation.isPending
-                            }
-                          >
-                            <Text style={styles.actionIcon}>✏️</Text>
-                          </Pressable>
-                          <Pressable
-                            style={styles.actionButton}
-                            onPress={() => handleDelete(review.id)}
-                            disabled={
-                              createMutation.isPending ||
-                              updateMutation.isPending ||
-                              deleteMutation.isPending
-                            }
-                          >
-                            <Text style={styles.actionIcon}>🗑️</Text>
-                          </Pressable>
-                        </View>
-                      )}
-                    </View>
+                    {isOwnReview && !isEditing && (
+                      <View style={styles.reviewActions}>
+                        <Pressable
+                          style={styles.actionButton}
+                          onPress={() => handleStartEdit(review)}
+                          disabled={
+                            createMutation.isPending ||
+                            updateMutation.isPending ||
+                            deleteMutation.isPending
+                          }
+                          hitSlop={8}
+                        >
+                          <Text style={styles.actionIcon}>✏️</Text>
+                        </Pressable>
+                        <Pressable
+                          style={styles.actionButton}
+                          onPress={() => handleDelete(review.id)}
+                          disabled={
+                            createMutation.isPending ||
+                            updateMutation.isPending ||
+                            deleteMutation.isPending
+                          }
+                          hitSlop={8}
+                        >
+                          <Text style={styles.actionIcon}>🗑️</Text>
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+                  {/* Строка 2: рейтинг (сердечки) */}
+                  <View style={styles.ratingRow}>
+                    <RatingStars rating={review.rating || 0} />
                   </View>
 
                   {review.comment && (
@@ -345,6 +368,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: 4,
+  },
+  backRowText: {
+    fontSize: 17,
+    color: COLORS.primary,
+    fontWeight: "500",
+    fontFamily: FONTS.montserrat,
   },
   scrollContent: {
     padding: SPACING.md,
@@ -395,9 +431,17 @@ const styles = StyleSheet.create({
   starsContainer: {
     flexDirection: "row",
     gap: 4,
+    alignItems: "center",
+  },
+  starPressable: {
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
   },
   star: {
-    fontSize: 24,
+    fontSize: 28,
   },
   starFilled: {
     color: "#ff6d75",
@@ -487,6 +531,7 @@ const styles = StyleSheet.create({
   reviewHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: SPACING.sm,
   },
   userInfo: {
@@ -494,6 +539,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: SPACING.sm,
     flex: 1,
+    minWidth: 0,
   },
   avatar: {
     width: 40,
@@ -516,6 +562,7 @@ const styles = StyleSheet.create({
   },
   userDetails: {
     flex: 1,
+    minWidth: 0,
   },
   username: {
     fontSize: 14,
@@ -527,21 +574,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#636128",
     fontFamily: FONTS.montserrat,
+    marginTop: 2,
   },
-  ratingAndActions: {
-    flexDirection: "column",
-    alignItems: "flex-end",
-    gap: SPACING.xs,
+  ratingRow: {
+    marginBottom: SPACING.sm,
   },
   reviewActions: {
     flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.xs,
+    marginLeft: SPACING.sm,
   },
   actionButton: {
-    padding: 4,
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
   },
   actionIcon: {
-    fontSize: 18,
+    fontSize: 22,
   },
   commentContainer: {
     marginTop: SPACING.sm,

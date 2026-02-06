@@ -433,7 +433,9 @@
 
 Обновить аватар пользователя.
 
-**Body:** FormData с файлом
+**Body:** `multipart/form-data`, поле `file`. Типы: JPEG, PNG, WebP, GIF. Макс. 5 МБ.
+
+**Response:** `{ "success": true, "data": { "avatarUrl": "string" } }`
 
 ---
 
@@ -485,6 +487,16 @@
   "notes": "string"
 }
 ```
+
+---
+
+### POST `/api/v1/pets/[petId]/photo`
+
+Загрузить фото питомца.
+
+**Body:** `multipart/form-data`, поле `file`. Типы: JPEG, PNG, WebP, GIF. Макс. 2 МБ.
+
+**Response:** `{ "success": true, "data": { "photoUrl": "string" } }`
 
 ---
 

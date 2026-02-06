@@ -2,6 +2,7 @@ import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text, Avatar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 
@@ -121,6 +122,10 @@ export default function PublicProfileScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Загрузка..." }} />
+        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+          <Text style={styles.backRowText}>Назад</Text>
+        </Pressable>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Загрузка профиля...</Text>
         </View>
@@ -170,6 +175,14 @@ export default function PublicProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Stack.Screen options={{ title: `Профиль ${publicData.username}` }} />
+      <Pressable
+        style={styles.backRow}
+        onPress={() => router.back()}
+        hitSlop={12}
+      >
+        <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+        <Text style={styles.backRowText}>Назад</Text>
+      </Pressable>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Профиль {publicData.username}</Text>
 
@@ -178,10 +191,10 @@ export default function PublicProfileScreen() {
           <View style={styles.avatarContainer}>
             <View style={styles.avatarWrapper}>
               {profile?.avatarUrl ? (
-                <Avatar.Image size={63} source={{ uri: profile.avatarUrl }} />
+                <Avatar.Image size={95} source={{ uri: profile.avatarUrl }} />
               ) : (
                 <Avatar.Text
-                  size={63}
+                  size={95}
                   label={getInitials(
                     profile?.fullName || publicData.username || "U",
                   )}
@@ -270,7 +283,7 @@ export default function PublicProfileScreen() {
           )}
         </View>
 
-        {/* Курсы кинолога (как в web) */}
+        {/* Курсы кинолога — дизайн как на web (TrainerCoursesSection) */}
         {courses.length > 0 && (
           <View style={styles.coursesSection}>
             <Text style={styles.coursesSectionTitle}>Курсы кинолога</Text>
@@ -285,53 +298,56 @@ export default function PublicProfileScreen() {
                   onPress={() => handleCoursePress(course)}
                 >
                   <View style={styles.courseContent}>
-                    <Image
-                      source={{
-                        uri: course.logoImg || undefined,
-                      }}
-                      style={styles.courseImage}
-                      contentFit="cover"
-                    />
-                    {course.isPrivate && (
-                      <View style={styles.privateBadge}>
-                        <Text style={styles.privateBadgeText}>Приватный</Text>
-                      </View>
-                    )}
-                    {course.isPaid && (
-                      <View style={styles.paidBadge}>
-                        <Text style={styles.paidBadgeText}>Платный</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.courseInfo}>
-                    <Text style={styles.courseName}>{course.name}</Text>
-                    {course.shortDesc ? (
-                      <Text
-                        style={styles.courseDescription}
-                        numberOfLines={3}
-                      >
-                        {course.shortDesc}
-                      </Text>
-                    ) : null}
-                    <View style={styles.courseMeta}>
-                      {course.isPaid &&
-                        course.priceRub != null &&
-                        course.priceRub > 0 && (
+                    <View style={styles.imageWrapper}>
+                      <Image
+                        source={{
+                          uri: course.logoImg || undefined,
+                        }}
+                        style={styles.courseImage}
+                        contentFit="cover"
+                      />
+                      {course.isPrivate && (
+                        <View style={styles.privateBadge}>
+                          <Text style={styles.privateBadgeText}>Приватный</Text>
+                        </View>
+                      )}
+                      {course.isPaid && (
+                        <View style={styles.paidBadge}>
+                          <Text style={styles.paidBadgeText}>Платный</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.courseInfo}>
+                      <Text style={styles.courseName}>{course.name}</Text>
+                      {course.shortDesc ? (
+                        <Text style={styles.courseDescription}>
+                          {course.shortDesc}
+                        </Text>
+                      ) : null}
+                      <View style={styles.courseMeta}>
+                        {course.isPaid &&
+                          course.priceRub != null &&
+                          course.priceRub > 0 && (
+                            <Text style={styles.courseMetaText}>
+                              <Text style={styles.courseMetaLabel}>Цена:</Text>{" "}
+                              {course.priceRub} ₽
+                            </Text>
+                          )}
+                        <Text style={styles.courseMetaText}>
+                          <Text style={styles.courseMetaLabel}>Длительность:</Text>{" "}
+                          {course.duration}
+                        </Text>
+                        <Text style={styles.courseMetaText}>
+                          <Text style={styles.courseMetaLabel}>Уровень:</Text>{" "}
+                          {getTrainingLevelLabel(course.trainingLevel)}
+                        </Text>
+                        {course.avgRating != null && (
                           <Text style={styles.courseMetaText}>
-                            Цена: {course.priceRub} ₽
+                            <Text style={styles.courseMetaLabel}>Рейтинг:</Text>{" "}
+                            {course.avgRating.toFixed(1)} ♥
                           </Text>
                         )}
-                      <Text style={styles.courseMetaText}>
-                        Длительность: {course.duration}
-                      </Text>
-                      <Text style={styles.courseMetaText}>
-                        Уровень: {getTrainingLevelLabel(course.trainingLevel)}
-                      </Text>
-                      {course.avgRating != null && (
-                        <Text style={styles.courseMetaText}>
-                          Рейтинг: {course.avgRating.toFixed(1)} ♥
-                        </Text>
-                      )}
+                      </View>
                     </View>
                   </View>
                 </Pressable>
@@ -373,6 +389,19 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontFamily: FONTS.montserrat,
     marginBottom: SPACING.md,
+  },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: 4,
+  },
+  backRowText: {
+    fontSize: 17,
+    color: COLORS.primary,
+    fontWeight: "500",
+    fontFamily: FONTS.montserrat,
   },
   backButton: {
     backgroundColor: "#636128",
@@ -416,11 +445,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarWrapper: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 3,
-    borderColor: "#ECE5D2",
+    width: 105,
+    height: 105,
+    borderRadius: 53,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -571,12 +598,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONTS.montserrat,
   },
-  // Курсы кинолога
+  // Курсы кинолога — как TrainerCoursesSection на web
   coursesSection: {
     width: "100%",
     marginBottom: SPACING.lg,
     backgroundColor: "#F5F0E8",
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D4C4A8",
     padding: SPACING.md,
@@ -597,31 +624,45 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   courseItem: {
-    flexDirection: "row",
-    backgroundColor: "#FFF8E5",
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: "#ECE5D2",
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D4C4A8",
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   courseItemPressed: {
     opacity: 0.9,
   },
   courseContent: {
-    width: 120,
-    height: 80,
+    flexDirection: "column",
+    padding: 16,
+    gap: 12,
+  },
+  imageWrapper: {
+    width: "100%",
+    height: 140,
+    borderRadius: 8,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#636128",
+    backgroundColor: "#FFF8E5",
     position: "relative",
   },
   courseImage: {
-    width: 120,
-    height: 80,
+    width: "100%",
+    height: "100%",
     borderRadius: 0,
   },
   privateBadge: {
     position: "absolute",
     top: 4,
     right: 4,
-    backgroundColor: "rgba(255, 0, 0, 0.9)",
+    backgroundColor: "rgba(220, 53, 69, 0.9)",
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 4,
@@ -633,42 +674,48 @@ const styles = StyleSheet.create({
   },
   paidBadge: {
     position: "absolute",
-    top: 4,
+    bottom: 4,
     left: 4,
-    backgroundColor: "#636128",
+    backgroundColor: "rgba(40, 120, 80, 0.9)",
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 4,
   },
   paidBadgeText: {
-    color: "#ECE5D2",
+    color: "#fff",
     fontSize: 10,
     fontWeight: "600",
   },
   courseInfo: {
-    flex: 1,
-    padding: SPACING.sm,
-    justifyContent: "center",
+    flexDirection: "column",
+    gap: 8,
   },
   courseName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
     color: "#352E2E",
-    marginBottom: 4,
-    fontFamily: FONTS.montserrat,
+    fontFamily: FONTS.impact,
+    textAlign: "left",
   },
   courseDescription: {
-    fontSize: 12,
+    fontSize: 14,
     color: "#352E2E",
-    marginBottom: 4,
+    lineHeight: 20,
     fontFamily: FONTS.montserrat,
+    textAlign: "left",
   },
   courseMeta: {
-    flexDirection: "column",
-    gap: 2,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
   },
   courseMetaText: {
-    fontSize: 11,
+    fontSize: 13,
+    color: "#636128",
+    fontFamily: FONTS.montserrat,
+  },
+  courseMetaLabel: {
+    fontWeight: "600",
     color: "#636128",
     fontFamily: FONTS.montserrat,
   },

@@ -1,16 +1,21 @@
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking } from "react-native";
-import { Text, Avatar, IconButton } from "react-native-paper";
+import { Text, Avatar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 
-import { Button, Card } from "@/shared/components/ui";
+import { Card } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
 import { userApi } from "@/shared/lib/api/user";
-import { petsApi, type Pet, type CreatePetData } from "@/shared/lib/api/pets";
+import { petsApi, type Pet } from "@/shared/lib/api/pets";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, SPACING, BORDER_RADIUS, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/constants";
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const AVATAR_MAX_SIZE_MB = 5;
+const PET_PHOTO_MAX_SIZE_MB = 2;
 
 // Функция для получения инициалов
 const getInitials = (name: string): string => {
@@ -152,6 +157,56 @@ export default function ProfileScreen() {
     },
   });
 
+  // Загрузка аватара пользователя
+  const avatarUploadMutation = useMutation({
+    mutationFn: async ({
+      uri,
+      mimeType,
+      fileName,
+    }: {
+      uri: string;
+      mimeType: string;
+      fileName: string;
+    }) => userApi.uploadAvatar(uri, mimeType, fileName),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+        hapticFeedback.success();
+      } else {
+        Alert.alert("Ошибка", result.error ?? "Не удалось загрузить аватар");
+      }
+    },
+    onError: (error) => {
+      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось загрузить аватар");
+    },
+  });
+
+  // Загрузка фото питомца
+  const petPhotoUploadMutation = useMutation({
+    mutationFn: async ({
+      petId,
+      uri,
+      mimeType,
+      fileName,
+    }: {
+      petId: string;
+      uri: string;
+      mimeType: string;
+      fileName: string;
+    }) => petsApi.uploadPhoto(petId, uri, mimeType, fileName),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["pets"] });
+        hapticFeedback.success();
+      } else {
+        Alert.alert("Ошибка", result.error ?? "Не удалось загрузить фото");
+      }
+    },
+    onError: (error) => {
+      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось загрузить фото");
+    },
+  });
+
   const profile = profileData?.data?.profile;
   const pets = petsData?.data || [];
   const displayRole = getRoleLabel(user?.role);
@@ -192,6 +247,62 @@ export default function ProfileScreen() {
   const age = profile?.birthDate ? getAge(profile.birthDate) : null;
   const hasSocialLinks = profile?.instagram || profile?.telegram || profile?.website;
 
+  const pickImageAndUploadAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Доступ", "Нужен доступ к фото для смены аватара");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    const mimeType = asset.mimeType ?? "image/jpeg";
+    if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
+      Alert.alert("Ошибка", "Разрешены только JPEG, PNG, WebP, GIF");
+      return;
+    }
+    const sizeMB = (asset.fileSize ?? 0) / (1024 * 1024);
+    if (sizeMB > AVATAR_MAX_SIZE_MB) {
+      Alert.alert("Ошибка", `Максимальный размер аватара — ${AVATAR_MAX_SIZE_MB} МБ`);
+      return;
+    }
+    const fileName = asset.uri.split("/").pop() ?? "photo.jpg";
+    avatarUploadMutation.mutate({ uri: asset.uri, mimeType, fileName });
+  };
+
+  const pickImageAndUploadPetPhoto = async (petId: string) => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Доступ", "Нужен доступ к фото для смены фото питомца");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    const mimeType = asset.mimeType ?? "image/jpeg";
+    if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
+      Alert.alert("Ошибка", "Разрешены только JPEG, PNG, WebP, GIF");
+      return;
+    }
+    const sizeMB = (asset.fileSize ?? 0) / (1024 * 1024);
+    if (sizeMB > PET_PHOTO_MAX_SIZE_MB) {
+      Alert.alert("Ошибка", `Максимальный размер фото — ${PET_PHOTO_MAX_SIZE_MB} МБ`);
+      return;
+    }
+    const fileName = asset.uri.split("/").pop() ?? "photo.jpg";
+    petPhotoUploadMutation.mutate({ petId, uri: asset.uri, mimeType, fileName });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -201,16 +312,23 @@ export default function ProfileScreen() {
         {/* Баннер профиля (оливковый фон) */}
         <View style={styles.profileBanner}>
           <View style={styles.avatarContainer}>
-            <View style={styles.avatarWrapper}>
+            <Pressable
+              style={styles.avatarWrapper}
+              onPress={pickImageAndUploadAvatar}
+              disabled={avatarUploadMutation.isPending}
+            >
               {profile?.avatarUrl ? (
-                <Avatar.Image size={63} source={{ uri: profile.avatarUrl }} />
+                <Avatar.Image size={95} source={{ uri: profile.avatarUrl }} />
               ) : (
                 <Avatar.Text
-                  size={63}
+                  size={95}
                   label={getInitials(profile?.fullName || user?.username || "U")}
                 />
               )}
-            </View>
+              <View style={styles.avatarEditBadge}>
+                <Text style={styles.avatarEditText}>✏️</Text>
+              </View>
+            </Pressable>
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.greeting}>Привет, {profile?.fullName || user?.username}!</Text>
@@ -306,17 +424,26 @@ export default function ProfileScreen() {
               {pets.map((pet) => (
                 <View key={pet.id} style={styles.petItem}>
                   <View style={styles.petMainInfo}>
-                    {pet.photoUrl ? (
-                      <Image
-                        source={{ uri: pet.photoUrl }}
-                        style={styles.petAvatar}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <View style={styles.petAvatarPlaceholder}>
-                        <Text style={styles.petAvatarText}>🐾</Text>
+                    <Pressable
+                      onPress={() => pickImageAndUploadPetPhoto(pet.id)}
+                      disabled={petPhotoUploadMutation.isPending}
+                      style={styles.petAvatarPressable}
+                    >
+                      {pet.photoUrl ? (
+                        <Image
+                          source={{ uri: pet.photoUrl }}
+                          style={styles.petAvatar}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View style={styles.petAvatarPlaceholder}>
+                          <Text style={styles.petAvatarText}>🐾</Text>
+                        </View>
+                      )}
+                      <View style={styles.petAvatarEditBadge}>
+                        <Text style={styles.petAvatarEditText}>✏️</Text>
                       </View>
-                    )}
+                    </Pressable>
                     <View style={styles.petInfo}>
                       <Text style={styles.petName}>
                         {pet.name} ({getPetTypeLabel(pet.type)})
@@ -495,11 +622,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarWrapper: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 3,
-    borderColor: "#ECE5D2",
+    position: "relative",
+    width: 105,
+    height: 105,
+    borderRadius: 53,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -509,6 +635,20 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     backgroundColor: COLORS.primary,
+  },
+  avatarEditBadge: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarEditText: {
+    fontSize: 14,
   },
   profileInfo: {
     flex: 1,
@@ -734,10 +874,29 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     marginBottom: SPACING.md,
   },
+  petAvatarPressable: {
+    position: "relative",
+    width: 60,
+    height: 60,
+  },
   petAvatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
+  },
+  petAvatarEditBadge: {
+    position: "absolute",
+    right: -4,
+    bottom: -4,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  petAvatarEditText: {
+    fontSize: 10,
   },
   petAvatarPlaceholder: {
     width: 60,

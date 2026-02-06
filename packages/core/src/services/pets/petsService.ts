@@ -2,8 +2,15 @@
  * Pets Service
  * Сервис для работы с питомцами
  */
+import { randomUUID } from "crypto";
+
 import { prisma } from "@gafus/prisma";
-import { deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
+import {
+  deleteFileFromCDN,
+  getPetPhotoPath,
+  getRelativePathFromCDNUrl,
+  uploadFileToCDN,
+} from "@gafus/cdn-upload";
 import { createWebLogger } from "@gafus/logger";
 
 import type { PetType, Prisma } from "@gafus/prisma";
@@ -143,6 +150,49 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
     logger.error("Ошибка при обновлении питомца", error as Error);
     throw new Error("Не удалось обновить питомца");
   }
+}
+
+/**
+ * Обновить фото питомца (загрузка в CDN и сохранение URL в БД)
+ */
+export async function updatePetPhoto(
+  petId: string,
+  userId: string,
+  file: File,
+): Promise<string> {
+  const existingPet = await prisma.pet.findFirst({
+    where: { id: petId, ownerId: userId },
+    select: { photoUrl: true },
+  });
+
+  if (!existingPet) {
+    throw new Error("Питомец не найден или не принадлежит пользователю");
+  }
+
+  const ext = file.name.split(".").pop();
+  if (!ext) throw new Error("Не удалось определить расширение файла");
+
+  const uuid = randomUUID();
+  const relativePath = getPetPhotoPath(userId, petId, uuid, ext);
+  const photoUrl = await uploadFileToCDN(file, relativePath);
+
+  if (existingPet.photoUrl) {
+    try {
+      const oldRelativePath = getRelativePathFromCDNUrl(existingPet.photoUrl);
+      await deleteFileFromCDN(oldRelativePath);
+      logger.info(`Старое фото питомца удалено из CDN: ${oldRelativePath}`);
+    } catch (error) {
+      logger.error("Не удалось удалить старое фото питомца", error as Error);
+    }
+  }
+
+  await prisma.pet.update({
+    where: { id: petId },
+    data: { photoUrl },
+  });
+
+  logger.info("Photo URL saved to database", { photoUrl, petId });
+  return photoUrl;
 }
 
 /**
