@@ -13,6 +13,7 @@ import { Text, Snackbar } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 
 import { useAuthStore } from "@/shared/stores";
@@ -57,6 +58,8 @@ export default function RegisterScreen() {
     password: "",
     confirmPassword: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
@@ -172,27 +175,55 @@ export default function RegisterScreen() {
             <Text style={styles.info}>Требуется Подтверждение через Telegram</Text>
 
             {/* Password Input */}
-            <TextInput
-              style={styles.input}
-              value={form.password}
-              onChangeText={(v) => updateField("password", v)}
-              placeholder="Пароль"
-              placeholderTextColor={COLORS.placeholder}
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            <View style={styles.passwordInputWrapper}>
+              <TextInput
+                style={styles.inputWithIcon}
+                value={form.password}
+                onChangeText={(v) => updateField("password", v)}
+                placeholder="Пароль"
+                placeholderTextColor={COLORS.placeholder}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <Pressable
+                style={styles.eyeButton}
+                onPress={() => setShowPassword((v) => !v)}
+                accessibilityLabel={showPassword ? "Скрыть пароль" : "Показать пароль"}
+              >
+                <MaterialCommunityIcons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={22}
+                  color={COLORS.primary}
+                />
+              </Pressable>
+            </View>
             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
             {/* Confirm Password Input */}
-            <TextInput
-              style={styles.input}
-              value={form.confirmPassword}
-              onChangeText={(v) => updateField("confirmPassword", v)}
-              placeholder="Повторите пароль"
-              placeholderTextColor={COLORS.placeholder}
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            <View style={styles.passwordInputWrapper}>
+              <TextInput
+                style={styles.inputWithIcon}
+                value={form.confirmPassword}
+                onChangeText={(v) => updateField("confirmPassword", v)}
+                placeholder="Повторите пароль"
+                placeholderTextColor={COLORS.placeholder}
+                secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+              />
+              <Pressable
+                style={styles.eyeButton}
+                onPress={() => setShowConfirmPassword((v) => !v)}
+                accessibilityLabel={
+                  showConfirmPassword ? "Скрыть пароль" : "Показать пароль"
+                }
+              >
+                <MaterialCommunityIcons
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  size={22}
+                  color={COLORS.primary}
+                />
+              </Pressable>
+            </View>
             {errors.confirmPassword && (
               <Text style={styles.errorText}>{errors.confirmPassword}</Text>
             )}
@@ -279,6 +310,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: FONTS.montserrat,
     color: COLORS.primary,
+  },
+  passwordInputWrapper: {
+    position: "relative",
+    width: 230,
+  },
+  inputWithIcon: {
+    backgroundColor: COLORS.cardBackground,
+    width: 230,
+    height: 29,
+    borderWidth: 2,
+    borderColor: "#636128",
+    borderRadius: 5,
+    paddingLeft: 10,
+    paddingRight: 40,
+    fontSize: 12,
+    fontFamily: FONTS.montserrat,
+    color: COLORS.primary,
+  },
+  eyeButton: {
+    position: "absolute",
+    right: 8,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
   },
   // Текст ошибки
   errorText: {

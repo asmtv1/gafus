@@ -193,11 +193,9 @@ export default function PublicProfileScreen() {
               {profile?.avatarUrl ? (
                 <Avatar.Image size={95} source={{ uri: profile.avatarUrl }} />
               ) : (
-                <Avatar.Text
+                <Avatar.Image
                   size={95}
-                  label={getInitials(
-                    profile?.fullName || publicData.username || "U",
-                  )}
+                  source={require("../../../assets/images/avatar.png")}
                 />
               )}
             </View>

@@ -13,7 +13,13 @@ import {
 
 import { QueryProvider, AuthProvider, ThemeProvider } from "@/shared/providers";
 import { ErrorBoundary, OfflineIndicator } from "@/shared/components";
+import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
 import { COLORS } from "@/constants";
+
+function SyncProgressOnReconnect() {
+  useSyncProgressOnReconnect();
+  return null;
+}
 
 // Не скрывать splash screen автоматически
 SplashScreen.preventAutoHideAsync();
@@ -53,6 +59,7 @@ export default function RootLayout() {
             <AuthProvider>
               <View style={styles.container}>
                 <OfflineIndicator />
+                <SyncProgressOnReconnect />
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="(auth)" />
                   <Stack.Screen name="(main)" />

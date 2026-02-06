@@ -35,10 +35,11 @@
 - [x] **Календарь тренировок** (TrainingCalendar)
 - [x] **Смена аватара пользователя** (профиль: нажатие на аватар → выбор фото → загрузка через `POST /api/v1/user/avatar`)
 - [x] **Смена фото питомца** (профиль: нажатие на фото питомца → выбор фото → загрузка через `POST /api/v1/pets/:petId/photo`)
+- [x] **Офлайн режим**: скачивание курсов (meta + медиа), локальное HLS, очередь скачивания, воспроизведение из кэша; синхронизация прогресса при появлении сети (очередь мутаций startStep/pause/resume/complete)
 
 ### В планах
 
-- [ ] Офлайн режим (скачивание курсов, WatermelonDB)
+- [ ] (Опционально) WatermelonDB для офлайна — текущая реализация на meta.json + expo-file-system
 
 ---
 
@@ -1160,196 +1161,43 @@ export const hapticFeedback = {
 
 ## Офлайн режим
 
+Реализован без WatermelonDB: данные курса хранятся в `meta.json` (с `schemaVersion: 1`), медиа — в файловой системе (expo-file-system). Прогресс шагов — в stepStore; при офлайне мутации (startStep, pause, resume, complete) попадают в очередь и отправляются при появлении сети.
+
 ### Архитектура офлайн хранения
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Offline Layer                         │
-├─────────────────────────────────────────────────────────┤
-│  MMKV (быстрое key-value)                               │
-│  - Auth tokens                                           │
-│  - User preferences                                      │
-│  - Zustand stores persist                               │
-├─────────────────────────────────────────────────────────┤
-│  SQLite / WatermelonDB (структурированные данные)       │
-│  - Курсы                                                 │
-│  - Дни тренировок                                        │
-│  - Шаги                                                  │
-│  - Локальный прогресс                                    │
-├─────────────────────────────────────────────────────────┤
-│  File System (expo-file-system)                         │
-│  - Видео для офлайн                                      │
-│  - Изображения                                           │
-│  - PDF документы                                         │
-├─────────────────────────────────────────────────────────┤
-│  Sync Queue (очередь синхронизации)                     │
-│  - Pending mutations                                     │
-│  - Retry logic                                           │
-└─────────────────────────────────────────────────────────┘
-```
+- **Zustand + persist (AsyncStorage):** `offlineStore` (очередь скачивания, список скачанных курсов), `progressSyncStore` (очередь мутаций прогресса).
+- **Файловая система (expo-file-system):** директория `offline/<courseType>/`: `meta.json`, `videos/<videoId>/` (HLS: manifest + сегменты), `images/`, `pdfs/`.
+- **meta.json:** версия курса, структура дней и шагов (из API `GET /offline/course/download`); при несовпадении `schemaVersion` данные не используются.
 
-### WatermelonDB Schema
+### Ключевые модули
 
-```typescript
-// src/shared/lib/offline/schema.ts
-import { appSchema, tableSchema } from "@nozbe/watermelondb";
+- `shared/lib/api/offline.ts` — `offlineApi.getVersion`, `checkUpdates`, `downloadCourse`.
+- `shared/lib/offline/offlineStorage.ts` — сохранение/чтение meta, список офлайн-курсов, удаление курса, `getOfflineVideoUri`.
+- `shared/lib/offline/downloadHLSForOffline.ts` — загрузка HLS (signed URL → манифест и сегменты, перезапись манифеста на локальные пути).
+- `shared/lib/offline/downloadCourseForOffline.ts` — проверка места на диске, вызов API, сохранение meta, загрузка CDN-видео (HLS), изображений и PDF; при ошибке — откат (`deleteCourseData`); retry при сетевых ошибках.
+- `shared/lib/offline/mapOfflineMetaToTraining.ts` — маппинг meta в ответы `TrainingDaysResponse` / `TrainingDayResponse` с учётом stepStore.
+- `shared/stores/offlineStore.ts` — очередь скачивания, прогресс, отмена (AbortController).
+- `shared/stores/progressSyncStore.ts` — очередь мутаций (startStep, pauseStep, resumeStep, completeTheoryStep, completePracticeStep); при 401 три раза подряд — уведомление и остановка.
 
-export const schema = appSchema({
-  version: 1,
-  tables: [
-    tableSchema({
-      name: "courses",
-      columns: [
-        { name: "server_id", type: "string", isIndexed: true },
-        { name: "name", type: "string" },
-        { name: "type", type: "string", isIndexed: true },
-        { name: "description", type: "string" },
-        { name: "logo_img", type: "string" },
-        { name: "video_url", type: "string", isOptional: true },
-        { name: "version", type: "string" },
-        { name: "downloaded_at", type: "number" },
-      ],
-    }),
-    tableSchema({
-      name: "training_days",
-      columns: [
-        { name: "server_id", type: "string", isIndexed: true },
-        { name: "course_id", type: "string", isIndexed: true },
-        { name: "title", type: "string" },
-        { name: "type", type: "string" },
-        { name: "equipment", type: "string" },
-        { name: "order", type: "number" },
-      ],
-    }),
-    tableSchema({
-      name: "steps",
-      columns: [
-        { name: "server_id", type: "string", isIndexed: true },
-        { name: "day_id", type: "string", isIndexed: true },
-        { name: "title", type: "string" },
-        { name: "description", type: "string" },
-        { name: "type", type: "string" },
-        { name: "duration_sec", type: "number", isOptional: true },
-        { name: "video_url", type: "string", isOptional: true },
-        { name: "order", type: "number" },
-      ],
-    }),
-    tableSchema({
-      name: "user_progress",
-      columns: [
-        { name: "step_id", type: "string", isIndexed: true },
-        { name: "status", type: "string" },
-        { name: "remaining_sec", type: "number", isOptional: true },
-        { name: "completed_at", type: "number", isOptional: true },
-        { name: "synced", type: "boolean" },
-      ],
-    }),
-    tableSchema({
-      name: "sync_queue",
-      columns: [
-        { name: "action", type: "string" },
-        { name: "payload", type: "string" },
-        { name: "created_at", type: "number" },
-        { name: "retry_count", type: "number" },
-      ],
-    }),
-  ],
-});
-```
+### Синхронизация прогресса при появлении сети
 
-### Скачивание курса для офлайн
+- В хуках `useStartStep`, `usePauseStep`, `useResumeStep`, `useCompleteTheoryStep`, `useCompletePracticeStep` при `isOffline` действие добавляется в `progressSyncStore` и возвращается успех (UI уже обновлён через onMutate).
+- Хук `useSyncProgressOnReconnect` (подключён в root layout) при переходе из офлайна в онлайн обрабатывает очередь по одному запросу; при трёх подряд 401 показывает Alert и прекращает повтор.
 
-```typescript
-// src/shared/lib/offline/download.ts
-import * as FileSystem from "expo-file-system";
-import { offlineApi } from "@/shared/lib/api/offline";
+### Определение офлайна
 
-export async function downloadCourseForOffline(courseType: string) {
-  // 1. Получаем данные курса с сервера
-  const response = await offlineApi.downloadCourse(courseType);
+- **Источник:** `@react-native-community/netinfo` (NetInfo).
+- **Текущая логика:** `isOffline = state.isConnected === false`. При первом монтировании вызывается `NetInfo.fetch()`, подписка через `NetInfo.addEventListener`.
+- **Где используется:** `OfflineIndicator` (баннер «Нет подключения»), `useTrainingDay` / шаги тренировки (очередь мутаций), `useSyncProgressOnReconnect`, `downloadCourseForOffline` (retry при сетевых ошибках).
+- **Рекомендации (best practices):**
+  - Не считать офлайном только по одному неудачному запросу — возможны 404/503 при работающей сети; полагаться на NetInfo.
+  - Опционально: учитывать `isInternetReachable` (Wi‑Fi без интернета) — при `isConnected === true` и `isInternetReachable === false` можно показывать предупреждение «Интернет недоступен» без полного офлайн-режима.
+  - Начальное состояние: до первого `fetch()` считаем онлайн (`isOffline: false`), чтобы не мигать баннером при старте.
 
-  if (!response.success || !response.data) {
-    throw new Error(response.error || "Ошибка загрузки курса");
-  }
+### Страница «Скачанные курсы» (офлайн)
 
-  const { course, trainingDays, mediaFiles } = response.data;
-
-  // 2. Сохраняем данные в WatermelonDB
-  await saveCourseToDatabase(course, trainingDays);
-
-  // 3. Скачиваем медиа файлы
-  const downloadProgress = {
-    total: mediaFiles.videos.length + mediaFiles.images.length,
-    completed: 0,
-  };
-
-  // Скачиваем видео
-  for (const videoUrl of mediaFiles.videos) {
-    const localPath = `${FileSystem.documentDirectory}videos/${getFileName(videoUrl)}`;
-    await FileSystem.downloadAsync(videoUrl, localPath);
-    downloadProgress.completed++;
-  }
-
-  // Скачиваем изображения
-  for (const imageUrl of mediaFiles.images) {
-    const localPath = `${FileSystem.documentDirectory}images/${getFileName(imageUrl)}`;
-    await FileSystem.downloadAsync(imageUrl, localPath);
-    downloadProgress.completed++;
-  }
-
-  // 4. Сохраняем версию для проверки обновлений
-  await saveOfflineCourseVersion(courseType, course.version);
-
-  return { success: true };
-}
-```
-
-### Синхронизация прогресса
-
-```typescript
-// src/shared/lib/offline/sync.ts
-import NetInfo from "@react-native-community/netinfo";
-import { database } from "./database";
-
-export async function syncProgress() {
-  // Проверяем подключение
-  const netState = await NetInfo.fetch();
-  if (!netState.isConnected) return;
-
-  // Получаем несинхронизированные записи
-  const unsyncedProgress = await database
-    .get("user_progress")
-    .query(Q.where("synced", false))
-    .fetch();
-
-  for (const progress of unsyncedProgress) {
-    try {
-      // Отправляем на сервер
-      await trainingApi.updateStepStatus({
-        stepId: progress.stepId,
-        status: progress.status,
-        remainingSec: progress.remainingSec,
-      });
-
-      // Помечаем как синхронизированное
-      await database.write(async () => {
-        await progress.update((p) => {
-          p.synced = true;
-        });
-      });
-    } catch (error) {
-      console.error("Sync failed for progress:", progress.id, error);
-    }
-  }
-}
-
-// Автоматическая синхронизация при появлении сети
-NetInfo.addEventListener((state) => {
-  if (state.isConnected) {
-    syncProgress();
-  }
-});
-```
+- **Требование:** экран «Скачанные» показывается **только при офлайне**. В онлайне не отображается в навигации.
+- **Реализация:** при попытке открыть контент без сети (вкладки «Курсы» или «Избранное») вместо списка курсов показывается экран «Скачанные курсы». Список строится по `getOfflineCourseTypes()` и `getCourseMeta(courseType)` (название из meta.json). Тап по курсу открывает `/training/[courseType]`. Компонент: `src/features/offline/components/OfflineDownloadedScreen.tsx`; подключён в `(tabs)/index.tsx` и `(tabs)/courses.tsx` при `isOffline === true`.
 
 ### Network Status Hook
 

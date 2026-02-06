@@ -304,11 +304,11 @@ export default function ReviewsScreen() {
                           contentFit="cover"
                         />
                       ) : (
-                        <View style={styles.avatarPlaceholder}>
-                          <Text style={styles.avatarText}>
-                            {review.user.username.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
+                        <Image
+                          source={require("../../../../assets/images/avatar.png")}
+                          style={styles.avatar}
+                          contentFit="cover"
+                        />
                       )}
                       <View style={styles.userDetails}>
                         <Text style={styles.username}>{review.user.username}</Text>

@@ -1,9 +1,13 @@
-import { View, StyleSheet, Pressable, Alert } from "react-native";
+import { useState } from "react";
+import { View, StyleSheet, Pressable, Alert, ActivityIndicator } from "react-native";
 import { Text, IconButton } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
 import { Image } from "expo-image";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { SPACING, FONTS, COLORS, BORDER_RADIUS } from "@/constants";
+import { useOfflineStore } from "@/shared/stores";
+import { offlineApi } from "@/shared/lib/api/offline";
 import type { Course } from "@/shared/lib/api";
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -117,9 +121,48 @@ export function CourseCard({
   disabled = false,
 }: CourseCardProps) {
   const router = useRouter();
+  const courseType = course.type;
   const reviewsCount = course.reviews?.length ?? 0;
   const formattedStartedAt = formatDate(course.startedAt);
   const formattedCompletedAt = formatDate(course.completedAt);
+
+  const downloaded = useOfflineStore((s) => s.downloaded);
+  const downloadQueue = useOfflineStore((s) => s.downloadQueue);
+  const downloadStatus = useOfflineStore((s) => s.status);
+  const startDownload = useOfflineStore((s) => s.startDownload);
+  const cancelDownload = useOfflineStore((s) => s.cancelDownload);
+  const removeFromQueue = useOfflineStore((s) => s.removeFromQueue);
+  const removeDownload = useOfflineStore((s) => s.removeDownload);
+  const isDownloaded = !!downloaded[courseType];
+  const isDownloadingThis =
+    downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
+  const isInQueue = downloadQueue.includes(courseType);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+
+  const handleCheckUpdates = async () => {
+    const version = downloaded[courseType]?.version;
+    if (!version) return;
+    setCheckingUpdates(true);
+    try {
+      const res = await offlineApi.checkUpdates(courseType, version);
+      if (res.success && res.data?.hasUpdates) {
+        Alert.alert(
+          "Доступно обновление",
+          "Есть новая версия курса. Скачать сейчас?",
+          [
+            { text: "Позже", style: "cancel" },
+            { text: "Скачать", onPress: () => startDownload(courseType) },
+          ],
+        );
+      } else if (res.success && !res.data?.hasUpdates) {
+        Alert.alert("Курс актуален", "У вас установлена последняя версия.");
+      }
+    } catch {
+      Alert.alert("Ошибка", "Не удалось проверить обновления.");
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
 
   const handleRatingPress = () => {
     if (course.userStatus !== "COMPLETED") {
@@ -202,8 +245,9 @@ export function CourseCard({
                 </View>
               </View>
               <View style={styles.descriptionSection}>
-                <Text style={styles.descriptionLabel}>Описание</Text>
-                <Text style={styles.descriptionBody}>{course.shortDesc}</Text>
+                <Text style={styles.descriptionText}>
+                  <Text style={styles.metaBold}>Описание:</Text> {course.shortDesc}
+                </Text>
               </View>
               {(formattedStartedAt || formattedCompletedAt) && (
                 <View style={styles.datesRow}>
@@ -222,6 +266,97 @@ export function CourseCard({
             </View>
           </Pressable>
         </Link>
+        {/* Офлайн: скачать / скачано / очередь */}
+        <View style={styles.offlineSection}>
+          {isDownloaded ? (
+            <View style={styles.offlineCentered}>
+              <View style={styles.offlineTitleRow}>
+                <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.primary} />
+                <Text style={styles.offlineTitleText}>Скачано для офлайна</Text>
+              </View>
+              <View style={styles.offlineButtonsRow}>
+                <Pressable
+                  onPress={handleCheckUpdates}
+                  disabled={checkingUpdates}
+                  style={({ pressed }) => [
+                    styles.offlineBtnOutline,
+                    pressed && styles.offlineBtnPressed,
+                  ]}
+                >
+                  {checkingUpdates ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons
+                        name="update"
+                        size={16}
+                        color={COLORS.primary}
+                        style={styles.offlineBtnIcon}
+                      />
+                      <Text style={styles.offlineBtnOutlineText}>Проверить обновления</Text>
+                    </>
+                  )}
+                </Pressable>
+                <Pressable
+                  onPress={() => removeDownload(courseType)}
+                  style={({ pressed }) => [
+                    styles.offlineBtnDanger,
+                    pressed && styles.offlineBtnPressed,
+                  ]}
+                >
+                  <MaterialCommunityIcons name="delete-outline" size={16} color="#fff" style={styles.offlineBtnIcon} />
+                  <Text style={styles.offlineBtnDangerText}>Удалить</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+          <View style={styles.offlineRow}>
+            {isDownloadingThis ? (
+              <>
+                <MaterialCommunityIcons name="download" size={22} color={COLORS.primary} />
+                <Text style={styles.offlineLabel} numberOfLines={1}>
+                  {downloadStatus.progress?.label ??
+                    `${downloadStatus.progress?.current ?? 0}/${downloadStatus.progress?.total ?? 0}`}
+                </Text>
+                <Pressable
+                  onPress={() => cancelDownload()}
+                  style={({ pressed }) => [
+                    styles.offlineBtnOutline,
+                    pressed && styles.offlineBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.offlineBtnOutlineText}>Отменить</Text>
+                </Pressable>
+              </>
+            ) : isInQueue ? (
+              <>
+                <MaterialCommunityIcons name="timer-sand" size={22} color={COLORS.primary} />
+                <Text style={styles.offlineLabel}>В очереди</Text>
+                <Pressable
+                  onPress={() => removeFromQueue(courseType)}
+                  style={({ pressed }) => [
+                    styles.offlineBtnOutline,
+                    pressed && styles.offlineBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.offlineBtnOutlineText}>Убрать</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                onPress={() => startDownload(courseType)}
+                style={({ pressed }) => [
+                  styles.offlineBtnPrimaryLarge,
+                  pressed && styles.offlineBtnPressed,
+                ]}
+              >
+                <MaterialCommunityIcons name="download" size={20} color="#fff" style={styles.offlineBtnIcon} />
+                <Text style={styles.offlineBtnPrimaryText}>Скачать для работы в офлайн</Text>
+              </Pressable>
+            )}
+          </View>
+          )}
+        </View>
         <View style={styles.ratingRow}>
           <SimpleRating
             rating={course.avgRating}
@@ -372,7 +507,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: FONTS.montserrat,
   },
-  metaBold: { fontWeight: "700", fontFamily: FONTS.montserrat },
+  metaBold: {
+    fontSize: 13,
+    fontFamily: FONTS.montserratBold,
+    color: COLORS.text,
+  },
   statusBadge: {
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -390,22 +529,11 @@ const styles = StyleSheet.create({
     marginBottom: GAP,
     overflow: "hidden",
   },
-  descriptionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: COLORS.primary,
-    marginBottom: 6,
-    fontFamily: FONTS.montserrat,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  descriptionBody: {
-    fontSize: 14,
+  descriptionText: {
+    fontSize: 13,
     color: COLORS.text,
     lineHeight: 20,
     fontFamily: FONTS.montserrat,
-    flexShrink: 1,
-    maxWidth: "100%",
   },
   datesRow: {
     flexDirection: "column",
@@ -415,6 +543,123 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.text,
     fontFamily: FONTS.montserrat,
+  },
+  offlineSection: {
+    paddingHorizontal: PAD,
+    paddingVertical: GAP_MD,
+    borderTopWidth: 1,
+    borderTopColor: "#E8E0D5",
+    backgroundColor: COLORS.cardBackground,
+  },
+  offlineCentered: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  offlineTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  offlineTitleText: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+    fontWeight: "500",
+  },
+  offlineButtonsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    flexWrap: "nowrap",
+  },
+  offlineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  offlineLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+    minWidth: 0,
+  },
+  offlineButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  offlineBtnPrimary: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
+    minHeight: 40,
+  },
+  offlineBtnPrimaryLarge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
+    minHeight: 48,
+    flex: 1,
+    alignSelf: "stretch",
+  },
+  offlineBtnPrimaryText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+    fontFamily: FONTS.montserrat,
+  },
+  offlineBtnOutline: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    minHeight: 40,
+    flexShrink: 0,
+  },
+  offlineBtnOutlineText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.primary,
+    fontFamily: FONTS.montserrat,
+  },
+  offlineBtnDanger: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: "#c62828",
+    minHeight: 40,
+    flexShrink: 0,
+  },
+  offlineBtnDangerText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+    fontFamily: FONTS.montserrat,
+  },
+  offlineBtnIcon: {
+    marginRight: 6,
+  },
+  offlineBtnPressed: {
+    opacity: 0.85,
   },
   ratingRow: {
     flexDirection: "row",

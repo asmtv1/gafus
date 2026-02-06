@@ -1,14 +1,21 @@
+import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { trainingApi, type UserStep } from "@/shared/lib/api";
-import { useStepStore } from "@/shared/stores";
+import { useProgressSyncStore, useStepStore } from "@/shared/stores";
+import { getCourseMeta } from "@/shared/lib/offline/offlineStorage";
+import { mapMetaToTrainingDayResponse } from "@/shared/lib/offline/mapOfflineMetaToTraining";
+import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import type { ApiResponse } from "@/shared/lib/api/client";
+import type { TrainingDayResponse } from "@/shared/lib/api/training";
 
 /**
- * Хук для загрузки дня тренировки с шагами
+ * Хук для загрузки дня тренировки с шагами.
+ * При ошибке сети отдаёт офлайн-данные из getCourseMeta, если курс скачан.
  */
 export function useTrainingDay(courseType: string, dayOnCourseId: string) {
-  const { syncFromServer } = useStepStore();
+  const { syncFromServer, getStepState } = useStepStore();
 
-  return useQuery({
+  return useQuery<ApiResponse<TrainingDayResponse>>({
     queryKey: ["trainingDay", courseType, dayOnCourseId],
     queryFn: async () => {
       if (__DEV__) {
@@ -132,6 +139,13 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
 
         return response;
       } catch (error) {
+        const meta = await getCourseMeta(courseType);
+        const dayData = meta
+          ? mapMetaToTrainingDayResponse(meta, dayOnCourseId, getStepState)
+          : null;
+        if (dayData) {
+          return { success: true, data: dayData };
+        }
         if (__DEV__) {
           console.error("[useTrainingDay] Исключение при загрузке:", error);
         }
@@ -143,14 +157,26 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
 }
 
 /**
- * Хук для старта шага
+ * Хук для старта шага. При офлайне ставит действие в очередь синхронизации.
  */
 export function useStartStep() {
   const queryClient = useQueryClient();
   const { startStep: startStepLocal } = useStepStore();
+  const { isOffline } = useNetworkStatus();
+  const addToQueue = useProgressSyncStore((s) => s.add);
+  const mutationFn = useCallback(
+    async (variables: Parameters<typeof trainingApi.startStep>[0]) => {
+      if (isOffline) {
+        addToQueue({ type: "startStep", params: variables });
+        return { success: true };
+      }
+      return trainingApi.startStep(variables);
+    },
+    [isOffline, addToQueue],
+  );
 
   return useMutation({
-    mutationFn: trainingApi.startStep,
+    mutationFn,
     onMutate: async (variables) => {
       // Оптимистичное обновление локального состояния
       startStepLocal(
@@ -170,14 +196,26 @@ export function useStartStep() {
 }
 
 /**
- * Хук для паузы шага
+ * Хук для паузы шага. При офлайне ставит действие в очередь синхронизации.
  */
 export function usePauseStep() {
   const queryClient = useQueryClient();
   const { pauseStep: pauseStepLocal } = useStepStore();
+  const { isOffline } = useNetworkStatus();
+  const addToQueue = useProgressSyncStore((s) => s.add);
+  const mutationFn = useCallback(
+    async (variables: Parameters<typeof trainingApi.pauseStep>[0]) => {
+      if (isOffline) {
+        addToQueue({ type: "pauseStep", params: variables });
+        return { success: true };
+      }
+      return trainingApi.pauseStep(variables);
+    },
+    [isOffline, addToQueue],
+  );
 
   return useMutation({
-    mutationFn: trainingApi.pauseStep,
+    mutationFn,
     onMutate: async (variables) => {
       pauseStepLocal(
         variables.courseId,
@@ -193,14 +231,26 @@ export function usePauseStep() {
 }
 
 /**
- * Хук для возобновления шага
+ * Хук для возобновления шага. При офлайне ставит действие в очередь синхронизации.
  */
 export function useResumeStep() {
   const queryClient = useQueryClient();
   const { resumeStep: resumeStepLocal } = useStepStore();
+  const { isOffline } = useNetworkStatus();
+  const addToQueue = useProgressSyncStore((s) => s.add);
+  const mutationFn = useCallback(
+    async (variables: Parameters<typeof trainingApi.resumeStep>[0]) => {
+      if (isOffline) {
+        addToQueue({ type: "resumeStep", params: variables });
+        return { success: true };
+      }
+      return trainingApi.resumeStep(variables);
+    },
+    [isOffline, addToQueue],
+  );
 
   return useMutation({
-    mutationFn: trainingApi.resumeStep,
+    mutationFn,
     onMutate: async (variables) => {
       resumeStepLocal(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
     },
@@ -234,14 +284,26 @@ export function useResetStep() {
 }
 
 /**
- * Хук для завершения теоретического шага
+ * Хук для завершения теоретического шага. При офлайне ставит действие в очередь синхронизации.
  */
 export function useCompleteTheoryStep() {
   const queryClient = useQueryClient();
   const { completeStep } = useStepStore();
+  const { isOffline } = useNetworkStatus();
+  const addToQueue = useProgressSyncStore((s) => s.add);
+  const mutationFn = useCallback(
+    async (variables: Parameters<typeof trainingApi.completeTheoryStep>[0]) => {
+      if (isOffline) {
+        addToQueue({ type: "completeTheoryStep", params: variables });
+        return { success: true };
+      }
+      return trainingApi.completeTheoryStep(variables);
+    },
+    [isOffline, addToQueue],
+  );
 
   return useMutation({
-    mutationFn: trainingApi.completeTheoryStep,
+    mutationFn,
     onMutate: async (variables) => {
       completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
     },
@@ -253,14 +315,26 @@ export function useCompleteTheoryStep() {
 }
 
 /**
- * Хук для завершения практического шага
+ * Хук для завершения практического шага. При офлайне ставит действие в очередь синхронизации.
  */
 export function useCompletePracticeStep() {
   const queryClient = useQueryClient();
   const { completeStep } = useStepStore();
+  const { isOffline } = useNetworkStatus();
+  const addToQueue = useProgressSyncStore((s) => s.add);
+  const mutationFn = useCallback(
+    async (variables: Parameters<typeof trainingApi.completePracticeStep>[0]) => {
+      if (isOffline) {
+        addToQueue({ type: "completePracticeStep", params: variables });
+        return { success: true };
+      }
+      return trainingApi.completePracticeStep(variables);
+    },
+    [isOffline, addToQueue],
+  );
 
   return useMutation({
-    mutationFn: trainingApi.completePracticeStep,
+    mutationFn,
     onMutate: async (variables) => {
       completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
     },

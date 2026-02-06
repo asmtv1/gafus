@@ -13,7 +13,20 @@ import type { LocalStepState } from "@/shared/stores";
 import { useStepStore, useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
 import { useVideoUrl } from "@/shared/hooks";
+import { getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
 import { COLORS, SPACING } from "@/constants";
+
+const EXTERNAL_VIDEO_PATTERNS = [
+  /youtube\.com/,
+  /youtu\.be/,
+  /rutube\.ru/,
+  /vimeo\.com/,
+  /vk\.com\/video/,
+  /vkvideo\.ru/,
+];
+function isExternalVideoUrl(url: string): boolean {
+  return EXTERNAL_VIDEO_PATTERNS.some((p) => p.test(url));
+}
 
 interface AccordionStepProps {
   step: UserStep;
@@ -105,17 +118,35 @@ function AccordionStepComponent({
     });
   }
 
-  // Как на web: запрашиваем signed URL только после нажатия «Смотреть» — сначала обложка с кнопкой Play
   const [userRequestedPlay, setUserRequestedPlay] = useState(false);
+  const [offlineVideoUri, setOfflineVideoUri] = useState<string | null>(null);
+  const requestOnlineUrl =
+    isOpen &&
+    userRequestedPlay &&
+    videoUrl &&
+    typeof videoUrl === "string" &&
+    videoUrl.trim() !== "";
   const {
     url: playbackUrl,
     isLoading: isLoadingVideo,
     error: videoError,
-  } = useVideoUrl(
-    isOpen && userRequestedPlay && videoUrl && typeof videoUrl === "string" && videoUrl.trim() !== ""
-      ? videoUrl
-      : null,
-  );
+  } = useVideoUrl(requestOnlineUrl ? videoUrl : null);
+
+  useEffect(() => {
+    if (!requestOnlineUrl || !videoUrl || !courseId) {
+      setOfflineVideoUri(null);
+      return;
+    }
+    getOfflineVideoUri(courseId, videoUrl).then((uri) => setOfflineVideoUri(uri));
+  }, [requestOnlineUrl, videoUrl, courseId]);
+
+  const effectivePlaybackUrl =
+    offlineVideoUri ?? playbackUrl ?? lastPlaybackUrlRef.current;
+  const showOfflineStub =
+    requestOnlineUrl &&
+    videoUrl &&
+    isExternalVideoUrl(videoUrl) &&
+    !effectivePlaybackUrl;
 
   useEffect(() => {
     if (!isOpen) setUserRequestedPlay(false);
@@ -465,18 +496,24 @@ function AccordionStepComponent({
                         <MaterialCommunityIcons name="play-circle-outline" size={72} color="#fff" />
                         <Text style={styles.videoCoverText}>Смотреть видео</Text>
                       </Pressable>
-                    ) : isLoadingVideo ? (
+                    ) : showOfflineStub ? (
+                      <View style={styles.videoLoadingContainer}>
+                        <Text style={styles.videoLoadingText}>
+                          Для просмотра нужен интернет
+                        </Text>
+                      </View>
+                    ) : isLoadingVideo && !offlineVideoUri ? (
                       <View style={styles.videoLoadingContainer}>
                         <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
                       </View>
-                    ) : videoError || !(playbackUrl ?? lastPlaybackUrlRef.current) ? null : (
+                    ) : videoError && !offlineVideoUri ? null : effectivePlaybackUrl ? (
                       <VideoPlayer
-                        key={`${playbackUrl ?? lastPlaybackUrlRef.current}-${videoRetryKey}`}
-                        uri={playbackUrl ?? lastPlaybackUrlRef.current ?? ""}
+                        key={`${effectivePlaybackUrl}-${videoRetryKey}`}
+                        uri={effectivePlaybackUrl}
                         onComplete={onComplete}
                         onRetry={() => setVideoRetryKey((k) => k + 1)}
                       />
-                    )}
+                    ) : null}
                   </View>
                 )}
 

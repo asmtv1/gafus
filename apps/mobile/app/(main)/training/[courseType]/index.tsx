@@ -8,7 +8,7 @@ import { calculateDayStatus } from "@gafus/core/utils/training";
 
 import { Loading } from "@/shared/components/ui";
 import { useTrainingDays } from "@/shared/hooks";
-import { useStepStore } from "@/shared/stores";
+import { useOfflineStore, useStepStore } from "@/shared/stores";
 import type { TrainingDay } from "@/shared/lib/api";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
@@ -25,6 +25,16 @@ export default function TrainingDaysScreen() {
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDays(courseType);
   const { stepStates } = useStepStore();
   const courseData = data?.success && data.data ? data.data : undefined;
+  const downloadStatus = useOfflineStore((s) => s.status);
+  const downloadQueue = useOfflineStore((s) => s.downloadQueue);
+  const downloaded = useOfflineStore((s) => s.downloaded);
+  const startDownload = useOfflineStore((s) => s.startDownload);
+  const cancelDownload = useOfflineStore((s) => s.cancelDownload);
+  const removeFromQueue = useOfflineStore((s) => s.removeFromQueue);
+  const removeDownload = useOfflineStore((s) => s.removeDownload);
+  const isDownloaded = !!downloaded[courseType];
+  const isDownloadingThis = downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
+  const isInQueue = downloadQueue.includes(courseType);
 
   const onRefresh = useCallback(() => {
     refetch();
@@ -228,6 +238,60 @@ export default function TrainingDaysScreen() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
           showsVerticalScrollIndicator={true}
         >
+          {/* Офлайн: скачать / прогресс / очередь */}
+          <Surface style={styles.offlineSection} elevation={0}>
+            {isDownloaded ? (
+              <View style={styles.offlineRow}>
+                <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.primary} />
+                <Text style={styles.offlineLabel}>Скачано для офлайна</Text>
+                <Pressable
+                  onPress={() => removeDownload(courseType)}
+                  style={styles.offlineButton}
+                >
+                  <Text style={styles.offlineButtonText}>Удалить</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <View style={styles.offlineRow}>
+                  <MaterialCommunityIcons name="download" size={22} color={COLORS.primary} />
+                  <Text style={styles.offlineLabel}>Скачать для офлайна</Text>
+                  {!isDownloadingThis && !isInQueue && (
+                    <Pressable
+                      onPress={() => startDownload(courseType)}
+                      style={styles.offlineButton}
+                    >
+                      <Text style={styles.offlineButtonText}>Скачать</Text>
+                    </Pressable>
+                  )}
+                  {isDownloadingThis && (
+                    <Pressable onPress={() => cancelDownload()} style={styles.offlineButton}>
+                      <Text style={styles.offlineButtonText}>Отменить</Text>
+                    </Pressable>
+                  )}
+                  {isInQueue && (
+                    <Pressable
+                      onPress={() => removeFromQueue(courseType)}
+                      style={styles.offlineButton}
+                    >
+                      <Text style={styles.offlineButtonText}>Убрать из очереди</Text>
+                    </Pressable>
+                  )}
+                </View>
+                {isDownloadingThis && downloadStatus.status === "downloading" && (
+                  <View style={styles.progressRow}>
+                    <Text style={styles.progressLabel}>
+                      {downloadStatus.progress.label ?? `${downloadStatus.progress.current}/${downloadStatus.progress.total}`}
+                    </Text>
+                  </View>
+                )}
+                {downloadQueue.length > 0 && !isDownloadingThis && (
+                  <Text style={styles.queueHint}>В очереди: {downloadQueue.length}</Text>
+                )}
+              </>
+            )}
+          </Surface>
+
           {/* Заголовок "Содержание" (как на web) */}
           <Text style={styles.contentTitle}>Содержание</Text>
 
@@ -295,6 +359,44 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
     paddingHorizontal: 0,
     paddingTop: SPACING.md,
+  },
+  offlineSection: {
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+    padding: SPACING.sm,
+    borderRadius: 12,
+    backgroundColor: COLORS.cardBackground,
+  },
+  offlineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  offlineLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  offlineButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  offlineButtonText: {
+    fontSize: 15,
+    color: COLORS.primary,
+    fontWeight: "600",
+  },
+  progressRow: {
+    marginTop: 6,
+  },
+  progressLabel: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  queueHint: {
+    marginTop: 4,
+    fontSize: 12,
+    color: COLORS.textSecondary,
   },
   contentTitle: {
     color: "#352e2e",

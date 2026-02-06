@@ -169,11 +169,28 @@ export default function ProfileScreen() {
       fileName: string;
     }) => userApi.uploadAvatar(uri, mimeType, fileName),
     onSuccess: (result) => {
-      if (result.success) {
+      if (result.success && result.data?.avatarUrl) {
+        // Сразу подставляем URL с CDN в кэш, чтобы аватар отобразился без ожидания refetch
+        queryClient.setQueryData(["user-profile"], (old: Awaited<ReturnType<typeof userApi.getProfile>> | undefined) => {
+          if (!old?.data) return old;
+          const url = result.data!.avatarUrl;
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              profile: {
+                ...(old.data.profile ?? {}),
+                avatarUrl: url,
+              },
+            },
+          };
+        });
         queryClient.invalidateQueries({ queryKey: ["user-profile"] });
         hapticFeedback.success();
-      } else {
+      } else if (!result.success) {
         Alert.alert("Ошибка", result.error ?? "Не удалось загрузить аватар");
+      } else {
+        hapticFeedback.success();
       }
     },
     onError: (error) => {
@@ -208,6 +225,7 @@ export default function ProfileScreen() {
   });
 
   const profile = profileData?.data?.profile;
+  const avatarUrl = profile?.avatarUrl?.trim() || null;
   const pets = petsData?.data || [];
   const displayRole = getRoleLabel(user?.role);
 
@@ -311,25 +329,25 @@ export default function ProfileScreen() {
 
         {/* Баннер профиля (оливковый фон) */}
         <View style={styles.profileBanner}>
-          <View style={styles.avatarContainer}>
-            <Pressable
-              style={styles.avatarWrapper}
-              onPress={pickImageAndUploadAvatar}
-              disabled={avatarUploadMutation.isPending}
-            >
-              {profile?.avatarUrl ? (
-                <Avatar.Image size={95} source={{ uri: profile.avatarUrl }} />
+          <Pressable
+            style={styles.avatarContainer}
+            onPress={pickImageAndUploadAvatar}
+            disabled={avatarUploadMutation.isPending}
+          >
+            <View style={styles.avatarWrapper}>
+              {avatarUrl ? (
+                <Avatar.Image size={95} source={{ uri: avatarUrl }} />
               ) : (
-                <Avatar.Text
+                <Avatar.Image
                   size={95}
-                  label={getInitials(profile?.fullName || user?.username || "U")}
+                  source={require("../../../assets/images/avatar.png")}
                 />
               )}
-              <View style={styles.avatarEditBadge}>
-                <Text style={styles.avatarEditText}>✏️</Text>
-              </View>
-            </Pressable>
-          </View>
+            </View>
+            <View style={styles.avatarEditBadge}>
+              <Text style={styles.avatarEditText}>✏️</Text>
+            </View>
+          </Pressable>
           <View style={styles.profileInfo}>
             <Text style={styles.greeting}>Привет, {profile?.fullName || user?.username}!</Text>
             <Text style={styles.contactInfo}>
@@ -436,9 +454,11 @@ export default function ProfileScreen() {
                           contentFit="cover"
                         />
                       ) : (
-                        <View style={styles.petAvatarPlaceholder}>
-                          <Text style={styles.petAvatarText}>🐾</Text>
-                        </View>
+                        <Image
+                          source={require("../../../assets/images/pet-avatar.png")}
+                          style={styles.petAvatar}
+                          contentFit="cover"
+                        />
                       )}
                       <View style={styles.petAvatarEditBadge}>
                         <Text style={styles.petAvatarEditText}>✏️</Text>
@@ -617,12 +637,14 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   avatarContainer: {
+    position: "relative",
+    width: 105,
+    height: 105,
     flexShrink: 0,
     justifyContent: "center",
     alignItems: "center",
   },
   avatarWrapper: {
-    position: "relative",
     width: 105,
     height: 105,
     borderRadius: 53,
@@ -640,7 +662,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     borderRadius: 14,
     width: 28,
     height: 28,

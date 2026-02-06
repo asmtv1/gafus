@@ -12,12 +12,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
+import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { coursesApi, type Course } from "@/shared/lib/api";
 import {
   CourseCard,
   CourseSearch,
   CourseFilters,
 } from "@/features/courses/components";
+import { OfflineDownloadedScreen } from "@/features/offline";
 import {
   filterAndSortCourses,
   type CourseTabType,
@@ -30,8 +32,10 @@ import { COLORS, SPACING, FONTS } from "@/constants";
 
 /**
  * Страница со всеми курсами: поиск и фильтры как в web.
+ * При офлайне показывается экран «Скачанные курсы».
  */
 export default function CoursesScreen() {
+  const { isOffline } = useNetworkStatus();
   const queryClient = useQueryClient();
   const {
     filters,
@@ -158,6 +162,14 @@ export default function CoursesScreen() {
       />
     </View>
   );
+
+  if (isOffline) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <OfflineDownloadedScreen />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

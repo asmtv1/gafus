@@ -11,6 +11,7 @@ import {
   checkCourseUpdates,
   downloadFullCourse,
 } from "@gafus/core/services/offline";
+import { getTrainingDays } from "@gafus/core/services/training";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-offline");
@@ -76,7 +77,24 @@ const downloadQuerySchema = z.object({
 
 offlineRoutes.get("/course/download", zValidator("query", downloadQuerySchema), async (c) => {
   try {
+    const user = c.get("user");
     const { courseType } = c.req.valid("query");
+
+    try {
+      await getTrainingDays(user.id, courseType);
+    } catch (accessError) {
+      if (
+        accessError instanceof Error &&
+        accessError.message === "COURSE_ACCESS_DENIED"
+      ) {
+        return c.json(
+          { success: false, error: "Нет доступа к курсу", code: "COURSE_ACCESS_DENIED" },
+          403,
+        );
+      }
+      throw accessError;
+    }
+
     const result = await downloadFullCourse(courseType);
 
     if (!result.success) {

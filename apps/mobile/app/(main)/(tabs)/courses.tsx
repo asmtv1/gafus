@@ -7,14 +7,18 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
+import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { coursesApi, type Course } from "@/shared/lib/api";
 import { CourseCard } from "@/features/courses/components";
+import { OfflineDownloadedScreen } from "@/features/offline";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 /**
- * Страница избранных курсов (логика как в web: список по store)
+ * Страница избранных курсов (логика как в web: список по store).
+ * При офлайне показывается экран «Скачанные курсы».
  */
 export default function FavoritesScreen() {
+  const { isOffline } = useNetworkStatus();
   const { favorites, removeFromFavorites, addToFavorites } = useCourseStore();
   const [refreshing, setRefreshing] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
@@ -75,10 +79,18 @@ export default function FavoritesScreen() {
   );
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.title}>Избранные курсы</Text>
+    <View style={styles.headerFilters}>
+      <Text style={styles.pageTitle}>Избранные курсы</Text>
     </View>
   );
+
+  if (isOffline) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <OfflineDownloadedScreen />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -128,29 +140,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
-    padding: SPACING.md,
+  headerFilters: {
     paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.background,
-    alignItems: "center",
   },
-  title: {
+  pageTitle: {
     fontSize: 28,
     fontWeight: "400",
     fontFamily: FONTS.impact,
     color: "#352E2E",
     textAlign: "center",
+    marginTop: SPACING.md,
     marginBottom: SPACING.md,
   },
   listContent: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.xl,
   },
   errorContainer: {
     flex: 1,
-    alignItems: "center",
-    padding: SPACING.xl,
-    paddingTop: SPACING.md,
+    paddingHorizontal: SPACING.md,
   },
   errorText: {
     color: COLORS.error,
@@ -160,12 +169,11 @@ const styles = StyleSheet.create({
   retryText: {
     color: COLORS.secondary,
     fontWeight: "600",
+    textAlign: "center",
   },
   emptyContainer: {
-    flex: 1,
-    alignItems: "center",
     padding: SPACING.xxl,
-    paddingTop: SPACING.md,
+    alignItems: "center",
   },
   emptyText: {
     color: COLORS.textSecondary,

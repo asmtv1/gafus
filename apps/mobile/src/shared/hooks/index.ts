@@ -9,4 +9,5 @@ export {
   useCompletePracticeStep,
 } from "./useTrainingDay";
 export { useNetworkStatus } from "./useNetworkStatus";
+export { useSyncProgressOnReconnect } from "./useSyncProgressOnReconnect";
 export { useVideoUrl } from "./useVideoUrl";
