@@ -6,7 +6,7 @@ import { useCourseStore } from "@shared/stores/courseStore";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { TrainingStatus } from "@gafus/types";
-import { calculateDayStatus } from "@gafus/core/utils/training";
+import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
 
 /**
  * Хук для синхронизации данных прогресса курсов между stores
@@ -28,13 +28,6 @@ export function useCourseProgressSync() {
     (courseType: string) => getCachedTrainingDays(courseType),
     [getCachedTrainingDays],
   );
-
-  // Функция для сравнения статусов (как в TrainingDayList)
-  const rank = useCallback((s?: string) => {
-    if (s === "COMPLETED") return 2;
-    if (s === "IN_PROGRESS" || s === "PAUSED") return 1;
-    return 0; // NOT_STARTED или неизвестно
-  }, []);
 
   // Синхронизируем данные курсов с актуальным прогрессом из trainingStore
   const syncedCourses = useMemo(() => {
@@ -81,18 +74,13 @@ export function useCourseProgressSync() {
             const totalSteps = dayLink?.day?.stepLinks?.length;
 
             if (totalSteps !== undefined) {
-              // Рассчитываем локальный статус дня из stepStore
               const localStatus = calculateDayStatus(
                 course.id,
                 day.dayOnCourseId,
                 stepStates,
                 totalSteps,
               );
-              // Объединяем с серверным статусом (берем максимальный приоритет)
-              finalStatus =
-                rank(localStatus) > rank(day.userStatus)
-                  ? localStatus
-                  : (day.userStatus as TrainingStatus);
+              finalStatus = getDayDisplayStatus(localStatus, day.userStatus);
             }
           }
 
@@ -182,7 +170,7 @@ export function useCourseProgressSync() {
 
       return course;
     });
-  }, [allCourses?.data, getCachedTrainingDays, courseAssignments, stepStates, isOnline, rank]);
+  }, [allCourses?.data, getCachedTrainingDays, courseAssignments, stepStates, isOnline]);
 
   // Обновляем данные в courseStore при изменении синхронизированных данных
   useEffect(() => {

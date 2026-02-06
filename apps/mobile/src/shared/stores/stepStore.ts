@@ -4,7 +4,7 @@ import { zustandStorage } from "./storage";
 
 // Локальное состояние шага
 export interface LocalStepState {
-  status: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" | "COMPLETED";
+  status: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" | "COMPLETED" | "RESET";
   remainingSec: number | null;
   timeLeft: number | null; // Оставшееся время для таймера (как в web)
   updatedAt: number;
@@ -78,7 +78,12 @@ interface StepActions {
   syncFromServer: (
     courseId: string,
     dayOnCourseId: string,
-    steps: Array<{ stepIndex: number; status: string; remainingSec: number | null }>,
+    steps: Array<{
+      stepIndex: number;
+      status: string;
+      remainingSec: number | null;
+      durationSec?: number;
+    }>,
   ) => void;
 
   // Очистка
@@ -214,16 +219,16 @@ export const useStepStore = create<StepStore>()(
         }));
       },
 
-      // Сброс шага (рестарт) - ставит в NOT_STARTED с исходным временем
+      // Сброс шага — статус RESET, полное время для отображения
       resetStep: (courseId, dayOnCourseId, stepIndex, durationSec) => {
         const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
         set((state) => ({
           stepStates: {
             ...state.stepStates,
             [key]: {
-              status: "NOT_STARTED",
-              remainingSec: null,
-              timeLeft: durationSec, // Устанавливаем исходное время, но не запускаем
+              status: "RESET",
+              remainingSec: durationSec,
+              timeLeft: durationSec,
               updatedAt: Date.now(),
             },
           },
@@ -276,9 +281,16 @@ export const useStepStore = create<StepStore>()(
             continue;
           }
 
+          const status = step.status as LocalStepState["status"];
+          const timeLeft =
+            status === "RESET" && step.durationSec != null
+              ? step.durationSec
+              : step.remainingSec ?? current?.timeLeft ?? null;
+
           updates[key] = {
-            status: step.status as LocalStepState["status"],
+            status,
             remainingSec: step.remainingSec,
+            timeLeft: typeof timeLeft === "number" ? timeLeft : current?.timeLeft ?? null,
             updatedAt: Date.now(),
           };
         }

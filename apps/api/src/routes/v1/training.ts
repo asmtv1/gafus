@@ -343,16 +343,31 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
 
     const existing = await prisma.userStep.findFirst({
       where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
+      select: { id: true, status: true },
     });
     if (!existing) {
       return c.json({ success: true });
+    }
+
+    const currentStatus = existing.status as string;
+    if (currentStatus === TrainingStatus.NOT_STARTED) {
+      return c.json(
+        { success: false, error: "Нельзя сбросить шаг, который не начат", code: "INVALID_STATE" },
+        400,
+      );
+    }
+    if (currentStatus === TrainingStatus.COMPLETED) {
+      return c.json(
+        { success: false, error: "Нельзя сбросить завершённый шаг", code: "INVALID_STATE" },
+        400,
+      );
     }
 
     await prisma.$transaction(
       async (tx) => {
         await tx.userStep.update({
           where: { id: existing.id },
-          data: { status: TrainingStatus.NOT_STARTED, paused: false, remainingSec: null },
+          data: { status: TrainingStatus.RESET, paused: false, remainingSec: null },
         });
 
         const stepOnDayIds = dayOnCourse.day.stepLinks.map((l) => l.id);

@@ -89,6 +89,7 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
             stepIndex: index,
             status: s.status || "NOT_STARTED",
             remainingSec: s.remainingSec ?? s.remainingSecOnServer ?? null,
+            durationSec: s.step?.durationSec ?? s.durationSec ?? undefined,
           }));
 
           if (__DEV__) {
@@ -261,14 +262,27 @@ export function useResumeStep() {
 }
 
 /**
- * Хук для сброса шага (таймера)
+ * Хук для сброса шага (таймера).
+ * При офлайне ставит действие в очередь синхронизации.
  */
 export function useResetStep() {
   const queryClient = useQueryClient();
   const { resetStep: resetStepLocal } = useStepStore();
+  const { isOffline } = useNetworkStatus();
+  const addToQueue = useProgressSyncStore((s) => s.add);
+  const mutationFn = useCallback(
+    async (variables: Parameters<typeof trainingApi.resetStep>[0]) => {
+      if (isOffline) {
+        addToQueue({ type: "resetStep", params: variables });
+        return { success: true };
+      }
+      return trainingApi.resetStep(variables);
+    },
+    [isOffline, addToQueue],
+  );
 
   return useMutation({
-    mutationFn: trainingApi.resetStep,
+    mutationFn,
     onMutate: async (variables) => {
       resetStepLocal(
         variables.courseId,

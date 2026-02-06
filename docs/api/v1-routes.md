@@ -244,7 +244,7 @@
 
 ### POST `/api/v1/training/step/reset`
 
-Сбросить шаг (таймер) в NOT_STARTED. Обнуляет paused и remainingSec, пересчитывает статус дня.
+Сбросить шаг (таймер). Статус шага становится `RESET`, сохраняется полное время `durationSec`. Обнуляет paused и remainingSec, пересчитывает статус дня. Запрещено для `NOT_STARTED` и `COMPLETED`.
 
 **Body:**
 

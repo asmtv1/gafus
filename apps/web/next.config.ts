@@ -107,7 +107,8 @@ const nextConfig = {
   ],
 
   // Исправляем проблемы с clientReferenceManifest в Next.js 14
-  serverExternalPackages: ["sharp"],
+  // Prisma: не бандлить — Query Engine ищется в node_modules
+  serverExternalPackages: ["sharp", "prisma", "@prisma/client"],
 
   // Оптимизации для bundle
   experimental: {

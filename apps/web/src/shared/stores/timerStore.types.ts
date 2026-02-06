@@ -58,6 +58,7 @@ export interface TimerStore {
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
+    timeLeft?: number,
   ) => Promise<void>;
   resumeStepWithServer: (
     courseId: string,

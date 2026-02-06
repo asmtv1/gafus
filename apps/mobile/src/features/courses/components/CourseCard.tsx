@@ -25,6 +25,8 @@ function getStatusText(status: string): string {
       return "В процессе";
     case "COMPLETED":
       return "Завершен";
+    case "RESET":
+      return "Сброшен";
     default:
       return "Не начат";
   }
@@ -38,6 +40,8 @@ function getStatusColor(status: string): string {
       return "#009dcf";
     case "COMPLETED":
       return "#28a745";
+    case "RESET":
+      return "#a8a5a5";
     default:
       return "#352E2E";
   }

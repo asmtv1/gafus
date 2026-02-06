@@ -4,7 +4,7 @@ export interface StepState {
   timeLeft: number;
   isFinished: boolean;
   isPaused: boolean;
-  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
+  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET";
 }
 
 export interface StepStore {
@@ -20,7 +20,7 @@ export interface StepStore {
     dayOnCourseId: string,
     stepIndex: number,
     durationSec: number,
-    initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED",
+    initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET",
     options?: { serverPaused?: boolean; serverRemainingSec?: number },
   ) => void;
   startStep: (
@@ -29,7 +29,12 @@ export interface StepStore {
     stepIndex: number,
     durationSec: number,
   ) => Promise<boolean>;
-  pauseStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => Promise<void>;
+  pauseStep: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    timeLeft?: number,
+  ) => Promise<void>;
   resumeStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
   finishStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
   resetStep: (
@@ -42,7 +47,7 @@ export interface StepStore {
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED",
+    status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET",
   ) => void;
 
   // Восстановление и синхронизация

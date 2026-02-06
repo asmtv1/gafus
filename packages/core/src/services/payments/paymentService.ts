@@ -126,7 +126,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
     await prisma.payment.update({
       where: { id: paymentId },
       data: { status: "CANCELED" },
-    }).catch(() => {});
+    }).catch(() => undefined);
     return { success: false, error: "Ошибка соединения с платёжной системой" };
   }
 
@@ -136,7 +136,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
     await prisma.payment.update({
       where: { id: paymentId },
       data: { status: "CANCELED" },
-    }).catch(() => {});
+    }).catch(() => undefined);
     return { success: false, error: "Платёжная система отклонила запрос" };
   }
 
@@ -152,7 +152,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
     await prisma.payment.update({
       where: { id: paymentId },
       data: { status: "CANCELED" },
-    }).catch(() => {});
+    }).catch(() => undefined);
     return { success: false, error: "Неверный ответ платёжной системы" };
   }
 
@@ -259,7 +259,7 @@ export async function refundPaymentFromWebhook(yookassaPaymentId: string): Promi
       .delete({
         where: { courseId_userId: { courseId: payment.courseId, userId: payment.userId } },
       })
-      .catch(() => {}); // игнорируем если доступа уже нет
+      .catch(() => undefined); // игнорируем если доступа уже нет
 
     // Обновить статус платежа
     await tx.payment.update({

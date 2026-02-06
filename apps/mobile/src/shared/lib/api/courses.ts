@@ -15,7 +15,7 @@ export interface Course {
   avgRating: number | null;
   createdAt: Date | string;
   authorUsername: string;
-  userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
+  userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET";
   startedAt: Date | string | null;
   completedAt: Date | string | null;
   isFavorite: boolean;

@@ -36,5 +36,10 @@ export function calculateDayStatusFromStatuses(
     return TrainingStatus.IN_PROGRESS;
   }
 
+  // Есть хотя бы один RESET (нет активных) → день RESET
+  if (normalized.some((s) => s === TrainingStatus.RESET || s === "RESET")) {
+    return TrainingStatus.RESET;
+  }
+
   return TrainingStatus.NOT_STARTED;
 }

@@ -9,7 +9,7 @@ import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
 import type { CourseWithExtras, CourseWithProgressData } from "@gafus/types";
 
-const logger = createWebLogger("course-service");
+const _logger = createWebLogger("course-service");
 
 // ========== Get Courses With Progress ==========
 

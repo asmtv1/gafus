@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
-import type { TrainingDetail } from "@gafus/types";
-import { useStepStore } from "@shared/stores/stepStore";
+import { getStepDisplayStatus } from "@gafus/core/utils/training";
+import { TrainingStatus, type TrainingDetail } from "@gafus/types";
+import { useDayStepStates, useStepStore } from "@shared/stores/stepStore";
 import { useTrainingStore } from "@shared/stores/trainingStore";
 import { markTheoryStepAsCompleted } from "@shared/lib/training/markTheoryStepAsCompleted";
 import { ExpandMoreIcon } from "@shared/utils/muiImports";
@@ -29,6 +30,10 @@ const STEP_STATUS_CONFIG = {
     text: "⏸️ На паузе",
     backgroundColor: "#FFF4E6",
   },
+  RESET: {
+    text: "🔄 Сброшен",
+    backgroundColor: "#E8E6E6",
+  },
 } as const;
 
 interface DayProps {
@@ -41,7 +46,9 @@ export function Day({ training, courseType }: DayProps) {
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState<boolean>(false);
 
-  const { stepStates, initializeStep, updateStepStatus } = useStepStore();
+  const stepStates = useDayStepStates(training.courseId, training.dayOnCourseId);
+  const initializeStep = useStepStore((s) => s.initializeStep);
+  const updateStepStatus = useStepStore((s) => s.updateStepStatus);
   const {
     getOpenIndex,
     getRunningIndex,
@@ -92,9 +99,9 @@ export function Day({ training, courseType }: DayProps) {
         const step = training.steps[index];
         const stepKey = getStepKey(index);
         const stepState = stepStates[stepKey];
-        const currentStatus = stepState?.status || step.status || "NOT_STARTED";
+        const currentStatus = getStepDisplayStatus(stepState, step);
 
-        if (step.type === "THEORY" && currentStatus === "NOT_STARTED") {
+        if (step.type === "THEORY" && currentStatus === TrainingStatus.NOT_STARTED) {
           try {
             await markTheoryStepAsCompleted(
               training.courseId,
@@ -223,15 +230,7 @@ export function Day({ training, courseType }: DayProps) {
         const exerciseNumber = (isBreakStep || isDiaryStep) ? null : ++exerciseCounter;
         // Получаем статус шага из store
         const stepKey = getStepKey(index);
-        const stepState = stepStates[stepKey];
-
-        // Приоритет: локальное состояние > серверная пауза > базовый статус
-        let stepStatus = stepState?.status || step.status || "NOT_STARTED";
-
-        // Если локально не на паузе, но сервер говорит что на паузе - показываем паузу
-        if (!stepState?.isPaused && step.isPausedOnServer) {
-          stepStatus = "PAUSED";
-        }
+        const stepStatus = getStepDisplayStatus(stepStates[stepKey], step);
 
         const stepStatusConfig =
           STEP_STATUS_CONFIG[stepStatus as keyof typeof STEP_STATUS_CONFIG] ||

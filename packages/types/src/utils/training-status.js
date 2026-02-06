@@ -6,5 +6,7 @@ var TrainingStatus;
   TrainingStatus["NOT_STARTED"] = "NOT_STARTED";
   TrainingStatus["IN_PROGRESS"] = "IN_PROGRESS";
   TrainingStatus["COMPLETED"] = "COMPLETED";
+  TrainingStatus["PAUSED"] = "PAUSED";
+  TrainingStatus["RESET"] = "RESET";
 })(TrainingStatus || (exports.TrainingStatus = TrainingStatus = {}));
 //# sourceMappingURL=training-status.js.map

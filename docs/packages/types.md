@@ -194,7 +194,7 @@ type StepType = "TRAINING" | "EXAMINATION";
 Статусы тренировок.
 
 ```typescript
-type TrainingStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+type TrainingStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET";
 ```
 
 ### Store типы

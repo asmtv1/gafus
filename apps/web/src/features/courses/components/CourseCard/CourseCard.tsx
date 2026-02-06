@@ -297,6 +297,10 @@ export const CourseCard = ({
         return "В процессе";
       case TrainingStatus.COMPLETED:
         return "Завершен";
+      case TrainingStatus.PAUSED:
+        return "На паузе";
+      case TrainingStatus.RESET:
+        return "Сброшен";
       default:
         return "Не начат";
     }
@@ -310,6 +314,10 @@ export const CourseCard = ({
         return styles.inProgress;
       case TrainingStatus.COMPLETED:
         return styles.completed;
+      case TrainingStatus.PAUSED:
+        return styles.inProgress;
+      case TrainingStatus.RESET:
+        return styles.reset;
       default:
         return styles.notStarted;
     }

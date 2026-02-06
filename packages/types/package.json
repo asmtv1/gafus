@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist",
+    "test": "vitest run --config ../../vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

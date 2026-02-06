@@ -59,7 +59,7 @@ export interface StepStatusUpdateData {
   courseId: string;
   dayOnCourseId: string;
   stepIndex: number;
-  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
+  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET";
   stepTitle?: string;
   stepOrder?: number;
 }

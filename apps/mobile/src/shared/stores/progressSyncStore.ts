@@ -13,6 +13,7 @@ export type QueuedAction =
   | { type: "startStep"; params: Parameters<typeof trainingApi.startStep>[0] }
   | { type: "pauseStep"; params: Parameters<typeof trainingApi.pauseStep>[0] }
   | { type: "resumeStep"; params: Parameters<typeof trainingApi.resumeStep>[0] }
+  | { type: "resetStep"; params: Parameters<typeof trainingApi.resetStep>[0] }
   | { type: "completeTheoryStep"; params: Parameters<typeof trainingApi.completeTheoryStep>[0] }
   | { type: "completePracticeStep"; params: Parameters<typeof trainingApi.completePracticeStep>[0] };
 
@@ -57,6 +58,9 @@ export const useProgressSyncStore = create<ProgressSyncStore>()(
             case "resumeStep":
               result = await trainingApi.resumeStep(head.params);
               break;
+            case "resetStep":
+              result = await trainingApi.resetStep(head.params);
+              break;
             case "completeTheoryStep":
               result = await trainingApi.completeTheoryStep(head.params);
               break;
@@ -76,6 +80,12 @@ export const useProgressSyncStore = create<ProgressSyncStore>()(
         }
         if (result.success) {
           set({ queue: rest, consecutive401: 0 });
+        } else {
+          // 400, 404 и др. — retry бесполезен, удаляем чтобы не зациклиться
+          set({ queue: rest });
+          if (__DEV__) {
+            console.warn("[progressSyncStore] Action failed, removed from queue:", head.type, result);
+          }
         }
         return "ok";
       },

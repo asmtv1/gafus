@@ -1,5 +1,5 @@
 import { prisma } from "@gafus/prisma";
-import { TrainingStatus } from "@gafus/types";
+import { assertNever, TrainingStatus } from "@gafus/types";
 
 import type { DetailedCourseStats, StatisticsData, UserCourse } from "../types";
 
@@ -85,7 +85,11 @@ export async function getCourseStatistics(
           },
         });
 
-  const startedStepStatuses = [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED];
+  const startedStepStatuses = [
+    TrainingStatus.IN_PROGRESS,
+    TrainingStatus.COMPLETED,
+    TrainingStatus.RESET,
+  ];
   const userStepsRaw =
     courseIds.length === 0
       ? []
@@ -339,7 +343,11 @@ export async function getDetailedCourseStatistics(
     })),
   ).get(courseId);
 
-  const startedStepStatuses = [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED];
+  const startedStepStatuses = [
+    TrainingStatus.IN_PROGRESS,
+    TrainingStatus.COMPLETED,
+    TrainingStatus.RESET,
+  ];
   const startedStepsByCourse = groupStartedStepsByCourse(
     userTrainings.flatMap((training) =>
       training.steps
@@ -629,9 +637,14 @@ function getStatusPriority(status: TrainingStatus): number {
     case TrainingStatus.COMPLETED:
       return 2;
     case TrainingStatus.IN_PROGRESS:
+    case TrainingStatus.PAUSED:
       return 1;
-    default:
+    case TrainingStatus.RESET:
+      return 0.5;
+    case TrainingStatus.NOT_STARTED:
       return 0;
+    default:
+      return assertNever(status);
   }
 }
 

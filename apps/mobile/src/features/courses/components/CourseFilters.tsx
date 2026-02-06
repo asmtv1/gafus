@@ -44,6 +44,7 @@ const PROGRESS_LABELS: Record<ProgressFilterType, string> = {
   IN_PROGRESS: "В процессе",
   COMPLETED: "Завершённые",
   PAUSED: "На паузе",
+  RESET: "Сброшенные",
 };
 
 const RATING_LABELS: Record<RatingFilterType, string> = {

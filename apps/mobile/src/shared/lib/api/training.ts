@@ -10,7 +10,7 @@ export interface TrainingDay {
   theoryMinutes?: number | null;
   equipment?: string | null;
   order: number;
-  userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | null;
+  userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "RESET" | null;
   completedAt: string | null;
 }
 
@@ -27,7 +27,7 @@ export interface UserStep {
   id: string;
   stepId: string;
   stepIndex: number;
-  status: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" | "COMPLETED";
+  status: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" | "COMPLETED" | "RESET";
   remainingSec: number | null;
   completedAt: string | null;
   // Данные шага из курса

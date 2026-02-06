@@ -36,6 +36,7 @@
       "@gafus/core/services/achievements": [
         "../../packages/core/src/services/achievements/index.ts"
       ],
+      "@gafus/core/services/pets": ["../../packages/core/src/services/pets/index.ts"],
       "@gafus/core/services/notes": ["../../packages/core/src/services/notes/index.ts"],
       "@gafus/core/services/payments": ["../../packages/core/src/services/payments/index.ts"],
       "@gafus/core/services/video": ["../../packages/core/src/services/video/index.ts"],

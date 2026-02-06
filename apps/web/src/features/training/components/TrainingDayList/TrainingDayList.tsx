@@ -4,8 +4,8 @@ import { memo, useCallback, useEffect } from "react";
 import Link from "next/link";
 
 import { useCachedTrainingDays } from "@shared/hooks/useCachedTrainingDays";
-import { useStepStore } from "@shared/stores/stepStore";
-import { calculateDayStatus } from "@gafus/core/utils/training";
+import { useStepStatesForCourse } from "@shared/stores/stepStore";
+import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
 import { showLockedDayAlert, showPrivateCourseAccessDeniedAlert } from "@shared/utils/sweetAlert";
 import { LockIcon } from "@shared/utils/muiImports";
 import styles from "./TrainingDayList.module.css";
@@ -42,8 +42,13 @@ const TrainingDayList = memo(function TrainingDayList({
     initialError,
   });
 
-  // Локальные статусы шагов (офлайн-истина)
-  const { stepStates } = useStepStore();
+  const courseId =
+    initialData?.courseId ??
+    data?.courseId ??
+    initialData?.trainingDays?.[0]?.courseId ??
+    data?.trainingDays?.[0]?.courseId ??
+    "";
+  const stepStates = useStepStatesForCourse(courseId);
 
   // Добавляем в getItemClass динамику для цветов
   const getItemClass = useCallback((status: string, dayNumber: number) => {
@@ -65,7 +70,7 @@ const TrainingDayList = memo(function TrainingDayList({
       // 1. Ищем первый день IN_PROGRESS
       const inProgressDayIndex = days.findIndex((day) => {
         const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
-        const finalStatus = rank(localStatus) > rank(day.userStatus) ? localStatus : day.userStatus;
+        const finalStatus = getDayDisplayStatus(localStatus, day.userStatus);
         return finalStatus === "IN_PROGRESS";
       });
 
@@ -75,7 +80,7 @@ const TrainingDayList = memo(function TrainingDayList({
       let lastCompletedIndex = -1;
       days.forEach((day, index) => {
         const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
-        const finalStatus = rank(localStatus) > rank(day.userStatus) ? localStatus : day.userStatus;
+        const finalStatus = getDayDisplayStatus(localStatus, day.userStatus);
         if (finalStatus === "COMPLETED") {
           lastCompletedIndex = index;
         }
@@ -98,12 +103,6 @@ const TrainingDayList = memo(function TrainingDayList({
     instructions: "Инструкции",
     diagnostics: "Диагностика",
     summary: "Подведение итогов",
-  };
-
-  const rank = (s?: string) => {
-    if (s === "COMPLETED") return 2;
-    if (s === "IN_PROGRESS" || s === "PAUSED") return 1;
-    return 0; // NOT_STARTED или неизвестно
   };
 
   // Используем initialData если есть, иначе данные из хука
@@ -171,11 +170,8 @@ const TrainingDayList = memo(function TrainingDayList({
           <li
             key={`${day.courseId}-${day.dayOnCourseId}`}
             className={(() => {
-              // Вычисляем локальный статус дня из stepStore
               const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
-              // Не понижаем статус: берем максимум между серверным и локальным
-              const finalStatus =
-                rank(localStatus) > rank(day.userStatus) ? localStatus : day.userStatus;
+              const finalStatus = getDayDisplayStatus(localStatus, day.userStatus);
               return getItemClass(finalStatus, index + 1);
             })()}
           >

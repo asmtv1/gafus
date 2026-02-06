@@ -43,7 +43,7 @@ export default function TrainingDaysScreen() {
   // Функция для ранжирования статусов (как на web)
   const rank = useCallback((s?: string) => {
     if (s === "COMPLETED") return 2;
-    if (s === "IN_PROGRESS" || s === "PAUSED") return 1;
+    if (s === "IN_PROGRESS" || s === "PAUSED" || s === "RESET") return 1;
     return 0; // NOT_STARTED или неизвестно
   }, []);
 
@@ -61,7 +61,7 @@ export default function TrainingDaysScreen() {
         rank(localStatus) > rank(day.userStatus || undefined)
           ? localStatus
           : day.userStatus || "NOT_STARTED";
-      return finalStatus === "IN_PROGRESS";
+      return finalStatus === "IN_PROGRESS" || finalStatus === "RESET";
     });
 
     if (inProgressDayIndex !== -1) return inProgressDayIndex;

@@ -68,6 +68,7 @@ const progressLabels: Record<ProgressFilterType, string> = {
   IN_PROGRESS: "В процессе",
   COMPLETED: "Завершённые",
   PAUSED: "На паузе",
+  RESET: "Сброшенные",
 };
 
 const ratingLabels: Record<RatingFilterType, string> = {

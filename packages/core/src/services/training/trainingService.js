@@ -41,7 +41,7 @@ function mapCourseToTrainingDays(firstCourse) {
     };
   });
   return firstCourse.dayLinks.map((link, index) => {
-    const displayDay = calculateDisplayDayNumber(firstCourse.dayLinks, index);
+    const _displayDay = calculateDisplayDayNumber(firstCourse.dayLinks, index);
     const ut = link.userTrainings[0];
     const allStepStatuses = [];
     for (const stepLink of link.day.stepLinks) {

@@ -35,6 +35,13 @@ function calculateDayStatusFromStatuses(stepStatuses) {
   ) {
     return training_status_1.TrainingStatus.IN_PROGRESS;
   }
+  if (
+    normalized.some(
+      (s) => s === training_status_1.TrainingStatus.RESET || s === "RESET",
+    )
+  ) {
+    return training_status_1.TrainingStatus.RESET;
+  }
   return training_status_1.TrainingStatus.NOT_STARTED;
 }
 //# sourceMappingURL=statusCalculations.js.map

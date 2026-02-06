@@ -18,6 +18,7 @@ enum TrainingStatus {
   IN_PROGRESS
   COMPLETED
   PAUSED
+  RESET
 }
 
 enum UserRole {

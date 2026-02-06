@@ -80,12 +80,14 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       if (typeof window === "undefined") return false;
 
       const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+      console.log("[timerStore] startTimer", { stepIndex, isRestore, activeStep });
 
       // При восстановлении таймера не проверяем canStartStep
       if (!isRestore) {
-        // Проверяем, может ли шаг быть запущен
-        if (!get().canStartStep(courseId, dayOnCourseId, stepIndex)) {
-          return false; // Возвращаем false для показа уведомления
+        const canStart = get().canStartStep(courseId, dayOnCourseId, stepIndex);
+        if (!canStart) {
+          console.log("[timerStore] startTimer: canStartStep=false, returning false");
+          return false;
         }
 
         // Останавливаем предыдущий активный таймер, если есть
@@ -121,17 +123,17 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
         }
       }, 1000);
 
-      // Устанавливаем как активный
       activeTimer = timer;
       activeStep = stepKey;
       timers.set(stepKey, timer);
+      set({ timers: new Map(timers) });
+      console.log("[timerStore] startTimer: timer started", { timersSize: timers.size });
 
-      // Haptic feedback при старте таймера
       if (!isRestore) {
         hapticStart();
       }
 
-      return true; // Успешно запущен
+      return true;
     },
 
     stopTimer: (courseId, dayOnCourseId, stepIndex) => {
@@ -139,15 +141,18 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
       const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
       const timer = timers.get(stepKey);
+      console.log("[timerStore] stopTimer", { stepIndex, hadTimer: !!timer, activeStep });
 
       if (timer) {
         clearInterval(timer);
         timers.delete(stepKey);
+        set({ timers: new Map(timers) });
 
         // Если это был активный таймер, очищаем
         if (activeStep === stepKey) {
           activeStep = null;
           activeTimer = null;
+          console.log("[timerStore] stopTimer: cleared activeStep");
         }
       }
     },
@@ -155,11 +160,10 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
     stopAllTimers: () => {
       if (typeof window === "undefined") return;
 
-      // Останавливаем все таймеры
       timers.forEach((timer) => clearInterval(timer));
       timers.clear();
+      set({ timers: new Map(timers) });
 
-      // Очищаем активный шаг
       if (activeTimer) {
         clearInterval(activeTimer);
         activeTimer = null;
@@ -172,6 +176,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
       timers.forEach((timer) => clearInterval(timer));
       timers.clear();
+      set({ timers: new Map(timers) });
 
       if (activeTimer) {
         clearInterval(activeTimer);
@@ -312,25 +317,14 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       stepIndex: number,
       durationSec: number,
     ) => {
-      // Получаем текущий статус шага синхронно
+      console.log("[timerStore] resetStepWithServer", { stepIndex, durationSec });
       try {
         const { useStepStore } = await import("@shared/stores/stepStore");
         const stepStore = useStepStore.getState();
-        const stepKey = stepStore.getStepKey(courseId, dayOnCourseId, stepIndex);
-        const currentState = stepStore.stepStates[stepKey];
-        let resetStatus: TrainingStatus = TrainingStatus.NOT_STARTED;
-        if (currentState?.status === "IN_PROGRESS" || currentState?.status === "COMPLETED") {
-          resetStatus = TrainingStatus.IN_PROGRESS;
-        } else if (currentState?.status === "PAUSED") {
-          resetStatus = TrainingStatus.IN_PROGRESS;
-        }
 
-        // Останавливаем таймер немедленно
         get().stopTimer(courseId, dayOnCourseId, stepIndex);
-
-        // Используем переданное исходное значение durationSec
-        // Сбрасываем локальное состояние с исходным значением
         stepStore.resetStep(courseId, dayOnCourseId, stepIndex, durationSec);
+        console.log("[timerStore] resetStepWithServer: stopTimer + resetStep done");
 
         // Не блокируем UI: сбрасываем уведомление и статус в фоне
         (async () => {
@@ -350,7 +344,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           }
           try {
             await withTimeout(
-              updateStepStatusServerAction(courseId, dayOnCourseId, stepIndex, resetStatus),
+              updateStepStatusServerAction(courseId, dayOnCourseId, stepIndex, TrainingStatus.RESET),
               SERVER_ACTION_TIMEOUT_MS,
             );
           } catch (error) {
@@ -363,21 +357,13 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             try {
               const { useOfflineStore } = await import("@shared/stores/offlineStore");
               const offlineStore = useOfflineStore.getState();
-              const stepStateNow = useStepStore.getState().stepStates[stepKey];
-              let syncStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" =
-                "NOT_STARTED";
-              if (stepStateNow?.status === "IN_PROGRESS" || stepStateNow?.status === "COMPLETED") {
-                syncStatus = "IN_PROGRESS";
-              } else if (stepStateNow?.status === "PAUSED") {
-                syncStatus = "IN_PROGRESS";
-              }
               offlineStore.addToSyncQueue({
                 type: "step-status-update",
                 data: {
                   courseId,
                   dayOnCourseId,
                   stepIndex,
-                  status: syncStatus,
+                  status: "RESET",
                 } as StepStatusUpdateData & { dayOnCourseId: string },
                 maxRetries: 3,
               });
@@ -498,19 +484,24 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       }
     },
 
-    // Пауза шага с синхронизацией на сервер (optimistic + быстрый таймаут)
-    pauseStepWithServer: async (courseId: string, dayOnCourseId: string, stepIndex: number) => {
+    pauseStepWithServer: async (
+      courseId: string,
+      dayOnCourseId: string,
+      stepIndex: number,
+      timeLeftFromCaller?: number,
+    ) => {
       try {
         const { useStepStore } = await import("@shared/stores/stepStore");
         const stepStore = useStepStore.getState();
         const stepKey = stepStore.getStepKey(courseId, dayOnCourseId, stepIndex);
         const stepState = stepStore.stepStates[stepKey];
-        const timeLeft = stepState?.timeLeft || 0;
+        const timeLeft =
+          typeof timeLeftFromCaller === "number"
+            ? timeLeftFromCaller
+            : stepState?.timeLeft || 0;
 
-        // Мгновенно меняем локальное состояние через stepStore (она остановит таймер и обновит состояние)
-        await stepStore.pauseStep(courseId, dayOnCourseId, stepIndex);
+        await stepStore.pauseStep(courseId, dayOnCourseId, stepIndex, timeLeft);
 
-        // Сервер — в фоне с быстрым таймаутом
         (async () => {
           try {
             await withTimeout(
@@ -568,15 +559,17 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       stepIndex: number,
       durationSec: number,
     ) => {
+      console.log("[timerStore] resumeStepWithServer", { stepIndex, durationSec });
       try {
         const { useStepStore } = await import("@shared/stores/stepStore");
         const stepStore = useStepStore.getState();
         const stepKey = stepStore.getStepKey(courseId, dayOnCourseId, stepIndex);
         const stepState = stepStore.stepStates[stepKey];
         const timeLeft = stepState?.timeLeft || durationSec;
+        console.log("[timerStore] resumeStepWithServer: timeLeft=", timeLeft);
 
-        // Мгновенно меняем локальное состояние через stepStore
         stepStore.resumeStep(courseId, dayOnCourseId, stepIndex);
+        console.log("[timerStore] resumeStepWithServer: stepStore.resumeStep done");
 
         // Сервер — в фоне с быстрым таймаутом
         (async () => {

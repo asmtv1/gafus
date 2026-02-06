@@ -59,6 +59,8 @@ const progressOptions = [
   { id: TrainingStatus.NOT_STARTED, label: "Не начатые", icon: "⭐" },
   { id: TrainingStatus.IN_PROGRESS, label: "В процессе", icon: "🔥" },
   { id: TrainingStatus.COMPLETED, label: "Завершённые", icon: "✅" },
+  { id: TrainingStatus.PAUSED, label: "На паузе", icon: "⏸" },
+  { id: TrainingStatus.RESET, label: "Сброшенные", icon: "🔄" },
 ];
 
 const ratingOptions = [

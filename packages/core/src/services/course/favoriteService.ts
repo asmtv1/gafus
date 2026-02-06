@@ -8,7 +8,7 @@ import { TrainingStatus } from "@gafus/types";
 import type { Course, CourseAccess, CourseReview, FavoriteCourse } from "@gafus/prisma";
 import type { CourseWithProgressData } from "@gafus/types";
 
-const logger = createWebLogger("favorite-service");
+const _logger = createWebLogger("favorite-service");
 
 // ========== Get Favorites Courses ==========
 

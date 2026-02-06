@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { ChecklistQuestion } from "@gafus/types";
 
-import { useStepStore } from "@shared/stores/stepStore";
+import { useStepState, useStepStore } from "@shared/stores/stepStore";
 import { useTimerStore } from "@shared/stores/timerStore";
 import { useCacheManager } from "@shared/utils/cacheManager";
 import { useSyncStatus } from "@shared/hooks/useSyncStatus";
@@ -70,7 +70,7 @@ interface AccordionStepProps {
   stepDescription?: string;
   stepOrder: number;
   totalSteps: number;
-  initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
+  initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET";
   videoUrl?: string | null;
   imageUrls?: string[];
   onRun: (stepIndex: number) => void;
@@ -112,6 +112,16 @@ export function AccordionStep({
 }: AccordionStepProps) {
   // Состояние для отслеживания загрузки
   const [isPausing, setIsPausing] = useState(false);
+  // «Живое» время таймера во время сессии (не пишем в stepStore на каждый тик)
+  const [liveTimeLeft, setLiveTimeLeft] = useState<number | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Состояние для шага «Дневник успехов»
   const [diaryContent, setDiaryContent] = useState("");
   const [isSavingDiary, setIsSavingDiary] = useState(false);
@@ -120,8 +130,12 @@ export function AccordionStep({
     { id: string; content: string; dayOrder: number; dayTitle: string; createdAt: Date }[]
   >([]);
 
-  const { stepStates, initializeStep, resumeStep, resetStep, updateTimeLeft, finishStep } =
-    useStepStore();
+  const stepState = useStepState(courseId, dayOnCourseId, stepIndex);
+  const initializeStep = useStepStore((s) => s.initializeStep);
+  const resumeStep = useStepStore((s) => s.resumeStep);
+  const resetStep = useStepStore((s) => s.resetStep);
+  const updateTimeLeft = useStepStore((s) => s.updateTimeLeft);
+  const finishStep = useStepStore((s) => s.finishStep);
   const timerStore = useTimerStore();
   const {
     startStepWithServer,
@@ -151,12 +165,10 @@ export function AccordionStep({
     initializeStep(courseId, dayOnCourseId, stepIndex, durationSec, initialStatus);
   }, [courseId, dayOnCourseId, stepIndex, durationSec, initialStatus, initializeStep]);
 
-  // Получаем состояние шага
   const stepKey = useMemo(
     () => `${courseId}-${dayOnCourseId}-${stepIndex}`,
     [courseId, dayOnCourseId, stepIndex],
   );
-  const stepState = stepStates[stepKey];
 
   // Загрузка предыдущих записей дневника при открытии шага DIARY
   useEffect(() => {
@@ -180,6 +192,9 @@ export function AccordionStep({
   const { timers } = useTimerStore();
   const hasActiveTimer = timers.has(stepKey);
   const isActuallyRunning = stepState?.status === "IN_PROGRESS" && hasActiveTimer;
+  const displayTimeLeft = hasActiveTimer
+    ? (liveTimeLeft ?? stepState?.timeLeft ?? 0)
+    : (stepState?.timeLeft ?? 0);
 
   // Восстанавливаем таймер при перезагрузке страницы
   useEffect(() => {
@@ -193,13 +208,16 @@ export function AccordionStep({
           const existingTimer = timers.get(stepKey);
 
           if (!existingTimer) {
-            // Восстанавливаем таймер с флагом isRestore = true
+            setLiveTimeLeft(stepState?.timeLeft ?? null);
             startTimer(
               courseId,
               dayOnCourseId,
               stepIndex,
-              (timeLeft: number) => updateTimeLeft(courseId, dayOnCourseId, stepIndex, timeLeft),
+              (timeLeft: number) => {
+                if (isMountedRef.current) setLiveTimeLeft(timeLeft);
+              },
               async () => {
+                setLiveTimeLeft(null);
                 finishStep(courseId, dayOnCourseId, stepIndex);
 
                 // Обновляем статус на сервере
@@ -234,7 +252,6 @@ export function AccordionStep({
     courseId,
     dayOnCourseId,
     stepIndex,
-    updateTimeLeft,
     finishStep,
     finishStepWithServer,
     stepKey,
@@ -247,21 +264,25 @@ export function AccordionStep({
   // Вспомогательная функция для запуска таймера
   const startStepTimer = useCallback(
     (isResume = false) => {
-      if (!canStartStep(courseId, dayOnCourseId, stepIndex)) {
+      const canStart = canStartStep(courseId, dayOnCourseId, stepIndex);
+      if (!isResume && !canStart) {
         alert("Один шаг уже активен. Сначала остановите его!");
         return false;
       }
 
       if (isResume) {
         resumeStep(courseId, dayOnCourseId, stepIndex);
+        setLiveTimeLeft(stepState?.timeLeft ?? null);
       }
-
       const timerStarted = startTimer(
         courseId,
         dayOnCourseId,
         stepIndex,
-        (timeLeft: number) => updateTimeLeft(courseId, dayOnCourseId, stepIndex, timeLeft),
+        (timeLeft: number) => {
+          if (isMountedRef.current) setLiveTimeLeft(timeLeft);
+        },
         async () => {
+          setLiveTimeLeft(null);
           // 1. Обновляем кэш на всех уровнях (шаг, день, курс) - это также обновляет локальное состояние
           updateStepProgress(
             courseId,
@@ -288,6 +309,7 @@ export function AccordionStep({
             // При ошибке добавляем в очередь синхронизации (уже обработано в finishStepWithServer)
           }
         },
+        isResume,
       );
 
       if (!timerStarted) {
@@ -304,7 +326,7 @@ export function AccordionStep({
       stepIndex,
       resumeStep,
       startTimer,
-      updateTimeLeft,
+      stepState?.timeLeft,
       finishStepWithServer,
       stepTitle,
       stepOrder,
@@ -320,7 +342,6 @@ export function AccordionStep({
 
   const handleStart = useCallback(async () => {
     try {
-      // Проверяем, может ли шаг быть запущен
       if (!canStartStep(courseId, dayOnCourseId, stepIndex)) {
         alert("Один шаг уже активен. Сначала остановите его!");
         return;
@@ -342,11 +363,9 @@ export function AccordionStep({
       // Устанавливаем как активный
       onRun(stepIndex);
 
-      // Запускаем таймер
-      if (!startStepTimer(false)) {
-        return;
-      }
+      if (!startStepTimer(false)) return;
     } catch (error) {
+      console.error("[AccordionStep] handleStart error", error);
       // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
 
       // Все равно выполняем локальный запуск
@@ -377,20 +396,19 @@ export function AccordionStep({
   const togglePause = useCallback(async () => {
     if (stepState?.status === "IN_PROGRESS") {
       if (isActuallyRunning) {
-        // Если таймер работает - ставим на паузу
         setIsPausing(true);
         try {
-          // pauseStepWithServer сам обновит состояние через stepStore
-          await pauseStepWithServer(courseId, dayOnCourseId, stepIndex);
-          // Обновляем кэш дня/курса
+          const timeToSave = liveTimeLeft ?? stepState?.timeLeft ?? durationSec;
+          await pauseStepWithServer(courseId, dayOnCourseId, stepIndex, timeToSave);
           updateStepProgress(courseId, dayOnCourseId, stepIndex, "PAUSED", undefined, totalSteps);
         } catch (error) {
+          console.error("[AccordionStep] togglePause PAUSE error", error);
           // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
         } finally {
+          setLiveTimeLeft(null);
           setIsPausing(false);
         }
       } else {
-        // Если таймер не работает, но статус IN_PROGRESS - возобновляем
         setIsPausing(true);
         try {
           // resumeStepWithServer сам обновит состояние через stepStore
@@ -411,13 +429,12 @@ export function AccordionStep({
           );
           startStepTimer(true);
         } catch (error) {
-          // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
+          console.error("[AccordionStep] togglePause RESUME error", error);
         } finally {
           setIsPausing(false);
         }
       }
     } else if (stepState?.status === "PAUSED") {
-      // Если на паузе - возобновляем
       setIsPausing(true);
       try {
         // resumeStepWithServer сам обновит состояние через stepStore
@@ -438,7 +455,7 @@ export function AccordionStep({
         );
         startStepTimer(true);
       } catch (error) {
-        // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
+        console.error("[AccordionStep] togglePause RESUME from PAUSED error", error);
       } finally {
         setIsPausing(false);
       }
@@ -447,6 +464,7 @@ export function AccordionStep({
     stepState?.status,
     stepState?.timeLeft,
     isActuallyRunning,
+    liveTimeLeft,
     pauseStepWithServer,
     courseId,
     dayOnCourseId,
@@ -460,22 +478,14 @@ export function AccordionStep({
 
   const handleReset = useCallback(async () => {
     try {
-      // Сбрасываем шаг на сервере с исходным durationSec
       await resetStepWithServer(courseId, dayOnCourseId, stepIndex, durationSec);
-
-      // Останавливаем таймер
-      stopTimer(courseId, dayOnCourseId, stepIndex);
-
-      // Сбрасываем локальное состояние
-      resetStep(courseId, dayOnCourseId, stepIndex, durationSec);
-
-      // Уведомляем родителя
+      setLiveTimeLeft(null);
       onReset(stepIndex);
     } catch (error) {
-      // Не показываем ошибку пользователю, так как действие добавлено в очередь синхронизации
-
-      // Все равно выполняем локальный сброс
+      console.error("[AccordionStep] handleReset error", error);
+      // Локальный сброс: resetStepWithServer уже делает stopTimer+resetStep внутри
       stopTimer(courseId, dayOnCourseId, stepIndex);
+      setLiveTimeLeft(null);
       resetStep(courseId, dayOnCourseId, stepIndex, durationSec);
       onReset(stepIndex);
     }
@@ -592,6 +602,11 @@ export function AccordionStep({
   ]);
 
   if (!stepState) return null;
+
+  const showStart = stepState.status === "NOT_STARTED" || stepState.status === "RESET";
+  const showPause = stepState.status === "IN_PROGRESS" && isActuallyRunning;
+  const showResume =
+    (stepState.status === "IN_PROGRESS" && !isActuallyRunning) || stepState.status === "PAUSED";
 
   return (
     <div className={styles.stepContainer}>
@@ -756,16 +771,26 @@ export function AccordionStep({
         <div className={styles.timerCard}>
           <div className={styles.timerHeader}>
             <AccessTimeIcon fontSize="small" />
-            <span>{type === "BREAK" ? "Начни перерыв" : "Начните занятие!"}</span>
+            <span>
+              {type === "BREAK"
+                ? "Начни перерыв"
+                : stepState.status === "RESET"
+                  ? "Сброшен"
+                  : "Начните занятие!"}
+            </span>
           </div>
           <div className={styles.controlRow}>
             <div className={styles.timerDisplay}>
-              {`${Math.floor(stepState.timeLeft / 60)}:${(stepState.timeLeft % 60)
+              {`${Math.floor(displayTimeLeft / 60)}:${(displayTimeLeft % 60)
                 .toString()
                 .padStart(2, "0")}`}
             </div>
-            {stepState.status === "NOT_STARTED" && (
-              <button onClick={handleStart} className={styles.circleBtn} aria-label="start">
+            {(stepState.status === "NOT_STARTED" || stepState.status === "RESET") && (
+              <button
+                onClick={handleStart}
+                className={styles.circleBtn}
+                aria-label="start"
+              >
                 <PlayArrowIcon />
               </button>
             )}
@@ -790,7 +815,11 @@ export function AccordionStep({
                 <PlayArrowIcon />
               </button>
             ) : null}
-            <button onClick={handleReset} className={styles.circleBtnReset} aria-label="reset">
+            <button
+              onClick={handleReset}
+              className={styles.circleBtnReset}
+              aria-label="reset"
+            >
               <ReplayIcon />
             </button>
           </div>

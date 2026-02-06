@@ -25,6 +25,7 @@ function dayUserStatusFromSteps(
 ): TrainingDay["userStatus"] {
   let hasInProgress = false;
   let hasPaused = false;
+  let hasReset = false;
   let allCompleted = true;
   for (let i = 0; i < stepCount; i++) {
     const s = getStepState(courseId, dayOnCourseId, i);
@@ -38,9 +39,11 @@ function dayUserStatusFromSteps(
       hasInProgress = true;
       if (s.status === "PAUSED") hasPaused = true;
     }
+    if (s.status === "RESET") hasReset = true;
   }
   if (allCompleted) return "COMPLETED";
   if (hasInProgress || hasPaused) return "IN_PROGRESS";
+  if (hasReset) return "RESET";
   return "NOT_STARTED";
 }
 

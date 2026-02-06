@@ -777,7 +777,9 @@ function UserProgressAccordion({
     progress?.days.filter((day) => {
       const hasActiveSteps = day.steps.some(
         (step) =>
-          step.status === TrainingStatus.IN_PROGRESS || step.status === TrainingStatus.COMPLETED,
+          step.status === TrainingStatus.IN_PROGRESS ||
+          step.status === TrainingStatus.COMPLETED ||
+          step.status === TrainingStatus.RESET,
       );
       return hasActiveSteps;
     }) || [];
@@ -901,7 +903,8 @@ function UserProgressAccordion({
               const activeSteps = day.steps.filter(
                 (step) =>
                   step.status === TrainingStatus.IN_PROGRESS ||
-                  step.status === TrainingStatus.COMPLETED,
+                  step.status === TrainingStatus.COMPLETED ||
+                  step.status === TrainingStatus.RESET,
               );
 
               return (
@@ -942,14 +945,18 @@ function UserProgressAccordion({
                           ? "Завершен"
                           : day.status === TrainingStatus.IN_PROGRESS
                             ? "В процессе"
-                            : "Не начат"
+                            : day.status === TrainingStatus.RESET
+                              ? "Сброшен"
+                              : "Не начат"
                       }
                       color={
                         day.status === TrainingStatus.COMPLETED
                           ? "success"
                           : day.status === TrainingStatus.IN_PROGRESS
                             ? "warning"
-                            : "default"
+                            : day.status === TrainingStatus.RESET
+                              ? "default"
+                              : "default"
                       }
                       size="small"
                       sx={{ flexShrink: 0 }}
@@ -1032,12 +1039,16 @@ function UserProgressAccordion({
                                     label={
                                       step.status === TrainingStatus.IN_PROGRESS
                                         ? "В процессе"
-                                        : "Не начат"
+                                        : step.status === TrainingStatus.RESET
+                                          ? "Сброшен"
+                                          : "Не начат"
                                     }
                                     color={
                                       step.status === TrainingStatus.IN_PROGRESS
                                         ? "warning"
-                                        : "default"
+                                        : step.status === TrainingStatus.RESET
+                                          ? "default"
+                                          : "default"
                                     }
                                     size="small"
                                     sx={{ fontSize: { xs: "0.625rem", sm: "0.75rem" } }}

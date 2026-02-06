@@ -4,13 +4,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-native-reanimated";
 import { useEffect, useState, memo, useRef } from "react";
 
+import { getStepDisplayStatus } from "@gafus/core/utils/training";
 import { Button, MarkdownText, VideoPlayer } from "@/shared/components";
 import type { UserStep } from "@/shared/lib/api";
 import { TestQuestionsBlock, type ChecklistQuestion } from "./TestQuestionsBlock";
 import { VideoReportBlock } from "./VideoReportBlock";
 import { WrittenFeedbackBlock } from "./WrittenFeedbackBlock";
 import type { LocalStepState } from "@/shared/stores";
-import { useStepStore, useTimerStore } from "@/shared/stores";
+import { useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
 import { useVideoUrl } from "@/shared/hooks";
 import { getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
@@ -86,14 +87,14 @@ function AccordionStepComponent({
     stepData = step;
   }
 
-  const { updateTimeLeft } = useStepStore();
   const timerStore = useTimerStore();
   const { activeTimer, startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor } = timerStore;
 
-  const status = localState?.status || step.status;
+  const status = getStepDisplayStatus(localState, step);
   const isCompleted = status === "COMPLETED";
   const isInProgress = status === "IN_PROGRESS";
   const isPaused = status === "PAUSED";
+  const isReset = status === "RESET";
   const stepType = stepData?.type || step?.type;
   const isTheory = stepType === "THEORY";
   const isPractice = stepType === "PRACTICE";
@@ -212,22 +213,16 @@ function AccordionStepComponent({
 
           tick();
 
-          // Обновляем timeLeft в stepStore после каждого тика (только если шаг уже создан)
           const updatedTimer = useTimerStoreDirect.getState().activeTimer;
-          const stepState = useStepStore.getState().getStepState(courseId, dayOnCourseId, index);
           if (
-            stepState &&
             updatedTimer &&
             updatedTimer.courseId === courseId &&
             updatedTimer.dayOnCourseId === dayOnCourseId &&
-            updatedTimer.stepIndex === index
+            updatedTimer.stepIndex === index &&
+            updatedTimer.remainingSec <= 0
           ) {
-            updateTimeLeft(courseId, dayOnCourseId, index, updatedTimer.remainingSec);
-
-            if (updatedTimer.remainingSec <= 0) {
-              stopTimer();
-              onComplete();
-            }
+            stopTimer();
+            onComplete();
           }
         } catch (error) {
           if (__DEV__) {
@@ -246,7 +241,6 @@ function AccordionStepComponent({
     hasActiveTimer,
     activeTimer?.isRunning,
     tick,
-    updateTimeLeft,
     courseId,
     dayOnCourseId,
     index,
@@ -527,7 +521,9 @@ function AccordionStepComponent({
                     const timeLeft =
                       hasActiveTimer && currentTimer
                         ? currentTimer.remainingSec
-                        : (localState?.timeLeft ?? localState?.remainingSec ?? duration);
+                        : isReset
+                          ? duration
+                          : (localState?.timeLeft ?? localState?.remainingSec ?? duration);
 
                     // Форматирование времени MM:SS
                     const formatTime = (seconds: number): string => {
@@ -535,6 +531,12 @@ function AccordionStepComponent({
                       const secs = seconds % 60;
                       return `${mins}:${secs.toString().padStart(2, "0")}`;
                     };
+
+                    const timerHeaderText = isBreak
+                      ? "Начни перерыв"
+                      : isReset
+                        ? "Сброшен"
+                        : "Начните занятие!";
 
                     return (
                       <View style={styles.timerCard}>
@@ -544,9 +546,7 @@ function AccordionStepComponent({
                             size={20}
                             color={COLORS.textSecondary}
                           />
-                          <Text style={styles.timerHeaderText}>
-                            {isBreak ? "Начни перерыв" : "Начните занятие!"}
-                          </Text>
+                          <Text style={styles.timerHeaderText}>{timerHeaderText}</Text>
                         </View>
 
                         <View style={styles.timerControls}>
@@ -555,7 +555,7 @@ function AccordionStepComponent({
 
                           {/* Кнопки управления */}
                           <View style={styles.timerButtons}>
-                            {status === "NOT_STARTED" && (
+                            {(status === "NOT_STARTED" || status === "RESET") && (
                               <IconButton
                                 icon="play-circle"
                                 iconColor={WEB.circleBtnBorder}
@@ -635,14 +635,7 @@ function AccordionStepComponent({
                           styles.completeBtn,
                           pressed && styles.completeBtnPressed,
                         ]}
-                        onPress={() => {
-                          console.log("[Я выполнил] Нажатие, вызываем onComplete", {
-                            courseId,
-                            dayOnCourseId,
-                            index,
-                          });
-                          onComplete();
-                        }}
+                        onPress={onComplete}
                       >
                         <Text style={styles.completeBtnText}>Я выполнил</Text>
                       </Pressable>

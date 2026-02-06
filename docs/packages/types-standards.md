@@ -102,6 +102,8 @@ export enum TrainingStatus {
   NOT_STARTED = "NOT_STARTED",
   IN_PROGRESS = "IN_PROGRESS",
   COMPLETED = "COMPLETED",
+  PAUSED = "PAUSED",
+  RESET = "RESET",
 }
 
 export const TRAINING_LEVELS = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"] as const;

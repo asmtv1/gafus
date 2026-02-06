@@ -249,6 +249,8 @@ enum TrainingStatus {
   NOT_STARTED
   IN_PROGRESS
   COMPLETED
+  PAUSED
+  RESET
 }
 ```
 

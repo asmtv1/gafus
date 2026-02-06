@@ -16,7 +16,8 @@ export type ProgressFilterType =
   | "NOT_STARTED"
   | "IN_PROGRESS"
   | "COMPLETED"
-  | "PAUSED";
+  | "PAUSED"
+  | "RESET";
 export type RatingFilterType = "ALL" | "4+" | "3+" | "ANY";
 export type SortingType = "newest" | "rating" | "name" | "progress";
 
@@ -121,6 +122,7 @@ export function sortCourses(
         COMPLETED: 0,
         IN_PROGRESS: 1,
         PAUSED: 1,
+        RESET: 1,
         NOT_STARTED: 2,
       };
       return [...courses].sort(

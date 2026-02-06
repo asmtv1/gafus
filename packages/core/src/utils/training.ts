@@ -3,6 +3,49 @@ import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 export type StepStates = Record<string, { status?: string }>;
 
 /**
+ * Определяет статус шага для отображения в UI.
+ * stepState (из stepStore) — единственный источник истины после инициализации.
+ * serverStep используется только при отсутствии stepState (до initializeStep).
+ *
+ * @param stepState - Локальное состояние из stepStore (приоритет)
+ * @param serverStep - Серверные данные (fallback при первом рендере)
+ * @returns Статус для отображения в UI
+ */
+export function getStepDisplayStatus(
+  stepState: { status?: string } | null | undefined,
+  serverStep?: { status?: string; isPausedOnServer?: boolean },
+): TrainingStatus {
+  const localStatus = stepState?.status?.trim();
+  if (localStatus) return localStatus as TrainingStatus;
+
+  if (serverStep?.isPausedOnServer) return TrainingStatus.PAUSED;
+  return (serverStep?.status as TrainingStatus) || TrainingStatus.NOT_STARTED;
+}
+
+/** Ранг статуса для сравнения при слиянии local/server */
+function statusRank(s?: string): number {
+  if (s === "COMPLETED") return 2;
+  if (s === "IN_PROGRESS" || s === "PAUSED" || s === "RESET") return 1;
+  return 0;
+}
+
+/**
+ * Определяет статус дня для отображения при слиянии локального (stepStore) и серверного.
+ * RESET имеет приоритет над серверным COMPLETED (пользователь явно сбросил).
+ *
+ * @param localStatus - Рассчитан из stepStore (calculateDayStatus)
+ * @param serverStatus - day.userStatus с сервера
+ */
+export function getDayDisplayStatus(
+  localStatus: TrainingStatus,
+  serverStatus?: string,
+): TrainingStatus {
+  if (localStatus === TrainingStatus.RESET) return TrainingStatus.RESET;
+  const server = (serverStatus as TrainingStatus) || TrainingStatus.NOT_STARTED;
+  return statusRank(localStatus) >= statusRank(serverStatus) ? localStatus : server;
+}
+
+/**
  * Вычисляет статус дня тренировки на основе статусов шагов
  * @param courseId - ID курса
  * @param dayOnCourseId - ID дня в курсе
@@ -96,6 +139,10 @@ export function calculateCourseStatus(
     )
   ) {
     return TrainingStatus.IN_PROGRESS;
+  }
+
+  if (dayStatuses.some((status) => status === TrainingStatus.RESET)) {
+    return TrainingStatus.RESET;
   }
 
   return TrainingStatus.NOT_STARTED;

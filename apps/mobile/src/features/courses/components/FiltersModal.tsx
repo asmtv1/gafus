@@ -37,6 +37,7 @@ const PROGRESS_OPTIONS: { id: ProgressFilterType; label: string; icon: string }[
   { id: "IN_PROGRESS", label: "В процессе", icon: "🔥" },
   { id: "COMPLETED", label: "Завершённые", icon: "✅" },
   { id: "PAUSED", label: "На паузе", icon: "⏸" },
+  { id: "RESET", label: "Сброшенные", icon: "🔄" },
 ];
 
 const RATING_OPTIONS: { id: RatingFilterType; label: string }[] = [

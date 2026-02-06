@@ -39,7 +39,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
  * Получает настройки пользователя
  * Пока возвращаем дефолтные настройки
  */
-export async function getUserPreferences(userId: string): Promise<UserPreferences> {
+export async function getUserPreferences(_userId: string): Promise<UserPreferences> {
   // TODO: В будущем можно добавить таблицу user_preferences в БД
   return DEFAULT_PREFERENCES;
 }
