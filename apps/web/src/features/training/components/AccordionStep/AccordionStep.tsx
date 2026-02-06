@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { ChecklistQuestion } from "@gafus/types";
 
+import { useShallow } from "zustand/react/shallow";
 import { useStepState, useStepStore } from "@shared/stores/stepStore";
 import { useTimerStore } from "@shared/stores/timerStore";
 import { useCacheManager } from "@shared/utils/cacheManager";
@@ -136,17 +137,29 @@ export function AccordionStep({
   const resetStep = useStepStore((s) => s.resetStep);
   const updateTimeLeft = useStepStore((s) => s.updateTimeLeft);
   const finishStep = useStepStore((s) => s.finishStep);
-  const timerStore = useTimerStore();
   const {
-    startStepWithServer,
-    finishStepWithServer,
-    resetStepWithServer,
-    pauseStepWithServer,
-    resumeStepWithServer,
+    timers,
     startTimer,
     stopTimer,
     canStartStep,
-  } = timerStore;
+    startStepWithServer,
+    finishStepWithServer,
+    pauseStepWithServer,
+    resumeStepWithServer,
+    resetStepWithServer,
+  } = useTimerStore(
+    useShallow((s) => ({
+      timers: s.timers,
+      startTimer: s.startTimer,
+      stopTimer: s.stopTimer,
+      canStartStep: s.canStartStep,
+      startStepWithServer: s.startStepWithServer,
+      finishStepWithServer: s.finishStepWithServer,
+      pauseStepWithServer: s.pauseStepWithServer,
+      resumeStepWithServer: s.resumeStepWithServer,
+      resetStepWithServer: s.resetStepWithServer,
+    })),
+  );
   const { startSync, finishSync, addPendingChange, removePendingChange } = useSyncStatus();
 
   // Централизованный менеджер кэша
@@ -188,77 +201,80 @@ export function AccordionStep({
     });
   }, [type, courseId]);
 
-  // Получаем состояние таймера через хук
-  const { timers } = useTimerStore();
+  // Получаем состояние таймера (уже из селектора выше)
   const hasActiveTimer = timers.has(stepKey);
   const isActuallyRunning = stepState?.status === "IN_PROGRESS" && hasActiveTimer;
   const displayTimeLeft = hasActiveTimer
     ? (liveTimeLeft ?? stepState?.timeLeft ?? 0)
     : (stepState?.timeLeft ?? 0);
 
-  // Восстанавливаем таймер при перезагрузке страницы
-  useEffect(() => {
-    // Если шаг был в процессе выполнения - восстанавливаем таймер
-    if (stepState?.status === "IN_PROGRESS") {
-      // Проверяем, что таймер действительно нужен (есть время)
-      if (stepState.timeLeft > 0) {
-        // Даем время на полную инициализацию
-        const timer = setTimeout(() => {
-          // Проверяем, что таймер еще не запущен для этого шага
-          const existingTimer = timers.get(stepKey);
-
-          if (!existingTimer) {
-            setLiveTimeLeft(stepState?.timeLeft ?? null);
-            startTimer(
-              courseId,
-              dayOnCourseId,
-              stepIndex,
-              (timeLeft: number) => {
-                if (isMountedRef.current) setLiveTimeLeft(timeLeft);
-              },
-              async () => {
-                setLiveTimeLeft(null);
-                finishStep(courseId, dayOnCourseId, stepIndex);
-
-                // Обновляем статус на сервере
-                try {
-                  await finishStepWithServer(
-                    courseId,
-                    dayOnCourseId,
-                    stepIndex,
-                    stepTitle,
-                    stepOrder,
-                  );
-                } catch (error) {
-                  // Не показываем ошибку пользователя, так как действие добавлено в очередь синхронизации
-                }
-
-                onRun(-1);
-              },
-              true, // isRestore = true
-            );
-          } else {
-            // Timer already exists, skipping restoration
-          }
-        }, 500); // Увеличиваем задержку для полной инициализации
-
-        return () => clearTimeout(timer);
-      }
-    }
+  // Восстанавливаем таймер при перезагрузке страницы или возврате на шаг
+  const restoreTimerWithCallbacks = useCallback(() => {
+    setLiveTimeLeft(stepState?.timeLeft ?? null);
+    startTimer(
+      courseId,
+      dayOnCourseId,
+      stepIndex,
+      (timeLeft: number) => {
+        if (isMountedRef.current) setLiveTimeLeft(timeLeft);
+      },
+      async () => {
+        setLiveTimeLeft(null);
+        finishStep(courseId, dayOnCourseId, stepIndex);
+        try {
+          await finishStepWithServer(
+            courseId,
+            dayOnCourseId,
+            stepIndex,
+            stepTitle,
+            stepOrder,
+          );
+        } catch {
+          // Ошибка обрабатывается в очереди синхронизации
+        }
+        onRun(-1);
+      },
+      true, // isRestore = true
+    );
   }, [
-    stepState?.status,
-    stepState?.timeLeft,
-    startTimer,
     courseId,
     dayOnCourseId,
     stepIndex,
+    stepState?.timeLeft,
+    stepTitle,
+    stepOrder,
+    startTimer,
     finishStep,
     finishStepWithServer,
-    stepKey,
-    stepOrder,
-    stepTitle,
-    timers,
     onRun,
+  ]);
+
+  useEffect(() => {
+    if (stepState?.status !== "IN_PROGRESS" || stepState.timeLeft <= 0) return;
+
+    const timer = setTimeout(() => {
+      const currentTimers = useTimerStore.getState().timers;
+      const existingTimer = currentTimers.get(stepKey);
+      if (existingTimer) {
+        // Таймер уже тикает в фоне (пользователь уходил со страницы), но колбэки от старого
+        // экземпляра — новый компонент не получает onTimeUpdate. Перезапускаем с новыми колбэками.
+        stopTimer(courseId, dayOnCourseId, stepIndex);
+        restoreTimerWithCallbacks();
+      } else {
+        restoreTimerWithCallbacks();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [
+    stepState?.status,
+    stepState?.timeLeft,
+    stepKey,
+    courseId,
+    dayOnCourseId,
+    stepIndex,
+    stopTimer,
+    restoreTimerWithCallbacks,
   ]);
 
   // Вспомогательная функция для запуска таймера

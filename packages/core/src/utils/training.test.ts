@@ -52,4 +52,16 @@ describe("getStepDisplayStatus", () => {
     const result = getStepDisplayStatus(null, {});
     expect(result).toBe(TrainingStatus.NOT_STARTED);
   });
+
+  it("приоритет RESET с сервера — убирает вспышку «На паузе» до initializeStep", () => {
+    expect(
+      getStepDisplayStatus(
+        { status: "PAUSED" },
+        { status: "RESET", isPausedOnServer: true },
+      ),
+    ).toBe(TrainingStatus.RESET);
+    expect(
+      getStepDisplayStatus(undefined, { status: "RESET", isPausedOnServer: true }),
+    ).toBe(TrainingStatus.RESET);
+  });
 });

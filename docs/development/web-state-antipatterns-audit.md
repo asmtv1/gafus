@@ -4,6 +4,8 @@
 
 **Обновление 2025-02:** Senior-ревью плана рефакторинга — см. `.cursor/plans/refactoring_step_status_state_777b40f9.plan.md`. Большая часть плана реализована; после каждого этапа — `pnpm run build` (24 successful).
 
+**Обновление 2025-02-06 (рефакторинг статусов web + mobile):** Реализован план `.cursor/plans/рефакторинг_статусов_web_и_mobile_c17d8a63.plan.md`. Исправлено: дублирование rank (web stepStore использует `statusRank` из core); побочный эффект в useMemo (useCourseProgressSync — расчёт перенесён в useEffect + useState); подписка на stepStates в cacheManager заменена на селектор по `updateStepStatus`, stepStates читаются через getState(); парсинг ключей stepStates для courseIds заменён на список курсов из courseStore с передачей dayOnCourseIds в calculateCourseStatus; console.log в stepStore/timerStore заменены на logger; AccordionStep (web) и Day (web) — селекторы с useShallow / стабильные deps; на mobile экран списка дней переведён на getDayDisplayStatus из core (исправлен баг RESET vs COMPLETED); в mobile добавлены селекторы useDayStepStates и useStepStatesForCourse.
+
 ---
 
 ## 1. Исправлено (рефакторинг step status)
@@ -26,29 +28,11 @@
 
 ---
 
-### 2.2 Дублирование логики rank() и merge
+### 2.2 Дублирование логики rank() и merge — ИСПРАВЛЕНО
 
-**Файлы:** `TrainingDayList.tsx` (rank), `useCourseProgressSync.ts` (rank), `stepStore.ts` (rank)
+**Было:** Одна и та же логика `rank()` и слияния local/server в stepStore (web), на экране списка дней mobile (свой rank, баг RESET vs COMPLETED).
 
-**Проблема:** Одна и та же логика `rank()` и слияния local/server разнесена по 3 местам. Риск расхождений (как с RESET).
-
-**Рекомендация:** Вынести в `packages/core` общую функцию, например:
-
-```typescript
-// packages/core/src/utils/training.ts
-export function getDayDisplayStatus(
-  localStatus: TrainingStatus,
-  serverStatus?: string
-): TrainingStatus {
-  if (localStatus === TrainingStatus.RESET) return TrainingStatus.RESET;
-  const r = (s?: string) => {
-    if (s === "COMPLETED") return 2;
-    if (s === "IN_PROGRESS" || s === "PAUSED" || s === "RESET") return 1;
-    return 0;
-  };
-  return r(localStatus) >= r(serverStatus) ? localStatus : (serverStatus as TrainingStatus) ?? TrainingStatus.NOT_STARTED;
-}
-```
+**Сделано:** В core экспортирована `statusRank`, web stepStore использует её; слияние local/server для дней — `getDayDisplayStatus(localStatus, serverStatus)` в core. Web: TrainingDayList, useCourseProgressSync уже используют getDayDisplayStatus. Mobile: экран списка дней переведён на getDayDisplayStatus (RESET имеет приоритет над серверным COMPLETED).
 
 ---
 
@@ -116,6 +100,6 @@ if (process.env.NODE_ENV !== "production") {
 
 ## 4. Приоритеты исправлений
 
-1. **Высокий:** RESET в TrainingDayList и useCourseProgressSync (корректное отображение после сброса).
-2. **Средний:** Общая функция `getDayDisplayStatus` в core для унификации логики.
-3. **Низкий:** Селекторы Zustand — выполнено (useDayStepStates, useStepStatesForCourse, useStepState).
+1. **Высокий:** RESET в TrainingDayList и useCourseProgressSync — выполнено (getDayDisplayStatus в core).
+2. **Средний:** Общая функция getDayDisplayStatus и statusRank в core — выполнено.
+3. **Низкий:** Селекторы Zustand (web и mobile) — выполнено.

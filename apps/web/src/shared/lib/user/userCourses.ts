@@ -2,6 +2,7 @@
 
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
+import { syncUserCourseStatusFromDays as syncUserCourseStatusFromDaysCore } from "@gafus/core/services/training";
 import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 
@@ -90,6 +91,18 @@ export async function completeUserCourse(courseId: string) {
     logger.error("Ошибка в completeUserCourse:", error as Error, { operation: "error" });
     throw new Error("Ошибка при завершении курса. Попробуйте перезагрузить страницу.");
   }
+}
+
+/**
+ * Пересчитывает статус курса по статусам дней и обновляет UserCourse.
+ * Делегирует в @gafus/core (используется также из API).
+ */
+export async function syncUserCourseStatusFromDays(
+  userId: string,
+  courseId: string,
+): Promise<void> {
+  const safeCourseId = courseIdSchema.parse(courseId);
+  await syncUserCourseStatusFromDaysCore(userId, safeCourseId);
 }
 
 /**

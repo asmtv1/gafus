@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { zustandStorage } from "./storage";
+import { useShallow } from "zustand/react/shallow";
+import { stepStorage } from "./storage";
 
 // Локальное состояние шага
 export interface LocalStepState {
@@ -321,7 +322,32 @@ export const useStepStore = create<StepStore>()(
     }),
     {
       name: "step-storage",
-      storage: createJSONStorage(() => zustandStorage),
+      storage: createJSONStorage(() => stepStorage),
     },
   ),
 );
+
+/** Подмножество stepStates по префиксу дня (для одного дня курса). */
+export function useDayStepStates(courseId: string, dayOnCourseId: string) {
+  const prefix = `${courseId}-${dayOnCourseId}-`;
+  return useStepStore(
+    useShallow((state) =>
+      Object.fromEntries(
+        Object.entries(state.stepStates).filter(([key]) => key.startsWith(prefix)),
+      ),
+    ),
+  );
+}
+
+/** Подмножество stepStates по префиксу курса (все дни курса). При пустом courseId возвращает {}. */
+export function useStepStatesForCourse(courseId: string) {
+  const prefix = courseId ? `${courseId}-` : "";
+  return useStepStore(
+    useShallow((state) => {
+      if (!prefix) return {};
+      return Object.fromEntries(
+        Object.entries(state.stepStates).filter(([key]) => key.startsWith(prefix)),
+      );
+    }),
+  );
+}

@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { useSegments, useRouter } from "expo-router";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 
-import { useAuthStore, useCourseStore } from "@/shared/stores";
+import { useAuthStore, useCourseStore, useStepStore } from "@/shared/stores";
 import { coursesApi } from "@/shared/lib/api";
 import { COLORS } from "@/constants";
 
@@ -25,6 +25,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // При смене пользователя (логин/логаут) подгружаем stepStore из ключа по userId
+  useEffect(() => {
+    if (isLoading) return;
+    void useStepStore.persist.rehydrate();
+  }, [isAuthenticated, isLoading]);
 
   // Загрузка избранного при старте (аналог loadFromServer в web), один раз за сессию
   useEffect(() => {

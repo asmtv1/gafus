@@ -25,7 +25,7 @@ const makeEndKey = (courseId: string, dayOnCourseId: string, idx: number) =>
  * при изменении прогресса пользователя
  */
 export function useCacheManager() {
-  const { stepStates, updateStepStatus } = useStepStore();
+  const updateStepStatus = useStepStore((s) => s.updateStepStatus);
   const courseStore = useCourseStore();
   const { user } = useUserStore();
 
@@ -36,7 +36,7 @@ export function useCacheManager() {
     courseId: string,
     dayOnCourseId: string,
     stepIndex: number,
-    stepStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED",
+    stepStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET",
     durationSec?: number,
     totalSteps?: number,
   ) => {
@@ -77,11 +77,10 @@ export function useCacheManager() {
       // Пауза уже выполнена в pauseStepWithServer
       // НЕ вызываем pauseStep снова
     } else if (stepStatus === "COMPLETED") {
-      // Завершение: используем finishStep для очистки ключей и времени
       const { finishStep } = useStepStore.getState();
       finishStep(courseId, dayOnCourseId, stepIndex);
     } else {
-      // Прочие обновления только статусом
+      // NOT_STARTED, RESET и прочие — только обновление статуса в store
       updateStepStatus(courseId, dayOnCourseId, stepIndex, stepStatus);
     }
 
@@ -100,7 +99,14 @@ export function useCacheManager() {
     const allCourses = courseStore.allCourses?.data || [];
     const serverCourse = allCourses.find((c) => c.id === courseId);
     const totalDays = serverCourse?.dayLinks?.length;
-    const newCourseStatus = calcCourse(courseId, currentStepStates, totalDays);
+    const dayOnCourseIds =
+      serverCourse?.dayLinks?.map((link) => link.day?.id).filter(Boolean) ?? [];
+    const newCourseStatus = calcCourse(
+      courseId,
+      currentStepStates,
+      totalDays,
+      dayOnCourseIds as string[],
+    );
 
     // 5. Обновляем кэш курсов в courseStore
     updateCoursesCache(
@@ -136,8 +142,9 @@ export function useCacheManager() {
     courseId: string,
     stepStates: Record<string, { status?: string }>,
     totalDaysInCourse?: number,
+    dayOnCourseIds?: string[],
   ) => {
-    return calcCourse(courseId, stepStates, totalDaysInCourse);
+    return calcCourse(courseId, stepStates, totalDaysInCourse, dayOnCourseIds);
   };
 
   /**
@@ -279,48 +286,40 @@ export function useCacheManager() {
    * Вызывается при загрузке страницы для восстановления офлайн-изменений
    */
   const syncCourseStoreWithStepStates = () => {
-    const allStepStates = stepStates;
+    const allStepStates = useStepStore.getState().stepStates;
     const courseStore = useCourseStore.getState();
 
-    // Получаем все уникальные курсы из stepStates
-    const courseIds = new Set<string>();
-    Object.keys(allStepStates).forEach((key) => {
-      const parts = key.split("-");
-      if (parts.length >= 2) {
-        courseIds.add(parts[0]);
-      }
-    });
+    const coursesToSync: Array<{
+      courseId: string;
+      totalDaysInCourse: number;
+      dayOnCourseIds: string[];
+    }> = [];
 
-    // Обновляем каждый курс на основе актуальных stepStates
-    courseIds.forEach((courseId) => {
-      // Получаем информацию о курсе для определения количества дней
-      let totalDaysInCourse: number | undefined;
+    const addCourses = (
+      list: Array<{ id: string; dayLinks?: Array<{ day?: { id: string } }> }> | undefined,
+    ) => {
+      if (!list) return;
+      list.forEach((course) => {
+        const dayOnCourseIds =
+          course.dayLinks?.map((l) => l.day?.id).filter(Boolean) ?? [];
+        coursesToSync.push({
+          courseId: course.id,
+          totalDaysInCourse: course.dayLinks?.length ?? 0,
+          dayOnCourseIds: dayOnCourseIds as string[],
+        });
+      });
+    };
+    addCourses(courseStore.allCourses?.data ?? undefined);
+    addCourses(courseStore.favorites?.data ?? undefined);
+    addCourses(courseStore.authored ?? undefined);
 
-      // Ищем курс в allCourses
-      if (courseStore.allCourses?.data) {
-        const course = courseStore.allCourses.data.find((c) => c.id === courseId);
-        if (course) {
-          totalDaysInCourse = course.dayLinks.length;
-        }
-      }
-
-      // Если не нашли в allCourses, ищем в favorites
-      if (!totalDaysInCourse && courseStore.favorites?.data) {
-        const course = courseStore.favorites.data.find((c) => c.id === courseId);
-        if (course) {
-          totalDaysInCourse = course.dayLinks.length;
-        }
-      }
-
-      // Если не нашли в favorites, ищем в authored
-      if (!totalDaysInCourse && courseStore.authored) {
-        const course = courseStore.authored.find((c) => c.id === courseId);
-        if (course) {
-          totalDaysInCourse = course.dayLinks.length;
-        }
-      }
-
-      const courseStatus = calculateCourseStatus(courseId, allStepStates, totalDaysInCourse);
+    coursesToSync.forEach(({ courseId, totalDaysInCourse, dayOnCourseIds }) => {
+      const courseStatus = calculateCourseStatus(
+        courseId,
+        allStepStates,
+        totalDaysInCourse,
+        dayOnCourseIds,
+      );
 
       // Обновляем allCourses если есть
       if (courseStore.allCourses?.data) {
@@ -396,7 +395,6 @@ export function useCacheManager() {
  * Отдельная функция для использования вне React компонентов
  */
 export async function syncCourseStoreWithStepStates() {
-  // Динамический импорт для избежания циклических зависимостей
   const { useStepStore } = await import("@shared/stores/stepStore");
   const { useCourseStore } = await import("@shared/stores/courseStore");
   const { TrainingStatus } = await import("@gafus/types");
@@ -405,48 +403,35 @@ export async function syncCourseStoreWithStepStates() {
   const stepStates = useStepStore.getState().stepStates;
   const courseStore = useCourseStore.getState();
 
-  // Получаем все уникальные курсы из stepStates
-  const courseIds = new Set<string>();
-  Object.keys(stepStates).forEach((key) => {
-    const parts = key.split("-");
-    if (parts.length >= 2) {
-      courseIds.add(parts[0]);
-    }
-  });
+  const coursesToSync: Array<{
+    courseId: string;
+    totalDaysInCourse: number;
+    dayOnCourseIds: string[];
+  }> = [];
+  const addCourses = (
+    list: Array<{ id: string; dayLinks?: Array<{ day?: { id: string } }> }> | undefined,
+  ) => {
+    if (!list) return;
+    list.forEach((course) => {
+      const dayOnCourseIds =
+        course.dayLinks?.map((l) => l.day?.id).filter(Boolean) ?? [];
+      coursesToSync.push({
+        courseId: course.id,
+        totalDaysInCourse: course.dayLinks?.length ?? 0,
+        dayOnCourseIds: dayOnCourseIds as string[],
+      });
+    });
+  };
+  addCourses(courseStore.allCourses?.data ?? undefined);
+  addCourses(courseStore.favorites?.data ?? undefined);
+  addCourses(courseStore.authored ?? undefined);
 
-  // Обновляем каждый курс на основе актуальных stepStates
-  courseIds.forEach((courseId) => {
-    // Получаем информацию о курсе для определения количества дней
-    let totalDaysInCourse: number | undefined;
-
-    // Ищем курс в allCourses
-    if (courseStore.allCourses?.data) {
-      const course = courseStore.allCourses.data.find((c) => c.id === courseId);
-      if (course) {
-        totalDaysInCourse = course.dayLinks.length;
-      }
-    }
-
-    // Если не нашли в allCourses, ищем в favorites
-    if (!totalDaysInCourse && courseStore.favorites?.data) {
-      const course = courseStore.favorites.data.find((c) => c.id === courseId);
-      if (course) {
-        totalDaysInCourse = course.dayLinks.length;
-      }
-    }
-
-    // Если не нашли в favorites, ищем в authored
-    if (!totalDaysInCourse && courseStore.authored) {
-      const course = courseStore.authored.find((c) => c.id === courseId);
-      if (course) {
-        totalDaysInCourse = course.dayLinks.length;
-      }
-    }
-
+  coursesToSync.forEach(({ courseId, totalDaysInCourse, dayOnCourseIds }) => {
     const courseStatus = calculateCourseStatus(
       courseId,
       stepStates as Record<string, { status?: string }>,
       totalDaysInCourse,
+      dayOnCourseIds,
     );
 
     // Обновляем allCourses если есть

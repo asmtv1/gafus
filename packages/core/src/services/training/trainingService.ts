@@ -6,6 +6,7 @@ import { prisma, isPrismaUniqueConstraintError } from "@gafus/prisma";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 import { checkCourseAccess, checkCourseAccessById } from "../course";
+import { calculateCourseStatusFromDayStatuses } from "../../utils/training";
 
 import type { ChecklistQuestion, TrainingDetail } from "@gafus/types";
 
@@ -577,4 +578,257 @@ export async function getTrainingDayWithUserSteps(
     userStatus: userTraining ? dayUserStatus : TrainingStatus.NOT_STARTED,
     steps,
   };
+}
+
+/** Операция над шагом тренировки (дискриминант по type). */
+export type StepOperation =
+  | { type: "start"; remainingSec?: number }
+  | { type: "pause"; remainingSec: number }
+  | { type: "resume" }
+  | { type: "reset" }
+  | { type: "complete" };
+
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/**
+ * Обновляет шаг и пересчитывает статус дня в одной транзакции.
+ * Логика перенесена из web (updateUserStepStatus); API (mobile) подстраивается под неё.
+ *
+ * @returns courseId и allCompleted для последующего syncUserCourseStatusFromDays / checkAndCompleteCourse
+ * @throws Error "DayOnCourse or day not found" | "Step not found" | "INVALID_STATE: ..."
+ */
+export async function updateStepAndDay(
+  userId: string,
+  dayOnCourseId: string,
+  stepIndex: number,
+  operation: StepOperation,
+): Promise<{ courseId: string; allCompleted: boolean }> {
+  return prisma.$transaction(
+    async (tx: Tx) => {
+      const dayOnCourse = await tx.dayOnCourse.findUnique({
+        where: { id: dayOnCourseId },
+        include: {
+          day: {
+            include: {
+              stepLinks: { orderBy: { order: "asc" as const }, include: { step: true } },
+            },
+          },
+        },
+      });
+
+      if (!dayOnCourse || !dayOnCourse.day) {
+        throw new Error("DayOnCourse or day not found");
+      }
+
+      const trainingDay = dayOnCourse.day;
+      const stepLinks = trainingDay.stepLinks;
+      const stepLink = stepLinks[stepIndex];
+
+      if (!stepLink) {
+        throw new Error("Step not found");
+      }
+
+      const stepOnDayId = stepLink.id;
+
+      const userTraining = await tx.userTraining.upsert({
+        where: {
+          userId_dayOnCourseId: { userId, dayOnCourseId },
+        },
+        create: {
+          userId,
+          dayOnCourseId,
+          status: TrainingStatus.NOT_STARTED,
+        },
+        update: {},
+        select: { id: true },
+      });
+
+      const existingStep = await tx.userStep.findFirst({
+        where: { userTrainingId: userTraining.id, stepOnDayId },
+        select: { id: true, status: true },
+      });
+
+      if (operation.type === "pause" || operation.type === "resume" || operation.type === "reset") {
+        if (!existingStep) {
+          throw new Error("Step not found");
+        }
+      }
+
+      if (operation.type === "reset") {
+        const currentStatus = existingStep?.status as string;
+        if (currentStatus === TrainingStatus.NOT_STARTED) {
+          throw new Error("INVALID_STATE: cannot reset not started");
+        }
+        if (currentStatus === TrainingStatus.COMPLETED) {
+          throw new Error("INVALID_STATE: cannot reset completed");
+        }
+      }
+
+      switch (operation.type) {
+        case "start": {
+          const remainingSec = operation.remainingSec ?? 0;
+          if (existingStep) {
+            await tx.userStep.update({
+              where: { id: existingStep.id },
+              data: {
+                status: TrainingStatus.IN_PROGRESS,
+                paused: false,
+                remainingSec,
+              },
+            });
+          } else {
+            await tx.userStep.create({
+              data: {
+                userTrainingId: userTraining.id,
+                stepOnDayId,
+                status: TrainingStatus.IN_PROGRESS,
+                paused: false,
+                remainingSec,
+              },
+            });
+          }
+          break;
+        }
+        case "pause":
+          await tx.userStep.update({
+            where: { id: existingStep!.id },
+            data: { paused: true, remainingSec: operation.remainingSec },
+          });
+          break;
+        case "resume":
+          await tx.userStep.update({
+            where: { id: existingStep!.id },
+            data: { paused: false },
+          });
+          break;
+        case "reset":
+          await tx.userStep.update({
+            where: { id: existingStep!.id },
+            data: { status: TrainingStatus.RESET, paused: false, remainingSec: null },
+          });
+          break;
+        case "complete":
+          if (existingStep) {
+            await tx.userStep.update({
+              where: { id: existingStep.id },
+              data: { status: TrainingStatus.COMPLETED },
+            });
+          } else {
+            await tx.userStep.create({
+              data: {
+                userTrainingId: userTraining.id,
+                stepOnDayId,
+                status: TrainingStatus.COMPLETED,
+              },
+            });
+          }
+          break;
+      }
+
+      const stepOnDayIds = stepLinks.map((l) => l.id);
+      const userSteps = await tx.userStep.findMany({
+        where: { userTrainingId: userTraining.id },
+        orderBy: { id: "asc" },
+      });
+
+      const allStepStatuses: string[] = [];
+      for (let i = 0; i < stepOnDayIds.length; i++) {
+        const us = userSteps.find((s) => s.stepOnDayId === stepOnDayIds[i]);
+        allStepStatuses.push(us?.status ?? TrainingStatus.NOT_STARTED);
+      }
+
+      const correctedDayStatus = calculateDayStatusFromStatuses(allStepStatuses);
+      const allCompleted = correctedDayStatus === TrainingStatus.COMPLETED;
+
+      const firstNotCompletedIndex = userSteps.findIndex(
+        (s) => s.status !== TrainingStatus.COMPLETED,
+      );
+      const nextCurrentStepIndex = allCompleted
+        ? stepOnDayIds.length - 1
+        : firstNotCompletedIndex === -1
+          ? 0
+          : firstNotCompletedIndex;
+
+      const dayStatus =
+        correctedDayStatus === TrainingStatus.COMPLETED
+          ? TrainingStatus.COMPLETED
+          : correctedDayStatus === TrainingStatus.RESET
+            ? TrainingStatus.RESET
+            : correctedDayStatus === TrainingStatus.NOT_STARTED
+              ? TrainingStatus.NOT_STARTED
+              : TrainingStatus.IN_PROGRESS;
+
+      await tx.userTraining.update({
+        where: { id: userTraining.id },
+        data: {
+          status: dayStatus,
+          currentStepIndex: nextCurrentStepIndex,
+        },
+      });
+
+      return { courseId: dayOnCourse.courseId, allCompleted };
+    },
+    { timeout: 10000 },
+  );
+}
+
+/**
+ * Пересчитывает статус курса по статусам дней (UserTraining) и обновляет UserCourse.
+ * Вызывать после любого обновления шага/дня (в т.ч. RESET).
+ */
+export async function syncUserCourseStatusFromDays(
+  userId: string,
+  courseId: string,
+): Promise<void> {
+  const days = await prisma.dayOnCourse.findMany({
+    where: { courseId },
+    select: { id: true },
+    orderBy: { order: "asc" },
+  });
+  if (days.length === 0) return;
+
+  const userTrainings = await prisma.userTraining.findMany({
+    where: {
+      userId,
+      dayOnCourseId: { in: days.map((d) => d.id) },
+    },
+    select: { dayOnCourseId: true, status: true },
+  });
+  const statusByDay = new Map(userTrainings.map((ut) => [ut.dayOnCourseId, ut.status]));
+  const dayStatuses = days.map(
+    (d) => (statusByDay.get(d.id) as TrainingStatus) ?? TrainingStatus.NOT_STARTED,
+  );
+  const newStatus = calculateCourseStatusFromDayStatuses(dayStatuses, days.length);
+
+  const existing = await prisma.userCourse.findUnique({
+    where: { userId_courseId: { userId, courseId } },
+    select: { status: true, startedAt: true, completedAt: true },
+  });
+
+  const updateData: {
+    status: TrainingStatus;
+    startedAt?: Date;
+    completedAt?: Date;
+  } = { status: newStatus };
+  if (
+    (newStatus === TrainingStatus.IN_PROGRESS || newStatus === TrainingStatus.COMPLETED) &&
+    !existing?.startedAt
+  ) {
+    updateData.startedAt = new Date();
+  }
+  if (newStatus === TrainingStatus.COMPLETED && existing && !existing.completedAt) {
+    updateData.completedAt = new Date();
+  }
+
+  await prisma.userCourse.upsert({
+    where: { userId_courseId: { userId, courseId } },
+    update: updateData,
+    create: {
+      userId,
+      courseId,
+      status: newStatus,
+      startedAt: updateData.startedAt ?? null,
+      completedAt: updateData.completedAt ?? null,
+    },
+  });
 }

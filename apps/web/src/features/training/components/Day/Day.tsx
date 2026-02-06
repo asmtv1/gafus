@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 import { getStepDisplayStatus } from "@gafus/core/utils/training";
@@ -47,6 +47,7 @@ export function Day({ training, courseType }: DayProps) {
   const [isDescriptionOpen, setIsDescriptionOpen] = useState<boolean>(false);
 
   const stepStates = useDayStepStates(training.courseId, training.dayOnCourseId);
+  const stepStoreRehydrated = useStepStore((s) => s._rehydrated);
   const initializeStep = useStepStore((s) => s.initializeStep);
   const updateStepStatus = useStepStore((s) => s.updateStepStatus);
   const {
@@ -136,9 +137,28 @@ export function Day({ training, courseType }: DayProps) {
     setIsDescriptionOpen((prev) => !prev);
   }, []);
 
-  // Инициализация состояния при монтировании
+  // Стабильная подпись шагов для deps эффекта (не включаем объект training.steps)
+  const stepsSignature = useMemo(
+    () => training.steps.map((s) => s.id).join(","),
+    [training.steps],
+  );
+
+  // Ждём rehydration stepStore (persist), иначе при обновлении страницы RESET перезапишется серверным PAUSED
+  const [initReady, setInitReady] = useState(false);
   useEffect(() => {
-    // Инициализируем все шаги дня, чтобы корректно считать статус дня офлайн
+    if (stepStoreRehydrated) {
+      setInitReady(true);
+      return;
+    }
+    const t = setTimeout(() => setInitReady(true), 600);
+    return () => clearTimeout(t);
+  }, [stepStoreRehydrated]);
+
+  // Инициализация состояния при монтировании (после rehydrate)
+  useEffect(() => {
+    if (!initReady) return;
+    const stepStore = useStepStore.getState();
+    const prefix = `${training.courseId}-${training.dayOnCourseId}-`;
     try {
       training.steps.forEach((step, index) => {
         initializeStep(
@@ -178,9 +198,11 @@ export function Day({ training, courseType }: DayProps) {
       setStoreRunningIndex(training.courseId, training.dayOnCourseId, activeStepIndex);
     }
   }, [
+    initReady,
     training.courseId,
     training.dayOnCourseId,
-    training.steps,
+    stepsSignature,
+    training.steps.length,
     findRunningStepIndex,
     setStoreRunningIndex,
     getOpenIndex,

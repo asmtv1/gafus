@@ -3,6 +3,8 @@ import { useShallow } from "zustand/react/shallow";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
 
+import { statusRank } from "@gafus/core/utils/training";
+
 import type { StepStore } from "./stepStore.types";
 import { useUserStore } from "./userStore";
 
@@ -50,7 +52,7 @@ function removeKeys(...keys: string[]): void {
 export const useStepStore = create<StepStore>()(
   persist(
     (set, get) => ({
-      // Начальное состояние
+      _rehydrated: false,
       stepStates: {},
 
       // ===== УТИЛИТЫ =====
@@ -69,18 +71,30 @@ export const useStepStore = create<StepStore>()(
         const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
         const existingState = get().stepStates[stepKey];
 
+        // RESET с сервера всегда пишем в store (перезатираем PAUSED и др.), чтобы store и UI совпадали
+        if (initialStatus === "RESET") {
+          removeKeys(
+            makeEndKey(courseId, dayOnCourseId, stepIndex),
+            makePauseKey(courseId, dayOnCourseId, stepIndex),
+          );
+          set((state) => ({
+            stepStates: {
+              ...state.stepStates,
+              [stepKey]: {
+                timeLeft: durationSec,
+                isFinished: false,
+                isPaused: false,
+                status: "RESET",
+              },
+            },
+          }));
+          return;
+        }
+
         // Если уже есть состояние, проверяем, нужно ли обновить статус
         if (existingState) {
-          // Повышаем локальный статус до серверного, но никогда не понижаем
-          // RESET на том же уровне, что и IN_PROGRESS/PAUSED — чтобы stale PAUSED с сервера не перезаписывал локальный RESET
-          const rank = (s: string | undefined) => {
-            if (s === "COMPLETED") return 2;
-            if (s === "IN_PROGRESS" || s === "PAUSED" || s === "RESET") return 1;
-            return 0; // NOT_STARTED или неопределено
-          };
-          const localRank = rank(existingState.status);
-          const serverRank = rank(initialStatus);
-
+          const localRank = statusRank(existingState.status);
+          const serverRank = statusRank(initialStatus);
           if (serverRank > localRank) {
             const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
             set((state) => ({
@@ -111,9 +125,6 @@ export const useStepStore = create<StepStore>()(
 
         // Проверяем localStorage для восстановления
         const restoredState = get().restoreStepFromLS(courseId, dayOnCourseId, stepIndex);
-
-        // Если сервер сообщает о паузе, учитываем её при начальном состоянии,
-        // но не конфликтуем с локальной PAUSE в LS (локальная имеет приоритет в оффлайне)
         const serverPaused = options?.serverPaused === true;
         const serverRemaining = options?.serverRemainingSec;
 
@@ -125,11 +136,12 @@ export const useStepStore = create<StepStore>()(
         };
 
         const mergedState = (() => {
-          // Если локально восстановлена пауза — оставляем её
           if (baseState.status === "PAUSED") {
             return baseState;
           }
-          // Иначе, если сервер говорит, что пауза активна — ставим в PAUSED и подставим оставшееся время
+          if (baseState.status === "RESET") {
+            return baseState;
+          }
           if (serverPaused) {
             return {
               ...baseState,
@@ -231,10 +243,8 @@ export const useStepStore = create<StepStore>()(
       resumeStep: (courseId, dayOnCourseId, stepIndex) => {
         const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
         const currentStep = get().stepStates[stepKey];
-        console.log("[stepStore] resumeStep", { stepIndex, stepKey, currentStep: !!currentStep, timeLeft: currentStep?.timeLeft });
 
         if (!currentStep) {
-          console.log("[stepStore] resumeStep: no currentStep, returning");
           return;
         }
 
@@ -258,7 +268,7 @@ export const useStepStore = create<StepStore>()(
             },
           },
         }));
-        console.log("[stepStore] resumeStep: state updated to IN_PROGRESS, END_KEY saved");
+        logger.info("resumeStep", { stepIndex, stepKey, courseId, dayOnCourseId });
       },
 
       finishStep: (courseId, dayOnCourseId, stepIndex) => {
@@ -304,7 +314,7 @@ export const useStepStore = create<StepStore>()(
 
       resetStep: (courseId, dayOnCourseId, stepIndex, durationSec) => {
         const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
-        console.log("[stepStore] resetStep", { stepIndex, stepKey, durationSec });
+        logger.info("resetStep", { stepIndex, stepKey, courseId, dayOnCourseId, durationSec });
 
         removeKeys(
           makeEndKey(courseId, dayOnCourseId, stepIndex),
@@ -329,7 +339,6 @@ export const useStepStore = create<StepStore>()(
         const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
         const PAUSE_KEY = makePauseKey(courseId, dayOnCourseId, stepIndex);
 
-        // Проверяем, есть ли данные паузы
         const pauseDataStr = loadFromLS(PAUSE_KEY);
         if (pauseDataStr) {
           try {
@@ -482,7 +491,10 @@ export const useStepStore = create<StepStore>()(
       storage: createJSONStorage(() => ({
         getItem: (_name) => {
           try {
-            return localStorage.getItem(getStepStorageKey());
+            const userId = getUserScopeId();
+            if (userId === "anonymous") return null;
+            const key = getStepStorageKey();
+            return localStorage.getItem(key);
           } catch {
             return null;
           }
@@ -505,6 +517,9 @@ export const useStepStore = create<StepStore>()(
       partialize: (state) => ({
         stepStates: state.stepStates,
       }),
+      onRehydrateStorage: () => () => {
+        useStepStore.setState({ _rehydrated: true });
+      },
     },
   ),
 );

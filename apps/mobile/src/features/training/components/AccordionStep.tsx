@@ -3,6 +3,7 @@ import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-native-reanimated";
 import { useEffect, useState, memo, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { getStepDisplayStatus } from "@gafus/core/utils/training";
 import { Button, MarkdownText, VideoPlayer } from "@/shared/components";
@@ -87,8 +88,16 @@ function AccordionStepComponent({
     stepData = step;
   }
 
-  const timerStore = useTimerStore();
-  const { activeTimer, startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor } = timerStore;
+  const { activeTimer, startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor } = useTimerStore(
+    useShallow((s) => ({
+      activeTimer: s.activeTimer,
+      startTimer: s.startTimer,
+      pauseTimer: s.pauseTimer,
+      tick: s.tick,
+      stopTimer: s.stopTimer,
+      isTimerActiveFor: s.isTimerActiveFor,
+    })),
+  );
 
   const status = getStepDisplayStatus(localState, step);
   const isCompleted = status === "COMPLETED";

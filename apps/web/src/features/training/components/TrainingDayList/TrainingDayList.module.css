@@ -11,6 +11,9 @@
 .completed {
   border: 2px solid #23d62a;
 }
+.reset {
+  border: 2px solid #9ca3af;
+}
 .list {
   list-style: none;
   padding: 0;
@@ -175,6 +178,14 @@
 
 .dayEven.inprogress {
   border-color: #f6d86e;
+}
+
+.dayOdd.reset {
+  border-color: #b0aeae;
+}
+
+.dayEven.reset {
+  border-color: #b0aeae;
 }
 
 /* Индикатор "Вы здесь" */

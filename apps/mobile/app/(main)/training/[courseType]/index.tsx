@@ -4,11 +4,11 @@ import { Text, Surface } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { calculateDayStatus } from "@gafus/core/utils/training";
+import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
 
 import { Loading } from "@/shared/components/ui";
 import { useTrainingDays } from "@/shared/hooks";
-import { useOfflineStore, useStepStore } from "@/shared/stores";
+import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
 import type { TrainingDay } from "@/shared/lib/api";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
@@ -23,8 +23,8 @@ export default function TrainingDaysScreen() {
   const router = useRouter();
 
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDays(courseType);
-  const { stepStates } = useStepStore();
   const courseData = data?.success && data.data ? data.data : undefined;
+  const stepStates = useStepStatesForCourse(courseData?.courseId ?? "");
   const downloadStatus = useOfflineStore((s) => s.status);
   const downloadQueue = useOfflineStore((s) => s.downloadQueue);
   const downloaded = useOfflineStore((s) => s.downloaded);
@@ -40,13 +40,6 @@ export default function TrainingDaysScreen() {
     refetch();
   }, [refetch]);
 
-  // Функция для ранжирования статусов (как на web)
-  const rank = useCallback((s?: string) => {
-    if (s === "COMPLETED") return 2;
-    if (s === "IN_PROGRESS" || s === "PAUSED" || s === "RESET") return 1;
-    return 0; // NOT_STARTED или неизвестно
-  }, []);
-
   // Вычисляем текущий день один раз для всех элементов
   const currentDayIndex = useMemo(() => {
     if (!courseData?.trainingDays || !courseData.courseId) return 0;
@@ -57,10 +50,7 @@ export default function TrainingDaysScreen() {
     // 1. Ищем первый день IN_PROGRESS
     const inProgressDayIndex = days.findIndex((day) => {
       const localStatus = calculateDayStatus(effectiveCourseId, day.dayOnCourseId, stepStates);
-      const finalStatus =
-        rank(localStatus) > rank(day.userStatus || undefined)
-          ? localStatus
-          : day.userStatus || "NOT_STARTED";
+      const finalStatus = getDayDisplayStatus(localStatus, day.userStatus ?? undefined);
       return finalStatus === "IN_PROGRESS" || finalStatus === "RESET";
     });
 
@@ -70,10 +60,7 @@ export default function TrainingDaysScreen() {
     let lastCompletedIndex = -1;
     days.forEach((day, index) => {
       const localStatus = calculateDayStatus(effectiveCourseId, day.dayOnCourseId, stepStates);
-      const finalStatus =
-        rank(localStatus) > rank(day.userStatus || undefined)
-          ? localStatus
-          : day.userStatus || "NOT_STARTED";
+      const finalStatus = getDayDisplayStatus(localStatus, day.userStatus ?? undefined);
       if (finalStatus === "COMPLETED") {
         lastCompletedIndex = index;
       }
@@ -85,7 +72,7 @@ export default function TrainingDaysScreen() {
 
     // 3. По умолчанию - первый день
     return 0;
-  }, [courseData?.courseId, courseData?.trainingDays, courseType, stepStates, rank]);
+  }, [courseData?.courseId, courseData?.trainingDays, courseType, stepStates]);
 
   // Обработка ошибки доступа к приватному курсу
   useEffect(() => {
@@ -131,17 +118,14 @@ export default function TrainingDaysScreen() {
         console.warn("[TrainingDaysScreen] courseId is missing in courseData", courseData);
       }
 
-      // Вычисляем локальный статус дня из stepStore (как на web)
+      // Вычисляем локальный статус дня из stepStore (как на web); RESET приоритетнее серверного COMPLETED
       const effectiveCourseId = courseId || courseType;
       const localStatus = calculateDayStatus(effectiveCourseId, item.dayOnCourseId, stepStates);
-      // Не понижаем статус: берем максимум между серверным и локальным
-      const finalStatus =
-        rank(localStatus) > rank(item.userStatus || undefined)
-          ? localStatus
-          : item.userStatus || "NOT_STARTED";
+      const finalStatus = getDayDisplayStatus(localStatus, item.userStatus ?? undefined);
 
       const isCompleted = finalStatus === "COMPLETED";
       const isInProgress = finalStatus === "IN_PROGRESS";
+      const isReset = finalStatus === "RESET";
 
       // Используем предвычисленный индекс текущего дня
       const isCurrent = index === currentDayIndex;
@@ -151,7 +135,9 @@ export default function TrainingDaysScreen() {
         ? "#B6C582" // Зеленый для завершенных (как на web)
         : isInProgress
           ? "#F6D86E" // Желтый для в процессе (как на web)
-          : "transparent";
+          : isReset
+            ? "#b0aeae" // Серый для сброшенного (как на web)
+            : "transparent";
 
       return (
         <Pressable onPress={() => handleDayPress(item)}>
@@ -188,7 +174,7 @@ export default function TrainingDaysScreen() {
         </Pressable>
       );
     },
-    [courseData, courseType, stepStates, rank, currentDayIndex, handleDayPress],
+    [courseData, courseType, stepStates, currentDayIndex, handleDayPress],
   );
 
   if (isLoading) {

@@ -10,13 +10,12 @@
 2. **Рантайм**: пользовательские действия → stepStore → UI
 3. **Отображение**: `getStepDisplayStatus(stepState, serverStep)`
 
-## Функция getStepDisplayStatus
+## Функции в packages/core (training.ts)
 
-Чистая функция в `packages/core/src/utils/training.ts`:
-
-- **Приоритет**: локальное состояние (stepStore)
-- **Fallback**: серверные данные (первый рендер до initializeStep)
-- **Защита от edge cases**: пустая строка, null, undefined
+- **getStepDisplayStatus** — статус шага для UI: приоритет stepStore, fallback — сервер.
+- **statusRank** — ранг статуса для сравнения при слиянии local/server; экспортируется, используется в web stepStore.
+- **getDayDisplayStatus** — слияние локального и серверного статуса дня: RESET имеет приоритет над серверным COMPLETED; иначе берётся максимум по rank. Используется на web (TrainingDayList, useCourseProgressSync) и на mobile (экран списка дней).
+- **calculateDayStatus** / **calculateCourseStatus** — расчёт статуса дня/курса по stepStates; для курса при наличии передаётся `dayOnCourseIds` (из course.dayLinks), чтобы не парсить ключи с дефисами.
 
 ## Почему не хук?
 

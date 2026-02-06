@@ -40,9 +40,13 @@ export default function TrainingDayScreen() {
 
   // Stores
   const { getOpenIndex, setOpenIndex } = useTrainingStore();
-  const { getStepState, startStep, pauseStep, resumeStep, completeStep, initializeStep } =
-    useStepStore();
-  const { stopTimer } = useTimerStore();
+  const getStepState = useStepStore((s) => s.getStepState);
+  const startStep = useStepStore((s) => s.startStep);
+  const pauseStep = useStepStore((s) => s.pauseStep);
+  const resumeStep = useStepStore((s) => s.resumeStep);
+  const completeStep = useStepStore((s) => s.completeStep);
+  const initializeStep = useStepStore((s) => s.initializeStep);
+  const stopTimer = useTimerStore((s) => s.stopTimer);
 
   // Mutations
   const startStepMutation = useStartStep();

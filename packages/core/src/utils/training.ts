@@ -15,6 +15,9 @@ export function getStepDisplayStatus(
   stepState: { status?: string } | null | undefined,
   serverStep?: { status?: string; isPausedOnServer?: boolean },
 ): TrainingStatus {
+  // RESET с сервера всегда показываем сразу, чтобы не было вспышки «На паузе» до initializeStep
+  if (serverStep?.status === TrainingStatus.RESET) return TrainingStatus.RESET;
+
   const localStatus = stepState?.status?.trim();
   if (localStatus) return localStatus as TrainingStatus;
 
@@ -22,8 +25,8 @@ export function getStepDisplayStatus(
   return (serverStep?.status as TrainingStatus) || TrainingStatus.NOT_STARTED;
 }
 
-/** Ранг статуса для сравнения при слиянии local/server */
-function statusRank(s?: string): number {
+/** Ранг статуса для сравнения при слиянии local/server. Экспортируется для использования в stepStore (web). */
+export function statusRank(s?: string): number {
   if (s === "COMPLETED") return 2;
   if (s === "IN_PROGRESS" || s === "PAUSED" || s === "RESET") return 1;
   return 0;
@@ -86,45 +89,52 @@ export function calculateDayStatus(
 }
 
 /**
- * Вычисляет статус курса на основе статусов шагов
+ * Вычисляет статус курса на основе статусов шагов.
+ * Если передан dayOnCourseIds — использует его (корректно при id с дефисами).
+ * Иначе парсит ключи stepStates (ограничение: courseId и dayOnCourseId не должны содержать "-").
+ *
  * @param courseId - ID курса
  * @param stepStates - Состояния всех шагов
  * @param totalDaysInCourse - Общее количество дней в курсе (опционально)
+ * @param dayOnCourseIds - Список ID дней курса (из course.dayLinks; при наличии — приоритет над разбором ключей)
  * @returns Статус курса
  */
 export function calculateCourseStatus(
   courseId: string,
   stepStates: StepStates,
   totalDaysInCourse?: number,
+  dayOnCourseIds?: string[],
 ): TrainingStatus {
-  const dayKeys = new Set<string>();
-  Object.keys(stepStates).forEach((key) => {
-    if (key.startsWith(`${courseId}-`)) {
-      const parts = key.split("-");
-      if (parts.length >= 3) {
-        // Формат ключа: ${courseId}-${dayOnCourseId}-${stepIndex}
-        // Сохраняем полный ключ дня: ${courseId}-${dayOnCourseId}
-        dayKeys.add(`${courseId}-${parts[1]}`);
-      }
-    }
-  });
+  let dayStatuses: TrainingStatus[];
 
-  // Если знаем реальное количество дней курса, используем его,
-  // иначе опираемся на фактически встреченные дни в локальном состоянии
+  if (dayOnCourseIds && dayOnCourseIds.length > 0) {
+    dayStatuses = dayOnCourseIds.map((dayOnCourseId) =>
+      calculateDayStatus(courseId, dayOnCourseId, stepStates),
+    );
+  } else {
+    // Fallback: разбор ключей (некорректен при дефисах в courseId/dayOnCourseId)
+    const dayKeys = new Set<string>();
+    Object.keys(stepStates).forEach((key) => {
+      if (key.startsWith(`${courseId}-`)) {
+        const parts = key.split("-");
+        if (parts.length >= 3) {
+          dayKeys.add(`${courseId}-${parts[1]}`);
+        }
+      }
+    });
+    dayStatuses = [];
+    dayKeys.forEach((dayKey) => {
+      const dayOnCourseId = dayKey.split("-").slice(1).join("-");
+      dayStatuses.push(calculateDayStatus(courseId, dayOnCourseId, stepStates));
+    });
+  }
+
   const effectiveTotalDays =
     typeof totalDaysInCourse === "number" && totalDaysInCourse > 0
       ? totalDaysInCourse
-      : dayKeys.size;
+      : dayStatuses.length;
 
   if (effectiveTotalDays === 0) return TrainingStatus.NOT_STARTED;
-
-  // Если передан totalDaysInCourse, проверяем все дни курса
-  // Для расчета статуса курса используем все найденные dayOnCourseId
-  const dayStatuses: TrainingStatus[] = [];
-  dayKeys.forEach((dayKey) => {
-    const dayOnCourseId = dayKey.split("-").slice(1).join("-"); // Получаем dayOnCourseId из ключа
-    dayStatuses.push(calculateDayStatus(courseId, dayOnCourseId, stepStates));
-  });
 
   // Если есть информация о общем количестве дней, проверяем что все дни завершены
   if (totalDaysInCourse && dayStatuses.length === totalDaysInCourse) {
@@ -145,5 +155,35 @@ export function calculateCourseStatus(
     return TrainingStatus.RESET;
   }
 
+  return TrainingStatus.NOT_STARTED;
+}
+
+/**
+ * Вычисляет статус курса по массиву статусов дней (для использования на сервере).
+ */
+export function calculateCourseStatusFromDayStatuses(
+  dayStatuses: (string | TrainingStatus)[],
+  totalDaysInCourse?: number,
+): TrainingStatus {
+  if (dayStatuses.length === 0) return TrainingStatus.NOT_STARTED;
+  const normalized = dayStatuses.map((s) => String(s)) as TrainingStatus[];
+  if (
+    typeof totalDaysInCourse === "number" &&
+    totalDaysInCourse > 0 &&
+    normalized.length === totalDaysInCourse &&
+    normalized.every((s) => s === TrainingStatus.COMPLETED)
+  ) {
+    return TrainingStatus.COMPLETED;
+  }
+  if (
+    normalized.some(
+      (s) => s === TrainingStatus.IN_PROGRESS || s === TrainingStatus.COMPLETED,
+    )
+  ) {
+    return TrainingStatus.IN_PROGRESS;
+  }
+  if (normalized.some((s) => s === TrainingStatus.RESET)) {
+    return TrainingStatus.RESET;
+  }
   return TrainingStatus.NOT_STARTED;
 }

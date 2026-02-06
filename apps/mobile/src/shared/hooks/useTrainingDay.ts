@@ -13,7 +13,8 @@ import type { TrainingDayResponse } from "@/shared/lib/api/training";
  * При ошибке сети отдаёт офлайн-данные из getCourseMeta, если курс скачан.
  */
 export function useTrainingDay(courseType: string, dayOnCourseId: string) {
-  const { syncFromServer, getStepState } = useStepStore();
+  const syncFromServer = useStepStore((s) => s.syncFromServer);
+  const getStepState = useStepStore((s) => s.getStepState);
 
   return useQuery<ApiResponse<TrainingDayResponse>>({
     queryKey: ["trainingDay", courseType, dayOnCourseId],
@@ -162,7 +163,7 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
  */
 export function useStartStep() {
   const queryClient = useQueryClient();
-  const { startStep: startStepLocal } = useStepStore();
+  const startStepLocal = useStepStore((s) => s.startStep);
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
@@ -201,7 +202,7 @@ export function useStartStep() {
  */
 export function usePauseStep() {
   const queryClient = useQueryClient();
-  const { pauseStep: pauseStepLocal } = useStepStore();
+  const pauseStepLocal = useStepStore((s) => s.pauseStep);
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
@@ -236,7 +237,7 @@ export function usePauseStep() {
  */
 export function useResumeStep() {
   const queryClient = useQueryClient();
-  const { resumeStep: resumeStepLocal } = useStepStore();
+  const resumeStepLocal = useStepStore((s) => s.resumeStep);
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
@@ -267,7 +268,7 @@ export function useResumeStep() {
  */
 export function useResetStep() {
   const queryClient = useQueryClient();
-  const { resetStep: resetStepLocal } = useStepStore();
+  const resetStepLocal = useStepStore((s) => s.resetStep);
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
@@ -302,7 +303,7 @@ export function useResetStep() {
  */
 export function useCompleteTheoryStep() {
   const queryClient = useQueryClient();
-  const { completeStep } = useStepStore();
+  const completeStep = useStepStore((s) => s.completeStep);
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
@@ -333,7 +334,7 @@ export function useCompleteTheoryStep() {
  */
 export function useCompletePracticeStep() {
   const queryClient = useQueryClient();
-  const { completeStep } = useStepStore();
+  const completeStep = useStepStore((s) => s.completeStep);
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(

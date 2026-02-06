@@ -3,12 +3,15 @@
 import { memo, useCallback, useEffect } from "react";
 import Link from "next/link";
 
+import { createWebLogger } from "@gafus/logger";
 import { useCachedTrainingDays } from "@shared/hooks/useCachedTrainingDays";
 import { useStepStatesForCourse } from "@shared/stores/stepStore";
 import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
 import { showLockedDayAlert, showPrivateCourseAccessDeniedAlert } from "@shared/utils/sweetAlert";
 import { LockIcon } from "@shared/utils/muiImports";
 import styles from "./TrainingDayList.module.css";
+
+const logger = createWebLogger("TrainingDayList");
 
 interface TrainingDayListProps {
   courseType: string;
@@ -55,6 +58,7 @@ const TrainingDayList = memo(function TrainingDayList({
     let baseClass = `${styles.item} ${styles[`day${dayNumber % 2 === 1 ? "Odd" : "Even"}`]}`;
     if (status === "IN_PROGRESS") baseClass += ` ${styles.inprogress}`;
     if (status === "COMPLETED") baseClass += ` ${styles.completed}`;
+    if (status === "RESET") baseClass += ` ${styles.reset}`;
     return baseClass;
   }, []);
 
@@ -90,7 +94,7 @@ const TrainingDayList = memo(function TrainingDayList({
         return lastCompletedIndex + 1;
       }
 
-      // 3. По умолчанию - первый день
+      // 3. При только RESET/NOT_STARTED днях считаем текущим первый день (индекс 0)
       return 0;
     },
     [stepStates],
@@ -156,8 +160,7 @@ const TrainingDayList = memo(function TrainingDayList({
         const isCurrent = index === currentDayIndex;
 
         if (process.env.NODE_ENV !== "production") {
-          // Отладка времени по дню: таймеры vs теория
-          console.warn("[TrainingDayList] Day time debug", {
+          logger.debug("Day time", {
             dayOnCourseId: day.dayOnCourseId,
             title: day.title,
             estimatedDuration: day.estimatedDuration,

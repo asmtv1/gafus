@@ -8,6 +8,8 @@ export interface StepState {
 }
 
 export interface StepStore {
+  /** true после первой подгрузки из localStorage (persist), чтобы Day не перезаписывал RESET серверным PAUSED */
+  _rehydrated?: boolean;
   // Состояние
   stepStates: Record<string, StepState>;
 
