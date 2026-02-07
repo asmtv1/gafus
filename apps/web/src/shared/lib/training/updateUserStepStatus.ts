@@ -1,7 +1,7 @@
 "use server";
 
 import { TrainingStatus } from "@gafus/types";
-import { updateStepAndDay, type StepOperation } from "@gafus/core/services/training";
+import { updateStepAndDay, type StepOperation } from "@gafus/core/services/training/trainingService";
 import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 

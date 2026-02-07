@@ -39,6 +39,9 @@
       "@gafus/core/services/training": [
         "../../packages/core/dist/core/src/services/training/index.d.ts"
       ],
+      "@gafus/core/services/training/trainingService": [
+        "../../packages/core/dist/core/src/services/training/trainingService.d.ts"
+      ],
       "@gafus/core/services/pets": ["../../packages/core/src/services/pets/index.ts"],
       "@gafus/core/services/notes": ["../../packages/core/src/services/notes/index.ts"],
       "@gafus/core/services/payments": ["../../packages/core/src/services/payments/index.ts"],

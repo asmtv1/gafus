@@ -45,6 +45,10 @@
       "types": "./dist/core/src/services/training/index.d.ts",
       "default": "./dist/core/src/services/training/index.js"
     },
+    "./services/training/trainingService": {
+      "types": "./dist/core/src/services/training/trainingService.d.ts",
+      "default": "./dist/core/src/services/training/trainingService.js"
+    },
     "./services/exam": {
       "types": "./dist/core/src/services/exam/index.d.ts",
       "default": "./dist/core/src/services/exam/index.js"
