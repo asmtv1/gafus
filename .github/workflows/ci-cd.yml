@@ -332,6 +332,8 @@ jobs:
           file: ci-cd/docker/${{ matrix.image.file }}
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:latest
+          # web — без кэша слоёв, чтобы pnpm build всегда брал актуальный код (фикс updateStepAndDay на проде)
+          no-cache: ${{ matrix.image.name == 'web' }}
           cache-from: |
             type=gha
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-base:latest

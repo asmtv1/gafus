@@ -285,6 +285,8 @@ jobs:
           file: ci-cd/docker/${{ needs.set-container-config.outputs.dockerfile }}
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ needs.set-container-config.outputs.tag }}:latest
+          # web — без кэша, чтобы pnpm build брал актуальный код (фикс updateStepAndDay на проде)
+          no-cache: ${{ github.event.inputs.container == 'web' }}
           cache-from: |
             type=gha
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-base:latest
