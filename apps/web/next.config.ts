@@ -22,8 +22,17 @@ const withPWA = withPWAInit({
   // PWA манифест и метатеги остаются активными
 });
 
-// Общие алиасы для webpack и Turbopack (workspace-пакеты)
+// Общие алиасы для webpack и Turbopack (workspace-пакеты).
+// Важно: более длинные пути для core — первыми, иначе сработает @gafus/core и попадёт src вместо dist (на проде 500).
 const gafusAliases = {
+  "@gafus/core/services/training/trainingService": _path.resolve(
+    __dirname,
+    "../../packages/core/dist/core/src/services/training/trainingService.js",
+  ),
+  "@gafus/core/services/training": _path.resolve(
+    __dirname,
+    "../../packages/core/dist/core/src/services/training",
+  ),
   "@gafus/core": _path.resolve(__dirname, "../../packages/core/src"),
   "@gafus/core/services/course": _path.resolve(__dirname, "../../packages/core/src/services/course"),
   "@gafus/core/services/diary": _path.resolve(__dirname, "../../packages/core/src/services/diary"),
@@ -44,15 +53,6 @@ const gafusAliases = {
   "@gafus/core/services/achievements": _path.resolve(
     __dirname,
     "../../packages/core/src/services/achievements",
-  ),
-  // training — из dist; явный алиас на файл, чтобы бандлер не подменял barrel (index.js) и не терял updateStepAndDay
-  "@gafus/core/services/training": _path.resolve(
-    __dirname,
-    "../../packages/core/dist/core/src/services/training",
-  ),
-  "@gafus/core/services/training/trainingService": _path.resolve(
-    __dirname,
-    "../../packages/core/dist/core/src/services/training/trainingService.js",
   ),
   "@gafus/core/errors": _path.resolve(__dirname, "../../packages/core/src/errors"),
   "@gafus/core/utils": _path.resolve(__dirname, "../../packages/core/src/utils"),
@@ -117,7 +117,8 @@ const nextConfig = {
 
   // Исправляем проблемы с clientReferenceManifest в Next.js 14
   // Prisma: не бандлить — Query Engine ищется в node_modules
-  serverExternalPackages: ["sharp", "prisma", "@prisma/client"],
+  // core: не бандлить на сервере — резолв в рантайме по package.json exports (dist), см. bundling.md
+  serverExternalPackages: ["sharp", "prisma", "@prisma/client", "@gafus/core"],
 
   // Оптимизации для bundle
   experimental: {

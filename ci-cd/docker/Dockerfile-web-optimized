@@ -44,9 +44,6 @@ ENV USE_STANDALONE=true
 RUN pnpm build --filter @gafus/core...
 RUN pnpm build --filter @gafus/web
 
-# Проверка: updateStepAndDay в server chunks (иначе 500 на проде)
-RUN grep -rq "updateStepAndDay" /app/apps/web/.next/server/chunks/ || (echo "FATAL: updateStepAndDay not in server chunks" && exit 1)
-
 # Production stage - только runtime
 FROM node:20-alpine AS runner
 
@@ -66,6 +63,9 @@ COPY --from=base /app/apps/web/public ./apps/web/public
 
 # Копируем Prisma client и Query Engine (оставляем .pnpm из standalone)
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
+
+# serverExternalPackages: @gafus/core — в standalone нужен для require() в рантайме
+COPY --from=base /app/packages/core ./node_modules/@gafus/core
 
 # Копируем Prisma client в несколько мест для поиска движка рантаймом
 RUN mkdir -p ./apps/web/.prisma && cp -r ./node_modules/.prisma/client ./apps/web/.prisma/client
