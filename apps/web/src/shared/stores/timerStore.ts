@@ -435,38 +435,6 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       }
     },
 
-    // ===== ОФЛАЙН ФУНКЦИИ =====
-
-    // Пауза шага в офлайн режиме
-    pauseStepOffline: (courseId, dayOnCourseId, stepIndex) => {
-      if (typeof window === "undefined") return;
-
-      // Останавливаем таймер
-      get().stopTimer(courseId, dayOnCourseId, stepIndex);
-
-      const PAUSE_KEY = `training-${courseId}-${dayOnCourseId}-${stepIndex}-paused`;
-      const pauseData = {
-        pausedAt: Date.now(),
-        timeLeft: 0,
-      };
-      try {
-        localStorage.setItem(PAUSE_KEY, JSON.stringify(pauseData));
-      } catch {
-        // Quota exceeded or private mode
-      }
-    },
-
-    resumeStepOffline: (courseId, dayOnCourseId, stepIndex) => {
-      if (typeof window === "undefined") return;
-
-      const PAUSE_KEY = `training-${courseId}-${dayOnCourseId}-${stepIndex}-paused`;
-      try {
-        localStorage.removeItem(PAUSE_KEY);
-      } catch {
-        // ignore
-      }
-    },
-
     pauseStepWithServer: async (
       courseId: string,
       dayOnCourseId: string,

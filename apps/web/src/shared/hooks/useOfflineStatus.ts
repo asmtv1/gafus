@@ -5,7 +5,7 @@ import { useOfflineStore } from "@shared/stores/offlineStore";
  * Основан только на navigator.onLine
  */
 export function useOfflineStatus() {
-  const { isOnline } = useOfflineStore();
+  const isOnline = useOfflineStore((s) => s.isOnline);
 
   // Определяем цвет статуса
   const getStatusColor = () => {

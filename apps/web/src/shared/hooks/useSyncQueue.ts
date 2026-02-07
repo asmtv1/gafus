@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 
 /**
@@ -12,7 +13,17 @@ export function useSyncQueue() {
     removeFromSyncQueue,
     clearSyncQueue,
     syncOfflineActions,
-  } = useOfflineStore();
+  } = useOfflineStore(
+    useShallow((s) => ({
+      syncQueue: s.syncQueue,
+      lastSyncTime: s.lastSyncTime,
+      syncErrors: s.syncErrors,
+      addToSyncQueue: s.addToSyncQueue,
+      removeFromSyncQueue: s.removeFromSyncQueue,
+      clearSyncQueue: s.clearSyncQueue,
+      syncOfflineActions: s.syncOfflineActions,
+    })),
+  );
 
   return {
     // Данные

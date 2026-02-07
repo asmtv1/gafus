@@ -3,65 +3,19 @@
 import { createWebLogger } from "@gafus/logger";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { isCourseDownloadedByType } from "@shared/lib/offline/offlineCourseStorage";
+import { checkRealConnection } from "./checkConnection";
 
 const logger = createWebLogger("web-offline-detector");
 
 const STORAGE_KEY = "offline_previous_url";
 const PING_INTERVAL =
   typeof process !== "undefined" && process.env.NODE_ENV === "development"
-    ? 6000000
-    : 8000; // в dev реже (60 с), в проде 8 с
-const PING_TIMEOUT = 3000; // 3 секунды
+    ? 60000 // 60 с в dev для отладки
+    : 8000; // 8 с в проде
 const OFFLINE_PAGE = "/~offline";
 
 let pingIntervalId: NodeJS.Timeout | null = null;
 let isInitialized = false;
-let isCheckingConnection = false;
-
-/**
- * Проверяет реальное подключение к серверу через /api/ping
- */
-async function checkRealConnection(): Promise<boolean> {
-  if (isCheckingConnection) {
-    return false;
-  }
-
-  isCheckingConnection = true;
-
-  try {
-    const store = useOfflineStore.getState();
-    if (store.activeDownloads > 0) {
-      return true;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), PING_TIMEOUT);
-
-    const response = await fetch("/api/ping", {
-      method: "HEAD",
-      cache: "no-cache",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    isCheckingConnection = false;
-    return response.ok;
-  } catch (error) {
-    isCheckingConnection = false;
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    // Игнорируем ошибки отмены запроса (AbortError)
-    if (errorMessage.includes("aborted") || errorMessage.includes("AbortError")) {
-      return false;
-    }
-
-    logger.warn("Connection check failed", {
-      operation: "connection_check_failed",
-      error: errorMessage,
-    });
-    return false;
-  }
-}
 
 /**
  * Сохраняет текущий URL перед редиректом на страницу офлайна

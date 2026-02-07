@@ -236,7 +236,6 @@ export const useOfflineStore = create<OfflineState>()(
         syncQueue: state.syncQueue,
         lastSyncTime: state.lastSyncTime,
         syncErrors: state.syncErrors,
-        lastSyncAttempt: state.lastSyncAttempt,
       }),
     },
   ),

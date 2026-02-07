@@ -142,24 +142,3 @@ export function setupFetchInterceptor() {
     }
   };
 }
-
-/**
- * Проверяет реальное подключение к серверу
- */
-export async function checkRealConnection(): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    const response = await fetch("/api/ping", {
-      method: "HEAD",
-      cache: "no-cache",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
