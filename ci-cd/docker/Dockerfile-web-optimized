@@ -38,10 +38,14 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 # Копируем Prisma Query Engine рядом с клиентом (ожидаемое Prisma расположение)
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
 
-# Собираем приложение с standalone режимом
-# ... = с зависимостями: core (и его deps) соберутся до web, dist будет для алиаса training
+# Собираем в явном порядке, как локально: сначала core (и deps), потом web
+# Убирает расхождение с CI, где turbo мог по-другому разрешать граф
 ENV USE_STANDALONE=true
-RUN pnpm build --filter @gafus/web...
+RUN pnpm build --filter @gafus/core...
+RUN pnpm build --filter @gafus/web
+
+# Проверка: updateStepAndDay в server chunks (иначе 500 на проде)
+RUN grep -rq "updateStepAndDay" /app/apps/web/.next/server/chunks/ || (echo "FATAL: updateStepAndDay not in server chunks" && exit 1)
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
