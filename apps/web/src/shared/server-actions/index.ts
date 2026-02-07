@@ -38,6 +38,7 @@ export {
   resetNotificationAction,
   resumeNotificationAction,
   toggleStepNotificationPauseAction,
+  toggleStepNotificationPauseByDayOnCourseAction,
   deleteStepNotificationAction,
   createStepNotificationAction,
 } from "./notifications";

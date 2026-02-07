@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@gafus/prisma";
-import { createStepNotificationsForUserStep } from "@shared/lib/StepNotification/createStepNotification";
+import { createStepNotificationAction } from "@shared/server-actions/notifications";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
@@ -146,31 +146,29 @@ export async function startUserStepServerAction(
     }
 
     // Создаем уведомления при старте шага (для push-уведомлений по завершении)
-    // Получаем day (order) из dayOnCourse для обратной совместимости с createStepNotificationsForUserStep
+    // day (order дня) для уведомления
     const dayOnCourseForNotification = await prisma.dayOnCourse.findUnique({
       where: { id: safeInput.dayOnCourseId },
       select: { order: true },
     });
     const dayForNotification = dayOnCourseForNotification?.order ?? 0;
 
-    try {
-      await createStepNotificationsForUserStep({
-        userId,
-        day: dayForNotification,
-        stepIndex: safeInput.stepIndex,
-        stepTitle: stepInfo.stepTitle,
-        durationSec: safeInput.durationSec,
-        maybeUrl: stepInfo.trainingUrl,
-      });
-    } catch (notificationError) {
-      logger.error("❌ Failed to create step notifications", notificationError as Error, {
+    const result = await createStepNotificationAction({
+      day: dayForNotification,
+      stepIndex: safeInput.stepIndex,
+      durationSec: safeInput.durationSec,
+      maybeUrl: stepInfo.trainingUrl,
+      stepTitle: stepInfo.stepTitle,
+    });
+    if (!result.success) {
+      logger.error("Failed to create step notification", new Error(result.error ?? "Unknown error"), {
         operation: "create_step_notifications_error",
-        courseId: courseId,
-        dayOnCourseId: dayOnCourseId,
-        stepIndex: stepIndex,
-        userId: userId,
+        courseId,
+        dayOnCourseId,
+        stepIndex,
+        userId,
+        error: result.error,
       });
-      // Не прерываем выполнение, если уведомления не создались
     }
 
     // Инвалидируем кэш прогресса пользователя при начале шага

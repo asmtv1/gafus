@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
 
 import type { TrainingStore } from "./types";
-import { toggleStepNotificationPause } from "@shared/lib/StepNotification/toggleStepNotificationPause";
+import { toggleStepNotificationPauseByDayOnCourseAction } from "@shared/server-actions/notifications";
 
 // Создаем логгер для training store
 const logger = createWebLogger("web-training-store");
@@ -138,15 +138,21 @@ export const useTrainingStore = create<TrainingStore>()(
       // ===== СЕРВЕРНЫЕ ДЕЙСТВИЯ =====
       togglePauseWithServer: async (courseId: string, dayOnCourseId: string, stepIndex: number) => {
         try {
-          // TODO: Обновить toggleStepNotificationPause для использования dayOnCourseId
-          // Временно используем day: 0 как заглушку, так как функция еще не обновлена
-          await toggleStepNotificationPause(0, stepIndex, true);
+          const result = await toggleStepNotificationPauseByDayOnCourseAction(
+            courseId,
+            dayOnCourseId,
+            stepIndex,
+            true,
+          );
+          if (!result.success) {
+            throw new Error(result.error ?? "Failed to toggle notification");
+          }
         } catch (error) {
           logger.error(`togglePauseWithServer error`, error as Error, {
             operation: "toggle_pause_with_server_error",
-            courseId: courseId,
-            dayOnCourseId: dayOnCourseId,
-            stepIndex: stepIndex,
+            courseId,
+            dayOnCourseId,
+            stepIndex,
           });
           throw error;
         }
@@ -158,15 +164,21 @@ export const useTrainingStore = create<TrainingStore>()(
         stepIndex: number,
       ) => {
         try {
-          // TODO: Обновить toggleStepNotificationPause для использования dayOnCourseId
-          // Временно используем day: 0 как заглушку, так как функция еще не обновлена
-          await toggleStepNotificationPause(0, stepIndex, false);
+          const result = await toggleStepNotificationPauseByDayOnCourseAction(
+            courseId,
+            dayOnCourseId,
+            stepIndex,
+            false,
+          );
+          if (!result.success) {
+            throw new Error(result.error ?? "Failed to resume notification");
+          }
         } catch (error) {
           logger.error(`resumeNotificationWithServer error`, error as Error, {
             operation: "resume_notification_with_server_error",
-            courseId: courseId,
-            dayOnCourseId: dayOnCourseId,
-            stepIndex: stepIndex,
+            courseId,
+            dayOnCourseId,
+            stepIndex,
           });
           throw error;
         }

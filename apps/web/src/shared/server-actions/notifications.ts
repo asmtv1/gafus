@@ -54,6 +54,10 @@ const deleteSchema = z.object({
   deleted: z.boolean(),
 });
 
+const togglePauseByDayOnCourseSchema = notificationKeySchema.extend({
+  pause: z.boolean(),
+});
+
 // ========== Server Actions ==========
 
 /**
@@ -149,6 +153,39 @@ export async function resumeNotificationAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to resume notification",
+    };
+  }
+}
+
+/**
+ * Переключает паузу уведомления по dayOnCourseId (для trainingStore)
+ */
+export async function toggleStepNotificationPauseByDayOnCourseAction(
+  courseId: string,
+  dayOnCourseId: string,
+  stepIndex: number,
+  pause: boolean,
+) {
+  const parsed = togglePauseByDayOnCourseSchema.parse({
+    courseId,
+    dayOnCourseId,
+    stepIndex,
+    pause,
+  });
+  try {
+    const userId = await getCurrentUserId();
+    const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
+    return toggleStepNotificationPause(userId, day, parsed.stepIndex, parsed.pause);
+  } catch (error) {
+    logger.error("Failed to toggle notification pause", error as Error, {
+      courseId,
+      dayOnCourseId,
+      stepIndex,
+      pause,
+    });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to toggle notification pause",
     };
   }
 }
