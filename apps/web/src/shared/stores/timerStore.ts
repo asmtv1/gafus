@@ -33,8 +33,8 @@ function loadFromLS(key: string): string | null {
   }
 }
 
-// Быстрый локальный таймаут для серверных действий (мобайлы)
-const SERVER_ACTION_TIMEOUT_MS = 1000;
+// Таймаут ожидания ответа Server Action (старт/сброс/завершение шага). 1с было мало — на проде часто timeout.
+const SERVER_ACTION_TIMEOUT_MS = 15000;
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {

@@ -659,9 +659,7 @@ export async function updateStepAndDay(
         if (currentStatus === TrainingStatus.NOT_STARTED) {
           throw new Error("INVALID_STATE: cannot reset not started");
         }
-        if (currentStatus === TrainingStatus.COMPLETED) {
-          throw new Error("INVALID_STATE: cannot reset completed");
-        }
+        // COMPLETED и IN_PROGRESS/PAUSED разрешаем сбрасывать — пользователь может перепройти шаг
       }
 
       switch (operation.type) {
