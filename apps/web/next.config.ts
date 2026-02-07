@@ -45,10 +45,14 @@ const gafusAliases = {
     __dirname,
     "../../packages/core/src/services/achievements",
   ),
-  // training — из dist, чтобы updateStepAndDay гарантированно попадал в серверный бандл (src при бандлинге давал "is not a function")
+  // training — из dist; явный алиас на файл, чтобы бандлер не подменял barrel (index.js) и не терял updateStepAndDay
   "@gafus/core/services/training": _path.resolve(
     __dirname,
     "../../packages/core/dist/core/src/services/training",
+  ),
+  "@gafus/core/services/training/trainingService": _path.resolve(
+    __dirname,
+    "../../packages/core/dist/core/src/services/training/trainingService.js",
   ),
   "@gafus/core/errors": _path.resolve(__dirname, "../../packages/core/src/errors"),
   "@gafus/core/utils": _path.resolve(__dirname, "../../packages/core/src/utils"),
