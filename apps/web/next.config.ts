@@ -92,7 +92,6 @@ const nextConfig = {
     "@gafus/logger",
     "@gafus/types",
     "@gafus/error-handling",
-    "@gafus/core",
   ],
   // Переменные окружения для клиентской части
   env: {
