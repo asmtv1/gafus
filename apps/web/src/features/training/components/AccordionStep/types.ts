@@ -1,21 +1,34 @@
-// UI-специфичные типы для AccordionStep
+import type { ChecklistQuestion } from "@gafus/types";
+
+export type StepType =
+  | "TRAINING"
+  | "EXAMINATION"
+  | "THEORY"
+  | "BREAK"
+  | "PRACTICE"
+  | "DIARY";
 
 export interface AccordionStepProps {
-  step: {
-    id: string;
-    title: string;
-    description: string;
-    durationSec: number;
-    videoUrl?: string | null;
-    imageUrls: string[];
-    pdfUrls: string[];
-  };
-  isExpanded: boolean;
-  onToggle: () => void;
-  onStart: () => void;
-  onComplete: () => void;
-  isActive: boolean;
-  isCompleted: boolean;
-  timeLeft: number;
-  isPaused: boolean;
+  courseId: string;
+  courseType: string;
+  dayOnCourseId: string;
+  stepIndex: number;
+  durationSec: number;
+  estimatedDurationSec?: number | null;
+  stepTitle: string;
+  stepDescription?: string;
+  stepOrder: number;
+  totalSteps: number;
+  initialStatus?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET";
+  videoUrl?: string | null;
+  imageUrls?: string[];
+  onRun: (stepIndex: number) => void;
+  onReset: (stepIndex: number) => void;
+  type?: StepType;
+  checklist?: ChecklistQuestion[];
+  requiresVideoReport?: boolean;
+  requiresWrittenFeedback?: boolean;
+  hasTestQuestions?: boolean;
+  userStepId?: string;
+  stepId: string;
 }
