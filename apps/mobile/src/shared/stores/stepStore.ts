@@ -79,12 +79,12 @@ interface StepActions {
   syncFromServer: (
     courseId: string,
     dayOnCourseId: string,
-    steps: Array<{
+    steps: {
       stepIndex: number;
       status: string;
       remainingSec: number | null;
       durationSec?: number;
-    }>,
+    }[],
   ) => void;
 
   // Очистка

@@ -10,7 +10,7 @@ import {
   Dimensions,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { z } from "zod";

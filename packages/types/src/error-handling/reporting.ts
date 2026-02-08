@@ -1,4 +1,3 @@
-import type { ComponentType, ReactNode } from "../types";
 
 export interface ErrorReportingConfig {
   appName: string;

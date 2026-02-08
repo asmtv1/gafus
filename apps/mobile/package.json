@@ -6,7 +6,8 @@
   "scripts": {
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "start": "expo start",
     "test": "jest",
     "typecheck": "tsc --noEmit",

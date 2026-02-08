@@ -40,7 +40,7 @@ export function useCacheManager() {
     durationSec?: number,
     totalSteps?: number,
   ) => {
-    logger.info(`[CacheManager] Updating step progress`, {
+    logger.info("[CacheManager] Updating step progress", {
       operation: "update_step_progress",
       courseId: courseId,
       dayOnCourseId: dayOnCourseId,
@@ -117,7 +117,7 @@ export function useCacheManager() {
       stepStatus as "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED",
     );
 
-    logger.info(`[CacheManager] Updated`, {
+    logger.info("[CacheManager] Updated", {
       operation: "cache_manager_updated",
       day: newDayStatus,
       course: newCourseStatus,
@@ -157,7 +157,7 @@ export function useCacheManager() {
     stepIndex: number,
     stepStatus: string,
   ) => {
-    logger.info(`[CacheManager] updateCoursesCache`, {
+    logger.info("[CacheManager] updateCoursesCache", {
       operation: "update_courses_cache",
       courseId: courseId,
       courseStatus: courseStatus,
@@ -168,14 +168,14 @@ export function useCacheManager() {
 
     // Обновляем все курсы в courseStore
     if (courseStore.allCourses?.data) {
-      logger.info(`[CacheManager] Updating allCourses`, {
+      logger.info("[CacheManager] Updating allCourses", {
         operation: "updating_all_courses",
         coursesCount: courseStore.allCourses.data.length,
       });
       const updatedCourses = courseStore.allCourses.data.map((course) => {
         if (course.id !== courseId) return course;
 
-        logger.info(`[CacheManager] Updating course`, {
+        logger.info("[CacheManager] Updating course", {
           operation: "updating_course",
           courseId: courseId,
           courseName: course.name,
@@ -194,25 +194,25 @@ export function useCacheManager() {
       });
 
       courseStore.setAllCourses(updatedCourses, courseStore.allCourses.type);
-      logger.info(`[CacheManager] Updated allCourses successfully`, {
+      logger.info("[CacheManager] Updated allCourses successfully", {
         operation: "updated_all_courses_successfully",
       });
     } else {
-      logger.info(`[CacheManager] No allCourses data to update`, {
+      logger.info("[CacheManager] No allCourses data to update", {
         operation: "no_all_courses_data",
       });
     }
 
     // Обновляем избранные курсы в courseStore
     if (courseStore.favorites?.data) {
-      logger.info(`[CacheManager] Updating favorites`, {
+      logger.info("[CacheManager] Updating favorites", {
         operation: "updating_favorites",
         favoritesCount: courseStore.favorites.data.length,
       });
       const updatedFavorites = courseStore.favorites.data.map((course) => {
         if (course.id !== courseId) return course;
 
-        logger.info(`[CacheManager] Updating favorite course`, {
+        logger.info("[CacheManager] Updating favorite course", {
           operation: "updating_favorite_course",
           courseId: courseId,
           courseName: course.name,
@@ -229,25 +229,25 @@ export function useCacheManager() {
       });
 
       courseStore.setFavorites(updatedFavorites);
-      logger.info(`[CacheManager] Updated favorites successfully`, {
+      logger.info("[CacheManager] Updated favorites successfully", {
         operation: "updated_favorites_successfully",
       });
     } else {
-      logger.info(`[CacheManager] No favorites data to update`, {
+      logger.info("[CacheManager] No favorites data to update", {
         operation: "no_favorites_data",
       });
     }
 
     // Обновляем созданные курсы в courseStore (только для тренеров)
     if (courseStore.authored) {
-      logger.info(`[CacheManager] Updating authored`, {
+      logger.info("[CacheManager] Updating authored", {
         operation: "updating_authored",
         authoredCount: courseStore.authored.length,
       });
       const updatedAuthored = courseStore.authored.map((course) => {
         if (course.id !== courseId) return course;
 
-        logger.info(`[CacheManager] Updating authored course`, {
+        logger.info("[CacheManager] Updating authored course", {
           operation: "updating_authored_course",
           courseId: courseId,
           courseName: course.name,
@@ -264,13 +264,13 @@ export function useCacheManager() {
       });
 
       courseStore.setAuthored(updatedAuthored);
-      logger.info(`[CacheManager] Updated authored successfully`, {
+      logger.info("[CacheManager] Updated authored successfully", {
         operation: "updated_authored_successfully",
       });
     } else {
       // Показываем предупреждение только для тренеров
       if (user?.role === "TRAINER") {
-        logger.info(`[CacheManager] No authored data to update`, {
+        logger.info("[CacheManager] No authored data to update", {
           operation: "no_authored_data",
           userRole: user.role,
         });

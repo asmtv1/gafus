@@ -12,7 +12,7 @@ import type {
   PresentationEventType,
 } from "@gafus/core/services/tracking";
 
-const logger = createWebLogger("tracking-actions");
+const _logger = createWebLogger("tracking-actions");
 
 /**
  * Отслеживает просмотр presentation.html

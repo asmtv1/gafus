@@ -1,4 +1,5 @@
-import { Worker, Job } from "bullmq";
+import type { Job } from "bullmq";
+import { Worker } from "bullmq";
 import { exec } from "child_process";
 import { promisify } from "util";
 import * as fs from "fs/promises";
@@ -61,7 +62,7 @@ class VideoTranscodingWorker {
   ): Promise<VideoTranscodingResult> {
     const { videoId, trainerId, originalPath } = job.data;
 
-    logger.info(`🎬 Начинаем транскодирование видео`, {
+    logger.info("🎬 Начинаем транскодирование видео", {
       videoId,
       trainerId,
       originalPath,
@@ -99,7 +100,7 @@ class VideoTranscodingWorker {
       await this.transcodeToHLS(inputPath, hlsDir, targetHeight);
 
       // 4.1. Генерируем thumbnail из первого кадра
-      logger.info(`🖼️ Генерируем thumbnail...`);
+      logger.info("🖼️ Генерируем thumbnail...");
       const hlsBasePath = `trainers/${trainerId}/videocourses/${videoId}/hls`;
       let thumbnailRelativePath: string | null = null;
       try {
@@ -116,7 +117,7 @@ class VideoTranscodingWorker {
       }
 
       // 5. Загружаем все HLS файлы в Object Storage
-      logger.info(`⬆️ Загружаем HLS файлы в CDN...`);
+      logger.info("⬆️ Загружаем HLS файлы в CDN...");
       const hlsTotalSize = await this.uploadHLSFiles(hlsDir, hlsBasePath);
 
       // 6. Обновляем БД (включая размер HLS файлов)
@@ -133,14 +134,14 @@ class VideoTranscodingWorker {
         },
       });
 
-      logger.success(`✅ Транскодирование завершено`, { videoId, hlsManifestPath });
+      logger.success("✅ Транскодирование завершено", { videoId, hlsManifestPath });
 
       // 7. Удаляем оригинальное видео из Object Storage для экономии места
       try {
         await deleteFileFromCDN(originalPath);
         logger.info(`🗑️ Оригинальное видео удалено: ${originalPath}`);
       } catch (error) {
-        logger.warn(`⚠️ Не удалось удалить оригинальное видео (не критично)`, {
+        logger.warn("⚠️ Не удалось удалить оригинальное видео (не критично)", {
           error: (error as Error).message,
         });
       }
@@ -230,7 +231,7 @@ class VideoTranscodingWorker {
         logger.info(`FFmpeg stderr: ${stderr}`);
       }
 
-      logger.success(`✅ Транскодирование в HLS завершено`);
+      logger.success("✅ Транскодирование в HLS завершено");
     } catch (error) {
       logger.error("Ошибка выполнения FFmpeg", error as Error);
       throw new Error(`FFmpeg ошибка: ${(error as Error).message}`);
@@ -317,7 +318,7 @@ class VideoTranscodingWorker {
       await fs.rm(videoDir, { recursive: true, force: true });
       logger.info(`🗑️ Временные файлы удалены: ${videoDir}`);
     } catch (error) {
-      logger.warn(`⚠️ Не удалось удалить временные файлы (не критично)`, {
+      logger.warn("⚠️ Не удалось удалить временные файлы (не критично)", {
         error: (error as Error).message,
       });
     }
@@ -329,7 +330,7 @@ class VideoTranscodingWorker {
   private setupEventHandlers(): void {
     this.worker.on("completed", (job, result) => {
       if (result.success) {
-        logger.success(`✅ Задача транскодирования завершена`, {
+        logger.success("✅ Задача транскодирования завершена", {
           jobId: job.id,
           videoId: job.data.videoId,
           hlsManifestPath: result.hlsManifestPath,

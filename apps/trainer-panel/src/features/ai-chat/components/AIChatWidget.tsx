@@ -146,7 +146,7 @@ export function AIChatWidget() {
             let attachments = [];
             try {
               if (msg.attachments) {
-                attachments = typeof msg.attachments === 'string' 
+                attachments = typeof msg.attachments === "string" 
                   ? JSON.parse(msg.attachments) 
                   : msg.attachments;
               }
@@ -156,7 +156,7 @@ export function AIChatWidget() {
 
             return {
               id: msg.id,
-              role: msg.role as 'user' | 'assistant' | 'system' | 'data',
+              role: msg.role as "user" | "assistant" | "system" | "data",
               content: msg.content,
               createdAt: new Date(msg.createdAt),
               experimental_attachments: attachments
@@ -204,11 +204,11 @@ export function AIChatWidget() {
   }, [isResizing, isFullscreen]);
 
   useEffect(() => {
-    window.addEventListener('mousemove', resize);
-    window.addEventListener('mouseup', stopResizing);
+    window.addEventListener("mousemove", resize);
+    window.addEventListener("mouseup", stopResizing);
     return () => {
-      window.removeEventListener('mousemove', resize);
-      window.removeEventListener('mouseup', stopResizing);
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
     };
   }, [resize, stopResizing]);
 
@@ -286,8 +286,8 @@ export function AIChatWidget() {
     if (selectedFiles.length > 0 && !checkVisionSupport(selectedModel)) {
       alert(
         `Модель ${selectedModel} не поддерживает работу с изображениями.\n\n` +
-        `Пожалуйста, выберите модель с поддержкой vision:\n` +
-        `- Gemini 2.0 Flash (бесплатная)`
+        "Пожалуйста, выберите модель с поддержкой vision:\n" +
+        "- Gemini 2.0 Flash (бесплатная)"
       );
       return;
     }
@@ -384,7 +384,7 @@ export function AIChatWidget() {
               let attachments = [];
               try {
                 if (msg.attachments) {
-                  attachments = typeof msg.attachments === 'string' 
+                  attachments = typeof msg.attachments === "string" 
                     ? JSON.parse(msg.attachments) 
                     : msg.attachments;
                 }
@@ -394,7 +394,7 @@ export function AIChatWidget() {
 
               return {
                 id: msg.id,
-                role: msg.role as 'user' | 'assistant' | 'system' | 'data',
+                role: msg.role as "user" | "assistant" | "system" | "data",
                 content: msg.content,
                 createdAt: new Date(msg.createdAt),
                 experimental_attachments: attachments
@@ -658,7 +658,7 @@ export function AIChatWidget() {
                     createdAt: msg.createdAt || new Date()
                   } as any} />
                 ))}
-                {isLoading && messages[messages.length - 1]?.role === 'user' && (
+                {isLoading && messages[messages.length - 1]?.role === "user" && (
                   <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 1 }}>
                     <Paper 
                       elevation={0} 
@@ -786,7 +786,7 @@ export function AIChatWidget() {
                 onChange={handleInputChange}
                 disabled={isLoading}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleFormSubmit(e as any);
                   }

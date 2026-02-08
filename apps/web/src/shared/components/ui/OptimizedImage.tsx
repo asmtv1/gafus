@@ -48,7 +48,7 @@ export default function OptimizedImage({
   const finalSrc = imgError || !src ? placeholder : src;
 
   const handleError = () => {
-    logger.warn(`❌ OptimizedImage: Ошибка загрузки изображения`, {
+    logger.warn("❌ OptimizedImage: Ошибка загрузки изображения", {
       operation: "image_load_error",
       src: src,
       retryCount: retryCount,

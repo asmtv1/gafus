@@ -1,5 +1,5 @@
 // Основные экспорты TanStack Query
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 export { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 export { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 export { ReactQueryDevtools } from "@tanstack/react-query-devtools";

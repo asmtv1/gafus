@@ -1,7 +1,8 @@
 /**
  * API: POST /api/v1/payments/webhook — уведомления ЮKassa о статусе платежа
  */
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { prisma } from "@gafus/prisma";
 import {
@@ -30,7 +31,11 @@ function isYooKassaIP(ip: string | null): boolean {
 /**
  * Проверка HMAC-SHA256 подписи от ЮKassa для защиты от подделки webhook
  */
-function verifyWebhookSignature(body: string, signature: string | null, secretKey: string): boolean {
+function verifyWebhookSignature(
+  body: string,
+  signature: string | null,
+  secretKey: string,
+): boolean {
   if (!signature) return false;
   const hash = createHmac("sha256", secretKey).update(body).digest("hex");
   return hash === signature;

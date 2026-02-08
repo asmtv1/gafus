@@ -7,7 +7,8 @@
 // Force dynamic для предотвращения статической сборки (использует Redis)
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";

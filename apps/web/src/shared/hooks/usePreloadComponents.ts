@@ -31,7 +31,7 @@ export function usePreloadComponents(configs: PreloadConfig[]) {
       }
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`⚠️ Failed to preload component:`, { error, operation: "warn" });
+        logger.warn("⚠️ Failed to preload component:", { error, operation: "warn" });
       }
     }
   }, []);
@@ -63,11 +63,11 @@ export function useInteractionPreload() {
       await config.component();
 
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`✅ Preloaded component on interaction`, { operation: "warn" });
+        logger.warn("✅ Preloaded component on interaction", { operation: "warn" });
       }
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`⚠️ Failed to preload component:`, { error, operation: "warn" });
+        logger.warn("⚠️ Failed to preload component:", { error, operation: "warn" });
       }
     }
   }, []);
@@ -100,11 +100,11 @@ export function useVisibilityPreload() {
       await config.component();
 
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`✅ Preloaded component on visibility`, { operation: "warn" });
+        logger.warn("✅ Preloaded component on visibility", { operation: "warn" });
       }
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
-        logger.warn(`⚠️ Failed to preload component:`, { error, operation: "warn" });
+        logger.warn("⚠️ Failed to preload component:", { error, operation: "warn" });
       }
     }
   }, []);

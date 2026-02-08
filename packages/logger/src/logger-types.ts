@@ -31,9 +31,7 @@ export interface LoggerConfig {
 /**
  * Метаданные для лога
  */
-export interface LogMeta {
-  [key: string]: unknown;
-}
+export type LogMeta = Record<string, unknown>;
 
 /**
  * Интерфейс логгера

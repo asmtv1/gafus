@@ -8,7 +8,7 @@ import { Image } from "expo-image";
 
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { coursesApi } from "@/shared/lib/api/courses";
-import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/constants";
 
 // Функция для получения инициалов
 const getInitials = (name: string): string => {

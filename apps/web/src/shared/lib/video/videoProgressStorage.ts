@@ -1,10 +1,13 @@
 "use client";
 
+import { createWebLogger } from "@gafus/logger";
+
 /**
  * IndexedDB storage для офлайн прогресса просмотра видео
  * Отдельная БД от основного offline storage
  */
 
+const logger = createWebLogger("videoProgressStorage");
 const DB_NAME = "gafus-video-progress";
 const DB_VERSION = 1;
 const STORE_NAME = "progress";
@@ -146,7 +149,7 @@ export async function syncVideoProgressFromIndexedDB(): Promise<void> {
     const entries = await getAllVideoProgress();
 
     if (entries.length === 0) {
-      console.log("[videoProgressStorage] Нет прогрессов для синхронизации");
+      logger.info("Нет прогрессов для синхронизации");
       return;
     }
 
@@ -163,15 +166,15 @@ export async function syncVideoProgressFromIndexedDB(): Promise<void> {
     const result = await syncVideoProgressFromLocal(payload);
 
     if (result.success) {
-      console.log(
-        `[videoProgressStorage] Синхронизировано ${result.syncedCount || entries.length} прогрессов`,
-      );
+      logger.info("Синхронизировано прогрессов", {
+        count: result.syncedCount ?? entries.length,
+      });
       // Очищаем IndexedDB после успешной синхронизации
       await clearAllVideoProgress();
     } else {
-      console.error("[videoProgressStorage] Ошибка синхронизации:", result.error);
+      logger.error("Ошибка синхронизации", new Error(result.error ?? "Unknown"));
     }
   } catch (error) {
-    console.error("[videoProgressStorage] Ошибка синхронизации с сервером:", error);
+    logger.error("Ошибка синхронизации с сервером", error as Error);
   }
 }

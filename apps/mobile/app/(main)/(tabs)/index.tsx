@@ -26,7 +26,6 @@ import {
   type TrainingLevelType,
   type ProgressFilterType,
   type RatingFilterType,
-  type SortingType,
 } from "@/shared/utils/courseFilters";
 import { COLORS, SPACING, FONTS } from "@/constants";
 

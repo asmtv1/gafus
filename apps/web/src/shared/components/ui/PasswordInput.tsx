@@ -32,7 +32,9 @@ export const PasswordInput: FC<Props> = ({
         <label
           htmlFor={inputId}
           className={
-            visuallyHiddenLabel ? "sr-only" : "mb-1 block text-sm font-medium text-gray-700"
+            visuallyHiddenLabel
+              ? "sr-only"
+              : "mb-1 block text-sm font-medium text-gray-700"
           }
         >
           {label}

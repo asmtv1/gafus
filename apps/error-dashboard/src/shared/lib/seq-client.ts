@@ -136,7 +136,7 @@ function generateErrorId(appName: string, timestamp: string, message: string): s
 /**
  * Нормализует уровень лога
  */
-function normalizeLevel(value?: unknown): string | undefined {
+function _normalizeLevel(value?: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const normalized = value.toLowerCase();
   if (["debug", "info", "warn", "error", "fatal"].includes(normalized)) {

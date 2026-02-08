@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { View, StyleSheet, Pressable, ScrollView } from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
 import { Text, Surface } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -47,18 +47,18 @@ export function CourseDescription({
     const renderTextWithFormatting = (text: string, style: any) => {
       // Паттерны для markdown форматирования
       const boldPattern = /\*\*(.+?)\*\*/g;
-      const italicPattern = /\*(.+?)\*/g;
-      const parts: React.ReactNode[] = [];
-      let lastIndex = 0;
+      const _italicPattern = /\*(.+?)\*/g;
+      const _parts: React.ReactNode[] = [];
+      const _lastIndex = 0;
       let key = 0;
 
       // Сначала обрабатываем жирный текст
       let match;
       const processedText = text;
-      const segments: Array<{ text: string; bold?: boolean; italic?: boolean }> = [];
+      const segments: { text: string; bold?: boolean; italic?: boolean }[] = [];
 
       // Находим все жирные фрагменты
-      const boldMatches: Array<{ start: number; end: number; text: string }> = [];
+      const boldMatches: { start: number; end: number; text: string }[] = [];
       while ((match = boldPattern.exec(processedText)) !== null) {
         boldMatches.push({
           start: match.index,
@@ -68,7 +68,7 @@ export function CourseDescription({
       }
 
       // Находим все курсивные фрагменты (не внутри жирного)
-      const italicMatches: Array<{ start: number; end: number; text: string }> = [];
+      const italicMatches: { start: number; end: number; text: string }[] = [];
       const italicPattern2 = /(?<!\*)\*([^*]+?)\*(?!\*)/g;
       while ((match = italicPattern2.exec(processedText)) !== null) {
         // Проверяем, не находится ли внутри жирного

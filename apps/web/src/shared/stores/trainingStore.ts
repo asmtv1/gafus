@@ -148,7 +148,7 @@ export const useTrainingStore = create<TrainingStore>()(
             throw new Error(result.error ?? "Failed to toggle notification");
           }
         } catch (error) {
-          logger.error(`togglePauseWithServer error`, error as Error, {
+          logger.error("togglePauseWithServer error", error as Error, {
             operation: "toggle_pause_with_server_error",
             courseId,
             dayOnCourseId,
@@ -174,7 +174,7 @@ export const useTrainingStore = create<TrainingStore>()(
             throw new Error(result.error ?? "Failed to resume notification");
           }
         } catch (error) {
-          logger.error(`resumeNotificationWithServer error`, error as Error, {
+          logger.error("resumeNotificationWithServer error", error as Error, {
             operation: "resume_notification_with_server_error",
             courseId,
             dayOnCourseId,

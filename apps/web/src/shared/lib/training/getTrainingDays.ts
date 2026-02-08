@@ -115,7 +115,7 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
       index: number,
     ) => {
       // Пересчитываем номер дня, исключая "instructions"
-      const displayDay = calculateDisplayDayNumber(firstCourse.dayLinks, index);
+      const _displayDay = calculateDisplayDayNumber(firstCourse.dayLinks, index);
       const ut = link.userTrainings[0];
 
       // Создаем массив статусов для ВСЕХ шагов дня, заполняя недостающие как NOT_STARTED

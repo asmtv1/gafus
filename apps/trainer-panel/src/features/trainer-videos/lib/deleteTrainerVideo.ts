@@ -141,7 +141,7 @@ export async function deleteTrainerVideo(
       });
 
       logger.error(
-        `Failed to delete video from CDN`,
+        "Failed to delete video from CDN",
         cdnError instanceof Error ? cdnError : new Error(String(cdnError)),
         {
           operation: "deleteTrainerVideo",

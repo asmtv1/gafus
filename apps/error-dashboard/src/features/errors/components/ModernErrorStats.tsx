@@ -159,7 +159,7 @@ function ModernErrorStats() {
       icon: <BugIcon />,
       color: "#7986cb",
       bgColor: "#7986cb",
-      subtitle: `За все время`,
+      subtitle: "За все время",
     },
     {
       title: "Активных ошибок",
@@ -167,7 +167,7 @@ function ModernErrorStats() {
       icon: <WarningIcon />,
       color: "#ffb74d",
       bgColor: "#ffb74d",
-      subtitle: `Требуют внимания`,
+      subtitle: "Требуют внимания",
     },
     {
       title: "Критических ошибок",

@@ -79,9 +79,22 @@ export default function StudentNotes() {
                   <div className={styles.entryContent}>{entry.content}</div>
                   <div className={styles.entryMeta}>
                     <span className={styles.entryDate}>
-                      {format(new Date(entry.createdAt), "d MMMM yyyy, HH:mm", { locale: ru })}
-                      {new Date(entry.updatedAt).getTime() !== new Date(entry.createdAt).getTime() && (
-                        <> • Изменено: {format(new Date(entry.updatedAt), "d MMMM yyyy, HH:mm", { locale: ru })}</>
+                      {format(
+                        new Date(entry.createdAt),
+                        "d MMMM yyyy, HH:mm",
+                        { locale: ru },
+                      )}
+                      {new Date(entry.updatedAt).getTime() !==
+                        new Date(entry.createdAt).getTime() && (
+                        <>
+                          {" "}
+                          • Изменено:{" "}
+                          {format(
+                            new Date(entry.updatedAt),
+                            "d MMMM yyyy, HH:mm",
+                            { locale: ru },
+                          )}
+                        </>
                       )}
                     </span>
                   </div>

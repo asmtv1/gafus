@@ -124,9 +124,9 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
  * Найти последнюю активность пользователя
  */
 function findLastActivity(
-  userTrainings: Array<{
-    steps: Array<{ updatedAt: Date }>;
-  }>,
+  userTrainings: {
+    steps: { updatedAt: Date }[];
+  }[],
 ): Date | null {
   let latestDate: Date | null = null;
 

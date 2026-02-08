@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
+import NetInfo from "@react-native-community/netinfo";
+
+type NetInfoState = Parameters<Parameters<typeof NetInfo.addEventListener>[0]>[0];
 
 interface NetworkStatus {
   isConnected: boolean | null;

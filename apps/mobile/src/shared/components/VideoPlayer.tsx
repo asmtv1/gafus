@@ -38,7 +38,7 @@ function getVideoSource(uri: string): VideoSource {
 /**
  * Видео плеер на базе expo-video (HLS через contentType: 'hls')
  */
-export function VideoPlayer({ uri, poster, onComplete, onRetry, autoPlay = false }: VideoPlayerProps) {
+export function VideoPlayer({ uri, poster: _poster, onComplete, onRetry, autoPlay = false }: VideoPlayerProps) {
   const videoViewRef = useRef<VideoView>(null);
   const [progressBarWidth, setProgressBarWidth] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);

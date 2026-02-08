@@ -133,7 +133,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   }}
                 >
                   <AttachFileIcon sx={{ fontSize: 14 }} />
-                  <Typography variant="caption" noWrap sx={{ maxWidth: '100%', fontWeight: 500 }}>
+                  <Typography variant="caption" noWrap sx={{ maxWidth: "100%", fontWeight: 500 }}>
                     {att.name}
                   </Typography>
                 </Box>

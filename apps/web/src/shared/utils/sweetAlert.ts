@@ -199,7 +199,7 @@ export const showNotificationPermissionAlert = (
       try {
         await onDeny();
         Swal.close();
-      } catch (error) {
+      } catch {
         Swal.close();
       }
     }
@@ -488,7 +488,7 @@ export const showPersonalizationAlert = async (
       accEl.value = accusative;
       insEl.value = instrumental;
       preEl.value = prepositional;
-    } catch (_) {
+    } catch {
       // ignore
     }
   };

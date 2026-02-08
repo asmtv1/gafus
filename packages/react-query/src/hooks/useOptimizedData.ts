@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useData } from "./useData";
 import { createWebLogger } from "@gafus/logger";
 
-import type { UseQueryOptions } from "@tanstack/react-query";
 
 // Создаем логгер для react-query
 const logger = createWebLogger("react-query-optimized");

@@ -81,7 +81,7 @@ export const authOptions: NextAuthOptions = {
 
           session.user.role = (user?.role as any) ?? t.role;
         } catch (error) {
-          session.user.role = t.role as any;
+          session.user.role = t.role;
         }
 
         // Получаем avatarUrl из профиля

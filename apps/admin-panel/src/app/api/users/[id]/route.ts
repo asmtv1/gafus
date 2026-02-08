@@ -2,7 +2,8 @@ import { createAdminPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
 const logger = createAdminPanelLogger("api-users");

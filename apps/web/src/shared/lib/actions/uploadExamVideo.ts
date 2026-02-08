@@ -83,7 +83,7 @@ export async function uploadExamVideo(
           },
         });
 
-        logger.success(`✅ Старое видео удалено перед загрузкой нового`);
+        logger.success("✅ Старое видео удалено перед загрузкой нового");
       }
     } catch (error) {
       logger.warn(`⚠️ Не удалось удалить старое видео (не критично, продолжаем): ${error}`);

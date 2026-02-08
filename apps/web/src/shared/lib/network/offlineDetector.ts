@@ -20,7 +20,7 @@ let isInitialized = false;
 /**
  * Сохраняет текущий URL перед редиректом на страницу офлайна
  */
-function saveCurrentUrl(): void {
+function _saveCurrentUrl(): void {
   if (typeof window === "undefined") return;
 
   const currentPath = window.location.pathname;
@@ -63,7 +63,7 @@ function restorePreviousUrl(): void {
       // Очищаем сохраненный URL если есть (для совместимости)
       try {
         sessionStorage.removeItem(STORAGE_KEY);
-      } catch (e) {
+      } catch (_e) {
         // Игнорируем ошибки
       }
       return;
@@ -76,7 +76,7 @@ function restorePreviousUrl(): void {
     // Очищаем сохраненный URL (для совместимости)
     try {
       sessionStorage.removeItem(STORAGE_KEY);
-    } catch (e) {
+    } catch (_e) {
       // Игнорируем ошибки
     }
 

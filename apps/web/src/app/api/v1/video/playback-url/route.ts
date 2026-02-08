@@ -1,7 +1,8 @@
 /**
  * API: GET /api/v1/video/playback-url - получить URL для воспроизведения видео
  */
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";

@@ -98,15 +98,28 @@ export default function CoursesClient({
   userId,
 }: CoursesClientProps) {
   const [filters, setFilters] = useState(() => loadFiltersFromStorage());
-  const { tab: activeTab, level: activeLevel, progress: activeProgress, rating: activeRating, search: searchQuery, sorting: activeSorting } = filters;
+  const {
+    tab: activeTab,
+    level: activeLevel,
+    progress: activeProgress,
+    rating: activeRating,
+    search: searchQuery,
+    sorting: activeSorting,
+  } = filters;
   const [paidDrawerCourse, setPaidDrawerCourse] = useState<PaidCourseDrawerCourse | null>(null);
 
-  const setActiveTab = (tab: CourseTabType) => setFilters((prev) => ({ ...prev, tab }));
-  const setActiveLevel = (level: TrainingLevelType) => setFilters((prev) => ({ ...prev, level }));
-  const setActiveProgress = (progress: ProgressFilterType) => setFilters((prev) => ({ ...prev, progress }));
-  const setActiveRating = (rating: RatingFilterType) => setFilters((prev) => ({ ...prev, rating }));
-  const setSearchQuery = (search: string) => setFilters((prev) => ({ ...prev, search }));
-  const setActiveSorting = (sorting: SortingType) => setFilters((prev) => ({ ...prev, sorting }));
+  const setActiveTab = (tab: CourseTabType) =>
+    setFilters((prev) => ({ ...prev, tab }));
+  const setActiveLevel = (level: TrainingLevelType) =>
+    setFilters((prev) => ({ ...prev, level }));
+  const setActiveProgress = (progress: ProgressFilterType) =>
+    setFilters((prev) => ({ ...prev, progress }));
+  const setActiveRating = (rating: RatingFilterType) =>
+    setFilters((prev) => ({ ...prev, rating }));
+  const setSearchQuery = (search: string) =>
+    setFilters((prev) => ({ ...prev, search }));
+  const setActiveSorting = (sorting: SortingType) =>
+    setFilters((prev) => ({ ...prev, sorting }));
 
   useEffect(() => {
     try {

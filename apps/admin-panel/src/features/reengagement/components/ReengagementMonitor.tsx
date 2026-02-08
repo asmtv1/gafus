@@ -74,7 +74,7 @@ export default function ReengagementMonitor() {
 
       if (result.success && result.result) {
         setTriggerResult(
-          `✅ Планировщик выполнен успешно!\n` +
+          "✅ Планировщик выполнен успешно!\n" +
             `🆕 Новых кампаний: ${result.result.newCampaigns}\n` +
             `📨 Уведомлений запланировано: ${result.result.scheduledNotifications}\n` +
             `✔️ Кампаний закрыто: ${result.result.closedCampaigns}`,

@@ -18,7 +18,7 @@ export function useSyncProgressOnReconnect(): void {
   useEffect(() => {
     if (prevOffline.current && !isOffline) {
       prevOffline.current = false;
-      let stop = false;
+      const stop = false;
       const run = async () => {
         while (!stop) {
           const result = await processNext();

@@ -88,7 +88,7 @@ function formatErrorForAI(error: ErrorDashboardReport): string {
 
   if (error.tags && error.tags.length > 0) {
     lines.push("");
-    lines.push(`## Теги`);
+    lines.push("## Теги");
     lines.push(error.tags.map((tag) => `- ${tag}`).join("\n"));
   }
 
@@ -247,7 +247,7 @@ function escapeHtml(s: string): string {
 /**
  * Подсвечивает синтаксис JSON (ключи и значения экранируются перед вставкой в HTML)
  */
-function highlightJSON(json: string): React.ReactNode {
+function _highlightJSON(json: string): React.ReactNode {
   const highlighted = json
     .replace(/"([^"]*)":/g, (_, key) => `<span class="json-key">"${escapeHtml(key)}"</span>:`)
     .replace(/: "([^"]*)"/g, (_, val) => `: <span class="json-string">"${escapeHtml(val)}"</span>`)

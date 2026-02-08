@@ -1,6 +1,7 @@
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z, type ZodSchema, type ZodType } from "zod";
+import type { z} from "zod";
+import { type ZodSchema, type ZodType } from "zod";
 
 /**
  * Хук для создания формы с Zod валидацией

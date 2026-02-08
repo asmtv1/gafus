@@ -313,7 +313,7 @@ export default function TrainingDayScreen() {
       if (data.error) {
         // Обрабатываем ZodError
         if (typeof data.error === "object" && data.error !== null) {
-          const err = data.error as { name?: string; message?: string; issues?: Array<{ path: string[]; message: string }> };
+          const err = data.error as { name?: string; message?: string; issues?: { path: string[]; message: string }[] };
           if (err.name === "ZodError") {
             errorMessage = "Ошибка валидации данных";
             if (err.issues && err.issues.length > 0) {

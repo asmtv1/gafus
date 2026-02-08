@@ -58,7 +58,7 @@ export function useCachedTrainingDays(
   const { getCachedTrainingDays, setCachedTrainingDays } = useTrainingStore();
 
   // Сразу проверяем кэш для мгновенного отображения данных
-  const initialCached = getCachedTrainingDays(courseType);
+  const _initialCached = getCachedTrainingDays(courseType);
 
   const fetchData = useCallback(async () => {
     setLoading(true);

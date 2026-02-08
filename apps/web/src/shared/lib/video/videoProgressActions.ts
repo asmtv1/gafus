@@ -3,7 +3,10 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { getProgress, saveProgress } from "@gafus/core/services/video";
+import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
+
+const logger = createWebLogger("videoProgressActions");
 
 // Zod схемы валидации
 const videoIdSchema = z.string().trim().min(1, "videoId обязателен");
@@ -118,10 +121,10 @@ export async function syncVideoProgressFromLocal(payload: {
       (result) => result.status === "fulfilled" && result.value.success
     ).length;
 
-    console.log(`[syncVideoProgressFromLocal] Синхронизировано ${syncedCount} из ${payload.length}`);
+    logger.info("Синхронизировано прогрессов", { syncedCount, total: payload.length });
     return { success: true, syncedCount };
   } catch (error) {
-    console.error("[syncVideoProgressFromLocal] Ошибка при синхронизации:", error);
+    logger.error("Ошибка при синхронизации", error as Error);
     return { success: false, error: "Ошибка при синхронизации прогресса" };
   }
 }

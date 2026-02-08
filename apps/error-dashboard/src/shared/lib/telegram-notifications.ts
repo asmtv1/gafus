@@ -69,7 +69,7 @@ function formatTelegramMessage(error: ErrorNotification, dashboardUrl: string): 
 
   lines.push(`🚨 <b>Новая ошибка в ${error.appName}</b>`);
   lines.push("");
-  lines.push(`📋 <b>Сообщение:</b>`);
+  lines.push("📋 <b>Сообщение:</b>");
   lines.push(`<code>${escapeHtml(truncate(error.message, 200))}</code>`);
   lines.push("");
   lines.push(`🏷 <b>Приложение:</b> ${error.appName}`);
@@ -86,7 +86,7 @@ function formatTelegramMessage(error: ErrorNotification, dashboardUrl: string): 
 
   if (error.stack) {
     lines.push("");
-    lines.push(`📍 <b>Stack (первые 3 строки):</b>`);
+    lines.push("📍 <b>Stack (первые 3 строки):</b>");
     const stackLines = error.stack.split("\n").slice(0, 3).join("\n");
     lines.push(`<pre>${escapeHtml(truncate(stackLines, 300))}</pre>`);
   }

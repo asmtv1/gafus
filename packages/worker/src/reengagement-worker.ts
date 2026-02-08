@@ -3,7 +3,8 @@
  * Обрабатывает задачи из очереди reengagement
  */
 
-import { Worker, Job } from "bullmq";
+import type { Job } from "bullmq";
+import { Worker } from "bullmq";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { PushNotificationService } from "@gafus/webpush";

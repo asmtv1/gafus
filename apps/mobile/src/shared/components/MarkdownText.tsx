@@ -8,17 +8,17 @@ export function MarkdownText({ text }: { text: string }) {
   const elements: React.ReactNode[] = [];
   let currentParagraph: string[] = [];
   let listItems: string[] = [];
-  let inList = false;
+  let _inList = false;
 
   const renderTextWithFormatting = (raw: string, style: object) => {
     const boldPattern = /\*\*(.+?)\*\*/g;
     const italicPattern = /(?<!\*)\*([^*]+?)\*(?!\*)/g;
-    const boldMatches: Array<{ start: number; end: number; text: string }> = [];
+    const boldMatches: { start: number; end: number; text: string }[] = [];
     let m: RegExpExecArray | null;
     while ((m = boldPattern.exec(raw)) !== null) {
       boldMatches.push({ start: m.index, end: m.index + m[0].length, text: m[1] });
     }
-    const italicMatches: Array<{ start: number; end: number; text: string }> = [];
+    const italicMatches: { start: number; end: number; text: string }[] = [];
     while ((m = italicPattern.exec(raw)) !== null) {
       if (!boldMatches.some((b) => m!.index >= b.start && m!.index < b.end)) {
         italicMatches.push({ start: m.index, end: m.index + m[0].length, text: m[1] });

@@ -1,6 +1,7 @@
 "use server";
 
-import { prisma, Prisma } from "@gafus/prisma";
+import type { Prisma } from "@gafus/prisma";
+import { prisma } from "@gafus/prisma";
 import { getLogLevel } from "@shared/lib/utils/errorSource";
 import type { ErrorDashboardReport } from "@gafus/types";
 

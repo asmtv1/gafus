@@ -84,7 +84,7 @@ export function setupGlobalErrorHandling(config?: Partial<GlobalErrorConfig>) {
     if (reason instanceof Error) {
       const meta: LogMeta = {
         operation: "unhandled_promise_rejection",
-        componentStack: `Global (unhandledrejection)`,
+        componentStack: "Global (unhandledrejection)",
         errorBoundaryName: "GlobalPromiseHandler",
         url: window.location.href,
         userAgent: navigator.userAgent,
@@ -99,7 +99,7 @@ export function setupGlobalErrorHandling(config?: Partial<GlobalErrorConfig>) {
       const syntheticError = new Error(`Unhandled rejection: ${reason}`);
       const meta: LogMeta = {
         operation: "unhandled_promise_rejection_non_error",
-        componentStack: `Global (unhandledrejection)`,
+        componentStack: "Global (unhandledrejection)",
         errorBoundaryName: "GlobalPromiseHandler",
         url: window.location.href,
         userAgent: navigator.userAgent,

@@ -1,5 +1,5 @@
 import { prisma } from "@gafus/prisma";
-import { connection, examCleanupQueue } from "@gafus/queues";
+import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { deleteFileFromCDN } from "@gafus/cdn-upload";
 import type { Job } from "bullmq";

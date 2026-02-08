@@ -77,7 +77,7 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
         logger.error(`❌ Не удалось удалить старое изображение курса: ${error}`, error as Error);
       }
     } else {
-      logger.info(`ℹ️ Старое изображение курса не найдено, пропускаем удаление`);
+      logger.info("ℹ️ Старое изображение курса не найдено, пропускаем удаление");
     }
 
     return fileUrl;

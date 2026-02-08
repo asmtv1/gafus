@@ -84,16 +84,16 @@ async function exportQueueMetrics(queueName: string, queue: any): Promise<string
 
     // Форматируем метрики в формате Prometheus
     const metrics = [
-      `# HELP bullmq_job_count Number of jobs in the queue by state`,
-      `# TYPE bullmq_job_count gauge`,
+      "# HELP bullmq_job_count Number of jobs in the queue by state",
+      "# TYPE bullmq_job_count gauge",
       `bullmq_job_count{queue="${queueName}",state="waiting"} ${waiting}`,
       `bullmq_job_count{queue="${queueName}",state="active"} ${active}`,
       `bullmq_job_count{queue="${queueName}",state="completed"} ${completed}`,
       `bullmq_job_count{queue="${queueName}",state="failed"} ${failed}`,
       `bullmq_job_count{queue="${queueName}",state="delayed"} ${delayed}`,
       `bullmq_job_count{queue="${queueName}",state="paused"} ${paused ? 1 : 0}`,
-      `# HELP bullmq_queue_total Total number of jobs in the queue`,
-      `# TYPE bullmq_queue_total gauge`,
+      "# HELP bullmq_queue_total Total number of jobs in the queue",
+      "# TYPE bullmq_queue_total gauge",
       `bullmq_queue_total{queue="${queueName}"} ${waiting + active + failed + delayed}`,
     ].join("\n");
 

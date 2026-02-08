@@ -258,7 +258,7 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
       await deleteFileFromCDN(oldRelativePath);
       logger.info(`Старый аватар удален из CDN: ${oldRelativePath}`);
     } catch (error) {
-      logger.error(`Не удалось удалить старый аватар`, error as Error);
+      logger.error("Не удалось удалить старый аватар", error as Error);
     }
   }
 

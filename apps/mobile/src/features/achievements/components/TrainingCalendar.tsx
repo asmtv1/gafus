@@ -51,13 +51,13 @@ export function TrainingCalendar({
     let startDayOfWeek = firstDay.getDay() - 1;
     if (startDayOfWeek < 0) startDayOfWeek = 6;
 
-    const days: Array<{
+    const days: {
       date: string;
       day: number;
       isCurrentMonth: boolean;
       isTraining: boolean;
       isToday: boolean;
-    }> = [];
+    }[] = [];
 
     // Дни предыдущего месяца
     const prevMonth = new Date(year, monthIndex, 0);

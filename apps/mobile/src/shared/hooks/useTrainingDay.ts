@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { trainingApi, type UserStep } from "@/shared/lib/api";
+import { trainingApi } from "@/shared/lib/api";
 import { useProgressSyncStore, useStepStore } from "@/shared/stores";
 import { getCourseMeta } from "@/shared/lib/offline/offlineStorage";
 import { mapMetaToTrainingDayResponse } from "@/shared/lib/offline/mapOfflineMetaToTraining";

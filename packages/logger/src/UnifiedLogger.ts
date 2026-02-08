@@ -1,4 +1,5 @@
-import pino, { Logger as PinoLogger } from "pino";
+import type { Logger as PinoLogger } from "pino";
+import pino from "pino";
 import type { Logger, LoggerConfig, LogMeta, LogLevel } from "./logger-types.js";
 import { ErrorDashboardTransport } from "./transports/ErrorDashboardTransport.js";
 

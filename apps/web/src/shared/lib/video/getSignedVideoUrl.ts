@@ -4,6 +4,9 @@ import { headers } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { getVideoAccessService } from "@gafus/video-access";
+import { createWebLogger } from "@gafus/logger";
+
+const logger = createWebLogger("getSignedVideoUrl");
 
 /**
  * Генерирует подписанный URL для HLS манифеста
@@ -15,11 +18,11 @@ export async function getSignedVideoUrl(videoId: string): Promise<string | null>
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      console.error("[getSignedVideoUrl] Нет сессии пользователя");
+      logger.error("Нет сессии пользователя");
       return null;
     }
 
-    console.log("[getSignedVideoUrl] Получаем videoAccessService для videoId:", videoId);
+    logger.info("Получаем videoAccessService для videoId", { videoId });
     const videoAccessService = getVideoAccessService();
 
     // Генерируем токен на 2 часа (достаточно для просмотра видео)
@@ -42,10 +45,10 @@ export async function getSignedVideoUrl(videoId: string): Promise<string | null>
       : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     const signedUrl = `${baseUrl}/api/video/${videoId}/manifest?token=${token}`;
-    console.log("[getSignedVideoUrl] Сгенерирован signed URL:", signedUrl);
+    logger.info("Сгенерирован signed URL", { signedUrl });
     return signedUrl;
   } catch (error) {
-    console.error("[getSignedVideoUrl] ОШИБКА при генерации signed URL:", error);
+    logger.error("Ошибка при генерации signed URL", error as Error);
     return null;
   }
 }

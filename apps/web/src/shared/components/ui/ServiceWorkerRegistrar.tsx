@@ -22,10 +22,7 @@ async function getCourseHtmlPageInline(
   pagePath: string,
 ): Promise<string | null> {
   try {
-    console.log("[ServiceWorkerRegistrar] Getting HTML from IndexedDB", {
-      courseType,
-      pagePath,
-    });
+    logger.info("Getting HTML from IndexedDB", { courseType, pagePath });
 
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -44,7 +41,7 @@ async function getCourseHtmlPageInline(
     });
 
     if (!course || !course.htmlPages) {
-      console.warn("[ServiceWorkerRegistrar] Course or HTML pages not found", {
+      logger.warn("Course or HTML pages not found", {
         courseType,
         pagePath,
         hasCourse: !!course,
@@ -58,7 +55,7 @@ async function getCourseHtmlPageInline(
     const dayMatch = pagePath.match(/^\/trainings\/[^/]+\/([^/]+)$/);
     if (dayMatch && course.htmlPages.dayPages) {
       const dayId = dayMatch[1];
-      console.log("[ServiceWorkerRegistrar] Looking for day page HTML", {
+      logger.info("Looking for day page HTML", {
         courseType,
         dayId,
         pagePath,
@@ -67,7 +64,7 @@ async function getCourseHtmlPageInline(
 
       const html = course.htmlPages.dayPages[dayId];
       if (html) {
-        console.log("[ServiceWorkerRegistrar] Day page HTML found", {
+        logger.info("Day page HTML found", {
           courseType,
           dayId,
           pagePath,
@@ -75,7 +72,7 @@ async function getCourseHtmlPageInline(
         });
         return html;
       } else {
-        console.warn("[ServiceWorkerRegistrar] Day page HTML not found", {
+        logger.warn("Day page HTML not found", {
           courseType,
           dayId,
           pagePath,
@@ -88,14 +85,14 @@ async function getCourseHtmlPageInline(
     if (pagePath === `/trainings/${courseType}` || pagePath === `/trainings/${courseType}/`) {
       const html = course.htmlPages.listPage;
       if (html) {
-        console.log("[ServiceWorkerRegistrar] List page HTML found", {
+        logger.info("List page HTML found", {
           courseType,
           pagePath,
           htmlLength: html.length,
         });
         return html;
       } else {
-        console.warn("[ServiceWorkerRegistrar] List page HTML not found", {
+        logger.warn("List page HTML not found", {
           courseType,
           pagePath,
         });
@@ -197,10 +194,6 @@ export default function ServiceWorkerRegistrar() {
           const match = normalizedUrl.match(/^\/trainings\/([^/]+)/);
           if (match) {
             const courseType = match[1];
-            console.log("[ServiceWorkerRegistrar] Requesting HTML from IndexedDB", {
-              courseType,
-              url: normalizedUrl,
-            });
             logger.info("Requesting HTML from IndexedDB for Service Worker", {
               courseType,
               url: normalizedUrl,
@@ -216,21 +209,12 @@ export default function ServiceWorkerRegistrar() {
                 html,
               });
 
-              console.log("[ServiceWorkerRegistrar] HTML sent to Service Worker", {
-                url: normalizedUrl,
-                htmlLength: html.length,
-              });
               logger.info("HTML sent to Service Worker from IndexedDB", {
                 courseType,
                 url: normalizedUrl,
                 htmlLength: html.length,
               });
             } else {
-              console.warn("[ServiceWorkerRegistrar] HTML not found or SW not available", {
-                url: normalizedUrl,
-                hasHtml: !!html,
-                hasController: !!navigator.serviceWorker.controller,
-              });
               logger.warn("HTML not found in IndexedDB or Service Worker not available", {
                 courseType,
                 url: normalizedUrl,
@@ -239,15 +223,11 @@ export default function ServiceWorkerRegistrar() {
               });
             }
           } else {
-            console.warn("[ServiceWorkerRegistrar] Failed to extract courseType from URL", {
-              url: normalizedUrl,
-            });
             logger.warn("Failed to extract courseType from URL", {
               url: normalizedUrl,
             });
           }
         } catch (error) {
-          console.error("[ServiceWorkerRegistrar] Error getting HTML from IndexedDB", error);
           logger.error("Failed to get HTML from IndexedDB for Service Worker", error as Error, {
             url: data.url,
           });

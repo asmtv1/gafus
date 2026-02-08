@@ -60,7 +60,7 @@ export default function StepImageUploader({
     // Проверяем общий размер файлов (максимум 50MB для всех файлов)
     const totalSize = newFiles.reduce((sum, file) => sum + file.size, 0);
     if (totalSize > 50 * 1024 * 1024) {
-      setError(`Общий размер файлов слишком большой. Максимальный размер: 50MB`);
+      setError("Общий размер файлов слишком большой. Максимальный размер: 50MB");
       return;
     }
 

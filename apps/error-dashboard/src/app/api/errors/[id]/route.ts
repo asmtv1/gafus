@@ -1,6 +1,7 @@
 "use server";
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@gafus/prisma";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -70,7 +71,7 @@ function formatErrorForAI(error: {
 
   if (error.tags && error.tags.length > 0) {
     lines.push("");
-    lines.push(`## Теги`);
+    lines.push("## Теги");
     lines.push(error.tags.map((tag) => `- ${tag}`).join("\n"));
   }
 

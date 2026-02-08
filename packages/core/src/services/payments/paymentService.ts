@@ -106,7 +106,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
     amount: { value: amountRub.toFixed(2), currency: "RUB" },
     capture: true, // списание сразу при оплате, без ручного подтверждения в ЛК
     confirmation: { type: "redirect" as const, return_url: returnUrl },
-    description: `Оплата курса`,
+    description: "Оплата курса",
   };
 
   const auth = Buffer.from(`${shopId}:${secretKey}`).toString("base64");

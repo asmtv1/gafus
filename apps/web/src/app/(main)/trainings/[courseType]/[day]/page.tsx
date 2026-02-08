@@ -27,9 +27,10 @@ export default async function DayPage(props: {
   }
 
   // Создаем UserTraining при необходимости (только в компоненте страницы)
-  const { training, requiresPersonalization } = await getTrainingDayWithUserSteps(courseType, dayId, {
-    createIfMissing: true,
-  });
+  const { training, requiresPersonalization } =
+    await getTrainingDayWithUserSteps(courseType, dayId, {
+      createIfMissing: true,
+    });
 
   if (requiresPersonalization) {
     redirect(`/trainings/${courseType}?personalize=1`);

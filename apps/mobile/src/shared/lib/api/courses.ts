@@ -19,7 +19,7 @@ export interface Course {
   startedAt: Date | string | null;
   completedAt: Date | string | null;
   isFavorite: boolean;
-  reviews?: Array<{
+  reviews?: {
     rating: number | null;
     comment: string;
     createdAt: Date | string;
@@ -29,7 +29,7 @@ export interface Course {
         avatarUrl: string | null;
       } | null;
     };
-  }>;
+  }[];
 }
 
 // API возвращает массив курсов напрямую, а не объект с полем courses
@@ -74,7 +74,7 @@ export const coursesApi = {
    */
   getAll: async (filters?: CourseFilters): Promise<ApiResponse<CoursesResponse>> => {
     // API не поддерживает фильтры через query params, фильтрация делается на клиенте
-    const endpoint = `/api/v1/courses`;
+    const endpoint = "/api/v1/courses";
 
     return apiClient<CoursesResponse>(endpoint);
   },
@@ -132,7 +132,7 @@ export const coursesApi = {
     rating: number,
     comment: string,
   ): Promise<ApiResponse<CourseReview>> => {
-    return apiClient<CourseReview>(`/api/v1/courses/reviews`, {
+    return apiClient<CourseReview>("/api/v1/courses/reviews", {
       method: "POST",
       body: { courseType, rating, comment },
     });
@@ -146,7 +146,7 @@ export const coursesApi = {
     rating: number,
     comment: string,
   ): Promise<ApiResponse<void>> => {
-    return apiClient<void>(`/api/v1/courses/reviews`, {
+    return apiClient<void>("/api/v1/courses/reviews", {
       method: "PATCH",
       body: { reviewId, rating, comment },
     });
@@ -156,7 +156,7 @@ export const coursesApi = {
    * Удаление отзыва
    */
   deleteReview: async (reviewId: string): Promise<ApiResponse<void>> => {
-    return apiClient<void>(`/api/v1/courses/reviews`, {
+    return apiClient<void>("/api/v1/courses/reviews", {
       method: "DELETE",
       body: { reviewId },
     });

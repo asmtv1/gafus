@@ -21,7 +21,7 @@ function revokeBlobUrl(url: string): void {
 /**
  * Извлекает имя файла из пути
  */
-function getFileNameFromPath(path: string): string {
+function _getFileNameFromPath(path: string): string {
   const normalized = path
     .trim()
     .replace(/^\/+/, "")

@@ -57,7 +57,7 @@ const nextConfig: NextConfig = {
     // При необходимости можно отключить этот трюк, удалив плагин.
     // Он не влияет на прод, т.к. prod собирается в standalone.
     // Аналогичный трюк используется в @gafus/web.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (config.plugins = config.plugins || []).push({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       apply: (compiler: any) => {

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from "react-native";
-import { Text, Surface, Button } from "react-native-paper";
+import { Text, Button } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";

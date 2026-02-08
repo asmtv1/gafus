@@ -91,7 +91,7 @@ function formatErrorForAI(error: ErrorDashboardReport): string {
 
   if (error.tags && error.tags.length > 0) {
     lines.push("");
-    lines.push(`## Теги`);
+    lines.push("## Теги");
     lines.push(error.tags.map((tag) => `- ${tag}`).join("\n"));
   }
 

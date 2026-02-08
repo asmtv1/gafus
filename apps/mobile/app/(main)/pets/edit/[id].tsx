@@ -4,7 +4,6 @@ import { Text, Surface, IconButton } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { Button, Input } from "@/shared/components/ui";
 import { petsApi, type CreatePetData } from "@/shared/lib/api";
