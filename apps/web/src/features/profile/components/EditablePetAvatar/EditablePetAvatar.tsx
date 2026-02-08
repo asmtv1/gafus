@@ -4,6 +4,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import { updatePetAvatar } from "@shared/lib/pets/updatePetAvatar";
 import { createWebLogger } from "@gafus/logger";
 import imageCompression from "browser-image-compression";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useRef, useState, useEffect } from "react";
 
@@ -20,6 +21,7 @@ export default function EditablePetAvatar({
   avatarUrl: string | null;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   const { data: session } = useSession();
 
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(avatarUrl);
@@ -55,6 +57,7 @@ export default function EditablePetAvatar({
       const newUrl = await updatePetAvatar(uniqueFile, petId);
       setCurrentAvatarUrl(newUrl);
       setCacheBuster(Date.now().toString());
+      router.refresh();
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error("Unknown error");
       logger.error("Ошибка при сохранении avatar питомца", errorObj, {

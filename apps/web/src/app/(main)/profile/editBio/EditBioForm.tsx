@@ -1,6 +1,7 @@
 "use client";
 
 import { FormField } from "@shared/components/ui/FormField";
+import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { userProfileFormSchema } from "@shared/lib/validation/authSchemas";
 import { useUserStore } from "@shared/stores";
@@ -26,7 +27,7 @@ function mapProfileToForm(profile: UserProfile): Omit<BioFormData, "userId"> {
 }
 
 export default function EditBioForm() {
-  const [caughtError, setCaughtError] = useState<Error | null>(null);
+  const [catchError] = useCaughtError();
   const [isHydrated, setIsHydrated] = useState(false);
 
   const { form, handleSubmit, reset } = useZodForm(userProfileFormSchema);
@@ -56,8 +57,6 @@ export default function EditBioForm() {
   // Получаем session только после гидратации
   const { data: session } = useSession();
   const username = isHydrated ? session?.user?.username : undefined;
-
-  if (caughtError) throw caughtError;
 
   // Показываем загрузку до завершения гидратации
   if (!isHydrated) {
@@ -108,7 +107,7 @@ export default function EditBioForm() {
       const redirectUrl = username ? `/profile?username=${username}` : "/courses";
       router.push(redirectUrl);
     } catch (error) {
-      setCaughtError(error as Error);
+      catchError(error);
     }
   };
 

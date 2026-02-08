@@ -10,7 +10,6 @@ import { checkCourseAccessById } from "@gafus/core/services/course";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
 import type { Metadata } from "next";
-import type { TrainingDetail } from "@gafus/types";
 
 export default async function DayPage(props: {
   params: Promise<{ courseType: string; day: string }>;

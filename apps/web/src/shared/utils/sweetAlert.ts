@@ -252,7 +252,7 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
       <div style="text-align: left; margin: 20px 0;">
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Имя питомца *</label>
-          <input id="pet-name" type="text" value="${pet.name || ""}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите имя питомца">
+          <input id="pet-name" type="text" value="${escapeHtml(String(pet.name ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите имя питомца">
         </div>
         
         <div style="margin-bottom: 15px;">
@@ -265,27 +265,27 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
         
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Порода</label>
-          <input id="pet-breed" type="text" value="${pet.breed || ""}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите породу">
+          <input id="pet-breed" type="text" value="${escapeHtml(String(pet.breed ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите породу">
         </div>
         
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Дата рождения *</label>
-          <input id="pet-birthDate" type="date" value="${pet.birthDate || ""}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;">
+          <input id="pet-birthDate" type="date" value="${escapeHtml(String(pet.birthDate ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;">
         </div>
         
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Рост (см)</label>
-          <input id="pet-heightCm" type="number" value="${pet.heightCm || ""}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите рост">
+          <input id="pet-heightCm" type="number" value="${escapeHtml(String(pet.heightCm ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите рост">
         </div>
         
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Вес (кг)</label>
-          <input id="pet-weightKg" type="number" value="${pet.weightKg || ""}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите вес">
+          <input id="pet-weightKg" type="number" value="${escapeHtml(String(pet.weightKg ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите вес">
         </div>
         
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Заметки</label>
-          <textarea id="pet-notes" rows="3" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px; resize: vertical;" placeholder="Дополнительная информация о питомце">${pet.notes || ""}</textarea>
+          <textarea id="pet-notes" rows="3" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px; resize: vertical;" placeholder="Дополнительная информация о питомце">${escapeHtml(String(pet.notes ?? ""))}</textarea>
         </div>
       </div>
     `,

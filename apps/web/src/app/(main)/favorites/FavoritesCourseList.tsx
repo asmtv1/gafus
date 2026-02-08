@@ -29,7 +29,6 @@ export default function FavoritesCourseList({
     errors,
     fetchFavorites,
     forceRefreshFavorites,
-    favoriteCourseIds,
     setFavorites,
   } = useCourseStoreActions();
   const { favoriteIds, loadFromServer, initialized } = useFavoritesStore();
@@ -75,6 +74,8 @@ export default function FavoritesCourseList({
     userId,
     setFavorites,
     fetchFavorites,
+    initialized,
+    loadFromServer,
   ]);
 
   // Обновляем данные при фокусе на вкладке

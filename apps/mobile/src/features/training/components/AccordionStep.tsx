@@ -7,7 +7,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import { getStepDisplayStatus } from "@gafus/core/utils/training";
 import { Button, MarkdownText, VideoPlayer } from "@/shared/components";
-import type { UserStep } from "@/shared/lib/api";
+import type { UserStep, StepContent } from "@/shared/lib/api";
 import { TestQuestionsBlock, type ChecklistQuestion } from "./TestQuestionsBlock";
 import { VideoReportBlock } from "./VideoReportBlock";
 import { WrittenFeedbackBlock } from "./WrittenFeedbackBlock";
@@ -31,7 +31,8 @@ function isExternalVideoUrl(url: string): boolean {
 }
 
 interface AccordionStepProps {
-  step: UserStep;
+  /** Шаг с вложенным step (API) или плоский контент шага (офлайн). */
+  step: UserStep | StepContent;
   /** Индекс шага для API/store (stepIndex). */
   index: number;
   /** Номер для отображения в UI: 1, 2, 3… в рамках текущего дня. */
@@ -77,15 +78,15 @@ function AccordionStepComponent({
     });
   }
 
-  // Поддержка обеих структур данных: с вложенным step.step и без него
-  let stepData;
+  // Поддержка обеих структур: с вложенным step.step (UserStep) и плоского шага (офлайн)
+  let stepData: StepContent;
   try {
-    stepData = "step" in step && step.step ? step.step : step;
+    stepData = ("step" in step && step.step ? step.step : step) as StepContent;
   } catch (error) {
     if (__DEV__) {
       console.error("[AccordionStep] Ошибка при извлечении stepData:", error);
     }
-    stepData = step;
+    stepData = step as StepContent;
   }
 
   const { activeTimer, startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor } = useTimerStore(
@@ -99,12 +100,15 @@ function AccordionStepComponent({
     })),
   );
 
-  const status = getStepDisplayStatus(localState, step);
+  const status = getStepDisplayStatus(
+    localState,
+    "status" in step ? step : undefined,
+  );
   const isCompleted = status === "COMPLETED";
   const isInProgress = status === "IN_PROGRESS";
   const isPaused = status === "PAUSED";
   const isReset = status === "RESET";
-  const stepType = stepData?.type || step?.type;
+  const stepType = stepData?.type ?? "";
   const isTheory = stepType === "THEORY";
   const isPractice = stepType === "PRACTICE";
   const isBreak = stepType === "BREAK";
@@ -113,8 +117,7 @@ function AccordionStepComponent({
   const showTimer =
     stepType === "TRAINING" || isBreak || (!isTheory && !isPractice && !isExamination);
 
-  // Получаем videoUrl для хука (должен быть на верхнем уровне)
-  const videoUrl = stepData?.videoUrl || step?.videoUrl;
+  const videoUrl = stepData?.videoUrl ?? null;
   const [videoRetryKey, setVideoRetryKey] = useState(0);
   const lastPlaybackUrlRef = useRef<string | null>(null);
 
@@ -324,7 +327,7 @@ function AccordionStepComponent({
 
           <View style={styles.headerContent}>
             <Text variant="titleSmall" numberOfLines={2} style={styles.title}>
-              {isBreak ? stepData?.title || step?.title : `«${stepData?.title || step?.title || "Шаг"}»`}
+              {isBreak ? stepData?.title : `«${stepData?.title ?? "Шаг"}»`}
             </Text>
             <View style={styles.meta}>
               <MaterialCommunityIcons name={getTypeIcon()} size={14} color={COLORS.textSecondary} />
@@ -339,7 +342,7 @@ function AccordionStepComponent({
               </Text>
               {(() => {
                 try {
-                  const duration = stepData?.durationSec || step?.durationSec;
+                  const duration = stepData?.durationSec;
                   if (!duration || duration === 0) {
                     return null;
                   }
@@ -524,7 +527,7 @@ function AccordionStepComponent({
               {showTimer &&
                 (() => {
                   try {
-                    const duration = stepData?.durationSec || step?.durationSec || 0;
+                    const duration = stepData?.durationSec ?? 0;
                     // Используем время из активного таймера, если он запущен, иначе из localState
                     const currentTimer = useTimerStoreDirect.getState().activeTimer;
                     const timeLeft =

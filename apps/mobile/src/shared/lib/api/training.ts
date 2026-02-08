@@ -23,6 +23,20 @@ export interface TrainingDaysResponse {
   courseTrainingLevel: string;
 }
 
+/** Данные шага из курса (вложенный объект в UserStep или плоский шаг из офлайна). */
+export type StepContent = {
+  id: string;
+  title: string;
+  description: string;
+  /** THEORY | PRACTICE | EXAM из API; на офлайне также TRAINING, BREAK, EXAMINATION. */
+  type: string;
+  durationSec: number | null;
+  videoUrl: string | null;
+  pdfUrl: string | null;
+  order: number;
+  estimatedDurationSec?: number | null;
+};
+
 export interface UserStep {
   id: string;
   stepId: string;
@@ -30,17 +44,13 @@ export interface UserStep {
   status: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" | "COMPLETED" | "RESET";
   remainingSec: number | null;
   completedAt: string | null;
-  // Данные шага из курса
-  step: {
-    id: string;
-    title: string;
-    description: string;
-    type: "THEORY" | "PRACTICE" | "EXAM";
-    durationSec: number | null;
-    videoUrl: string | null;
-    pdfUrl: string | null;
-    order: number;
-  };
+  step: StepContent;
+}
+
+/** Возвращает контент шага (вложенный step или сам шаг, если он плоский). */
+export function getStepContent(step: UserStep | StepContent): StepContent {
+  if ("step" in step && step.step) return step.step;
+  return step as StepContent;
 }
 
 export interface TrainingDayResponse {

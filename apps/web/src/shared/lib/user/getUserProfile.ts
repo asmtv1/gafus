@@ -1,42 +1,23 @@
 // lib/user/getUserProfile.ts
 "use server";
-import { prisma } from "@gafus/prisma";
+
 import { createWebLogger } from "@gafus/logger";
 import { getCurrentUserId as getCurrentUserIdFromAuth } from "@gafus/auth/server";
+import { getUserProfile as getUserProfileCore } from "@gafus/core/services/user";
 
-// Создаем логгер для getUserProfile
 const logger = createWebLogger("web-get-user-profile");
 
 export async function getUserProfile() {
-  let userId: string | null = null;
   try {
-    // Используем auth напрямую - возвращает null для неавторизованных без выброса ошибки
-    userId = await getCurrentUserIdFromAuth();
+    const userId = await getCurrentUserIdFromAuth();
     if (!userId) {
       return null;
     }
-
-    const profile = await prisma.userProfile.findUnique({
-      where: { userId },
-    });
-    return profile;
+    return await getUserProfileCore(userId);
   } catch (error) {
     logger.error("Ошибка в getUserProfile", error as Error, {
       operation: "get_user_profile_error",
-      hasUserId: !!userId,
     });
-
-    logger.error(
-      error instanceof Error ? error.message : "Unknown error in getUserProfile",
-      error instanceof Error ? error : new Error(String(error)),
-      {
-        operation: "getUserProfile",
-        action: "getUserProfile",
-        errorType: error instanceof Error ? error.constructor.name : typeof error,
-        tags: ["user", "profile", "server-action"],
-      },
-    );
-
     return null;
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormField, TextField } from "@shared/components/ui/FormField";
+import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import {
   checkPhoneMatchesUsernameAction,
@@ -26,15 +27,11 @@ export function PasswordResetForm() {
     phone: "",
   });
 
+  const [catchError] = useCaughtError();
   const [isPending, setIsPending] = useState(false);
   const [status, setStatus] = useState("");
-  const [caughtError, setCaughtError] = useState<Error | null>(null);
 
   // Валидация телефона теперь обрабатывается Zod схемой
-
-  if (caughtError) {
-    throw caughtError;
-  }
 
   const onSubmit = async (data: PasswordResetFormSchema) => {
     const phoneNumberObj = parsePhoneNumberFromString(data.phone, "RU");
@@ -60,7 +57,7 @@ export function PasswordResetForm() {
       await sendPasswordResetRequestAction(data.username, data.phone);
       setStatus("Если данные верны, вам придёт сообщение в Telegram");
     } catch (error) {
-      setCaughtError(error as Error);
+      catchError(error);
     } finally {
       setIsPending(false);
     }

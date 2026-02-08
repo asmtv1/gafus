@@ -17,6 +17,11 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif
 const AVATAR_MAX_SIZE_MB = 5;
 const PET_PHOTO_MAX_SIZE_MB = 2;
 
+const WEB_BASE_URL = "https://gafus.ru";
+const PRIVACY_POLICY_URL = `${WEB_BASE_URL}/privacy`;
+const SUPPORT_URL = `${WEB_BASE_URL}/support`;
+const PASSWORD_RESET_URL = `${WEB_BASE_URL}/reset-password`;
+
 // Функция для получения инициалов
 const getInitials = (name: string): string => {
   const parts = name.trim().split(" ");
@@ -351,9 +356,11 @@ export default function ProfileScreen() {
           <View style={styles.profileInfo}>
             <Text style={styles.greeting}>Привет, {profile?.fullName || user?.username}!</Text>
             <Text style={styles.contactInfo}>
-              {user?.phone || profile?.telegram
-                ? `@${profile?.telegram || ""}`
-                : "Контакты не указаны"}
+              {user?.phone
+                ? user.phone
+                : profile?.telegram
+                  ? `@${profile.telegram}`
+                  : "Контакты не указаны"}
             </Text>
             {displayRole && (
               <View style={[styles.roleBadge, { backgroundColor: roleColor }]}>
@@ -544,9 +551,7 @@ export default function ProfileScreen() {
         {/* Кнопка смены пароля */}
         <Pressable
           style={styles.passwordButton}
-          onPress={() => {
-            // TODO: Навигация на смену пароля
-          }}
+          onPress={() => Linking.openURL(PASSWORD_RESET_URL)}
         >
           <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
         </Pressable>
@@ -572,9 +577,7 @@ export default function ProfileScreen() {
 
           <Pressable
             style={styles.infoItem}
-            onPress={() => {
-              // TODO: Открыть URL политики
-            }}
+            onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
           >
             <Text style={styles.infoIcon}>🔒</Text>
             <View style={styles.infoContent}>
@@ -587,9 +590,7 @@ export default function ProfileScreen() {
 
           <Pressable
             style={styles.infoItem}
-            onPress={() => {
-              // TODO: Открыть email или чат поддержки
-            }}
+            onPress={() => Linking.openURL(SUPPORT_URL)}
           >
             <Text style={styles.infoIcon}>💬</Text>
             <View style={styles.infoContent}>

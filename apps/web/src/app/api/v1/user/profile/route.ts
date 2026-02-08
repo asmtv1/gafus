@@ -10,6 +10,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { getUserProfile, updateUserProfile } from "@gafus/core/services/user";
+import {
+  normalizeTelegramInput,
+  normalizeInstagramInput,
+  normalizeWebsiteUrl,
+} from "@gafus/core/utils/social";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
@@ -39,12 +44,66 @@ export async function GET() {
 
 // PATCH - Обновить профиль
 const updateSchema = z.object({
-  fullName: z.string().optional(),
-  about: z.string().optional(),
-  telegram: z.string().optional(),
-  instagram: z.string().optional(),
-  website: z.string().optional(),
-  birthDate: z.string().optional(),
+  fullName: z.string().trim().max(120).optional(),
+  about: z.string().trim().max(2000).optional(),
+  telegram: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((val) => {
+      if (!val) return "";
+      try {
+        return normalizeTelegramInput(val);
+      } catch (error) {
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["telegram"],
+            message: error instanceof Error ? error.message : "Некорректный Telegram username",
+          },
+        ]);
+      }
+    }),
+  instagram: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((val) => {
+      if (!val) return "";
+      try {
+        return normalizeInstagramInput(val);
+      } catch (error) {
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["instagram"],
+            message: error instanceof Error ? error.message : "Некорректный Instagram username",
+          },
+        ]);
+      }
+    }),
+  website: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .transform((val) => {
+      if (!val) return "";
+      try {
+        return normalizeWebsiteUrl(val);
+      } catch (error) {
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["website"],
+            message: error instanceof Error ? error.message : "Некорректный URL",
+          },
+        ]);
+      }
+    }),
+  birthDate: z.string().trim().max(100).optional(),
 });
 
 export const PATCH = withCSRFProtection(async (request: NextRequest) => {

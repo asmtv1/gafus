@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
+import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { registerUserAction } from "@shared/server-actions";
 import { registerFormSchema } from "@shared/lib/validation/authSchemas";
@@ -32,14 +33,10 @@ export function RegisterForm() {
     acceptOffer: false,
   });
 
+  const [catchError] = useCaughtError();
   const [isPending, setIsPending] = useState(false);
-  const [caughtError, setCaughtError] = useState<Error | null>(null);
 
   // Валидация телефона теперь обрабатывается Zod схемой
-
-  if (caughtError) {
-    throw caughtError;
-  }
 
   const onSubmit = async (data: RegisterFormSchema) => {
     const phoneNumber = parsePhoneNumberFromString(data.phone, "RU");
@@ -69,7 +66,7 @@ export function RegisterForm() {
         router.push(`/confirm?phone=${encodeURIComponent(formattedPhone)}`);
       }
     } catch (error) {
-      setCaughtError(error as Error);
+      catchError(error);
     }
   };
 

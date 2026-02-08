@@ -2,16 +2,17 @@
 
 import { serverCheckUserConfirmedAction } from "@shared/server-actions";
 import { createWebLogger } from "@gafus/logger";
+import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useTransition } from "react";
 
 // Создаем логгер для ConfirmClient
 const logger = createWebLogger("web-confirm-client");
 
 export default function ConfirmClient() {
+  const [catchError] = useCaughtError();
   const searchParams = useSearchParams();
   const phone = searchParams.get("phone");
-  const [caughtError, setCaughtError] = useState<Error | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -31,17 +32,13 @@ export default function ConfirmClient() {
             operation: "confirm_phone_check_error",
             phone: phone,
           });
-          setCaughtError(error as Error);
+          catchError(error);
         }
       });
     }, 2000);
 
     return () => clearInterval(interval);
   }, [phone]);
-
-  if (caughtError) {
-    throw caughtError;
-  }
 
   return <div>{isPending && <p>Проверяем подтверждение...</p>}</div>;
 }

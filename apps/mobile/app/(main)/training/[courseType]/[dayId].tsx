@@ -20,6 +20,7 @@ import {
 } from "@/shared/hooks";
 import { useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
 import { COLORS, FONTS, SPACING } from "@/constants";
+import { getStepContent } from "@/shared/lib/api";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
 
 /**
@@ -90,10 +91,9 @@ export default function TrainingDayScreen() {
       try {
         let initializedCount = 0;
         dayData.steps.forEach((step, index) => {
-          // API использует 0-based индекс массива (stepLinks[index])
-          const stepData = "step" in step && step.step ? step.step : step;
+          const stepData = getStepContent(step);
           const durationSec = stepData.durationSec ?? 300;
-          const status = step.status || "NOT_STARTED";
+          const status = "status" in step ? step.status : "NOT_STARTED";
 
           if (__DEV__ && index < 3) {
             console.log(`[TrainingDayScreen] Инициализация шага ${index}:`, {
@@ -107,7 +107,7 @@ export default function TrainingDayScreen() {
 
           initializeStep(courseId, dayId, index, durationSec, status, {
             serverPaused: status === "PAUSED",
-            serverRemainingSec: step.remainingSec ?? step.remainingSecOnServer ?? undefined,
+            serverRemainingSec: "remainingSec" in step ? step.remainingSec ?? undefined : undefined,
           });
           initializedCount++;
         });
@@ -313,16 +313,16 @@ export default function TrainingDayScreen() {
       if (data.error) {
         // Обрабатываем ZodError
         if (typeof data.error === "object" && data.error !== null) {
-          if ("name" in data.error && data.error.name === "ZodError") {
+          const err = data.error as { name?: string; message?: string; issues?: Array<{ path: string[]; message: string }> };
+          if (err.name === "ZodError") {
             errorMessage = "Ошибка валидации данных";
-            const zodError = data.error as { issues?: Array<{ path: string[]; message: string }> };
-            if (zodError.issues && zodError.issues.length > 0) {
-              errorDetails = zodError.issues
+            if (err.issues && err.issues.length > 0) {
+              errorDetails = err.issues
                 .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
                 .join("\n");
             }
-          } else if ("message" in data.error) {
-            errorMessage = String(data.error.message);
+          } else if (err.message) {
+            errorMessage = String(err.message);
           } else {
             errorMessage = "Ошибка сервера";
             errorDetails = JSON.stringify(data.error, null, 2);
@@ -476,14 +476,15 @@ export default function TrainingDayScreen() {
               let exerciseCounter = 0;
               return (dayData?.steps ?? []).map((step, index) => {
                 try {
-                  const stepData = "step" in step && step.step ? step.step : step;
+                  const stepData = getStepContent(step);
                   const durationSec = stepData.durationSec ?? 300;
-                  const stepType = stepData.type || step.type;
-                  const stepTitle = stepData.title || step.title;
+                  const stepType = stepData.type ?? "";
+                  const stepTitle = stepData.title ?? "";
                   const isBreakStep = stepType === "BREAK";
                   const exerciseNumber = isBreakStep ? undefined : ++exerciseCounter;
 
-                  const uniqueKey = `${dayId}-${step.order ?? index}-${step.id || index}`;
+                  const stepId = "id" in step ? step.id : stepData.id;
+                  const uniqueKey = `${dayId}-${stepData.order ?? index}-${stepId}-${index}`;
 
                   if (__DEV__) {
                     console.log("[TrainingDayScreen] Рендеринг шага:", {

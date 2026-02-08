@@ -17,6 +17,8 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
   const profile = publicData.profile;
   const diplomas = publicData.diplomas;
   const pets = publicData.pets;
+  const safeWebsite =
+    profile?.website?.startsWith("http") ? profile.website : null;
 
   const displayRole =
     publicData.role && publicData.role !== "USER"
@@ -89,7 +91,7 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
         {profile?.about && <p>О себе: {profile.about}</p>}
 
         {/* Социальные сети */}
-        {(profile?.instagram || profile?.telegram || profile?.website) && (
+        {(profile?.instagram || profile?.telegram || safeWebsite) && (
           <div className={styles.socialLinksContainer}>
             <h3 className={styles.socialLinksTitle}>Контакты</h3>
             <div className={styles.socialLinksList}>
@@ -119,17 +121,17 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
                   <span className={styles.socialUsername}>{profile.telegram}</span>
                 </a>
               )}
-              {profile?.website && (
+              {safeWebsite && (
                 <a
-                  href={profile.website}
+                  href={safeWebsite}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  aria-label={`Открыть сайт ${profile.website} в новой вкладке`}
+                  aria-label={`Открыть сайт ${safeWebsite} в новой вкладке`}
                   className={`${styles.socialLink} ${styles.socialLinkWebsite}`}
                 >
                   <WebsiteIcon className={styles.socialIcon} />
                   <span className={styles.socialLabel}>Сайт</span>
-                  <span className={styles.socialUsername}>{profile.website}</span>
+                  <span className={styles.socialUsername}>{safeWebsite}</span>
                 </a>
               )}
             </div>
@@ -161,7 +163,7 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
       )}
       {diplomas.length > 0 && (
         <div className={styles.diplomasSection}>
-          <h2>Diplomas</h2>
+          <h2>Дипломы</h2>
           <ul>
             {diplomas.map((diplom) => (
               <li key={diplom.id}>

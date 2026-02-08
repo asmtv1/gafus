@@ -3,6 +3,7 @@
 import { useCSRFStore } from "@gafus/csrf";
 import { FormField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
+import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { loginFormSchema } from "@shared/lib/validation/authSchemas";
 import { checkUserStateAction } from "@shared/server-actions";
@@ -10,14 +11,13 @@ import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import styles from "./login.module.css";
 
 import type { LoginFormSchema } from "@shared/lib/validation/authSchemas";
 
 export default function LoginForm() {
-  const [caughtError, setCaughtError] = useState<Error | null>(null);
+  const [catchError] = useCaughtError();
   const { token: csrfToken, loading: csrfLoading, error: csrfError } = useCSRFStore();
   const {
     form,
@@ -28,10 +28,6 @@ export default function LoginForm() {
     password: "",
   });
   const router = useRouter();
-
-  if (caughtError) {
-    throw caughtError;
-  }
 
   const onSubmit = async (data: LoginFormSchema) => {
     if (csrfLoading || !csrfToken) {
@@ -67,7 +63,7 @@ export default function LoginForm() {
       // чтобы избежать смены хоста (например, на localhost:3002)
       router.replace("/courses");
     } catch (error) {
-      setCaughtError(error as Error);
+      catchError(error);
     }
   };
 

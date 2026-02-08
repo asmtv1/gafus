@@ -16,7 +16,7 @@ import { isOnline } from "@shared/utils/offlineCacheUtils";
 const logger = createWebLogger("web-use-cached-training-days");
 
 export interface TrainingDaysData {
-  trainingDays: Array<{
+  trainingDays: {
     trainingDayId: string;
     dayOnCourseId: string;
     title: string;
@@ -27,7 +27,7 @@ export interface TrainingDaysData {
     theoryMinutes?: number;
     equipment?: string;
     isLocked?: boolean;
-  }>;
+  }[];
   courseDescription: string | null;
   courseId: string | null;
   courseVideoUrl: string | null;

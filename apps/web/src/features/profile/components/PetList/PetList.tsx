@@ -5,24 +5,18 @@ import { useTransition } from "react";
 import { useSession } from "next-auth/react";
 
 import { createWebLogger } from "@gafus/logger";
-import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import { deletePet } from "@shared/lib/pets/deletePet";
 import { savePet } from "@shared/lib/pets/savePet";
 import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
 import { showEditPetAlert, showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
 
-import EditablePetAvatar from "../EditablePetAvatar";
+import PetCard from "./PetCard";
 import styles from "./PetList.module.css";
 
 import type { PublicProfile, PetFormData } from "@gafus/types";
 
 type PetFromPublicProfile = PublicProfile["pets"][0];
-
-import { getAgeWithMonths, declOfNum } from "@gafus/core/utils";
-import { Avatar, IconButton } from "@shared/utils/muiImports";
-import { getPetTypeLabel } from "@gafus/core/utils";
 
 // Создаем логгер для pet-list
 const logger = createWebLogger("web-pet-list");
@@ -146,90 +140,6 @@ export default function PetList({
     }
   };
 
-  const PetCard = ({ pet }: { pet: PetFromPublicProfile }) => (
-    <li className={styles.dog_item} key={pet.id}>
-      {isOwner ? (
-        <div className={styles.avatar_container}>
-          <EditablePetAvatar avatarUrl={pet.photoUrl} petId={pet.id} />
-        </div>
-      ) : (
-        <div className={styles.avatar_container}>
-          <Avatar
-            alt={`${pet.name} фото питомца`}
-            src={pet.photoUrl || "/uploads/pet-avatar.jpg"}
-          />
-        </div>
-      )}
-
-      <div className={styles.dog_info}>
-        <h3>
-          {pet.name} ({getPetTypeLabel(pet.type)})
-        </h3>
-        <p>Порода: {pet.breed}</p>
-
-        {pet.birthDate &&
-          (() => {
-            const age = getAgeWithMonths(
-              pet.birthDate instanceof Date ? pet.birthDate.toISOString() : pet.birthDate,
-            );
-
-            // Показываем только месяцы и годы
-            if (age.years === 0) {
-              // Только месяцы
-              return (
-                <p>
-                  Возраст: {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-                </p>
-              );
-            } else {
-              // Годы и месяцы
-              return (
-                <p>
-                  Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
-                  {age.months > 0 && (
-                    <>
-                      {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-                    </>
-                  )}
-                </p>
-              );
-            }
-          })()}
-        {pet.heightCm && <p>Рост: {pet.heightCm} см</p>}
-        {pet.weightKg && <p>Вес: {pet.weightKg} кг</p>}
-        {pet.notes && <p>Заметки: {pet.notes}</p>}
-      </div>
-      {isOwner ? (
-        <div className={styles.dog_actions}>
-          <IconButton
-            onClick={() => handleEditClick(pet)}
-            size="small"
-            aria-label="Редактировать питомца"
-          >
-            <EditRoundedIcon />
-          </IconButton>
-          <IconButton
-            onClick={() =>
-              handleDelete(
-                pet.id,
-                pet.name,
-                router,
-                startTransition,
-                isPending,
-                invalidateProfileCache,
-              )
-            }
-            size="small"
-            aria-label="Удалить питомца"
-            disabled={isPending}
-          >
-            <DeleteRoundedIcon />
-          </IconButton>
-        </div>
-      ) : null}
-    </li>
-  );
-
   return (
     <div className={styles.container}>
       <h2>Питомцы</h2>
@@ -238,7 +148,16 @@ export default function PetList({
       ) : (
         <ul className={styles.dog_list}>
           {pets.map((pet) => (
-            <PetCard key={pet.id} pet={pet} />
+            <PetCard
+              key={pet.id}
+              pet={pet}
+              isOwner={isOwner}
+              onEdit={handleEditClick}
+              onDelete={(id, name) =>
+                handleDelete(id, name, router, startTransition, isPending, invalidateProfileCache)
+              }
+              isPending={isPending}
+            />
           ))}
         </ul>
       )}

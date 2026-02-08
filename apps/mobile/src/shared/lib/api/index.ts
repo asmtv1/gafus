@@ -15,7 +15,9 @@ export {
   type CourseReviewsResponse,
 } from "./courses";
 export {
+  getStepContent,
   trainingApi,
+  type StepContent,
   type TrainingDay,
   type TrainingDaysResponse,
   type UserStep,

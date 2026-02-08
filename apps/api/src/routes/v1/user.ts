@@ -7,7 +7,12 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
 import { prisma } from "@gafus/prisma";
-import { getPublicProfile, updateAvatar } from "@gafus/core/services/user";
+import { getPublicProfile, updateAvatar, updateUserProfile } from "@gafus/core/services/user";
+import {
+  normalizeTelegramInput,
+  normalizeInstagramInput,
+  normalizeWebsiteUrl,
+} from "@gafus/core/utils/social";
 import { createWebLogger } from "@gafus/logger";
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
@@ -46,12 +51,66 @@ userRoutes.get("/profile/public", async (c) => {
 
 // Schemas
 const updateProfileSchema = z.object({
-  fullName: z.string().optional(),
-  about: z.string().optional(),
-  telegram: z.string().optional(),
-  instagram: z.string().optional(),
-  website: z.string().optional(),
-  birthDate: z.string().optional(),
+  fullName: z.string().trim().max(120).optional(),
+  about: z.string().trim().max(2000).optional(),
+  telegram: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((val) => {
+      if (!val) return "";
+      try {
+        return normalizeTelegramInput(val);
+      } catch (error) {
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["telegram"],
+            message: error instanceof Error ? error.message : "Некорректный Telegram username",
+          },
+        ]);
+      }
+    }),
+  instagram: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((val) => {
+      if (!val) return "";
+      try {
+        return normalizeInstagramInput(val);
+      } catch (error) {
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["instagram"],
+            message: error instanceof Error ? error.message : "Некорректный Instagram username",
+          },
+        ]);
+      }
+    }),
+  website: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .transform((val) => {
+      if (!val) return "";
+      try {
+        return normalizeWebsiteUrl(val);
+      } catch (error) {
+        throw new z.ZodError([
+          {
+            code: "custom",
+            path: ["website"],
+            message: error instanceof Error ? error.message : "Некорректный URL",
+          },
+        ]);
+      }
+    }),
+  birthDate: z.string().trim().max(100).optional(),
 });
 
 // GET /api/v1/user/profile
@@ -106,42 +165,7 @@ userRoutes.put("/profile", zValidator("json", updateProfileSchema), async (c) =>
   try {
     const user = c.get("user");
     const data = c.req.valid("json");
-
-    // Подготавливаем данные для обновления
-    const updateData: Record<string, unknown> = {};
-    const createData: Record<string, unknown> = {
-      user: { connect: { id: user.id } },
-    };
-
-    const fields = ["fullName", "about", "telegram", "instagram", "website"] as const;
-    for (const field of fields) {
-      if (data[field] !== undefined) {
-        const value = data[field] === "" ? null : data[field];
-        updateData[field] = value;
-        createData[field] = value;
-      }
-    }
-
-    if (data.birthDate !== undefined) {
-      if (data.birthDate === "") {
-        updateData.birthDate = null;
-        createData.birthDate = null;
-      } else {
-        const parsed = new Date(data.birthDate);
-        if (isNaN(parsed.getTime())) {
-          return c.json({ success: false, error: "Неверная дата" }, 400);
-        }
-        updateData.birthDate = parsed;
-        createData.birthDate = parsed;
-      }
-    }
-
-    const profile = await prisma.userProfile.upsert({
-      where: { userId: user.id },
-      update: updateData,
-      create: createData as Parameters<typeof prisma.userProfile.create>[0]["data"],
-    });
-
+    const profile = await updateUserProfile(user.id, data);
     return c.json({ success: true, data: profile });
   } catch (error) {
     logger.error("Error updating profile", error as Error);

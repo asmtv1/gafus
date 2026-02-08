@@ -289,14 +289,14 @@ export function useCacheManager() {
     const allStepStates = useStepStore.getState().stepStates;
     const courseStore = useCourseStore.getState();
 
-    const coursesToSync: Array<{
+    const coursesToSync: {
       courseId: string;
       totalDaysInCourse: number;
       dayOnCourseIds: string[];
-    }> = [];
+    }[] = [];
 
     const addCourses = (
-      list: Array<{ id: string; dayLinks?: Array<{ day?: { id: string } }> }> | undefined,
+      list: { id: string; dayLinks?: { day?: { id: string } }[] }[] | undefined,
     ) => {
       if (!list) return;
       list.forEach((course) => {
@@ -403,13 +403,13 @@ export async function syncCourseStoreWithStepStates() {
   const stepStates = useStepStore.getState().stepStates;
   const courseStore = useCourseStore.getState();
 
-  const coursesToSync: Array<{
+  const coursesToSync: {
     courseId: string;
     totalDaysInCourse: number;
     dayOnCourseIds: string[];
-  }> = [];
+  }[] = [];
   const addCourses = (
-    list: Array<{ id: string; dayLinks?: Array<{ day?: { id: string } }> }> | undefined,
+    list: { id: string; dayLinks?: { day?: { id: string } }[] }[] | undefined,
   ) => {
     if (!list) return;
     list.forEach((course) => {

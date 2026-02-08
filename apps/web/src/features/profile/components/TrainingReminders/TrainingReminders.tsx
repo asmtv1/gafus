@@ -72,7 +72,7 @@ export default function TrainingReminders() {
       const result = await createTrainingReminder(name, DEFAULT_TIME, undefined, browserTimezone);
 
       if (result.success && result.data) {
-        setReminders([...reminders, result.data]);
+        setReminders((prev) => [...prev, result.data!]);
         setMessage({
           type: "success",
           text: "Напоминание создано",
@@ -229,6 +229,14 @@ const ReminderItem = memo(function ReminderItem({
   const [allDays, setAllDays] = useState(!reminder.reminderDays);
   const [isExpanded, setIsExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setName(reminder.name);
+    setEnabled(reminder.enabled);
+    setReminderTime(reminder.reminderTime);
+    setSelectedDays(reminder.reminderDays ? reminder.reminderDays.split(",") : []);
+    setAllDays(!reminder.reminderDays);
+  }, [reminder.id, reminder.name, reminder.enabled, reminder.reminderTime, reminder.reminderDays]);
 
   const handleToggleEnabled = async () => {
     setSaving(true);

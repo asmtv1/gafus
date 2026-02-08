@@ -671,8 +671,8 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
       contentType = "application/vnd.apple.mpegurl";
     }
 
-    // Возвращаем сегмент
-    return c.body(segmentBuffer, 200, {
+    // Возвращаем сегмент (Uint8Array для совместимости с типом Hono c.body)
+    return c.body(new Uint8Array(segmentBuffer), 200, {
       "Content-Type": contentType,
       "Cache-Control": "public, max-age=31536000", // 1 год для сегментов
     });

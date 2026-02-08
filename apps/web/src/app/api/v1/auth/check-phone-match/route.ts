@@ -5,7 +5,8 @@
  * Публичный endpoint (не требует авторизации).
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { checkPhoneMatchesUsername } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";

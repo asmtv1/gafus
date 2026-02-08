@@ -25,7 +25,6 @@ export async function savePet({
 }: UpdatePetInput) {
   try {
     const userId = await getCurrentUserId();
-    logger.warn("Получен ownerId:", { ownerId: userId, operation: "warn" });
 
     const trimmedId = id?.trim();
 
@@ -51,11 +50,9 @@ export async function savePet({
         birthDate: parsedDate,
         owner: { connect: { id: userId } },
       };
-      logger.warn("Создание питомца с данными:", { createData, operation: "warn" });
       const result = await prisma.pet.create({
         data: createData,
       });
-      logger.warn("Питомец создан успешно:", { result, operation: "warn" });
       return result;
     } else {
       const validatedData = updatePetSchema.parse({

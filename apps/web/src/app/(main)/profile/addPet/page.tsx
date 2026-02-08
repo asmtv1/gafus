@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { generateStaticPageMetadata } from "@gafus/metadata";
 
 import AddPetForm from "./AddPetForm";
@@ -10,9 +9,5 @@ export const metadata = generateStaticPageMetadata(
 );
 
 export default function AddPetFormPage() {
-  return (
-    <Suspense fallback={<p>Загрузка…</p>}>
-      <AddPetForm />
-    </Suspense>
-  );
+  return <AddPetForm />;
 }

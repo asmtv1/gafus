@@ -11,6 +11,7 @@ import {
   TextAreaField,
   SelectField,
 } from "@shared/components/ui/FormField";
+import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { usePetZodForm } from "@shared/hooks/usePetZodForm";
 import { savePet } from "@shared/lib/pets/savePet";
 import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
@@ -19,7 +20,7 @@ import type { PetFormSchema } from "@shared/lib/validation/petSchemas";
 import styles from "./AddPetForm.module.css";
 
 export default function AddPetForm() {
-  const [caughtError, setCaughtError] = useState<Error | null>(null);
+  const [catchError] = useCaughtError();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -27,8 +28,6 @@ export default function AddPetForm() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  if (caughtError) throw caughtError;
 
   const router = useRouter();
   const { data: session } = useSession();
@@ -66,7 +65,7 @@ export default function AddPetForm() {
         router.back();
       }
     } catch (err) {
-      setCaughtError(err as Error);
+      catchError(err);
     } finally {
       setIsSubmitting(false);
     }
