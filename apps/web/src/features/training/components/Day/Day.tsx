@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
-import { getStepDisplayStatus } from "@gafus/core/utils/training";
+import { getStepDisplayStatus, getStepKey } from "@gafus/core/utils/training";
 import { TrainingStatus, type TrainingDetail } from "@gafus/types";
 import { useDayStepStates, useStepStore } from "@shared/stores/stepStore";
 import { useTrainingStore } from "@shared/stores/trainingStore";
@@ -58,12 +58,6 @@ export function Day({ training, courseType }: DayProps) {
     findRunningStepIndex,
   } = useTrainingStore();
 
-  // Утилиты для работы с ключами
-  const getStepKey = useCallback(
-    (stepIndex: number) => `${training.courseId}-${training.dayOnCourseId}-${stepIndex}`,
-    [training.courseId, training.dayOnCourseId],
-  );
-
   // Обработчики событий
   const handleStepStart = useCallback(
     async (stepIndex: number) => {
@@ -98,7 +92,7 @@ export function Day({ training, courseType }: DayProps) {
       // Если открываем шаг типа THEORY с статусом NOT_STARTED, отмечаем его как завершенный
       if (newOpenIndex !== null) {
         const step = training.steps[index];
-        const stepKey = getStepKey(index);
+        const stepKey = getStepKey(training.courseId, training.dayOnCourseId, index);
         const stepState = stepStates[stepKey];
         const currentStatus = getStepDisplayStatus(stepState, step);
 
@@ -127,7 +121,6 @@ export function Day({ training, courseType }: DayProps) {
       training.dayOnCourseId,
       training.steps,
       stepStates,
-      getStepKey,
       setStoreOpenIndex,
       updateStepStatus,
     ],
@@ -251,7 +244,7 @@ export function Day({ training, courseType }: DayProps) {
         const isDiaryStep = step.type === "DIARY";
         const exerciseNumber = (isBreakStep || isDiaryStep) ? null : ++exerciseCounter;
         // Получаем статус шага из store
-        const stepKey = getStepKey(index);
+        const stepKey = getStepKey(training.courseId, training.dayOnCourseId, index);
         const stepStatus = getStepDisplayStatus(stepStates[stepKey], step);
 
         const stepStatusConfig =

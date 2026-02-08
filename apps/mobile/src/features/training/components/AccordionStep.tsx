@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-na
 import { useEffect, useState, memo, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { getStepDisplayStatus } from "@gafus/core/utils/training";
+import { formatTimeLeft, getStepDisplayStatus } from "@gafus/core/utils/training";
 import { Button, MarkdownText, VideoPlayer } from "@/shared/components";
 import type { UserStep, StepContent } from "@/shared/lib/api";
 import { TestQuestionsBlock, type ChecklistQuestion } from "./TestQuestionsBlock";
@@ -537,13 +537,6 @@ function AccordionStepComponent({
                           ? duration
                           : (localState?.timeLeft ?? localState?.remainingSec ?? duration);
 
-                    // Форматирование времени MM:SS
-                    const formatTime = (seconds: number): string => {
-                      const mins = Math.floor(seconds / 60);
-                      const secs = seconds % 60;
-                      return `${mins}:${secs.toString().padStart(2, "0")}`;
-                    };
-
                     const timerHeaderText = isBreak
                       ? "Начни перерыв"
                       : isReset
@@ -563,7 +556,7 @@ function AccordionStepComponent({
 
                         <View style={styles.timerControls}>
                           {/* Отображение времени */}
-                          <Text style={styles.timerDisplay}>{formatTime(timeLeft)}</Text>
+                          <Text style={styles.timerDisplay}>{formatTimeLeft(timeLeft)}</Text>
 
                           {/* Кнопки управления */}
                           <View style={styles.timerButtons}>

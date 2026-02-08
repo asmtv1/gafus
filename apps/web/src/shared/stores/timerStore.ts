@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import { createWebLogger } from "@gafus/logger";
 
+import { getStepKey } from "@gafus/core/utils/training";
 import { TrainingStatus, type StepStatusUpdateData, type StepResumeData } from "@gafus/types";
 import type { TimerStore } from "./timerStore.types";
 import {
@@ -70,7 +71,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
     // Проверить, может ли шаг быть запущен
     canStartStep: (courseId: string, dayOnCourseId: string, stepIndex: number) => {
-      const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+      const stepKey = getStepKey(courseId, dayOnCourseId, stepIndex);
       return activeStep === null || activeStep === stepKey;
     },
 
@@ -79,7 +80,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
     startTimer: (courseId, dayOnCourseId, stepIndex, onTimeUpdate, onFinish, isRestore = false) => {
       if (typeof window === "undefined") return false;
 
-      const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+      const stepKey = getStepKey(courseId, dayOnCourseId, stepIndex);
       logger.info("startTimer", { stepIndex, isRestore, activeStep, courseId, dayOnCourseId });
 
       // При восстановлении таймера не проверяем canStartStep
@@ -144,7 +145,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
     stopTimer: (courseId, dayOnCourseId, stepIndex) => {
       if (typeof window === "undefined") return;
 
-      const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+      const stepKey = getStepKey(courseId, dayOnCourseId, stepIndex);
       const timer = timers.get(stepKey);
       logger.info("stopTimer", { stepIndex, hadTimer: !!timer, activeStep, courseId, dayOnCourseId });
 

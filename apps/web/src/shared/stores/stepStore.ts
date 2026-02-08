@@ -3,7 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
 
-import { statusRank } from "@gafus/core/utils/training";
+import { getStepKey as getStepKeyCore, statusRank } from "@gafus/core/utils/training";
 
 import type { StepStore } from "./stepStore.types";
 import { useUserStore } from "./userStore";
@@ -57,7 +57,7 @@ export const useStepStore = create<StepStore>()(
 
       // ===== УТИЛИТЫ =====
       getStepKey: (courseId, dayOnCourseId, stepIndex) =>
-        `${courseId}-${dayOnCourseId}-${stepIndex}`,
+        getStepKeyCore(courseId, dayOnCourseId, stepIndex),
 
       // ===== ДЕЙСТВИЯ ДЛЯ ШАГОВ =====
       initializeStep: (
@@ -556,6 +556,6 @@ export function useStepState(
   dayOnCourseId: string,
   stepIndex: number,
 ) {
-  const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+  const stepKey = getStepKeyCore(courseId, dayOnCourseId, stepIndex);
   return useStepStore((state) => state.stepStates[stepKey]);
 }

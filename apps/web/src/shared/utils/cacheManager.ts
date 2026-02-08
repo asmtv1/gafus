@@ -7,6 +7,7 @@ import { useUserStore } from "@shared/stores/userStore";
 import {
   calculateDayStatus as calcDay,
   calculateCourseStatus as calcCourse,
+  getStepKey,
 } from "@gafus/core/utils/training";
 import { createWebLogger } from "@gafus/logger";
 
@@ -51,7 +52,7 @@ export function useCacheManager() {
     // 1. Обновляем локальный стейт шага
     if (stepStatus === "IN_PROGRESS" && durationSec) {
       // При запуске шага создаем полное состояние через setState
-      const stepKey = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+      const stepKey = getStepKey(courseId, dayOnCourseId, stepIndex);
       const endTs = nowSec() + durationSec;
 
       // Сохраняем endTs в localStorage для таймера

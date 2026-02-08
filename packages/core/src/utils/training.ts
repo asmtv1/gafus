@@ -3,6 +3,28 @@ import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 export type StepStates = Record<string, { status?: string }>;
 
 /**
+ * Ключ шага для сторов и кэша. Единый формат для web и mobile.
+ */
+export function getStepKey(
+  courseId: string,
+  dayOnCourseId: string,
+  stepIndex: number,
+): string {
+  return `${courseId}-${dayOnCourseId}-${stepIndex}`;
+}
+
+/**
+ * Формат времени таймера для отображения (M:SS).
+ * Отрицательные и дробные значения приводятся к неотрицательному целому (0 и выше).
+ */
+export function formatTimeLeft(seconds: number): string {
+  const totalSecs = Math.max(0, Math.floor(Number(seconds)));
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+/**
  * Определяет статус шага для отображения в UI.
  * stepState (из stepStore) — единственный источник истины после инициализации.
  * serverStep используется только при отсутствии stepState (до initializeStep).
@@ -72,7 +94,7 @@ export function calculateDayStatus(
   if (totalSteps !== undefined) {
     const stepStatuses: string[] = [];
     for (let i = 0; i < totalSteps; i++) {
-      const stepKey = `${courseId}-${dayOnCourseId}-${i}`;
+      const stepKey = getStepKey(courseId, dayOnCourseId, i);
       const stepState = stepStates[stepKey];
       const status = stepState?.status || TrainingStatus.NOT_STARTED;
       stepStatuses.push(status);

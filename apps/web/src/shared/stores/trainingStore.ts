@@ -1,3 +1,4 @@
+import { getStepKey as getStepKeyFromCore } from "@gafus/core/utils/training";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
@@ -21,7 +22,7 @@ export const useTrainingStore = create<TrainingStore>()(
 
       // ===== УТИЛИТЫ =====
       getStepKey: (courseId, dayOnCourseId, stepIndex) =>
-        `${courseId}-${dayOnCourseId}-${stepIndex}`,
+        getStepKeyFromCore(courseId, dayOnCourseId, stepIndex),
       getDayKey: (courseId, dayOnCourseId) => `${courseId}-${dayOnCourseId}`,
 
       // ===== ГЕТТЕРЫ =====

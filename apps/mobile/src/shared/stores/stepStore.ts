@@ -1,3 +1,4 @@
+import { getStepKey as getStepKeyFromCore } from "@gafus/core/utils/training";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
@@ -108,18 +109,17 @@ export const useStepStore = create<StepStore>()(
       ...initialState,
 
       // Утилиты
-      getStepKey: (courseId, dayOnCourseId, stepIndex) =>
-        `${courseId}-${dayOnCourseId}-${stepIndex}`,
+      getStepKey: getStepKeyFromCore,
 
       // Получение состояния
       getStepState: (courseId, dayOnCourseId, stepIndex) => {
-        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
         return get().stepStates[key] ?? null;
       },
 
       // Обновление состояния
       setStepState: (courseId, dayOnCourseId, stepIndex, newState) => {
-        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
         set((state) => ({
           stepStates: {
             ...state.stepStates,
@@ -134,7 +134,7 @@ export const useStepStore = create<StepStore>()(
 
       // Обновление времени таймера (как в web)
       updateTimeLeft: (courseId, dayOnCourseId, stepIndex, timeLeft) => {
-        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
         set((state) => {
           const current = state.stepStates[key];
           if (!current) return state;
@@ -154,7 +154,7 @@ export const useStepStore = create<StepStore>()(
 
       // Старт шага
       startStep: (courseId, dayOnCourseId, stepIndex, durationSec) => {
-        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
         set((state) => ({
           stepStates: {
             ...state.stepStates,
@@ -170,7 +170,7 @@ export const useStepStore = create<StepStore>()(
 
       // Пауза шага
       pauseStep: (courseId, dayOnCourseId, stepIndex, remainingSec) => {
-        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
         set((state) => ({
           stepStates: {
             ...state.stepStates,
@@ -186,7 +186,7 @@ export const useStepStore = create<StepStore>()(
 
       // Возобновление шага
       resumeStep: (courseId, dayOnCourseId, stepIndex) => {
-        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
         const current = get().stepStates[key];
         if (current) {
           set((state) => ({
@@ -206,7 +206,7 @@ export const useStepStore = create<StepStore>()(
 
       // Завершение шага
       completeStep: (courseId, dayOnCourseId, stepIndex) => {
-        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
         set((state) => ({
           stepStates: {
             ...state.stepStates,
@@ -222,7 +222,7 @@ export const useStepStore = create<StepStore>()(
 
       // Сброс шага — статус RESET, полное время для отображения
       resetStep: (courseId, dayOnCourseId, stepIndex, durationSec) => {
-        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
         set((state) => ({
           stepStates: {
             ...state.stepStates,
@@ -238,7 +238,7 @@ export const useStepStore = create<StepStore>()(
 
       // Инициализация шага (как в web-версии)
       initializeStep: (courseId, dayOnCourseId, stepIndex, durationSec, status, options) => {
-        const key = `${courseId}-${dayOnCourseId}-${stepIndex}`;
+        const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
         const current = get().stepStates[key];
 
         // Если шаг уже инициализирован и имеет локальные изменения - не перезаписываем
@@ -274,7 +274,7 @@ export const useStepStore = create<StepStore>()(
         const updates: Record<string, LocalStepState> = {};
 
         for (const step of steps) {
-          const key = `${courseId}-${dayOnCourseId}-${step.stepIndex}`;
+          const key = getStepKeyFromCore(courseId, dayOnCourseId, step.stepIndex);
           const current = get().stepStates[key];
 
           // Если локальное состояние новее — не перезаписываем

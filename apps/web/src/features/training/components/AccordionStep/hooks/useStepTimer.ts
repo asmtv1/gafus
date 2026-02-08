@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { createWebLogger } from "@gafus/logger";
+import { getStepKey } from "@gafus/core/utils/training";
 
 import { useStepState, useStepStore } from "@shared/stores/stepStore";
 import { useTimerStore } from "@shared/stores/timerStore";
@@ -82,10 +83,7 @@ export function useStepTimer({
     initializeStep(courseId, dayOnCourseId, stepIndex, durationSec, initialStatus);
   }, [courseId, dayOnCourseId, stepIndex, durationSec, initialStatus, initializeStep]);
 
-  const stepKey = useMemo(
-    () => `${courseId}-${dayOnCourseId}-${stepIndex}`,
-    [courseId, dayOnCourseId, stepIndex],
-  );
+  const stepKey = getStepKey(courseId, dayOnCourseId, stepIndex);
 
   const hasActiveTimer = timers.has(stepKey);
   const isActuallyRunning = stepState?.status === "IN_PROGRESS" && hasActiveTimer;

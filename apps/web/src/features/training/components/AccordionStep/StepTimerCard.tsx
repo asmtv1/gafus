@@ -2,6 +2,8 @@
 
 import { AccessTimeIcon, PauseIcon, PlayArrowIcon, ReplayIcon } from "@shared/utils/muiImports";
 
+import { formatTimeLeft } from "@gafus/core/utils/training";
+
 import type { StepType } from "./types";
 
 import styles from "./AccordionStep.module.css";
@@ -42,9 +44,7 @@ export function StepTimerCard({
       </div>
       <div className={styles.controlRow}>
         <div className={styles.timerDisplay}>
-          {`${Math.floor(displayTimeLeft / 60)}:${(displayTimeLeft % 60)
-            .toString()
-            .padStart(2, "0")}`}
+          {formatTimeLeft(displayTimeLeft)}
         </div>
         {(stepState.status === "NOT_STARTED" || stepState.status === "RESET") && (
           <button onClick={onStart} className={styles.circleBtn} aria-label="start">

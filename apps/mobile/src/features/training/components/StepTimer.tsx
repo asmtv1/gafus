@@ -1,3 +1,4 @@
+import { formatTimeLeft } from "@gafus/core/utils/training";
 import { useEffect, useRef, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
 import { Text, IconButton, ProgressBar } from "react-native-paper";
@@ -32,13 +33,6 @@ export function StepTimer({
   const isActive = isTimerActiveFor(courseId, dayOnCourseId, stepIndex);
   const isRunning = activeTimer?.isRunning ?? false;
   const remainingSec = activeTimer?.remainingSec ?? totalDuration;
-
-  // Форматирование времени
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
 
   // Прогресс (0-1)
   const progress = 1 - remainingSec / totalDuration;
@@ -94,7 +88,7 @@ export function StepTimer({
     return (
       <View style={styles.container}>
         <View style={styles.timerDisplay}>
-          <Text style={styles.timeText}>{formatTime(totalDuration)}</Text>
+          <Text style={styles.timeText}>{formatTimeLeft(totalDuration)}</Text>
           <Text style={styles.label}>Нажмите для старта</Text>
         </View>
         <IconButton icon="play-circle" iconColor={COLORS.primary} size={64} onPress={handleStart} />
@@ -107,7 +101,7 @@ export function StepTimer({
       {/* Отображение времени */}
       <View style={styles.timerDisplay}>
         <Text style={[styles.timeText, remainingSec <= 10 && styles.timeTextWarning]}>
-          {formatTime(remainingSec)}
+          {formatTimeLeft(remainingSec)}
         </Text>
         <Text style={styles.label}>{isRunning ? "Осталось" : "На паузе"}</Text>
       </View>
