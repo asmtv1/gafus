@@ -1,6 +1,37 @@
+import type { StepType } from "@gafus/types";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 
 export type StepStates = Record<string, { status?: string }>;
+
+/**
+ * Подписи статусов тренировки для UI (единственное число: «Не начат», «Завершен» и т.д.).
+ * Единый источник для web и mobile.
+ */
+export const STEP_STATUS_LABELS: Record<TrainingStatus, string> = {
+  [TrainingStatus.NOT_STARTED]: "Не начат",
+  [TrainingStatus.IN_PROGRESS]: "В процессе",
+  [TrainingStatus.COMPLETED]: "Завершен",
+  [TrainingStatus.PAUSED]: "На паузе",
+  [TrainingStatus.RESET]: "Сброшен",
+};
+
+/**
+ * Подписи статусов для фильтров (множественное число: «Не начатые», «Сброшенные» и т.д.).
+ */
+export const STEP_STATUS_FILTER_LABELS: Record<TrainingStatus, string> = {
+  [TrainingStatus.NOT_STARTED]: "Не начатые",
+  [TrainingStatus.IN_PROGRESS]: "В процессе",
+  [TrainingStatus.COMPLETED]: "Завершенные",
+  [TrainingStatus.PAUSED]: "На паузе",
+  [TrainingStatus.RESET]: "Сброшенные",
+};
+
+/**
+ * Ключ дня для сторов и кэша. Единый формат для web и mobile.
+ */
+export function getDayKey(courseId: string, dayOnCourseId: string): string {
+  return `${courseId}-${dayOnCourseId}`;
+}
 
 /**
  * Ключ шага для сторов и кэша. Единый формат для web и mobile.
@@ -11,6 +42,156 @@ export function getStepKey(
   stepIndex: number,
 ): string {
   return `${courseId}-${dayOnCourseId}-${stepIndex}`;
+}
+
+/**
+ * Ключ localStorage для времени окончания таймера шага. Единый формат для web и mobile.
+ */
+export function getStepTimerEndStorageKey(
+  courseId: string,
+  dayOnCourseId: string,
+  stepIndex: number,
+): string {
+  return `training-${courseId}-${dayOnCourseId}-${stepIndex}-end`;
+}
+
+/**
+ * Ключ localStorage для флага паузы таймера шага. Единый формат для web и mobile.
+ */
+export function getStepTimerPauseStorageKey(
+  courseId: string,
+  dayOnCourseId: string,
+  stepIndex: number,
+): string {
+  return `training-${courseId}-${dayOnCourseId}-${stepIndex}-paused`;
+}
+
+/**
+ * Префикс ключей шагов дня для фильтрации (key.startsWith(prefix)).
+ * Консистентен с getStepKey: шаг i имеет ключ `${courseId}-${dayOnCourseId}-${i}`.
+ */
+export function getDayStepKeyPrefix(courseId: string, dayOnCourseId: string): string {
+  return `${courseId}-${dayOnCourseId}-`;
+}
+
+/**
+ * Подписи типов шагов для UI. Единый источник для web и mobile.
+ */
+export const STEP_TYPE_LABELS: Record<StepType, string> = {
+  EXAMINATION: "Экзаменационный шаг",
+  THEORY: "Теоретический шаг",
+  BREAK: "Перерыв",
+  PRACTICE: "Упражнение без таймера",
+  DIARY: "Дневник успехов",
+  TRAINING: "Тренировка",
+};
+
+/** Вход для расчёта длительности дня по шагам. */
+export interface StepDurationInput {
+  type?: string | null;
+  durationSec?: number | null;
+  estimatedDurationSec?: number | null;
+}
+
+/**
+ * Оценка длительности дня по шагам: тренировочные минуты и минуты теории/экзамена.
+ * TRAINING → durationSec; PRACTICE → estimatedDurationSec в тренировочные;
+ * BREAK/DIARY → пропуск; остальное → theory (estimatedDurationSec).
+ */
+export function estimateDayDurations(
+  steps: StepDurationInput[],
+): { trainingMinutes: number; theoryMinutes: number } {
+  let trainingSeconds = 0;
+  let theorySeconds = 0;
+  for (const step of steps) {
+    const type = step.type ?? "";
+    if (type === "TRAINING") {
+      trainingSeconds += step.durationSec ?? 0;
+    } else if (type === "PRACTICE") {
+      trainingSeconds += step.estimatedDurationSec ?? 0;
+    } else if (type === "BREAK" || type === "DIARY") {
+      continue;
+    } else {
+      theorySeconds += step.estimatedDurationSec ?? 0;
+    }
+  }
+  return {
+    trainingMinutes: Math.ceil(trainingSeconds / 60),
+    theoryMinutes: Math.ceil(theorySeconds / 60),
+  };
+}
+
+/** Шаг с таймером (TRAINING, BREAK). Для undefined type возвращает false. */
+export function isStepWithTimer(type: StepType | undefined | null): boolean {
+  if (type == null) return false;
+  return type === "TRAINING" || type === "BREAK";
+}
+
+/** Показывать оценочное время (EXAMINATION, THEORY, PRACTICE). Для undefined type возвращает false. */
+export function shouldShowEstimatedDuration(
+  type: StepType | undefined | null,
+): boolean {
+  if (type == null) return false;
+  return type === "EXAMINATION" || type === "THEORY" || type === "PRACTICE";
+}
+
+/** Типы дней, которые не нумеруются как «День N». */
+export const NON_NUMBERED_DAY_TYPES = [
+  "instructions",
+  "introduction",
+  "diagnostics",
+  "summary",
+] as const;
+
+/** Подписи типов дней для списка и карточек. */
+export const DAY_TYPE_LABELS: Record<string, string> = {
+  base: "Базовый день",
+  regular: "Тренировочный день",
+  introduction: "Вводный блок",
+  instructions: "Инструкции",
+  diagnostics: "Диагностика",
+  summary: "Подведение итогов",
+};
+
+/**
+ * Заголовок дня по типу и номеру для отображения.
+ * Для не-тренировочных типов возвращает подпись, иначе «День N» или «День».
+ */
+export function getDayTitle(type: string, displayDayNumber?: number | null): string {
+  switch (type) {
+    case "instructions":
+      return "Инструкции";
+    case "introduction":
+      return "Вводный блок";
+    case "diagnostics":
+      return "Диагностика";
+    case "summary":
+      return "Подведение итогов";
+    default:
+      return displayDayNumber != null ? `День ${displayDayNumber}` : "День";
+  }
+}
+
+/**
+ * Индекс «текущего» дня для подсветки в списке.
+ * Логика: первый день со статусом IN_PROGRESS; иначе следующий за последним COMPLETED; иначе 0.
+ * Пустой массив → 0. Входящий массив не мутируется.
+ */
+export function getCurrentDayIndex<T>(
+  days: T[],
+  getFinalStatus: (day: T) => string,
+): number {
+  if (days.length === 0) return 0;
+  const inProgressIndex = days.findIndex((day) => getFinalStatus(day) === "IN_PROGRESS");
+  if (inProgressIndex !== -1) return inProgressIndex;
+  let lastCompletedIndex = -1;
+  for (let i = 0; i < days.length; i++) {
+    if (getFinalStatus(days[i]) === "COMPLETED") lastCompletedIndex = i;
+  }
+  if (lastCompletedIndex !== -1 && lastCompletedIndex < days.length - 1) {
+    return lastCompletedIndex + 1;
+  }
+  return 0;
 }
 
 /**

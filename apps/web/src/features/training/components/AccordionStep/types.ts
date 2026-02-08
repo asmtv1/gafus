@@ -1,12 +1,6 @@
-import type { ChecklistQuestion } from "@gafus/types";
+import type { ChecklistQuestion, StepType } from "@gafus/types";
 
-export type StepType =
-  | "TRAINING"
-  | "EXAMINATION"
-  | "THEORY"
-  | "BREAK"
-  | "PRACTICE"
-  | "DIARY";
+export type { StepType };
 
 export interface AccordionStepProps {
   courseId: string;

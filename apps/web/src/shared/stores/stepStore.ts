@@ -3,7 +3,13 @@ import { useShallow } from "zustand/react/shallow";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
 
-import { getStepKey as getStepKeyCore, statusRank } from "@gafus/core/utils/training";
+import {
+  getDayStepKeyPrefix,
+  getStepKey as getStepKeyCore,
+  getStepTimerEndStorageKey,
+  getStepTimerPauseStorageKey,
+  statusRank,
+} from "@gafus/core/utils/training";
 
 import type { StepStore } from "./stepStore.types";
 import { useUserStore } from "./userStore";
@@ -17,10 +23,6 @@ const getUserScopeId = () => {
   if (typeof window === "undefined") return "anonymous";
   return useUserStore.getState().user?.id || "anonymous";
 };
-const makeEndKey = (courseId: string, dayOnCourseId: string, idx: number) =>
-  `training-${courseId}-${dayOnCourseId}-${idx}-end`;
-const makePauseKey = (courseId: string, dayOnCourseId: string, idx: number) =>
-  `training-${courseId}-${dayOnCourseId}-${idx}-paused`;
 const STORAGE_VERSION = "v1";
 const getStepStorageKey = () => `step-storage:${STORAGE_VERSION}:${getUserScopeId()}`;
 
@@ -74,8 +76,8 @@ export const useStepStore = create<StepStore>()(
         // RESET с сервера всегда пишем в store (перезатираем PAUSED и др.), чтобы store и UI совпадали
         if (initialStatus === "RESET") {
           removeKeys(
-            makeEndKey(courseId, dayOnCourseId, stepIndex),
-            makePauseKey(courseId, dayOnCourseId, stepIndex),
+            getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex),
+            getStepTimerPauseStorageKey(courseId, dayOnCourseId, stepIndex),
           );
           set((state) => ({
             stepStates: {
@@ -96,7 +98,7 @@ export const useStepStore = create<StepStore>()(
           const localRank = statusRank(existingState.status);
           const serverRank = statusRank(initialStatus);
           if (serverRank > localRank) {
-            const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
+            const END_KEY = getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex);
             set((state) => ({
               stepStates: {
                 ...state.stepStates,
@@ -183,7 +185,10 @@ export const useStepStore = create<StepStore>()(
         }
 
         // Сохраняем в localStorage
-        saveToLS(makeEndKey(courseId, dayOnCourseId, stepIndex), endTs);
+        saveToLS(
+          getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex),
+          endTs,
+        );
 
         set((state) => ({
           stepStates: {
@@ -213,10 +218,10 @@ export const useStepStore = create<StepStore>()(
           useTimerStore.getState().stopTimer(courseId, dayOnCourseId, stepIndex);
         }
 
-        const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
+        const END_KEY = getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex);
         removeKeys(END_KEY);
 
-        const PAUSE_KEY = makePauseKey(courseId, dayOnCourseId, stepIndex);
+        const PAUSE_KEY = getStepTimerPauseStorageKey(courseId, dayOnCourseId, stepIndex);
         const pauseData = {
           pausedAt: Date.now(),
           timeLeft,
@@ -248,12 +253,12 @@ export const useStepStore = create<StepStore>()(
           return;
         }
 
-        const PAUSE_KEY = makePauseKey(courseId, dayOnCourseId, stepIndex);
+        const PAUSE_KEY = getStepTimerPauseStorageKey(courseId, dayOnCourseId, stepIndex);
         localStorage.removeItem(PAUSE_KEY);
 
         const timeLeft = currentStep.timeLeft;
         const endTs = nowSec() + timeLeft;
-        const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
+        const END_KEY = getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex);
 
         // Сохраняем в localStorage
         saveToLS(END_KEY, endTs);
@@ -275,7 +280,9 @@ export const useStepStore = create<StepStore>()(
         const stepKey = get().getStepKey(courseId, dayOnCourseId, stepIndex);
 
         // Удаляем localStorage ключи
-        removeKeys(makeEndKey(courseId, dayOnCourseId, stepIndex));
+        removeKeys(
+          getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex),
+        );
 
         set((state) => ({
           stepStates: {
@@ -317,8 +324,8 @@ export const useStepStore = create<StepStore>()(
         logger.info("resetStep", { stepIndex, stepKey, courseId, dayOnCourseId, durationSec });
 
         removeKeys(
-          makeEndKey(courseId, dayOnCourseId, stepIndex),
-          makePauseKey(courseId, dayOnCourseId, stepIndex),
+          getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex),
+          getStepTimerPauseStorageKey(courseId, dayOnCourseId, stepIndex),
         );
 
         set((state) => ({
@@ -336,8 +343,8 @@ export const useStepStore = create<StepStore>()(
 
       // ===== ВОССТАНОВЛЕНИЕ И СИНХРОНИЗАЦИЯ =====
       restoreStepFromLS: (courseId, dayOnCourseId, stepIndex) => {
-        const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
-        const PAUSE_KEY = makePauseKey(courseId, dayOnCourseId, stepIndex);
+        const END_KEY = getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex);
+        const PAUSE_KEY = getStepTimerPauseStorageKey(courseId, dayOnCourseId, stepIndex);
 
         const pauseDataStr = loadFromLS(PAUSE_KEY);
         if (pauseDataStr) {
@@ -400,7 +407,7 @@ export const useStepStore = create<StepStore>()(
 
         if (!stepState || stepState.status !== "IN_PROGRESS") return;
 
-        const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
+        const END_KEY = getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex);
         const endTsStr = loadFromLS(END_KEY);
 
         if (!endTsStr) {
@@ -435,7 +442,7 @@ export const useStepStore = create<StepStore>()(
         // Синхронизируем время с localStorage ТОЛЬКО если шаг активен И НЕ на паузе
         const stepStateAfter = get().stepStates[stepKey];
         if (stepStateAfter && stepStateAfter.status === "IN_PROGRESS" && !stepStateAfter.isPaused) {
-          const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
+          const END_KEY = getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex);
           const endTs = nowSec() + timeLeft;
           saveToLS(END_KEY, endTs.toString());
         }
@@ -448,7 +455,7 @@ export const useStepStore = create<StepStore>()(
       cleanupExpiredData: (courseId, dayOnCourseId) => {
         // Очищаем устаревшие данные для всех шагов дня
         for (let i = 0; i < 100; i++) {
-          const END_KEY = makeEndKey(courseId, dayOnCourseId, i);
+          const END_KEY = getStepTimerEndStorageKey(courseId, dayOnCourseId, i);
           const endTsStr = loadFromLS(END_KEY);
 
           if (endTsStr) {
@@ -528,7 +535,7 @@ export const useStepStore = create<StepStore>()(
 
 /** Шаги одного дня — подписка только на изменения шагов этого дня */
 export function useDayStepStates(courseId: string, dayOnCourseId: string) {
-  const prefix = `${courseId}-${dayOnCourseId}-`;
+  const prefix = getDayStepKeyPrefix(courseId, dayOnCourseId);
   return useStepStore(
     useShallow((state) =>
       Object.fromEntries(

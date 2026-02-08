@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { TrainingStatus } from "@gafus/types";
+import { STEP_STATUS_FILTER_LABELS } from "@gafus/core/utils/training";
 import type { CourseTabType } from "../CourseTabs/CourseTabs";
 import styles from "./FiltersDrawer.module.css";
 
@@ -56,11 +57,31 @@ const levelOptions = [
 
 const progressOptions = [
   { id: "ALL" as ProgressFilterType, label: "Все курсы", icon: "📚" },
-  { id: TrainingStatus.NOT_STARTED, label: "Не начатые", icon: "⭐" },
-  { id: TrainingStatus.IN_PROGRESS, label: "В процессе", icon: "🔥" },
-  { id: TrainingStatus.COMPLETED, label: "Завершённые", icon: "✅" },
-  { id: TrainingStatus.PAUSED, label: "На паузе", icon: "⏸" },
-  { id: TrainingStatus.RESET, label: "Сброшенные", icon: "🔄" },
+  {
+    id: TrainingStatus.NOT_STARTED,
+    label: STEP_STATUS_FILTER_LABELS[TrainingStatus.NOT_STARTED],
+    icon: "⭐",
+  },
+  {
+    id: TrainingStatus.IN_PROGRESS,
+    label: STEP_STATUS_FILTER_LABELS[TrainingStatus.IN_PROGRESS],
+    icon: "🔥",
+  },
+  {
+    id: TrainingStatus.COMPLETED,
+    label: STEP_STATUS_FILTER_LABELS[TrainingStatus.COMPLETED],
+    icon: "✅",
+  },
+  {
+    id: TrainingStatus.PAUSED,
+    label: STEP_STATUS_FILTER_LABELS[TrainingStatus.PAUSED],
+    icon: "⏸",
+  },
+  {
+    id: TrainingStatus.RESET,
+    label: STEP_STATUS_FILTER_LABELS[TrainingStatus.RESET],
+    icon: "🔄",
+  },
 ];
 
 const ratingOptions = [

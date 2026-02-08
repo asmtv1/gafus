@@ -8,6 +8,7 @@ import {
   calculateDayStatus as calcDay,
   calculateCourseStatus as calcCourse,
   getStepKey,
+  getStepTimerEndStorageKey,
 } from "@gafus/core/utils/training";
 import { createWebLogger } from "@gafus/logger";
 
@@ -16,8 +17,6 @@ const logger = createWebLogger("web-cache-manager");
 
 // Утилиты для работы с временем
 const nowSec = () => Math.floor(Date.now() / 1000);
-const makeEndKey = (courseId: string, dayOnCourseId: string, idx: number) =>
-  `training-${courseId}-${dayOnCourseId}-${idx}-end`;
 
 // CourseWithProgressData больше не импортируется, так как используется только в courseStore
 
@@ -57,7 +56,10 @@ export function useCacheManager() {
 
       // Сохраняем endTs в localStorage для таймера
       if (typeof window !== "undefined") {
-        localStorage.setItem(makeEndKey(courseId, dayOnCourseId, stepIndex), endTs.toString());
+        localStorage.setItem(
+        getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex),
+        endTs.toString(),
+      );
       }
 
       useStepStore.setState((state) => ({

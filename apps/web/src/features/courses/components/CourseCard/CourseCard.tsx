@@ -14,6 +14,7 @@ import styles from "./CourseCard.module.css";
 import type { CourseCardPropsWithIndex } from "./types";
 
 import { declOfNum } from "@gafus/core/utils";
+import { STEP_STATUS_LABELS } from "@gafus/core/utils/training";
 import { SimpleCourseRating } from "../CourseRating";
 import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
@@ -289,22 +290,9 @@ export const CourseCard = ({
     }
   };
 
-  const getStatusText = () => {
-    switch (userStatus) {
-      case TrainingStatus.NOT_STARTED:
-        return "Не начат";
-      case TrainingStatus.IN_PROGRESS:
-        return "В процессе";
-      case TrainingStatus.COMPLETED:
-        return "Завершен";
-      case TrainingStatus.PAUSED:
-        return "На паузе";
-      case TrainingStatus.RESET:
-        return "Сброшен";
-      default:
-        return "Не начат";
-    }
-  };
+  const getStatusText = () =>
+    STEP_STATUS_LABELS[userStatus as TrainingStatus] ??
+    STEP_STATUS_LABELS[TrainingStatus.NOT_STARTED];
 
   const getStatusColor = () => {
     switch (userStatus) {

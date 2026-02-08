@@ -1,3 +1,4 @@
+import { getDayKey as getDayKeyFromCore } from "@gafus/core/utils/training";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { zustandStorage } from "./storage";
@@ -56,16 +57,17 @@ export const useTrainingStore = create<TrainingStore>()(
       ...initialState,
 
       // Утилиты
-      getDayKey: (courseId, dayOnCourseId) => `${courseId}-${dayOnCourseId}`,
+      getDayKey: (courseId, dayOnCourseId) =>
+        getDayKeyFromCore(courseId, dayOnCourseId),
 
       // Открытый шаг (аккордеон)
       getOpenIndex: (courseId, dayOnCourseId) => {
-        const dayKey = `${courseId}-${dayOnCourseId}`;
+        const dayKey = get().getDayKey(courseId, dayOnCourseId);
         return get().openIndexes[dayKey] ?? null;
       },
 
       setOpenIndex: (courseId, dayOnCourseId, index) => {
-        const dayKey = `${courseId}-${dayOnCourseId}`;
+        const dayKey = get().getDayKey(courseId, dayOnCourseId);
         set((state) => ({
           openIndexes: { ...state.openIndexes, [dayKey]: index },
         }));
@@ -73,12 +75,12 @@ export const useTrainingStore = create<TrainingStore>()(
 
       // Запущенный шаг (таймер)
       getRunningIndex: (courseId, dayOnCourseId) => {
-        const dayKey = `${courseId}-${dayOnCourseId}`;
+        const dayKey = get().getDayKey(courseId, dayOnCourseId);
         return get().runningSteps[dayKey] ?? null;
       },
 
       setRunningIndex: (courseId, dayOnCourseId, index) => {
-        const dayKey = `${courseId}-${dayOnCourseId}`;
+        const dayKey = get().getDayKey(courseId, dayOnCourseId);
         set((state) => ({
           runningSteps: { ...state.runningSteps, [dayKey]: index },
         }));

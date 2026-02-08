@@ -6,7 +6,12 @@ import Link from "next/link";
 import { createWebLogger } from "@gafus/logger";
 import { useCachedTrainingDays } from "@shared/hooks/useCachedTrainingDays";
 import { useStepStatesForCourse } from "@shared/stores/stepStore";
-import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
+import {
+  calculateDayStatus,
+  DAY_TYPE_LABELS,
+  getCurrentDayIndex,
+  getDayDisplayStatus,
+} from "@gafus/core/utils/training";
 import { showLockedDayAlert, showPrivateCourseAccessDeniedAlert } from "@shared/utils/sweetAlert";
 import { LockIcon } from "@shared/utils/muiImports";
 import styles from "./TrainingDayList.module.css";
@@ -62,52 +67,13 @@ const TrainingDayList = memo(function TrainingDayList({
     return baseClass;
   }, []);
 
-  // Определяем текущий день для индикатора "Вы здесь"
-  const getCurrentDayIndex = useCallback(
-    (
-      days: {
-        dayOnCourseId: string;
-        courseId: string;
-        userStatus: string;
-      }[],
-    ) => {
-      // 1. Ищем первый день IN_PROGRESS
-      const inProgressDayIndex = days.findIndex((day) => {
-        const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
-        const finalStatus = getDayDisplayStatus(localStatus, day.userStatus);
-        return finalStatus === "IN_PROGRESS";
-      });
-
-      if (inProgressDayIndex !== -1) return inProgressDayIndex;
-
-      // 2. Ищем последний COMPLETED и возвращаем следующий
-      let lastCompletedIndex = -1;
-      days.forEach((day, index) => {
-        const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
-        const finalStatus = getDayDisplayStatus(localStatus, day.userStatus);
-        if (finalStatus === "COMPLETED") {
-          lastCompletedIndex = index;
-        }
-      });
-
-      if (lastCompletedIndex !== -1 && lastCompletedIndex < days.length - 1) {
-        return lastCompletedIndex + 1;
-      }
-
-      // 3. При только RESET/NOT_STARTED днях считаем текущим первый день (индекс 0)
-      return 0;
+  const getFinalStatus = useCallback(
+    (day: { dayOnCourseId: string; courseId: string; userStatus: string }) => {
+      const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
+      return getDayDisplayStatus(localStatus, day.userStatus);
     },
     [stepStates],
   );
-
-  const typeLabels: Record<string, string> = {
-    base: "Базовый день",
-    regular: "Тренировочный день",
-    introduction: "Вводный блок",
-    instructions: "Инструкции",
-    diagnostics: "Диагностика",
-    summary: "Подведение итогов",
-  };
 
   // Используем initialData если есть, иначе данные из хука
   const displayData = initialData || data;
@@ -152,7 +118,7 @@ const TrainingDayList = memo(function TrainingDayList({
     return <div className="py-8 text-center text-gray-600">Дни тренировок не найдены</div>;
   }
 
-  const currentDayIndex = getCurrentDayIndex(displayData.trainingDays);
+  const currentDayIndex = getCurrentDayIndex(displayData.trainingDays, getFinalStatus);
 
   return (
     <ul className={styles.list}>
@@ -221,7 +187,7 @@ const TrainingDayList = memo(function TrainingDayList({
                 <div className={styles.titleWithLock}>
                   <h2 className={styles.dayTitle}>{day.title}</h2>
                 </div>
-                <p className={styles.subtitle}>({typeLabels[day.type] || day.type})</p>
+                <p className={styles.subtitle}>({DAY_TYPE_LABELS[day.type] || day.type})</p>
                 <p>Что понадобится:</p>
                 <p className={styles.equipment}>{day.equipment || "вкусняшки и терпение"}</p>
               </div>

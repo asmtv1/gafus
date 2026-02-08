@@ -14,6 +14,8 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@gafus/core": "workspace:*",
+    "@gafus/types": "workspace:*",
     "@expo-google-fonts/montserrat": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "~2.1.2",

@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, Text, Modal } from "react-native";
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
+import { STEP_STATUS_FILTER_LABELS } from "@gafus/core/utils/training";
 import type {
   CourseTabType,
   TrainingLevelType,
@@ -40,11 +41,7 @@ const LEVEL_LABELS: Record<TrainingLevelType, string> = {
 
 const PROGRESS_LABELS: Record<ProgressFilterType, string> = {
   ALL: "Все курсы",
-  NOT_STARTED: "Не начатые",
-  IN_PROGRESS: "В процессе",
-  COMPLETED: "Завершённые",
-  PAUSED: "На паузе",
-  RESET: "Сброшенные",
+  ...STEP_STATUS_FILTER_LABELS,
 };
 
 const RATING_LABELS: Record<RatingFilterType, string> = {

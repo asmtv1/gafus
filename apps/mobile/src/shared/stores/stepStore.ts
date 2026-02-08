@@ -1,4 +1,7 @@
-import { getStepKey as getStepKeyFromCore } from "@gafus/core/utils/training";
+import {
+  getDayStepKeyPrefix,
+  getStepKey as getStepKeyFromCore,
+} from "@gafus/core/utils/training";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
@@ -305,7 +308,7 @@ export const useStepStore = create<StepStore>()(
 
       // Очистка состояний дня
       clearDayStates: (courseId, dayOnCourseId) => {
-        const prefix = `${courseId}-${dayOnCourseId}-`;
+        const prefix = getDayStepKeyPrefix(courseId, dayOnCourseId);
         set((state) => {
           const newStates = { ...state.stepStates };
           for (const key of Object.keys(newStates)) {
@@ -329,7 +332,7 @@ export const useStepStore = create<StepStore>()(
 
 /** Подмножество stepStates по префиксу дня (для одного дня курса). */
 export function useDayStepStates(courseId: string, dayOnCourseId: string) {
-  const prefix = `${courseId}-${dayOnCourseId}-`;
+  const prefix = getDayStepKeyPrefix(courseId, dayOnCourseId);
   return useStepStore(
     useShallow((state) =>
       Object.fromEntries(

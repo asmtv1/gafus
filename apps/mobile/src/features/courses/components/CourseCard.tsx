@@ -5,6 +5,8 @@ import { Link, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
+import { STEP_STATUS_LABELS } from "@gafus/core/utils/training";
+import { TrainingStatus } from "@gafus/types";
 import { SPACING, FONTS, COLORS, BORDER_RADIUS } from "@/constants";
 import { useOfflineStore } from "@/shared/stores";
 import { offlineApi } from "@/shared/lib/api/offline";
@@ -18,18 +20,10 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 function getStatusText(status: string): string {
-  switch (status) {
-    case "NOT_STARTED":
-      return "Не начат";
-    case "IN_PROGRESS":
-      return "В процессе";
-    case "COMPLETED":
-      return "Завершен";
-    case "RESET":
-      return "Сброшен";
-    default:
-      return "Не начат";
-  }
+  return (
+    STEP_STATUS_LABELS[status as TrainingStatus] ??
+    STEP_STATUS_LABELS[TrainingStatus.NOT_STARTED]
+  );
 }
 
 function getStatusColor(status: string): string {

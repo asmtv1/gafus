@@ -2,7 +2,10 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import { createWebLogger } from "@gafus/logger";
 
-import { getStepKey } from "@gafus/core/utils/training";
+import {
+  getStepKey,
+  getStepTimerEndStorageKey,
+} from "@gafus/core/utils/training";
 import { TrainingStatus, type StepStatusUpdateData, type StepResumeData } from "@gafus/types";
 import type { TimerStore } from "./timerStore.types";
 import {
@@ -23,9 +26,6 @@ const logger = createWebLogger("web-timer-store");
 
 // ===== УТИЛИТЫ =====
 const nowSec = () => Math.floor(Date.now() / 1000);
-const makeEndKey = (courseId: string, dayOnCourseId: string, idx: number) =>
-  `training-${courseId}-${dayOnCourseId}-${idx}-end`;
-
 function loadFromLS(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -104,7 +104,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       }
 
       const tick = () => {
-        const END_KEY = makeEndKey(courseId, dayOnCourseId, stepIndex);
+        const END_KEY = getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex);
         const endTsStr = loadFromLS(END_KEY);
 
         if (!endTsStr) {

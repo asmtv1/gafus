@@ -8,6 +8,8 @@ import {
   Text,
 } from "react-native";
 
+import { STEP_STATUS_FILTER_LABELS } from "@gafus/core/utils/training";
+import { TrainingStatus } from "@gafus/types";
 import {
   type CourseTabType,
   type TrainingLevelType,
@@ -33,11 +35,31 @@ const LEVEL_OPTIONS: { id: TrainingLevelType; label: string }[] = [
 
 const PROGRESS_OPTIONS: { id: ProgressFilterType; label: string; icon: string }[] = [
   { id: "ALL", label: "Все курсы", icon: "📚" },
-  { id: "NOT_STARTED", label: "Не начатые", icon: "⭐" },
-  { id: "IN_PROGRESS", label: "В процессе", icon: "🔥" },
-  { id: "COMPLETED", label: "Завершённые", icon: "✅" },
-  { id: "PAUSED", label: "На паузе", icon: "⏸" },
-  { id: "RESET", label: "Сброшенные", icon: "🔄" },
+  {
+    id: TrainingStatus.NOT_STARTED,
+    label: STEP_STATUS_FILTER_LABELS[TrainingStatus.NOT_STARTED],
+    icon: "⭐",
+  },
+  {
+    id: TrainingStatus.IN_PROGRESS,
+    label: STEP_STATUS_FILTER_LABELS[TrainingStatus.IN_PROGRESS],
+    icon: "🔥",
+  },
+  {
+    id: TrainingStatus.COMPLETED,
+    label: STEP_STATUS_FILTER_LABELS[TrainingStatus.COMPLETED],
+    icon: "✅",
+  },
+  {
+    id: TrainingStatus.PAUSED,
+    label: STEP_STATUS_FILTER_LABELS[TrainingStatus.PAUSED],
+    icon: "⏸",
+  },
+  {
+    id: TrainingStatus.RESET,
+    label: STEP_STATUS_FILTER_LABELS[TrainingStatus.RESET],
+    icon: "🔄",
+  },
 ];
 
 const RATING_OPTIONS: { id: RatingFilterType; label: string }[] = [

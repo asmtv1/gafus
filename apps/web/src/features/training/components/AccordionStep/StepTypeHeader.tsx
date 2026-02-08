@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  shouldShowEstimatedDuration,
+  STEP_TYPE_LABELS,
+} from "@gafus/core/utils/training";
 import type { StepType } from "./types";
 
 import styles from "./AccordionStep.module.css";
@@ -9,23 +13,14 @@ interface StepTypeHeaderProps {
   estimatedDurationSec?: number | null;
 }
 
-const HEADERS: Record<NonNullable<StepType>, string> = {
-  EXAMINATION: "Экзаменационный шаг",
-  THEORY: "Теоретический шаг",
-  BREAK: "Перерыв",
-  PRACTICE: "Упражнение без таймера",
-  DIARY: "Дневник успехов",
-  TRAINING: "Тренировка",
-};
-
 export function StepTypeHeader({ type, estimatedDurationSec }: StepTypeHeaderProps) {
   if (!type || type === "TRAINING") return null;
 
-  const title = HEADERS[type];
+  const title = STEP_TYPE_LABELS[type];
   const showDuration =
     typeof estimatedDurationSec === "number" &&
     estimatedDurationSec > 0 &&
-    (type === "EXAMINATION" || type === "THEORY" || type === "PRACTICE");
+    shouldShowEstimatedDuration(type);
 
   return (
     <div className={styles.timerCard}>

@@ -16,6 +16,7 @@ import { checkCourseAccessById } from "@gafus/core/services/course";
 // Создаем логгер для getTrainingDays
 const logger = createWebLogger("web-get-training-days");
 
+import { estimateDayDurations } from "@gafus/core/utils/training";
 import { NON_NUMBERED_DAY_TYPES } from "./dayTypes";
 
 type CourseWithDayLinks = {
@@ -143,39 +144,19 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
         isLocked = !allOtherDaysCompleted;
       }
 
-      // Время дня для бейджа: учитываем ТОЛЬКО тренировочные шаги (таймеры)
-      let trainingSeconds = 0;
-      let theoryExamSeconds = 0;
-
-      for (const sl of link.day.stepLinks) {
-        const step = sl.step;
-        if (step.type === "TRAINING") {
-          trainingSeconds += step.durationSec ?? 0;
-        } else if (step.type === "PRACTICE") {
-          // PRACTICE учитывается в trainingSeconds через estimatedDurationSec
-          trainingSeconds += step.estimatedDurationSec ?? 0;
-        } else if (step.type === "BREAK") {
-          // BREAK не учитывается в расчётах времени
-          continue;
-        } else if (step.type === "DIARY") {
-          // DIARY не учитывается в расчётах времени
-          continue;
-        } else {
-          // Все нетренировочные шаги считаем теорией/экзаменом
-          theoryExamSeconds += step.estimatedDurationSec ?? 0;
-        }
-      }
-
-      const estimatedDuration = Math.ceil(trainingSeconds / 60);
-      const theoryMinutes = Math.ceil(theoryExamSeconds / 60);
+      const { trainingMinutes: estimatedDuration, theoryMinutes } = estimateDayDurations(
+        link.day.stepLinks.map((sl) => ({
+          type: sl.step?.type ?? null,
+          durationSec: sl.step?.durationSec ?? null,
+          estimatedDurationSec: sl.step?.estimatedDurationSec ?? null,
+        })),
+      );
 
       logger.info("getTrainingDays: day time debug", {
         operation: "get_training_days_time_debug",
         courseId: firstCourse.id,
         dayOrder: link.order,
         dayTitle: link.day.title,
-        trainingSeconds,
-        theoryExamSeconds,
         estimatedDuration,
         theoryMinutes,
       });

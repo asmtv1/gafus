@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
-import { getStepDisplayStatus, getStepKey } from "@gafus/core/utils/training";
+import {
+  getDayTitle,
+  getStepDisplayStatus,
+  getStepKey,
+  STEP_STATUS_LABELS,
+} from "@gafus/core/utils/training";
 import { TrainingStatus, type TrainingDetail } from "@gafus/types";
 import { useDayStepStates, useStepStore } from "@shared/stores/stepStore";
 import { useTrainingStore } from "@shared/stores/trainingStore";
@@ -12,28 +17,13 @@ import { ExpandMoreIcon } from "@shared/utils/muiImports";
 import { AccordionStep } from "../AccordionStep";
 import styles from "./Day.module.css";
 
-// Конфигурация для статусов шагов
+// Цвета и эмодзи для статусов (текст — из STEP_STATUS_LABELS в core)
 const STEP_STATUS_CONFIG = {
-  NOT_STARTED: {
-    text: "⏳ Не начат",
-    backgroundColor: "#FFF8E5",
-  },
-  IN_PROGRESS: {
-    text: "🔄 В процессе",
-    backgroundColor: "#E6F3FF",
-  },
-  COMPLETED: {
-    text: "✅ Завершен",
-    backgroundColor: "#B6C582",
-  },
-  PAUSED: {
-    text: "⏸️ На паузе",
-    backgroundColor: "#FFF4E6",
-  },
-  RESET: {
-    text: "🔄 Сброшен",
-    backgroundColor: "#E8E6E6",
-  },
+  NOT_STARTED: { emoji: "⏳", backgroundColor: "#FFF8E5" },
+  IN_PROGRESS: { emoji: "🔄", backgroundColor: "#E6F3FF" },
+  COMPLETED: { emoji: "✅", backgroundColor: "#B6C582" },
+  PAUSED: { emoji: "⏸️", backgroundColor: "#FFF4E6" },
+  RESET: { emoji: "🔄", backgroundColor: "#E8E6E6" },
 } as const;
 
 interface DayProps {
@@ -209,17 +199,7 @@ export function Day({ training, courseType }: DayProps) {
     <div className={styles.main}>
       <div className={styles.dayHeader}>
         <h2 className={styles.dayTitle}>
-          {training.type === "instructions"
-            ? "Инструкции"
-            : training.type === "introduction"
-              ? "Вводный блок"
-              : training.type === "diagnostics"
-                ? "Диагностика"
-                : training.type === "summary"
-                  ? "Подведение итогов"
-                  : training.displayDayNumber
-                    ? `День ${training.displayDayNumber}`
-                    : "День"}
+          {getDayTitle(training.type, training.displayDayNumber)}
         </h2>
       </div>
       <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ""}`}>
@@ -247,16 +227,19 @@ export function Day({ training, courseType }: DayProps) {
         const stepKey = getStepKey(training.courseId, training.dayOnCourseId, index);
         const stepStatus = getStepDisplayStatus(stepStates[stepKey], step);
 
-        const stepStatusConfig =
+        const statusConfig =
           STEP_STATUS_CONFIG[stepStatus as keyof typeof STEP_STATUS_CONFIG] ||
           STEP_STATUS_CONFIG.NOT_STARTED;
+        const statusText =
+          STEP_STATUS_LABELS[stepStatus as TrainingStatus] ??
+          STEP_STATUS_LABELS[TrainingStatus.NOT_STARTED];
 
         return (
           <div key={`${step.id}-${index}`} className={styles.accordionItem}>
             <div
               className={styles.accordionHeader}
               onClick={() => handleToggleOpen(index)}
-              style={{ backgroundColor: stepStatusConfig.backgroundColor }}
+              style={{ backgroundColor: statusConfig.backgroundColor }}
             >
               <div className={styles.stepTitleContainer}>
                 <div className={styles.expandControl}>
@@ -277,7 +260,7 @@ export function Day({ training, courseType }: DayProps) {
                   </div>
                 </h3>
                 <div className={styles.stepStatusConfig}>
-                  <span>{stepStatusConfig.text}</span>
+                  <span>{statusConfig.emoji} {statusText}</span>
                 </div>
               </div>
             </div>

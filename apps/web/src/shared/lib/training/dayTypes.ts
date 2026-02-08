@@ -1,7 +1,5 @@
-// Типы дней, которые не нумеруются (не считаются тренировочными днями)
-export const NON_NUMBERED_DAY_TYPES = [
-  "instructions",
-  "introduction",
-  "diagnostics",
-  "summary",
-] as const;
+export {
+  DAY_TYPE_LABELS,
+  getDayTitle,
+  NON_NUMBERED_DAY_TYPES,
+} from "@gafus/core/utils/training";

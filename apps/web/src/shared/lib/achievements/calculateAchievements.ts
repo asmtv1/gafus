@@ -1,8 +1,11 @@
 "use client";
 
+import {
+  calculateAchievements as calculateAchievementsFromCore,
+  type AchievementStats,
+} from "@gafus/core/services/achievements";
 import { createWebLogger } from "@gafus/logger";
 import type {
-  Achievement,
   AchievementData,
   AchievementCalculationParams,
   AchievementCalculationResult,
@@ -13,136 +16,6 @@ import { calculateCurrentStreak, calculateLongestStreak } from "./calculateStrea
 
 // Создаем логгер для calculate-achievements
 const logger = createWebLogger("web-calculate-achievements");
-
-// Тип для статистики достижений
-interface AchievementStats {
-  totalCourses: number;
-  completedCourses: number;
-  inProgressCourses: number;
-  totalCompletedDays: number;
-  totalDays: number;
-  overallProgress: number;
-  totalTrainingTime: number;
-  averageCourseProgress: number;
-  longestStreak: number;
-  currentStreak: number;
-}
-
-// Конфигурация достижений
-const ACHIEVEMENTS_CONFIG = [
-  // Курсы
-  {
-    id: "first-course",
-    title: "Первый шаг",
-    description: "Начните свой первый курс",
-    icon: "🎯",
-    category: "courses" as const,
-    condition: (stats: AchievementStats) => stats.totalCourses >= 1,
-  },
-  {
-    id: "course-completer",
-    title: "Завершитель",
-    description: "Завершите свой первый курс",
-    icon: "🏆",
-    category: "courses" as const,
-    condition: (stats: AchievementStats) => stats.completedCourses >= 1,
-  },
-  {
-    id: "course-master",
-    title: "Мастер курсов",
-    description: "Завершите 5 курсов",
-    icon: "👑",
-    category: "courses" as const,
-    condition: (stats: AchievementStats) => stats.completedCourses >= 5,
-  },
-  {
-    id: "course-expert",
-    title: "Эксперт",
-    description: "Завершите 10 курсов",
-    icon: "🎓",
-    category: "courses" as const,
-    condition: (stats: AchievementStats) => stats.completedCourses >= 10,
-  },
-
-  // Прогресс
-  {
-    id: "progress-starter",
-    title: "Начинающий",
-    description: "Достигните 25% общего прогресса",
-    icon: "📈",
-    category: "progress" as const,
-    condition: (stats: AchievementStats) => stats.overallProgress >= 25,
-  },
-  {
-    id: "progress-achiever",
-    title: "Достигающий",
-    description: "Достигните 50% общего прогресса",
-    icon: "📊",
-    category: "progress" as const,
-    condition: (stats: AchievementStats) => stats.overallProgress >= 50,
-  },
-  {
-    id: "progress-master",
-    title: "Мастер прогресса",
-    description: "Достигните 75% общего прогресса",
-    icon: "📋",
-    category: "progress" as const,
-    condition: (stats: AchievementStats) => stats.overallProgress >= 75,
-  },
-  {
-    id: "progress-perfectionist",
-    title: "Перфекционист",
-    description: "Достигните 100% общего прогресса",
-    icon: "💯",
-    category: "progress" as const,
-    condition: (stats: AchievementStats) => stats.overallProgress >= 100,
-  },
-
-  // Серии
-  {
-    id: "streak-3",
-    title: "Трехдневная серия",
-    description: "Занимайтесь 3 дня подряд",
-    icon: "🔥",
-    category: "streak" as const,
-    condition: (stats: AchievementStats) => stats.currentStreak >= 3,
-  },
-  {
-    id: "streak-7",
-    title: "Недельная серия",
-    description: "Занимайтесь 7 дней подряд",
-    icon: "⚡",
-    category: "streak" as const,
-    condition: (stats: AchievementStats) => stats.currentStreak >= 7,
-  },
-  {
-    id: "streak-30",
-    title: "Месячная серия",
-    description: "Занимайтесь 30 дней подряд",
-    icon: "🌟",
-    category: "streak" as const,
-    condition: (stats: AchievementStats) => stats.currentStreak >= 30,
-  },
-
-  // Специальные
-  {
-    id: "early-bird",
-    title: "Ранняя пташка",
-    description: "Завершите курс за 1 день",
-    icon: "🐦",
-    category: "special" as const,
-    condition: (stats: AchievementStats) =>
-      stats.completedCourses >= 1 && stats.averageCourseProgress >= 100,
-  },
-  {
-    id: "dedicated-learner",
-    title: "Преданный ученик",
-    description: "Потратьте 100 часов на обучение",
-    icon: "⏰",
-    category: "special" as const,
-    condition: (stats: AchievementStats) => stats.totalTrainingTime >= 6000, // 100 часов в минутах
-  },
-] as const;
 
 /**
  * Вычисляет статистику пользователя на основе его курсов
@@ -206,70 +79,6 @@ function calculateUserStatistics(user: UserWithTrainings): AchievementStats {
 }
 
 /**
- * Вычисляет достижения на основе статистики
- */
-function calculateAchievements(stats: AchievementStats): Achievement[] {
-  if (!stats) {
-    return [];
-  }
-
-  return ACHIEVEMENTS_CONFIG.map((config) => {
-    const unlocked = config.condition(stats);
-    const progress = calculateAchievementProgress(config, stats);
-
-    return {
-      id: config.id,
-      title: config.title,
-      description: config.description,
-      icon: config.icon,
-      unlocked,
-      unlockedAt: unlocked ? new Date() : undefined,
-      progress,
-      category: config.category,
-    };
-  });
-}
-
-/**
- * Вычисляет прогресс достижения (0-100)
- */
-function calculateAchievementProgress(
-  config: (typeof ACHIEVEMENTS_CONFIG)[number],
-  stats: AchievementStats,
-): number {
-  switch (config.id) {
-    case "first-course":
-      return Math.min(Math.round((stats.totalCourses / 1) * 100), 100);
-    case "course-completer":
-      return Math.min(Math.round((stats.completedCourses / 1) * 100), 100);
-    case "course-master":
-      return Math.min(Math.round((stats.completedCourses / 5) * 100), 100);
-    case "course-expert":
-      return Math.min(Math.round((stats.completedCourses / 10) * 100), 100);
-    case "progress-starter":
-      return Math.min(Math.round((stats.overallProgress / 25) * 100), 100);
-    case "progress-achiever":
-      return Math.min(Math.round((stats.overallProgress / 50) * 100), 100);
-    case "progress-master":
-      return Math.min(Math.round((stats.overallProgress / 75) * 100), 100);
-    case "progress-perfectionist":
-      return Math.min(Math.round((stats.overallProgress / 100) * 100), 100);
-    case "streak-3":
-      return Math.min(Math.round((stats.currentStreak / 3) * 100), 100);
-    case "streak-7":
-      return Math.min(Math.round((stats.currentStreak / 7) * 100), 100);
-    case "streak-30":
-      return Math.min(Math.round((stats.currentStreak / 30) * 100), 100);
-    case "early-bird":
-      return stats.completedCourses >= 1 && stats.averageCourseProgress >= 100 ? 100 : 0;
-    case "dedicated-learner":
-      return Math.min(Math.round((stats.totalTrainingTime / 6000) * 100), 100);
-    default:
-      return 0;
-  }
-}
-
-/**
  * Основная функция для вычисления достижений
  */
 export async function calculateAchievementsData(
@@ -277,11 +86,8 @@ export async function calculateAchievementsData(
 ): Promise<AchievementCalculationResult> {
   const { user } = params;
 
-  // Вычисляем статистику
   const statistics = calculateUserStatistics(user);
-
-  // Вычисляем достижения
-  const achievements = calculateAchievements(statistics);
+  const achievements = calculateAchievementsFromCore(statistics);
 
   return {
     achievements,
@@ -422,8 +228,7 @@ export function calculateAchievementsFromStores(
     currentStreak,
   };
 
-  // Вычисляем достижения
-  const achievements = calculateAchievements(stats);
+  const achievements = calculateAchievementsFromCore(stats);
 
   return {
     ...stats,

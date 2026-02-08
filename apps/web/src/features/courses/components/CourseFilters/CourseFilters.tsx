@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import type { TrainingStatus } from "@gafus/types";
+import { STEP_STATUS_FILTER_LABELS } from "@gafus/core/utils/training";
 import type { CourseTabType } from "../CourseTabs/CourseTabs";
 import FiltersDrawer from "./FiltersDrawer";
 import styles from "./CourseFilters.module.css";
@@ -64,11 +65,7 @@ const levelLabels: Record<TrainingLevelType, string> = {
 
 const progressLabels: Record<ProgressFilterType, string> = {
   ALL: "Все курсы",
-  NOT_STARTED: "Не начатые",
-  IN_PROGRESS: "В процессе",
-  COMPLETED: "Завершённые",
-  PAUSED: "На паузе",
-  RESET: "Сброшенные",
+  ...STEP_STATUS_FILTER_LABELS,
 };
 
 const ratingLabels: Record<RatingFilterType, string> = {

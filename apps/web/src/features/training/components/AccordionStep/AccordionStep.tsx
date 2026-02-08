@@ -8,6 +8,7 @@ import { useCacheManager } from "@shared/utils/cacheManager";
 import { useSyncStatus } from "@shared/hooks/useSyncStatus";
 import { markPracticeStepAsCompleted } from "@shared/lib/training/markPracticeStepAsCompleted";
 import { getEmbeddedVideoInfo } from "@gafus/core/utils";
+import { isStepWithTimer } from "@gafus/core/utils/training";
 
 import styles from "./AccordionStep.module.css";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
@@ -183,7 +184,7 @@ export function AccordionStep({
         />
       )}
 
-      {type !== "EXAMINATION" && type !== "THEORY" && type !== "PRACTICE" && type !== "DIARY" && (
+      {isStepWithTimer(type) && (
         <StepTimerCard
           displayTimeLeft={displayTimeLeft}
           stepState={stepState}
