@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
   },
 
   // Внешние пакеты для server components
-  serverExternalPackages: ["@aws-sdk/client-s3", "bcrypt", "@gafus/prisma", "@prisma/client"],
+  serverExternalPackages: ["@aws-sdk/client-s3", "bcrypt", "@gafus/prisma", "@prisma/client", "bullmq"],
 
   // Транспиляция workspace пакетов
   transpilePackages: [
@@ -61,11 +61,15 @@ const nextConfig: NextConfig = {
     (config.plugins = config.plugins || []).push({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       apply: (compiler: any) => {
-        compiler.hooks.emit.tap("CreateWorkerFile", (compilation: any) => {
-          compilation.assets["lib/worker.js"] = {
-            source: () => "module.exports = {};",
-            size: () => 20,
-          };
+        const { RawSource } = compiler.webpack?.sources || require("webpack").sources;
+        compiler.hooks.compilation.tap("CreateWorkerFile", (compilation: any) => {
+          const stage = compilation.constructor.PROCESS_ASSETS_STAGE_ADDITIONAL;
+          compilation.hooks.processAssets.tap(
+            { name: "CreateWorkerFile", stage },
+            (assets: any) => {
+              assets["lib/worker.js"] = new RawSource("module.exports = {};");
+            },
+          );
         });
       },
     });

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "types": "dist/index.d.mts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "clean": "rimraf dist",
     "test": "vitest run --config ../../vitest.config.ts",
     "typecheck": "tsc --noEmit"
@@ -17,6 +17,7 @@
   "devDependencies": {
     "@types/node": "20.4.8",
     "rimraf": "5.0.1",
+    "tsup": "^8.3.5",
     "typescript": "5.8.3"
   }
 }

@@ -63,15 +63,24 @@ const nextConfig: NextConfig = {
 
   // Webpack конфигурация для создания dummy файла worker.js
   webpack: (config: WebpackConfig, { isServer }: { isServer: boolean }) => {
-    // Webpack плагин для создания dummy файла lib/worker.js
+    if (isServer) {
+      const { PrismaPlugin } = require("@prisma/nextjs-monorepo-workaround-plugin");
+      config.plugins = config.plugins || [];
+      config.plugins.push(new PrismaPlugin());
+    }
+    // Webpack плагин для создания dummy файла lib/worker.js (processAssets — webpack 5)
     config.plugins = config.plugins || [];
     config.plugins.push({
       apply: (compiler: any) => {
-        compiler.hooks.emit.tap("CreateWorkerFile", (compilation: any) => {
-          compilation.assets["lib/worker.js"] = {
-            source: () => "module.exports = {};",
-            size: () => 20,
-          };
+        const { RawSource } = compiler.webpack?.sources || require("webpack").sources;
+        compiler.hooks.compilation.tap("CreateWorkerFile", (compilation: any) => {
+          const stage = compilation.constructor.PROCESS_ASSETS_STAGE_ADDITIONAL;
+          compilation.hooks.processAssets.tap(
+            { name: "CreateWorkerFile", stage },
+            (assets: any) => {
+              assets["lib/worker.js"] = new RawSource("module.exports = {};");
+            },
+          );
         });
       },
     });

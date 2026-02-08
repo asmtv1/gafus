@@ -25,6 +25,10 @@ const withPWA = withPWAInit({
 // Общие алиасы для webpack и Turbopack (workspace-пакеты).
 // Важно: более длинные пути для core — первыми, иначе сработает @gafus/core и попадёт src вместо dist (на проде 500).
 const gafusAliases = {
+  "@gafus/core/updatePetPhoto": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/pets/petsService.ts",
+  ),
   "@gafus/core/services/training/trainingService": _path.resolve(
     __dirname,
     "../../packages/core/dist/core/src/services/training/trainingService.js",
@@ -54,6 +58,7 @@ const gafusAliases = {
     __dirname,
     "../../packages/core/src/services/achievements",
   ),
+  "@gafus/core/services/pets": _path.resolve(__dirname, "../../packages/core/src/services/pets"),
   "@gafus/core/errors": _path.resolve(__dirname, "../../packages/core/src/errors"),
   "@gafus/core/utils": _path.resolve(__dirname, "../../packages/core/src/utils"),
   "@gafus/core/utils/social": _path.resolve(__dirname, "../../packages/core/src/utils/social"),
@@ -117,7 +122,8 @@ const nextConfig = {
   // Исправляем проблемы с clientReferenceManifest в Next.js 14
   // Prisma: не бандлить — Query Engine ищется в node_modules
   // core: не бандлить на сервере — резолв в рантайме по package.json exports (dist), см. bundling.md
-  serverExternalPackages: ["sharp", "prisma", "@prisma/client", "@gafus/core"],
+  // core убран: бандлится из src по алиасу; иначе реэкспорт updatePetPhoto даёт предупреждение (резолв в dist)
+  serverExternalPackages: ["sharp", "prisma", "@prisma/client", "bullmq"],
 
   // Оптимизации для bundle
   experimental: {
@@ -152,15 +158,19 @@ const nextConfig = {
       });
     }
 
-    // Webpack плагин для создания dummy файла lib/worker.js
+    // Webpack плагин для создания dummy файла lib/worker.js (processAssets — webpack 5)
     config.plugins = config.plugins || [];
     config.plugins.push({
       apply: (compiler: any) => {
-        compiler.hooks.emit.tap("CreateWorkerFile", (compilation: any) => {
-          compilation.assets["lib/worker.js"] = {
-            source: () => "module.exports = {};",
-            size: () => 20,
-          };
+        const { RawSource } = compiler.webpack?.sources || require("webpack").sources;
+        compiler.hooks.compilation.tap("CreateWorkerFile", (compilation: any) => {
+          const stage = compilation.constructor.PROCESS_ASSETS_STAGE_ADDITIONAL;
+          compilation.hooks.processAssets.tap(
+            { name: "CreateWorkerFile", stage },
+            (assets: any) => {
+              assets["lib/worker.js"] = new RawSource("module.exports = {};");
+            },
+          );
         });
       },
     });

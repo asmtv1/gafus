@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 
-import { updatePetPhoto } from "@gafus/core/services/pets";
+import { updatePetPhoto } from "@gafus/core/updatePetPhoto";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 

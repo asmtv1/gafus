@@ -1,9 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { createTrainerPanelLogger } from "@gafus/logger";
 
-// Создаем логгер для trainer-panel
-const logger = createTrainerPanelLogger("trainer-panel-middleware");
+// Middleware выполняется в Edge Runtime — @gafus/logger использует process.stdout, в Edge недоступен.
+// Используем no-op логгер; при необходимости можно включить console в dev.
+const logger = {
+  info: (_msg: string, _meta?: object) => {},
+  warn: (_msg: string, _meta?: object) => {},
+  success: (_msg: string, _meta?: object) => {},
+};
 
 // Роли, которым разрешен доступ к trainer-panel
 const ALLOWED_ROLES = ["ADMIN", "MODERATOR", "TRAINER"];
