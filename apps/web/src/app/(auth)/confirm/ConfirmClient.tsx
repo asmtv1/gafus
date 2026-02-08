@@ -38,7 +38,7 @@ export default function ConfirmClient() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [phone]);
+  }, [phone, catchError]);
 
   return <div>{isPending && <p>Проверяем подтверждение...</p>}</div>;
 }

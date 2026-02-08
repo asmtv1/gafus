@@ -5,7 +5,8 @@
  * Query params: courseType
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { getCourseMetadata } from "@gafus/core/services/course";
 import { createWebLogger } from "@gafus/logger";
 
