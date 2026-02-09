@@ -113,7 +113,7 @@ export function ReviewsList({
       } else {
         await showErrorAlert(error || "Произошла ошибка при сохранении отзыва");
       }
-    } catch (err) {
+    } catch {
       await showErrorAlert("Произошла ошибка при сохранении отзыва");
     }
   };
@@ -136,7 +136,7 @@ export function ReviewsList({
       } else {
         await showErrorAlert(error || "Произошла ошибка при удалении отзыва");
       }
-    } catch (err) {
+    } catch {
       await showErrorAlert("Произошла ошибка при удалении отзыва");
     }
   };

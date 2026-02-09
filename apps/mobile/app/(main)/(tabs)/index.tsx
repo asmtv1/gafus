@@ -187,7 +187,7 @@ export default function CoursesScreen() {
           data={filteredCourses}
           renderItem={renderCourseItem}
           keyExtractor={keyExtractor}
-          estimatedItemSize={380}
+          overrideProps={{ estimatedItemSize: 380 }}
           ListHeaderComponent={listHeader}
           contentContainerStyle={styles.listContent}
           refreshControl={

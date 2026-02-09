@@ -9,7 +9,6 @@ import { useStepStatesForCourse } from "@shared/stores/stepStore";
 import {
   calculateDayStatus,
   DAY_TYPE_LABELS,
-  getCurrentDayIndex,
   getDayDisplayStatus,
 } from "@gafus/core/utils/training";
 import { showLockedDayAlert, showPrivateCourseAccessDeniedAlert } from "@shared/utils/sweetAlert";
@@ -67,14 +66,6 @@ const TrainingDayList = memo(function TrainingDayList({
     return baseClass;
   }, []);
 
-  const getFinalStatus = useCallback(
-    (day: { dayOnCourseId: string; courseId: string; userStatus: string }) => {
-      const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
-      return getDayDisplayStatus(localStatus, day.userStatus);
-    },
-    [stepStates],
-  );
-
   // Используем initialData если есть, иначе данные из хука
   const displayData = initialData || data;
   const displayError = initialError || error;
@@ -118,13 +109,9 @@ const TrainingDayList = memo(function TrainingDayList({
     return <div className="py-8 text-center text-gray-600">Дни тренировок не найдены</div>;
   }
 
-  const currentDayIndex = getCurrentDayIndex(displayData.trainingDays, getFinalStatus);
-
   return (
     <ul className={styles.list}>
       {displayData.trainingDays.map((day, index) => {
-        const isCurrent = index === currentDayIndex;
-
         if (process.env.NODE_ENV !== "production") {
           logger.debug("Day time", {
             dayOnCourseId: day.dayOnCourseId,
@@ -144,12 +131,6 @@ const TrainingDayList = memo(function TrainingDayList({
               return getItemClass(finalStatus, index + 1);
             })()}
           >
-            {isCurrent && (
-              <div className={styles.currentIndicator}>
-                <span>📍</span>
-                <span>Вы здесь</span>
-              </div>
-            )}
             <Link
               href={`/trainings/${courseType}/${day.trainingDayId}`}
               className={`${styles.link} ${day.isLocked ? styles.locked : ""}`}

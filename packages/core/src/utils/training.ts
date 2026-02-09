@@ -173,28 +173,6 @@ export function getDayTitle(type: string, displayDayNumber?: number | null): str
 }
 
 /**
- * Индекс «текущего» дня для подсветки в списке.
- * Логика: первый день со статусом IN_PROGRESS; иначе следующий за последним COMPLETED; иначе 0.
- * Пустой массив → 0. Входящий массив не мутируется.
- */
-export function getCurrentDayIndex<T>(
-  days: T[],
-  getFinalStatus: (day: T) => string,
-): number {
-  if (days.length === 0) return 0;
-  const inProgressIndex = days.findIndex((day) => getFinalStatus(day) === "IN_PROGRESS");
-  if (inProgressIndex !== -1) return inProgressIndex;
-  let lastCompletedIndex = -1;
-  for (let i = 0; i < days.length; i++) {
-    if (getFinalStatus(days[i]) === "COMPLETED") lastCompletedIndex = i;
-  }
-  if (lastCompletedIndex !== -1 && lastCompletedIndex < days.length - 1) {
-    return lastCompletedIndex + 1;
-  }
-  return 0;
-}
-
-/**
  * Формат времени таймера для отображения (M:SS).
  * Отрицательные и дробные значения приводятся к неотрицательному целому (0 и выше).
  */

@@ -12,7 +12,7 @@ import crypto from "crypto";
 import { prisma } from "@gafus/prisma";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
 import { registerUser } from "@gafus/auth";
-import { checkPhoneMatchesUsername, sendPasswordResetRequest } from "@gafus/core/services/auth";
+import { sendPasswordResetRequest } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-auth");
@@ -28,7 +28,13 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   name: z.string().min(1, "Имя обязательно"), // Используется как username
   phone: z.string().min(1, "Номер телефона обязателен"),
-  password: z.string().min(6, "Пароль должен содержать минимум 6 символов"),
+  password: z
+    .string()
+    .min(8, "Пароль должен содержать минимум 8 символов")
+    .max(100, "Пароль не более 100 символов")
+    .regex(/[A-Z]/, "Минимум одна заглавная буква")
+    .regex(/[a-z]/, "Минимум одна строчная буква")
+    .regex(/[0-9]/, "Минимум одна цифра"),
 });
 
 const refreshSchema = z.object({
@@ -138,7 +144,14 @@ authRoutes.post(
       const result = await registerUser(name, phone, password);
 
       if ("error" in result) {
-        return c.json({ success: false, error: result.error }, 400);
+        return c.json(
+          {
+            success: false,
+            error:
+              "Пользователь с такими данными уже существует. Проверьте данные или войдите в существующий аккаунт.",
+          },
+          409,
+        );
       }
 
       // Автоматически логиним после регистрации
@@ -308,25 +321,13 @@ authRoutes.post(
   },
 );
 
-// POST /api/v1/auth/check-phone-match
+// POST /api/v1/auth/check-phone-match — заглушка (не раскрываем привязку логин–телефон)
 authRoutes.post(
   "/check-phone-match",
   bodyLimit({ maxSize: 5 * 1024 }),
   zValidator("json", checkPhoneMatchSchema),
   async (c) => {
-    try {
-      const { username, phone } = c.req.valid("json");
-
-      const matches = await checkPhoneMatchesUsername(username, phone);
-
-      return c.json({
-        success: true,
-        data: { matches },
-      });
-    } catch (error) {
-      logger.error("Check phone match error", error as Error);
-      return c.json({ success: false, error: "Ошибка проверки телефона" }, 500);
-    }
+    return c.json({ success: true, data: { matches: true } });
   },
 );
 

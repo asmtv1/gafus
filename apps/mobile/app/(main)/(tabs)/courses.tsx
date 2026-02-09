@@ -117,7 +117,7 @@ export default function FavoritesScreen() {
           data={displayedCourses}
           renderItem={renderCourseItem}
           keyExtractor={(item) => item.id}
-          estimatedItemSize={380}
+          overrideProps={{ estimatedItemSize: 380 }}
           ListHeaderComponent={renderHeader}
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}

@@ -10,7 +10,7 @@ export default async function HeaderServerWrapper() {
 
   try {
     session = await getServerSession(authOptions as NextAuthOptions);
-  } catch (error) {
+  } catch  {
     // В офлайне или при ошибке используем значения по умолчанию
     // Не блокируем загрузку страницы
   }

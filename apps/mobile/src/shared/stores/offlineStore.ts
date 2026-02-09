@@ -76,7 +76,7 @@ async function processQueue(
       status: { status: "idle" },
     }));
   } else {
-    set({ status: { status: "idle" } });
+    set(() => ({ status: { status: "idle" } }));
   }
   processQueue(set, get);
 }

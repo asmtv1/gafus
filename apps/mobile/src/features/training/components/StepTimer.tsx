@@ -29,7 +29,7 @@ export function StepTimer({
   const { activeTimer, startTimer, resumeTimer, pauseTimer, tick, stopTimer, isTimerActiveFor } =
     useTimerStore();
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isActive = isTimerActiveFor(courseId, dayOnCourseId, stepIndex);
   const isRunning = activeTimer?.isRunning ?? false;
   const remainingSec = activeTimer?.remainingSec ?? totalDuration;

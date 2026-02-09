@@ -8,7 +8,7 @@ export function MarkdownText({ text }: { text: string }) {
   const elements: React.ReactNode[] = [];
   let currentParagraph: string[] = [];
   let listItems: string[] = [];
-  let _inList = false;
+  let inList = false;
 
   const renderTextWithFormatting = (raw: string, style: object) => {
     const boldPattern = /\*\*(.+?)\*\*/g;

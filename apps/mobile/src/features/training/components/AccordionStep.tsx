@@ -5,7 +5,12 @@ import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-na
 import { useEffect, useState, memo, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { formatTimeLeft, getStepDisplayStatus } from "@gafus/core/utils/training";
+import {
+  formatTimeLeft,
+  getStepDisplayStatus,
+  STEP_STATUS_LABELS,
+} from "@gafus/core/utils/training";
+import type { TrainingStatus } from "@gafus/types";
 import { Button, MarkdownText, VideoPlayer } from "@/shared/components";
 import type { UserStep, StepContent } from "@/shared/lib/api";
 import { TestQuestionsBlock, type ChecklistQuestion } from "./TestQuestionsBlock";
@@ -16,7 +21,7 @@ import { useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
 import { useVideoUrl } from "@/shared/hooks";
 import { getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, FONTS, SPACING } from "@/constants";
 
 const EXTERNAL_VIDEO_PATTERNS = [
   /youtube\.com/,
@@ -29,6 +34,18 @@ const EXTERNAL_VIDEO_PATTERNS = [
 function isExternalVideoUrl(url: string): boolean {
   return EXTERNAL_VIDEO_PATTERNS.some((p) => p.test(url));
 }
+
+/** Цвета и эмодзи для статусов — как в web Day.tsx */
+const STEP_STATUS_CONFIG: Record<
+  string,
+  { emoji: string; backgroundColor: string }
+> = {
+  NOT_STARTED: { emoji: "⏳", backgroundColor: "#FFF8E5" },
+  IN_PROGRESS: { emoji: "🔄", backgroundColor: "#E6F3FF" },
+  COMPLETED: { emoji: "✅", backgroundColor: "#B6C582" },
+  PAUSED: { emoji: "⏸️", backgroundColor: "#FFF4E6" },
+  RESET: { emoji: "🔄", backgroundColor: "#E8E6E6" },
+};
 
 interface AccordionStepProps {
   /** Шаг с вложенным step (API) или плоский контент шага (офлайн). */
@@ -104,6 +121,11 @@ function AccordionStepComponent({
     localState,
     "status" in step ? step : undefined,
   );
+  const statusConfig =
+    STEP_STATUS_CONFIG[status] ?? STEP_STATUS_CONFIG.NOT_STARTED;
+  const statusText =
+    STEP_STATUS_LABELS[status as TrainingStatus] ??
+    STEP_STATUS_LABELS.NOT_STARTED;
   const isCompleted = status === "COMPLETED";
   const isInProgress = status === "IN_PROGRESS";
   const isPaused = status === "PAUSED";
@@ -113,6 +135,7 @@ function AccordionStepComponent({
   const isPractice = stepType === "PRACTICE";
   const isBreak = stepType === "BREAK";
   const isExamination = stepType === "EXAMINATION";
+  const isDiary = stepType === "DIARY";
   // Таймер показывается для TRAINING шагов и перерывов (не для PRACTICE, THEORY, EXAMINATION)
   const showTimer =
     stepType === "TRAINING" || isBreak || (!isTheory && !isPractice && !isExamination);
@@ -272,27 +295,6 @@ function AccordionStepComponent({
     maxHeight: heightAnim.value * 3000, // чтобы контент не обрезался, скролл внутри
   }));
 
-  // Иконка статуса
-  const getStatusIcon = () => {
-    if (isCompleted) {
-      return <MaterialCommunityIcons name="check-circle" size={24} color={COLORS.success} />;
-    }
-    if (isInProgress) {
-      return <MaterialCommunityIcons name="play-circle" size={24} color={COLORS.primary} />;
-    }
-    if (isPaused) {
-      return <MaterialCommunityIcons name="pause-circle" size={24} color={COLORS.warning} />;
-    }
-    return <MaterialCommunityIcons name="circle-outline" size={24} color={COLORS.disabled} />;
-  };
-
-  // Иконка типа шага
-  const getTypeIcon = () => {
-    if (isTheory) return "book-open-variant";
-    if (isPractice) return "timer";
-    return "file-document";
-  };
-
   if (__DEV__) {
     console.log("[AccordionStep] Рендеринг JSX:", {
       index,
@@ -304,71 +306,51 @@ function AccordionStepComponent({
     });
   }
 
+  const stepTypeLabel = isBreak
+    ? "Перерыв"
+    : isDiary
+      ? "Дневник успехов"
+      : stepNumber != null
+        ? `Упражнение #${stepNumber}`
+        : `#${index + 1}`;
+  const stepSubtitle =
+    stepType === "BREAK" ? stepData?.title ?? "" : `«${stepData?.title ?? "Шаг"}»`;
+
   return (
-    <View style={[styles.container, isCompleted && styles.completedContainer]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: statusConfig.backgroundColor },
+      ]}
+    >
       <View style={styles.surfaceContent}>
-        {/* Заголовок (всегда видимый) */}
+        {/* Две строки: 1 — название по центру, 2 — Подробнее/Скрыть + статус */}
         <Pressable onPress={onToggle} style={styles.header}>
-          <View
-            style={[
-              styles.stepNumber,
-              isBreak && styles.stepNumberBreak,
-              !isBreak && stepNumber != null && styles.stepNumberExercise,
-            ]}
-          >
-            <Text style={styles.stepNumberText} numberOfLines={1}>
-              {isBreak
-                ? "Перерыв"
-                : stepNumber != null
-                  ? `Упражнение #${stepNumber}`
-                  : `#${index + 1}`}
+          {(stepSubtitle || stepTypeLabel) ? (
+            <Text
+              style={styles.stepTitleLine}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {stepSubtitle || stepTypeLabel}
             </Text>
-          </View>
-
-          <View style={styles.headerContent}>
-            <Text variant="titleSmall" numberOfLines={2} style={styles.title}>
-              {isBreak ? stepData?.title : `«${stepData?.title ?? "Шаг"}»`}
-            </Text>
-            <View style={styles.meta}>
-              <MaterialCommunityIcons name={getTypeIcon()} size={14} color={COLORS.textSecondary} />
-              <Text style={styles.metaText}>
-                {isBreak
-                  ? "Перерыв"
-                  : isTheory
-                    ? "Теория"
-                    : isPractice
-                      ? "Практика"
-                      : "Материал"}
+          ) : null}
+          <View style={styles.headerRowExpand}>
+            <View style={styles.expandControl}>
+              <MaterialCommunityIcons
+                name={isOpen ? "chevron-up" : "chevron-down"}
+                size={22}
+                color={WEB.stepBorder}
+              />
+              <Text style={styles.expandText}>
+                {isOpen ? "Скрыть" : "Подробнее"}
               </Text>
-              {(() => {
-                try {
-                  const duration = stepData?.durationSec;
-                  if (!duration || duration === 0) {
-                    return null;
-                  }
-                  return (
-                    <>
-                      <Text style={styles.metaDot}>•</Text>
-                      <Text style={styles.metaText}>{Math.ceil(duration / 60)} мин</Text>
-                    </>
-                  );
-                } catch (error) {
-                  if (__DEV__) {
-                    console.error("[AccordionStep] Ошибка при отображении длительности:", error);
-                  }
-                  return null;
-                }
-              })()}
             </View>
-          </View>
-
-          <View style={styles.headerRight}>
-            {getStatusIcon()}
-            <MaterialCommunityIcons
-              name={isOpen ? "chevron-up" : "chevron-down"}
-              size={24}
-              color={COLORS.textSecondary}
-            />
+            <View style={styles.stepStatusConfig}>
+              <Text style={styles.stepStatusText}>
+                {statusConfig.emoji} {statusText}
+              </Text>
+            </View>
           </View>
         </Pressable>
 
@@ -663,9 +645,10 @@ function AccordionStepComponent({
   );
 }
 
-// Цвета как в web AccordionStep.module.css
+// Цвета как в web Day.module.css
 const WEB = {
   stepBorder: "#636128",
+  stepTitleText: "#352e2e",
   stepBg: "#fff8e5",
   timerCardBg: "#fffdf3",
   timerCardBorder: "#d5d0bb",
@@ -683,70 +666,56 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: WEB.stepBorder,
     borderRadius: 12,
-    padding: SPACING.md,
+    paddingVertical: Math.round(SPACING.md * 0.75),
+    paddingHorizontal: 20,
     marginBottom: SPACING.md,
-    backgroundColor: WEB.stepBg,
   },
   surfaceContent: {
     overflow: "hidden",
-  },
-  completedContainer: {
-    backgroundColor: "#F5FFF5",
+    width: "100%",
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: SPACING.md,
-    paddingHorizontal: 0,
-  },
-  stepNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary + "15",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: SPACING.sm,
-  },
-  stepNumberBreak: {
-    minWidth: 56,
-    width: undefined,
-    paddingHorizontal: 8,
-  },
-  stepNumberExercise: {
-    minWidth: 90,
-    width: undefined,
-    paddingHorizontal: 6,
-  },
-  stepNumberText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.primary,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  title: {
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  meta: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "column",
     gap: 4,
+    width: "100%",
   },
-  metaText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+  stepTitleLine: {
+    fontSize: 15,
+    fontWeight: "400",
+    color: WEB.stepTitleText,
+    fontFamily: FONTS.montserrat,
+    lineHeight: 20,
+    width: "100%",
+    textAlign: "center",
   },
-  metaDot: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-  headerRight: {
+  headerRowExpand: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.xs,
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 2,
+  },
+  expandControl: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  expandText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: WEB.stepBorder,
+    fontFamily: FONTS.montserrat,
+    marginLeft: 4,
+  },
+  stepStatusConfig: {
+    flexShrink: 0,
+  },
+  stepStatusText: {
+    fontSize: 13,
+    fontWeight: "400",
+    color: WEB.stepTitleText,
+    fontFamily: FONTS.montserrat,
+    lineHeight: 18,
   },
   content: {
     overflow: "hidden",

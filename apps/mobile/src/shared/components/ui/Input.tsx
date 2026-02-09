@@ -2,7 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { TextInput, HelperText, type TextInputProps } from "react-native-paper";
 import { BORDER_RADIUS, SPACING, COLORS } from "@/constants";
 
-interface InputProps extends Omit<TextInputProps, "mode"> {
+interface InputProps extends Omit<TextInputProps, "mode" | "error"> {
   error?: string;
 }
 

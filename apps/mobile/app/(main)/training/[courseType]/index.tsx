@@ -40,40 +40,6 @@ export default function TrainingDaysScreen() {
     refetch();
   }, [refetch]);
 
-  // Вычисляем текущий день один раз для всех элементов
-  const currentDayIndex = useMemo(() => {
-    if (!courseData?.trainingDays || !courseData.courseId) return 0;
-
-    const effectiveCourseId = courseData.courseId || courseType;
-    const days = courseData.trainingDays;
-
-    // 1. Ищем первый день IN_PROGRESS
-    const inProgressDayIndex = days.findIndex((day) => {
-      const localStatus = calculateDayStatus(effectiveCourseId, day.dayOnCourseId, stepStates);
-      const finalStatus = getDayDisplayStatus(localStatus, day.userStatus ?? undefined);
-      return finalStatus === "IN_PROGRESS" || finalStatus === "RESET";
-    });
-
-    if (inProgressDayIndex !== -1) return inProgressDayIndex;
-
-    // 2. Ищем последний COMPLETED и возвращаем следующий
-    let lastCompletedIndex = -1;
-    days.forEach((day, index) => {
-      const localStatus = calculateDayStatus(effectiveCourseId, day.dayOnCourseId, stepStates);
-      const finalStatus = getDayDisplayStatus(localStatus, day.userStatus ?? undefined);
-      if (finalStatus === "COMPLETED") {
-        lastCompletedIndex = index;
-      }
-    });
-
-    if (lastCompletedIndex !== -1 && lastCompletedIndex < days.length - 1) {
-      return lastCompletedIndex + 1;
-    }
-
-    // 3. По умолчанию - первый день
-    return 0;
-  }, [courseData?.courseId, courseData?.trainingDays, courseType, stepStates]);
-
   // Обработка ошибки доступа к приватному курсу
   useEffect(() => {
     const isAccessDenied =
@@ -87,7 +53,7 @@ export default function TrainingDaysScreen() {
 
     if (isAccessDenied) {
       showPrivateCourseAccessDeniedAlert(() => {
-        router.replace({ pathname: "/(tabs)/courses" });
+        router.replace("/(main)/(tabs)/courses" as const);
       });
     }
   }, [data, error, router]);
@@ -127,9 +93,6 @@ export default function TrainingDaysScreen() {
       const isInProgress = finalStatus === "IN_PROGRESS";
       const isReset = finalStatus === "RESET";
 
-      // Используем предвычисленный индекс текущего дня
-      const isCurrent = index === currentDayIndex;
-
       // Определяем цвет границы в зависимости от статуса (как на web)
       const borderColor = isCompleted
         ? "#B6C582" // Зеленый для завершенных (как на web)
@@ -142,11 +105,6 @@ export default function TrainingDaysScreen() {
       return (
         <Pressable onPress={() => handleDayPress(item)}>
           <View style={[styles.dayCardWrapper, { borderColor }]}>
-            {isCurrent && (
-              <View style={styles.currentIndicator}>
-                <Text style={styles.currentIndicatorText}>📍 Вы здесь</Text>
-              </View>
-            )}
             {/* Бейджи времени (как на web) */}
             {((item.estimatedDuration || 0) > 0 || (item.theoryMinutes || 0) > 0) && (
               <View style={styles.timeBadgeWrapper}>
@@ -174,7 +132,7 @@ export default function TrainingDaysScreen() {
         </Pressable>
       );
     },
-    [courseData, courseType, stepStates, currentDayIndex, handleDayPress],
+    [courseData, courseType, stepStates, handleDayPress],
   );
 
   if (isLoading) {
@@ -416,33 +374,11 @@ const styles = StyleSheet.create({
     minHeight: 120,
   },
   dayCard: {
-    padding: 14,
+    paddingVertical: Math.round(14 * 0.75),
+    paddingHorizontal: 14,
     borderRadius: 12,
     backgroundColor: "#FFF8E5",
     minHeight: 120,
-  },
-  currentIndicator: {
-    position: "absolute",
-    top: -12,
-    left: 10,
-    backgroundColor: "#636128",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 16,
-    zIndex: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 3,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  currentIndicatorText: {
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "600",
   },
   timeBadgeWrapper: {
     position: "absolute",
