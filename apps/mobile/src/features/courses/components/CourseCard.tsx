@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, StyleSheet, Pressable, Alert, ActivityIndicator } from "react-native";
 import { Text, IconButton } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
@@ -7,7 +7,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { STEP_STATUS_LABELS } from "@gafus/core/utils/training";
 import { TrainingStatus } from "@gafus/types";
-import { SPACING, FONTS, COLORS, BORDER_RADIUS } from "@/constants";
+import { SPACING, FONTS, COLORS, BORDER_RADIUS, API_BASE_URL } from "@/constants";
 import { useOfflineStore } from "@/shared/stores";
 import { offlineApi } from "@/shared/lib/api/offline";
 import type { Course } from "@/shared/lib/api";
@@ -136,6 +136,20 @@ export function CourseCard({
     downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [authorAvatarError, setAuthorAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAuthorAvatarError(false);
+  }, [course.id, course.authorAvatarUrl]);
+
+  const authorAvatarUrl =
+    (course.authorAvatarUrl ?? (course as { author?: { profile?: { avatarUrl?: string | null } } }).author?.profile?.avatarUrl ?? null) as string | null | undefined;
+  const authorAvatarUri =
+    authorAvatarUrl && !authorAvatarError
+      ? authorAvatarUrl.startsWith("/")
+        ? `${API_BASE_URL.replace(/\/$/, "")}${authorAvatarUrl}`
+        : authorAvatarUrl
+      : null;
 
   const handleCheckUpdates = async () => {
     const version = downloaded[courseType]?.version;
@@ -216,33 +230,19 @@ export function CourseCard({
             </View>
             <View style={styles.content}>
               <Text style={styles.title}>{course.name}</Text>
-              <View style={styles.metaBlock}>
-                <Text style={styles.metaText}>
+              <View style={styles.meta}>
+                <Text style={styles.duration}>
                   <Text style={styles.metaBold}>Длительность:</Text> {course.duration}
                 </Text>
-                <View style={styles.metaRowWithStatus}>
-                  <Text style={styles.metaText}>
-                    <Text style={styles.metaBold}>Уровень сложности:</Text>{" "}
-                    {LEVEL_LABELS[course.trainingLevel] ?? course.trainingLevel}
-                  </Text>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: getStatusColor(course.userStatus) + "20" },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusText,
-                        { color: getStatusColor(course.userStatus) },
-                      ]}
-                    >
-                      {getStatusText(course.userStatus)}
-                    </Text>
-                  </View>
-                </View>
+                <Text style={[styles.status, { color: getStatusColor(course.userStatus) }]}>
+                  {getStatusText(course.userStatus)}
+                </Text>
               </View>
-              <View style={styles.descriptionSection}>
+              <View style={styles.description}>
+                <Text style={styles.descriptionText}>
+                  <Text style={styles.metaBold}>Уровень сложности:</Text>{" "}
+                  {LEVEL_LABELS[course.trainingLevel] ?? course.trainingLevel}
+                </Text>
                 <Text style={styles.descriptionText}>
                   <Text style={styles.metaBold}>Описание:</Text> {course.shortDesc}
                 </Text>
@@ -264,98 +264,7 @@ export function CourseCard({
             </View>
           </Pressable>
         </Link>
-        {/* Офлайн: скачать / скачано / очередь */}
-        <View style={styles.offlineSection}>
-          {isDownloaded ? (
-            <View style={styles.offlineCentered}>
-              <View style={styles.offlineTitleRow}>
-                <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.primary} />
-                <Text style={styles.offlineTitleText}>Скачано для офлайна</Text>
-              </View>
-              <View style={styles.offlineButtonsRow}>
-                <Pressable
-                  onPress={handleCheckUpdates}
-                  disabled={checkingUpdates}
-                  style={({ pressed }) => [
-                    styles.offlineBtnOutline,
-                    pressed && styles.offlineBtnPressed,
-                  ]}
-                >
-                  {checkingUpdates ? (
-                    <ActivityIndicator size="small" color={COLORS.primary} />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons
-                        name="update"
-                        size={16}
-                        color={COLORS.primary}
-                        style={styles.offlineBtnIcon}
-                      />
-                      <Text style={styles.offlineBtnOutlineText}>Проверить обновления</Text>
-                    </>
-                  )}
-                </Pressable>
-                <Pressable
-                  onPress={() => removeDownload(courseType)}
-                  style={({ pressed }) => [
-                    styles.offlineBtnDanger,
-                    pressed && styles.offlineBtnPressed,
-                  ]}
-                >
-                  <MaterialCommunityIcons name="delete-outline" size={16} color="#fff" style={styles.offlineBtnIcon} />
-                  <Text style={styles.offlineBtnDangerText}>Удалить</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-          <View style={styles.offlineRow}>
-            {isDownloadingThis ? (
-              <>
-                <MaterialCommunityIcons name="download" size={22} color={COLORS.primary} />
-                <Text style={styles.offlineLabel} numberOfLines={1}>
-                  {downloadStatus.progress?.label ??
-                    `${downloadStatus.progress?.current ?? 0}/${downloadStatus.progress?.total ?? 0}`}
-                </Text>
-                <Pressable
-                  onPress={() => cancelDownload()}
-                  style={({ pressed }) => [
-                    styles.offlineBtnOutline,
-                    pressed && styles.offlineBtnPressed,
-                  ]}
-                >
-                  <Text style={styles.offlineBtnOutlineText}>Отменить</Text>
-                </Pressable>
-              </>
-            ) : isInQueue ? (
-              <>
-                <MaterialCommunityIcons name="timer-sand" size={22} color={COLORS.primary} />
-                <Text style={styles.offlineLabel}>В очереди</Text>
-                <Pressable
-                  onPress={() => removeFromQueue(courseType)}
-                  style={({ pressed }) => [
-                    styles.offlineBtnOutline,
-                    pressed && styles.offlineBtnPressed,
-                  ]}
-                >
-                  <Text style={styles.offlineBtnOutlineText}>Убрать</Text>
-                </Pressable>
-              </>
-            ) : (
-              <Pressable
-                onPress={() => startDownload(courseType)}
-                style={({ pressed }) => [
-                  styles.offlineBtnPrimaryLarge,
-                  pressed && styles.offlineBtnPressed,
-                ]}
-              >
-                <MaterialCommunityIcons name="download" size={20} color="#fff" style={styles.offlineBtnIcon} />
-                <Text style={styles.offlineBtnPrimaryText}>Скачать для работы в офлайн</Text>
-              </Pressable>
-            )}
-          </View>
-          )}
-        </View>
-        <View style={styles.ratingRow}>
+        <View style={styles.rating}>
           <SimpleRating
             rating={course.avgRating}
             readOnly={course.userStatus !== "COMPLETED"}
@@ -378,47 +287,152 @@ export function CourseCard({
           </Pressable>
         </View>
       </View>
-      <View style={styles.authorSection}>
-        <Pressable
-          onPress={handleAuthorPress}
-          disabled={!course.authorUsername}
-          style={styles.authorContent}
-        >
-          <Text style={styles.authorText}>
-            <Text style={styles.authorLabel}>Автор курса:</Text>{" "}
-            <Text style={styles.authorLink}>
-              {course.authorUsername ?? "Неизвестный автор"}
-            </Text>
-          </Text>
-          <IconButton
-            icon={isFavorite ? "bookmark" : "bookmark-outline"}
-            iconColor={isFavorite ? "#E6B800" : COLORS.primary}
-            size={24}
-            onPress={onToggleFavorite}
-            disabled={disabled}
-            style={styles.favoriteButton}
-          />
-        </Pressable>
+      <View style={styles.author}>
+        <View style={styles.authorPill}>
+          <Pressable
+            onPress={handleAuthorPress}
+            disabled={!course.authorUsername}
+            style={styles.authorInfo}
+          >
+            <View style={styles.authorAvatar}>
+              {authorAvatarUri ? (
+                <Image
+                  source={{ uri: authorAvatarUri }}
+                  style={styles.authorAvatarImg}
+                  contentFit="cover"
+                  onError={() => setAuthorAvatarError(true)}
+                />
+              ) : null}
+            </View>
+            <View style={styles.authorTextWrap}>
+              <Text style={styles.authorLine} numberOfLines={1}>
+                <Text style={styles.authorLabel}>Автор курса: </Text>
+                <Text style={styles.authorLink}>
+                  {course.authorUsername ?? "Неизвестный автор"}
+                </Text>
+              </Text>
+            </View>
+          </Pressable>
+          <View style={styles.authorBookmarkWrap}>
+            <IconButton
+              icon={isFavorite ? "bookmark" : "bookmark-outline"}
+              iconColor={isFavorite ? "#E6B800" : COLORS.primary}
+              size={36}
+              onPress={onToggleFavorite}
+              disabled={disabled}
+              style={styles.favoriteButton}
+            />
+          </View>
+        </View>
+      </View>
+      <View style={styles.offlineActions}>
+        {isDownloaded ? (
+          <>
+            <Pressable
+              onPress={handleCheckUpdates}
+              disabled={checkingUpdates}
+              style={({ pressed }) => [
+                styles.updateButton,
+                pressed && styles.offlineBtnPressed,
+              ]}
+            >
+              {checkingUpdates ? (
+                <ActivityIndicator size="small" color={COLORS.secondary} />
+              ) : (
+                <>
+                  <MaterialCommunityIcons
+                    name="update"
+                    size={16}
+                    color={COLORS.secondary}
+                    style={styles.buttonIcon}
+                  />
+                  <Text style={styles.updateButtonText}>Обновить</Text>
+                </>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => removeDownload(courseType)}
+              style={({ pressed }) => [
+                styles.deleteButton,
+                pressed && styles.offlineBtnPressed,
+              ]}
+            >
+              <MaterialCommunityIcons name="delete-outline" size={16} color="#dc3545" style={styles.buttonIcon} />
+              <Text style={styles.deleteButtonText}>Удалить</Text>
+            </Pressable>
+          </>
+        ) : (
+          <View style={styles.offlineRow}>
+            {isDownloadingThis ? (
+              <>
+                <MaterialCommunityIcons name="download" size={20} color={COLORS.primary} />
+                <Text style={styles.offlineLabel} numberOfLines={1}>
+                  {downloadStatus.progress?.label ??
+                    `${downloadStatus.progress?.current ?? 0}/${downloadStatus.progress?.total ?? 0}`}
+                </Text>
+                <Pressable
+                  onPress={() => cancelDownload()}
+                  style={({ pressed }) => [
+                    styles.downloadButton,
+                    pressed && styles.offlineBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.downloadButtonText}>Отменить</Text>
+                </Pressable>
+              </>
+            ) : isInQueue ? (
+              <>
+                <MaterialCommunityIcons name="timer-sand" size={20} color={COLORS.primary} />
+                <Text style={styles.offlineLabel}>В очереди</Text>
+                <Pressable
+                  onPress={() => removeFromQueue(courseType)}
+                  style={({ pressed }) => [
+                    styles.downloadButton,
+                    pressed && styles.offlineBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.downloadButtonText}>Убрать</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                onPress={() => startDownload(courseType)}
+                style={({ pressed }) => [
+                  styles.downloadButton,
+                  styles.downloadButtonFull,
+                  pressed && styles.offlineBtnPressed,
+                ]}
+              >
+                <MaterialCommunityIcons name="download" size={16} color={COLORS.text} style={styles.buttonIcon} />
+                <Text style={styles.downloadButtonText}>
+                  Скачать
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
       </View>
     </View>
   );
 }
 
-const PAD = SPACING.md;
-const GAP = SPACING.sm;
+// Отступы как в web (CourseCard.module.css)
+const PAD_H = 20;
+const PAD_V = 10;
+const PAD_IMAGE_H = 24;
 const GAP_MD = SPACING.md;
 
 const styles = StyleSheet.create({
   courseCard: {
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: "#fff8e5",
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
+    borderWidth: 2,
+    borderColor: "#636128",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
     width: "100%",
@@ -431,24 +445,24 @@ const styles = StyleSheet.create({
   link: { width: "100%" },
   imageContainer: {
     width: "100%",
-    paddingTop: PAD,
-    paddingHorizontal: PAD,
+    paddingTop: PAD_V,
+    paddingHorizontal: PAD_IMAGE_H,
     position: "relative",
     alignSelf: "stretch",
-    overflow: "hidden",
+    alignItems: "center",
   },
   courseImage: {
     width: "100%",
-    aspectRatio: 16 / 9,
-    maxHeight: 180,
+    maxWidth: 350,
+    aspectRatio: 245 / 140,
     borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.onPrimary,
     alignSelf: "center",
   },
   paidBadge: {
     position: "absolute",
-    bottom: 8,
-    left: PAD + 8,
+    top: 8,
+    left: PAD_IMAGE_H + 8,
     backgroundColor: "rgba(40, 120, 80, 0.9)",
     paddingVertical: 4,
     paddingHorizontal: 8,
@@ -456,81 +470,70 @@ const styles = StyleSheet.create({
   },
   paidBadgeText: {
     color: "#ffffff",
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "500",
     fontFamily: FONTS.montserrat,
   },
   privateBadge: {
     position: "absolute",
-    top: PAD + 8,
-    right: PAD + 8,
-    backgroundColor: "rgba(220, 53, 69, 0.9)",
+    top: 8,
+    right: PAD_IMAGE_H + 8,
+    backgroundColor: "rgba(255, 0, 0, 0.9)",
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 4,
   },
   privateBadgeText: {
     color: "#ffffff",
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "500",
     fontFamily: FONTS.montserrat,
   },
   content: {
     width: "100%",
     minWidth: 0,
-    paddingHorizontal: PAD,
-    paddingTop: GAP_MD,
-    paddingBottom: GAP,
+    paddingTop: PAD_V,
+    paddingLeft: PAD_H,
+    paddingRight: PAD_H - 4,
+    paddingBottom: GAP_MD,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "400",
+    color: "#352e2e",
     fontFamily: FONTS.impact,
-    marginBottom: GAP_MD,
+    marginBottom: PAD_V,
+    lineHeight: 20,
   },
-  metaBlock: {
-    flexDirection: "column",
-    gap: 6,
-    marginBottom: GAP_MD,
-  },
-  metaRowWithStatus: {
+  meta: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    gap: GAP,
+    alignItems: "center",
+    marginBottom: PAD_V,
   },
-  metaText: {
-    color: COLORS.text,
-    fontSize: 13,
+  duration: {
+    fontSize: 12,
+    color: "#352e2e",
+    fontFamily: FONTS.montserrat,
+    flex: 1,
+  },
+  status: {
+    fontSize: 12,
+    fontWeight: "500",
     fontFamily: FONTS.montserrat,
   },
   metaBold: {
-    fontSize: 13,
-    fontFamily: FONTS.montserratBold,
-    color: COLORS.text,
-  },
-  statusBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-  },
-  statusText: {
     fontSize: 12,
-    fontWeight: "600",
-    fontFamily: FONTS.montserrat,
+    fontFamily: FONTS.montserratBold,
+    color: "#352e2e",
   },
-  descriptionSection: {
-    width: "100%",
-    minWidth: 0,
-    marginTop: GAP,
-    marginBottom: GAP,
-    overflow: "hidden",
+  description: {
+    gap: 10,
+    marginBottom: PAD_V,
   },
   descriptionText: {
-    fontSize: 13,
-    color: COLORS.text,
-    lineHeight: 20,
+    fontSize: 12,
+    color: "#352e2e",
     fontFamily: FONTS.montserrat,
   },
   datesRow: {
@@ -539,145 +542,28 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 13,
-    color: COLORS.text,
+    color: "#352e2e",
     fontFamily: FONTS.montserrat,
   },
-  offlineSection: {
-    paddingHorizontal: PAD,
-    paddingVertical: GAP_MD,
-    borderTopWidth: 1,
-    borderTopColor: "#E8E0D5",
-    backgroundColor: COLORS.cardBackground,
-  },
-  offlineCentered: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  offlineTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 10,
-  },
-  offlineTitleText: {
-    fontSize: 15,
-    color: COLORS.text,
-    fontFamily: FONTS.montserrat,
-    fontWeight: "500",
-  },
-  offlineButtonsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    flexWrap: "nowrap",
-  },
-  offlineRow: {
+  rating: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-  },
-  offlineLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: COLORS.text,
-    fontFamily: FONTS.montserrat,
-    minWidth: 0,
-  },
-  offlineButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  offlineBtnPrimary: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primary,
-    minHeight: 40,
-  },
-  offlineBtnPrimaryLarge: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primary,
-    minHeight: 48,
-    flex: 1,
-    alignSelf: "stretch",
-  },
-  offlineBtnPrimaryText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#fff",
-    fontFamily: FONTS.montserrat,
-  },
-  offlineBtnOutline: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    minHeight: 40,
-    flexShrink: 0,
-  },
-  offlineBtnOutlineText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.primary,
-    fontFamily: FONTS.montserrat,
-  },
-  offlineBtnDanger: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: "#c62828",
-    minHeight: 40,
-    flexShrink: 0,
-  },
-  offlineBtnDangerText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#fff",
-    fontFamily: FONTS.montserrat,
-  },
-  offlineBtnIcon: {
-    marginRight: 6,
-  },
-  offlineBtnPressed: {
-    opacity: 0.85,
-  },
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: GAP_MD,
-    paddingHorizontal: PAD,
-    minHeight: 40,
+    flexWrap: "wrap",
+    paddingVertical: PAD_V,
+    paddingHorizontal: PAD_H,
   },
   ratingContainer: { flexDirection: "row", alignItems: "center", gap: 4 },
   ratingHeart: { fontSize: 18 },
   ratingHeartFilled: { color: "#e63946" },
   ratingHeartEmpty: { color: "#b0b0b0" },
   ratingValue: {
-    color: COLORS.primary,
+    color: COLORS.secondary,
     fontSize: 13,
     fontFamily: FONTS.montserrat,
   },
   noRatingText: {
-    color: COLORS.placeholder,
+    color: "#8a8585",
     fontSize: 13,
     fontFamily: FONTS.montserrat,
   },
@@ -693,28 +579,166 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     textDecorationLine: "underline",
   },
-  authorSection: {
-    borderTopWidth: 1,
-    borderTopColor: "#E5DDD0",
+  offlineActions: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: PAD_H,
+    paddingBottom: 12,
   },
-  authorContent: {
+  offlineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  offlineLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+    minWidth: 0,
+  },
+  downloadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#636128",
+    backgroundColor: "#fff8e5",
+    minHeight: 36,
+  },
+  downloadButtonFull: {
+    flex: 1,
+  },
+  downloadButtonText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#352e2e",
+    fontFamily: FONTS.montserrat,
+  },
+  updateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.secondary,
+    backgroundColor: "#fff8e5",
+    minHeight: 36,
+    flex: 1,
+  },
+  updateButtonText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: COLORS.secondary,
+    fontFamily: FONTS.montserrat,
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#dc3545",
+    backgroundColor: "#fff8e5",
+    minHeight: 36,
+    flex: 1,
+  },
+  deleteButtonText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#dc3545",
+    fontFamily: FONTS.montserrat,
+  },
+  buttonIcon: {
+    marginRight: 0,
+  },
+  offlineBtnPressed: {
+    opacity: 0.85,
+  },
+  author: {
+    paddingHorizontal: 10,
+    paddingBottom: 14,
+  },
+  authorPill: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: PAD,
-    minHeight: 48,
+    minHeight: 56,
+    paddingVertical: 8,
+    paddingLeft: 28,
+    paddingRight: 28,
+    borderWidth: 1,
+    borderColor: "#e6e1ce",
+    borderRadius: 9999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+    overflow: "visible",
   },
-  authorText: {
+  authorInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     flex: 1,
-    color: COLORS.text,
+    minWidth: 0,
+  },
+  authorAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#e8e3d2",
+    borderWidth: 2,
+    borderColor: "#e6e1ce",
+    marginLeft: -24,
+    overflow: "hidden",
+  },
+  authorAvatarImg: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 22,
+  },
+  authorTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
+  },
+  authorLine: {
     fontSize: 14,
+    color: "#352e2e",
     fontFamily: FONTS.montserrat,
   },
-  authorLabel: { fontWeight: "700", fontFamily: FONTS.montserrat },
-  authorLink: { color: COLORS.secondary, fontWeight: "600" },
+  authorLabel: {
+    fontSize: 14,
+    color: "#352e2e",
+    fontFamily: FONTS.montserrat,
+  },
+  authorLink: {
+    color: COLORS.secondary,
+    fontWeight: "500",
+    fontSize: 16,
+  },
+  authorBookmarkWrap: {
+    marginRight: -24,
+    width: 52,
+    minWidth: 52,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
   favoriteButton: {
     margin: 0,
-    marginRight: -8,
   },
 });
