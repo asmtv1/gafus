@@ -35,27 +35,9 @@ export function useCourseProgressSync() {
   useEffect(() => {
     if (!allCourses?.data) {
       setSyncedCourses(null);
+      lastProcessedRef.current = null;
       return;
     }
-
-    const stepStatesKeys = Object.keys(stepStates).sort().join(",");
-    const dataKey = JSON.stringify({
-      courses: allCourses.data.map((c) => ({ id: c.id, userStatus: c.userStatus })),
-      assignments: Object.keys(courseAssignments).filter((id) => courseAssignments[id]),
-      cacheKeys: allCourses.data
-        .map((c) => {
-          const cached = getCachedTrainingDays(c.type);
-          return cached?.data ? `${c.type}-${cached.data.trainingDays.length}` : null;
-        })
-        .filter(Boolean),
-      isOnline,
-      stepStatesKeys,
-    });
-
-    if (lastProcessedRef.current === dataKey) {
-      return;
-    }
-    lastProcessedRef.current = dataKey;
 
     const result = allCourses.data.map((course) => {
       // Получаем кэшированные данные дней тренировок
@@ -187,39 +169,38 @@ export function useCourseProgressSync() {
 
       return course;
     });
+
+    // Пропуск по ключу результата, чтобы не зацикливать setSyncedCourses → setAllCourses → effect
+    const resultKey = JSON.stringify(result.map((c) => ({ id: c.id, userStatus: c.userStatus })));
+    if (lastProcessedRef.current === resultKey) {
+      return;
+    }
+    lastProcessedRef.current = resultKey;
     setSyncedCourses(result);
   }, [allCourses?.data, getCachedTrainingDays, courseAssignments, stepStates, isOnline]);
 
   // Обновляем данные в courseStore при изменении синхронизированных данных
   useEffect(() => {
-    if (syncedCourses && allCourses?.data) {
-      // Создаем ключ для отслеживания уже примененных обновлений
-      const syncedKey = syncedCourses.map((c) => `${c.id}:${c.userStatus}`).join("|");
+    if (!syncedCourses || !allCourses?.data) return;
 
-      // Если это обновление уже было применено, пропускаем
-      if (lastUpdateRef.current === syncedKey) {
-        return;
-      }
+    const syncedKey = syncedCourses.map((c) => `${c.id}:${c.userStatus}`).join("|");
+    if (lastUpdateRef.current === syncedKey) return;
 
-      // Проверяем, действительно ли данные изменились
-      const hasChanges = syncedCourses.some((syncedCourse, index) => {
-        const originalCourse = allCourses.data[index];
-        if (!originalCourse) return true;
+    const originalKey = allCourses.data.map((c) => `${c.id}:${c.userStatus}`).join("|");
+    if (syncedKey === originalKey) return;
 
-        // Проверяем только критические изменения
-        const statusChanged = syncedCourse.userStatus !== originalCourse.userStatus;
-        const idChanged = syncedCourse.id !== originalCourse.id;
+    const hasChanges = syncedCourses.some((syncedCourse, index) => {
+      const originalCourse = allCourses.data[index];
+      if (!originalCourse) return true;
+      return (
+        syncedCourse.userStatus !== originalCourse.userStatus ||
+        syncedCourse.id !== originalCourse.id
+      );
+    });
 
-        return statusChanged || idChanged;
-      });
-
-      // Дополнительная проверка: сравниваем строковое представление для предотвращения циклов
-      const originalKey = allCourses.data.map((c) => `${c.id}:${c.userStatus}`).join("|");
-
-      if (hasChanges && syncedKey !== originalKey) {
-        lastUpdateRef.current = syncedKey;
-        setAllCourses(syncedCourses, allCourses.type);
-      }
+    if (hasChanges) {
+      lastUpdateRef.current = syncedKey;
+      setAllCourses(syncedCourses, allCourses.type);
     }
   }, [syncedCourses, allCourses?.data, allCourses?.type, setAllCourses]);
 

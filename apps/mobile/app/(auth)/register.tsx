@@ -21,7 +21,7 @@ import { COLORS, SPACING, FONTS } from "@/constants";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// Схема валидации
+// Схема валидации (пароль как в API: min 8, заглавная, строчная, цифра; спецсимволы разрешены)
 const registerSchema = z
   .object({
     name: z
@@ -30,7 +30,13 @@ const registerSchema = z
       .max(50, "Максимум 50 символов")
       .regex(/^[a-zA-Z0-9_]+$/, "Только латиница, цифры и _"),
     phone: z.string().min(10, "Введите корректный номер телефона"),
-    password: z.string().min(6, "Минимум 6 символов"),
+    password: z
+      .string()
+      .min(8, "Минимум 8 символов")
+      .max(100, "Максимум 100 символов")
+      .regex(/[A-Z]/, "Минимум одна заглавная буква")
+      .regex(/[a-z]/, "Минимум одна строчная буква")
+      .regex(/[0-9]/, "Минимум одна цифра"),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {

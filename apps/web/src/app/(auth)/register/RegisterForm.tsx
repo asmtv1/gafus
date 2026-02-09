@@ -56,14 +56,10 @@ export function RegisterForm() {
       );
 
       if (result?.error) {
-        if (result.error.includes("телефон")) {
-          setError("phone", { message: result.error });
-        } else {
-          alert(result.error);
-        }
+        alert(result.error);
         setIsPending(false);
       } else {
-        router.push(`/confirm?phone=${encodeURIComponent(formattedPhone)}`);
+        router.push("/confirm");
       }
     } catch (error) {
       catchError(error);

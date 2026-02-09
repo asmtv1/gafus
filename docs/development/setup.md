@@ -212,6 +212,52 @@ redis-server
 redis-cli ping
 ```
 
+### Локальный nginx (домены \*.gafus.localhost)
+
+Чтобы открывать приложения по адресам вида `http://web.gafus.localhost/` (вместо `http://localhost:3002`), нужен локальный nginx.
+
+1. **Установка (Homebrew):**
+
+   ```bash
+   brew install nginx
+   ```
+
+2. **Подключение конфига проекта:**
+
+   Создайте директорию `servers` и симлинк на конфиг из репозитория (путь для Apple Silicon; для Intel замените `opt/homebrew` на `usr/local`):
+
+   ```bash
+   sudo mkdir -p /opt/homebrew/etc/nginx/servers
+   sudo ln -sf "$(pwd)/ci-cd/nginx/gafus-localhost.conf" /opt/homebrew/etc/nginx/servers/gafus-localhost.conf
+   ```
+
+   Если в основном `nginx.conf` нет строки `include servers/*;` внутри блока `http`, добавьте её или положите конфиг в уже подключаемую директорию (например `conf.d`).
+
+3. **Директория для логов** (указана в конфиге):
+
+   ```bash
+   mkdir -p /Users/asmtv1/nginx-logs
+   ```
+
+4. **Проверка и запуск:**
+
+   ```bash
+   nginx -t
+   sudo nginx
+   # или через Homebrew:
+   brew services start nginx
+   ```
+
+5. **Доступ:** после запуска nginx порт 80 будет отдавать приложения по доменам:
+   - http://web.gafus.localhost → порт 3002  
+   - http://trainer.gafus.localhost → 3001  
+   - http://admin.gafus.localhost → 3006  
+   - http://errors.gafus.localhost → 3005  
+   - http://queues.gafus.localhost → 3004  
+   - http://api.gafus.localhost → API
+
+Домен `*.localhost` на macOS по умолчанию резолвится в `127.0.0.1`, отдельная запись в `/etc/hosts` не нужна.
+
 ## 🐳 Docker настройка
 
 ### Docker Compose для разработки

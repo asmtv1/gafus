@@ -3,17 +3,20 @@
 import { prisma } from "@gafus/prisma";
 import bcrypt from "bcryptjs";
 
-export async function resetPasswordByToken(token: string, newPassword: string) {
+/**
+ * Сброс пароля по 6-значному коду из Telegram (без токена в URL).
+ */
+export async function resetPasswordByShortCode(shortCode: string, newPassword: string) {
   const hashed = await bcrypt.hash(newPassword, 12);
 
   await prisma.$transaction(async (tx) => {
     const record = await tx.passwordResetToken.findUnique({
-      where: { token },
+      where: { shortCode },
       include: { user: true },
     });
 
     if (!record || record.expiresAt < new Date()) {
-      throw new Error("Ссылка недействительна или устарела");
+      throw new Error("Код недействителен или устарел");
     }
 
     await tx.user.update({
@@ -22,7 +25,7 @@ export async function resetPasswordByToken(token: string, newPassword: string) {
     });
 
     await tx.passwordResetToken.delete({
-      where: { token },
+      where: { id: record.id },
     });
   });
 }

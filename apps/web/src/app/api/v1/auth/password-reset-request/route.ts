@@ -11,6 +11,12 @@ import { sendPasswordResetRequest } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
+import {
+  checkAuthRateLimit,
+  getClientIp,
+  RATE_LIMIT_RETRY_AFTER_SECONDS,
+} from "@shared/lib/rateLimit";
+
 const logger = createWebLogger("api-auth");
 
 const schema = z.object({
@@ -19,6 +25,17 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+  if (!checkAuthRateLimit(ip, "password-reset-request")) {
+    return NextResponse.json(
+      { error: "Слишком много запросов" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(RATE_LIMIT_RETRY_AFTER_SECONDS) },
+      },
+    );
+  }
+
   try {
     const body = await request.json();
     const { username, phone } = schema.parse(body);

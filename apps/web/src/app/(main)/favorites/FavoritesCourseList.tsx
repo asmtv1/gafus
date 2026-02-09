@@ -173,6 +173,7 @@ export default function FavoritesCourseList({
             completedAt: course.completedAt,
             shortDesc: course.shortDesc || "",
             authorUsername: course.authorUsername || "",
+            authorAvatarUrl: course.authorAvatarUrl ?? null,
             createdAt: course.createdAt || new Date(),
             avgRating: course.avgRating,
             trainingLevel: course.trainingLevel || "BEGINNER",

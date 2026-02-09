@@ -1,8 +1,25 @@
 import { Skeleton, Box } from "@shared/utils/muiImports";
 
+const CARD_WIDTH = 330;
+
 export default function CourseCardSkeleton() {
   return (
-    <Box sx={{ p: 2, border: "1px solid #e0e0e0", borderRadius: 2, mb: 2 }}>
+    <Box
+      sx={{
+        p: 2,
+        border: "1px solid #e0e0e0",
+        borderRadius: 2,
+        mb: 2,
+        width: CARD_WIDTH,
+        minWidth: CARD_WIDTH,
+        maxWidth: CARD_WIDTH,
+        "@media (max-width: 340px)": {
+          width: "100%",
+          minWidth: "unset",
+          maxWidth: CARD_WIDTH,
+        },
+      }}
+    >
       <Skeleton variant="rectangular" width="100%" height={200} />
       <Box sx={{ mt: 1 }}>
         <Skeleton variant="text" width="60%" height={24} />

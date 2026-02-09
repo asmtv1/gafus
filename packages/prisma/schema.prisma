@@ -531,6 +531,7 @@ model CourseReview {
 model PasswordResetToken {
   id        String   @id @default(cuid())
   token     String   @unique
+  shortCode String?  @unique // 6 цифр для сброса без токена в URL
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime

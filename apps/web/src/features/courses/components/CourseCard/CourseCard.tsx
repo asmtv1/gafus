@@ -72,6 +72,7 @@ export const CourseCard = ({
   completedAt,
   shortDesc,
   authorUsername,
+  authorAvatarUrl,
   createdAt: _createdAt,
   avgRating,
   trainingLevel,
@@ -418,17 +419,37 @@ export const CourseCard = ({
       </div>
 
       <div className={styles.author}>
-        <div>
-          Автор курса:&nbsp;
-          {authorUsername ? (
-            <NextLink href={`/profile?username=${authorUsername}`} className={styles.authorlink}>
-              {authorUsername}
-            </NextLink>
-          ) : (
-            <span>Неизвестный автор</span>
-          )}
+        <div className={styles.authorPill}>
+          <div className={styles.authorInfo}>
+            <div className={styles.authorAvatar}>
+              {authorAvatarUrl ? (
+                <Image
+                  src={authorAvatarUrl}
+                  alt=""
+                  width={44}
+                  height={44}
+                  className={styles.authorAvatarImg}
+                  unoptimized={authorAvatarUrl.startsWith("http")}
+                />
+              ) : null}
+            </div>
+            <div className={styles.authorTextWrap}>
+              <div className={styles.authorLine}>
+                <span className={styles.authorLabel}>Автор курса: </span>
+                {authorUsername ? (
+                  <NextLink href={`/profile?username=${authorUsername}`} className={styles.authorlink}>
+                    {authorUsername}
+                  </NextLink>
+                ) : (
+                  <span>Неизвестный автор</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className={styles.authorBookmarkWrap}>
+            <FavoriteButton id={id} isFavorite={isFavorite} onUnfavorite={() => onUnfavorite?.(id)} />
+          </div>
         </div>
-        <FavoriteButton id={id} isFavorite={isFavorite} onUnfavorite={() => onUnfavorite?.(id)} />
       </div>
 
       {!isChecking && (

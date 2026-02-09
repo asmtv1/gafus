@@ -2,19 +2,18 @@
 
 import { FormField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
-import { resetPasswordAction } from "@shared/server-actions";
+import { resetPasswordByCodeAction } from "@shared/server-actions";
 import { resetPasswordFormSchema } from "@shared/lib/validation/authSchemas";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { ResetPasswordFormSchema } from "@shared/lib/validation/authSchemas";
 
 export default function ResetPasswordForm() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token");
   const router = useRouter();
 
   const { form, handleSubmit } = useZodForm(resetPasswordFormSchema, {
+    code: "",
     password: "",
     confirmPassword: "",
   });
@@ -25,13 +24,8 @@ export default function ResetPasswordForm() {
   const onSubmit = async (data: ResetPasswordFormSchema) => {
     setError("");
 
-    if (!token) {
-      setError("Ссылка недействительна.");
-      return;
-    }
-
     try {
-      await resetPasswordAction(token, data.password);
+      await resetPasswordByCodeAction(data.code, data.password);
       setSuccess(true);
       setTimeout(() => router.push("/login"), 3000);
     } catch (err: unknown) {
@@ -41,9 +35,21 @@ export default function ResetPasswordForm() {
 
   return (
     <main style={{ maxWidth: 400, margin: "0 auto", padding: "2rem" }}>
-      <h1>Новый пароль</h1>
+      <h1>Сброс пароля</h1>
+      <p style={{ marginBottom: "1rem", color: "var(--mui-palette-text-secondary)" }}>
+        Введите 6-значный код из сообщения в Telegram и новый пароль.
+      </p>
       {!success ? (
         <form onSubmit={handleSubmit(onSubmit)}>
+          <FormField
+            id="code"
+            label="Код из Telegram"
+            name="code"
+            type="text"
+            placeholder="123456"
+            form={form}
+            className="mb-4 w-full"
+          />
           <FormField
             id="password"
             label="Новый пароль"
@@ -66,7 +72,7 @@ export default function ResetPasswordForm() {
           {error && <p style={{ color: "red", marginTop: "1rem" }}>{error}</p>}
         </form>
       ) : (
-        <p>Пароль обновлён. Перенаправление...</p>
+        <p>Пароль обновлён. Перенаправление на страницу входа...</p>
       )}
     </main>
   );

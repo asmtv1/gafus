@@ -33,6 +33,7 @@ export async function getFavoritesCourses(
       author: {
         select: {
           username: true,
+          profile: { select: { avatarUrl: true } },
         },
       },
       reviews: true,
@@ -54,7 +55,7 @@ export async function getFavoritesCourses(
   const data: CourseWithProgressData[] = allCourses.map(
     (
       course: Course & {
-        author: { username: string };
+        author: { username: string; profile?: { avatarUrl: string | null } | null };
         reviews: CourseReview[];
         favoritedBy: FavoriteCourse[];
         access: CourseAccess[];
@@ -80,6 +81,7 @@ export async function getFavoritesCourses(
         trainingLevel: course.trainingLevel,
         createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
         authorUsername: course.author.username,
+        authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
         userStatus: (userCourse?.status ?? TrainingStatus.NOT_STARTED) as TrainingStatus,
         startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
         completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,

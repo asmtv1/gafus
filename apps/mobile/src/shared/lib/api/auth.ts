@@ -176,61 +176,6 @@ export const authApi = {
   },
 
   /**
-   * Проверяет совпадение номера телефона с логином
-   */
-  checkPhoneMatchesUsername: async (
-    username: string,
-    phone: string,
-  ): Promise<ApiResponse<{ matches: boolean }>> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/check-phone-match`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, phone }),
-      });
-
-      if (!response.ok) {
-        let errorData: { error?: string; code?: string } = {};
-        try {
-          const contentType = response.headers.get("content-type");
-          if (contentType?.includes("application/json")) {
-            errorData = await response.json();
-          }
-        } catch {
-          // Игнорируем ошибки парсинга
-        }
-
-        return {
-          success: false,
-          error: errorData.error || "Ошибка проверки телефона",
-          code: errorData.code || `HTTP_${response.status}`,
-        };
-      }
-
-      const data = await response.json();
-
-      return {
-        success: true,
-        data: data.data,
-      };
-    } catch (error) {
-      if (error instanceof TypeError && error.message.includes("fetch")) {
-        return {
-          success: false,
-          error: "Ошибка подключения к серверу",
-          code: "NETWORK_ERROR",
-        };
-      }
-
-      return {
-        success: false,
-        error: "Ошибка подключения к серверу",
-        code: "NETWORK_ERROR",
-      };
-    }
-  },
-
-  /**
    * Отправляет запрос на сброс пароля
    */
   sendPasswordResetRequest: async (username: string, phone: string): Promise<ApiResponse<void>> => {

@@ -3,10 +3,7 @@
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
-import {
-  checkPhoneMatchesUsernameAction,
-  sendPasswordResetRequestAction,
-} from "@shared/server-actions";
+import { sendPasswordResetRequestAction } from "@shared/server-actions";
 import { passwordResetFormSchema } from "@shared/lib/validation/authSchemas";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { useState } from "react";
@@ -45,17 +42,8 @@ export function PasswordResetForm() {
     setIsPending(true);
 
     try {
-      const matches = await checkPhoneMatchesUsernameAction(data.username, data.phone);
-      if (!matches) {
-        setError("phone", {
-          message: "Телефон не совпадает с именем пользователя",
-        });
-        setIsPending(false);
-        return;
-      }
-
       await sendPasswordResetRequestAction(data.username, data.phone);
-      setStatus("Если данные верны, вам придёт сообщение в Telegram");
+      setStatus("Если указанные данные верны, вам придёт сообщение в Telegram");
     } catch (error) {
       catchError(error);
     } finally {

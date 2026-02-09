@@ -1,36 +1,63 @@
 "use client";
 
-import { serverCheckUserConfirmedAction } from "@shared/server-actions";
+import { getPendingConfirmationStatus } from "@shared/server-actions";
 import { createWebLogger } from "@gafus/logger";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
-// Создаем логгер для ConfirmClient
 const logger = createWebLogger("web-confirm-client");
 
 export default function ConfirmClient() {
   const [catchError] = useCaughtError();
-  const searchParams = useSearchParams();
-  const phone = searchParams.get("phone");
+  const [status, setStatus] = useState<{
+    hasPending: boolean;
+    confirmed: boolean;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (!phone) return;
+    let cancelled = false;
 
-    const interval = setInterval(() => {
+    const check = () => {
       startTransition(async () => {
         try {
-          const confirmed = await serverCheckUserConfirmedAction(phone);
-          if (confirmed) {
-            clearInterval(interval);
+          const result = await getPendingConfirmationStatus();
+          if (cancelled) return;
+          setStatus(result);
+          if (result.hasPending && result.confirmed) {
             alert("✅ Номер подтверждён. Выполняется вход...");
             window.location.href = "/login";
           }
         } catch (error) {
           logger.error("Ошибка при проверке подтверждения номера", error as Error, {
             operation: "confirm_phone_check_error",
-            phone: phone,
+          });
+          catchError(error);
+        }
+      });
+    };
+
+    check();
+    return () => {
+      cancelled = true;
+    };
+  }, [catchError]);
+
+  useEffect(() => {
+    if (!status?.hasPending || status.confirmed) return;
+
+    const interval = setInterval(() => {
+      startTransition(async () => {
+        try {
+          const result = await getPendingConfirmationStatus();
+          setStatus(result);
+          if (result.confirmed) {
+            alert("✅ Номер подтверждён. Выполняется вход...");
+            window.location.href = "/login";
+          }
+        } catch (error) {
+          logger.error("Ошибка при проверке подтверждения номера", error as Error, {
+            operation: "confirm_phone_poll_error",
           });
           catchError(error);
         }
@@ -38,7 +65,26 @@ export default function ConfirmClient() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [phone, catchError]);
+  }, [status?.hasPending, status?.confirmed, catchError]);
 
-  return <div>{isPending && <p>Проверяем подтверждение...</p>}</div>;
+  if (status === null) {
+    return <div>{isPending ? <p>Проверяем...</p> : null}</div>;
+  }
+
+  if (!status.hasPending) {
+    return (
+      <div>
+        <p>Подтвердите номер в Telegram. Откройте бота и выполните подтверждение.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {isPending && <p>Проверяем подтверждение...</p>}
+      {!isPending && !status.confirmed && (
+        <p>Ожидаем подтверждения номера в Telegram...</p>
+      )}
+    </div>
+  );
 }

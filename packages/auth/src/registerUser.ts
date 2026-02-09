@@ -18,19 +18,18 @@ export async function registerUser(username: string, phone: string, password: st
     where: { phone: formattedPhone },
   });
 
-  if (existingUser) {
-    return { error: "Пользователь с таким телефоном уже существует" };
-  }
-
   const existingByUsername = await prisma.user.findUnique({
     where: { username: normalizedUsername },
   });
 
-  if (existingByUsername) {
-    return { error: "Пользователь с таким именем уже существует" };
+  if (existingUser || existingByUsername) {
+    return {
+      error:
+        "Пользователь с такими данными уже существует. Проверьте данные или войдите в существующий аккаунт.",
+    };
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcrypt.hash(password, 12);
 
   await prisma.user.create({
     data: {

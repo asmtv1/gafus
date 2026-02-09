@@ -35,7 +35,9 @@ export const getAllCoursesCached = unstable_cache(
       // Получаем ВСЕ курсы (публичные + приватные) без пользовательских данных
       type CourseWithRelations = Prisma.CourseGetPayload<{
         include: {
-          author: { select: { username: true } };
+          author: {
+            select: { username: true, profile: { select: { avatarUrl: true } } };
+          };
           reviews: {
             include: {
               user: {
@@ -72,7 +74,9 @@ export const getAllCoursesCached = unstable_cache(
 
       const allCourses: CourseWithRelations[] = await prisma.course.findMany({
         include: {
-          author: { select: { username: true } },
+          author: {
+            select: { username: true, profile: { select: { avatarUrl: true } } },
+          },
           reviews: {
             include: {
               user: {
@@ -119,6 +123,7 @@ export const getAllCoursesCached = unstable_cache(
         avgRating: course.avgRating,
         createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
         authorUsername: course.author.username,
+        authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
         reviews: course.reviews.map((review: CourseWithRelations["reviews"][number]) => ({
           rating: review.rating ?? 0,
           comment: review.comment ?? "",

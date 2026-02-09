@@ -31,13 +31,29 @@ export const phoneSchema = z
   }, "Неверный формат номера телефона");
 
 /**
- * Схема для пароля
+ * Схема для пароля (legacy, не ужесточать — используется там, где нужна мягкая проверка)
  */
 export const passwordSchema = z
   .string()
   .min(6, "минимум 6 символов")
   .max(100, "максимум 100 символов")
   .regex(/^[A-Za-z0-9]+$/, "только английские буквы и цифры");
+
+/**
+ * Строгая схема пароля для регистрации и сброса. Спецсимволы разрешены.
+ */
+export const newPasswordSchema = z
+  .string()
+  .min(8, "минимум 8 символов")
+  .max(100, "максимум 100 символов")
+  .regex(/[A-Z]/, "минимум одна заглавная буква")
+  .regex(/[a-z]/, "минимум одна строчная буква")
+  .regex(/[0-9]/, "минимум одна цифра");
+
+/**
+ * Мягкая схема пароля только для логина (не блокировать старых пользователей).
+ */
+export const loginPasswordSchema = z.string().min(1, "Пароль обязателен").max(100, "максимум 100 символов");
 
 // ===== СХЕМЫ ФОРМ =====
 
@@ -47,7 +63,7 @@ export const passwordSchema = z
 export const registerUserSchema = z.object({
   name: usernameSchema,
   phone: phoneSchema,
-  password: passwordSchema,
+  password: newPasswordSchema,
 });
 
 /**
@@ -73,11 +89,23 @@ export const registerFormSchema = registerUserSchema
   });
 
 /**
- * Схема для сброса пароля
+ * Схема для сброса пароля (по токену, для API)
  */
 export const resetPasswordSchema = z.object({
-  token: z.string().trim().min(1, "Токен обязателен").max(500),
-  password: passwordSchema,
+  token: z.string().trim().min(1, "Токен обязателен").max(64),
+  password: newPasswordSchema,
+});
+
+/**
+ * Схема для сброса пароля по коду из Telegram (6 цифр)
+ */
+export const resetPasswordByCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .length(6, "Код из Telegram — 6 цифр")
+    .regex(/^\d{6}$/, "Код должен содержать 6 цифр"),
+  password: newPasswordSchema,
 });
 
 /**
@@ -85,7 +113,7 @@ export const resetPasswordSchema = z.object({
  */
 export const loginFormSchema = z.object({
   username: usernameSchema,
-  password: passwordSchema,
+  password: loginPasswordSchema,
 });
 
 /**
@@ -97,11 +125,16 @@ export const passwordResetFormSchema = z.object({
 });
 
 /**
- * Схема для формы сброса пароля с подтверждением
+ * Схема для формы сброса пароля: код из Telegram + пароль с подтверждением
  */
 export const resetPasswordFormSchema = z
   .object({
-    password: passwordSchema,
+    code: z
+      .string()
+      .trim()
+      .length(6, "Код из Telegram — 6 цифр")
+      .regex(/^\d{6}$/, "Код должен содержать 6 цифр"),
+    password: newPasswordSchema,
     confirmPassword: z.string().min(1, "Подтвердите пароль"),
   })
   .superRefine(({ password, confirmPassword }, ctx) => {

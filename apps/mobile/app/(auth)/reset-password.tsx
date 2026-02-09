@@ -92,28 +92,6 @@ export default function ResetPasswordScreen() {
     setErrors({});
 
     try {
-      // Проверка совпадения телефона с логином
-      const checkResult = await authApi.checkPhoneMatchesUsername(username, phone);
-
-      if (!checkResult.success) {
-        setErrors((prev) => ({
-          ...prev,
-          phone: checkResult.error || "Ошибка проверки данных",
-        }));
-        setIsLoading(false);
-        return;
-      }
-
-      if (!checkResult.data?.matches) {
-        setErrors((prev) => ({
-          ...prev,
-          phone: "Телефон не совпадает с именем пользователя",
-        }));
-        setIsLoading(false);
-        return;
-      }
-
-      // Отправка запроса на сброс пароля
       const resetResult = await authApi.sendPasswordResetRequest(username, phone);
 
       if (!resetResult.success) {
@@ -125,7 +103,7 @@ export default function ResetPasswordScreen() {
         return;
       }
 
-      setStatus("Если данные верны, вам придёт сообщение в Telegram");
+      setStatus("Если указанные данные верны, вам придёт сообщение в Telegram");
     } catch (error) {
       setSnackbar({
         visible: true,

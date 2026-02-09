@@ -6,7 +6,7 @@ import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { loginFormSchema } from "@shared/lib/validation/authSchemas";
-import { checkUserStateAction } from "@shared/server-actions";
+import { checkLoginRateLimit, checkUserStateAction } from "@shared/server-actions";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -38,12 +38,17 @@ export default function LoginForm() {
     try {
       const username = data.username.toLowerCase().trim();
 
+      const rateLimit = await checkLoginRateLimit();
+      if (!rateLimit.allowed) {
+        alert("Слишком много попыток. Попробуйте позже.");
+        return;
+      }
+
       // Проверяем статус подтверждения номера перед входом
       const userState = await checkUserStateAction(username);
 
-      if (!userState.confirmed && userState.phone) {
-        // Если номер не подтверждён, перенаправляем на страницу подтверждения
-        router.push(`/confirm?phone=${encodeURIComponent(userState.phone)}`);
+      if (userState.needsConfirm) {
+        router.push("/confirm");
         return;
       }
 

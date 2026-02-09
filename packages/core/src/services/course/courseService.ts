@@ -27,7 +27,12 @@ const courseSelect = {
   avgRating: true,
   trainingLevel: true,
   createdAt: true,
-  author: { select: { username: true } },
+  author: {
+    select: {
+      username: true,
+      profile: { select: { avatarUrl: true } },
+    },
+  },
   reviews: {
     include: {
       user: {
@@ -128,6 +133,7 @@ export async function getCoursesWithProgress(
       trainingLevel: course.trainingLevel,
       createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
       authorUsername: course.author.username,
+      authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
       favoritedBy: course.favoritedBy,
       reviews: course.reviews.map((review: CourseWithExtras["reviews"][0]) => ({
         rating: review.rating ?? 0,

@@ -31,10 +31,10 @@ export const authOptions: NextAuthOptions = {
         const username = credentials.username.toLowerCase().trim();
         const user = await prisma.user.findUnique({ where: { username } });
 
-        if (!user) throw new Error("Пользователь не найден");
+        if (!user) throw new Error("Неверный логин или пароль");
 
         const valid = await bcrypt.compare(credentials.password, user.password);
-        if (!valid) throw new Error("Неверный пароль");
+        if (!valid) throw new Error("Неверный логин или пароль");
 
         return {
           id: user.id,
