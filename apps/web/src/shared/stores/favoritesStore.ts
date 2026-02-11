@@ -74,7 +74,7 @@ export const useFavoritesStore = create<FavoritesState>()(
               .getState()
               .setFavorites(updatedFavorites as unknown as CourseWithProgressData[]);
           }
-        } catch (_e) {
+        } catch {
           // noop
         }
       },
@@ -96,7 +96,7 @@ export const useFavoritesStore = create<FavoritesState>()(
               .getState()
               .setFavorites(updatedFavorites as unknown as CourseWithProgressData[]);
           }
-        } catch (_e) {
+        } catch {
           // noop
         }
       },
@@ -145,7 +145,7 @@ export const useFavoritesStore = create<FavoritesState>()(
           // если сервер вернул готовые данные — используем их для courseStore
           try {
             useCourseStore.getState().setFavorites(data as unknown as CourseWithProgressData[]);
-          } catch (_e) {
+          } catch {
             // noop
           }
         } catch (e) {
@@ -265,7 +265,7 @@ export const useFavoritesStore = create<FavoritesState>()(
         const loadWhenReady = () => {
           try {
             useFavoritesStore.getState().loadFromServer();
-          } catch (_e) {
+          } catch {
             // noop
           }
         };

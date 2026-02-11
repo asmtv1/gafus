@@ -63,7 +63,7 @@ function restorePreviousUrl(): void {
       // Очищаем сохраненный URL если есть (для совместимости)
       try {
         sessionStorage.removeItem(STORAGE_KEY);
-      } catch (_e) {
+      } catch {
         // Игнорируем ошибки
       }
       return;
@@ -76,7 +76,7 @@ function restorePreviousUrl(): void {
     // Очищаем сохраненный URL (для совместимости)
     try {
       sessionStorage.removeItem(STORAGE_KEY);
-    } catch (_e) {
+    } catch {
       // Игнорируем ошибки
     }
 
