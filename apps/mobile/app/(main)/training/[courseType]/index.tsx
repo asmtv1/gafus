@@ -194,10 +194,6 @@ export default function TrainingDaysScreen() {
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
           <Text style={styles.backText}>Назад</Text>
         </Pressable>
-        <Pressable style={styles.shareRow} onPress={handleShareCourse} hitSlop={12}>
-          <MaterialCommunityIcons name="share-variant" size={22} color={COLORS.primary} />
-          <Text style={styles.shareText}>Поделиться курсом</Text>
-        </Pressable>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
@@ -266,6 +262,8 @@ export default function TrainingDaysScreen() {
               description={courseData.courseDescription}
               equipment={courseData.courseEquipment}
               trainingLevel={courseData.courseTrainingLevel}
+              onShare={handleShareCourse}
+              courseType={courseType}
             />
           )}
 
@@ -326,18 +324,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: COLORS.primary,
     fontWeight: "500",
-  },
-  shareRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-  },
-  shareText: {
-    color: COLORS.primary,
-    fontSize: 15,
-    fontWeight: "600",
   },
   scrollContent: {
     paddingBottom: SPACING.xl,

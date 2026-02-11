@@ -9,6 +9,9 @@ interface CourseDescriptionProps {
   description: string | null;
   equipment?: string | null;
   trainingLevel?: string | null;
+  /** Кнопка «Поделиться» внутри блока описания (как на web) */
+  onShare?: () => void;
+  courseType?: string;
 }
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -25,6 +28,8 @@ export function CourseDescription({
   description,
   equipment,
   trainingLevel,
+  onShare,
+  courseType,
 }: CourseDescriptionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -288,6 +293,24 @@ export function CourseDescription({
                   )}
                 </View>
               )}
+
+              {onShare && courseType && (
+                <View style={styles.shareButtonContainer}>
+                  <Pressable
+                    style={({ pressed }) => [styles.shareButton, pressed && styles.shareButtonPressed]}
+                    onPress={onShare}
+                    accessibilityLabel="Поделиться ссылкой на курс"
+                  >
+                    <MaterialCommunityIcons
+                      name="share-variant"
+                      size={20}
+                      color={COLORS.text}
+                      style={styles.shareIcon}
+                    />
+                    <Text style={styles.shareButtonText}>Поделиться ссылкой на курс</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           </Surface>
         </View>
@@ -433,5 +456,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#352E2E",
     paddingLeft: SPACING.xs,
+  },
+  shareButtonContainer: {
+    marginTop: SPACING.md,
+  },
+  shareButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: "#F5F0E8",
+    borderWidth: 2,
+    borderColor: "#D4C4A8",
+    borderRadius: 12,
+  },
+  shareButtonPressed: {
+    opacity: 0.9,
+  },
+  shareIcon: {
+    opacity: 0.9,
+  },
+  shareButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#352E2E",
   },
 });
