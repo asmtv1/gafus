@@ -56,7 +56,7 @@ type FormErrors = {
  */
 export default function RegisterScreen() {
   const router = useRouter();
-  const { register } = useAuthStore();
+  const { register, setPendingConfirmPhone } = useAuthStore();
 
   const [form, setForm] = useState({
     name: "",
@@ -105,13 +105,10 @@ export default function RegisterScreen() {
       if (result.success) {
         setSnackbar({
           visible: true,
-          message: "Регистрация успешна! Выполняется вход...",
+          message: "Подтвердите номер в Telegram",
         });
-
-        // Автоматический переход на главную после успешной регистрации
-        setTimeout(() => {
-          router.replace("/");
-        }, 1500);
+        setPendingConfirmPhone(form.phone);
+        router.replace("/confirm");
       } else {
         setSnackbar({
           visible: true,

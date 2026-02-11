@@ -13,3 +13,4 @@ export * from "./notes";
 export * from "./offline";
 export * from "./payments";
 export * from "./video";
+export * from "./reminders";

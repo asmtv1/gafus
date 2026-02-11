@@ -12,6 +12,10 @@ export interface PushSubscription {
  * API модуль для push подписок
  */
 export const subscriptionsApi = {
+  getPushSubscriptionStatus: async (): Promise<ApiResponse<{ hasSubscription: boolean }>> => {
+    return apiClient<{ hasSubscription: boolean }>("/api/v1/subscriptions/push");
+  },
+
   /**
    * Сохранить push подписку (Expo Push Token)
    */
@@ -29,6 +33,13 @@ export const subscriptionsApi = {
     return apiClient<void>("/api/v1/subscriptions/push", {
       method: "DELETE",
       body: { endpoint },
+    });
+  },
+
+  deleteAllPushSubscriptions: async (): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/subscriptions/push", {
+      method: "DELETE",
+      body: { deleteAll: true },
     });
   },
 };

@@ -48,6 +48,13 @@ export default function MainLayout() {
           title: "Редактировать профиль",
         }}
       />
+      <Stack.Screen
+        name="reminders"
+        options={{
+          headerShown: true,
+          title: "Напоминания",
+        }}
+      />
     </Stack>
   );
 }

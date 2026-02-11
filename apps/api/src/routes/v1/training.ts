@@ -12,6 +12,8 @@ import {
   syncUserCourseStatusFromDays,
   updateStepAndDay,
 } from "@gafus/core/services/training";
+import { saveDiaryEntry, getDiaryEntries } from "@gafus/core/services/diary";
+import { checkCourseAccess } from "@gafus/core/services/course";
 import { createWebLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { downloadFileFromCDN, extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
@@ -71,6 +73,10 @@ trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
     });
 
     if (!result) {
+      const access = await checkCourseAccess(courseType, user.id);
+      if (!access.hasAccess) {
+        return c.json({ success: false, error: "Нет доступа к курсу", code: "FORBIDDEN" }, 403);
+      }
       return c.json({ success: false, error: "День тренировки не найден", code: "NOT_FOUND" }, 404);
     }
 
@@ -266,6 +272,111 @@ trainingRoutes.post(
     }
   },
 );
+
+const completeTheoryBodySchema = z.object({
+  courseId: z.string().min(1, "courseId обязателен"),
+  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  stepTitle: z.string().optional(),
+  stepOrder: z.number().int().min(0).optional(),
+});
+
+trainingRoutes.post("/step/complete/theory", zValidator("json", completeTheoryBodySchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { dayOnCourseId, stepIndex } = c.req.valid("json");
+
+    const dayOnCourse = await prisma.dayOnCourse.findUnique({
+      where: { id: dayOnCourseId },
+      include: {
+        day: {
+          include: {
+            stepLinks: {
+              orderBy: { order: "asc" },
+              include: { step: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!dayOnCourse?.day) {
+      return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+    if (!stepLink?.step) {
+      return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    if (stepLink.step.type !== "THEORY" && stepLink.step.type !== "DIARY") {
+      return c.json(
+        { success: false, error: "Шаг не является теоретическим или дневником" },
+        400,
+      );
+    }
+
+    const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
+      type: "complete",
+    });
+    await syncUserCourseStatusFromDays(user.id, result.courseId);
+    return c.json({ success: true });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DayOnCourse or day not found") {
+      return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
+    }
+    if (error instanceof Error && error.message === "Step not found") {
+      return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+    }
+    logger.error("Error completing theory step", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
+const postDiaryBodySchema = z.object({
+  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  content: z.string().trim().min(1, "content обязателен").max(10000, "Слишком длинная запись"),
+});
+
+trainingRoutes.post("/diary", zValidator("json", postDiaryBodySchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { dayOnCourseId, content } = c.req.valid("json");
+    const result = await saveDiaryEntry(user.id, dayOnCourseId, content);
+
+    if (!result.success) {
+      const isForbidden = result.error === "Нет доступа к курсу";
+      return c.json({ success: false, error: result.error }, isForbidden ? 403 : 400);
+    }
+
+    return c.json({ success: true });
+  } catch (error) {
+    logger.error("Error saving diary entry", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
+const getDiaryQuerySchema = z.object({
+  courseId: z.string().min(1, "courseId обязателен"),
+  upToDayOnCourseId: z.string().optional(),
+});
+
+trainingRoutes.get("/diary", zValidator("query", getDiaryQuerySchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { courseId, upToDayOnCourseId } = c.req.valid("query");
+    const result = await getDiaryEntries(user.id, courseId, upToDayOnCourseId);
+
+    if (result.error) {
+      return c.json({ success: false, error: result.error }, 403);
+    }
+
+    return c.json({ success: true, data: { entries: result.entries } });
+  } catch (error) {
+    logger.error("Error getting diary entries", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
 
 // ==================== POST /training/video/url ====================
 // Получить URL для воспроизведения видео (HLS манифест)

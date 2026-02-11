@@ -54,6 +54,7 @@ export function getStepContent(step: UserStep | StepContent): StepContent {
 }
 
 export interface TrainingDayResponse {
+  courseId: string;
   trainingDayId: string;
   dayOnCourseId: string;
   displayDayNumber?: number;
@@ -85,6 +86,13 @@ export interface ResetStepParams extends StepActionParams {
 export interface CompleteStepParams extends StepActionParams {
   stepTitle?: string;
   stepOrder?: number;
+}
+
+export interface DiaryEntry {
+  id: string;
+  content: string;
+  dayOnCourseId: string;
+  createdAt: string;
 }
 
 /**
@@ -184,6 +192,22 @@ export const trainingApi = {
       method: "POST",
       body: params,
     });
+  },
+
+  postDiaryEntry: async (dayOnCourseId: string, content: string): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/training/diary", {
+      method: "POST",
+      body: { dayOnCourseId, content },
+    });
+  },
+
+  getDiaryEntries: async (
+    courseId: string,
+    upToDayOnCourseId?: string,
+  ): Promise<ApiResponse<{ entries: DiaryEntry[] }>> => {
+    const params = new URLSearchParams({ courseId });
+    if (upToDayOnCourseId) params.set("upToDayOnCourseId", upToDayOnCourseId);
+    return apiClient<{ entries: DiaryEntry[] }>(`/api/v1/training/diary?${params.toString()}`);
   },
 
   /**

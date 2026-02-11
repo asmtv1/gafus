@@ -69,6 +69,10 @@
       "types": "./dist/core/src/services/diary/index.d.ts",
       "default": "./dist/core/src/services/diary/index.js"
     },
+    "./services/reminders": {
+      "types": "./dist/core/src/services/reminders/index.d.ts",
+      "default": "./dist/core/src/services/reminders/index.js"
+    },
     "./services/video": {
       "types": "./dist/core/src/services/video/index.d.ts",
       "default": "./dist/core/src/services/video/index.js"

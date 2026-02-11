@@ -20,8 +20,9 @@ import {
 } from "@/shared/hooks";
 import { useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
 import { COLORS, FONTS, SPACING } from "@/constants";
-import { getStepContent } from "@/shared/lib/api";
+import { getStepContent, trainingApi } from "@/shared/lib/api";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
+import { showPaidCourseAccessDeniedAlert } from "@/shared/lib/utils/alerts";
 
 /**
  * Экран дня тренировки с шагами
@@ -35,6 +36,9 @@ export default function TrainingDayScreen() {
 
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
+  const [diaryEntries, setDiaryEntries] = useState<
+    { id: string; content: string; createdAt: string; dayOnCourseId: string }[]
+  >([]);
 
   // Загрузка данных дня
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDay(courseType, dayId);
@@ -58,7 +62,21 @@ export default function TrainingDayScreen() {
   const completePracticeMutation = useCompletePracticeStep();
 
   const dayData = data?.data;
-  const courseId = courseType; // Используем courseType как courseId для ключей
+  const courseId = dayData?.courseId ?? courseType;
+
+  useEffect(() => {
+    if (!courseId || !dayId) return;
+    let cancelled = false;
+    (async () => {
+      const res = await trainingApi.getDiaryEntries(courseId, dayId);
+      if (!cancelled && res.success) {
+        setDiaryEntries(res.data?.entries ?? []);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId, dayId]);
 
   // Логирование состояния загрузки
   useEffect(() => {
@@ -275,6 +293,33 @@ export default function TrainingDayScreen() {
     ],
   );
 
+  const handleSaveDiaryForStep = useCallback(
+    async (stepIndex: number, content: string, stepTitle?: string) => {
+      const saveRes = await trainingApi.postDiaryEntry(dayId, content);
+      if (!saveRes.success) {
+        throw new Error(saveRes.error ?? "Не удалось сохранить запись");
+      }
+
+      const completeRes = await completeTheoryMutation.mutateAsync({
+        courseId,
+        dayOnCourseId: dayId,
+        stepIndex,
+        stepTitle,
+        stepOrder: stepIndex,
+      });
+      if (!completeRes.success) {
+        throw new Error(completeRes.error ?? "Не удалось завершить шаг");
+      }
+
+      const listRes = await trainingApi.getDiaryEntries(courseId, dayId);
+      if (listRes.success) {
+        setDiaryEntries(listRes.data?.entries ?? []);
+      }
+      setSnackbar({ visible: true, message: "Запись сохранена" });
+    },
+    [dayId, courseId, completeTheoryMutation],
+  );
+
   // Подсчёт прогресса
   const progress = useMemo(() => {
     if (!dayData?.steps || dayData.steps.length === 0) {
@@ -302,6 +347,13 @@ export default function TrainingDayScreen() {
   }
 
   if (error || !data?.success) {
+    const isForbidden =
+      (data && "code" in data && data.code === "FORBIDDEN") ||
+      (data && typeof data.error === "string" && data.error.includes("доступ"));
+    if (isForbidden) {
+      showPaidCourseAccessDeniedAlert(courseType, () => router.back());
+    }
+
     // Формируем понятное сообщение об ошибке
     let errorMessage = "Ошибка загрузки дня";
     let errorDetails: string | null = null;
@@ -537,7 +589,12 @@ export default function TrainingDayScreen() {
                         stepType,
                         stepTitle,
                       });
-                      handleCompleteStep(index, stepType === "THEORY", stepTitle, index);
+                      handleCompleteStep(
+                        index,
+                        stepType === "THEORY" || stepType === "DIARY",
+                        stepTitle,
+                        index,
+                      );
                     }}
                     onReset={(durationSecReset) => {
                       if (__DEV__) {
@@ -545,6 +602,12 @@ export default function TrainingDayScreen() {
                       }
                       handleResetStep(index, durationSecReset);
                     }}
+                    diaryEntries={diaryEntries}
+                    onSaveDiary={
+                      stepType === "THEORY" || stepType === "DIARY" ?
+                        async (content) => handleSaveDiaryForStep(index, content, stepTitle)
+                      : undefined
+                    }
                   />
                   );
                 } catch (error) {

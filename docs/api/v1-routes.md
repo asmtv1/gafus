@@ -53,7 +53,7 @@
 **Body:**
 
 ```json
-{ "userId": "string" }
+{ "phone": "+79001234567" }
 ```
 
 ---
@@ -263,7 +263,7 @@
 
 ### POST `/api/v1/training/step/complete/theory`
 
-Завершить теоретический шаг.
+Завершить шаг типа `THEORY` или `DIARY`.
 
 **Body:**
 
@@ -276,6 +276,31 @@
   "stepOrder": 0
 }
 ```
+
+---
+
+### POST `/api/v1/training/diary`
+
+Сохранить запись дневника для дня курса.
+
+**Body:**
+
+```json
+{
+  "dayOnCourseId": "cuid",
+  "content": "string (1..10000)"
+}
+```
+
+---
+
+### GET `/api/v1/training/diary`
+
+Получить записи дневника пользователя по `courseId`.
+
+**Query:**
+
+`courseId` (обязательно), `upToDayOnCourseId` (опционально)
 
 ---
 
@@ -599,6 +624,45 @@
 ```json
 { "endpoint": "https://..." }
 ```
+
+---
+
+## Notes — Заметки тренера
+
+### GET `/api/v1/notes/student`
+
+Получить заметки, доступные текущему ученику.
+
+---
+
+## Reminders — Напоминания
+
+### GET `/api/v1/reminders`
+
+Получить список напоминаний пользователя (type=`training`).
+
+### POST `/api/v1/reminders`
+
+Создать напоминание.
+
+**Body:**
+
+```json
+{
+  "name": "string",
+  "reminderTime": "09:00",
+  "reminderDays": "1,2,3,4,5,6,7",
+  "timezone": "Europe/Moscow"
+}
+```
+
+### PUT `/api/v1/reminders/:id`
+
+Обновить напоминание.
+
+### DELETE `/api/v1/reminders/:id`
+
+Удалить напоминание.
 
 ---
 

@@ -12,7 +12,7 @@ import crypto from "crypto";
 import { prisma } from "@gafus/prisma";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
 import { registerUser } from "@gafus/auth";
-import { sendPasswordResetRequest } from "@gafus/core/services/auth";
+import { sendPasswordResetRequest, serverCheckUserConfirmed } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-auth");
@@ -48,6 +48,10 @@ const checkPhoneMatchSchema = z.object({
 
 const passwordResetRequestSchema = z.object({
   username: z.string().min(1, "Имя пользователя обязательно"),
+  phone: z.string().min(1, "Номер телефона обязателен"),
+});
+
+const checkConfirmedSchema = z.object({
   phone: z.string().min(1, "Номер телефона обязателен"),
 });
 
@@ -127,6 +131,23 @@ authRoutes.post(
     } catch (error) {
       logger.error("Login error", error as Error);
       return c.json({ success: false, error: "Ошибка авторизации" }, 500);
+    }
+  },
+);
+
+// POST /api/v1/auth/check-confirmed
+authRoutes.post(
+  "/check-confirmed",
+  bodyLimit({ maxSize: 1024 }),
+  zValidator("json", checkConfirmedSchema),
+  async (c) => {
+    try {
+      const { phone } = c.req.valid("json");
+      const confirmed = await serverCheckUserConfirmed(phone);
+      return c.json({ success: true, data: { confirmed } });
+    } catch (error) {
+      logger.error("check-confirmed error", error as Error);
+      return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
     }
   },
 );

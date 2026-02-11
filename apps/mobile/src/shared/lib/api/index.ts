@@ -37,3 +37,10 @@ export {
   type PublicProfileCourse,
 } from "./user";
 export { subscriptionsApi, type PushSubscription } from "./subscriptions";
+export { notesApi, type StudentNote, type StudentNoteEntry } from "./notes";
+export {
+  remindersApi,
+  type Reminder,
+  type ReminderPayload,
+  type ReminderUpdatePayload,
+} from "./reminders";

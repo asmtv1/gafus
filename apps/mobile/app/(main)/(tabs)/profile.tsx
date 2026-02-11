@@ -8,9 +8,11 @@ import { Image } from "expo-image";
 
 import { Card } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
+import { subscriptionsApi, notesApi } from "@/shared/lib/api";
 import { userApi } from "@/shared/lib/api/user";
 import { petsApi, type Pet } from "@/shared/lib/api/pets";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
+import { registerForPushNotifications, savePushToken } from "@/shared/lib/utils/notifications";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -150,6 +152,23 @@ export default function ProfileScreen() {
     queryFn: () => petsApi.getAll(),
   });
 
+  const { data: pushStatusData } = useQuery({
+    queryKey: ["push-subscription-status"],
+    queryFn: subscriptionsApi.getPushSubscriptionStatus,
+  });
+
+  const { data: studentNotesData } = useQuery({
+    queryKey: ["student-notes"],
+    queryFn: notesApi.getStudentNotes,
+    enabled: user?.role === "USER",
+  });
+
+  const { data: trainerProfileData } = useQuery({
+    queryKey: ["trainer-public-profile", user?.username],
+    queryFn: () => userApi.getPublicProfile(user?.username ?? ""),
+    enabled: user?.role === "TRAINER" && !!user?.username,
+  });
+
   // Удаление питомца
   const deleteMutation = useMutation({
     mutationFn: petsApi.delete,
@@ -229,10 +248,42 @@ export default function ProfileScreen() {
     },
   });
 
+  const enablePushMutation = useMutation({
+    mutationFn: async () => {
+      const token = await registerForPushNotifications();
+      if (!token) return { success: false, error: "Разрешение на push не получено" };
+      const saved = await savePushToken(token);
+      return saved ? { success: true } : { success: false, error: "Не удалось сохранить push token" };
+    },
+    onSuccess: async (result) => {
+      if (!result.success) {
+        Alert.alert("Уведомления", result.error ?? "Не удалось включить уведомления");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["push-subscription-status"] });
+      hapticFeedback.success();
+    },
+  });
+
+  const disablePushMutation = useMutation({
+    mutationFn: () => subscriptionsApi.deleteAllPushSubscriptions(),
+    onSuccess: async (result) => {
+      if (!result.success) {
+        Alert.alert("Уведомления", result.error ?? "Не удалось отключить уведомления");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["push-subscription-status"] });
+      hapticFeedback.success();
+    },
+  });
+
   const profile = profileData?.data?.profile;
   const avatarUrl = profile?.avatarUrl?.trim() || null;
   const pets = petsData?.data || [];
   const displayRole = getRoleLabel(user?.role);
+  const hasPushSubscription = !!pushStatusData?.data?.hasSubscription;
+  const studentNotes = studentNotesData?.success ? (studentNotesData.data ?? []) : [];
+  const trainerCourses = trainerProfileData?.data?.courses ?? [];
 
   const handleEditPet = (pet: Pet) => {
     router.push({
@@ -437,6 +488,78 @@ export default function ProfileScreen() {
           >
             <Text style={styles.editBioButtonText}>Внести/Изменить «О себе»</Text>
           </Pressable>
+
+          <View style={styles.notificationsCard}>
+            <Text style={styles.notificationsTitle}>Уведомления</Text>
+            <Text style={styles.notificationsStatus}>
+              {hasPushSubscription ? "Подписка активна" : "Подписка неактивна"}
+            </Text>
+            <View style={styles.notificationsActions}>
+              <Pressable
+                style={styles.notifyActionButton}
+                onPress={() => enablePushMutation.mutate()}
+              >
+                <Text style={styles.notifyActionText}>Включить</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.notifyActionButton, styles.notifyActionDanger]}
+                onPress={() => disablePushMutation.mutate()}
+              >
+                <Text style={styles.notifyActionText}>Отключить</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <Pressable
+            style={styles.remindersButton}
+            onPress={() => router.push({ pathname: "/reminders" })}
+          >
+            <Text style={styles.remindersButtonText}>Напоминания о тренировках</Text>
+          </Pressable>
+
+          {user?.role === "USER" && (
+            <View style={styles.notesCard}>
+              <Text style={styles.notesTitle}>Заметки тренера</Text>
+              {studentNotes.length === 0 ? (
+                <Text style={styles.notesEmpty}>Пока нет заметок от тренера</Text>
+              ) : (
+                studentNotes.map((note) => (
+                  <View key={note.id} style={styles.noteItem}>
+                    <Text style={styles.noteTitle}>{note.title}</Text>
+                    <Text style={styles.noteMeta}>
+                      {note.trainer?.profile?.fullName ?? "Тренер"} •{" "}
+                      {new Date(note.createdAt).toLocaleDateString("ru-RU")}
+                    </Text>
+                    {note.entries.map((entry) => (
+                      <Text key={entry.id} style={styles.noteContent}>
+                        • {entry.content}
+                      </Text>
+                    ))}
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+
+          {user?.role === "TRAINER" && (
+            <View style={styles.notesCard}>
+              <Text style={styles.notesTitle}>Курсы кинолога</Text>
+              {trainerCourses.length === 0 ? (
+                <Text style={styles.notesEmpty}>Курсы не найдены</Text>
+              ) : (
+                trainerCourses.map((course) => (
+                  <Pressable
+                    key={course.id}
+                    style={styles.trainerCourseItem}
+                    onPress={() => router.push(`/training/${course.type}`)}
+                  >
+                    <Text style={styles.trainerCourseTitle}>{course.name}</Text>
+                    <Text style={styles.trainerCourseMeta}>{course.shortDesc}</Text>
+                  </Pressable>
+                ))
+              )}
+            </View>
+          )}
         </View>
 
         {/* Список питомцев */}
@@ -763,6 +886,112 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
     fontFamily: FONTS.impact,
+  },
+  notificationsCard: {
+    marginTop: SPACING.md,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    borderRadius: 12,
+    backgroundColor: "#ECE5D2",
+  },
+  notificationsTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+  },
+  notificationsStatus: {
+    marginTop: 6,
+    color: "#636128",
+    fontFamily: FONTS.montserrat,
+  },
+  notificationsActions: {
+    marginTop: SPACING.sm,
+    flexDirection: "row",
+    gap: SPACING.sm,
+  },
+  notifyActionButton: {
+    flex: 1,
+    backgroundColor: "#636128",
+    borderRadius: 8,
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  notifyActionDanger: {
+    backgroundColor: "#8B4513",
+  },
+  notifyActionText: {
+    color: "#ECE5D2",
+    fontFamily: FONTS.impact,
+    fontSize: 13,
+  },
+  remindersButton: {
+    backgroundColor: "#352E2E",
+    borderRadius: 12,
+    marginTop: SPACING.sm,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  remindersButtonText: {
+    color: "#ECE5D2",
+    fontFamily: FONTS.impact,
+    fontSize: 14,
+  },
+  notesCard: {
+    marginTop: SPACING.md,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    borderRadius: 12,
+    backgroundColor: "#ECE5D2",
+    gap: SPACING.sm,
+  },
+  notesTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+  },
+  notesEmpty: {
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserrat,
+  },
+  noteItem: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    borderRadius: 10,
+    padding: SPACING.sm,
+  },
+  noteTitle: {
+    fontWeight: "700",
+    color: "#352E2E",
+  },
+  noteMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  noteContent: {
+    marginTop: 4,
+    color: "#352E2E",
+  },
+  trainerCourseItem: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    borderRadius: 10,
+    padding: SPACING.sm,
+  },
+  trainerCourseTitle: {
+    fontWeight: "700",
+    color: "#352E2E",
+  },
+  trainerCourseMeta: {
+    color: COLORS.textSecondary,
+    marginTop: 4,
+    fontSize: 12,
   },
   // О себе
   aboutContainer: {

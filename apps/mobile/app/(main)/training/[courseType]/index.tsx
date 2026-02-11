@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from "react-native";
-import { Text, Surface } from "react-native-paper";
+import { useCallback, useEffect, useState } from "react";
+import { View, StyleSheet, ScrollView, RefreshControl, Pressable, Share } from "react-native";
+import { Text, Surface, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
 
 import { Loading } from "@/shared/components/ui";
@@ -12,7 +13,7 @@ import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
 import type { TrainingDay } from "@/shared/lib/api";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
-import { showPrivateCourseAccessDeniedAlert } from "@/shared/lib/utils/alerts";
+import { showPaidCourseAccessDeniedAlert } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
 
 /**
@@ -35,6 +36,7 @@ export default function TrainingDaysScreen() {
   const isDownloaded = !!downloaded[courseType];
   const isDownloadingThis = downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);
+  const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
 
   const onRefresh = useCallback(() => {
     refetch();
@@ -52,11 +54,11 @@ export default function TrainingDaysScreen() {
       (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
 
     if (isAccessDenied) {
-      showPrivateCourseAccessDeniedAlert(() => {
+      showPaidCourseAccessDeniedAlert(courseType, () => {
         router.replace("/(main)/(tabs)/courses" as const);
       });
     }
-  }, [data, error, router]);
+  }, [data, error, router, courseType]);
 
   const handleDayPress = useCallback(
     (day: TrainingDay) => {
@@ -64,6 +66,21 @@ export default function TrainingDaysScreen() {
     },
     [router, courseType],
   );
+
+  const handleShareCourse = useCallback(async () => {
+    const url = `https://gafus.ru/trainings/${courseType}`;
+    const message = [courseType, courseData?.courseDescription, url].filter(Boolean).join("\n\n");
+    try {
+      await Share.share({
+        title: `Курс: ${courseType}`,
+        message,
+        url,
+      });
+    } catch {
+      await Clipboard.setStringAsync(url);
+      setSnackbar({ visible: true, message: "Ссылка скопирована" });
+    }
+  }, [courseType, courseData?.courseDescription]);
 
   const renderDayItem = useCallback(
     ({ item, index }: { item: TrainingDay; index: number }) => {
@@ -177,6 +194,10 @@ export default function TrainingDaysScreen() {
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
           <Text style={styles.backText}>Назад</Text>
         </Pressable>
+        <Pressable style={styles.shareRow} onPress={handleShareCourse} hitSlop={12}>
+          <MaterialCommunityIcons name="share-variant" size={22} color={COLORS.primary} />
+          <Text style={styles.shareText}>Поделиться курсом</Text>
+        </Pressable>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
@@ -277,6 +298,13 @@ export default function TrainingDaysScreen() {
             </View>
           )}
         </ScrollView>
+        <Snackbar
+          visible={snackbar.visible}
+          onDismiss={() => setSnackbar({ visible: false, message: "" })}
+          duration={2000}
+        >
+          {snackbar.message}
+        </Snackbar>
       </SafeAreaView>
     </>
   );
@@ -298,6 +326,18 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: COLORS.primary,
     fontWeight: "500",
+  },
+  shareRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  shareText: {
+    color: COLORS.primary,
+    fontSize: 15,
+    fontWeight: "600",
   },
   scrollContent: {
     paddingBottom: SPACING.xl,

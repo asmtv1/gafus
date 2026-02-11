@@ -4,12 +4,22 @@ import { Text, Snackbar, HelperText } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 
 import { Button, Input } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
 import { userApi, type UpdateProfileData } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/constants";
+
+const editProfileSchema = z.object({
+  fullName: z.string().trim().max(120),
+  about: z.string().trim().max(2000),
+  telegram: z.string().trim().max(100),
+  instagram: z.string().trim().max(100),
+  website: z.string().trim().max(200),
+  birthDate: z.string().trim().max(100),
+});
 
 /**
  * Функция для преобразования профиля в данные формы (как в веб-версии)
@@ -38,7 +48,7 @@ function mapProfileToForm(profile: {
 export default function EditProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, setUser } = useAuthStore();
+  const { setUser } = useAuthStore();
 
   const [form, setForm] = useState<UpdateProfileData>({
     fullName: "",
@@ -93,7 +103,26 @@ export default function EditProfileScreen() {
   };
 
   const handleSave = () => {
-    updateMutation.mutate(form);
+    const normalized = {
+      ...form,
+      fullName: (form.fullName ?? "").trim(),
+      about: (form.about ?? "").trim(),
+      telegram: (form.telegram ?? "").trim().replace(/^@/, ""),
+      instagram: (form.instagram ?? "").trim().replace(/^@/, ""),
+      website: (form.website ?? "").trim(),
+      birthDate: (form.birthDate ?? "").trim(),
+    };
+
+    const parsed = editProfileSchema.safeParse(normalized);
+    if (!parsed.success) {
+      setSnackbar({
+        visible: true,
+        message: parsed.error.issues[0]?.message ?? "Проверьте заполнение формы",
+      });
+      return;
+    }
+
+    updateMutation.mutate(parsed.data);
   };
 
   // Показываем загрузку пока профиль загружается

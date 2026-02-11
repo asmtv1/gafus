@@ -8,6 +8,7 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  pendingConfirmPhone: string | null;
 }
 
 interface AuthActions {
@@ -21,6 +22,8 @@ interface AuthActions {
   checkAuth: () => Promise<void>;
   setUser: (user: User) => void;
   handleSessionExpired: () => void;
+  setPendingConfirmPhone: (phone: string) => void;
+  clearPendingConfirmPhone: () => void;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -31,11 +34,12 @@ type AuthStore = AuthState & AuthActions;
  */
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // Начальное состояние
       user: null,
       isLoading: true,
       isAuthenticated: false,
+      pendingConfirmPhone: null,
 
       /**
        * Авторизация пользователя
@@ -153,12 +157,14 @@ export const useAuthStore = create<AuthStore>()(
        * Установка данных пользователя (например, после обновления профиля)
        */
       setUser: (user) => set({ user }),
+      setPendingConfirmPhone: (phone) => set({ pendingConfirmPhone: phone }),
+      clearPendingConfirmPhone: () => set({ pendingConfirmPhone: null }),
     }),
     {
       name: "auth-storage",
       storage: createJSONStorage(() => zustandStorage),
       // Персистим только данные пользователя
-      partialize: (state) => ({ user: state.user }),
+      partialize: (state) => ({ user: state.user, pendingConfirmPhone: state.pendingConfirmPhone }),
     },
   ),
 );

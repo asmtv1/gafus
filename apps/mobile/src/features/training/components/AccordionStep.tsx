@@ -1,4 +1,4 @@
-import { View, StyleSheet, Pressable, ScrollView } from "react-native";
+import { View, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
 import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-native-reanimated";
@@ -64,6 +64,8 @@ interface AccordionStepProps {
   onResume: () => void;
   onComplete: () => void;
   onReset?: (durationSec: number) => void;
+  diaryEntries?: { id: string; content: string; createdAt: string }[];
+  onSaveDiary?: (content: string) => Promise<void>;
 }
 
 /**
@@ -83,6 +85,8 @@ function AccordionStepComponent({
   onResume,
   onComplete,
   onReset,
+  diaryEntries = [],
+  onSaveDiary,
 }: AccordionStepProps) {
   if (__DEV__) {
     console.log("[AccordionStep] Рендеринг шага:", {
@@ -128,7 +132,6 @@ function AccordionStepComponent({
     STEP_STATUS_LABELS.NOT_STARTED;
   const isCompleted = status === "COMPLETED";
   const isInProgress = status === "IN_PROGRESS";
-  const isPaused = status === "PAUSED";
   const isReset = status === "RESET";
   const stepType = stepData?.type ?? "";
   const isTheory = stepType === "THEORY";
@@ -155,6 +158,8 @@ function AccordionStepComponent({
   }
 
   const [userRequestedPlay, setUserRequestedPlay] = useState(false);
+  const [diaryContent, setDiaryContent] = useState("");
+  const [isSavingDiary, setIsSavingDiary] = useState(false);
   const [offlineVideoUri, setOfflineVideoUri] = useState<string | null>(null);
   const requestOnlineUrl =
     isOpen &&
@@ -315,6 +320,7 @@ function AccordionStepComponent({
         : `#${index + 1}`;
   const stepSubtitle =
     stepType === "BREAK" ? stepData?.title ?? "" : `«${stepData?.title ?? "Шаг"}»`;
+  const showDiaryBlock = (isTheory || isDiary) && !!onSaveDiary;
 
   return (
     <View
@@ -452,6 +458,48 @@ function AccordionStepComponent({
                     </View>
                   </View>
                 )}
+
+              {showDiaryBlock && (
+                <View style={styles.diaryCard}>
+                  <Text style={styles.diaryTitle}>Ваша запись</Text>
+                  {diaryEntries.length > 0 && (
+                    <View style={styles.diaryHistory}>
+                      {diaryEntries.map((entry) => (
+                        <Text key={entry.id} style={styles.diaryHistoryItem}>
+                          • {entry.content}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                  <TextInput
+                    value={diaryContent}
+                    onChangeText={setDiaryContent}
+                    multiline
+                    placeholder="Опишите результат занятия..."
+                    placeholderTextColor={COLORS.textSecondary}
+                    style={styles.diaryInput}
+                  />
+                  <Pressable
+                    style={styles.diarySaveButton}
+                    disabled={isSavingDiary}
+                    onPress={async () => {
+                      const content = diaryContent.trim();
+                      if (!content || !onSaveDiary) return;
+                      setIsSavingDiary(true);
+                      try {
+                        await onSaveDiary(content);
+                        setDiaryContent("");
+                      } finally {
+                        setIsSavingDiary(false);
+                      }
+                    }}
+                  >
+                    <Text style={styles.diarySaveButtonText}>
+                      {isSavingDiary ? "Сохраняем..." : "Сохранить"}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
 
               {/* Описание перед видео */}
               {(() => {
@@ -746,6 +794,51 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     paddingHorizontal: 14,
+  },
+  diaryCard: {
+    marginTop: SPACING.md,
+    borderWidth: 1,
+    borderColor: WEB.timerCardBorder,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    padding: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  diaryTitle: {
+    fontWeight: "700",
+    color: COLORS.text,
+    fontSize: 14,
+  },
+  diaryHistory: {
+    gap: 4,
+    backgroundColor: "#F9F6EC",
+    borderRadius: 8,
+    padding: SPACING.sm,
+  },
+  diaryHistoryItem: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+  },
+  diaryInput: {
+    minHeight: 88,
+    borderWidth: 1,
+    borderColor: WEB.timerCardBorder,
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    padding: 10,
+    textAlignVertical: "top",
+    color: COLORS.text,
+  },
+  diarySaveButton: {
+    alignSelf: "flex-start",
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  diarySaveButtonText: {
+    color: "#fff",
+    fontWeight: "600",
   },
   actions: {
     padding: SPACING.md,

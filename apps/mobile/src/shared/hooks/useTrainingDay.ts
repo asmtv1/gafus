@@ -100,9 +100,7 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
             });
           }
 
-          // courseId нужно получить из response или передать
-          // Пока используем courseType как временное решение
-          syncFromServer(courseType, dayOnCourseId, steps);
+          syncFromServer(response.data.courseId ?? courseType, dayOnCourseId, steps);
         } else {
           if (__DEV__) {
             const errorDetails = response.error

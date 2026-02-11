@@ -16,7 +16,7 @@ interface AuthProviderProps {
  * При старте сессии загружает избранное (getFavorites) в store — как loadFromServer в web.
  */
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const { isAuthenticated, isLoading, checkAuth, pendingConfirmPhone } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
   const favoritesLoadedRef = useRef(false);
@@ -61,15 +61,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const isConfirmScreen = inAuthGroup && segments[1] === "confirm";
+
+    if (pendingConfirmPhone && !isConfirmScreen) {
+      router.replace("/confirm");
+      return;
+    }
 
     if (!isAuthenticated && !inAuthGroup) {
       // Не авторизован и не на странице авторизации — редирект на welcome
       router.replace("/welcome");
-    } else if (isAuthenticated && inAuthGroup) {
+    } else if (isAuthenticated && inAuthGroup && !isConfirmScreen) {
       // Авторизован и на странице авторизации — редирект на главную
       router.replace("/");
     }
-  }, [isAuthenticated, isLoading, segments, router]);
+  }, [isAuthenticated, isLoading, segments, router, pendingConfirmPhone]);
 
   // Показываем лоадер пока проверяем авторизацию
   if (isLoading) {

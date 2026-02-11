@@ -119,6 +119,7 @@ export function mapMetaToTrainingDayResponse(
     };
   });
   return {
+    courseId,
     trainingDayId: day.id,
     dayOnCourseId: day.id,
     title: day.title,

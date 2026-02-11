@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -13,7 +13,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
-import { coursesApi, type Course } from "@/shared/lib/api";
+import { coursesApi, subscriptionsApi, type Course } from "@/shared/lib/api";
+import { setupPushNotifications } from "@/shared/lib/utils/notifications";
 import {
   CourseCard,
   CourseSearch,
@@ -28,6 +29,8 @@ import {
   type RatingFilterType,
 } from "@/shared/utils/courseFilters";
 import { COLORS, SPACING, FONTS } from "@/constants";
+
+let pushPromptAskedInSession = false;
 
 /**
  * Страница со всеми курсами: поиск и фильтры как в web.
@@ -58,6 +61,31 @@ export default function CoursesScreen() {
     await refetch();
     setRefreshing(false);
   }, [refetch]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const ensurePushSubscription = async () => {
+      if (pushPromptAskedInSession) return;
+      pushPromptAskedInSession = true;
+
+      const status = await subscriptionsApi.getPushSubscriptionStatus();
+      if (cancelled || !status.success || status.data?.hasSubscription) return;
+
+      const ok = await setupPushNotifications();
+      if (!cancelled && !ok) {
+        setSnackbar({
+          visible: true,
+          message: "Не удалось включить push-уведомления",
+        });
+      }
+    };
+
+    void ensurePushSubscription();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const allCourses = data?.data ?? [];
   const filteredCourses = useMemo(
