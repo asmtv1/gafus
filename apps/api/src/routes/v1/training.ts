@@ -168,7 +168,7 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
     // Очищаем job из push-очереди при постановке таймера на паузу
     try {
       const day = await getDayFromDayOnCourseId(dayOnCourseId);
-      await pauseStepNotification(user.id, day, stepIndex);
+      await pauseStepNotification(user.id, day, stepIndex, timeLeftSec);
     } catch (notifErr) {
       logger.error("Error pausing step notification (step/pause)", notifErr as Error, {
         userId: user.id,

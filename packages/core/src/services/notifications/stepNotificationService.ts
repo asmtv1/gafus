@@ -266,6 +266,7 @@ export async function pauseStepNotification(
   userId: string,
   day: number,
   stepIndex: number,
+  remainingSec?: number,
 ): Promise<void> {
   // Ищем самое свежее неотправленное уведомление
   const notification = await prisma.stepNotification.findFirst({
@@ -304,6 +305,8 @@ export async function pauseStepNotification(
     data: {
       jobId: null,
       paused: true,
+      remainingSec:
+        typeof remainingSec === "number" ? Math.max(Math.floor(remainingSec), 0) : notification.remainingSec,
       updatedAt: new Date(),
     },
   });
@@ -477,7 +480,9 @@ export async function resumeStepNotification(
 
   // Вычисляем оставшееся время
   const remainingSec =
-    Math.max(Number(durationSec) || 0, 0) || Math.max(notification.endTs - nowTs, 0);
+    Math.max(Number(durationSec) || 0, 0) ||
+    Math.max(notification.remainingSec ?? 0, 0) ||
+    Math.max(notification.endTs - nowTs, 0);
   const newEndTs = nowTs + remainingSec;
 
   await prisma.stepNotification.update({
