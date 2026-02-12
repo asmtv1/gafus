@@ -13,6 +13,23 @@ const logger = createWebLogger("diary-service");
 
 const MAX_CONTENT_LENGTH = 10000;
 
+/**
+ * Возвращает Course.id по переданному значению: если это cuid — ищем по id,
+ * иначе по type (чтобы mobile и др. могли передавать courseType до загрузки дня).
+ */
+async function resolveCourseId(courseIdOrType: string): Promise<string | null> {
+  const byId = await prisma.course.findUnique({
+    where: { id: courseIdOrType },
+    select: { id: true },
+  });
+  if (byId) return byId.id;
+  const byType = await prisma.course.findFirst({
+    where: { type: courseIdOrType },
+    select: { id: true },
+  });
+  return byType?.id ?? null;
+}
+
 export interface DiaryEntryWithDay {
   id: string;
   content: string;
@@ -79,13 +96,19 @@ export async function saveDiaryEntry(
 
 /**
  * Возвращает записи дневника по курсу для пользователя (по порядку дней).
+ * courseIdOrType — Course.id (cuid) или course.type; резолвится внутри.
  * При upToDayOnCourseId — только дни до и включая указанный (по order).
  */
 export async function getDiaryEntries(
   userId: string,
-  courseId: string,
+  courseIdOrType: string,
   upToDayOnCourseId?: string,
 ): Promise<{ entries: DiaryEntryWithDay[]; error?: string }> {
+  const courseId = await resolveCourseId(courseIdOrType);
+  if (!courseId) {
+    return { entries: [], error: "Курс не найден" };
+  }
+
   const { hasAccess } = await checkCourseAccessById(courseId, userId);
   if (!hasAccess) {
     logger.warn("Попытка получить записи дневника без доступа к курсу", {

@@ -3,17 +3,11 @@ import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
+import { PushNotificationService } from "@gafus/webpush";
 
 import type { PushSubscription } from "@gafus/prisma";
-import { PushNotificationService } from "../../webpush/src/service";
-// Local type definition to avoid @gafus/types dependency
-interface PushSubscriptionJSON {
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-}
+import { sendExpoPushNotifications } from "./lib/expoPush";
+import { partitionPushSubscriptions } from "./lib/partitionPushSubscriptions";
 // Создаем логгеры для разных компонентов
 const notificationLogger = createWorkerLogger("notification-processor");
 const workerLogger = createWorkerLogger("push-worker");
@@ -50,6 +44,16 @@ interface ImmediateNotificationData {
 }
 
 type NotificationData = StepNotificationData | ImmediateNotificationData;
+
+interface NotificationPayload {
+  title: string;
+  body: string;
+  icon: string;
+  badge: string;
+  data: {
+    url: string;
+  };
+}
 
 // Константы для форматирования
 const NOTIFICATION_FORMAT = {
@@ -212,7 +216,7 @@ class NotificationProcessor {
     }
   }
 
-  private createNotificationPayload(notification: NotificationData): string {
+  private createNotificationPayload(notification: NotificationData): NotificationPayload {
     // TypeScript автоматически сузит типы благодаря Discriminated Union
     if (notification.type === "immediate") {
       return this.createImmediateNotificationPayload(notification);
@@ -224,8 +228,8 @@ class NotificationProcessor {
   /**
    * Создаёт payload для немедленных уведомлений (например, зачёт экзамена)
    */
-  private createImmediateNotificationPayload(notification: ImmediateNotificationData): string {
-    return JSON.stringify({
+  private createImmediateNotificationPayload(notification: ImmediateNotificationData): NotificationPayload {
+    return {
       title: notification.title.trim(),
       body: notification.body.trim(),
       icon: NOTIFICATION_FORMAT.DEFAULT_ICON,
@@ -233,16 +237,16 @@ class NotificationProcessor {
       data: {
         url: notification.url ?? NOTIFICATION_FORMAT.DEFAULT_URL,
       },
-    });
+    };
   }
 
   /**
    * Создаёт payload для обычных уведомлений о шагах
    */
-  private createStepNotificationPayload(notification: StepNotificationData): string {
+  private createStepNotificationPayload(notification: StepNotificationData): NotificationPayload {
     const stepTitle = notification.stepTitle || `Шаг ${notification.stepIndex + 1}`;
 
-    return JSON.stringify({
+    return {
       title: "ВЫ ВЕЛИКОЛЕПНЫ!",
       body: `Вы успешно прошли "${stepTitle}".`,
       icon: NOTIFICATION_FORMAT.DEFAULT_ICON,
@@ -250,33 +254,57 @@ class NotificationProcessor {
       data: {
         url: notification.url ?? NOTIFICATION_FORMAT.DEFAULT_URL,
       },
-    });
+    };
   }
 
   private async sendNotifications(
     subscriptions: PushSubscription[],
-    payload: string,
+    payload: NotificationPayload,
   ): Promise<{ successCount: number; failedCount: number }> {
-    // Конвертируем подписки в правильный формат
-    const jsonSubscriptions: PushSubscriptionJSON[] = subscriptions
-      .map((sub) => ({
-        endpoint: sub.endpoint,
-        keys: sub.keys as { p256dh: string; auth: string },
-      }))
-      .filter((sub) => sub.endpoint && sub.keys?.p256dh && sub.keys?.auth);
+    const partitioned = partitionPushSubscriptions(subscriptions);
 
-    const results = await pushService.sendNotifications(jsonSubscriptions, payload);
+    const webResults =
+      partitioned.web.length > 0 ?
+        await pushService.sendNotifications(partitioned.web, JSON.stringify(payload))
+      : {
+          results: [],
+          successCount: 0,
+          failureCount: 0,
+        };
 
-    // Обрабатываем неудачные подписки
-    for (const result of results.results) {
+    const expoResults =
+      partitioned.expo.length > 0 ?
+        await sendExpoPushNotifications(partitioned.expo, {
+          title: payload.title,
+          body: payload.body,
+          url: payload.data.url,
+        })
+      : {
+          successCount: 0,
+          failureCount: 0,
+          deletedCount: 0,
+          temporaryFailureCount: 0,
+        };
+
+    // Обрабатываем неудачные web-подписки
+    for (const result of webResults.results) {
       if (!result.success && PushNotificationService.shouldDeleteSubscription(result.error)) {
         await this.handleFailedSubscription(result.endpoint);
       }
     }
 
+    this.logger.info("Notification channel stats", {
+      webSuccess: webResults.successCount,
+      webFailed: webResults.failureCount,
+      expoSuccess: expoResults.successCount,
+      expoFailed: expoResults.failureCount,
+      expoDeleted: expoResults.deletedCount,
+      expoTemporaryFailed: expoResults.temporaryFailureCount,
+    });
+
     return {
-      successCount: results.successCount,
-      failedCount: results.failureCount,
+      successCount: webResults.successCount + expoResults.successCount,
+      failedCount: webResults.failureCount + expoResults.failureCount,
     };
   }
 

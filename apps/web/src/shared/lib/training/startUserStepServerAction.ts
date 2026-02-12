@@ -43,8 +43,6 @@ export async function startUserStepServerAction(
   try {
     userId = await getCurrentUserId();
 
-    // Получаем информацию о шаге для уведомления в транзакции
-
     const stepInfo = await prisma.$transaction(
       async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
         const dayOnCourse = await tx.dayOnCourse.findUnique({
@@ -58,15 +56,10 @@ export async function startUserStepServerAction(
                 },
               },
             },
-            course: {
-              select: {
-                type: true,
-              },
-            },
           },
         });
 
-        if (!dayOnCourse?.day || !dayOnCourse?.course) {
+        if (!dayOnCourse?.day) {
           throw new Error("DayOnCourse or day not found");
         }
 
@@ -92,7 +85,6 @@ export async function startUserStepServerAction(
           step: stepLink.step,
           stepTitle: stepTitle || `Шаг ${safeInput.stepIndex + 1}`, // Fallback, если title пустой
           stepOrder: stepLink.order,
-          trainingUrl: `/trainings/${dayOnCourse.course.type}/${dayOnCourse.id}`,
         };
       },
       {
@@ -145,20 +137,10 @@ export async function startUserStepServerAction(
       }
     }
 
-    // Создаем уведомления при старте шага (для push-уведомлений по завершении)
-    // day (order дня) для уведомления
-    const dayOnCourseForNotification = await prisma.dayOnCourse.findUnique({
-      where: { id: safeInput.dayOnCourseId },
-      select: { order: true },
-    });
-    const dayForNotification = dayOnCourseForNotification?.order ?? 0;
-
     const result = await createStepNotificationAction({
-      day: dayForNotification,
+      dayOnCourseId: safeInput.dayOnCourseId,
       stepIndex: safeInput.stepIndex,
       durationSec: safeInput.durationSec,
-      maybeUrl: stepInfo.trainingUrl,
-      stepTitle: stepInfo.stepTitle,
     });
     if (!result.success) {
       logger.error("Failed to create step notification", new Error(result.error ?? "Unknown error"), {

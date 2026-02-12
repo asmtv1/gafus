@@ -92,16 +92,6 @@ export async function apiClient<T>(
     config.body = JSON.stringify(body);
   }
 
-  if (__DEV__) {
-    console.log("[apiClient] Запрос:", {
-      endpoint,
-      method,
-      url: `${API_BASE_URL}${endpoint}`,
-      hasBody: !!body,
-      hasAuth: !!requestHeaders.Authorization,
-    });
-  }
-
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
@@ -121,32 +111,6 @@ export async function apiClient<T>(
     }
 
     const data = await response.json();
-
-    if (__DEV__) {
-      // Детальное логирование для отладки
-      console.log("[apiClient] Ответ сервера:", {
-        endpoint,
-        status: response.status,
-        ok: response.ok,
-        success: data.success,
-        hasData: !!data.data,
-        error: data.error,
-        code: data.code,
-        // Полный ответ для отладки
-        fullResponse: JSON.stringify(data, null, 2),
-        responseHeaders: Object.fromEntries(response.headers.entries()),
-      });
-
-      // Для ошибок логируем полный ответ
-      if (!response.ok || !data.success) {
-        console.error("[apiClient] ОШИБКА API:", {
-          endpoint,
-          status: response.status,
-          statusText: response.statusText,
-          fullError: JSON.stringify(data, null, 2),
-        });
-      }
-    }
 
     if (!response.ok) {
       return {

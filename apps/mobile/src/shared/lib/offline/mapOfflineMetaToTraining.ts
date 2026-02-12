@@ -52,6 +52,14 @@ export function mapMetaToTrainingDaysResponse(
   getStepState: GetStepState,
 ): TrainingDaysResponse {
   const courseId = meta.course.id;
+
+  // Предварительно вычисляем статусы всех дней для isLocked summary (как на web)
+  const dayStatuses = meta.trainingDays.map((day) => ({
+    id: day.id,
+    type: day.type,
+    status: dayUserStatusFromSteps(getStepState, courseId, day.id, day.steps.length),
+  }));
+
   const trainingDays: TrainingDay[] = meta.trainingDays.map((day) => {
     const theoryMinutes = day.steps.reduce(
       (acc, s) => (s.type === "THEORY" ? acc + ((s.estimatedDurationSec ?? 0) / 60) : acc),
@@ -61,6 +69,16 @@ export function mapMetaToTrainingDaysResponse(
       (acc, s) => acc + (s.estimatedDurationSec ?? s.durationSec ?? 0),
       0,
     );
+
+    let isLocked = false;
+    if (day.type === "summary") {
+      const allOtherDaysCompleted = dayStatuses.every((ds) => {
+        if (ds.id === day.id) return true;
+        return ds.status === "COMPLETED";
+      });
+      isLocked = !allOtherDaysCompleted;
+    }
+
     return {
       id: day.id,
       dayOnCourseId: day.id,
@@ -70,13 +88,9 @@ export function mapMetaToTrainingDaysResponse(
       theoryMinutes: Math.round(theoryMinutes) || null,
       equipment: day.equipment ?? null,
       order: day.order,
-      userStatus: dayUserStatusFromSteps(
-        getStepState,
-        courseId,
-        day.id,
-        day.steps.length,
-      ),
+      userStatus: dayStatuses.find((d) => d.id === day.id)!.status,
       completedAt: null,
+      isLocked,
     };
   });
   return {

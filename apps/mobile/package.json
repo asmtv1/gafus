@@ -14,10 +14,10 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@gafus/core": "workspace:*",
-    "@gafus/types": "workspace:*",
     "@expo-google-fonts/montserrat": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
+    "@gafus/core": "workspace:*",
+    "@gafus/types": "workspace:*",
     "@react-native-async-storage/async-storage": "~2.1.2",
     "@react-native-community/netinfo": "~11.4.1",
     "@shopify/flash-list": "^2.2.2",
@@ -55,6 +55,7 @@
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@types/react": "19.1.17",
+    "eas-cli": "^16.32.0",
     "typescript": "~5.9.3"
   }
 }

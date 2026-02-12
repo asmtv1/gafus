@@ -14,6 +14,10 @@ import {
 } from "@gafus/core/services/training";
 import { saveDiaryEntry, getDiaryEntries } from "@gafus/core/services/diary";
 import { checkCourseAccess } from "@gafus/core/services/course";
+import {
+  createImmediatePushNotification,
+  createStepNotificationForStepStart,
+} from "@gafus/core/services/notifications";
 import { createWebLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { downloadFileFromCDN, extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
@@ -110,6 +114,18 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
     } catch (syncErr) {
       logger.error("Error syncing course status after step/start", syncErr as Error);
     }
+
+    // Ставим отложенный пуш «Время вышло» в очередь (fire-and-forget)
+    void createStepNotificationForStepStart(user.id, dayOnCourseId, stepIndex, durationSec).catch(
+      (notifErr) => {
+        logger.error("Error creating step notification (step/start)", notifErr as Error, {
+          userId: user.id,
+          dayOnCourseId,
+          stepIndex,
+        });
+      },
+    );
+
     return c.json({ success: true });
   } catch (error) {
     if (error instanceof Error && error.message === "DayOnCourse or day not found") {
@@ -259,6 +275,29 @@ trainingRoutes.post(
       } catch (syncErr) {
         logger.error("Error syncing course status after step/complete/practice", syncErr as Error);
       }
+
+      if (result.stepJustCompleted) {
+        void (async () => {
+          try {
+            const dayOnCourse = await prisma.dayOnCourse.findUnique({
+              where: { id: dayOnCourseId },
+              select: { course: { select: { type: true } } },
+            });
+            await createImmediatePushNotification({
+              userId: user.id,
+              title: "Шаг выполнен!",
+              body: "Отличная работа! Переходите к следующему шагу.",
+              url: dayOnCourse ? `/trainings/${dayOnCourse.course.type}/${dayOnCourseId}` : "/trainings",
+            });
+          } catch (notifErr) {
+            logger.error("Error creating immediate push (step/complete/practice)", notifErr as Error, {
+              userId: user.id,
+              dayOnCourseId,
+              stepIndex,
+            });
+          }
+        })();
+      }
       return c.json({ success: true });
     } catch (error) {
       if (error instanceof Error && error.message === "DayOnCourse or day not found") {
@@ -289,6 +328,9 @@ trainingRoutes.post("/step/complete/theory", zValidator("json", completeTheoryBo
     const dayOnCourse = await prisma.dayOnCourse.findUnique({
       where: { id: dayOnCourseId },
       include: {
+        course: {
+          select: { type: true },
+        },
         day: {
           include: {
             stepLinks: {
@@ -320,6 +362,22 @@ trainingRoutes.post("/step/complete/theory", zValidator("json", completeTheoryBo
       type: "complete",
     });
     await syncUserCourseStatusFromDays(user.id, result.courseId);
+
+    if (result.stepJustCompleted) {
+      void createImmediatePushNotification({
+        userId: user.id,
+        title: "Шаг выполнен!",
+        body: "Отличная работа! Переходите к следующему шагу.",
+        url: `/trainings/${dayOnCourse.course.type}/${dayOnCourseId}`,
+      }).catch((notifErr) => {
+        logger.error("Error creating immediate push (step/complete/theory)", notifErr as Error, {
+          userId: user.id,
+          dayOnCourseId,
+          stepIndex,
+        });
+      });
+    }
+
     return c.json({ success: true });
   } catch (error) {
     if (error instanceof Error && error.message === "DayOnCourse or day not found") {

@@ -9,6 +9,7 @@ export function MarkdownText({ text }: { text: string }) {
   let currentParagraph: string[] = [];
   let listItems: string[] = [];
   let inList = false;
+  let isOrderedList = false;
 
   const renderTextWithFormatting = (raw: string, style: object) => {
     const boldPattern = /\*\*(.+?)\*\*/g;
@@ -86,19 +87,28 @@ export function MarkdownText({ text }: { text: string }) {
         <View key={`list-${elements.length}`} style={styles.list}>
           {listItems.map((item, i) => (
             <View key={i} style={styles.listItem}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.listText}>{item.trim()}</Text>
+              <Text style={styles.bullet}>
+                {isOrderedList ? `${i + 1}.` : "•"}
+              </Text>
+              <View style={styles.listTextWrap}>
+                {renderTextWithFormatting(item.trim(), styles.listText)}
+              </View>
             </View>
           ))}
         </View>,
       );
       listItems = [];
       inList = false;
+      isOrderedList = false;
     }
   };
 
   lines.forEach((line, index) => {
-    const t = line.trim();
+    let t = line.trim();
+    // Blockquote (> или > ) — убираем префикс и обрабатываем остальное (как в web)
+    if (t.startsWith(">")) {
+      t = t.replace(/^>\s?/, "").trim();
+    }
     if (t.startsWith("# ")) {
       flushParagraph();
       flushList();
@@ -129,10 +139,32 @@ export function MarkdownText({ text }: { text: string }) {
       );
       return;
     }
+    if (/^#{4,6}\s/.test(t)) {
+      flushParagraph();
+      flushList();
+      const level = (t.match(/^(#+)/)?.[1]?.length) ?? 4;
+      const style = level <= 4 ? styles.h4 : level <= 5 ? styles.h5 : styles.h6;
+      elements.push(
+        <View key={`h${level}-${index}`} style={styles.heading}>
+          {renderTextWithFormatting(t.replace(/^#+\s/, ""), style)}
+        </View>,
+      );
+      return;
+    }
     if (t.startsWith("- ") || t.startsWith("* ")) {
       flushParagraph();
+      flushList();
       inList = true;
+      isOrderedList = false;
       listItems.push(t.replace(/^[-*]\s/, ""));
+      return;
+    }
+    if (/^\d+\.\s/.test(t)) {
+      flushParagraph();
+      flushList();
+      inList = true;
+      isOrderedList = true;
+      listItems.push(t.replace(/^\d+\.\s/, ""));
       return;
     }
     if (t) {
@@ -166,8 +198,12 @@ const styles = StyleSheet.create({
   h1: { fontSize: 20, fontWeight: "600", color: "#352E2E" },
   h2: { fontSize: 18, fontWeight: "600", color: "#352E2E" },
   h3: { fontSize: 16, fontWeight: "600", color: "#352E2E" },
+  h4: { fontSize: 15, fontWeight: "600", color: "#352E2E" },
+  h5: { fontSize: 14, fontWeight: "600", color: "#352E2E" },
+  h6: { fontSize: 13, fontWeight: "600", color: "#352E2E" },
   list: { marginBottom: 8, paddingLeft: 8 },
   listItem: { flexDirection: "row", marginBottom: 4 },
   bullet: { marginRight: 6, fontSize: 14, color: "#352E2E" },
-  listText: { flex: 1, fontSize: 14, lineHeight: 20, color: "#352E2E" },
+  listTextWrap: { flex: 1 },
+  listText: { fontSize: 14, lineHeight: 20, color: "#352E2E" },
 });

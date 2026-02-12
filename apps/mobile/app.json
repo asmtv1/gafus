@@ -7,6 +7,11 @@
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "extra": {
+      "eas": {
+        "projectId": "6c36fab5-6226-450f-8ee5-64e9beeea7db"
+      }
+    },
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#2EC6FE"

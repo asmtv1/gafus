@@ -88,17 +88,6 @@ function AccordionStepComponent({
   diaryEntries = [],
   onSaveDiary,
 }: AccordionStepProps) {
-  if (__DEV__) {
-    console.log("[AccordionStep] Рендеринг шага:", {
-      index,
-      courseId,
-      dayOnCourseId,
-      isOpen,
-      hasStep: !!step,
-      stepKeys: step ? Object.keys(step) : [],
-    });
-  }
-
   // Поддержка обеих структур: с вложенным step.step (UserStep) и плоского шага (офлайн)
   let stepData: StepContent;
   try {
@@ -110,7 +99,7 @@ function AccordionStepComponent({
     stepData = step as StepContent;
   }
 
-  const { activeTimer, startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor } = useTimerStore(
+  const { activeTimer, startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor, restoreTimerFromStorage } = useTimerStore(
     useShallow((s) => ({
       activeTimer: s.activeTimer,
       startTimer: s.startTimer,
@@ -118,12 +107,15 @@ function AccordionStepComponent({
       tick: s.tick,
       stopTimer: s.stopTimer,
       isTimerActiveFor: s.isTimerActiveFor,
+      restoreTimerFromStorage: s.restoreTimerFromStorage,
     })),
   );
 
+  // После инициализации шага localState должен быть источником истины.
+  // Иначе серверный RESET может перетирать локальный IN_PROGRESS после нажатия "Старт".
   const status = getStepDisplayStatus(
     localState,
-    "status" in step ? step : undefined,
+    localState ? undefined : ("status" in step ? step : undefined),
   );
   const statusConfig =
     STEP_STATUS_CONFIG[status] ?? STEP_STATUS_CONFIG.NOT_STARTED;
@@ -147,20 +139,12 @@ function AccordionStepComponent({
   const [videoRetryKey, setVideoRetryKey] = useState(0);
   const lastPlaybackUrlRef = useRef<string | null>(null);
 
-  if (__DEV__) {
-    console.log("[AccordionStep] Video URL:", {
-      index,
-      hasStepData: !!stepData,
-      hasStep: !!step,
-      videoUrl,
-      videoUrlType: typeof videoUrl,
-    });
-  }
-
   const [userRequestedPlay, setUserRequestedPlay] = useState(false);
   const [diaryContent, setDiaryContent] = useState("");
   const [isSavingDiary, setIsSavingDiary] = useState(false);
   const [offlineVideoUri, setOfflineVideoUri] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onCompleteRef = useRef(onComplete);
   const requestOnlineUrl =
     isOpen &&
     userRequestedPlay &&
@@ -200,19 +184,41 @@ function AccordionStepComponent({
     if (playbackUrl) lastPlaybackUrlRef.current = playbackUrl;
   }, [playbackUrl]);
 
-  if (__DEV__ && videoUrl) {
-    console.log("[AccordionStep] Video URL состояние:", {
-      index,
-      isLoadingVideo,
-      hasPlaybackUrl: !!playbackUrl,
-      playbackUrl,
-      videoError,
-    });
-  }
-
   // Проверяем, активен ли таймер для этого шага
   const hasActiveTimer = isTimerActiveFor(courseId, dayOnCourseId, index);
   const isActuallyRunning = isInProgress && hasActiveTimer && activeTimer?.isRunning;
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  // Восстановление таймера после возврата на экран/в приложение.
+  useEffect(() => {
+    if (!showTimer || status !== "IN_PROGRESS") return;
+    if (isTimerActiveFor(courseId, dayOnCourseId, index)) return;
+
+    let cancelled = false;
+    void restoreTimerFromStorage(courseId, dayOnCourseId, index).then((remainingSec) => {
+      if (cancelled) return;
+      if (remainingSec === 0) {
+        stopTimer(courseId, dayOnCourseId, index);
+        onCompleteRef.current();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showTimer,
+    status,
+    courseId,
+    dayOnCourseId,
+    index,
+    isTimerActiveFor,
+    restoreTimerFromStorage,
+    stopTimer,
+  ]);
 
   // Обновление таймера каждую секунду (как в web)
   useEffect(() => {
@@ -227,6 +233,14 @@ function AccordionStepComponent({
         currentTimer.isRunning;
 
       if (!isTimerActive) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        return;
+      }
+
+      if (intervalRef.current) {
         return;
       }
 
@@ -234,7 +248,10 @@ function AccordionStepComponent({
         console.log("[AccordionStep] Запуск таймера:", { index, courseId, dayOnCourseId });
       }
 
-      const interval = setInterval(() => {
+      // Сразу синхронизируем остаток (без ожидания 1 секунды).
+      tick();
+
+      intervalRef.current = setInterval(() => {
         try {
           // Проверяем, что таймер все еще активен и работает
           const timerState = useTimerStoreDirect.getState().activeTimer;
@@ -261,8 +278,8 @@ function AccordionStepComponent({
             updatedTimer.stepIndex === index &&
             updatedTimer.remainingSec <= 0
           ) {
-            stopTimer();
-            onComplete();
+            stopTimer(courseId, dayOnCourseId, index);
+            onCompleteRef.current();
           }
         } catch (error) {
           if (__DEV__) {
@@ -271,21 +288,29 @@ function AccordionStepComponent({
         }
       }, 1000);
 
-      return () => clearInterval(interval);
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      };
     } catch (error) {
       if (__DEV__) {
         console.error("[AccordionStep] Ошибка в useEffect таймера:", error);
       }
     }
+    return;
+  // Не включаем activeTimer в deps: при каждом tick() store отдаёт новый объект,
+  // эффект бы перезапускался каждую секунду и создавал новый setInterval.
   }, [
     hasActiveTimer,
-    activeTimer?.isRunning,
+    isActuallyRunning,
     tick,
     courseId,
     dayOnCourseId,
     index,
     stopTimer,
-    onComplete,
+    restoreTimerFromStorage,
   ]);
 
   // Анимация высоты контента
@@ -299,17 +324,6 @@ function AccordionStepComponent({
     opacity: heightAnim.value,
     maxHeight: heightAnim.value * 3000, // чтобы контент не обрезался, скролл внутри
   }));
-
-  if (__DEV__) {
-    console.log("[AccordionStep] Рендеринг JSX:", {
-      index,
-      isOpen,
-      stepType,
-      hasVideoUrl: !!videoUrl,
-      hasPlaybackUrl: !!playbackUrl,
-      isLoadingVideo,
-    });
-  }
 
   const stepTypeLabel = isBreak
     ? "Перерыв"
@@ -368,6 +382,7 @@ function AccordionStepComponent({
               contentContainerStyle={styles.stepContentScrollContent}
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
             >
               <Divider style={styles.divider} />
 
@@ -597,7 +612,8 @@ function AccordionStepComponent({
                                 size={28}
                                 style={styles.circleBtn}
                                 onPress={() => {
-                                  startTimer(courseId, dayOnCourseId, index, duration);
+                                  const started = startTimer(courseId, dayOnCourseId, index, duration);
+                                  if (!started) return;
                                   onStart();
                                 }}
                               />
@@ -626,7 +642,8 @@ function AccordionStepComponent({
                                 onPress={() => {
                                   const remaining =
                                     localState?.timeLeft ?? localState?.remainingSec ?? duration;
-                                  startTimer(courseId, dayOnCourseId, index, remaining);
+                                  const resumed = startTimer(courseId, dayOnCourseId, index, remaining);
+                                  if (!resumed) return;
                                   onResume();
                                 }}
                               />
@@ -637,7 +654,7 @@ function AccordionStepComponent({
                               size={22}
                               style={styles.circleBtnReset}
                               onPress={() => {
-                                stopTimer();
+                                stopTimer(courseId, dayOnCourseId, index);
                                 if (onReset) {
                                   onReset(duration);
                                 }

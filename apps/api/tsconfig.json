@@ -24,6 +24,9 @@
       "@gafus/core/services/achievements": [
         "../../packages/core/src/services/achievements/index.ts"
       ],
+      "@gafus/core/services/notifications": [
+        "../../packages/core/src/services/notifications/index.ts"
+      ],
       "@gafus/core/errors": ["../../packages/core/src/errors/index.ts"]
     }
   },

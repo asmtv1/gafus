@@ -602,7 +602,7 @@ export async function updateStepAndDay(
   dayOnCourseId: string,
   stepIndex: number,
   operation: StepOperation,
-): Promise<{ courseId: string; allCompleted: boolean }> {
+): Promise<{ courseId: string; allCompleted: boolean; stepJustCompleted: boolean }> {
   return prisma.$transaction(
     async (tx: Tx) => {
       const dayOnCourse = await tx.dayOnCourse.findUnique({
@@ -662,6 +662,8 @@ export async function updateStepAndDay(
         // COMPLETED и IN_PROGRESS/PAUSED разрешаем сбрасывать — пользователь может перепройти шаг
       }
 
+      let stepJustCompleted = false;
+
       switch (operation.type) {
         case "start": {
           const remainingSec = operation.remainingSec ?? 0;
@@ -707,18 +709,39 @@ export async function updateStepAndDay(
           break;
         case "complete":
           if (existingStep) {
-            await tx.userStep.update({
-              where: { id: existingStep.id },
+            const result = await tx.userStep.updateMany({
+              where: {
+                id: existingStep.id,
+                status: { not: TrainingStatus.COMPLETED },
+              },
               data: { status: TrainingStatus.COMPLETED },
             });
+            stepJustCompleted = result.count > 0;
           } else {
-            await tx.userStep.create({
-              data: {
-                userTrainingId: userTraining.id,
-                stepOnDayId,
-                status: TrainingStatus.COMPLETED,
-              },
-            });
+            try {
+              await tx.userStep.create({
+                data: {
+                  userTrainingId: userTraining.id,
+                  stepOnDayId,
+                  status: TrainingStatus.COMPLETED,
+                },
+              });
+              stepJustCompleted = true;
+            } catch (error) {
+              if (isPrismaUniqueConstraintError(error)) {
+                const result = await tx.userStep.updateMany({
+                  where: {
+                    userTrainingId: userTraining.id,
+                    stepOnDayId,
+                    status: { not: TrainingStatus.COMPLETED },
+                  },
+                  data: { status: TrainingStatus.COMPLETED },
+                });
+                stepJustCompleted = result.count > 0;
+              } else {
+                throw error;
+              }
+            }
           }
           break;
       }
@@ -764,7 +787,7 @@ export async function updateStepAndDay(
         },
       });
 
-      return { courseId: dayOnCourse.courseId, allCompleted };
+      return { courseId: dayOnCourse.courseId, allCompleted, stepJustCompleted };
     },
     { timeout: 10000 },
   );

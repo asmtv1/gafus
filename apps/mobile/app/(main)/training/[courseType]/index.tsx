@@ -13,7 +13,10 @@ import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
 import type { TrainingDay } from "@/shared/lib/api";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
-import { showPaidCourseAccessDeniedAlert } from "@/shared/lib/utils/alerts";
+import {
+  showLockedDayAlert,
+  showPaidCourseAccessDeniedAlert,
+} from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
 
 /**
@@ -62,6 +65,10 @@ export default function TrainingDaysScreen() {
 
   const handleDayPress = useCallback(
     (day: TrainingDay) => {
+      if (day.isLocked) {
+        showLockedDayAlert();
+        return;
+      }
       router.push(`/training/${courseType}/${day.dayOnCourseId}`);
     },
     [router, courseType],
@@ -119,6 +126,8 @@ export default function TrainingDaysScreen() {
             ? "#b0aeae" // Серый для сброшенного (как на web)
             : "transparent";
 
+      const isLocked = item.isLocked ?? false;
+
       return (
         <Pressable onPress={() => handleDayPress(item)}>
           <View style={[styles.dayCardWrapper, { borderColor }]}>
@@ -139,7 +148,13 @@ export default function TrainingDaysScreen() {
                 )}
               </View>
             )}
-            <Surface style={styles.dayCard} elevation={1}>
+            <Surface style={[styles.dayCard, isLocked && styles.dayCardLocked]} elevation={1}>
+              {isLocked && (
+                <View style={styles.lockBadge}>
+                  <MaterialCommunityIcons name="lock" size={18} color="#8b8a3b" />
+                  <Text style={styles.lockBadgeText}>Заблокировано</Text>
+                </View>
+              )}
               <Text style={styles.dayTitle}>{item.title}</Text>
               <Text style={styles.subtitle}>({DAY_TYPE_LABELS[item.type] ?? item.type})</Text>
               <Text style={styles.equipmentLabel}>Что понадобится:</Text>
@@ -405,6 +420,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#FFF8E5",
     minHeight: 120,
+  },
+  dayCardLocked: {
+    opacity: 0.8,
+  },
+  lockBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
+  lockBadgeText: {
+    fontSize: 14,
+    color: "#8b8a3b",
+    fontWeight: "600",
   },
   timeBadgeWrapper: {
     position: "absolute",

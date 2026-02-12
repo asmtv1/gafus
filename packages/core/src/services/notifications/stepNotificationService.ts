@@ -23,6 +23,19 @@ export interface CreateStepNotificationParams {
   stepTitle?: string;
 }
 
+export interface CreateImmediatePushNotificationParams {
+  userId: string;
+  title: string;
+  body: string;
+  url?: string;
+}
+
+export interface CreateImmediatePushNotificationResult {
+  queued: boolean;
+  reason?: "NO_SUBSCRIPTIONS" | "QUEUE_ERROR";
+  notificationId?: string;
+}
+
 // ========== Create Step Notification ==========
 
 /**
@@ -132,6 +145,116 @@ export async function createStepNotification(params: CreateStepNotificationParam
     });
     throw err;
   }
+}
+
+export async function createImmediatePushNotification(
+  params: CreateImmediatePushNotificationParams,
+): Promise<CreateImmediatePushNotificationResult> {
+  const { userId, title, body, url } = params;
+  const subscriptions = await prisma.pushSubscription.findMany({
+    where: { userId },
+    select: { endpoint: true, keys: true },
+  });
+
+  if (subscriptions.length === 0) {
+    logger.warn("Skipping immediate push creation: no subscriptions", { userId, title });
+    return { queued: false, reason: "NO_SUBSCRIPTIONS" };
+  }
+
+  const notification = await prisma.stepNotification.create({
+    data: {
+      userId,
+      day: 0,
+      stepIndex: 0,
+      endTs: Math.floor(Date.now() / 1000),
+      sent: false,
+      paused: false,
+      stepTitle: `${title}|${body}`,
+      type: "immediate",
+      url: url || "/",
+      subscription: {
+        subscriptions: subscriptions.map((sub) => ({
+          endpoint: sub.endpoint,
+          keys: sub.keys as Record<string, string>,
+        })),
+        count: subscriptions.length,
+      },
+    },
+  });
+
+  try {
+    const job = await pushQueue.add(
+      "push",
+      { notificationId: notification.id },
+      {
+        delay: 0,
+        attempts: 3,
+        backoff: { type: "exponential", delay: 1000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
+
+    await prisma.stepNotification.update({
+      where: { id: notification.id },
+      data: { jobId: job.id },
+    });
+
+    return {
+      queued: true,
+      notificationId: notification.id,
+    };
+  } catch (error) {
+    logger.error("Error adding immediate push job to queue", error as Error, {
+      notificationId: notification.id,
+      userId,
+    });
+    return {
+      queued: false,
+      reason: "QUEUE_ERROR",
+      notificationId: notification.id,
+    };
+  }
+}
+
+export async function createStepNotificationForStepStart(
+  userId: string,
+  dayOnCourseId: string,
+  stepIndex: number,
+  durationSec: number,
+): Promise<{ queued: boolean; reason?: string }> {
+  const dayOnCourse = await prisma.dayOnCourse.findUnique({
+    where: { id: dayOnCourseId },
+    include: {
+      day: {
+        include: {
+          stepLinks: {
+            include: { step: true },
+            orderBy: { order: "asc" },
+          },
+        },
+      },
+      course: {
+        select: { type: true },
+      },
+    },
+  });
+
+  const stepLink = dayOnCourse?.day?.stepLinks?.[stepIndex];
+  if (!dayOnCourse || !stepLink?.step) {
+    return { queued: false, reason: "STEP_NOT_FOUND" };
+  }
+
+  await createStepNotification({
+    userId,
+    day: dayOnCourse.order ?? 0,
+    stepIndex,
+    durationSec,
+    maybeUrl: `/trainings/${dayOnCourse.course.type}/${dayOnCourseId}`,
+    stepTitle: stepLink.step.title?.trim() || `Шаг ${stepIndex + 1}`,
+  });
+
+  return { queued: true };
 }
 
 // ========== Pause Step Notification ==========

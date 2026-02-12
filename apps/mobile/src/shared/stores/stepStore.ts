@@ -1,11 +1,12 @@
 import {
   getDayStepKeyPrefix,
   getStepKey as getStepKeyFromCore,
+  statusRank,
 } from "@gafus/core/utils/training";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
-import { stepStorage } from "./storage";
+import { stepStorage } from "./stepStorage";
 
 // Локальное состояние шага
 export interface LocalStepState {
@@ -243,28 +244,56 @@ export const useStepStore = create<StepStore>()(
       initializeStep: (courseId, dayOnCourseId, stepIndex, durationSec, status, options) => {
         const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
         const current = get().stepStates[key];
+        const serverStatus = (status || "NOT_STARTED") as LocalStepState["status"];
 
         // Если шаг уже инициализирован и имеет локальные изменения - не перезаписываем
         if (current && current.updatedAt > Date.now() - 5000) {
           return;
         }
+        // После сброса пользователь мог снова нажать «Старт»; не затирать IN_PROGRESS/PAUSED пришедшим с сервера RESET
+        if (
+          current &&
+          (current.status === "IN_PROGRESS" || current.status === "PAUSED") &&
+          status === "RESET"
+        ) {
+          return;
+        }
+        if (current && statusRank(serverStatus) < statusRank(current.status)) {
+          return;
+        }
+        if (
+          current &&
+          statusRank(serverStatus) === statusRank(current.status) &&
+          (current.status === "IN_PROGRESS" || current.status === "PAUSED" || current.status === "RESET")
+        ) {
+          return;
+        }
 
+        const normalizedStatus = options?.serverPaused ? "PAUSED" : serverStatus;
         const initialTimeLeft = options?.serverPaused
-          ? (options.serverRemainingSec ?? durationSec)
-          : status === "IN_PROGRESS"
+          ? (options.serverRemainingSec ?? current?.timeLeft ?? durationSec)
+          : normalizedStatus === "RESET"
             ? durationSec
-            : durationSec;
+            : normalizedStatus === "COMPLETED"
+              ? 0
+              : normalizedStatus === "IN_PROGRESS"
+                ? (current?.timeLeft ?? durationSec)
+                : (current?.timeLeft ?? null);
 
         set((state) => ({
           stepStates: {
             ...state.stepStates,
             [key]: {
-              status: (status || "NOT_STARTED") as LocalStepState["status"],
+              status: normalizedStatus,
               remainingSec: options?.serverPaused
-                ? (options.serverRemainingSec ?? durationSec)
-                : status === "IN_PROGRESS"
-                  ? durationSec
-                  : null,
+                ? (options.serverRemainingSec ?? current?.remainingSec ?? durationSec)
+                : normalizedStatus === "COMPLETED"
+                  ? null
+                  : normalizedStatus === "RESET"
+                    ? durationSec
+                    : normalizedStatus === "IN_PROGRESS"
+                      ? (current?.remainingSec ?? durationSec)
+                      : null,
               timeLeft: initialTimeLeft, // Инициализируем timeLeft
               updatedAt: Date.now(),
             },
@@ -286,14 +315,27 @@ export const useStepStore = create<StepStore>()(
           }
 
           const status = step.status as LocalStepState["status"];
+          if (current && statusRank(status) < statusRank(current.status)) {
+            continue;
+          }
+          if (
+            current &&
+            statusRank(status) === statusRank(current.status) &&
+            (current.status === "IN_PROGRESS" || current.status === "PAUSED" || current.status === "RESET")
+          ) {
+            continue;
+          }
+
           const timeLeft =
             status === "RESET" && step.durationSec != null
               ? step.durationSec
-              : step.remainingSec ?? current?.timeLeft ?? null;
+              : status === "COMPLETED"
+                ? 0
+                : step.remainingSec ?? current?.timeLeft ?? null;
 
           updates[key] = {
             status,
-            remainingSec: step.remainingSec,
+            remainingSec: status === "COMPLETED" ? null : step.remainingSec,
             timeLeft: typeof timeLeft === "number" ? timeLeft : current?.timeLeft ?? null,
             updatedAt: Date.now(),
           };

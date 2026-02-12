@@ -17,7 +17,7 @@ import {
   resumeStepNotification,
   toggleStepNotificationPause,
   deleteStepNotification,
-  createStepNotification,
+  createStepNotificationForStepStart,
   getDayFromDayOnCourseId,
 } from "@gafus/core/services/notifications";
 import {
@@ -222,23 +222,28 @@ export async function deleteStepNotificationAction(
  * Создает уведомление для шага тренировки
  */
 export async function createStepNotificationAction(params: {
-  day: number;
+  dayOnCourseId: string;
   stepIndex: number;
   durationSec: number;
-  maybeUrl?: string;
-  stepTitle?: string;
 }) {
+  const parsed = resumeNotificationSchema.pick({
+    dayOnCourseId: true,
+    stepIndex: true,
+    durationSec: true,
+  }).parse({
+    dayOnCourseId: params.dayOnCourseId,
+    stepIndex: params.stepIndex,
+    durationSec: params.durationSec,
+  });
+
   try {
     const userId = await getCurrentUserId();
-
-    await createStepNotification({
+    await createStepNotificationForStepStart(
       userId,
-      day: params.day,
-      stepIndex: params.stepIndex,
-      durationSec: params.durationSec,
-      maybeUrl: params.maybeUrl,
-      stepTitle: params.stepTitle,
-    });
+      parsed.dayOnCourseId,
+      parsed.stepIndex,
+      parsed.durationSec,
+    );
 
     return { success: true };
   } catch (error) {

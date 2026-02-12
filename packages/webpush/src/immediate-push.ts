@@ -39,7 +39,6 @@ export async function sendImmediatePushNotification(
     const { userId, title, body, url, icon, badge } = options;
 
     logger.info("Отправка немедленного пуш-уведомления", { userId, title });
-
     // Проверяем, есть ли у пользователя активные подписки
     const subscriptions = await prisma.pushSubscription.findMany({
       where: { userId },

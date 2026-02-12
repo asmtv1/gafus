@@ -12,6 +12,8 @@ export interface TrainingDay {
   order: number;
   userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "RESET" | null;
   completedAt: string | null;
+  /** Для summary: true, если не все остальные дни завершены (как на web) */
+  isLocked?: boolean;
 }
 
 export interface TrainingDaysResponse {

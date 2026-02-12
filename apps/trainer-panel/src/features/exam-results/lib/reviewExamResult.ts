@@ -161,8 +161,6 @@ export async function reviewExamResult(
         title: pushPayload.title,
         body: pushPayload.body,
         url: `/trainings/${courseType}/${dayOrder}`,
-        icon: "/icons/icon192.png",
-        badge: "/icons/badge-72.png",
       });
 
       if (pushResult.success) {

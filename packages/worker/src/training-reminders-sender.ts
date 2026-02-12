@@ -5,7 +5,9 @@
 
 import { prisma } from "@gafus/prisma";
 import { createWorkerLogger } from "@gafus/logger";
-import { PushNotificationService } from "../../webpush/src/service";
+import { PushNotificationService } from "@gafus/webpush";
+import { partitionPushSubscriptions } from "./lib/partitionPushSubscriptions";
+import { sendExpoPushNotifications } from "./lib/expoPush";
 
 const logger = createWorkerLogger("training-reminders-sender");
 
@@ -14,6 +16,8 @@ interface SendResult {
   skipped: number;
   errors: number;
 }
+
+const pushService = PushNotificationService.fromEnvironment();
 
 /**
  * Проверяет, совпадает ли текущий день недели с выбранными днями
@@ -93,28 +97,61 @@ async function sendReminderToUser(
       },
     });
 
-    // Конвертируем подписки в формат для отправки
-    const jsonSubscriptions = subscriptions.map((sub) => ({
-      endpoint: sub.endpoint,
-      keys: sub.keys as { p256dh: string; auth: string },
-    }));
+    const partitioned = partitionPushSubscriptions(subscriptions);
 
-    // Отправляем через PushNotificationService
-    const pushService = PushNotificationService.fromEnvironment();
-    const results = await pushService.sendNotifications(jsonSubscriptions, payload);
+    const webResults =
+      partitioned.web.length > 0 ?
+        await pushService.sendNotifications(partitioned.web, payload)
+      : {
+          results: [],
+          successCount: 0,
+          failureCount: 0,
+        };
 
-    if (results.successCount > 0) {
+    const invalidWebEndpoints = webResults.results
+      .filter((result) => !result.success && PushNotificationService.shouldDeleteSubscription(result.error))
+      .map((result) => result.endpoint);
+    if (invalidWebEndpoints.length > 0) {
+      await prisma.pushSubscription.deleteMany({
+        where: {
+          endpoint: {
+            in: invalidWebEndpoints,
+          },
+        },
+      });
+    }
+
+    const expoResults =
+      partitioned.expo.length > 0 ?
+        await sendExpoPushNotifications(partitioned.expo, {
+          title: "Напоминание о тренировке 🐕",
+          body: "Пора заниматься с питомцем! Не забудьте про сегодняшнюю тренировку.",
+          url: "/courses",
+        })
+      : {
+          successCount: 0,
+          failureCount: 0,
+          deletedCount: 0,
+          temporaryFailureCount: 0,
+        };
+
+    const successCount = webResults.successCount + expoResults.successCount;
+    const failureCount = webResults.failureCount + expoResults.failureCount;
+
+    if (successCount > 0) {
       logger.success("Напоминание отправлено", {
         userId,
         timezone,
-        successCount: results.successCount,
-        failureCount: results.failureCount,
+        webSuccessCount: webResults.successCount,
+        webFailureCount: webResults.failureCount,
+        expoSuccessCount: expoResults.successCount,
+        expoFailureCount: expoResults.failureCount,
       });
       return { success: true };
     } else {
       logger.warn("Не удалось отправить напоминание", {
         userId,
-        failureCount: results.failureCount,
+        failureCount,
       });
       return { success: false, error: "All sends failed" };
     }

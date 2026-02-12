@@ -9,6 +9,8 @@ import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { PushNotificationService } from "@gafus/webpush";
 import { prisma } from "@gafus/prisma";
+import { sendExpoPushNotifications } from "./lib/expoPush";
+import { partitionPushSubscriptions } from "./lib/partitionPushSubscriptions";
 import {
   getCampaignData,
   updateCampaignAfterSend,
@@ -173,36 +175,8 @@ class ReengagementWorker {
 
       logger.info(`Найдено ${subscriptions.length} активных подписок`, { userId });
 
-      // 7. Преобразовать подписки в формат для отправки
-      const pushSubscriptions = subscriptions
-        .map((sub) => {
-          const keysRaw = sub.keys as unknown;
-
-          if (
-            keysRaw &&
-            typeof keysRaw === "object" &&
-            !Array.isArray(keysRaw) &&
-            "p256dh" in keysRaw &&
-            "auth" in keysRaw &&
-            typeof (keysRaw as { p256dh: string; auth: string }).p256dh === "string" &&
-            typeof (keysRaw as { p256dh: string; auth: string }).auth === "string"
-          ) {
-            const keys = keysRaw as { p256dh: string; auth: string };
-            return {
-              endpoint: sub.endpoint,
-              keys: {
-                p256dh: keys.p256dh,
-                auth: keys.auth,
-              },
-            };
-          }
-
-          return null;
-        })
-        .filter(
-          (sub): sub is { endpoint: string; keys: { p256dh: string; auth: string } } =>
-            sub !== null,
-        );
+      // 7. Разделить подписки по каналам
+      const partitioned = partitionPushSubscriptions(subscriptions);
 
       // 8. Подготовить payload для отправки
       const payload = {
@@ -219,20 +193,45 @@ class ReengagementWorker {
 
       logger.info("Отправка push-уведомлений", {
         userId,
-        subscriptionsCount: pushSubscriptions.length,
+        subscriptionsCount: subscriptions.length,
+        webSubscriptionsCount: partitioned.web.length,
+        expoSubscriptionsCount: partitioned.expo.length,
       });
 
-      // 9. Отправить уведомления
-      const result = await this.pushService.sendNotifications(pushSubscriptions, payload);
+      // 9. Отправить уведомления по двум каналам
+      const webResult =
+        partitioned.web.length > 0 ?
+          await this.pushService.sendNotifications(partitioned.web, payload)
+        : {
+            results: [],
+            successCount: 0,
+            failureCount: 0,
+          };
+
+      const expoResult =
+        partitioned.expo.length > 0 ?
+        await sendExpoPushNotifications(partitioned.expo, {
+          title: personalizedMessage.title,
+          body: personalizedMessage.body,
+          url: personalizedMessage.url ?? "/",
+        })
+        : {
+            successCount: 0,
+            failureCount: 0,
+            deletedCount: 0,
+            temporaryFailureCount: 0,
+          };
 
       logger.success("Push-уведомления отправлены", {
         userId,
-        sent: result.successCount,
-        failed: result.failureCount,
+        webSent: webResult.successCount,
+        webFailed: webResult.failureCount,
+        expoSent: expoResult.successCount,
+        expoFailed: expoResult.failureCount,
       });
 
-      // 10. Обработать неудачные подписки
-      const invalidEndpoints = result.results
+      // 10. Обработать неудачные web-подписки
+      const invalidEndpoints = webResult.results
         .filter((r) => !r.success && PushNotificationService.shouldDeleteSubscription(r.error))
         .map((r) => r.endpoint);
 
@@ -252,8 +251,8 @@ class ReengagementWorker {
       await updateCampaignAfterSend(
         campaignId,
         notificationId,
-        result.successCount,
-        result.failureCount,
+        webResult.successCount + expoResult.successCount,
+        webResult.failureCount + expoResult.failureCount,
       );
 
       logger.success("Re-engagement задача завершена", {
@@ -261,8 +260,8 @@ class ReengagementWorker {
         campaignId,
         userId,
         level,
-        sent: result.successCount,
-        failed: result.failureCount,
+        sent: webResult.successCount + expoResult.successCount,
+        failed: webResult.failureCount + expoResult.failureCount,
       });
     } catch (error) {
       logger.error("Ошибка обработки re-engagement задачи", error as Error, {

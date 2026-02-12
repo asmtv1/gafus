@@ -2,6 +2,8 @@
 
 import { TrainingStatus } from "@gafus/types";
 import { updateStepAndDay, type StepOperation } from "@gafus/core/services/training/trainingService";
+import { createImmediatePushNotification } from "@gafus/core/services/notifications";
+import { prisma } from "@gafus/prisma";
 import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 
@@ -70,6 +72,34 @@ export async function updateUserStepStatus(
   try {
     const operation = statusToOperation(safeStatus);
     const result = await updateStepAndDay(safeUserId, safeDayOnCourseId, safeStepIndex, operation);
+
+    if (operation.type === "complete" && result.stepJustCompleted) {
+      void (async () => {
+        try {
+          const dayOnCourse = await prisma.dayOnCourse.findUnique({
+            where: { id: safeDayOnCourseId },
+            select: {
+              course: {
+                select: { type: true },
+              },
+            },
+          });
+
+          await createImmediatePushNotification({
+            userId: safeUserId,
+            title: "Шаг выполнен!",
+            body: "Отличная работа! Переходите к следующему шагу.",
+            url: dayOnCourse ? `/trainings/${dayOnCourse.course.type}/${safeDayOnCourseId}` : "/trainings",
+          });
+        } catch (notifError) {
+          logger.error("Failed to queue immediate push after complete", notifError as Error, {
+            userId: safeUserId,
+            dayOnCourseId: safeDayOnCourseId,
+            stepIndex: safeStepIndex,
+          });
+        }
+      })();
+    }
 
     try {
       await syncUserCourseStatusFromDays(safeUserId, result.courseId);

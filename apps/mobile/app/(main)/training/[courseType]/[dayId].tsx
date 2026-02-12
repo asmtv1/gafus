@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useEffect } from "react";
 import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from "react-native";
-import { Text, Surface, Snackbar } from "react-native-paper";
+import { Text, Surface, Snackbar, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -28,6 +28,7 @@ import { showPaidCourseAccessDeniedAlert } from "@/shared/lib/utils/alerts";
  * Экран дня тренировки с шагами
  */
 export default function TrainingDayScreen() {
+  const theme = useTheme();
   const { courseType, dayId } = useLocalSearchParams<{
     courseType: string;
     dayId: string;
@@ -69,8 +70,11 @@ export default function TrainingDayScreen() {
     let cancelled = false;
     (async () => {
       const res = await trainingApi.getDiaryEntries(courseId, dayId);
-      if (!cancelled && res.success) {
+      if (cancelled) return;
+      if (res.success) {
         setDiaryEntries(res.data?.entries ?? []);
+      } else {
+        setDiaryEntries([]);
       }
     })();
     return () => {
@@ -78,73 +82,23 @@ export default function TrainingDayScreen() {
     };
   }, [courseId, dayId]);
 
-  // Логирование состояния загрузки
-  useEffect(() => {
-    if (__DEV__) {
-      console.log("[TrainingDayScreen] Состояние загрузки:", {
-        isLoading,
-        isRefetching,
-        hasData: !!data,
-        hasSuccess: data?.success,
-        hasDayData: !!dayData,
-        stepsCount: dayData?.steps?.length ?? 0,
-        error: error?.message,
-        courseType,
-        dayId,
-      });
-    }
-  }, [isLoading, isRefetching, data, dayData, error, courseType, dayId]);
-
   // Инициализация всех шагов при загрузке (как в web-версии)
   useEffect(() => {
     if (dayData?.steps && dayData.steps.length > 0) {
-      if (__DEV__) {
-        console.log("[TrainingDayScreen] Инициализация шагов:", {
-          stepsCount: dayData.steps.length,
-          firstStepKeys: Object.keys(dayData.steps[0] || {}),
-          firstStep: dayData.steps[0],
-        });
-      }
-
       try {
-        let initializedCount = 0;
         dayData.steps.forEach((step, index) => {
           const stepData = getStepContent(step);
           const durationSec = stepData.durationSec ?? 300;
           const status = "status" in step ? step.status : "NOT_STARTED";
-
-          if (__DEV__ && index < 3) {
-            console.log(`[TrainingDayScreen] Инициализация шага ${index}:`, {
-              index,
-              hasNestedStep: "step" in step && !!step.step,
-              durationSec,
-              status,
-              stepKeys: Object.keys(step),
-            });
-          }
-
           initializeStep(courseId, dayId, index, durationSec, status, {
             serverPaused: status === "PAUSED",
             serverRemainingSec: "remainingSec" in step ? step.remainingSec ?? undefined : undefined,
           });
-          initializedCount++;
         });
-
+      } catch (err) {
         if (__DEV__) {
-          console.log("[TrainingDayScreen] Инициализировано шагов:", initializedCount);
+          console.error("[TrainingDayScreen] Ошибка инициализации шагов:", err);
         }
-      } catch (error) {
-        if (__DEV__) {
-          console.error("[TrainingDayScreen] Ошибка инициализации шагов:", error);
-        }
-      }
-    } else {
-      if (__DEV__) {
-        console.warn("[TrainingDayScreen] Нет шагов для инициализации:", {
-          hasDayData: !!dayData,
-          hasSteps: !!dayData?.steps,
-          stepsLength: dayData?.steps?.length ?? 0,
-        });
       }
     }
   }, [dayData?.steps, courseId, dayId, initializeStep]);
@@ -163,6 +117,23 @@ export default function TrainingDayScreen() {
   const handleStartStep = useCallback(
     async (stepIndex: number, durationSec: number) => {
       try {
+        const activeTimer = useTimerStore.getState().activeTimer;
+        if (activeTimer?.isRunning) {
+          const isOtherStep =
+            activeTimer.courseId !== courseId ||
+            activeTimer.dayOnCourseId !== dayId ||
+            activeTimer.stepIndex !== stepIndex;
+          if (isOtherStep) {
+            setSnackbar({ visible: true, message: "Сначала остановите текущий шаг" });
+            return;
+          }
+        }
+
+        const currentStepState = getStepState(courseId, dayId, stepIndex);
+        if (currentStepState?.status === "IN_PROGRESS") {
+          return;
+        }
+
         // Локальное обновление
         startStep(courseId, dayId, stepIndex, durationSec);
 
@@ -178,7 +149,7 @@ export default function TrainingDayScreen() {
         setSnackbar({ visible: true, message: "Ошибка старта шага" });
       }
     },
-    [courseId, dayId, startStep, startStepMutation],
+    [courseId, dayId, getStepState, startStep, startStepMutation],
   );
 
   const handlePauseStep = useCallback(
@@ -218,7 +189,7 @@ export default function TrainingDayScreen() {
   const handleResetStep = useCallback(
     async (stepIndex: number, durationSec: number) => {
       try {
-        stopTimer();
+        stopTimer(courseId, dayId, stepIndex);
         await resetStepMutation.mutateAsync({
           courseId,
           dayOnCourseId: dayId,
@@ -249,7 +220,7 @@ export default function TrainingDayScreen() {
       });
       try {
         console.log("[Я выполнил] stopTimer, completeStep");
-        stopTimer();
+        stopTimer(courseId, dayId, stepIndex);
         completeStep(courseId, dayId, stepIndex);
 
         const params = {
@@ -340,9 +311,6 @@ export default function TrainingDayScreen() {
   }, [dayData?.steps, courseId, dayId, getStepState]);
 
   if (isLoading) {
-    if (__DEV__) {
-      console.log("[TrainingDayScreen] Показываем загрузку");
-    }
     return <Loading fullScreen message="Загрузка шагов..." />;
   }
 
@@ -427,12 +395,7 @@ export default function TrainingDayScreen() {
               </Text>
             )}
             <Pressable
-              onPress={() => {
-                if (__DEV__) {
-                  console.log("[TrainingDayScreen] Повторная загрузка");
-                }
-                refetch();
-              }}
+              onPress={() => refetch()}
               style={styles.retryButton}
             >
               <Text style={styles.retryButtonText}>Попробовать снова</Text>
@@ -462,7 +425,9 @@ export default function TrainingDayScreen() {
           <Text style={styles.backText}>Назад</Text>
         </Pressable>
         <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
         >
           {/* Заголовок дня по типу (как на web Day.tsx) */}
@@ -475,18 +440,23 @@ export default function TrainingDayScreen() {
             </View>
           )}
 
-          {/* Прогресс дня */}
+          {/* Прогресс дня — цвета из темы (светлая/тёмная) */}
           <Surface style={styles.progressCard} elevation={1}>
             <View style={styles.progressHeader}>
               <Text variant="titleMedium">Прогресс</Text>
-              <Text variant="titleMedium" style={styles.progressPercent}>
+              <Text variant="titleMedium" style={[styles.progressPercent, { color: theme.colors.primary }]}>
                 {progress.percent}%
               </Text>
             </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${progress.percent}%` }]} />
+            <View style={[styles.progressBar, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${progress.percent}%`, backgroundColor: theme.colors.primary },
+                ]}
+              />
             </View>
-            <Text style={styles.progressText}>
+            <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
               Выполнено {progress.completed} из {progress.total} шагов
             </Text>
           </Surface>
@@ -538,17 +508,6 @@ export default function TrainingDayScreen() {
                   const stepId = "id" in step ? step.id : stepData.id;
                   const uniqueKey = `${dayId}-${stepData.order ?? index}-${stepId}-${index}`;
 
-                  if (__DEV__) {
-                    console.log("[TrainingDayScreen] Рендеринг шага:", {
-                      index,
-                      uniqueKey,
-                      stepType,
-                      exerciseNumber,
-                      hasStep: !!step,
-                      hasStepData: !!stepData,
-                    });
-                  }
-
                   return (
                     <AccordionStep
                       key={uniqueKey}
@@ -559,12 +518,7 @@ export default function TrainingDayScreen() {
                     localState={getStepState(courseId, dayId, index)}
                     courseId={courseId}
                     dayOnCourseId={dayId}
-                    onToggle={() => {
-                      if (__DEV__) {
-                        console.log("[TrainingDayScreen] Toggle step:", index);
-                      }
-                      handleToggleStep(index);
-                    }}
+                    onToggle={() => handleToggleStep(index)}
                     onStart={() => {
                       if (__DEV__) {
                         console.log("[TrainingDayScreen] Start step:", index, durationSec);
@@ -583,19 +537,14 @@ export default function TrainingDayScreen() {
                       }
                       handleResumeStep(index);
                     }}
-                    onComplete={() => {
-                      console.log("[Я выполнил] onComplete от AccordionStep", {
-                        index,
-                        stepType,
-                        stepTitle,
-                      });
+                    onComplete={() =>
                       handleCompleteStep(
                         index,
                         stepType === "THEORY" || stepType === "DIARY",
                         stepTitle,
                         index,
-                      );
-                    }}
+                      )
+                    }
                     onReset={(durationSecReset) => {
                       if (__DEV__) {
                         console.log("[TrainingDayScreen] Reset step:", index, durationSecReset);
@@ -646,6 +595,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  scrollView: {
+    flex: 1,
+  },
   backRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -693,24 +645,20 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   progressPercent: {
-    color: COLORS.primary,
     fontWeight: "bold",
   },
   progressBar: {
     height: 8,
-    backgroundColor: COLORS.border,
     borderRadius: 4,
     overflow: "hidden",
     marginBottom: SPACING.sm,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: COLORS.primary,
     borderRadius: 4,
   },
   progressText: {
     fontSize: 12,
-    color: COLORS.textSecondary,
   },
   descriptionDayContainer: {
     marginBottom: SPACING.lg,

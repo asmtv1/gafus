@@ -19,122 +19,18 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
   return useQuery<ApiResponse<TrainingDayResponse>>({
     queryKey: ["trainingDay", courseType, dayOnCourseId],
     queryFn: async () => {
-      if (__DEV__) {
-        console.log("[useTrainingDay] Запрос данных дня:", {
-          courseType,
-          dayOnCourseId,
-        });
-      }
-
       try {
         const response = await trainingApi.getDay(courseType, dayOnCourseId);
 
-        if (__DEV__) {
-          const errorInfo = response.error
-            ? {
-                errorType: typeof response.error,
-                errorName:
-                  typeof response.error === "object" &&
-                  response.error !== null &&
-                  "name" in response.error
-                    ? (response.error as any).name
-                    : null,
-                errorIssues:
-                  typeof response.error === "object" &&
-                  response.error !== null &&
-                  "issues" in response.error
-                    ? (response.error as any).issues
-                    : null,
-                errorMessage:
-                  typeof response.error === "object" &&
-                  response.error !== null &&
-                  "message" in response.error
-                    ? (response.error as any).message
-                    : typeof response.error === "string"
-                      ? response.error
-                      : null,
-              }
-            : null;
-
-          console.log("[useTrainingDay] Ответ API:", {
-            success: response.success,
-            hasData: !!response.data,
-            dataKeys: response.data ? Object.keys(response.data) : [],
-            stepsCount: response.data?.steps?.length ?? 0,
-            error: errorInfo,
-            code: (response as any).code,
-          });
-        }
-
         if (response.success && response.data) {
-          if (__DEV__) {
-            console.log("[useTrainingDay] Структура данных:", {
-              title: response.data.title,
-              dayOnCourseId: response.data.dayOnCourseId,
-              stepsLength: response.data.steps?.length ?? 0,
-              firstStep: response.data.steps?.[0]
-                ? {
-                    keys: Object.keys(response.data.steps[0]),
-                    hasStepIndex: "stepIndex" in (response.data.steps[0] || {}),
-                    hasOrder: "order" in (response.data.steps[0] || {}),
-                    hasNestedStep: "step" in (response.data.steps[0] || {}),
-                    stepData: response.data.steps[0],
-                  }
-                : null,
-            });
-          }
-
           // Синхронизируем состояния шагов с сервера
-          // API использует 0-based индекс массива (stepLinks[stepIndex])
           const steps = response.data.steps.map((s: any, index: number) => ({
             stepIndex: index,
             status: s.status || "NOT_STARTED",
             remainingSec: s.remainingSec ?? s.remainingSecOnServer ?? null,
             durationSec: s.step?.durationSec ?? s.durationSec ?? undefined,
           }));
-
-          if (__DEV__) {
-            console.log("[useTrainingDay] Синхронизация шагов:", {
-              stepsCount: steps.length,
-              steps: steps.slice(0, 3), // Первые 3 для примера
-            });
-          }
-
           syncFromServer(response.data.courseId ?? courseType, dayOnCourseId, steps);
-        } else {
-          if (__DEV__) {
-            const errorDetails = response.error
-              ? {
-                  type: typeof response.error,
-                  name:
-                    typeof response.error === "object" &&
-                    response.error !== null &&
-                    "name" in response.error
-                      ? (response.error as any).name
-                      : null,
-                  issues:
-                    typeof response.error === "object" &&
-                    response.error !== null &&
-                    "issues" in response.error
-                      ? (response.error as any).issues
-                      : null,
-                  message:
-                    typeof response.error === "object" &&
-                    response.error !== null &&
-                    "message" in response.error
-                      ? (response.error as any).message
-                      : typeof response.error === "string"
-                        ? response.error
-                        : null,
-                }
-              : null;
-
-            console.error("[useTrainingDay] Ошибка загрузки:", {
-              success: response.success,
-              error: errorDetails,
-              code: (response as any).code,
-            });
-          }
         }
 
         return response;
@@ -161,7 +57,6 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
  */
 export function useStartStep() {
   const queryClient = useQueryClient();
-  const startStepLocal = useStepStore((s) => s.startStep);
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
@@ -177,16 +72,7 @@ export function useStartStep() {
 
   return useMutation({
     mutationFn,
-    onMutate: async (variables) => {
-      // Оптимистичное обновление локального состояния
-      startStepLocal(
-        variables.courseId,
-        variables.dayOnCourseId,
-        variables.stepIndex,
-        variables.durationSec,
-      );
-    },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       // Инвалидируем кэш дня
       queryClient.invalidateQueries({
         queryKey: ["trainingDay"],
