@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// Несколько BullMQ-воркеров подписываются на process (exit/SIGTERM) — увеличиваем лимит, чтобы убрать MaxListenersExceededWarning
+if (typeof process.setMaxListeners === "function") {
+  process.setMaxListeners(20);
+}
+
 import { createWorkerLogger } from "@gafus/logger";
 
 const logger = createWorkerLogger("bootstrap");

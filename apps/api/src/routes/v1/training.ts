@@ -15,8 +15,11 @@ import {
 import { saveDiaryEntry, getDiaryEntries } from "@gafus/core/services/diary";
 import { checkCourseAccess } from "@gafus/core/services/course";
 import {
-  createImmediatePushNotification,
   createStepNotificationForStepStart,
+  getDayFromDayOnCourseId,
+  pauseStepNotification,
+  resetStepNotification,
+  resumeStepNotification,
 } from "@gafus/core/services/notifications";
 import { createWebLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
@@ -161,6 +164,19 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
     } catch (syncErr) {
       logger.error("Error syncing course status after step/pause", syncErr as Error);
     }
+
+    // Очищаем job из push-очереди при постановке таймера на паузу
+    try {
+      const day = await getDayFromDayOnCourseId(dayOnCourseId);
+      await pauseStepNotification(user.id, day, stepIndex);
+    } catch (notifErr) {
+      logger.error("Error pausing step notification (step/pause)", notifErr as Error, {
+        userId: user.id,
+        dayOnCourseId,
+        stepIndex,
+      });
+    }
+
     return c.json({ success: true });
   } catch (error) {
     if (error instanceof Error && error.message === "DayOnCourse or day not found") {
@@ -192,6 +208,19 @@ trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), as
     } catch (syncErr) {
       logger.error("Error syncing course status after step/resume", syncErr as Error);
     }
+
+    // Возвращаем отложенный push-job в очередь при возобновлении
+    try {
+      const day = await getDayFromDayOnCourseId(dayOnCourseId);
+      await resumeStepNotification(user.id, day, stepIndex, 0, dayOnCourseId);
+    } catch (notifErr) {
+      logger.error("Error resuming step notification (step/resume)", notifErr as Error, {
+        userId: user.id,
+        dayOnCourseId,
+        stepIndex,
+      });
+    }
+
     return c.json({ success: true });
   } catch (error) {
     if (error instanceof Error && error.message === "DayOnCourse or day not found") {
@@ -224,6 +253,19 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
     } catch (syncErr) {
       logger.error("Error syncing course status after step/reset", syncErr as Error);
     }
+
+    // Полностью удаляем уведомление и job при рестарте шага
+    try {
+      const day = await getDayFromDayOnCourseId(dayOnCourseId);
+      await resetStepNotification(user.id, day, stepIndex);
+    } catch (notifErr) {
+      logger.error("Error resetting step notification (step/reset)", notifErr as Error, {
+        userId: user.id,
+        dayOnCourseId,
+        stepIndex,
+      });
+    }
+
     return c.json({ success: true });
   } catch (error) {
     if (error instanceof Error && error.message === "DayOnCourse or day not found") {
@@ -276,28 +318,6 @@ trainingRoutes.post(
         logger.error("Error syncing course status after step/complete/practice", syncErr as Error);
       }
 
-      if (result.stepJustCompleted) {
-        void (async () => {
-          try {
-            const dayOnCourse = await prisma.dayOnCourse.findUnique({
-              where: { id: dayOnCourseId },
-              select: { course: { select: { type: true } } },
-            });
-            await createImmediatePushNotification({
-              userId: user.id,
-              title: "Шаг выполнен!",
-              body: "Отличная работа! Переходите к следующему шагу.",
-              url: dayOnCourse ? `/trainings/${dayOnCourse.course.type}/${dayOnCourseId}` : "/trainings",
-            });
-          } catch (notifErr) {
-            logger.error("Error creating immediate push (step/complete/practice)", notifErr as Error, {
-              userId: user.id,
-              dayOnCourseId,
-              stepIndex,
-            });
-          }
-        })();
-      }
       return c.json({ success: true });
     } catch (error) {
       if (error instanceof Error && error.message === "DayOnCourse or day not found") {
@@ -362,21 +382,6 @@ trainingRoutes.post("/step/complete/theory", zValidator("json", completeTheoryBo
       type: "complete",
     });
     await syncUserCourseStatusFromDays(user.id, result.courseId);
-
-    if (result.stepJustCompleted) {
-      void createImmediatePushNotification({
-        userId: user.id,
-        title: "Шаг выполнен!",
-        body: "Отличная работа! Переходите к следующему шагу.",
-        url: `/trainings/${dayOnCourse.course.type}/${dayOnCourseId}`,
-      }).catch((notifErr) => {
-        logger.error("Error creating immediate push (step/complete/theory)", notifErr as Error, {
-          userId: user.id,
-          dayOnCourseId,
-          stepIndex,
-        });
-      });
-    }
 
     return c.json({ success: true });
   } catch (error) {

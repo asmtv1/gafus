@@ -50,6 +50,9 @@
       "bundler": "metro",
       "output": "static"
     },
+    "notification": {
+      "icon": "./assets/images/logo.png"
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",
