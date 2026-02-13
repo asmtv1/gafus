@@ -349,9 +349,13 @@ export default function TrainingDayScreen() {
 
   const handleCreatePayment = useCallback(async () => {
     if (isCreatingPayment) return;
+    if (!courseId) {
+      setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
+      return;
+    }
     setIsCreatingPayment(true);
 
-    const response = await paymentsApi.createPayment({ courseType });
+    const response = await paymentsApi.createPayment({ courseId });
     if (!response.success || !response.data?.confirmationUrl) {
       const messageByCode: Record<string, string> = {
         RATE_LIMIT: "Слишком много попыток. Повторите через минуту.",
@@ -371,7 +375,7 @@ export default function TrainingDayScreen() {
     hasHandledPaymentReturnRef.current = false;
     setPaymentUrl(response.data.confirmationUrl);
     setIsCreatingPayment(false);
-  }, [courseType, isCreatingPayment]);
+  }, [courseId, isCreatingPayment]);
 
   const handleClosePaymentWebView = useCallback(
     async (isReturnUrl: boolean) => {

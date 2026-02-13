@@ -87,9 +87,14 @@ export default function TrainingDaysScreen() {
 
   const handleCreatePayment = useCallback(async () => {
     if (isCreatingPayment) return;
+    const courseId = courseForPay?.id;
+    if (!courseId) {
+      setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
+      return;
+    }
     setIsCreatingPayment(true);
 
-    const response = await paymentsApi.createPayment({ courseType });
+    const response = await paymentsApi.createPayment({ courseId });
     if (!response.success || !response.data?.confirmationUrl) {
       const messageByCode: Record<string, string> = {
         RATE_LIMIT: "Слишком много попыток. Повторите через минуту.",
@@ -109,7 +114,7 @@ export default function TrainingDaysScreen() {
     hasHandledPaymentReturnRef.current = false;
     setPaymentUrl(response.data.confirmationUrl);
     setIsCreatingPayment(false);
-  }, [courseType, isCreatingPayment]);
+  }, [courseForPay?.id, isCreatingPayment]);
 
   const handleClosePaymentWebView = useCallback(
     async (isReturnUrl: boolean) => {
@@ -135,7 +140,14 @@ export default function TrainingDaysScreen() {
   );
 
   useEffect(() => {
-    if (!isAccessDenied || courseForPay || isLoadingCourseForPay) return;
+    if (__DEV__) {
+      console.log("[TrainingDaysScreen] paywall load effect", {
+        isAccessDenied,
+        courseType,
+        skip: !isAccessDenied || !!courseForPay,
+      });
+    }
+    if (!isAccessDenied || courseForPay) return;
 
     let cancelled = false;
     setIsLoadingCourseForPay(true);
@@ -143,10 +155,38 @@ export default function TrainingDaysScreen() {
     (async () => {
       try {
         const coursesResponse = await coursesApi.getAll();
+        if (__DEV__) {
+          console.log("[TrainingDaysScreen] coursesApi.getAll()", {
+            success: coursesResponse.success,
+            error: "error" in coursesResponse ? coursesResponse.error : undefined,
+            code: "code" in coursesResponse ? coursesResponse.code : undefined,
+            count: coursesResponse.success && coursesResponse.data ? coursesResponse.data.length : 0,
+          });
+        }
         if (cancelled) return;
 
         if (coursesResponse.success && coursesResponse.data) {
-          const course = coursesResponse.data.find((item) => item.type === courseType) ?? null;
+          const typesFromApi = coursesResponse.data.map((c) => ({ type: c.type, id: c.id }));
+          if (__DEV__) {
+            console.log("[TrainingDaysScreen] course types from API", {
+              lookingFor: courseType,
+              typesFromApi,
+            });
+          }
+          const course =
+            coursesResponse.data.find((item) => item.type === courseType) ??
+            coursesResponse.data.find((item) => item.id === courseType) ??
+            null;
+          if (__DEV__) {
+            console.log("[TrainingDaysScreen] courseForPay resolved", {
+              found: !!course,
+              courseType,
+              name: course?.name,
+              hasDescription: !!course?.description,
+              dayLinksCount: course?.dayLinks?.length ?? 0,
+              priceRub: course?.priceRub,
+            });
+          }
           setCourseForPay(course);
         }
       } finally {
@@ -159,7 +199,9 @@ export default function TrainingDaysScreen() {
     return () => {
       cancelled = true;
     };
-  }, [courseForPay, courseType, isAccessDenied, isLoadingCourseForPay]);
+    // isLoadingCourseForPay намеренно не в deps: иначе при setState(true) эффект перезапускается,
+    // cleanup выставляет cancelled, и запрос завершается без setCourseForPay
+  }, [courseForPay, courseType, isAccessDenied]);
 
   const handleDayPress = useCallback(
     (day: TrainingDay) => {
@@ -270,6 +312,13 @@ export default function TrainingDaysScreen() {
   }
 
   if (isAccessDenied) {
+    if (__DEV__) {
+      console.log("[TrainingDaysScreen] paywall render", {
+        isLoadingCourseForPay,
+        hasCourseForPay: !!courseForPay,
+        courseName: courseForPay?.name,
+      });
+    }
     return (
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
         <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
