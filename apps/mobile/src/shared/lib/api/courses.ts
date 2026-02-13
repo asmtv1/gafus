@@ -7,6 +7,8 @@ export interface Course {
   type: string;
   shortDesc: string;
   description: string;
+  priceRub?: number | null;
+  hasAccess?: boolean;
   logoImg: string;
   duration: string;
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
@@ -29,6 +31,13 @@ export interface Course {
       profile?: {
         avatarUrl: string | null;
       } | null;
+    };
+  }[];
+  dayLinks?: {
+    order: number;
+    day: {
+      id: string;
+      title: string;
     };
   }[];
 }

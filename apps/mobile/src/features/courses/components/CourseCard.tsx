@@ -132,6 +132,8 @@ export function CourseCard({
   const removeFromQueue = useOfflineStore((s) => s.removeFromQueue);
   const removeDownload = useOfflineStore((s) => s.removeDownload);
   const isDownloaded = !!downloaded[courseType];
+  const hasCourseAccess = !course.isPaid || course.hasAccess === true;
+  const isPaidWithoutAccess = course.isPaid && !hasCourseAccess;
   const isDownloadingThis =
     downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);
@@ -395,19 +397,41 @@ export function CourseCard({
                 </Pressable>
               </>
             ) : (
-              <Pressable
-                onPress={() => startDownload(courseType)}
-                style={({ pressed }) => [
-                  styles.downloadButton,
-                  styles.downloadButtonFull,
-                  pressed && styles.offlineBtnPressed,
-                ]}
-              >
-                <MaterialCommunityIcons name="download" size={16} color={COLORS.text} style={styles.buttonIcon} />
-                <Text style={styles.downloadButtonText}>
-                  Скачать
-                </Text>
-              </Pressable>
+              isPaidWithoutAccess ? (
+                <Pressable
+                  disabled={true}
+                  style={[
+                    styles.downloadButton,
+                    styles.downloadButtonFull,
+                    styles.downloadButtonDisabled,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="download"
+                    size={16}
+                    color={COLORS.textSecondary}
+                    style={styles.buttonIcon}
+                  />
+                  <Text style={styles.downloadButtonDisabledText}>Оплатите для скачивания</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => startDownload(courseType)}
+                  style={({ pressed }) => [
+                    styles.downloadButton,
+                    styles.downloadButtonFull,
+                    pressed && styles.offlineBtnPressed,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="download"
+                    size={16}
+                    color={COLORS.text}
+                    style={styles.buttonIcon}
+                  />
+                  <Text style={styles.downloadButtonText}>Скачать</Text>
+                </Pressable>
+              )
             )}
           </View>
         )}
@@ -666,6 +690,15 @@ const styles = StyleSheet.create({
   },
   offlineBtnPressed: {
     opacity: 0.85,
+  },
+  downloadButtonDisabled: {
+    opacity: 0.75,
+  },
+  downloadButtonDisabledText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: FONTS.montserrat,
   },
   author: {
     paddingHorizontal: 10,

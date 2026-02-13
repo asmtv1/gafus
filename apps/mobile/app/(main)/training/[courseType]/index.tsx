@@ -19,14 +19,10 @@ import { WebView } from "react-native-webview";
 import { Loading } from "@/shared/components/ui";
 import { useTrainingDays } from "@/shared/hooks";
 import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
-import { paymentsApi, type TrainingDay } from "@/shared/lib/api";
+import { coursesApi, paymentsApi, type Course, type TrainingDay } from "@/shared/lib/api";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
-import {
-  showLockedDayAlert,
-  showPaidCoursePaymentOptions,
-  WEB_BASE,
-} from "@/shared/lib/utils/alerts";
+import { showLockedDayAlert, WEB_BASE } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 
@@ -54,8 +50,15 @@ export default function TrainingDaysScreen() {
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
   const [isPaymentChecking, setIsPaymentChecking] = useState(false);
+  const [courseForPay, setCourseForPay] = useState<Course | null>(null);
+  const [isLoadingCourseForPay, setIsLoadingCourseForPay] = useState(false);
   const hasHandledPaymentReturnRef = useRef(false);
-  const hasShownAccessAlertRef = useRef(false);
+
+  const isAccessDenied =
+    (data && "code" in data && data.code === "FORBIDDEN") ||
+    error?.message?.includes("COURSE_ACCESS_DENIED") ||
+    (data && "error" in data && typeof data.error === "string" && data.error.includes("доступа")) ||
+    (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
 
   const onRefresh = useCallback(() => {
     refetch();
@@ -131,31 +134,32 @@ export default function TrainingDaysScreen() {
     [handleClosePaymentWebView],
   );
 
-  // Обработка ошибки доступа к приватному курсу
   useEffect(() => {
-    const isAccessDenied =
-      (data && "code" in data && data.code === "FORBIDDEN") ||
-      error?.message?.includes("COURSE_ACCESS_DENIED") ||
-      (data &&
-        "error" in data &&
-        typeof data.error === "string" &&
-        data.error.includes("доступа")) ||
-      (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
+    if (!isAccessDenied || courseForPay || isLoadingCourseForPay) return;
 
-    if (isAccessDenied && !hasShownAccessAlertRef.current) {
-      hasShownAccessAlertRef.current = true;
-      showPaidCoursePaymentOptions({
-        courseType,
-        onCancel: () => {
-          router.replace("/(main)/(tabs)/courses" as const);
-        },
-        onPayInApp: () => {
-          if (isCreatingPayment) return;
-          void handleCreatePayment();
-        },
-      });
-    }
-  }, [courseType, data, error, handleCreatePayment, isCreatingPayment, router]);
+    let cancelled = false;
+    setIsLoadingCourseForPay(true);
+
+    (async () => {
+      try {
+        const coursesResponse = await coursesApi.getAll();
+        if (cancelled) return;
+
+        if (coursesResponse.success && coursesResponse.data) {
+          const course = coursesResponse.data.find((item) => item.type === courseType) ?? null;
+          setCourseForPay(course);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingCourseForPay(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [courseForPay, courseType, isAccessDenied, isLoadingCourseForPay]);
 
   const handleDayPress = useCallback(
     (day: TrainingDay) => {
@@ -265,18 +269,71 @@ export default function TrainingDaysScreen() {
     return <Loading fullScreen message="Загрузка тренировок..." />;
   }
 
-  // Специальная обработка для ошибки доступа - показываем alert и возвращаем null
-  const isAccessDenied =
-    (data && "code" in data && data.code === "FORBIDDEN") ||
-    error?.message?.includes("COURSE_ACCESS_DENIED") ||
-    (data && "error" in data && typeof data.error === "string" && data.error.includes("доступа")) ||
-    (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
-
   if (isAccessDenied) {
-    // Alert показывается в useEffect, здесь просто возвращаем пустой экран
     return (
-      <SafeAreaView style={styles.container}>
-        <Loading fullScreen message="Проверка доступа..." />
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+          <Text style={styles.backText}>Назад</Text>
+        </Pressable>
+
+        <ScrollView contentContainerStyle={styles.paywallScrollContent}>
+          {courseForPay?.description ? (
+            <CourseDescription
+              description={courseForPay.description}
+              equipment={null}
+              trainingLevel={courseForPay.trainingLevel}
+              onShare={handleShareCourse}
+              courseType={courseType}
+            />
+          ) : null}
+
+          {courseForPay?.dayLinks?.length ? (
+            <View style={styles.outlineSection}>
+              <Text style={styles.outlineTitle}>В курс входит</Text>
+              {courseForPay.dayLinks.map((item) => (
+                <Text key={`${item.order}-${item.day.id}`} style={styles.outlineItem}>
+                  {item.day.title}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+
+          <View style={styles.paywallCard}>
+            <Text style={styles.paywallTitle}>Курс платный</Text>
+            <Text style={styles.paywallSubtitle}>
+              {courseForPay?.name
+                ? `Оплатите «${courseForPay.name}» для доступа к занятиям.`
+                : "Оплатите курс для доступа к занятиям."}
+              {courseForPay?.priceRub && courseForPay.priceRub > 0
+                ? ` Стоимость: ${courseForPay.priceRub} ₽.`
+                : ""}
+            </Text>
+            <Text style={styles.paywallHint}>
+              После оплаты доступ к занятиям откроется автоматически в течение минуты.
+            </Text>
+            <View style={styles.paywallButtons}>
+              <Pressable
+                onPress={() => {
+                  void handleCreatePayment();
+                }}
+                disabled={isCreatingPayment || isLoadingCourseForPay}
+                style={styles.paywallPrimaryButton}
+              >
+                <Text style={styles.paywallPrimaryButtonText}>
+                  {isCreatingPayment ? "Переход к оплате..." : "Оплатить"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.replace("/(main)/(tabs)/courses" as const)}
+                style={styles.paywallSecondaryButton}
+              >
+                <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
+              </Pressable>
+            </View>
+          </View>
+        </ScrollView>
+
         <Snackbar
           visible={snackbar.visible}
           onDismiss={() => setSnackbar({ visible: false, message: "" })}
@@ -493,6 +550,88 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
     paddingHorizontal: 0,
     paddingTop: SPACING.md,
+  },
+  paywallScrollContent: {
+    paddingBottom: SPACING.xl,
+  },
+  outlineSection: {
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 12,
+    backgroundColor: COLORS.cardBackground,
+  },
+  outlineTitle: {
+    fontSize: 20,
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+    marginBottom: SPACING.sm,
+  },
+  outlineItem: {
+    fontSize: 14,
+    color: COLORS.text,
+    marginBottom: 6,
+    fontFamily: FONTS.montserrat,
+  },
+  paywallCard: {
+    marginTop: SPACING.md,
+    marginHorizontal: SPACING.md,
+    padding: SPACING.lg,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#636128",
+    backgroundColor: "#FFF8E5",
+  },
+  paywallTitle: {
+    fontSize: 32,
+    lineHeight: 34,
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+    marginBottom: SPACING.sm,
+  },
+  paywallSubtitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+  },
+  paywallHint: {
+    marginTop: SPACING.sm,
+    fontSize: 13,
+    lineHeight: 20,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserrat,
+  },
+  paywallButtons: {
+    marginTop: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  paywallPrimaryButton: {
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  paywallPrimaryButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#ffffff",
+    fontFamily: FONTS.montserratBold,
+  },
+  paywallSecondaryButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  paywallSecondaryButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
   },
   offlineSection: {
     marginHorizontal: SPACING.md,

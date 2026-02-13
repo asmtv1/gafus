@@ -30,7 +30,7 @@ import { useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
 import { COLORS, FONTS, SPACING } from "@/constants";
 import { getStepContent, paymentsApi, trainingApi } from "@/shared/lib/api";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
-import { showPaidCoursePaymentOptions, WEB_BASE } from "@/shared/lib/utils/alerts";
+import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 
 /**
@@ -53,10 +53,13 @@ export default function TrainingDayScreen() {
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
   const [isPaymentChecking, setIsPaymentChecking] = useState(false);
   const hasHandledPaymentReturnRef = useRef(false);
-  const hasShownAccessAlertRef = useRef(false);
 
   // Загрузка данных дня
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDay(courseType, dayId);
+
+  const isForbidden =
+    (data && "code" in data && data.code === "FORBIDDEN") ||
+    (data && typeof data.error === "string" && data.error.includes("доступ"));
 
   // Stores
   const { getOpenIndex, setOpenIndex } = useTrainingStore();
@@ -394,38 +397,21 @@ export default function TrainingDayScreen() {
   );
 
   useEffect(() => {
-    if (isLoading) return;
-    const isForbidden =
-      (data && "code" in data && data.code === "FORBIDDEN") ||
-      (data && typeof data.error === "string" && data.error.includes("доступ"));
-
-    if (!isForbidden || hasShownAccessAlertRef.current) return;
-    hasShownAccessAlertRef.current = true;
-    showPaidCoursePaymentOptions({
-      courseType,
-      onCancel: () => router.back(),
-      onPayInApp: () => {
-        if (isCreatingPayment) return;
-        void handleCreatePayment();
-      },
-    });
-  }, [courseType, data, handleCreatePayment, isCreatingPayment, isLoading, router]);
+    if (!isForbidden) return;
+    router.replace(`/training/${courseType}`);
+  }, [courseType, isForbidden, router]);
 
   if (isLoading) {
     return <Loading fullScreen message="Загрузка шагов..." />;
   }
 
   if (error || !data?.success) {
-    const isForbidden =
-      (data && "code" in data && data.code === "FORBIDDEN") ||
-      (data && typeof data.error === "string" && data.error.includes("доступ"));
-
     if (isForbidden) {
       return (
         <>
           <Stack.Screen options={{ headerShown: false }} />
           <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-            <Loading fullScreen message="Проверка доступа..." />
+            <Loading fullScreen message="Переход к оплате..." />
             <Snackbar
               visible={snackbar.visible}
               onDismiss={() => setSnackbar({ visible: false, message: "" })}

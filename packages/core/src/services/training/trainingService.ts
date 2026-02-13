@@ -190,6 +190,7 @@ export async function getTrainingDays(
         equipment: true,
         trainingLevel: true,
         isPrivate: true,
+        isPaid: true,
         dayLinks: {
           orderBy: { order: "asc" },
           select: {
@@ -243,8 +244,8 @@ export async function getTrainingDays(
       };
     }
 
-    // Проверяем доступ к приватному курсу
-    if (firstCourse.isPrivate) {
+    // Проверяем доступ к приватному или платному курсу
+    if (firstCourse.isPrivate || firstCourse.isPaid) {
       const hasAccess = await checkCourseAccessById(firstCourse.id, userId);
       if (!hasAccess.hasAccess) {
         throw new Error("COURSE_ACCESS_DENIED");
