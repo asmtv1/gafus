@@ -49,7 +49,10 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
 
     const webBaseUrl = resolveWebBaseUrl();
     if (!webBaseUrl.success) {
-      return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG" }, 500);
+      logger.error(
+        `Payments config error: WEB_APP_URL is invalid (WEB_APP_URL=${process.env.WEB_APP_URL ?? "undefined"}, NEXT_PUBLIC_WEB_APP_URL=${process.env.NEXT_PUBLIC_WEB_APP_URL ?? "undefined"})`,
+      );
+      return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" }, 500);
     }
 
     const course = await prisma.course.findFirst({
@@ -64,7 +67,10 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
     const shopId = process.env.YOOKASSA_SHOP_ID;
     const secretKey = process.env.YOOKASSA_SECRET_KEY;
     if (!shopId || !secretKey) {
-      return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG" }, 500);
+      logger.error(
+        `Payments config error: YOOKASSA credentials are missing (hasShopId=${Boolean(shopId)}, hasSecretKey=${Boolean(secretKey)})`,
+      );
+      return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG_YOOKASSA" }, 500);
     }
 
     const returnUrl =

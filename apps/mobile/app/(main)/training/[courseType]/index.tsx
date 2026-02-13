@@ -7,6 +7,7 @@ import {
   Pressable,
   Share,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { Text, Surface, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -100,6 +101,8 @@ export default function TrainingDaysScreen() {
         RATE_LIMIT: "Слишком много попыток. Повторите через минуту.",
         NETWORK_ERROR: "Нет подключения к интернету.",
         CONFIG: "Платежи временно недоступны.",
+        CONFIG_WEB_APP_URL: "Платежи временно недоступны (конфиг WEB_APP_URL).",
+        CONFIG_YOOKASSA: "Платежи временно недоступны (конфиг YooKassa).",
         NOT_FOUND: "Курс не найден.",
       };
       const fallback = response.error ?? "Не удалось создать платёж";
@@ -115,6 +118,11 @@ export default function TrainingDaysScreen() {
     setPaymentUrl(response.data.confirmationUrl);
     setIsCreatingPayment(false);
   }, [courseForPay?.id, isCreatingPayment]);
+
+  const handlePayOnWebsite = useCallback(() => {
+    const url = `${WEB_BASE}/trainings/${encodeURIComponent(courseType)}`;
+    void Linking.openURL(url);
+  }, [courseType]);
 
   const handleClosePaymentWebView = useCallback(
     async (isReturnUrl: boolean) => {
@@ -140,13 +148,6 @@ export default function TrainingDaysScreen() {
   );
 
   useEffect(() => {
-    if (__DEV__) {
-      console.log("[TrainingDaysScreen] paywall load effect", {
-        isAccessDenied,
-        courseType,
-        skip: !isAccessDenied || !!courseForPay,
-      });
-    }
     if (!isAccessDenied || courseForPay) return;
 
     let cancelled = false;
@@ -155,38 +156,13 @@ export default function TrainingDaysScreen() {
     (async () => {
       try {
         const coursesResponse = await coursesApi.getAll();
-        if (__DEV__) {
-          console.log("[TrainingDaysScreen] coursesApi.getAll()", {
-            success: coursesResponse.success,
-            error: "error" in coursesResponse ? coursesResponse.error : undefined,
-            code: "code" in coursesResponse ? coursesResponse.code : undefined,
-            count: coursesResponse.success && coursesResponse.data ? coursesResponse.data.length : 0,
-          });
-        }
         if (cancelled) return;
 
         if (coursesResponse.success && coursesResponse.data) {
-          const typesFromApi = coursesResponse.data.map((c) => ({ type: c.type, id: c.id }));
-          if (__DEV__) {
-            console.log("[TrainingDaysScreen] course types from API", {
-              lookingFor: courseType,
-              typesFromApi,
-            });
-          }
           const course =
             coursesResponse.data.find((item) => item.type === courseType) ??
             coursesResponse.data.find((item) => item.id === courseType) ??
             null;
-          if (__DEV__) {
-            console.log("[TrainingDaysScreen] courseForPay resolved", {
-              found: !!course,
-              courseType,
-              name: course?.name,
-              hasDescription: !!course?.description,
-              dayLinksCount: course?.dayLinks?.length ?? 0,
-              priceRub: course?.priceRub,
-            });
-          }
           setCourseForPay(course);
         }
       } finally {
@@ -312,13 +288,6 @@ export default function TrainingDaysScreen() {
   }
 
   if (isAccessDenied) {
-    if (__DEV__) {
-      console.log("[TrainingDaysScreen] paywall render", {
-        isLoadingCourseForPay,
-        hasCourseForPay: !!courseForPay,
-        courseName: courseForPay?.name,
-      });
-    }
     return (
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
         <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
@@ -400,6 +369,9 @@ export default function TrainingDaysScreen() {
                 style={styles.paywallSecondaryButton}
               >
                 <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
+              </Pressable>
+              <Pressable onPress={handlePayOnWebsite} style={styles.paywallSecondaryButton}>
+                <Text style={styles.paywallSecondaryButtonText}>Оплатить на сайте</Text>
               </Pressable>
             </View>
           </View>
