@@ -1,5 +1,5 @@
 import { TrainingStatus } from "@gafus/types";
-import type { TrainingDetail } from "@gafus/types";
+import type { TrainingDetail, UserCoursePersonalization } from "@gafus/types";
 /**
  * Получить дни тренировок курса
  */
@@ -24,6 +24,8 @@ export declare function getTrainingDays(
   courseVideoUrl: string | null;
   courseEquipment: string | null;
   courseTrainingLevel: string | null;
+  courseIsPersonalized: boolean;
+  userCoursePersonalization: UserCoursePersonalization | null;
 }>;
 /**
  * Получить детали дня тренировки с шагами пользователя

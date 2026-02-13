@@ -212,23 +212,25 @@ export function CourseCard({
         <Link href={`/training/${course.type}`} asChild>
           <Pressable style={styles.link}>
             <View style={styles.imageContainer}>
-              <Image
-                source={{ uri: course.logoImg }}
-                style={styles.courseImage}
-                contentFit="cover"
-                contentPosition="center"
-                transition={200}
-              />
-              {course.isPaid && (
-                <View style={styles.paidBadge}>
-                  <Text style={styles.paidBadgeText}>Платный</Text>
-                </View>
-              )}
-              {course.isPrivate && (
-                <View style={styles.privateBadge}>
-                  <Text style={styles.privateBadgeText}>Приватный</Text>
-                </View>
-              )}
+              <View style={styles.imageFrame}>
+                <Image
+                  source={{ uri: course.logoImg }}
+                  style={styles.courseImage}
+                  contentFit="contain"
+                  contentPosition="center"
+                  transition={200}
+                />
+                {course.isPaid && (
+                  <View style={styles.paidBadge}>
+                    <Text style={styles.paidBadgeText}>Платный</Text>
+                  </View>
+                )}
+                {course.isPrivate && (
+                  <View style={styles.privateBadge}>
+                    <Text style={styles.privateBadgeText}>Приватный</Text>
+                  </View>
+                )}
+              </View>
             </View>
             <View style={styles.content}>
               <Text style={styles.title}>{course.name}</Text>
@@ -471,45 +473,51 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingTop: PAD_V,
     paddingHorizontal: PAD_IMAGE_H,
-    position: "relative",
     alignSelf: "stretch",
     alignItems: "center",
   },
-  courseImage: {
+  imageFrame: {
     width: "100%",
     maxWidth: 350,
     aspectRatio: 245 / 140,
     borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.onPrimary,
+    position: "relative",
+    overflow: "hidden",
     alignSelf: "center",
+  },
+  courseImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: BORDER_RADIUS.md,
   },
   paidBadge: {
     position: "absolute",
-    top: 8,
-    left: PAD_IMAGE_H + 8,
+    top: 0,
+    left: 0,
     backgroundColor: "rgba(40, 120, 80, 0.9)",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderBottomRightRadius: 8,
   },
   paidBadgeText: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "500",
     fontFamily: FONTS.montserrat,
   },
   privateBadge: {
     position: "absolute",
-    top: 8,
-    right: PAD_IMAGE_H + 8,
+    top: 0,
+    right: 0,
     backgroundColor: "rgba(255, 0, 0, 0.9)",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderBottomLeftRadius: 8,
   },
   privateBadgeText: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "500",
     fontFamily: FONTS.montserrat,
   },

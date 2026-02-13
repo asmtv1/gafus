@@ -89,6 +89,16 @@ trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
 
     return c.json({ success: true, data: result });
   } catch (error) {
+    if (error instanceof Error && error.message === "PERSONALIZATION_REQUIRED") {
+      return c.json(
+        {
+          success: false,
+          error: "Для этого курса нужно заполнить персонализацию",
+          code: "PERSONALIZATION_REQUIRED",
+        },
+        428,
+      );
+    }
     logger.error("Error fetching training day", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }

@@ -7,8 +7,9 @@ import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 import { checkCourseAccess, checkCourseAccessById } from "../course";
 import { calculateCourseStatusFromDayStatuses } from "../../utils/training";
+import { replacePersonalizationPlaceholders } from "../../utils/personalization";
 
-import type { ChecklistQuestion, TrainingDetail } from "@gafus/types";
+import type { ChecklistQuestion, TrainingDetail, UserCoursePersonalization } from "@gafus/types";
 
 const logger = createWebLogger("core-training");
 
@@ -21,6 +22,18 @@ type CourseWithDayLinks = {
   videoUrl: string | null;
   equipment: string | null;
   trainingLevel: string | null;
+  isPersonalized?: boolean | null;
+  userCourses?: {
+    userDisplayName: string | null;
+    userGender: string | null;
+    petName: string | null;
+    petGender: string | null;
+    petNameGen: string | null;
+    petNameDat: string | null;
+    petNameAcc: string | null;
+    petNameIns: string | null;
+    petNamePre: string | null;
+  }[];
   dayLinks: {
     id: string;
     order: number;
@@ -176,6 +189,8 @@ export async function getTrainingDays(
   courseVideoUrl: string | null;
   courseEquipment: string | null;
   courseTrainingLevel: string | null;
+  courseIsPersonalized: boolean;
+  userCoursePersonalization: UserCoursePersonalization | null;
 }> {
   try {
     const courseWhere = courseType ? { type: courseType } : {};
@@ -189,8 +204,24 @@ export async function getTrainingDays(
         videoUrl: true,
         equipment: true,
         trainingLevel: true,
+        isPersonalized: true,
         isPrivate: true,
         isPaid: true,
+        userCourses: {
+          where: { userId },
+          select: {
+            userDisplayName: true,
+            userGender: true,
+            petName: true,
+            petGender: true,
+            petNameGen: true,
+            petNameDat: true,
+            petNameAcc: true,
+            petNameIns: true,
+            petNamePre: true,
+          },
+          take: 1,
+        },
         dayLinks: {
           orderBy: { order: "asc" },
           select: {
@@ -241,6 +272,8 @@ export async function getTrainingDays(
         courseVideoUrl: null,
         courseEquipment: null,
         courseTrainingLevel: null,
+        courseIsPersonalized: false,
+        userCoursePersonalization: null,
       };
     }
 
@@ -253,6 +286,25 @@ export async function getTrainingDays(
     }
 
     const trainingDays = mapCourseToTrainingDays(firstCourse as unknown as CourseWithDayLinks);
+    const uc = firstCourse.userCourses?.[0];
+    const hasPersonalization =
+      uc?.userDisplayName != null && String(uc.userDisplayName).trim() !== "";
+    const userCoursePersonalization = hasPersonalization
+      ? {
+          userDisplayName: String(uc!.userDisplayName).trim(),
+          userGender: (uc!.userGender === "female" ? "female" : "male") as "male" | "female",
+          petName: String(uc!.petName ?? "").trim(),
+          petGender:
+            (uc!.petGender === "female" || uc!.petGender === "male"
+              ? uc!.petGender
+              : null) as "male" | "female" | null,
+          petNameGen: uc!.petNameGen?.trim() ?? null,
+          petNameDat: uc!.petNameDat?.trim() ?? null,
+          petNameAcc: uc!.petNameAcc?.trim() ?? null,
+          petNameIns: uc!.petNameIns?.trim() ?? null,
+          petNamePre: uc!.petNamePre?.trim() ?? null,
+        }
+      : null;
 
     return {
       trainingDays,
@@ -261,6 +313,8 @@ export async function getTrainingDays(
       courseVideoUrl: firstCourse.videoUrl,
       courseEquipment: firstCourse.equipment,
       courseTrainingLevel: firstCourse.trainingLevel,
+      courseIsPersonalized: firstCourse.isPersonalized ?? false,
+      userCoursePersonalization,
     };
   } catch (error) {
     logger.error("Ошибка в getTrainingDays", error as Error);
@@ -337,6 +391,22 @@ export async function getTrainingDayWithUserSteps(
       course: {
         select: {
           duration: true,
+          isPersonalized: true,
+          userCourses: {
+            where: { userId },
+            select: {
+              userDisplayName: true,
+              userGender: true,
+              petName: true,
+              petGender: true,
+              petNameGen: true,
+              petNameDat: true,
+              petNameAcc: true,
+              petNameIns: true,
+              petNamePre: true,
+            },
+            take: 1,
+          },
         },
       },
       day: {
@@ -389,10 +459,40 @@ export async function getTrainingDayWithUserSteps(
     id: foundDayOnCourseId,
     order: physicalOrder,
     courseId,
-    course: { duration: courseDuration },
+    course: { duration: courseDuration, isPersonalized, userCourses },
     day: { id: trainingDayId, title, description, type, stepLinks },
     userTrainings,
   } = found;
+
+  const userCourse = userCourses[0] ?? null;
+  const hasPersonalization =
+    userCourse?.userDisplayName != null && String(userCourse.userDisplayName).trim() !== "";
+  const requiresPersonalization = Boolean(isPersonalized) && !hasPersonalization;
+
+  if (requiresPersonalization) {
+    throw new Error("PERSONALIZATION_REQUIRED");
+  }
+
+  const personalization =
+    isPersonalized && hasPersonalization
+      ? {
+          userDisplayName: String(userCourse!.userDisplayName).trim(),
+          userGender:
+            (userCourse!.userGender === "female" ? "female" : "male") as "male" | "female",
+          petName: String(userCourse!.petName ?? "").trim(),
+          petGender:
+            (userCourse!.petGender === "female" || userCourse!.petGender === "male"
+              ? userCourse!.petGender
+              : null) as "male" | "female" | null,
+          petNameGen: userCourse!.petNameGen?.trim() ?? null,
+          petNameDat: userCourse!.petNameDat?.trim() ?? null,
+          petNameAcc: userCourse!.petNameAcc?.trim() ?? null,
+          petNameIns: userCourse!.petNameIns?.trim() ?? null,
+          petNamePre: userCourse!.petNamePre?.trim() ?? null,
+        }
+      : null;
+  const applyPlaceholders = (text: string): string =>
+    personalization ? replacePersonalizationPlaceholders(text, personalization) : text;
 
   // Пересчитываем номер дня для отображения
   const allDays = await prisma.dayOnCourse.findMany({
@@ -421,8 +521,8 @@ export async function getTrainingDayWithUserSteps(
   if (!userTrainingId) {
     const steps = stepLinks.map(({ step, order }) => ({
       id: step.id,
-      title: step.title,
-      description: step.description,
+      title: applyPlaceholders(step.title),
+      description: applyPlaceholders(step.description),
       durationSec: step.durationSec ?? 0,
       estimatedDurationSec: step.estimatedDurationSec ?? null,
       videoUrl: step.videoUrl ?? "",
@@ -444,10 +544,10 @@ export async function getTrainingDayWithUserSteps(
       trainingDayId,
       dayOnCourseId: foundDayOnCourseId,
       displayDayNumber,
-      title,
+      title: applyPlaceholders(title),
       type,
       courseId,
-      description: description ?? "",
+      description: applyPlaceholders(description ?? ""),
       duration: courseDuration ?? "",
       userStatus: TrainingStatus.NOT_STARTED,
       steps,
@@ -541,8 +641,8 @@ export async function getTrainingDayWithUserSteps(
 
   const steps = stepLinks.map(({ id: stepOnDayId, step, order }) => ({
     id: step.id,
-    title: step.title,
-    description: step.description,
+    title: applyPlaceholders(step.title),
+    description: applyPlaceholders(step.description),
     durationSec: step.durationSec ?? 0,
     estimatedDurationSec: step.estimatedDurationSec ?? null,
     videoUrl: step.videoUrl ?? "",
@@ -571,10 +671,10 @@ export async function getTrainingDayWithUserSteps(
     trainingDayId,
     dayOnCourseId: foundDayOnCourseId,
     displayDayNumber,
-    title,
+    title: applyPlaceholders(title),
     type,
     courseId,
-    description: description ?? "",
+    description: applyPlaceholders(description ?? ""),
     duration: courseDuration ?? "",
     userStatus: userTraining ? dayUserStatus : TrainingStatus.NOT_STARTED,
     steps,

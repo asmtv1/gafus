@@ -60,6 +60,8 @@ export default function TrainingDayScreen() {
   const isForbidden =
     (data && "code" in data && data.code === "FORBIDDEN") ||
     (data && typeof data.error === "string" && data.error.includes("доступ"));
+  const isPersonalizationRequired =
+    data != null && "code" in data && data.code === "PERSONALIZATION_REQUIRED";
 
   // Stores
   const { getOpenIndex, setOpenIndex } = useTrainingStore();
@@ -405,11 +407,27 @@ export default function TrainingDayScreen() {
     router.replace(`/training/${courseType}`);
   }, [courseType, isForbidden, router]);
 
+  useEffect(() => {
+    if (!isPersonalizationRequired) return;
+    router.replace(`/training/${courseType}?personalize=1`);
+  }, [courseType, isPersonalizationRequired, router]);
+
   if (isLoading) {
     return <Loading fullScreen message="Загрузка шагов..." />;
   }
 
   if (error || !data?.success) {
+    if (isPersonalizationRequired) {
+      return (
+        <>
+          <Stack.Screen options={{ headerShown: false }} />
+          <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+            <Loading fullScreen message="Переход к персонализации..." />
+          </SafeAreaView>
+        </>
+      );
+    }
+
     if (isForbidden) {
       return (
         <>

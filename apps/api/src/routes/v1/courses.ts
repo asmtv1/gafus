@@ -10,6 +10,7 @@ import {
   getCoursesWithProgress,
   checkCourseAccess,
   checkCourseAccessById,
+  saveCoursePersonalization,
   getFavoritesCourses,
   toggleFavoriteCourse,
   addFavoriteCourse,
@@ -126,6 +127,42 @@ coursesRoutes.post("/favorites", zValidator("json", toggleFavoriteSchema), async
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
+
+// ==================== POST /courses/personalization ====================
+// Сохранить персонализацию курса
+const savePersonalizationSchema = z.object({
+  courseId: z.string().min(1, "courseId обязателен"),
+  userDisplayName: z.string().trim().min(1, "Укажите имя"),
+  userGender: z.enum(["male", "female"]),
+  petName: z.string().trim().min(1, "Укажите кличку питомца"),
+  petGender: z.enum(["male", "female"]).nullable().optional(),
+  petNameGen: z.string().trim().nullable().optional(),
+  petNameDat: z.string().trim().nullable().optional(),
+  petNameAcc: z.string().trim().nullable().optional(),
+  petNameIns: z.string().trim().nullable().optional(),
+  petNamePre: z.string().trim().nullable().optional(),
+});
+
+coursesRoutes.post(
+  "/personalization",
+  zValidator("json", savePersonalizationSchema),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const payload = c.req.valid("json");
+      const result = await saveCoursePersonalization(user.id, payload.courseId, payload);
+
+      if (!result.success) {
+        return c.json({ success: false, error: result.error, code: "VALIDATION_ERROR" }, 400);
+      }
+
+      return c.json({ success: true });
+    } catch (error) {
+      logger.error("Error in course personalization API", error as Error);
+      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    }
+  },
+);
 
 // ==================== GET /courses/metadata ====================
 // Получить метаданные курса для OG

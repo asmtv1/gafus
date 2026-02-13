@@ -75,6 +75,19 @@ export interface CourseReviewsResponse {
   };
 }
 
+export interface SaveCoursePersonalizationData {
+  courseId: string;
+  userDisplayName: string;
+  userGender: "male" | "female";
+  petName: string;
+  petGender?: "male" | "female" | null;
+  petNameGen?: string | null;
+  petNameDat?: string | null;
+  petNameAcc?: string | null;
+  petNameIns?: string | null;
+  petNamePre?: string | null;
+}
+
 /**
  * API модуль для работы с курсами
  */
@@ -170,6 +183,18 @@ export const coursesApi = {
     return apiClient<void>("/api/v1/courses/reviews", {
       method: "DELETE",
       body: { reviewId },
+    });
+  },
+
+  /**
+   * Сохранить персонализацию курса
+   */
+  savePersonalization: async (
+    payload: SaveCoursePersonalizationData,
+  ): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/courses/personalization", {
+      method: "POST",
+      body: payload,
     });
   },
 };

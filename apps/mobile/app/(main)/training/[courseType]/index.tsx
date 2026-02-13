@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Linking,
 } from "react-native";
-import { Text, Surface, Snackbar } from "react-native-paper";
+import { Text, Surface, Snackbar, TextInput } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -31,7 +31,10 @@ import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
  * Экран списка дней тренировок курса
  */
 export default function TrainingDaysScreen() {
-  const { courseType } = useLocalSearchParams<{ courseType: string }>();
+  const { courseType, personalize } = useLocalSearchParams<{
+    courseType: string;
+    personalize?: string;
+  }>();
   const router = useRouter();
 
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDays(courseType);
@@ -53,6 +56,11 @@ export default function TrainingDaysScreen() {
   const [isPaymentChecking, setIsPaymentChecking] = useState(false);
   const [courseForPay, setCourseForPay] = useState<Course | null>(null);
   const [isLoadingCourseForPay, setIsLoadingCourseForPay] = useState(false);
+  const [userDisplayName, setUserDisplayName] = useState("");
+  const [userGender, setUserGender] = useState<"male" | "female">("male");
+  const [petName, setPetName] = useState("");
+  const [petGender, setPetGender] = useState<"male" | "female" | null>(null);
+  const [isSavingPersonalization, setIsSavingPersonalization] = useState(false);
   const hasHandledPaymentReturnRef = useRef(false);
 
   const isAccessDenied =
@@ -60,6 +68,19 @@ export default function TrainingDaysScreen() {
     error?.message?.includes("COURSE_ACCESS_DENIED") ||
     (data && "error" in data && typeof data.error === "string" && data.error.includes("доступа")) ||
     (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
+  const needPersonalization = Boolean(
+    (courseData?.courseIsPersonalized && !courseData?.userCoursePersonalization) ||
+      personalize === "1",
+  );
+
+  useEffect(() => {
+    const existing = courseData?.userCoursePersonalization;
+    if (!existing) return;
+    setUserDisplayName(existing.userDisplayName ?? "");
+    setUserGender(existing.userGender === "female" ? "female" : "male");
+    setPetName(existing.petName ?? "");
+    setPetGender(existing.petGender ?? null);
+  }, [courseData?.userCoursePersonalization]);
 
   const onRefresh = useCallback(() => {
     refetch();
@@ -123,6 +144,47 @@ export default function TrainingDaysScreen() {
     const url = `${WEB_BASE}/trainings/${encodeURIComponent(courseType)}`;
     void Linking.openURL(url);
   }, [courseType]);
+
+  const handleSavePersonalization = useCallback(async () => {
+    const courseId = courseData?.courseId;
+    if (!courseId) {
+      setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
+      return;
+    }
+    const trimmedUserDisplayName = userDisplayName.trim();
+    const trimmedPetName = petName.trim();
+    if (!trimmedUserDisplayName) {
+      setSnackbar({ visible: true, message: "Укажите имя." });
+      return;
+    }
+    if (!trimmedPetName) {
+      setSnackbar({ visible: true, message: "Укажите кличку питомца." });
+      return;
+    }
+
+    setIsSavingPersonalization(true);
+    const response = await coursesApi.savePersonalization({
+      courseId,
+      userDisplayName: trimmedUserDisplayName,
+      userGender,
+      petName: trimmedPetName,
+      petGender,
+    });
+
+    if (!response.success) {
+      setSnackbar({
+        visible: true,
+        message: response.error ?? "Не удалось сохранить персонализацию.",
+      });
+      setIsSavingPersonalization(false);
+      return;
+    }
+
+    await refetch();
+    router.replace(`/training/${courseType}`);
+    setSnackbar({ visible: true, message: "Персонализация сохранена." });
+    setIsSavingPersonalization(false);
+  }, [courseData?.courseId, courseType, petGender, petName, refetch, router, userDisplayName, userGender]);
 
   const handleClosePaymentWebView = useCallback(
     async (isReturnUrl: boolean) => {
@@ -412,6 +474,158 @@ export default function TrainingDaysScreen() {
     );
   }
 
+  if (needPersonalization) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+          <Text style={styles.backText}>Назад</Text>
+        </Pressable>
+        <ScrollView contentContainerStyle={styles.personalizationScrollContent}>
+          <View style={styles.personalizationCard}>
+            <Text style={styles.personalizationTitle}>Персонализация курса</Text>
+            <Text style={styles.personalizationText}>
+              Заполните данные для персонализированного курса, чтобы продолжить тренировки.
+            </Text>
+
+            <TextInput
+              label="Ваше имя"
+              value={userDisplayName}
+              onChangeText={setUserDisplayName}
+              mode="outlined"
+              style={styles.personalizationInput}
+              autoCapitalize="words"
+            />
+
+            <Text style={styles.personalizationLabel}>Ваш пол</Text>
+            <View style={styles.genderRow}>
+              <Pressable
+                onPress={() => setUserGender("male")}
+                style={[
+                  styles.genderButton,
+                  userGender === "male" && styles.genderButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    userGender === "male" && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Мужской
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setUserGender("female")}
+                style={[
+                  styles.genderButton,
+                  userGender === "female" && styles.genderButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    userGender === "female" && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Женский
+                </Text>
+              </Pressable>
+            </View>
+
+            <TextInput
+              label="Кличка питомца"
+              value={petName}
+              onChangeText={setPetName}
+              mode="outlined"
+              style={styles.personalizationInput}
+              autoCapitalize="words"
+            />
+
+            <Text style={styles.personalizationLabel}>Пол питомца (опционально)</Text>
+            <View style={styles.genderRow}>
+              <Pressable
+                onPress={() => setPetGender("male")}
+                style={[
+                  styles.genderButton,
+                  petGender === "male" && styles.genderButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    petGender === "male" && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Самец
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setPetGender("female")}
+                style={[
+                  styles.genderButton,
+                  petGender === "female" && styles.genderButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    petGender === "female" && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Самка
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setPetGender(null)}
+                style={[
+                  styles.genderButton,
+                  petGender == null && styles.genderButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    petGender == null && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Не указывать
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.personalizationButtons}>
+              <Pressable
+                onPress={() => {
+                  void handleSavePersonalization();
+                }}
+                disabled={isSavingPersonalization}
+                style={styles.paywallPrimaryButton}
+              >
+                <Text style={styles.paywallPrimaryButtonText}>
+                  {isSavingPersonalization ? "Сохранение..." : "Сохранить и продолжить"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.replace("/(main)/(tabs)/courses" as const)}
+                style={styles.paywallSecondaryButton}
+              >
+                <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
+              </Pressable>
+            </View>
+          </View>
+        </ScrollView>
+        <Snackbar
+          visible={snackbar.visible}
+          onDismiss={() => setSnackbar({ visible: false, message: "" })}
+          duration={2000}
+        >
+          {snackbar.message}
+        </Snackbar>
+      </SafeAreaView>
+    );
+  }
+
   if (error || !data?.success) {
     return (
       <SafeAreaView style={styles.container}>
@@ -596,6 +810,74 @@ const styles = StyleSheet.create({
   },
   paywallScrollContent: {
     paddingBottom: SPACING.xl,
+  },
+  personalizationScrollContent: {
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.xl,
+  },
+  personalizationCard: {
+    marginTop: SPACING.md,
+    padding: SPACING.lg,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#636128",
+    backgroundColor: "#FFF8E5",
+  },
+  personalizationTitle: {
+    fontSize: 28,
+    lineHeight: 30,
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+    marginBottom: SPACING.sm,
+  },
+  personalizationText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+    marginBottom: SPACING.md,
+  },
+  personalizationInput: {
+    backgroundColor: "#FFF8E5",
+    marginBottom: SPACING.sm,
+  },
+  personalizationLabel: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserrat,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  genderRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  genderButton: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.surface,
+  },
+  genderButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  genderButtonText: {
+    fontSize: 13,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+  },
+  genderButtonTextActive: {
+    color: "#ffffff",
+    fontFamily: FONTS.montserratBold,
+  },
+  personalizationButtons: {
+    marginTop: SPACING.sm,
+    gap: SPACING.sm,
   },
   paywallContentTitle: {
     color: "#352e2e",

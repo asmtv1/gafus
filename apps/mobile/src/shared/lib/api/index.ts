@@ -13,6 +13,7 @@ export {
   type CourseFilters,
   type CourseReview,
   type CourseReviewsResponse,
+  type SaveCoursePersonalizationData,
 } from "./courses";
 export {
   getStepContent,

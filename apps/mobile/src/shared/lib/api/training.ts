@@ -1,4 +1,5 @@
 import { apiClient, type ApiResponse } from "./client";
+import type { UserCoursePersonalization } from "@gafus/types";
 
 // Типы для тренировок
 export interface TrainingDay {
@@ -23,6 +24,8 @@ export interface TrainingDaysResponse {
   courseVideoUrl: string;
   courseEquipment: string;
   courseTrainingLevel: string;
+  courseIsPersonalized?: boolean;
+  userCoursePersonalization?: UserCoursePersonalization | null;
 }
 
 /** Данные шага из курса (вложенный объект в UserStep или плоский шаг из офлайна). */
