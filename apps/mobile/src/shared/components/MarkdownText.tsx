@@ -1,5 +1,7 @@
 import { View, StyleSheet, Text } from "react-native";
 
+import { FONTS } from "@/constants";
+
 /** Рендер markdown (жирный, курсив, заголовки, списки) для React Native */
 export function MarkdownText({ text }: { text: string }) {
   if (!text || typeof text !== "string") return null;
@@ -109,6 +111,13 @@ export function MarkdownText({ text }: { text: string }) {
     if (t.startsWith(">")) {
       t = t.replace(/^>\s?/, "").trim();
     }
+    // Горизонтальная линия (---, ***, ___) — как в web
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) {
+      flushParagraph();
+      flushList();
+      elements.push(<View key={`hr-${index}`} style={styles.hr} />);
+      return;
+    }
     if (t.startsWith("# ")) {
       flushParagraph();
       flushList();
@@ -191,19 +200,70 @@ export function MarkdownText({ text }: { text: string }) {
 const styles = StyleSheet.create({
   root: {},
   paragraph: { marginBottom: 8 },
-  paragraphText: { fontSize: 14, lineHeight: 20, color: "#352E2E" },
-  bold: { fontWeight: "600" },
-  italic: { fontStyle: "italic" },
+  paragraphText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#352E2E",
+    fontFamily: FONTS.montserrat,
+  },
+  bold: { fontWeight: "600", fontFamily: FONTS.montserrat },
+  italic: { fontStyle: "italic", fontFamily: FONTS.montserrat },
   heading: { marginTop: 12, marginBottom: 8 },
-  h1: { fontSize: 20, fontWeight: "600", color: "#352E2E" },
-  h2: { fontSize: 18, fontWeight: "600", color: "#352E2E" },
-  h3: { fontSize: 16, fontWeight: "600", color: "#352E2E" },
-  h4: { fontSize: 15, fontWeight: "600", color: "#352E2E" },
-  h5: { fontSize: 14, fontWeight: "600", color: "#352E2E" },
-  h6: { fontSize: 13, fontWeight: "600", color: "#352E2E" },
+  h1: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+  },
+  h2: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+  },
+  h3: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+  },
+  h4: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+  },
+  h5: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+  },
+  h6: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+  },
   list: { marginBottom: 8, paddingLeft: 8 },
   listItem: { flexDirection: "row", marginBottom: 4 },
-  bullet: { marginRight: 6, fontSize: 14, color: "#352E2E" },
+  bullet: {
+    marginRight: 6,
+    fontSize: 14,
+    color: "#352E2E",
+    fontFamily: FONTS.montserrat,
+  },
   listTextWrap: { flex: 1 },
-  listText: { fontSize: 14, lineHeight: 20, color: "#352E2E" },
+  listText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#352E2E",
+    fontFamily: FONTS.montserrat,
+  },
+  hr: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+    marginVertical: 12,
+    alignSelf: "stretch",
+  },
 });

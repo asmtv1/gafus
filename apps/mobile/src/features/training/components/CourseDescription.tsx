@@ -3,7 +3,7 @@ import { View, StyleSheet, Pressable } from "react-native";
 import { Text, Surface } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, FONTS, SPACING } from "@/constants";
 
 interface CourseDescriptionProps {
   description: string | null;
@@ -214,6 +214,30 @@ export function CourseDescription({
         );
         return;
       }
+      if (/^#{4,6}\s/.test(trimmed)) {
+        flushParagraph();
+        flushList();
+        const title = trimmed.replace(/^#+\s/, "");
+        const level = (trimmed.match(/^(#+)/)?.[1]?.length) ?? 4;
+        const style =
+          level <= 4
+            ? styles.markdownH4
+            : level <= 5
+              ? styles.markdownH5
+              : styles.markdownH6;
+        elements.push(
+          <View key={`h${level}-${index}`} style={styles.headingContainer}>
+            {renderTextWithFormatting(title, style)}
+          </View>,
+        );
+        return;
+      }
+      if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+        flushParagraph();
+        flushList();
+        elements.push(<View key={`hr-${index}`} style={styles.markdownHr} />);
+        return;
+      }
 
       // Списки
       if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
@@ -384,14 +408,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: "#352E2E",
+    fontFamily: FONTS.montserrat,
   },
   markdownBold: {
     fontWeight: "600",
     color: "#352E2E",
+    fontFamily: FONTS.montserrat,
   },
   markdownItalic: {
     fontStyle: "italic",
     color: "#5a5249",
+    fontFamily: FONTS.montserrat,
   },
   markdownH1: {
     fontSize: 20,
@@ -399,6 +426,7 @@ const styles = StyleSheet.create({
     color: "#352E2E",
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
+    fontFamily: FONTS.impact,
   },
   markdownH2: {
     fontSize: 18,
@@ -406,6 +434,7 @@ const styles = StyleSheet.create({
     color: "#352E2E",
     marginTop: SPACING.md,
     marginBottom: SPACING.xs,
+    fontFamily: FONTS.impact,
   },
   markdownH3: {
     fontSize: 16,
@@ -413,6 +442,37 @@ const styles = StyleSheet.create({
     color: "#352E2E",
     marginTop: SPACING.sm,
     marginBottom: SPACING.xs,
+    fontFamily: FONTS.impact,
+  },
+  markdownH4: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#352E2E",
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
+    fontFamily: FONTS.impact,
+  },
+  markdownH5: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#352E2E",
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
+    fontFamily: FONTS.impact,
+  },
+  markdownH6: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#352E2E",
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
+    fontFamily: FONTS.impact,
+  },
+  markdownHr: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+    marginVertical: 12,
+    alignSelf: "stretch",
   },
   listContainer: {
     marginLeft: SPACING.md,
@@ -426,11 +486,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#352E2E",
     marginRight: SPACING.xs,
+    fontFamily: FONTS.montserrat,
   },
   listText: {
     fontSize: 14,
     lineHeight: 20,
     color: "#352E2E",
+    fontFamily: FONTS.montserrat,
   },
   listTextContainer: {
     flex: 1,
