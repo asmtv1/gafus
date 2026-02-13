@@ -90,3 +90,19 @@ export const apiRateLimiter = rateLimiter({
   },
   store,
 });
+
+/**
+ * Отдельный лимит для создания платежей
+ * 10 запросов в минуту на пользователя
+ */
+export const paymentsRateLimiter = rateLimiter({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-6",
+  keyGenerator: (c) => {
+    const user = c.get("user");
+    if (user) return `payments:${user.id}`;
+    return `payments-ip:${getClientIp(c)}`;
+  },
+  store,
+});

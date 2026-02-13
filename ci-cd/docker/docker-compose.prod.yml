@@ -233,6 +233,11 @@ services:
       - REDIS_URL=${REDIS_URL}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      # ЮKassa (платежи через API)
+      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
+      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      # База web URL для return_url платежей
+      - WEB_APP_URL=${WEB_APP_URL}
       # HLS Video Protection
       - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
       # Yandex Cloud Object Storage (для загрузки манифестов и сегментов)

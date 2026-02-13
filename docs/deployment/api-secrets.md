@@ -78,8 +78,9 @@ api:
 | `YC_ACCESS_KEY_ID`     | Yandex Cloud CDN      | Apps with uploads |
 | `YC_SECRET_ACCESS_KEY` | Yandex Cloud CDN      | Apps with uploads |
 | `VIDEO_ACCESS_SECRET`  | HLS protection        | Apps with video   |
-| `YOOKASSA_SHOP_ID`     | ЮKassa shop id        | Web (платежи)      |
-| `YOOKASSA_SECRET_KEY`  | ЮKassa secret key     | Web (платежи)      |
+| `YOOKASSA_SHOP_ID`     | ЮKassa shop id        | Web + API (платежи) |
+| `YOOKASSA_SECRET_KEY`  | ЮKassa secret key     | Web + API (платежи) |
+| `WEB_APP_URL`          | Базовый URL web для return_url | API (платежи) |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Email для контактов/реквизитов | Web (страница контактов) |
 | `NEXT_PUBLIC_CONTACT_PHONE` | Телефон для контактов | Web (страница контактов) |
 | `NEXT_PUBLIC_CONTACT_FIO`   | ФИО для реквизитов    | Web (страница контактов) |

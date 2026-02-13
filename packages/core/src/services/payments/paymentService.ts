@@ -13,7 +13,8 @@ const MAX_AMOUNT_RUB = 100000; // Максимальная сумма плате
 export interface CreatePaymentParams {
   userId: string;
   courseId: string;
-  origin: string;
+  origin?: string;
+  returnUrl?: string;
   shopId: string;
   secretKey: string;
 }
@@ -41,7 +42,11 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
   paymentId: string;
   confirmationUrl: string;
 } | { success: false; error: string }> {
-  const { userId, courseId, origin, shopId, secretKey } = params;
+  const { userId, courseId, origin, returnUrl, shopId, secretKey } = params;
+
+  if (!origin && !returnUrl) {
+    return { success: false, error: "Не указан returnUrl или origin" };
+  }
 
   const course = await prisma.course.findUnique({
     where: { id: courseId },
@@ -101,11 +106,25 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
     return { success: false, error: "Не удалось создать платёж" };
   }
 
-  const returnUrl = `${origin.replace(/\/$/, "")}/trainings/${course.type}?paid=1`;
+  let finalReturnUrl: string;
+  if (returnUrl) {
+    try {
+      const parsed = new URL(returnUrl);
+      if (parsed.protocol !== "https:") {
+        return { success: false, error: "returnUrl должен использовать HTTPS" };
+      }
+      finalReturnUrl = parsed.toString();
+    } catch {
+      return { success: false, error: "Некорректный returnUrl" };
+    }
+  } else {
+    finalReturnUrl = `${origin!.replace(/\/$/, "")}/trainings/${course.type}?paid=1`;
+  }
+
   const body = {
     amount: { value: amountRub.toFixed(2), currency: "RUB" },
     capture: true, // списание сразу при оплате, без ручного подтверждения в ЛК
-    confirmation: { type: "redirect" as const, return_url: returnUrl },
+    confirmation: { type: "redirect" as const, return_url: finalReturnUrl },
     description: "Оплата курса",
   };
 

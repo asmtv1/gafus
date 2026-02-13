@@ -31,7 +31,7 @@ export function showPrivateCourseAccessDeniedAlert(onConfirm?: () => void): void
   );
 }
 
-const WEB_BASE = "https://gafus.ru";
+export const WEB_BASE = "https://gafus.ru";
 
 export function showPaidCourseAccessDeniedAlert(
   courseType?: string,
@@ -44,6 +44,25 @@ export function showPaidCourseAccessDeniedAlert(
     [
       { text: "Отмена", onPress: onCancel, style: "cancel" },
       { text: "Оплатить на сайте", onPress: () => Linking.openURL(url), style: "default" },
+    ],
+    { cancelable: true },
+  );
+}
+
+export function showPaidCoursePaymentOptions(params: {
+  courseType?: string;
+  onPayInApp: () => void;
+  onCancel?: () => void;
+}): void {
+  const { courseType, onPayInApp, onCancel } = params;
+  const url = courseType ? `${WEB_BASE}/trainings/${courseType}` : `${WEB_BASE}/courses`;
+  Alert.alert(
+    "Нет доступа к курсу",
+    "Этот курс платный. Вы можете оплатить в приложении или перейти на сайт.",
+    [
+      { text: "Отмена", onPress: onCancel, style: "cancel" },
+      { text: "Оплатить на сайте", onPress: () => Linking.openURL(url), style: "default" },
+      { text: "Оплатить", onPress: onPayInApp, style: "default" },
     ],
     { cancelable: true },
   );

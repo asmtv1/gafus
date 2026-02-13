@@ -242,6 +242,49 @@
 
 ---
 
+## Payments — Платежи
+
+### POST `/api/v1/payments/create`
+
+Создание платежа ЮKassa для мобильного приложения.
+
+Требует JWT авторизацию (`Authorization: Bearer <access_token>`).
+
+**Body (ровно одно поле):**
+
+```json
+{ "courseId": "uuid" }
+```
+
+или
+
+```json
+{ "courseType": "personal" }
+```
+
+**Response (success):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "paymentId": "uuid",
+    "confirmationUrl": "https://yoomoney.ru/..."
+  }
+}
+```
+
+**Коды ошибок:**
+
+- `UNAUTHORIZED` (401) — не авторизован
+- `RATE_LIMIT` (429) — слишком много запросов
+- `VALIDATION_ERROR` (400) — некорректный body
+- `NOT_FOUND` (404) — курс не найден
+- `PAYMENT_ERROR` (400/404) — ошибка создания платежа
+- `CONFIG` (500) — не настроены `YOOKASSA_*` или невалиден `WEB_APP_URL`
+
+---
+
 ### POST `/api/v1/training/step/reset`
 
 Сбросить шаг (таймер). Статус шага становится `RESET`, сохраняется полное время `durationSec`. Обнуляет paused и remainingSec, пересчитывает статус дня. Запрещено для `NOT_STARTED` и `COMPLETED`.

@@ -10,7 +10,7 @@ import { requestId } from "hono/request-id";
 import { corsMiddleware } from "./middleware/cors.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { authMiddleware } from "./middleware/auth.js";
-import { authRateLimiter, apiRateLimiter } from "./middleware/rate-limit.js";
+import { authRateLimiter, apiRateLimiter, paymentsRateLimiter } from "./middleware/rate-limit.js";
 import { healthRoutes } from "./routes/v1/health.js";
 import { authRoutes } from "./routes/v1/auth.js";
 import { userRoutes } from "./routes/v1/user.js";
@@ -23,6 +23,7 @@ import { achievementsRoutes } from "./routes/v1/achievements.js";
 import { subscriptionsRoutes } from "./routes/v1/subscriptions.js";
 import { notesRoutes } from "./routes/v1/notes.js";
 import { remindersRoutes } from "./routes/v1/reminders.js";
+import { paymentsRoutes } from "./routes/v1/payments.js";
 
 export const app = new Hono();
 
@@ -81,6 +82,10 @@ app.route("/api/v1/notes", notesRoutes);
 app.use("/api/v1/reminders/*", apiRateLimiter);
 app.use("/api/v1/reminders/*", authMiddleware);
 app.route("/api/v1/reminders", remindersRoutes);
+
+app.use("/api/v1/payments/*", authMiddleware);
+app.use("/api/v1/payments/create", paymentsRateLimiter);
+app.route("/api/v1/payments", paymentsRoutes);
 
 // Global error handler
 app.onError(errorHandler);

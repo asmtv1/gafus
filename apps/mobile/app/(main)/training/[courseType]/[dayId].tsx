@@ -1,10 +1,18 @@
-import { useCallback, useMemo, useEffect } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from "react-native";
+import { useCallback, useMemo, useEffect, useRef } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  Pressable,
+  ActivityIndicator,
+} from "react-native";
 import { Text, Surface, Snackbar, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
+import { WebView } from "react-native-webview";
 
 import { Loading } from "@/shared/components/ui";
 import { MarkdownText } from "@/shared/components";
@@ -20,9 +28,10 @@ import {
 } from "@/shared/hooks";
 import { useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
 import { COLORS, FONTS, SPACING } from "@/constants";
-import { getStepContent, trainingApi } from "@/shared/lib/api";
+import { getStepContent, paymentsApi, trainingApi } from "@/shared/lib/api";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
-import { showPaidCourseAccessDeniedAlert } from "@/shared/lib/utils/alerts";
+import { showPaidCoursePaymentOptions, WEB_BASE } from "@/shared/lib/utils/alerts";
+import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 
 /**
  * Экран дня тренировки с шагами
@@ -40,6 +49,11 @@ export default function TrainingDayScreen() {
   const [diaryEntries, setDiaryEntries] = useState<
     { id: string; content: string; createdAt: string; dayOnCourseId: string }[]
   >([]);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [isPaymentChecking, setIsPaymentChecking] = useState(false);
+  const hasHandledPaymentReturnRef = useRef(false);
+  const hasShownAccessAlertRef = useRef(false);
 
   // Загрузка данных дня
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDay(courseType, dayId);
@@ -310,6 +324,93 @@ export default function TrainingDayScreen() {
     };
   }, [dayData?.steps, courseId, dayId, getStepState]);
 
+  const pollAccessAfterPayment = useCallback(async () => {
+    setIsPaymentChecking(true);
+    await refetch();
+    const delays = [2000, 3000, 5000];
+    for (const delayMs of delays) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      const next = await refetch();
+      if (next.data?.success) {
+        setSnackbar({ visible: true, message: "Оплата подтверждена. Доступ открыт." });
+        setIsPaymentChecking(false);
+        return;
+      }
+    }
+    setSnackbar({
+      visible: true,
+      message: "Оплата обрабатывается. Обновите экран через несколько секунд.",
+    });
+    setIsPaymentChecking(false);
+  }, [refetch]);
+
+  const handleCreatePayment = useCallback(async () => {
+    if (isCreatingPayment) return;
+    setIsCreatingPayment(true);
+
+    const response = await paymentsApi.createPayment({ courseType });
+    if (!response.success || !response.data?.confirmationUrl) {
+      const messageByCode: Record<string, string> = {
+        RATE_LIMIT: "Слишком много попыток. Повторите через минуту.",
+        NETWORK_ERROR: "Нет подключения к интернету.",
+        CONFIG: "Платежи временно недоступны.",
+        NOT_FOUND: "Курс не найден.",
+      };
+      const fallback = response.error ?? "Не удалось создать платёж";
+      setSnackbar({
+        visible: true,
+        message: response.code ? (messageByCode[response.code] ?? fallback) : fallback,
+      });
+      setIsCreatingPayment(false);
+      return;
+    }
+
+    hasHandledPaymentReturnRef.current = false;
+    setPaymentUrl(response.data.confirmationUrl);
+    setIsCreatingPayment(false);
+  }, [courseType, isCreatingPayment]);
+
+  const handleClosePaymentWebView = useCallback(
+    async (isReturnUrl: boolean) => {
+      setPaymentUrl(null);
+      if (isReturnUrl) {
+        await pollAccessAfterPayment();
+      } else {
+        await refetch();
+      }
+    },
+    [pollAccessAfterPayment, refetch],
+  );
+
+  const handlePaymentNavigation = useCallback(
+    async (url?: string) => {
+      if (!url || hasHandledPaymentReturnRef.current) return;
+      const expectedHost = new URL(WEB_BASE).host;
+      if (!isPaymentSuccessReturnUrl(url, expectedHost)) return;
+      hasHandledPaymentReturnRef.current = true;
+      await handleClosePaymentWebView(true);
+    },
+    [handleClosePaymentWebView],
+  );
+
+  useEffect(() => {
+    if (isLoading) return;
+    const isForbidden =
+      (data && "code" in data && data.code === "FORBIDDEN") ||
+      (data && typeof data.error === "string" && data.error.includes("доступ"));
+
+    if (!isForbidden || hasShownAccessAlertRef.current) return;
+    hasShownAccessAlertRef.current = true;
+    showPaidCoursePaymentOptions({
+      courseType,
+      onCancel: () => router.back(),
+      onPayInApp: () => {
+        if (isCreatingPayment) return;
+        void handleCreatePayment();
+      },
+    });
+  }, [courseType, data, handleCreatePayment, isCreatingPayment, isLoading, router]);
+
   if (isLoading) {
     return <Loading fullScreen message="Загрузка шагов..." />;
   }
@@ -318,8 +419,43 @@ export default function TrainingDayScreen() {
     const isForbidden =
       (data && "code" in data && data.code === "FORBIDDEN") ||
       (data && typeof data.error === "string" && data.error.includes("доступ"));
+
     if (isForbidden) {
-      showPaidCourseAccessDeniedAlert(courseType, () => router.back());
+      return (
+        <>
+          <Stack.Screen options={{ headerShown: false }} />
+          <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+            <Loading fullScreen message="Проверка доступа..." />
+            <Snackbar
+              visible={snackbar.visible}
+              onDismiss={() => setSnackbar({ visible: false, message: "" })}
+              duration={2000}
+            >
+              {snackbar.message}
+            </Snackbar>
+            {paymentUrl && (
+              <View style={styles.webViewOverlay}>
+                <View style={styles.webViewHeader}>
+                  <Pressable onPress={() => void handleClosePaymentWebView(false)}>
+                    <Text style={styles.webViewCloseText}>Закрыть</Text>
+                  </Pressable>
+                  {isPaymentChecking && <ActivityIndicator color={COLORS.primary} />}
+                </View>
+                <WebView
+                  source={{ uri: paymentUrl }}
+                  onNavigationStateChange={(state) => {
+                    void handlePaymentNavigation(state.url);
+                  }}
+                  onLoadEnd={(event) => {
+                    void handlePaymentNavigation(event.nativeEvent.url);
+                  }}
+                  startInLoadingState={true}
+                />
+              </View>
+            )}
+          </SafeAreaView>
+        </>
+      );
     }
 
     // Формируем понятное сообщение об ошибке
@@ -585,6 +721,26 @@ export default function TrainingDayScreen() {
         >
           {snackbar.message}
         </Snackbar>
+        {paymentUrl && (
+          <View style={styles.webViewOverlay}>
+            <View style={styles.webViewHeader}>
+              <Pressable onPress={() => void handleClosePaymentWebView(false)}>
+                <Text style={styles.webViewCloseText}>Закрыть</Text>
+              </Pressable>
+              {isPaymentChecking && <ActivityIndicator color={COLORS.primary} />}
+            </View>
+            <WebView
+              source={{ uri: paymentUrl }}
+              onNavigationStateChange={(state) => {
+                void handlePaymentNavigation(state.url);
+              }}
+              onLoadEnd={(event) => {
+                void handlePaymentNavigation(event.nativeEvent.url);
+              }}
+              startInLoadingState={true}
+            />
+          </View>
+        )}
       </SafeAreaView>
     </>
   );
@@ -659,6 +815,24 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
+  },
+  webViewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.surface,
+  },
+  webViewHeader: {
+    height: 52,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.borderLight,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  webViewCloseText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.primary,
   },
   descriptionDayContainer: {
     marginBottom: SPACING.lg,

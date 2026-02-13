@@ -102,6 +102,11 @@ REDIS_URL=redis://...               # Redis connection
 # Опциональные
 API_PORT=3001                       # Порт сервера (default: 3001)
 NODE_ENV=production                 # Окружение
+WEB_APP_URL=https://gafus.ru        # Базовый URL web для return_url платежей
+
+# Платежи ЮKassa (обязательны для /api/v1/payments/create)
+YOOKASSA_SHOP_ID=<shop_id>
+YOOKASSA_SECRET_KEY=<secret_key>
 ```
 
 ## Запуск

@@ -53,6 +53,27 @@ YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 - `POST /api/v1/payments/create` — создание платежа (сессия, CSRF, rate limit ~10 req/min на userId).
 - `POST /api/v1/payments/webhook` — приём уведомлений ЮKassa (проверка IP, без CSRF).
 
+## Mobile flow (WebView, вариант A)
+
+1. Приложение вызывает `POST /api/v1/payments/create` с JWT:
+   - body: `{ courseId }` или `{ courseType }` (ровно одно поле).
+2. API возвращает `data.confirmationUrl`.
+3. Приложение открывает `confirmationUrl` во встроенном `WebView`.
+4. ЮKassa редиректит на return URL вида:
+   - `${WEB_APP_URL}/trainings/{courseType}?paid=1&from=app`
+5. Mobile закрывает `WebView` после детекции return URL и проверяет доступ к курсу через refetch.
+
+Важно:
+- успех оплаты в UI показывается только после подтверждённого доступа (а не только по URL `paid=1`);
+- `YOOKASSA_SHOP_ID` и `YOOKASSA_SECRET_KEY` остаются только на сервере;
+- в варианте A мобильный SDK-ключ ЮKassa не используется.
+
+## Webhook Security Checklist (non-regression)
+
+- Неверная подпись `X-Yookassa-Signature` должна возвращать `403`.
+- IP источника вне whitelist ЮKassa должен возвращать `403`.
+- В `payment.succeeded` должна выполняться проверка суммы перед выдачей доступа.
+
 ## Тестовый режим: СБП и QR
 
 В **тестовом магазине** ЮKassa доступны только два способа оплаты: **банковские карты** и **кошелёк ЮMoney**. СБП и оплата по QR-коду в тестовом режиме **не отображаются** — это ограничение самой ЮKassa.

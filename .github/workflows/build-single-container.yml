@@ -378,6 +378,7 @@ jobs:
                 echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
                 echo "ERROR_DASHBOARD_URL=https://monitor.gafus.ru"
                 echo "ERROR_DASHBOARD_INTERNAL_URL=http://gafus-error-dashboard:3005"
+                echo "WEB_APP_URL=https://gafus.ru"
                 echo ""
                 echo "# Cookie домен"
                 echo "AUTH_COOKIE_DOMAIN=.gafus.ru"
@@ -445,6 +446,17 @@ jobs:
                   echo "VIDEO_ACCESS_SECRET=${VIDEO_SECRET}" >> ci-cd/docker/.env
                 fi
                 echo "✅ VIDEO_ACCESS_SECRET updated"
+              fi
+
+              # Обновляем/добавляем env для платежей API
+              if ! grep -q "^YOOKASSA_SHOP_ID=" ci-cd/docker/.env; then
+                echo "YOOKASSA_SHOP_ID=${{ secrets.YOOKASSA_SHOP_ID }}" >> ci-cd/docker/.env
+              fi
+              if ! grep -q "^YOOKASSA_SECRET_KEY=" ci-cd/docker/.env; then
+                echo "YOOKASSA_SECRET_KEY=${{ secrets.YOOKASSA_SECRET_KEY }}" >> ci-cd/docker/.env
+              fi
+              if ! grep -q "^WEB_APP_URL=" ci-cd/docker/.env; then
+                echo "WEB_APP_URL=https://gafus.ru" >> ci-cd/docker/.env
               fi
             fi
 

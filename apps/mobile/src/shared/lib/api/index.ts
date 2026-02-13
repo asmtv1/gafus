@@ -44,3 +44,8 @@ export {
   type ReminderPayload,
   type ReminderUpdatePayload,
 } from "./reminders";
+export {
+  paymentsApi,
+  type CreatePaymentData,
+  type CreatePaymentParams,
+} from "./payments";

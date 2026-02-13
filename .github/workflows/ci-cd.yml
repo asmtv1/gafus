@@ -482,6 +482,7 @@ jobs:
               echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
               echo "ERROR_DASHBOARD_URL=https://monitor.gafus.ru"
               echo "ERROR_DASHBOARD_INTERNAL_URL=http://gafus-error-dashboard:3005"
+              echo "WEB_APP_URL=https://gafus.ru"
               echo ""
               echo "# Cookie домен"
               echo "AUTH_COOKIE_DOMAIN=.gafus.ru"

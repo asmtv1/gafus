@@ -1,23 +1,34 @@
-import { useCallback, useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl, Pressable, Share } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  Pressable,
+  Share,
+  ActivityIndicator,
+} from "react-native";
 import { Text, Surface, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
+import { WebView } from "react-native-webview";
 
 import { Loading } from "@/shared/components/ui";
 import { useTrainingDays } from "@/shared/hooks";
 import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
-import type { TrainingDay } from "@/shared/lib/api";
+import { paymentsApi, type TrainingDay } from "@/shared/lib/api";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
 import {
   showLockedDayAlert,
-  showPaidCourseAccessDeniedAlert,
+  showPaidCoursePaymentOptions,
+  WEB_BASE,
 } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
+import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 
 /**
  * Экран списка дней тренировок курса
@@ -40,10 +51,85 @@ export default function TrainingDaysScreen() {
   const isDownloadingThis = downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [isPaymentChecking, setIsPaymentChecking] = useState(false);
+  const hasHandledPaymentReturnRef = useRef(false);
+  const hasShownAccessAlertRef = useRef(false);
 
   const onRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
+
+  const pollAccessAfterPayment = useCallback(async () => {
+    setIsPaymentChecking(true);
+    await refetch();
+    const delays = [2000, 3000, 5000];
+    for (const delayMs of delays) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      const next = await refetch();
+      if (next.data?.success) {
+        setSnackbar({ visible: true, message: "Оплата подтверждена. Доступ открыт." });
+        setIsPaymentChecking(false);
+        return;
+      }
+    }
+
+    setSnackbar({
+      visible: true,
+      message: "Оплата обрабатывается. Обновите экран через несколько секунд.",
+    });
+    setIsPaymentChecking(false);
+  }, [refetch]);
+
+  const handleCreatePayment = useCallback(async () => {
+    if (isCreatingPayment) return;
+    setIsCreatingPayment(true);
+
+    const response = await paymentsApi.createPayment({ courseType });
+    if (!response.success || !response.data?.confirmationUrl) {
+      const messageByCode: Record<string, string> = {
+        RATE_LIMIT: "Слишком много попыток. Повторите через минуту.",
+        NETWORK_ERROR: "Нет подключения к интернету.",
+        CONFIG: "Платежи временно недоступны.",
+        NOT_FOUND: "Курс не найден.",
+      };
+      const fallback = response.error ?? "Не удалось создать платёж";
+      setSnackbar({
+        visible: true,
+        message: response.code ? (messageByCode[response.code] ?? fallback) : fallback,
+      });
+      setIsCreatingPayment(false);
+      return;
+    }
+
+    hasHandledPaymentReturnRef.current = false;
+    setPaymentUrl(response.data.confirmationUrl);
+    setIsCreatingPayment(false);
+  }, [courseType, isCreatingPayment]);
+
+  const handleClosePaymentWebView = useCallback(
+    async (isReturnUrl: boolean) => {
+      setPaymentUrl(null);
+      if (isReturnUrl) {
+        await pollAccessAfterPayment();
+      } else {
+        await refetch();
+      }
+    },
+    [pollAccessAfterPayment, refetch],
+  );
+
+  const handlePaymentNavigation = useCallback(
+    async (url?: string) => {
+      if (!url || hasHandledPaymentReturnRef.current) return;
+      const expectedHost = new URL(WEB_BASE).host;
+      if (!isPaymentSuccessReturnUrl(url, expectedHost)) return;
+      hasHandledPaymentReturnRef.current = true;
+      await handleClosePaymentWebView(true);
+    },
+    [handleClosePaymentWebView],
+  );
 
   // Обработка ошибки доступа к приватному курсу
   useEffect(() => {
@@ -56,12 +142,20 @@ export default function TrainingDaysScreen() {
         data.error.includes("доступа")) ||
       (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
 
-    if (isAccessDenied) {
-      showPaidCourseAccessDeniedAlert(courseType, () => {
-        router.replace("/(main)/(tabs)/courses" as const);
+    if (isAccessDenied && !hasShownAccessAlertRef.current) {
+      hasShownAccessAlertRef.current = true;
+      showPaidCoursePaymentOptions({
+        courseType,
+        onCancel: () => {
+          router.replace("/(main)/(tabs)/courses" as const);
+        },
+        onPayInApp: () => {
+          if (isCreatingPayment) return;
+          void handleCreatePayment();
+        },
       });
     }
-  }, [data, error, router, courseType]);
+  }, [courseType, data, error, handleCreatePayment, isCreatingPayment, router]);
 
   const handleDayPress = useCallback(
     (day: TrainingDay) => {
@@ -183,6 +277,37 @@ export default function TrainingDaysScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <Loading fullScreen message="Проверка доступа..." />
+        <Snackbar
+          visible={snackbar.visible}
+          onDismiss={() => setSnackbar({ visible: false, message: "" })}
+          duration={2000}
+        >
+          {snackbar.message}
+        </Snackbar>
+        {paymentUrl && (
+          <View style={styles.webViewOverlay}>
+            <View style={styles.webViewHeader}>
+              <Pressable
+                onPress={() => {
+                  void handleClosePaymentWebView(false);
+                }}
+              >
+                <Text style={styles.webViewCloseText}>Закрыть</Text>
+              </Pressable>
+              {isPaymentChecking && <ActivityIndicator color={COLORS.primary} />}
+            </View>
+            <WebView
+              source={{ uri: paymentUrl }}
+              onNavigationStateChange={(state) => {
+                void handlePaymentNavigation(state.url);
+              }}
+              onLoadEnd={(event) => {
+                void handlePaymentNavigation(event.nativeEvent.url);
+              }}
+              startInLoadingState={true}
+            />
+          </View>
+        )}
       </SafeAreaView>
     );
   }
@@ -318,6 +443,30 @@ export default function TrainingDaysScreen() {
         >
           {snackbar.message}
         </Snackbar>
+        {paymentUrl && (
+          <View style={styles.webViewOverlay}>
+            <View style={styles.webViewHeader}>
+              <Pressable
+                onPress={() => {
+                  void handleClosePaymentWebView(false);
+                }}
+              >
+                <Text style={styles.webViewCloseText}>Закрыть</Text>
+              </Pressable>
+              {isPaymentChecking && <ActivityIndicator color={COLORS.primary} />}
+            </View>
+            <WebView
+              source={{ uri: paymentUrl }}
+              onNavigationStateChange={(state) => {
+                void handlePaymentNavigation(state.url);
+              }}
+              onLoadEnd={(event) => {
+                void handlePaymentNavigation(event.nativeEvent.url);
+              }}
+              startInLoadingState={true}
+            />
+          </View>
+        )}
       </SafeAreaView>
     </>
   );
@@ -520,6 +669,24 @@ const styles = StyleSheet.create({
   retryText: {
     color: COLORS.primary,
     fontWeight: "600",
+  },
+  webViewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.surface,
+  },
+  webViewHeader: {
+    height: 52,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.borderLight,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  webViewCloseText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.primary,
   },
   emptyContainer: {
     padding: SPACING.xxl,
