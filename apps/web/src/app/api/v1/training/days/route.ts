@@ -7,8 +7,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
+import { getTrainingDays } from "@gafus/core/services/training";
+import { z } from "zod";
 
 const logger = createWebLogger("api-training-days");
+const querySchema = z.object({
+  type: z.string().optional(),
+});
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,12 +23,11 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = request.nextUrl;
-    const type = searchParams.get("type") || undefined;
+    const { type } = querySchema.parse({
+      type: searchParams.get("type") || undefined,
+    });
 
-    // Динамический импорт для избежания проблем с getCurrentUserId на сервере
-    const { getTrainingDays } = await import("@shared/lib/training/getTrainingDays");
-
-    const result = await getTrainingDays(type, session.user.id);
+    const result = await getTrainingDays(session.user.id, type);
     return NextResponse.json({ success: true, data: result });
   } catch (error) {
     if (error instanceof AuthorizationError) {
@@ -36,6 +40,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: "Нет доступа к курсу", code: "FORBIDDEN" },
         { status: 403 },
+      );
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.errors[0]?.message || "Ошибка валидации",
+          code: "VALIDATION_ERROR",
+        },
+        { status: 400 },
       );
     }
     logger.error("API: Error fetching training days", error as Error);

@@ -368,7 +368,7 @@ async function ensureUserTrainingExists(userId: string, dayOnCourseId: string): 
  * Получить детали дня тренировки с шагами пользователя
  */
 export async function getTrainingDayWithUserSteps(
-  userId: string,
+  userId: string | undefined,
   courseType: string,
   dayOnCourseId: string,
   options?: { createIfMissing?: boolean },
@@ -378,6 +378,7 @@ export async function getTrainingDayWithUserSteps(
   if (!accessCheck.hasAccess) {
     return null;
   }
+  const userIdForQuery = userId ?? "";
 
   const found = await prisma.dayOnCourse.findFirst({
     where: {
@@ -393,7 +394,7 @@ export async function getTrainingDayWithUserSteps(
           duration: true,
           isPersonalized: true,
           userCourses: {
-            where: { userId },
+            where: { userId: userIdForQuery },
             select: {
               userDisplayName: true,
               userGender: true,
@@ -442,7 +443,7 @@ export async function getTrainingDayWithUserSteps(
         },
       },
       userTrainings: {
-        where: { userId },
+        where: { userId: userIdForQuery },
         select: {
           id: true,
           status: true,
@@ -514,7 +515,7 @@ export async function getTrainingDayWithUserSteps(
   const userTraining = userTrainings[0];
   let userTrainingId = userTraining?.id;
 
-  if (!userTrainingId && options?.createIfMissing) {
+  if (!userTrainingId && options?.createIfMissing && userId) {
     userTrainingId = await ensureUserTrainingExists(userId, foundDayOnCourseId);
   }
 

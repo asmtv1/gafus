@@ -31,7 +31,7 @@ export declare function getTrainingDays(
  * Получить детали дня тренировки с шагами пользователя
  */
 export declare function getTrainingDayWithUserSteps(
-  userId: string,
+  userId: string | undefined,
   courseType: string,
   dayOnCourseId: string,
   options?: {

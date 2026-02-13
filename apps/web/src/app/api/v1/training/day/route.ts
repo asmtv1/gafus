@@ -7,13 +7,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
+import { getTrainingDayWithUserSteps } from "@gafus/core/services/training";
+import { checkCourseAccess } from "@gafus/core/services/course";
 import { z } from "zod";
 
 const logger = createWebLogger("api-training-day");
 
 const querySchema = z.object({
   courseType: z.string().min(1, "courseType обязателен"),
-  dayOnCourseId: z.string().uuid("dayOnCourseId должен быть UUID"),
+  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
   createIfMissing: z
     .enum(["true", "false"])
     .optional()
@@ -34,16 +36,23 @@ export async function GET(request: NextRequest) {
       createIfMissing: searchParams.get("createIfMissing") || "false",
     });
 
-    // Динамический импорт
-    const { getTrainingDayWithUserSteps } = await import(
-      "@shared/lib/training/getTrainingDayWithUserSteps"
+    const result = await getTrainingDayWithUserSteps(
+      session.user.id,
+      parsed.courseType,
+      parsed.dayOnCourseId,
+      {
+        createIfMissing: parsed.createIfMissing,
+      },
     );
 
-    const result = await getTrainingDayWithUserSteps(parsed.courseType, parsed.dayOnCourseId, {
-      createIfMissing: parsed.createIfMissing,
-    });
-
-    if (!result.training) {
+    if (!result) {
+      const access = await checkCourseAccess(parsed.courseType, session.user.id);
+      if (!access.hasAccess) {
+        return NextResponse.json(
+          { success: false, error: "Нет доступа к курсу", code: "FORBIDDEN" },
+          { status: 403 },
+        );
+      }
       return NextResponse.json(
         { success: false, error: "День тренировки не найден", code: "NOT_FOUND" },
         { status: 404 },
@@ -52,10 +61,19 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: result.training,
-      requiresPersonalization: result.requiresPersonalization,
+      data: result,
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "PERSONALIZATION_REQUIRED") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Для этого курса нужно заполнить персонализацию",
+          code: "PERSONALIZATION_REQUIRED",
+        },
+        { status: 428 },
+      );
+    }
     if (error instanceof AuthorizationError) {
       return NextResponse.json(
         { success: false, error: error.message, code: "UNAUTHORIZED" },
