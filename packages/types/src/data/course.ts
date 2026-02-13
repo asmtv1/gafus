@@ -15,6 +15,7 @@ export interface CourseWithProgressData {
   hasAccess: boolean;
   avgRating: number | null;
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+  equipment?: string | null;
   createdAt: Date;
   authorUsername: string;
   authorAvatarUrl?: string | null;

@@ -12,6 +12,7 @@ export interface Course {
   logoImg: string;
   duration: string;
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+  equipment?: string | null;
   isPrivate: boolean;
   isPaid: boolean;
   avgRating: number | null;

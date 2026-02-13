@@ -26,6 +26,7 @@ const courseSelect = {
   priceRub: true,
   avgRating: true,
   trainingLevel: true,
+  equipment: true,
   createdAt: true,
   author: {
     select: {
@@ -131,6 +132,7 @@ export async function getCoursesWithProgress(
       hasAccess,
       avgRating: course.avgRating,
       trainingLevel: course.trainingLevel,
+      equipment: course.equipment ?? null,
       createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
       authorUsername: course.author.username,
       authorAvatarUrl: course.author.profile?.avatarUrl ?? null,

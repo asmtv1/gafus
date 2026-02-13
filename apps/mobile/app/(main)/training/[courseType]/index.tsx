@@ -278,10 +278,13 @@ export default function TrainingDaysScreen() {
         </Pressable>
 
         <ScrollView contentContainerStyle={styles.paywallScrollContent}>
+          {/* Заголовок «Содержание» как на web */}
+          <Text style={styles.paywallContentTitle}>Содержание</Text>
+
           {courseForPay?.description ? (
             <CourseDescription
               description={courseForPay.description}
-              equipment={null}
+              equipment={courseForPay.equipment ?? null}
               trainingLevel={courseForPay.trainingLevel}
               onShare={handleShareCourse}
               courseType={courseType}
@@ -291,27 +294,46 @@ export default function TrainingDaysScreen() {
           {courseForPay?.dayLinks?.length ? (
             <View style={styles.outlineSection}>
               <Text style={styles.outlineTitle}>В курс входит</Text>
-              {courseForPay.dayLinks.map((item) => (
-                <Text key={`${item.order}-${item.day.id}`} style={styles.outlineItem}>
-                  {item.day.title}
-                </Text>
-              ))}
+              {courseForPay.dayLinks
+                .slice()
+                .sort((a, b) => a.order - b.order)
+                .map((item, index) => (
+                  <View key={`${item.order}-${item.day.id}`} style={styles.outlineItemRow}>
+                    <Text style={styles.outlineItemNumber}>{index + 1}.</Text>
+                    <Text style={styles.outlineItem}>{item.day.title}</Text>
+                  </View>
+                ))}
             </View>
           ) : null}
 
           <View style={styles.paywallCard}>
             <Text style={styles.paywallTitle}>Курс платный</Text>
-            <Text style={styles.paywallSubtitle}>
-              {courseForPay?.name
-                ? `Оплатите «${courseForPay.name}» для доступа к занятиям.`
-                : "Оплатите курс для доступа к занятиям."}
-              {courseForPay?.priceRub && courseForPay.priceRub > 0
-                ? ` Стоимость: ${courseForPay.priceRub} ₽.`
-                : ""}
-            </Text>
-            <Text style={styles.paywallHint}>
-              После оплаты доступ к занятиям откроется автоматически в течение минуты.
-            </Text>
+            {isLoadingCourseForPay && !courseForPay ? (
+              <Text style={styles.paywallSubtitle}>Загрузка данных курса…</Text>
+            ) : (
+              <>
+                <Text style={styles.paywallSubtitle}>
+                  {courseForPay?.name
+                    ? `Оплатите «${courseForPay.name}» для доступа к занятиям.`
+                    : "Оплатите курс для доступа к занятиям."}
+                  {courseForPay?.priceRub && courseForPay.priceRub > 0 ? (
+                    <>
+                      {" "}
+                      Стоимость: {courseForPay.priceRub} ₽.
+                    </>
+                  ) : null}
+                </Text>
+                {!courseForPay && !isLoadingCourseForPay ? (
+                  <Text style={styles.paywallHint}>
+                    Войдите в аккаунт, чтобы увидеть описание и стоимость курса.
+                  </Text>
+                ) : (
+                  <Text style={styles.paywallHint}>
+                    После оплаты доступ к занятиям откроется автоматически в течение минуты.
+                  </Text>
+                )}
+              </>
+            )}
             <View style={styles.paywallButtons}>
               <Pressable
                 onPress={() => {
@@ -554,6 +576,17 @@ const styles = StyleSheet.create({
   paywallScrollContent: {
     paddingBottom: SPACING.xl,
   },
+  paywallContentTitle: {
+    color: "#352e2e",
+    fontFamily: FONTS.impact,
+    fontWeight: "400",
+    fontSize: 60,
+    lineHeight: 60,
+    textAlign: "center",
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+    marginHorizontal: SPACING.md,
+  },
   outlineSection: {
     marginHorizontal: SPACING.md,
     marginTop: SPACING.md,
@@ -568,10 +601,22 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.impact,
     marginBottom: SPACING.sm,
   },
-  outlineItem: {
+  outlineItemRow: {
+    flexDirection: "row",
+    marginBottom: 6,
+    paddingLeft: 4,
+  },
+  outlineItemNumber: {
     fontSize: 14,
     color: COLORS.text,
-    marginBottom: 6,
+    fontFamily: FONTS.montserrat,
+    marginRight: 6,
+    minWidth: 20,
+  },
+  outlineItem: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.text,
     fontFamily: FONTS.montserrat,
   },
   paywallCard: {
