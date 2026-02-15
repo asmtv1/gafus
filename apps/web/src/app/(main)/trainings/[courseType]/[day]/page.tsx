@@ -3,7 +3,7 @@ import { Day } from "@features/training/components/Day";
 import { getTrainingDayWithUserSteps } from "@shared/lib/training/getTrainingDayWithUserSteps";
 import { checkDayAccess } from "@shared/lib/training/checkDayAccess";
 import { generatePageMetadata } from "@gafus/metadata";
-import { dayIdSchema } from "@shared/lib/validation/schemas";
+import { dayOnCourseIdSchema } from "@shared/lib/validation/schemas";
 import { AccessDeniedAlert } from "@features/training/components/AccessDeniedAlert";
 import { getCourseMetadata } from "@gafus/core/services/course";
 import { checkCourseAccessById } from "@gafus/core/services/course";
@@ -17,7 +17,7 @@ export default async function DayPage(props: {
   const { courseType, day } = await props.params;
 
   // Валидируем, что day является корректным ID
-  const dayId = dayIdSchema.parse(day);
+  const dayId = dayOnCourseIdSchema.parse(day);
 
   // Проверяем доступ к дню (для дней типа summary)
   const accessCheck = await checkDayAccess(dayId);
@@ -64,7 +64,7 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
   const { courseType, day } = await props.params;
   // Валидируем ID дня
-  const dayId = dayIdSchema.parse(day);
+  const dayId = dayOnCourseIdSchema.parse(day);
   // Read-only вызов без создания UserTraining
   const { training } = await getTrainingDayWithUserSteps(courseType, dayId);
 

@@ -9,13 +9,14 @@ import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
 import { getTrainingDayWithUserSteps } from "@gafus/core/services/training";
 import { checkCourseAccess } from "@gafus/core/services/course";
+import { dayOnCourseIdSchema } from "@shared/lib/validation/schemas";
 import { z } from "zod";
 
 const logger = createWebLogger("api-training-day");
 
 const querySchema = z.object({
   courseType: z.string().min(1, "courseType обязателен"),
-  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  dayOnCourseId: dayOnCourseIdSchema,
   createIfMissing: z
     .enum(["true", "false"])
     .optional()

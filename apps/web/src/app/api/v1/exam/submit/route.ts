@@ -8,13 +8,14 @@ import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
+import { stepIdEntitySchema, userStepIdSchema } from "@shared/lib/validation/schemas";
 import { z } from "zod";
 
 const logger = createWebLogger("api-exam-submit");
 
 const submitExamSchema = z.object({
-  userStepId: z.string().uuid("userStepId должен быть UUID"),
-  stepId: z.string().uuid("stepId должен быть UUID"),
+  userStepId: userStepIdSchema,
+  stepId: stepIdEntitySchema,
   testAnswers: z.record(z.string(), z.number()).optional(),
   testScore: z.number().optional(),
   testMaxScore: z.number().optional(),

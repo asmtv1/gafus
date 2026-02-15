@@ -123,7 +123,9 @@ export default function CourseFilters({
   onResetFilters,
   getResultsCount,
 }: CourseFiltersProps) {
-  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
+  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({
+    sorting: false,
+  });
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const toggleDropdown = (key: string) => {

@@ -13,6 +13,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
+import { dayOnCourseIdSchema } from "@shared/lib/validation/schemas";
 import { z } from "zod";
 
 const logger = createWebLogger("api-notifications-resume");
@@ -21,7 +22,7 @@ const schema = z.object({
   day: z.number().int().nonnegative(),
   stepIndex: z.number().int().nonnegative(),
   durationSec: z.number().int().nonnegative(),
-  dayOnCourseId: z.string().optional(),
+  dayOnCourseId: dayOnCourseIdSchema.optional(),
 });
 
 export const POST = withCSRFProtection(async (request: NextRequest) => {

@@ -242,6 +242,7 @@ services:
 
 ## Дополнительная документация
 
+- [Формат идентификаторов (CUID)](./identifiers.md)
 - [Система кэширования](./caching-system.md)
 - [Управление переменными окружения](./ENV_MANAGEMENT.md)
 - [Структура пакетов](./PACKAGE_STRUCTURE_ANALYSIS.md)

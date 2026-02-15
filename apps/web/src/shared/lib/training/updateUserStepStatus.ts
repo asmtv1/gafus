@@ -11,7 +11,7 @@ import { checkAndCompleteCourse, syncUserCourseStatusFromDays } from "../user/us
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { courseIdSchema, dayIdSchema, stepIndexSchema, userIdSchema } from "../validation/schemas";
+import { courseIdSchema, dayOnCourseIdSchema, stepIndexSchema, userIdSchema } from "../validation/schemas";
 
 const logger = createWebLogger("web");
 const statusSchema = z.nativeEnum(TrainingStatus, {
@@ -21,7 +21,7 @@ const statusSchema = z.nativeEnum(TrainingStatus, {
 const updateUserStepStatusSchema = z.object({
   userId: userIdSchema,
   courseId: courseIdSchema,
-  dayOnCourseId: dayIdSchema,
+  dayOnCourseId: dayOnCourseIdSchema,
   stepIndex: stepIndexSchema,
   status: statusSchema,
   stepTitle: z.string().trim().optional(),

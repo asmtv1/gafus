@@ -7,13 +7,13 @@ import { getDiaryEntries as getDiaryEntriesService } from "@gafus/core/services/
 import type { DiaryEntryWithDay } from "@gafus/core/services/diary";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { courseIdSchema, dayIdSchema } from "../validation/schemas";
+import { courseIdSchema, dayOnCourseIdSchema } from "../validation/schemas";
 
 const logger = createWebLogger("web-get-diary-entries");
 
 const getDiaryEntriesSchema = z.object({
   courseId: courseIdSchema,
-  upToDayOnCourseId: dayIdSchema.optional(),
+  upToDayOnCourseId: dayOnCourseIdSchema.optional(),
 });
 
 export type GetDiaryEntriesResult =

@@ -55,11 +55,14 @@ export const authOptions: NextAuthOptions = {
   // Доверяем заголовкам X-Forwarded-* для работы через прокси
   useSecureCookies: isProd,
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
+      }
+      if (trigger === "update" && session && "username" in session && session.username != null) {
+        token.username = session.username;
       }
       return token;
     },

@@ -153,10 +153,10 @@ export function CSRFProvider({
     }
   }, [hasError, retryCount, maxRetries, loading, retryDelay]);
 
-  // Логирование состояния в development
+  // Логирование состояния только при включённом debug (не засоряет консоль)
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
-      logger.warn("CSRF Provider state", {
+      logger.debug("CSRF Provider state", {
         isInitialized,
         isReady,
         hasToken: !!token,

@@ -179,30 +179,11 @@ export function useCourseProgressSync() {
     setSyncedCourses(result);
   }, [allCourses?.data, getCachedTrainingDays, courseAssignments, stepStates, isOnline]);
 
-  // Обновляем данные в courseStore при изменении синхронизированных данных
-  useEffect(() => {
-    if (!syncedCourses || !allCourses?.data) return;
-
-    const syncedKey = syncedCourses.map((c) => `${c.id}:${c.userStatus}`).join("|");
-    if (lastUpdateRef.current === syncedKey) return;
-
-    const originalKey = allCourses.data.map((c) => `${c.id}:${c.userStatus}`).join("|");
-    if (syncedKey === originalKey) return;
-
-    const hasChanges = syncedCourses.some((syncedCourse, index) => {
-      const originalCourse = allCourses.data[index];
-      if (!originalCourse) return true;
-      return (
-        syncedCourse.userStatus !== originalCourse.userStatus ||
-        syncedCourse.id !== originalCourse.id
-      );
-    });
-
-    if (hasChanges) {
-      lastUpdateRef.current = syncedKey;
-      setAllCourses(syncedCourses, allCourses.type);
-    }
-  }, [syncedCourses, allCourses?.data, allCourses?.type, setAllCourses]);
+  // ОТКЛЮЧЕНО: запись обратно в courseStore вызывала цикл в production (#185).
+  // syncedCourses возвращается напрямую и используется в CoursesClient — нет обратной записи, нет цикла.
+  // Последствия: courseStore.allCourses не обновляется с синхронизированными статусами,
+  // но это не критично — useCourseProgressSync используется только в CoursesClient,
+  // где syncedCourses применяется напрямую.
 
   return {
     syncedCourses: syncedCourses || allCourses?.data,

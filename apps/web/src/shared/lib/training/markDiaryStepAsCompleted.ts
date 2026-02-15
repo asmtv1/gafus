@@ -9,13 +9,13 @@ import { updateUserStepStatus } from "./updateUserStepStatus";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
+import { courseIdSchema, dayOnCourseIdSchema, stepIndexSchema } from "../validation/schemas";
 
 const logger = createWebLogger("web-mark-diary-step-completed");
 
 const markDiaryStepSchema = z.object({
   courseId: courseIdSchema,
-  dayOnCourseId: dayIdSchema,
+  dayOnCourseId: dayOnCourseIdSchema,
   stepIndex: stepIndexSchema,
   stepTitle: z.string().trim().optional(),
   stepOrder: z.number().int().min(0).optional(),

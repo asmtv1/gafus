@@ -7,20 +7,20 @@ import { createWebLogger } from "@gafus/logger";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
+import { courseIdSchema, dayOnCourseIdSchema, stepIndexSchema } from "../validation/schemas";
 
 const logger = createWebLogger("web");
 
 const pauseSchema = z.object({
   courseId: courseIdSchema,
-  dayOnCourseId: dayIdSchema,
+  dayOnCourseId: dayOnCourseIdSchema,
   stepIndex: stepIndexSchema,
   timeLeftSec: z.number().min(0, "Оставшееся время должно быть неотрицательным"),
 });
 
 const resumeSchema = z.object({
   courseId: courseIdSchema,
-  dayOnCourseId: dayIdSchema,
+  dayOnCourseId: dayOnCourseIdSchema,
   stepIndex: stepIndexSchema,
 });
 

@@ -5,7 +5,7 @@ import { getTrainingDayWithUserSteps as getTrainingDayWithUserStepsFromCore } fr
 import type { TrainingDetail } from "@gafus/types";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { dayIdSchema, trainingTypeSchema } from "../validation/schemas";
+import { dayOnCourseIdSchema, trainingTypeSchema } from "../validation/schemas";
 
 const courseTypeSchema = trainingTypeSchema;
 
@@ -20,7 +20,7 @@ export async function getTrainingDayWithUserSteps(
   options?: { createIfMissing?: boolean },
 ): Promise<GetTrainingDayWithUserStepsResult> {
   const safeCourseType = courseTypeSchema.parse(courseType);
-  const safeDayId = dayIdSchema.parse(dayOnCourseId);
+  const safeDayId = dayOnCourseIdSchema.parse(dayOnCourseId);
   const userId = await getCurrentUserId();
 
   try {

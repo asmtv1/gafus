@@ -306,16 +306,19 @@ export const usePushStore = create<PushState>()(
               return;
             }
 
-            logger.error("Ошибка проверки БД", error as Error, {
+            // warn: в dev БД/сессия могут быть недоступны — не слать в error-dashboard
+            logger.warn("Ошибка проверки БД подписки", {
               operation: "check_db_error",
               hasLocalSubscription: hasLocalSubscription,
+              error: error instanceof Error ? error.message : String(error),
             });
             // В случае ошибки БД, полагаемся только на локальную подписку
             set({ hasServerSubscription: hasLocalSubscription });
           }
         } catch (error) {
-          logger.error("Unexpected error in checkServerSubscription", error as Error, {
+          logger.warn("checkServerSubscription failed", {
             operation: "check_server_subscription_unexpected_error",
+            error: error instanceof Error ? error.message : String(error),
           });
           set({ hasServerSubscription: false });
         }

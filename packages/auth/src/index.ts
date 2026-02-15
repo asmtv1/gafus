@@ -6,4 +6,7 @@ export { sendTelegramPasswordResetRequest } from "./sendTelegramPasswordResetReq
 export { resetPasswordByToken } from "./resetPasswordByToken";
 export { resetPasswordByShortCode } from "./resetPasswordByShortCode";
 export { registerUser } from "./registerUser";
+export { sendTelegramPhoneChangeRequest } from "./sendTelegramPhoneChangeRequest";
+export { confirmPhoneChangeByShortCode } from "./confirmPhoneChangeByShortCode";
+export { sendTelegramUsernameChangeNotification } from "./sendTelegramUsernameChangeNotification";
 export type { AuthRole, AuthUser } from "./next-auth.d";

@@ -7,13 +7,17 @@
 
 import {
   checkUserConfirmed,
+  confirmPhoneChangeByShortCode,
   getUserPhoneByUsername,
   maskPhone,
-  sendTelegramPasswordResetRequest,
-  resetPasswordByToken,
   resetPasswordByShortCode,
+  resetPasswordByToken,
   registerUser,
+  sendTelegramPasswordResetRequest,
+  sendTelegramUsernameChangeNotification,
+  sendTelegramPhoneChangeRequest,
 } from "@gafus/auth";
+import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("auth-service");
@@ -92,5 +96,79 @@ export async function resetPassword(token: string, password: string): Promise<vo
 export async function resetPasswordByCode(code: string, password: string): Promise<void> {
   logger.info("Resetting password by code");
   await resetPasswordByShortCode(code, password);
+}
+
+/**
+ * Запрос кода смены телефона (отправка в Telegram).
+ */
+export async function requestPhoneChange(userId: string): Promise<void> {
+  logger.info("Requesting phone change", { userId });
+  await sendTelegramPhoneChangeRequest(userId);
+}
+
+/**
+ * Подтверждение смены телефона по коду из Telegram.
+ */
+export async function confirmPhoneChange(code: string, newPhone: string): Promise<void> {
+  await confirmPhoneChangeByShortCode(code, newPhone);
+}
+
+const USERNAME_MIN_LENGTH = 3;
+const USERNAME_MAX_LENGTH = 50;
+const USERNAME_REGEX = /^[a-z0-9_]+$/;
+
+/**
+ * Смена логина пользователя. Валидация формата и уникальности, обновление в БД, уведомление в Telegram.
+ */
+export async function changeUsername(userId: string, newUsername: string): Promise<void> {
+  const normalized = newUsername.trim().toLowerCase();
+
+  if (normalized.length < USERNAME_MIN_LENGTH || normalized.length > USERNAME_MAX_LENGTH) {
+    throw new Error("Логин: минимум 3 символа, только латиница, цифры и _");
+  }
+  if (!USERNAME_REGEX.test(normalized)) {
+    throw new Error("Логин: минимум 3 символа, только латиница, цифры и _");
+  }
+
+  const currentUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, username: true, telegramId: true },
+  });
+
+  if (!currentUser) {
+    throw new Error("Пользователь не найден");
+  }
+
+  if (currentUser.username === normalized) {
+    return;
+  }
+
+  const existing = await prisma.user.findUnique({
+    where: { username: normalized },
+  });
+  if (existing) {
+    throw new Error("Логин уже занят");
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { username: normalized },
+    });
+  } catch (error) {
+    const prismaError = error as { code?: string };
+    if (prismaError.code === "P2002") {
+      throw new Error("Логин уже занят");
+    }
+    throw error instanceof Error ? error : new Error("Не удалось сменить логин");
+  }
+
+  if (currentUser.telegramId) {
+    try {
+      await sendTelegramUsernameChangeNotification(currentUser.telegramId, normalized);
+    } catch (err) {
+      logger.warn("Не удалось отправить уведомление о смене логина в Telegram", { userId, error: err });
+    }
+  }
 }
 

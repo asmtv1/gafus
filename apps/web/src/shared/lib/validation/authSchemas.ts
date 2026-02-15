@@ -117,6 +117,21 @@ export const loginFormSchema = z.object({
 });
 
 /**
+ * Схема для подтверждения смены телефона (код + новый номер)
+ */
+export const phoneChangeConfirmSchema = z.object({
+  code: z.string().trim().length(6, "Код — 6 цифр").regex(/^\d{6}$/, "Код должен содержать 6 цифр"),
+  newPhone: phoneSchema,
+});
+
+/**
+ * Схема для смены логина
+ */
+export const usernameChangeSchema = z.object({
+  newUsername: usernameSchema,
+});
+
+/**
  * Схема для запроса сброса пароля
  */
 export const passwordResetFormSchema = z.object({
@@ -262,6 +277,8 @@ export type RegisterUserSchema = z.infer<typeof registerUserSchema>;
 export type RegisterFormSchema = z.infer<typeof registerFormSchema>;
 export type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>;
 export type LoginFormSchema = z.infer<typeof loginFormSchema>;
+export type PhoneChangeConfirmSchema = z.infer<typeof phoneChangeConfirmSchema>;
+export type UsernameChangeSchema = z.infer<typeof usernameChangeSchema>;
 export type PasswordResetFormSchema = z.infer<typeof passwordResetFormSchema>;
 export type ResetPasswordFormSchema = z.infer<typeof resetPasswordFormSchema>;
 export type UserProfileFormSchema = z.infer<typeof userProfileFormSchema>;

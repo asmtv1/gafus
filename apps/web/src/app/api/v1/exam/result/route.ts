@@ -7,12 +7,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
+import { userStepIdSchema } from "@shared/lib/validation/schemas";
 import { z } from "zod";
 
 const logger = createWebLogger("api-exam-result");
 
 const querySchema = z.object({
-  userStepId: z.string().uuid("userStepId должен быть UUID"),
+  userStepId: userStepIdSchema,
 });
 
 export async function GET(request: NextRequest) {

@@ -679,6 +679,20 @@ export default function ProfileScreen() {
           <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
         </Pressable>
 
+        <Pressable
+          style={styles.passwordButton}
+          onPress={() => router.push({ pathname: "/profile/change-phone" })}
+        >
+          <Text style={styles.passwordButtonText}>📞 Сменить телефон</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.passwordButton}
+          onPress={() => router.push({ pathname: "/profile/change-username" })}
+        >
+          <Text style={styles.passwordButtonText}>👤 Сменить логин</Text>
+        </Pressable>
+
         {/* Выход */}
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutButtonText}>Выйти из аккаунта</Text>

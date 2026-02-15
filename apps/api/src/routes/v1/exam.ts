@@ -16,7 +16,7 @@ export const examRoutes = new Hono();
 // ==================== GET /exam/result ====================
 // Получить результат экзамена
 const resultQuerySchema = z.object({
-  userStepId: z.string().uuid("userStepId должен быть UUID"),
+  userStepId: z.string().cuid("userStepId должен быть CUID"),
 });
 
 examRoutes.get("/result", zValidator("query", resultQuerySchema), async (c) => {
@@ -43,8 +43,8 @@ examRoutes.get("/result", zValidator("query", resultQuerySchema), async (c) => {
 // ==================== POST /exam/submit ====================
 // Отправить результат экзамена
 const submitExamSchema = z.object({
-  userStepId: z.string().uuid("userStepId должен быть UUID"),
-  stepId: z.string().uuid("stepId должен быть UUID"),
+  userStepId: z.string().cuid("userStepId должен быть CUID"),
+  stepId: z.string().cuid("stepId должен быть CUID"),
   testAnswers: z.record(z.string(), z.number()).optional(),
   testScore: z.number().optional(),
   testMaxScore: z.number().optional(),

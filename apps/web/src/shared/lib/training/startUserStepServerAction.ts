@@ -10,14 +10,14 @@ import { updateUserStepStatus } from "./updateUserStepStatus";
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { courseIdSchema, dayIdSchema, stepIndexSchema } from "../validation/schemas";
+import { courseIdSchema, dayOnCourseIdSchema, stepIndexSchema } from "../validation/schemas";
 
 // Создаем логгер для startUserStepServerAction
 const logger = createWebLogger("web-start-user-step-server-action");
 
 const startStepSchema = z.object({
   courseId: courseIdSchema,
-  dayOnCourseId: dayIdSchema,
+  dayOnCourseId: dayOnCourseIdSchema,
   stepIndex: stepIndexSchema,
   status: z.nativeEnum(TrainingStatus, {
     errorMap: () => ({ message: "Некорректный статус шага" }),

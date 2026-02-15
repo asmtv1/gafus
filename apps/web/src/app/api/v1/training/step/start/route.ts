@@ -9,13 +9,14 @@ import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { TrainingStatus } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
+import { courseIdEntitySchema, dayOnCourseIdSchema } from "@shared/lib/validation/schemas";
 import { z } from "zod";
 
 const logger = createWebLogger("api-training-step-start");
 
 const startStepSchema = z.object({
-  courseId: z.string().uuid("courseId должен быть UUID"),
-  dayOnCourseId: z.string().uuid("dayOnCourseId должен быть UUID"),
+  courseId: courseIdEntitySchema,
+  dayOnCourseId: dayOnCourseIdSchema,
   stepIndex: z.number().int().min(0, "stepIndex должен быть >= 0"),
   status: z.nativeEnum(TrainingStatus),
   durationSec: z.number().min(0, "durationSec должен быть >= 0"),

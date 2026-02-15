@@ -283,6 +283,8 @@ model User {
   favoriteCourses          FavoriteCourse[]
   courseReviews            CourseReview[]
   passwordResetTokens      PasswordResetToken[]
+  phoneChangeRequestedAt   DateTime?
+  phoneChangeTokens        PhoneChangeToken[]
   refreshTokens            RefreshToken[]
   pushSubscriptions        PushSubscription[]
   stepNotifications        StepNotification[]
@@ -533,6 +535,16 @@ model PasswordResetToken {
   token     String   @unique
   shortCode String?  @unique // 6 цифр для сброса без токена в URL
   userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+model PhoneChangeToken {
+  id        String   @id @default(cuid())
+  userId    String
+  shortCode String   @unique // 6 цифр для подтверждения смены телефона
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())

@@ -101,6 +101,39 @@ export const userApi = {
   },
 
   /**
+   * Запрос кода смены телефона (отправка в Telegram).
+   */
+  requestPhoneChange: async (): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/auth/phone-change-request", { method: "POST" });
+  },
+
+  /**
+   * Подтверждение смены телефона по коду.
+   */
+  confirmPhoneChange: async (
+    code: string,
+    newPhone: string,
+  ): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/auth/phone-change-confirm", {
+      method: "POST",
+      body: { code, newPhone },
+    });
+  },
+
+  /**
+   * Смена логина. Возвращает обновлённого user для обновления стора.
+   */
+  changeUsername: async (
+    newUsername: string,
+  ): Promise<ApiResponse<{ user: { id: string; username: string; role: string } }>> => {
+    const res = await apiClient<{ user: { id: string; username: string; role: string } }>(
+      "/api/v1/auth/username-change",
+      { method: "POST", body: { newUsername } },
+    );
+    return res;
+  },
+
+  /**
    * Загрузить аватар (multipart/form-data).
    * uri — локальный URI из ImagePicker (file:// или content://).
    */

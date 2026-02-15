@@ -14,14 +14,17 @@ export { getPublicKeyAction } from "./push";
 
 // Auth Actions
 export {
+  changeUsernameAction,
   checkLoginRateLimit,
   checkUserStateAction,
+  confirmPhoneChangeAction,
   getPendingConfirmationStatus,
-  serverCheckUserConfirmedAction,
-  sendPasswordResetRequestAction,
   registerUserAction,
+  requestPhoneChangeAction,
   resetPasswordAction,
   resetPasswordByCodeAction,
+  sendPasswordResetRequestAction,
+  serverCheckUserConfirmedAction,
 } from "./auth";
 
 // Achievements Actions

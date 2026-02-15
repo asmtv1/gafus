@@ -47,7 +47,18 @@ export const courseIdSchema = trimmedNonEmptyString("courseId");
 export const optionalCourseIdSchema = courseIdSchema.optional();
 
 // Схемы для дней тренировок
-export const dayIdSchema = trimmedNonEmptyString("dayId");
+// CUID v1 для DayOnCourse.id (день курса с порядком)
+export const dayOnCourseIdSchema = z.string().cuid("dayOnCourseId должен быть CUID");
+
+// CUID v1 для Course.id (когда в API передаётся именно ID сущности, не courseType)
+export const courseIdEntitySchema = z.string().cuid("courseId должен быть CUID");
+
+// CUID v1 для UserStep.id (экзамен)
+export const userStepIdSchema = z.string().cuid("userStepId должен быть CUID");
+
+// CUID v1 для Step.id (когда в API передаётся именно ID шага)
+export const stepIdEntitySchema = z.string().cuid("stepId должен быть CUID");
+
 export const dayNumberSchema = z.number().int().min(1, "Номер дня должен быть положительным");
 
 // Схемы для тренировок

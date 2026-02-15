@@ -24,7 +24,7 @@ import {
   courseIdSchema,
   stepIndexSchema,
   positiveDurationSchema,
-  dayIdSchema,
+  dayOnCourseIdSchema,
   dayNumberSchema,
 } from "@shared/lib/validation/schemas";
 
@@ -34,7 +34,7 @@ const logger = createWebLogger("notification-server-actions");
 
 const notificationKeySchema = z.object({
   courseId: courseIdSchema,
-  dayOnCourseId: dayIdSchema,
+  dayOnCourseId: dayOnCourseIdSchema,
   stepIndex: stepIndexSchema,
 });
 

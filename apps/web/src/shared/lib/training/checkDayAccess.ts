@@ -6,7 +6,7 @@ import { createWebLogger } from "@gafus/logger";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
  
-import { dayIdSchema } from "../validation/schemas";
+import { dayOnCourseIdSchema } from "../validation/schemas";
 import { calculateDayStatusFromStatuses } from "@gafus/types";
 
 const logger = createWebLogger("web-check-day-access");
@@ -22,7 +22,7 @@ export async function checkDayAccess(
 ): Promise<{ allowed: boolean; reason?: string }> {
   try {
     // Валидация входных данных
-    const _validatedDayId = dayIdSchema.parse(dayOnCourseId);
+    const _validatedDayId = dayOnCourseIdSchema.parse(dayOnCourseId);
     void _validatedDayId; // Используем для подавления предупреждения линтера
     const userId = await getCurrentUserId();
 

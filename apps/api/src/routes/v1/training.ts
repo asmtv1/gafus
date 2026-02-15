@@ -63,7 +63,7 @@ trainingRoutes.get("/days", zValidator("query", daysQuerySchema), async (c) => {
 // Получить день с шагами пользователя
 const dayQuerySchema = z.object({
   courseType: z.string().min(1, "courseType обязателен"),
-  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"), // Принимаем cuid, а не только UUID
+  dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   createIfMissing: z
     .enum(["true", "false"])
     .optional()
@@ -106,8 +106,8 @@ trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
 
 // ==================== POST /training/step/start ====================
 const startStepBodySchema = z.object({
-  courseId: z.string().min(1, "courseId обязателен"),
-  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  courseId: z.string().cuid("courseId должен быть CUID"),
+  dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
   status: z.literal("IN_PROGRESS").optional(),
   durationSec: z.number().int().min(0, "durationSec >= 0"),
@@ -154,8 +154,8 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
 
 // ==================== POST /training/step/pause ====================
 const pauseStepBodySchema = z.object({
-  courseId: z.string().min(1, "courseId обязателен"),
-  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  courseId: z.string().cuid("courseId должен быть CUID"),
+  dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
   timeLeftSec: z.number().int().min(0, "timeLeftSec >= 0"),
 });
@@ -202,8 +202,8 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
 
 // ==================== POST /training/step/resume ====================
 const resumeStepBodySchema = z.object({
-  courseId: z.string().min(1, "courseId обязателен"),
-  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  courseId: z.string().cuid("courseId должен быть CUID"),
+  dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
 });
 
@@ -246,8 +246,8 @@ trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), as
 
 // ==================== POST /training/step/reset ====================
 const resetStepBodySchema = z.object({
-  courseId: z.string().min(1, "courseId обязателен"),
-  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  courseId: z.string().cuid("courseId должен быть CUID"),
+  dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
   durationSec: z.number().int().min(0, "durationSec >= 0").optional(),
 });
@@ -304,8 +304,8 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
 
 // ==================== POST /training/step/complete/practice ====================
 const completePracticeBodySchema = z.object({
-  courseId: z.string().min(1, "courseId обязателен"),
-  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  courseId: z.string().cuid("courseId должен быть CUID"),
+  dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
   stepTitle: z.string().optional(),
   stepOrder: z.number().int().min(0).optional(),
@@ -343,8 +343,8 @@ trainingRoutes.post(
 );
 
 const completeTheoryBodySchema = z.object({
-  courseId: z.string().min(1, "courseId обязателен"),
-  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  courseId: z.string().cuid("courseId должен быть CUID"),
+  dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
   stepTitle: z.string().optional(),
   stepOrder: z.number().int().min(0).optional(),
@@ -407,7 +407,7 @@ trainingRoutes.post("/step/complete/theory", zValidator("json", completeTheoryBo
 });
 
 const postDiaryBodySchema = z.object({
-  dayOnCourseId: z.string().min(1, "dayOnCourseId обязателен"),
+  dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   content: z.string().trim().min(1, "content обязателен").max(10000, "Слишком длинная запись"),
 });
 
@@ -431,7 +431,7 @@ trainingRoutes.post("/diary", zValidator("json", postDiaryBodySchema), async (c)
 
 const getDiaryQuerySchema = z.object({
   courseId: z.string().min(1, "courseId обязателен"),
-  upToDayOnCourseId: z.string().optional(),
+  upToDayOnCourseId: z.string().cuid("upToDayOnCourseId должен быть CUID").optional(),
 });
 
 trainingRoutes.get("/diary", zValidator("query", getDiaryQuerySchema), async (c) => {

@@ -260,8 +260,8 @@ export const useFavoritesStore = create<FavoritesState>()(
           // восстановление Set из массива
           (s as unknown as FavoritesState).favoriteIds = new Set(s.favoriteIds as string[]);
         }
-        // после ре-гидратации подгружаем актуальные данные с сервера в фоне
-        // Используем requestIdleCallback для отложенной загрузки после инициализации роутера
+        // Подгрузка с сервера только после монтирования дерева React (избегаем "state update on unmounted component").
+        // Задержка даёт время App Router и странице завершить первый рендер.
         const loadWhenReady = () => {
           try {
             useFavoritesStore.getState().loadFromServer();
@@ -271,11 +271,7 @@ export const useFavoritesStore = create<FavoritesState>()(
         };
 
         if (typeof window !== "undefined") {
-          if ("requestIdleCallback" in window) {
-            requestIdleCallback(loadWhenReady, { timeout: 1000 });
-          } else {
-            setTimeout(loadWhenReady, 500);
-          }
+          setTimeout(loadWhenReady, 400);
         }
       },
     },

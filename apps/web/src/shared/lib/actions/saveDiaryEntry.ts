@@ -6,12 +6,12 @@ import { z } from "zod";
 import { saveDiaryEntry as saveDiaryEntryService } from "@gafus/core/services/diary";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { dayIdSchema } from "../validation/schemas";
+import { dayOnCourseIdSchema } from "../validation/schemas";
 
 const logger = createWebLogger("web-save-diary-entry");
 
 const saveDiaryEntrySchema = z.object({
-  dayOnCourseId: dayIdSchema,
+  dayOnCourseId: dayOnCourseIdSchema,
   content: z.string().trim().min(1, "Текст записи не может быть пустым").max(10000, "Текст не должен превышать 10000 символов"),
 });
 

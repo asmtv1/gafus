@@ -70,11 +70,11 @@ export default function NotificationRequesterNew() {
       } catch (e) {
         if (!cancelled) {
           setVapidKey(null);
-          logger.error(
-            "❌ NotificationRequesterNew: Failed to fetch VAPID public key",
-            e as Error,
-            { operation: "error" },
-          );
+          // warn: в dev часто VAPID не настроен или server action недоступен — не слать в error-dashboard
+          logger.warn("NotificationRequesterNew: VAPID public key unavailable", {
+            operation: "vapid_fetch_failed",
+            error: e instanceof Error ? e.message : String(e),
+          });
         }
       }
     })();

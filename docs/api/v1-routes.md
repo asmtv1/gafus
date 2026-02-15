@@ -117,6 +117,55 @@
 
 ---
 
+### POST `/api/v1/auth/phone-change-request`
+
+Запрос кода смены телефона (код отправляется в Telegram). Требует авторизацию: Bearer JWT.
+
+**Body:** пустой или `{}`
+
+**Response:** `{ "success": true }`
+
+**Ошибки:** 401 (нет токена), 400/429 (Telegram не привязан, слишком рано повторный запрос, rate limit Telegram).
+
+---
+
+### POST `/api/v1/auth/phone-change-confirm`
+
+Подтверждение смены телефона по коду из Telegram. Требует авторизацию: Bearer JWT.
+
+**Body:**
+
+```json
+{
+  "code": "string (6 цифр)",
+  "newPhone": "string"
+}
+```
+
+**Response:** `{ "success": true }`
+
+**Ошибки:** 400 (код недействителен, телефон занят, неверный формат номера).
+
+---
+
+### POST `/api/v1/auth/username-change`
+
+Смена логина (username). Требует авторизацию: Bearer JWT.
+
+**Body:**
+
+```json
+{
+  "newUsername": "string"
+}
+```
+
+**Response:** `{ "success": true, "data": { "user": { "id": "string", "username": "string", "role": "string" } } }`
+
+**Ошибки:** 400 (логин занят, неверный формат).
+
+---
+
 ## Training — Тренировки (ОСНОВНОЙ ФУНКЦИОНАЛ)
 
 ### GET `/api/v1/training/days`
@@ -152,7 +201,7 @@
 **Query params:**
 
 - `courseType` (required) — тип курса
-- `dayOnCourseId` (required) — UUID дня
+- `dayOnCourseId` (required) — CUID дня (строка в формате CUID)
 - `createIfMissing` (optional) — "true"/"false"
 
 **Response:**
@@ -161,8 +210,8 @@
 {
   "success": true,
   "data": {
-    "trainingDayId": "uuid",
-    "dayOnCourseId": "uuid",
+    "trainingDayId": "cuid",
+    "dayOnCourseId": "cuid",
     "title": "string",
     "type": "string",
     "steps": [...]
@@ -180,8 +229,8 @@
 
 ```json
 {
-  "courseId": "uuid",
-  "dayOnCourseId": "uuid",
+  "courseId": "cuid",
+  "dayOnCourseId": "cuid",
   "stepIndex": 0,
   "status": "IN_PROGRESS",
   "durationSec": 300
@@ -198,8 +247,8 @@
 
 ```json
 {
-  "courseId": "uuid",
-  "dayOnCourseId": "uuid",
+  "courseId": "cuid",
+  "dayOnCourseId": "cuid",
   "stepIndex": 0,
   "status": "COMPLETED",
   "stepTitle": "string (optional)",
@@ -217,8 +266,8 @@
 
 ```json
 {
-  "courseId": "uuid",
-  "dayOnCourseId": "uuid",
+  "courseId": "cuid",
+  "dayOnCourseId": "cuid",
   "stepIndex": 0,
   "timeLeftSec": 120
 }
@@ -234,8 +283,8 @@
 
 ```json
 {
-  "courseId": "uuid",
-  "dayOnCourseId": "uuid",
+  "courseId": "cuid",
+  "dayOnCourseId": "cuid",
   "stepIndex": 0
 }
 ```
@@ -293,8 +342,8 @@
 
 ```json
 {
-  "courseId": "uuid",
-  "dayOnCourseId": "uuid",
+  "courseId": "cuid",
+  "dayOnCourseId": "cuid",
   "stepIndex": 0,
   "durationSec": 300
 }
@@ -312,8 +361,8 @@
 
 ```json
 {
-  "courseId": "uuid",
-  "dayOnCourseId": "uuid",
+  "courseId": "cuid",
+  "dayOnCourseId": "cuid",
   "stepIndex": 0,
   "stepTitle": "string (optional)",
   "stepOrder": 0
@@ -335,6 +384,8 @@
 }
 ```
 
+Ожидается: `dayOnCourseId` — строка в формате CUID.
+
 ---
 
 ### GET `/api/v1/training/diary`
@@ -343,7 +394,7 @@
 
 **Query:**
 
-`courseId` (обязательно), `upToDayOnCourseId` (опционально)
+`courseId` (обязательно, CUID или courseType), `upToDayOnCourseId` (опционально, CUID)
 
 ---
 
@@ -355,8 +406,8 @@
 
 ```json
 {
-  "courseId": "uuid",
-  "dayOnCourseId": "uuid",
+  "courseId": "cuid",
+  "dayOnCourseId": "cuid",
   "stepIndex": 0,
   "stepTitle": "string (optional)",
   "stepOrder": 0
@@ -740,7 +791,7 @@
 
 **Query params:**
 
-- `userStepId` (required) — UUID шага пользователя
+- `userStepId` (required) — CUID шага пользователя (UserStep.id)
 
 ---
 
@@ -752,8 +803,8 @@
 
 ```json
 {
-  "userStepId": "uuid",
-  "stepId": "uuid",
+  "userStepId": "cuid",
+  "stepId": "cuid",
   "testAnswers": { "q1": 0, "q2": 1 },
   "testScore": 8,
   "testMaxScore": 10,

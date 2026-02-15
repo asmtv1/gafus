@@ -12,6 +12,12 @@ const SettingsActions = () => {
         <Link href="/passwordReset" className={styles.button}>
           🔐 Сменить пароль
         </Link>
+        <Link href="/profile/change-phone" className={styles.button}>
+          📞 Сменить телефон
+        </Link>
+        <Link href="/profile/change-username" className={styles.button}>
+          👤 Сменить логин
+        </Link>
       </div>
     </section>
   );

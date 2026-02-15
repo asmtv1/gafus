@@ -12,8 +12,16 @@ import crypto from "crypto";
 import { prisma } from "@gafus/prisma";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
 import { registerUser } from "@gafus/auth";
-import { sendPasswordResetRequest, serverCheckUserConfirmed } from "@gafus/core/services/auth";
+import {
+  changeUsername,
+  confirmPhoneChange,
+  requestPhoneChange,
+  sendPasswordResetRequest,
+  serverCheckUserConfirmed,
+} from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
+
+import { authMiddleware } from "../../middleware/auth.js";
 
 const logger = createWebLogger("api-auth");
 
@@ -53,6 +61,15 @@ const passwordResetRequestSchema = z.object({
 
 const checkConfirmedSchema = z.object({
   phone: z.string().min(1, "Номер телефона обязателен"),
+});
+
+const phoneChangeConfirmSchema = z.object({
+  code: z.string().trim().length(6).regex(/^\d{6}$/, "Код — 6 цифр"),
+  newPhone: z.string().trim().min(1, "Номер телефона обязателен"),
+});
+
+const usernameChangeSchema = z.object({
+  newUsername: z.string().trim().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Логин: латиница, цифры, _"),
 });
 
 // POST /api/v1/auth/login
@@ -367,6 +384,77 @@ authRoutes.post(
     } catch (error) {
       logger.error("Password reset request error", error as Error);
       return c.json({ success: false, error: "Ошибка отправки запроса" }, 500);
+    }
+  },
+);
+
+// POST /api/v1/auth/phone-change-request (требует JWT)
+authRoutes.post(
+  "/phone-change-request",
+  authMiddleware,
+  bodyLimit({ maxSize: 1024 }),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      await requestPhoneChange(user.id);
+      logger.info("phone-change-request success", { userId: user.id });
+      return c.json({ success: true });
+    } catch (error) {
+      logger.error("phone-change-request error", error as Error);
+      const message = error instanceof Error ? error.message : "Ошибка запроса кода";
+      return c.json({ success: false, error: message }, 400);
+    }
+  },
+);
+
+// POST /api/v1/auth/phone-change-confirm (требует JWT)
+authRoutes.post(
+  "/phone-change-confirm",
+  authMiddleware,
+  bodyLimit({ maxSize: 1024 }),
+  zValidator("json", phoneChangeConfirmSchema),
+  async (c) => {
+    try {
+      const { code, newPhone } = c.req.valid("json");
+      await confirmPhoneChange(code, newPhone);
+      const user = c.get("user");
+      logger.info("phone-change-confirm success", { userId: user.id });
+      return c.json({ success: true });
+    } catch (error) {
+      logger.error("phone-change-confirm error", error as Error);
+      const message = error instanceof Error ? error.message : "Не удалось сменить номер";
+      return c.json({ success: false, error: message }, 400);
+    }
+  },
+);
+
+// POST /api/v1/auth/username-change (требует JWT)
+authRoutes.post(
+  "/username-change",
+  authMiddleware,
+  bodyLimit({ maxSize: 1024 }),
+  zValidator("json", usernameChangeSchema),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const { newUsername } = c.req.valid("json");
+      await changeUsername(user.id, newUsername);
+      const updated = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { id: true, username: true, role: true },
+      });
+      if (!updated) {
+        return c.json({ success: false, error: "Ошибка сервера" }, 500);
+      }
+      logger.info("username-change success", { userId: user.id, newUsername: updated.username });
+      return c.json({
+        success: true,
+        data: { user: { id: updated.id, username: updated.username, role: updated.role } },
+      });
+    } catch (error) {
+      logger.error("username-change error", error as Error);
+      const message = error instanceof Error ? error.message : "Не удалось сменить логин";
+      return c.json({ success: false, error: message }, 400);
     }
   },
 );

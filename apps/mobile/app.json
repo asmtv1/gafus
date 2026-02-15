@@ -51,7 +51,7 @@
       "output": "static"
     },
     "notification": {
-      "icon": "./assets/images/logo.png"
+      "icon": "./assets/images/notification-icon.png"
     },
     "plugins": [
       "expo-router",

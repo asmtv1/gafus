@@ -49,6 +49,20 @@ export default function MainLayout() {
         }}
       />
       <Stack.Screen
+        name="profile/change-phone"
+        options={{
+          headerShown: true,
+          title: "Смена телефона",
+        }}
+      />
+      <Stack.Screen
+        name="profile/change-username"
+        options={{
+          headerShown: true,
+          title: "Смена логина",
+        }}
+      />
+      <Stack.Screen
         name="reminders"
         options={{
           headerShown: true,

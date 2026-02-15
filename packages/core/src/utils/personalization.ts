@@ -1,8 +1,16 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const petrovich = require("petrovich") as (
-  person: { gender?: string; first: string; last?: string; middle?: string },
-  caseName: string,
-) => { first: string; last?: string; middle?: string; gender?: string };
+import petrovich from "petrovich";
+
+type PetrovichPerson = {
+  gender?: string;
+  first: string;
+  last?: string;
+  middle?: string;
+};
+type PetrovichCase = "genitive" | "dative" | "accusative" | "instrumental" | "prepositional";
+const petrovichFn = petrovich as (
+  person: PetrovichPerson,
+  caseName: PetrovichCase,
+) => { first: string; last?: string; middle?: string; gender?: string } | null;
 
 export interface DeclinedName {
   nominative: string;
@@ -40,11 +48,11 @@ export function declineRussianName(
   try {
     return {
       nominative: trimmed,
-      genitive: fallback(petrovich(base, "genitive")),
-      dative: fallback(petrovich(base, "dative")),
-      accusative: fallback(petrovich(base, "accusative")),
-      instrumental: fallback(petrovich(base, "instrumental")),
-      prepositional: fallback(petrovich(base, "prepositional")),
+      genitive: fallback(petrovichFn(base, "genitive")),
+      dative: fallback(petrovichFn(base, "dative")),
+      accusative: fallback(petrovichFn(base, "accusative")),
+      instrumental: fallback(petrovichFn(base, "instrumental")),
+      prepositional: fallback(petrovichFn(base, "prepositional")),
     };
   } catch {
     return {

@@ -13,13 +13,19 @@ const LIMITS: Record<AuthRateLimitPath, number> = {
   login: 10,
   "password-reset-request": 5,
   "reset-password": 10,
+  "phone-change-request": 5,
+  "phone-change-confirm": 10,
+  "username-change": 10,
 };
 
 export type AuthRateLimitPath =
   | "register"
   | "login"
   | "password-reset-request"
-  | "reset-password";
+  | "reset-password"
+  | "phone-change-request"
+  | "phone-change-confirm"
+  | "username-change";
 
 const store = new Map<string, number[]>();
 

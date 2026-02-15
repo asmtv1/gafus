@@ -4,6 +4,11 @@
  * Auth Server Actions - обёртки над authService для Web
  */
 
+import { getServerSession } from "next-auth";
+import { revalidatePath } from "next/cache";
+
+import { authOptions } from "@gafus/auth";
+import * as authService from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 import {
   deletePendingConfirmCookie,
@@ -15,13 +20,14 @@ import {
   getClientIpFromHeaders,
 } from "@shared/lib/rateLimit";
 import {
+  phoneChangeConfirmSchema,
   phoneSchema,
   registerUserSchema,
   resetPasswordByCodeSchema,
   resetPasswordSchema,
+  usernameChangeSchema,
   usernameSchema,
 } from "@shared/lib/validation/authSchemas";
-import * as authService from "@gafus/core/services/auth";
 
 const logger = createWebLogger("auth-actions");
 
@@ -163,6 +169,88 @@ export async function resetPasswordByCodeAction(code: string, password: string) 
     throw new Error(
       error instanceof Error ? error.message : "Что-то пошло не так при сбросе пароля",
     );
+  }
+}
+
+/**
+ * Запрос кода смены телефона (отправка в Telegram).
+ */
+export async function requestPhoneChangeAction(): Promise<{
+  success?: true;
+  error?: string;
+}> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { error: "Не авторизован" };
+  }
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "phone-change-request")) {
+    return { error: "Слишком много запросов. Попробуйте через 15 минут." };
+  }
+  try {
+    await authService.requestPhoneChange(session.user.id);
+    logger.info("phone-change-request success", { userId: session.user.id });
+    return { success: true };
+  } catch (error) {
+    logger.error("requestPhoneChangeAction failed", error as Error, { userId: session.user.id });
+    return { error: error instanceof Error ? error.message : "Не удалось отправить код" };
+  }
+}
+
+/**
+ * Подтверждение смены телефона по коду из Telegram.
+ */
+export async function confirmPhoneChangeAction(
+  code: string,
+  newPhone: string,
+): Promise<{ success?: true; error?: string }> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { error: "Не авторизован" };
+  }
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "phone-change-confirm")) {
+    return { error: "Слишком много попыток. Попробуйте через 15 минут." };
+  }
+  try {
+    const parsed = phoneChangeConfirmSchema.parse({ code, newPhone });
+    await authService.confirmPhoneChange(parsed.code, parsed.newPhone);
+    revalidatePath("/profile");
+    logger.info("phone-change-confirm success", { userId: session.user.id });
+    return { success: true };
+  } catch (error) {
+    logger.error("confirmPhoneChangeAction failed", error as Error, { userId: session.user.id });
+    const message = error instanceof Error ? error.message : "Не удалось сменить номер";
+    return { error: message };
+  }
+}
+
+/**
+ * Смена логина. Возвращает normalized username для обновления сессии на клиенте.
+ */
+export async function changeUsernameAction(newUsername: string): Promise<{
+  success?: true;
+  username?: string;
+  error?: string;
+}> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { error: "Не авторизован" };
+  }
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "username-change")) {
+    return { error: "Слишком много запросов. Попробуйте через 15 минут." };
+  }
+  try {
+    const parsed = usernameChangeSchema.parse({ newUsername });
+    await authService.changeUsername(session.user.id, parsed.newUsername);
+    revalidatePath("/profile");
+    const normalized = parsed.newUsername.trim().toLowerCase();
+    logger.info("username-change success", { userId: session.user.id, newUsername: normalized });
+    return { success: true, username: normalized };
+  } catch (error) {
+    logger.error("changeUsernameAction failed", error as Error, { userId: session.user.id });
+    return { error: error instanceof Error ? error.message : "Не удалось сменить логин" };
   }
 }
 
