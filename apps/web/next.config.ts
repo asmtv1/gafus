@@ -39,6 +39,10 @@ const gafusAliases = {
   ),
   "@gafus/core": _path.resolve(__dirname, "../../packages/core/src"),
   "@gafus/core/services/course": _path.resolve(__dirname, "../../packages/core/src/services/course"),
+  "@gafus/core/services/coursePath": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/coursePath",
+  ),
   "@gafus/core/services/diary": _path.resolve(__dirname, "../../packages/core/src/services/diary"),
   "@gafus/core/services/user": _path.resolve(__dirname, "../../packages/core/src/services/user"),
   "@gafus/core/services/auth": _path.resolve(__dirname, "../../packages/core/src/services/auth"),

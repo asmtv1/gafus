@@ -42,6 +42,7 @@ export interface TrainingDetail {
   displayDayNumber?: number | null; // Опциональное поле только для отображения номера дня
   title: string;
   type: string;
+  showCoursePathExport?: boolean;
   courseId: string;
   description: string;
   duration: string;

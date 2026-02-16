@@ -1,13 +1,13 @@
 "use client";
 
-import { Alert, AlertTitle, Box, Typography } from "@mui/material";
+import { Alert, AlertTitle, Box, Checkbox, FormControlLabel, Typography } from "@mui/material";
 import MarkdownInput from "@shared/components/common/MarkdownInput";
 import PersonalizationPlaceholdersHint from "@shared/components/PersonalizationPlaceholdersHint";
 import { FormField, SelectField } from "@shared/components/ui/FormField";
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
 import { commonValidationRules } from "@shared/hooks/useFormValidation";
 import React from "react";
-import { useForm, type RegisterOptions } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
 import sharedStyles from "@shared/styles/FormLayout.module.css";
 
@@ -16,6 +16,7 @@ interface TrainingDayFormData {
   type: string;
   description: string;
   equipment: string;
+  showCoursePathExport: boolean;
 }
 
 interface TrainingDayFormProps {
@@ -23,6 +24,7 @@ interface TrainingDayFormProps {
   type?: string;
   description?: string;
   equipment?: string;
+  showCoursePathExport?: boolean;
   onChange: (data: TrainingDayFormData) => void;
 }
 
@@ -31,6 +33,7 @@ export default function TrainingDayForm({
   type,
   description,
   equipment,
+  showCoursePathExport,
   onChange,
 }: TrainingDayFormProps) {
   const form = useForm<TrainingDayFormData>({
@@ -40,6 +43,7 @@ export default function TrainingDayForm({
       type: type ?? "regular",
       description: description ?? "",
       equipment: equipment ?? "",
+      showCoursePathExport: showCoursePathExport ?? false,
     },
   });
 
@@ -50,9 +54,10 @@ export default function TrainingDayForm({
       type: type ?? "regular",
       description: description ?? "",
       equipment: equipment ?? "",
+      showCoursePathExport: showCoursePathExport ?? false,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, type, description, equipment]);
+  }, [title, type, description, equipment, showCoursePathExport]);
 
   // Обновляем родительский компонент при изменении формы
   React.useEffect(() => {
@@ -70,7 +75,8 @@ export default function TrainingDayForm({
         name="title"
         placeholder="Введите название дня"
         form={form}
-        rules={commonValidationRules.dayTitle as RegisterOptions<TrainingDayFormData, "title">}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- правила для title/type не зависят от showCoursePathExport
+        rules={commonValidationRules.dayTitle as any}
       />
 
       <SelectField
@@ -85,7 +91,8 @@ export default function TrainingDayForm({
           { value: "diagnostics", label: "Диагностика" },
           { value: "summary", label: "Подведение итогов" },
         ]}
-        rules={commonValidationRules.dayType as RegisterOptions<TrainingDayFormData, "type">}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- правила для type не зависят от showCoursePathExport
+        rules={commonValidationRules.dayType as any}
       />
 
       <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
@@ -119,6 +126,26 @@ export default function TrainingDayForm({
           </em>
         </Typography>
       </Alert>
+
+      {form.watch("type") === "summary" && (
+        <FormControlLabel
+          control={
+            <Controller
+              name="showCoursePathExport"
+              control={form.control}
+              render={({ field }) => (
+                <Checkbox
+                  checked={field.value}
+                  onChange={(_, checked) => field.onChange(checked)}
+                  onBlur={field.onBlur}
+                />
+              )}
+            />
+          }
+          label="Показывать экспорт «Ваш путь» в этом дне"
+          sx={{ mt: 1, mb: 1 }}
+        />
+      )}
 
       <PersonalizationPlaceholdersHint />
 

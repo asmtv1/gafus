@@ -15,6 +15,7 @@ import { useTrainingStore } from "@shared/stores/trainingStore";
 import { markTheoryStepAsCompleted } from "@shared/lib/training/markTheoryStepAsCompleted";
 import { ExpandMoreIcon } from "@shared/utils/muiImports";
 import { AccordionStep } from "../AccordionStep";
+import { generateCoursePathPdf } from "@shared/lib/actions/generateCoursePathPdf";
 import styles from "./Day.module.css";
 
 // Цвета и эмодзи для статусов (текст — из STEP_STATUS_LABELS в core)
@@ -35,6 +36,8 @@ export function Day({ training, courseType }: DayProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState<boolean>(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const stepStates = useDayStepStates(training.courseId, training.dayOnCourseId);
   const stepStoreRehydrated = useStepStore((s) => s._rehydrated);
@@ -218,6 +221,48 @@ export function Day({ training, courseType }: DayProps) {
           <ReactMarkdown>{training.description || ""}</ReactMarkdown>
         </div>
       </div>
+
+      {training.type === "summary" && training.showCoursePathExport && (
+        <div className={styles.exportPathBlock} style={{ marginTop: 16, marginBottom: 16 }}>
+          <button
+            type="button"
+            className={styles.exportPathButton}
+            disabled={isGenerating}
+            onClick={async () => {
+              setIsGenerating(true);
+              setExportError(null);
+              try {
+                const result = await generateCoursePathPdf(training.courseId);
+                if (!result.success) {
+                  setExportError(result.error);
+                  return;
+                }
+                const response = await fetch(
+                  `data:application/pdf;base64,${result.data}`,
+                );
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = result.fileName || "Ваш-путь.pdf";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+              } catch (err) {
+                setExportError(
+                  err instanceof Error ? err.message : "Не удалось скачать PDF",
+                );
+              } finally {
+                setIsGenerating(false);
+              }
+            }}
+          >
+            {isGenerating ? "Генерация…" : "Экспортировать «Ваш путь»"}
+          </button>
+          {exportError && <p className={styles.exportError}>{exportError}</p>}
+        </div>
+      )}
 
       {training.steps.map((step, index) => {
         const isBreakStep = step.type === "BREAK";

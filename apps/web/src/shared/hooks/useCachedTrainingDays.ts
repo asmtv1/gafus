@@ -27,6 +27,7 @@ export interface TrainingDaysData {
     theoryMinutes?: number;
     equipment?: string;
     isLocked?: boolean;
+    showCoursePathExport?: boolean;
   }[];
   courseDescription: string | null;
   courseId: string | null;
@@ -112,6 +113,7 @@ export function useCachedTrainingDays(
                 estimatedDuration,
                 theoryMinutes,
                 equipment: day.equipment || "",
+                showCoursePathExport: day.showCoursePathExport ?? false,
               };
             }),
             courseDescription: offlineCourse.course.metadata.description,

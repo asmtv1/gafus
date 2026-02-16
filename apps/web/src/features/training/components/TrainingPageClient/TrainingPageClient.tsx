@@ -69,6 +69,8 @@ export default function TrainingPageClient({
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [personalizationError, setPersonalizationError] = useState<string | null>(null);
+  const [personalizationSaving, setPersonalizationSaving] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const personalizationShownRef = useRef(false);
@@ -83,6 +85,7 @@ export default function TrainingPageClient({
     const courseId = initialData?.courseId;
     if (!needPersonalization || personalizationShownRef.current || !courseId) return;
     personalizationShownRef.current = true;
+    setPersonalizationError(null);
     void showPersonalizationAlert({
       initialValues: null,
       getDeclinedName,
@@ -91,8 +94,15 @@ export default function TrainingPageClient({
         router.push("/courses");
         return;
       }
+      setPersonalizationSaving(true);
       saveCoursePersonalization(courseId, result).then((res) => {
-        if (res.success) router.refresh();
+        setPersonalizationSaving(false);
+        if (res.success) {
+          router.refresh();
+        } else {
+          setPersonalizationError(res.error ?? "Не удалось сохранить");
+          personalizationShownRef.current = false;
+        }
       });
     });
   }, [needPersonalization, initialData?.courseId, router]);
@@ -174,7 +184,18 @@ export default function TrainingPageClient({
   if (needPersonalization) {
     return (
       <div className={styles.accessDeniedBlock}>
-        <Typography color="text.secondary">Заполните данные для персонализированного курса…</Typography>
+        {personalizationSaving ? (
+          <Typography color="text.secondary">Сохранение…</Typography>
+        ) : personalizationError ? (
+          <>
+            <Typography color="error">{personalizationError}</Typography>
+            <Typography color="text.secondary" sx={{ mt: 1 }}>
+              Обновите страницу и заполните форму снова.
+            </Typography>
+          </>
+        ) : (
+          <Typography color="text.secondary">Заполните данные для персонализированного курса…</Typography>
+        )}
       </div>
     );
   }

@@ -10,9 +10,10 @@ export async function updateTrainingDay(data: {
   description: string;
   type: string;
   equipment: string;
+  showCoursePathExport?: boolean;
   stepIds: string[];
 }) {
-  const { id, title, description, type, equipment, stepIds } = data;
+  const { id, title, description, type, equipment, showCoursePathExport, stepIds } = data;
 
   await prisma.trainingDay.update({
     where: { id },
@@ -21,6 +22,7 @@ export async function updateTrainingDay(data: {
       description,
       type,
       equipment,
+      showCoursePathExport: showCoursePathExport ?? false,
       stepLinks: {
         deleteMany: {},
         create: stepIds.map((stepId: string, index: number) => ({ stepId, order: index })),

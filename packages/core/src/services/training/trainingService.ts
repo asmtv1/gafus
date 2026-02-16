@@ -41,6 +41,7 @@ type CourseWithDayLinks = {
       title: string;
       type: string;
       equipment: string;
+      showCoursePathExport: boolean;
       stepLinks: {
         id: string;
         order: number;
@@ -161,6 +162,7 @@ function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
       theoryMinutes,
       equipment: link.day.equipment || "",
       isLocked,
+      showCoursePathExport: link.day.showCoursePathExport ?? false,
     };
   });
 }
@@ -183,6 +185,7 @@ export async function getTrainingDays(
     theoryMinutes: number;
     equipment: string;
     isLocked: boolean;
+    showCoursePathExport: boolean;
   }[];
   courseDescription: string | null;
   courseId: string | null;
@@ -232,6 +235,7 @@ export async function getTrainingDays(
                 title: true,
                 type: true,
                 equipment: true,
+                showCoursePathExport: true,
                 stepLinks: {
                   select: {
                     id: true,
@@ -416,6 +420,7 @@ export async function getTrainingDayWithUserSteps(
           title: true,
           description: true,
           type: true,
+          showCoursePathExport: true,
           stepLinks: {
             orderBy: { order: "asc" },
             select: {
@@ -461,7 +466,7 @@ export async function getTrainingDayWithUserSteps(
     order: physicalOrder,
     courseId,
     course: { duration: courseDuration, isPersonalized, userCourses },
-    day: { id: trainingDayId, title, description, type, stepLinks },
+    day: { id: trainingDayId, title, description, type, stepLinks, showCoursePathExport },
     userTrainings,
   } = found;
 
@@ -552,6 +557,7 @@ export async function getTrainingDayWithUserSteps(
       duration: courseDuration ?? "",
       userStatus: TrainingStatus.NOT_STARTED,
       steps,
+      showCoursePathExport: showCoursePathExport ?? false,
     };
   }
 
@@ -679,6 +685,7 @@ export async function getTrainingDayWithUserSteps(
     duration: courseDuration ?? "",
     userStatus: userTraining ? dayUserStatus : TrainingStatus.NOT_STARTED,
     steps,
+    showCoursePathExport: showCoursePathExport ?? false,
   };
 }
 

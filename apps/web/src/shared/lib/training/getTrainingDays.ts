@@ -17,7 +17,7 @@ export async function getTrainingDays(
 ): Promise<{
   trainingDays: (Pick<
     TrainingDetail,
-    "trainingDayId" | "title" | "type" | "courseId" | "userStatus"
+    "trainingDayId" | "title" | "type" | "courseId" | "userStatus" | "showCoursePathExport"
   > & {
     dayOnCourseId: string;
     estimatedDuration: number;

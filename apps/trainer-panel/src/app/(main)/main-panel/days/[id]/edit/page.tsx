@@ -38,6 +38,7 @@ export default async function EditDayPage({ params }: Props) {
           type: day.type,
           description: day.description,
           equipment: day.equipment,
+          showCoursePathExport: day.showCoursePathExport ?? false,
           stepIds: day.stepLinks.map((sl: { stepId: string }) => sl.stepId),
         }}
       />

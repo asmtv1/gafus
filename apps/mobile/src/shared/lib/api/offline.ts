@@ -29,6 +29,7 @@ export interface FullCourseData {
     description: string;
     equipment: string;
     type: string;
+    showCoursePathExport?: boolean;
     steps: {
       id: string;
       order: number;

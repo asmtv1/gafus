@@ -920,6 +920,7 @@
 | `/api/track-presentation`       | Трекинг презентаций     |
 | `/api/track-presentation-event` | События презентаций     |
 | `/api/track-reengagement-click` | Клики реактивации       |
+| `/api/course-path-export`       | GET, экспорт PDF «Ваш путь» по курсу (query: `courseId`); для mobile и прямых скачиваний |
 
 ---
 

@@ -343,93 +343,75 @@ export const useCourseStore = create<CourseStore>()(
 export const useCourseStoreActions = () => {
   const store = useCourseStore();
 
-  const fetchAllCourses = useCallback(
-    async (type?: string) => {
-      // Проверяем наличие данных в store и их свежесть перед загрузкой
-      if (store.allCourses?.data && store.allCourses.type === type) {
-        const isDataFresh = !isStale(store.allCourses.timestamp, COURSES_CACHE_DURATION);
-        if (isDataFresh) {
-          return store.allCourses.data;
-        }
-      }
-
-      store.setLoading("all", true);
-      store.setError("all", null);
-
-      try {
-        const { data } = await getCoursesWithProgressAction();
-        store.setAllCourses(data, type);
-        return data;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        store.setError("all", errorMessage);
-        throw error;
-      } finally {
-        store.setLoading("all", false);
-      }
-    },
-    [store],
-  );
+  const fetchAllCourses = useCallback(async (type?: string) => {
+    const st = useCourseStore.getState();
+    if (st.allCourses?.data && st.allCourses.type === type) {
+      const isDataFresh = !isStale(st.allCourses.timestamp, COURSES_CACHE_DURATION);
+      if (isDataFresh) return st.allCourses.data;
+    }
+    st.setLoading("all", true);
+    st.setError("all", null);
+    try {
+      const { data } = await getCoursesWithProgressAction();
+      useCourseStore.getState().setAllCourses(data, type);
+      return data;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      useCourseStore.getState().setError("all", errorMessage);
+      throw error;
+    } finally {
+      useCourseStore.getState().setLoading("all", false);
+    }
+  }, []);
 
   const fetchFavorites = useCallback(async () => {
-    // Проверяем наличие данных в store и их свежесть перед загрузкой
-    if (store.favorites?.data) {
-      const isDataFresh = !isStale(store.favorites.timestamp, COURSES_CACHE_DURATION);
-      if (isDataFresh) {
-        return store.favorites.data;
-      }
+    const st = useCourseStore.getState();
+    if (st.favorites?.data) {
+      const isDataFresh = !isStale(st.favorites.timestamp, COURSES_CACHE_DURATION);
+      if (isDataFresh) return st.favorites.data;
     }
-
-    store.setLoading("favorites", true);
-    store.setError("favorites", null);
-
+    st.setLoading("favorites", true);
+    st.setError("favorites", null);
     try {
       const { data, favoriteIds } = await getFavoritesCoursesAction();
       const typedData = data as unknown as CourseWithProgressData[];
-      store.setFavorites(typedData);
-      store.setFavoriteCourseIds(favoriteIds);
+      useCourseStore.getState().setFavorites(typedData);
+      useCourseStore.getState().setFavoriteCourseIds(favoriteIds);
       return typedData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      store.setError("favorites", errorMessage);
+      useCourseStore.getState().setError("favorites", errorMessage);
       throw error;
     } finally {
-      store.setLoading("favorites", false);
+      useCourseStore.getState().setLoading("favorites", false);
     }
-  }, [store]);
+  }, []);
 
-  // Принудительно обновляем избранное (игнорируя кэш)
   const forceRefreshFavorites = useCallback(async () => {
-    store.setLoading("favorites", true);
-    store.setError("favorites", null);
-
+    const st = useCourseStore.getState();
+    st.setLoading("favorites", true);
+    st.setError("favorites", null);
     try {
       const { data, favoriteIds } = await getFavoritesCoursesAction();
       const typedData = data as unknown as CourseWithProgressData[];
-      store.setFavorites(typedData);
-
-      // Синхронизируем ID избранных курсов
-      store.setFavoriteCourseIds(favoriteIds);
-
+      useCourseStore.getState().setFavorites(typedData);
+      useCourseStore.getState().setFavoriteCourseIds(favoriteIds);
       return typedData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      store.setError("favorites", errorMessage);
+      useCourseStore.getState().setError("favorites", errorMessage);
       throw error;
     } finally {
-      store.setLoading("favorites", false);
+      useCourseStore.getState().setLoading("favorites", false);
     }
-  }, [store]);
+  }, []);
 
   const fetchAuthored = useCallback(async () => {
-    // Всегда запрашиваем актуальные данные (важно для корректного статуса COMPLETED)
-    store.setLoading("authored", true);
-    store.setError("authored", null);
-
+    const st = useCourseStore.getState();
+    st.setLoading("authored", true);
+    st.setError("authored", null);
     try {
       const data = await getAuthoredCoursesAction();
-
-      // Преобразуем AuthoredCourse в CourseWithProgressData
       const transformedData = data.map(
         (course: {
           id: string;
@@ -440,19 +422,19 @@ export const useCourseStoreActions = () => {
         }) => ({
           id: course.id,
           name: course.name,
-          type: "course", // дефолтное значение
-          description: "", // дефолтное значение
-          shortDesc: "", // дефолтное значение
-          duration: "", // дефолтное значение
+          type: "course",
+          description: "",
+          shortDesc: "",
+          duration: "",
           logoImg: course.logoImg,
           isPrivate: false,
           isPaid: false,
           priceRub: null,
           hasAccess: true,
           avgRating: course.avgRating,
-          trainingLevel: "BEGINNER" as const, // дефолтное значение
-          createdAt: new Date(), // дефолтное значение
-          authorUsername: "", // дефолтное значение
+          trainingLevel: "BEGINNER" as const,
+          createdAt: new Date(),
+          authorUsername: "",
           userStatus: TrainingStatus.NOT_STARTED,
           startedAt: null,
           completedAt: null,
@@ -462,17 +444,16 @@ export const useCourseStoreActions = () => {
           dayLinks: [],
         }),
       );
-
-      store.setAuthored(transformedData);
+      useCourseStore.getState().setAuthored(transformedData);
       return transformedData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      store.setError("authored", errorMessage);
+      useCourseStore.getState().setError("authored", errorMessage);
       throw error;
     } finally {
-      store.setLoading("authored", false);
+      useCourseStore.getState().setLoading("authored", false);
     }
-  }, [store]);
+  }, []);
 
   return {
     fetchAllCourses,

@@ -33,6 +33,7 @@ export interface FullCourseData {
     description: string;
     equipment: string;
     type: string;
+    showCoursePathExport?: boolean;
     steps: {
       id: string;
       order: number;
@@ -178,6 +179,7 @@ export async function downloadFullCourse(
                 description: true,
                 equipment: true,
                 type: true,
+                showCoursePathExport: true,
                 stepLinks: {
                   orderBy: { order: "asc" },
                   select: {
@@ -221,6 +223,7 @@ export async function downloadFullCourse(
       description: dayLink.day.description || "",
       equipment: dayLink.day.equipment || "",
       type: dayLink.day.type,
+      showCoursePathExport: dayLink.day.showCoursePathExport ?? false,
       steps: dayLink.day.stepLinks.map((stepLink) => ({
         id: stepLink.step.id,
         order: stepLink.order,

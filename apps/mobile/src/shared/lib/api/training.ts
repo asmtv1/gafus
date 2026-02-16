@@ -15,6 +15,8 @@ export interface TrainingDay {
   completedAt: string | null;
   /** Для summary: true, если не все остальные дни завершены (как на web) */
   isLocked?: boolean;
+  /** Показывать кнопку экспорта «Ваш путь» (только для типа summary) */
+  showCoursePathExport?: boolean;
 }
 
 export interface TrainingDaysResponse {
@@ -67,6 +69,7 @@ export interface TrainingDayResponse {
   type: string;
   description?: string;
   steps: UserStep[];
+  showCoursePathExport?: boolean;
 }
 
 export interface StepActionParams {

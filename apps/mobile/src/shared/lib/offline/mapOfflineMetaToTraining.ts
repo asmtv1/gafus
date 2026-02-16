@@ -91,6 +91,7 @@ export function mapMetaToTrainingDaysResponse(
       userStatus: dayStatuses.find((d) => d.id === day.id)!.status,
       completedAt: null,
       isLocked,
+      showCoursePathExport: day.showCoursePathExport ?? false,
     };
   });
   return {
@@ -140,5 +141,6 @@ export function mapMetaToTrainingDayResponse(
     type: day.type,
     description: day.description,
     steps,
+    showCoursePathExport: day.showCoursePathExport ?? false,
   };
 }

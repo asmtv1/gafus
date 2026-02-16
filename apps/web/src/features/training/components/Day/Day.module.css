@@ -176,6 +176,40 @@
   text-decoration: none;
 }
 
+.exportPathBlock {
+  width: 100%;
+  max-width: 500px;
+}
+
+.exportPathButton {
+  padding: 12px 20px;
+  background-color: #636128;
+  color: #fff;
+  border: 2px solid #636128;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.exportPathButton:hover:not(:disabled) {
+  background-color: #4a4a1a;
+  transform: translateY(-1px);
+}
+
+.exportPathButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.exportError {
+  font-size: 14px;
+  margin-top: 8px;
+  color: var(--error-color, #d32f2f);
+}
+
 .statusBadge {
   border-radius: 9999px;
   padding: 4px 12px;

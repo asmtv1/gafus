@@ -141,18 +141,18 @@ export default function CoursesClient({
   // Добавляем синхронизацию прогресса
   const { syncedCourses } = useCourseProgressSync();
 
-  // Инициализируем данные при монтировании компонента
+  // Инициализируем данные при монтировании: приоритет серверных initialCourses над persist при отличии набора id
   useEffect(() => {
-    // Если есть серверные данные, используем их
-    if (initialCourses && !allCourses) {
+    const hasServerData = initialCourses != null;
+    const currentIds = (allCourses?.data ?? []).map((c) => c.id).sort().join(",");
+    const serverIds = (initialCourses ?? []).map((c) => c.id).sort().join(",");
+    const idsDiffer = currentIds !== serverIds;
+
+    if (hasServerData && (!allCourses || idsDiffer)) {
       setAllCourses(initialCourses, "server");
-    }
-    // Если есть ошибка сервера, показываем её
-    else if (initialError && !allCourses) {
+    } else if (initialError && !allCourses) {
       // Ошибка будет обработана в store
-    }
-    // Если нет серверных данных и нет загруженных курсов, загружаем клиентски
-    else if (!initialCourses && !allCourses && !loading.all && userId) {
+    } else if (!initialCourses && !allCourses && !loading.all && userId) {
       fetchAllCourses().catch((_error) => {
         // Ошибка уже обрабатывается в store
       });

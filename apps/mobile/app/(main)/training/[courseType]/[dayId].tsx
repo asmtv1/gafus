@@ -6,6 +6,7 @@ import {
   RefreshControl,
   Pressable,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { Text, Surface, Snackbar, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,6 +33,7 @@ import { getStepContent, paymentsApi, trainingApi } from "@/shared/lib/api";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
+import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 
 /**
  * Экран дня тренировки с шагами
@@ -52,7 +54,9 @@ export default function TrainingDayScreen() {
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
   const [isPaymentChecking, setIsPaymentChecking] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const hasHandledPaymentReturnRef = useRef(false);
+  const { isOffline } = useNetworkStatus();
 
   // Загрузка данных дня
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDay(courseType, dayId);
@@ -636,6 +640,51 @@ export default function TrainingDayScreen() {
             </View>
           )}
 
+          {/* Кнопка экспорта «Ваш путь» — только для дня типа summary с включённой опцией, только онлайн */}
+          {dayData?.type === "summary" && dayData?.showCoursePathExport === true && (
+            <View style={styles.exportPathBlock}>
+              <Pressable
+                style={[
+                  styles.exportPathButton,
+                  (isOffline || isExporting) && styles.exportPathButtonDisabled,
+                ]}
+                onPress={async () => {
+                  if (isOffline) {
+                    setSnackbar({
+                      visible: true,
+                      message: "Сгенерировать PDF можно только при наличии сети",
+                    });
+                    return;
+                  }
+                  setIsExporting(true);
+                  try {
+                    const url = `${WEB_BASE}/api/course-path-export?courseId=${encodeURIComponent(courseId)}`;
+                    const canOpen = await Linking.canOpenURL(url);
+                    if (canOpen) {
+                      await Linking.openURL(url);
+                    } else {
+                      setSnackbar({ visible: true, message: "Не удалось открыть ссылку" });
+                    }
+                  } catch {
+                    setSnackbar({ visible: true, message: "Ошибка при экспорте" });
+                  } finally {
+                    setIsExporting(false);
+                  }
+                }}
+                disabled={isOffline || isExporting}
+              >
+                {isExporting ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <MaterialCommunityIcons name="file-download-outline" size={22} color="#fff" />
+                )}
+                <Text style={styles.exportPathButtonText}>
+                  {isExporting ? "Экспорт…" : "Экспортировать «Ваш путь»"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* Список шагов — нумерация как на web: BREAK без номера, остальные «Упражнение #N» */}
           <View style={styles.stepsContainer}>
             {(() => {
@@ -891,6 +940,31 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
     padding: 20,
+  },
+  exportPathBlock: {
+    marginBottom: SPACING.lg,
+    width: "100%",
+    maxWidth: 500,
+  },
+  exportPathButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: "#636128",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#636128",
+  },
+  exportPathButtonDisabled: {
+    opacity: 0.7,
+  },
+  exportPathButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#fff",
   },
   stepsContainer: {
     gap: SPACING.sm,

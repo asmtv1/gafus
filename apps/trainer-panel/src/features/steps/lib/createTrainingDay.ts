@@ -10,6 +10,7 @@ export async function createTrainingDay(data: {
   description: string;
   type: string;
   equipment: string;
+  showCoursePathExport?: boolean;
   stepIds: string[];
 }) {
   const session = await getServerSession(authOptions);
@@ -23,6 +24,7 @@ export async function createTrainingDay(data: {
       description: data.description,
       type: data.type,
       equipment: data.equipment,
+      showCoursePathExport: data.showCoursePathExport ?? false,
       author: { connect: { id: authorId } },
       stepLinks: {
         create: data.stepIds.map((stepId: string, index: number) => ({

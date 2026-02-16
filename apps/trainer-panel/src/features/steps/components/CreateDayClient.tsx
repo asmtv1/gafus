@@ -28,6 +28,7 @@ interface Props {
     type: string;
     description: string;
     equipment: string;
+    showCoursePathExport?: boolean;
     stepIds: string[];
   };
   /** Предвыбранные шаги при переходе со страницы шагов (например, «создать день из выбранных») */
@@ -55,6 +56,7 @@ export default function CreateDayClient({ allSteps, initialDay, initialStepIds }
     type: initialDay?.type ?? "regular",
     description: initialDay?.description ?? "",
     equipment: initialDay?.equipment ?? "",
+    showCoursePathExport: initialDay?.showCoursePathExport ?? false,
   });
   const { open, message, severity, showToast, closeToast } = useToast();
 
@@ -74,21 +76,35 @@ export default function CreateDayClient({ allSteps, initialDay, initialStepIds }
         await updateTrainingDay({
           id: initialDay.id,
           ...dayInfo,
+          showCoursePathExport: dayInfo.type === "summary" ? dayInfo.showCoursePathExport : false,
           stepIds: selectedSteps.map((s) => s.id),
         });
         showToast("День успешно обновлён", "success");
         // Очистка формы и возврат к списку дней
-        setDayInfo({ title: "", type: "regular", description: "", equipment: "" });
+        setDayInfo({
+          title: "",
+          type: "regular",
+          description: "",
+          equipment: "",
+          showCoursePathExport: false,
+        });
         setSelectedSteps([]);
         router.push("/main-panel/days");
       } else {
         await createTrainingDay({
           ...dayInfo,
+          showCoursePathExport: dayInfo.type === "summary" ? dayInfo.showCoursePathExport : false,
           stepIds: selectedSteps.map((s) => s.id),
         });
         showToast("День успешно создан", "success");
         // Очистка формы после создания
-        setDayInfo({ title: "", type: "regular", description: "", equipment: "" });
+        setDayInfo({
+          title: "",
+          type: "regular",
+          description: "",
+          equipment: "",
+          showCoursePathExport: false,
+        });
         setSelectedSteps([]);
       }
     } catch (err) {
@@ -105,6 +121,7 @@ export default function CreateDayClient({ allSteps, initialDay, initialStepIds }
           type={dayInfo.type}
           description={dayInfo.description}
           equipment={dayInfo.equipment}
+          showCoursePathExport={dayInfo.showCoursePathExport}
           onChange={setDayInfo}
         />
       </FormSection>

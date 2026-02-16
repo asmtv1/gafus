@@ -1,7 +1,7 @@
 "use server";
 
 import { saveCoursePersonalization as saveCoursePersonalizationService } from "@gafus/core/services/course";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
@@ -54,6 +54,9 @@ export async function saveCoursePersonalization(
   const result = await saveCoursePersonalizationService(userId, courseId, parsed.data);
 
   if (result.success) {
+    revalidateTag("training");
+    revalidateTag("days");
+    revalidateTag(`user-${userId}`);
     revalidatePath("/trainings/[courseType]", "page");
     revalidatePath("/trainings/[courseType]/[dayId]", "page");
   }
