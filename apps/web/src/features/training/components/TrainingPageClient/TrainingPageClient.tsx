@@ -181,6 +181,29 @@ export default function TrainingPageClient({
     }
   }, [courseForPay, csrfToken, userId]);
 
+  const handleChangePersonalization = useCallback(async () => {
+    if (!initialData?.courseId) return;
+    setPersonalizationError(null);
+    try {
+      const result = await showPersonalizationAlert({
+        initialValues: userCoursePersonalization ?? undefined,
+        getDeclinedName,
+      });
+      if (result === null) return;
+      setPersonalizationSaving(true);
+      const res = await saveCoursePersonalization(initialData.courseId, result);
+      if (res.success) {
+        router.refresh();
+      } else {
+        setPersonalizationError(res.error ?? "Не удалось сохранить");
+      }
+    } catch {
+      setPersonalizationError("Произошла ошибка");
+    } finally {
+      setPersonalizationSaving(false);
+    }
+  }, [userCoursePersonalization, initialData?.courseId, router]);
+
   if (needPersonalization) {
     return (
       <div className={styles.accessDeniedBlock}>
@@ -336,6 +359,24 @@ export default function TrainingPageClient({
           courseType={courseType}
         />
       </div>
+
+      {courseIsPersonalized && userCoursePersonalization && initialData?.courseId && (
+        <div style={{ marginBottom: "16px" }}>
+          <button
+            type="button"
+            className={styles.btnOutline}
+            onClick={handleChangePersonalization}
+            disabled={personalizationSaving}
+          >
+            {personalizationSaving ? "Сохранение…" : "Изменить данные персонализации"}
+          </button>
+          {personalizationError && (
+            <Typography color="error" sx={{ mt: 1 }}>
+              {personalizationError}
+            </Typography>
+          )}
+        </div>
+      )}
 
       <h3 className="plan">План занятий:</h3>
       <TrainingDayList

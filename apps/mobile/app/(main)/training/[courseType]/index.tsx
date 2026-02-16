@@ -648,6 +648,14 @@ export default function TrainingDaysScreen() {
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
           <Text style={styles.backText}>Назад</Text>
         </Pressable>
+        {courseData?.courseIsPersonalized && courseData?.userCoursePersonalization && (
+          <Pressable
+            style={styles.changePersonalizationRow}
+            onPress={() => router.replace(`/training/${courseType}?personalize=1`)}
+          >
+            <Text style={styles.changePersonalizationText}>Изменить персонализацию</Text>
+          </Pressable>
+        )}
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
@@ -800,6 +808,15 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 17,
+    color: COLORS.primary,
+    fontWeight: "500",
+  },
+  changePersonalizationRow: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+  },
+  changePersonalizationText: {
+    fontSize: 15,
     color: COLORS.primary,
     fontWeight: "500",
   },
