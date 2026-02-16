@@ -39,17 +39,18 @@ model Course {
 }
 
 model TrainingDay {
-  id          String        @id @default(cuid())
-  title       String
-  equipment   String        @default("")
-  description String        @default("")
-  type        String        @default("regular")
-  authorId    String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  dayLinks    DayOnCourse[]
-  stepLinks   StepOnDay[]
-  author      User          @relation(fields: [authorId], references: [id])
+  id                   String        @id @default(cuid())
+  title                String
+  equipment            String        @default("")
+  description          String        @default("")
+  type                 String        @default("regular")
+  authorId             String
+  showCoursePathExport Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  dayLinks             DayOnCourse[]
+  stepLinks            StepOnDay[]
+  author               User          @relation(fields: [authorId], references: [id])
 }
 
 model Step {

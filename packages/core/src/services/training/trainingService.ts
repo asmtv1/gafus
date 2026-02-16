@@ -2,7 +2,7 @@
  * Training Service
  * Сервис для работы с тренировками
  */
-import { prisma, isPrismaUniqueConstraintError } from "@gafus/prisma";
+import { prisma, isPrismaUniqueConstraintError, TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 import { checkCourseAccess, checkCourseAccessById } from "../course";
@@ -525,7 +525,8 @@ export async function getTrainingDayWithUserSteps(
   }
 
   if (!userTrainingId) {
-    const steps = stepLinks.map(({ step, order }) => ({
+    type StepLinkItem = (typeof stepLinks)[number];
+    const steps = stepLinks.map(({ step, order }: StepLinkItem) => ({
       id: step.id,
       title: applyPlaceholders(step.title),
       description: applyPlaceholders(step.description),
@@ -585,14 +586,14 @@ export async function getTrainingDayWithUserSteps(
 
   // Создаем недостающие UserStep записи
   const existingStepOnDayIds = new Set(userSteps.map((us) => us.stepOnDayId));
-  const allStepOnDayIds = stepLinks.map((link) => link.id);
-  const missingStepOnDayIds = allStepOnDayIds.filter((id) => !existingStepOnDayIds.has(id));
+  const allStepOnDayIds = stepLinks.map((link: { id: string }) => link.id);
+  const missingStepOnDayIds = allStepOnDayIds.filter((id: string) => !existingStepOnDayIds.has(id));
 
   if (missingStepOnDayIds.length > 0) {
     try {
       const newUserSteps = await prisma.$transaction(
         async (tx) => {
-          const promises = missingStepOnDayIds.map((stepOnDayId) =>
+          const promises = missingStepOnDayIds.map((stepOnDayId: string) =>
             tx.userStep.create({
               data: {
                 userTrainingId,
@@ -646,7 +647,8 @@ export async function getTrainingDayWithUserSteps(
     userSteps.map((record) => [record.stepOnDayId, record.remainingSec ?? undefined]),
   );
 
-  const steps = stepLinks.map(({ id: stepOnDayId, step, order }) => ({
+  type StepLinkItem = (typeof stepLinks)[number];
+  const steps = stepLinks.map(({ id: stepOnDayId, step, order }: StepLinkItem) => ({
     id: step.id,
     title: applyPlaceholders(step.title),
     description: applyPlaceholders(step.description),
@@ -670,7 +672,7 @@ export async function getTrainingDayWithUserSteps(
   }));
 
   const stepStatusesArr = stepLinks.map(
-    (stepLink) => stepStatuses[stepLink.id] ?? TrainingStatus.NOT_STARTED,
+    (stepLink: StepLinkItem) => stepStatuses[stepLink.id] ?? TrainingStatus.NOT_STARTED,
   );
   const dayUserStatus = calculateDayStatusFromStatuses(stepStatusesArr);
 
@@ -952,11 +954,14 @@ export async function syncUserCourseStatusFromDays(
 
   await prisma.userCourse.upsert({
     where: { userId_courseId: { userId, courseId } },
-    update: updateData,
+    update: {
+      ...updateData,
+      status: updateData.status as PrismaTrainingStatus,
+    },
     create: {
       userId,
       courseId,
-      status: newStatus,
+      status: newStatus as PrismaTrainingStatus,
       startedAt: updateData.startedAt ?? null,
       completedAt: updateData.completedAt ?? null,
     },

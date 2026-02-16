@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@gafus/prisma";
+import { prisma, TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
 import { calculateDayStatusFromStatuses } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
@@ -158,7 +158,10 @@ export async function getUserProgress(
                   courseId: safeCourseId,
                 },
               },
-              data: updateData,
+              data: {
+                ...updateData,
+                status: updateData.status as PrismaTrainingStatus,
+              },
             });
           } catch (error) {
             logger.error(`Failed to sync course status (${newStatus})`, error as Error, {

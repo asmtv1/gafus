@@ -1,4 +1,4 @@
-import { prisma } from "@gafus/prisma";
+import { prisma, TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
 import { assertNever, TrainingStatus } from "@gafus/types";
 
 import type { DetailedCourseStats, StatisticsData, UserCourse } from "../types";
@@ -85,10 +85,10 @@ export async function getCourseStatistics(
           },
         });
 
-  const startedStepStatuses = [
-    TrainingStatus.IN_PROGRESS,
-    TrainingStatus.COMPLETED,
-    TrainingStatus.RESET,
+  const startedStepStatuses: PrismaTrainingStatus[] = [
+    PrismaTrainingStatus.IN_PROGRESS,
+    PrismaTrainingStatus.COMPLETED,
+    PrismaTrainingStatus.RESET,
   ];
   const userStepsRaw =
     courseIds.length === 0
@@ -115,8 +115,10 @@ export async function getCourseStatistics(
           },
         });
 
+  type StepWithUserTraining = (typeof userStepsRaw)[number];
+  type StepWithRelation = { createdAt: Date; userTraining: { userId: string; dayOnCourse: { courseId: string } } };
   const startedStepsByCourse = groupStartedStepsByCourse(
-    userStepsRaw.map((step) => ({
+    (userStepsRaw as StepWithRelation[]).map((step) => ({
       courseId: step.userTraining.dayOnCourse.courseId,
       userId: step.userTraining.userId,
       startedAt: step.createdAt,
@@ -343,15 +345,15 @@ export async function getDetailedCourseStatistics(
     })),
   ).get(courseId);
 
-  const startedStepStatuses = [
-    TrainingStatus.IN_PROGRESS,
-    TrainingStatus.COMPLETED,
-    TrainingStatus.RESET,
+  const startedStepStatusesFilter: PrismaTrainingStatus[] = [
+    PrismaTrainingStatus.IN_PROGRESS,
+    PrismaTrainingStatus.COMPLETED,
+    PrismaTrainingStatus.RESET,
   ];
   const startedStepsByCourse = groupStartedStepsByCourse(
     userTrainings.flatMap((training) =>
       training.steps
-        .filter((step) => startedStepStatuses.includes(step.status as TrainingStatus))
+        .filter((step) => startedStepStatusesFilter.includes(step.status as PrismaTrainingStatus))
         .map((step) => ({
           courseId,
           userId: training.userId,

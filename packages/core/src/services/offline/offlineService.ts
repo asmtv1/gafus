@@ -216,7 +216,9 @@ export async function downloadFullCourse(
     }
 
     // Формируем структуру данных курса
-    const trainingDays = course.dayLinks.map((dayLink) => ({
+    type DayLinkItem = (typeof course.dayLinks)[number];
+    type StepLinkItem = DayLinkItem["day"]["stepLinks"][number];
+    const trainingDays = course.dayLinks.map((dayLink: DayLinkItem) => ({
       id: dayLink.id,
       order: dayLink.order,
       title: dayLink.day.title,
@@ -224,7 +226,7 @@ export async function downloadFullCourse(
       equipment: dayLink.day.equipment || "",
       type: dayLink.day.type,
       showCoursePathExport: dayLink.day.showCoursePathExport ?? false,
-      steps: dayLink.day.stepLinks.map((stepLink) => ({
+      steps: dayLink.day.stepLinks.map((stepLink: StepLinkItem) => ({
         id: stepLink.step.id,
         order: stepLink.order,
         title: stepLink.step.title,
@@ -277,7 +279,7 @@ export async function downloadFullCourse(
       courseId: course.id,
       courseType: course.type,
       daysCount: trainingDays.length,
-      totalSteps: trainingDays.reduce((sum, day) => sum + day.steps.length, 0),
+      totalSteps: trainingDays.reduce((sum: number, day: (typeof trainingDays)[number]) => sum + day.steps.length, 0),
       totalVideos: uniqueVideoUrls.length,
       totalImages: uniqueImageUrls.length,
       totalPdfs: uniquePdfUrls.length,

@@ -14,7 +14,6 @@ export type {
   StepOnDay,
   TrainingDay,
   TrainingLevel,
-  TrainingStatus,
   User,
   UserCourse,
   UserProfile,
@@ -23,8 +22,8 @@ export type {
   UserTraining,
 } from "@prisma/client";
 
-// Экспортируем enum как значение для использования в zod схемах
-export { PetType, StepType, TranscodingStatus } from "@prisma/client";
+// Экспортируем enum как значение для использования в zod схемах и кастах
+export { PetType, StepType, TrainingStatus, TranscodingStatus } from "@prisma/client";
 
 // Экспортируем пространство имён Prisma (для JsonNull, Decimal и т.д.)
 import { Prisma } from "@prisma/client";
