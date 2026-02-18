@@ -37,7 +37,6 @@ alwaysApply: true
 ## Example: Server Action
 ```typescript
 "use server";
-
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 
@@ -54,3 +53,4 @@ export async function createItem(formData: FormData) {
   }
 }
 ```
+Logging and error shape — see `error-handling.mdc`. Auth — `security.mdc`.

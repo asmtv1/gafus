@@ -6,7 +6,7 @@ alwaysApply: true
 
 ## Monorepo Structure
 - This is a **pnpm workspace** monorepo with Turborepo
-- Apps: `apps/` (web, trainer-panel, error-dashboard, telegram-bot, bull-board)
+- Apps: `apps/` (web, trainer-panel, error-dashboard, admin-panel, telegram-bot, bull-board, api, mobile)
 - Packages: `packages/` (shared libraries)
 - Always use workspace protocol: `"@gafus/package": "workspace:*"`
 
@@ -33,23 +33,25 @@ packages/
 ```
 
 ## App Structure (Next.js 15 App Router)
+Used in apps/web, apps/trainer-panel and other Next apps:
 ```
 src/
-├── app/            # Next.js App Router pages
-├── features/       # Feature modules (FSD-like)
+├── app/            # Routes, (main)/(auth) groups, API routes
+├── features/      # Feature modules (FSD-like)
 │   └── [feature]/
-│       ├── components/  # Feature-specific components
-│       ├── lib/         # Feature-specific logic
-│       └── types/       # Feature-specific types
-├── shared/         # Shared across features
-│   ├── components/ # Reusable UI components
-│   ├── lib/        # Utilities & helpers
-│   └── hooks/      # Custom React hooks
-└── middleware.ts   # Next.js middleware
+│       ├── components/
+│       ├── lib/    # Feature logic, server actions
+│       └── types/
+├── shared/        # Shared across features
+│   ├── components/
+│   ├── lib/
+│   ├── hooks/
+│   └── ...        # types, providers, stores, utils, styles (app-specific)
+└── middleware.ts
 ```
+Some apps may have root-level `src/types` or `src/utils`.
 
 ## Best Practices
 - Keep features isolated and self-contained
-- Shared code goes in `shared/` or workspace packages
-- Server actions in `lib/` directory with "use server" directive
-- Client components explicitly marked with "use client"
+- Shared code in `shared/` or workspace packages
+- Server actions / client boundaries — see `nextjs.mdc`, `react.mdc`

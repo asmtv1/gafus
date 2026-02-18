@@ -1,5 +1,7 @@
 ---
-alwaysApply: true
+alwaysApply: false
+description: BullMQ, очереди @gafus/queues, воркеры, cron.
+globs: ["**/worker/**", "**/queues/**", "**/packages/worker/**", "**/packages/queues/**"]
 ---
 
 # Background Jobs & Queues Best Practices

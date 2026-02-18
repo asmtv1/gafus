@@ -12,9 +12,8 @@ alwaysApply: true
 - Use `const assertions` for literal types
 
 ## Naming Conventions
-- PascalCase for types, interfaces, classes, components
-- camelCase for variables, functions, methods
-- UPPER_SNAKE_CASE for constants
+- See `code-style.mdc` for files, components, functions, constants
+- Prefer `interface` for object types, `type` for unions/intersections
 - Prefix interfaces with descriptive names (e.g., `UserData`, not `IUser`)
 
 ## Best Practices
@@ -23,14 +22,3 @@ alwaysApply: true
 - Use optional chaining (`?.`) and nullish coalescing (`??`)
 - Prefer `unknown` over `any` for type-safe error handling
 - Use generics for reusable type-safe code
-
-## Example: Discriminated Union
-```typescript
-// ✅ Good - Type-safe with discriminated union
-type NotificationData =
-  | { type: 'step'; stepTitle: string; stepIndex: number }
-  | { type: 'immediate'; title: string; body: string };
-
-// ❌ Bad - Using magic numbers
-type NotificationData = { stepIndex: number }; // -1 means immediate
-```

@@ -49,8 +49,8 @@ import { myUtil } from "./utils";
 
 ## Async/Await
 - Always use async/await (not .then())
-- Handle errors with try-catch
 - Use Promise.all() for parallel operations
+- Error handling — see `error-handling.mdc`
 
 ## Best Practices
 - Avoid magic numbers - use named constants

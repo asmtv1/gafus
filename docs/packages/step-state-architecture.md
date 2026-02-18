@@ -23,5 +23,5 @@ Rules of Hooks запрещают вызов хуков внутри `map`. Day 
 
 ## Ссылки
 
-- [react-state-management](../../.agents/skills/react-state-management/SKILL.md)
+- [react-state-management](../../.cursor/skills/react-state-management/SKILL.md)
 - [stepStore.ts](../../apps/web/src/shared/stores/stepStore.ts)

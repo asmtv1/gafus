@@ -1,11 +1,13 @@
 ---
-alwaysApply: true
+alwaysApply: false
+description: JSDoc, структура docs/, обновление документации при изменениях.
+globs: ["**/docs/**", "**/README.md"]
 ---
 
 # Documentation Best Practices
 
 ## Code Documentation
-- Document all public APIs with JSDoc
+- Формат JSDoc для публичных API — см. пример ниже (общее правило — `code-style.mdc`)
 - Explain complex algorithms
 - Add examples for non-obvious usage
 - Keep documentation in sync with code

@@ -30,11 +30,8 @@ revalidateTag("data");
 ```
 
 ## Database Optimization
-- Use indexes on frequently queried fields
-- Select only needed fields
-- Use pagination for large datasets
-- Avoid N+1 queries with `include`
-- Use database transactions for consistency
+- See `database.mdc` for query patterns, indexes, select/include, pagination
+- Here: cache with `unstable_cache()` or Redis when appropriate
 
 ## Image Optimization
 - Use Next.js `<Image>` component

@@ -1,5 +1,7 @@
 ---
-alwaysApply: true
+alwaysApply: false
+description: Тесты, структура describe/it, моки, Server Action тесты.
+globs: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "**/__tests__/**", "**/e2e/**"]
 ---
 
 # Testing Best Practices
