@@ -59,6 +59,16 @@ export function CookieConsentBanner({
       ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
       : false;
 
+  // Палитра GAFUS web: #dad3c1, #636128, #352e2e, #fff8e5, #4a4a1a
+  const webPalette = {
+    bg: "var(--bg-1, #dad3c1)",
+    accent: "var(--bg-2, #636128)",
+    accentDark: "#4a4a1a",
+    dark: "#352e2e",
+    cream: "#fff8e5",
+    border: "var(--bg-2, #636128)",
+  };
+
   return (
     <Slide
       direction="up"
@@ -72,7 +82,7 @@ export function CookieConsentBanner({
         aria-modal="false"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        elevation={6}
+        elevation={0}
         sx={{
           position: "fixed",
           bottom: 0,
@@ -85,6 +95,9 @@ export function CookieConsentBanner({
           flexDirection: { xs: "column", sm: "row" },
           alignItems: { xs: "flex-start", sm: "center" },
           gap: 2,
+          backgroundColor: webPalette.cream,
+          borderTop: `2px solid ${webPalette.border}`,
+          boxShadow: "0 -4px 12px rgba(53, 46, 46, 0.08)",
         }}
       >
         <Box sx={{ flex: 1 }}>
@@ -93,10 +106,11 @@ export function CookieConsentBanner({
             variant="subtitle2"
             fontWeight="bold"
             gutterBottom
+            sx={{ color: webPalette.dark }}
           >
             Использование cookies
           </Typography>
-          <Typography id={descId} variant="body2" color="text.secondary">
+          <Typography id={descId} variant="body2" sx={{ color: webPalette.dark }}>
             Мы используем cookies для улучшения работы сайта и персонализации
             контента.{" "}
             <Link
@@ -104,6 +118,7 @@ export function CookieConsentBanner({
               target="_blank"
               rel="noopener noreferrer"
               underline="always"
+              sx={{ color: webPalette.accent, fontWeight: 500 }}
             >
               Подробнее
             </Link>
@@ -115,7 +130,16 @@ export function CookieConsentBanner({
             variant="contained"
             size="small"
             onClick={handleAccept}
-            sx={{ minHeight: 44, minWidth: 100 }}
+            sx={{
+              minHeight: 44,
+              minWidth: 100,
+              background: `linear-gradient(135deg, ${webPalette.accent} 0%, ${webPalette.accentDark} 100%)`,
+              border: `1px solid ${webPalette.border}`,
+              color: webPalette.cream,
+              "&:hover": {
+                background: `linear-gradient(135deg, ${webPalette.accentDark} 0%, ${webPalette.dark} 100%)`,
+              },
+            }}
           >
             Принять
           </Button>
@@ -123,7 +147,16 @@ export function CookieConsentBanner({
             variant="outlined"
             size="small"
             onClick={handleDecline}
-            sx={{ minHeight: 44, minWidth: 100 }}
+            sx={{
+              minHeight: 44,
+              minWidth: 100,
+              border: `2px solid ${webPalette.border}`,
+              color: webPalette.accent,
+              "&:hover": {
+                borderColor: webPalette.accentDark,
+                backgroundColor: "rgba(99, 97, 40, 0.06)",
+              },
+            }}
           >
             Отклонить
           </Button>
