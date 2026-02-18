@@ -11,6 +11,7 @@ import {
   ShoppingCart,
 } from "@mui/icons-material";
 
+import CookieSettingsButton from "@/shared/components/CookieSettingsButton";
 import MobileMenu from "@/shared/components/MobileMenu";
 import styles from "./main-panel.module.css";
 
@@ -73,6 +74,8 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             </Link>
           </>
         )}
+        <div className={styles.divider}></div>
+        <CookieSettingsButton className={styles.button} />
       </aside>
 
       <main className={styles.content}>{children}</main>

@@ -1,5 +1,6 @@
 "use client";
 
+import { resetCookieConsent } from "@gafus/ui-components";
 import Link from "next/link";
 import { memo } from "react";
 
@@ -9,6 +10,13 @@ const SettingsActions = () => {
   return (
     <section className={styles.section}>
       <div className={styles.buttonsContainer}>
+        <button
+          onClick={() => resetCookieConsent()}
+          className={styles.button}
+          type="button"
+        >
+          🍪 Управление cookies
+        </button>
         <Link href="/passwordReset" className={styles.button}>
           🔐 Сменить пароль
         </Link>

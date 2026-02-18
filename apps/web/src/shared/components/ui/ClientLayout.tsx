@@ -1,5 +1,6 @@
 "use client";
 
+import { CookieConsentBanner } from "@gafus/ui-components";
 import { CSRFProvider } from "@gafus/csrf";
 import { setupGlobalErrorHandling } from "@shared/lib/global-error-handler";
 import { usePathname } from "next/navigation";
@@ -61,6 +62,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         )}
 
         {children}
+        <CookieConsentBanner
+          cookiePolicyUrl={
+            process.env.NEXT_PUBLIC_COOKIES_URL ?? "/cookies.html"
+          }
+        />
       </div>
     </CSRFProvider>
   );

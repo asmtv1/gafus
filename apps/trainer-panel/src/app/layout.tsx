@@ -1,3 +1,4 @@
+import { CookieConsentBanner } from "@gafus/ui-components";
 import { CSRFProvider, CSRFErrorBoundary } from "@gafus/csrf";
 import { ErrorBoundary } from "@gafus/error-handling";
 import { SessionProvider } from "@shared/providers/SessionProvider";
@@ -52,6 +53,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </CSRFProvider>
           </SessionProvider>
         </ErrorBoundary>
+        <CookieConsentBanner
+          cookiePolicyUrl={
+            process.env.NEXT_PUBLIC_COOKIES_URL ?? "/cookies.html"
+          }
+        />
       </body>
     </html>
   );

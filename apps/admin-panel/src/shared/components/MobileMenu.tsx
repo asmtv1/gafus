@@ -14,6 +14,8 @@ import {
   Menu,
   Close,
 } from "@mui/icons-material";
+
+import CookieSettingsButton from "./CookieSettingsButton";
 import { IconButton, Drawer, Box, Typography } from "@mui/material";
 
 import styles from "../styles/MobileMenu.module.css";
@@ -108,6 +110,9 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
         </Box>
 
         <Box className={styles.drawerMenu}>
+          <Box sx={{ px: 1.5, py: 0.5 }}>
+            <CookieSettingsButton className={styles.drawerMenuItem} />
+          </Box>
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;

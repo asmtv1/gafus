@@ -20,6 +20,7 @@
     "@gafus/react-query": "workspace:*",
     "@gafus/reengagement": "workspace:*",
     "@gafus/types": "workspace:*",
+    "@gafus/ui-components": "workspace:*",
     "@gafus/webpush": "workspace:*",
     "@mui/icons-material": "7.1.0",
     "@mui/material": "7.1.0",

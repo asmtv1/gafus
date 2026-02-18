@@ -17,8 +17,11 @@ import {
   Logout,
   VideoLibrary,
   Note,
+  Cookie,
 } from "@mui/icons-material";
 import { useState, useEffect } from "react";
+
+import { resetCookieConsent } from "@gafus/ui-components";
 
 import styles from "./main-panel.module.css";
 import { getPendingExamCount } from "@/features/exam-results/lib/getPendingExamCount";
@@ -158,6 +161,17 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
 
         <div className={styles.divider}></div>
 
+        <button
+          className={styles.button}
+          onClick={() => {
+            resetCookieConsent();
+            closeMobileMenu();
+          }}
+          type="button"
+        >
+          <Cookie />
+          Управление cookies
+        </button>
         <button className={styles.logoutButton} onClick={handleLogout}>
           <Logout />
           Выход

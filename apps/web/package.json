@@ -30,6 +30,7 @@
     "@gafus/react-query": "workspace:*",
     "@gafus/statistics": "workspace:*",
     "@gafus/types": "workspace:*",
+    "@gafus/ui-components": "workspace:*",
     "@gafus/video-access": "workspace:*",
     "@gafus/webpush": "workspace:*",
     "@mui/icons-material": "7.1.0",

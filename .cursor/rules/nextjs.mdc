@@ -34,23 +34,4 @@ alwaysApply: true
 - `output: 'standalone'` for Docker deployment
 - Optimize with `experimental.optimizePackageImports`
 
-## Example: Server Action
-```typescript
-"use server";
-import { z } from "zod";
-import { revalidatePath } from "next/cache";
-
-const schema = z.object({ name: z.string().min(1) });
-
-export async function createItem(formData: FormData) {
-  try {
-    const data = schema.parse({ name: formData.get("name") });
-    // ... create item
-    revalidatePath("/items");
-    return { success: true };
-  } catch (error) {
-    return { error: "Не удалось создать элемент" };
-  }
-}
-```
 Logging and error shape — see `error-handling.mdc`. Auth — `security.mdc`.

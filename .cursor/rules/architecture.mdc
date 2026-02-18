@@ -50,8 +50,3 @@ src/
 └── middleware.ts
 ```
 Some apps may have root-level `src/types` or `src/utils`.
-
-## Best Practices
-- Keep features isolated and self-contained
-- Shared code in `shared/` or workspace packages
-- Server actions / client boundaries — see `nextjs.mdc`, `react.mdc`

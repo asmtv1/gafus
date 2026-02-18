@@ -1,3 +1,5 @@
+import path from "path";
+
 import type { NextConfig } from "next";
 
 interface WebpackConfig {
@@ -62,6 +64,13 @@ const nextConfig: NextConfig = {
 
   // Webpack конфигурация для создания dummy файла worker.js
   webpack: (config: WebpackConfig, { isServer }: { isServer: boolean }) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@gafus/ui-components": path.resolve(
+        __dirname,
+        "../../packages/ui-components/src/index.ts",
+      ),
+    };
     if (isServer) {
       const { PrismaPlugin } = require("@prisma/nextjs-monorepo-workaround-plugin");
       config.plugins = config.plugins || [];

@@ -1,3 +1,4 @@
+import { CookieConsentBanner } from "@gafus/ui-components";
 import { SessionProviderWrapper } from "@/features/auth/components/SessionProviderWrapper";
 import { CSRFProvider } from "@gafus/csrf";
 import { AdminPanelQueryProvider } from "@shared/providers/QueryProvider";
@@ -20,6 +21,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <AdminPanelQueryProvider>{children}</AdminPanelQueryProvider>
           </CSRFProvider>
         </SessionProviderWrapper>
+        <CookieConsentBanner
+          cookiePolicyUrl={
+            process.env.NEXT_PUBLIC_COOKIES_URL ?? "/cookies.html"
+          }
+        />
       </body>
     </html>
   );

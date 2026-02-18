@@ -81,10 +81,11 @@
 - [Платный курс не открывается](./troubleshooting/paid-course-not-opening.md)
 - [Проверка Seq](./troubleshooting/CHECK_SEQ.md)
 
-### Юридическое
+### Юридическое и конфиденциальность
 
 - [Оферта (клаузулы)](./legal/oferta-clauses.md)
 - [Публичная оферта](./legal/public-offer-full.md)
+- [Cookie consent и управление cookies](./features/cookie-consent.md) — баннер согласия, хранение в localStorage, GDPR
 
 ### Прочее
 

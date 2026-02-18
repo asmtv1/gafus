@@ -13,27 +13,6 @@ alwaysApply: true
 ## Authorization
 Для проверки только факта входа в apps/web используй `getCurrentUserId()` из `@shared/utils/getCurrentUserId`. Для проверки роли — `getServerSession(authOptions)` и `authOptions` из `@gafus/auth`:
 
-```typescript
-"use server";
-
-import { getServerSession } from "next-auth";
-import { authOptions } from "@gafus/auth";
-
-export async function protectedAction() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    return { error: "Не авторизован" };
-  }
-
-  if (!["ADMIN", "TRAINER"].includes(session.user.role)) {
-    return { error: "Недостаточно прав доступа" };
-  }
-
-  // ... action logic
-}
-```
-
 ## CSRF Protection
 - Use `@gafus/csrf` package
 - Validate CSRF tokens in mutations
@@ -54,6 +33,17 @@ export async function protectedAction() {
 - Use `process.env` only in server code
 - Validate env vars at startup
 - Use `.env.local` for local development
+
+## Cookie Consent
+
+Согласие на cookies хранится в **localStorage** (ключ `gafus:cookieConsent:v1`), а не в cookies HTTP.
+
+**Почему localStorage:**
+- Не отправляется на сервер автоматически — меньше риск утечки и упрощение GDPR
+- Достаточная персистентность для хранения выбора пользователя
+- Отсутствие серверной логики — весь flow на клиенте
+
+Компонент `CookieConsentBanner` и `resetCookieConsent` — из `@gafus/ui-components`. См. `docs/features/cookie-consent.md`.
 
 ## Best Practices
 - Never trust client input

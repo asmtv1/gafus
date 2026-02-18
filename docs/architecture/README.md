@@ -135,6 +135,12 @@ packages:
 - Middleware для проверки прав доступа
 - CSRF токены для защиты форм
 
+### Cookie consent (GDPR)
+
+- Согласие хранится в localStorage (`gafus:cookieConsent:v1`), не в HTTP cookies
+- Компонент `CookieConsentBanner` из `@gafus/ui-components`
+- Подробнее: [Cookie consent](../features/cookie-consent.md)
+
 ## 📊 Обработка данных
 
 ### Database Schema

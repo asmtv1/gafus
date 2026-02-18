@@ -68,7 +68,9 @@
       "@gafus/react-query": ["../../packages/react-query/dist/index.d.ts"],
       "@gafus/react-query/*": ["../../packages/react-query/dist/*"],
       "@gafus/webpush": ["../../packages/webpush/dist/index.js"],
-      "@gafus/webpush/*": ["../../packages/webpush/dist/*"]
+      "@gafus/webpush/*": ["../../packages/webpush/dist/*"],
+      "@gafus/ui-components": ["../../packages/ui-components/src/index.ts"],
+      "@gafus/ui-components/*": ["../../packages/ui-components/src/*"]
     },
     /* Типы */
     "typeRoots": ["./types", "../../node_modules/@types"],

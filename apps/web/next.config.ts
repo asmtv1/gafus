@@ -82,6 +82,10 @@ const gafusAliases = {
   ),
   "@gafus/webpush": _path.resolve(__dirname, "../../packages/webpush/dist"),
   "@gafus/logger": _path.resolve(__dirname, "../../packages/logger/dist"),
+  "@gafus/ui-components": _path.resolve(
+    __dirname,
+    "../../packages/ui-components/dist/ui-components/src",
+  ),
 };
 
 // 3. основной конфиг Next.js
@@ -106,6 +110,7 @@ const nextConfig = {
     "@gafus/logger",
     "@gafus/types",
     "@gafus/error-handling",
+    "@gafus/ui-components",
   ],
   // Переменные окружения для клиентской части
   env: {
