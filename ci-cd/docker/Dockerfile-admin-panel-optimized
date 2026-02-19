@@ -41,9 +41,10 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 # Копируем Prisma Query Engine рядом с клиентом (ожидаемое Prisma расположение)
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
 
-# Собираем core (и его зависимости), ui-components и admin-panel
+# Собираем core, csrf, reengagement, ui-components и admin-panel
 ENV USE_STANDALONE=true
 RUN pnpm build --filter @gafus/core... && \
+    pnpm build --filter @gafus/csrf --filter @gafus/reengagement && \
     pnpm build --filter @gafus/ui-components && \
     pnpm --filter @gafus/admin-panel build
 
