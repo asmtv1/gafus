@@ -1,13 +1,11 @@
 "use server";
 
 import { createAdminPanelLogger } from "@gafus/logger";
-
 import { authOptions } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
+import { deleteUserAdmin } from "@gafus/core/services/adminUser";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 
-// Создаем логгер для admin-panel-delete-user
 const logger = createAdminPanelLogger("delete-user");
 
 export async function deleteUser(
@@ -22,7 +20,6 @@ export async function deleteUser(
     return { success: false, error: "Не авторизован" };
   }
 
-  // Проверяем, что пользователь является админом или модератором
   if (session.user.role !== "ADMIN" && session.user.role !== "MODERATOR") {
     return { success: false, error: "Недостаточно прав" };
   }
@@ -34,40 +31,20 @@ export async function deleteUser(
       return { success: false, error: "ID пользователя обязателен" };
     }
 
-    // Проверяем, что пользователь не пытается удалить сам себя
-    if (session.user.id === userId) {
-      return { success: false, error: "Нельзя удалить самого себя" };
+    const result = await deleteUserAdmin(userId, session.user.id);
+
+    if (!result.success) {
+      return { success: false, error: result.error };
     }
 
-    await prisma.user.delete({
-      where: { id: userId },
+    logger.success("Пользователь успешно удален", {
+      userId,
+      deletedBy: session.user.id,
     });
-
-    logger.success("Пользователь успешно удален", { userId, deletedBy: session.user.id });
-
-    // Обновляем кэш страницы со списком пользователей
     revalidatePath("/main-panel/users");
-
     return { success: true };
   } catch (error) {
-    logger.error("Ошибка при удалении пользователя:", error as Error);
-
-    // Обработка специфичных ошибок Prisma
-    if (error instanceof Error) {
-      // Ошибка внешнего ключа или других ограничений
-      if (
-        error.message.includes("Foreign key constraint") ||
-        error.message.includes("constraint")
-      ) {
-        return { success: false, error: "Не удалось удалить пользователя из-за связанных данных" };
-      }
-
-      // Пользователь не найден
-      if (error.message.includes("Record to delete does not exist")) {
-        return { success: false, error: "Пользователь не найден" };
-      }
-    }
-
+    logger.error("Ошибка при удалении пользователя", error as Error);
     return { success: false, error: "Не удалось удалить пользователя" };
   }
 }

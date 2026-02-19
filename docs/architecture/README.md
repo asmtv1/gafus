@@ -248,6 +248,7 @@ services:
 
 ## Дополнительная документация
 
+- [Admin Panel — слои и core-сервисы](./admin-panel-layers.md)
 - [Формат идентификаторов (CUID)](./identifiers.md)
 - [Система кэширования](./caching-system.md)
 - [Управление переменными окружения](./ENV_MANAGEMENT.md)

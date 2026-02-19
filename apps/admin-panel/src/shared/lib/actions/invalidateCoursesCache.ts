@@ -1,9 +1,9 @@
 "use server";
 
 import { createWebLogger } from "@gafus/logger";
+import { CACHE_TAGS } from "@gafus/core/services/cache";
 import { revalidateTag } from "next/cache";
 
-// Создаем логгер для invalidate-courses-cache
 const logger = createWebLogger("admin-panel-invalidate-courses-cache");
 
 /**
@@ -14,13 +14,12 @@ export async function invalidateCoursesCache() {
   try {
     logger.warn("[Cache] Invalidating courses cache...", { operation: "warn" });
 
-    // Инвалидируем все теги, связанные с курсами
-    revalidateTag("courses");
-    revalidateTag("courses-all");
-    revalidateTag("courses-all-permanent");
-    revalidateTag("courses-favorites");
-    revalidateTag("courses-authored");
-    revalidateTag("courses-metadata");
+    revalidateTag(CACHE_TAGS.COURSES);
+    revalidateTag(CACHE_TAGS.COURSES_ALL);
+    revalidateTag(CACHE_TAGS.COURSES_ALL_PERMANENT);
+    revalidateTag(CACHE_TAGS.COURSES_FAVORITES);
+    revalidateTag(CACHE_TAGS.COURSES_AUTHORED);
+    revalidateTag(CACHE_TAGS.COURSES_METADATA);
 
     logger.warn("[Cache] Courses cache invalidated successfully", { operation: "warn" });
     return { success: true };
@@ -41,7 +40,7 @@ export async function invalidateBaseCoursesCache() {
   try {
     logger.warn("[Cache] Invalidating base courses cache...", { operation: "warn" });
 
-    revalidateTag("courses-all-permanent");
+    revalidateTag(CACHE_TAGS.COURSES_ALL_PERMANENT);
 
     logger.warn("[Cache] Base courses cache invalidated successfully", { operation: "warn" });
     return { success: true };

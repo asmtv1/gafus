@@ -13,10 +13,10 @@
   },
   "dependencies": {
     "@gafus/auth": "workspace:*",
+    "@gafus/core": "workspace:*",
     "@gafus/csrf": "workspace:*",
     "@gafus/error-handling": "workspace:*",
     "@gafus/logger": "workspace:*",
-    "@gafus/prisma": "workspace:*",
     "@gafus/react-query": "workspace:*",
     "@gafus/reengagement": "workspace:*",
     "@gafus/types": "workspace:*",
@@ -34,6 +34,7 @@
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "react-hook-form": "7.54.2",
+    "zod": "^3.25.76",
     "zustand": "5.0.7"
   },
   "devDependencies": {

@@ -16,12 +16,11 @@ export default async function AdminPage() {
   }
 
   // Загружаем статистику хранилища (только для ADMIN)
-  let storageStats = null;
+  let storageStats: Awaited<ReturnType<typeof getStorageStats>>["data"] = null;
   if (session.user.role === "ADMIN") {
-    try {
-      storageStats = await getStorageStats();
-    } catch (error) {
-      console.error("Ошибка загрузки статистики хранилища:", error);
+    const result = await getStorageStats();
+    if (result.success && result.data) {
+      storageStats = result.data;
     }
   }
 

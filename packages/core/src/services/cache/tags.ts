@@ -34,3 +34,18 @@ export const CACHE_TAGS = {
   /** Статистика (trainer-panel) */
   STATISTICS: "statistics",
 } as const;
+
+/** Все теги для полной инвалидации кэша в admin-panel (invalidateAllCache) */
+export const ADMIN_CACHE_ALL_TAGS = [
+  "user-progress",
+  "training",
+  "days",
+  "courses-favorites",
+  "courses",
+  "courses-all",
+  "courses-all-permanent",
+  "courses-authored",
+  "achievements",
+  "streaks",
+  "statistics",
+] as const;

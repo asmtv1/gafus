@@ -1,12 +1,20 @@
+import { z } from "zod";
+
 import { createAdminPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
+import { updateUserAdmin } from "@gafus/core/services/adminUser";
 import { getServerSession } from "next-auth";
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 
 const logger = createAdminPanelLogger("api-users");
+
+const updateUserBodySchema = z.object({
+  username: z.string().min(1).optional(),
+  phone: z.string().optional(),
+  role: z.enum(["ADMIN", "MODERATOR", "TRAINER", "USER"]).optional(),
+  newPassword: z.string().min(6).optional(),
+});
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -18,33 +26,31 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       return NextResponse.json({ success: false, error: "Не авторизован" }, { status: 401 });
     }
 
-    // Проверяем, что пользователь является админом или модератором
     if (session.user.role !== "ADMIN" && session.user.role !== "MODERATOR") {
       return NextResponse.json({ success: false, error: "Недостаточно прав" }, { status: 403 });
     }
 
     const params = await context.params;
     const userId = params.id;
+
     const body = await request.json();
-
-    const { username, phone, role, newPassword } = body;
-
-    const updateData: Record<string, unknown> = {};
-    if (username) updateData.username = username;
-    if (phone) updateData.phone = phone;
-    if (role) updateData.role = role;
-
-    // Обработка нового пароля
-    if (newPassword && typeof newPassword === "string" && newPassword.trim()) {
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      updateData.password = hashedPassword;
-      logger.info("Пароль пользователя будет обновлен", { userId });
+    const parsed = updateUserBodySchema.safeParse(body);
+    if (!parsed.success) {
+      const msg = parsed.error.flatten().fieldErrors;
+      const errorMsg = Object.entries(msg)
+        .map(([k, v]) => `${k}: ${(v || []).join(", ")}`)
+        .join("; ");
+      return NextResponse.json(
+        { success: false, error: errorMsg || "Невалидные данные" },
+        { status: 400 },
+      );
     }
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-    });
+    const result = await updateUserAdmin(userId, parsed.data);
+
+    if (!result.success) {
+      return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

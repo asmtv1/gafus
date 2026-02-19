@@ -4,6 +4,7 @@ import { revalidateTag } from "next/cache";
 import { createWebLogger } from "@gafus/logger";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
+import { ADMIN_CACHE_ALL_TAGS } from "@gafus/core/services/cache";
 
 const logger = createWebLogger("admin-panel-invalidate-all-cache");
 
@@ -37,35 +38,21 @@ export async function invalidateAllCache() {
       operation: "warn",
     });
 
-    // Инвалидируем все общие теги кэша
-    const allTags = [
-      "user-progress",
-      "training",
-      "days",
-      "courses-favorites",
-      "courses",
-      "courses-all",
-      "courses-all-permanent",
-      "courses-authored",
-      "achievements",
-      "streaks",
-      "statistics",
-    ];
-
-    for (const tag of allTags) {
+    for (const tag of ADMIN_CACHE_ALL_TAGS) {
       revalidateTag(tag);
     }
 
     logger.warn("[Cache] All cache invalidated successfully for all users", {
       adminId: session.user.id,
-      tagsInvalidated: allTags.length,
+      tagsInvalidated: ADMIN_CACHE_ALL_TAGS.length,
       operation: "warn",
     });
 
     return {
       success: true,
-      invalidatedTags: allTags.length,
-      message: `Кэш успешно сброшен! Инвалидировано ${allTags.length} тегов. Все пользователи получат обновленные данные при следующей загрузке приложения.`,
+      invalidatedTags: ADMIN_CACHE_ALL_TAGS.length,
+      message: `Кэш успешно сброшен! Инвалидировано ${ADMIN_CACHE_ALL_TAGS.length} тегов. ` +
+        `Все пользователи получат обновленные данные при следующей загрузке приложения.`,
     };
   } catch (error) {
     logger.error("❌ Error invalidating all cache:", error as Error, { operation: "error" });

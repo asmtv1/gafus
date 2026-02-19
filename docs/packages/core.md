@@ -33,7 +33,13 @@ packages/core/
 │   │   ├── trainerCourse/ # CRUD курсов тренера
 │   │   ├── trainerStep/   # Шаги, шаблоны шагов
 │   │   ├── trainingDay/  # Дни тренировок
-│   │   └── trainerVideo/ # Видео тренера (CDN-метаданные)
+│   │   ├── trainerVideo/ # Видео тренера (CDN-метаданные)
+│   │   ├── adminUser/    # Пользователи (admin-panel)
+│   │   ├── adminPurchase/ # Покупки (admin-panel)
+│   │   ├── adminReengagement/ # Re-engagement метрики (admin-panel)
+│   │   ├── adminPresentation/ # Статистика презентации (admin-panel)
+│   │   ├── adminStorage/  # Статистика хранилища (admin-panel)
+│   │   └── adminBroadcast/ # Push-рассылка (admin-panel)
 │   ├── errors/            # ServiceError, prismaErrorHandler
 │   ├── utils/             # Универсальные утилиты
 │   │   ├── age/           # getAge, getAgeWithMonths
@@ -78,6 +84,13 @@ import { CACHE_TAGS } from "@gafus/core/services/cache";
 // Сервисы trainer-panel (заметки, курсы, шаги, дни, видео, экзамены)
 import { createTrainerNote, getTrainerNotes } from "@gafus/core/services/notes";
 import { createCourse, updateCourse, deleteCourse } from "@gafus/core/services/trainerCourse";
+// Admin-panel сервисы
+import { getAllUsers, updateUserAdmin, deleteUserAdmin } from "@gafus/core/services/adminUser";
+import { getAllPurchases } from "@gafus/core/services/adminPurchase";
+import { getReengagementMetrics } from "@gafus/core/services/adminReengagement";
+import { getPresentationStats } from "@gafus/core/services/adminPresentation";
+import { getStorageStats } from "@gafus/core/services/adminStorage";
+import { sendBroadcastPush } from "@gafus/core/services/adminBroadcast";
 import { createStep, getVisibleSteps } from "@gafus/core/services/trainerStep";
 import { createTrainingDay, getVisibleDays } from "@gafus/core/services/trainingDay";
 import { registerTrainerVideo, getTrainerVideos } from "@gafus/core/services/trainerVideo";
@@ -230,7 +243,7 @@ revalidateTag(CACHE_TAGS.TRAINER_NOTES);
 revalidateTag(CACHE_TAGS.TRAINER_NOTES_BY_TRAINER(trainerId));
 ```
 
-Доступные теги: `TRAINER_NOTES`, `TRAINER_NOTES_BY_TRAINER(id)`, `COURSES`, `COURSES_ALL`, `COURSES_ALL_PERMANENT`, `COURSES_FAVORITES`, `COURSES_AUTHORED`, `COURSES_METADATA`, `TRAINING`, `DAYS`, `DAY`, `EXAM_RESULTS`, `STEPS`, `TRAINER_VIDEOS`, `STATISTICS`.
+Доступные теги: `TRAINER_NOTES`, `TRAINER_NOTES_BY_TRAINER(id)`, `COURSES`, `COURSES_ALL`, `COURSES_ALL_PERMANENT`, `COURSES_FAVORITES`, `COURSES_AUTHORED`, `COURSES_METADATA`, `TRAINING`, `DAYS`, `DAY`, `EXAM_RESULTS`, `STEPS`, `TRAINER_VIDEOS`, `STATISTICS`. Для полной инвалидации кэша admin-panel: `ADMIN_CACHE_ALL_TAGS`.
 
 ## Зависимости
 
@@ -255,6 +268,10 @@ cd packages/core && pnpm dev
 # Проверка типов
 cd packages/core && pnpm typecheck
 ```
+
+## Миграция admin-panel в core
+
+Бизнес-логика admin-panel перенесена в core. Добавлены сервисы: **adminUser**, **adminPurchase**, **adminReengagement**, **adminPresentation**, **adminStorage**, **adminBroadcast**. Подробности — в [docs/development/admin-panel-core-migration.md](../development/admin-panel-core-migration.md).
 
 ## Миграция trainer-panel в core
 

@@ -51,6 +51,12 @@ const ALLOWED_ROLES = ["ADMIN", "MODERATOR"];
 - `/api/*` - API маршруты (собственная авторизация)
 - Статические файлы (favicon, manifest, и т.д.)
 
+## Архитектура
+
+Admin Panel — **тонкий слой** поверх `@gafus/core`. Бизнес-логика и доступ к БД находятся в core; приложение отвечает за авторизацию, Zod-валидацию и инвалидацию кэша Next.js. **Prisma не используется напрямую** в admin-panel — доступ к данным идёт через `@gafus/core`.
+
+Подробнее: [docs/architecture/admin-panel-layers.md](../architecture/admin-panel-layers.md)
+
 ## Структура проекта
 
 ```
@@ -62,6 +68,13 @@ apps/admin-panel/
 │   │   │   │   └── route.ts        # NextAuth API route
 │   │   │   └── csrf-token/
 │   │   │       └── route.ts        # CSRF token endpoint
+│   │   ├── (main)/main-panel/      # Страницы админ-панели
+│   │   │   ├── admin/              # Хранилище, кэш
+│   │   │   ├── broadcasts/         # Push-рассылка
+│   │   │   ├── purchases/          # Покупки
+│   │   │   ├── reengagement/       # Re-engagement метрики
+│   │   │   ├── presentation-stats/ # Статистика презентации
+│   │   │   └── users/              # Пользователи
 │   │   ├── login/
 │   │   │   └── page.tsx            # Страница входа
 │   │   ├── layout.tsx              # Root layout
@@ -69,11 +82,15 @@ apps/admin-panel/
 │   │   ├── not-found.tsx           # 404 страница
 │   │   └── globals.css             # Глобальные стили
 │   ├── features/
-│   │   └── auth/
-│   │       └── components/
-│   │           ├── LoginForm.tsx   # Форма входа
-│   │           └── SessionProviderWrapper.tsx
+│   │   ├── auth/                   # Компоненты входа
+│   │   ├── admin/                  # getStorageStats (→ adminStorage)
+│   │   ├── broadcasts/             # sendBroadcastPush (→ adminBroadcast)
+│   │   ├── purchases/              # getAllPurchases (→ adminPurchase)
+│   │   ├── reengagement/           # getReengagementMetrics (→ adminReengagement)
+│   │   ├── presentation/           # getPresentationStats (→ adminPresentation)
+│   │   └── users/                  # getAllUsers, updateUser, deleteUser (→ adminUser)
 │   ├── shared/
+│   │   ├── lib/actions/            # invalidateAllCache, invalidateCoursesCache
 │   │   └── providers/
 │   │       └── QueryProvider.tsx   # React Query provider
 │   └── middleware.ts               # Next.js middleware
@@ -224,21 +241,26 @@ server {
 
 ### Workspace пакеты
 
-- `@gafus/auth` - авторизация и сессии
-- `@gafus/prisma` - доступ к БД
-- `@gafus/logger` - логирование
-- `@gafus/csrf` - CSRF защита
-- `@gafus/error-handling` - обработка ошибок
-- `@gafus/react-query` - React Query конфигурация
-- `@gafus/types` - типы TypeScript
+- `@gafus/auth` — авторизация и сессии
+- `@gafus/core` — бизнес-логика (adminUser, adminPurchase, adminReengagement, adminPresentation, adminStorage, adminBroadcast)
+- `@gafus/logger` — логирование
+- `@gafus/csrf` — CSRF защита
+- `@gafus/error-handling` — обработка ошибок
+- `@gafus/react-query` — React Query конфигурация
+- `@gafus/reengagement` — ручной запуск re-engagement (triggerScheduler)
+- `@gafus/types` — типы TypeScript
+- `@gafus/ui-components` — общие UI компоненты
+- `@gafus/webpush` — push-уведомления (транзитивно через core)
+
+**Примечание:** `@gafus/prisma` не используется напрямую — доступ к БД через сервисы `@gafus/core`.
 
 ### Внешние пакеты
 
-- `next` - Next.js фреймворк
-- `next-auth` - авторизация
-- `@mui/material` - UI компоненты
-- `@tanstack/react-query` - управление state
-- `react` / `react-dom` - React библиотеки
+- `next` — Next.js фреймворк
+- `next-auth` — авторизация
+- `@mui/material` — UI компоненты
+- `@tanstack/react-query` — управление state
+- `react` / `react-dom` — React библиотеки
 
 ## Логирование
 
@@ -282,7 +304,7 @@ logger.error("Authentication failed", error);
 
 ### Ошибки при сборке
 
-1. Убедиться что Prisma Client сгенерирован
+1. Собрать core: `pnpm --filter @gafus/core build`
 2. Проверить зависимости workspace пакетов
 3. Очистить `.next` директорию и пересобрать
 
