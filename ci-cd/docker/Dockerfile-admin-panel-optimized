@@ -41,12 +41,11 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 # Копируем Prisma Query Engine рядом с клиентом (ожидаемое Prisma расположение)
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
 
-# Собираем зависимые пакеты
-RUN pnpm build --filter @gafus/logger --filter @gafus/prisma --filter @gafus/types --filter @gafus/auth --filter @gafus/csrf --filter @gafus/error-handling --filter @gafus/react-query --filter @gafus/queues --filter @gafus/webpush --filter @gafus/reengagement
-
-# Собираем приложение с standalone режимом
+# Собираем core (и его зависимости), ui-components и admin-panel
 ENV USE_STANDALONE=true
-RUN pnpm --filter @gafus/admin-panel build
+RUN pnpm build --filter @gafus/core... && \
+    pnpm build --filter @gafus/ui-components && \
+    pnpm --filter @gafus/admin-panel build
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
@@ -67,6 +66,9 @@ COPY --from=base /app/apps/admin-panel/public ./apps/admin-panel/public
 
 # Копируем Prisma client и Query Engine (оставляем .pnpm из standalone)
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
+
+# serverExternalPackages: @gafus/core — нужен для require() в рантайме
+COPY --from=base /app/packages/core ./node_modules/@gafus/core
 
 # Копируем Prisma client в несколько мест для поиска движка рантаймом
 RUN mkdir -p ./apps/admin-panel/.prisma && cp -r ./node_modules/.prisma/client ./apps/admin-panel/.prisma/client
