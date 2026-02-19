@@ -2,20 +2,20 @@
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { getReengagementMetrics as getReengagementMetricsFromCore } from "@gafus/core/services/adminReengagement";
+import {
+  getReengagementMetrics as getReengagementMetricsFromCore,
+  type ReengagementMetrics,
+} from "@gafus/core/services/adminReengagement";
+
+export type { ReengagementMetrics };
 
 /**
  * Получить метрики re-engagement системы (только для ADMIN)
  */
-export async function getReengagementMetrics(): Promise<{
-  success: boolean;
-  data?: Awaited<
-    ReturnType<typeof getReengagementMetricsFromCore>
-  > extends { success: true; data: infer T }
-    ? T
-    : never;
-  error?: string;
-}> {
+export async function getReengagementMetrics(): Promise<
+  | { success: true; data: ReengagementMetrics }
+  | { success: false; error: string }
+> {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {

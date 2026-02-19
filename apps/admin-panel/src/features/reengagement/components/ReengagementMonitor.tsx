@@ -56,7 +56,7 @@ export default function ReengagementMonitor() {
       if (result.success && result.data) {
         setMetrics(result.data);
       } else {
-        setError(result.error || "Не удалось загрузить метрики");
+        setError(!result.success ? result.error : "Не удалось загрузить метрики");
       }
     } catch {
       setError("Произошла ошибка при загрузке метрик");
@@ -587,7 +587,7 @@ export default function ReengagementMonitor() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {metrics.recentCampaigns.map((campaign) => (
+                {metrics.recentCampaigns.map((campaign: ReengagementMetrics["recentCampaigns"][number]) => (
                   <TableRow key={campaign.id}>
                     <TableCell>{campaign.userName || "Неизвестен"}</TableCell>
                     <TableCell>
@@ -628,7 +628,7 @@ export default function ReengagementMonitor() {
 
           {/* Мобильные карточки */}
           <Box sx={{ display: { xs: "block", sm: "none" } }}>
-            {metrics.recentCampaigns.map((campaign) => (
+            {metrics.recentCampaigns.map((campaign: ReengagementMetrics["recentCampaigns"][number]) => (
               <Paper
                 key={campaign.id}
                 sx={{

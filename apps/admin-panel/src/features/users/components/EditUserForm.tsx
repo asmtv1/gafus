@@ -15,7 +15,7 @@ const logger = createAdminPanelLogger("edit-user-form");
 interface User {
   id: string;
   username: string;
-  phone: string;
+  phone: string | null;
   role: string;
 }
 
@@ -41,7 +41,7 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
   const form = useForm({
     defaultValues: {
       username: user.username,
-      phone: user.phone,
+      phone: user.phone ?? "",
       role: user.role,
       newPassword: "",
     },

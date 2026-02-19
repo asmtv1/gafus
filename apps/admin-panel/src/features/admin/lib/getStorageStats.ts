@@ -13,15 +13,10 @@ export type { StorageStats };
  * Получает статистику хранилища видео экзаменов
  * Только для администраторов
  */
-export async function getStorageStats(): Promise<{
-  success: boolean;
-  data?: Awaited<
-    ReturnType<typeof getStorageStatsFromCore>
-  > extends { success: true; data: infer T }
-    ? T
-    : never;
-  error?: string;
-}> {
+export async function getStorageStats(): Promise<
+  | { success: true; data: StorageStats }
+  | { success: false; error: string }
+> {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {

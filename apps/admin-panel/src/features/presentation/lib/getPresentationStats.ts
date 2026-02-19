@@ -2,20 +2,20 @@
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { getPresentationStats as getPresentationStatsFromCore } from "@gafus/core/services/adminPresentation";
+import {
+  getPresentationStats as getPresentationStatsFromCore,
+  type PresentationStats,
+} from "@gafus/core/services/adminPresentation";
+
+export type { PresentationStats };
 
 /**
  * Получить статистику по presentation.html (только для ADMIN/MODERATOR)
  */
-export async function getPresentationStats(): Promise<{
-  success: boolean;
-  data?: Awaited<
-    ReturnType<typeof getPresentationStatsFromCore>
-  > extends { success: true; data: infer T }
-    ? T
-    : never;
-  error?: string;
-}> {
+export async function getPresentationStats(): Promise<
+  | { success: true; data: PresentationStats }
+  | { success: false; error: string }
+> {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {

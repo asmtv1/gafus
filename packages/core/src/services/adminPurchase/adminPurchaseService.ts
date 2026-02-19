@@ -24,7 +24,7 @@ export async function getAllPurchases(): Promise<
           select: {
             username: true,
             phone: true,
-            profile: { select: { fullName: true } },
+            profile: { select: { fullName: true, avatarUrl: true } },
           },
         },
         course: {

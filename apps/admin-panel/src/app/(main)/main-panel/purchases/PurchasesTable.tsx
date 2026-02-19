@@ -249,7 +249,7 @@ export default function PurchasesTable({
                         @{row.user.username}
                       </Typography>
                       <Typography variant="caption" display="block" color="text.secondary">
-                        {formatPhone(row.user.phone)}
+                        {formatPhone(row.user.phone ?? "")}
                       </Typography>
                     </Box>
                   </Box>
@@ -329,7 +329,7 @@ export default function PurchasesTable({
                   {row.user.profile?.fullName || row.user.username}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  @{row.user.username} · {formatPhone(row.user.phone)}
+                  @{row.user.username} · {formatPhone(row.user.phone ?? "")}
                 </Typography>
               </Box>
             </Box>

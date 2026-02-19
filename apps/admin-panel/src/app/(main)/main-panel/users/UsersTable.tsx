@@ -32,7 +32,7 @@ import {
 interface User {
   id: string;
   username: string;
-  phone: string;
+  phone: string | null;
   role: string;
   isConfirmed: boolean;
   createdAt: Date;
@@ -291,7 +291,7 @@ export default function UsersTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2">{formatPhone(user.phone)}</Typography>
+                  <Typography variant="body2">{formatPhone(user.phone ?? "")}</Typography>
                 </TableCell>
                 <TableCell>
                   <Chip
@@ -410,7 +410,7 @@ export default function UsersTable({
                 <Typography variant="caption" color="text.secondary">
                   Телефон
                 </Typography>
-                <Typography variant="body2">{formatPhone(user.phone)}</Typography>
+                <Typography variant="body2">{formatPhone(user.phone ?? "")}</Typography>
               </Box>
 
               <Box>

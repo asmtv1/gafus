@@ -53,7 +53,7 @@ export default function PresentationStatsMonitor() {
       if (result.success && result.data) {
         setStats(result.data);
       } else {
-        setError(result.error || "Не удалось загрузить статистику");
+        setError(!result.success ? result.error : "Не удалось загрузить статистику");
       }
     } catch {
       setError("Произошла ошибка при загрузке статистики");
@@ -377,7 +377,7 @@ export default function PresentationStatsMonitor() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {stats.byReferrer.map((ref, index) => (
+                  {stats.byReferrer.map((ref: PresentationStats["byReferrer"][number], index: number) => (
                     <TableRow key={index}>
                       <TableCell>
                         {ref.domain ? (
@@ -415,7 +415,7 @@ export default function PresentationStatsMonitor() {
 
             {/* Мобильные карточки */}
             <Box sx={{ display: { xs: "block", sm: "none" } }}>
-              {stats.byReferrer.map((ref, index) => (
+              {stats.byReferrer.map((ref: PresentationStats["byReferrer"][number], index: number) => (
                 <Paper
                   key={index}
                   sx={{
@@ -567,7 +567,7 @@ export default function PresentationStatsMonitor() {
             Вехи прокрутки
           </Typography>
           <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: 1 }}>
-            {stats.scrollMilestones.map((milestone, index) => (
+            {stats.scrollMilestones.map((milestone: PresentationStats["scrollMilestones"][number], index: number) => (
               <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
                 <Paper sx={{ p: { xs: 1.5, sm: 2 }, textAlign: "center" }}>
                   <Typography
@@ -635,7 +635,7 @@ export default function PresentationStatsMonitor() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {stats.byDevice.map((device, index) => (
+                  {stats.byDevice.map((device: PresentationStats["byDevice"][number], index: number) => (
                     <TableRow key={index}>
                       <TableCell>{device.deviceType || "Неизвестно"}</TableCell>
                       <TableCell align="center">{device.views}</TableCell>
@@ -652,7 +652,7 @@ export default function PresentationStatsMonitor() {
 
             {/* Мобильные карточки */}
             <Box sx={{ display: { xs: "block", sm: "none" } }}>
-              {stats.byDevice.map((device, index) => (
+              {stats.byDevice.map((device: PresentationStats["byDevice"][number], index: number) => (
                 <Paper
                   key={index}
                   sx={{
@@ -728,7 +728,7 @@ export default function PresentationStatsMonitor() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {stats.byUTM.map((utm, index) => (
+                  {stats.byUTM.map((utm: PresentationStats["byUTM"][number], index: number) => (
                     <TableRow key={index}>
                       <TableCell>{utm.source || "-"}</TableCell>
                       <TableCell>{utm.medium || "-"}</TableCell>
@@ -742,7 +742,7 @@ export default function PresentationStatsMonitor() {
 
             {/* Мобильные карточки */}
             <Box sx={{ display: { xs: "block", sm: "none" } }}>
-              {stats.byUTM.map((utm, index) => (
+              {stats.byUTM.map((utm: PresentationStats["byUTM"][number], index: number) => (
                 <Paper
                   key={index}
                   sx={{
@@ -819,7 +819,7 @@ export default function PresentationStatsMonitor() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {stats.recentViews.map((view) => (
+                {stats.recentViews.map((view: PresentationStats["recentViews"][number]) => (
                   <TableRow key={view.id}>
                     <TableCell>
                       {new Date(view.firstViewAt).toLocaleString("ru-RU", {
@@ -861,7 +861,7 @@ export default function PresentationStatsMonitor() {
 
           {/* Мобильные карточки */}
           <Box sx={{ display: { xs: "block", sm: "none" } }}>
-            {stats.recentViews.map((view) => (
+            {stats.recentViews.map((view: PresentationStats["recentViews"][number]) => (
               <Paper
                 key={view.id}
                 sx={{
@@ -953,7 +953,7 @@ export default function PresentationStatsMonitor() {
           </Typography>
 
           <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mt: 1 }}>
-            {stats.timeDistribution.map((item) => (
+            {stats.timeDistribution.map((item: PresentationStats["timeDistribution"][number]) => (
               <Grid size={{ xs: 6, sm: 4, md: 3 }} key={item.hour}>
                 <Paper sx={{ p: { xs: 1.5, sm: 2 }, textAlign: "center" }}>
                   <Typography
@@ -976,7 +976,7 @@ export default function PresentationStatsMonitor() {
                       height: 8,
                       bgcolor: "primary.main",
                       borderRadius: 1,
-                      width: `${(item.views / Math.max(...stats.timeDistribution.map((t) => t.views))) * 100}%`,
+                      width: `${(item.views / Math.max(...stats.timeDistribution.map((t: { views: number }) => t.views))) * 100}%`,
                     }}
                   />
                 </Paper>

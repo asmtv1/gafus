@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 
 import CacheManagement from "@/features/admin/components/CacheManagement";
 import StorageManagement from "@/features/admin/components/StorageManagement";
-import { getStorageStats } from "@/features/admin/lib/getStorageStats";
+import {
+  getStorageStats,
+  type StorageStats,
+} from "@/features/admin/lib/getStorageStats";
 import PageLayout from "@/shared/components/PageLayout";
 
 export default async function AdminPage() {
@@ -16,7 +19,7 @@ export default async function AdminPage() {
   }
 
   // Загружаем статистику хранилища (только для ADMIN)
-  let storageStats: Awaited<ReturnType<typeof getStorageStats>>["data"] = null;
+  let storageStats: StorageStats | undefined = undefined;
   if (session.user.role === "ADMIN") {
     const result = await getStorageStats();
     if (result.success && result.data) {

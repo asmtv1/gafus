@@ -12,7 +12,7 @@ import { Alert, Box } from "@/utils/muiImports";
 interface User {
   id: string;
   username: string;
-  phone: string;
+  phone: string | null;
   role: string;
   isConfirmed: boolean;
   createdAt: Date;

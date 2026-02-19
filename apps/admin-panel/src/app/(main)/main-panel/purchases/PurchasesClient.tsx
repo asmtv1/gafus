@@ -27,7 +27,7 @@ export default function PurchasesClient({ purchases }: PurchasesClientProps) {
         (p) =>
           p.user.username.toLowerCase().includes(q) ||
           (p.user.profile?.fullName?.toLowerCase().includes(q) ?? false) ||
-          p.user.phone.includes(q) ||
+          (p.user.phone?.includes(q) ?? false) ||
           p.course.name.toLowerCase().includes(q) ||
           p.course.type.toLowerCase().includes(q) ||
           p.id.toLowerCase().includes(q) ||

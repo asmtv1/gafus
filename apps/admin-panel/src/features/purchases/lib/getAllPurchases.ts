@@ -1,22 +1,21 @@
 import { createAdminPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
-import { getAllPurchases as getAllPurchasesFromCore } from "@gafus/core/services/adminPurchase";
+import {
+  getAllPurchases as getAllPurchasesFromCore,
+  type AdminPurchaseRow,
+} from "@gafus/core/services/adminPurchase";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 
 const logger = createAdminPanelLogger("get-all-purchases");
 
-export type PurchaseRow = Awaited<
-  ReturnType<typeof getAllPurchasesFromCore>
-> extends { success: true; data: infer T }
-  ? T[number]
-  : never;
+export type PurchaseRow = AdminPurchaseRow;
 
 /**
  * Список всех платежей (покупок курсов) для админ-панели.
  * Доступ: ADMIN, MODERATOR.
  */
-export async function getAllPurchases(): Promise<PurchaseRow[]> {
+export async function getAllPurchases(): Promise<AdminPurchaseRow[]> {
   const session = (await getServerSession(authOptions)) as {
     user: { id: string; role: string };
   } | null;

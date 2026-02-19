@@ -11,7 +11,7 @@ export interface AdminPurchaseRow {
   user: {
     username: string;
     phone: string | null;
-    profile: { fullName: string | null } | null;
+    profile: { fullName: string | null; avatarUrl?: string | null } | null;
   };
   course: { name: string; type: string; priceRub: number | null };
 }

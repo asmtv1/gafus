@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "es6"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es6"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,19 +23,52 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@features/*": ["./src/features/*"],
-      "@shared/*": ["./src/shared/*"],
-      "@widgets/*": ["./src/widgets/*"],
-      "@gafus/types": ["../../packages/types/src"],
-      "@gafus/error-handling": ["../../packages/error-handling/src"],
-      "@gafus/prisma": ["../../packages/prisma/src"],
-      "@gafus/auth": ["../../packages/auth/src"],
-      "@gafus/csrf": ["../../packages/csrf/src"],
-      "@gafus/react-query": ["../../packages/react-query/src"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@features/*": [
+        "./src/features/*"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@widgets/*": [
+        "./src/widgets/*"
+      ],
+      "@gafus/types": [
+        "../../packages/types/src"
+      ],
+      "@gafus/error-handling": [
+        "../../packages/error-handling/src"
+      ],
+      "@gafus/prisma": [
+        "../../packages/prisma/src"
+      ],
+      "@gafus/auth": [
+        "../../packages/auth/src"
+      ],
+      "@gafus/csrf": [
+        "../../packages/csrf/src"
+      ],
+      "@gafus/react-query": [
+        "../../packages/react-query/src"
+      ],
+      "@gafus/ui-components": [
+        "../../packages/ui-components/src/index.ts"
+      ],
+      "@gafus/ui-components/*": [
+        "../../packages/ui-components/src/*"
+      ]
     },
     "target": "ES2017"
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
