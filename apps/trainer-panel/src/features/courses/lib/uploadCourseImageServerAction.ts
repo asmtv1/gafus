@@ -1,17 +1,19 @@
 "use server";
 
-import { createTrainerPanelLogger } from "@gafus/logger";
 import { randomUUID } from "crypto";
-import {
-  uploadFileToCDN,
-  deleteFileFromCDN,
-  getRelativePathFromCDNUrl,
-  getCourseImagePath,
-} from "@gafus/cdn-upload";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@gafus/auth";
 
-// Создаем логгер для uploadCourseImageServerAction
+import {
+  deleteFileFromCDN,
+  getCourseImagePath,
+  getRelativePathFromCDNUrl,
+  uploadFileToCDN,
+} from "@gafus/cdn-upload";
+import { authOptions } from "@gafus/auth";
+import { updateCourseLogoUrl } from "@gafus/core/services/course";
+import { validateImageUpload } from "@gafus/core/services/common";
+import { createTrainerPanelLogger } from "@gafus/logger";
+
 const logger = createTrainerPanelLogger("trainer-panel-upload-course-image");
 
 export async function uploadCourseImageServerAction(formData: FormData, courseId?: string) {
@@ -24,80 +26,63 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
       throw new Error("Файл не получен или пуст");
     }
 
-    // Валидация типа файла
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error("Неподдерживаемый тип файла. Разрешены только JPEG, PNG и WebP");
+    const validation = validateImageUpload(file);
+    if (!validation.valid) {
+      throw new Error(validation.error);
     }
 
-    // Валидация размера файла (максимум 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      throw new Error("Файл слишком большой. Максимальный размер: 10MB");
-    }
-
-    // Получаем trainerId из сессии
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       throw new Error("Не авторизован");
     }
     const trainerId = session.user.id;
 
-    // Для редактирования курс обязателен
     if (!courseId) {
       throw new Error("courseId обязателен для редактирования");
     }
 
-    // Получаем старое изображение курса для удаления
-    const { prisma } = await import("@gafus/prisma");
-    const existingCourse = await prisma.course.findUnique({
-      where: { id: courseId },
-      select: { logoImg: true },
-    });
-    const oldImageUrl = existingCourse?.logoImg || null;
-
-    // Генерируем путь для нового изображения
     const ext = file.name.split(".").pop() || "jpg";
     const uuid = randomUUID();
     const relativePath = getCourseImagePath(trainerId, courseId, uuid, ext);
 
-    // Загружаем новый файл в CDN
     const fileUrl = await uploadFileToCDN(file, relativePath);
 
-    // Удаляем старое изображение из CDN (если есть)
-    if (oldImageUrl) {
-      const oldRelativePath = getRelativePathFromCDNUrl(oldImageUrl);
-      logger.info(
-        `🔍 Найдено старое изображение курса для удаления: ${oldImageUrl} -> ${oldRelativePath}`,
-      );
+    const result = await updateCourseLogoUrl(courseId, fileUrl);
+    if (!result.success) {
+      try {
+        const newRelativePath = getRelativePathFromCDNUrl(fileUrl);
+        await deleteFileFromCDN(newRelativePath);
+      } catch {
+        // игнорируем ошибку отката CDN
+      }
+      throw new Error(result.error);
+    }
+
+    if (result.previousLogoUrl) {
+      const oldRelativePath = getRelativePathFromCDNUrl(result.previousLogoUrl);
       try {
         await deleteFileFromCDN(oldRelativePath);
-        logger.info(`🗑️ Старое изображение курса удалено из CDN: ${oldRelativePath}`);
+        logger.info("Старое изображение курса удалено из CDN", {
+          path: oldRelativePath,
+        });
       } catch (error) {
-        logger.error(`❌ Не удалось удалить старое изображение курса: ${error}`, error as Error);
+        logger.error("Не удалось удалить старое изображение курса из CDN", error as Error);
       }
-    } else {
-      logger.info("ℹ️ Старое изображение курса не найдено, пропускаем удаление");
     }
 
     return fileUrl;
   } catch (error) {
-    logger.error("❌ Error in uploadCourseImageServerAction", error as Error, {
+    logger.error("Ошибка загрузки изображения курса", error as Error, {
       operation: "upload_course_image_error",
       fileName: file?.name,
       fileSize: file?.size,
     });
 
-    // Отправляем ошибку в error dashboard
     if (file) {
       logger.error(
         error instanceof Error ? error.message : "Unknown error",
         error instanceof Error ? error : new Error(String(error)),
-        {
-          operation: "action",
-          action: "action",
-          tags: [],
-        },
+        { operation: "action", action: "action", tags: [] },
       );
     }
 

@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
+import { getVideoInfoForStreaming } from "@gafus/core/services/trainerVideo";
 import { getVideoAccessService } from "@gafus/video-access";
 import { streamFileFromCDN } from "@gafus/cdn-upload";
 
@@ -50,13 +50,7 @@ export async function GET(
     }
 
     // Получаем информацию о видео из БД
-    const video = await prisma.trainerVideo.findUnique({
-      where: { id: videoId },
-      select: {
-        hlsManifestPath: true,
-        transcodingStatus: true,
-      },
-    });
+    const video = await getVideoInfoForStreaming(videoId);
 
     if (!video) {
       return NextResponse.json({ error: "Видео не найдено" }, { status: 404 });

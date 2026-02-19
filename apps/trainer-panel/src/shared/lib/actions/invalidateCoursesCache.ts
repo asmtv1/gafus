@@ -1,5 +1,6 @@
 "use server";
 
+import { CACHE_TAGS } from "@gafus/core/services/cache";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { revalidateTag } from "next/cache";
 
@@ -15,12 +16,12 @@ export async function invalidateCoursesCache() {
     logger.warn("[Cache] Invalidating courses cache...", { operation: "warn" });
 
     // Инвалидируем все теги, связанные с курсами (для trainer-panel)
-    revalidateTag("courses");
-    revalidateTag("courses-all");
-    revalidateTag("courses-all-permanent");
-    revalidateTag("courses-favorites");
-    revalidateTag("courses-authored");
-    revalidateTag("courses-metadata");
+    revalidateTag(CACHE_TAGS.COURSES);
+    revalidateTag(CACHE_TAGS.COURSES_ALL);
+    revalidateTag(CACHE_TAGS.COURSES_ALL_PERMANENT);
+    revalidateTag(CACHE_TAGS.COURSES_FAVORITES);
+    revalidateTag(CACHE_TAGS.COURSES_AUTHORED);
+    revalidateTag(CACHE_TAGS.COURSES_METADATA);
 
     // Инвалидируем кэш курсов на web (через API, т.к. это отдельный Next.js процесс)
     try {
@@ -79,7 +80,7 @@ export async function invalidateBaseCoursesCache() {
   try {
     logger.warn("[Cache] Invalidating base courses cache...", { operation: "warn" });
 
-    revalidateTag("courses-all-permanent");
+    revalidateTag(CACHE_TAGS.COURSES_ALL_PERMANENT);
 
     logger.warn("[Cache] Base courses cache invalidated successfully", { operation: "warn" });
     return { success: true };

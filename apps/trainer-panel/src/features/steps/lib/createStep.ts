@@ -2,9 +2,13 @@
 
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
-import type { StepType } from "@gafus/prisma";
-import { prisma, Prisma } from "@gafus/prisma";
-import { validateForm } from "@shared/lib/validation/serverValidation";
+import {
+  createStep as createStepCore,
+  createStepSchema,
+  validateStepFormData,
+  hasValidationErrors,
+  getValidationErrors,
+} from "@gafus/core/services/trainerStep";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import {
@@ -17,10 +21,7 @@ import { randomUUID } from "crypto";
 
 import type { ActionResult, ChecklistQuestion } from "@gafus/types";
 
-// Создаем логгер для create-step
 const logger = createTrainerPanelLogger("trainer-panel-create-step");
-
-const MAX_COMMENT_LENGTH = 500;
 
 export async function createStep(
   prevState: ActionResult,
@@ -30,15 +31,18 @@ export async function createStep(
     const title = formData.get("title")?.toString() || "";
     const description = formData.get("description")?.toString() || "";
     const durationStr = formData.get("duration")?.toString() || "";
-    const estimatedDurationMinutesStr = formData.get("estimatedDurationMinutes")?.toString() || "";
+    const estimatedDurationMinutesStr =
+      formData.get("estimatedDurationMinutes")?.toString() || "";
     const videoUrl = formData.get("videoUrl")?.toString() || "";
     const type = formData.get("type")?.toString() || "TRAINING";
     const checklistStr = formData.get("checklist")?.toString() || "";
 
-    // Поля для типов экзамена
-    const requiresVideoReport = formData.get("requiresVideoReport")?.toString() === "true";
-    const requiresWrittenFeedback = formData.get("requiresWrittenFeedback")?.toString() === "true";
-    const hasTestQuestions = formData.get("hasTestQuestions")?.toString() === "true";
+    const requiresVideoReport =
+      formData.get("requiresVideoReport")?.toString() === "true";
+    const requiresWrittenFeedback =
+      formData.get("requiresWrittenFeedback")?.toString() === "true";
+    const hasTestQuestions =
+      formData.get("hasTestQuestions")?.toString() === "true";
 
     const imageFiles = formData.getAll("images") as File[];
     const deletedImages = formData.getAll("deletedImages").map(String);
@@ -47,128 +51,32 @@ export async function createStep(
     logger.info("Создание шага", {
       operation: "create_step_start",
       title,
-      description,
-      durationStr,
-      videoUrl,
       type,
       imageFilesCount: imageFiles.length,
       pdfUrlsCount: pdfUrls.length,
-      requiresVideoReport,
-      requiresWrittenFeedback,
+    });
+
+    const validationResult = validateStepFormData({
+      title,
+      description,
+      type,
+      duration: durationStr || null,
+      videoUrl: videoUrl || null,
+      checklist: checklistStr || null,
       hasTestQuestions,
     });
 
-    // Серверная валидация
-    const validation = validateForm(
-      {
-        title,
-        description,
-        duration: type === "TRAINING" || type === "BREAK" ? durationStr : "",
-        videoUrl: type === "TRAINING" || type === "THEORY" || type === "PRACTICE" ? videoUrl : "",
-        type,
-        checklist: type === "EXAMINATION" ? checklistStr : "",
-      },
-      {
-        title: (value: unknown) => {
-          const v = String(value ?? "");
-          if (!v || v.trim().length === 0) return "Название обязательно";
-          if (v.length < 3) return "Минимум 3 символа";
-          if (v.length > 100) return "Максимум 100 символов";
-          return null;
-        },
-        description: (value: unknown) => {
-          const v = String(value ?? "");
-          if (!v || v.trim().length === 0) return "Описание обязательно";
-          if (v.length < 10) return "Минимум 10 символов";
-          if (v.length > 3000) return "Максимум 3000 символов";
-          return null;
-        },
-        duration: (value: unknown) => {
-          const v = String(value ?? "");
-          // Для экзаменационных, теоретических, практических и дневника длительность не обязательна
-          if (type === "EXAMINATION" || type === "THEORY" || type === "PRACTICE" || type === "DIARY")
-            return null;
-          // Для тренировочных и перерыва длительность обязательна
-          if (type === "TRAINING" || type === "BREAK") {
-            if (!v || v.trim().length === 0) return "Длительность обязательна";
-            const num = parseInt(v, 10);
-            if (isNaN(num)) return "Должно быть числом";
-            if (num <= 0) return "Должно быть положительным числом";
-            if (num > 6000) return "Максимум 6000 секунд";
-          }
-          return null;
-        },
-        videoUrl: (value: unknown) => {
-          const v = String(value ?? "");
-          if (!v) return null; // Необязательное поле
-
-          // Поддерживаем внешние ссылки и CDN
-          const externalUrlPattern =
-            /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
-          const cdnUrlPattern = /^https:\/\/gafus-media\.storage\.yandexcloud\.net\/uploads\/.+/;
-
-          const isValid = externalUrlPattern.test(v) || cdnUrlPattern.test(v);
-          return isValid ? null : "Неверный формат ссылки на видео";
-        },
-        type: (value: unknown) => {
-          const v = String(value ?? "");
-          if (!v || v.trim().length === 0) return "Тип шага обязателен";
-          if (!["TRAINING", "EXAMINATION", "THEORY", "BREAK", "PRACTICE", "DIARY"].includes(v))
-            return "Неверный тип шага";
-          return null;
-        },
-        checklist: (value: unknown) => {
-          const v = String(value ?? "");
-          // Если выбраны тестовые вопросы, то чек-лист обязателен
-          if (hasTestQuestions) {
-            if (!v) return "Для тестовых вопросов необходимо добавить хотя бы один вопрос";
-            try {
-              const checklist = JSON.parse(v);
-              if (!Array.isArray(checklist)) return "Чек-лист должен быть массивом";
-              if (checklist.length === 0) return "Добавьте хотя бы один вопрос";
-              for (const question of checklist) {
-                if (typeof question !== "object" || question === null) {
-                  return "Каждый вопрос чек-листа должен быть объектом";
-                }
-                if (!question.id || typeof question.id !== "string") {
-                  return "Каждый вопрос должен иметь идентификатор";
-                }
-                if (!question.question || question.question.trim().length === 0) {
-                  return "Все вопросы должны иметь текст";
-                }
-                if (!Array.isArray(question.options) || question.options.length < 2) {
-                  return "Каждый вопрос должен иметь минимум 2 варианта ответа";
-                }
-                if (question.options.some((opt: string) => !opt || opt.trim().length === 0)) {
-                  return "Все варианты ответов должны быть заполнены";
-                }
-                if (question.comment != null) {
-                  if (typeof question.comment !== "string") {
-                    return "Комментарий к вопросу должен быть строкой";
-                  }
-                  if (question.comment.trim().length > MAX_COMMENT_LENGTH) {
-                    return `Комментарий к вопросу не должен превышать ${MAX_COMMENT_LENGTH} символов`;
-                  }
-                }
-              }
-              return null;
-            } catch {
-              return "Неверный формат чек-листа";
-            }
-          }
-          return null; // Если тестовые вопросы не выбраны, чек-лист не нужен
-        },
-      },
-    );
-
-    if (!validation.isValid) {
-      return { error: `Ошибка валидации: ${Object.values(validation.errors).join(", ")}` };
+    if (hasValidationErrors(validationResult)) {
+      return {
+        error: `Ошибка валидации: ${getValidationErrors(validationResult).join(", ")}`,
+      };
     }
 
-    // Дополнительная валидация для экзаменационных шагов
     if (type === "EXAMINATION") {
       if (!hasTestQuestions && !requiresVideoReport && !requiresWrittenFeedback) {
-        return { error: "Для экзаменационного шага выберите хотя бы один тип экзамена" };
+        return {
+          error: "Для экзаменационного шага выберите хотя бы один тип экзамена",
+        };
       }
     }
 
@@ -185,126 +93,120 @@ export async function createStep(
         ? (JSON.parse(checklistStr) as ChecklistQuestion[])
         : null;
     const normalizedChecklist = checklist
-      ? checklist.map((question) => ({
-          ...question,
+      ? checklist.map((q) => ({
+          ...q,
           comment:
-            typeof question.comment === "string" && question.comment.trim().length > 0
-              ? question.comment.trim()
+            typeof q.comment === "string" && q.comment.trim().length > 0
+              ? q.comment.trim()
               : undefined,
         }))
       : null;
-    const checklistValue =
-      hasTestQuestions && normalizedChecklist ? normalizedChecklist : Prisma.JsonNull;
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return { error: "Вы не авторизованы" };
     }
-    const authorId = session.user.id;
-    const trainerId = authorId;
+    const trainerId = session.user.id;
+    const stepId = randomUUID();
 
-    // Удаляем изображения из CDN (для тренировочных, теоретических и практических шагов)
+    // Удаление помеченных изображений из CDN (до создания шага)
     if (
       (type === "TRAINING" || type === "THEORY" || type === "PRACTICE") &&
       deletedImages.length > 0
     ) {
-      try {
-        logger.info(`🗑️ Удаляем ${deletedImages.length} изображений из CDN`);
-
-        for (const imageUrl of deletedImages) {
+      for (const imageUrl of deletedImages) {
+        try {
           const relativePath = getRelativePathFromCDNUrl(imageUrl);
           await deleteFileFromCDN(relativePath);
+        } catch (err) {
+          logger.error("Ошибка удаления изображения из CDN", err as Error);
         }
-
-        logger.info(`✅ Удалено ${deletedImages.length} изображений из CDN`);
-      } catch (error) {
-        logger.error("❌ Ошибка удаления изображений из CDN", error as Error);
-        // Не прерываем создание шага из-за ошибки удаления
       }
     }
 
-    // Проверяем, что пользователь существует в базе данных
-    const user = await prisma.user.findUnique({ where: { id: authorId } });
-    if (!user) {
-      return { error: "Пользователь не найден в базе данных" };
-    }
-
-    // Создаем шаг в БД сначала (получаем stepId)
-    let step;
-    try {
-      step = await prisma.step.create({
-        data: {
-          title,
-          description,
-          durationSec: duration,
-          estimatedDurationSec,
-          type: type as StepType,
-          videoUrl:
-            type === "TRAINING" || type === "THEORY" || type === "PRACTICE"
-              ? videoUrl || null
-              : null,
-          imageUrls: [], // Временно пустой массив, обновим после загрузки изображений
-          pdfUrls: type === "TRAINING" || type === "THEORY" || type === "PRACTICE" ? pdfUrls : [],
-          checklist: checklistValue,
-          requiresVideoReport: type === "EXAMINATION" ? requiresVideoReport : false,
-          requiresWrittenFeedback: type === "EXAMINATION" ? requiresWrittenFeedback : false,
-          hasTestQuestions: type === "EXAMINATION" ? hasTestQuestions : false,
-          authorId,
-        },
-      });
-    } catch (error) {
-      logger.error("❌ Ошибка создания шага в БД", error as Error);
-      return { error: "Не удалось создать шаг" };
-    }
-
-    const stepId = step.id;
-
-    // Загружаем изображения в CDN с правильным путем (только для тренировочных, теоретических и практических шагов)
+    // Загрузка изображений в CDN с путём, содержащим stepId (UUID)
     const imageUrls: string[] = [];
     if (
       (type === "TRAINING" || type === "THEORY" || type === "PRACTICE") &&
       imageFiles.length > 0
     ) {
       try {
-        logger.info(`🔄 Загружаем ${imageFiles.length} изображений в CDN`);
-
         for (const file of imageFiles) {
           const ext = file.name.split(".").pop() || "jpg";
-          const relativePath = getStepImagePath(trainerId, stepId, randomUUID(), ext);
-
+          const relativePath = getStepImagePath(
+            trainerId,
+            stepId,
+            randomUUID(),
+            ext,
+          );
           const fileUrl = await uploadFileToCDN(file, relativePath);
           imageUrls.push(fileUrl);
         }
-
-        logger.info(`✅ Загружено ${imageUrls.length} изображений в CDN`);
-
-        // Обновляем шаг с загруженными изображениями
-        await prisma.step.update({
-          where: { id: stepId },
-          data: { imageUrls },
-        });
       } catch (error) {
-        logger.error("❌ Ошибка загрузки изображений в CDN", error as Error);
-        // Откатываем создание шага при ошибке загрузки
-        await prisma.step.delete({ where: { id: stepId } });
+        logger.error("Ошибка загрузки изображений в CDN", error as Error);
         return { error: "Не удалось загрузить изображения" };
       }
     }
 
-    revalidatePath("/main-panel/steps");
+    const payload = {
+      id: stepId,
+      title: title.trim(),
+      description: description.trim(),
+      type,
+      durationSec: duration,
+      estimatedDurationSec: estimatedDurationSec ?? null,
+      videoUrl: videoUrl || null,
+      imageUrls,
+      pdfUrls:
+        type === "TRAINING" || type === "THEORY" || type === "PRACTICE"
+          ? pdfUrls
+          : [],
+      checklist:
+        hasTestQuestions && normalizedChecklist && normalizedChecklist.length > 0
+          ? normalizedChecklist
+          : undefined,
+      requiresVideoReport: type === "EXAMINATION" ? requiresVideoReport : false,
+      requiresWrittenFeedback:
+        type === "EXAMINATION" ? requiresWrittenFeedback : false,
+      hasTestQuestions: type === "EXAMINATION" ? hasTestQuestions : false,
+    };
 
+    const parsed = createStepSchema.safeParse(payload);
+    if (!parsed.success) {
+      const msg = parsed.error.flatten().formErrors.join(", ");
+      if (imageUrls.length > 0) {
+        for (const url of imageUrls) {
+          try {
+            await deleteFileFromCDN(getRelativePathFromCDNUrl(url));
+          } catch {
+            // ignore
+          }
+        }
+      }
+      return { error: `Ошибка валидации: ${msg}` };
+    }
+
+    const result = await createStepCore(parsed.data, trainerId);
+
+    if (!result.success) {
+      for (const url of imageUrls) {
+        try {
+          await deleteFileFromCDN(getRelativePathFromCDNUrl(url));
+        } catch {
+          // ignore rollback errors
+        }
+      }
+      return { error: result.error ?? "Не удалось создать шаг" };
+    }
+
+    revalidatePath("/main-panel/steps");
     return { success: true };
   } catch (error) {
-    logger.error("Ошибка при создании шага:", error as Error, { operation: "error" });
-    logger.error(
-      error instanceof Error ? error.message : "Unknown error",
-      error instanceof Error ? error : new Error(String(error)),
-      {
-        operation: "createStep",
-        action: "createStep",
-        tags: ["steps", "create"],
-      },
-    );
-    return { error: "Не удалось создать шаг" };
+    logger.error("Ошибка при создании шага", error as Error, {
+      operation: "createStep",
+    });
+    return {
+      error: error instanceof Error ? error.message : "Не удалось создать шаг",
+    };
   }
 }

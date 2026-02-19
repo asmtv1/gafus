@@ -9,7 +9,7 @@
       "types": "./dist/core/src/index.d.ts",
       "default": "./dist/core/src/index.js"
     },
-    "./services/course": {
+    "./services/cache":{"types":"./dist/core/src/services/cache/index.d.ts","default":"./dist/core/src/services/cache/index.js"},"./services/common":{"types":"./dist/core/src/services/common/index.d.ts","default":"./dist/core/src/services/common/index.js"},"./services/course": {
       "types": "./dist/core/src/services/course/index.d.ts",
       "default": "./dist/core/src/services/course/index.js"
     },
@@ -56,6 +56,22 @@
     "./services/notes": {
       "types": "./dist/core/src/services/notes/index.d.ts",
       "default": "./dist/core/src/services/notes/index.js"
+    },
+    "./services/trainerCourse": {
+      "types": "./dist/core/src/services/trainerCourse/index.d.ts",
+      "default": "./dist/core/src/services/trainerCourse/index.js"
+    },
+    "./services/trainerStep": {
+      "types": "./dist/core/src/services/trainerStep/index.d.ts",
+      "default": "./dist/core/src/services/trainerStep/index.js"
+    },
+    "./services/trainingDay": {
+      "types": "./dist/core/src/services/trainingDay/index.d.ts",
+      "default": "./dist/core/src/services/trainingDay/index.js"
+    },
+    "./services/trainerVideo": {
+      "types": "./dist/core/src/services/trainerVideo/index.d.ts",
+      "default": "./dist/core/src/services/trainerVideo/index.js"
     },
     "./services/offline": {
       "types": "./dist/core/src/services/offline/index.d.ts",
@@ -119,6 +135,8 @@
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
     "@gafus/types": "workspace:*",
+    "@gafus/video-access": "workspace:*",
+    "@gafus/webpush": "workspace:*",
     "libphonenumber-js": "^1.12.8",
     "petrovich": "^0.2.1",
     "zod": "^3.24.1"

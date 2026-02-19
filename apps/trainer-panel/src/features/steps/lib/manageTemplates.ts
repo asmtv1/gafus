@@ -2,7 +2,11 @@
 
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
+import {
+  createStepTemplate as createStepTemplateCore,
+  deleteStepTemplate as deleteStepTemplateCore,
+  createStepCategory as createStepCategoryCore,
+} from "@gafus/core/services/trainerStep";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 
@@ -13,9 +17,6 @@ interface TemplateActionResult {
   message: string;
 }
 
-/**
- * Создает новый шаблон шага
- */
 export async function createStepTemplate(
   prevState: TemplateActionResult,
   formData: FormData,
@@ -43,46 +44,36 @@ export async function createStepTemplate(
       return { success: false, message: "Заполните все обязательные поля" };
     }
 
-    const template = await prisma.stepTemplate.create({
-      data: {
-        title,
-        description,
-        durationSec: durationSec ? parseInt(durationSec, 10) : null,
-        type: type as "TRAINING" | "EXAMINATION",
-        categoryId: categoryId || undefined,
-        tags: tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-        videoUrl,
-        authorId: session.user.id,
-        isPublic: true,
-      },
+    const result = await createStepTemplateCore({
+      title,
+      description,
+      durationSec: durationSec ? parseInt(durationSec, 10) : null,
+      type,
+      categoryId: categoryId || null,
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      videoUrl: videoUrl || null,
+      authorId: session.user.id,
     });
 
-    logger.info("Шаблон успешно создан", { templateId: template.id });
-    revalidatePath("/main-panel/templates");
+    if (!result.success) {
+      return { success: false, message: result.error ?? "Не удалось создать шаблон" };
+    }
 
+    logger.info("Шаблон успешно создан", { templateId: result.templateId });
+    revalidatePath("/main-panel/templates");
     return { success: true, message: "Шаблон успешно создан" };
   } catch (error) {
     logger.error("Ошибка при создании шаблона", error as Error);
-    logger.error(
-      error instanceof Error ? error.message : "Unknown error",
-      error instanceof Error ? error : new Error(String(error)),
-      {
-        operation: "action",
-        action: "action",
-        tags: [],
-      },
-    );
     return { success: false, message: "Не удалось создать шаблон" };
   }
 }
 
-/**
- * Удаляет шаблон
- */
-export async function deleteStepTemplate(templateId: string): Promise<TemplateActionResult> {
+export async function deleteStepTemplate(
+  templateId: string,
+): Promise<TemplateActionResult> {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -94,13 +85,13 @@ export async function deleteStepTemplate(templateId: string): Promise<TemplateAc
       return { success: false, message: "Недостаточно прав" };
     }
 
-    await prisma.stepTemplate.delete({
-      where: { id: templateId },
-    });
+    const result = await deleteStepTemplateCore(templateId);
+    if (!result.success) {
+      return { success: false, message: result.error ?? "Не удалось удалить шаблон" };
+    }
 
     logger.info("Шаблон успешно удален", { templateId });
     revalidatePath("/main-panel/templates");
-
     return { success: true, message: "Шаблон успешно удален" };
   } catch (error) {
     logger.error("Ошибка при удалении шаблона", error as Error, { templateId });
@@ -108,9 +99,6 @@ export async function deleteStepTemplate(templateId: string): Promise<TemplateAc
   }
 }
 
-/**
- * Создает новую категорию
- */
 export async function createStepCategory(
   prevState: TemplateActionResult,
   formData: FormData,
@@ -135,18 +123,22 @@ export async function createStepCategory(
       return { success: false, message: "Название обязательно" };
     }
 
-    await prisma.stepCategory.create({
-      data: {
-        name,
-        description: description || null,
-        icon: icon || null,
-        order: parseInt(order, 10),
-      },
+    const result = await createStepCategoryCore({
+      name,
+      description: description || null,
+      icon: icon || null,
+      order: parseInt(order, 10),
     });
+
+    if (!result.success) {
+      return {
+        success: false,
+        message: result.error ?? "Не удалось создать категорию",
+      };
+    }
 
     logger.info("Категория успешно создана", { name });
     revalidatePath("/main-panel/templates");
-
     return { success: true, message: "Категория успешно создана" };
   } catch (error) {
     logger.error("Ошибка при создании категории", error as Error);

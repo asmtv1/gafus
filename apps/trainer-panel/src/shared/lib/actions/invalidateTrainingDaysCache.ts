@@ -1,7 +1,8 @@
 "use server";
 
+import { CACHE_TAGS } from "@gafus/core/services/cache";
+import { getCoursesUsingDay } from "@gafus/core/services/trainingDay";
 import { createTrainerPanelLogger } from "@gafus/logger";
-import { prisma } from "@gafus/prisma";
 import { revalidateTag } from "next/cache";
 import { invalidateCoursesCache } from "./invalidateCoursesCache";
 
@@ -68,8 +69,8 @@ export async function invalidateTrainingDaysCache(courseId?: string) {
     logger.warn("[Cache] Invalidating training days cache", { courseId, operation: "warn" });
 
     // Инвалидируем локальный кэш trainer-panel
-    revalidateTag("training");
-    revalidateTag("days");
+    revalidateTag(CACHE_TAGS.TRAINING);
+    revalidateTag(CACHE_TAGS.DAYS);
 
     // Инвалидируем кэш web-приложения через API
     await invalidateWebAppCache(courseId);
@@ -106,8 +107,8 @@ export async function invalidateTrainingDayCache(dayId: string, skipCoursesInval
     });
 
     // Инвалидируем кэш дня
-    revalidateTag("training");
-    revalidateTag("day");
+    revalidateTag(CACHE_TAGS.TRAINING);
+    revalidateTag(CACHE_TAGS.DAY);
 
     // Пропускаем инвалидацию курсов, если указано
     if (skipCoursesInvalidation) {
@@ -123,12 +124,7 @@ export async function invalidateTrainingDayCache(dayId: string, skipCoursesInval
 
     // Найти все курсы, использующие этот день
     try {
-      const dayOnCourses = await prisma.dayOnCourse.findMany({
-        where: { dayId },
-        select: { courseId: true },
-      });
-
-      const courseIds = Array.from(new Set(dayOnCourses.map((doc) => doc.courseId)));
+      const courseIds = await getCoursesUsingDay(dayId);
 
       // Инвалидируем кэш курсов, если день используется в курсах
       if (courseIds.length > 0) {

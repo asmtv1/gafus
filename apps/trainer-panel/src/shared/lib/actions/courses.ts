@@ -7,22 +7,23 @@ import {
   getCourseImagePath,
 } from "@gafus/cdn-upload";
 import { authOptions } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { invalidateCoursesCache } from "./invalidateCoursesCache";
-import { invalidateTrainingDaysCache } from "./invalidateTrainingDaysCache";
 import { randomUUID } from "crypto";
 import { createTrainerPanelLogger } from "@gafus/logger";
+import { CACHE_TAGS } from "@gafus/core/services/cache";
+import {
+  createCourse,
+  updateCourse,
+  deleteCourse,
+  canCreatePaidCourse as coreCanCreatePaidCourse,
+  createTrainerCourseSchema,
+  updateTrainerCourseSchema,
+} from "@gafus/core/services/trainerCourse";
+import { invalidateCoursesCache } from "./invalidateCoursesCache";
+import { invalidateTrainingDaysCache } from "./invalidateTrainingDaysCache";
 
 const logger = createTrainerPanelLogger("trainer-panel-create-course");
-
-/** Платные курсы могут создавать только admin и тренер с ником gafus */
-function canCreatePaidCourse(session: { user: { role: string; username?: string } }): boolean {
-  const role = session.user.role;
-  const username = session.user.username?.toLowerCase();
-  return role === "ADMIN" || username === "gafus";
-}
 
 export interface CreateCourseInput {
   name: string;
@@ -50,10 +51,9 @@ export async function createCourseServerAction(formData: FormData) {
     return { success: false, error: "Не авторизован" };
   }
 
-  const authorId = session.user.id as string;
+  const authorId = session.user.id;
   const trainerId = authorId;
 
-  // Извлекаем данные из FormData
   const name = formData.get("name")?.toString() || "";
   const shortDesc = formData.get("shortDesc")?.toString() || "";
   const description = formData.get("description")?.toString() || "";
@@ -64,15 +64,34 @@ export async function createCourseServerAction(formData: FormData) {
   const priceRubRaw = formData.get("priceRub")?.toString();
   const priceRub = priceRubRaw ? parseFloat(priceRubRaw) : null;
   if (isPaid) {
-    if (!canCreatePaidCourse(session)) {
-      return { success: false, error: "Создавать платные курсы могут только администратор и тренер gafus" };
+    if (
+      !coreCanCreatePaidCourse(
+        session.user.id,
+        session.user.role,
+        session.user.username ?? "",
+      )
+    ) {
+      return {
+        success: false,
+        error:
+          "Создавать платные курсы могут только администратор и тренер gafus",
+      };
     }
-    if (priceRub == null || Number.isNaN(priceRub) || priceRub < 1 || priceRub > 999_999) {
-      return { success: false, error: "Для платного курса укажите цену от 1 до 999 999 ₽" };
+    if (
+      priceRub == null ||
+      Number.isNaN(priceRub) ||
+      priceRub < 1 ||
+      priceRub > 999_999
+    ) {
+      return {
+        success: false,
+        error: "Для платного курса укажите цену от 1 до 999 999 ₽",
+      };
     }
   }
   const showInProfile = formData.get("showInProfile")?.toString() === "true";
-  const isPersonalized = formData.get("isPersonalized")?.toString() === "true";
+  const isPersonalized =
+    formData.get("isPersonalized")?.toString() === "true";
   const trainingDays = formData.getAll("trainingDays").map(String);
   const allowedUsers = formData.getAll("allowedUsers").map(String);
   const equipment = formData.get("equipment")?.toString() || "";
@@ -84,84 +103,68 @@ export async function createCourseServerAction(formData: FormData) {
       | "EXPERT") || "BEGINNER";
   const logoFile = formData.get("logoImg") as File | null;
 
-  const isPrivate = !isPublic;
-
-  // Создаем курс в БД сначала (получаем courseId)
-  let course;
-  try {
-    course = await prisma.course.create({
-      data: {
-        name,
-        type: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        description,
-        shortDesc,
-        duration,
-        logoImg: "", // Временно пустая строка, обновим после загрузки файла
-        isPrivate,
-        isPaid,
-        priceRub: isPaid && priceRub != null ? priceRub : null,
-        showInProfile: showInProfile ?? true,
-        isPersonalized: isPersonalized ?? false,
-        videoUrl: videoUrl || null,
-        equipment,
-        trainingLevel,
-        author: { connect: { id: authorId } },
-        dayLinks: {
-          create: (trainingDays || []).map((dayId: string, index: number) => ({
-            day: { connect: { id: String(dayId) } },
-            order: index + 1, // Дни начинаются с 1, а не с 0
-          })),
-        },
-        access: isPrivate
-          ? {
-              create: (allowedUsers || []).map((userId: string) => ({
-                user: { connect: { id: String(userId) } },
-              })),
-            }
-          : undefined,
-      },
-    });
-  } catch (error) {
-    logger.error("❌ Ошибка создания курса в БД", error as Error);
-    return { success: false, error: "Не удалось создать курс" };
-  }
-
-  const courseId = course.id;
-
-  // Загружаем файл изображения в CDN (если есть)
-  let logoImgUrl: string | null = null;
+  const uuid = randomUUID();
+  let logoImgUrl = "";
   if (logoFile && logoFile.size > 0) {
     try {
       const ext = logoFile.name.split(".").pop() || "jpg";
-      const uuid = randomUUID();
-      const relativePath = getCourseImagePath(trainerId, courseId, uuid, ext);
+      const relativePath = getCourseImagePath(trainerId, uuid, uuid, ext);
       logoImgUrl = await uploadFileToCDN(logoFile, relativePath);
-
-      // Обновляем курс с logoImg
-      await prisma.course.update({
-        where: { id: courseId },
-        data: { logoImg: logoImgUrl },
-      });
-
-      logger.info(`✅ Изображение курса загружено: ${logoImgUrl}`);
+      logger.info(`Изображение курса загружено на CDN: ${logoImgUrl}`);
     } catch (error) {
-      // Откатываем создание курса при ошибке загрузки
-      await prisma.course.delete({ where: { id: courseId } });
-      logger.error("❌ Ошибка загрузки изображения курса", error as Error);
+      logger.error("Ошибка загрузки изображения курса", error as Error);
       return { success: false, error: "Не удалось загрузить изображение курса" };
     }
   }
 
-  revalidateTag("statistics");
+  const parseResult = createTrainerCourseSchema.safeParse({
+    id: uuid,
+    name,
+    shortDesc,
+    description,
+    duration,
+    videoUrl: videoUrl || null,
+    logoImg: logoImgUrl,
+    isPublic,
+    isPaid,
+    priceRub: isPaid ? priceRub : null,
+    showInProfile,
+    isPersonalized,
+    trainingDays,
+    allowedUsers,
+    equipment,
+    trainingLevel,
+  });
+  if (!parseResult.success) {
+    const msg = parseResult.error.flatten().formErrors[0] ?? "Ошибка валидации";
+    if (logoImgUrl) {
+      try {
+        await deleteFileFromCDN(getRelativePathFromCDNUrl(logoImgUrl));
+      } catch {
+        // игнорируем ошибку отката CDN
+      }
+    }
+    return { success: false, error: msg };
+  }
+
+  const result = await createCourse(parseResult.data, authorId);
+  if (!result.success) {
+    if (logoImgUrl) {
+      try {
+        await deleteFileFromCDN(getRelativePathFromCDNUrl(logoImgUrl));
+      } catch {
+        // откат CDN при ошибке core
+      }
+    }
+    return { success: false, error: result.error };
+  }
+
+  revalidateTag(CACHE_TAGS.STATISTICS);
   revalidatePath("/main-panel/statistics");
-
-  // Инвалидируем кэш курсов при создании нового курса
   await invalidateCoursesCache();
+  await invalidateTrainingDaysCache(result.id);
 
-  // Инвалидируем кэш дней курсов при создании курса с днями
-  await invalidateTrainingDaysCache(courseId);
-
-  return { success: true, id: courseId };
+  return { success: true, id: result.id };
 }
 
 export interface UpdateCourseInput extends CreateCourseInput {
@@ -175,161 +178,59 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   if (!session?.user?.id) return { success: false, error: "Не авторизован" };
 
   if (input.isPaid) {
-    if (!canCreatePaidCourse(session)) {
-      return { success: false, error: "Создавать платные курсы могут только администратор и тренер gafus" };
+    if (
+      !coreCanCreatePaidCourse(
+        session.user.id,
+        session.user.role,
+        session.user.username ?? "",
+      )
+    ) {
+      return {
+        success: false,
+        error:
+          "Создавать платные курсы могут только администратор и тренер gafus",
+      };
     }
   }
-  if (input.isPaid && (input.priceRub == null || input.priceRub < 1 || input.priceRub > 999_999)) {
-    return { success: false, error: "Для платного курса укажите цену от 1 до 999 999 ₽" };
+  if (
+    input.isPaid &&
+    (input.priceRub == null || input.priceRub < 1 || input.priceRub > 999_999)
+  ) {
+    return {
+      success: false,
+      error: "Для платного курса укажите цену от 1 до 999 999 ₽",
+    };
   }
 
-  const isPrivate = !input.isPublic;
+  const parseResult = updateTrainerCourseSchema.safeParse({
+    id: input.id,
+    name: input.name,
+    shortDesc: input.shortDesc,
+    description: input.description,
+    duration: input.duration,
+    videoUrl: input.videoUrl ?? null,
+    logoImg: input.logoImg,
+    isPublic: input.isPublic,
+    isPaid: input.isPaid,
+    priceRub: input.priceRub,
+    showInProfile: input.showInProfile,
+    isPersonalized: input.isPersonalized,
+    trainingDays: input.trainingDays,
+    allowedUsers: input.allowedUsers,
+    equipment: input.equipment,
+    trainingLevel: input.trainingLevel,
+  });
+  if (!parseResult.success) {
+    const msg = parseResult.error.flatten().formErrors[0] ?? "Ошибка валидации";
+    return { success: false, error: msg };
+  }
 
-  const desiredDayIds = (input.trainingDays || []).map((dayId: string) => String(dayId));
+  const result = await updateCourse(parseResult.data);
+  if (!result.success) return { success: false, error: result.error };
 
-  await prisma.$transaction(
-    async (tx) => {
-      // Обновление основных полей
-      await tx.course.update({
-        where: { id: input.id },
-        data: {
-          name: input.name,
-          description: input.description,
-          shortDesc: input.shortDesc,
-          duration: input.duration,
-          logoImg: input.logoImg,
-          videoUrl: input.videoUrl || null,
-          isPrivate,
-          isPaid: input.isPaid,
-          priceRub: input.isPaid && input.priceRub != null ? input.priceRub : null,
-          showInProfile: input.showInProfile ?? true,
-          isPersonalized: input.isPersonalized ?? false,
-          equipment: input.equipment,
-          trainingLevel: input.trainingLevel,
-        },
-      });
-
-      // Сохраняем существующие DayOnCourse, чтобы не сбрасывать прогресс.
-      const existingDayLinks = await tx.dayOnCourse.findMany({
-        where: { courseId: input.id },
-        select: { id: true, dayId: true, order: true },
-        orderBy: { order: "asc" },
-      });
-
-      const existingByDayId = new Map<string, typeof existingDayLinks>();
-      for (const link of existingDayLinks) {
-        const list = existingByDayId.get(link.dayId);
-        if (list) {
-          list.push(link);
-        } else {
-          existingByDayId.set(link.dayId, [link]);
-        }
-      }
-
-      const reusedLinks: { id: string; newOrder: number }[] = [];
-      const newLinks: { dayId: string; order: number }[] = [];
-
-      desiredDayIds.forEach((dayId, index) => {
-        const list = existingByDayId.get(dayId);
-        if (list && list.length > 0) {
-          const link = list.shift();
-          if (link) {
-            reusedLinks.push({ id: link.id, newOrder: index + 1 });
-          }
-        } else {
-          newLinks.push({ dayId, order: index + 1 });
-        }
-      });
-
-      const removedLinks = Array.from(existingByDayId.values()).flat();
-      if (removedLinks.length > 0) {
-        await tx.dayOnCourse.deleteMany({
-          where: { id: { in: removedLinks.map((link) => link.id) } },
-        });
-      }
-
-      if (reusedLinks.length > 0) {
-        const tempBase = desiredDayIds.length + existingDayLinks.length + 1000;
-        for (let index = 0; index < reusedLinks.length; index += 1) {
-          const link = reusedLinks[index];
-          await tx.dayOnCourse.update({
-            where: { id: link.id },
-            data: { order: tempBase + index },
-          });
-        }
-      }
-
-      if (newLinks.length > 0) {
-        await tx.dayOnCourse.createMany({
-          data: newLinks.map((link) => ({
-            courseId: input.id,
-            dayId: link.dayId,
-            order: link.order,
-          })),
-        });
-      }
-
-      if (reusedLinks.length > 0) {
-        for (const link of reusedLinks) {
-          await tx.dayOnCourse.update({
-            where: { id: link.id },
-            data: { order: link.newOrder },
-          });
-        }
-      }
-
-      // Пересобираем доступ: для платного курса не удаляем CourseAccess (оплатившие сохраняют доступ)
-      if (input.isPaid) {
-        const allowedSet = new Set((input.allowedUsers || []).map(String));
-        const existingAccess = await tx.courseAccess.findMany({
-          where: { courseId: input.id },
-          select: { userId: true },
-        });
-        const paidUserIds = await tx.payment
-          .findMany({
-            where: { courseId: input.id, status: "SUCCEEDED" },
-            select: { userId: true },
-          })
-          .then((rows) => new Set(rows.map((r) => r.userId)));
-        const toRemove = existingAccess
-          .filter((a) => !allowedSet.has(a.userId) && !paidUserIds.has(a.userId))
-          .map((a) => a.userId);
-        if (toRemove.length > 0) {
-          await tx.courseAccess.deleteMany({
-            where: { courseId: input.id, userId: { in: toRemove } },
-          });
-        }
-        for (const userId of allowedSet) {
-          const exists = existingAccess.some((a) => a.userId === userId);
-          if (!exists) {
-            await tx.courseAccess.create({ data: { courseId: input.id, userId } });
-          }
-        }
-      } else {
-        await tx.courseAccess.deleteMany({ where: { courseId: input.id } });
-        if (isPrivate) {
-          await tx.courseAccess.createMany({
-            data: (input.allowedUsers || []).map((userId: string) => ({
-              courseId: input.id,
-              userId: String(userId),
-            })),
-          });
-        }
-      }
-    },
-    {
-      maxWait: 10000, // 10 секунд ожидания начала транзакции
-      timeout: 20000, // 20 секунд таймаут транзакции (сложная операция)
-    },
-  );
-
-  revalidateTag("statistics");
+  revalidateTag(CACHE_TAGS.STATISTICS);
   revalidatePath("/main-panel/statistics");
-
-  // Инвалидируем кэш курсов при обновлении курса
   await invalidateCoursesCache();
-
-  // Инвалидируем кэш дней курсов при обновлении курса с днями
   await invalidateTrainingDaysCache(input.id);
 
   return { success: true };
@@ -341,38 +242,24 @@ export async function deleteCourseServerAction(courseId: string) {
   } | null;
   if (!session?.user?.id) return { success: false, error: "Не авторизован" };
 
-  // Получаем информацию о курсе для удаления изображения
-  const course = await prisma.course.findUnique({
-    where: { id: courseId },
-    select: { logoImg: true },
-  });
+  const result = await deleteCourse(courseId);
+  if (!result.success) return { success: false, error: result.error };
 
-  // Удаляем изображение курса из CDN (если есть)
-  if (course?.logoImg) {
-    const relativePath = getRelativePathFromCDNUrl(course.logoImg);
+  if (result.logoImg) {
     try {
+      const relativePath = getRelativePathFromCDNUrl(result.logoImg);
       await deleteFileFromCDN(relativePath);
-      console.log(`🗑️ Изображение курса удалено из CDN: ${relativePath}`);
+      logger.info(`Изображение курса удалено из CDN: ${relativePath}`);
     } catch (error) {
-      console.warn(`⚠️ Не удалось удалить изображение курса из CDN: ${error}`);
+      logger.warn("Не удалось удалить изображение курса из CDN", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
-  // Удаляем зависимые записи
-  await prisma.courseAccess.deleteMany({ where: { courseId } });
-  await prisma.favoriteCourse.deleteMany({ where: { courseId } });
-  await prisma.courseReview.deleteMany({ where: { courseId } });
-  await prisma.userCourse.deleteMany({ where: { courseId } });
-  await prisma.dayOnCourse.deleteMany({ where: { courseId } });
-  await prisma.course.delete({ where: { id: courseId } });
-
-  revalidateTag("statistics");
+  revalidateTag(CACHE_TAGS.STATISTICS);
   revalidatePath("/main-panel/statistics");
-
-  // Инвалидируем кэш курсов при удалении курса
   await invalidateCoursesCache();
-
-  // Инвалидируем кэш дней курсов при удалении курса
   await invalidateTrainingDaysCache(courseId);
 
   return { success: true };

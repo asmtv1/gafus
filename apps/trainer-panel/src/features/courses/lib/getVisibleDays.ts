@@ -1,7 +1,7 @@
 "use server";
 
 import { authOptions } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
+import { getVisibleDays as getVisibleDaysCore } from "@gafus/core/services/trainingDay";
 import { getServerSession } from "next-auth";
 
 export async function getVisibleDays() {
@@ -12,38 +12,5 @@ export async function getVisibleDays() {
   const role = session.user.role;
   const isAdminOrModerator = ["ADMIN", "MODERATOR"].includes(role);
 
-  const days = await prisma.trainingDay.findMany({
-    where: isAdminOrModerator ? {} : { authorId: userId },
-    include: {
-      author: {
-        select: {
-          username: true,
-          profile: {
-            select: {
-              fullName: true,
-            },
-          },
-        },
-      },
-      stepLinks: {
-        include: {
-          step: {
-            select: { id: true, title: true },
-          },
-        },
-        orderBy: { order: "asc" },
-      },
-      dayLinks: {
-        include: {
-          course: {
-            select: { id: true, name: true },
-          },
-        },
-        orderBy: { order: "asc" },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return days;
+  return getVisibleDaysCore(userId, isAdminOrModerator);
 }

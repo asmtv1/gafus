@@ -1,3 +1,5 @@
+export * from "./cache";
+export * from "./common";
 export * from "./course";
 export * from "./diary";
 export * from "./user";
@@ -10,6 +12,10 @@ export * from "./pets";
 export * from "./training";
 export * from "./exam";
 export * from "./notes";
+export * from "./trainerCourse";
+export * from "./trainerStep";
+export * from "./trainingDay";
+export * from "./trainerVideo";
 export * from "./offline";
 export * from "./payments";
 export * from "./video";

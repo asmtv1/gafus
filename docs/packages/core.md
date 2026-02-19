@@ -20,13 +20,20 @@
 packages/core/
 ├── src/
 │   ├── services/          # Бизнес-логика
+│   │   ├── cache/         # Константы тегов кэша (CACHE_TAGS) для app-уровня
 │   │   ├── course/        # Курсы, избранное, отзывы
-│   │   ├── user/          # Профиль, настройки
+│   │   ├── user/          # Профиль, настройки, поиск
 │   │   ├── auth/          # Аутентификация
 │   │   ├── notifications/ # Уведомления о шагах
 │   │   ├── subscriptions/ # Push-подписки
 │   │   ├── tracking/      # Аналитика
-│   │   └── achievements/  # Достижения, даты
+│   │   ├── achievements/  # Достижения, даты
+│   │   ├── notes/         # Заметки тренера (trainer-panel)
+│   │   ├── exam/          # Экзамены, проверка результатов
+│   │   ├── trainerCourse/ # CRUD курсов тренера
+│   │   ├── trainerStep/   # Шаги, шаблоны шагов
+│   │   ├── trainingDay/  # Дни тренировок
+│   │   └── trainerVideo/ # Видео тренера (CDN-метаданные)
 │   ├── errors/            # ServiceError, prismaErrorHandler
 │   ├── utils/             # Универсальные утилиты
 │   │   ├── age/           # getAge, getAgeWithMonths
@@ -64,6 +71,17 @@ import { trackPresentationView } from "@gafus/core/services/tracking";
 
 // Достижения (даты тренировок, статистика и расчёт достижений для API/mobile)
 import { getUserTrainingDates, getAchievementStats } from "@gafus/core/services/achievements";
+
+// Теги кэша (для revalidateTag в Next.js app — trainer-panel, web)
+import { CACHE_TAGS } from "@gafus/core/services/cache";
+
+// Сервисы trainer-panel (заметки, курсы, шаги, дни, видео, экзамены)
+import { createTrainerNote, getTrainerNotes } from "@gafus/core/services/notes";
+import { createCourse, updateCourse, deleteCourse } from "@gafus/core/services/trainerCourse";
+import { createStep, getVisibleSteps } from "@gafus/core/services/trainerStep";
+import { createTrainingDay, getVisibleDays } from "@gafus/core/services/trainingDay";
+import { registerTrainerVideo, getTrainerVideos } from "@gafus/core/services/trainerVideo";
+import { reviewExamResult, getPendingExamResults } from "@gafus/core/services/exam";
 
 // Утилиты (общие)
 import {
@@ -196,6 +214,24 @@ const courses = await getCoursesWithProgress(userId);
 - Платные и приватные курсы требуют запись в `CourseAccess`
 - Публичные бесплатные курсы доступны всем
 
+## Теги кэша (CACHE_TAGS)
+
+В `@gafus/core/services/cache` экспортируются константы тегов для `revalidateTag()` Next.js. **Core не импортирует `next/cache`** — только задаёт единые имена тегов, чтобы app-уровень (trainer-panel, web) использовал их при инвалидации кэша.
+
+Использование в Server Actions:
+
+```typescript
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@gafus/core/services/cache";
+
+// После успешной мутации
+revalidateTag(CACHE_TAGS.COURSES);
+revalidateTag(CACHE_TAGS.TRAINER_NOTES);
+revalidateTag(CACHE_TAGS.TRAINER_NOTES_BY_TRAINER(trainerId));
+```
+
+Доступные теги: `TRAINER_NOTES`, `TRAINER_NOTES_BY_TRAINER(id)`, `COURSES`, `COURSES_ALL`, `COURSES_ALL_PERMANENT`, `COURSES_FAVORITES`, `COURSES_AUTHORED`, `COURSES_METADATA`, `TRAINING`, `DAYS`, `DAY`, `EXAM_RESULTS`, `STEPS`, `TRAINER_VIDEOS`, `STATISTICS`.
+
 ## Зависимости
 
 - `@gafus/prisma` - ORM
@@ -219,6 +255,10 @@ cd packages/core && pnpm dev
 # Проверка типов
 cd packages/core && pnpm typecheck
 ```
+
+## Миграция trainer-panel в core
+
+Бизнес-логика панели тренера перенесена из `apps/trainer-panel` в core. Добавлены сервисы: **notes**, **trainerCourse**, **trainerStep**, **trainingDay**, **trainerVideo**; расширены **exam**, **user**, **course**. Подробности, границы миграции и критические исправления (DayOnCourse, CDN rollback, транзакция reviewExamResult) — в [docs/development/trainer-panel-core-migration.md](../development/trainer-panel-core-migration.md).
 
 ## Миграция из apps/web
 

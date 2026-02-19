@@ -2,6 +2,7 @@
 
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { getCourseStatistics } from "@gafus/statistics";
+import { searchUsersByUsername } from "@gafus/core/services/user";
 import { unstable_cache } from "next/cache";
 
 // Создаем логгер для cachedStatistics
@@ -53,26 +54,13 @@ export async function getCourseStatisticsCached(userId: string, isElevated: bool
   return cachedFn();
 }
 
-// Кэшированная версия searchUsersByUsername
+// Кэшированная версия searchUsersByUsername (делегирует в core)
 export const searchUsersByUsernameCached = unstable_cache(
   async (search: string) => {
     try {
       logger.warn(`[React Cache] Searching users with query: ${search}`, { operation: "warn" });
 
-      if (!search.trim()) return { success: true, data: [] };
-
-      const { prisma } = await import("@gafus/prisma");
-      const users = await prisma.user.findMany({
-        where: {
-          username: {
-            contains: search,
-            mode: "insensitive",
-          },
-        },
-        take: 10,
-        select: { id: true, username: true },
-      });
-
+      const users = await searchUsersByUsername(search, 10);
       logger.warn(`[React Cache] Found ${users.length} users for query: ${search}`, {
         operation: "warn",
       });

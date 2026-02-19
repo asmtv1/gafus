@@ -1,7 +1,7 @@
 "use server";
 
 import { authOptions } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
+import { createTrainingDay as createTrainingDayCore } from "@gafus/core/services/trainingDay";
 import { getServerSession } from "next-auth";
 import { invalidateTrainingDayCache } from "@shared/lib/actions/invalidateTrainingDaysCache";
 
@@ -18,25 +18,20 @@ export async function createTrainingDay(data: {
 
   const authorId = session.user.id;
 
-  const day = await prisma.trainingDay.create({
-    data: {
-      title: data.title,
-      description: data.description,
-      type: data.type,
-      equipment: data.equipment,
-      showCoursePathExport: data.showCoursePathExport ?? false,
-      author: { connect: { id: authorId } },
-      stepLinks: {
-        create: data.stepIds.map((stepId: string, index: number) => ({
-          step: { connect: { id: stepId } },
-          order: index + 1, // Шаги начинаются с 1, а не с 0
-        })),
-      },
-    },
+  const result = await createTrainingDayCore({
+    title: data.title,
+    description: data.description,
+    type: data.type,
+    equipment: data.equipment,
+    showCoursePathExport: data.showCoursePathExport ?? false,
+    stepIds: data.stepIds,
+    authorId,
   });
 
-  // Инвалидируем кэш конкретного дня курса при создании
-  await invalidateTrainingDayCache(day.id);
+  if (!result.success || result.dayId == null) {
+    throw new Error(result.error ?? "Не удалось создать день");
+  }
 
-  return day;
+  await invalidateTrainingDayCache(result.dayId);
+  return { id: result.dayId };
 }

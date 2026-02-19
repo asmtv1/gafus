@@ -2,7 +2,7 @@ import { CourseForm } from "@features/courses/components/CourseForm";
 import { getVisibleDays } from "@features/courses/lib/getVisibleDays";
 import { getTrainerVideos } from "@features/trainer-videos/lib/getTrainerVideos";
 import { authOptions } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
+import { getCourseDraftWithRelations } from "@gafus/core/services/trainerCourse";
 import { Typography } from "@mui/material";
 import { getServerSession } from "next-auth";
 import FormPageLayout from "@shared/components/FormPageLayout";
@@ -14,33 +14,23 @@ interface PageProps {
 export default async function EditCoursePage({ params }: PageProps) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
-  const trainerVideos = session?.user?.id ? await getTrainerVideos(session.user.id) : [];
+  const trainerId = session?.user?.id ?? "";
+  const trainerVideos = trainerId ? await getTrainerVideos(trainerId) : [];
 
-  // Загружаем курс
-  const course = await prisma.course.findUnique({
-    where: { id },
-    include: {
-      dayLinks: {
-        include: {
-          day: true,
-        },
-        orderBy: { order: "asc" },
-      },
-      access: { include: { user: true } },
-    },
-  });
+  const course = trainerId
+    ? await getCourseDraftWithRelations(id, trainerId)
+    : null;
 
   const days = await getVisibleDays();
-
-  // Убираем дубликаты по id, оставляя только уникальные дни
   const uniqueDays = days.filter(
     (day, index, self) => index === self.findIndex((d) => d.id === day.id),
   );
-
-  const formattedDays = uniqueDays.map((day: { id: string | number; title: string }) => ({
-    id: String(day.id),
-    title: day.title,
-  }));
+  const formattedDays = uniqueDays.map(
+    (day: { id: string | number; title: string }) => ({
+      id: String(day.id),
+      title: day.title,
+    }),
+  );
 
   if (!course) {
     return (
@@ -53,6 +43,11 @@ export default async function EditCoursePage({ params }: PageProps) {
     );
   }
 
+  const trainingLevel = course.trainingLevel as
+    | "BEGINNER"
+    | "INTERMEDIATE"
+    | "ADVANCED"
+    | "EXPERT";
   const initialValues = {
     name: course.name,
     shortDesc: course.shortDesc,
@@ -62,17 +57,17 @@ export default async function EditCoursePage({ params }: PageProps) {
     logoImg: course.logoImg,
     isPublic: !course.isPrivate,
     isPaid: course.isPaid ?? false,
-    priceRub: course.priceRub != null ? Number(course.priceRub) : null,
-    showInProfile: (course as { showInProfile?: boolean }).showInProfile ?? true,
-    isPersonalized: (course as { isPersonalized?: boolean }).isPersonalized ?? false,
-    trainingDays: course.dayLinks.map((dl: { day: { id: string } }) => dl.day.id),
-    allowedUsers: course.isPrivate ? course.access.map((a: { userId: string }) => a.userId) : [],
+    priceRub: course.priceRub,
+    showInProfile: course.showInProfile ?? true,
+    isPersonalized: course.isPersonalized ?? false,
+    trainingDays: course.dayLinks.map((dl) => dl.day.id),
+    allowedUsers: course.isPrivate ? course.access.map((a) => a.userId) : [],
     equipment: course.equipment,
-    trainingLevel: course.trainingLevel,
+    trainingLevel,
   };
 
   const initialSelectedUsers = course.isPrivate
-    ? course.access.map((a: { user: { id: string; username: string } }) => ({
+    ? course.access.map((a) => ({
         id: a.user.id,
         username: a.user.username,
       }))

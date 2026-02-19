@@ -7,7 +7,8 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
-import type { CourseWithExtras, CourseWithProgressData } from "@gafus/types";
+import type { ActionResult, CourseWithExtras, CourseWithProgressData } from "@gafus/types";
+import { handlePrismaError } from "@gafus/core/errors";
 
 const _logger = createWebLogger("course-service");
 
@@ -303,4 +304,89 @@ export async function getCourseOutline(courseType: string): Promise<{ title: str
   });
   if (!course) return [];
   return course.dayLinks.map((link) => ({ title: link.day.title, order: link.order }));
+}
+
+// ========== Логотип курса (DB-only, CDN в app) ==========
+
+/**
+ * Обновляет URL логотипа курса в БД. Возвращает предыдущий URL для удаления из CDN в app.
+ */
+export async function updateCourseLogoUrl(
+  courseId: string,
+  logoUrl: string,
+): Promise<ActionResult & { previousLogoUrl?: string | null }> {
+  try {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { logoImg: true },
+    });
+    if (!course) {
+      return { success: false, error: "Курс не найден" };
+    }
+    const previousLogoUrl = course.logoImg || null;
+    await prisma.course.update({
+      where: { id: courseId },
+      data: { logoImg: logoUrl },
+    });
+    _logger.info("Логотип курса обновлён", { courseId });
+    return { success: true, previousLogoUrl };
+  } catch (error) {
+    if (error instanceof Error && "code" in error) {
+      try {
+        handlePrismaError(error, "Курс");
+      } catch (serviceError) {
+        const msg =
+          serviceError instanceof Error
+            ? serviceError.message
+            : "Ошибка при обновлении логотипа курса";
+        return { success: false, error: msg };
+      }
+    }
+    _logger.error("Ошибка при обновлении логотипа курса", error as Error, { courseId });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Не удалось обновить логотип курса",
+    };
+  }
+}
+
+/**
+ * Очищает URL логотипа в записи курса (DB-only). Возвращает предыдущий URL для удаления из CDN в app.
+ */
+export async function deleteCourseLogoFromRecord(
+  courseId: string,
+): Promise<ActionResult & { previousLogoUrl?: string | null }> {
+  try {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { logoImg: true },
+    });
+    if (!course) {
+      return { success: false, error: "Курс не найден" };
+    }
+    const previousLogoUrl = course.logoImg || null;
+    await prisma.course.update({
+      where: { id: courseId },
+      data: { logoImg: "" },
+    });
+    _logger.info("Логотип курса удалён из записи", { courseId });
+    return { success: true, previousLogoUrl };
+  } catch (error) {
+    if (error instanceof Error && "code" in error) {
+      try {
+        handlePrismaError(error, "Курс");
+      } catch (serviceError) {
+        const msg =
+          serviceError instanceof Error
+            ? serviceError.message
+            : "Ошибка при удалении логотипа курса";
+        return { success: false, error: msg };
+      }
+    }
+    _logger.error("Ошибка при удалении логотипа курса", error as Error, { courseId });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Не удалось удалить логотип курса",
+    };
+  }
 }

@@ -1,23 +1,15 @@
 "use server";
 
-import type { TranscodingStatus } from "@gafus/prisma";
-import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@gafus/auth";
 
-type VideoStatusResult = {
-  id: string;
-  transcodingStatus: TranscodingStatus;
-  transcodingError: string | null;
-  hlsManifestPath: string | null;
-  thumbnailPath: string | null;
-  durationSec: number | null;
-};
+import { authOptions } from "@gafus/auth";
+import {
+  getMultipleVideoStatuses as getMultipleVideoStatusesCore,
+  type VideoStatusResult,
+} from "@gafus/core/services/trainerVideo";
 
 /**
- * Получает статусы транскодирования для нескольких видео одним запросом
- * @param videoIds - Массив ID видео для проверки
- * @returns Массив статусов видео или объект с ошибкой
+ * Возвращает статусы транскодирования для нескольких видео. Делегирует в core.
  */
 export async function getMultipleVideoStatuses(
   videoIds: string[],
@@ -32,19 +24,11 @@ export async function getMultipleVideoStatuses(
     return [];
   }
 
-  const videos = await prisma.trainerVideo.findMany({
-    where: {
-      id: { in: videoIds },
-    },
-    select: {
-      id: true,
-      transcodingStatus: true,
-      transcodingError: true,
-      hlsManifestPath: true,
-      thumbnailPath: true,
-      durationSec: true,
-    },
-  });
+  const result = await getMultipleVideoStatusesCore(videoIds);
 
-  return videos;
+  if (!result.success) {
+    return { error: result.error ?? "Не удалось получить статусы" };
+  }
+
+  return result.data ?? [];
 }
