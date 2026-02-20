@@ -261,6 +261,35 @@ const websiteUrlSchema = z
   );
 
 /**
+ * Схема для payload согласий — все три обязательны
+ */
+export const consentPayloadSchema = z.object({
+  acceptPersonalData: z.literal(true, {
+    errorMap: () => ({
+      message: "Необходимо дать согласие на обработку персональных данных",
+    }),
+  }),
+  acceptPrivacyPolicy: z.literal(true, {
+    errorMap: () => ({
+      message: "Необходимо ознакомиться с Политикой конфиденциальности",
+    }),
+  }),
+  acceptDataDistribution: z.literal(true, {
+    errorMap: () => ({
+      message:
+        "Необходимо дать согласие на размещение данных в публичном профиле",
+    }),
+  }),
+});
+
+/**
+ * Схема для временного ID сессии согласия
+ */
+export const tempSessionIdSchema = z.string().uuid(
+  "tempSessionId должен быть UUID",
+);
+
+/**
  * Схема для профиля пользователя
  */
 export const userProfileFormSchema = z.object({
@@ -280,6 +309,8 @@ export const userProfileFormSchema = z.object({
 
 // ===== ТИПЫ =====
 
+export type ConsentPayloadSchema = z.infer<typeof consentPayloadSchema>;
+export type TempSessionIdSchema = z.infer<typeof tempSessionIdSchema>;
 export type RegisterUserSchema = z.infer<typeof registerUserSchema>;
 export type RegisterFormSchema = z.infer<typeof registerFormSchema>;
 export type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>;

@@ -26,3 +26,4 @@ export * from "./adminReengagement";
 export * from "./adminPresentation";
 export * from "./adminStorage";
 export * from "./adminBroadcast";
+export * from "./consent";

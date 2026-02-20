@@ -27,6 +27,7 @@
       "@gafus/core/services/diary": ["../../packages/core/src/services/diary/index.ts"],
       "@gafus/core/services/user": ["../../packages/core/src/services/user/index.ts"],
       "@gafus/core/services/auth": ["../../packages/core/src/services/auth/index.ts"],
+      "@gafus/core/services/consent": ["../../packages/core/src/services/consent/index.ts"],
       "@gafus/core/services/notifications": [
         "../../packages/core/src/services/notifications/index.ts"
       ],

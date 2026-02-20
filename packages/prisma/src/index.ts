@@ -1,5 +1,6 @@
 // Экспортируем только типы Prisma, не сам клиент
 export type {
+  ConsentLog,
   Course,
   CourseAccess,
   CourseReview,
@@ -23,7 +24,14 @@ export type {
 } from "@prisma/client";
 
 // Экспортируем enum как значение для использования в zod схемах и кастах
-export { PetType, StepType, TrainingStatus, TranscodingStatus } from "@prisma/client";
+export {
+  ConsentLogStatus,
+  ConsentType,
+  PetType,
+  StepType,
+  TrainingStatus,
+  TranscodingStatus,
+} from "@prisma/client";
 
 // Экспортируем пространство имён Prisma (для JsonNull, Decimal и т.д.)
 import { Prisma } from "@prisma/client";

@@ -102,5 +102,6 @@ if (consent === "accepted") {
 
 ## Связанные документы
 
-- [@gafus/ui-components](./packages/ui-components.md) — API компонента и утилит
+- [Consent at Registration](consent-registration.md) — сохранение согласий при регистрации (ConsentLog в БД)
+- [@gafus/ui-components](../packages/ui-components.md) — API компонента и утилит
 - `.cursor/rules/security.mdc` — архитектурное решение localStorage vs cookie

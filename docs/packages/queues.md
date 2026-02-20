@@ -56,6 +56,18 @@ processQueue("email", "send-welcome", async (job) => {
 });
 ```
 
+## 📦 Очереди в проекте
+
+| Очередь | Описание |
+|---------|----------|
+| `pushQueue` | Push-уведомления |
+| `reengagementQueue` | Re-engagement письма |
+| `videoTranscodingQueue` | Транскодирование видео |
+| `examCleanupQueue` | Очистка старых результатов экзаменов |
+| `consentLogCleanupQueue` | Очистка старых orphaned FAILED записей ConsentLog (ежедневно 02:00 MSK) |
+
+Экспорт: `consentLogCleanupQueue` из `@gafus/queues`.
+
 ## 🔧 API
 
 - `createQueue(name, options)` - Создание очереди

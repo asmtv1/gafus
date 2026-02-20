@@ -72,6 +72,10 @@ app/
     └── page.tsx              # Офлайн страница
 ```
 
+### Регистрация и согласия
+
+При регистрации сохраняются согласия на три документа (персональные данные, политика конфиденциальности, размещение в публичном профиле). Flow: tempSessionId → createConsentLogs (PENDING) → registerUser → linkConsentLogsToUser (COMPLETED) или markConsentLogsFailed. Подробнее: [docs/features/consent-registration.md](../features/consent-registration.md).
+
 ### Безопасность (auth)
 
 - **Политика auth:** [docs/security/auth-policy.md](../security/auth-policy.md) — перечень auth API, политика паролей, rate limits, что не логировать.

@@ -72,16 +72,21 @@
 
 ### POST `/api/v1/auth/register`
 
-Регистрация нового пользователя.
+Регистрация нового пользователя. Поддерживает логирование согласий (GDPR). Подробнее: [Consent at Registration](../features/consent-registration.md).
 
 **Body:**
 
 ```json
 {
-  "username": "string",
-  "password": "string",
-  "phone": "string",
-  "inviteCode": "string (optional)"
+  "name": "string (3-50, a-zA-Z0-9_)",
+  "phone": "string (E.164)",
+  "password": "string (min 8, upper/lower/digit)",
+  "tempSessionId": "UUID",
+  "consentPayload": {
+    "acceptPersonalData": true,
+    "acceptPrivacyPolicy": true,
+    "acceptDataDistribution": true
+  }
 }
 ```
 
@@ -925,6 +930,10 @@
 ---
 
 ## Changelog
+
+### v1.1.0 (20.02.2026)
+
+- `POST /api/v1/auth/register`: body расширен (name вместо username, tempSessionId, consentPayload); flow согласий createConsentLogs → registerUser → linkConsentLogsToUser
 
 ### v1.0.0 (19.01.2026)
 

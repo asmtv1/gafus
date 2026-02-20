@@ -1,3 +1,4 @@
+import type { ConsentPayload } from "@/shared/constants/consent";
 import { apiClient, type ApiResponse } from "./client";
 import { API_BASE_URL } from "@/constants";
 
@@ -24,9 +25,11 @@ export interface LoginResponse {
 }
 
 export interface RegisterData {
-  name: string; // Используется как username на backend
+  name: string;
   phone: string;
   password: string;
+  tempSessionId: string;
+  consentPayload: ConsentPayload;
 }
 
 /**
@@ -96,15 +99,16 @@ export const authApi = {
     name: string,
     phone: string,
     password: string,
+    tempSessionId: string,
+    consentPayload: ConsentPayload,
   ): Promise<ApiResponse<LoginResponse>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, password }),
+        body: JSON.stringify({ name, phone, password, tempSessionId, consentPayload }),
       });
 
-      // Проверяем статус перед парсингом JSON
       if (!response.ok) {
         let errorData: { error?: string; code?: string } = {};
         try {
@@ -113,9 +117,8 @@ export const authApi = {
             errorData = await response.json();
           }
         } catch {
-          // Игнорируем ошибки парсинга
+          // игнорируем ошибки парсинга
         }
-
         return {
           success: false,
           error: errorData.error || "Ошибка регистрации",
@@ -124,25 +127,12 @@ export const authApi = {
       }
 
       const result = await response.json();
-
-      return {
-        success: true,
-        data: result.data,
-      };
+      return { success: true, data: result.data };
     } catch (error) {
       if (error instanceof TypeError && error.message.includes("fetch")) {
-        return {
-          success: false,
-          error: "Ошибка подключения к серверу",
-          code: "NETWORK_ERROR",
-        };
+        return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
       }
-
-      return {
-        success: false,
-        error: "Ошибка подключения к серверу",
-        code: "NETWORK_ERROR",
-      };
+      return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
     }
   },
 

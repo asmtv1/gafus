@@ -43,7 +43,7 @@ gafus/
 
 ### 3. Event-Driven Architecture
 
-- Очереди BullMQ (@gafus/queues): push, reengagement, video-transcoding, exam-cleanup
+- Очереди BullMQ (@gafus/queues): push, reengagement, video-transcoding, exam-cleanup, consent-log-cleanup
 - Worker (@gafus/worker) обрабатывает задачи; Bull Board — мониторинг
 
 ## 🌐 Сетевая архитектура

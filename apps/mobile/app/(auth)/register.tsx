@@ -8,6 +8,7 @@ import {
   Pressable,
   TextInput,
   Dimensions,
+  Linking,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { useRouter } from "expo-router";
@@ -15,21 +16,33 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
+import * as Crypto from "expo-crypto";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 import { useAuthStore } from "@/shared/stores";
 import { COLORS, SPACING, FONTS } from "@/constants";
+import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// Схема валидации (пароль как в API: min 8, заглавная, строчная, цифра; спецсимволы разрешены)
 const registerSchema = z
   .object({
     name: z
       .string()
+      .trim()
       .min(3, "Минимум 3 символа")
       .max(50, "Максимум 50 символов")
       .regex(/^[a-zA-Z0-9_]+$/, "Только латиница, цифры и _"),
-    phone: z.string().min(10, "Введите корректный номер телефона"),
+    phone: z
+      .string()
+      .min(1, "Введите номер телефона")
+      .refine(
+        (v) => {
+          const p = parsePhoneNumberFromString(v, "RU");
+          return p?.isValid() ?? false;
+        },
+        { message: "Введите корректный номер телефона" },
+      ),
     password: z
       .string()
       .min(8, "Минимум 8 символов")
@@ -49,6 +62,7 @@ type FormErrors = {
   phone?: string;
   password?: string;
   confirmPassword?: string;
+  consent?: string;
 };
 
 /**
@@ -69,6 +83,12 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const [tempSessionId] = useState<string>(() => Crypto.randomUUID());
+  const [consents, setConsents] = useState({
+    acceptPersonalData: false,
+    acceptPrivacyPolicy: false,
+    acceptDataDistribution: false,
+  });
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -95,31 +115,55 @@ export default function RegisterScreen() {
     return true;
   }, [form]);
 
+  const toggleConsent = (key: keyof typeof consents) => {
+    setConsents((prev) => ({ ...prev, [key]: !prev[key] }));
+    if (errors.consent) {
+      setErrors((prev) => ({ ...prev, consent: undefined }));
+    }
+  };
+
   const handleRegister = async () => {
     if (!validateForm()) return;
 
+    const allConsentsAccepted =
+      consents.acceptPersonalData &&
+      consents.acceptPrivacyPolicy &&
+      consents.acceptDataDistribution;
+
+    if (!allConsentsAccepted) {
+      setErrors((prev) => ({ ...prev, consent: "Необходимо принять все согласия" }));
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const result = await register(form.name, form.phone, form.password);
+      const normalizedName = form.name.toLowerCase().trim();
+      const phoneNumber = parsePhoneNumberFromString(form.phone, "RU");
+      const formattedPhone = phoneNumber!.format("E.164");
+
+      const consentPayload: ConsentPayload = {
+        acceptPersonalData: consents.acceptPersonalData,
+        acceptPrivacyPolicy: consents.acceptPrivacyPolicy,
+        acceptDataDistribution: consents.acceptDataDistribution,
+      };
+
+      const result = await register(
+        normalizedName,
+        formattedPhone,
+        form.password,
+        tempSessionId,
+        consentPayload,
+      );
 
       if (result.success) {
-        setSnackbar({
-          visible: true,
-          message: "Подтвердите номер в Telegram",
-        });
+        setSnackbar({ visible: true, message: "Подтвердите номер в Telegram" });
         setPendingConfirmPhone(form.phone);
         router.replace("/confirm");
       } else {
-        setSnackbar({
-          visible: true,
-          message: result.error || "Ошибка регистрации",
-        });
+        setSnackbar({ visible: true, message: result.error || "Ошибка регистрации" });
       }
-    } catch (error) {
-      setSnackbar({
-        visible: true,
-        message: "Ошибка подключения к серверу",
-      });
+    } catch {
+      setSnackbar({ visible: true, message: "Ошибка подключения к серверу" });
     } finally {
       setIsLoading(false);
     }
@@ -231,8 +275,97 @@ export default function RegisterScreen() {
               <Text style={styles.errorText}>{errors.confirmPassword}</Text>
             )}
 
+            {/* Согласия */}
+            <View style={styles.consentsContainer}>
+              <View style={styles.consentRow}>
+                <Pressable
+                  style={[styles.checkbox, consents.acceptPersonalData && styles.checkboxChecked]}
+                  onPress={() => toggleConsent("acceptPersonalData")}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: consents.acceptPersonalData }}
+                >
+                  {consents.acceptPersonalData && (
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={14}
+                      color={COLORS.cardBackground}
+                    />
+                  )}
+                </Pressable>
+                <Text style={styles.consentText}>
+                  Даю согласие на{" "}
+                  <Text
+                    style={styles.consentLink}
+                    onPress={() => Linking.openURL(CONSENT_DOCUMENT_URLS.personal)}
+                  >
+                    обработку персональных данных
+                  </Text>
+                </Text>
+              </View>
+              <View style={styles.consentRow}>
+                <Pressable
+                  style={[styles.checkbox, consents.acceptPrivacyPolicy && styles.checkboxChecked]}
+                  onPress={() => toggleConsent("acceptPrivacyPolicy")}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: consents.acceptPrivacyPolicy }}
+                >
+                  {consents.acceptPrivacyPolicy && (
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={14}
+                      color={COLORS.cardBackground}
+                    />
+                  )}
+                </Pressable>
+                <Text style={styles.consentText}>
+                  Ознакомлен(а) с{" "}
+                  <Text
+                    style={styles.consentLink}
+                    onPress={() => Linking.openURL(CONSENT_DOCUMENT_URLS.policy)}
+                  >
+                    Политикой конфиденциальности
+                  </Text>
+                </Text>
+              </View>
+              <View style={styles.consentRow}>
+                <Pressable
+                  style={[
+                    styles.checkbox,
+                    consents.acceptDataDistribution && styles.checkboxChecked,
+                  ]}
+                  onPress={() => toggleConsent("acceptDataDistribution")}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: consents.acceptDataDistribution }}
+                >
+                  {consents.acceptDataDistribution && (
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={14}
+                      color={COLORS.cardBackground}
+                    />
+                  )}
+                </Pressable>
+                <Text style={styles.consentText}>
+                  Даю согласие на{" "}
+                  <Text
+                    style={styles.consentLink}
+                    onPress={() =>
+                      Linking.openURL(CONSENT_DOCUMENT_URLS.dataDistribution)
+                    }
+                  >
+                    размещение данных в публичном профиле
+                  </Text>
+                </Text>
+              </View>
+              {errors.consent && <Text style={styles.errorText}>{errors.consent}</Text>}
+            </View>
+
             {/* Кнопка регистрации */}
-            <Pressable style={styles.button} onPress={handleRegister} disabled={isLoading}>
+            <Pressable
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleRegister}
+              disabled={isLoading}
+            >
               <Text style={styles.buttonText}>
                 {isLoading ? "регистрация..." : "зарегистрироваться"}
               </Text>
@@ -354,6 +487,45 @@ const styles = StyleSheet.create({
     fontSize: 10,
     paddingVertical: 10,
     textAlign: "center",
+  },
+  consentsContainer: {
+    width: 230,
+    gap: 8,
+    marginTop: 8,
+  },
+  consentRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderWidth: 2,
+    borderColor: "#636128",
+    borderRadius: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  consentText: {
+    flex: 1,
+    fontSize: 9,
+    fontFamily: FONTS.montserrat,
+    color: COLORS.primary,
+    lineHeight: 13,
+  },
+  consentLink: {
+    textDecorationLine: "underline",
+    color: COLORS.primary,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   // Кнопка регистрации
   button: {

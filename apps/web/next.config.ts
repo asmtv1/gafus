@@ -46,6 +46,10 @@ const gafusAliases = {
   "@gafus/core/services/diary": _path.resolve(__dirname, "../../packages/core/src/services/diary"),
   "@gafus/core/services/user": _path.resolve(__dirname, "../../packages/core/src/services/user"),
   "@gafus/core/services/auth": _path.resolve(__dirname, "../../packages/core/src/services/auth"),
+  "@gafus/core/services/consent": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/consent",
+  ),
   "@gafus/core/services/notifications": _path.resolve(
     __dirname,
     "../../packages/core/src/services/notifications",

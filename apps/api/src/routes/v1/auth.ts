@@ -21,9 +21,16 @@ import {
 } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
+import {
+  createConsentLogs,
+  linkConsentLogsToUser,
+  markConsentLogsFailed,
+} from "@gafus/core/services/consent";
 import { authMiddleware } from "../../middleware/auth.js";
 
 const logger = createWebLogger("api-auth");
+
+const CONSENT_VERSION = process.env.CONSENT_VERSION ?? "v1.0 2026-02-13";
 
 export const authRoutes = new Hono();
 
@@ -34,7 +41,8 @@ const loginSchema = z.object({
 });
 
 const registerSchema = z.object({
-  name: z.string().min(1, "Имя обязательно"), // Используется как username
+  name: z.string().trim().min(3, "Минимум 3 символа").max(50, "Максимум 50 символов")
+    .regex(/^[a-zA-Z0-9_]+$/, "Только латиница, цифры и _"),
   phone: z.string().min(1, "Номер телефона обязателен"),
   password: z
     .string()
@@ -43,6 +51,18 @@ const registerSchema = z.object({
     .regex(/[A-Z]/, "Минимум одна заглавная буква")
     .regex(/[a-z]/, "Минимум одна строчная буква")
     .regex(/[0-9]/, "Минимум одна цифра"),
+  tempSessionId: z.string().uuid("tempSessionId должен быть UUID"),
+  consentPayload: z.object({
+    acceptPersonalData: z.literal(true, {
+      errorMap: () => ({ message: "Необходимо принять согласие на обработку данных" }),
+    }),
+    acceptPrivacyPolicy: z.literal(true, {
+      errorMap: () => ({ message: "Необходимо принять политику конфиденциальности" }),
+    }),
+    acceptDataDistribution: z.literal(true, {
+      errorMap: () => ({ message: "Необходимо принять согласие на размещение данных" }),
+    }),
+  }),
 });
 
 const refreshSchema = z.object({
@@ -170,18 +190,32 @@ authRoutes.post(
 );
 
 // POST /api/v1/auth/register
+// TODO: rate limiting — добавить Hono middleware или IP-throttle отдельной задачей
 authRoutes.post(
   "/register",
   bodyLimit({ maxSize: 10 * 1024 }),
   zValidator("json", registerSchema),
   async (c) => {
-    try {
-      const { name, phone, password } = c.req.valid("json");
+    const { name, phone, password, tempSessionId, consentPayload } = c.req.valid("json");
+    const ipAddress = c.req.header("x-forwarded-for")?.split(",")[0];
+    const userAgent = c.req.header("user-agent");
 
-      // name передаётся как username в registerUser(username, phone, password)
+    let consentCreated = false;
+    try {
+      await createConsentLogs({
+        tempSessionId,
+        consentPayload,
+        formData: { name: name.toLowerCase().trim(), phone },
+        ipAddress,
+        userAgent,
+        defaultVersion: CONSENT_VERSION,
+      });
+      consentCreated = true;
+
       const result = await registerUser(name, phone, password);
 
       if ("error" in result) {
+        await markConsentLogsFailed(tempSessionId);
         return c.json(
           {
             success: false,
@@ -192,9 +226,10 @@ authRoutes.post(
         );
       }
 
-      // Автоматически логиним после регистрации
+      await linkConsentLogsToUser(tempSessionId, result.userId);
+
       const user = await prisma.user.findUnique({
-        where: { username: name.toLowerCase().trim() },
+        where: { id: result.userId },
         select: { id: true, username: true, role: true },
       });
 
@@ -218,13 +253,13 @@ authRoutes.post(
           id: tokenId,
           userId: user.id,
           tokenHash,
-          userAgent: c.req.header("user-agent"),
-          ipAddress: c.req.header("x-forwarded-for")?.split(",")[0],
+          userAgent,
+          ipAddress,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
       });
 
-      logger.info("User registered", { userId: user.id });
+      logger.info("User registered via API", { userId: user.id });
 
       return c.json({
         success: true,
@@ -235,9 +270,12 @@ authRoutes.post(
         },
       });
     } catch (error) {
+      if (consentCreated) {
+        await markConsentLogsFailed(tempSessionId).catch(() => undefined);
+      }
       logger.error("Register error", error as Error);
       const message = error instanceof Error ? error.message : "Ошибка регистрации";
-      return c.json({ success: false, error: message }, 400);
+      return c.json({ success: false, error: message }, 500);
     }
   },
 );

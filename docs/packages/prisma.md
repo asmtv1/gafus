@@ -254,6 +254,55 @@ enum TrainingStatus {
 }
 ```
 
+#### ConsentType
+
+```prisma
+enum ConsentType {
+  PERSONAL_DATA      // Согласие на обработку персональных данных
+  PRIVACY_POLICY     // Политика конфиденциальности
+  DATA_DISTRIBUTION  // Согласие на размещение в публичном профиле
+}
+```
+
+#### ConsentLogStatus
+
+```prisma
+enum ConsentLogStatus {
+  PENDING    // Создано, ожидает привязки к пользователю
+  COMPLETED  // Привязано к userId
+  FAILED     // Регистрация не удалась
+}
+```
+
+#### ConsentLog (согласия при регистрации)
+
+```prisma
+model ConsentLog {
+  id             String          @id @default(cuid())
+  tempSessionId  String
+  consentType    ConsentType
+  userId         String?
+  user           User?           @relation(...)
+  consentVersion String
+  consentText    Json?           // { url: string }
+  consentDate    DateTime
+  ipAddress      String?
+  userAgent      String?
+  formData       Json?
+  status         ConsentLogStatus
+  createdAt      DateTime
+  updatedAt      DateTime
+
+  @@unique([tempSessionId, consentType])
+  @@index([userId])
+  @@index([tempSessionId])
+  @@index([status])
+  @@index([createdAt])
+}
+```
+
+При регистрации создаётся по одной записи на каждый тип согласия. Подробнее: [docs/features/consent-registration.md](../features/consent-registration.md).
+
 ## 🔧 API Reference
 
 ### Основные операции

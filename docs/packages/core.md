@@ -39,7 +39,8 @@ packages/core/
 │   │   ├── adminReengagement/ # Re-engagement метрики (admin-panel)
 │   │   ├── adminPresentation/ # Статистика презентации (admin-panel)
 │   │   ├── adminStorage/  # Статистика хранилища (admin-panel)
-│   │   └── adminBroadcast/ # Push-рассылка (admin-panel)
+│   │   ├── adminBroadcast/ # Push-рассылка (admin-panel)
+│   │   └── consent/       # Согласия при регистрации (ConsentLog)
 │   ├── errors/            # ServiceError, prismaErrorHandler
 │   ├── utils/             # Универсальные утилиты
 │   │   ├── age/           # getAge, getAgeWithMonths
@@ -80,6 +81,14 @@ import { getUserTrainingDates, getAchievementStats } from "@gafus/core/services/
 
 // Теги кэша (для revalidateTag в Next.js app — trainer-panel, web)
 import { CACHE_TAGS } from "@gafus/core/services/cache";
+
+// Consent — согласия при регистрации
+import {
+  createConsentLogs,
+  linkConsentLogsToUser,
+  markConsentLogsFailed,
+  deleteOldFailedConsentLogs,
+} from "@gafus/core/services/consent";
 
 // Сервисы trainer-panel (заметки, курсы, шаги, дни, видео, экзамены)
 import { createTrainerNote, getTrainerNotes } from "@gafus/core/services/notes";

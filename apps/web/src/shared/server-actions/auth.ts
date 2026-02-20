@@ -5,10 +5,16 @@
  */
 
 import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import { authOptions } from "@gafus/auth";
 import * as authService from "@gafus/core/services/auth";
+import {
+  createConsentLogs,
+  linkConsentLogsToUser,
+  markConsentLogsFailed,
+} from "@gafus/core/services/consent";
 import { createWebLogger } from "@gafus/logger";
 import {
   deletePendingConfirmCookie,
@@ -20,14 +26,19 @@ import {
   getClientIpFromHeaders,
 } from "@shared/lib/rateLimit";
 import {
+  consentPayloadSchema,
   phoneChangeConfirmSchema,
   phoneSchema,
   registerUserSchema,
   resetPasswordByCodeSchema,
   resetPasswordSchema,
+  tempSessionIdSchema,
   usernameChangeSchema,
   usernameSchema,
 } from "@shared/lib/validation/authSchemas";
+
+import { CONSENT_VERSION } from "@shared/constants/consent";
+import type { ConsentPayload } from "@shared/constants/consent";
 
 const logger = createWebLogger("auth-actions");
 
@@ -108,14 +119,45 @@ export async function registerUserAction(
   name: string,
   phone: string,
   password: string,
+  tempSessionId: string,
+  consentPayload: ConsentPayload,
 ): Promise<{ success?: true; error?: string }> {
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "register")) {
+    return { error: "Слишком много запросов. Попробуйте через 15 минут." };
+  }
+
   const parsed = registerUserSchema.safeParse({ name, phone, password });
   if (!parsed.success) {
     const message = parsed.error.errors.map((issue) => issue.message).join(", ");
     return { error: `Ошибка валидации: ${message}` };
   }
 
+  const consentParsed = consentPayloadSchema.safeParse(consentPayload);
+  if (!consentParsed.success) {
+    return { error: "Необходимо принять все согласия" };
+  }
+
+  const sessionParsed = tempSessionIdSchema.safeParse(tempSessionId);
+  if (!sessionParsed.success) {
+    return { error: "Некорректный идентификатор сессии" };
+  }
+
+  const safeSessionId = sessionParsed.data;
+  const userAgent = (await headers()).get("user-agent") ?? undefined;
+
+  let consentCreated = false;
   try {
+    await createConsentLogs({
+      tempSessionId: safeSessionId,
+      consentPayload: consentParsed.data,
+      formData: { name: parsed.data.name, phone: parsed.data.phone },
+      ipAddress: ip,
+      userAgent,
+      defaultVersion: CONSENT_VERSION,
+    });
+    consentCreated = true;
+
     const result = await authService.registerUserService(
       parsed.data.name,
       parsed.data.phone,
@@ -123,12 +165,17 @@ export async function registerUserAction(
     );
 
     if ("error" in result) {
+      await markConsentLogsFailed(safeSessionId);
       return { error: result.error };
     }
 
+    await linkConsentLogsToUser(safeSessionId, result.userId);
     await setPendingConfirmCookie(parsed.data.phone);
     return { success: true };
   } catch (error) {
+    if (consentCreated) {
+      await markConsentLogsFailed(safeSessionId).catch(() => undefined);
+    }
     logger.error("Error in registerUserAction", error as Error);
     return { error: "Что-то пошло не так при регистрации пользователя" };
   }

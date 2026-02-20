@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import parsePhoneNumberFromString from "libphonenumber-js";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
@@ -8,9 +11,7 @@ import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { registerUserAction } from "@shared/server-actions";
 import { registerFormSchema } from "@shared/lib/validation/authSchemas";
-import parsePhoneNumberFromString from "libphonenumber-js";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import type { ConsentPayload } from "@shared/constants/consent";
 
 import styles from "./register.module.css";
 
@@ -36,6 +37,7 @@ export function RegisterForm() {
 
   const [catchError] = useCaughtError();
   const [isPending, setIsPending] = useState(false);
+  const [tempSessionId] = useState<string>(() => crypto.randomUUID());
 
   // Валидация телефона теперь обрабатывается Zod схемой
 
@@ -48,12 +50,20 @@ export function RegisterForm() {
     }
 
     const formattedPhone = phoneNumber.format("E.164");
+    const consentPayload: ConsentPayload = {
+      acceptPersonalData: data.acceptPersonalData,
+      acceptPrivacyPolicy: data.acceptPrivacyPolicy,
+      acceptDataDistribution: data.acceptDataDistribution,
+    };
+
     setIsPending(true);
     try {
       const result = await registerUserAction(
         data.name.toLowerCase(),
         formattedPhone,
         data.password,
+        tempSessionId,
+        consentPayload,
       );
 
       if (result?.error) {

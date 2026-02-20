@@ -42,6 +42,16 @@ processJob("image-processing", "resize", async (job) => {
 });
 ```
 
+## 📦 Воркеры и расписания
+
+| Воркер | Очередь | Расписание | Описание |
+|--------|---------|------------|----------|
+| Exam Cleanup | exam-cleanup | 03:00 MSK | Очистка старых результатов экзаменов |
+| Consent Log Cleanup | consent-log-cleanup | 02:00 MSK | Удаление orphaned FAILED ConsentLog старше 90 дней |
+| Re-engagement | reengagement | cron | Re-engagement письма |
+| Push | push | — | Push-уведомления |
+| Video Transcoding | video-transcoding | — | Транскодирование видео |
+
 ## 🔧 API
 
 - `createWorker(options)` - Создание воркера

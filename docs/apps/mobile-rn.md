@@ -160,6 +160,7 @@ Mobile App ──HTTP/HTTPS──► API Routes (/api/v1/*) ──► Prisma ─
 
 | Технология         | Назначение                |
 | ------------------ | ------------------------- |
+| expo-crypto        | UUID для tempSessionId (регистрация) |
 | expo-notifications | Push уведомления          |
 | expo-av            | Видео плеер               |
 | expo-haptics       | Тактильная обратная связь |
@@ -1604,6 +1605,8 @@ const styles = StyleSheet.create({
 ---
 
 ## Аутентификация
+
+Регистрация включает 3 обязательных чекбокса согласий (персональные данные, политика конфиденциальности, размещение в профиле). Клиент генерирует `tempSessionId` (expo-crypto `randomUUID`) и передаёт `consentPayload` вместе с `name`, `phone`, `password`. Flow: createConsentLogs → registerUser → linkConsentLogsToUser. См. [Consent at Registration](../features/consent-registration.md).
 
 ### Auth Store
 

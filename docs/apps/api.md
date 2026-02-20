@@ -43,7 +43,7 @@ apps/api/
 ### Auth (без авторизации, rate limited)
 
 - `POST /api/v1/auth/login` - Авторизация
-- `POST /api/v1/auth/register` - Регистрация
+- `POST /api/v1/auth/register` - Регистрация (body: name, phone, password, tempSessionId, consentPayload; см. [Consent at Registration](../features/consent-registration.md))
 - `POST /api/v1/auth/refresh` - Обновление токенов
 - `POST /api/v1/auth/logout` - Выход
 
@@ -103,6 +103,7 @@ REDIS_URL=redis://...               # Redis connection
 API_PORT=3001                       # Порт сервера (default: 3001)
 NODE_ENV=production                 # Окружение
 WEB_APP_URL=https://gafus.ru        # Базовый URL web для return_url платежей
+CONSENT_VERSION=v1.0 2026-02-13     # Версия документов согласий (для register)
 
 # Платежи ЮKassa (обязательны для /api/v1/payments/create)
 YOOKASSA_SHOP_ID=<shop_id>

@@ -31,7 +31,7 @@ export async function registerUser(username: string, phone: string, password: st
 
   const hashedPassword = await bcrypt.hash(password, 12);
 
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       username: normalizedUsername,
       phone: formattedPhone,
@@ -41,7 +41,8 @@ export async function registerUser(username: string, phone: string, password: st
         create: {},
       },
     },
+    select: { id: true },
   });
 
-  return { success: true };
+  return { success: true, userId: user.id };
 }

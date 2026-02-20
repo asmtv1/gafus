@@ -1,8 +1,11 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import * as SecureStore from "expo-secure-store";
-import { zustandStorage } from "./storage";
+
+import type { ConsentPayload } from "@/shared/constants/consent";
 import { authApi, type User } from "@/shared/lib/api";
+
+import { zustandStorage } from "./storage";
 
 interface AuthState {
   user: User | null;
@@ -17,6 +20,8 @@ interface AuthActions {
     name: string,
     phone: string,
     password: string,
+    tempSessionId: string,
+    consentPayload: ConsentPayload,
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -69,9 +74,15 @@ export const useAuthStore = create<AuthStore>()(
       /**
        * Регистрация нового пользователя
        */
-      register: async (name, phone, password) => {
+      register: async (name, phone, password, tempSessionId, consentPayload) => {
         try {
-          const response = await authApi.register(name, phone, password);
+          const response = await authApi.register(
+            name,
+            phone,
+            password,
+            tempSessionId,
+            consentPayload,
+          );
 
           if (!response.success || !response.data) {
             return { success: false, error: response.error || "Ошибка регистрации" };

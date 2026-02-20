@@ -233,6 +233,42 @@ model User {
   profile                  UserProfile?
   userTrainings            UserTraining[]
   userVideoProgresses      UserVideoProgress[]
+  consentLogs              ConsentLog[]
+}
+
+enum ConsentType {
+  PERSONAL_DATA
+  PRIVACY_POLICY
+  DATA_DISTRIBUTION
+}
+
+enum ConsentLogStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model ConsentLog {
+  id             String          @id @default(cuid())
+  tempSessionId  String
+  consentType    ConsentType
+  userId         String?
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  consentVersion String
+  consentText    Json?
+  consentDate    DateTime
+  ipAddress      String?
+  userAgent      String?
+  formData       Json?
+  status         ConsentLogStatus
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([tempSessionId, consentType])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([status])
+  @@index([tempSessionId])
 }
 
 model TrainerVideo {
