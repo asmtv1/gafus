@@ -1,22 +1,28 @@
 "use server";
 
-import { randomBytes, createHash, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { createWebLogger } from "@gafus/logger";
+
+import {
+  createTokenHash,
+  generateSecureToken,
+  isValidTokenFormat,
+  safeTokenCompare,
+  SALT_HEX_LENGTH,
+} from "./csrf-crypto";
 
 // Создаем логгер для CSRF
 const logger = createWebLogger("csrf-utils");
 
 const CSRF_TOKEN_NAME = "csrf-token";
 const CSRF_SECRET_NAME = "csrf-secret";
-const CSRF_TOKEN_VERSION = "v1"; // Версия токена для совместимости
 
 // Конфигурация безопасности
 const SECURITY_CONFIG = {
   // Размер секрета в байтах
   secretSize: 32,
-  // Размер соли в байтах
-  saltSize: 16,
+  // Размер соли в hex-символах (16 байт = 32 hex)
+  saltSize: SALT_HEX_LENGTH / 2,
   // Время жизни токена в секундах
   tokenLifetime: 60 * 60, // 1 час
   // Время жизни секрета в секундах
@@ -24,55 +30,6 @@ const SECURITY_CONFIG = {
   // Максимальное количество попыток проверки токена
   maxVerificationAttempts: 3,
 } as const;
-
-/**
- * Генерирует криптографически стойкий случайный токен
- */
-function generateSecureToken(size: number): string {
-  return randomBytes(size).toString("hex");
-}
-
-/**
- * Создает хеш токена с использованием HMAC
- */
-function createTokenHash(secret: string, salt: string): string {
-  return createHash("sha256")
-    .update(secret + salt + CSRF_TOKEN_VERSION)
-    .digest("hex");
-}
-
-/**
- * Проверяет, что два токена равны с защитой от timing attacks
- */
-function safeTokenCompare(token1: string, token2: string): boolean {
-  if (token1.length !== token2.length) return false;
-
-  try {
-    const buffer1 = Buffer.from(token1, "hex");
-    const buffer2 = Buffer.from(token2, "hex");
-    return timingSafeEqual(new Uint8Array(buffer1), new Uint8Array(buffer2));
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Валидирует формат токена
- */
-function isValidTokenFormat(token: string): boolean {
-  const parts = token.split(".");
-  if (parts.length !== 2) return false;
-
-  const [salt, hash] = parts;
-  const hexRegex = /^[0-9a-f]+$/i;
-
-  return (
-    hexRegex.test(salt) &&
-    hexRegex.test(hash) &&
-    salt.length === SECURITY_CONFIG.saltSize * 2 &&
-    hash.length === 64
-  );
-}
 
 /**
  * Генерирует CSRF токен для текущей сессии
@@ -94,7 +51,7 @@ export async function generateCSRFToken(): Promise<string> {
       });
     }
 
-    // Генерируем соль и хеш
+    // Генерируем соль и хеш (saltSize в байтах)
     const salt = generateSecureToken(SECURITY_CONFIG.saltSize);
     const hash = createTokenHash(secret, salt);
 
@@ -120,7 +77,9 @@ export async function generateCSRFToken(): Promise<string> {
     // В случае ошибки генерируем fallback токен
     // Это менее безопасно, но обеспечивает работоспособность
     const fallbackToken =
-      generateSecureToken(SECURITY_CONFIG.saltSize) + "." + generateSecureToken(32);
+      generateSecureToken(SECURITY_CONFIG.saltSize) +
+      "." +
+      generateSecureToken(32); // 32 bytes = 64 hex (hash size)
     return fallbackToken;
   }
 }

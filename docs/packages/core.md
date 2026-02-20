@@ -267,7 +267,15 @@ cd packages/core && pnpm dev
 
 # Проверка типов
 cd packages/core && pnpm typecheck
+
+# Тесты
+pnpm --filter @gafus/core test
+pnpm --filter @gafus/core test:coverage  # отчёт о покрытии
 ```
+
+## Тестирование
+
+Пакет покрыт unit-тестами (Vitest). Подробнее: [docs/testing/TESTING.md](../testing/TESTING.md).
 
 ## Миграция admin-panel в core
 

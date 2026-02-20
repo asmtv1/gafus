@@ -12,7 +12,7 @@ export default defineConfig({
       "apps/web/src/**/*.{test,spec}.ts",
       "packages/**/*.test.ts",
     ],
-    exclude: ["node_modules", "dist", ".next", "coverage"],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/coverage/**"],
   },
   resolve: {
     alias: {

@@ -12,13 +12,18 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.config.ts"
   },
   "dependencies": {
     "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.5",
-    "typescript": "^5.8.3"
+    "@vitest/coverage-v8": "^4.0.17",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.17"
   }
 }

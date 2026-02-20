@@ -9,7 +9,15 @@
       "types": "./dist/core/src/index.d.ts",
       "default": "./dist/core/src/index.js"
     },
-    "./services/cache":{"types":"./dist/core/src/services/cache/index.d.ts","default":"./dist/core/src/services/cache/index.js"},"./services/common":{"types":"./dist/core/src/services/common/index.d.ts","default":"./dist/core/src/services/common/index.js"},"./services/course": {
+    "./services/cache": {
+      "types": "./dist/core/src/services/cache/index.d.ts",
+      "default": "./dist/core/src/services/cache/index.js"
+    },
+    "./services/common": {
+      "types": "./dist/core/src/services/common/index.d.ts",
+      "default": "./dist/core/src/services/common/index.js"
+    },
+    "./services/course": {
       "types": "./dist/core/src/services/course/index.d.ts",
       "default": "./dist/core/src/services/course/index.js"
     },
@@ -150,7 +158,10 @@
     "dev": "tsc --watch",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.config.ts"
   },
   "dependencies": {
     "@gafus/auth": "workspace:*",
@@ -171,6 +182,8 @@
     "@types/node": "20.4.8",
     "rimraf": "5.0.1",
     "ts-add-js-extension": "^1.6.6",
-    "typescript": "5.8.3"
+    "typescript": "5.8.3",
+    "vitest": "^4.0.17",
+    "@vitest/coverage-v8": "^4.0.17"
   }
 }

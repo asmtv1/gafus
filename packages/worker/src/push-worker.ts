@@ -66,8 +66,8 @@ const NOTIFICATION_FORMAT = {
 // Инициализация PushNotificationService
 const pushService = PushNotificationService.fromEnvironment();
 
-// Сервис для обработки уведомлений
-class NotificationProcessor {
+// Сервис для обработки уведомлений (экспортируется для тестов)
+export class NotificationProcessor {
   private logger = notificationLogger;
 
   async process(notificationId: string): Promise<void> {
