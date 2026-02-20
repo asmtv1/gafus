@@ -75,8 +75,15 @@ const acceptRequired = (message: string) =>
 export const registerFormSchema = registerUserSchema
   .extend({
     confirmPassword: z.string().min(1, "Подтвердите пароль"),
-    acceptUserAgreement: acceptRequired("Необходимо принять пользовательское соглашение"),
-    acceptOffer: acceptRequired("Необходимо принять условия оферты"),
+    acceptPersonalData: acceptRequired(
+      "Необходимо дать согласие на обработку персональных данных",
+    ),
+    acceptPrivacyPolicy: acceptRequired(
+      "Необходимо ознакомиться с Политикой конфиденциальности",
+    ),
+    acceptDataDistribution: acceptRequired(
+      "Необходимо дать согласие на размещение данных в публичном профиле",
+    ),
   })
   .superRefine(({ password, confirmPassword }, ctx) => {
     if (password !== confirmPassword) {

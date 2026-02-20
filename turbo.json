@@ -67,6 +67,30 @@
         "package.json"
       ]
     },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "src/**",
+        "tests/**",
+        "test/**",
+        "**/*.{test,spec}.{js,ts,tsx}",
+        "vitest.config.*",
+        "package.json"
+      ]
+    },
+    "test:watch": {
+      "cache": false,
+      "dependsOn": ["^build"],
+      "inputs": [
+        "src/**",
+        "tests/**",
+        "test/**",
+        "**/*.{test,spec}.{js,ts,tsx}",
+        "vitest.config.*",
+        "package.json"
+      ]
+    },
     "start": {
       "cache": false,
       "persistent": true,

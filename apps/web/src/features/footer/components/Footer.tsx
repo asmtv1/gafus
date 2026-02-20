@@ -11,8 +11,8 @@ export default function Footer() {
             Контакты
           </Link>
           <span className={styles.footerSeparator}>·</span>
-          <Link href="/terms" className={styles.footerLink}>
-            Пользовательское соглашение
+          <Link href="/oferta.html" className={styles.footerLink}>
+            Оферта
           </Link>
         </div>
         <div className={styles.footerRow}>

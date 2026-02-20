@@ -29,8 +29,9 @@ export function RegisterForm() {
     phone: "",
     password: "",
     confirmPassword: "",
-    acceptUserAgreement: false,
-    acceptOffer: false,
+    acceptPersonalData: false,
+    acceptPrivacyPolicy: false,
+    acceptDataDistribution: false,
   });
 
   const [catchError] = useCaughtError();
@@ -120,36 +121,64 @@ export function RegisterForm() {
       <label className={styles.checkboxRow}>
         <input
           type="checkbox"
-          {...form.register("acceptUserAgreement")}
-          aria-invalid={!!errors.acceptUserAgreement}
+          {...form.register("acceptPersonalData")}
+          aria-invalid={!!errors.acceptPersonalData}
         />
         <span className={styles.checkboxLabel}>
-          Я принимаю{" "}
-          <Link href="/terms" className={styles.checkboxLink} target="_blank" rel="noopener noreferrer">
-            пользовательское соглашение
+          Даю{" "}
+          <Link
+            href="/personal.html"
+            className={styles.checkboxLink}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            согласие на обработку персональных данных
           </Link>
         </span>
       </label>
-      {errors.acceptUserAgreement?.message && (
-        <span className={styles.errorText}>{errors.acceptUserAgreement.message}</span>
+      {errors.acceptPersonalData?.message && (
+        <span className={styles.errorText}>{errors.acceptPersonalData.message}</span>
       )}
 
       <label className={styles.checkboxRow}>
         <input
           type="checkbox"
-          {...form.register("acceptOffer")}
-          aria-invalid={!!errors.acceptOffer}
+          {...form.register("acceptPrivacyPolicy")}
+          aria-invalid={!!errors.acceptPrivacyPolicy}
         />
         <span className={styles.checkboxLabel}>
-          Я принимаю{" "}
-          <Link href="/terms" className={styles.checkboxLink} target="_blank" rel="noopener noreferrer">
-            условия оферты
+          Ознакомлен(а) с{" "}
+          <Link
+            href="/policy.html"
+            className={styles.checkboxLink}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Политикой конфиденциальности
           </Link>
         </span>
       </label>
-      {errors.acceptOffer?.message && (
-        <span className={styles.errorText}>{errors.acceptOffer.message}</span>
+      {errors.acceptPrivacyPolicy?.message && (
+        <span className={styles.errorText}>{errors.acceptPrivacyPolicy.message}</span>
       )}
+
+      <label className={styles.checkboxRow}>
+        <input
+          type="checkbox"
+          {...form.register("acceptDataDistribution")}
+        />
+        <span className={styles.checkboxLabel}>
+          Даю{" "}
+          <Link
+            href="/personal-distribution.html"
+            className={styles.checkboxLink}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            согласие на размещение данных в публичном профиле
+          </Link>
+        </span>
+      </label>
 
       <button className={styles.button} type="submit" disabled={isPending || !isValid}>
         {isPending ? "регистрация..." : "зарегистрироваться"}

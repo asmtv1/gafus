@@ -34,7 +34,9 @@
     "start:all": "node scripts/start-all.js",
     "start:worker:watch:simple": "nodemon",
     "test": "turbo run test",
-    "test:all": "pnpm -r run test",
+    "test:all": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "test:watch": "turbo run test:watch",
     "typecheck": "turbo run typecheck",
     "typecheck:all": "pnpm -r run typecheck"
   },
