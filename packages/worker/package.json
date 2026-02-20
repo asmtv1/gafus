@@ -19,6 +19,7 @@
     "test:coverage": "vitest run --coverage --config vitest.config.ts"
   },
   "dependencies": {
+    "@gafus/core": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
     "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",

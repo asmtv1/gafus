@@ -28,7 +28,7 @@ RUN cd packages/prisma \
 
 # Собираем все пакеты (включая logger, cdn-upload и reengagement для worker)
 # Порядок важен: сначала зависимости, потом worker
-RUN pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/cdn-upload --filter @gafus/reengagement --filter @gafus/worker
+RUN pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/cdn-upload --filter @gafus/reengagement --filter @gafus/core --filter @gafus/worker
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
@@ -51,6 +51,7 @@ COPY --from=base /app/packages/types/dist ./packages/types/dist
 COPY --from=base /app/packages/logger/dist ./packages/logger/dist
 COPY --from=base /app/packages/reengagement/dist ./packages/reengagement/dist
 COPY --from=base /app/packages/cdn-upload/dist ./packages/cdn-upload/dist
+COPY --from=base /app/packages/core/dist ./packages/core/dist
 
 # Копируем только package.json файлы
 COPY --from=base /app/packages/worker/package.json ./packages/worker/package.json
@@ -61,6 +62,7 @@ COPY --from=base /app/packages/webpush/package.json ./packages/webpush/package.j
 COPY --from=base /app/packages/types/package.json ./packages/types/package.json
 COPY --from=base /app/packages/logger/package.json ./packages/logger/package.json
 COPY --from=base /app/packages/cdn-upload/package.json ./packages/cdn-upload/package.json
+COPY --from=base /app/packages/core/package.json ./packages/core/package.json
 
 # Устанавливаем только production зависимости (expo-server-sdk нужен для push в мобильное приложение)
 RUN npm init -y && \
@@ -91,7 +93,8 @@ RUN mkdir -p /app/node_modules/@gafus \
   && ln -s /app/packages/types /app/node_modules/@gafus/types \
   && ln -s /app/packages/logger /app/node_modules/@gafus/logger \
   && ln -s /app/packages/cdn-upload /app/node_modules/@gafus/cdn-upload \
-  && ln -s /app/packages/reengagement /app/node_modules/@gafus/reengagement
+  && ln -s /app/packages/reengagement /app/node_modules/@gafus/reengagement \
+  && ln -s /app/packages/core /app/node_modules/@gafus/core
 
 # Устанавливаем права доступа
 RUN chown -R worker:nodejs /app
