@@ -291,7 +291,7 @@ export default function TrainingPageClient({
                   onClick={handlePay}
                   disabled={payLoading || csrfLoading}
                 >
-                  {payLoading || csrfLoading ? "Переход к оплате…" : "Оплатить"}
+                  {payLoading || csrfLoading ? "Переход к оплате…" : "Оплатить/Начать курс"}
                 </button>
                 {justPaid && (
                   <button
@@ -306,6 +306,12 @@ export default function TrainingPageClient({
                   Назад к курсам
                 </Link>
               </div>
+              <p className={styles.ofertaHint}>
+                Нажимая кнопку, я соглашаюсь с условиями{" "}
+                <a href="/oferta.html" target="_blank" rel="noopener noreferrer">
+                  Оферты
+                </a>
+              </p>
             </>
           )}
           </div>

@@ -423,7 +423,13 @@ export default function TrainingDaysScreen() {
                 style={styles.paywallPrimaryButton}
               >
                 <Text style={styles.paywallPrimaryButtonText}>
-                  {isCreatingPayment ? "Переход к оплате..." : "Оплатить"}
+                  {isCreatingPayment ? "Переход к оплате..." : "Оплатить/Начать курс"}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => void Linking.openURL(`${WEB_BASE}/oferta.html`)}>
+                <Text style={styles.ofertaHint}>
+                  Нажимая «Оплатить», я соглашаюсь с{" "}
+                  <Text style={styles.ofertaHintLink}>Офертой</Text>
                 </Text>
               </Pressable>
               <Pressable
@@ -997,6 +1003,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.text,
     fontFamily: FONTS.montserrat,
+  },
+  ofertaHint: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    fontFamily: FONTS.montserrat,
+    paddingVertical: 2,
+  },
+  ofertaHintLink: {
+    color: COLORS.primary,
+    textDecorationLine: "underline",
   },
   offlineSection: {
     marginHorizontal: SPACING.md,

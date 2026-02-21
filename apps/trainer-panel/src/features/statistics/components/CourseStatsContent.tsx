@@ -19,6 +19,7 @@ import { useState, useEffect } from "react";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 import DayAnalytics from "./DayAnalytics";
+import OpenersAnalytics from "./OpenersAnalytics";
 import ProgressAnalytics from "./ProgressAnalytics";
 import SocialAnalytics from "./SocialAnalytics";
 import TimeAnalytics from "./TimeAnalytics";
@@ -288,6 +289,7 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
           <Tab label="Временная аналитика" />
           <Tab label="Прогресс и достижения" />
           <Tab label="Социальная аналитика" />
+          <Tab label="Открывшие" />
         </Tabs>
       </Box>
 
@@ -706,6 +708,17 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
             },
             favoriteCount: course.socialAnalytics?.favoriteCount || 0,
             recommendationEffectiveness: course.socialAnalytics?.recommendationEffectiveness || 0,
+          }}
+        />
+      </TabPanel>
+
+      {/* Открывшие */}
+      <TabPanel value={tabValue} index={5}>
+        <OpenersAnalytics
+          openersAnalytics={course.openersAnalytics ?? { totalOpeners: 0, openers: [] }}
+          onUsernameClick={(username: string) => {
+            setSelectedUsername(username);
+            setUserModalOpen(true);
           }}
         />
       </TabPanel>

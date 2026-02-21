@@ -5,6 +5,8 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
+import { recordOfertaAcceptance } from "../oferta/ofertaAcceptanceService";
+
 const logger = createWebLogger("payment-service");
 
 const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
@@ -17,6 +19,11 @@ export interface CreatePaymentParams {
   returnUrl?: string;
   shopId: string;
   secretKey: string;
+  acceptanceContext?: {
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    source: "web" | "mobile";
+  };
 }
 
 export interface CreatePaymentResult {
@@ -179,6 +186,19 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
     where: { id: paymentId },
     data: { yookassaPaymentId, confirmationUrl },
   });
+
+  if (params.acceptanceContext) {
+    recordOfertaAcceptance({
+      userId,
+      courseId,
+      paymentId,
+      ipAddress: params.acceptanceContext.ipAddress,
+      userAgent: params.acceptanceContext.userAgent,
+      source: params.acceptanceContext.source,
+    }).catch((err: unknown) => {
+      logger.error("Ошибка записи согласия с офертой", err as Error, { paymentId });
+    });
+  }
 
   return {
     success: true,

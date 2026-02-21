@@ -32,8 +32,10 @@ if (result.success) return result.data;
 
 const updateResult = await updateUserAdmin(userId, {
   username: "newName",
+  phone: "+79001234567",
   role: "MODERATOR",
   newPassword: "secret123",
+  isConfirmed: true, // статус подтверждения телефона (админ может переключать вручную)
 });
 
 const deleteResult = await deleteUserAdmin(userId, actorId);

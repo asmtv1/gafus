@@ -78,12 +78,18 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     }
 
     const origin = getOrigin(request);
+    const ipAddress =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      null;
+    const userAgent = request.headers.get("user-agent") ?? null;
     const result = await createPayment({
       userId,
       courseId: parsed.data.courseId,
       origin,
       shopId,
       secretKey,
+      acceptanceContext: { ipAddress, userAgent, source: "web" },
     });
 
     if (!result.success) {

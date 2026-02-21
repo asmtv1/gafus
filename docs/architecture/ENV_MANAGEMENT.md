@@ -25,11 +25,7 @@ REDIS_URL=redis://...
 YOOKASSA_SHOP_ID=   # идентификатор магазина из ЛК ЮKassa
 YOOKASSA_SECRET_KEY= # секретный ключ (не публиковать)
 
-# Реквизиты для ЮKassa (страница контактов apps/web)
-NEXT_PUBLIC_CONTACT_EMAIL=
-NEXT_PUBLIC_CONTACT_PHONE=
-NEXT_PUBLIC_CONTACT_FIO=
-NEXT_PUBLIC_CONTACT_INN=
+# Страница контактов — статический public/contacts.html (NEXT_PUBLIC_CONTACT_* не используются)
 
 # ... остальные переменные
 ```

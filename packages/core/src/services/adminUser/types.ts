@@ -16,6 +16,7 @@ export interface UpdateUserAdminInput {
   phone?: string;
   role?: AdminUserRole;
   newPassword?: string;
+  isConfirmed?: boolean;
 }
 
 export type AdminUserActionResult =

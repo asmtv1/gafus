@@ -11,7 +11,7 @@
 - Общая статистика по шагам и детализация одного шага (`getStepStatistics`, `getDetailedStepStatistics`)
 - Расширенные данные об авторских курсах с прогрессом пользователей (`getAuthoredCoursesWithStats`)
 - Детальный прогресс конкретного пользователя по курсу (`getUserProgress`)
-- Типы `CourseStats`, `DetailedCourseStats`, `StepStats`, `StatisticsData`, `UserDetailedProgress` для UI-компонентов
+- Типы `CourseStats`, `DetailedCourseStats` (включая `openersAnalytics`), `StepStats`, `StatisticsData`, `UserDetailedProgress` для UI-компонентов
 
 ## 🔧 Использование
 
@@ -32,6 +32,8 @@ import { getDetailedCourseStatistics } from "@gafus/statistics";
 const course = await getDetailedCourseStatistics(courseId, userId, isElevated);
 if (!course) notFound();
 ```
+
+`DetailedCourseStats` включает `openersAnalytics` — пользователи, открывшие хотя бы один день (данные из `UserTraining`). Структура: `totalOpeners`, `openers[]` с `userId`, `username`, `avatarUrl`, `openedDays[]` (dayOrder, dayTitle, openedAt). Сортировка: по убыванию числа открытых дней.
 
 ### Курсы автора в web
 

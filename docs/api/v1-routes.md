@@ -300,9 +300,11 @@
 
 ### POST `/api/v1/payments/create`
 
-Создание платежа ЮKassa для мобильного приложения.
+Создание платежа ЮKassa. Используется в web и mobile.
 
-Требует JWT авторизацию (`Authorization: Bearer <access_token>`).
+**Web:** сессия NextAuth, заголовок `x-csrf-token`. **Mobile:** JWT (`Authorization: Bearer <access_token>`).
+
+Сервер формирует `acceptanceContext` из заголовков (`x-forwarded-for` / `x-real-ip`, `user-agent`) для записи OfertaAcceptance — см. [oferta-compliance.md](../payments/oferta-compliance.md).
 
 **Body (ровно одно поле):**
 
@@ -930,6 +932,10 @@
 ---
 
 ## Changelog
+
+### v1.1.1 (21.02.2026)
+
+- `POST /api/v1/payments/create`: acceptanceContext формируется из заголовков (IP, User-Agent) для OfertaAcceptance; поддержка web (сессия) и mobile (JWT).
 
 ### v1.1.0 (20.02.2026)
 

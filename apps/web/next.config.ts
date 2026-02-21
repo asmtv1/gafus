@@ -207,6 +207,10 @@ const nextConfig = {
     unoptimized: true,
   },
 
+  async rewrites() {
+    return [{ source: "/contacts", destination: "/contacts.html" }];
+  },
+
   async headers() {
     return [
       {

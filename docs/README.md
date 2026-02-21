@@ -84,6 +84,7 @@
 ### Юридическое и конфиденциальность
 
 - [Оферта (клаузулы)](./legal/oferta-clauses.md)
+- [Соответствие оферте при оплате](./payments/oferta-compliance.md) — OfertaAcceptance, fire-and-forget
 - [Публичная оферта](./legal/public-offer-full.md)
 - [Cookie consent и управление cookies](./features/cookie-consent.md) — баннер согласия, хранение в localStorage, GDPR
 

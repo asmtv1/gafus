@@ -303,6 +303,33 @@ model ConsentLog {
 
 При регистрации создаётся по одной записи на каждый тип согласия. Подробнее: [docs/features/consent-registration.md](../features/consent-registration.md).
 
+#### OfertaAcceptance (согласие с Офертой при оплате)
+
+```prisma
+model OfertaAcceptance {
+  id               String    @id @default(cuid())
+  userId           String
+  courseId         String
+  paymentId        String?
+  acceptedAt       DateTime  @default(now())
+  ipAddress        String?
+  userAgent        String?
+  documentVersions Json
+  source           String    @db.VarChar(10)  // "web" | "mobile"
+
+  user    User     @relation(...)
+  course  Course   @relation(...)
+  payment Payment? @relation(...)
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([paymentId])
+  @@index([acceptedAt])
+}
+```
+
+Запись создаётся fire-and-forget при успешном создании платежа. Подробнее: [docs/payments/oferta-compliance.md](../payments/oferta-compliance.md).
+
 ## 🔧 API Reference
 
 ### Основные операции

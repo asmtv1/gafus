@@ -372,6 +372,46 @@ export async function getDetailedCourseStatistics(
 
   const progressAnalytics = await getProgressAnalytics(courseId, mergedUsers.userCourses);
 
+  const openersMap = new Map<
+    string,
+    {
+      username: string;
+      avatarUrl: string | null;
+      openedDays: { dayOrder: number; dayTitle: string; openedAt: Date }[];
+    }
+  >();
+
+  for (const training of userTrainings) {
+    const uid = training.userId;
+    if (!openersMap.has(uid)) {
+      openersMap.set(uid, {
+        username: training.user?.username ?? "Неизвестный",
+        avatarUrl: training.user?.profile?.avatarUrl ?? null,
+        openedDays: [],
+      });
+    }
+    const entry = openersMap.get(uid)!;
+    entry.openedDays.push({
+      dayOrder: training.dayOnCourse.order,
+      dayTitle: training.dayOnCourse.day.title,
+      openedAt: training.createdAt,
+    });
+  }
+
+  const openers = Array.from(openersMap.entries()).map(([userId, data]) => ({
+    userId,
+    username: data.username,
+    avatarUrl: data.avatarUrl,
+    openedDays: data.openedDays.sort((a, b) => a.dayOrder - b.dayOrder),
+  }));
+
+  openers.sort((a, b) => b.openedDays.length - a.openedDays.length);
+
+  const openersAnalytics = {
+    totalOpeners: openers.length,
+    openers,
+  };
+
   return {
     id: course.id,
     name: course.name,
@@ -405,6 +445,7 @@ export async function getDetailedCourseStatistics(
     timeAnalytics,
     progressAnalytics,
     socialAnalytics,
+    openersAnalytics,
   };
 }
 

@@ -40,7 +40,11 @@ packages/core/
 │   │   ├── adminPresentation/ # Статистика презентации (admin-panel)
 │   │   ├── adminStorage/  # Статистика хранилища (admin-panel)
 │   │   ├── adminBroadcast/ # Push-рассылка (admin-panel)
-│   │   └── consent/       # Согласия при регистрации (ConsentLog)
+│   │   ├── consent/       # Согласия при регистрации (ConsentLog)
+│   │   ├── oferta/        # Фиксация согласия с Офертой (OfertaAcceptance)
+│   │   └── payments/      # Платежи ЮKassa
+│   ├── config/            # Конфигурация
+│   │   └── documentVersions.ts  # Версии oferta, policy, personal
 │   ├── errors/            # ServiceError, prismaErrorHandler
 │   ├── utils/             # Универсальные утилиты
 │   │   ├── age/           # getAge, getAgeWithMonths
@@ -81,6 +85,12 @@ import { getUserTrainingDates, getAchievementStats } from "@gafus/core/services/
 
 // Теги кэша (для revalidateTag в Next.js app — trainer-panel, web)
 import { CACHE_TAGS } from "@gafus/core/services/cache";
+
+// Oferta — фиксация согласия при оплате (fire-and-forget)
+import { recordOfertaAcceptance } from "@gafus/core/services/oferta/ofertaAcceptanceService";
+
+// Document versions (при изменении oferta.html, policy.html и т.д.)
+import { DOCUMENT_VERSIONS } from "@gafus/core/config/documentVersions";
 
 // Consent — согласия при регистрации
 import {

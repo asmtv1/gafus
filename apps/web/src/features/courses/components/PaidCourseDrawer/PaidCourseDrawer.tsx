@@ -1,7 +1,13 @@
 "use client";
 
 import { useCSRFStore } from "@gafus/csrf";
-import { Button, CircularProgress, SwipeableDrawer, Typography } from "@mui/material";
+import {
+  Button,
+  CircularProgress,
+  Link as MuiLink,
+  SwipeableDrawer,
+  Typography,
+} from "@mui/material";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -121,8 +127,24 @@ export function PaidCourseDrawer({ open, onClose, course, userId }: PaidCourseDr
             onClick={handlePay}
             startIcon={payLoading || csrfLoading ? <CircularProgress size={20} color="inherit" /> : null}
           >
-            {payLoading || csrfLoading ? "Загрузка..." : "Оплатить"}
+            {payLoading || csrfLoading ? "Загрузка..." : "Оплатить/Начать курс"}
           </Button>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", textAlign: "center", mt: 0.5, mb: 1 }}
+          >
+            Нажимая кнопку, я соглашаюсь с условиями{" "}
+            <MuiLink
+              href="/oferta.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              underline="always"
+              color="text.secondary"
+            >
+              Оферты
+            </MuiLink>
+          </Typography>
         </>
       )}
 

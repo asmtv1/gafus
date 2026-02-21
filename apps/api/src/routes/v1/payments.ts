@@ -75,6 +75,8 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
 
     const returnUrl =
       `${webBaseUrl.baseUrl}/trainings/${encodeURIComponent(course.type)}` + "?paid=1&from=app";
+    const ipAddress = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const userAgent = c.req.header("user-agent") ?? null;
 
     const result = await createPayment({
       userId: user.id,
@@ -82,6 +84,7 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
       shopId,
       secretKey,
       returnUrl,
+      acceptanceContext: { ipAddress, userAgent, source: "mobile" },
     });
 
     if (!result.success) {

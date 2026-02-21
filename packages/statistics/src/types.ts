@@ -75,6 +75,15 @@ export interface DetailedCourseStats extends CourseStats {
     favoriteCount: number;
     recommendationEffectiveness: number;
   };
+  openersAnalytics?: {
+    totalOpeners: number;
+    openers: {
+      userId: string;
+      username: string;
+      avatarUrl: string | null;
+      openedDays: { dayOrder: number; dayTitle: string; openedAt: Date }[];
+    }[];
+  };
 }
 
 export interface StatisticsData {

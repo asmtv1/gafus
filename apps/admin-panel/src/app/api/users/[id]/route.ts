@@ -14,6 +14,7 @@ const updateUserBodySchema = z.object({
   phone: z.string().optional(),
   role: z.enum(["ADMIN", "MODERATOR", "TRAINER", "USER"]).optional(),
   newPassword: z.string().min(6).optional(),
+  isConfirmed: z.boolean().optional(),
 });
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {

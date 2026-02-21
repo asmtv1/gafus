@@ -101,6 +101,17 @@
   opacity: 0.85;
 }
 
+.ofertaHint {
+  font-size: 12px;
+  color: var(--text-secondary, #888);
+  text-align: center;
+  margin: 4px 0 0;
+}
+.ofertaHint a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 /* Описание курса */
 .descriptionSection {
   margin-bottom: 20px;
