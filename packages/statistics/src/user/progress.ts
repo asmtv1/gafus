@@ -104,15 +104,14 @@ export async function getUserProgress(
     orderBy: { order: "asc" },
     include: {
       day: {
-        include: {
+        select: {
+          title: true,
+          shareProgressAcrossCourses: true,
           stepLinks: {
             orderBy: { order: "asc" },
             include: {
               step: {
-                select: {
-                  title: true,
-                  type: true,
-                },
+                select: { title: true, type: true },
               },
             },
           },
@@ -120,6 +119,38 @@ export async function getUserProgress(
       },
     },
   });
+
+  const sharedDayIds = courseDays
+    .filter((dl) => dl.day.shareProgressAcrossCourses)
+    .map((dl) => dl.dayId);
+
+  const sharedUserTrainings =
+    sharedDayIds.length > 0
+      ? await prisma.userTraining.findMany({
+          where: {
+            userId: safeUserId,
+            status: TrainingStatus.COMPLETED,
+            dayOnCourse: { dayId: { in: sharedDayIds } },
+          },
+          select: {
+            status: true,
+            updatedAt: true,
+            steps: {
+              select: {
+                stepOnDayId: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
+            dayOnCourse: { select: { dayId: true } },
+          },
+        })
+      : [];
+
+  const sharedTrainingByDayId = new Map(
+    sharedUserTrainings.map((ut) => [ut.dayOnCourse.dayId, ut]),
+  );
 
   const userTrainings = await prisma.userTraining.findMany({
     where: {
@@ -160,14 +191,35 @@ export async function getUserProgress(
     ]),
   );
 
+  for (const dayLink of courseDays) {
+    if (
+      dayLink.day.shareProgressAcrossCourses &&
+      !userTrainingMap.has(dayLink.id)
+    ) {
+      const sharedUt = sharedTrainingByDayId.get(dayLink.dayId);
+      if (sharedUt) {
+        userTrainingMap.set(dayLink.id, {
+          dayOnCourseId: dayLink.id,
+          status: sharedUt.status,
+          steps: sharedUt.steps.map((s) => ({
+            stepOnDayId: s.stepOnDayId,
+            status: s.status,
+            createdAt: s.createdAt,
+            updatedAt: s.updatedAt,
+          })),
+        });
+      }
+    }
+  }
+
   const diaryEntries = await prisma.diaryEntry.findMany({
     where: {
       userId: safeUserId,
-      dayOnCourse: { courseId: safeCourseId },
+      dayId: { in: courseDays.map((dl) => dl.dayId) },
     },
-    select: { content: true, dayOnCourseId: true },
+    select: { content: true, dayId: true },
   });
-  const diaryByDay = new Map(diaryEntries.map((e) => [e.dayOnCourseId, e.content]));
+  const diaryByDay = new Map(diaryEntries.map((e) => [e.dayId, e.content]));
 
   const daysProgress = courseDays.map((dayLink) => {
     const userTraining = userTrainingMap.get(dayLink.id);
@@ -204,7 +256,7 @@ export async function getUserProgress(
 
       const stepType = stepLink.step.type;
       const diaryContent =
-        stepType === "DIARY" ? (diaryByDay.get(dayLink.id) ?? null) : undefined;
+        stepType === "DIARY" ? (diaryByDay.get(dayLink.dayId) ?? null) : undefined;
 
       return {
         stepOrder: stepLink.order,

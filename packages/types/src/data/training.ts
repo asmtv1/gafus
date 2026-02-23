@@ -45,6 +45,8 @@ export interface TrainingDay {
   description: string;
   type: string;
   authorId: string;
+  showCoursePathExport?: boolean;
+  shareProgressAcrossCourses?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

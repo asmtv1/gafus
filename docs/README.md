@@ -42,6 +42,10 @@
 - [Error Dashboard](./apps/error-dashboard.md)
 - [Bull Board](./apps/bull-board.md)
 
+### Фичи
+
+- [Shared Day Progress](./features/shared-day-progress.md) — прогресс дня с `shareProgressAcrossCourses` засчитывается во всех курсах
+
 ### Разработка
 
 - [Настройка окружения](./development/setup.md)

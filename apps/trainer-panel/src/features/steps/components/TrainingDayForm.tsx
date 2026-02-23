@@ -17,6 +17,7 @@ interface TrainingDayFormData {
   description: string;
   equipment: string;
   showCoursePathExport: boolean;
+  shareProgressAcrossCourses: boolean;
 }
 
 interface TrainingDayFormProps {
@@ -25,6 +26,7 @@ interface TrainingDayFormProps {
   description?: string;
   equipment?: string;
   showCoursePathExport?: boolean;
+  shareProgressAcrossCourses?: boolean;
   onChange: (data: TrainingDayFormData) => void;
 }
 
@@ -34,6 +36,7 @@ export default function TrainingDayForm({
   description,
   equipment,
   showCoursePathExport,
+  shareProgressAcrossCourses,
   onChange,
 }: TrainingDayFormProps) {
   const form = useForm<TrainingDayFormData>({
@@ -44,6 +47,7 @@ export default function TrainingDayForm({
       description: description ?? "",
       equipment: equipment ?? "",
       showCoursePathExport: showCoursePathExport ?? false,
+      shareProgressAcrossCourses: shareProgressAcrossCourses ?? false,
     },
   });
 
@@ -55,9 +59,10 @@ export default function TrainingDayForm({
       description: description ?? "",
       equipment: equipment ?? "",
       showCoursePathExport: showCoursePathExport ?? false,
+      shareProgressAcrossCourses: shareProgressAcrossCourses ?? false,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, type, description, equipment, showCoursePathExport]);
+  }, [title, type, description, equipment, showCoursePathExport, shareProgressAcrossCourses]);
 
   // Обновляем родительский компонент при изменении формы
   React.useEffect(() => {
@@ -146,6 +151,24 @@ export default function TrainingDayForm({
           sx={{ mt: 1, mb: 1 }}
         />
       )}
+
+      <FormControlLabel
+        control={
+          <Controller
+            name="shareProgressAcrossCourses"
+            control={form.control}
+            render={({ field }) => (
+              <Checkbox
+                checked={field.value}
+                onChange={(_, checked) => field.onChange(checked)}
+                onBlur={field.onBlur}
+              />
+            )}
+          />
+        }
+        label="Прогресс по этому дню засчитывается во всех курсах"
+        sx={{ mt: 1, mb: 1 }}
+      />
 
       <PersonalizationPlaceholdersHint />
 

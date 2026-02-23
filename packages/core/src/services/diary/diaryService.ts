@@ -35,6 +35,7 @@ export interface DiaryEntryWithDay {
   content: string;
   createdAt: Date;
   updatedAt: Date;
+  dayId: string;
   dayOnCourseId: string;
   dayOrder: number;
   dayTitle: string;
@@ -62,7 +63,7 @@ export async function saveDiaryEntry(
 
   const dayOnCourse = await prisma.dayOnCourse.findUnique({
     where: { id: dayOnCourseId },
-    select: { courseId: true },
+    select: { dayId: true, courseId: true },
   });
   if (!dayOnCourse) {
     return { success: false, error: "День курса не найден" };
@@ -80,11 +81,11 @@ export async function saveDiaryEntry(
 
   await prisma.diaryEntry.upsert({
     where: {
-      userId_dayOnCourseId: { userId, dayOnCourseId },
+      userId_dayId: { userId, dayId: dayOnCourse.dayId },
     },
     create: {
       userId,
-      dayOnCourseId,
+      dayId: dayOnCourse.dayId,
       content: trimmed,
     },
     update: { content: trimmed, updatedAt: new Date() },
@@ -127,38 +128,57 @@ export async function getDiaryEntries(
     if (day) upToOrder = day.order;
   }
 
-  const diaryEntries = await prisma.diaryEntry.findMany({
+  const courseDays = await prisma.dayOnCourse.findMany({
     where: {
-      userId,
-      dayOnCourse: {
-        courseId,
-        ...(upToOrder !== null ? { order: { lte: upToOrder } } : {}),
-      },
+      courseId,
+      ...(upToOrder !== null ? { order: { lte: upToOrder } } : {}),
     },
+    orderBy: { order: "asc" },
+    select: {
+      id: true,
+      order: true,
+      dayId: true,
+      day: { select: { title: true } },
+    },
+  });
+  const dayIds = courseDays.map((d) => d.dayId);
+  const dayIdToDoc = new Map(
+    courseDays.map((d) => [
+      d.dayId,
+      { order: d.order, title: d.day.title, dayOnCourseId: d.id },
+    ]),
+  );
+
+  const rawEntries = await prisma.diaryEntry.findMany({
+    where: { userId, dayId: { in: dayIds } },
     select: {
       id: true,
       content: true,
       createdAt: true,
       updatedAt: true,
-      dayOnCourseId: true,
-      dayOnCourse: {
-        select: { order: true, day: { select: { title: true } } },
-      },
-    },
-    orderBy: {
-      dayOnCourse: { order: "asc" },
+      dayId: true,
     },
   });
 
-  const entries: DiaryEntryWithDay[] = diaryEntries.map((e) => ({
-    id: e.id,
-    content: e.content,
-    createdAt: e.createdAt,
-    updatedAt: e.updatedAt,
-    dayOnCourseId: e.dayOnCourseId,
-    dayOrder: e.dayOnCourse.order,
-    dayTitle: e.dayOnCourse.day.title,
-  }));
+  rawEntries.sort(
+    (a, b) =>
+      (dayIdToDoc.get(a.dayId)?.order ?? 0) -
+      (dayIdToDoc.get(b.dayId)?.order ?? 0),
+  );
+
+  const entries: DiaryEntryWithDay[] = rawEntries.map((e) => {
+    const doc = dayIdToDoc.get(e.dayId)!;
+    return {
+      id: e.id,
+      content: e.content,
+      createdAt: e.createdAt,
+      updatedAt: e.updatedAt,
+      dayId: e.dayId,
+      dayOnCourseId: doc.dayOnCourseId,
+      dayOrder: doc.order,
+      dayTitle: doc.title,
+    };
+  });
 
   return { entries };
 }

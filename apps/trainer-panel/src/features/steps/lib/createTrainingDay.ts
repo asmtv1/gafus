@@ -11,6 +11,7 @@ export async function createTrainingDay(data: {
   type: string;
   equipment: string;
   showCoursePathExport?: boolean;
+  shareProgressAcrossCourses?: boolean;
   stepIds: string[];
 }) {
   const session = await getServerSession(authOptions);
@@ -24,6 +25,7 @@ export async function createTrainingDay(data: {
     type: data.type,
     equipment: data.equipment,
     showCoursePathExport: data.showCoursePathExport ?? false,
+    shareProgressAcrossCourses: data.shareProgressAcrossCourses ?? false,
     stepIds: data.stepIds,
     authorId,
   });

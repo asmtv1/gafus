@@ -11,6 +11,7 @@ export async function updateTrainingDay(data: {
   type: string;
   equipment: string;
   showCoursePathExport?: boolean;
+  shareProgressAcrossCourses?: boolean;
   stepIds: string[];
 }) {
   const result = await updateTrainingDayCore({
@@ -20,6 +21,7 @@ export async function updateTrainingDay(data: {
     type: data.type,
     equipment: data.equipment,
     showCoursePathExport: data.showCoursePathExport ?? false,
+    shareProgressAcrossCourses: data.shareProgressAcrossCourses ?? false,
     stepIds: data.stepIds,
   });
 

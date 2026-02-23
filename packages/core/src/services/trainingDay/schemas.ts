@@ -10,6 +10,7 @@ export const createTrainingDaySchema = z.object({
   type: z.string().default("regular"),
   equipment: z.string().default(""),
   showCoursePathExport: z.boolean().default(false),
+  shareProgressAcrossCourses: z.boolean().default(false),
   stepIds: z.array(z.string().min(1)),
   authorId: z.string().min(1),
 });
@@ -21,6 +22,7 @@ export const updateTrainingDaySchema = z.object({
   type: z.string().default("regular"),
   equipment: z.string().default(""),
   showCoursePathExport: z.boolean().default(false),
+  shareProgressAcrossCourses: z.boolean().default(false),
   stepIds: z.array(z.string().min(1)),
 });
 

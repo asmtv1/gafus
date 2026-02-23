@@ -46,10 +46,12 @@ model TrainingDay {
   description          String        @default("")
   type                 String        @default("regular")
   authorId             String
-  showCoursePathExport Boolean       @default(false)
-  createdAt            DateTime      @default(now())
+  showCoursePathExport      Boolean   @default(false)
+  shareProgressAcrossCourses Boolean  @default(false)
+  createdAt                 DateTime @default(now())
   updatedAt            DateTime      @updatedAt
   dayLinks             DayOnCourse[]
+  diaryEntries         DiaryEntry[]
   stepLinks            StepOnDay[]
   author               User          @relation(fields: [authorId], references: [id])
 }
@@ -125,26 +127,26 @@ model DayOnCourse {
   order         Int
   course        Course         @relation(fields: [courseId], references: [id])
   day           TrainingDay    @relation(fields: [dayId], references: [id])
-  diaryEntries  DiaryEntry[]
   userTrainings UserTraining[]
 
   @@unique([courseId, order])
   @@index([courseId, order])
+  @@index([dayId])
 }
 
 model DiaryEntry {
-  id            String      @id @default(cuid())
-  userId        String
-  dayOnCourseId String
-  content       String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  dayOnCourse   DayOnCourse @relation(fields: [dayOnCourseId], references: [id], onDelete: Cascade)
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String      @id @default(cuid())
+  userId    String
+  dayId     String
+  content   String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  day       TrainingDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, dayOnCourseId])
+  @@unique([userId, dayId])
   @@index([userId])
-  @@index([dayOnCourseId])
+  @@index([dayId])
 }
 
 model StepOnDay {

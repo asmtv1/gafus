@@ -70,6 +70,59 @@ export async function getUserProgress(
       },
     });
 
+    // Получаем все дни курса с флагом shareProgressAcrossCourses (нужен в sync-блоке)
+    const courseDays = await prisma.dayOnCourse.findMany({
+      where: { courseId: safeCourseId },
+      orderBy: { order: "asc" },
+      include: {
+        day: {
+          select: {
+            title: true,
+            shareProgressAcrossCourses: true,
+            stepLinks: {
+              orderBy: { order: "asc" },
+              include: {
+                step: { select: { title: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    const totalDaysInCourse = courseDays.length;
+
+    const sharedDayIds = courseDays
+      .filter((dl) => dl.day.shareProgressAcrossCourses)
+      .map((dl) => dl.dayId);
+
+    const sharedUserTrainings =
+      sharedDayIds.length > 0
+        ? await prisma.userTraining.findMany({
+            where: {
+              userId: safeUserId,
+              status: TrainingStatus.COMPLETED,
+              dayOnCourse: { dayId: { in: sharedDayIds } },
+            },
+            select: {
+              status: true,
+              updatedAt: true,
+              steps: {
+                select: {
+                  stepOnDayId: true,
+                  status: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
+              dayOnCourse: { select: { dayId: true } },
+            },
+          })
+        : [];
+
+    const sharedTrainingByDayId = new Map(
+      sharedUserTrainings.map((ut) => [ut.dayOnCourse.dayId, ut]),
+    );
+
     // Если записи в userCourse нет, пытаемся получить информацию из userTraining
     let userInfo: {
       username: string;
@@ -87,24 +140,17 @@ export async function getUserProgress(
       completedAt = userProgress.completedAt;
 
       // Синхронизируем статус курса с реальным прогрессом
-      // Используем один запрос для получения всех необходимых данных
-      const [userTrainings, totalDaysInCourse] = await Promise.all([
-        prisma.userTraining.findMany({
-          where: {
-            userId: safeUserId,
-            dayOnCourse: {
-              courseId: safeCourseId,
-            },
-          },
-          select: {
-            id: true,
-            status: true,
-          },
-        }),
-        prisma.dayOnCourse.count({
-          where: { courseId: safeCourseId },
-        }),
-      ]);
+      const userTrainings = await prisma.userTraining.findMany({
+        where: {
+          userId: safeUserId,
+          dayOnCourse: { courseId: safeCourseId },
+        },
+        select: {
+          id: true,
+          status: true,
+          dayOnCourseId: true,
+        },
+      });
 
       const userTrainingIds = userTrainings.map((t) => t.id);
 
@@ -179,13 +225,31 @@ export async function getUserProgress(
             (t) => t.status === TrainingStatus.COMPLETED,
           ).length;
 
+          // Учёт виртуально завершённых дней (shared прогресс из других курсов)
+          let virtualCompleted = 0;
+          let virtualTrainingCount = 0;
+          for (const dayLink of courseDays) {
+            if (
+              dayLink.day.shareProgressAcrossCourses &&
+              !userTrainings.find((ut) => ut.dayOnCourseId === dayLink.id)
+            ) {
+              const sharedUt = sharedTrainingByDayId.get(dayLink.dayId);
+              if (sharedUt?.status === TrainingStatus.COMPLETED) {
+                virtualCompleted += 1;
+                virtualTrainingCount += 1;
+              }
+            }
+          }
+          const effectiveTrainingCount = userTrainingCount + virtualTrainingCount;
+          const effectiveCompletedDays = completedDays + virtualCompleted;
+
           // ВАЖНО: Проверяем что пользователь завершил ВСЕ дни курса, а не только те, что у него есть
           // Курс завершен только если:
-          // 1. У пользователя есть тренировки для ВСЕХ дней курса (userTrainingCount === totalDaysInCourse)
-          // 2. ВСЕ эти тренировки завершены (completedDays === totalDaysInCourse)
+          // 1. У пользователя есть тренировки для ВСЕХ дней курса (effectiveTrainingCount === totalDaysInCourse)
+          // 2. ВСЕ эти тренировки завершены (effectiveCompletedDays === totalDaysInCourse)
           if (
-            userTrainingCount === totalDaysInCourse &&
-            completedDays === totalDaysInCourse &&
+            effectiveTrainingCount === totalDaysInCourse &&
+            effectiveCompletedDays === totalDaysInCourse &&
             totalDaysInCourse > 0 &&
             userProgress.status !== TrainingStatus.COMPLETED
           ) {
@@ -228,13 +292,28 @@ export async function getUserProgress(
             (t) => t.status === TrainingStatus.COMPLETED,
           ).length;
 
-          // Вычисляем статус на основе реального прогресса для отображения
+          let virtualCompletedRO = 0;
+          let virtualTrainingCountRO = 0;
+          for (const dayLink of courseDays) {
+            if (
+              dayLink.day.shareProgressAcrossCourses &&
+              !userTrainings.find((ut) => ut.dayOnCourseId === dayLink.id)
+            ) {
+              const sharedUt = sharedTrainingByDayId.get(dayLink.dayId);
+              if (sharedUt?.status === TrainingStatus.COMPLETED) {
+                virtualCompletedRO += 1;
+                virtualTrainingCountRO += 1;
+              }
+            }
+          }
+          const effectiveTrainingCountRO = userTrainingCount + virtualTrainingCountRO;
+          const effectiveCompletedDaysRO = completedDays + virtualCompletedRO;
+
           if (
-            userTrainingCount === totalDaysInCourse &&
-            completedDays === totalDaysInCourse &&
+            effectiveTrainingCountRO === totalDaysInCourse &&
+            effectiveCompletedDaysRO === totalDaysInCourse &&
             totalDaysInCourse > 0
           ) {
-            // Курс завершен
             completedAt = userProgress.completedAt || null;
           } else if (hasRealProgress) {
             // Есть реальный прогресс
@@ -300,27 +379,7 @@ export async function getUserProgress(
       return null;
     }
 
-    // Получаем все дни курса с их шагами
-    const courseDays = await prisma.dayOnCourse.findMany({
-      where: { courseId: safeCourseId },
-      orderBy: { order: "asc" },
-      include: {
-        day: {
-          include: {
-            stepLinks: {
-              orderBy: { order: "asc" },
-              include: {
-                step: {
-                  select: {
-                    title: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+    // courseDays уже получены выше с shareProgressAcrossCourses и stepLinks
 
     // Получаем все userTrainings для этого пользователя по этому курсу
     const userTrainings = await prisma.userTraining.findMany({
@@ -369,12 +428,39 @@ export async function getUserProgress(
       ),
     );
 
+    // Виртуальные записи для shared дней (прогресс из других курсов)
+    for (const dayLink of courseDays) {
+      if (
+        dayLink.day.shareProgressAcrossCourses &&
+        !userTrainingMap.has(dayLink.id)
+      ) {
+        const sharedUt = sharedTrainingByDayId.get(dayLink.dayId);
+        if (sharedUt) {
+          userTrainingMap.set(dayLink.id, {
+            dayOnCourseId: dayLink.id,
+            status: sharedUt.status,
+            steps: sharedUt.steps.map((s) => ({
+              stepOnDayId: s.stepOnDayId,
+              status: s.status,
+              createdAt: s.createdAt,
+              updatedAt: s.updatedAt,
+            })),
+          });
+        }
+      }
+    }
+
     // Собираем детальный прогресс по дням
     const daysProgress = courseDays.map(
       (dayLink: {
         id: string;
         order: number;
-        day: { title: string; stepLinks: { id: string; order: number; step: { title: string } }[] };
+        dayId: string;
+        day: {
+          title: string;
+          shareProgressAcrossCourses: boolean;
+          stepLinks: { id: string; order: number; step: { title: string } }[];
+        };
       }) => {
         const userTraining = userTrainingMap.get(dayLink.id);
 

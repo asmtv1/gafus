@@ -36,12 +36,14 @@ type CourseWithDayLinks = {
   }[];
   dayLinks: {
     id: string;
+    dayId: string;
     order: number;
     day: {
       title: string;
       type: string;
       equipment: string;
       showCoursePathExport: boolean;
+      shareProgressAcrossCourses?: boolean;
       stepLinks: {
         id: string;
         order: number;
@@ -88,38 +90,55 @@ function calculateDisplayDayNumber(
   return displayNumber;
 }
 
-function mapCourseToTrainingDays(firstCourse: CourseWithDayLinks) {
+function mapCourseToTrainingDays(
+  firstCourse: CourseWithDayLinks,
+  sharedTrainingByDayId: Map<
+    string,
+    { status: string; steps: { stepOnDayId: string; status: string }[] }
+  >,
+  _courseId: string,
+) {
   const dayStatuses = firstCourse.dayLinks.map((link) => {
     const ut = link.userTrainings[0];
+    let statusSource = ut;
+    if (!ut && link.day.shareProgressAcrossCourses) {
+      const sharedUt = sharedTrainingByDayId.get(link.dayId);
+      if (sharedUt) statusSource = sharedUt;
+    }
     const allStepStatuses: string[] = [];
     for (const stepLink of link.day.stepLinks) {
-      const userStep = ut?.steps?.find(
+      const userStep = statusSource?.steps?.find(
         (s: { stepOnDayId: string }) => s.stepOnDayId === stepLink.id,
       );
       allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
     }
-    const computed = calculateDayStatusFromStatuses(allStepStatuses);
     return {
       id: link.id,
       type: link.day.type,
-      status: ut ? computed : TrainingStatus.NOT_STARTED,
+      status: statusSource
+        ? calculateDayStatusFromStatuses(allStepStatuses)
+        : TrainingStatus.NOT_STARTED,
     };
   });
 
   return firstCourse.dayLinks.map((link, index) => {
     const _displayDay = calculateDisplayDayNumber(firstCourse.dayLinks, index);
     const ut = link.userTrainings[0];
-
+    let statusSource = ut;
+    if (!ut && link.day.shareProgressAcrossCourses) {
+      const sharedUt = sharedTrainingByDayId.get(link.dayId);
+      if (sharedUt) statusSource = sharedUt;
+    }
     const allStepStatuses: string[] = [];
     for (const stepLink of link.day.stepLinks) {
-      const userStep = ut?.steps?.find(
+      const userStep = statusSource?.steps?.find(
         (s: { stepOnDayId: string }) => s.stepOnDayId === stepLink.id,
       );
       allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
     }
-
-    const computed = calculateDayStatusFromStatuses(allStepStatuses);
-    const userStatus = ut ? computed : TrainingStatus.NOT_STARTED;
+    const userStatus = statusSource
+      ? calculateDayStatusFromStatuses(allStepStatuses)
+      : TrainingStatus.NOT_STARTED;
 
     let isLocked = false;
     if (link.day.type === "summary") {
@@ -229,6 +248,7 @@ export async function getTrainingDays(
           orderBy: { order: "asc" },
           select: {
             id: true,
+            dayId: true,
             order: true,
             day: {
               select: {
@@ -236,6 +256,7 @@ export async function getTrainingDays(
                 type: true,
                 equipment: true,
                 showCoursePathExport: true,
+                shareProgressAcrossCourses: true,
                 stepLinks: {
                   select: {
                     id: true,
@@ -281,6 +302,40 @@ export async function getTrainingDays(
       };
     }
 
+    const sharedDayIds = (
+      firstCourse.dayLinks as { dayId: string; day: { shareProgressAcrossCourses?: boolean } }[]
+    )
+      .filter((dl) => dl.day?.shareProgressAcrossCourses)
+      .map((dl) => dl.dayId);
+
+    const sharedUserTrainings =
+      sharedDayIds.length > 0
+        ? await prisma.userTraining.findMany({
+            where: {
+              userId,
+              status: TrainingStatus.COMPLETED,
+              dayOnCourse: {
+                dayId: { in: sharedDayIds },
+                courseId: { not: firstCourse.id },
+              },
+            },
+            select: {
+              status: true,
+              steps: {
+                select: {
+                  stepOnDayId: true,
+                  status: true,
+                },
+              },
+              dayOnCourse: { select: { dayId: true } },
+            },
+          })
+        : [];
+
+    const sharedTrainingByDayId = new Map(
+      sharedUserTrainings.map((ut) => [ut.dayOnCourse.dayId, ut]),
+    );
+
     // Проверяем доступ к приватному или платному курсу
     if (firstCourse.isPrivate || firstCourse.isPaid) {
       const hasAccess = await checkCourseAccessById(firstCourse.id, userId);
@@ -289,7 +344,11 @@ export async function getTrainingDays(
       }
     }
 
-    const trainingDays = mapCourseToTrainingDays(firstCourse as unknown as CourseWithDayLinks);
+    const trainingDays = mapCourseToTrainingDays(
+      firstCourse as unknown as CourseWithDayLinks,
+      sharedTrainingByDayId,
+      firstCourse.id,
+    );
     const uc = firstCourse.userCourses?.[0];
     const hasPersonalization =
       uc?.userDisplayName != null && String(uc.userDisplayName).trim() !== "";

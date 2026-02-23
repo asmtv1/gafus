@@ -52,6 +52,7 @@ export async function createTrainingDay(
         type: input.type ?? "regular",
         equipment: input.equipment ?? "",
         showCoursePathExport: input.showCoursePathExport ?? false,
+        shareProgressAcrossCourses: input.shareProgressAcrossCourses ?? false,
         authorId: input.authorId,
         stepLinks: {
           create: input.stepIds.map((stepId, index) => ({
@@ -101,6 +102,7 @@ export async function updateTrainingDay(
         type: input.type ?? "regular",
         equipment: input.equipment ?? "",
         showCoursePathExport: input.showCoursePathExport ?? false,
+        shareProgressAcrossCourses: input.shareProgressAcrossCourses ?? false,
         stepLinks: {
           deleteMany: {},
           create: input.stepIds.map((stepId, index) => ({

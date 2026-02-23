@@ -246,6 +246,14 @@ const courses = await getCoursesWithProgress(userId);
 - Платные и приватные курсы требуют запись в `CourseAccess`
 - Публичные бесплатные курсы доступны всем
 
+## Сервис training
+
+### `getTrainingDays(userId, courseType)`
+
+Возвращает дни тренировок курса для страницы `/trainings/[courseType]`. Используется в `apps/web` и `apps/api`.
+
+**Shared Day Progress:** для дней с `shareProgressAcrossCourses: true` прогресс из других курсов засчитывается в текущем. Подробнее: [docs/features/shared-day-progress.md](../features/shared-day-progress.md).
+
 ## Теги кэша (CACHE_TAGS)
 
 В `@gafus/core/services/cache` экспортируются константы тегов для `revalidateTag()` Next.js. **Core не импортирует `next/cache`** — только задаёт единые имена тегов, чтобы app-уровень (trainer-panel, web) использовал их при инвалидации кэша.

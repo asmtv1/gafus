@@ -39,6 +39,7 @@ export default async function EditDayPage({ params }: Props) {
           description: day.description,
           equipment: day.equipment,
           showCoursePathExport: day.showCoursePathExport ?? false,
+          shareProgressAcrossCourses: day.shareProgressAcrossCourses ?? false,
           stepIds: day.stepLinks.map((sl: { stepId: string }) => sl.stepId),
         }}
       />

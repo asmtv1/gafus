@@ -29,6 +29,7 @@ interface Props {
     description: string;
     equipment: string;
     showCoursePathExport?: boolean;
+    shareProgressAcrossCourses?: boolean;
     stepIds: string[];
   };
   /** Предвыбранные шаги при переходе со страницы шагов (например, «создать день из выбранных») */
@@ -57,6 +58,7 @@ export default function CreateDayClient({ allSteps, initialDay, initialStepIds }
     description: initialDay?.description ?? "",
     equipment: initialDay?.equipment ?? "",
     showCoursePathExport: initialDay?.showCoursePathExport ?? false,
+    shareProgressAcrossCourses: initialDay?.shareProgressAcrossCourses ?? false,
   });
   const { open, message, severity, showToast, closeToast } = useToast();
 
@@ -77,6 +79,7 @@ export default function CreateDayClient({ allSteps, initialDay, initialStepIds }
           id: initialDay.id,
           ...dayInfo,
           showCoursePathExport: dayInfo.type === "summary" ? dayInfo.showCoursePathExport : false,
+          shareProgressAcrossCourses: dayInfo.shareProgressAcrossCourses,
           stepIds: selectedSteps.map((s) => s.id),
         });
         showToast("День успешно обновлён", "success");
@@ -87,6 +90,7 @@ export default function CreateDayClient({ allSteps, initialDay, initialStepIds }
           description: "",
           equipment: "",
           showCoursePathExport: false,
+          shareProgressAcrossCourses: false,
         });
         setSelectedSteps([]);
         router.push("/main-panel/days");
@@ -94,6 +98,7 @@ export default function CreateDayClient({ allSteps, initialDay, initialStepIds }
         await createTrainingDay({
           ...dayInfo,
           showCoursePathExport: dayInfo.type === "summary" ? dayInfo.showCoursePathExport : false,
+          shareProgressAcrossCourses: dayInfo.shareProgressAcrossCourses,
           stepIds: selectedSteps.map((s) => s.id),
         });
         showToast("День успешно создан", "success");
@@ -104,6 +109,7 @@ export default function CreateDayClient({ allSteps, initialDay, initialStepIds }
           description: "",
           equipment: "",
           showCoursePathExport: false,
+          shareProgressAcrossCourses: false,
         });
         setSelectedSteps([]);
       }
@@ -122,6 +128,7 @@ export default function CreateDayClient({ allSteps, initialDay, initialStepIds }
           description={dayInfo.description}
           equipment={dayInfo.equipment}
           showCoursePathExport={dayInfo.showCoursePathExport}
+          shareProgressAcrossCourses={dayInfo.shareProgressAcrossCourses}
           onChange={setDayInfo}
         />
       </FormSection>
