@@ -12,8 +12,8 @@ const logger = createTrainerPanelLogger("trainer-panel-invalidate-courses-cache"
  * Вызывается при создании, обновлении или удалении курсов
  */
 export async function invalidateCoursesCache() {
+  console.log("[invalidateCoursesCache] START");
   try {
-    logger.warn("[Cache] Invalidating courses cache...", { operation: "warn" });
 
     // Инвалидируем все теги, связанные с курсами (для trainer-panel)
     revalidateTag(CACHE_TAGS.COURSES);
@@ -61,10 +61,10 @@ export async function invalidateCoursesCache() {
       });
     }
 
-    logger.warn("[Cache] Courses cache invalidated successfully", { operation: "warn" });
+    console.log("[invalidateCoursesCache] DONE");
     return { success: true };
   } catch (error) {
-    logger.error("❌ Error invalidating courses cache:", error as Error, { operation: "error" });
+    console.error("[invalidateCoursesCache] ERROR:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

@@ -16,6 +16,7 @@ const logger = createTrainerPanelLogger("trainer-panel-invalidate-training-days-
 async function invalidateWebAppCache(courseId?: string): Promise<void> {
   const webAppUrl = process.env.NEXT_PUBLIC_WEB_APP_URL || process.env.WEB_APP_URL;
   const secretToken = process.env.REVALIDATE_SECRET_TOKEN;
+  console.log("[invalidateWebAppCache] webAppUrl:", webAppUrl || "NOT SET");
 
   if (!webAppUrl) {
     logger.warn("[Cache] WEB_APP_URL not configured, skipping web app cache invalidation", {
@@ -35,11 +36,13 @@ async function invalidateWebAppCache(courseId?: string): Promise<void> {
       headers["Authorization"] = `Bearer ${secretToken}`;
     }
 
+    console.log("[invalidateWebAppCache] fetching:", url);
     const response = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify({ courseId }),
     });
+    console.log("[invalidateWebAppCache] response status:", response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -65,8 +68,8 @@ async function invalidateWebAppCache(courseId?: string): Promise<void> {
 
 // Функция для инвалидации кэша дней курсов (все дни)
 export async function invalidateTrainingDaysCache(courseId?: string) {
+  console.log("[invalidateTrainingDaysCache] START", { courseId });
   try {
-    logger.warn("[Cache] Invalidating training days cache", { courseId, operation: "warn" });
 
     // Инвалидируем локальный кэш trainer-panel
     revalidateTag(CACHE_TAGS.TRAINING);
@@ -75,14 +78,9 @@ export async function invalidateTrainingDaysCache(courseId?: string) {
     // Инвалидируем кэш web-приложения через API
     await invalidateWebAppCache(courseId);
 
-    logger.warn("[Cache] Training days cache invalidated successfully", {
-      courseId,
-      operation: "warn",
-    });
+    console.log("[invalidateTrainingDaysCache] DONE");
   } catch (error) {
-    logger.error("❌ Error invalidating training days cache:", error as Error, {
-      operation: "error",
-    });
+    console.error("[invalidateTrainingDaysCache] ERROR:", error);
     logger.error(
       error instanceof Error ? error.message : "Unknown error in invalidateTrainingDaysCache",
       error instanceof Error ? error : new Error(String(error)),

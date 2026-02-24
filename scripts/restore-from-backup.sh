@@ -17,7 +17,7 @@ if [ -z "$DATABASE_URL" ]; then
 fi
 
 # Имя файла бэкапа
-BACKUP_FILE="gafus_backup_20260112_014929.sql"
+BACKUP_FILE="gafus_backup_20260224_132232.sql"
 
 if [ ! -f "$BACKUP_FILE" ]; then
   echo "❌ Ошибка: файл бэкапа $BACKUP_FILE не найден в корне проекта"
