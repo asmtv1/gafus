@@ -20,8 +20,13 @@ const AVATAR_MAX_SIZE_MB = 5;
 const PET_PHOTO_MAX_SIZE_MB = 2;
 
 const WEB_BASE_URL = "https://gafus.ru";
-const PRIVACY_POLICY_URL = `${WEB_BASE_URL}/privacy`;
-const SUPPORT_URL = `${WEB_BASE_URL}/support`;
+const DOCUMENT_URLS = {
+  policy: `${WEB_BASE_URL}/policy.html`,
+  oferta: `${WEB_BASE_URL}/oferta.html`,
+  personal: `${WEB_BASE_URL}/personal.html`,
+  personalDistribution: `${WEB_BASE_URL}/personal-distribution.html`,
+} as const;
+const SUPPORT_TELEGRAM_URL = "https://t.me/gafus_support";
 const PASSWORD_RESET_URL = `${WEB_BASE_URL}/reset-password`;
 
 // Функция для получения инициалов
@@ -714,7 +719,7 @@ export default function ProfileScreen() {
 
           <Pressable
             style={styles.infoItem}
-            onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+            onPress={() => Linking.openURL(DOCUMENT_URLS.policy)}
           >
             <Text style={styles.infoIcon}>🔒</Text>
             <View style={styles.infoContent}>
@@ -727,7 +732,46 @@ export default function ProfileScreen() {
 
           <Pressable
             style={styles.infoItem}
-            onPress={() => Linking.openURL(SUPPORT_URL)}
+            onPress={() => Linking.openURL(DOCUMENT_URLS.oferta)}
+          >
+            <Text style={styles.infoIcon}>📄</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoItemTitle}>Оферта</Text>
+            </View>
+            <Text style={styles.infoArrow}>→</Text>
+          </Pressable>
+
+          <View style={styles.infoDivider} />
+
+          <Pressable
+            style={styles.infoItem}
+            onPress={() => Linking.openURL(DOCUMENT_URLS.personal)}
+          >
+            <Text style={styles.infoIcon}>📋</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoItemTitle}>Согласие на обработку персональных данных</Text>
+            </View>
+            <Text style={styles.infoArrow}>→</Text>
+          </Pressable>
+
+          <View style={styles.infoDivider} />
+
+          <Pressable
+            style={styles.infoItem}
+            onPress={() => Linking.openURL(DOCUMENT_URLS.personalDistribution)}
+          >
+            <Text style={styles.infoIcon}>📋</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoItemTitle}>Согласие на распространение данных</Text>
+            </View>
+            <Text style={styles.infoArrow}>→</Text>
+          </Pressable>
+
+          <View style={styles.infoDivider} />
+
+          <Pressable
+            style={styles.infoItem}
+            onPress={() => Linking.openURL(SUPPORT_TELEGRAM_URL)}
           >
             <Text style={styles.infoIcon}>💬</Text>
             <View style={styles.infoContent}>

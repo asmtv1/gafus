@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import { declineRussianName } from "@gafus/core/utils";
 import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
 import { WebView } from "react-native-webview";
 
@@ -60,6 +61,11 @@ export default function TrainingDaysScreen() {
   const [userGender, setUserGender] = useState<"male" | "female">("male");
   const [petName, setPetName] = useState("");
   const [petGender, setPetGender] = useState<"male" | "female" | null>(null);
+  const [petNameGen, setPetNameGen] = useState("");
+  const [petNameDat, setPetNameDat] = useState("");
+  const [petNameAcc, setPetNameAcc] = useState("");
+  const [petNameIns, setPetNameIns] = useState("");
+  const [petNamePre, setPetNamePre] = useState("");
   const [isSavingPersonalization, setIsSavingPersonalization] = useState(false);
   const hasHandledPaymentReturnRef = useRef(false);
 
@@ -80,6 +86,11 @@ export default function TrainingDaysScreen() {
     setUserGender(existing.userGender === "female" ? "female" : "male");
     setPetName(existing.petName ?? "");
     setPetGender(existing.petGender ?? null);
+    setPetNameGen(existing.petNameGen ?? "");
+    setPetNameDat(existing.petNameDat ?? "");
+    setPetNameAcc(existing.petNameAcc ?? "");
+    setPetNameIns(existing.petNameIns ?? "");
+    setPetNamePre(existing.petNamePre ?? "");
   }, [courseData?.userCoursePersonalization]);
 
   const onRefresh = useCallback(() => {
@@ -145,6 +156,19 @@ export default function TrainingDaysScreen() {
     void Linking.openURL(url);
   }, [courseType]);
 
+  const handleFillDeclensions = useCallback(() => {
+    const trimmed = petName.trim();
+    if (!trimmed) return;
+    const gender =
+      petGender === "male" || petGender === "female" ? petGender : undefined;
+    const result = declineRussianName(trimmed, gender);
+    setPetNameGen(result.genitive);
+    setPetNameDat(result.dative);
+    setPetNameAcc(result.accusative);
+    setPetNameIns(result.instrumental);
+    setPetNamePre(result.prepositional);
+  }, [petName, petGender]);
+
   const handleSavePersonalization = useCallback(async () => {
     const courseId = courseData?.courseId;
     if (!courseId) {
@@ -169,6 +193,11 @@ export default function TrainingDaysScreen() {
       userGender,
       petName: trimmedPetName,
       petGender,
+      petNameGen: petNameGen.trim() || null,
+      petNameDat: petNameDat.trim() || null,
+      petNameAcc: petNameAcc.trim() || null,
+      petNameIns: petNameIns.trim() || null,
+      petNamePre: petNamePre.trim() || null,
     });
 
     if (!response.success) {
@@ -184,7 +213,21 @@ export default function TrainingDaysScreen() {
     router.replace(`/training/${courseType}`);
     setSnackbar({ visible: true, message: "Персонализация сохранена." });
     setIsSavingPersonalization(false);
-  }, [courseData?.courseId, courseType, petGender, petName, refetch, router, userDisplayName, userGender]);
+  }, [
+    courseData?.courseId,
+    courseType,
+    petGender,
+    petName,
+    petNameAcc,
+    petNameDat,
+    petNameGen,
+    petNameIns,
+    petNamePre,
+    refetch,
+    router,
+    userDisplayName,
+    userGender,
+  ]);
 
   const handleClosePaymentWebView = useCallback(
     async (isReturnUrl: boolean) => {
@@ -543,12 +586,15 @@ export default function TrainingDaysScreen() {
               label="Кличка питомца"
               value={petName}
               onChangeText={setPetName}
+              onBlur={handleFillDeclensions}
               mode="outlined"
               style={styles.personalizationInput}
               autoCapitalize="words"
             />
 
-            <Text style={styles.personalizationLabel}>Пол питомца (опционально)</Text>
+            <Text style={styles.personalizationLabel}>
+              Пол питомца (опционально). Нужен для правильного склонения клички
+            </Text>
             <View style={styles.genderRow}>
               <Pressable
                 onPress={() => setPetGender("male")}
@@ -599,6 +645,54 @@ export default function TrainingDaysScreen() {
                 </Text>
               </Pressable>
             </View>
+
+            <Text style={styles.personalizationLabel}>Склонения клички</Text>
+            <TextInput
+              label="Родительный (кого? — нет кого)"
+              value={petNameGen}
+              onChangeText={setPetNameGen}
+              mode="outlined"
+              style={styles.personalizationInput}
+              placeholder="Например: Барсика"
+            />
+            <TextInput
+              label="Дательный (кому?)"
+              value={petNameDat}
+              onChangeText={setPetNameDat}
+              mode="outlined"
+              style={styles.personalizationInput}
+              placeholder="Например: Барсику"
+            />
+            <TextInput
+              label="Винительный (кого? — вижу кого)"
+              value={petNameAcc}
+              onChangeText={setPetNameAcc}
+              mode="outlined"
+              style={styles.personalizationInput}
+              placeholder="Например: Барсика"
+            />
+            <TextInput
+              label="Творительный (кем?)"
+              value={petNameIns}
+              onChangeText={setPetNameIns}
+              mode="outlined"
+              style={styles.personalizationInput}
+              placeholder="Например: Барсиком"
+            />
+            <TextInput
+              label="Предложный (о ком?)"
+              value={petNamePre}
+              onChangeText={setPetNamePre}
+              mode="outlined"
+              style={styles.personalizationInput}
+              placeholder="Например: о Барсике"
+            />
+            <Pressable
+              onPress={handleFillDeclensions}
+              style={[styles.genderButton, styles.personalizationFillButton]}
+            >
+              <Text style={styles.personalizationFillButtonText}>Подставить склонения</Text>
+            </Pressable>
 
             <View style={styles.personalizationButtons}>
               <Pressable
@@ -897,6 +991,17 @@ const styles = StyleSheet.create({
   genderButtonTextActive: {
     color: "#ffffff",
     fontFamily: FONTS.montserratBold,
+  },
+  personalizationFillButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#636128",
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  personalizationFillButtonText: {
+    fontSize: 13,
+    color: "#FFF8E5",
+    fontFamily: FONTS.montserrat,
   },
   personalizationButtons: {
     marginTop: SPACING.sm,
