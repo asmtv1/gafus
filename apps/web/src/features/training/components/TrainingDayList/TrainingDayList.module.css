@@ -19,7 +19,7 @@
   padding: 0;
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  max-width: 500px;
   gap: 20px;
   align-items: start;
 }
