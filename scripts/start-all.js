@@ -120,12 +120,19 @@ apps.forEach((app) => {
     execSync(`sleep ${app.delay / 1000}`, { stdio: "ignore" });
   }
 
+  // Для trainer-panel: NEXT_PUBLIC_SITE_URL = URL web, чтобы revalidate инвалидировал локальный кэш
+  const extraEnv =
+    app.filter === "@gafus/trainer-panel" && !process.env.NEXT_PUBLIC_SITE_URL
+      ? { NEXT_PUBLIC_SITE_URL: "http://localhost:3002" }
+      : {};
+  const childEnv = { ...process.env, ...extraEnv };
+
   let child;
   const startCommand = app.watch ? "start:watch" : "start";
   child = spawn("pnpm", ["--filter", app.filter, startCommand], {
     stdio: "pipe",
     shell: true,
-    env: { ...process.env },
+    env: childEnv,
   });
 
   child.stdout.on("data", (data) => {

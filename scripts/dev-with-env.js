@@ -39,8 +39,15 @@ apps.forEach((app) => {
 
   let child;
   if (app.type === "next-dev") {
-    // Создаем объект окружения с переменными из .env + системными + портом
-    const childEnv = createChildEnv(envVars, { PORT: String(app.port) });
+    // Для trainer-panel: NEXT_PUBLIC_SITE_URL = URL web, чтобы revalidate инвалидировал локальный кэш
+    const extraEnv =
+      app.filter === "@gafus/trainer-panel" && !envVars.NEXT_PUBLIC_SITE_URL
+        ? { NEXT_PUBLIC_SITE_URL: "http://web.gafus.localhost:3002" }
+        : {};
+    const childEnv = createChildEnv(envVars, {
+      PORT: String(app.port),
+      ...extraEnv,
+    });
 
     child = spawn("pnpm", ["--filter", app.filter, "dev"], {
       stdio: "pipe",
