@@ -1,0 +1,30 @@
+diff --git a/android/build.gradle b/android/build.gradle
+index 114be81b3e887bf10aaac9da1574a2793eca296b..608222491e74366423dd75369ba913333e9491f8 100644
+--- a/android/build.gradle
++++ b/android/build.gradle	
+@@ -5,7 +5,7 @@ buildscript {
+     ext {
+         rnsDefaultTargetSdkVersion = 34
+         rnsDefaultCompileSdkVersion = 34
+-        rnsDefaultMinSdkVersion = 21
++        rnsDefaultMinSdkVersion = 24
+         rnsDefaultKotlinVersion = '1.8.0'
+     }
+     ext.safeExtGet = {prop, fallback ->
+@@ -126,7 +126,7 @@ android {
+     }
+ 
+     defaultConfig {
+-        minSdkVersion safeExtGet(['minSdkVersion', 'minSdk'], rnsDefaultMinSdkVersion)
++        minSdkVersion 24
+         targetSdkVersion safeExtGet(['targetSdkVersion', 'targetSdk'], rnsDefaultTargetSdkVersion)
+         versionCode 1
+         versionName "1.0"
+@@ -138,6 +138,7 @@ android {
+         externalNativeBuild {
+             cmake {
+                 arguments "-DANDROID_STL=c++_shared",
++                        "-DANDROID_PLATFORM=android-24",
+                         "-DRNS_NEW_ARCH_ENABLED=${IS_NEW_ARCHITECTURE_ENABLED}",
+                         "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+             }

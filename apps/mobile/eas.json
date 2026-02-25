@@ -21,6 +21,12 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "JAVA_HOME": "/opt/homebrew/opt/openjdk@17",
+        "ANDROID_HOME": "/Users/asmtv1/Library/Android/sdk",
+        "ORG_GRADLE_PROJECT_android.minSdkVersion": "24",
+        "GRADLE_OPTS": "-Xmx4096m -XX:MaxMetaspaceSize=2048m"
       }
     }
   },

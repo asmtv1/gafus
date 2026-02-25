@@ -1,0 +1,21 @@
+diff --git a/android/build.gradle b/android/build.gradle
+index 6b73a69d82ae9b04dd41e22b2d115019cf7eae14..4fdfaaf50bcaefc3f181ab3bb800e0952233e7d1 100644
+--- a/android/build.gradle
++++ b/android/build.gradle	
+@@ -181,7 +181,7 @@ android {
+     }
+ 
+     defaultConfig {
+-        minSdkVersion safeExtGet("minSdkVersion", 23)
++        minSdkVersion 24
+         targetSdkVersion safeExtGet("targetSdkVersion", 34)
+         versionCode 1
+         versionName REANIMATED_VERSION
+@@ -195,6 +195,7 @@ android {
+         externalNativeBuild {
+             cmake {
+                 arguments "-DANDROID_STL=c++_shared",
++                        "-DANDROID_PLATFORM=android-24",
+                         "-DREACT_NATIVE_MINOR_VERSION=${REACT_NATIVE_MINOR_VERSION}",
+                         "-DANDROID_TOOLCHAIN=clang",
+                         "-DREACT_NATIVE_DIR=${toPlatformFileString(reactNativeRootDir.path)}",

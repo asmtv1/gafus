@@ -6,8 +6,8 @@ const monorepoRoot = path.resolve(projectRoot, "../..");
 
 const config = getDefaultConfig(projectRoot);
 
-// Поддержка монорепозитория
-config.watchFolders = [monorepoRoot];
+// Поддержка монорепозитория (объединяем с дефолтами Expo)
+config.watchFolders = [...(config.watchFolders || [projectRoot]), monorepoRoot];
 
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),

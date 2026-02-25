@@ -128,3 +128,12 @@ tsconfig.tsbuildinfo
 
 # Uploads directory (files are stored in CDN)
 packages/public-assets/public/uploads/
+
+# Expo prebuild (CNG) — android/ios генерируются при сборке
+apps/mobile/android
+apps/mobile/ios
+
+# EAS credentials и подписи (секреты)
+apps/mobile/credentials.json
+apps/mobile/credentials/
+apps/mobile/rustore-signing/

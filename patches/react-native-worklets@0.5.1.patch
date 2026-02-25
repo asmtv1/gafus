@@ -1,0 +1,21 @@
+diff --git a/android/build.gradle b/android/build.gradle
+index 021f5bc26aed96940148e8cc809955e29372d326..838513522b617b941f2a04e03e66515d8f118ee7 100644
+--- a/android/build.gradle
++++ b/android/build.gradle	
+@@ -175,7 +175,7 @@ android {
+     }
+ 
+     defaultConfig {
+-        minSdkVersion safeExtGet("minSdkVersion", 23)
++        minSdkVersion 24
+         targetSdkVersion safeExtGet("targetSdkVersion", 34)
+         versionCode 1
+         versionName WORKLETS_VERSION
+@@ -188,6 +188,7 @@ android {
+         externalNativeBuild {
+             cmake {
+                 arguments "-DANDROID_STL=c++_shared",
++                        "-DANDROID_PLATFORM=android-24",
+                         "-DREACT_NATIVE_MINOR_VERSION=${REACT_NATIVE_MINOR_VERSION}",
+                         "-DANDROID_TOOLCHAIN=clang",
+                         "-DREACT_NATIVE_DIR=${toPlatformFileString(reactNativeRootDir.path)}",
