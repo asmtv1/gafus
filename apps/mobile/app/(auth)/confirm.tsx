@@ -66,6 +66,21 @@ export default function ConfirmScreen() {
           <Text style={styles.hint}>Ожидаем подтверждения...</Text>
         </View>
       )}
+
+      <View style={styles.altContainer}>
+        <Text style={styles.altTitle}>Альтернативный способ подтверждения</Text>
+        <Text style={styles.altText}>
+          Если у вас нет возможности использовать Telegram, вы вправе подтвердить
+          регистрацию по электронной почте. Направьте письмо с темой
+          «Подтверждение аккаунта» и указанием вашего имени пользователя в приложении на адрес:
+        </Text>
+        <Pressable onPress={() => Linking.openURL("mailto:asmtv1@yandex.ru?subject=%D0%9F%D0%BE%D0%B4%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B5+%D0%B0%D0%BA%D0%BA%D0%B0%D1%83%D0%BD%D1%82%D0%B0&body=%D0%9C%D0%BE%D1%91+%D0%B8%D0%BC%D1%8F+%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8F%3A+")}>
+          <Text style={styles.altEmail}>asmtv1@yandex.ru</Text>
+        </Pressable>
+        <Text style={styles.altText}>
+          Аккаунт будет активирован администратором в течение 24 часов.
+        </Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -109,6 +124,34 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 14,
     color: COLORS.textSecondary,
+    textAlign: "center",
+  },
+  altContainer: {
+    marginTop: SPACING.xl,
+    paddingTop: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    alignItems: "center",
+    gap: SPACING.sm,
+  },
+  altTitle: {
+    fontSize: 14,
+    fontFamily: FONTS.montserratBold,
+    color: COLORS.text,
+    textAlign: "center",
+  },
+  altText: {
+    fontSize: 12,
+    fontFamily: FONTS.montserrat,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  altEmail: {
+    fontSize: 13,
+    fontFamily: FONTS.montserrat,
+    color: COLORS.secondary,
+    textDecorationLine: "underline",
     textAlign: "center",
   },
 });

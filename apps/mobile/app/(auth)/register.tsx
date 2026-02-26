@@ -234,9 +234,14 @@ export default function RegisterScreen() {
             {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
 
             {/* Информация о подтверждении */}
-            <Text style={[styles.info, { width: formWidth }]}>
-              Требуется Подтверждение через Telegram
-            </Text>
+            <View style={[styles.infoBlock, { width: formWidth }]}>
+              <Text style={styles.info}>
+                Требуется подтверждение номера
+              </Text>
+              <Text style={styles.info}>
+              через Telegram, или альтернативным способом.
+              </Text>
+            </View>
 
             {/* Password Input */}
             <View style={[styles.passwordInputWrapper, { width: formWidth }]}>
@@ -389,7 +394,7 @@ export default function RegisterScreen() {
             <Pressable
               style={[
                 styles.button,
-                { width: Math.min(190, formWidth) },
+                { width: formWidth },
                 isLoading && styles.buttonDisabled,
               ]}
               onPress={handleRegister}
@@ -506,15 +511,21 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: COLORS.error,
   },
-  // Информация о подтверждении через Telegram
+  infoBlock: {
+    gap: 4,
+    paddingVertical: 8,
+  },
   info: {
-    color: "black",
+    color: COLORS.text,
     fontFamily: FONTS.montserrat,
-    fontStyle: "italic",
     fontWeight: "400",
     fontSize: 10,
-    paddingVertical: 10,
     textAlign: "center",
+    lineHeight: 14,
+  },
+  infoLink: {
+    color: COLORS.secondary,
+    textDecorationLine: "underline",
   },
   consentsContainer: {
     gap: 8,
@@ -555,27 +566,27 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
-  // Кнопка регистрации - width задаётся динамически
+  // Кнопка регистрации - width задаётся динамически, стиль как welcome
   button: {
     backgroundColor: COLORS.primary,
-    height: 36,
-    borderRadius: 5,
+    height: 48,
+    borderRadius: 8,
     marginTop: 30,
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: COLORS.cardBackground,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 3,
   },
   buttonText: {
     fontFamily: FONTS.impact,
     fontWeight: "400",
-    fontSize: 20,
-    color: "#dad3c1",
+    fontSize: 22,
+    color: COLORS.onPrimary,
     textAlign: "center",
   },
 });

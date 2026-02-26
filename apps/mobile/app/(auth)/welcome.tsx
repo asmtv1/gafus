@@ -18,7 +18,7 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.container}>
       {/* Шапка с лапкой */}
       <View style={styles.pawContainer}>
-        <Text style={styles.pawText}>гуляем</Text>
+        <Text style={styles.pawText}>учимся</Text>
         <Image
           source={require("../../assets/images/paw.png")}
           style={styles.paw}
@@ -30,23 +30,12 @@ export default function WelcomeScreen() {
       {/* Заголовок */}
       <Text style={styles.title}>Гафус!</Text>
 
-      {/* Диалог с собакой - позиционирование как в веб */}
-      <View style={styles.dialogContainer}>
-        <Image
-          source={require("../../assets/images/logo.png")}
-          style={styles.logo}
-          contentFit="contain"
-        />
-        <View style={styles.speechBubbleWrapper}>
-          <View style={styles.speechBubble}>
-            <Text style={styles.speechText}>
-              Добро ГАФ пожаловать!{"\n"}Я - мудрый Гафус!{"\n"}Я буду помогать тебе{"\n"}с
-              тренировками!
-            </Text>
-          </View>
-          <View style={styles.speechBubbleTail} />
-        </View>
-      </View>
+      {/* Приветственная иллюстрация */}
+      <Image
+        source={require("../../assets/images/firstscrin.png")}
+        style={styles.welcomeImage}
+        contentFit="contain"
+      />
 
       {/* Кнопки */}
       <View style={styles.buttonsContainer}>
@@ -110,59 +99,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontFamily: FONTS.impact, // Impact для соответствия веб-версии
   },
-  // Диалог - позиционирование как в веб с left: -70px
-  dialogContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: -30,
-    marginTop: 55,
-  },
-  logo: {
-    width: 230,
-    height: 250,
-    marginTop: -40,
-    marginRight: 50,
-  },
-  speechBubbleWrapper: {
-    position: "relative",
-    marginTop: -250,
-    marginLeft: -85,
-  },
-  speechBubble: {
-    backgroundColor: "#f5f0d8",
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    minWidth: 210,
-    maxWidth: 280,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  speechBubbleTail: {
-    position: "absolute",
-    width: 0,
-    height: 0,
-    borderTopWidth: 17,
-    borderTopColor: "transparent",
-    borderBottomWidth: 23,
-    borderBottomColor: "transparent",
-    borderRightWidth: 26,
-    borderRightColor: "#f5f0d8",
-    top: 75,
-    right: 190,
-    transform: [{ rotate: "-0.8rad" }],
-  },
-
-  speechText: {
-    fontFamily: "Courier New", // Соответствует веб-версии
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#4a4a2a",
-    textAlign: "center",
-    fontWeight: "500",
+  welcomeImage: {
+    width: Math.min(380, SCREEN_WIDTH - SPACING.md * 4),
+    aspectRatio: 1,
+    marginTop: SPACING.sm,
   },
   // Кнопки - размеры как в веб (221x48)
   buttonsContainer: {
