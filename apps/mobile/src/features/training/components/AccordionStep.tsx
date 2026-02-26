@@ -11,7 +11,7 @@ import {
   STEP_STATUS_LABELS,
 } from "@gafus/core/utils/training";
 import type { TrainingStatus } from "@gafus/types";
-import { Button, MarkdownText, VideoPlayer } from "@/shared/components";
+import { MarkdownText, VideoPlayer } from "@/shared/components";
 import type { UserStep, StepContent } from "@/shared/lib/api";
 import { TestQuestionsBlock, type ChecklistQuestion } from "./TestQuestionsBlock";
 import { VideoReportBlock } from "./VideoReportBlock";
@@ -334,7 +334,7 @@ function AccordionStepComponent({
         : `#${index + 1}`;
   const stepSubtitle =
     stepType === "BREAK" ? stepData?.title ?? "" : `«${stepData?.title ?? "Шаг"}»`;
-  const showDiaryBlock = (isTheory || isDiary) && !!onSaveDiary;
+  const showDiaryBlock = isDiary && !!onSaveDiary;
 
   return (
     <View
@@ -694,7 +694,17 @@ function AccordionStepComponent({
                     </View>
                   )
                 ) : isTheory && !isCompleted ? (
-                  <Button label="Прочитано" onPress={onComplete} icon="check" />
+                  <View style={styles.completeAction}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.completeBtn,
+                        pressed && styles.completeBtnPressed,
+                      ]}
+                      onPress={onComplete}
+                    >
+                      <Text style={styles.completeBtnText}>Прочитано</Text>
+                    </Pressable>
+                  </View>
                 ) : isCompleted ? (
                   <View style={styles.completedBadge}>
                     <MaterialCommunityIcons name="check" size={16} color={COLORS.success} />

@@ -400,6 +400,35 @@ describe("getCourseDraftWithRelations", () => {
     expect(result).toBeNull();
   });
 
+  it("returns course when allowAdmin and trainerId does not match authorId", async () => {
+    mockCourseFindUnique.mockResolvedValue({
+      id: "c1",
+      name: "Курс",
+      shortDesc: "",
+      description: "",
+      duration: "30",
+      videoUrl: null,
+      logoImg: "",
+      isPrivate: false,
+      isPaid: false,
+      priceRub: null,
+      showInProfile: true,
+      isPersonalized: false,
+      equipment: "",
+      trainingLevel: "beginner",
+      authorId: "other-trainer",
+      dayLinks: [],
+      access: [],
+    });
+
+    const result = await getCourseDraftWithRelations("c1", "admin-id", {
+      allowAdmin: true,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.id).toBe("c1");
+  });
+
   it("returns null when prisma throws", async () => {
     mockCourseFindUnique.mockRejectedValue(new Error("DB timeout"));
 

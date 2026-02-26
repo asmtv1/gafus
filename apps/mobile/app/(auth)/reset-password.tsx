@@ -160,7 +160,7 @@ export default function ResetPasswordScreen() {
           <View style={styles.form}>
             {/* Логин Input */}
             <TextInput
-              style={styles.input}
+              style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
               value={username}
               onChangeText={(text) => {
                 setUsername(text);
@@ -178,7 +178,7 @@ export default function ResetPasswordScreen() {
 
             {/* Телефон Input */}
             <TextInput
-              style={styles.input}
+              style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
               value={phone}
               onChangeText={(text) => {
                 setPhone(text);
@@ -317,9 +317,14 @@ const styles = StyleSheet.create({
     borderColor: "#636128",
     borderRadius: 5,
     paddingLeft: 10,
+    paddingVertical: 0,
     fontSize: 12,
     fontFamily: FONTS.montserrat,
     color: COLORS.primary,
+  },
+  inputAndroid: {
+    textAlignVertical: "center" as const,
+    includeFontPadding: false,
   },
   // Текст ошибки
   errorText: {

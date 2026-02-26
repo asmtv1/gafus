@@ -746,9 +746,9 @@ export default function TrainingDayScreen() {
                     }}
                     diaryEntries={diaryEntries}
                     onSaveDiary={
-                      stepType === "THEORY" || stepType === "DIARY" ?
-                        async (content) => handleSaveDiaryForStep(index, content, stepTitle)
-                      : undefined
+                      stepType === "DIARY"
+                        ? async (content) => handleSaveDiaryForStep(index, content, stepTitle)
+                        : undefined
                     }
                   />
                   );

@@ -347,10 +347,12 @@ export async function deleteCourse(
 /**
  * Получение курса с dayLinks и access для формы редактирования.
  * Возвращает null, если курс не найден или не принадлежит тренеру.
+ * При allowAdmin: true проверка автора пропускается (для ADMIN).
  */
 export async function getCourseDraftWithRelations(
   courseId: string,
   trainerId: string,
+  options?: { allowAdmin?: boolean },
 ): Promise<CourseDraftDto | null> {
   try {
     const course = await prisma.course.findUnique({
@@ -389,9 +391,9 @@ export async function getCourseDraftWithRelations(
       },
     });
 
-    if (!course || course.authorId !== trainerId) {
-      return null;
-    }
+    if (!course) return null;
+    const isAuthor = course.authorId === trainerId;
+    if (!options?.allowAdmin && !isAuthor) return null;
 
     return {
       id: course.id,

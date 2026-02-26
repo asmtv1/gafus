@@ -15,10 +15,11 @@ export default async function EditCoursePage({ params }: PageProps) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
   const trainerId = session?.user?.id ?? "";
+  const isAdmin = session?.user?.role === "ADMIN";
   const trainerVideos = trainerId ? await getTrainerVideos(trainerId) : [];
 
   const course = trainerId
-    ? await getCourseDraftWithRelations(id, trainerId)
+    ? await getCourseDraftWithRelations(id, trainerId, { allowAdmin: isAdmin })
     : null;
 
   const days = await getVisibleDays();

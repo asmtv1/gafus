@@ -12,10 +12,11 @@
         "projectId": "6c36fab5-6226-450f-8ee5-64e9beeea7db"
       }
     },
+    "icon": "./assets/images/icon512.png",
     "splash": {
       "image": "./assets/images/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#2EC6FE"
+      "backgroundColor": "#dad3c1"
     },
     "ios": {
       "supportsTablet": true,
@@ -27,7 +28,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#2EC6FE"
+        "foregroundImage": "./assets/images/icon512.png",
+        "backgroundColor": "#dad3c1"
       },
       "package": "ru.gafus.app",
       "versionCode": 1,

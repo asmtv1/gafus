@@ -7,7 +7,7 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  Dimensions,
+  useWindowDimensions,
   Linking,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
@@ -23,7 +23,7 @@ import { useAuthStore } from "@/shared/stores";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const FORM_WIDTH = 280;
 
 const registerSchema = z
   .object({
@@ -70,7 +70,10 @@ type FormErrors = {
  */
 export default function RegisterScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const { register, setPendingConfirmPhone } = useAuthStore();
+
+  const formWidth = Math.min(FORM_WIDTH, width - SPACING.md * 4);
 
   const [form, setForm] = useState({
     name: "",
@@ -180,23 +183,31 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Заголовок */}
-          <Text style={styles.title}>Гафус!</Text>
+          <Text style={[styles.title, { fontSize: Math.min(100, width * 0.28) }]}>
+            Гафус!
+          </Text>
 
           {/* Контейнер с логотипом и подзаголовком */}
           <View style={styles.logoContainer}>
             <Image
               source={require("../../assets/images/register-logo.png")}
-              style={styles.logo}
+              style={[styles.logo, { width: formWidth, height: formWidth * 0.74 }]}
               contentFit="contain"
             />
-            <Text style={styles.subtitle}>регистрация</Text>
+            <Text style={[styles.subtitle, { fontSize: Math.min(40, width * 0.1) }]}>
+              регистрация
+            </Text>
           </View>
 
           {/* Форма */}
-          <View style={styles.form}>
+          <View style={[styles.form, { width: formWidth }]}>
             {/* Name Input */}
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                { width: formWidth },
+                Platform.OS === "android" && styles.inputAndroid,
+              ]}
               value={form.name}
               onChangeText={(v) => updateField("name", v)}
               placeholder="Имя пользователя"
@@ -208,7 +219,11 @@ export default function RegisterScreen() {
 
             {/* Phone Input */}
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                { width: formWidth },
+                Platform.OS === "android" && styles.inputAndroid,
+              ]}
               value={form.phone}
               onChangeText={(v) => updateField("phone", v)}
               placeholder="+7XXXXXXXXXX"
@@ -219,12 +234,18 @@ export default function RegisterScreen() {
             {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
 
             {/* Информация о подтверждении */}
-            <Text style={styles.info}>Требуется Подтверждение через Telegram</Text>
+            <Text style={[styles.info, { width: formWidth }]}>
+              Требуется Подтверждение через Telegram
+            </Text>
 
             {/* Password Input */}
-            <View style={styles.passwordInputWrapper}>
+            <View style={[styles.passwordInputWrapper, { width: formWidth }]}>
               <TextInput
-                style={styles.inputWithIcon}
+                style={[
+                  styles.inputWithIcon,
+                  { width: formWidth },
+                  Platform.OS === "android" && styles.inputAndroid,
+                ]}
                 value={form.password}
                 onChangeText={(v) => updateField("password", v)}
                 placeholder="Пароль"
@@ -247,9 +268,13 @@ export default function RegisterScreen() {
             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
             {/* Confirm Password Input */}
-            <View style={styles.passwordInputWrapper}>
+            <View style={[styles.passwordInputWrapper, { width: formWidth }]}>
               <TextInput
-                style={styles.inputWithIcon}
+                style={[
+                  styles.inputWithIcon,
+                  { width: formWidth },
+                  Platform.OS === "android" && styles.inputAndroid,
+                ]}
                 value={form.confirmPassword}
                 onChangeText={(v) => updateField("confirmPassword", v)}
                 placeholder="Повторите пароль"
@@ -276,7 +301,7 @@ export default function RegisterScreen() {
             )}
 
             {/* Согласия */}
-            <View style={styles.consentsContainer}>
+            <View style={[styles.consentsContainer, { width: formWidth }]}>
               <View style={styles.consentRow}>
                 <Pressable
                   style={[styles.checkbox, consents.acceptPersonalData && styles.checkboxChecked]}
@@ -362,7 +387,11 @@ export default function RegisterScreen() {
 
             {/* Кнопка регистрации */}
             <Pressable
-              style={[styles.button, isLoading && styles.buttonDisabled]}
+              style={[
+                styles.button,
+                { width: Math.min(190, formWidth) },
+                isLoading && styles.buttonDisabled,
+              ]}
               onPress={handleRegister}
               disabled={isLoading}
             >
@@ -401,9 +430,8 @@ const styles = StyleSheet.create({
     paddingBottom: 22,
     gap: 16,
   },
-  // Заголовок "Гафус!" - как в веб (Impact, 110px)
+  // Заголовок "Гафус!" - fontSize задаётся динамически
   title: {
-    fontSize: Math.min(100, SCREEN_WIDTH * 0.28),
     fontWeight: "400",
     color: COLORS.primary,
     textAlign: "center",
@@ -416,11 +444,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  // Логотип - 277x204
-  logo: {
-    width: Math.min(277, SCREEN_WIDTH * 0.7),
-    height: Math.min(204, SCREEN_WIDTH * 0.52),
-  },
+  // Логотип - размеры задаются динамически
+  logo: {},
   // Подзаголовок "регистрация" - Impact, 40px
   subtitle: {
     fontSize: 40,
@@ -434,32 +459,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
   },
-  // Инпуты - 250x29, border 2px #636128
+  // Инпуты - border 2px #636128, width задаётся динамически
   input: {
     backgroundColor: COLORS.cardBackground,
-    width: 230,
     height: 29,
     borderWidth: 2,
     borderColor: "#636128",
     borderRadius: 5,
     paddingLeft: 10,
+    paddingVertical: 0,
     fontSize: 12,
     fontFamily: FONTS.montserrat,
     color: COLORS.primary,
   },
+  inputAndroid: {
+    textAlignVertical: "center" as const,
+    includeFontPadding: false,
+  },
   passwordInputWrapper: {
     position: "relative",
-    width: 230,
   },
   inputWithIcon: {
     backgroundColor: COLORS.cardBackground,
-    width: 230,
     height: 29,
     borderWidth: 2,
     borderColor: "#636128",
     borderRadius: 5,
     paddingLeft: 10,
     paddingRight: 40,
+    paddingVertical: 0,
     fontSize: 12,
     fontFamily: FONTS.montserrat,
     color: COLORS.primary,
@@ -489,7 +517,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   consentsContainer: {
-    width: 230,
     gap: 8,
     marginTop: 8,
   },
@@ -515,6 +542,7 @@ const styles = StyleSheet.create({
   },
   consentText: {
     flex: 1,
+    minWidth: 0,
     fontSize: 9,
     fontFamily: FONTS.montserrat,
     color: COLORS.primary,
@@ -527,10 +555,9 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
-  // Кнопка регистрации
+  // Кнопка регистрации - width задаётся динамически
   button: {
     backgroundColor: COLORS.primary,
-    width: 190,
     height: 36,
     borderRadius: 5,
     marginTop: 30,

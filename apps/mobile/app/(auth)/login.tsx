@@ -126,7 +126,7 @@ export default function LoginScreen() {
           <View style={styles.form}>
             {/* Username Input */}
             <TextInput
-              style={styles.input}
+              style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
               value={username}
               onChangeText={setUsername}
               placeholder="Имя пользователя"
@@ -141,7 +141,7 @@ export default function LoginScreen() {
             {/* Password Input */}
             <View style={styles.passwordInputWrapper}>
               <TextInput
-                style={styles.inputWithIcon}
+                style={[styles.inputWithIcon, Platform.OS === "android" && styles.inputAndroid]}
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Пароль"
@@ -288,9 +288,14 @@ const styles = StyleSheet.create({
     borderColor: "#636128",
     borderRadius: 5,
     paddingLeft: 10,
+    paddingVertical: 0,
     fontSize: 12,
     fontFamily: FONTS.montserrat,
     color: COLORS.primary,
+  },
+  inputAndroid: {
+    textAlignVertical: "center" as const,
+    includeFontPadding: false,
   },
   passwordInputWrapper: {
     position: "relative",
@@ -305,6 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingLeft: 10,
     paddingRight: 40,
+    paddingVertical: 0,
     fontSize: 12,
     fontFamily: FONTS.montserrat,
     color: COLORS.primary,

@@ -1,32 +1,33 @@
-import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { subscriptionsApi } from "@/shared/lib/api";
-
-// Настройка поведения уведомлений в foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 /**
  * Регистрация для получения push уведомлений
  * @returns Expo Push Token или null если не удалось
  */
 export async function registerForPushNotifications(): Promise<string | null> {
-  // Проверяем, что это реальное устройство
+  // Expo Go не поддерживает push (SDK 53+)
+  if (Constants.appOwnership === "expo") return null;
+
+  const Notifications = await import("expo-notifications");
+
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+
   if (!Device.isDevice) {
     console.log("Push notifications require a physical device");
     return null;
   }
 
-  // Проверяем/запрашиваем разрешения
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
@@ -41,7 +42,6 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   try {
-    // Получаем токен
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     const tokenData = await Notifications.getExpoPushTokenAsync({
       projectId,
@@ -49,7 +49,6 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
     const token = tokenData.data;
 
-    // Настройки для Android
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "default",

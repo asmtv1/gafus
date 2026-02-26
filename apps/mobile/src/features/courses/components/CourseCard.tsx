@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { View, StyleSheet, Pressable, Alert, ActivityIndicator } from "react-native";
-import { Text, IconButton } from "react-native-paper";
+import { View, StyleSheet, Pressable, Alert, ActivityIndicator, Platform } from "react-native";
+import { Text } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -153,6 +153,11 @@ export function CourseCard({
         : authorAvatarUrl
       : null;
 
+  const logoImgUri =
+    course.logoImg?.startsWith("/")
+      ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
+      : course.logoImg || undefined;
+
   const handleCheckUpdates = async () => {
     const version = downloaded[courseType]?.version;
     if (!version) return;
@@ -214,11 +219,12 @@ export function CourseCard({
             <View style={styles.imageContainer}>
               <View style={styles.imageFrame}>
                 <Image
-                  source={{ uri: course.logoImg }}
+                  source={{ uri: logoImgUri, cacheKey: `course-logo-${course.id}` }}
                   style={styles.courseImage}
                   contentFit="contain"
                   contentPosition="center"
-                  transition={200}
+                  recyclingKey={course.id}
+                  transition={0}
                 />
                 {course.isPaid && (
                   <View style={styles.paidBadge}>
@@ -309,23 +315,34 @@ export function CourseCard({
               ) : null}
             </View>
             <View style={styles.authorTextWrap}>
-              <Text style={styles.authorLine} numberOfLines={1}>
+              <Text
+                style={styles.authorLine}
+                numberOfLines={1}
+                {...(Platform.OS === "android" && { includeFontPadding: false })}
+              >
                 <Text style={styles.authorLabel}>Автор курса: </Text>
-                <Text style={styles.authorLink}>
+                <Text style={styles.authorLink} numberOfLines={1}>
                   {course.authorUsername ?? "Неизвестный автор"}
                 </Text>
               </Text>
             </View>
           </Pressable>
           <View style={styles.authorBookmarkWrap}>
-            <IconButton
-              icon={isFavorite ? "bookmark" : "bookmark-outline"}
-              iconColor={isFavorite ? "#E6B800" : COLORS.primary}
-              size={36}
+            <Pressable
               onPress={onToggleFavorite}
               disabled={disabled}
-              style={styles.favoriteButton}
-            />
+              style={({ pressed }) => [
+                styles.favoriteButton,
+                pressed && styles.favoriteButtonPressed,
+              ]}
+              hitSlop={12}
+            >
+              <MaterialCommunityIcons
+                name={isFavorite ? "bookmark" : "bookmark-outline"}
+                size={28}
+                color={isFavorite ? "#E6B800" : COLORS.primary}
+              />
+            </Pressable>
           </View>
         </View>
       </View>
@@ -722,13 +739,20 @@ const styles = StyleSheet.create({
     paddingRight: 28,
     borderWidth: 1,
     borderColor: "#e6e1ce",
-    borderRadius: 9999,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    borderRadius: 28,
+    backgroundColor: "#fffdf8",
     overflow: "visible",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#636128",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   authorInfo: {
     flexDirection: "row",
@@ -769,17 +793,22 @@ const styles = StyleSheet.create({
   },
   authorLink: {
     color: COLORS.secondary,
-    fontWeight: "500",
-    fontSize: 16,
+    fontSize: 15,
+    fontFamily: FONTS.montserratMedium,
   },
   authorBookmarkWrap: {
-    marginRight: -24,
-    width: 52,
-    minWidth: 52,
+    marginRight: -20,
+    width: 48,
+    minWidth: 48,
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "center",
   },
   favoriteButton: {
-    margin: 0,
+    padding: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  favoriteButtonPressed: {
+    opacity: 0.7,
   },
 });

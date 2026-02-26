@@ -1,269 +1,152 @@
-import { View, StyleSheet, Text } from "react-native";
+import { StyleSheet, View } from "react-native";
+import Markdown from "react-native-markdown-display";
 
-import { FONTS } from "@/constants";
+import { COLORS, FONTS } from "@/constants";
 
-/** Рендер markdown (жирный, курсив, заголовки, списки) для React Native */
+/** Рендер markdown (CommonMark) — как на web с react-markdown */
 export function MarkdownText({ text }: { text: string }) {
   if (!text || typeof text !== "string") return null;
 
-  const lines = text.split("\n");
-  const elements: React.ReactNode[] = [];
-  let currentParagraph: string[] = [];
-  let listItems: string[] = [];
-  let inList = false;
-  let isOrderedList = false;
-
-  const renderTextWithFormatting = (raw: string, style: object) => {
-    const boldPattern = /\*\*(.+?)\*\*/g;
-    const italicPattern = /(?<!\*)\*([^*]+?)\*(?!\*)/g;
-    const boldMatches: { start: number; end: number; text: string }[] = [];
-    let m: RegExpExecArray | null;
-    while ((m = boldPattern.exec(raw)) !== null) {
-      boldMatches.push({ start: m.index, end: m.index + m[0].length, text: m[1] });
-    }
-    const italicMatches: { start: number; end: number; text: string }[] = [];
-    while ((m = italicPattern.exec(raw)) !== null) {
-      if (!boldMatches.some((b) => m!.index >= b.start && m!.index < b.end)) {
-        italicMatches.push({ start: m.index, end: m.index + m[0].length, text: m[1] });
-      }
-    }
-    const all = [
-      ...boldMatches.map((x) => ({ ...x, type: "bold" as const })),
-      ...italicMatches.map((x) => ({ ...x, type: "italic" as const })),
-    ].sort((a, b) => a.start - b.start);
-
-    let idx = 0;
-    let last = 0;
-    const parts: React.ReactNode[] = [];
-    all.forEach((match) => {
-      if (match.start > last) {
-        parts.push(
-          <Text key={idx++} style={style}>
-            {raw.substring(last, match.start)}
-          </Text>,
-        );
-      }
-      if (match.type === "bold") {
-        parts.push(
-          <Text key={idx++} style={[style, styles.bold]}>
-            {match.text}
-          </Text>,
-        );
-      } else {
-        parts.push(
-          <Text key={idx++} style={[style, styles.italic]}>
-            {match.text}
-          </Text>,
-        );
-      }
-      last = match.end;
-    });
-    if (last < raw.length) {
-      parts.push(
-        <Text key={idx++} style={style}>
-          {raw.substring(last)}
-        </Text>,
-      );
-    }
-    if (parts.length === 0) {
-      return <Text style={style}>{raw}</Text>;
-    }
-    return <Text style={style}>{parts}</Text>;
-  };
-
-  const flushParagraph = () => {
-    if (currentParagraph.length > 0) {
-      const p = currentParagraph.join(" ");
-      elements.push(
-        <View key={`p-${elements.length}`} style={styles.paragraph}>
-          {renderTextWithFormatting(p, styles.paragraphText)}
-        </View>,
-      );
-      currentParagraph = [];
-    }
-  };
-
-  const flushList = () => {
-    if (listItems.length > 0) {
-      elements.push(
-        <View key={`list-${elements.length}`} style={styles.list}>
-          {listItems.map((item, i) => (
-            <View key={i} style={styles.listItem}>
-              <Text style={styles.bullet}>
-                {isOrderedList ? `${i + 1}.` : "•"}
-              </Text>
-              <View style={styles.listTextWrap}>
-                {renderTextWithFormatting(item.trim(), styles.listText)}
-              </View>
-            </View>
-          ))}
-        </View>,
-      );
-      listItems = [];
-      inList = false;
-      isOrderedList = false;
-    }
-  };
-
-  lines.forEach((line, index) => {
-    let t = line.trim();
-    // Blockquote (> или > ) — убираем префикс и обрабатываем остальное (как в web)
-    if (t.startsWith(">")) {
-      t = t.replace(/^>\s?/, "").trim();
-    }
-    // Горизонтальная линия (---, ***, ___) — как в web
-    if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) {
-      flushParagraph();
-      flushList();
-      elements.push(<View key={`hr-${index}`} style={styles.hr} />);
-      return;
-    }
-    if (t.startsWith("# ")) {
-      flushParagraph();
-      flushList();
-      elements.push(
-        <View key={`h1-${index}`} style={styles.heading}>
-          {renderTextWithFormatting(t.replace(/^#+\s/, ""), styles.h1)}
-        </View>,
-      );
-      return;
-    }
-    if (t.startsWith("## ")) {
-      flushParagraph();
-      flushList();
-      elements.push(
-        <View key={`h2-${index}`} style={styles.heading}>
-          {renderTextWithFormatting(t.replace(/^#+\s/, ""), styles.h2)}
-        </View>,
-      );
-      return;
-    }
-    if (t.startsWith("### ")) {
-      flushParagraph();
-      flushList();
-      elements.push(
-        <View key={`h3-${index}`} style={styles.heading}>
-          {renderTextWithFormatting(t.replace(/^#+\s/, ""), styles.h3)}
-        </View>,
-      );
-      return;
-    }
-    if (/^#{4,6}\s/.test(t)) {
-      flushParagraph();
-      flushList();
-      const level = (t.match(/^(#+)/)?.[1]?.length) ?? 4;
-      const style = level <= 4 ? styles.h4 : level <= 5 ? styles.h5 : styles.h6;
-      elements.push(
-        <View key={`h${level}-${index}`} style={styles.heading}>
-          {renderTextWithFormatting(t.replace(/^#+\s/, ""), style)}
-        </View>,
-      );
-      return;
-    }
-    if (t.startsWith("- ") || t.startsWith("* ")) {
-      flushParagraph();
-      flushList();
-      inList = true;
-      isOrderedList = false;
-      listItems.push(t.replace(/^[-*]\s/, ""));
-      return;
-    }
-    if (/^\d+\.\s/.test(t)) {
-      flushParagraph();
-      flushList();
-      inList = true;
-      isOrderedList = true;
-      listItems.push(t.replace(/^\d+\.\s/, ""));
-      return;
-    }
-    if (t) {
-      flushList();
-      currentParagraph.push(t);
-    } else {
-      flushParagraph();
-      flushList();
-    }
-  });
-  flushParagraph();
-  flushList();
-
-  if (elements.length === 0) {
-    return (
-      <View style={styles.paragraph}>
-        {renderTextWithFormatting(text, styles.paragraphText)}
-      </View>
-    );
-  }
-  return <View style={styles.root}>{elements}</View>;
+  return (
+    <View style={styles.container}>
+      <Markdown style={markdownStyles} mergeStyle>
+        {text}
+      </Markdown>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  root: {},
-  paragraph: { marginBottom: 8 },
-  paragraphText: {
+  container: {},
+});
+
+const markdownStyles = StyleSheet.create({
+  body: {
+    color: COLORS.text,
     fontSize: 14,
     lineHeight: 20,
-    color: "#352E2E",
     fontFamily: FONTS.montserrat,
   },
-  bold: { fontWeight: "600", fontFamily: FONTS.montserrat },
-  italic: { fontStyle: "italic", fontFamily: FONTS.montserrat },
-  heading: { marginTop: 12, marginBottom: 8 },
-  h1: {
+  paragraph: {
+    marginTop: 0,
+    marginBottom: 8,
+  },
+  strong: {
+    fontWeight: "600",
+    fontFamily: FONTS.montserrat,
+  },
+  em: {
+    fontStyle: "italic",
+    fontFamily: FONTS.montserrat,
+  },
+  s: {
+    textDecorationLine: "line-through",
+  },
+  heading1: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#352E2E",
+    color: COLORS.text,
     fontFamily: FONTS.impact,
+    marginTop: 12,
+    marginBottom: 8,
   },
-  h2: {
+  heading2: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#352E2E",
+    color: COLORS.text,
     fontFamily: FONTS.impact,
+    marginTop: 12,
+    marginBottom: 8,
   },
-  h3: {
+  heading3: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#352E2E",
+    color: COLORS.text,
     fontFamily: FONTS.impact,
+    marginTop: 12,
+    marginBottom: 8,
   },
-  h4: {
+  heading4: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#352E2E",
+    color: COLORS.text,
     fontFamily: FONTS.impact,
+    marginTop: 12,
+    marginBottom: 8,
   },
-  h5: {
+  heading5: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#352E2E",
+    color: COLORS.text,
     fontFamily: FONTS.impact,
+    marginTop: 12,
+    marginBottom: 8,
   },
-  h6: {
+  heading6: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#352E2E",
+    color: COLORS.text,
     fontFamily: FONTS.impact,
+    marginTop: 12,
+    marginBottom: 8,
   },
-  list: { marginBottom: 8, paddingLeft: 8 },
-  listItem: { flexDirection: "row", marginBottom: 4 },
-  bullet: {
-    marginRight: 6,
+  bullet_list: {
+    marginBottom: 8,
+  },
+  ordered_list: {
+    marginBottom: 8,
+  },
+  list_item: {
+    marginBottom: 4,
+  },
+  bullet_list_icon: {
+    color: COLORS.text,
     fontSize: 14,
-    color: "#352E2E",
     fontFamily: FONTS.montserrat,
   },
-  listTextWrap: { flex: 1 },
-  listText: {
+  bullet_list_content: {
+    color: COLORS.text,
     fontSize: 14,
     lineHeight: 20,
-    color: "#352E2E",
     fontFamily: FONTS.montserrat,
   },
+  ordered_list_icon: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontFamily: FONTS.montserrat,
+  },
+  ordered_list_content: {
+    color: COLORS.text,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: FONTS.montserrat,
+  },
+  blockquote: {
+    backgroundColor: "rgba(99, 97, 40, 0.08)",
+    borderLeftColor: COLORS.border,
+    borderLeftWidth: 4,
+    paddingLeft: 12,
+    marginVertical: 8,
+  },
   hr: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    backgroundColor: "#ddd",
+    height: 1,
     marginVertical: 12,
-    alignSelf: "stretch",
+  },
+  code_inline: {
+    backgroundColor: "rgba(0,0,0,0.06)",
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    paddingHorizontal: 4,
+  },
+  code_block: {
+    backgroundColor: "rgba(0,0,0,0.06)",
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    padding: 12,
+    marginVertical: 8,
+  },
+  link: {
+    color: COLORS.secondary,
   },
 });
