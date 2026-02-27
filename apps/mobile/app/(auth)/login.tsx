@@ -7,7 +7,6 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  Dimensions,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
@@ -17,9 +16,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 
 import { useAuthStore } from "@/shared/stores";
+import { useLayout } from "@/shared/hooks";
 import { COLORS, SPACING, FONTS } from "@/constants";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // Схема валидации
 const loginSchema = z.object({
@@ -37,7 +35,11 @@ type FormErrors = {
  */
 export default function LoginScreen() {
   const router = useRouter();
+  const layout = useLayout();
   const { login } = useAuthStore();
+
+  const formWidth = layout.contentWidth(SPACING.md * 4, 280);
+  const logoSize = Math.min(layout.scale(303), layout.contentWidth(SPACING.md * 4));
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -78,7 +80,7 @@ export default function LoginScreen() {
           message: result.error || "Ошибка авторизации",
         });
       }
-    } catch (error) {
+    } catch {
       setSnackbar({
         visible: true,
         message: "Ошибка подключения к серверу",
@@ -99,20 +101,34 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Заголовок */}
-          <Text style={styles.title}>Гафус!</Text>
+          <Text
+            style={[
+              styles.title,
+              { fontSize: Math.min(layout.moderateScale(100, 0.4), 100) },
+            ]}
+          >
+            Гафус!
+          </Text>
 
           {/* Логотип */}
           <Image
             source={require("../../assets/images/login.png")}
-            style={styles.logo}
+            style={[styles.logo, { width: logoSize, height: logoSize }]}
             contentFit="contain"
           />
 
           {/* Подзаголовок */}
-          <Text style={styles.subtitle}>Авторизация</Text>
+          <Text
+            style={[
+              styles.subtitle,
+              { fontSize: layout.moderateScale(40), maxWidth: layout.scale(320) },
+            ]}
+          >
+            Авторизация
+          </Text>
 
           {/* Текст с ссылкой на регистрацию */}
-          <View style={styles.registerTextContainer}>
+          <View style={[styles.registerTextContainer, { maxWidth: layout.scale(320) }]}>
             <Text style={styles.registerPrompt}>
               Если у Вас еще нет аккаунта -
               <Link href="/register">
@@ -123,12 +139,19 @@ export default function LoginScreen() {
           </View>
 
           {/* Форма */}
-          <View style={styles.form}>
+          <View style={[styles.form, { width: formWidth }]}>
             {/* Username Input */}
             <TextInput
-              style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
+              style={[
+                styles.input,
+                { width: formWidth, height: layout.scale(29) },
+                Platform.OS === "android" && styles.inputAndroid,
+              ]}
               value={username}
-              onChangeText={setUsername}
+              onChangeText={(v) => {
+                setUsername(v);
+                if (errors.username) setErrors((prev) => ({ ...prev, username: undefined }));
+              }}
               placeholder="Имя пользователя"
               placeholderTextColor={COLORS.placeholder}
               autoCapitalize="none"
@@ -139,11 +162,18 @@ export default function LoginScreen() {
             {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
 
             {/* Password Input */}
-            <View style={styles.passwordInputWrapper}>
+            <View style={[styles.passwordInputWrapper, { width: formWidth }]}>
               <TextInput
-                style={[styles.inputWithIcon, Platform.OS === "android" && styles.inputAndroid]}
+                style={[
+                  styles.inputWithIcon,
+                  { width: formWidth, height: layout.scale(29) },
+                  Platform.OS === "android" && styles.inputAndroid,
+                ]}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(v) => {
+                  setPassword(v);
+                  if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                }}
                 placeholder="Пароль"
                 placeholderTextColor={COLORS.placeholder}
                 secureTextEntry={!showPassword}
@@ -166,7 +196,7 @@ export default function LoginScreen() {
             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
             {/* Кнопки: Регистрация и Забыли пароль */}
-            <View style={styles.buttonsContainer}>
+            <View style={[styles.buttonsContainer, { width: formWidth }]}>
               <Link href="/register" asChild>
                 <Pressable>
                   <Text style={styles.linkButton}>Регистрация</Text>
@@ -182,7 +212,13 @@ export default function LoginScreen() {
 
             {/* Кнопка входа */}
             <Pressable
-              style={styles.submitButton}
+              style={[
+                styles.submitButton,
+                {
+                  width: layout.scale(150),
+                  height: layout.scale(150),
+                },
+              ]}
               onPress={handleLogin}
               disabled={isLoading}
               testID="login-button"
@@ -192,7 +228,13 @@ export default function LoginScreen() {
               ) : (
                 <Image
                   source={require("../../assets/images/login-paw.png")}
-                  style={styles.submitButtonImage}
+                  style={[
+                    styles.submitButtonImage,
+                    {
+                      width: layout.scale(120),
+                      height: layout.scale(125),
+                    },
+                  ]}
                   contentFit="contain"
                 />
               )}
@@ -233,32 +275,20 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
     gap: 10,
   },
-  // Заголовок "Гафус!" - как в веб (Impact, 110px)
   title: {
-    fontSize: Math.min(100, SCREEN_WIDTH * 0.28),
     fontWeight: "400",
     color: COLORS.primary,
     textAlign: "center",
     fontFamily: FONTS.impact,
   },
-  // Логотип - 303x303 как в веб
-  logo: {
-    width: Math.min(303, SCREEN_WIDTH * 0.8),
-    height: Math.min(303, SCREEN_WIDTH * 0.8),
-  },
-  // Подзаголовок "Авторизация" - Impact, 40px
+  logo: {},
   subtitle: {
-    fontSize: 40,
     fontWeight: "400",
     color: COLORS.primary,
     textAlign: "left",
-    maxWidth: 320,
     fontFamily: FONTS.impact,
   },
-  // Контейнер текста с ссылкой
-  registerTextContainer: {
-    maxWidth: 320,
-  },
+  registerTextContainer: {},
   // Текст "Если у Вас еще нет аккаунта"
   registerPrompt: {
     fontSize: 10,
@@ -279,11 +309,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
   },
-  // Инпуты - 250x29, border 2px #636128
   input: {
     backgroundColor: COLORS.cardBackground,
-    width: 230,
-    height: 29,
     borderWidth: 2,
     borderColor: "#636128",
     borderRadius: 5,
@@ -299,12 +326,9 @@ const styles = StyleSheet.create({
   },
   passwordInputWrapper: {
     position: "relative",
-    width: 230,
   },
   inputWithIcon: {
     backgroundColor: COLORS.cardBackground,
-    width: 230,
-    height: 29,
     borderWidth: 2,
     borderColor: "#636128",
     borderRadius: 5,
@@ -330,11 +354,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: COLORS.error,
   },
-  // Контейнер кнопок-ссылок
   buttonsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: 250,
     marginTop: 5,
   },
   // Кнопки-ссылки (Регистрация, Забыли пароль)
@@ -343,19 +365,13 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserrat,
     color: COLORS.primary,
   },
-  // Кнопка входа
   submitButton: {
     backgroundColor: "transparent",
-    width: 150,
-    height: 150,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 5,
   },
-  submitButtonImage: {
-    width: 120,
-    height: 125,
-  },
+  submitButtonImage: {},
   submitButtonText: {
     fontSize: 25,
     fontWeight: "400",

@@ -79,7 +79,11 @@ export default function ReviewsScreen() {
   // Загрузка отзывов
   const { data: reviewsResponse, isLoading } = useQuery({
     queryKey: ["course-reviews", courseType],
-    queryFn: () => coursesApi.getReviews(courseType as string),
+    queryFn: async () => {
+      const res = await coursesApi.getReviews(courseType as string);
+      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки отзывов");
+      return res;
+    },
     enabled: !!courseType,
   });
 

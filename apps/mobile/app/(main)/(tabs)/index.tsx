@@ -53,7 +53,11 @@ export default function CoursesScreen() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["courses"],
-    queryFn: () => coursesApi.getAll(),
+    queryFn: async () => {
+      const res = await coursesApi.getAll();
+      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки курсов");
+      return res;
+    },
   });
 
   const onRefresh = useCallback(async () => {

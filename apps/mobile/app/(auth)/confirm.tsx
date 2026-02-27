@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Linking } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  Linking,
+  ScrollView,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+
+import { Button } from "@/shared/components/ui";
 
 import { useAuthStore } from "@/shared/stores";
 import { API_BASE_URL, COLORS, SPACING, FONTS } from "@/constants";
@@ -11,14 +21,18 @@ const POLL_INTERVAL_MS = 5000;
 
 export default function ConfirmScreen() {
   const router = useRouter();
-  const { pendingConfirmPhone, clearPendingConfirmPhone } = useAuthStore();
+  const { pendingConfirmPhone, clearPendingConfirmPhone, logout } = useAuthStore();
   const [isPolling, setIsPolling] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const redirectedRef = useRef(false);
 
   useEffect(() => {
     const phone = pendingConfirmPhone;
     if (!phone) {
-      router.replace("/");
+      if (!redirectedRef.current) {
+        redirectedRef.current = true;
+        router.replace("/");
+      }
       return;
     }
 
@@ -31,8 +45,9 @@ export default function ConfirmScreen() {
         });
         const json = await res.json();
         if (json?.success && json?.data?.confirmed === true) {
-          clearPendingConfirmPhone();
           if (intervalRef.current) clearInterval(intervalRef.current);
+          redirectedRef.current = true;
+          clearPendingConfirmPhone();
           router.replace("/");
         }
       } catch {
@@ -49,38 +64,56 @@ export default function ConfirmScreen() {
     };
   }, [pendingConfirmPhone, clearPendingConfirmPhone, router]);
 
+  const handleBackToWelcome = async () => {
+    await logout();
+    router.replace("/welcome");
+  };
+
   if (!pendingConfirmPhone) return null;
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <Text style={styles.title}>Подтвердите номер</Text>
-      <Text style={styles.text}>
-        Откройте Telegram-бота и следуйте инструкциям для подтверждения номера.
-      </Text>
-      <Pressable style={styles.button} onPress={() => Linking.openURL(TELEGRAM_BOT_URL)}>
-        <Text style={styles.buttonText}>Открыть Telegram</Text>
-      </Pressable>
-      {isPolling && (
-        <View style={styles.pollingBlock}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-          <Text style={styles.hint}>Ожидаем подтверждения...</Text>
-        </View>
-      )}
-
-      <View style={styles.altContainer}>
-        <Text style={styles.altTitle}>Альтернативный способ подтверждения</Text>
-        <Text style={styles.altText}>
-          Если у вас нет возможности использовать Telegram, вы вправе подтвердить
-          регистрацию по электронной почте. Направьте письмо с темой
-          «Подтверждение аккаунта» и указанием вашего имени пользователя в приложении на адрес:
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.title}>Подтвердите номер</Text>
+        <Text style={styles.text}>
+          Откройте Telegram-бота и следуйте инструкциям для подтверждения номера.
         </Text>
-        <Pressable onPress={() => Linking.openURL("mailto:asmtv1@yandex.ru?subject=%D0%9F%D0%BE%D0%B4%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B5+%D0%B0%D0%BA%D0%BA%D0%B0%D1%83%D0%BD%D1%82%D0%B0&body=%D0%9C%D0%BE%D1%91+%D0%B8%D0%BC%D1%8F+%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8F%3A+")}>
-          <Text style={styles.altEmail}>asmtv1@yandex.ru</Text>
+        <Pressable style={styles.button} onPress={() => Linking.openURL(TELEGRAM_BOT_URL)}>
+          <Text style={styles.buttonText}>Открыть Telegram</Text>
         </Pressable>
-        <Text style={styles.altText}>
-          Аккаунт будет активирован администратором в течение 24 часов.
-        </Text>
-      </View>
+        {isPolling && (
+          <View style={styles.pollingBlock}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={styles.hint}>Ожидаем подтверждения...</Text>
+          </View>
+        )}
+
+        <View style={styles.altContainer}>
+          <Text style={styles.altTitle}>Альтернативный способ подтверждения</Text>
+          <Text style={styles.altText}>
+            Если у вас нет возможности использовать Telegram, вы вправе подтвердить
+            регистрацию по электронной почте. Направьте письмо с темой
+            «Подтверждение аккаунта» и указанием вашего имени пользователя в приложении на адрес:
+          </Text>
+          <Pressable onPress={() => Linking.openURL("mailto:asmtv1@yandex.ru?subject=%D0%9F%D0%BE%D0%B4%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B5+%D0%B0%D0%BA%D0%BA%D0%B0%D1%83%D0%BD%D1%82%D0%B0&body=%D0%9C%D0%BE%D1%91+%D0%B8%D0%BC%D1%8F+%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8F%3A+")}>
+            <Text style={styles.altEmail}>asmtv1@yandex.ru</Text>
+          </Pressable>
+          <Text style={styles.altText}>
+            Аккаунт будет активирован администратором в течение 24 часов.
+          </Text>
+        </View>
+
+        <View style={styles.navButtons}>
+          <Button
+            label="На стартовую"
+            variant="primary"
+            onPress={handleBackToWelcome}
+          />
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -88,9 +121,12 @@ export default function ConfirmScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: SPACING.lg,
     justifyContent: "center",
-    backgroundColor: COLORS.background,
   },
   title: {
     fontSize: 24,
@@ -153,6 +189,10 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     textDecorationLine: "underline",
     textAlign: "center",
+  },
+  navButtons: {
+    marginTop: SPACING.xxl,
+    gap: SPACING.md,
   },
 });
 

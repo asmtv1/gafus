@@ -7,7 +7,6 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  useWindowDimensions,
   Linking,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
@@ -20,10 +19,9 @@ import * as Crypto from "expo-crypto";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 import { useAuthStore } from "@/shared/stores";
+import { useLayout } from "@/shared/hooks";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";
-
-const FORM_WIDTH = 280;
 
 const registerSchema = z
   .object({
@@ -63,6 +61,8 @@ type FormErrors = {
   password?: string;
   confirmPassword?: string;
   consent?: string;
+  /** Ошибка API (пользователь уже существует и т.п.) */
+  api?: string;
 };
 
 /**
@@ -70,10 +70,10 @@ type FormErrors = {
  */
 export default function RegisterScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const layout = useLayout();
   const { register, setPendingConfirmPhone } = useAuthStore();
 
-  const formWidth = Math.min(FORM_WIDTH, width - SPACING.md * 4);
+  const formWidth = layout.contentWidth(SPACING.md * 4, 320);
 
   const [form, setForm] = useState({
     name: "",
@@ -95,10 +95,10 @@ export default function RegisterScreen() {
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    // Очищаем ошибку поля при изменении
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
+    setErrors((prev) => {
+      const next = { ...prev, [field]: undefined, api: undefined };
+      return next;
+    });
   };
 
   const validateForm = useCallback((): boolean => {
@@ -106,9 +106,14 @@ export default function RegisterScreen() {
 
     if (!result.success) {
       const fieldErrors: FormErrors = {};
+      const validKeys: (keyof FormErrors)[] = [
+        "name", "phone", "password", "confirmPassword", "consent",
+      ];
       result.error.errors.forEach((err) => {
-        const field = err.path[0] as keyof FormErrors;
-        fieldErrors[field] = err.message;
+        const field = err.path[0];
+        if (field != null && validKeys.includes(field as keyof FormErrors)) {
+          fieldErrors[field as keyof FormErrors] = err.message;
+        }
       });
       setErrors(fieldErrors);
       return false;
@@ -120,9 +125,7 @@ export default function RegisterScreen() {
 
   const toggleConsent = (key: keyof typeof consents) => {
     setConsents((prev) => ({ ...prev, [key]: !prev[key] }));
-    if (errors.consent) {
-      setErrors((prev) => ({ ...prev, consent: undefined }));
-    }
+    setErrors((prev) => ({ ...prev, consent: undefined, api: undefined }));
   };
 
   const handleRegister = async () => {
@@ -139,10 +142,15 @@ export default function RegisterScreen() {
     }
 
     setIsLoading(true);
+    setErrors((prev) => ({ ...prev, api: undefined }));
     try {
       const normalizedName = form.name.toLowerCase().trim();
       const phoneNumber = parsePhoneNumberFromString(form.phone, "RU");
-      const formattedPhone = phoneNumber!.format("E.164");
+      if (!phoneNumber?.isValid()) {
+        setErrors((prev) => ({ ...prev, phone: "Введите корректный номер телефона" }));
+        return;
+      }
+      const formattedPhone = phoneNumber.format("E.164");
 
       const consentPayload: ConsentPayload = {
         acceptPersonalData: consents.acceptPersonalData,
@@ -160,13 +168,17 @@ export default function RegisterScreen() {
 
       if (result.success) {
         setSnackbar({ visible: true, message: "Подтвердите номер в Telegram" });
-        setPendingConfirmPhone(form.phone);
+        setPendingConfirmPhone(formattedPhone);
         router.replace("/confirm");
       } else {
-        setSnackbar({ visible: true, message: result.error || "Ошибка регистрации" });
+        const msg = result.error || "Ошибка регистрации";
+        setErrors((prev) => ({ ...prev, api: msg }));
+        setSnackbar({ visible: true, message: msg });
       }
     } catch {
-      setSnackbar({ visible: true, message: "Ошибка подключения к серверу" });
+      const msg = "Ошибка подключения к серверу";
+      setErrors((prev) => ({ ...prev, api: msg }));
+      setSnackbar({ visible: true, message: msg });
     } finally {
       setIsLoading(false);
     }
@@ -183,7 +195,12 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Заголовок */}
-          <Text style={[styles.title, { fontSize: Math.min(100, width * 0.28) }]}>
+          <Text
+            style={[
+              styles.title,
+              { fontSize: Math.min(layout.moderateScale(100, 0.4), 100) },
+            ]}
+          >
             Гафус!
           </Text>
 
@@ -191,10 +208,18 @@ export default function RegisterScreen() {
           <View style={styles.logoContainer}>
             <Image
               source={require("../../assets/images/register-logo.png")}
-              style={[styles.logo, { width: formWidth, height: formWidth * 0.74 }]}
+              style={[
+                styles.logo,
+                { width: formWidth, height: formWidth * 0.74 },
+              ]}
               contentFit="contain"
             />
-            <Text style={[styles.subtitle, { fontSize: Math.min(40, width * 0.1) }]}>
+            <Text
+              style={[
+                styles.subtitle,
+                { fontSize: Math.min(layout.moderateScale(40), 40) },
+              ]}
+            >
               регистрация
             </Text>
           </View>
@@ -390,6 +415,10 @@ export default function RegisterScreen() {
               {errors.consent && <Text style={styles.errorText}>{errors.consent}</Text>}
             </View>
 
+            {errors.api && (
+              <Text style={[styles.errorText, styles.apiError]}>{errors.api}</Text>
+            )}
+
             {/* Кнопка регистрации */}
             <Pressable
               style={[
@@ -510,6 +539,11 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserrat,
     marginTop: 4,
     color: COLORS.error,
+  },
+  apiError: {
+    marginTop: 8,
+    textAlign: "center",
+    fontSize: 11,
   },
   infoBlock: {
     gap: 4,

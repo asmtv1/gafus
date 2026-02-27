@@ -5,6 +5,7 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { useAuthStore, useCourseStore, useStepStore } from "@/shared/stores";
 import { coursesApi } from "@/shared/lib/api";
 import { COLORS } from "@/constants";
+import { resetUserStores } from "@/shared/stores/resetAll";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -19,12 +20,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { isAuthenticated, isLoading, checkAuth, pendingConfirmPhone } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
+  const prevAuthRef = useRef<boolean | null>(null);
   const favoritesLoadedRef = useRef(false);
 
   // Проверяем авторизацию при монтировании
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Гарантированный сброс всех хранилищ при выходе / истечении сессии
+  useEffect(() => {
+    if (isLoading) return;
+
+    const prev = prevAuthRef.current;
+    prevAuthRef.current = isAuthenticated;
+
+    if (prev === true && !isAuthenticated) {
+      resetUserStores();
+    }
+  }, [isAuthenticated, isLoading]);
 
   // При смене пользователя (логин/логаут) подгружаем stepStore из ключа по userId
   useEffect(() => {

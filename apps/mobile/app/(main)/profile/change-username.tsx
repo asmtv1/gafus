@@ -74,14 +74,12 @@ export default function ChangeUsernameScreen() {
           style={styles.input}
         />
         <Button
-          mode="contained"
+          label="Сохранить"
           onPress={onSave}
           loading={loading}
           disabled={loading}
           style={styles.button}
-        >
-          Сохранить
-        </Button>
+        />
       </ScrollView>
       <Snackbar
         visible={snackbar.visible}

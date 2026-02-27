@@ -26,7 +26,11 @@ export default function FavoritesScreen() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["favorites"],
-    queryFn: () => coursesApi.getFavorites(),
+    queryFn: async () => {
+      const res = await coursesApi.getFavorites();
+      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки избранных курсов");
+      return res;
+    },
   });
 
   const payload = data?.data;

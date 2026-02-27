@@ -148,13 +148,21 @@ export default function ProfileScreen() {
   // Загрузка данных профиля
   const { data: profileData } = useQuery({
     queryKey: ["user-profile"],
-    queryFn: () => userApi.getProfile(),
+    queryFn: async () => {
+      const res = await userApi.getProfile();
+      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки профиля");
+      return res;
+    },
   });
 
   // Загрузка питомцев
   const { data: petsData } = useQuery({
     queryKey: ["pets"],
-    queryFn: () => petsApi.getAll(),
+    queryFn: async () => {
+      const res = await petsApi.getAll();
+      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки питомцев");
+      return res;
+    },
   });
 
   const { data: pushStatusData } = useQuery({
@@ -170,7 +178,11 @@ export default function ProfileScreen() {
 
   const { data: trainerProfileData } = useQuery({
     queryKey: ["trainer-public-profile", user?.username],
-    queryFn: () => userApi.getPublicProfile(user?.username ?? ""),
+    queryFn: async () => {
+      const res = await userApi.getPublicProfile(user?.username ?? "");
+      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки профиля тренера");
+      return res;
+    },
     enabled: user?.role === "TRAINER" && !!user?.username,
   });
 

@@ -7,7 +7,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Dimensions,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { useRouter } from "expo-router";
@@ -18,8 +17,6 @@ import parsePhoneNumberFromString from "libphonenumber-js";
 
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { authApi } from "@/shared/lib/api/auth";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // Схемы валидации
 const usernameSchema = z
@@ -72,20 +69,10 @@ export default function ResetPasswordScreen() {
   }, [phone]);
 
   const handleReset = async () => {
-    // Валидация
     const isUsernameValid = validateUsername();
     const isPhoneValid = validatePhone();
 
-    if (!isUsernameValid || !isPhoneValid) {
-      return;
-    }
-
-    // Дополнительная валидация телефона через libphonenumber
-    const phoneNumberObj = parsePhoneNumberFromString(phone, "RU");
-    if (!phoneNumberObj?.isValid()) {
-      setErrors((prev) => ({ ...prev, phone: "Неверный формат телефона" }));
-      return;
-    }
+    if (!isUsernameValid || !isPhoneValid) return;
 
     setIsLoading(true);
     setStatus("");
@@ -99,12 +86,11 @@ export default function ResetPasswordScreen() {
           visible: true,
           message: resetResult.error || "Ошибка отправки запроса",
         });
-        setIsLoading(false);
         return;
       }
 
       setStatus("Если указанные данные верны, вам придёт сообщение в Telegram");
-    } catch (error) {
+    } catch {
       setSnackbar({
         visible: true,
         message: "Ошибка отправки. Попробуйте позже.",
@@ -378,14 +364,5 @@ const styles = StyleSheet.create({
     width: 320,
     height: 320,
     zIndex: 1,
-  },
-  // Лапка внизу справа - 307x224, абсолютное позиционирование (адаптивный)
-  bottomPaw: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: Math.min(307, SCREEN_WIDTH),
-    height: Math.min(224, SCREEN_WIDTH * 0.73),
-    zIndex: 0,
   },
 });

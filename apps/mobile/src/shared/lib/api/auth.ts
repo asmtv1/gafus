@@ -7,6 +7,7 @@ export interface User {
   username: string;
   phone: string;
   role: "USER" | "TRAINER" | "ADMIN" | "MODERATOR" | "PREMIUM";
+  isConfirmed: boolean;
   profile?: {
     fullName: string | null;
     about: string | null;

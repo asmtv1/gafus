@@ -1,3 +1,5 @@
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+
 import { prisma } from "@gafus/prisma";
 import { createTelegramBotLogger } from "@gafus/logger";
 import { Telegraf } from "telegraf";
@@ -96,7 +98,9 @@ bot.on("message", async (ctx) => {
 
   // Если пользователь уже отправил номер
   if ("contact" in msg && msg.contact) {
-    const phone = "+" + msg.contact.phone_number.replace(/\D/g, "");
+    const raw = msg.contact.phone_number;
+    const parsed = parsePhoneNumberFromString(raw, "RU");
+    const phone = parsed?.isValid() ? parsed.format("E.164") : "+" + raw.replace(/\D/g, "");
 
     let user = null;
     try {

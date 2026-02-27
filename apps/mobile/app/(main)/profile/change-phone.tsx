@@ -4,6 +4,7 @@ import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 import { Button, Input } from "@/shared/components/ui";
 import { userApi } from "@/shared/lib/api/user";
@@ -49,10 +50,16 @@ export default function ChangePhoneScreen() {
       setSnackbar({ visible: true, message: "Введите новый номер телефона" });
       return;
     }
+    const parsedPhone = parsePhoneNumberFromString(trimmedPhone, "RU");
+    if (!parsedPhone?.isValid()) {
+      setSnackbar({ visible: true, message: "Неверный формат номера телефона" });
+      return;
+    }
+    const formattedPhone = parsedPhone.format("E.164");
     setLoading(true);
     setSnackbar({ visible: false, message: "" });
     try {
-      const result = await userApi.confirmPhoneChange(trimmedCode, trimmedPhone);
+      const result = await userApi.confirmPhoneChange(trimmedCode, formattedPhone);
       if (result.success) {
         hapticFeedback.success();
         queryClient.invalidateQueries({ queryKey: ["user-profile"] });
@@ -77,14 +84,12 @@ export default function ChangePhoneScreen() {
               Код подтверждения будет отправлен в Telegram, привязанный к аккаунту.
             </Text>
             <Button
-              mode="contained"
+              label="Отправить код в Telegram"
               onPress={onRequestCode}
               loading={loading}
               disabled={loading}
               style={styles.button}
-            >
-              Отправить код в Telegram
-            </Button>
+            />
           </>
         )}
         {step === 2 && (
@@ -110,14 +115,12 @@ export default function ChangePhoneScreen() {
               style={styles.input}
             />
             <Button
-              mode="contained"
+              label="Подтвердить"
               onPress={onConfirm}
               loading={loading}
               disabled={loading}
               style={styles.button}
-            >
-              Подтвердить
-            </Button>
+            />
           </>
         )}
       </ScrollView>

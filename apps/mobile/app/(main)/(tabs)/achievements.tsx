@@ -44,7 +44,11 @@ export default function AchievementsScreen() {
 
   const { data: coursesRes } = useQuery({
     queryKey: ["courses"],
-    queryFn: () => coursesApi.getAll(),
+    queryFn: async () => {
+      const res = await coursesApi.getAll();
+      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки курсов");
+      return res;
+    },
   });
 
   const data = achievementsRes?.success ? achievementsRes.data : undefined;

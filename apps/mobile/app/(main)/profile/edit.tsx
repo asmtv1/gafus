@@ -67,7 +67,11 @@ export default function EditProfileScreen() {
     error,
   } = useQuery({
     queryKey: ["user-profile"],
-    queryFn: () => userApi.getProfile(),
+    queryFn: async () => {
+      const res = await userApi.getProfile();
+      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки профиля");
+      return res;
+    },
   });
 
   // Инициализация формы данными из профиля (как в веб-версии)

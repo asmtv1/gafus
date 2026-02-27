@@ -5,6 +5,7 @@ import * as SecureStore from "expo-secure-store";
 import type { ConsentPayload } from "@/shared/constants/consent";
 import { authApi, type User } from "@/shared/lib/api";
 
+import { resetUserStores } from "./resetAll";
 import { zustandStorage } from "./storage";
 
 interface AuthState {
@@ -57,11 +58,27 @@ export const useAuthStore = create<AuthStore>()(
             return { success: false, error: response.error || "Ошибка авторизации" };
           }
 
-          const { user, accessToken, refreshToken } = response.data;
+          const { accessToken, refreshToken } = response.data;
+
+          // Сбрасываем кеш запросов предыдущего пользователя перед логином
+          resetUserStores();
 
           // Сохраняем оба токена в SecureStore
           await SecureStore.setItemAsync("auth_token", accessToken);
           await SecureStore.setItemAsync("refresh_token", refreshToken);
+
+          // Загружаем полный профиль для получения isConfirmed и phone
+          const profileRes = await authApi.getProfile();
+          if (!profileRes.success || !profileRes.data) {
+            return { success: false, error: "Ошибка загрузки профиля" };
+          }
+
+          const user = profileRes.data;
+
+          if (!user.isConfirmed) {
+            set({ user, isAuthenticated: false, pendingConfirmPhone: user.phone });
+            return { success: true };
+          }
 
           set({ user, isAuthenticated: true });
           return { success: true };
@@ -90,11 +107,15 @@ export const useAuthStore = create<AuthStore>()(
 
           const { user, accessToken, refreshToken } = response.data;
 
+          // Сбрасываем кеш запросов предыдущего пользователя перед регистрацией
+          resetUserStores();
+
           // Сохраняем оба токена в SecureStore
           await SecureStore.setItemAsync("auth_token", accessToken);
           await SecureStore.setItemAsync("refresh_token", refreshToken);
 
-          set({ user, isAuthenticated: true });
+          // Новый пользователь всегда неподтверждён — ждёт подтверждения через Telegram
+          set({ user, isAuthenticated: false, pendingConfirmPhone: user.phone });
           return { success: true };
         } catch (error) {
           console.error("Register error:", error);
@@ -119,7 +140,8 @@ export const useAuthStore = create<AuthStore>()(
         await SecureStore.deleteItemAsync("auth_token");
         await SecureStore.deleteItemAsync("refresh_token");
 
-        set({ user: null, isAuthenticated: false });
+        resetUserStores();
+        set({ user: null, isAuthenticated: false, pendingConfirmPhone: null });
       },
 
       /**
@@ -140,8 +162,21 @@ export const useAuthStore = create<AuthStore>()(
           const response = await authApi.getProfile();
 
           if (response.success && response.data) {
+            const userData = response.data;
+
+            // Если номер не подтверждён — пользователь должен пройти подтверждение
+            if (!userData.isConfirmed) {
+              set({
+                user: userData,
+                isAuthenticated: false,
+                isLoading: false,
+                pendingConfirmPhone: userData.phone,
+              });
+              return;
+            }
+
             set({
-              user: response.data,
+              user: userData,
               isAuthenticated: true,
               isLoading: false,
             });
@@ -161,7 +196,8 @@ export const useAuthStore = create<AuthStore>()(
        * Вызывается когда сессия истекла (refresh не удался)
        */
       handleSessionExpired: () => {
-        set({ user: null, isAuthenticated: false });
+        resetUserStores();
+        set({ user: null, isAuthenticated: false, pendingConfirmPhone: null });
       },
 
       /**

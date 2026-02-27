@@ -126,6 +126,7 @@ userRoutes.get("/profile", async (c) => {
         username: true,
         phone: true,
         role: true,
+        isConfirmed: true,
         profile: {
           select: {
             fullName: true,
@@ -151,6 +152,7 @@ userRoutes.get("/profile", async (c) => {
         username: userData.username,
         phone: userData.phone,
         role: userData.role,
+        isConfirmed: userData.isConfirmed,
         profile: userData.profile,
       },
     });

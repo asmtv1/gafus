@@ -102,7 +102,11 @@ export default function PublicProfileScreen() {
   // Загрузка публичного профиля
   const { data: profileResponse, isLoading } = useQuery({
     queryKey: ["public-profile", username],
-    queryFn: () => userApi.getPublicProfile(username as string),
+    queryFn: async () => {
+      const res = await userApi.getPublicProfile(username as string);
+      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки профиля");
+      return res;
+    },
     enabled: !!username,
   });
 
