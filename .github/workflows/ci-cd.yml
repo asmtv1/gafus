@@ -168,15 +168,18 @@ jobs:
           base: HEAD~1
 
   # Build and test all apps - runs in parallel with security
+  # Remote cache: добавить TURBO_TOKEN и TURBO_TEAM в GitHub Secrets/Vars для ускорения (npx turbo login + turbo link)
   build-apps:
     runs-on: ubuntu-latest
     needs: prepare-deps
-    strategy:
-      matrix:
-        app: [web, trainer-panel, error-dashboard, admin-panel, api]
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # нужен для --filter='...[origin/main]'
 
       - name: Restore dependencies cache
         uses: actions/cache@v4
@@ -216,28 +219,27 @@ jobs:
           # Установка с предпочтением кэша, но с возможностью загрузки из сети
           pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Build ${{ matrix.app }}
+      - name: Build, test, typecheck apps
         run: |
-          cd apps/${{ matrix.app }}
-          pnpm build
-
-      - name: Test ${{ matrix.app }}
-        run: |
-          cd apps/${{ matrix.app }}
-          pnpm test || echo "No tests found"
-
-      - name: Run type check for ${{ matrix.app }}
-        run: |
-          cd apps/${{ matrix.app }}
-          pnpm typecheck || (echo "Type check failed for ${{ matrix.app }}" && exit 1)
+          # main+push: полная сборка (для деплоя). PR/develop: только изменённые приложения.
+          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
+            pnpm turbo run build test typecheck --filter='./apps/web' --filter='./apps/trainer-panel' --filter='./apps/error-dashboard' --filter='./apps/admin-panel' --filter='./apps/api'
+          else
+            pnpm turbo run build test typecheck --filter='./apps/*...[origin/main]'
+          fi
 
       - name: Cache app build
         uses: actions/cache@v4
         with:
           path: |
-            apps/${{ matrix.app }}/.next
-            apps/${{ matrix.app }}/dist
-          key: ${{ needs.prepare-deps.outputs.cache-key }}-${{ matrix.app }}-build
+            apps/web/.next
+            apps/trainer-panel/.next
+            apps/error-dashboard/.next
+            apps/admin-panel/.next
+            apps/api/dist
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-all-apps-build
+          restore-keys: |
+            ${{ needs.prepare-deps.outputs.cache-key }}-all-apps-build
 
   # Build worker packages for Docker - REMOVED (using multi-stage build)
   # Mobile app (apps/mobile) не включён в CI - это Expo приложение для локальной разработки
@@ -346,6 +348,7 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
 
   # Deploy to staging (develop branch)
+  # Заглушка: staging не реализован — один prod-сервер. Реальный деплой добавить при появлении staging-инфраструктуры.
   deploy-staging:
     needs: [security, build-apps]
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
