@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("ErrorBoundary caught error:", error, errorInfo);
-    // Здесь можно отправить ошибку в систему мониторинга
+    // TODO: подключить Tracer для RN когда появится @apptracer/react-native
   }
 
   handleRetry = () => {

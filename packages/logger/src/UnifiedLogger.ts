@@ -1,27 +1,18 @@
 import type { Logger as PinoLogger } from "pino";
 import pino from "pino";
 import type { Logger, LoggerConfig, LogMeta, LogLevel } from "./logger-types.js";
-import { ErrorDashboardTransport } from "./transports/ErrorDashboardTransport.js";
 
 /**
- * Единый логгер на основе Pino с интеграцией в error-dashboard
+ * Единый логгер на основе Pino.
+ * Серверные логи — в Seq через stdout/Vector; клиентские ошибки — в Tracer.
  */
 export class UnifiedLogger implements Logger {
   private pinoLogger: PinoLogger;
   private config: LoggerConfig;
-  private errorDashboardTransport?: ErrorDashboardTransport;
 
   constructor(config: LoggerConfig) {
     this.config = config;
     this.pinoLogger = this.createPinoLogger();
-
-    if (config.enableErrorDashboard && config.errorDashboardUrl) {
-      this.errorDashboardTransport = new ErrorDashboardTransport({
-        errorDashboardUrl: config.errorDashboardUrl,
-        appName: config.appName,
-        context: config.context,
-      });
-    }
   }
 
   /**
@@ -108,27 +99,6 @@ export class UnifiedLogger implements Logger {
     return levels[level] >= levels[this.config.level];
   }
 
-  /**
-   * Отправляет лог в error-dashboard если настроено
-   * Отправляются только error и fatal для всех приложений
-   */
-  private async sendToErrorDashboard(
-    level: LogLevel,
-    message: string,
-    error?: Error,
-    meta?: LogMeta,
-  ): Promise<void> {
-    if (this.errorDashboardTransport) {
-      // Отправляем только error и fatal для всех приложений
-      const shouldSend = ["error", "fatal"].includes(level);
-
-      if (shouldSend) {
-        const logEntry = this.errorDashboardTransport.createLogEntry(level, message, error, meta);
-        await this.errorDashboardTransport.sendToErrorDashboard(logEntry);
-      }
-    }
-  }
-
   debug(message: string, meta?: LogMeta): void {
     if (this.shouldLog("debug")) {
       this.pinoLogger.debug(meta, message);
@@ -147,17 +117,15 @@ export class UnifiedLogger implements Logger {
     }
   }
 
-  async error(message: string, error?: Error, meta?: LogMeta): Promise<void> {
+  error(message: string, error?: Error, meta?: LogMeta): void {
     if (this.shouldLog("error")) {
       this.pinoLogger.error({ err: error, ...meta }, message);
-      await this.sendToErrorDashboard("error", message, error, meta);
     }
   }
 
-  async fatal(message: string, error?: Error, meta?: LogMeta): Promise<void> {
+  fatal(message: string, error?: Error, meta?: LogMeta): void {
     if (this.shouldLog("fatal")) {
       this.pinoLogger.fatal({ err: error, ...meta }, message);
-      await this.sendToErrorDashboard("fatal", message, error, meta);
     }
   }
 
@@ -186,17 +154,6 @@ export class UnifiedLogger implements Logger {
    */
   updateConfig(newConfig: Partial<LoggerConfig>): void {
     this.config = { ...this.config, ...newConfig };
-
-    // Пересоздаем Pino логгер с новой конфигурацией
     this.pinoLogger = this.createPinoLogger();
-
-    // Обновляем транспорт error-dashboard
-    if (newConfig.enableErrorDashboard && newConfig.errorDashboardUrl) {
-      this.errorDashboardTransport = new ErrorDashboardTransport({
-        errorDashboardUrl: newConfig.errorDashboardUrl,
-        appName: this.config.appName,
-        context: this.config.context,
-      });
-    }
   }
 }

@@ -1,6 +1,7 @@
 import { CookieConsentBanner } from "@gafus/ui-components";
 import { CSRFProvider, CSRFErrorBoundary } from "@gafus/csrf";
 import { ErrorBoundary } from "@gafus/error-handling";
+import { TracerProvider } from "@gafus/ui-components";
 import { SessionProvider } from "@shared/providers/SessionProvider";
 import { TrainerQueryProvider } from "@shared/providers/QueryProvider";
 import React from "react";
@@ -36,28 +37,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" sizes="512x512" href="/uploads/icons/icon512_rounded.png" />
       </head>
       <body>
-        <ErrorBoundary
-          config={{
-            appName: "trainer-panel",
-            environment:
-              (process.env.NODE_ENV as "development" | "production" | "staging") || "development",
-            logToConsole: true,
-            showErrorDetails: false, // Не показываем детали пользователям
-          }}
-        >
-          <SessionProvider>
-            <CSRFProvider autoInitialize={true} logErrors={true} maxRetries={3} retryDelay={1000}>
-              <CSRFErrorBoundary>
-                <TrainerQueryProvider>{children}</TrainerQueryProvider>
-              </CSRFErrorBoundary>
-            </CSRFProvider>
-          </SessionProvider>
-        </ErrorBoundary>
-        <CookieConsentBanner
-          cookiePolicyUrl={
-            process.env.NEXT_PUBLIC_COOKIES_URL ?? "/cookies.html"
-          }
-        />
+        <TracerProvider>
+          <ErrorBoundary
+            config={{
+              appName: "trainer-panel",
+              logToConsole: true,
+              showErrorDetails: false,
+            }}
+          >
+            <SessionProvider>
+              <CSRFProvider autoInitialize={true} logErrors={true} maxRetries={3} retryDelay={1000}>
+                <CSRFErrorBoundary>
+                  <TrainerQueryProvider>{children}</TrainerQueryProvider>
+                </CSRFErrorBoundary>
+              </CSRFProvider>
+            </SessionProvider>
+          </ErrorBoundary>
+          <CookieConsentBanner
+            cookiePolicyUrl={
+              process.env.NEXT_PUBLIC_COOKIES_URL ?? "/cookies.html"
+            }
+          />
+        </TracerProvider>
       </body>
     </html>
   );

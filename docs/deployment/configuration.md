@@ -22,7 +22,11 @@ REDIS_URL=redis://localhost:6379
 # Логирование
 LOG_LEVEL=debug
 ENABLE_CONSOLE_LOGS=true
-ENABLE_ERROR_DASHBOARD=true
+
+# Tracer (клиентские ошибки)
+NEXT_PUBLIC_TRACER_APP_TOKEN=
+NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_ENABLE_TRACER=true
 
 # Безопасность (менее строгие настройки)
 NEXTAUTH_SECRET=development-secret-key
@@ -45,7 +49,11 @@ REDIS_URL=redis://staging-redis:6379
 # Логирование
 LOG_LEVEL=info
 ENABLE_CONSOLE_LOGS=true
-ENABLE_ERROR_DASHBOARD=true
+
+# Tracer
+NEXT_PUBLIC_TRACER_APP_TOKEN=
+NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_ENABLE_TRACER=true
 
 # Безопасность
 NEXTAUTH_SECRET=staging-secret-key-change-in-production
@@ -68,7 +76,11 @@ REDIS_URL=redis://prod-redis:6379
 # Логирование
 LOG_LEVEL=warn
 ENABLE_CONSOLE_LOGS=false
-ENABLE_ERROR_DASHBOARD=true
+
+# Tracer
+NEXT_PUBLIC_TRACER_APP_TOKEN=your-tracer-app-token
+NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_ENABLE_TRACER=true
 
 # Безопасность (строгие настройки)
 NEXTAUTH_SECRET=very-secure-production-secret-key-64-chars-long
@@ -271,9 +283,10 @@ LOG_LEVEL=warn  # debug, info, warn, error
 LOG_FORMAT=json  # json, pretty
 LOG_ENABLE_COLORS=false  # только для development
 
-# Error Dashboard
-ERROR_DASHBOARD_ENDPOINT=https://errors.gafus.ru/api/report
-ERROR_DASHBOARD_API_KEY=your-error-dashboard-api-key
+# Tracer (клиентские ошибки)
+NEXT_PUBLIC_TRACER_APP_TOKEN=
+NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_ENABLE_TRACER=false
 ERROR_SAMPLE_RATE=1.0  # процент ошибок для отправки (0.0-1.0)
 
 # Логирование в файлы
@@ -362,6 +375,14 @@ ASSET_HASH_LENGTH=8
 ```
 
 ## 🔄 CI/CD конфигурация
+
+### Turborepo remote cache (ускорение сборки 30–50%)
+
+Для ускорения `build-apps` при повторных прогонах:
+
+1. `npx turbo login` и `npx turbo link` — привязка репо к Vercel Remote Cache
+2. **GitHub → Settings → Secrets**: `TURBO_TOKEN` (из turbo login)
+3. **GitHub → Settings → Variables**: `TURBO_TEAM` (ваш team slug)
 
 ### GitHub Actions (пример)
 

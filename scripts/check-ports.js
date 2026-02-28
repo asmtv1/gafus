@@ -6,7 +6,6 @@ const { execSync } = require("child_process");
 const appPorts = {
   "@gafus/web": 3002,
   "@gafus/trainer-panel": 3001,
-  "@gafus/error-dashboard": 3005,
   "@gafus/telegram-bot": 3003,
   "@gafus/bull-board": 3004,
 
@@ -49,7 +48,6 @@ console.log("4. Или запустите только основные: pnpm st
 console.log("\n🌐 Доступные приложения после запуска:");
 console.log("  Web App: http://localhost:3002");
 console.log("  Trainer Panel: http://localhost:3001");
-console.log("  Error Dashboard: http://localhost:3005");
 console.log("  Bull Board: http://localhost:3004");
 console.log("  Telegram Bot: работает на порту 3003");
 

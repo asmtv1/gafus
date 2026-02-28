@@ -868,31 +868,6 @@ model TrainerNoteStudent {
   @@index([studentId, createdAt(sort: Desc)])
 }
 
-model ErrorReport {
-  id                String    @id
-  message           String
-  stack             String?
-  appName           String
-  environment       String
-  url               String
-  userAgent         String
-  userId            String?
-  sessionId         String?
-  componentStack    String?
-  additionalContext Json?
-  tags              String[]  @default([])
-  resolved          Boolean   @default(false)
-  resolvedAt        DateTime?
-  resolvedBy        String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime
-
-  @@index([appName])
-  @@index([createdAt])
-  @@index([environment])
-  @@index([resolved])
-}
-
 enum TrainingStatus {
   NOT_STARTED
   IN_PROGRESS

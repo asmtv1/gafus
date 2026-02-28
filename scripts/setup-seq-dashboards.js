@@ -16,7 +16,6 @@ const SEQ_API_KEY = process.env.SEQ_API_KEY || ""; // API ключ Seq (обяз
 const CONTAINERS = [
   { name: "gafus-web", title: "Web Application" },
   { name: "gafus-trainer-panel", title: "Trainer Panel" },
-  { name: "gafus-error-dashboard", title: "Error Dashboard" },
   { name: "gafus-admin-panel", title: "Admin Panel" },
   { name: "gafus-worker", title: "Worker" },
   { name: "gafus-telegram-bot", title: "Telegram Bot" },

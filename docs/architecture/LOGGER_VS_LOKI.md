@@ -1,5 +1,7 @@
 # Сравнение: Текущая система логирования vs Grafana Loki
 
+> **Примечание:** Error Dashboard удалён. Текущий стек: **Seq** (серверные логи) + **Tracer** (клиентские ошибки).
+
 ## 📋 Понимание различий
 
 **Важно:** Pino (`@gafus/logger`) и Grafana Loki решают **разные задачи**:
@@ -19,22 +21,16 @@
 ### Стек
 
 ```
-Приложения → Pino → Error Dashboard API → PostgreSQL → Error Dashboard UI
+Приложения → Pino → stdout → Vector → Seq
+Клиентские ошибки → Tracer (ErrorBoundary, reportClientError)
 ```
 
 **Компоненты:**
 
-1. **Pino** (`@gafus/logger`) - генерация структурированных логов
-2. **Error Dashboard** - Next.js приложение для приёма логов
-3. **PostgreSQL** - хранение ошибок в структурированном виде
-4. **Error Dashboard UI** - веб-интерфейс для просмотра ошибок
-
-**Хранится в БД:**
-
-- Структурированные ошибки (ErrorReport модель)
-- Метаданные (appName, environment, userId, tags)
-- Контекст (stack, componentStack, additionalContext)
-- Статусы (resolved, resolvedAt, resolvedBy)
+1. **Pino** (`@gafus/logger`) — генерация структурированных логов
+2. **Vector** — сбор логов из Docker
+3. **Seq** — хранение и UI
+4. **Tracer** — клиентские ошибки (web, trainer-panel)
 
 ---
 
@@ -79,22 +75,9 @@
 
 ### 2. Запросы и поиск
 
-#### PostgreSQL (текущее)
+#### Seq (текущее)
 
-```sql
--- Гибкие запросы
-SELECT * FROM ErrorReport
-WHERE appName = 'web'
-  AND environment = 'production'
-  AND resolved = false
-  AND createdAt > NOW() - INTERVAL '7 days'
-  AND tags @> ARRAY['error'];
-
--- Агрегации
-SELECT appName, COUNT(*)
-FROM ErrorReport
-GROUP BY appName;
-```
+SQL-подобные запросы в Seq UI, фильтры по `App`, `Level`, `ContainerName`, `Message`.
 
 #### Grafana Loki (LogQL)
 
@@ -112,29 +95,25 @@ GROUP BY appName;
 - ❌ Сложные агрегации ограничены
 - ❌ Поиск по содержимому медленнее (нет полнотекстовой индексации)
 
-**Вывод:** PostgreSQL лучше для сложных запросов ✅
+**Вывод:** Seq достаточен для типичных запросов по логам ✅
 
 ---
 
 ### 3. UI и визуализация
 
-#### Текущее (Error Dashboard)
+#### Текущее (Seq)
 
-- ✅ Кастомный UI под нужды проекта
-- ✅ Фильтрация по структурированным полям
-- ✅ Управление статусами (resolve/unresolve)
-- ✅ Комментарии и тегирование
-- ✅ Интеграция с бизнес-логикой
+- ✅ Встроенный UI для логов
+- ✅ Фильтрация по App, Level, ContainerName
+- ✅ Дашборды и сигналы
 
 #### Grafana Loki (Grafana UI)
 
 - ✅ Мощная визуализация логов
 - ✅ Интеграция с метриками (Prometheus)
-- ✅ Dashboards и алерты
-- ❌ Универсальный интерфейс (не специфичный для проекта)
-- ❌ Нет встроенного управления статусами ошибок
+- ❌ Отдельный стек
 
-**Вывод:** Error Dashboard лучше для управления ошибками ✅
+**Вывод:** Seq проще для текущих объёмов ✅
 
 ---
 
@@ -167,19 +146,14 @@ GROUP BY appName;
 #### Текущая система
 
 ```
-@gafus/logger (Pino)
-  ↓ HTTP
-error-dashboard
-  ↓
-PostgreSQL (та же БД, что и для приложения)
+@gafus/logger (Pino) → stdout → Vector → Seq
+Клиентские ошибки → Tracer
 ```
 
 **Преимущества:**
 
-- ✅ Всё в одном стеке
-- ✅ Одна БД для всего проекта
-- ✅ Нативная интеграция с Prisma
-- ✅ Простая архитектура
+- ✅ Простая архитектура (без отдельного API для логов)
+- ✅ Vector уже настроен для Docker
 
 #### С Loki
 
@@ -263,8 +237,7 @@ Grafana
    - PostgreSQL проще и быстрее
 
 3. **Нужно управление статусами ошибок**
-   - Error Dashboard лучше для workflow ошибок
-   - Grafana - универсальный, но не специализированный
+   - Tracer + Seq покрывают потребности
 
 4. **Важна простота архитектуры**
    - Текущая система проще
@@ -277,14 +250,14 @@ Grafana
 ### Текущее + Loki для долгосрочного хранения
 
 ```
-Приложения → Pino → Error Dashboard → PostgreSQL (активные ошибки)
+Приложения → Pino → stdout → Vector → Seq (основное)
                                     ↓
                               Loki (архив логов)
 ```
 
 **Преимущества:**
 
-- ✅ PostgreSQL для управления ошибками (быстро, структурировано)
+- ✅ Seq для просмотра и поиска логов
 - ✅ Loki для долгосрочного хранения (дешевле, масштабируемо)
 - ✅ Лучшее из обоих миров
 
@@ -328,9 +301,7 @@ Grafana
    - PostgreSQL лучше подходит
 
 3. **Управление workflow**
-   - Error Dashboard имеет кастомный UI
-   - Управление статусами (resolve/unresolve)
-   - Интеграция с бизнес-логикой
+   - Seq UI для логов, Tracer для клиентских ошибок
 
 4. **Простота**
    - Всё в одном стеке

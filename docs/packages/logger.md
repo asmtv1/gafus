@@ -18,7 +18,7 @@
 
 ### Что уже реализовано
 
-- ✅ Централизованный сбор логов/ошибок в error-dashboard
+- ✅ Серверные логи → Pino → stdout → Vector → Seq
 - ✅ Структурированные логи (JSON)
 - ✅ Поддержка всех приложений монорепо
 - ✅ Специализированные логгеры для каждого типа сервиса
@@ -67,16 +67,17 @@ workerLogger.error("Не удалось отправить push", error);
 
 ### Доступные фабрики
 
-| Фабрика                      | Приложение      | Error Dashboard                  |
-| ---------------------------- | --------------- | -------------------------------- |
-| `createWebLogger`            | web             | ✅ Включен                       |
-| `createTrainerPanelLogger`   | trainer-panel   | ✅ Включен                       |
-| `createAdminPanelLogger`     | admin-panel     | ✅ Включен                       |
-| `createWorkerLogger`         | worker          | ✅ Включен                       |
-| `createTelegramBotLogger`    | telegram-bot    | ✅ Включен                       |
-| `createBullBoardLogger`      | bull-board      | ❌ Отключен                      |
-| `createErrorDashboardLogger` | error-dashboard | ❌ Отключен (избежание рекурсии) |
-| `createSilentLogger`         | —               | ❌ Только fatal                  |
+| Фабрика                    | Приложение    |
+| -------------------------- | ------------- |
+| `createWebLogger`          | web           |
+| `createTrainerPanelLogger` | trainer-panel |
+| `createAdminPanelLogger`   | admin-panel   |
+| `createWorkerLogger`       | worker        |
+| `createTelegramBotLogger`  | telegram-bot  |
+| `createBullBoardLogger`    | bull-board    |
+| `createSilentLogger`       | — (только fatal) |
+
+Клиентские ошибки — в Tracer через ErrorBoundary и `reportClientError`.
 
 ### Уровни логирования
 
@@ -98,19 +99,18 @@ logger.fatal("Критическая ошибка");
 
 ### Отправка ошибок напрямую
 
-Для отправки ошибок используйте `logger.error()` напрямую:
+Для отправки ошибок используйте `logger.error()` напрямую (синхронный вызов):
 
 ```typescript
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("my-context");
 
-// Отправка ошибки
-await logger.error(error.message || "Unknown error", error, {
+// Серверные ошибки — лог в Pino → stdout → Vector → Seq
+logger.error(error.message || "Unknown error", error, {
   userId: user.id,
   operation: "checkout",
   additionalContext: { action: "checkout" },
-  tags: ["error", "checkout"],
 });
 ```
 
@@ -118,20 +118,19 @@ await logger.error(error.message || "Unknown error", error, {
 
 ```
 @gafus/logger
-├── UnifiedLogger       # Основной класс (обёртка над Pino)
-├── LoggerFactory       # Фабрика с кэшированием
-└── ErrorDashboardTransport  # Транспорт для отправки в Loki
+├── UnifiedLogger   # Основной класс (обёртка над Pino)
+├── LoggerFactory   # Фабрика с кэшированием
+└── transports/    # Pino transports (при необходимости)
 ```
 
 ### Поток данных
 
 ```
-Приложение → Logger → Pino → Console
-                    ↓
-              ErrorDashboardTransport → error-dashboard → PostgreSQL
-
-Docker контейнеры → stdout/stderr → Vector → Seq → Error Dashboard
+Приложение → Logger → Pino → stdout
+Docker контейнеры → Vector → Seq
 ```
+
+Клиентские ошибки отправляются в Tracer через ErrorBoundary и `reportClientError` из `@gafus/error-handling`.
 
 ### Сбор логов из Docker контейнеров
 
@@ -147,7 +146,7 @@ Docker контейнеры → stdout/stderr → Vector → Seq → Error Dashb
 
 **Преимущества:**
 
-- Видим все логи контейнеров в Seq и Error Dashboard
+- Видим все логи контейнеров в Seq
 - Нативная поддержка Seq (встроенный sink)
 - Автоматический парсинг Pino формата через VRL (Vector Remap Language)
 - Метаданные контейнера (container_id, app, level, context) добавляются автоматически
@@ -159,28 +158,19 @@ Docker контейнеры → stdout/stderr → Vector → Seq → Error Dashb
 
 ```env
 # Отключение логирования
-DISABLE_LOGGING=true              # Полное отключение
-DISABLE_CONSOLE_LOGGING=true      # Только консоль
-DISABLE_ERROR_DASHBOARD_LOGGING=true  # Только dashboard
-
-# Контроль отправки в Error Dashboard
-ENABLE_ERROR_DASHBOARD=true|false # true разрешает, false запрещает, по умолчанию включено вне production
-
-# URL error-dashboard
-ERROR_DASHBOARD_URL=https://monitor.gafus.ru/api
+DISABLE_LOGGING=true          # Полное отключение
+DISABLE_CONSOLE_LOGGING=true  # Только консоль
 ```
 
 ### LoggerConfig
 
 ```typescript
 interface LoggerConfig {
-  appName: string; // Название приложения
+  appName: string;
   environment: "development" | "production" | "test";
   level: "debug" | "info" | "warn" | "error" | "fatal";
-  enableConsole?: boolean; // true по умолчанию
-  enableErrorDashboard?: boolean; // false по умолчанию
-  context?: string; // Контекст (например, 'auth-service')
-  errorDashboardUrl?: string; // URL для отправки
+  enableConsole?: boolean;
+  context?: string;
 }
 ```
 
@@ -192,30 +182,18 @@ interface LoggerConfig {
 [2024-01-15 10:30:45] INFO  [web:profile-page] Страница загружена {"userId":"123"}
 ```
 
-### В error-dashboard (JSON)
+### В Seq (из Vector, Pino JSON)
 
-```json
-{
-  "timestamp": "2024-01-15T10:30:45.123Z",
-  "level": "info",
-  "appName": "web",
-  "context": "profile-page",
-  "message": "Страница загружена",
-  "metadata": { "userId": "123" },
-  "environment": "production"
-}
-```
+Логи парсятся из stdout и попадают в Seq с полями App, Level, Context, Message.
 
 ## 🔧 Структура пакета
 
 ```
 packages/logger/
 ├── src/
-│   ├── UnifiedLogger.ts          # Основной логгер
-│   ├── LoggerFactory.ts          # Фабрика
-│   ├── logger-types.ts           # Типы
-│   ├── transports/
-│   │   └── ErrorDashboardTransport.ts
+│   ├── UnifiedLogger.ts   # Основной логгер
+│   ├── LoggerFactory.ts   # Фабрика
+│   ├── logger-types.ts    # Типы
 │   └── index.ts
 ├── package.json
 └── tsconfig.json

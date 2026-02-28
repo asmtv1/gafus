@@ -8,7 +8,7 @@ alwaysApply: true
 - Use try-catch for all async operations
 - Return structured errors: `{ success: false, error: string }`
 - Log errors with `@gafus/logger`
-- Report critical errors to error dashboard
+- Клиентские ошибки: `reportClientError` из `@gafus/error-handling` → Tracer
 
 ## Logger Usage
 ```typescript
@@ -44,7 +44,7 @@ export async function myAction(data: FormData) {
   }
 }
 ```
-Критичные ошибки при настроенных `ENABLE_ERROR_DASHBOARD` и `ERROR_DASHBOARD_URL` автоматически отправляются в error-dashboard через транспорт логгера (@gafus/logger). Отдельный вызов reportError не нужен.
+Серверные логи — Pino → stdout → Vector → Seq. Клиентские ошибки — ErrorBoundary → reportClientError → Tracer (apptracer.ru).
 
 ## Client-Side Error Handling
 - Показывать пользователю сообщения через state (`error`, `setError`)

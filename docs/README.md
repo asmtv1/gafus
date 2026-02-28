@@ -39,7 +39,6 @@
 - [Admin Panel](./apps/admin-panel.md)
 - [API (v1)](./apps/api.md)
 - [Telegram Bot](./apps/telegram-bot.md)
-- [Error Dashboard](./apps/error-dashboard.md)
 - [Bull Board](./apps/bull-board.md)
 
 ### Фичи
@@ -61,7 +60,7 @@
 
 ### Мониторинг
 
-- [Мониторинг](./monitoring/README.md)
+- [Мониторинг (Seq, Tracer)](./monitoring/README.md)
 - [Grafana](./monitoring/GRAFANA.md)
 - [Prometheus-запросы](./monitoring/PROMETHEUS_QUERIES.md)
 

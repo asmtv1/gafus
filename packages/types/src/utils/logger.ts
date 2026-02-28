@@ -4,7 +4,6 @@
 import {
   createWebLogger,
   createTrainerPanelLogger,
-  createErrorDashboardLogger,
   createTelegramBotLogger,
   createWorkerLogger,
   createBullBoardLogger,
@@ -30,10 +29,6 @@ export function createLogger(context: string): Logger {
     return createTrainerPanelLogger(context);
   }
 
-  if (context.includes("error-dashboard") || context.includes("dashboard")) {
-    return createErrorDashboardLogger(context);
-  }
-
   if (context.includes("telegram") || context.includes("bot")) {
     return createTelegramBotLogger(context);
   }
@@ -57,10 +52,10 @@ export function createLogger(context: string): Logger {
 export const silentLogger: Logger = {
   info: () => {},
   warn: () => {},
-  error: async () => {},
+  error: () => {},
   debug: () => {},
   success: () => {},
-  fatal: async () => {},
+  fatal: () => {},
   dev: () => {},
 };
 

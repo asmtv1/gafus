@@ -36,12 +36,6 @@ cd apps/trainer-panel
 USE_STANDALONE=true pnpm build
 cd ../..
 
-# Собираем error-dashboard (как в CI)
-echo "📊 Сборка error-dashboard..."
-cd apps/error-dashboard
-USE_STANDALONE=true pnpm build
-cd ../..
-
 # НЕ собираем все пакеты - в CI этого нет!
 # В CI используется только pnpm build в каждой директории приложения
 echo "📦 Пропускаем сборку пакетов (в CI этого нет!)"

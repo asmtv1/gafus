@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { createErrorDashboardLogger } from "@gafus/logger";
+import { createAdminPanelLogger } from "@gafus/logger";
 
 // Создаем логгер для admin-panel (отключена отправка в error-dashboard)
-const logger = createErrorDashboardLogger("admin-panel-middleware");
+const logger = createAdminPanelLogger("admin-panel-middleware");
 
 // Роли, которым разрешен доступ к admin-panel
 const ALLOWED_ROLES = ["ADMIN", "MODERATOR"];

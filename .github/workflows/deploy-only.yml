@@ -106,8 +106,9 @@ jobs:
               echo "# URLs приложений"
               echo "NEXTAUTH_URL=https://gafus.ru"
               echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
-              echo "ERROR_DASHBOARD_URL=https://monitor.gafus.ru"
-              echo "ERROR_DASHBOARD_INTERNAL_URL=http://gafus-error-dashboard:3005"
+              echo "NEXT_PUBLIC_TRACER_APP_TOKEN=${{ secrets.NEXT_PUBLIC_TRACER_APP_TOKEN }}"
+              echo "NEXT_PUBLIC_APP_VERSION=1.0.0"
+              echo "NEXT_PUBLIC_ENABLE_TRACER=true"
               echo "WEB_APP_URL=https://gafus.ru"
               echo ""
               echo "# Cookie домен"
@@ -179,7 +180,6 @@ jobs:
             pids=""
             docker pull ghcr.io/asmtv1/gafus-web:latest & pids="$pids $!"
             docker pull ghcr.io/asmtv1/gafus-trainer-panel:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-error-dashboard:latest & pids="$pids $!"
             docker pull ghcr.io/asmtv1/gafus-api:latest & pids="$pids $!"
             docker pull ghcr.io/asmtv1/gafus-worker:latest & pids="$pids $!"
             docker pull ghcr.io/asmtv1/gafus-bull-board:latest & pids="$pids $!"
@@ -199,7 +199,6 @@ jobs:
             # Tag images for local use
             docker tag ghcr.io/asmtv1/gafus-web:latest gafus-web:latest
             docker tag ghcr.io/asmtv1/gafus-trainer-panel:latest trainer-panel:latest
-            docker tag ghcr.io/asmtv1/gafus-error-dashboard:latest error-dashboard:latest
             docker tag ghcr.io/asmtv1/gafus-api:latest gafus-api:latest
             docker tag ghcr.io/asmtv1/gafus-worker:latest gafus-worker:latest
             docker tag ghcr.io/asmtv1/gafus-bull-board:latest gafus-bull-board:latest

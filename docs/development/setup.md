@@ -77,7 +77,6 @@ pnpm dev
 # Или запуск конкретного приложения
 pnpm --filter @gafus/web dev
 pnpm --filter @gafus/trainer-panel dev
-pnpm --filter @gafus/error-dashboard dev
 ```
 
 **💡 Оптимизация производительности:**
@@ -143,14 +142,6 @@ WEB_APP_URL=http://localhost:3002
 
 # Секретный токен для межсервисных вызовов (опционально)
 REVALIDATE_SECRET_TOKEN=your-secret-token-here
-```
-
-**Error Dashboard (.env)**
-
-```env
-# Error Dashboard
-PORT=3000
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
 ```
 
 **Telegram Bot (.env)**

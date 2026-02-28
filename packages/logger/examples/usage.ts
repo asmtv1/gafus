@@ -59,7 +59,7 @@ export async function demonstrateErrorHandling() {
     throw new Error("Connection timeout");
   } catch (error) {
     // Эта ошибка будет отправлена в error-dashboard
-    await logger.error("Ошибка подключения к базе данных", error as Error, {
+    logger.error("Ошибка подключения к базе данных", error as Error, {
       operation: "user-creation",
       userId: "789",
     });
@@ -81,7 +81,7 @@ export async function demonstrateServerAction() {
 
     logger.success("Профиль пользователя обновлен", { userId: "123" });
   } catch (error) {
-    await logger.error("Ошибка обновления профиля", error as Error, { userId: "123" });
+    logger.error("Ошибка обновления профиля", error as Error, { userId: "123" });
     throw error;
   }
 }

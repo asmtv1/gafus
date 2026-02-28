@@ -13,7 +13,6 @@ gafus/
 ├── ci-cd/docker/           # Docker файлы
 │   ├── Dockerfile-web-optimized
 │   ├── Dockerfile-trainer-panel-optimized
-│   ├── Dockerfile-error-dashboard-optimized
 │   ├── Dockerfile-telegram-bot-optimized
 │   ├── Dockerfile-bull-board-optimized
 │   ├── Dockerfile-worker-optimized
@@ -25,7 +24,7 @@ gafus/
 
 ## ⚙️ Next.js Standalone Mode
 
-Все Next.js приложения (web, trainer-panel, error-dashboard, admin-panel) используют **standalone mode** для оптимизации размера Docker образов.
+Все Next.js приложения (web, trainer-panel, admin-panel) используют **standalone mode** для оптимизации размера Docker образов.
 
 ### Переменная окружения для Standalone Mode
 
@@ -158,54 +157,6 @@ ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "apps/trainer-panel/server.js"]
-```
-
-### Error Dashboard Dockerfile
-
-```dockerfile
-# ci-cd/docker/Dockerfile-error-dashboard-optimized
-FROM node:18-alpine AS base
-
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-COPY package.json pnpm-lock.yaml* ./
-COPY apps/error-dashboard/package.json ./apps/error-dashboard/
-COPY packages/*/package.json ./packages/*/
-
-RUN npm install -g pnpm
-RUN pnpm install --frozen-lockfile --prod
-
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-RUN pnpm db:generate
-RUN pnpm --filter @gafus/error-dashboard build
-
-FROM base AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/apps/error-dashboard/public ./apps/error-dashboard/public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/error-dashboard/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/error-dashboard/.next/static ./apps/error-dashboard/.next/static
-
-USER nextjs
-
-EXPOSE 3000
-
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "apps/error-dashboard/server.js"]
 ```
 
 ### Telegram Bot Dockerfile
@@ -428,31 +379,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # Error Dashboard
-  error-dashboard:
-    build:
-      context: ../..
-      dockerfile: ci-cd/docker/Dockerfile-error-dashboard-optimized
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://gafus_user:${DATABASE_PASSWORD}@postgres:5432/gafus_production
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - NEXTAUTH_URL=https://errors.gafus.ru
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-    ports:
-      - "3000:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   # Telegram Bot
   telegram-bot:
     build:
@@ -523,7 +449,6 @@ services:
     depends_on:
       - web
       - trainer-panel
-      - error-dashboard
       - bull-board
     restart: unless-stopped
 
@@ -767,7 +692,7 @@ curl -f http://localhost:3002/api/health
 # Просмотр логов конкретного сервиса
 docker-compose logs -f web
 docker-compose logs -f trainer-panel
-docker-compose logs -f error-dashboard
+docker-compose logs -f admin-panel
 
 # Просмотр логов за последний час
 docker-compose logs --since=1h

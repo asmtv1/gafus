@@ -63,7 +63,10 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "extraMavenRepos": [
+              "https://artifactory-external.vkpartner.ru/artifactory/maven"
+            ]
           }
         }
       ],

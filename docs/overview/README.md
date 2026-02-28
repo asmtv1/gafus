@@ -30,7 +30,6 @@ gafus/
 - **Mobile** (`apps/mobile`) — React Native (iOS/Android)
 - **Trainer Panel** (`apps/trainer-panel`) — панель тренера
 - **Admin Panel** (`apps/admin-panel`) — админ-панель
-- **Error Dashboard** (`apps/error-dashboard`) — мониторинг ошибок
 
 #### 🤖 Backend и сервисы
 
@@ -128,15 +127,8 @@ gafus/
 
 ### Централизованное логирование
 
-- Все приложения отправляют логи в единую систему
-- Структурированные логи в JSON формате
-- Различные уровни логирования
-
-### Обработка ошибок
-
-- Автоматический сбор ошибок
-- Контекстная информация
-- Уведомления разработчиков
+- Серверные логи: Pino → stdout → Vector → Seq
+- Клиентские ошибки: Tracer (ErrorBoundary, reportClientError)
 
 ## 🚀 Технологии
 

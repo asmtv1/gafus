@@ -6,7 +6,9 @@
  * - Автоматическая отправка ошибок через @gafus/logger в Loki
  */
 
-// React компоненты
+export { reportClientError } from "./lib/reportClientError";
+export type { ClientErrorData } from "./lib/reportClientError";
+
 export { ErrorBoundary } from "./react/ErrorBoundary";
 export type {
   ErrorBoundaryProps,

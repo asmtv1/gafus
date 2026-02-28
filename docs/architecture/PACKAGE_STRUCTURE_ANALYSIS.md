@@ -7,11 +7,11 @@
 **Содержимое:**
 
 - ✅ React ErrorBoundary компонент (1 файл: `ErrorBoundary.tsx`)
-- ✅ Использует `logger.error()` из `@gafus/logger` для отправки ошибок
+- ✅ Использует `reportClientError` (Tracer) для отправки клиентских ошибок
 
 **Зависимости:**
 
-- `@gafus/logger` (workspace)
+- `@gafus/types` (workspace)
 - `react`, `react-dom` (peer dependencies)
 
 **Использование:**
@@ -32,8 +32,7 @@
 
 - ✅ UnifiedLogger (основной класс на базе Pino)
 - ✅ LoggerFactory (фабрика для создания логгеров)
-- ✅ Logger с отправкой ошибок в Loki
-- ✅ ErrorDashboardTransport (HTTP транспорт)
+- ✅ Pino → stdout → Vector → Seq
 
 **Зависимости:**
 
@@ -133,7 +132,7 @@ import { createWorkerLogger } from "@gafus/logger"; // +React (лишнее!)
 
 #### Где используется @gafus/logger:
 
-- ✅ Все приложения (web, trainer-panel, admin-panel, telegram-bot, error-dashboard)
+- ✅ Все приложения (web, trainer-panel, admin-panel, telegram-bot)
 - ✅ Worker пакет
 - ✅ Backend пакеты (prisma, auth, csrf)
 - ✅ Server Actions, API routes

@@ -17,7 +17,6 @@ const apps = [
   { name: "Web App", filter: "@gafus/web", port: 3002, type: "next-dev" },
   { name: "Trainer Panel", filter: "@gafus/trainer-panel", port: 3001, type: "next-dev" },
   //{ name: "Admin Panel", filter: "@gafus/admin-panel", port: 3006, type: "next-dev" },
-  //{ name: "Error Dashboard", filter: "@gafus/error-dashboard", port: 3005, type: "next-dev" },
   //{ name: "Push Worker", filter: "@gafus/worker", port: null, type: "worker" },
 ];
 
@@ -105,7 +104,6 @@ setTimeout(() => {
   console.warn("  Web App: http://web.gafus.localhost:3002");
   console.warn("  Trainer Panel: http://trainer.gafus.localhost:3001");
   console.warn("  Admin Panel: http://admin.gafus.localhost:3006");
-  console.warn("  Error Dashboard: http://errors.gafus.localhost:3005");
   console.warn("  Push Worker: обрабатывает уведомления");
   console.warn("\n💡 Для остановки нажмите Ctrl+C");
 }, 5000);

@@ -6,7 +6,7 @@ alwaysApply: true
 
 ## Monorepo Structure
 - This is a **pnpm workspace** monorepo with Turborepo
-- Apps: `apps/` (web, trainer-panel, error-dashboard, admin-panel, telegram-bot, bull-board, api, mobile)
+- Apps: `apps/` (web, trainer-panel, admin-panel, telegram-bot, bull-board, api, mobile)
 - Packages: `packages/` (shared libraries)
 - Always use workspace protocol: `"@gafus/package": "workspace:*"`
 
@@ -18,7 +18,7 @@ packages/
 ├── cdn-upload/     # CDN uploads
 ├── csrf/           # CSRF protection
 ├── error-handling/ # Error reporting, ErrorBoundary
-├── logger/         # Logging (Pino, error-dashboard transport)
+├── logger/         # Logging (Pino → Seq)
 ├── metadata/       # SEO metadata, JSON-LD
 ├── prisma/         # Database & ORM
 ├── queues/         # BullMQ queues

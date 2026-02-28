@@ -2,7 +2,6 @@ export * from "./achievements";
 export * from "./api";
 export * from "./common";
 export * from "./course";
-export * from "./error-dashboard";
 export * from "./login-form";
 export * from "./pet";
 export * from "./pet-input";

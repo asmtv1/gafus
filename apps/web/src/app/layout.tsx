@@ -1,6 +1,7 @@
 // src/app/layout.tsx
 
 import { ErrorBoundary } from "@gafus/error-handling";
+import { TracerProvider } from "@gafus/ui-components";
 import { SITE_CONFIG, DEFAULT_OG_IMAGE, SOCIAL } from "@gafus/metadata";
 import PetsProvider from "@shared/components/common/PetsProvider";
 import UserProvider from "@shared/components/common/UserProvider";
@@ -86,27 +87,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body>
-        <ErrorBoundary
-          config={{
-            appName: "gafus",
-            environment: process.env.NODE_ENV === "production" ? "production" : "development",
-            logToConsole: true, // Показываем ошибки в консоли (ИЗМЕНИТЬ!)
-            showErrorDetails: false, // Не показываем детали пользователям
-          }}
-        >
-          <ClientLayout>
-            <SessionWrapper>
-              <ClientRedirect />
-              <UserProvider>
-                <PetsProvider>
-                  <WebQueryProvider>
-                    <main>{children}</main>
-                  </WebQueryProvider>
-                </PetsProvider>
-              </UserProvider>
-            </SessionWrapper>
-          </ClientLayout>
-        </ErrorBoundary>
+        <TracerProvider>
+          <ErrorBoundary
+            config={{
+              appName: "gafus",
+              logToConsole: true,
+              showErrorDetails: false,
+            }}
+          >
+            <ClientLayout>
+              <SessionWrapper>
+                <ClientRedirect />
+                <UserProvider>
+                  <PetsProvider>
+                    <WebQueryProvider>
+                      <main>{children}</main>
+                    </WebQueryProvider>
+                  </PetsProvider>
+                </UserProvider>
+              </SessionWrapper>
+            </ClientLayout>
+          </ErrorBoundary>
+        </TracerProvider>
       </body>
     </html>
   );

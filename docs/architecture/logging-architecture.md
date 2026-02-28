@@ -2,72 +2,46 @@
 
 ## Обзор
 
-Проект использует гибридную архитектуру логирования для микросервисов:
-
 ```
-Приложение → stdout/stderr → Vector → Seq (все логи)
-Приложение (Pino) → Error Dashboard API → PostgreSQL (только ошибки)
-Error Dashboard → Читает из обоих источников
+Приложение (Pino) → stdout → Vector → Seq (все логи)
+Клиентские ошибки → Tracer (ErrorBoundary + reportClientError)
 ```
 
 ## Компоненты
 
-### 1. Приложения (Logger)
+### 1. Серверные логи (Pino → Seq)
 
-- Используют `@gafus/logger` на базе Pino
-- Логи выводятся в stdout в формате JSON
-- Структурированные логи с метаданными (app, context, level)
+- `@gafus/logger` на базе Pino
+- Логи в stdout в формате JSON
+- Vector собирает из Docker контейнеров, парсит Pino JSON, отправляет в Seq
 
-### 2. Vector
+### 2. Клиентские ошибки (Tracer)
 
-- Собирает логи из Docker контейнеров (`/var/lib/docker/containers`)
-- Парсит Docker JSON формат и Pino JSON логи
-- Извлекает метки: app, level, context, environment
-- Отправляет в Seq в формате CLEF через нативный Seq sink
+- `TracerProvider` (apps/web, apps/trainer-panel) инициализирует `@apptracer/sdk`
+- ErrorBoundary → `reportClientError` → Tracer
+- См. [Tracer](../monitoring/tracer.md)
 
-### 3. Seq
+### 3. Vector
 
-- Хранит все логи контейнеров с индексацией по свойствам
-- Доступен по адресу: `http://localhost:5341` (dev) или `http://seq:5341` (Docker)
-- Встроенный веб-интерфейс для просмотра и поиска логов
-- Автоматическая очистка старых логов (retention policy)
+- Собирает логи из Docker контейнеров
+- Парсит Docker JSON и Pino JSON
+- Отправляет в Seq в формате CLEF
 
-### 4. PostgreSQL
+### 4. Seq
 
-- Хранит только ошибки (error/fatal) для управления статусами
-- Используется Error Dashboard для отображения и управления ошибками
-- Структурированные данные с возможностью resolve/unresolve
-
-### 5. Error Dashboard
-
-- Читает логи из Seq через REST API
-- Синхронизирует ошибки в PostgreSQL
-- Фильтрует по меткам (app, level, tags)
-- Отображает ошибки и push-логи
+- Хранит все серверные логи
+- Доступ: `http://localhost:5341` (dev), `https://monitor.gafus.ru` (prod)
 
 ## Локальная разработка
 
-Vector собирает логи только из Docker контейнеров. Если приложение запущено локально, логи не попадут в Seq. Варианты: запуск в Docker, просмотр логов в консоли, прямой доступ к Seq UI (`http://localhost:5341`).
+Vector работает только с Docker. При локальном запуске логи смотрятся в консоли; Seq UI — `http://localhost:5341`.
 
 ## Production
 
-В production все приложения работают в Docker: Vector собирает логи из всех контейнеров, Seq хранит логи централизованно, PostgreSQL — только ошибки для управления, Error Dashboard читает оба источника.
-
-## Свойства (Properties)
-
-Vector извлекает из Pino JSON: `App`, `Level`, `Context`, `ContainerId`, `ContainerName`, `Stream`, `tag_container_logs`.
-
-## Запросы к Seq
-
-SQL-подобный синтаксис: `select * from stream where @Properties['App'] = 'worker'`, фильтры по Level, ContainerName и т.д. Примеры REST API — в [troubleshooting/CHECK_SEQ.md](../troubleshooting/CHECK_SEQ.md).
-
-## Лучшие практики
-
-- Логи идут в stdout → Vector → Seq; ошибки синхронизируются в PostgreSQL
-- Не отправлять логи напрямую в Seq из приложения; не хранить все логи в PostgreSQL
+Все приложения в Docker → Vector → Seq. Клиентские ошибки — в Tracer.
 
 ## См. также
 
-- [Error Dashboard](../apps/error-dashboard.md)
-- [Logger пакет](../packages/logger.md)
+- [Tracer (клиентские ошибки)](../monitoring/tracer.md)
+- [Logger](../packages/logger.md)
 - [Проверка Seq](../troubleshooting/CHECK_SEQ.md)

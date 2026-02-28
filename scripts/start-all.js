@@ -41,7 +41,6 @@ const apps = [
   { name: "Web App", filter: "@gafus/web", port: 3002, type: "next" },
   { name: "Trainer Panel", filter: "@gafus/trainer-panel", port: 3001, type: "next" },
   { name: "Admin Panel", filter: "@gafus/admin-panel", port: 3006, type: "next" },
-  { name: "Error Dashboard", filter: "@gafus/error-dashboard", port: 3005, type: "next" },
   { name: "Telegram Bot", filter: "@gafus/telegram-bot", port: 3003, type: "node" },
   { name: "Bull Board", filter: "@gafus/bull-board", port: 3004, type: "node" },
   { name: "Worker", filter: "@gafus/worker", port: null, type: "worker", delay: 5000, watch: true },
@@ -66,9 +65,7 @@ function ensureBuilt(app) {
         ? "apps/trainer-panel"
         : app.filter === "@gafus/admin-panel"
           ? "apps/admin-panel"
-          : app.filter === "@gafus/error-dashboard"
-            ? "apps/error-dashboard"
-            : null;
+          : null;
   if (!cwd) return;
 
   // Проверяем наличие всех необходимых файлов для production
@@ -175,7 +172,6 @@ setTimeout(() => {
   console.warn("  Web App: http://localhost:3002");
   console.warn("  Trainer Panel: http://localhost:3001");
   console.warn("  Admin Panel: http://localhost:3006");
-  console.warn("  Error Dashboard: http://localhost:3005");
   console.warn("  Bull Board: http://localhost:3004");
   console.warn("  Telegram Bot: работает на порту 3003");
 

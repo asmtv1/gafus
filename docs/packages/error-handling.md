@@ -2,12 +2,12 @@
 
 ## 📋 Обзор
 
-Пакет `@gafus/error-handling` предоставляет React Error Boundaries для перехвата ошибок в UI-компонентах с автоматической отправкой отчётов в error-dashboard.
+Пакет `@gafus/error-handling` предоставляет React Error Boundaries для перехвата ошибок в UI-компонентах с автоматической отправкой в Tracer.
 
 ## 🎯 Основные функции
 
 - **React Error Boundaries** для перехвата ошибок в UI
-- **Автоматическая отправка ошибок** в error-dashboard через `@gafus/logger`
+- **Автоматическая отправка ошибок** в Tracer через `reportClientError`
 - **Кастомизируемый fallback UI** для отображения ошибок пользователю
 - **Контекстная информация** для отладки (component stack, user info, etc.)
 
@@ -48,10 +48,9 @@ interface ErrorBoundaryProps {
 }
 
 interface ErrorBoundaryConfig {
-  appName: string; // Название приложения
-  environment?: string; // Окружение (по умолчанию process.env.NODE_ENV)
-  logToConsole?: boolean; // Логировать в консоль (по умолчанию true)
-  showErrorDetails?: boolean; // Показывать детали ошибки (по умолчанию false)
+  appName: string;
+  logToConsole?: boolean;
+  showErrorDetails?: boolean;
 }
 ```
 
@@ -126,23 +125,22 @@ function App() {
 }
 ```
 
-### Отправка ошибок напрямую
+### Ручная отправка клиентских ошибок в Tracer
 
-Для отправки ошибок используйте `logger.error()` из `@gafus/logger`:
+Для отправки клиентских ошибок используйте `reportClientError`:
 
 ```typescript
-import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 
-const logger = createWebLogger("my-context");
-
-// Отправка ошибки
-await logger.error(error.message || "Unknown error", error, {
+reportClientError(error, {
+  severity: "error",
   userId: "123",
-  operation: "save_profile",
-  additionalContext: { action: "save_profile" },
-  tags: ["error", "profile"],
+  issueKey: "my-feature",
+  keys: { screen: "profile", action: "save" },
 });
 ```
+
+Для серверных ошибок — `logger.error()` из `@gafus/logger` (логи идут в Seq).
 
 ## 📊 Структура отчётов об ошибках
 
@@ -167,16 +165,17 @@ interface ErrorInfo {
 ```
 packages/error-handling/
 ├── src/
+│   ├── lib/
+│   │   └── reportClientError.ts  # Bridge в Tracer
 │   ├── react/
-│   │   └── ErrorBoundary.tsx   # React Error Boundary
-│   └── index.ts               # Экспорты
+│   │   └── ErrorBoundary.tsx    # React Error Boundary → reportClientError
+│   └── index.ts                 # Экспорты
 ├── package.json
 └── tsconfig.json
 ```
 
 ## 📦 Зависимости
 
-- `@gafus/logger` — логирование
 - `@gafus/types` — общие типы
 - `react`, `react-dom` — React runtime
 

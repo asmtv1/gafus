@@ -15,7 +15,7 @@
 
 - ✅ Все логи из контейнеров (stdout/stderr)
 - ✅ Логи системных компонентов
-- ✅ Логи в Seq и Error Dashboard с метаданными контейнера
+- ✅ Логи в Seq с метаданными контейнера
 - ✅ Парсинг Pino JSON логов
 - ✅ Централизованный сбор всех логов
 
@@ -28,11 +28,7 @@ Docker JSON log files (/var/lib/docker/containers/*/*-json.log)
     ↓
 Vector (читает, парсит, форматирует)
     ↓
-Seq (хранит все логи)
-    ↓
-Error Dashboard (читает из Seq, синхронизирует ошибки в PostgreSQL)
-    ↓
-Error Dashboard UI
+Seq (хранит логи, UI для просмотра)
 ```
 
 ## ⚙️ Конфигурация
@@ -133,14 +129,6 @@ Vector отправляет логи в Seq через HTTP API:
 - Формат: CLEF (один JSON объект на строку)
 - Batch: до 500 событий или 10MB за раз
 
-### 6. Обработка в Error Dashboard
-
-Error Dashboard:
-
-1. Читает логи из Seq через REST API
-2. Синхронизирует ошибки (error/fatal) в PostgreSQL
-3. Отображает все логи через UI
-
 ## 📊 Просмотр логов
 
 ### В Seq UI
@@ -155,18 +143,12 @@ curl -G "http://localhost:5341/api/events" \
   --data-urlencode 'count=100'
 ```
 
-### В Error Dashboard
+Логи в Seq отображаются с полями:
 
-Логи из контейнеров отображаются с тегами:
+- `ContainerName` — имя контейнера
+- `App`, `Level`, `Context` — из Pino
 
-- `container-logs` — все логи из контейнеров
-- `level:{level}` — уровень логирования
-
-Фильтрация:
-
-- По приложению: `appName: web`
-- По уровню: `level: error`
-- По тегам: `tags: container-logs`
+Фильтрация в Seq: по `ContainerName`, `Level`, `App`.
 
 ## 🔍 Отладка
 

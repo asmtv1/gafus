@@ -2,11 +2,11 @@
 
 import type { ReactNode } from "react";
 import React, { Component } from "react";
-import { LoggerFactory, type Logger, type LogMeta } from "@gafus/logger";
+
+import { reportClientError } from "../lib/reportClientError";
 
 export interface ErrorBoundaryConfig {
   appName: string;
-  environment?: string;
   logToConsole?: boolean;
   showErrorDetails?: boolean;
 }
@@ -41,29 +41,18 @@ export interface ErrorBoundaryState {
  * Может использоваться в любых React приложениях проекта
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  private logger: Logger;
   private config: ErrorBoundaryConfig;
 
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
 
-    // Настройки по умолчанию
-    const defaultConfig: ErrorBoundaryConfig = {
+    this.config = {
       appName: "react-app",
-      environment: process.env.NODE_ENV || "development",
       logToConsole: true,
-      showErrorDetails: false, // Не показываем детали пользователям
+      showErrorDetails: false,
       ...props.config,
     };
-
-    this.config = defaultConfig;
-
-    // Создаем логгер с кэшированием (как в createWebLogger)
-    this.logger = LoggerFactory.createLoggerWithContext(defaultConfig.appName, "error-boundary", {
-      enableErrorDashboard: true,
-      enableConsole: defaultConfig.logToConsole,
-    });
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
@@ -88,23 +77,24 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     this.setState({ errorInfo: enhancedErrorInfo });
 
-    // Формируем метаданные для логгера
-    const meta: LogMeta = {
-      operation: "error_boundary",
-      componentStack: enhancedErrorInfo.componentStack,
-      errorBoundaryName: enhancedErrorInfo.errorBoundaryName,
-      url: enhancedErrorInfo.url,
-      userAgent: enhancedErrorInfo.userAgent,
+    reportClientError(error, {
+      severity: "error",
       userId: enhancedErrorInfo.userId,
-      sessionId: enhancedErrorInfo.sessionId,
-      ...enhancedErrorInfo.additionalContext,
-      tags: ["error-boundary", "react-error"],
-    };
+      issueKey: `error-boundary:${this.config.appName}`,
+      keys: {
+        url: enhancedErrorInfo.url,
+        component: enhancedErrorInfo.errorBoundaryName ?? "unknown",
+        appName: enhancedErrorInfo.appName,
+      },
+    });
 
-    // Отправляем ошибку напрямую через logger
-    void this.logger.error(error.message || "React component error", error, meta);
+    if (
+      this.config.logToConsole &&
+      process.env.NODE_ENV !== "production"
+    ) {
+      console.error(error, enhancedErrorInfo);
+    }
 
-    // Вызываем пользовательский обработчик если есть
     if (this.props.onError) {
       this.props.onError(error, enhancedErrorInfo);
     }

@@ -11,7 +11,7 @@ Vector использует `docker_logs` source type, который автом
 - `ContainerName` - имя контейнера из Docker API (например, `gafus-web`) - **автоматически из docker_logs source**
 - `ContainerId` - ID контейнера Docker
 - `Stream` - `stdout` или `stderr`
-- `App` - название приложения из Pino (если есть: `web`, `trainer-panel`, `worker`, `error-dashboard`, `admin-panel`, `telegram-bot`)
+- `App` - название приложения из Pino (если есть: `web`, `trainer-panel`, `worker`, `admin-panel`, `telegram-bot`)
 - `Context` - контекст из Pino (если есть)
 - `Level` - уровень лога: `Information`, `Warning`, `Error`, `Fatal`, `Debug`, `Verbose`
 - `Message` - текст сообщения (`@m` в CLEF)
@@ -23,7 +23,6 @@ Vector использует `docker_logs` source type, который автом
 1. **Приоритет 1**: Поле `App` из Pino логов (для наших приложений)
    - `web` → `gafus-web`
    - `trainer-panel` → `gafus-trainer-panel`
-   - `error-dashboard` → `gafus-error-dashboard`
    - `admin-panel` → `gafus-admin-panel`
    - `worker` → `gafus-worker`
    - `telegram-bot` → `gafus-telegram-bot`
@@ -40,7 +39,6 @@ Vector использует `docker_logs` source type, который автом
 
 - `web-dashboard.json` - Web приложение
 - `trainer-panel-dashboard.json` - Trainer Panel
-- `error-dashboard-dashboard.json` - Error Dashboard
 - `admin-panel-dashboard.json` - Admin Panel
 - `worker-dashboard.json` - Worker
 - `telegram-bot-dashboard.json` - Telegram Bot
@@ -117,7 +115,6 @@ node scripts/setup-seq-dashboards.js
 1. **Сигналы** (фильтры) для каждого контейнера:
    - `Logs: Web Application` - фильтр: `ContainerName = 'gafus-web'`
    - `Logs: Trainer Panel` - фильтр: `ContainerName = 'gafus-trainer-panel'`
-   - `Logs: Error Dashboard` - фильтр: `ContainerName = 'gafus-error-dashboard'`
    - `Logs: Admin Panel` - фильтр: `ContainerName = 'gafus-admin-panel'`
    - `Logs: Worker` - фильтр: `ContainerName = 'gafus-worker'`
    - `Logs: Telegram Bot` - фильтр: `ContainerName = 'gafus-telegram-bot'`
@@ -147,7 +144,6 @@ node scripts/setup-seq-dashboards.js
 Повторите для всех контейнеров:
 
 - `ContainerName = 'gafus-trainer-panel'` → Сигнал: `Logs: Trainer Panel`
-- `ContainerName = 'gafus-error-dashboard'` → Сигнал: `Logs: Error Dashboard`
 - `ContainerName = 'gafus-admin-panel'` → Сигнал: `Logs: Admin Panel`
 - `ContainerName = 'gafus-worker'` → Сигнал: `Logs: Worker`
 - `ContainerName = 'gafus-telegram-bot'` → Сигнал: `Logs: Telegram Bot`
@@ -415,7 +411,7 @@ Timestamp > @2024-01-01T00:00:00Z
 
 При добавлении новых контейнеров:
 
-1. Добавьте контейнер в список `CONTAINERS` в `scripts/setup-seq-dashboards.js`
+1. Добавьте контейнер в список в `scripts/setup-seq-dashboards.js`
 2. Запустите скрипт повторно
 3. Или создайте дашборд вручную через веб-интерфейс Seq
 

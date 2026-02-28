@@ -30,7 +30,7 @@ export const bot = new Telegraf(token);
 
 // Обработка ошибок
 bot.catch(async (err, ctx) => {
-  await logger.error("Bot error", err as Error, {
+  logger.error("Bot error", err as Error, {
     chatId: ctx.chat?.id,
     userId: ctx.from?.id,
     username: ctx.from?.username,
@@ -146,7 +146,7 @@ bot.on("message", async (ctx) => {
 
       return;
     } catch (err) {
-      await logger.error("Ошибка при обновлении пользователя", err as Error, {
+      logger.error("Ошибка при обновлении пользователя", err as Error, {
         chatId: chatId,
         phone: phone,
         hasUser: !!user,

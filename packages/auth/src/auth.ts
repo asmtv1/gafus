@@ -56,7 +56,7 @@ export const authOptions: NextAuthOptions = {
   useSecureCookies: isProd,
   callbacks: {
     async jwt({ token, user, trigger, session }) {
-      if (user) {
+      if (user && "username" in user && "role" in user) {
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;

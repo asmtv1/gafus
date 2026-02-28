@@ -10,7 +10,6 @@ on:
         options:
           - web
           - trainer-panel
-          - error-dashboard
           - admin-panel
           - api
           - worker
@@ -136,11 +135,6 @@ jobs:
               echo "tag=gafus-trainer-panel" >> $GITHUB_OUTPUT
               echo "app-name=trainer-panel" >> $GITHUB_OUTPUT
               ;;
-            error-dashboard)
-              echo "dockerfile=Dockerfile-error-dashboard-optimized" >> $GITHUB_OUTPUT
-              echo "tag=gafus-error-dashboard" >> $GITHUB_OUTPUT
-              echo "app-name=error-dashboard" >> $GITHUB_OUTPUT
-              ;;
             admin-panel)
               echo "dockerfile=Dockerfile-admin-panel-optimized" >> $GITHUB_OUTPUT
               echo "tag=gafus-admin-panel" >> $GITHUB_OUTPUT
@@ -179,7 +173,6 @@ jobs:
     if: |
       github.event.inputs.container == 'web' ||
       github.event.inputs.container == 'trainer-panel' ||
-      github.event.inputs.container == 'error-dashboard' ||
       github.event.inputs.container == 'admin-panel' ||
       github.event.inputs.container == 'api'
     runs-on: ubuntu-latest
@@ -378,8 +371,9 @@ jobs:
                 echo "# URLs приложений"
                 echo "NEXTAUTH_URL=https://gafus.ru"
                 echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
-                echo "ERROR_DASHBOARD_URL=https://monitor.gafus.ru"
-                echo "ERROR_DASHBOARD_INTERNAL_URL=http://gafus-error-dashboard:3005"
+                echo "NEXT_PUBLIC_TRACER_APP_TOKEN=${{ secrets.NEXT_PUBLIC_TRACER_APP_TOKEN }}"
+                echo "NEXT_PUBLIC_APP_VERSION=1.0.0"
+                echo "NEXT_PUBLIC_ENABLE_TRACER=true"
                 echo "WEB_APP_URL=https://gafus.ru"
                 echo ""
                 echo "# Cookie домен"

@@ -46,33 +46,16 @@ function createLoggerConfig(options: CreateLoggerOptions): LoggerConfig {
   const environment = options.environment || getEnvironment();
   const level = options.level || getDefaultLogLevel(environment);
 
-  // Проверяем переменные окружения для отключения логирования
   const disableLogging = process.env.DISABLE_LOGGING === "true";
   const disableConsole = process.env.DISABLE_CONSOLE_LOGGING === "true";
-  const disableErrorDashboard = process.env.DISABLE_ERROR_DASHBOARD_LOGGING === "true";
 
   return {
     appName: options.appName,
     environment,
     level,
     enableConsole: !disableLogging && !disableConsole && options.enableConsole !== false,
-    enableErrorDashboard:
-      !disableLogging && !disableErrorDashboard && (options.enableErrorDashboard || false),
     context: options.context,
-    errorDashboardUrl: options.errorDashboardUrl || process.env.ERROR_DASHBOARD_URL,
   };
-}
-
-/**
- * Определяет значения для Error Dashboard на основе окружения
- */
-function resolveErrorDashboardSettings(defaultUrl: string, isProduction: boolean) {
-  const flag = process.env.ENABLE_ERROR_DASHBOARD;
-  const enableErrorDashboard = flag === "true" ? true : flag === "false" ? false : !isProduction;
-
-  const errorDashboardUrl = process.env.ERROR_DASHBOARD_URL || defaultUrl;
-
-  return { enableErrorDashboard, errorDashboardUrl };
 }
 
 /**
@@ -156,108 +139,42 @@ export class LoggerFactory {
  * Создает логгер для веб-приложения
  */
 export function createWebLogger(context?: string): Logger {
-  const defaultUrl =
-    process.env.NODE_ENV === "production" ? "https://monitor.gafus.ru" : "http://localhost:3005";
-  const isProduction = process.env.NODE_ENV === "production";
-  const { enableErrorDashboard, errorDashboardUrl } = resolveErrorDashboardSettings(
-    defaultUrl,
-    isProduction,
-  );
-
-  return LoggerFactory.createLoggerWithContext("web", context || "web-app", {
-    enableErrorDashboard,
-    errorDashboardUrl,
-  });
+  return LoggerFactory.createLoggerWithContext("web", context || "web-app");
 }
 
 /**
  * Создает логгер для панели тренера
  */
 export function createTrainerPanelLogger(context?: string): Logger {
-  const defaultUrl =
-    process.env.NODE_ENV === "production" ? "https://monitor.gafus.ru" : "http://localhost:3005";
-  const isProduction = process.env.NODE_ENV === "production";
-  const { enableErrorDashboard, errorDashboardUrl } = resolveErrorDashboardSettings(
-    defaultUrl,
-    isProduction,
-  );
-
-  return LoggerFactory.createLoggerWithContext("trainer-panel", context || "trainer-panel", {
-    enableErrorDashboard,
-    errorDashboardUrl,
-  });
-}
-
-/**
- * Создает логгер для error-dashboard
- */
-export function createErrorDashboardLogger(context?: string): Logger {
-  return LoggerFactory.createLoggerWithContext("error-dashboard", context || "error-dashboard", {
-    enableErrorDashboard: false, // Не отправляем логи в сами себя
-  });
+  return LoggerFactory.createLoggerWithContext("trainer-panel", context || "trainer-panel");
 }
 
 /**
  * Создает логгер для telegram-bot
  */
 export function createTelegramBotLogger(context?: string): Logger {
-  const defaultUrl =
-    process.env.NODE_ENV === "production" ? "https://monitor.gafus.ru" : "http://localhost:3005";
-  const isProduction = process.env.NODE_ENV === "production";
-  const { enableErrorDashboard, errorDashboardUrl } = resolveErrorDashboardSettings(
-    defaultUrl,
-    isProduction,
-  );
-
-  return LoggerFactory.createLoggerWithContext("telegram-bot", context || "telegram-bot", {
-    enableErrorDashboard,
-    errorDashboardUrl,
-  });
+  return LoggerFactory.createLoggerWithContext("telegram-bot", context || "telegram-bot");
 }
 
 /**
  * Создает логгер для worker
  */
 export function createWorkerLogger(context?: string): Logger {
-  const defaultUrl =
-    process.env.NODE_ENV === "production" ? "https://monitor.gafus.ru" : "http://localhost:3005";
-  const isProduction = process.env.NODE_ENV === "production";
-  const { enableErrorDashboard, errorDashboardUrl } = resolveErrorDashboardSettings(
-    defaultUrl,
-    isProduction,
-  );
-
-  return LoggerFactory.createLoggerWithContext("worker", context || "worker", {
-    enableErrorDashboard,
-    errorDashboardUrl,
-  });
+  return LoggerFactory.createLoggerWithContext("worker", context || "worker");
 }
 
 /**
  * Создает логгер для bull-board
  */
 export function createBullBoardLogger(context?: string): Logger {
-  return LoggerFactory.createLoggerWithContext("bull-board", context || "bull-board", {
-    enableErrorDashboard: false, // Bull-board обычно не нуждается в отправке логов
-  });
+  return LoggerFactory.createLoggerWithContext("bull-board", context || "bull-board");
 }
 
 /**
  * Создает логгер для admin-panel
  */
 export function createAdminPanelLogger(context?: string): Logger {
-  const defaultUrl =
-    process.env.NODE_ENV === "production" ? "https://monitor.gafus.ru" : "http://localhost:3005";
-  const isProduction = process.env.NODE_ENV === "production";
-  const { enableErrorDashboard, errorDashboardUrl } = resolveErrorDashboardSettings(
-    defaultUrl,
-    isProduction,
-  );
-
-  return LoggerFactory.createLoggerWithContext("admin-panel", context || "admin-panel", {
-    enableErrorDashboard,
-    errorDashboardUrl,
-  });
+  return LoggerFactory.createLoggerWithContext("admin-panel", context || "admin-panel");
 }
 
 /**
@@ -267,6 +184,5 @@ export function createSilentLogger(context?: string): Logger {
   return LoggerFactory.createLoggerWithContext("silent", context || "silent", {
     level: "fatal",
     enableConsole: false,
-    enableErrorDashboard: false,
   });
 }

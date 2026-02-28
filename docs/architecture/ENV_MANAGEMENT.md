@@ -100,7 +100,6 @@ PROMETHEUS_URL=http://localhost:9090
 - ✅ `apps/web/next.config.ts`
 - ✅ `apps/trainer-panel/next.config.ts`
 - ✅ `apps/admin-panel/next.config.ts`
-- ✅ `apps/error-dashboard/next.config.ts`
 
 Все эти приложения автоматически загружают переменные из корневого `.env`.
 

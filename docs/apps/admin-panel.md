@@ -264,12 +264,12 @@ server {
 
 ## Логирование
 
-Использует `createErrorDashboardLogger` из `@gafus/logger`:
+Использует `createAdminPanelLogger` из `@gafus/logger`:
 
 ```typescript
-import { createErrorDashboardLogger } from "@gafus/logger";
+import { createAdminPanelLogger } from "@gafus/logger";
 
-const logger = createErrorDashboardLogger("admin-panel-middleware");
+const logger = createAdminPanelLogger("admin-panel-middleware");
 
 logger.info("User authenticated", { userId, role });
 logger.warn("Access denied", { userId, requiredRole });
@@ -278,7 +278,7 @@ logger.error("Authentication failed", error);
 
 ## Мониторинг
 
-- Логи доступны через Error Dashboard (monitor.gafus.ru)
+- Серверные логи — Seq (monitor.gafus.ru)
 - Метрики Next.js доступны в runtime
 - Health checks через Docker healthcheck
 
@@ -318,4 +318,4 @@ logger.error("Authentication failed", error);
 - [Архитектура проекта](../architecture/README.md)
 - [NextAuth конфигурация](../packages/auth.md)
 - [Deployment руководство](../deployment/docker.md)
-- [Error Dashboard](./error-dashboard.md)
+- [Мониторинг](../monitoring/README.md)

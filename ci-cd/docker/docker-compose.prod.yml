@@ -49,7 +49,9 @@ services:
       - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
       - NEXT_PUBLIC_TRAINER_PANEL_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL}
-      - ERROR_DASHBOARD_URL=${ERROR_DASHBOARD_URL}
+      - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
+      - NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION:-1.0.0}
+      - NEXT_PUBLIC_ENABLE_TRACER=${NEXT_PUBLIC_ENABLE_TRACER:-true}
       - REVALIDATE_SECRET_TOKEN=${REVALIDATE_SECRET_TOKEN}
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
       - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@gafus.ru}
@@ -107,39 +109,14 @@ services:
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL:-https://trainer.gafus.ru}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
       - REVALIDATE_SECRET_TOKEN=${REVALIDATE_SECRET_TOKEN}
+      - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
+      - NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION:-1.0.0}
+      - NEXT_PUBLIC_ENABLE_TRACER=${NEXT_PUBLIC_ENABLE_TRACER:-true}
     restart: unless-stopped
 
     depends_on:
       - postgres
       - redis
-
-  # Error Dashboard
-  error-dashboard:
-    image: ghcr.io/asmtv1/gafus-error-dashboard:latest
-    container_name: gafus-error-dashboard
-    environment:
-      - NODE_ENV=production
-      - PORT=3005
-      - DISABLE_CONSOLE_LOGGING=${DISABLE_CONSOLE_LOGGING:-false}
-      - CSRF_STRICT=${CSRF_STRICT:-false}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=${ERROR_DASHBOARD_URL:-https://monitor.gafus.ru}
-      - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
-      - PROMETHEUS_URL=${PROMETHEUS_URL:-http://prometheus:9090}
-      - SEQ_URL=${SEQ_URL:-http://seq:5341}
-    # Убрали открытые порты - доступ только через Nginx
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_started
-      redis:
-        condition: service_started
-      prometheus:
-        condition: service_started
-      seq:
-        condition: service_started
 
   # Admin Panel
   admin-panel:
@@ -180,7 +157,6 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
-      - ERROR_DASHBOARD_URL=${ERROR_DASHBOARD_INTERNAL_URL:-http://gafus-error-dashboard:3005}
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@gafus.ru}
@@ -293,7 +269,6 @@ services:
     depends_on:
       - web
       - trainer-panel
-      - error-dashboard
       - admin-panel
       - api
       - bull-board
