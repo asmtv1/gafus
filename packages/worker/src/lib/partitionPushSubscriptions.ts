@@ -33,9 +33,14 @@ export function isExpoSubscription(subscription: PushSubscriptionJSON): boolean 
   return subscription.keys.p256dh === "expo" || isExpoEndpoint(subscription.endpoint);
 }
 
+export function isRustoreSubscription(subscription: PushSubscriptionJSON): boolean {
+  return subscription.keys.p256dh === "rustore" || subscription.keys.auth === "rustore";
+}
+
 export function partitionPushSubscriptions(subscriptions: SubscriptionLike[]): {
   web: PushSubscriptionJSON[];
   expo: PushSubscriptionJSON[];
+  rustore: PushSubscriptionJSON[];
 } {
   const normalized = subscriptions
     .map((subscription) => {
@@ -47,14 +52,17 @@ export function partitionPushSubscriptions(subscriptions: SubscriptionLike[]): {
 
   const web: PushSubscriptionJSON[] = [];
   const expo: PushSubscriptionJSON[] = [];
+  const rustore: PushSubscriptionJSON[] = [];
 
   for (const subscription of normalized) {
-    if (isExpoSubscription(subscription)) {
+    if (isRustoreSubscription(subscription)) {
+      rustore.push(subscription);
+    } else if (isExpoSubscription(subscription)) {
       expo.push(subscription);
     } else {
       web.push(subscription);
     }
   }
 
-  return { web, expo };
+  return { web, expo, rustore };
 }

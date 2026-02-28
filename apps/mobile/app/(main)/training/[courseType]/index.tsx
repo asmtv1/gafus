@@ -22,6 +22,7 @@ import { Loading } from "@/shared/components/ui";
 import { useTrainingDays } from "@/shared/hooks";
 import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
 import { coursesApi, paymentsApi, type Course, type TrainingDay } from "@/shared/lib/api";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
 import { showLockedDayAlert, WEB_BASE } from "@/shared/lib/utils/alerts";
@@ -119,6 +120,7 @@ export default function TrainingDaysScreen() {
   }, [refetch]);
 
   const handleCreatePayment = useCallback(async () => {
+    void hapticFeedback.light();
     if (isCreatingPayment) return;
     const courseId = courseForPay?.id;
     if (!courseId) {
@@ -152,11 +154,13 @@ export default function TrainingDaysScreen() {
   }, [courseForPay?.id, isCreatingPayment]);
 
   const handlePayOnWebsite = useCallback(() => {
+    void hapticFeedback.light();
     const url = `${WEB_BASE}/trainings/${encodeURIComponent(courseType)}`;
     void Linking.openURL(url);
   }, [courseType]);
 
   const handleFillDeclensions = useCallback(() => {
+    void hapticFeedback.light();
     const trimmed = petName.trim();
     if (!trimmed) return;
     const gender =
@@ -286,6 +290,7 @@ export default function TrainingDaysScreen() {
 
   const handleDayPress = useCallback(
     (day: TrainingDay) => {
+      void hapticFeedback.selection();
       if (day.isLocked) {
         showLockedDayAlert();
         return;
@@ -395,7 +400,14 @@ export default function TrainingDaysScreen() {
   if (isAccessDenied) {
     return (
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+        <Pressable
+          style={styles.backRow}
+          onPress={() => {
+            void hapticFeedback.light();
+            router.back();
+          }}
+          hitSlop={12}
+        >
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
           <Text style={styles.backText}>Назад</Text>
         </Pressable>
@@ -459,9 +471,7 @@ export default function TrainingDaysScreen() {
             )}
             <View style={styles.paywallButtons}>
               <Pressable
-                onPress={() => {
-                  void handleCreatePayment();
-                }}
+                onPress={() => void handleCreatePayment()}
                 disabled={isCreatingPayment || isLoadingCourseForPay}
                 style={styles.paywallPrimaryButton}
               >
@@ -469,14 +479,22 @@ export default function TrainingDaysScreen() {
                   {isCreatingPayment ? "Переход к оплате..." : "Оплатить/Начать курс"}
                 </Text>
               </Pressable>
-              <Pressable onPress={() => void Linking.openURL(`${WEB_BASE}/oferta.html`)}>
+              <Pressable
+                onPress={() => {
+                  void hapticFeedback.light();
+                  void Linking.openURL(`${WEB_BASE}/oferta.html`);
+                }}
+              >
                 <Text style={styles.ofertaHint}>
                   Нажимая «Оплатить», я соглашаюсь с{" "}
                   <Text style={styles.ofertaHintLink}>Офертой</Text>
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => router.replace("/(main)/(tabs)/courses" as const)}
+                onPress={() => {
+                  void hapticFeedback.light();
+                  router.replace("/(main)/(tabs)/courses" as const);
+                }}
                 style={styles.paywallSecondaryButton}
               >
                 <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
@@ -500,6 +518,7 @@ export default function TrainingDaysScreen() {
             <View style={styles.webViewHeader}>
               <Pressable
                 onPress={() => {
+                  void hapticFeedback.light();
                   void handleClosePaymentWebView(false);
                 }}
               >
@@ -526,7 +545,14 @@ export default function TrainingDaysScreen() {
   if (needPersonalization) {
     return (
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+        <Pressable
+          style={styles.backRow}
+          onPress={() => {
+            void hapticFeedback.light();
+            router.back();
+          }}
+          hitSlop={12}
+        >
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
           <Text style={styles.backText}>Назад</Text>
         </Pressable>
@@ -549,7 +575,10 @@ export default function TrainingDaysScreen() {
             <Text style={styles.personalizationLabel}>Ваш пол</Text>
             <View style={styles.genderRow}>
               <Pressable
-                onPress={() => setUserGender("male")}
+                onPress={() => {
+                  void hapticFeedback.selection();
+                  setUserGender("male");
+                }}
                 style={[
                   styles.genderButton,
                   userGender === "male" && styles.genderButtonActive,
@@ -565,7 +594,10 @@ export default function TrainingDaysScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => setUserGender("female")}
+                onPress={() => {
+                  void hapticFeedback.selection();
+                  setUserGender("female");
+                }}
                 style={[
                   styles.genderButton,
                   userGender === "female" && styles.genderButtonActive,
@@ -597,7 +629,10 @@ export default function TrainingDaysScreen() {
             </Text>
             <View style={styles.genderRow}>
               <Pressable
-                onPress={() => setPetGender("male")}
+                onPress={() => {
+                  void hapticFeedback.selection();
+                  setPetGender("male");
+                }}
                 style={[
                   styles.genderButton,
                   petGender === "male" && styles.genderButtonActive,
@@ -613,7 +648,10 @@ export default function TrainingDaysScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => setPetGender("female")}
+                onPress={() => {
+                  void hapticFeedback.selection();
+                  setPetGender("female");
+                }}
                 style={[
                   styles.genderButton,
                   petGender === "female" && styles.genderButtonActive,
@@ -629,7 +667,10 @@ export default function TrainingDaysScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => setPetGender(null)}
+                onPress={() => {
+                  void hapticFeedback.selection();
+                  setPetGender(null);
+                }}
                 style={[
                   styles.genderButton,
                   petGender == null && styles.genderButtonActive,
@@ -697,6 +738,7 @@ export default function TrainingDaysScreen() {
             <View style={styles.personalizationButtons}>
               <Pressable
                 onPress={() => {
+                  void hapticFeedback.light();
                   void handleSavePersonalization();
                 }}
                 disabled={isSavingPersonalization}
@@ -707,7 +749,10 @@ export default function TrainingDaysScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => router.replace("/(main)/(tabs)/courses" as const)}
+                onPress={() => {
+                  void hapticFeedback.light();
+                  router.replace("/(main)/(tabs)/courses" as const);
+                }}
                 style={styles.paywallSecondaryButton}
               >
                 <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
@@ -732,7 +777,12 @@ export default function TrainingDaysScreen() {
         <View style={styles.errorContainer}>
           <MaterialCommunityIcons name="alert-circle" size={48} color={COLORS.error} />
           <Text style={styles.errorText}>Ошибка загрузки курса</Text>
-          <Pressable onPress={() => refetch()}>
+          <Pressable
+            onPress={() => {
+              void hapticFeedback.light();
+              refetch();
+            }}
+          >
             <Text style={styles.retryText}>Попробовать снова</Text>
           </Pressable>
         </View>
@@ -744,14 +794,24 @@ export default function TrainingDaysScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+        <Pressable
+          style={styles.backRow}
+          onPress={() => {
+            void hapticFeedback.light();
+            router.back();
+          }}
+          hitSlop={12}
+        >
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
           <Text style={styles.backText}>Назад</Text>
         </Pressable>
         {courseData?.courseIsPersonalized && courseData?.userCoursePersonalization && (
           <Pressable
             style={styles.changePersonalizationRow}
-            onPress={() => router.replace(`/training/${courseType}?personalize=1`)}
+            onPress={() => {
+              void hapticFeedback.light();
+              router.replace(`/training/${courseType}?personalize=1`);
+            }}
           >
             <Text style={styles.changePersonalizationText}>Изменить персонализацию</Text>
           </Pressable>
@@ -768,7 +828,10 @@ export default function TrainingDaysScreen() {
                 <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.primary} />
                 <Text style={styles.offlineLabel}>Скачано для офлайна</Text>
                 <Pressable
-                  onPress={() => removeDownload(courseType)}
+                  onPress={() => {
+                    void hapticFeedback.light();
+                    removeDownload(courseType);
+                  }}
                   style={styles.offlineButton}
                 >
                   <Text style={styles.offlineButtonText}>Удалить</Text>
@@ -781,20 +844,32 @@ export default function TrainingDaysScreen() {
                   <Text style={styles.offlineLabel}>Скачать для офлайна</Text>
                   {!isDownloadingThis && !isInQueue && (
                     <Pressable
-                      onPress={() => startDownload(courseType)}
+                      onPress={() => {
+                        void hapticFeedback.light();
+                        startDownload(courseType);
+                      }}
                       style={styles.offlineButton}
                     >
                       <Text style={styles.offlineButtonText}>Скачать</Text>
                     </Pressable>
                   )}
                   {isDownloadingThis && (
-                    <Pressable onPress={() => cancelDownload()} style={styles.offlineButton}>
+                    <Pressable
+                      onPress={() => {
+                        void hapticFeedback.light();
+                        cancelDownload();
+                      }}
+                      style={styles.offlineButton}
+                    >
                       <Text style={styles.offlineButtonText}>Отменить</Text>
                     </Pressable>
                   )}
                   {isInQueue && (
                     <Pressable
-                      onPress={() => removeFromQueue(courseType)}
+                      onPress={() => {
+                        void hapticFeedback.light();
+                        removeFromQueue(courseType);
+                      }}
                       style={styles.offlineButton}
                     >
                       <Text style={styles.offlineButtonText}>Убрать из очереди</Text>
@@ -870,6 +945,7 @@ export default function TrainingDaysScreen() {
             <View style={styles.webViewHeader}>
               <Pressable
                 onPress={() => {
+                  void hapticFeedback.light();
                   void handleClosePaymentWebView(false);
                 }}
               >

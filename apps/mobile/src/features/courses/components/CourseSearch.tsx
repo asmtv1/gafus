@@ -3,6 +3,7 @@ import { View, StyleSheet, TextInput, Pressable } from "react-native";
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from "@/constants";
 
 const DEBOUNCE_MS = 300;
@@ -35,6 +36,7 @@ export function CourseSearch({
   }, [value]);
 
   const handleClear = useCallback(() => {
+    void hapticFeedback.light();
     setLocalValue("");
     onChange("");
   }, [onChange]);

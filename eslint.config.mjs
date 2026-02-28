@@ -279,6 +279,14 @@ export default [
   {
     files: ["apps/mobile/**/*.{ts,tsx}"],
     rules: {
+      "import/no-unresolved": [
+        "error",
+        { ignore: ["^@gafus/", "^react-native-rustore-push$"] },
+      ],
+      "import/no-unresolved": [
+        "error",
+        { ignore: ["^@gafus/", "^react-native-rustore-push$"] },
+      ],
       "@typescript-eslint/no-empty-object-type": "warn",
       "@typescript-eslint/array-type": "warn",
       "@typescript-eslint/no-explicit-any": "warn",

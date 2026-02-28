@@ -7,6 +7,7 @@ import { PushNotificationService } from "@gafus/webpush";
 
 import type { PushSubscription } from "@gafus/prisma";
 import { sendExpoPushNotifications } from "./lib/expoPush";
+import { sendRustorePushNotifications } from "./lib/rustorePush";
 import { partitionPushSubscriptions } from "./lib/partitionPushSubscriptions";
 // Создаем логгеры для разных компонентов
 const notificationLogger = createWorkerLogger("notification-processor");
@@ -286,6 +287,20 @@ export class NotificationProcessor {
           temporaryFailureCount: 0,
         };
 
+    const rustoreResults =
+      partitioned.rustore.length > 0 ?
+        await sendRustorePushNotifications(partitioned.rustore, {
+          title: payload.title,
+          body: payload.body,
+          url: payload.data.url,
+        })
+      : {
+          successCount: 0,
+          failureCount: 0,
+          deletedCount: 0,
+          temporaryFailureCount: 0,
+        };
+
     // Обрабатываем неудачные web-подписки
     for (const result of webResults.results) {
       if (!result.success && PushNotificationService.shouldDeleteSubscription(result.error)) {
@@ -300,11 +315,14 @@ export class NotificationProcessor {
       expoFailed: expoResults.failureCount,
       expoDeleted: expoResults.deletedCount,
       expoTemporaryFailed: expoResults.temporaryFailureCount,
+      rustoreSuccess: rustoreResults.successCount,
+      rustoreFailed: rustoreResults.failureCount,
+      rustoreDeleted: rustoreResults.deletedCount,
     });
 
     return {
-      successCount: webResults.successCount + expoResults.successCount,
-      failedCount: webResults.failureCount + expoResults.failureCount,
+      successCount: webResults.successCount + expoResults.successCount + rustoreResults.successCount,
+      failedCount: webResults.failureCount + expoResults.failureCount + rustoreResults.failureCount,
     };
   }
 

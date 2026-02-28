@@ -82,6 +82,8 @@ const value = process.env.MY_NEW_VAR;
 
 3. Перезапустите приложение - переменная будет доступна автоматически
 
+Пример для worker-специфичных переменных (RuStore Push): `RUSTORE_PUSH_SERVICE_TOKEN`, `RUSTORE_PROJECT_ID` — см. `docs/deployment/configuration.md` и `docs/features/rustore-push.md`.
+
 ### Локальные переопределения
 
 Для локальных переопределений создайте `.env.local` в корне:

@@ -28,6 +28,7 @@ import {
   useCompletePracticeStep,
 } from "@/shared/hooks";
 import { useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, FONTS, SPACING } from "@/constants";
 import { getStepContent, paymentsApi, trainingApi } from "@/shared/lib/api";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
@@ -448,7 +449,12 @@ export default function TrainingDayScreen() {
             {paymentUrl && (
               <View style={styles.webViewOverlay}>
                 <View style={styles.webViewHeader}>
-                  <Pressable onPress={() => void handleClosePaymentWebView(false)}>
+                  <Pressable
+                    onPress={() => {
+                      void hapticFeedback.light();
+                      void handleClosePaymentWebView(false);
+                    }}
+                  >
                     <Text style={styles.webViewCloseText}>Закрыть</Text>
                   </Pressable>
                   {isPaymentChecking && <ActivityIndicator color={COLORS.primary} />}
@@ -529,7 +535,14 @@ export default function TrainingDayScreen() {
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-          <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+          <Pressable
+            style={styles.backRow}
+            onPress={() => {
+              void hapticFeedback.light();
+              router.back();
+            }}
+            hitSlop={12}
+          >
             <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
             <Text style={styles.backText}>Назад</Text>
           </Pressable>
@@ -543,7 +556,10 @@ export default function TrainingDayScreen() {
               </Text>
             )}
             <Pressable
-              onPress={() => refetch()}
+              onPress={() => {
+                void hapticFeedback.light();
+                refetch();
+              }}
               style={styles.retryButton}
             >
               <Text style={styles.retryButtonText}>Попробовать снова</Text>
@@ -649,6 +665,7 @@ export default function TrainingDayScreen() {
                   (isOffline || isExporting) && styles.exportPathButtonDisabled,
                 ]}
                 onPress={async () => {
+                  void hapticFeedback.light();
                   if (isOffline) {
                     setSnackbar({
                       visible: true,
@@ -781,7 +798,12 @@ export default function TrainingDayScreen() {
         {paymentUrl && (
           <View style={styles.webViewOverlay}>
             <View style={styles.webViewHeader}>
-              <Pressable onPress={() => void handleClosePaymentWebView(false)}>
+              <Pressable
+                onPress={() => {
+                  void hapticFeedback.light();
+                  void handleClosePaymentWebView(false);
+                }}
+              >
                 <Text style={styles.webViewCloseText}>Закрыть</Text>
               </Pressable>
               {isPaymentChecking && <ActivityIndicator color={COLORS.primary} />}

@@ -10,6 +10,7 @@ import { createWorkerLogger } from "@gafus/logger";
 import { PushNotificationService } from "@gafus/webpush";
 import { prisma } from "@gafus/prisma";
 import { sendExpoPushNotifications } from "./lib/expoPush";
+import { sendRustorePushNotifications } from "./lib/rustorePush";
 import { partitionPushSubscriptions } from "./lib/partitionPushSubscriptions";
 import {
   getCampaignData,
@@ -196,6 +197,7 @@ class ReengagementWorker {
         subscriptionsCount: subscriptions.length,
         webSubscriptionsCount: partitioned.web.length,
         expoSubscriptionsCount: partitioned.expo.length,
+        rustoreSubscriptionsCount: partitioned.rustore.length,
       });
 
       // 9. Отправить уведомления по двум каналам
@@ -222,12 +224,28 @@ class ReengagementWorker {
             temporaryFailureCount: 0,
           };
 
+      const rustoreResult =
+        partitioned.rustore.length > 0 ?
+          await sendRustorePushNotifications(partitioned.rustore, {
+            title: personalizedMessage.title,
+            body: personalizedMessage.body,
+            url: personalizedMessage.url ?? "/",
+          })
+        : {
+            successCount: 0,
+            failureCount: 0,
+            deletedCount: 0,
+            temporaryFailureCount: 0,
+          };
+
       logger.success("Push-уведомления отправлены", {
         userId,
         webSent: webResult.successCount,
         webFailed: webResult.failureCount,
         expoSent: expoResult.successCount,
         expoFailed: expoResult.failureCount,
+        rustoreSent: rustoreResult.successCount,
+        rustoreFailed: rustoreResult.failureCount,
       });
 
       // 10. Обработать неудачные web-подписки
@@ -251,8 +269,8 @@ class ReengagementWorker {
       await updateCampaignAfterSend(
         campaignId,
         notificationId,
-        webResult.successCount + expoResult.successCount,
-        webResult.failureCount + expoResult.failureCount,
+        webResult.successCount + expoResult.successCount + rustoreResult.successCount,
+        webResult.failureCount + expoResult.failureCount + rustoreResult.failureCount,
       );
 
       logger.success("Re-engagement задача завершена", {
@@ -260,8 +278,8 @@ class ReengagementWorker {
         campaignId,
         userId,
         level,
-        sent: webResult.successCount + expoResult.successCount,
-        failed: webResult.failureCount + expoResult.failureCount,
+        sent: webResult.successCount + expoResult.successCount + rustoreResult.successCount,
+        failed: webResult.failureCount + expoResult.failureCount + rustoreResult.failureCount,
       });
     } catch (error) {
       logger.error("Ошибка обработки re-engagement задачи", error as Error, {

@@ -10,6 +10,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/constants";
 
 const PASS_THRESHOLD_PERCENT = 70;
@@ -95,6 +96,7 @@ export function TestQuestionsBlock({
     setIsSubmitting(false);
 
     if (res.success) {
+      void hapticFeedback.success();
       setIsSubmitted(true);
       setShowResults(true);
       onComplete?.(answers);
@@ -157,7 +159,10 @@ export function TestQuestionsBlock({
                 <Pressable
                   key={optIdx}
                   style={styles.optionRow}
-                  onPress={() => handleAnswer(q.id, optIdx)}
+                  onPress={() => {
+                    void hapticFeedback.selection();
+                    handleAnswer(q.id, optIdx);
+                  }}
                   disabled={isSubmitted}
                 >
                   <MaterialCommunityIcons

@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { STEP_STATUS_LABELS } from "@gafus/core/utils/training";
 import { TrainingStatus } from "@gafus/types";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { SPACING, FONTS, COLORS, BORDER_RADIUS, API_BASE_URL } from "@/constants";
 import { useOfflineStore } from "@/shared/stores";
 import { offlineApi } from "@/shared/lib/api/offline";
@@ -329,7 +330,10 @@ export function CourseCard({
           </Pressable>
           <View style={styles.authorBookmarkWrap}>
             <Pressable
-              onPress={onToggleFavorite}
+              onPress={() => {
+                void hapticFeedback.selection();
+                onToggleFavorite?.();
+              }}
               disabled={disabled}
               style={({ pressed }) => [
                 styles.favoriteButton,

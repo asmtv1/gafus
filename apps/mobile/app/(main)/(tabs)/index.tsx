@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -30,8 +30,6 @@ import {
 } from "@/shared/utils/courseFilters";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
-let pushPromptAskedInSession = false;
-
 /**
  * Страница со всеми курсами: поиск и фильтры как в web.
  * При офлайне показывается экран «Скачанные курсы».
@@ -50,6 +48,7 @@ export default function CoursesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const pushPromptAskedInSession = useRef(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["courses"],
@@ -70,8 +69,8 @@ export default function CoursesScreen() {
     let cancelled = false;
 
     const ensurePushSubscription = async () => {
-      if (pushPromptAskedInSession) return;
-      pushPromptAskedInSession = true;
+      if (pushPromptAskedInSession.current) return;
+      pushPromptAskedInSession.current = true;
 
       const status = await subscriptionsApi.getPushSubscriptionStatus();
       if (cancelled || !status.success || status.data?.hasSubscription) return;

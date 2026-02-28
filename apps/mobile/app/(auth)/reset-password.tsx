@@ -17,6 +17,7 @@ import parsePhoneNumberFromString from "libphonenumber-js";
 
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { authApi } from "@/shared/lib/api/auth";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 
 // Схемы валидации
 const usernameSchema = z
@@ -135,6 +136,7 @@ export default function ResetPasswordScreen() {
         return;
       }
 
+      await hapticFeedback.success();
       setPhase("code");
       setStatus("");
     } catch {
@@ -176,6 +178,7 @@ export default function ResetPasswordScreen() {
         return;
       }
 
+      await hapticFeedback.success();
       setSnackbar({
         visible: true,
         message: "Пароль изменён. Войдите с новым паролем.",

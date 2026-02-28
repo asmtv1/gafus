@@ -21,6 +21,7 @@ import { useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
 import { useVideoUrl } from "@/shared/hooks";
 import { getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, FONTS, SPACING } from "@/constants";
 
 const EXTERNAL_VIDEO_PATTERNS = [
@@ -345,7 +346,13 @@ function AccordionStepComponent({
     >
       <View style={styles.surfaceContent}>
         {/* Две строки: 1 — название по центру, 2 — Подробнее/Скрыть + статус */}
-        <Pressable onPress={onToggle} style={styles.header}>
+        <Pressable
+          onPress={() => {
+            void hapticFeedback.selection();
+            onToggle();
+          }}
+          style={styles.header}
+        >
           {(stepSubtitle || stepTypeLabel) ? (
             <Text
               style={styles.stepTitleLine}
@@ -503,6 +510,7 @@ function AccordionStepComponent({
                       setIsSavingDiary(true);
                       try {
                         await onSaveDiary(content);
+                        void hapticFeedback.success();
                         setDiaryContent("");
                       } finally {
                         setIsSavingDiary(false);
@@ -542,7 +550,10 @@ function AccordionStepComponent({
                     {!userRequestedPlay ? (
                       <Pressable
                         style={styles.videoCover}
-                        onPress={() => setUserRequestedPlay(true)}
+                        onPress={() => {
+                      void hapticFeedback.light();
+                      setUserRequestedPlay(true);
+                    }}
                       >
                         <MaterialCommunityIcons name="play-circle-outline" size={72} color="#fff" />
                         <Text style={styles.videoCoverText}>Смотреть видео</Text>
@@ -611,6 +622,7 @@ function AccordionStepComponent({
                                 size={28}
                                 style={styles.circleBtn}
                                 onPress={() => {
+                                  void hapticFeedback.medium();
                                   const started = startTimer(courseId, dayOnCourseId, index, duration);
                                   if (!started) return;
                                   onStart();
@@ -624,6 +636,7 @@ function AccordionStepComponent({
                                 size={28}
                                 style={styles.circleBtn}
                                 onPress={() => {
+                                  void hapticFeedback.light();
                                   const remaining = pauseTimer();
                                   if (remaining !== null) {
                                     onPause(remaining);
@@ -639,6 +652,7 @@ function AccordionStepComponent({
                                 size={28}
                                 style={styles.circleBtn}
                                 onPress={() => {
+                                  void hapticFeedback.medium();
                                   const remaining =
                                     localState?.timeLeft ?? localState?.remainingSec ?? duration;
                                   const resumed = startTimer(courseId, dayOnCourseId, index, remaining);
@@ -653,6 +667,7 @@ function AccordionStepComponent({
                               size={22}
                               style={styles.circleBtnReset}
                               onPress={() => {
+                                void hapticFeedback.selection();
                                 stopTimer(courseId, dayOnCourseId, index);
                                 if (onReset) {
                                   onReset(duration);
@@ -686,7 +701,10 @@ function AccordionStepComponent({
                           styles.completeBtn,
                           pressed && styles.completeBtnPressed,
                         ]}
-                        onPress={onComplete}
+                        onPress={() => {
+                          void hapticFeedback.light();
+                          onComplete?.();
+                        }}
                       >
                         <Text style={styles.completeBtnText}>Я выполнил</Text>
                       </Pressable>
@@ -699,9 +717,12 @@ function AccordionStepComponent({
                         styles.completeBtn,
                         pressed && styles.completeBtnPressed,
                       ]}
-                      onPress={onComplete}
-                    >
-                      <Text style={styles.completeBtnText}>Прочитано</Text>
+                        onPress={() => {
+                          void hapticFeedback.light();
+                          onComplete?.();
+                        }}
+                      >
+                        <Text style={styles.completeBtnText}>Прочитано</Text>
                     </Pressable>
                   </View>
                 ) : isCompleted ? (

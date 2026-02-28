@@ -39,7 +39,16 @@ vi.mock("@gafus/webpush", () => ({
 }));
 
 vi.mock("./lib/partitionPushSubscriptions", () => ({
-  partitionPushSubscriptions: () => ({ web: [], expo: [] }),
+  partitionPushSubscriptions: () => ({ web: [], expo: [], rustore: [] }),
+}));
+
+vi.mock("./lib/rustorePush", () => ({
+  sendRustorePushNotifications: vi.fn().mockResolvedValue({
+    successCount: 0,
+    failureCount: 0,
+    deletedCount: 0,
+    temporaryFailureCount: 0,
+  }),
 }));
 
 vi.mock("./lib/expoPush", () => ({

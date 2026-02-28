@@ -8,6 +8,7 @@ import { createWorkerLogger } from "@gafus/logger";
 import { PushNotificationService } from "@gafus/webpush";
 import { partitionPushSubscriptions } from "./lib/partitionPushSubscriptions";
 import { sendExpoPushNotifications } from "./lib/expoPush";
+import { sendRustorePushNotifications } from "./lib/rustorePush";
 
 const logger = createWorkerLogger("training-reminders-sender");
 
@@ -135,8 +136,22 @@ async function sendReminderToUser(
           temporaryFailureCount: 0,
         };
 
-    const successCount = webResults.successCount + expoResults.successCount;
-    const failureCount = webResults.failureCount + expoResults.failureCount;
+    const rustoreResults =
+      partitioned.rustore.length > 0 ?
+        await sendRustorePushNotifications(partitioned.rustore, {
+          title: "Напоминание о тренировке 🐕",
+          body: "Пора заниматься с питомцем! Не забудьте про сегодняшнюю тренировку.",
+          url: "/courses",
+        })
+      : {
+          successCount: 0,
+          failureCount: 0,
+          deletedCount: 0,
+          temporaryFailureCount: 0,
+        };
+
+    const successCount = webResults.successCount + expoResults.successCount + rustoreResults.successCount;
+    const failureCount = webResults.failureCount + expoResults.failureCount + rustoreResults.failureCount;
 
     if (successCount > 0) {
       logger.success("Напоминание отправлено", {
@@ -146,6 +161,8 @@ async function sendReminderToUser(
         webFailureCount: webResults.failureCount,
         expoSuccessCount: expoResults.successCount,
         expoFailureCount: expoResults.failureCount,
+        rustoreSuccessCount: rustoreResults.successCount,
+        rustoreFailureCount: rustoreResults.failureCount,
       });
       return { success: true };
     } else {

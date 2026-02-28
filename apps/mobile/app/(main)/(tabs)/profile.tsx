@@ -12,7 +12,7 @@ import { subscriptionsApi, notesApi } from "@/shared/lib/api";
 import { userApi } from "@/shared/lib/api/user";
 import { petsApi, type Pet } from "@/shared/lib/api/pets";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { registerForPushNotifications, savePushToken } from "@/shared/lib/utils/notifications";
+import { setupPushNotifications } from "@/shared/lib/utils/notifications";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -267,10 +267,8 @@ export default function ProfileScreen() {
 
   const enablePushMutation = useMutation({
     mutationFn: async () => {
-      const token = await registerForPushNotifications();
-      if (!token) return { success: false, error: "Разрешение на push не получено" };
-      const saved = await savePushToken(token);
-      return saved ? { success: true } : { success: false, error: "Не удалось сохранить push token" };
+      const ok = await setupPushNotifications();
+      return ok ? { success: true } : { success: false, error: "Не удалось включить push-уведомления" };
     },
     onSuccess: async (result) => {
       if (!result.success) {

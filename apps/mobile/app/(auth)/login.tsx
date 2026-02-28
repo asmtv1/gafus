@@ -17,6 +17,7 @@ import { z } from "zod";
 
 import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 // Схема валидации
@@ -73,7 +74,9 @@ export default function LoginScreen() {
       const result = await login(username, password);
       if (__DEV__) console.log("[Login] login result", result);
 
-      if (!result.success) {
+      if (result.success) {
+        await hapticFeedback.success();
+      } else {
         setSnackbar({
           visible: true,
           message: result.error || "Ошибка авторизации",

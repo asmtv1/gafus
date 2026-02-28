@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -19,6 +19,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";
 
@@ -85,6 +86,7 @@ export default function RegisterScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [tempSessionId] = useState<string>(() => Crypto.randomUUID());
+  const submittingRef = useRef(false);
   const [consents, setConsents] = useState({
     acceptPersonalData: false,
     acceptPrivacyPolicy: false,
@@ -127,6 +129,7 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
+    if (submittingRef.current) return;
     if (!validateForm()) return;
 
     const allConsentsAccepted =
@@ -140,6 +143,7 @@ export default function RegisterScreen() {
     }
 
     if (__DEV__) console.log("[Register] handleRegister start", { name: form.name, phone: form.phone, tempSessionId });
+    submittingRef.current = true;
     setIsLoading(true);
     setErrors((prev) => ({ ...prev, api: undefined }));
     try {
@@ -168,6 +172,7 @@ export default function RegisterScreen() {
       if (__DEV__) console.log("[Register] register result", result);
 
       if (result.success) {
+        await hapticFeedback.success();
         setSnackbar({ visible: true, message: "Подтвердите номер в Telegram" });
         // Навигация на /confirm управляется AuthProvider (pendingConfirmPhone уже в store)
       } else {
@@ -181,6 +186,7 @@ export default function RegisterScreen() {
       setErrors((prev) => ({ ...prev, api: msg }));
       setSnackbar({ visible: true, message: msg });
     } finally {
+      submittingRef.current = false;
       setIsLoading(false);
     }
   };

@@ -1,5 +1,5 @@
 import * as Device from "expo-device";
-import { Platform } from "react-native";
+import { Platform, NativeModules } from "react-native";
 import Constants from "expo-constants";
 import { subscriptionsApi } from "@/shared/lib/api";
 
@@ -66,6 +66,37 @@ export async function registerForPushNotifications(): Promise<string | null> {
 }
 
 /**
+ * Пытается зарегистрировать RuStore Push (только Android).
+ * Gracefully пропускает, если SDK недоступен (Expo Go, пакет не установлен).
+ */
+async function tryRegisterRustorePush(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  if (Constants.appOwnership === "expo") return; // Expo Go не содержит RuStore SDK
+  try {
+    let RustorePush = NativeModules.RustorePush;
+    if (!RustorePush) {
+      const mod = await import("react-native-rustore-push");
+      RustorePush = mod.default ?? (mod as { RustorePush?: unknown }).RustorePush;
+    }
+    const getToken = (RustorePush as { getToken?: () => Promise<string> })?.getToken ??
+      (RustorePush as { getPushToken?: () => Promise<string> })?.getPushToken;
+    if (typeof getToken !== "function") return;
+    const token = await getToken();
+    if (token && typeof token === "string") {
+      const result = await subscriptionsApi.savePushSubscription({
+        endpoint: token,
+        keys: { p256dh: "rustore", auth: "rustore" },
+      });
+      if (!result.success) {
+        console.log("RuStore push: не удалось сохранить подписку");
+      }
+    }
+  } catch {
+    // Expo Go, пакет не установлен или ошибка SDK — не критично
+  }
+}
+
+/**
  * Сохранить push токен на сервере
  */
 export async function savePushToken(token: string): Promise<boolean> {
@@ -85,11 +116,16 @@ export async function savePushToken(token: string): Promise<boolean> {
 }
 
 /**
- * Полная регистрация: получить токен и сохранить на сервере
+ * Полная регистрация: получить токен и сохранить на сервере.
+ * Expo — основной канал. RuStore — дополнительно на Android (независимо).
  */
 export async function setupPushNotifications(): Promise<boolean> {
-  const token = await registerForPushNotifications();
-  if (!token) return false;
+  const expoToken = await registerForPushNotifications();
+  const expoSaved = expoToken ? await savePushToken(expoToken) : false;
 
-  return savePushToken(token);
+  if (Platform.OS === "android") {
+    await tryRegisterRustorePush();
+  }
+
+  return expoSaved;
 }

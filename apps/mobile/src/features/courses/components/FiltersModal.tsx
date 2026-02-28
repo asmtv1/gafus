@@ -16,6 +16,7 @@ import {
   type ProgressFilterType,
   type RatingFilterType,
 } from "@/shared/utils/courseFilters";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
 
 const TAB_OPTIONS: { id: CourseTabType; label: string }[] = [
@@ -164,7 +165,13 @@ export function FiltersModal({
         <Pressable style={styles.drawer} onPress={(e) => e.stopPropagation()}>
           <View style={styles.header}>
             <Text style={styles.title}>Фильтры</Text>
-            <Pressable style={styles.closeButton} onPress={onClose}>
+            <Pressable
+              style={styles.closeButton}
+              onPress={() => {
+                void hapticFeedback.light();
+                onClose();
+              }}
+            >
               <Text style={styles.closeButtonText}>✕</Text>
             </Pressable>
           </View>
@@ -184,7 +191,10 @@ export function FiltersModal({
                       styles.optionButton,
                       localTab === opt.id && styles.optionButtonActive,
                     ]}
-                    onPress={() => setLocalTab(opt.id)}
+                    onPress={() => {
+                      void hapticFeedback.selection();
+                      setLocalTab(opt.id);
+                    }}
                   >
                     <Text
                       style={[
@@ -209,7 +219,10 @@ export function FiltersModal({
                       styles.optionButton,
                       localLevel === opt.id && styles.optionButtonActive,
                     ]}
-                    onPress={() => setLocalLevel(opt.id)}
+                    onPress={() => {
+                      void hapticFeedback.selection();
+                      setLocalLevel(opt.id);
+                    }}
                   >
                     <Text
                       style={[
@@ -234,7 +247,10 @@ export function FiltersModal({
                       styles.optionButton,
                       localProgress === opt.id && styles.optionButtonActive,
                     ]}
-                    onPress={() => setLocalProgress(opt.id)}
+                    onPress={() => {
+                      void hapticFeedback.selection();
+                      setLocalProgress(opt.id);
+                    }}
                   >
                     <Text style={styles.optionEmoji}>{opt.icon}</Text>
                     <Text
@@ -260,7 +276,10 @@ export function FiltersModal({
                       styles.optionButton,
                       localRating === opt.id && styles.optionButtonActive,
                     ]}
-                    onPress={() => setLocalRating(opt.id)}
+                    onPress={() => {
+                      void hapticFeedback.selection();
+                      setLocalRating(opt.id);
+                    }}
                   >
                     <Text
                       style={[
@@ -278,11 +297,23 @@ export function FiltersModal({
 
           <View style={styles.footer}>
             {activeCount > 0 && (
-              <Pressable style={styles.resetButton} onPress={handleReset}>
+              <Pressable
+                style={styles.resetButton}
+                onPress={() => {
+                  void hapticFeedback.light();
+                  handleReset();
+                }}
+              >
                 <Text style={styles.resetButtonText}>Сбросить</Text>
               </Pressable>
             )}
-            <Pressable style={styles.applyButton} onPress={handleApply}>
+            <Pressable
+              style={styles.applyButton}
+              onPress={() => {
+                void hapticFeedback.light();
+                handleApply();
+              }}
+            >
               <Text style={styles.applyButtonText}>
                 Показать {previewCount > 0 && `(${previewCount})`}
               </Text>

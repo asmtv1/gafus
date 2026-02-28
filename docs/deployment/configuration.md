@@ -249,6 +249,10 @@ VAPID_SUBJECT=mailto:admin@gafus.ru
 PUSH_NOTIFICATIONS_ENABLED=true
 PUSH_BATCH_SIZE=100
 PUSH_RATE_LIMIT_MS=1000  # 1 секунда между батчами
+
+# RuStore Push (Android, устройства без GMS)
+RUSTORE_PUSH_SERVICE_TOKEN=<сервисный токен из RuStore Dev Console>
+RUSTORE_PROJECT_ID=PFFHd5eQK8rkDY9vAAeH4TYv3hlvkyMG
 ```
 
 ## 📊 Мониторинг и логирование

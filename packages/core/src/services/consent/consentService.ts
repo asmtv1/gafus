@@ -51,7 +51,26 @@ export async function createConsentLogs(params: CreateConsentLogsParams): Promis
 
   try {
     await prisma.$transaction(
-      records.map((data) => prisma.consentLog.create({ data })),
+      records.map((data) =>
+        prisma.consentLog.upsert({
+          where: {
+            tempSessionId_consentType: {
+              tempSessionId: params.tempSessionId,
+              consentType: data.consentType,
+            },
+          },
+          create: data,
+          update: {
+            consentVersion: data.consentVersion,
+            consentText: data.consentText,
+            consentDate: data.consentDate,
+            ipAddress: data.ipAddress,
+            userAgent: data.userAgent,
+            formData: data.formData,
+            status: ConsentLogStatus.PENDING,
+          },
+        }),
+      ),
     );
   } catch (error) {
     logger.error("createConsentLogs failed", error as Error, {

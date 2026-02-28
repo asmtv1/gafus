@@ -1229,6 +1229,18 @@ export function useNetworkStatus() {
 
 ## Push уведомления
 
+### RuStore vs Expo на Android
+
+Android поддерживает оба канала одновременно:
+- **RuStore** — устройства без GMS (Huawei, устройства с RuStore/Почта/Дзен)
+- **Expo/FCM** — устройства с Google Mobile Services
+
+`setupPushNotifications()` регистрирует оба токена независимо. Dev build обязателен для RuStore; Expo Go использует только Expo токен.
+
+Формат RuStore подписки: `{ endpoint: token, keys: { p256dh: "rustore", auth: "rustore" } }`.
+
+Подробнее: `docs/features/rustore-push.md`.
+
 ### Настройка Expo Notifications
 
 ```typescript

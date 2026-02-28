@@ -5,6 +5,7 @@ import { Text, Switch, Snackbar } from "react-native-paper";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { remindersApi } from "@/shared/lib/api";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, FONTS, SPACING } from "@/constants";
 
 export default function RemindersScreen() {
@@ -33,6 +34,7 @@ export default function RemindersScreen() {
       }
       setName("");
       await queryClient.invalidateQueries({ queryKey: ["reminders"] });
+      void hapticFeedback.success();
       setSnackbar({ visible: true, message: "Напоминание добавлено" });
     },
   });
@@ -123,16 +125,20 @@ export default function RemindersScreen() {
               </View>
               <Switch
                 value={r.enabled}
-                onValueChange={(enabled) => updateMutation.mutate({ id: r.id, enabled })}
+                onValueChange={(enabled) => {
+                  void hapticFeedback.selection();
+                  updateMutation.mutate({ id: r.id, enabled });
+                }}
               />
               <Pressable
                 style={styles.deleteBtn}
-                onPress={() =>
+                onPress={() => {
+                  void hapticFeedback.light();
                   Alert.alert("Удалить напоминание", "Вы уверены?", [
                     { text: "Отмена", style: "cancel" },
                     { text: "Удалить", style: "destructive", onPress: () => deleteMutation.mutate(r.id) },
-                  ])
-                }
+                  ]);
+                }}
               >
                 <Text style={styles.deleteBtnText}>Удалить</Text>
               </Pressable>
