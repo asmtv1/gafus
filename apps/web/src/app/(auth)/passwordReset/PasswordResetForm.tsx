@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { FormField, TextField } from "@shared/components/ui/FormField";
-import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { passwordResetFormSchema } from "@shared/lib/validation/authSchemas";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -20,13 +19,12 @@ export function PasswordResetForm() {
     handleSubmit,
     setError,
     clearErrors,
-    formState: { isValid },
+    formState: { errors, isValid },
   } = useZodForm(passwordResetFormSchema, {
     username: "",
     phone: "",
   });
 
-  const [catchError] = useCaughtError();
   const [isPending, setIsPending] = useState(false);
   const [status, setStatus] = useState("");
 
@@ -40,7 +38,7 @@ export function PasswordResetForm() {
       return;
     }
 
-    clearErrors("phone");
+    clearErrors();
     setIsPending(true);
 
     try {
@@ -65,12 +63,15 @@ export function PasswordResetForm() {
             // Игнорируем ошибки парсинга — используем дефолтное сообщение
           }
         }
-        throw new Error(errorMessage);
+        setError("root", { message: errorMessage });
+        return;
       }
 
       setStatus("Если указанные данные верны, вам придёт сообщение в Telegram");
     } catch (error) {
-      catchError(error);
+      setError("root", {
+        message: error instanceof Error ? error.message : "Ошибка отправки запроса. Попробуйте позже.",
+      });
     } finally {
       setIsPending(false);
     }
@@ -78,6 +79,11 @@ export function PasswordResetForm() {
 
   return (
     <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+      {errors.root?.message && (
+        <p className={styles.errorText} role="alert">
+          {errors.root.message}
+        </p>
+      )}
       <TextField
         id="username"
         label="Логин"

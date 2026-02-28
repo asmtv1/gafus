@@ -4,6 +4,7 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { randomInt } from "crypto";
 import { randomUUID } from "crypto";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 import { maskPhone } from "./maskPhone";
 
@@ -49,9 +50,13 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
     );
   }
 
-  const phoneDigits = phone.replace(/\D/g, "");
-  const userPhoneDigits = user.phone.replace(/\D/g, "");
-  if (phoneDigits !== userPhoneDigits) {
+  const phoneNumber = parsePhoneNumberFromString(phone, "RU");
+  if (!phoneNumber?.isValid()) {
+    logger.warn("Неверный формат телефона при запросе сброса пароля", { username });
+    throw new Error("Неверный формат телефона");
+  }
+  const normalizedPhone = phoneNumber.format("E.164");
+  if (normalizedPhone !== user.phone) {
     logger.warn("Телефон не совпадает при запросе сброса пароля", { username });
     throw new Error("Телефон не совпадает с указанным при регистрации");
   }
@@ -97,7 +102,7 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
     process.env.WEB_APP_URL ||
     "http://localhost:3000";
   const resetLink = `${appBaseUrl.replace(/\/$/, "")}/reset-password`;
-  const phoneMasked = maskPhone(phone);
+  const phoneMasked = maskPhone(normalizedPhone);
   const message = `🔐 Запрос на сброс пароля:\n👤 Логин: ${username}\n📞 Телефон: ${phoneMasked}\n\n👉 Перейдите по ссылке и введите код:\n${resetLink}\n\n🔑 Ваш код для сброса пароля: ${shortCode}`;
 
   const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
