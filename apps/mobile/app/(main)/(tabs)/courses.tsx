@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import { coursesApi, type Course } from "@/shared/lib/api";
 import { CourseCard } from "@/features/courses/components";
 import { OfflineDownloadedScreen } from "@/features/offline";
@@ -24,25 +25,18 @@ export default function FavoritesScreen() {
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["favorites"],
-    queryFn: async () => {
-      const res = await coursesApi.getFavorites();
-      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки избранных курсов");
-      return res;
-    },
-  });
+  const { data, isLoading, error, refetch } = useQuery(favoritesQueryOptions);
 
   const payload = data?.data;
+  const favoriteIds = payload?.favoriteIds;
   const favoriteCourses = payload?.data ?? [];
 
   useEffect(() => {
-    const ids = payload?.favoriteIds;
-    if (ids === undefined) return;
+    if (favoriteIds === undefined) return;
     useCourseStore.setState({
-      favorites: Array.isArray(ids) ? ids : [],
+      favorites: Array.isArray(favoriteIds) ? favoriteIds : [],
     });
-  }, [data]);
+  }, [favoriteIds]);
 
   const displayedCourses = useMemo(
     () => favoriteCourses.filter((c) => favorites.includes(c.id)),

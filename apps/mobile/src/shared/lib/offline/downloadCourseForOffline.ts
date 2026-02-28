@@ -146,14 +146,8 @@ async function runDownload(
       report();
       continue;
     }
-    await downloadHLSForOffline(
-      videoUrl,
-      courseType,
-      videoId,
-      (p) => report(`Видео ${i + 1}/${totalVideos}`),
-      signal,
-    );
-    report();
+    await downloadHLSForOffline(videoUrl, courseType, videoId, undefined, signal);
+    report(`Видео ${i + 1}/${totalVideos}`);
   }
 
   const doc = FileSystem.documentDirectory;

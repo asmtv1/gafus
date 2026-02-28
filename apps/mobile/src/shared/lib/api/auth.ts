@@ -116,6 +116,7 @@ export const authApi = {
           const contentType = response.headers.get("content-type");
           if (contentType?.includes("application/json")) {
             errorData = await response.json();
+            if (__DEV__) console.log("[authApi] register error response", { status: response.status, errorData });
           }
         } catch {
           // игнорируем ошибки парсинга

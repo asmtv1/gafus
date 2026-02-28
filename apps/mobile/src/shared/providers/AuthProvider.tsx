@@ -2,8 +2,10 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { useSegments, useRouter } from "expo-router";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import { useAuthStore, useCourseStore, useStepStore } from "@/shared/stores";
-import { coursesApi } from "@/shared/lib/api";
+import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import { COLORS } from "@/constants";
 import { resetUserStores } from "@/shared/stores/resetAll";
 
@@ -17,6 +19,7 @@ interface AuthProviderProps {
  * При старте сессии загружает избранное (getFavorites) в store — как loadFromServer в web.
  */
 export function AuthProvider({ children }: AuthProviderProps) {
+  const queryClient = useQueryClient();
   const { isAuthenticated, isLoading, checkAuth, pendingConfirmPhone } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
@@ -46,7 +49,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     void useStepStore.persist.rehydrate();
   }, [isAuthenticated, isLoading]);
 
-  // Загрузка избранного при старте (аналог loadFromServer в web), один раз за сессию
+  // Загрузка избранного при старте — prefetch в React Query и sync в store (единый источник)
   useEffect(() => {
     if (!isAuthenticated) {
       favoritesLoadedRef.current = false;
@@ -57,7 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     (async () => {
       try {
-        const res = await coursesApi.getFavorites();
+        const res = await queryClient.fetchQuery(favoritesQueryOptions);
         const ids = res.data?.favoriteIds;
         if (ids !== undefined) {
           useCourseStore.setState({
@@ -68,7 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         favoritesLoadedRef.current = false;
       }
     })();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, queryClient]);
 
   // Редирект на основе auth состояния
   useEffect(() => {
@@ -77,16 +80,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const inAuthGroup = segments[0] === "(auth)";
     const isConfirmScreen = inAuthGroup && segments[1] === "confirm";
 
+    if (__DEV__) {
+      console.log("[AuthProvider] redirect effect", {
+        isAuthenticated,
+        pendingConfirmPhone,
+        segments: [...segments],
+        inAuthGroup,
+        isConfirmScreen,
+      });
+    }
+
     if (pendingConfirmPhone && !isConfirmScreen) {
+      if (__DEV__) console.log("[AuthProvider] → replace /confirm");
       router.replace("/confirm");
       return;
     }
 
     if (!isAuthenticated && !inAuthGroup) {
-      // Не авторизован и не на странице авторизации — редирект на welcome
+      if (__DEV__) console.log("[AuthProvider] → replace /welcome");
       router.replace("/welcome");
     } else if (isAuthenticated && inAuthGroup && !isConfirmScreen) {
-      // Авторизован и на странице авторизации — редирект на главную
+      if (__DEV__) console.log("[AuthProvider] → replace / (main)");
       router.replace("/");
     }
   }, [isAuthenticated, isLoading, segments, router, pendingConfirmPhone]);

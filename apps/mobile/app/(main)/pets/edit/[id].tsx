@@ -62,8 +62,11 @@ export default function EditPetScreen() {
 
   // Обновление питомца
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<CreatePetData> }) =>
-      petsApi.update(id, data),
+    mutationFn: async ({ id, data }: { id: string; data: Partial<CreatePetData> }) => {
+      const res = await petsApi.update(id, data);
+      if (!res.success) throw new Error(res.error ?? "Не удалось обновить питомца");
+      return res;
+    },
     onSuccess: (data) => {
       if (__DEV__) {
         console.log(`${LOG_PREFIX} Питомец успешно обновлен`, {

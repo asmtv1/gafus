@@ -52,9 +52,6 @@ export function CourseDescription({
     const renderTextWithFormatting = (text: string, style: any) => {
       // Паттерны для markdown форматирования
       const boldPattern = /\*\*(.+?)\*\*/g;
-      const _italicPattern = /\*(.+?)\*/g;
-      const _parts: React.ReactNode[] = [];
-      const _lastIndex = 0;
       let key = 0;
 
       // Сначала обрабатываем жирный текст

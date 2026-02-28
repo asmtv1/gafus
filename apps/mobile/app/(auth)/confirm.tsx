@@ -21,7 +21,7 @@ const POLL_INTERVAL_MS = 5000;
 
 export default function ConfirmScreen() {
   const router = useRouter();
-  const { pendingConfirmPhone, clearPendingConfirmPhone, logout } = useAuthStore();
+  const { pendingConfirmPhone, clearPendingConfirmPhone, checkAuth, logout } = useAuthStore();
   const [isPolling, setIsPolling] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const redirectedRef = useRef(false);
@@ -48,7 +48,8 @@ export default function ConfirmScreen() {
           if (intervalRef.current) clearInterval(intervalRef.current);
           redirectedRef.current = true;
           clearPendingConfirmPhone();
-          router.replace("/");
+          await checkAuth(); // обновляет store (isConfirmed, isAuthenticated)
+          router.replace("/"); // с confirm AuthProvider не редиректит — нужен явный переход
         }
       } catch {
         // no-op, next poll retry
@@ -62,7 +63,7 @@ export default function ConfirmScreen() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [pendingConfirmPhone, clearPendingConfirmPhone, router]);
+  }, [pendingConfirmPhone, clearPendingConfirmPhone, checkAuth, router]);
 
   const handleBackToWelcome = async () => {
     await logout();

@@ -10,7 +10,6 @@ import {
   Linking,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -69,9 +68,8 @@ type FormErrors = {
  * Страница регистрации
  */
 export default function RegisterScreen() {
-  const router = useRouter();
   const layout = useLayout();
-  const { register, setPendingConfirmPhone } = useAuthStore();
+  const { register } = useAuthStore();
 
   const formWidth = layout.contentWidth(SPACING.md * 4, 320);
 
@@ -141,6 +139,7 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (__DEV__) console.log("[Register] handleRegister start", { name: form.name, phone: form.phone, tempSessionId });
     setIsLoading(true);
     setErrors((prev) => ({ ...prev, api: undefined }));
     try {
@@ -166,16 +165,18 @@ export default function RegisterScreen() {
         consentPayload,
       );
 
+      if (__DEV__) console.log("[Register] register result", result);
+
       if (result.success) {
         setSnackbar({ visible: true, message: "Подтвердите номер в Telegram" });
-        setPendingConfirmPhone(formattedPhone);
-        router.replace("/confirm");
+        // Навигация на /confirm управляется AuthProvider (pendingConfirmPhone уже в store)
       } else {
         const msg = result.error || "Ошибка регистрации";
         setErrors((prev) => ({ ...prev, api: msg }));
         setSnackbar({ visible: true, message: msg });
       }
-    } catch {
+    } catch (err) {
+      if (__DEV__) console.error("[Register] handleRegister catch", err);
       const msg = "Ошибка подключения к серверу";
       setErrors((prev) => ({ ...prev, api: msg }));
       setSnackbar({ visible: true, message: msg });

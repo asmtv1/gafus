@@ -1,12 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { StateStorage } from "zustand/middleware";
 
-import { useAuthStore } from "./authStore";
+import { getUserId } from "./getUserId";
 
 const STEP_STORAGE_VERSION = "v1";
 
 function getStepStorageKey(): string {
-  const userId = useAuthStore.getState().user?.id ?? "anonymous";
+  const userId = getUserId();
   return `step-storage:${STEP_STORAGE_VERSION}:${userId}`;
 }
 

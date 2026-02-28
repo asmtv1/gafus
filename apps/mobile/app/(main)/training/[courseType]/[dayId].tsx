@@ -760,8 +760,8 @@ export default function TrainingDayScreen() {
                     });
                   }
                   return (
-                    <View key={`error-${index}`} style={{ padding: SPACING.md }}>
-                      <Text style={{ color: COLORS.error }}>Ошибка загрузки шага {index + 1}</Text>
+                    <View key={`error-${index}`} style={styles.stepErrorContainer}>
+                      <Text style={styles.stepErrorText}>Ошибка загрузки шага {index + 1}</Text>
                     </View>
                   );
                 }
@@ -845,6 +845,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.md,
+  },
+  stepErrorContainer: {
+    padding: SPACING.md,
+  },
+  stepErrorText: {
+    color: COLORS.error,
   },
   progressCard: {
     padding: SPACING.md,

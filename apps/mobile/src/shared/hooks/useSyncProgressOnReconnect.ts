@@ -18,24 +18,26 @@ export function useSyncProgressOnReconnect(): void {
   useEffect(() => {
     if (prevOffline.current && !isOffline) {
       prevOffline.current = false;
-      const stop = false;
       const run = async () => {
-        while (!stop) {
+        for (;;) {
           const result = await processNext();
           if (result === "ok") {
             queryClient.invalidateQueries({ queryKey: ["trainingDay"] });
           }
-          if (result === "done") break;
-          if (result === "unauthorized") {
-            Alert.alert(
-              "Синхронизация",
-              "Не удалось синхронизировать прогресс. Проверьте авторизацию.",
-            );
+          if (result === "done" || result === "unauthorized") {
+            if (result === "unauthorized") {
+              Alert.alert(
+                "Синхронизация",
+                "Не удалось синхронизировать прогресс. Проверьте авторизацию.",
+              );
+            }
             break;
           }
         }
       };
-      run();
+      void run().catch(() => {
+        // processNext уже логирует; избегаем unhandled rejection
+      });
     } else {
       prevOffline.current = isOffline;
     }

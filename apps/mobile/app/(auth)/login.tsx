@@ -9,7 +9,7 @@ import {
   TextInput,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -34,7 +34,6 @@ type FormErrors = {
  * Страница авторизации
  */
 export default function LoginScreen() {
-  const router = useRouter();
   const layout = useLayout();
   const { login } = useAuthStore();
 
@@ -68,25 +67,35 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!validateForm()) return;
 
+    if (__DEV__) console.log("[Login] handleLogin start", { username });
     setIsLoading(true);
     try {
       const result = await login(username, password);
+      if (__DEV__) console.log("[Login] login result", result);
 
-      if (result.success) {
-        router.replace("/");
-      } else {
+      if (!result.success) {
         setSnackbar({
           visible: true,
           message: result.error || "Ошибка авторизации",
         });
       }
-    } catch {
+      // Навигация управляется AuthProvider на основе isAuthenticated / pendingConfirmPhone
+    } catch (err) {
+      if (__DEV__) console.error("[Login] handleLogin catch", err);
       setSnackbar({
         visible: true,
         message: "Ошибка подключения к серверу",
       });
     } finally {
       setIsLoading(false);
+      if (__DEV__) {
+        const state = useAuthStore.getState();
+        console.log("[Login] after login state", {
+          isAuthenticated: state.isAuthenticated,
+          pendingConfirmPhone: state.pendingConfirmPhone,
+          userId: state.user?.id,
+        });
+      }
     }
   };
 
