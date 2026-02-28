@@ -561,7 +561,6 @@ function AccordionStepComponent({
                       <VideoPlayer
                         key={`${effectivePlaybackUrl}-${videoRetryKey}`}
                         uri={effectivePlaybackUrl}
-                        onComplete={onComplete}
                         onRetry={() => setVideoRetryKey((k) => k + 1)}
                       />
                     ) : null}

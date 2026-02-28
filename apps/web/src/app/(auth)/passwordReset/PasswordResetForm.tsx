@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
@@ -82,7 +83,14 @@ export function PasswordResetForm() {
         {isPending ? "отправка..." : "восстановить пароль"}
       </button>
 
-      {status && <p className={styles.status}>{status}</p>}
+      {status && (
+        <>
+          <p className={styles.status}>{status}</p>
+          <Link href="/reset-password" className={styles.linkButton}>
+            Ввести код
+          </Link>
+        </>
+      )}
     </form>
   );
 }

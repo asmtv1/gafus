@@ -16,6 +16,7 @@ import {
   changeUsername,
   confirmPhoneChange,
   requestPhoneChange,
+  resetPasswordByCode,
   sendPasswordResetRequest,
   serverCheckUserConfirmed,
 } from "@gafus/core/services/auth";
@@ -77,6 +78,21 @@ const checkPhoneMatchSchema = z.object({
 const passwordResetRequestSchema = z.object({
   username: z.string().min(1, "Имя пользователя обязательно"),
   phone: z.string().min(1, "Номер телефона обязателен"),
+});
+
+const resetPasswordSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .length(6, "Код — 6 цифр")
+    .regex(/^\d{6}$/, "Код — 6 цифр"),
+  password: z
+    .string()
+    .min(8, "Минимум 8 символов")
+    .max(100, "Максимум 100 символов")
+    .regex(/[A-Z]/, "Минимум одна заглавная буква")
+    .regex(/[a-z]/, "Минимум одна строчная буква")
+    .regex(/[0-9]/, "Минимум одна цифра"),
 });
 
 const checkConfirmedSchema = z.object({
@@ -422,6 +438,24 @@ authRoutes.post(
     } catch (error) {
       logger.error("Password reset request error", error as Error);
       return c.json({ success: false, error: "Ошибка отправки запроса" }, 500);
+    }
+  },
+);
+
+// POST /api/v1/auth/reset-password — сброс пароля по 6-значному коду из Telegram
+authRoutes.post(
+  "/reset-password",
+  bodyLimit({ maxSize: 5 * 1024 }),
+  zValidator("json", resetPasswordSchema),
+  async (c) => {
+    try {
+      const { code, password } = c.req.valid("json");
+      await resetPasswordByCode(code, password);
+      return c.json({ success: true });
+    } catch (error) {
+      logger.error("Reset password error", error as Error);
+      // Нейтральное сообщение — не раскрываем "неверный код" vs "истёк"
+      return c.json({ success: false, error: "Не удалось сбросить пароль" }, 400);
     }
   },
 );

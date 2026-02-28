@@ -222,4 +222,51 @@ export const authApi = {
       };
     }
   },
+
+  /**
+   * Сброс пароля по 6-значному коду из Telegram
+   */
+  resetPasswordByCode: async (
+    code: string,
+    password: string,
+  ): Promise<ApiResponse<void>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, password }),
+      });
+
+      if (!response.ok) {
+        let errorData: { error?: string } = {};
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            errorData = await response.json();
+          }
+        } catch {
+          // игнорируем
+        }
+        return {
+          success: false,
+          error: errorData.error || "Не удалось сбросить пароль",
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        return {
+          success: false,
+          error: "Ошибка подключения к серверу",
+          code: "NETWORK_ERROR",
+        };
+      }
+      return {
+        success: false,
+        error: "Ошибка подключения к серверу",
+        code: "NETWORK_ERROR",
+      };
+    }
+  },
 };

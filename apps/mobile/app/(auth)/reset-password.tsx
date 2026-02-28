@@ -35,18 +35,44 @@ const phoneSchema = z
     return !!phone && phone.isValid();
   }, "Неверный формат номера телефона");
 
+const codeSchema = z
+  .string()
+  .trim()
+  .length(6, "Код — 6 цифр")
+  .regex(/^\d{6}$/, "Код — 6 цифр");
+
+const passwordSchema = z
+  .string()
+  .min(8, "Минимум 8 символов")
+  .max(100, "Максимум 100 символов")
+  .regex(/[A-Z]/, "Минимум одна заглавная буква")
+  .regex(/[a-z]/, "Минимум одна строчная буква")
+  .regex(/[0-9]/, "Минимум одна цифра");
+
 /**
  * Страница сброса пароля - точное соответствие веб-версии
  */
 export default function ResetPasswordScreen() {
   const router = useRouter();
 
+  const [phase, setPhase] = useState<"request" | "code">("request");
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ username?: string; phone?: string }>({});
+  const [errors, setErrors] = useState<{
+    username?: string;
+    phone?: string;
+    code?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
   const [status, setStatus] = useState("");
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+
+  // Шаг 2: код + пароль
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const validateUsername = useCallback((): boolean => {
     const result = usernameSchema.safeParse(username);
@@ -67,6 +93,26 @@ export default function ResetPasswordScreen() {
     setErrors((prev) => ({ ...prev, phone: undefined }));
     return true;
   }, [phone]);
+
+  const validateCode = useCallback((): boolean => {
+    const result = codeSchema.safeParse(code);
+    if (!result.success) {
+      setErrors((prev) => ({ ...prev, code: result.error.errors[0].message }));
+      return false;
+    }
+    setErrors((prev) => ({ ...prev, code: undefined }));
+    return true;
+  }, [code]);
+
+  const validatePassword = useCallback((): boolean => {
+    const result = passwordSchema.safeParse(password);
+    if (!result.success) {
+      setErrors((prev) => ({ ...prev, password: result.error.errors[0].message }));
+      return false;
+    }
+    setErrors((prev) => ({ ...prev, password: undefined }));
+    return true;
+  }, [password]);
 
   const handleReset = async () => {
     const isUsernameValid = validateUsername();
@@ -89,11 +135,56 @@ export default function ResetPasswordScreen() {
         return;
       }
 
-      setStatus("Если указанные данные верны, вам придёт сообщение в Telegram");
+      setPhase("code");
+      setStatus("");
     } catch {
       setSnackbar({
         visible: true,
         message: "Ошибка отправки. Попробуйте позже.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    const isCodeValid = validateCode();
+    const isPasswordValid = validatePassword();
+
+    if (password !== confirmPassword) {
+      setErrors((prev) => ({
+        ...prev,
+        confirmPassword: "Пароли не совпадают",
+      }));
+      return;
+    }
+    setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+
+    if (!isCodeValid || !isPasswordValid) return;
+
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const result = await authApi.resetPasswordByCode(code, password);
+
+      if (!result.success) {
+        setSnackbar({
+          visible: true,
+          message: result.error || "Не удалось сбросить пароль",
+        });
+        return;
+      }
+
+      setSnackbar({
+        visible: true,
+        message: "Пароль изменён. Войдите с новым паролем.",
+      });
+      router.replace("/login");
+    } catch {
+      setSnackbar({
+        visible: true,
+        message: "Ошибка. Попробуйте позже.",
       });
     } finally {
       setIsLoading(false);
@@ -139,13 +230,16 @@ export default function ResetPasswordScreen() {
 
           {/* Подзаголовок */}
           <Text style={styles.subtitle}>
-            Введите логин и номер телефона для восстановления доступа.
+            {phase === "request"
+              ? "Введите логин и номер телефона для восстановления доступа."
+              : "Введите 6-значный код из Telegram и новый пароль."}
           </Text>
 
-          {/* Форма */}
-          <View style={styles.form}>
-            {/* Логин Input */}
-            <TextInput
+          {/* Форма: шаг 1 — запрос */}
+          {phase === "request" && (
+            <View style={styles.form}>
+              {/* Логин Input */}
+              <TextInput
               style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
               value={username}
               onChangeText={(text) => {
@@ -179,20 +273,81 @@ export default function ResetPasswordScreen() {
             />
             {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
 
-            {/* Кнопка восстановления */}
-            <Pressable
-              style={[styles.button, (isLoading || !username || !phone) && styles.buttonDisabled]}
-              onPress={handleReset}
-              disabled={isLoading || !username || !phone}
-            >
-              <Text style={styles.buttonText}>
-                {isLoading ? "отправка..." : "восстановить пароль"}
-              </Text>
-            </Pressable>
+              {/* Кнопка восстановления */}
+              <Pressable
+                style={[styles.button, (isLoading || !username || !phone) && styles.buttonDisabled]}
+                onPress={handleReset}
+                disabled={isLoading || !username || !phone}
+              >
+                <Text style={styles.buttonText}>
+                  {isLoading ? "отправка..." : "восстановить пароль"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
 
-            {/* Статус сообщение */}
-            {status && <Text style={styles.status}>{status}</Text>}
-          </View>
+          {/* Форма: шаг 2 — код + пароль */}
+          {phase === "code" && (
+            <View style={styles.form}>
+              <TextInput
+                style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
+                value={code}
+                onChangeText={(text) => {
+                  setCode(text.replace(/\D/g, "").slice(0, 6));
+                  if (errors.code) setErrors((prev) => ({ ...prev, code: undefined }));
+                }}
+                placeholder="Код из Telegram (6 цифр)"
+                placeholderTextColor={COLORS.placeholder}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+              {errors.code && <Text style={styles.errorText}>{errors.code}</Text>}
+
+              <TextInput
+                style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                }}
+                placeholder="Новый пароль"
+                placeholderTextColor={COLORS.placeholder}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+
+              <TextInput
+                style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
+                value={confirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  if (errors.confirmPassword)
+                    setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                }}
+                placeholder="Повторите пароль"
+                placeholderTextColor={COLORS.placeholder}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+              {errors.confirmPassword && (
+                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+              )}
+
+              <Pressable
+                style={[
+                  styles.button,
+                  (isLoading || !code || !password || !confirmPassword) && styles.buttonDisabled,
+                ]}
+                onPress={handleResetPassword}
+                disabled={isLoading || !code || !password || !confirmPassword}
+              >
+                <Text style={styles.buttonText}>
+                  {isLoading ? "сохранение..." : "сохранить пароль"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
 
           {/* Логотип */}
           <Image
