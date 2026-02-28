@@ -27,7 +27,6 @@ const DOCUMENT_URLS = {
   personalDistribution: `${WEB_BASE_URL}/personal-distribution.html`,
 } as const;
 const SUPPORT_TELEGRAM_URL = "https://t.me/gafus_support";
-const PASSWORD_RESET_URL = `${WEB_BASE_URL}/reset-password`;
 
 // Функция для получения инициалов
 const getInitials = (name: string): string => {
@@ -689,7 +688,7 @@ export default function ProfileScreen() {
         {/* Кнопка смены пароля */}
         <Pressable
           style={styles.passwordButton}
-          onPress={() => Linking.openURL(PASSWORD_RESET_URL)}
+          onPress={() => router.push("/reset-password")}
         >
           <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
         </Pressable>

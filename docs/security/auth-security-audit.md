@@ -32,7 +32,7 @@
 
 | # | Уязвимость | Описание | Критичность |
 |---|------------|----------|------------|
-| P1 | **Нет rate limiting** | POST `/api/v1/auth/password-reset-request` и `sendPasswordResetRequestAction` не лимитированы. Можно массово слать запросы по разным username. | Высокая |
+| P1 | **Rate limiting (частично)** | POST `/api/v1/auth/password-reset-request` на api.gafus.ru имеет auth rate limiter (10 req/15 min) и 60s cooldown per-user. Web и mobile вызывают API напрямую. | Снижена |
 | P2 | **Раскрытие привязки логин–телефон** | `checkPhoneMatchesUsernameAction` возвращает true/false. По перебору пар (username, phone) можно выяснять привязки. Форма показывает: «Телефон не совпадает с именем пользователя». | Высокая |
 | P3 | **Утечка данных в Telegram** | В сообщении бота при сбросе пароля передаётся логин и телефон в открытом виде. При компрометации переписки или бота — утечка PII. | Средняя |
 | P4 | **Нет CSRF для API** | `/api/v1/auth/password-reset-request` без CSRF. Теоретически возможен CSRF-запрос сброса (отправка ссылки жертве). | Низкая |

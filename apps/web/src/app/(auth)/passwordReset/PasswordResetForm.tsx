@@ -4,7 +4,6 @@ import Link from "next/link";
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
-import { sendPasswordResetRequestAction } from "@shared/server-actions";
 import { passwordResetFormSchema } from "@shared/lib/validation/authSchemas";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { useState } from "react";
@@ -12,6 +11,8 @@ import { useState } from "react";
 import styles from "./passwordReset.module.css";
 
 import type { PasswordResetFormSchema } from "@shared/lib/validation/authSchemas";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.gafus.ru";
 
 export function PasswordResetForm() {
   const {
@@ -43,7 +44,30 @@ export function PasswordResetForm() {
     setIsPending(true);
 
     try {
-      await sendPasswordResetRequestAction(data.username, data.phone);
+      const response = await fetch(`${API_URL}/api/v1/auth/password-reset-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: data.username, phone: data.phone }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = "Ошибка отправки запроса. Попробуйте позже.";
+        if (response.status === 429) {
+          errorMessage = "Слишком много запросов. Попробуйте позже.";
+        } else {
+          try {
+            const contentType = response.headers.get("content-type");
+            if (contentType?.includes("application/json")) {
+              const errorData: { error?: string } = await response.json();
+              if (errorData.error) errorMessage = errorData.error;
+            }
+          } catch {
+            // Игнорируем ошибки парсинга — используем дефолтное сообщение
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
       setStatus("Если указанные данные верны, вам придёт сообщение в Telegram");
     } catch (error) {
       catchError(error);

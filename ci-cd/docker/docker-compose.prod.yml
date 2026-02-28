@@ -238,6 +238,8 @@ services:
       - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
       # База web URL для return_url платежей
       - WEB_APP_URL=${WEB_APP_URL}
+      # Telegram (для сброса пароля)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       # HLS Video Protection
       - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
       # Yandex Cloud Object Storage (для загрузки манифестов и сегментов)

@@ -79,6 +79,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const inAuthGroup = segments[0] === "(auth)";
     const isConfirmScreen = inAuthGroup && segments[1] === "confirm";
+    const isResetPasswordScreen = inAuthGroup && segments[1] === "reset-password";
 
     if (__DEV__) {
       console.log("[AuthProvider] redirect effect", {
@@ -99,7 +100,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!isAuthenticated && !inAuthGroup) {
       if (__DEV__) console.log("[AuthProvider] → replace /welcome");
       router.replace("/welcome");
-    } else if (isAuthenticated && inAuthGroup && !isConfirmScreen) {
+    } else if (isAuthenticated && inAuthGroup && !isConfirmScreen && !isResetPasswordScreen) {
       if (__DEV__) console.log("[AuthProvider] → replace / (main)");
       router.replace("/");
     }

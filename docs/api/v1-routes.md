@@ -60,13 +60,17 @@
 
 ### POST `/api/v1/auth/password-reset-request`
 
-Запрос на сброс пароля.
+Запрос на сброс пароля. Код отправляется пользователю в Telegram. Ссылка для ввода кода формируется из `WEB_APP_URL` (напр. `https://gafus.ru/reset-password`). **Web и mobile клиенты используют api.gafus.ru** для этого эндпоинта.
 
 **Body:**
 
 ```json
-{ "username": "string" }
+{ "username": "string", "phone": "string" }
 ```
+
+**Response (success):** `{ "success": true }`
+
+**Ошибки:** 400 (валидация, пользователь не найден, Telegram не привязан), 429 (rate limit).
 
 ---
 
@@ -932,6 +936,10 @@
 ---
 
 ## Changelog
+
+### v1.1.2 (01.03.2026)
+
+- **Унификация сброса пароля:** web и mobile используют `api.gafus.ru/api/v1/auth/password-reset-request`. API требует `TELEGRAM_BOT_TOKEN` и `WEB_APP_URL`; ссылка для ввода кода формируется из `WEB_APP_URL/reset-password`.
 
 ### v1.1.1 (21.02.2026)
 

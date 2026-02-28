@@ -123,6 +123,12 @@ NEXT_PUBLIC_WEB_APP_URL=https://gafus.ru
 # Или используйте WEB_APP_URL (без NEXT_PUBLIC_)
 WEB_APP_URL=https://gafus.ru
 
+# API URL для web (build-time; требуется для формы сброса пароля)
+NEXT_PUBLIC_API_URL=https://api.gafus.ru
+
+# TELEGRAM_BOT_TOKEN для API сервиса — обязателен для сброса пароля (отправка кода в Telegram).
+# Тот же токен используется в telegram-bot сервисе.
+
 # Секретный токен для межсервисных вызовов (опционально, но рекомендуется)
 # Используется для защиты API endpoints инвалидации кэша
 REVALIDATE_SECRET_TOKEN=your-secure-secret-token-here

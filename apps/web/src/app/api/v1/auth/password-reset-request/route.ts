@@ -52,9 +52,15 @@ export async function POST(request: NextRequest) {
     }
 
     logger.error("Error in password-reset-request API", error as Error);
-    return NextResponse.json(
-      { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Внутренняя ошибка сервера";
+    const status =
+      message.includes("не найден") ||
+      message.includes("не совпадает") ||
+      message.includes("не привязан") ||
+      message.includes("Попробуйте через минуту")
+        ? 400
+        : 500;
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 }

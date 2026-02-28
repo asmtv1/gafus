@@ -12,6 +12,7 @@ import { Text, Snackbar } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 import parsePhoneNumberFromString from "libphonenumber-js";
 
@@ -74,6 +75,8 @@ export default function ResetPasswordScreen() {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const validateUsername = useCallback((): boolean => {
     const result = usernameSchema.safeParse(username);
@@ -306,33 +309,69 @@ export default function ResetPasswordScreen() {
               />
               {errors.code && <Text style={styles.errorText}>{errors.code}</Text>}
 
-              <TextInput
-                style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
-                }}
-                placeholder="Новый пароль"
-                placeholderTextColor={COLORS.placeholder}
-                secureTextEntry
-                autoCapitalize="none"
-              />
+              <View style={styles.passwordInputWrapper}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.inputWithIcon,
+                    Platform.OS === "android" && styles.inputAndroid,
+                  ]}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                  }}
+                  placeholder="Новый пароль"
+                  placeholderTextColor={COLORS.placeholder}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <Pressable
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword((v) => !v)}
+                  accessibilityLabel={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                >
+                  <MaterialCommunityIcons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={22}
+                    color={COLORS.primary}
+                  />
+                </Pressable>
+              </View>
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-              <TextInput
-                style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
-                value={confirmPassword}
-                onChangeText={(text) => {
-                  setConfirmPassword(text);
-                  if (errors.confirmPassword)
-                    setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
-                }}
-                placeholder="Повторите пароль"
-                placeholderTextColor={COLORS.placeholder}
-                secureTextEntry
-                autoCapitalize="none"
-              />
+              <View style={styles.passwordInputWrapper}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.inputWithIcon,
+                    Platform.OS === "android" && styles.inputAndroid,
+                  ]}
+                  value={confirmPassword}
+                  onChangeText={(text) => {
+                    setConfirmPassword(text);
+                    if (errors.confirmPassword)
+                      setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                  }}
+                  placeholder="Повторите пароль"
+                  placeholderTextColor={COLORS.placeholder}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                />
+                <Pressable
+                  style={styles.eyeButton}
+                  onPress={() => setShowConfirmPassword((v) => !v)}
+                  accessibilityLabel={
+                    showConfirmPassword ? "Скрыть пароль" : "Показать пароль"
+                  }
+                >
+                  <MaterialCommunityIcons
+                    name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                    size={22}
+                    color={COLORS.primary}
+                  />
+                </Pressable>
+              </View>
               {errors.confirmPassword && (
                 <Text style={styles.errorText}>{errors.confirmPassword}</Text>
               )}
@@ -469,6 +508,19 @@ const styles = StyleSheet.create({
   inputAndroid: {
     textAlignVertical: "center" as const,
     includeFontPadding: false,
+  },
+  passwordInputWrapper: {
+    position: "relative",
+  },
+  inputWithIcon: {
+    paddingRight: 40,
+  },
+  eyeButton: {
+    position: "absolute",
+    right: 8,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
   },
   // Текст ошибки
   errorText: {

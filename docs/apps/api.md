@@ -44,6 +44,7 @@ apps/api/
 
 - `POST /api/v1/auth/login` - Авторизация
 - `POST /api/v1/auth/register` - Регистрация (body: name, phone, password, tempSessionId, consentPayload; см. [Consent at Registration](../features/consent-registration.md))
+- `POST /api/v1/auth/password-reset-request` - Запрос сброса пароля (body: username, phone; код отправляется в Telegram; web и mobile используют api.gafus.ru)
 - `POST /api/v1/auth/refresh` - Обновление токенов
 - `POST /api/v1/auth/logout` - Выход
 
@@ -102,8 +103,11 @@ REDIS_URL=redis://...               # Redis connection
 # Опциональные
 API_PORT=3001                       # Порт сервера (default: 3001)
 NODE_ENV=production                 # Окружение
-WEB_APP_URL=https://gafus.ru        # Базовый URL web для return_url платежей
+WEB_APP_URL=https://gafus.ru        # Базовый URL web для return_url платежей и ссылки сброса пароля
 CONSENT_VERSION=v1.0 2026-02-13     # Версия документов согласий (для register)
+
+# Сброс пароля (обязательно для /api/v1/auth/password-reset-request)
+TELEGRAM_BOT_TOKEN=<token>          # Для отправки кода пользователю в Telegram
 
 # Платежи ЮKassa (обязательны для /api/v1/payments/create)
 YOOKASSA_SHOP_ID=<shop_id>

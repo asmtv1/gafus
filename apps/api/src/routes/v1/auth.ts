@@ -437,7 +437,16 @@ authRoutes.post(
       return c.json({ success: true });
     } catch (error) {
       logger.error("Password reset request error", error as Error);
-      return c.json({ success: false, error: "Ошибка отправки запроса" }, 500);
+      const message =
+        error instanceof Error ? error.message : "Ошибка отправки запроса";
+      const status =
+        message.includes("не найден") ||
+        message.includes("не совпадает") ||
+        message.includes("не привязан") ||
+        message.includes("Попробуйте через минуту")
+          ? 400
+          : 500;
+      return c.json({ success: false, error: message }, status);
     }
   },
 );

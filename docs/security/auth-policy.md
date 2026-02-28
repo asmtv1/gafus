@@ -8,7 +8,7 @@
 - `POST /api/v1/auth/check-state` — статус пользователя (confirmed, needsConfirm)
 - `POST /api/v1/auth/check-confirmed` — подтверждение по телефону
 - `POST /api/v1/auth/check-phone-match` — заглушка (всегда `matches: true`)
-- `POST /api/v1/auth/password-reset-request` — запрос сброса пароля
+- `POST /api/v1/auth/password-reset-request` — запрос сброса пароля (web и mobile → api.gafus.ru)
 - `POST /api/v1/auth/reset-password` — сброс по токену
 
 Публичные auth API не защищены CSRF по решению: используются и мобильным клиентом; применяются rate limit и CORS.
@@ -22,7 +22,7 @@
 
 - register: 5
 - login: 10
-- password-reset-request: 5
+- password-reset-request: 10 (auth limiter на api.gafus.ru, окно 15 мин)
 - reset-password: 10
 
 In-memory хранилище: при нескольких инстансах (pod/worker) счётчики не общие; для общего лимита нужен Redis (документировать как ограничение).

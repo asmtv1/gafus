@@ -29,17 +29,31 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
     where: { username: username.toLowerCase().trim() },
     select: {
       id: true,
+      phone: true,
       telegramId: true,
       passwordResetRequestedAt: true,
     },
   });
 
-  if (!user?.telegramId) {
+  if (!user) {
+    logger.warn("Пользователь не найден для сброса пароля", { username });
+    throw new Error("Пользователь с таким логином не найден");
+  }
+
+  if (!user.telegramId) {
     logger.error("Telegram ID не найден для пользователя", new Error("User not found"), {
-      hasUser: !!user,
-      hasTelegramId: !!user?.telegramId,
+      userId: user.id,
     });
-    return;
+    throw new Error(
+      "Telegram не привязан к аккаунту. Обратитесь в поддержку для привязки.",
+    );
+  }
+
+  const phoneDigits = phone.replace(/\D/g, "");
+  const userPhoneDigits = user.phone.replace(/\D/g, "");
+  if (phoneDigits !== userPhoneDigits) {
+    logger.warn("Телефон не совпадает при запросе сброса пароля", { username });
+    throw new Error("Телефон не совпадает с указанным при регистрации");
   }
 
   const now = new Date();
@@ -49,7 +63,7 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
       timeSinceLastRequest: now.getTime() - lastRequest.getTime(),
       minInterval: 60 * 1000,
     });
-    return;
+    throw new Error("Слишком частые запросы. Попробуйте через минуту.");
   }
 
   await prisma.user.update({
@@ -74,11 +88,14 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
     logger.error("TELEGRAM_BOT_TOKEN не задан", new Error("Missing bot token"), {
       environment: process.env.NODE_ENV,
     });
-    return;
+    throw new Error("Сервис временно недоступен. Попробуйте позже.");
   }
 
   const appBaseUrl =
-    process.env.NEXTAUTH_URL || process.env.APP_BASE_URL || "http://localhost:3000";
+    process.env.NEXTAUTH_URL ||
+    process.env.APP_BASE_URL ||
+    process.env.WEB_APP_URL ||
+    "http://localhost:3000";
   const resetLink = `${appBaseUrl.replace(/\/$/, "")}/reset-password`;
   const phoneMasked = maskPhone(phone);
   const message = `🔐 Запрос на сброс пароля:\n👤 Логин: ${username}\n📞 Телефон: ${phoneMasked}\n\n👉 Перейдите по ссылке и введите код:\n${resetLink}\n\n🔑 Ваш код для сброса пароля: ${shortCode}`;
@@ -99,6 +116,6 @@ export async function sendTelegramPasswordResetRequest(username: string, phone: 
       new Error(`HTTP ${response.status}: ${response.statusText}`),
       { status: response.status, statusText: response.statusText, responseBody: body },
     );
-    return;
+    throw new Error("Не удалось отправить код. Попробуйте позже или обратитесь в поддержку.");
   }
 }

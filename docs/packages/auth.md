@@ -98,14 +98,14 @@ import { resetPasswordByToken } from "@gafus/auth";
 const success = await resetPasswordByToken(token, newPassword);
 ```
 
-#### `sendTelegramPasswordResetRequest(username: string): Promise<void>`
+#### `sendTelegramPasswordResetRequest(username: string, phone: string): Promise<void>`
 
-Отправляет запрос на сброс пароля через Telegram.
+Отправляет запрос на сброс пароля через Telegram. Вызывается из `@gafus/core` при `POST /api/v1/auth/password-reset-request`. Базовый URL для ссылки: `NEXTAUTH_URL || APP_BASE_URL || WEB_APP_URL` (API использует `WEB_APP_URL`).
 
 ```typescript
 import { sendTelegramPasswordResetRequest } from "@gafus/auth";
 
-await sendTelegramPasswordResetRequest("john_doe");
+await sendTelegramPasswordResetRequest("john_doe", "+79001234567");
 ```
 
 ## 🔐 Конфигурация
