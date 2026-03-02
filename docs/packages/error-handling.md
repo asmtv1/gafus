@@ -142,6 +142,30 @@ reportClientError(error, {
 
 Для серверных ошибок — `logger.error()` из `@gafus/logger` (логи идут в Seq).
 
+### Web vs Mobile
+
+| Платформа | Пакет | Импорт |
+|----------|-------|--------|
+| web, trainer-panel | `@gafus/error-handling` | `import { reportClientError } from "@gafus/error-handling"` |
+| mobile (Expo/RN) | кастомный tracer | `import { reportClientError } from "@/shared/lib/tracer"` |
+
+Mobile не использует `@gafus/error-handling` (зависит от react-dom) — реализация в `apps/mobile/src/shared/lib/tracer/`.
+
+### Где используется reportClientError (apps/web)
+
+| issueKey | operations |
+|----------|------------|
+| VideoPlayerSection | video_thumbnail, video_metadata, video_progress_load, video_progress_save, video_signed_url, video_playback |
+| pushStore | push_subscription_setup, push_subscription_remove, push_ensure_active_subscription |
+| courseStore | fetch_all_courses, fetch_favorites, fetch_authored, course_store_rehydrate_sync |
+| fetchInterceptor | fetch_unexpected (только не-сетевые ошибки, не offline) |
+| VideoReport | video_report_load, video_report_camera, video_report_submit, video_report_reset |
+| reviewsStore | review_add, review_update, review_delete |
+
+**Mobile** (issueKey): ErrorBoundary, ApiClient, RefreshToken, AuthLogin, AuthRegister, AuthLogout, AuthCheck, ProgressSync.
+
+При добавлении новых вызовов — передавать `issueKey` и `keys.operation` (или `keys`) для группировки в Tracer.
+
 ## 📊 Структура отчётов об ошибках
 
 ### ErrorInfo интерфейс

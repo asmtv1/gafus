@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "@/constants";
+import { reportClientError } from "@/shared/lib/tracer";
 
 interface ApiClientOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
@@ -55,7 +56,8 @@ async function refreshAccessToken(): Promise<boolean> {
       }
 
       return false;
-    } catch {
+    } catch (error) {
+      reportClientError(error, { issueKey: "RefreshToken" });
       return false;
     } finally {
       isRefreshing = false;
@@ -122,6 +124,7 @@ export async function apiClient<T>(
 
     return data;
   } catch (error) {
+    reportClientError(error, { issueKey: "ApiClient", keys: { endpoint } });
     // Обработка сетевых ошибок
     if (error instanceof TypeError && error.message === "Network request failed") {
       return {

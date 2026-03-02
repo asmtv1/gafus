@@ -13,6 +13,7 @@ import {
   getLocalVideoProgress,
   saveLocalVideoProgress,
 } from "@shared/lib/video/videoProgressStorage";
+import { reportClientError } from "@gafus/error-handling";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import type { VideoMetadata } from "@shared/lib/video/getVideoMetadata";
 import styles from "@/features/training/components/AccordionStep/AccordionStep.module.css";
@@ -114,6 +115,11 @@ export function VideoPlayerSection({
         return null;
       })
       .catch((error) => {
+        reportClientError(error, {
+          severity: "error",
+          issueKey: "VideoPlayerSection",
+          keys: { operation: "video_thumbnail" },
+        });
         console.error("[VideoPlayerSection] Ошибка получения thumbnail из IndexedDB:", error);
       });
   }, [isOfflineVideo, courseType, videoUrl, originalVideoUrl, videoId]);
@@ -139,6 +145,11 @@ export function VideoPlayerSection({
         setVideoMetadata(metadata);
       })
       .catch((error) => {
+        reportClientError(error, {
+          severity: "error",
+          issueKey: "VideoPlayerSection",
+          keys: { operation: "video_metadata" },
+        });
         console.error("[VideoPlayerSection] Ошибка получения метаданных:", error);
       })
       .finally(() => {
@@ -164,6 +175,11 @@ export function VideoPlayerSection({
         }
       })
       .catch((error) => {
+        reportClientError(error, {
+          severity: "error",
+          issueKey: "VideoPlayerSection",
+          keys: { operation: "video_progress_load" },
+        });
         console.error("[VideoPlayerSection] Ошибка загрузки прогресса:", error);
       });
   }, [videoId, isOnline]);
@@ -181,6 +197,11 @@ export function VideoPlayerSection({
         : saveLocalVideoProgress(videoId, positionSec).then(() => ({ success: true }));
 
       savePromise.catch((error) => {
+        reportClientError(error, {
+          severity: "error",
+          issueKey: "VideoPlayerSection",
+          keys: { operation: "video_progress_save" },
+        });
         console.error("[VideoPlayerSection] Ошибка сохранения прогресса:", error);
       });
     },
@@ -210,6 +231,11 @@ export function VideoPlayerSection({
           console.error("[VideoPlayerSection] Не удалось получить signed URL");
         }
       } catch (error) {
+        reportClientError(error, {
+          severity: "error",
+          issueKey: "VideoPlayerSection",
+          keys: { operation: "video_signed_url" },
+        });
         console.error("[VideoPlayerSection] Ошибка получения signed URL:", error);
       }
     }
@@ -337,6 +363,11 @@ export function VideoPlayerSection({
           initialTimeSec={initialTimeSec}
           onSaveProgress={handleSaveProgress}
           onError={(error) => {
+            reportClientError(error, {
+              severity: "error",
+              issueKey: "VideoPlayerSection",
+              keys: { operation: "video_playback" },
+            });
             console.error("Video playback error:", error);
           }}
           videoClassName={styles.videoIframe}

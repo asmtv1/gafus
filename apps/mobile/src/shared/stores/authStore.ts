@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 
 import type { ConsentPayload } from "@/shared/constants/consent";
 import { authApi, type User } from "@/shared/lib/api";
+import { reportClientError } from "@/shared/lib/tracer";
 
 import { setGetUserId } from "./getUserId";
 import { resetUserStores } from "./resetAll";
@@ -89,6 +90,7 @@ export const useAuthStore = create<AuthStore>()(
           if (__DEV__) console.log("[authStore] user confirmed → isAuthenticated: true");
           return { success: true };
         } catch (error) {
+          reportClientError(error, { issueKey: "AuthLogin" });
           console.error("Login error:", error);
           return { success: false, error: "Ошибка подключения к серверу" };
         }
@@ -130,6 +132,7 @@ export const useAuthStore = create<AuthStore>()(
           if (__DEV__) console.log("[authStore] register success, userId:", user.id);
           return { success: true };
         } catch (error) {
+          reportClientError(error, { issueKey: "AuthRegister" });
           console.error("Register error:", error);
           if (__DEV__) console.log("[authStore] register catch", { error, message: (error as Error)?.message });
           return { success: false, error: "Ошибка подключения к серверу" };
@@ -146,6 +149,7 @@ export const useAuthStore = create<AuthStore>()(
             await authApi.logout(refreshToken);
           }
         } catch (error) {
+          reportClientError(error, { issueKey: "AuthLogout", userId: useAuthStore.getState().user?.id });
           console.error("Logout API error:", error);
         }
 
@@ -210,6 +214,10 @@ export const useAuthStore = create<AuthStore>()(
             set({ isLoading: false, isAuthenticated: false, user: null, pendingConfirmPhone: null });
           }
         } catch (error) {
+          reportClientError(error, {
+            issueKey: "AuthCheck",
+            userId: useAuthStore.getState().user?.id,
+          });
           console.error("Auth check error:", error);
           set({ isLoading: false });
         }

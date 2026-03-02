@@ -6,6 +6,7 @@ import {
   updateSubscriptionAction,
 } from "@shared/lib/actions/subscription";
 import serviceWorkerManager from "@shared/utils/serviceWorkerManager";
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -216,6 +217,12 @@ export const usePushStore = create<PushState>()(
             publicKey: vapidPublicKey,
             hasRegistration: !!registration,
           });
+          reportClientError(error, {
+            severity: "error",
+            issueKey: "pushStore",
+            keys: { operation: "push_subscription_setup" },
+            userId: get().userId || undefined,
+          });
 
           let errorMessage = "Unknown error occurred";
 
@@ -420,6 +427,12 @@ export const usePushStore = create<PushState>()(
           logger.error("Ошибка при удалении подписки", error as Error, {
             operation: "delete_subscription_error",
           });
+          reportClientError(error, {
+            severity: "error",
+            issueKey: "pushStore",
+            keys: { operation: "push_subscription_remove" },
+            userId: get().userId || undefined,
+          });
 
           let errorMessage = "Не удалось удалить подписку";
 
@@ -531,6 +544,12 @@ export const usePushStore = create<PushState>()(
           logger.error("Failed to ensure active subscription", error as Error, {
             operation: "ensure_active_subscription_failed",
             publicKey: publicKey,
+          });
+          reportClientError(error, {
+            severity: "error",
+            issueKey: "pushStore",
+            keys: { operation: "push_ensure_active_subscription" },
+            userId: get().userId || undefined,
           });
         }
       },

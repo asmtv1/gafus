@@ -35,15 +35,25 @@ function TracerProviderInner({ children }: TracerProviderProps) {
 
     initRef.current = true;
     void (async () => {
-      const { initTracerError, initTracerErrorUploader } = await import(
-        "@apptracer/sdk"
-      );
+      const {
+        initTracerError,
+        initTracerErrorUploader,
+        initTracerPerformanceWebVitals,
+        initTracerPerformanceUploader,
+      } = await import("@apptracer/sdk");
       const tracerError = initTracerError();
-      initTracerErrorUploader({
+      const uploaderConfig = {
         appToken: token,
         versionName: process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown",
         environment: process.env.NODE_ENV,
+      };
+      initTracerErrorUploader(uploaderConfig);
+      initTracerPerformanceWebVitals({
+        webVitalsMetricAttributes: (metric) => ({
+          url: typeof window !== "undefined" ? window.location.pathname : "",
+        }),
       });
+      initTracerPerformanceUploader(uploaderConfig);
       window.__gafusReportError = (error, data) =>
         tracerError.error(error, data);
     })();

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 import type { CourseReviewData, UserReviewStatus } from "@shared/server-actions";
 import {
@@ -58,6 +59,11 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
       set({ isLoading: false });
       return true;
     } catch (error) {
+      reportClientError(error, {
+        severity: "error",
+        issueKey: "reviewsStore",
+        keys: { operation: "review_add" },
+      });
       logger.error("Ошибка при добавлении отзыва", error as Error);
       set({ isLoading: false, error: "Неожиданная ошибка" });
       return false;
@@ -88,6 +94,11 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
       set({ reviews: updatedReviews, isLoading: false });
       return true;
     } catch (error) {
+      reportClientError(error, {
+        severity: "error",
+        issueKey: "reviewsStore",
+        keys: { operation: "review_update" },
+      });
       logger.error("Ошибка при обновлении отзыва", error as Error);
       set({ isLoading: false, error: "Неожиданная ошибка" });
       return false;
@@ -116,6 +127,11 @@ export const useReviewsStore = create<ReviewsState>((set, get) => ({
       set({ reviews: updatedReviews, isLoading: false });
       return true;
     } catch (error) {
+      reportClientError(error, {
+        severity: "error",
+        issueKey: "reviewsStore",
+        keys: { operation: "review_delete" },
+      });
       logger.error("Ошибка при удалении отзыва", error as Error);
       set({ isLoading: false, error: "Неожиданная ошибка" });
       return false;

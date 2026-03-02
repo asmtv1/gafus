@@ -1,7 +1,17 @@
 "use client";
 
-import { useOfflineStore } from "@shared/stores/offlineStore";
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
+import { useOfflineStore } from "@shared/stores/offlineStore";
+
+/** Извлекает pathname из URL без query (безопасность: не передаём токены/секреты) */
+function extractUrlPath(u: string): string {
+  try {
+    return new URL(u, "https://x").pathname;
+  } catch {
+    return u.slice(0, 50);
+  }
+}
 
 const logger = createWebLogger("web-fetch-interceptor");
 
@@ -136,6 +146,15 @@ export function setupFetchInterceptor() {
           currentStore.setOnlineStatus(false);
           // Редирект обрабатывается в offlineDetector
         }
+      }
+
+      // Репортим только неожиданные (не-сетевые) ошибки — рутинный offline не трогаем
+      if (!isNetworkError && !isNavigatorOffline) {
+        reportClientError(error, {
+          severity: "error",
+          issueKey: "fetchInterceptor",
+          keys: { operation: "fetch_unexpected", urlPath: extractUrlPath(url) },
+        });
       }
 
       throw error;

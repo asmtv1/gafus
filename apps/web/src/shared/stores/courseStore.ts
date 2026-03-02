@@ -6,6 +6,7 @@ import {
 import { useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 
 import type { CourseReview, CourseWithProgressData } from "@gafus/types";
@@ -323,6 +324,11 @@ export const useCourseStore = create<CourseStore>()(
               const { syncCourseStoreWithStepStates } = await import("@shared/utils/cacheManager");
               await syncCourseStoreWithStepStates();
             } catch (error) {
+              reportClientError(error, {
+                severity: "error",
+                issueKey: "courseStore",
+                keys: { operation: "course_store_rehydrate_sync" },
+              });
               logger.warn("Failed to sync courseStore with stepStates:", {
                 error,
                 operation: "warn",
@@ -356,6 +362,11 @@ export const useCourseStoreActions = () => {
       useCourseStore.getState().setAllCourses(data, type);
       return data;
     } catch (error) {
+      reportClientError(error, {
+        severity: "error",
+        issueKey: "courseStore",
+        keys: { operation: "fetch_all_courses" },
+      });
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       useCourseStore.getState().setError("all", errorMessage);
       throw error;
@@ -379,6 +390,11 @@ export const useCourseStoreActions = () => {
       useCourseStore.getState().setFavoriteCourseIds(favoriteIds);
       return typedData;
     } catch (error) {
+      reportClientError(error, {
+        severity: "error",
+        issueKey: "courseStore",
+        keys: { operation: "fetch_favorites" },
+      });
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       useCourseStore.getState().setError("favorites", errorMessage);
       throw error;
@@ -398,6 +414,11 @@ export const useCourseStoreActions = () => {
       useCourseStore.getState().setFavoriteCourseIds(favoriteIds);
       return typedData;
     } catch (error) {
+      reportClientError(error, {
+        severity: "error",
+        issueKey: "courseStore",
+        keys: { operation: "fetch_favorites" },
+      });
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       useCourseStore.getState().setError("favorites", errorMessage);
       throw error;
@@ -447,6 +468,11 @@ export const useCourseStoreActions = () => {
       useCourseStore.getState().setAuthored(transformedData);
       return transformedData;
     } catch (error) {
+      reportClientError(error, {
+        severity: "error",
+        issueKey: "courseStore",
+        keys: { operation: "fetch_authored" },
+      });
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       useCourseStore.getState().setError("authored", errorMessage);
       throw error;

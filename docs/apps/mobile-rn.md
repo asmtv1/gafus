@@ -37,6 +37,7 @@
 - [x] **Смена фото питомца** (профиль: нажатие на фото питомца → выбор фото → загрузка через `POST /api/v1/pets/:petId/photo`)
 - [x] **Офлайн режим**: скачивание курсов (meta + медиа), локальное HLS, очередь скачивания, воспроизведение из кэша; синхронизация прогресса при появлении сети (очередь мутаций startStep/pause/resume/complete)
 - [x] **Платные курсы (paywall)**: на экране списка дней `/training/[courseType]` при отсутствии доступа — кнопка «Оплатить/Начать курс», текст согласия с Офертой; POST `/api/v1/payments/create` с `acceptanceContext` (IP/UA из заголовков)
+- [x] **Tracer (мониторинг ошибок)**: кастомный RN-клиент, ErrorBoundary → reportClientError, ручная отправка в API/auth/progressSync (см. [docs/monitoring/tracer.md](../monitoring/tracer.md))
 
 ### В планах
 
@@ -255,6 +256,11 @@ apps/mobile/
 │   │   │   │   ├── storage.ts
 │   │   │   │   ├── sync.ts
 │   │   │   │   └── queue.ts
+│   │   │   ├── tracer/           # Tracer (reportClientError, deviceContext)
+│   │   │   │   ├── tracerConfig.ts
+│   │   │   │   ├── reportClientError.ts
+│   │   │   │   ├── deviceContext.ts
+│   │   │   │   └── index.ts
 │   │   │   └── utils/
 │   │   │       ├── haptics.ts
 │   │   │       ├── notifications.ts
@@ -269,6 +275,7 @@ apps/mobile/
 │   │   └── providers/
 │   │       ├── AuthProvider.tsx
 │   │       ├── QueryProvider.tsx
+│   │       ├── TracerProvider.tsx
 │   │       └── ThemeProvider.tsx
 │   │
 │   └── types/                    # Локальные типы (расширения)

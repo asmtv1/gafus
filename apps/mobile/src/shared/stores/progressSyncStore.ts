@@ -4,8 +4,9 @@
  */
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { zustandStorage } from "./storage";
+import { reportClientError } from "@/shared/lib/tracer";
 import { trainingApi } from "@/shared/lib/api";
+import { zustandStorage } from "./storage";
 
 const MAX_401_BEFORE_STOP = 3;
 
@@ -68,7 +69,11 @@ export const useProgressSyncStore = create<ProgressSyncStore>()(
               result = await trainingApi.completePracticeStep(head.params);
               break;
           }
-        } catch {
+        } catch (error) {
+          reportClientError(error, {
+            issueKey: "ProgressSync",
+            keys: { actionType: head.type },
+          });
           return "ok";
         }
         const code = (result as { code?: string }).code;

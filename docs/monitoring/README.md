@@ -5,7 +5,7 @@
 В проекте используются:
 
 - **Seq** — централизованное хранение серверных логов (Vector → Seq). См. [архитектура логирования](../architecture/logging-architecture.md) и [проверка Seq](../troubleshooting/CHECK_SEQ.md).
-- **Tracer** — мониторинг клиентских ошибок (web, trainer-panel). См. [Tracer](./tracer.md).
+- **Tracer** — мониторинг клиентских ошибок (web, trainer-panel, mobile). См. [Tracer](./tracer.md).
 - **Bull Board** — управление очередями.
 - **Grafana** и **Prometheus** — метрики и дашборды (если развёрнуты).
 

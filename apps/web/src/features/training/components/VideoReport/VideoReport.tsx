@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button, Card, CardContent, Typography, Alert, Box, CircularProgress } from "@mui/material";
 import { VideoCameraFront, Stop, CloudUpload, CloudDone } from "@mui/icons-material";
+import { reportClientError } from "@gafus/error-handling";
 import { submitExamResult } from "@/shared/lib/actions/submitExamResult";
 import { getExamResult } from "@/shared/lib/actions/getExamResult";
 import { uploadExamVideo } from "@/shared/lib/actions/uploadExamVideo";
@@ -45,6 +46,11 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
           setIsSubmitted(true);
         }
       } catch (error) {
+        reportClientError(error, {
+          severity: "error",
+          issueKey: "VideoReport",
+          keys: { operation: "video_report_load" },
+        });
         console.error("Ошибка при загрузке данных экзамена:", error);
       } finally {
         setIsLoading(false);
@@ -146,6 +152,11 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
         });
       }, 1000);
     } catch (error) {
+      reportClientError(error, {
+        severity: "error",
+        issueKey: "VideoReport",
+        keys: { operation: "video_report_camera" },
+      });
       console.error("Ошибка при запуске записи:", error);
       alert("Не удалось получить доступ к камере. Проверьте разрешения.");
     }
@@ -235,6 +246,11 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
       onComplete(blob);
       setIsSubmitted(true);
     } catch (error) {
+      reportClientError(error, {
+        severity: "error",
+        issueKey: "VideoReport",
+        keys: { operation: "video_report_submit" },
+      });
       setUploadProgress(null);
       // Проверяем, не был ли запрос прерван
       if (error instanceof Error && error.name === "AbortError") {
@@ -276,6 +292,11 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
           isPassed: false,
         });
       } catch (error) {
+        reportClientError(error, {
+          severity: "error",
+          issueKey: "VideoReport",
+          keys: { operation: "video_report_reset" },
+        });
         console.error("Ошибка при сбросе видео:", error);
         setSubmitError("Ошибка при сбросе видео. Попробуйте еще раз.");
       }

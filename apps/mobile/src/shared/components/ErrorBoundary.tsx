@@ -1,7 +1,8 @@
 import { Component, type ReactNode } from "react";
-import { View, StyleSheet } from "react-native";
-import { Text, Button } from "react-native-paper";
+import { StyleSheet, View } from "react-native";
+import { Button, Text } from "react-native-paper";
 import { COLORS, SPACING } from "@/constants";
+import { reportClientError } from "@/shared/lib/tracer";
 
 interface Props {
   children: ReactNode;
@@ -28,7 +29,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("ErrorBoundary caught error:", error, errorInfo);
-    // TODO: подключить Tracer для RN когда появится @apptracer/react-native
+    reportClientError(error, {
+      issueKey: "ErrorBoundary",
+      keys: {
+        ...(errorInfo.componentStack
+          ? { componentStack: errorInfo.componentStack }
+          : {}),
+      },
+    });
   }
 
   handleRetry = () => {
