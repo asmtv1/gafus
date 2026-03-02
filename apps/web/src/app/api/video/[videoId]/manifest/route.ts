@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
+import { getVideoManifestInfo } from "@gafus/core/services/video";
 import { getVideoAccessService } from "@gafus/video-access";
 import { downloadFileFromCDN } from "@gafus/cdn-upload";
 import { checkVideoAccess } from "@gafus/core/services/video";
@@ -56,15 +56,7 @@ export async function GET(
       return NextResponse.json({ error: "Недостаточно прав доступа" }, { status: 403 });
     }
 
-    // Получаем информацию о видео из БД
-    const video = await prisma.trainerVideo.findUnique({
-      where: { id: videoId },
-      select: {
-        hlsManifestPath: true,
-        transcodingStatus: true,
-        trainerId: true,
-      },
-    });
+    const video = await getVideoManifestInfo(videoId);
 
     if (!video) {
       return NextResponse.json({ error: "Видео не найдено" }, { status: 404 });

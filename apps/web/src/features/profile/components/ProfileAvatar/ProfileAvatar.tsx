@@ -1,9 +1,7 @@
 "use client";
 
-import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 import { Avatar } from "@shared/utils/muiImports";
-
-const logger = createWebLogger("web-profile-avatar");
 
 interface ProfileAvatarProps {
   avatarUrl: string | null;
@@ -17,9 +15,10 @@ export default function ProfileAvatar({
   size = 80,
 }: ProfileAvatarProps) {
   const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    logger.warn("Ошибка загрузки аватара", {
-      avatarUrl,
-      operation: "avatar_load_error",
+    reportClientError(new Error("Avatar load failed"), {
+      issueKey: "ProfileAvatar",
+      keys: { hasUrl: !!avatarUrl },
+      severity: "warning",
     });
     e.currentTarget.src = "/uploads/avatar.svg";
   };

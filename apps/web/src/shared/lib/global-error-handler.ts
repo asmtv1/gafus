@@ -1,9 +1,6 @@
 "use client";
 
-import { createWebLogger, type LogMeta } from "@gafus/logger";
-
-// Создаем логгер для глобальных ошибок
-const logger = createWebLogger("web-global-error-handler");
+import { reportClientError } from "@gafus/error-handling";
 
 interface GlobalErrorConfig {
   appName?: string;
@@ -26,23 +23,18 @@ export function setupGlobalErrorHandling(config?: Partial<GlobalErrorConfig>) {
 
   const mergedConfig = { ...defaultConfig, ...config };
 
-  // Отлов необработанных ошибок JavaScript
+  // Отлов необработанных ошибок JavaScript → Tracer
   window.onerror = (message, source, lineno, colno, error) => {
     if (error) {
-      const meta: LogMeta = {
-        operation: "global_js_error",
-        componentStack: `Global (window.onerror) - ${source}:${lineno}:${colno}`,
-        errorBoundaryName: "GlobalErrorHandler",
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        source: source,
-        lineno: lineno,
-        colno: colno,
-        message: String(message),
-        tags: ["global-error", "window-onerror"],
-      };
-
-      void logger.error(error.message || String(message) || "Global JavaScript error", error, meta);
+      reportClientError(error, {
+        issueKey: "GlobalJsError",
+        keys: {
+          source: String(source),
+          lineno: Number(lineno),
+          colno: Number(colno),
+          message: String(message),
+        },
+      });
     }
     return false; // Возвращаем false, чтобы браузер продолжил обработку (например, вывод в консоль)
   };
@@ -82,42 +74,21 @@ export function setupGlobalErrorHandling(config?: Partial<GlobalErrorConfig>) {
     }
 
     if (reason instanceof Error) {
-      const meta: LogMeta = {
-        operation: "unhandled_promise_rejection",
-        componentStack: "Global (unhandledrejection)",
-        errorBoundaryName: "GlobalPromiseHandler",
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        reason: reason.toString(),
-        isNetworkError,
-        tags: ["global-error", "unhandled-rejection"],
-      };
-
-      void logger.error(reason.message || "Unhandled promise rejection", reason, meta);
+      reportClientError(reason, {
+        issueKey: "UnhandledRejection",
+        keys: { isNetworkError },
+      });
     } else {
-      // Если причина не Error, создаем искусственную ошибку
-      const syntheticError = new Error(`Unhandled rejection: ${reason}`);
-      const meta: LogMeta = {
-        operation: "unhandled_promise_rejection_non_error",
-        componentStack: "Global (unhandledrejection)",
-        errorBoundaryName: "GlobalPromiseHandler",
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        reason: String(reason),
-        isNetworkError,
-        tags: ["global-error", "unhandled-rejection"],
-      };
-
-      void logger.error(syntheticError.message, syntheticError, meta);
+      reportClientError(new Error(`Unhandled rejection: ${reason}`), {
+        issueKey: "UnhandledRejection",
+        keys: { isNetworkError },
+      });
     }
   };
 
-  if (mergedConfig.logToConsole) {
-    logger.info("✅ Глобальный отлов ошибок настроен", {
-      operation: "setup_global_error_handling",
-      appName: mergedConfig.appName,
-      environment: mergedConfig.environment,
-    });
+  if (mergedConfig.logToConsole && process.env.NODE_ENV === "development") {
+    // eslint-disable-next-line no-console
+    console.info("✅ Глобальный отлов ошибок настроен");
   }
 }
 

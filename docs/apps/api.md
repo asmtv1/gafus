@@ -2,7 +2,29 @@
 
 ## Обзор
 
-Standalone REST API сервис на базе Hono для обслуживания web и mobile клиентов с JWT авторизацией.
+Standalone REST API сервис на базе Hono для обслуживания mobile (api.gafus.ru) и частично web (password-reset-request). JWT авторизация.
+
+## Ответственность и связь с core
+
+**Роль:** REST API для mobile и внешних клиентов. Единственный публичный REST API (api.gafus.ru).
+
+**Правила:**
+- Каждый route: валидация (Zod) → вызов `@gafus/core` → формирование JSON.
+- Прямой prisma в routes только для health check (проверка подключения к БД).
+- JWT auth, CORS, rate limiting — в middleware.
+
+**Маршруты и core-сервисы:**
+
+| Route group | Core service |
+|-------------|--------------|
+| auth (login, register, refresh, logout) | auth, consent |
+| user (profile, preferences, avatar) | user |
+| training (days, day, step/*, video/url) | training, video |
+| courses | course |
+| pets | pets |
+| payments | payments |
+| subscriptions (push) | subscriptions |
+| exam | exam |
 
 ## Технологии
 

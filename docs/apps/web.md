@@ -4,6 +4,21 @@
 
 Веб-приложение GAFUS - это основное пользовательское приложение для владельцев домашних животных, предоставляющее доступ к курсам обучения, отслеживанию прогресса и управлению профилями питомцев.
 
+## Ответственность и связь с core
+
+**Роль:** Fullstack Next.js (SSR, Server Actions). Все данные — через `@gafus/core`.
+
+**Правила:**
+- Server Components и Server Actions вызывают core напрямую (валидация → core → revalidatePath).
+- Route Handlers — только там, где нужен JSON (React Query, fetch). Патерн: validate → core → JSON.
+- Прямой prisma в shared/lib и server-actions не допускается; только core.
+
+**Server Action vs Route Handler:**
+- Server Action — для форм, мутаций, редиректов. Сразу после вызова core вызывается `revalidatePath` / `revalidateTag`.
+- Route Handler — для JSON-ответов клиенту (fetch, React Query). Используется, когда нужны специфические заголовки или HTTP-статусы.
+
+См. [Поток данных](../architecture/data-flow.md), [Обзор архитектуры](../architecture/overview.md).
+
 ## 🎯 Основные функции
 
 ### Для пользователей

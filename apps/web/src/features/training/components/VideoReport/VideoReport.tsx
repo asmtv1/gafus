@@ -51,7 +51,6 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
           issueKey: "VideoReport",
           keys: { operation: "video_report_load" },
         });
-        console.error("Ошибка при загрузке данных экзамена:", error);
       } finally {
         setIsLoading(false);
       }
@@ -102,7 +101,10 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
 
       mediaRecorder.onstop = () => {
         if (recordedChunksRef.current.length === 0) {
-          console.error("❌ КРИТИЧЕСКАЯ ОШИБКА: Нет записанных chunks!");
+          reportClientError(new Error("No recorded chunks"), {
+            issueKey: "VideoReport",
+            keys: { operation: "record_stop_empty_chunks" },
+          });
           alert("Ошибка: не удалось записать видео. Попробуйте еще раз.");
           return;
         }
@@ -110,7 +112,10 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
         const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
 
         if (blob.size === 0) {
-          console.error("❌ КРИТИЧЕСКАЯ ОШИБКА: Blob пустой!");
+          reportClientError(new Error("Empty recorded blob"), {
+            issueKey: "VideoReport",
+            keys: { operation: "record_stop_empty_blob" },
+          });
           alert("Ошибка: записанное видео пустое. Попробуйте еще раз.");
           return;
         }
@@ -126,7 +131,10 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
           setVideoSize(blob.size);
           setRecordingTime(0);
         } else {
-          console.error("❌ recordedVideoRef.current is null!");
+          reportClientError(new Error("recordedVideoRef is null"), {
+            issueKey: "VideoReport",
+            keys: { operation: "record_stop_no_ref" },
+          });
         }
 
         if (timerRef.current) {
@@ -157,7 +165,6 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
         issueKey: "VideoReport",
         keys: { operation: "video_report_camera" },
       });
-      console.error("Ошибка при запуске записи:", error);
       alert("Не удалось получить доступ к камере. Проверьте разрешения.");
     }
   };
@@ -297,7 +304,6 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
           issueKey: "VideoReport",
           keys: { operation: "video_report_reset" },
         });
-        console.error("Ошибка при сбросе видео:", error);
         setSubmitError("Ошибка при сбросе видео. Попробуйте еще раз.");
       }
     }
@@ -395,7 +401,18 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
         controls
         playsInline
         preload="auto"
-        onError={(e) => console.error("❌ Ошибка видео:", e)}
+        onError={(e) => {
+          const target = e.currentTarget;
+          const mediaError = target?.error;
+          const err =
+            mediaError != null
+              ? new Error(`MediaError ${mediaError.code}: ${mediaError.message}`)
+              : new Error("Video preview error");
+          reportClientError(err, {
+            issueKey: "VideoReport",
+            keys: { operation: "video_preview" },
+          });
+        }}
         style={{
           display: !isSubmitted && recordedVideo ? "block" : "none",
           width: "100%",

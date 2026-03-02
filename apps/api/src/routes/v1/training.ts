@@ -11,9 +11,11 @@ import {
   getTrainingDayWithUserSteps,
   syncUserCourseStatusFromDays,
   updateStepAndDay,
+  validateTheoryStepForCompletion,
 } from "@gafus/core/services/training";
 import { saveDiaryEntry, getDiaryEntries } from "@gafus/core/services/diary";
 import { checkCourseAccess } from "@gafus/core/services/course";
+import { getVideoManifestInfo } from "@gafus/core/services/video";
 import {
   createStepNotificationForStepStart,
   getDayFromDayOnCourseId,
@@ -22,7 +24,6 @@ import {
   resumeStepNotification,
 } from "@gafus/core/services/notifications";
 import { createWebLogger } from "@gafus/logger";
-import { prisma } from "@gafus/prisma";
 import { downloadFileFromCDN, extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
 import { getVideoAccessService } from "@gafus/video-access";
 
@@ -355,36 +356,12 @@ trainingRoutes.post("/step/complete/theory", zValidator("json", completeTheoryBo
     const user = c.get("user");
     const { dayOnCourseId, stepIndex } = c.req.valid("json");
 
-    const dayOnCourse = await prisma.dayOnCourse.findUnique({
-      where: { id: dayOnCourseId },
-      include: {
-        course: {
-          select: { type: true },
-        },
-        day: {
-          include: {
-            stepLinks: {
-              orderBy: { order: "asc" },
-              include: { step: true },
-            },
-          },
-        },
-      },
-    });
-
-    if (!dayOnCourse?.day) {
-      return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
-    }
-
-    const stepLink = dayOnCourse.day.stepLinks[stepIndex];
-    if (!stepLink?.step) {
-      return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
-    }
-
-    if (stepLink.step.type !== "THEORY" && stepLink.step.type !== "DIARY") {
+    const validation = await validateTheoryStepForCompletion(dayOnCourseId, stepIndex);
+    if (!validation.valid) {
+      const status = validation.code === "NOT_FOUND" ? 404 : 400;
       return c.json(
-        { success: false, error: "Шаг не является теоретическим или дневником" },
-        400,
+        { success: false, error: validation.error, code: validation.code },
+        status,
       );
     }
 
@@ -559,10 +536,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
 
       let video;
       try {
-        video = await prisma.trainerVideo.findUnique({
-          where: { id: videoId },
-          select: { id: true, transcodingStatus: true, hlsManifestPath: true },
-        });
+        video = await getVideoManifestInfo(videoId);
       } catch (error) {
         logger.error("[training/video/url] Ошибка поиска видео в БД", error as Error, { videoId });
         return c.json(
@@ -574,7 +548,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
       if (!video || video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
         logger.warn("[training/video/url] Видео не найдено или ещё обрабатывается", {
           videoId,
-          transcodingStatus: video?.transcodingStatus,
+          transcodingStatus: video?.transcodingStatus ?? "unknown",
         });
         return c.json(
           { success: false, error: "Видео не найдено или ещё обрабатывается", code: "NOT_FOUND" },
@@ -603,7 +577,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
 
         const videoAccessService = getVideoAccessService();
         const token = videoAccessService.generateToken({
-          videoId: video.id,
+          videoId,
           userId: user.id,
           ttlMinutes: 120,
         });
@@ -611,15 +585,15 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
         const apiUrl =
           process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
         // .m3u8 в пути нужен для нативных плееров (iOS/Android), иначе возможна ошибка "Operation Stopped"
-        const signedUrl = `${apiUrl}/api/v1/training/video/${video.id}/manifest.m3u8?token=${token}`;
+        const signedUrl = `${apiUrl}/api/v1/training/video/${videoId}/manifest.m3u8?token=${token}`;
         logger.info("[training/video/url] Сгенерирован signed URL", {
-          videoId: video.id,
+          videoId,
           apiUrl,
         });
         return c.json({ success: true, data: { url: signedUrl } });
       } catch (error) {
         logger.error("[training/video/url] Ошибка генерации signed URL", error as Error, {
-          videoId: video.id,
+          videoId,
           userId: user.id,
         });
         return c.json(
@@ -691,20 +665,12 @@ async function handleVideoManifest(c: Context) {
       return c.json({ success: false, error: "Недостаточно прав доступа" }, 403);
     }
 
-    // Получаем информацию о видео из БД
-    const video = await prisma.trainerVideo.findUnique({
-      where: { id: videoId },
-      select: {
-        hlsManifestPath: true,
-        transcodingStatus: true,
-      },
-    });
+    const video = await getVideoManifestInfo(videoId);
 
     if (!video) {
       return c.json({ success: false, error: "Видео не найдено" }, 404);
     }
 
-    // Проверяем статус транскодирования
     if (video.transcodingStatus !== "COMPLETED") {
       return c.json(
         {
@@ -823,14 +789,7 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
       return c.json({ success: false, error: "Недостаточно прав доступа" }, 403);
     }
 
-    // Получаем информацию о видео для определения базового пути
-    const video = await prisma.trainerVideo.findUnique({
-      where: { id: videoId },
-      select: {
-        hlsManifestPath: true,
-        transcodingStatus: true,
-      },
-    });
+    const video = await getVideoManifestInfo(videoId);
 
     if (!video || video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
       return c.json({ success: false, error: "Видео не найдено или не готово" }, 404);

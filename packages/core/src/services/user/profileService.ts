@@ -88,6 +88,28 @@ export async function updateUserProfile(userId: string, data: NormalizedProfileD
   return result;
 }
 
+/**
+ * Проверяет существование пользователя по ID
+ */
+export async function existsUser(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  return !!user;
+}
+
+/**
+ * Получает userId по username (для fallback при несоответствии session.id)
+ */
+export async function getUserIdByUsername(username: string): Promise<string | null> {
+  const user = await prisma.user.findUnique({
+    where: { username },
+    select: { id: true },
+  });
+  return user?.id ?? null;
+}
+
 // ========== Get Public Profile ==========
 
 /**

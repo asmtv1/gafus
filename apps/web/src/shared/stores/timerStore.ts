@@ -63,6 +63,19 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
   return {
     timers,
+    liveTimeLeftByStepKey: {} as Record<string, number>,
+
+    setLiveTimeLeft: (stepKey: string, timeLeft: number | null) => {
+      set((s) => {
+        if (timeLeft === null) {
+          const { [stepKey]: _, ...rest } = s.liveTimeLeftByStepKey;
+          return { liveTimeLeftByStepKey: rest };
+        }
+        return {
+          liveTimeLeftByStepKey: { ...s.liveTimeLeftByStepKey, [stepKey]: timeLeft },
+        };
+      });
+    },
 
     // ===== УПРАВЛЕНИЕ АКТИВНЫМ ШАГОМ =====
 
@@ -152,7 +165,11 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
       if (timer) {
         clearInterval(timer);
         timers.delete(stepKey);
-        set({ timers: new Map(timers) });
+        const { [stepKey]: _, ...restLive } = get().liveTimeLeftByStepKey;
+        set({
+          timers: new Map(timers),
+          liveTimeLeftByStepKey: restLive,
+        });
 
         // Если это был активный таймер, очищаем
         if (activeStep === stepKey) {
@@ -168,7 +185,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
       timers.forEach((timer) => clearInterval(timer));
       timers.clear();
-      set({ timers: new Map(timers) });
+      set({ timers: new Map(timers), liveTimeLeftByStepKey: {} });
 
       if (activeTimer) {
         clearInterval(activeTimer);
@@ -182,7 +199,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
 
       timers.forEach((timer) => clearInterval(timer));
       timers.clear();
-      set({ timers: new Map(timers) });
+      set({ timers: new Map(timers), liveTimeLeftByStepKey: {} });
 
       if (activeTimer) {
         clearInterval(activeTimer);
@@ -576,9 +593,19 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
   };
 });
 
+// ===== СЕЛЕКТОРЫ (selective subscriptions — prevent unnecessary re-renders) =====
+
+/** Живое время для шага — ререндер только при изменении этого stepKey */
+export const useLiveTimeLeft = (stepKey: string) =>
+  useTimerStore((s) => s.liveTimeLeftByStepKey[stepKey] ?? null);
+
+/** Есть ли активный таймер для шага — ререндер только при change has(stepKey) */
+export const useHasActiveTimer = (stepKey: string) =>
+  useTimerStore((s) => s.timers.has(stepKey));
+
 // Хук для автоматической очистки таймеров при размонтировании компонента
 export const useCleanupTimers = () => {
-  const { cleanupTimers } = useTimerStore();
+  const cleanupTimers = useTimerStore((s) => s.cleanupTimers);
 
   useEffect(() => {
     return () => {

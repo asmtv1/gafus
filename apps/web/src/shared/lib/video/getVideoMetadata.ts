@@ -2,7 +2,10 @@
 
 import { extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
 import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 import type { TranscodingStatus } from "@gafus/prisma";
+
+const logger = createWebLogger("web-get-video-metadata");
 
 export interface VideoMetadata {
   thumbnailPath: string | null;
@@ -90,7 +93,7 @@ export async function getVideoMetadata(
       isExternal: false,
     };
   } catch (error) {
-    console.error("[getVideoMetadata] Ошибка при поиске видео:", error);
+    logger.error("Ошибка при поиске видео", error as Error);
     return {
       thumbnailPath: null,
       videoId: null,

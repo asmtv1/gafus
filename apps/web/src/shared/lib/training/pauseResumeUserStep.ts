@@ -1,6 +1,7 @@
 "use server";
 
-import { prisma } from "@gafus/prisma";
+import { after } from "next/server";
+import { updateStepAndDay } from "@gafus/core/services/training";
 import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 
@@ -34,88 +35,20 @@ export async function pauseUserStepServerAction(
   const userId = await getCurrentUserId();
 
   try {
-    await prisma.$transaction(
-      async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-        const dayOnCourse = await tx.dayOnCourse.findUnique({
-          where: { id: safeInput.dayOnCourseId },
-          include: {
-            day: {
-              include: {
-                stepLinks: {
-                  orderBy: { order: "asc" },
-                  include: { step: true },
-                },
-              },
-            },
-          },
+    const remaining = Math.max(Math.floor(Number(safeInput.timeLeftSec) || 0), 0);
+    await updateStepAndDay(userId, safeInput.dayOnCourseId, safeInput.stepIndex, {
+      type: "pause",
+      remainingSec: remaining,
+    });
+
+    after(() =>
+      invalidateUserProgressCache(userId, false).catch((e) => {
+        logger.warn("pauseUserStepServerAction: cache invalidation skipped", {
+          error: e,
+          operation: "warn",
         });
-
-        if (!dayOnCourse?.day) {
-          logger.error("DayOnCourse or day not found", new Error("DayOnCourse or day not found"), {
-            operation: "pauseUserStepServerAction",
-            courseId: safeInput.courseId,
-            dayOnCourseId: safeInput.dayOnCourseId,
-            stepIndex: safeInput.stepIndex,
-          });
-          throw new Error("DayOnCourse or day not found");
-        }
-
-        const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
-        if (!stepLink) throw new Error("Step not found by index");
-
-        // Найти/создать UserTraining
-        const userTraining =
-          (await tx.userTraining.findFirst({
-            where: { userId, dayOnCourseId: dayOnCourse.id },
-            select: { id: true },
-          })) ||
-          (await tx.userTraining.create({
-            data: { userId, dayOnCourseId: dayOnCourse.id },
-            select: { id: true },
-          }));
-
-        // Найти/создать UserStep
-        const existing = await tx.userStep.findFirst({
-          where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
-        });
-
-        const remaining = Math.max(Math.floor(Number(safeInput.timeLeftSec) || 0), 0);
-
-        if (existing) {
-          await tx.userStep.update({
-            where: { id: existing.id },
-            data: {
-              paused: true,
-              remainingSec: remaining,
-              updatedAt: new Date(),
-            },
-          });
-        } else {
-          await tx.userStep.create({
-            data: {
-              userTrainingId: userTraining.id,
-              stepOnDayId: stepLink.id,
-              paused: true,
-              remainingSec: remaining,
-            },
-          });
-        }
-      },
-      {
-        maxWait: 5000, // 5 секунд ожидания начала транзакции
-        timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
-      },
+      }),
     );
-
-    // Инвалидация кэша прогресса пользователя (офлайн-дружелюбная)
-    try {
-      await invalidateUserProgressCache(userId, false);
-    } catch (e) {
-      logger.warn("pauseUserStepServerAction: cache invalidation skipped", {
-        error: e,
-        operation: "warn",
-      });
-    }
 
     return { success: true };
   } catch (error) {
@@ -145,74 +78,18 @@ export async function resumeUserStepServerAction(
   const userId = await getCurrentUserId();
 
   try {
-    await prisma.$transaction(
-      async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-        const dayOnCourse = await tx.dayOnCourse.findUnique({
-          where: { id: safeInput.dayOnCourseId },
-          include: {
-            day: {
-              include: {
-                stepLinks: {
-                  orderBy: { order: "asc" },
-                  include: { step: true },
-                },
-              },
-            },
-          },
+    await updateStepAndDay(userId, safeInput.dayOnCourseId, safeInput.stepIndex, {
+      type: "resume",
+    });
+
+    after(() =>
+      invalidateUserProgressCache(userId, false).catch((e) => {
+        logger.warn("resumeUserStepServerAction: cache invalidation skipped", {
+          error: e,
+          operation: "warn",
         });
-
-        if (!dayOnCourse?.day) {
-          logger.error("DayOnCourse or day not found", new Error("DayOnCourse or day not found"), {
-            operation: "resumeUserStepServerAction",
-            courseId: safeInput.courseId,
-            dayOnCourseId: safeInput.dayOnCourseId,
-            stepIndex: safeInput.stepIndex,
-          });
-          throw new Error("DayOnCourse or day not found");
-        }
-
-        const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
-        if (!stepLink) throw new Error("Step not found by index");
-
-        const userTraining = await tx.userTraining.findFirst({
-          where: { userId, dayOnCourseId: dayOnCourse.id },
-          select: { id: true },
-        });
-
-        if (!userTraining) {
-          // Нечего возобновлять
-          return;
-        }
-
-        const existing = await tx.userStep.findFirst({
-          where: { userTrainingId: userTraining.id, stepOnDayId: stepLink.id },
-        });
-
-        if (existing) {
-          await tx.userStep.update({
-            where: { id: existing.id },
-            data: {
-              paused: false,
-              remainingSec: null,
-              updatedAt: new Date(),
-            },
-          });
-        }
-      },
-      {
-        maxWait: 5000, // 5 секунд ожидания начала транзакции
-        timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
-      },
+      }),
     );
-
-    try {
-      await invalidateUserProgressCache(userId, false);
-    } catch (e) {
-      logger.warn("resumeUserStepServerAction: cache invalidation skipped", {
-        error: e,
-        operation: "warn",
-      });
-    }
 
     return { success: true };
   } catch (error) {

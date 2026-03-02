@@ -1,9 +1,8 @@
 "use server";
 
-import { deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
-import { prisma } from "@gafus/prisma";
 import { revalidatePath } from "next/cache";
 import { createWebLogger } from "@gafus/logger";
+import { deletePet as deletePetInCore } from "@gafus/core/services/pets";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { petIdSchema } from "../validation/petSchemas";
 
@@ -13,36 +12,10 @@ export async function deletePet(petId: string, pathToRevalidate?: string) {
   const safePetId = petIdSchema.parse(petId);
   try {
     const userId = await getCurrentUserId();
-
-    // Проверяем, что питомец принадлежит пользователю
-    const existingPet = await prisma.pet.findFirst({
-      where: {
-        id: safePetId,
-        ownerId: userId,
-      },
-      select: { photoUrl: true },
-    });
-
-    if (!existingPet) {
+    const deleted = await deletePetInCore(safePetId, userId);
+    if (!deleted) {
       throw new Error("Питомец не найден");
     }
-
-    // Удаляем фото из CDN, если есть
-    if (existingPet.photoUrl) {
-      try {
-        const relativePath = getRelativePathFromCDNUrl(existingPet.photoUrl);
-        await deleteFileFromCDN(relativePath);
-        logger.info(`Photo deleted from CDN: ${relativePath}`);
-      } catch (error) {
-        logger.error(`Failed to delete photo from CDN: ${error}`, error as Error);
-      }
-    }
-
-    await prisma.pet.delete({
-      where: { id: safePetId },
-    });
-
-    // Опциональная инвалидация HTML страницы
     if (pathToRevalidate) {
       revalidatePath(pathToRevalidate);
     }

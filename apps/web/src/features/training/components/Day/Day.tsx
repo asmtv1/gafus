@@ -3,29 +3,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
+import { getDayKey } from "@gafus/core/utils/training";
+import { getDayTitle } from "@gafus/core/utils/training";
+import type { TrainingDetail } from "@gafus/types";
+import { useStepStore } from "@shared/stores/stepStore";
 import {
-  getDayTitle,
-  getStepDisplayStatus,
-  getStepKey,
-  STEP_STATUS_LABELS,
-} from "@gafus/core/utils/training";
-import { TrainingStatus, type TrainingDetail } from "@gafus/types";
-import { useDayStepStates, useStepStore } from "@shared/stores/stepStore";
-import { useTrainingStore } from "@shared/stores/trainingStore";
-import { markTheoryStepAsCompleted } from "@shared/lib/training/markTheoryStepAsCompleted";
+  useDayRunningIndex,
+  useTrainingStore,
+} from "@shared/stores/trainingStore";
 import { ExpandMoreIcon } from "@shared/utils/muiImports";
-import { AccordionStep } from "../AccordionStep";
+import { DayAccordionItem } from "./DayAccordionItem";
 import { generateCoursePathPdf } from "@shared/lib/actions/generateCoursePathPdf";
 import styles from "./Day.module.css";
-
-// Цвета и эмодзи для статусов (текст — из STEP_STATUS_LABELS в core)
-const STEP_STATUS_CONFIG = {
-  NOT_STARTED: { emoji: "⏳", backgroundColor: "#FFF8E5" },
-  IN_PROGRESS: { emoji: "🔄", backgroundColor: "#E6F3FF" },
-  COMPLETED: { emoji: "✅", backgroundColor: "#B6C582" },
-  PAUSED: { emoji: "⏸️", backgroundColor: "#FFF4E6" },
-  RESET: { emoji: "🔄", backgroundColor: "#E8E6E6" },
-} as const;
 
 interface DayProps {
   training: TrainingDetail;
@@ -34,34 +23,28 @@ interface DayProps {
 
 export function Day({ training, courseType }: DayProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const [runningIndex, setRunningIndex] = useState<number | null>(null);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  const stepStates = useDayStepStates(training.courseId, training.dayOnCourseId);
+  const runningIndex = useDayRunningIndex(training.courseId, training.dayOnCourseId);
+  const setStoreOpenIndex = useTrainingStore((s) => s.setOpenIndex);
+  const setStoreRunningIndex = useTrainingStore((s) => s.setRunningIndex);
+
   const stepStoreRehydrated = useStepStore((s) => s._rehydrated);
   const initializeStep = useStepStore((s) => s.initializeStep);
-  const updateStepStatus = useStepStore((s) => s.updateStepStatus);
-  const {
-    getOpenIndex,
-    getRunningIndex,
-    setOpenIndex: setStoreOpenIndex,
-    setRunningIndex: setStoreRunningIndex,
-    findRunningStepIndex,
-  } = useTrainingStore();
 
-  // Обработчики событий
+  const handleOpenChange = useCallback(
+    (newOpenIndex: number | null) => {
+      setOpenIndex(newOpenIndex);
+      setStoreOpenIndex(training.courseId, training.dayOnCourseId, newOpenIndex);
+    },
+    [training.courseId, training.dayOnCourseId, setStoreOpenIndex],
+  );
+
   const handleStepStart = useCallback(
     async (stepIndex: number) => {
-      if (stepIndex === -1) {
-        setRunningIndex(null);
-        setStoreRunningIndex(training.courseId, training.dayOnCourseId, null);
-        return;
-      }
-
-      setRunningIndex(stepIndex);
-      setStoreRunningIndex(training.courseId, training.dayOnCourseId, stepIndex);
+      setStoreRunningIndex(training.courseId, training.dayOnCourseId, stepIndex === -1 ? null : stepIndex);
     },
     [training.courseId, training.dayOnCourseId, setStoreRunningIndex],
   );
@@ -69,54 +52,10 @@ export function Day({ training, courseType }: DayProps) {
   const handleReset = useCallback(
     (stepIndex: number) => {
       if (runningIndex === stepIndex) {
-        setRunningIndex(null);
         setStoreRunningIndex(training.courseId, training.dayOnCourseId, null);
       }
     },
     [runningIndex, training.courseId, training.dayOnCourseId, setStoreRunningIndex],
-  );
-
-  const handleToggleOpen = useCallback(
-    async (index: number) => {
-      const newOpenIndex = openIndex === index ? null : index;
-      setOpenIndex(newOpenIndex);
-      setStoreOpenIndex(training.courseId, training.dayOnCourseId, newOpenIndex);
-
-      // Если открываем шаг типа THEORY с статусом NOT_STARTED, отмечаем его как завершенный
-      if (newOpenIndex !== null) {
-        const step = training.steps[index];
-        const stepKey = getStepKey(training.courseId, training.dayOnCourseId, index);
-        const stepState = stepStates[stepKey];
-        const currentStatus = getStepDisplayStatus(stepState, step);
-
-        if (step.type === "THEORY" && currentStatus === TrainingStatus.NOT_STARTED) {
-          try {
-            await markTheoryStepAsCompleted(
-              training.courseId,
-              training.dayOnCourseId,
-              index,
-              step.title,
-              step.order,
-            );
-
-            // Обновляем локальное состояние шага на COMPLETED
-            updateStepStatus(training.courseId, training.dayOnCourseId, index, "COMPLETED");
-          } catch (error) {
-            // Ошибка уже обработана в server action, не прерываем работу UI
-            console.error("Failed to mark theory step as completed:", error);
-          }
-        }
-      }
-    },
-    [
-      openIndex,
-      training.courseId,
-      training.dayOnCourseId,
-      training.steps,
-      stepStates,
-      setStoreOpenIndex,
-      updateStepStatus,
-    ],
   );
 
   const handleToggleDescription = useCallback(() => {
@@ -140,11 +79,10 @@ export function Day({ training, courseType }: DayProps) {
     return () => clearTimeout(t);
   }, [stepStoreRehydrated]);
 
-  // Инициализация состояния при монтировании (после rehydrate)
+  // Инициализация stepStore и синхронизация openIndex из trainingStore (persist)
+  // openIndex держим локально — иначе при setStoreRunningIndex (Play) возможна рассинхронизация
   useEffect(() => {
     if (!initReady) return;
-    const stepStore = useStepStore.getState();
-    const prefix = `${training.courseId}-${training.dayOnCourseId}-`;
     try {
       training.steps.forEach((step, index) => {
         initializeStep(
@@ -159,40 +97,19 @@ export function Day({ training, courseType }: DayProps) {
           },
         );
       });
+      const dayKey = getDayKey(training.courseId, training.dayOnCourseId);
+      const savedOpen = useTrainingStore.getState().openIndexes[dayKey];
+      if (savedOpen !== undefined && savedOpen !== null) {
+        setOpenIndex(savedOpen);
+      }
     } catch {
       // no-op
-    }
-    const savedOpenIndex = getOpenIndex(training.courseId, training.dayOnCourseId);
-    const savedRunningIndex = getRunningIndex(training.courseId, training.dayOnCourseId);
-
-    if (savedOpenIndex !== null) {
-      setOpenIndex(savedOpenIndex);
-    }
-
-    if (savedRunningIndex !== null) {
-      setRunningIndex(savedRunningIndex);
-    }
-
-    const activeStepIndex = findRunningStepIndex(
-      training.courseId,
-      training.dayOnCourseId,
-      training.steps.length,
-    );
-
-    if (activeStepIndex !== null) {
-      setRunningIndex(activeStepIndex);
-      setStoreRunningIndex(training.courseId, training.dayOnCourseId, activeStepIndex);
     }
   }, [
     initReady,
     training.courseId,
     training.dayOnCourseId,
     stepsSignature,
-    training.steps.length,
-    findRunningStepIndex,
-    setStoreRunningIndex,
-    getOpenIndex,
-    getRunningIndex,
     initializeStep,
   ]);
 
@@ -268,77 +185,19 @@ export function Day({ training, courseType }: DayProps) {
         const isBreakStep = step.type === "BREAK";
         const isDiaryStep = step.type === "DIARY";
         const exerciseNumber = (isBreakStep || isDiaryStep) ? null : ++exerciseCounter;
-        // Получаем статус шага из store
-        const stepKey = getStepKey(training.courseId, training.dayOnCourseId, index);
-        const stepStatus = getStepDisplayStatus(stepStates[stepKey], step);
-
-        const statusConfig =
-          STEP_STATUS_CONFIG[stepStatus as keyof typeof STEP_STATUS_CONFIG] ||
-          STEP_STATUS_CONFIG.NOT_STARTED;
-        const statusText =
-          STEP_STATUS_LABELS[stepStatus as TrainingStatus] ??
-          STEP_STATUS_LABELS[TrainingStatus.NOT_STARTED];
-
         return (
-          <div key={`${step.id}-${index}`} className={styles.accordionItem}>
-            <div
-              className={styles.accordionHeader}
-              onClick={() => handleToggleOpen(index)}
-              style={{ backgroundColor: statusConfig.backgroundColor }}
-            >
-              <div className={styles.stepTitleContainer}>
-                <div className={styles.expandControl}>
-                  <ExpandMoreIcon
-                    className={`${styles.expandIcon} ${openIndex === index ? styles.expanded : ""}`}
-                  />
-
-                  <span className={styles.expandText}>
-                    {openIndex === index ? "Скрыть" : "Подробнее"}
-                  </span>
-                </div>
-                <h3 className={styles.stepTitle}>
-                  <div className={styles.stepTitleText}>
-                    <span>
-                      {isBreakStep ? "Перерыв" : isDiaryStep ? "Дневник успехов" : `Упражнение #${exerciseNumber}`}
-                    </span>
-                    <span>{step.type === "BREAK" ? step.title : `«${step.title}»`}</span>
-                  </div>
-                </h3>
-                <div className={styles.stepStatusConfig}>
-                  <span>{statusConfig.emoji} {statusText}</span>
-                </div>
-              </div>
-            </div>
-
-            {openIndex === index && (
-              <div className={styles.accordionContent}>
-                <AccordionStep
-                  courseId={training.courseId}
-                  courseType={courseType}
-                  dayOnCourseId={training.dayOnCourseId}
-                  stepIndex={index}
-                  durationSec={step.durationSec}
-                  estimatedDurationSec={step.estimatedDurationSec ?? null}
-                  stepTitle={step.title}
-                  stepDescription={step.description}
-                  stepOrder={step.order}
-                  totalSteps={training.steps.length}
-                  initialStatus={step.status}
-                  videoUrl={step.videoUrl}
-                  imageUrls={step.imageUrls}
-                  onRun={handleStepStart}
-                  onReset={handleReset}
-                  type={step.type}
-                  checklist={step.checklist}
-                  requiresVideoReport={step.requiresVideoReport}
-                  requiresWrittenFeedback={step.requiresWrittenFeedback}
-                  hasTestQuestions={step.hasTestQuestions}
-                  userStepId={step.userStepId}
-                  stepId={step.id}
-                />
-              </div>
-            )}
-          </div>
+          <DayAccordionItem
+            key={`${step.id}-${index}`}
+            training={training}
+            courseType={courseType}
+            index={index}
+            step={step}
+            exerciseNumber={exerciseNumber}
+            openIndex={openIndex}
+            onOpenChange={handleOpenChange}
+            onStepStart={handleStepStart}
+            onReset={handleReset}
+          />
         );
       })}
     </div>

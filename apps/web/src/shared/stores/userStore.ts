@@ -13,6 +13,7 @@ import { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 
 import type { UserStore } from "./types";
 
@@ -93,8 +94,9 @@ export const useUserStore = create<UserStore>()(
             profileError: errorMessage,
             isLoading: false,
           });
-          logger.error("Ошибка загрузки профиля", error as Error, {
-            operation: "fetch_profile_error",
+          reportClientError(error, {
+            issueKey: "UserStore",
+            keys: { operation: "fetch_profile" },
           });
         }
       },
@@ -128,8 +130,9 @@ export const useUserStore = create<UserStore>()(
             preferencesError: errorMessage,
             isUpdatingPreferences: false,
           });
-          logger.error("Ошибка загрузки настроек", error as Error, {
-            operation: "fetch_preferences_error",
+          reportClientError(error, {
+            issueKey: "UserStore",
+            keys: { operation: "fetch_preferences" },
           });
         }
       },
@@ -158,8 +161,9 @@ export const useUserStore = create<UserStore>()(
             profileError: errorMessage,
             isUpdating: false,
           });
-          logger.error("Ошибка обновления профиля", error as Error, {
-            operation: "update_profile_error",
+          reportClientError(error, {
+            issueKey: "UserStore",
+            keys: { operation: "update_profile" },
           });
           throw error;
         }
@@ -188,8 +192,9 @@ export const useUserStore = create<UserStore>()(
             preferencesError: errorMessage,
             isUpdatingPreferences: false,
           });
-          logger.error("Ошибка обновления настроек", error as Error, {
-            operation: "update_preferences_error",
+          reportClientError(error, {
+            issueKey: "UserStore",
+            keys: { operation: "update_preferences" },
           });
           throw error;
         }

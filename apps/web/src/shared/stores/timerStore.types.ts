@@ -3,6 +3,8 @@
 export interface TimerStore {
   // Хранилище для таймеров
   timers: Map<string, NodeJS.Timeout>;
+  // Текущее отображаемое время (обновляется каждую сек) — в store, чтобы не ререндерить AccordionStep
+  liveTimeLeftByStepKey: Record<string, number>;
 
   // Управление активным шагом
   getActiveStep: () => string | null;
@@ -18,6 +20,7 @@ export interface TimerStore {
     isRestore?: boolean,
   ) => boolean;
   stopTimer: (courseId: string, dayOnCourseId: string, stepIndex: number) => void;
+  setLiveTimeLeft: (stepKey: string, timeLeft: number | null) => void;
   stopAllTimers: () => void;
   cleanupTimers: () => void;
 

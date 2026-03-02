@@ -1,9 +1,13 @@
 "use server";
 
+import { after } from "next/server";
 import { TrainingStatus } from "@gafus/types";
-import { updateStepAndDay, type StepOperation } from "@gafus/core/services/training/trainingService";
+import {
+  updateStepAndDay,
+  getCourseTypeByDayOnCourseId,
+  type StepOperation,
+} from "@gafus/core/services/training/trainingService";
 import { createImmediatePushNotification } from "@gafus/core/services/notifications";
-import { prisma } from "@gafus/prisma";
 import { z } from "zod";
 import { createWebLogger } from "@gafus/logger";
 
@@ -76,20 +80,13 @@ export async function updateUserStepStatus(
     if (operation.type === "complete" && result.stepJustCompleted) {
       void (async () => {
         try {
-          const dayOnCourse = await prisma.dayOnCourse.findUnique({
-            where: { id: safeDayOnCourseId },
-            select: {
-              course: {
-                select: { type: true },
-              },
-            },
-          });
+          const courseType = await getCourseTypeByDayOnCourseId(safeDayOnCourseId);
 
           await createImmediatePushNotification({
             userId: safeUserId,
             title: "Шаг выполнен!",
             body: "Отличная работа! Переходите к следующему шагу.",
-            url: dayOnCourse ? `/trainings/${dayOnCourse.course.type}/${safeDayOnCourseId}` : "/trainings",
+            url: courseType ? `/trainings/${courseType}/${safeDayOnCourseId}` : "/trainings",
           });
         } catch (notifError) {
           logger.error("Failed to queue immediate push after complete", notifError as Error, {
@@ -121,7 +118,16 @@ export async function updateUserStepStatus(
       }
     }
 
-    await invalidateUserProgressCache(safeUserId, false);
+    // IN_PROGRESS, RESET, COMPLETED: after() — инвалидация после ответа, иначе RSC refetch → Day remount
+    if (
+      safeStatus === TrainingStatus.IN_PROGRESS ||
+      safeStatus === TrainingStatus.RESET ||
+      safeStatus === TrainingStatus.COMPLETED
+    ) {
+      after(() => invalidateUserProgressCache(safeUserId, false));
+    } else {
+      await invalidateUserProgressCache(safeUserId, false);
+    }
 
     return { success: true };
   } catch (error) {

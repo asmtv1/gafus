@@ -5,6 +5,7 @@ import { getUserWithTrainings } from "@shared/lib/user/getUserWithTrainings";
 import { createAchievementData } from "@shared/lib/achievements/calculateAchievements";
 import { isOnline } from "@shared/utils/offlineCacheUtils";
 import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 
 import type { AchievementData, Achievement } from "@gafus/types";
 
@@ -38,9 +39,9 @@ export function useAchievements() {
 
         return achievementData;
       } catch (error) {
-        logger.error("Ошибка загрузки достижений", error as Error, {
-          operation: "load_achievements",
-          hasUser: !!user,
+        reportClientError(error, {
+          issueKey: "useAchievements",
+          keys: { operation: "load", hasUser: !!user },
         });
         throw error;
       }

@@ -1,64 +1,11 @@
 "use server";
 
 import { unstable_cache } from "next/cache";
-import { prisma } from "@gafus/prisma";
+import { getUserTrainingDates as getUserTrainingDatesCore } from "@gafus/core/services/achievements";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("web-get-user-training-dates");
-
-/**
- * Базовая функция для получения дат занятий пользователя из БД
- * Выполняется без кэширования для актуальных данных
- */
-async function getUserTrainingDatesRaw(userId: string): Promise<Date[]> {
-  // Оптимизированный запрос: получаем даты из завершенных шагов и дней параллельно
-  const [completedSteps, completedDays] = await Promise.all([
-    prisma.userStep.findMany({
-      where: {
-        userTraining: {
-          userId,
-        },
-        status: "COMPLETED",
-      },
-      select: {
-        updatedAt: true,
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-    }),
-    prisma.userTraining.findMany({
-      where: {
-        userId,
-        status: "COMPLETED",
-      },
-      select: {
-        updatedAt: true,
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-    }),
-  ]);
-
-  // Объединяем все даты и оставляем уникальные по дню (без времени)
-  const allDates = new Set<string>();
-
-  [...completedSteps, ...completedDays].forEach((item) => {
-    const date = new Date(item.updatedAt);
-    // Нормализуем до начала дня (00:00:00) для корректного сравнения
-    date.setHours(0, 0, 0, 0);
-    allDates.add(date.toISOString());
-  });
-
-  // Преобразуем обратно в Date объекты и сортируем по убыванию
-  const uniqueDates = Array.from(allDates)
-    .map((iso) => new Date(iso))
-    .toSorted((a, b) => b.getTime() - a.getTime());
-
-  return uniqueDates;
-}
 
 /**
  * Получает уникальные даты, когда пользователь завершал шаги или дни тренировок
@@ -83,7 +30,7 @@ export async function getUserTrainingDates(): Promise<Date[]> {
     const cachedFunction = unstable_cache(
       async () => {
         logger.info("[Cache] Fetching user training dates", { userId, operation: "info" });
-        return await getUserTrainingDatesRaw(userId);
+        return getUserTrainingDatesCore(userId);
       },
       ["user-training-dates", userId],
       {

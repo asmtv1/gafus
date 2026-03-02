@@ -1,11 +1,9 @@
 "use client";
 
 import { getPendingConfirmationStatus } from "@shared/server-actions";
-import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useEffect, useState, useTransition } from "react";
-
-const logger = createWebLogger("web-confirm-client");
 
 export default function ConfirmClient() {
   const [catchError] = useCaughtError();
@@ -29,8 +27,9 @@ export default function ConfirmClient() {
             window.location.href = "/login";
           }
         } catch (error) {
-          logger.error("Ошибка при проверке подтверждения номера", error as Error, {
-            operation: "confirm_phone_check_error",
+          reportClientError(error, {
+            issueKey: "ConfirmClient",
+            keys: { operation: "confirm_check" },
           });
           catchError(error);
         }
@@ -56,8 +55,9 @@ export default function ConfirmClient() {
             window.location.href = "/login";
           }
         } catch (error) {
-          logger.error("Ошибка при проверке подтверждения номера", error as Error, {
-            operation: "confirm_phone_poll_error",
+          reportClientError(error, {
+            issueKey: "ConfirmClient",
+            keys: { operation: "confirm_poll" },
           });
           catchError(error);
         }

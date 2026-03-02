@@ -120,7 +120,6 @@ export function VideoPlayerSection({
           issueKey: "VideoPlayerSection",
           keys: { operation: "video_thumbnail" },
         });
-        console.error("[VideoPlayerSection] Ошибка получения thumbnail из IndexedDB:", error);
       });
   }, [isOfflineVideo, courseType, videoUrl, originalVideoUrl, videoId]);
 
@@ -150,7 +149,6 @@ export function VideoPlayerSection({
           issueKey: "VideoPlayerSection",
           keys: { operation: "video_metadata" },
         });
-        console.error("[VideoPlayerSection] Ошибка получения метаданных:", error);
       })
       .finally(() => {
         setIsLoadingMetadata(false);
@@ -180,7 +178,6 @@ export function VideoPlayerSection({
           issueKey: "VideoPlayerSection",
           keys: { operation: "video_progress_load" },
         });
-        console.error("[VideoPlayerSection] Ошибка загрузки прогресса:", error);
       });
   }, [videoId, isOnline]);
 
@@ -202,7 +199,6 @@ export function VideoPlayerSection({
           issueKey: "VideoPlayerSection",
           keys: { operation: "video_progress_save" },
         });
-        console.error("[VideoPlayerSection] Ошибка сохранения прогресса:", error);
       });
     },
     [videoId, isOnline],
@@ -228,7 +224,10 @@ export function VideoPlayerSection({
         if (url) {
           setSignedUrl(url);
         } else {
-          console.error("[VideoPlayerSection] Не удалось получить signed URL");
+          reportClientError(new Error("Failed to get signed URL"), {
+            issueKey: "VideoPlayerSection",
+            keys: { operation: "video_signed_url" },
+          });
         }
       } catch (error) {
         reportClientError(error, {
@@ -236,7 +235,6 @@ export function VideoPlayerSection({
           issueKey: "VideoPlayerSection",
           keys: { operation: "video_signed_url" },
         });
-        console.error("[VideoPlayerSection] Ошибка получения signed URL:", error);
       }
     }
 
@@ -368,7 +366,6 @@ export function VideoPlayerSection({
               issueKey: "VideoPlayerSection",
               keys: { operation: "video_playback" },
             });
-            console.error("Video playback error:", error);
           }}
           videoClassName={styles.videoIframe}
           wrapperClassName={`${styles.videoWrapper} ${videoInfo?.isShorts ? styles.verticalPlayer : styles.horizontalPlayer}`}

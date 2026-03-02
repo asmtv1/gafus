@@ -4,15 +4,19 @@ import { AccessTimeIcon, PauseIcon, PlayArrowIcon, ReplayIcon } from "@shared/ut
 
 import { formatTimeLeft } from "@gafus/core/utils/training";
 
+import { useLiveTimeLeft } from "@shared/stores/timerStore";
+
 import type { StepType } from "./types";
 
 import styles from "./AccordionStep.module.css";
 
 interface StepTimerCardProps {
-  displayTimeLeft: number;
-  stepState: { status: string };
+  stepKey: string;
+  hasActiveTimer: boolean;
+  stepState: { status: string; timeLeft?: number };
   isActuallyRunning: boolean;
   isPausing: boolean;
+  isPending?: boolean;
   type: StepType | undefined;
   onStart: () => void;
   onPause: () => void;
@@ -20,15 +24,21 @@ interface StepTimerCardProps {
 }
 
 export function StepTimerCard({
-  displayTimeLeft,
+  stepKey,
+  hasActiveTimer,
   stepState,
   isActuallyRunning,
   isPausing,
+  isPending = false,
   type,
   onStart,
   onPause,
   onReset,
 }: StepTimerCardProps) {
+  const liveFromStore = useLiveTimeLeft(stepKey);
+  const displayTimeLeft = hasActiveTimer
+    ? (liveFromStore ?? stepState?.timeLeft ?? 0)
+    : (stepState?.timeLeft ?? 0);
   const label =
     type === "BREAK"
       ? "Начни перерыв"
@@ -47,14 +57,19 @@ export function StepTimerCard({
           {formatTimeLeft(displayTimeLeft)}
         </div>
         {(stepState.status === "NOT_STARTED" || stepState.status === "RESET") && (
-          <button onClick={onStart} className={styles.circleBtn} aria-label="start">
+          <button
+            onClick={onStart}
+            disabled={isPending}
+            className={styles.circleBtn}
+            aria-label="start"
+          >
             <PlayArrowIcon />
           </button>
         )}
         {stepState.status === "IN_PROGRESS" && isActuallyRunning && (
           <button
             onClick={onPause}
-            disabled={isPausing}
+            disabled={isPausing || isPending}
             className={styles.circleBtn}
             aria-label="pause"
           >
@@ -65,14 +80,19 @@ export function StepTimerCard({
           stepState.status === "PAUSED") && (
           <button
             onClick={onPause}
-            disabled={isPausing}
+            disabled={isPausing || isPending}
             className={styles.circleBtn}
             aria-label="resume"
           >
             <PlayArrowIcon />
           </button>
         )}
-        <button onClick={onReset} className={styles.circleBtnReset} aria-label="reset">
+        <button
+          onClick={onReset}
+          disabled={isPending}
+          className={styles.circleBtnReset}
+          aria-label="reset"
+        >
           <ReplayIcon />
         </button>
       </div>

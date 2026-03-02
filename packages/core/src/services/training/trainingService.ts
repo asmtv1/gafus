@@ -760,6 +760,195 @@ export type StepOperation =
 
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
+const THEORY_STEP_TYPES = ["THEORY", "DIARY"] as const;
+
+/**
+ * Валидирует, что шаг по индексу — THEORY или DIARY (для step/complete/theory).
+ */
+export async function validateTheoryStepForCompletion(
+  dayOnCourseId: string,
+  stepIndex: number,
+): Promise<{ valid: boolean; error?: string; code?: string }> {
+  const dayOnCourse = await prisma.dayOnCourse.findUnique({
+    where: { id: dayOnCourseId },
+    include: {
+      day: {
+        include: {
+          stepLinks: {
+            orderBy: { order: "asc" },
+            include: { step: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!dayOnCourse?.day) {
+    return { valid: false, error: "День не найден", code: "NOT_FOUND" };
+  }
+
+  const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+  if (!stepLink?.step) {
+    return { valid: false, error: "Шаг не найден", code: "NOT_FOUND" };
+  }
+
+  if (!THEORY_STEP_TYPES.includes(stepLink.step.type as (typeof THEORY_STEP_TYPES)[number])) {
+    return {
+      valid: false,
+      error: "Шаг не является теоретическим или дневником",
+      code: "INVALID_STEP_TYPE",
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Возвращает тип курса по dayOnCourseId (для URL в push-уведомлениях).
+ */
+export async function getCourseTypeByDayOnCourseId(
+  dayOnCourseId: string,
+): Promise<string | null> {
+  const dayOnCourse = await prisma.dayOnCourse.findUnique({
+    where: { id: dayOnCourseId },
+    select: { course: { select: { type: true } } },
+  });
+  return dayOnCourse?.course?.type ?? null;
+}
+
+/**
+ * Возвращает информацию о шаге по индексу дня.
+ */
+export async function getStepInfoByIndex(
+  dayOnCourseId: string,
+  stepIndex: number,
+): Promise<{ stepTitle: string; stepOrder: number; stepType: string } | null> {
+  const dayOnCourse = await prisma.dayOnCourse.findUnique({
+    where: { id: dayOnCourseId },
+    include: {
+      day: {
+        include: {
+          stepLinks: {
+            orderBy: { order: "asc" },
+            include: { step: true },
+          },
+        },
+      },
+    },
+  });
+  const stepLink = dayOnCourse?.day?.stepLinks[stepIndex];
+  if (!stepLink?.step) return null;
+  return {
+    stepTitle: stepLink.step.title ?? "",
+    stepOrder: stepLink.order,
+    stepType: stepLink.step.type,
+  };
+}
+
+/**
+ * Валидирует тип шага и возвращает stepTitle/stepOrder (для mark*Completed).
+ */
+export async function validateStepTypeAndGetInfo(
+  dayOnCourseId: string,
+  stepIndex: number,
+  allowedTypes: string[],
+): Promise<{
+  valid: boolean;
+  error?: string;
+  stepTitle?: string;
+  stepOrder?: number;
+}> {
+  const info = await getStepInfoByIndex(dayOnCourseId, stepIndex);
+  if (!info) {
+    return { valid: false, error: "Шаг не найден" };
+  }
+  if (!allowedTypes.includes(info.stepType)) {
+    return {
+      valid: false,
+      error: `Шаг не соответствует типу. Ожидалось: ${allowedTypes.join(", ")}. Текущий: ${info.stepType}`,
+      stepTitle: info.stepTitle,
+      stepOrder: info.stepOrder,
+    };
+  }
+  return {
+    valid: true,
+    stepTitle: info.stepTitle,
+    stepOrder: info.stepOrder,
+  };
+}
+
+/**
+ * Проверяет доступ пользователя к дню курса.
+ * Для дня типа "summary" требует завершения всех остальных дней курса.
+ */
+export async function checkDayAccess(
+  userId: string,
+  dayOnCourseId: string,
+): Promise<{ allowed: boolean; reason?: string }> {
+  const dayOnCourse = await prisma.dayOnCourse.findUnique({
+    where: { id: dayOnCourseId },
+    select: {
+      id: true,
+      courseId: true,
+      day: {
+        select: {
+          type: true,
+          stepLinks: { select: { id: true } },
+        },
+      },
+    },
+  });
+
+  if (!dayOnCourse) {
+    return { allowed: false, reason: "День не найден" };
+  }
+
+  if (dayOnCourse.day.type !== "summary") {
+    return { allowed: true };
+  }
+
+  const allDays = await prisma.dayOnCourse.findMany({
+    where: { courseId: dayOnCourse.courseId },
+    orderBy: { order: "asc" },
+    select: {
+      id: true,
+      day: {
+        select: {
+          type: true,
+          stepLinks: { select: { id: true } },
+        },
+      },
+    },
+  });
+
+  const userTrainings = await prisma.userTraining.findMany({
+    where: {
+      userId,
+      dayOnCourseId: { in: allDays.map((d) => d.id) },
+    },
+    select: {
+      dayOnCourseId: true,
+      steps: { select: { stepOnDayId: true, status: true } },
+    },
+  });
+
+  const userTrainingMap = new Map(userTrainings.map((ut) => [ut.dayOnCourseId, ut.steps]));
+
+  for (const day of allDays) {
+    if (day.id === dayOnCourseId) continue;
+    const userSteps = userTrainingMap.get(day.id) || [];
+    const stepStatuses: string[] = day.day.stepLinks.map((sl) => {
+      const us = userSteps.find((s) => s.stepOnDayId === sl.id);
+      return us?.status ?? TrainingStatus.NOT_STARTED;
+    });
+    const dayStatus = calculateDayStatusFromStatuses(stepStatuses);
+    if (dayStatus !== TrainingStatus.COMPLETED) {
+      return { allowed: false, reason: "Необходимо завершить все остальные дни курса" };
+    }
+  }
+  return { allowed: true };
+}
+
 /**
  * Обновляет шаг и пересчитывает статус дня в одной транзакции.
  * Логика перенесена из web (updateUserStepStatus); API (mobile) подстраивается под неё.

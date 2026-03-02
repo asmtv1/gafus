@@ -1,12 +1,11 @@
 "use server";
 
-import { prisma, StepType } from "@gafus/prisma";
 import { TrainingStatus } from "@gafus/types";
+import { validateStepTypeAndGetInfo } from "@gafus/core/services/training";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
 import { updateUserStepStatus } from "./updateUserStepStatus";
-import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { courseIdSchema, dayOnCourseIdSchema, stepIndexSchema } from "../validation/schemas";
@@ -44,68 +43,30 @@ export async function markPracticeStepAsCompleted(
   try {
     userId = await getCurrentUserId();
 
-    // Получаем информацию о шаге и проверяем его тип
-    const stepInfo = await prisma.$transaction(
-      async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-        const dayOnCourse = await tx.dayOnCourse.findUnique({
-          where: { id: safeInput.dayOnCourseId },
-          include: {
-            day: {
-              include: {
-                stepLinks: {
-                  include: { step: true },
-                  orderBy: { order: "asc" },
-                },
-              },
-            },
-          },
-        });
-
-        if (!dayOnCourse?.day) {
-          logger.error("DayOnCourse or day not found", new Error("DayOnCourse or day not found"), {
-            operation: "markPracticeStepAsCompleted",
-            courseId: safeInput.courseId,
-            dayOnCourseId: safeInput.dayOnCourseId,
-            stepIndex: safeInput.stepIndex,
-          });
-          throw new Error("DayOnCourse or day not found");
-        }
-
-        // Берём шаг по индексу массива (stepIndex — это 0-based индекс в UI)
-        const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
-        if (!stepLink?.step) {
-          throw new Error("Step not found");
-        }
-
-        // Проверяем, что шаг имеет тип PRACTICE
-        if (stepLink.step.type !== StepType.PRACTICE) {
-          throw new Error(`Step is not of type PRACTICE. Current type: ${stepLink.step.type}`);
-        }
-
-        return {
-          stepTitle: stepLink.step.title,
-          stepOrder: stepLink.order,
-        };
-      },
-      {
-        maxWait: 5000, // 5 секунд ожидания начала транзакции
-        timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
-      },
+    const stepInfo = await validateStepTypeAndGetInfo(
+      safeInput.dayOnCourseId,
+      safeInput.stepIndex,
+      ["PRACTICE"],
     );
+    if (!stepInfo.valid) {
+      logger.error(stepInfo.error ?? "Invalid step type", new Error(stepInfo.error ?? "Invalid"), {
+        operation: "markPracticeStepAsCompleted",
+        courseId: safeInput.courseId,
+        dayOnCourseId: safeInput.dayOnCourseId,
+        stepIndex: safeInput.stepIndex,
+      });
+      throw new Error(stepInfo.error ?? "Шаг не найден");
+    }
 
-    // Обновляем статус шага на COMPLETED (использует существующую функцию с транзакциями)
     await updateUserStepStatus(
       userId,
       safeInput.courseId,
       safeInput.dayOnCourseId,
       safeInput.stepIndex,
       TrainingStatus.COMPLETED,
-      stepInfo.stepTitle,
-      stepInfo.stepOrder,
+      stepInfo.stepTitle ?? safeInput.stepTitle,
+      stepInfo.stepOrder ?? safeInput.stepOrder,
     );
-
-    // Инвалидируем кэш прогресса пользователя
-    await invalidateUserProgressCache(userId, false);
 
     logger.success("Practice step marked as completed", {
       userId,

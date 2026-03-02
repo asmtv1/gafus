@@ -247,6 +247,9 @@ services:
 
 ## Дополнительная документация
 
+- [Обзор слоёв: core как ядро](./overview.md)
+- [Поток данных (web, api, mobile)](./data-flow.md)
+- [Матрица миграции core](./core-migration-matrix.md)
 - [Admin Panel — слои и core-сервисы](./admin-panel-layers.md)
 - [Формат идентификаторов (CUID)](./identifiers.md)
 - [Система кэширования](./caching-system.md)

@@ -1,21 +1,27 @@
 /**
  * API Route: POST /api/v1/auth/register
  *
- * Регистрирует нового пользователя.
- * Публичный endpoint (не требует авторизации).
+ * Регистрирует нового пользователя с consent flow (GDPR).
+ * Контракт совпадает с api.gafus.ru: name, phone, password, tempSessionId, consentPayload.
  */
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { registerUserService } from "@gafus/core/services/auth";
+import {
+  createConsentLogs,
+  linkConsentLogsToUser,
+  markConsentLogsFailed,
+} from "@gafus/core/services/consent";
 import { createWebLogger } from "@gafus/logger";
 
+import { CONSENT_VERSION } from "@shared/constants/consent";
 import {
   checkAuthRateLimit,
   getClientIp,
   RATE_LIMIT_RETRY_AFTER_SECONDS,
 } from "@shared/lib/rateLimit";
-import { registerUserSchema } from "@shared/lib/validation/authSchemas";
+import { registerApiSchema } from "@shared/lib/validation/authSchemas";
 
 const logger = createWebLogger("api-auth");
 
@@ -36,7 +42,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const parsed = registerUserSchema.safeParse(body);
+    const parsed = registerApiSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: "Неверные данные запроса", details: parsed.error.errors },
@@ -44,17 +50,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, phone, password } = parsed.data;
-    const result = await registerUserService(name, phone, password);
+    const { name, phone, password, tempSessionId, consentPayload } = parsed.data;
+    const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0] ?? undefined;
+    const userAgent = request.headers.get("user-agent") ?? undefined;
 
-    if ("error" in result) {
-      return NextResponse.json(
-        { success: false, error: REGISTER_CONFLICT_MESSAGE },
-        { status: 409 },
-      );
+    let consentCreated = false;
+    try {
+      await createConsentLogs({
+        tempSessionId,
+        consentPayload,
+        formData: { name: name.toLowerCase().trim(), phone },
+        ipAddress,
+        userAgent,
+        defaultVersion: CONSENT_VERSION,
+      });
+      consentCreated = true;
+
+      const result = await registerUserService(name, phone, password);
+
+      if ("error" in result) {
+        await markConsentLogsFailed(tempSessionId);
+        return NextResponse.json(
+          { success: false, error: REGISTER_CONFLICT_MESSAGE },
+          { status: 409 },
+        );
+      }
+
+      await linkConsentLogsToUser(tempSessionId, result.userId);
+      return NextResponse.json({ success: true, data: result });
+    } catch (error) {
+      if (consentCreated) {
+        await markConsentLogsFailed(tempSessionId).catch(() => undefined);
+      }
+      throw error;
     }
-
-    return NextResponse.json({ success: true, data: result });
   } catch (error) {
     logger.error("Error in register API", error as Error);
     return NextResponse.json(

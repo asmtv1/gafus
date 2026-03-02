@@ -1,52 +1,40 @@
 "use server";
-import { prisma } from "@gafus/prisma";
-import { createWebLogger } from "@gafus/logger";
 
+import { createWebLogger } from "@gafus/logger";
+import {
+  getUserSubscriptionStatus as getUserSubscriptionStatusFromCore,
+  getUserSubscriptionCount as getUserSubscriptionCountFromCore,
+  getUserSubscriptions as getUserSubscriptionsFromCore,
+} from "@gafus/core/services/subscriptions";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
-// Создаем логгер для getUserSubscriptionStatus
 const logger = createWebLogger("web-get-user-subscription-status");
 
 /**
- * Проверяет, есть ли у пользователя активная push-подписка
+ * Проверяет, есть ли у пользователя активная push-подписка. Обёртка над core.
  */
 export async function getUserSubscriptionStatus() {
   try {
     const userId = await getCurrentUserId();
-
-    // Простой Prisma запрос без таймаута
-    const subscription = await prisma.pushSubscription.findFirst({
-      where: { userId },
-      select: { id: true },
-    });
-
-    const hasSubscription = !!subscription;
-    return { hasSubscription };
+    return getUserSubscriptionStatusFromCore(userId);
   } catch (error) {
-    // Если пользователь не авторизован, молча возвращаем false без логирования ошибки
     if (error instanceof Error && error.message === "Пользователь не авторизован") {
       return { hasSubscription: false };
     }
-
-    logger.error("❌ getUserSubscriptionStatus: Ошибка:", error as Error, { operation: "error" });
+    logger.error("Ошибка getUserSubscriptionStatus", error as Error, { operation: "error" });
     return { hasSubscription: false };
   }
 }
 
 /**
- * Получает количество активных push-подписок пользователя
+ * Получает количество активных push-подписок пользователя. Обёртка над core.
  */
 export async function getUserSubscriptionCount() {
   try {
     const userId = await getCurrentUserId();
-
-    const count = await prisma.pushSubscription.count({
-      where: { userId },
-    });
-
-    return { subscriptionCount: count };
+    return getUserSubscriptionCountFromCore(userId);
   } catch (error) {
-    logger.error("Ошибка при получении количества подписок:", error as Error, {
+    logger.error("Ошибка при получении количества подписок", error as Error, {
       operation: "error",
     });
     return { subscriptionCount: 0 };
@@ -54,31 +42,17 @@ export async function getUserSubscriptionCount() {
 }
 
 /**
- * Получает список всех подписок пользователя с деталями
+ * Получает список всех подписок пользователя. Обёртка над core.
  */
 export async function getUserSubscriptions() {
   try {
     const userId = await getCurrentUserId();
-
-    const subscriptions = await prisma.pushSubscription.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        endpoint: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return { subscriptions };
+    return getUserSubscriptionsFromCore(userId);
   } catch (error) {
-    // Если пользователь не авторизован, молча возвращаем пустой массив
     if (error instanceof Error && error.message === "Пользователь не авторизован") {
       return { subscriptions: [] };
     }
-
-    logger.error("Ошибка при получении списка подписок:", error as Error, { operation: "error" });
+    logger.error("Ошибка при получении списка подписок", error as Error, { operation: "error" });
     return { subscriptions: [] };
   }
 }

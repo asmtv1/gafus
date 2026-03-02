@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useTransition } from "react";
 
-import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 
 import { useCacheManager } from "@shared/utils/cacheManager";
 import { useSyncStatus } from "@shared/hooks/useSyncStatus";
@@ -23,8 +23,6 @@ import { StepPracticeBlock } from "./StepPracticeBlock";
 import { StepTimerCard } from "./StepTimerCard";
 import { StepTypeHeader } from "./StepTypeHeader";
 import type { AccordionStepProps } from "./types";
-
-const logger = createWebLogger("accordion-step");
 
 export function AccordionStep({
   courseId,
@@ -52,9 +50,11 @@ export function AccordionStep({
 }: AccordionStepProps) {
   const {
     stepState,
-    displayTimeLeft,
+    stepKey,
+    hasActiveTimer,
     isActuallyRunning,
     isPausing,
+    isPending: isTimerPending,
     handleStart,
     togglePause,
     handleReset,
@@ -89,6 +89,7 @@ export function AccordionStep({
     onRun,
   });
 
+  const [isCompletingPending, startCompleteTransition] = useTransition();
   const { startSync, finishSync, addPendingChange, removePendingChange } = useSyncStatus();
   const { updateStepProgress } = useCacheManager();
 
@@ -98,43 +99,54 @@ export function AccordionStep({
     return url ? getEmbeddedVideoInfo(url) : null;
   }, [offlineVideoUrl, videoUrl]);
 
-  const handleCompletePractice = useCallback(async () => {
-    try {
-      // 1. Обновляем кэш на всех уровнях (шаг, день, курс) - это также обновляет локальное состояние
-      updateStepProgress(courseId, dayOnCourseId, stepIndex, "COMPLETED", undefined, totalSteps);
-
-      // 2. Обновляем UI немедленно (оптимистичное обновление)
-      onRun(-1);
-
-      // 3. Отправляем на сервер с ретраями и индикатором синхронизации
-      addPendingChange();
-      startSync();
-
+  const handleCompletePractice = useCallback(() => {
+    startCompleteTransition(async () => {
       try {
-        await markPracticeStepAsCompleted(courseId, dayOnCourseId, stepIndex, stepTitle, stepOrder);
-        finishSync(true);
-        removePendingChange();
-      } catch {
-        finishSync(false);
-        // При ошибке добавляем в очередь синхронизации
-        const { useOfflineStore } = await import("@shared/stores/offlineStore");
-        const offlineStore = useOfflineStore.getState();
-        offlineStore.addToSyncQueue({
-          type: "step-status-update",
-          data: {
+        // 1. Обновляем кэш на всех уровнях (шаг, день, курс) - это также обновляет локальное состояние
+        updateStepProgress(courseId, dayOnCourseId, stepIndex, "COMPLETED", undefined, totalSteps);
+
+        // 2. Обновляем UI немедленно (оптимистичное обновление)
+        onRun(-1);
+
+        // 3. Отправляем на сервер с ретраями и индикатором синхронизации
+        addPendingChange();
+        startSync();
+
+        try {
+          await markPracticeStepAsCompleted(
             courseId,
             dayOnCourseId,
             stepIndex,
-            status: "COMPLETED",
             stepTitle,
             stepOrder,
-          },
-          maxRetries: 3,
+          );
+          finishSync(true);
+          removePendingChange();
+        } catch {
+          finishSync(false);
+          // При ошибке добавляем в очередь синхронизации
+          const { useOfflineStore } = await import("@shared/stores/offlineStore");
+          const offlineStore = useOfflineStore.getState();
+          offlineStore.addToSyncQueue({
+            type: "step-status-update",
+            data: {
+              courseId,
+              dayOnCourseId,
+              stepIndex,
+              status: "COMPLETED",
+              stepTitle,
+              stepOrder,
+            },
+            maxRetries: 3,
+          });
+        }
+      } catch (err) {
+        reportClientError(err, {
+          issueKey: "AccordionStep",
+          keys: { step: "handleCompletePractice", stepIndex, courseId },
         });
       }
-    } catch (err) {
-      logger.error("Failed to complete practice step", err as Error);
-    }
+    });
   }, [
     courseId,
     dayOnCourseId,
@@ -148,6 +160,7 @@ export function AccordionStep({
     startSync,
     finishSync,
     removePendingChange,
+    startCompleteTransition,
   ]);
 
   if (!stepState) return null;
@@ -186,10 +199,12 @@ export function AccordionStep({
 
       {isStepWithTimer(type) && (
         <StepTimerCard
-          displayTimeLeft={displayTimeLeft}
+          stepKey={stepKey}
+          hasActiveTimer={hasActiveTimer}
           stepState={stepState}
           isActuallyRunning={isActuallyRunning}
           isPausing={isPausing}
+          isPending={isTimerPending}
           type={type}
           onStart={handleStart}
           onPause={togglePause}
@@ -201,6 +216,7 @@ export function AccordionStep({
         <StepPracticeBlock
           stepStatus={stepState.status}
           onCompletePractice={handleCompletePractice}
+          isCompleting={isCompletingPending}
         />
       )}
 

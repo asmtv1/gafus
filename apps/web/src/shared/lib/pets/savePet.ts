@@ -1,16 +1,13 @@
-// src/lib/actions/savePet.ts
 "use server";
 
-import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
+import { createPet as createPetInCore, updatePet as updatePetInCore } from "@gafus/core/services/pets";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
-import type { Prisma, PetType } from "@gafus/prisma";
 import type { UpdatePetInput } from "@gafus/types";
 
 import { createPetSchema, updatePetSchema } from "../validation/petSchemas";
 
-// Создаем логгер для savePet
 const logger = createWebLogger("web-save-pet");
 
 export async function savePet({
@@ -25,7 +22,6 @@ export async function savePet({
 }: UpdatePetInput) {
   try {
     const userId = await getCurrentUserId();
-
     const trimmedId = id?.trim();
 
     if (!trimmedId) {
@@ -39,55 +35,24 @@ export async function savePet({
         notes,
         photoUrl: undefined,
       });
-      const parsedDate = new Date(validatedData.birthDate as string);
-      const createData: Prisma.PetCreateInput = {
-        name: validatedData.name,
-        type: validatedData.type as PetType,
-        breed: validatedData.breed,
-        heightCm: validatedData.heightCm ?? undefined,
-        weightKg: validatedData.weightKg ?? undefined,
-        notes: validatedData.notes ?? undefined,
-        birthDate: parsedDate,
-        owner: { connect: { id: userId } },
-      };
-      const result = await prisma.pet.create({
-        data: createData,
-      });
-      return result;
-    } else {
-      const validatedData = updatePetSchema.parse({
-        id: trimmedId,
-        name,
-        type,
-        breed,
-        birthDate,
-        heightCm,
-        weightKg,
-        notes,
-      });
-      const parsedDate = validatedData.birthDate
-        ? new Date(validatedData.birthDate as string)
-        : undefined;
-      const updateData: Prisma.PetUpdateInput = {
-        name: validatedData.name !== undefined ? { set: validatedData.name } : undefined,
-        type: validatedData.type !== undefined ? { set: validatedData.type as PetType } : undefined,
-        breed: validatedData.breed !== undefined ? { set: validatedData.breed } : undefined,
-        heightCm:
-          validatedData.heightCm !== undefined
-            ? { set: validatedData.heightCm ?? null }
-            : undefined,
-        weightKg:
-          validatedData.weightKg !== undefined
-            ? { set: validatedData.weightKg ?? null }
-            : undefined,
-        notes: validatedData.notes !== undefined ? { set: validatedData.notes ?? null } : undefined,
-        birthDate: parsedDate !== undefined ? { set: parsedDate } : undefined,
-      };
-      return await prisma.pet.update({
-        where: { id: validatedData.id },
-        data: updateData,
-      });
+      return createPetInCore(userId, validatedData);
     }
+    const validatedData = updatePetSchema.parse({
+      id: trimmedId,
+      name,
+      type,
+      breed,
+      birthDate,
+      heightCm,
+      weightKg,
+      notes,
+    });
+    const { id: petId, ...updateData } = validatedData;
+    const pet = await updatePetInCore(petId, userId, updateData);
+    if (!pet) {
+      throw new Error("Питомец не найден");
+    }
+    return pet;
   } catch (error) {
     logger.error("Ошибка в savePet:", error as Error, { operation: "error" });
     throw new Error("Ошибка при сохранении питомца. Попробуйте перезагрузить страницу.");

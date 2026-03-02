@@ -2,6 +2,7 @@
 
 import type { UserCoursePersonalization, TrainingStatus } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 import { useCallback, useEffect, useState } from "react";
 
 import { checkCourseAccessAction } from "@shared/server-actions/course";
@@ -217,11 +218,10 @@ export function useCachedTrainingDays(
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Неизвестная ошибка";
-      logger.error(
-        "[Cache] Error fetching training days:",
-        err instanceof Error ? err : new Error(errorMessage),
-        { operation: "error" },
-      );
+      reportClientError(err instanceof Error ? err : new Error(errorMessage), {
+        issueKey: "useCachedTrainingDays",
+        keys: { operation: "fetch", courseType },
+      });
       setError(errorMessage);
     } finally {
       setLoading(false);

@@ -212,11 +212,6 @@ export const usePushStore = create<PushState>()(
             error: null,
           });
         } catch (error) {
-          logger.error("Push subscription setup failed", error as Error, {
-            operation: "push_subscription_setup_failed",
-            publicKey: vapidPublicKey,
-            hasRegistration: !!registration,
-          });
           reportClientError(error, {
             severity: "error",
             issueKey: "pushStore",
@@ -424,9 +419,6 @@ export const usePushStore = create<PushState>()(
             disabledByUser: true,
           });
         } catch (error) {
-          logger.error("Ошибка при удалении подписки", error as Error, {
-            operation: "delete_subscription_error",
-          });
           reportClientError(error, {
             severity: "error",
             issueKey: "pushStore",
@@ -541,10 +533,6 @@ export const usePushStore = create<PushState>()(
             await get().setupPushSubscription(publicKey);
           }
         } catch (error) {
-          logger.error("Failed to ensure active subscription", error as Error, {
-            operation: "ensure_active_subscription_failed",
-            publicKey: publicKey,
-          });
           reportClientError(error, {
             severity: "error",
             issueKey: "pushStore",

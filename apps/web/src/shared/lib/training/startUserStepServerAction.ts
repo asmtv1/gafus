@@ -1,18 +1,16 @@
 "use server";
 
-import { prisma } from "@gafus/prisma";
+import { getStepInfoByIndex } from "@gafus/core/services/training";
 import { createStepNotificationAction } from "@shared/server-actions/notifications";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
 import { TrainingStatus } from "@gafus/types";
 import { updateUserStepStatus } from "./updateUserStepStatus";
-import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { courseIdSchema, dayOnCourseIdSchema, stepIndexSchema } from "../validation/schemas";
 
-// Создаем логгер для startUserStepServerAction
 const logger = createWebLogger("web-start-user-step-server-action");
 
 const startStepSchema = z.object({
@@ -43,57 +41,19 @@ export async function startUserStepServerAction(
   try {
     userId = await getCurrentUserId();
 
-    const stepInfo = await prisma.$transaction(
-      async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
-        const dayOnCourse = await tx.dayOnCourse.findUnique({
-          where: { id: safeInput.dayOnCourseId },
-          include: {
-            day: {
-              include: {
-                stepLinks: {
-                  include: { step: true },
-                  orderBy: { order: "asc" },
-                },
-              },
-            },
-          },
-        });
-
-        if (!dayOnCourse?.day) {
-          throw new Error("DayOnCourse or day not found");
-        }
-
-        // Берём шаг по индексу массива (stepIndex — это 0-based индекс в UI)
-        const stepLink = dayOnCourse.day.stepLinks[safeInput.stepIndex];
-        if (!stepLink?.step) {
-          throw new Error("Step not found");
-        }
-
-        // Проверяем, что stepTitle не пустой
-        const stepTitle = stepLink.step.title;
-        if (!stepTitle || stepTitle.trim().length === 0) {
-          logger.warn("StepTitle пустой или отсутствует в БД", {
-            operation: "empty_step_title_warning",
-            stepId: stepLink.step.id,
-            stepIndex: safeInput.stepIndex,
-            dayOnCourseId: safeInput.dayOnCourseId,
-            courseId: safeInput.courseId,
-          });
-        }
-
-        return {
-          step: stepLink.step,
-          stepTitle: stepTitle || `Шаг ${safeInput.stepIndex + 1}`, // Fallback, если title пустой
-          stepOrder: stepLink.order,
-        };
-      },
-      {
-        maxWait: 5000, // 5 секунд ожидания начала транзакции
-        timeout: 10000, // 10 секунд таймаут транзакции (средняя операция)
-      },
-    );
-
-    // Обновляем статус шага (это уже использует транзакции)
+    const stepInfo = await getStepInfoByIndex(safeInput.dayOnCourseId, safeInput.stepIndex);
+    if (!stepInfo) {
+      throw new Error("Step not found");
+    }
+    const stepTitle = stepInfo.stepTitle?.trim() || `Шаг ${safeInput.stepIndex + 1}`;
+    if (!stepInfo.stepTitle?.trim()) {
+      logger.warn("StepTitle пустой или отсутствует в БД", {
+        operation: "empty_step_title_warning",
+        stepIndex: safeInput.stepIndex,
+        dayOnCourseId: safeInput.dayOnCourseId,
+        courseId: safeInput.courseId,
+      });
+    }
 
     await updateUserStepStatus(
       userId,
@@ -101,41 +61,9 @@ export async function startUserStepServerAction(
       safeInput.dayOnCourseId,
       safeInput.stepIndex,
       safeInput.status,
-      stepInfo.stepTitle,
+      stepTitle,
       stepInfo.stepOrder,
     );
-
-    // Устанавливаем статус курса в IN_PROGRESS при первом шаге
-    if (safeInput.status === TrainingStatus.IN_PROGRESS) {
-      try {
-        await prisma.userCourse.upsert({
-          where: {
-            userId_courseId: {
-              userId,
-              courseId: safeInput.courseId,
-            },
-          },
-          update: {
-            status: TrainingStatus.IN_PROGRESS,
-            startedAt: new Date(),
-          },
-          create: {
-            userId,
-            courseId: safeInput.courseId,
-            status: TrainingStatus.IN_PROGRESS,
-            startedAt: new Date(),
-          },
-        });
-      } catch (courseError) {
-        logger.error("Failed to update course status", courseError as Error, {
-          operation: "update_course_status_error",
-          courseId: courseId,
-          userId: userId,
-          status: "IN_PROGRESS",
-        });
-        // Не прерываем выполнение, если обновление курса не удалось
-      }
-    }
 
     const result = await createStepNotificationAction({
       dayOnCourseId: safeInput.dayOnCourseId,
@@ -153,9 +81,7 @@ export async function startUserStepServerAction(
       });
     }
 
-    // Инвалидируем кэш прогресса пользователя при начале шага
-    await invalidateUserProgressCache(userId, false);
-
+    // Инвалидация выполняется внутри updateUserStepStatus — дублирование убрано
     return { success: true };
   } catch (error) {
     logger.error("💥 startUserStepServerAction failed", error as Error, {

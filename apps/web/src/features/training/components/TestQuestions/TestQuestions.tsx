@@ -13,6 +13,7 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
+import { reportClientError } from "@gafus/error-handling";
 import { submitExamResult } from "@/shared/lib/actions/submitExamResult";
 import { getExamResult } from "@/shared/lib/actions/getExamResult";
 
@@ -53,7 +54,10 @@ export function TestQuestions({
           setShowResults(true);
         }
       } catch (error) {
-        console.error("Ошибка при загрузке данных экзамена:", error);
+        reportClientError(error, {
+          issueKey: "TestQuestions",
+          keys: { operation: "load_exam" },
+        });
       } finally {
         setIsLoading(false);
       }

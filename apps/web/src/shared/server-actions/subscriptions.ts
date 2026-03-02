@@ -1,20 +1,13 @@
 "use server";
 
 /**
- * Server Actions для работы с push-подписками
- *
- * Эти actions используют pushSubscriptionService для бизнес-логики
- * и добавляют авторизацию через getCurrentUserId.
+ * Server Actions для работы с push-подписками.
+ * Обёртки над core с авторизацией через getCurrentUserId.
  */
 
-import { prisma } from "@gafus/prisma";
-import { getServerSession } from "next-auth";
-import type { NextAuthOptions } from "next-auth";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
-import { authOptions } from "@gafus/auth";
-
 import {
   savePushSubscription as savePushSubscriptionService,
   deletePushSubscriptionByEndpoint as deletePushSubscriptionService,
@@ -70,45 +63,11 @@ export async function savePushSubscriptionAction(subscription: {
 
   try {
     const userId = await getCurrentUserId();
-
-    // Проверяем существование пользователя
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true },
-    });
-
-    if (!user) {
-      logger.error("User not found in database", new Error("User not found"), {
-        userId,
-      });
-
-      // Попробуем найти пользователя по username из JWT токена
-      const session = await getServerSession(authOptions as NextAuthOptions);
-      if (session?.user?.username) {
-        const userByUsername = await prisma.user.findUnique({
-          where: { username: session.user.username },
-          select: { id: true },
-        });
-
-        if (userByUsername) {
-          await savePushSubscriptionService({
-            userId: userByUsername.id,
-            endpoint: validatedSubscription.endpoint,
-            keys: validatedSubscription.keys,
-          });
-          return { success: true };
-        }
-      }
-
-      throw new Error(`Пользователь с ID ${userId} не найден в базе данных`);
-    }
-
     await savePushSubscriptionService({
       userId,
       endpoint: validatedSubscription.endpoint,
       keys: validatedSubscription.keys,
     });
-
     return { success: true };
   } catch (error) {
     logger.error("Error saving push subscription", error as Error);

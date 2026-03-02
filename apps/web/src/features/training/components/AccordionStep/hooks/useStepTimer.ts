@@ -1,17 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { createWebLogger } from "@gafus/logger";
 import { getStepKey } from "@gafus/core/utils/training";
+import { reportClientError } from "@gafus/error-handling";
 
 import { useStepState, useStepStore } from "@shared/stores/stepStore";
-import { useTimerStore } from "@shared/stores/timerStore";
+import { useHasActiveTimer, useTimerStore } from "@shared/stores/timerStore";
 import { useCacheManager } from "@shared/utils/cacheManager";
 import { useSyncStatus } from "@shared/hooks/useSyncStatus";
-
-const logger = createWebLogger("accordion-step");
 
 export interface UseStepTimerParams {
   courseId: string;
@@ -39,18 +37,20 @@ export function useStepTimer({
   onReset,
 }: UseStepTimerParams) {
   const [isPausing, setIsPausing] = useState(false);
-  const [liveTimeLeft, setLiveTimeLeft] = useState<number | null>(null);
+  const [isPending, startTransition] = useTransition();
   const isMountedRef = useRef(true);
 
+  const stepKey = getStepKey(courseId, dayOnCourseId, stepIndex);
   const stepState = useStepState(courseId, dayOnCourseId, stepIndex);
   const initializeStep = useStepStore((s) => s.initializeStep);
   const resumeStep = useStepStore((s) => s.resumeStep);
   const resetStep = useStepStore((s) => s.resetStep);
   const finishStep = useStepStore((s) => s.finishStep);
+  const hasActiveTimer = useHasActiveTimer(stepKey);
   const {
-    timers,
     startTimer,
     stopTimer,
+    setLiveTimeLeft,
     canStartStep,
     startStepWithServer,
     finishStepWithServer,
@@ -59,9 +59,9 @@ export function useStepTimer({
     resetStepWithServer,
   } = useTimerStore(
     useShallow((s) => ({
-      timers: s.timers,
       startTimer: s.startTimer,
       stopTimer: s.stopTimer,
+      setLiveTimeLeft: s.setLiveTimeLeft,
       canStartStep: s.canStartStep,
       startStepWithServer: s.startStepWithServer,
       finishStepWithServer: s.finishStepWithServer,
@@ -83,25 +83,19 @@ export function useStepTimer({
     initializeStep(courseId, dayOnCourseId, stepIndex, durationSec, initialStatus);
   }, [courseId, dayOnCourseId, stepIndex, durationSec, initialStatus, initializeStep]);
 
-  const stepKey = getStepKey(courseId, dayOnCourseId, stepIndex);
-
-  const hasActiveTimer = timers.has(stepKey);
   const isActuallyRunning = stepState?.status === "IN_PROGRESS" && hasActiveTimer;
-  const displayTimeLeft = hasActiveTimer
-    ? (liveTimeLeft ?? stepState?.timeLeft ?? 0)
-    : (stepState?.timeLeft ?? 0);
 
   const restoreTimerWithCallbacks = useCallback(() => {
-    setLiveTimeLeft(stepState?.timeLeft ?? null);
+    setLiveTimeLeft(stepKey, stepState?.timeLeft ?? 0);
     startTimer(
       courseId,
       dayOnCourseId,
       stepIndex,
       (timeLeft: number) => {
-        if (isMountedRef.current) setLiveTimeLeft(timeLeft);
+        if (isMountedRef.current) setLiveTimeLeft(stepKey, timeLeft);
       },
       async () => {
-        setLiveTimeLeft(null);
+        setLiveTimeLeft(stepKey, null);
         finishStep(courseId, dayOnCourseId, stepIndex);
         try {
           await finishStepWithServer(
@@ -122,10 +116,12 @@ export function useStepTimer({
     courseId,
     dayOnCourseId,
     stepIndex,
+    stepKey,
     stepState?.timeLeft,
     stepTitle,
     stepOrder,
     startTimer,
+    setLiveTimeLeft,
     finishStep,
     finishStepWithServer,
     onRun,
@@ -167,17 +163,17 @@ export function useStepTimer({
 
       if (isResume) {
         resumeStep(courseId, dayOnCourseId, stepIndex);
-        setLiveTimeLeft(stepState?.timeLeft ?? null);
+        setLiveTimeLeft(stepKey, stepState?.timeLeft ?? 0);
       }
       const timerStarted = startTimer(
         courseId,
         dayOnCourseId,
         stepIndex,
         (timeLeft: number) => {
-          if (isMountedRef.current) setLiveTimeLeft(timeLeft);
+          if (isMountedRef.current) setLiveTimeLeft(stepKey, timeLeft);
         },
         async () => {
-          setLiveTimeLeft(null);
+          setLiveTimeLeft(stepKey, null);
           updateStepProgress(
             courseId,
             dayOnCourseId,
@@ -213,6 +209,8 @@ export function useStepTimer({
       stepIndex,
       resumeStep,
       startTimer,
+      setLiveTimeLeft,
+      stepKey,
       stepState?.timeLeft,
       finishStepWithServer,
       stepTitle,
@@ -227,36 +225,41 @@ export function useStepTimer({
     ],
   );
 
-  const handleStart = useCallback(async () => {
-    try {
-      if (!canStartStep(courseId, dayOnCourseId, stepIndex)) {
-        alert("Один шаг уже активен. Сначала остановите его!");
-        return;
-      }
-      await startStepWithServer(courseId, dayOnCourseId, stepIndex, durationSec);
-      updateStepProgress(
-        courseId,
-        dayOnCourseId,
-        stepIndex,
-        "IN_PROGRESS",
-        durationSec,
-        totalSteps,
-      );
-      onRun(stepIndex);
-      if (!startStepTimer(false)) return;
-    } catch (error) {
-      logger.error("[AccordionStep] handleStart error", error as Error);
-      updateStepProgress(
-        courseId,
-        dayOnCourseId,
-        stepIndex,
-        "IN_PROGRESS",
-        durationSec,
-        totalSteps,
-      );
-      onRun(stepIndex);
-      startStepTimer(false);
+  const handleStart = useCallback(() => {
+    if (!canStartStep(courseId, dayOnCourseId, stepIndex)) {
+      alert("Один шаг уже активен. Сначала остановите его!");
+      return;
     }
+    startTransition(async () => {
+      try {
+        await startStepWithServer(courseId, dayOnCourseId, stepIndex, durationSec);
+        updateStepProgress(
+          courseId,
+          dayOnCourseId,
+          stepIndex,
+          "IN_PROGRESS",
+          durationSec,
+          totalSteps,
+        );
+        onRun(stepIndex);
+        if (!startStepTimer(false)) return;
+      } catch (error) {
+        reportClientError(error, {
+          issueKey: "AccordionStep",
+          keys: { step: "handleStart", stepIndex, courseId },
+        });
+        updateStepProgress(
+          courseId,
+          dayOnCourseId,
+          stepIndex,
+          "IN_PROGRESS",
+          durationSec,
+          totalSteps,
+        );
+        onRun(stepIndex);
+        startStepTimer(false);
+      }
+    });
   }, [
     canStartStep,
     courseId,
@@ -268,24 +271,61 @@ export function useStepTimer({
     startStepTimer,
     updateStepProgress,
     totalSteps,
+    startTransition,
   ]);
 
-  const togglePause = useCallback(async () => {
+  const togglePause = useCallback(() => {
     if (stepState?.status === "IN_PROGRESS") {
       if (isActuallyRunning) {
         setIsPausing(true);
-        try {
-          const timeToSave = liveTimeLeft ?? stepState?.timeLeft ?? durationSec;
-          await pauseStepWithServer(courseId, dayOnCourseId, stepIndex, timeToSave);
-          updateStepProgress(courseId, dayOnCourseId, stepIndex, "PAUSED", undefined, totalSteps);
-        } catch (error) {
-          logger.error("[AccordionStep] togglePause PAUSE error", error as Error);
-        } finally {
-          setLiveTimeLeft(null);
-          setIsPausing(false);
-        }
+        startTransition(async () => {
+          try {
+            const liveFromStore = useTimerStore.getState().liveTimeLeftByStepKey[stepKey];
+            const timeToSave = liveFromStore ?? stepState?.timeLeft ?? durationSec;
+            await pauseStepWithServer(courseId, dayOnCourseId, stepIndex, timeToSave);
+            updateStepProgress(courseId, dayOnCourseId, stepIndex, "PAUSED", undefined, totalSteps);
+          } catch (error) {
+            reportClientError(error, {
+              issueKey: "AccordionStep",
+              keys: { step: "togglePause-PAUSE", stepIndex, courseId },
+            });
+          } finally {
+            setLiveTimeLeft(stepKey, null);
+            setIsPausing(false);
+          }
+        });
       } else {
         setIsPausing(true);
+        startTransition(async () => {
+          try {
+            await resumeStepWithServer(
+              courseId,
+              dayOnCourseId,
+              stepIndex,
+              stepState?.timeLeft ?? durationSec,
+            );
+            updateStepProgress(
+              courseId,
+              dayOnCourseId,
+              stepIndex,
+              "IN_PROGRESS",
+              undefined,
+              totalSteps,
+            );
+            startStepTimer(true);
+          } catch (error) {
+            reportClientError(error, {
+              issueKey: "AccordionStep",
+              keys: { step: "togglePause-RESUME", stepIndex, courseId },
+            });
+          } finally {
+            setIsPausing(false);
+          }
+        });
+      }
+    } else if (stepState?.status === "PAUSED") {
+      setIsPausing(true);
+      startTransition(async () => {
         try {
           await resumeStepWithServer(
             courseId,
@@ -303,40 +343,19 @@ export function useStepTimer({
           );
           startStepTimer(true);
         } catch (error) {
-          logger.error("[AccordionStep] togglePause RESUME error", error as Error);
+          reportClientError(error, {
+            issueKey: "AccordionStep",
+            keys: { step: "togglePause-RESUME-from-PAUSED", stepIndex, courseId },
+          });
         } finally {
           setIsPausing(false);
         }
-      }
-    } else if (stepState?.status === "PAUSED") {
-      setIsPausing(true);
-      try {
-        await resumeStepWithServer(
-          courseId,
-          dayOnCourseId,
-          stepIndex,
-          stepState?.timeLeft ?? durationSec,
-        );
-        updateStepProgress(
-          courseId,
-          dayOnCourseId,
-          stepIndex,
-          "IN_PROGRESS",
-          undefined,
-          totalSteps,
-        );
-        startStepTimer(true);
-      } catch (error) {
-        logger.error("[AccordionStep] togglePause RESUME from PAUSED error", error as Error);
-      } finally {
-        setIsPausing(false);
-      }
+      });
     }
   }, [
     stepState?.status,
     stepState?.timeLeft,
     isActuallyRunning,
-    liveTimeLeft,
     pauseStepWithServer,
     courseId,
     dayOnCourseId,
@@ -345,37 +364,50 @@ export function useStepTimer({
     resumeStepWithServer,
     durationSec,
     startStepTimer,
+    setLiveTimeLeft,
+    stepKey,
     totalSteps,
+    startTransition,
   ]);
 
-  const handleReset = useCallback(async () => {
-    try {
-      await resetStepWithServer(courseId, dayOnCourseId, stepIndex, durationSec);
-      setLiveTimeLeft(null);
-      onReset(stepIndex);
-    } catch (error) {
-      logger.error("[AccordionStep] handleReset error", error as Error);
-      stopTimer(courseId, dayOnCourseId, stepIndex);
-      setLiveTimeLeft(null);
-      resetStep(courseId, dayOnCourseId, stepIndex, durationSec);
-      onReset(stepIndex);
-    }
+  const handleReset = useCallback(() => {
+    startTransition(async () => {
+      try {
+        await resetStepWithServer(courseId, dayOnCourseId, stepIndex, durationSec);
+        setLiveTimeLeft(stepKey, null);
+        onReset(stepIndex);
+      } catch (error) {
+        reportClientError(error, {
+          issueKey: "AccordionStep",
+          keys: { step: "handleReset", stepIndex, courseId },
+        });
+        stopTimer(courseId, dayOnCourseId, stepIndex);
+        setLiveTimeLeft(stepKey, null);
+        resetStep(courseId, dayOnCourseId, stepIndex, durationSec);
+        onReset(stepIndex);
+      }
+    });
   }, [
     resetStepWithServer,
     courseId,
     dayOnCourseId,
     stepIndex,
+    stepKey,
     durationSec,
     stopTimer,
+    setLiveTimeLeft,
     resetStep,
     onReset,
+    startTransition,
   ]);
 
   return {
     stepState,
-    displayTimeLeft,
+    stepKey,
+    hasActiveTimer,
     isActuallyRunning,
     isPausing,
+    isPending,
     handleStart,
     togglePause,
     handleReset,

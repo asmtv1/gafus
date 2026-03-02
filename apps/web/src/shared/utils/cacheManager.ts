@@ -26,8 +26,7 @@ const nowSec = () => Math.floor(Date.now() / 1000);
  */
 export function useCacheManager() {
   const updateStepStatus = useStepStore((s) => s.updateStepStatus);
-  const courseStore = useCourseStore();
-  const { user } = useUserStore();
+  // Не подписываемся на courseStore — иначе AccordionStep ререндерится при каждом updateStepProgress
 
   /**
    * Обновляет кэш на всех уровнях при изменении статуса шага
@@ -97,7 +96,6 @@ export function useCacheManager() {
         : calcDay(courseId, dayOnCourseId, currentStepStates);
 
     // 4. Вычисляем новый статус курса на основе всех дней
-    // Получаем общее количество дней из данных курса
     const courseStore = useCourseStore.getState();
     const allCourses = courseStore.allCourses?.data || [];
     const serverCourse = allCourses.find((c) => c.id === courseId);
@@ -169,7 +167,7 @@ export function useCacheManager() {
       stepStatus: stepStatus,
     });
 
-    // Обновляем все курсы в courseStore
+    const courseStore = useCourseStore.getState();
     if (courseStore.allCourses?.data) {
       logger.info("[CacheManager] Updating allCourses", {
         operation: "updating_all_courses",
@@ -271,7 +269,7 @@ export function useCacheManager() {
         operation: "updated_authored_successfully",
       });
     } else {
-      // Показываем предупреждение только для тренеров
+      const user = useUserStore.getState().user;
       if (user?.role === "TRAINER") {
         logger.info("[CacheManager] No authored data to update", {
           operation: "no_authored_data",

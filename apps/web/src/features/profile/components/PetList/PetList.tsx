@@ -5,6 +5,7 @@ import { useTransition } from "react";
 import { useSession } from "next-auth/react";
 
 import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 import { deletePet } from "@shared/lib/pets/deletePet";
 import { savePet } from "@shared/lib/pets/savePet";
 import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
@@ -61,16 +62,18 @@ const handleDelete = async (
           await showSuccessAlert(`Питомец "${petName}" успешно удален!`);
           router.refresh();
         } catch (error) {
-          logger.error("Ошибка при удалении питомца", error as Error, {
-            operation: "delete_pet_error",
+          reportClientError(error, {
+            issueKey: "PetList",
+            keys: { operation: "delete_pet" },
           });
           await showErrorAlert("Произошла ошибка при удалении питомца");
         }
       });
     }
   } catch (error) {
-    logger.error("Ошибка при показе диалога удаления", error as Error, {
-      operation: "show_delete_dialog_error",
+    reportClientError(error, {
+      issueKey: "PetList",
+      keys: { operation: "show_delete_dialog" },
     });
   }
 };
@@ -126,16 +129,18 @@ export default function PetList({
             await showSuccessAlert(`Питомец "${updatedPetData.name}" успешно обновлен!`);
             router.refresh();
           } catch (error) {
-            logger.error("Ошибка при обновлении питомца:", error as Error, {
-              operation: "update_pet_error",
+            reportClientError(error, {
+              issueKey: "PetList",
+              keys: { operation: "update_pet" },
             });
             await showErrorAlert("Произошла ошибка при обновлении питомца");
           }
         });
       }
     } catch (error) {
-      logger.error("Ошибка при открытии формы редактирования:", error as Error, {
-        operation: "error",
+      reportClientError(error, {
+        issueKey: "PetList",
+        keys: { operation: "show_edit_form" },
       });
     }
   };

@@ -1,6 +1,7 @@
 "use client";
 
 import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -149,8 +150,11 @@ export const useFavoritesStore = create<FavoritesState>()(
             // noop
           }
         } catch (e) {
-          const message = e instanceof Error ? e.message : "Unknown error";
-          set({ error: message });
+          reportClientError(e, {
+            issueKey: "FavoritesStore",
+            keys: { operation: "syncWithServer" },
+          });
+          set({ error: e instanceof Error ? e.message : "Unknown error" });
         } finally {
           set({ loading: false });
         }

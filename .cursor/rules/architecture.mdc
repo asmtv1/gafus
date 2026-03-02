@@ -50,3 +50,11 @@ src/
 └── middleware.ts
 ```
 Some apps may have root-level `src/types` or `src/utils`.
+
+## Business Logic
+
+Вся доменная логика — в `packages/core`. Apps (web, api) — тонкие слои:
+
+- validate input (Zod) → call core → shape response
+- Прямой prisma в apps не допускается (кроме health check в api)
+- См. `docs/architecture/overview.md`, `docs/architecture/data-flow.md`

@@ -1,13 +1,11 @@
 "use client";
 
-import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 import { useOfflineStatus } from "@shared/hooks/useOfflineStatus";
 import { useSyncQueue } from "@shared/hooks/useSyncQueue";
 import { useEffect, useState } from "react";
 
 // Создаем логгер для offline-status
-const logger = createWebLogger("web-offline-status");
-
 export default function OfflineStatus() {
   const { isOnline, statusIcon, statusText, statusColor, detailedStatus } = useOfflineStatus();
   const { queueLength, hasPendingActions, lastSyncDate, formatLastSync, syncOfflineActions } =
@@ -36,7 +34,11 @@ export default function OfflineStatus() {
       // Принудительная синхронизация очереди
       await syncOfflineActions();
     } catch (error) {
-      logger.warn("Force sync failed:", { error, operation: "warn" });
+      reportClientError(error, {
+        issueKey: "OfflineStatus",
+        keys: { operation: "force_sync" },
+        severity: "warning",
+      });
     } finally {
       setIsChecking(false);
     }

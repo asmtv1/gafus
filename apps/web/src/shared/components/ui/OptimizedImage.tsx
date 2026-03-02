@@ -2,15 +2,13 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 
 import type { OptimizedImageProps } from "./types";
 
 import { shouldUseLazyLoading, shouldUsePriority } from "@shared/utils/imageLoading";
 
 // Создаем логгер для изображений
-const logger = createWebLogger("web-optimized-image");
-
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
 
@@ -48,13 +46,6 @@ export default function OptimizedImage({
   const finalSrc = imgError || !src ? placeholder : src;
 
   const handleError = () => {
-    logger.warn("❌ OptimizedImage: Ошибка загрузки изображения", {
-      operation: "image_load_error",
-      src: src,
-      retryCount: retryCount,
-      isSafariBrowser: isSafariBrowser,
-    });
-
     // Попробуем перезагрузить изображение несколько раз
     if (retryCount < 2) {
       setRetryCount((prev) => prev + 1);
@@ -62,6 +53,11 @@ export default function OptimizedImage({
       return;
     }
 
+    reportClientError(new Error("Image load failed after retries"), {
+      issueKey: "OptimizedImage",
+      keys: { retryCount, hasSrc: !!src },
+      severity: "warning",
+    });
     setImgError(true);
     onError?.();
   };

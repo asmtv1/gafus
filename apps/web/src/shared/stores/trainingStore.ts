@@ -4,14 +4,12 @@ import {
 } from "@gafus/core/utils/training";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { createWebLogger } from "@gafus/logger";
+import { reportClientError } from "@gafus/error-handling";
 
 import type { TrainingStore } from "./types";
 import { toggleStepNotificationPauseByDayOnCourseAction } from "@shared/server-actions/notifications";
 
 // Создаем логгер для training store
-const logger = createWebLogger("web-training-store");
-
 // ===== STORE =====
 export const useTrainingStore = create<TrainingStore>()(
   persist(
@@ -153,11 +151,9 @@ export const useTrainingStore = create<TrainingStore>()(
             throw new Error(result.error ?? "Failed to toggle notification");
           }
         } catch (error) {
-          logger.error("togglePauseWithServer error", error as Error, {
-            operation: "toggle_pause_with_server_error",
-            courseId,
-            dayOnCourseId,
-            stepIndex,
+          reportClientError(error, {
+            issueKey: "TrainingStore",
+            keys: { operation: "togglePause", courseId, dayOnCourseId, stepIndex },
           });
           throw error;
         }
@@ -179,11 +175,9 @@ export const useTrainingStore = create<TrainingStore>()(
             throw new Error(result.error ?? "Failed to resume notification");
           }
         } catch (error) {
-          logger.error("resumeNotificationWithServer error", error as Error, {
-            operation: "resume_notification_with_server_error",
-            courseId,
-            dayOnCourseId,
-            stepIndex,
+          reportClientError(error, {
+            issueKey: "TrainingStore",
+            keys: { operation: "resumeNotification", courseId, dayOnCourseId, stepIndex },
           });
           throw error;
         }
@@ -201,3 +195,13 @@ export const useTrainingStore = create<TrainingStore>()(
     },
   ),
 );
+
+// ===== СЕЛЕКТОРЫ (selective subscriptions — prevent unnecessary re-renders) =====
+
+/** Раскрытый accordion дня — Day ререндерится только при изменении openIndex этого дня */
+export const useDayOpenIndex = (courseId: string, dayOnCourseId: string) =>
+  useTrainingStore((s) => s.openIndexes[getDayKeyFromCore(courseId, dayOnCourseId)] ?? null);
+
+/** Активный шаг дня — Day ререндерится только при изменении runningIndex этого дня */
+export const useDayRunningIndex = (courseId: string, dayOnCourseId: string) =>
+  useTrainingStore((s) => s.runningSteps[getDayKeyFromCore(courseId, dayOnCourseId)] ?? null);

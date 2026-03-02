@@ -290,6 +290,14 @@ export const tempSessionIdSchema = z.string().uuid(
 );
 
 /**
+ * Схема для регистрации через API (с consent для GDPR)
+ */
+export const registerApiSchema = registerUserSchema.extend({
+  tempSessionId: tempSessionIdSchema,
+  consentPayload: consentPayloadSchema,
+});
+
+/**
  * Схема для профиля пользователя
  */
 export const userProfileFormSchema = z.object({
