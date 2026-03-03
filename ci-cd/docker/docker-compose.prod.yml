@@ -105,9 +105,10 @@ services:
       - NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${NEXT_PUBLIC_ENABLE_HLS_PROTECTION:-true}
       # OpenRouter AI API
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      # Next.js публичные переменные для trainer-panel
+      # Next.js публичные переменные и инвалидация кэша web
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL:-https://trainer.gafus.ru}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+      - WEB_APP_URL=${WEB_APP_URL:-https://gafus.ru}
       - REVALIDATE_SECRET_TOKEN=${REVALIDATE_SECRET_TOKEN}
       - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
       - NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION:-1.0.0}

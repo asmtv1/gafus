@@ -10,7 +10,6 @@ import {
   Montserrat_500Medium,
   Montserrat_700Bold,
 } from "@expo-google-fonts/montserrat";
-
 import {
   AuthProvider,
   QueryProvider,
@@ -40,6 +39,8 @@ export default function RootLayout() {
     Montserrat_400Regular,
     Montserrat_500Medium,
     Montserrat_700Bold,
+    // Display-шрифт как на web
+    Impact: require("../assets/fonts/Impact.ttf"),
     // Локальный шрифт - Moscow2024
     Moscow2024: require("../assets/fonts/MOSCOW2024.otf"),
   });

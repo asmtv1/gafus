@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     alignItems: "center",
     paddingHorizontal: SPACING.md,
-    gap: SPACING.md,
+    gap: 20,
   },
   // Шапка с лапкой - как в веб
   pawContainer: {
@@ -110,17 +110,17 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: "400",
     color: COLORS.primary,
-    marginTop: -6,
+    marginTop: -20,
     marginBottom: 0,
     fontFamily: FONTS.impact,
   },
   welcomeImage: {
-    marginTop: SPACING.xs,
+    marginTop: -50,
     marginBottom: -SPACING.lg,
   },
   buttonsContainer: {
-    marginTop: 0,
-    gap: SPACING.md,
+    marginTop: 20,
+    gap: SPACING.sm,
     width: "100%",
     alignItems: "stretch",
   },
@@ -132,7 +132,6 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     lineHeight: 15.6,
     textAlign: "center",
-    marginTop: "auto",
     marginBottom: SPACING.lg,
     fontFamily: FONTS.montserrat,
   },

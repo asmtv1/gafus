@@ -85,7 +85,7 @@ export const FONTS = {
   // Кастомный шрифт - Moscow2024
   moscow2024: "Moscow2024",
 
-  // Системные fallback
-  impact: "Impact", // iOS/Android системный
+  // Display-шрифт как на web (font-weight 400)
+  impact: "Impact",
   sansFallback: "System", // Системный шрифт по умолчанию
 } as const;
