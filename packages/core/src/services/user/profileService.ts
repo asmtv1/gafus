@@ -5,7 +5,8 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { Prisma } from "@gafus/prisma";
-import type { PublicProfile } from "@gafus/types";
+import type { PublicProfile, UserWithTrainings } from "@gafus/types";
+import { TrainingStatus } from "@gafus/types";
 import {
   uploadFileToCDN,
   deleteFileFromCDN,
@@ -296,4 +297,144 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
 
   logger.info("Avatar URL saved to database", { avatarUrl });
   return avatarUrl;
+}
+
+// ========== Get User With Trainings ==========
+
+/**
+ * Получает пользователя с тренировками и курсами для API/веб.
+ */
+export async function getUserWithTrainings(userId: string): Promise<UserWithTrainings | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      username: true,
+      phone: true,
+      userTrainings: {
+        orderBy: { dayOnCourse: { order: "asc" } },
+        select: {
+          status: true,
+          dayOnCourse: {
+            select: {
+              order: true,
+              day: {
+                select: { id: true, title: true, type: true },
+              },
+              course: {
+                select: { id: true, name: true },
+              },
+            },
+          },
+        },
+      },
+      userCourses: {
+        select: {
+          courseId: true,
+          startedAt: true,
+          completedAt: true,
+          course: {
+            select: {
+              id: true,
+              name: true,
+              dayLinks: { select: { id: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!user) return null;
+
+  const courses =
+    user.userCourses?.map((uc) => {
+      const trainingsForCourse =
+        user.userTrainings?.filter((ut) => ut.dayOnCourse.course.id === uc.courseId) || [];
+      const completedDays = trainingsForCourse
+        .filter((t) => t.status === TrainingStatus.COMPLETED)
+        .map((t) => t.dayOnCourse.order)
+        .toSorted((a, b) => a - b);
+
+      return {
+        courseId: uc.courseId,
+        courseName: uc.course.name,
+        startedAt: uc.startedAt,
+        completedAt: uc.completedAt,
+        completedDays: uc.completedAt
+          ? Array.from({ length: uc.course.dayLinks?.length || 0 }, (_, i) => i + 1)
+          : completedDays,
+        totalDays: uc.course.dayLinks?.length || 0,
+      };
+    }) || [];
+
+  return {
+    id: user.id,
+    username: user.username,
+    phone: user.phone,
+    courses,
+  };
+}
+
+/** Профиль пользователя для API */
+export interface UserProfileForApi {
+  id: string;
+  username: string;
+  phone: string;
+  role: string;
+  isConfirmed: boolean;
+  profile: {
+    fullName: string | null;
+    about: string | null;
+    telegram: string | null;
+    instagram: string | null;
+    website: string | null;
+    birthDate: string | null;
+    avatarUrl: string | null;
+  };
+}
+
+/**
+ * Получает профиль пользователя для API (GET /profile).
+ */
+export async function getUserProfileForApi(
+  userId: string,
+): Promise<UserProfileForApi | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      username: true,
+      phone: true,
+      role: true,
+      isConfirmed: true,
+      profile: {
+        select: {
+          fullName: true,
+          about: true,
+          telegram: true,
+          instagram: true,
+          website: true,
+          birthDate: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  });
+  if (!user) return null;
+  const p = user.profile;
+  return {
+    ...user,
+    profile: {
+      fullName: p?.fullName ?? null,
+      about: p?.about ?? null,
+      telegram: p?.telegram ?? null,
+      instagram: p?.instagram ?? null,
+      website: p?.website ?? null,
+      birthDate: p?.birthDate
+        ? p.birthDate.toISOString().split("T")[0]
+        : null,
+      avatarUrl: p?.avatarUrl ?? null,
+    },
+  };
 }

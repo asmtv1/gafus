@@ -141,7 +141,7 @@ const nextConfig = {
   // Prisma: не бандлить — Query Engine ищется в node_modules
   // core: не бандлить на сервере — резолв в рантайме по package.json exports (dist), см. bundling.md
   // core убран: бандлится из src по алиасу; иначе реэкспорт updatePetPhoto даёт предупреждение (резолв в dist)
-  serverExternalPackages: ["sharp", "prisma", "@prisma/client", "bullmq"],
+  serverExternalPackages: ["sharp", "prisma", "@prisma/client", "bullmq", "@gafus/webpush"],
 
   // Оптимизации для bundle
   experimental: {

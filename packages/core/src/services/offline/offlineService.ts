@@ -18,6 +18,7 @@ export interface FullCourseData {
     logoImg: string;
     isPrivate: boolean;
     isPaid: boolean;
+    priceRub: number | null;
     avgRating: number | null;
     trainingLevel: string;
     createdAt: string;
@@ -156,6 +157,7 @@ export async function downloadFullCourse(
         logoImg: true,
         isPrivate: true,
         isPaid: true,
+        priceRub: true,
         avgRating: true,
         trainingLevel: true,
         createdAt: true,
@@ -296,6 +298,7 @@ export async function downloadFullCourse(
         logoImg: course.logoImg,
         isPrivate: course.isPrivate,
         isPaid: course.isPaid,
+        priceRub: course.priceRub != null ? Number(course.priceRub) : null,
         avgRating: course.avgRating,
         trainingLevel: course.trainingLevel,
         createdAt: course.createdAt.toISOString(),

@@ -4,11 +4,11 @@
 import type { NextRequest} from "next/server";
 import { NextResponse } from "next/server";
 import { createHmac } from "crypto";
-import { prisma } from "@gafus/prisma";
 import {
   confirmPaymentFromWebhook,
   cancelPaymentFromWebhook,
   refundPaymentFromWebhook,
+  getUserIdByYookassaPaymentId,
 } from "@gafus/core/services/payments";
 import { invalidateUserProgressCache } from "@shared/lib/actions/invalidateCoursesCache";
 import { invalidateCoursesCache } from "@shared/server-actions/cache";
@@ -106,19 +106,14 @@ export async function POST(request: NextRequest) {
 
     promise
       .then(() =>
-        prisma.payment
-          .findFirst({
-            where: { yookassaPaymentId },
-            select: { userId: true },
-          })
-          .then((p) => {
-            if (p?.userId) {
-              return Promise.all([
-                invalidateUserProgressCache(p.userId),
-                invalidateCoursesCache(),
-              ]);
-            }
-          }),
+        getUserIdByYookassaPaymentId(yookassaPaymentId).then((userId) => {
+          if (userId) {
+            return Promise.all([
+              invalidateUserProgressCache(userId, false),
+              invalidateCoursesCache(),
+            ]);
+          }
+        }),
       )
       .catch((err) => {
         console.error("[payments/webhook] Error:", err);

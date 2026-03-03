@@ -182,6 +182,209 @@ export async function getCoursesWithProgress(
   });
 }
 
+/** Элемент кэша курсов (все курсы без пользовательских данных). */
+export interface CourseCacheItem {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  shortDesc: string;
+  duration: string;
+  logoImg: string;
+  isPrivate: boolean;
+  avgRating: number | null;
+  createdAt: Date;
+  authorUsername: string;
+  authorAvatarUrl: string | null;
+  reviews: {
+    rating: number;
+    comment: string;
+    createdAt: Date;
+    user: { username: string; profile: { avatarUrl: string | null } | null };
+  }[];
+  access: { user: { id: string } }[];
+  dayLinks: {
+    order: number;
+    day: {
+      id: string;
+      title: string;
+      stepLinks: {
+        id: string;
+        order: number;
+        step: { title: string };
+      }[];
+    };
+  }[];
+}
+
+/** Прогресс пользователя по курсам для кэша. */
+export interface UserCourseProgressItem {
+  courseId: string;
+  status: TrainingStatus;
+  startedAt: Date | null;
+  completedAt: Date | null;
+}
+
+/** Данные прогресса пользователя для кэша. */
+export interface UserProgressCacheData {
+  userCourses: UserCourseProgressItem[];
+  favoriteCourseIds: string[];
+}
+
+/**
+ * Получает все курсы для постоянного кэша (без пользовательских данных).
+ */
+export async function getAllCoursesForCache(): Promise<{
+  success: boolean;
+  data?: CourseCacheItem[];
+  error?: string;
+}> {
+  try {
+    const allCourses = await prisma.course.findMany({
+      include: {
+        author: {
+          select: { username: true, profile: { select: { avatarUrl: true } } },
+        },
+        reviews: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                profile: { select: { avatarUrl: true } },
+              },
+            },
+          },
+        },
+        access: {
+          include: {
+            user: { select: { id: true } },
+          },
+        },
+        dayLinks: {
+          include: {
+            day: {
+              include: {
+                stepLinks: {
+                  include: {
+                    step: { select: { title: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const data: CourseCacheItem[] = allCourses.map((course) => ({
+      id: course.id,
+      name: course.name,
+      type: course.type,
+      description: course.description,
+      shortDesc: course.shortDesc,
+      duration: course.duration,
+      logoImg: course.logoImg,
+      isPrivate: course.isPrivate,
+      avgRating: course.avgRating,
+      createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
+      authorUsername: course.author.username,
+      authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
+      reviews: course.reviews.map((r) => ({
+        rating: (r.rating ?? 0) as number,
+        comment: (r.comment ?? "") as string,
+        createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+        user: {
+          username: r.user.username,
+          profile: r.user.profile,
+        },
+      })),
+      access: course.access,
+      dayLinks: course.dayLinks.map((dl) => ({
+        order: dl.order,
+        day: {
+          id: dl.day.id,
+          title: dl.day.title,
+          stepLinks: dl.day.stepLinks.map((sl) => ({
+            id: sl.id,
+            order: sl.order,
+            step: { title: sl.step.title },
+          })),
+        },
+      })),
+    }));
+
+    return { success: true, data };
+  } catch (error) {
+    _logger.error("Ошибка getAllCoursesForCache", error as Error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+    };
+  }
+}
+
+/**
+ * Получает прогресс пользователя по курсам для кэша.
+ */
+export async function getUserCoursesProgressForCache(
+  userId: string | null,
+): Promise<{ success: boolean; data?: UserProgressCacheData; error?: string }> {
+  try {
+    if (!userId) {
+      return { success: true, data: { userCourses: [], favoriteCourseIds: [] } };
+    }
+
+    const userCourses = await prisma.userCourse.findMany({
+      where: { userId },
+      select: {
+        courseId: true,
+        status: true,
+        startedAt: true,
+        completedAt: true,
+      },
+    });
+
+    const userFavorites = await prisma.favoriteCourse.findMany({
+      where: { userId },
+      select: { courseId: true },
+    });
+
+    const data: UserProgressCacheData = {
+      userCourses: userCourses.map((uc) => ({
+        courseId: uc.courseId,
+        status: uc.status as TrainingStatus,
+        startedAt: uc.startedAt ? new Date(uc.startedAt) : null,
+        completedAt: uc.completedAt ? new Date(uc.completedAt) : null,
+      })),
+      favoriteCourseIds: userFavorites.map((f) => f.courseId),
+    };
+
+    return { success: true, data };
+  } catch (error) {
+    _logger.error("Ошибка getUserCoursesProgressForCache", error as Error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+    };
+  }
+}
+
+/**
+ * Получает курс по id или type (для API payments).
+ */
+export async function getCourseByIdOrType(
+  courseId?: string,
+  courseType?: string,
+): Promise<{ id: string; type: string } | null> {
+  if (!courseId && !courseType) return null;
+  const course = await prisma.course.findFirst({
+    where: courseId ? { id: courseId } : { type: courseType! },
+    select: { id: true, type: true },
+  });
+  return course;
+}
+
 // ========== Check Course Access ==========
 
 /**

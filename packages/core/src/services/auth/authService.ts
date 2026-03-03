@@ -5,6 +5,7 @@
  * Server Actions являются тонкими обёртками над этими функциями.
  */
 
+import bcrypt from "bcryptjs";
 import {
   checkUserConfirmed,
   confirmPhoneChangeByShortCode,
@@ -21,6 +22,40 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("auth-service");
+
+/** Результат успешной верификации учётных данных */
+export interface ValidateCredentialsSuccess {
+  success: true;
+  user: { id: string; username: string; role: string; password: string };
+}
+
+/** Результат неуспешной верификации */
+export interface ValidateCredentialsFailure {
+  success: false;
+}
+
+/** Метаданные для создания refresh-сессии */
+export interface RefreshSessionMetadata {
+  deviceId?: string;
+  userAgent?: string;
+  ipAddress?: string;
+  expiresAt: Date;
+}
+
+/** Результат валидного refresh-токена */
+export interface ValidateRefreshSuccess {
+  valid: true;
+  userId: string;
+  tokenId: string;
+  user: { id: string; username: string; role: string };
+}
+
+/** Результат невалидного refresh-токена */
+export interface ValidateRefreshFailure {
+  valid: false;
+  reason: "not_found" | "expired" | "revoked" | "token_reuse";
+  userId?: string;
+}
 
 /**
  * Проверяет статус подтверждения пользователя по имени.
@@ -170,5 +205,135 @@ export async function changeUsername(userId: string, newUsername: string): Promi
       logger.warn("Не удалось отправить уведомление о смене логина в Telegram", { userId, error: err });
     }
   }
+}
+
+// ========== API Auth (login, refresh, logout) ==========
+
+/**
+ * Получает минимальные данные пользователя для auth-ответа (id, username, role).
+ */
+export async function getAuthUserById(
+  userId: string,
+): Promise<{ id: string; username: string; role: string } | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, username: true, role: true },
+  });
+  return user;
+}
+
+/**
+ * Проверяет учётные данные пользователя (login).
+ */
+export async function validateCredentials(
+  username: string,
+  password: string,
+): Promise<ValidateCredentialsSuccess | ValidateCredentialsFailure> {
+  const normalized = username.toLowerCase().trim();
+  const user = await prisma.user.findUnique({
+    where: { username: normalized },
+    select: { id: true, username: true, role: true, password: true },
+  });
+  if (!user) return { success: false };
+  const valid = await bcrypt.compare(password, user.password);
+  if (!valid) return { success: false };
+  return { success: true, user };
+}
+
+/**
+ * Создаёт refresh-сессию в БД.
+ * tokenId и tokenHash генерируются в API, core только сохраняет.
+ */
+export async function createRefreshSession(
+  userId: string,
+  tokenId: string,
+  tokenHash: string,
+  metadata: RefreshSessionMetadata,
+): Promise<void> {
+  await prisma.refreshToken.create({
+    data: {
+      id: tokenId,
+      userId,
+      tokenHash,
+      deviceId: metadata.deviceId ?? null,
+      userAgent: metadata.userAgent ?? null,
+      ipAddress: metadata.ipAddress ?? null,
+      expiresAt: metadata.expiresAt,
+    },
+  });
+}
+
+/**
+ * Валидирует refresh-токен (наличие, срок, revoke).
+ */
+export async function validateRefreshToken(
+  tokenHash: string,
+): Promise<ValidateRefreshSuccess | ValidateRefreshFailure> {
+  const stored = await prisma.refreshToken.findUnique({
+    where: { tokenHash },
+    include: { user: { select: { id: true, username: true, role: true } } },
+  });
+  if (!stored) return { valid: false, reason: "not_found" };
+  if (stored.revokedAt) {
+    return { valid: false, reason: "token_reuse", userId: stored.userId };
+  }
+  if (stored.expiresAt < new Date()) {
+    return { valid: false, reason: "expired" };
+  }
+  return {
+    valid: true,
+    userId: stored.userId,
+    tokenId: stored.id,
+    user: stored.user,
+  };
+}
+
+/**
+ * Атомарно отзывает старый токен и создаёт новый (rotation).
+ */
+export async function rotateRefreshToken(
+  oldTokenHash: string,
+  userId: string,
+  newTokenHash: string,
+  newTokenId: string,
+  metadata: RefreshSessionMetadata,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.refreshToken.updateMany({
+      where: { tokenHash: oldTokenHash },
+      data: { revokedAt: new Date() },
+    });
+    await tx.refreshToken.create({
+      data: {
+        id: newTokenId,
+        userId,
+        tokenHash: newTokenHash,
+        deviceId: metadata.deviceId ?? null,
+        userAgent: metadata.userAgent ?? null,
+        ipAddress: metadata.ipAddress ?? null,
+        expiresAt: metadata.expiresAt,
+      },
+    });
+  });
+}
+
+/**
+ * Отзывает refresh-токен по хешу.
+ */
+export async function revokeRefreshToken(tokenHash: string): Promise<void> {
+  await prisma.refreshToken.updateMany({
+    where: { tokenHash },
+    data: { revokedAt: new Date() },
+  });
+}
+
+/**
+ * Отзывает все refresh-токены пользователя.
+ */
+export async function revokeAllUserTokens(userId: string): Promise<void> {
+  await prisma.refreshToken.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
 }
 

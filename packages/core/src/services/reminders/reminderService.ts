@@ -38,7 +38,7 @@ export async function createReminder(
       reminderTime,
       reminderDays: reminderDays ?? null,
       timezone: timezone ?? "Europe/Moscow",
-      enabled: false,
+      enabled: true,
     },
   });
 }

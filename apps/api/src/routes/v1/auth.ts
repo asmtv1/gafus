@@ -6,19 +6,24 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { bodyLimit } from "hono/body-limit";
-import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
-import { prisma } from "@gafus/prisma";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
 import { registerUser } from "@gafus/auth";
 import {
   changeUsername,
   confirmPhoneChange,
+  createRefreshSession,
+  getAuthUserById,
   requestPhoneChange,
   resetPasswordByCode,
+  revokeAllUserTokens,
+  revokeRefreshToken,
+  rotateRefreshToken,
   sendPasswordResetRequest,
   serverCheckUserConfirmed,
+  validateCredentials,
+  validateRefreshToken,
 } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
@@ -108,6 +113,8 @@ const usernameChangeSchema = z.object({
   newUsername: z.string().trim().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Логин: латиница, цифры, _"),
 });
 
+const REFRESH_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000; // 30 дней
+
 // POST /api/v1/auth/login
 authRoutes.post(
   "/login",
@@ -116,67 +123,38 @@ authRoutes.post(
   async (c) => {
     try {
       const { username, password } = c.req.valid("json");
-      const normalizedUsername = username.toLowerCase().trim();
+      const result = await validateCredentials(username, password);
 
-      const user = await prisma.user.findUnique({
-        where: { username: normalizedUsername },
-        select: { id: true, username: true, password: true, role: true },
-      });
-
-      if (!user) {
-        logger.warn("Login attempt for non-existent user", {
-          username: normalizedUsername,
-        });
+      if (!result.success) {
+        logger.warn("Login attempt failed", { username: username.toLowerCase().trim() });
         return c.json({ success: false, error: "Неверные учётные данные" }, 401);
       }
 
-      const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) {
-        logger.warn("Invalid password attempt", {
-          username: normalizedUsername,
-        });
-        return c.json({ success: false, error: "Неверные учётные данные" }, 401);
-      }
-
+      const { user } = result;
       const authUser = {
         id: user.id,
         username: user.username,
         role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM",
       };
 
-      // Генерируем токены
       const accessToken = await generateAccessToken(authUser);
-
-      // Создаём refresh token в БД
       const tokenId = crypto.randomUUID();
       const refreshToken = await generateRefreshToken(user.id, tokenId);
       const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
-      await prisma.refreshToken.create({
-        data: {
-          id: tokenId,
-          userId: user.id,
-          tokenHash,
-          deviceId: c.req.header("x-device-id"),
-          userAgent: c.req.header("user-agent"),
-          ipAddress: c.req.header("x-forwarded-for")?.split(",")[0],
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 дней
-        },
+      await createRefreshSession(user.id, tokenId, tokenHash, {
+        deviceId: c.req.header("x-device-id"),
+        userAgent: c.req.header("user-agent"),
+        ipAddress: c.req.header("x-forwarded-for")?.split(",")[0],
+        expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS),
       });
 
-      logger.info("User logged in", {
-        userId: user.id,
-        deviceId: c.req.header("x-device-id"),
-      });
+      logger.info("User logged in", { userId: user.id, deviceId: c.req.header("x-device-id") });
 
       return c.json({
         success: true,
         data: {
-          user: {
-            id: user.id,
-            username: user.username,
-            role: user.role,
-          },
+          user: { id: user.id, username: user.username, role: user.role },
           accessToken,
           refreshToken,
         },
@@ -206,7 +184,6 @@ authRoutes.post(
 );
 
 // POST /api/v1/auth/register
-// TODO: rate limiting — добавить Hono middleware или IP-throttle отдельной задачей
 authRoutes.post(
   "/register",
   bodyLimit({ maxSize: 10 * 1024 }),
@@ -244,11 +221,7 @@ authRoutes.post(
 
       await linkConsentLogsToUser(tempSessionId, result.userId);
 
-      const user = await prisma.user.findUnique({
-        where: { id: result.userId },
-        select: { id: true, username: true, role: true },
-      });
-
+      const user = await getAuthUserById(result.userId);
       if (!user) {
         return c.json({ success: false, error: "Ошибка регистрации" }, 500);
       }
@@ -264,15 +237,10 @@ authRoutes.post(
       const refreshToken = await generateRefreshToken(user.id, tokenId);
       const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
-      await prisma.refreshToken.create({
-        data: {
-          id: tokenId,
-          userId: user.id,
-          tokenHash,
-          userAgent,
-          ipAddress,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
+      await createRefreshSession(user.id, tokenId, tokenHash, {
+        userAgent,
+        ipAddress,
+        expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS),
       });
 
       logger.info("User registered via API", { userId: user.id });
@@ -311,48 +279,28 @@ authRoutes.post(
       }
 
       const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+      const result = await validateRefreshToken(tokenHash);
 
-      // Проверяем токен в БД
-      const storedToken = await prisma.refreshToken.findUnique({
-        where: { tokenHash },
-        include: { user: { select: { id: true, username: true, role: true } } },
-      });
-
-      // TOKEN REUSE DETECTION: Если токен уже был отозван — это признак кражи!
-      if (storedToken?.revokedAt) {
-        logger.warn("Refresh token reuse detected - possible token theft!", {
-          userId: storedToken.userId,
-          tokenId: storedToken.id,
-          ip: c.req.header("x-forwarded-for")?.split(",")[0],
-        });
-
-        // Отзываем ВСЕ refresh токены пользователя (принудительный logout везде)
-        await prisma.refreshToken.updateMany({
-          where: { userId: storedToken.userId, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
-
-        return c.json(
-          {
-            success: false,
-            error: "Сессия скомпрометирована. Войдите заново.",
-            code: "TOKEN_REUSE_DETECTED",
-          },
-          401,
-        );
-      }
-
-      if (!storedToken || storedToken.expiresAt < new Date()) {
+      if (!result.valid) {
+        if (result.reason === "token_reuse" && result.userId) {
+          logger.warn("Refresh token reuse detected - possible token theft!", {
+            userId: result.userId,
+            ip: c.req.header("x-forwarded-for")?.split(",")[0],
+          });
+          await revokeAllUserTokens(result.userId);
+          return c.json(
+            {
+              success: false,
+              error: "Сессия скомпрометирована. Войдите заново.",
+              code: "TOKEN_REUSE_DETECTED",
+            },
+            401,
+          );
+        }
         return c.json({ success: false, error: "Токен отозван или истёк" }, 401);
       }
 
-      // Ротация токена (отзываем старый, создаём новый)
-      await prisma.refreshToken.update({
-        where: { id: storedToken.id },
-        data: { revokedAt: new Date() },
-      });
-
-      const user = storedToken.user;
+      const { user } = result;
       const authUser = {
         id: user.id,
         username: user.username,
@@ -364,16 +312,11 @@ authRoutes.post(
       const newRefreshToken = await generateRefreshToken(user.id, newTokenId);
       const newTokenHash = crypto.createHash("sha256").update(newRefreshToken).digest("hex");
 
-      await prisma.refreshToken.create({
-        data: {
-          id: newTokenId,
-          userId: user.id,
-          tokenHash: newTokenHash,
-          deviceId: c.req.header("x-device-id"),
-          userAgent: c.req.header("user-agent"),
-          ipAddress: c.req.header("x-forwarded-for")?.split(",")[0],
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
+      await rotateRefreshToken(tokenHash, user.id, newTokenHash, newTokenId, {
+        deviceId: c.req.header("x-device-id"),
+        userAgent: c.req.header("user-agent"),
+        ipAddress: c.req.header("x-forwarded-for")?.split(",")[0],
+        expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS),
       });
 
       return c.json({
@@ -399,12 +342,7 @@ authRoutes.post(
     try {
       const { refreshToken } = c.req.valid("json");
       const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-
-      await prisma.refreshToken.updateMany({
-        where: { tokenHash },
-        data: { revokedAt: new Date() },
-      });
-
+      await revokeRefreshToken(tokenHash);
       return c.json({ success: true });
     } catch (error) {
       logger.error("Logout error", error as Error);
@@ -520,10 +458,7 @@ authRoutes.post(
       const user = c.get("user");
       const { newUsername } = c.req.valid("json");
       await changeUsername(user.id, newUsername);
-      const updated = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { id: true, username: true, role: true },
-      });
+      const updated = await getAuthUserById(user.id);
       if (!updated) {
         return c.json({ success: false, error: "Ошибка сервера" }, 500);
       }

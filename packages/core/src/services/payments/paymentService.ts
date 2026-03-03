@@ -208,6 +208,19 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
 }
 
 /**
+ * Получает userId по yookassaPaymentId (для инвалидации кэша после webhook).
+ */
+export async function getUserIdByYookassaPaymentId(
+  yookassaPaymentId: string,
+): Promise<string | null> {
+  const payment = await prisma.payment.findFirst({
+    where: { yookassaPaymentId },
+    select: { userId: true },
+  });
+  return payment?.userId ?? null;
+}
+
+/**
  * Обработка webhook payment.succeeded: выдача доступа и обновление статуса платежа (идемпотентно).
  */
 export async function confirmPaymentFromWebhook(

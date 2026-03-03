@@ -6,8 +6,12 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
-import { prisma } from "@gafus/prisma";
-import { getPublicProfile, updateAvatar, updateUserProfile } from "@gafus/core/services/user";
+import {
+  getPublicProfile,
+  getUserProfileForApi,
+  updateAvatar,
+  updateUserProfile,
+} from "@gafus/core/services/user";
 import {
   normalizeTelegramInput,
   normalizeInstagramInput,
@@ -117,45 +121,11 @@ const updateProfileSchema = z.object({
 userRoutes.get("/profile", async (c) => {
   try {
     const user = c.get("user");
-
-    // Получаем user с profile
-    const userData = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: {
-        id: true,
-        username: true,
-        phone: true,
-        role: true,
-        isConfirmed: true,
-        profile: {
-          select: {
-            fullName: true,
-            about: true,
-            telegram: true,
-            instagram: true,
-            website: true,
-            birthDate: true,
-            avatarUrl: true,
-          },
-        },
-      },
-    });
-
+    const userData = await getUserProfileForApi(user.id);
     if (!userData) {
       return c.json({ success: false, error: "Пользователь не найден" }, 404);
     }
-
-    return c.json({
-      success: true,
-      data: {
-        id: userData.id,
-        username: userData.username,
-        phone: userData.phone,
-        role: userData.role,
-        isConfirmed: userData.isConfirmed,
-        profile: userData.profile,
-      },
-    });
+    return c.json({ success: true, data: userData });
   } catch (error) {
     logger.error("Error getting profile", error as Error);
     return c.json({ success: false, error: "Ошибка получения профиля" }, 500);

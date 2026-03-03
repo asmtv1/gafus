@@ -3,8 +3,8 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
 import { createPayment } from "@gafus/core/services/payments";
+import { getCourseByIdOrType } from "@gafus/core/services/course";
 import { createWebLogger } from "@gafus/logger";
-import { prisma } from "@gafus/prisma";
 
 const logger = createWebLogger("api-payments");
 
@@ -55,10 +55,7 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
       return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" }, 500);
     }
 
-    const course = await prisma.course.findFirst({
-      where: courseId ? { id: courseId } : { type: courseType },
-      select: { id: true, type: true },
-    });
+    const course = await getCourseByIdOrType(courseId, courseType);
 
     if (!course) {
       return c.json({ success: false, error: "Курс не найден", code: "NOT_FOUND" }, 404);

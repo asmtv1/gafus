@@ -50,7 +50,18 @@
       "@gafus/core/services/pets": ["../../packages/core/src/services/pets/index.ts"],
       "@gafus/core/services/notes": ["../../packages/core/src/services/notes/index.ts"],
       "@gafus/core/services/payments": ["../../packages/core/src/services/payments/index.ts"],
+      "@gafus/core/services/reengagement": [
+        "../../packages/core/src/services/reengagement/index.ts"
+      ],
+      "@gafus/core/services/reminders": [
+        "../../packages/core/src/services/reminders/index.ts"
+      ],
+      "@gafus/core/services/exam": ["../../packages/core/src/services/exam/index.ts"],
+      "@gafus/core/services/offline": ["../../packages/core/src/services/offline/index.ts"],
       "@gafus/core/services/video": ["../../packages/core/src/services/video/index.ts"],
+      "@gafus/core/services/trainerVideo": [
+        "../../packages/core/src/services/trainerVideo/index.ts"
+      ],
       "@gafus/core/errors": ["../../packages/core/src/errors/index.ts"],
       "@gafus/core/utils": ["../../packages/core/src/utils/index.ts"],
       "@gafus/core/utils/social": ["../../packages/core/src/utils/social.ts"],

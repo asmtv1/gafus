@@ -223,6 +223,58 @@ export async function getExamResult(
 }
 
 /**
+ * Получает URL существующего видео экзамена (для удаления перед заменой).
+ */
+export async function getExistingExamVideoReport(
+  userStepId: string,
+): Promise<{ videoReportUrl: string | null } | null> {
+  const exam = await prisma.examResult.findUnique({
+    where: { userStepId },
+    select: { videoReportUrl: true },
+  });
+  return exam;
+}
+
+/**
+ * Помечает видео экзамена как удалённое (после удаления из CDN).
+ */
+export async function markExamVideoDeleted(userStepId: string): Promise<void> {
+  await prisma.examResult.update({
+    where: { userStepId },
+    data: {
+      videoDeletedAt: new Date(),
+      videoDeleteReason: "replaced",
+    },
+  });
+}
+
+/**
+ * Проверяет доступ пользователя к загрузке видео экзамена до CDN upload.
+ * Fail fast — вызывать до загрузки на CDN.
+ */
+export async function prepareExamVideoUpload(
+  userStepId: string,
+  userId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const userStep = await prisma.userStep.findFirst({
+    where: {
+      id: userStepId,
+      userTraining: { userId },
+    },
+    include: {
+      stepOnDay: { include: { step: true } },
+    },
+  });
+  if (!userStep) {
+    return { success: false, error: "Шаг не найден или нет доступа" };
+  }
+  if (userStep.stepOnDay.step.type !== "EXAMINATION") {
+    return { success: false, error: "Этот шаг не является экзаменационным" };
+  }
+  return { success: true };
+}
+
+/**
  * Сохраняет результат экзамена
  */
 export async function submitExamResult(

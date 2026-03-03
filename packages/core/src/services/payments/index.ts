@@ -1,5 +1,6 @@
 export {
   createPayment,
+  getUserIdByYookassaPaymentId,
   confirmPaymentFromWebhook,
   cancelPaymentFromWebhook,
   refundPaymentFromWebhook,

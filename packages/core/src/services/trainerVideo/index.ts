@@ -6,11 +6,15 @@ export {
   getTrainerVideos,
   getSignedVideoToken,
   getMultipleVideoStatuses,
+  getVideoMetadataByUrl,
+  getVideoIdAndPathsFromUrl,
+  getVideoForPlaybackCheck,
 } from "./trainerVideoService";
 export { getVideoInfoForStreaming } from "./helpers";
 export type {
   GetDeletePayloadResult,
   VideoStatusResult,
+  VideoMetadata,
 } from "./trainerVideoService";
 export type { VideoInfoForStreaming } from "./helpers";
 export {

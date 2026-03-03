@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "@gafus/prisma";
+import { extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
 import { createWebLogger } from "@gafus/logger";
 import { getVideoAccessService } from "@gafus/video-access";
 import type { ActionResult } from "@gafus/types";
@@ -11,6 +12,26 @@ import type { TrainerVideoDto } from "@gafus/types";
 import type { TranscodingStatus } from "@gafus/prisma";
 import { handlePrismaError, ServiceError } from "@gafus/core/errors";
 import type { RegisterTrainerVideoInput } from "./schemas";
+
+const EXTERNAL_VIDEO_PATTERNS = [
+  /youtube\.com/,
+  /youtu\.be/,
+  /rutube\.ru/,
+  /vimeo\.com/,
+  /vk\.com\/video/,
+  /vkvideo\.ru/,
+];
+
+function isExternalVideoUrl(url: string): boolean {
+  return EXTERNAL_VIDEO_PATTERNS.some((p) => p.test(url));
+}
+
+function isCdnVideoUrl(url: string): boolean {
+  return (
+    url.includes("gafus-media.storage.yandexcloud.net") ||
+    url.includes("storage.yandexcloud.net/gafus-media")
+  );
+}
 
 const logger = createWebLogger("trainer-video");
 
@@ -377,4 +398,105 @@ export async function getMultipleVideoStatuses(
     logger.error("Ошибка получения статусов видео", error, { videoIds });
     return { success: false, error: error.message };
   }
+}
+
+export interface VideoMetadata {
+  thumbnailPath: string | null;
+  videoId: string | null;
+  transcodingStatus: TranscodingStatus | null;
+  isExternal: boolean;
+}
+
+/**
+ * Получает метаданные видео по videoUrl.
+ * Для CDN — извлекает videoId и ищет по id; для внешних URL — возвращает isExternal: true.
+ */
+export async function getVideoMetadataByUrl(videoUrl: string | null | undefined): Promise<VideoMetadata> {
+  if (!videoUrl) {
+    return { thumbnailPath: null, videoId: null, transcodingStatus: null, isExternal: false };
+  }
+  if (isExternalVideoUrl(videoUrl)) {
+    return { thumbnailPath: null, videoId: null, transcodingStatus: null, isExternal: true };
+  }
+  if (!isCdnVideoUrl(videoUrl)) {
+    return { thumbnailPath: null, videoId: null, transcodingStatus: null, isExternal: false };
+  }
+  const videoId = extractVideoIdFromCdnUrl(videoUrl);
+  if (!videoId) {
+    return { thumbnailPath: null, videoId: null, transcodingStatus: null, isExternal: false };
+  }
+  try {
+    const video = await prisma.trainerVideo.findUnique({
+      where: { id: videoId },
+      select: { id: true, thumbnailPath: true, transcodingStatus: true },
+    });
+    if (!video) {
+      return { thumbnailPath: null, videoId: null, transcodingStatus: null, isExternal: false };
+    }
+    return {
+      thumbnailPath: video.thumbnailPath,
+      videoId: video.id,
+      transcodingStatus: video.transcodingStatus,
+      isExternal: false,
+    };
+  } catch (error) {
+    logger.error("Ошибка при поиске видео", error as Error, { videoUrl });
+    return { thumbnailPath: null, videoId: null, transcodingStatus: null, isExternal: false };
+  }
+}
+
+/**
+ * Получает videoId, hlsManifestPath, thumbnailPath для скачивания HLS.
+ */
+export async function getVideoIdAndPathsFromUrl(
+  videoUrl: string,
+): Promise<{
+  success: boolean;
+  videoId?: string;
+  hlsManifestPath?: string;
+  thumbnailPath?: string;
+  error?: string;
+}> {
+  try {
+    if (!videoUrl) return { success: false, error: "videoUrl не предоставлен" };
+    if (!isCdnVideoUrl(videoUrl)) return { success: false, error: "URL не является CDN видео" };
+    const videoId = extractVideoIdFromCdnUrl(videoUrl);
+    if (!videoId) return { success: false, error: "Не удалось извлечь videoId из URL" };
+
+    const video = await prisma.trainerVideo.findUnique({
+      where: { id: videoId },
+      select: { transcodingStatus: true, hlsManifestPath: true, thumbnailPath: true },
+    });
+    if (!video) {
+      logger.warn("Видео не найдено в БД", { videoId });
+      return { success: false, error: "Видео не найдено" };
+    }
+    if (video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
+      logger.warn("Видео ещё не транскодировано", { videoId, transcodingStatus: video.transcodingStatus });
+      return { success: false, error: "Видео ещё обрабатывается" };
+    }
+    return {
+      success: true,
+      videoId,
+      hlsManifestPath: video.hlsManifestPath,
+      thumbnailPath: video.thumbnailPath ?? undefined,
+    };
+  } catch (error) {
+    logger.error("Ошибка в getVideoIdAndPathsFromUrl", error as Error, { videoUrl });
+    return { success: false, error: "Внутренняя ошибка сервера" };
+  }
+}
+
+/**
+ * Проверяет статус видео для воспроизведения (только чтение из БД).
+ * Web вызывает getSignedVideoUrl после проверки — сессия и headers остаются в web.
+ */
+export async function getVideoForPlaybackCheck(
+  videoId: string,
+): Promise<{ transcodingStatus: string } | null> {
+  const video = await prisma.trainerVideo.findUnique({
+    where: { id: videoId },
+    select: { transcodingStatus: true },
+  });
+  return video;
 }

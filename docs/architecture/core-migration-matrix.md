@@ -38,7 +38,7 @@
 | `app/api/v1/user/avatar/route.ts` | web | Y | N | migrated | low |
 | `app/api/v1/subscriptions/push/route.ts` | web | Y | N | migrated | low |
 | `app/api/v1/payments/create/route.ts` | web | Y | N | migrated | low |
-| `app/api/v1/payments/webhook/route.ts` | web | Y | Y | TODO | medium |
+| `app/api/v1/payments/webhook/route.ts` | web | Y | N | migrated | medium |
 | `app/api/v1/auth/register/route.ts` | web | Y | N | migrated | low |
 | `app/api/v1/auth/password-reset-request/route.ts` | web | Y | N | migrated | low |
 | `app/api/v1/auth/reset-password/route.ts` | web | Y | N | migrated | low |
@@ -73,19 +73,19 @@
 | `shared/lib/training/pauseResumeUserStep.ts` | web | Y | N | migrated | low |
 | `shared/lib/training/startUserStepServerAction.ts` | web | Y | N | migrated | low |
 | `shared/lib/training/checkDayAccess.ts` | web | Y | N | migrated | low |
-| `shared/lib/user/getUserProgress.ts` | web | N | Y | TODO | medium |
-| `shared/lib/user/userCourses.ts` | web | Y | Y | TODO | medium |
-| `shared/lib/user/getUserWithTrainings.ts` | web | N | Y | TODO | medium |
-| `shared/lib/video/getVideoMetadata.ts` | web | N | Y | TODO | medium |
-| `shared/lib/video/getVideoUrlForPlayback.ts` | web | N | Y | TODO | medium |
-| `shared/lib/actions/cachedCourses.ts` | web | Y | Y | TODO | medium |
-| `shared/lib/actions/updateReengagementSettings.ts` | web | N | Y | TODO | medium |
-| `shared/lib/actions/trainingReminders.ts` | web | N | Y | TODO | medium |
-| `shared/lib/actions/uploadExamVideo.ts` | web | N | Y | TODO | medium |
-| `shared/lib/actions/submitExamResult.ts` | web | N | Y | TODO | medium |
-| `shared/lib/actions/getExamResult.ts` | web | N | Y | TODO | medium |
-| `shared/lib/actions/getVideoIdFromUrlAction.ts` | web | N | Y | TODO | medium |
-| `shared/lib/actions/offlineCourseActions.ts` | web | Y | Y | TODO | medium |
+| `shared/lib/user/getUserProgress.ts` | web | Y | N | migrated | medium |
+| `shared/lib/user/userCourses.ts` | web | Y | N | migrated | medium |
+| `shared/lib/user/getUserWithTrainings.ts` | web | Y | N | migrated | medium |
+| `shared/lib/video/getVideoMetadata.ts` | web | Y | N | migrated | medium |
+| `shared/lib/video/getVideoUrlForPlayback.ts` | web | Y | N | migrated | medium |
+| `shared/lib/actions/cachedCourses.ts` | web | Y | N | migrated | medium |
+| `shared/lib/actions/updateReengagementSettings.ts` | web | Y | N | migrated | medium |
+| `shared/lib/actions/trainingReminders.ts` | web | Y | N | migrated | medium |
+| `shared/lib/actions/uploadExamVideo.ts` | web | Y | N | migrated | medium |
+| `shared/lib/actions/submitExamResult.ts` | web | Y | N | migrated | medium |
+| `shared/lib/actions/getExamResult.ts` | web | Y | N | migrated | medium |
+| `shared/lib/actions/getVideoIdFromUrlAction.ts` | web | Y | N | migrated | medium |
+| `shared/lib/actions/offlineCourseActions.ts` | web | Y | N | migrated | medium |
 | `shared/lib/achievements/getUserTrainingDates.ts` | web | Y | N | migrated | low |
 | `shared/server-actions/subscriptions.ts` | web | Y | N | migrated | low |
 | `shared/lib/validation/petSchemas.ts` | web | N | N | N/A (типы Prisma) | low |
@@ -96,10 +96,10 @@
 
 | Route/File path | Source | Uses Core | Uses Prisma | Status | Priority |
 |-----------------|--------|-----------|-------------|--------|----------|
-| `routes/v1/auth.ts` | api | N | Y | TODO (login, refresh, register) | medium |
-| `routes/v1/training.ts` | api | Y | Y | partially migrated (theory, video) | medium |
-| `routes/v1/user.ts` | api | Y | Y | TODO (avatar?) | medium |
-| `routes/v1/payments.ts` | api | Y | Y | TODO | medium |
+| `routes/v1/auth.ts` | api | Y | N | migrated | medium |
+| `routes/v1/training.ts` | api | Y | N | migrated | medium |
+| `routes/v1/user.ts` | api | Y | N | migrated | medium |
+| `routes/v1/payments.ts` | api | Y | N | migrated | medium |
 | `routes/v1/health.ts` | api | N | Y | N/A (инфраструктура) | low |
 | `index.ts` (shutdown prisma) | api | N | Y | N/A (shutdown) | low |
 
@@ -110,9 +110,9 @@
 | Priority | Count | Примеры |
 |----------|-------|--------|
 | high | 0 | — |
-| medium | 22 | training steps, user, payments, video metadata |
-| low | 33 | pets, push, tracking, auth, video manifest, subscriptions |
+| medium | 18 | user, video, actions, payments, api routes (все migrated) |
+| low | 37 | pets, push, tracking, auth, video manifest, subscriptions |
 
 ---
 
-_Последнее обновление: Step 10 (training, achievements). Оставшиеся TODO: user, video, actions, payments._
+_Последнее обновление: Step 10 завершён. Все Route Handlers и shared/lib мигрированы на @gafus/core. Прямой Prisma — только в packages/core и apps/api (health, shutdown)._
