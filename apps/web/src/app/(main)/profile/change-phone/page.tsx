@@ -1,5 +1,9 @@
 import { generateStaticPageMetadata } from "@gafus/metadata";
+import { getServerSession } from "next-auth";
 
+import { authOptions } from "@gafus/auth";
+
+import SetVkPhoneForm from "@features/profile/components/SetVkPhoneForm";
 import ChangePhoneForm from "./ChangePhoneForm";
 
 export const metadata = generateStaticPageMetadata(
@@ -8,6 +12,10 @@ export const metadata = generateStaticPageMetadata(
   "/profile/change-phone",
 );
 
-export default function ChangePhonePage() {
+export default async function ChangePhonePage() {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.needsPhone) {
+    return <SetVkPhoneForm />;
+  }
   return <ChangePhoneForm />;
 }

@@ -1,5 +1,6 @@
 export * from "./age";
 export * from "./pluralize";
+export * from "./transliterate";
 export * from "./date";
 export * from "./pet";
 export * from "./video";

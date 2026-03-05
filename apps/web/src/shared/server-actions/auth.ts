@@ -5,10 +5,11 @@
  */
 
 import { getServerSession } from "next-auth";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import { authOptions } from "@gafus/auth";
+import { getCurrentUserId } from "@gafus/auth/server";
 import * as authService from "@gafus/core/services/auth";
 import {
   createConsentLogs,
@@ -22,11 +23,17 @@ import {
   setPendingConfirmCookie,
 } from "@shared/lib/pendingConfirmCookie";
 import {
+  generateCodeChallenge,
+  generateCodeVerifier,
+  generateState,
+} from "@shared/lib/vkIdPkce";
+import {
   checkAuthRateLimit,
   getClientIpFromHeaders,
 } from "@shared/lib/rateLimit";
 import {
   consentPayloadSchema,
+  newPasswordSchema,
   phoneChangeConfirmSchema,
   phoneSchema,
   registerUserSchema,
@@ -41,6 +48,63 @@ import { CONSENT_VERSION } from "@shared/constants/consent";
 import type { ConsentPayload } from "@shared/constants/consent";
 
 const logger = createWebLogger("auth-actions");
+
+/**
+ * Подготавливает конфиг для VK ID One Tap: rate limit, PKCE, cookie, возвращает параметры для SDK.
+ */
+export async function prepareVkIdOneTap(): Promise<
+  | { success: true; state: string; codeVerifier: string; clientId: string; redirectUri: string }
+  | { success: false; error: string }
+> {
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "initiate-vk-id")) {
+    return { success: false, error: "Слишком много запросов. Попробуйте через 15 минут." };
+  }
+
+  try {
+    const codeVerifier = generateCodeVerifier();
+    const state = generateState();
+
+    const cookieStore = await cookies();
+    cookieStore.set("vk_id_state", JSON.stringify({ state, codeVerifier }), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 600,
+      path: "/",
+    });
+
+    const redirectUri = process.env.VK_WEB_REDIRECT_URI ?? "";
+    const clientId = process.env.VK_CLIENT_ID ?? "";
+
+    return { success: true, state, codeVerifier, clientId, redirectUri };
+  } catch (error) {
+    logger.error("prepareVkIdOneTap failed", error as Error);
+    return { success: false, error: "Не удалось инициализировать авторизацию VK ID" };
+  }
+}
+
+/**
+ * Инициирует авторизацию через VK ID (redirect): rate limit, PKCE, cookie, возвращает URL.
+ */
+export async function initiateVkIdAuth(): Promise<
+  { success: true; url: string } | { success: false; error: string }
+> {
+  const prepared = await prepareVkIdOneTap();
+  if (!prepared.success) return prepared;
+
+  const codeChallenge = generateCodeChallenge(prepared.codeVerifier);
+  const url =
+    `https://id.vk.ru/authorize` +
+    `?response_type=code` +
+    `&client_id=${encodeURIComponent(prepared.clientId)}` +
+    `&redirect_uri=${encodeURIComponent(prepared.redirectUri)}` +
+    `&state=${encodeURIComponent(prepared.state)}` +
+    `&code_challenge=${encodeURIComponent(codeChallenge)}` +
+    `&code_challenge_method=S256`;
+
+  return { success: true, url };
+}
 
 /**
  * Проверяет rate limit для логина. Вызывать перед checkUserStateAction и signIn.
@@ -275,6 +339,77 @@ export async function confirmPhoneChangeAction(
 /**
  * Смена логина. Возвращает normalized username для обновления сессии на клиенте.
  */
+/**
+ * Установка пароля для VK-only пользователя.
+ */
+export async function setPasswordAction(
+  newPassword: string,
+): Promise<{ success?: true; error?: string }> {
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "set-password")) {
+    return { error: "Слишком много попыток, подождите" };
+  }
+  const userId = await getCurrentUserId();
+  if (!userId) return { error: "Необходима авторизация" };
+  try {
+    const parsed = newPasswordSchema.safeParse(newPassword);
+    if (!parsed.success) return { error: parsed.error.errors[0]?.message ?? "Ошибка валидации" };
+    await authService.setPassword(userId, parsed.data);
+    revalidatePath("/profile");
+    return { success: true };
+  } catch (error) {
+    logger.error("setPasswordAction failed", error as Error);
+    return { error: error instanceof Error ? error.message : "Не удалось установить пароль" };
+  }
+}
+
+/**
+ * Смена пароля (для пользователей с установленным паролем).
+ */
+export async function changePasswordAction(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ success?: true; error?: string }> {
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "change-password")) {
+    return { error: "Слишком много попыток, подождите" };
+  }
+  const userId = await getCurrentUserId();
+  if (!userId) return { error: "Необходима авторизация" };
+  try {
+    const parsed = newPasswordSchema.safeParse(newPassword);
+    if (!parsed.success) return { error: parsed.error.errors[0]?.message ?? "Ошибка валидации" };
+    await authService.changePassword(userId, currentPassword, parsed.data);
+    revalidatePath("/profile");
+    return { success: true };
+  } catch (error) {
+    logger.error("changePasswordAction failed", error as Error);
+    return { error: error instanceof Error ? error.message : "Не удалось сменить пароль" };
+  }
+}
+
+/**
+ * Установка номера телефона для VK-пользователя.
+ */
+export async function setVkPhoneAction(phone: string): Promise<{ success?: true; error?: string }> {
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "vk-phone-set")) {
+    return { error: "Слишком много попыток, подождите" };
+  }
+  const userId = await getCurrentUserId();
+  if (!userId) return { error: "Необходима авторизация" };
+  try {
+    const parsed = phoneSchema.safeParse(phone);
+    if (!parsed.success) return { error: parsed.error.errors[0]?.message ?? "Ошибка валидации" };
+    await authService.setVkPhone(userId, parsed.data);
+    revalidatePath("/profile");
+    return { success: true };
+  } catch (error) {
+    logger.error("setVkPhoneAction failed", error as Error);
+    return { error: error instanceof Error ? error.message : "Не удалось установить номер" };
+  }
+}
+
 export async function changeUsernameAction(newUsername: string): Promise<{
   success?: true;
   username?: string;

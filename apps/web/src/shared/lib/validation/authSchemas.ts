@@ -55,6 +55,43 @@ export const newPasswordSchema = z
  */
 export const loginPasswordSchema = z.string().min(1, "Пароль обязателен").max(100, "максимум 100 символов");
 
+/**
+ * Схема установки пароля (VK-only пользователи).
+ */
+export const setPasswordSchema = z
+  .object({
+    newPassword: newPasswordSchema,
+    confirmPassword: z.string().min(1, "Подтвердите пароль"),
+  })
+  .superRefine(({ newPassword, confirmPassword }, ctx) => {
+    if (newPassword !== confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirmPassword"],
+        message: "Пароли не совпадают",
+      });
+    }
+  });
+
+/**
+ * Схема смены пароля.
+ */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Введите текущий пароль"),
+    newPassword: newPasswordSchema,
+    confirmNewPassword: z.string().min(1, "Подтвердите пароль"),
+  })
+  .superRefine(({ newPassword, confirmNewPassword }, ctx) => {
+    if (newPassword !== confirmNewPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirmNewPassword"],
+        message: "Пароли не совпадают",
+      });
+    }
+  });
+
 // ===== СХЕМЫ ФОРМ =====
 
 /**

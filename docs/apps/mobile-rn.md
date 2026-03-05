@@ -38,6 +38,7 @@
 - [x] **Офлайн режим**: скачивание курсов (meta + медиа), локальное HLS, очередь скачивания, воспроизведение из кэша; синхронизация прогресса при появлении сети (очередь мутаций startStep/pause/resume/complete)
 - [x] **Платные курсы (paywall)**: на экране списка дней `/training/[courseType]` при отсутствии доступа — кнопка «Оплатить/Начать курс», текст согласия с Офертой; POST `/api/v1/payments/create` с `acceptanceContext` (IP/UA из заголовков)
 - [x] **Tracer (мониторинг ошибок)**: кастомный RN-клиент, ErrorBoundary → reportClientError, ручная отправка в API/auth/progressSync (см. [docs/monitoring/tracer.md](../monitoring/tracer.md))
+- [x] **Вход через VK ID**: кнопка «Войти через VK» на экране логина, PKCE flow (id.vk.ru) через `expo-web-browser`, экран `/vk-set-phone` при `needsPhone: true`. Env: `VK_CLIENT_ID`, `VK_MOBILE_REDIRECT_URI=gafus://auth/vk`. Требуется Development Build для тестирования (Expo Go не поддерживает custom scheme). См. [vk-auth.md](../features/vk-auth.md).
 
 ### В планах
 

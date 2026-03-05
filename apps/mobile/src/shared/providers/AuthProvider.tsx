@@ -20,7 +20,9 @@ interface AuthProviderProps {
  */
 export function AuthProvider({ children }: AuthProviderProps) {
   const queryClient = useQueryClient();
-  const { isAuthenticated, isLoading, checkAuth, pendingConfirmPhone } = useAuthStore();
+  const {
+    isAuthenticated, isLoading, checkAuth, pendingConfirmPhone, pendingVkPhone,
+  } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
   const prevAuthRef = useRef<boolean | null>(null);
@@ -80,15 +82,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const inAuthGroup = segments[0] === "(auth)";
     const isConfirmScreen = inAuthGroup && segments[1] === "confirm";
     const isResetPasswordScreen = inAuthGroup && segments[1] === "reset-password";
+    const isVkSetPhoneScreen = inAuthGroup && (segments[1] as string) === "vk-set-phone";
 
     if (__DEV__) {
       console.log("[AuthProvider] redirect effect", {
         isAuthenticated,
         pendingConfirmPhone,
+        pendingVkPhone,
         segments: [...segments],
         inAuthGroup,
-        isConfirmScreen,
       });
+    }
+
+    if (pendingVkPhone && !isVkSetPhoneScreen) {
+      if (__DEV__) console.log("[AuthProvider] → replace /vk-set-phone");
+      router.replace("/vk-set-phone" as never);
+      return;
     }
 
     if (pendingConfirmPhone && !isConfirmScreen) {
@@ -100,11 +109,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!isAuthenticated && !inAuthGroup) {
       if (__DEV__) console.log("[AuthProvider] → replace /welcome");
       router.replace("/welcome");
-    } else if (isAuthenticated && inAuthGroup && !isConfirmScreen && !isResetPasswordScreen) {
+    } else if (
+      isAuthenticated &&
+      inAuthGroup &&
+      !isConfirmScreen &&
+      !isResetPasswordScreen &&
+      !isVkSetPhoneScreen
+    ) {
       if (__DEV__) console.log("[AuthProvider] → replace / (main)");
       router.replace("/");
     }
-  }, [isAuthenticated, isLoading, segments, router, pendingConfirmPhone]);
+  }, [isAuthenticated, isLoading, segments, router, pendingConfirmPhone, pendingVkPhone]);
 
   // Показываем лоадер пока проверяем авторизацию
   if (isLoading) {

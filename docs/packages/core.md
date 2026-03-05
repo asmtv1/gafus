@@ -23,7 +23,7 @@ packages/core/
 │   │   ├── cache/         # Константы тегов кэша (CACHE_TAGS) для app-уровня
 │   │   ├── course/        # Курсы, избранное, отзывы
 │   │   ├── user/          # Профиль, настройки, поиск
-│   │   ├── auth/          # Аутентификация
+│   │   ├── auth/          # Аутентификация (authService, vkAuth)
 │   │   ├── notifications/ # Уведомления о шагах
 │   │   ├── subscriptions/ # Push-подписки
 │   │   ├── tracking/      # Аналитика
@@ -51,6 +51,7 @@ packages/core/
 │   │   ├── pluralize.ts   # declOfNum (склонение)
 │   │   ├── date.ts        # formatDate
 │   │   ├── pet.ts         # getPetTypeLabel
+│   │   ├── transliterate.ts # Кириллица → латиница (username для VK)
 │   │   └── video.ts       # getEmbeddedVideoInfo
 │   └── index.ts
 ├── package.json
@@ -69,7 +70,14 @@ import { getCourseMetadata, getCoursesWithProgress } from "@gafus/core/services/
 import { getUserProfile, updateUserProfile } from "@gafus/core/services/user";
 
 // Аутентификация
-import { checkUserState, registerUser } from "@gafus/core/services/auth";
+import {
+  checkUserState,
+  registerUser,
+  findOrCreateVkUser,
+  setVkPhone,
+  setPassword,
+  changePassword,
+} from "@gafus/core/services/auth";
 
 // Уведомления
 import { createStepNotification } from "@gafus/core/services/notifications";
@@ -127,6 +135,7 @@ import {
   getTelegramUrl,
   calculateDayStatus,
   retryWithBackoff,
+  transliterate,
 } from "@gafus/core/utils";
 
 // Или отдельные модули утилит:

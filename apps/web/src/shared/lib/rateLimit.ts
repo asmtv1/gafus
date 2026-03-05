@@ -16,6 +16,11 @@ const LIMITS: Record<AuthRateLimitPath, number> = {
   "phone-change-request": 5,
   "phone-change-confirm": 10,
   "username-change": 10,
+  "set-password": 5,
+  "change-password": 10,
+  "vk-phone-set": 5,
+  "vk-id-callback": 5,
+  "initiate-vk-id": 10,
 };
 
 export type AuthRateLimitPath =
@@ -25,13 +30,23 @@ export type AuthRateLimitPath =
   | "reset-password"
   | "phone-change-request"
   | "phone-change-confirm"
-  | "username-change";
+  | "username-change"
+  | "set-password"
+  | "change-password"
+  | "vk-phone-set"
+  | "vk-id-callback"
+  | "initiate-vk-id";
 
 const store = new Map<string, number[]>();
 
 function prune(timestamps: number[]): number[] {
   const cutoff = Date.now() - WINDOW_MS;
   return timestamps.filter((t) => t > cutoff);
+}
+
+function isDevOrLocalhost(ip: string): boolean {
+  if (process.env.NODE_ENV === "development") return true;
+  return ["127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost"].includes(ip);
 }
 
 /**
@@ -60,6 +75,8 @@ export async function getClientIpFromHeaders(): Promise<string> {
  * При разрешённом запросе учитывает текущий запрос (инкремент).
  */
 export function checkAuthRateLimit(ip: string, path: AuthRateLimitPath): boolean {
+  if (isDevOrLocalhost(ip)) return true;
+
   const key = `${ip}:${path}`;
   const max = LIMITS[path];
   let timestamps = store.get(key) ?? [];

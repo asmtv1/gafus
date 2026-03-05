@@ -1,9 +1,14 @@
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@gafus/prisma";
 import bcrypt from "bcryptjs";
 import CredentialsProvider from "next-auth/providers/credentials";
 
+import { createWebLogger } from "@gafus/logger";
+
 import type { NextAuthOptions } from "next-auth";
 import type { AuthUser } from "./next-auth.d";
+
+const logger = createWebLogger("auth");
 
 // Импортируем CredentialsProvider напрямую
 
@@ -28,10 +33,28 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Введите имя пользователя и пароль");
         }
 
+        // VK ID one-time token (web callback redirect)
+        if (credentials.username === "__vk_id__" && credentials.password) {
+          const { consumeVkIdOneTimeUser } = await import("./vkIdOneTimeStore");
+          const vkUser = consumeVkIdOneTimeUser(credentials.password);
+          if (!vkUser) throw new Error("Токен VK ID недействителен или истёк");
+          return {
+            id: vkUser.userId,
+            username: vkUser.username,
+            role: vkUser.role as AuthUser["role"],
+          };
+        }
+
         const username = credentials.username.toLowerCase().trim();
-        const user = await prisma.user.findUnique({ where: { username } });
+        const user = await prisma.user.findUnique({
+          where: { username },
+          select: { id: true, username: true, role: true, password: true, passwordSetAt: true },
+        });
 
         if (!user) throw new Error("Неверный логин или пароль");
+        if (user.passwordSetAt === null) {
+          throw new Error("Войдите через VK ID или установите пароль в профиле");
+        }
 
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) throw new Error("Неверный логин или пароль");
@@ -44,6 +67,7 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  adapter: PrismaAdapter(prisma),
   session: {
     strategy: sessionStrategy,
     maxAge: 30 * 24 * 60 * 60, // 30 дней
@@ -68,34 +92,33 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        const t = token as any;
+        const t = token as Record<string, unknown>;
         const userId = String(t.id ?? "");
 
         session.user.id = userId;
         session.user.username = String(t.username ?? "");
 
-        // Получаем актуальную роль из БД для синхронизации с изменениями в admin-panel
-        // Используем роль из токена как fallback в случае ошибки
         try {
           const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { role: true },
+            select: { role: true, passwordSetAt: true, phone: true },
           });
-
-          session.user.role = (user?.role as any) ?? t.role;
-        } catch (error) {
-          session.user.role = t.role;
+          session.user.role = (user?.role as AuthUser["role"]) ?? (t.role as AuthUser["role"]);
+          session.user.passwordSetAt = user?.passwordSetAt ?? null;
+          session.user.needsPhone = user?.phone?.startsWith("vk_") ?? false;
+        } catch {
+          session.user.role = t.role as AuthUser["role"];
+          session.user.passwordSetAt = null;
+          session.user.needsPhone = false;
         }
 
-        // Получаем avatarUrl из профиля
         try {
           const profile = await prisma.userProfile.findUnique({
             where: { userId },
             select: { avatarUrl: true },
           });
-
           session.user.avatarUrl = profile?.avatarUrl ?? null;
-        } catch (error) {
+        } catch {
           session.user.avatarUrl = null;
         }
       }

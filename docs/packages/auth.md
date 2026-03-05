@@ -120,9 +120,24 @@ NEXTAUTH_SECRET=your-secret-key
 # База данных
 DATABASE_URL=postgresql://user:password@localhost:5432/gafus
 
+# VK ID (PKCE; client_secret не передаётся при обмене кода)
+VK_CLIENT_ID=
+VK_CLIENT_SECRET=  # Опционально — только для консоли VK ID
+VK_WEB_REDIRECT_URI=
+VK_MOBILE_REDIRECT_URI=
+
 # Telegram Bot
 TELEGRAM_BOT_TOKEN=your-bot-token
 ```
+
+### VK ID (web)
+
+- **CredentialsProvider** — ветка `username === "__vk_id__"`: one-time токен из callback Route Handler, `consumeVkIdOneTimeUser` возвращает пользователя
+- **vkIdOneTimeStore** — in-memory Map, TTL 60s; `storeVkIdOneTimeUser` (callback), `consumeVkIdOneTimeUser` (CredentialsProvider)
+- **Route Handler** `GET /api/auth/callback/vk-id` — PKCE exchange, `findOrCreateVkUser`, one-time token, redirect на `/login?vk_id_token=...`
+- **Server Action** `initiateVkIdAuth` — rate limit, PKCE, cookie `vk_id_state`, возвращает URL для redirect
+- **Server Action** `prepareVkIdOneTap` — rate limit, PKCE, возвращает state/codeVerifier/clientId/redirectUri для инициализации SDK One Tap. Вызывается лениво при клике (VkIdOneTap). При ошибке/rate limit компонент показывает fallback-кнопку с redirect через `initiateVkIdAuth`
+- **CredentialsProvider** — для VK-only (`passwordSetAt === null`) блокирует вход по паролю, сообщение «Войдите через VK ID или установите пароль в профиле»
 
 ### Роли пользователей
 
@@ -261,17 +276,19 @@ describe("Auth Package", () => {
 ```
 packages/auth/
 ├── src/
-│   ├── auth.ts              # Конфигурация NextAuth
+│   ├── auth.ts              # Конфигурация NextAuth (providers, adapter, callbacks)
 │   ├── checkUserConfirmed.ts # Проверка подтверждения
 │   ├── getCurrentUserId.ts  # Получение ID пользователя
 │   ├── getIsOwner.ts        # Проверка владения
 │   ├── getUserPhoneByUsername.ts # Получение телефона
 │   ├── middleware.ts        # Middleware функции
+│   ├── next-auth.d.ts       # Расширение Session: needsPhone, passwordSetAt
+│   ├── vkIdOneTimeStore.ts  # One-time токены для VK ID web callback
 │   ├── registerUser.ts      # Регистрация пользователя
 │   ├── resetPasswordByToken.ts # Сброс пароля
 │   ├── sendTelegramPasswordResetRequest.ts # Telegram интеграция
-│   ├── server.ts           # Серверные функции
-│   └── index.ts            # Главный экспорт
+│   ├── server.ts            # Серверные функции
+│   └── index.ts             # Главный экспорт
 ├── package.json
 └── tsconfig.json
 ```

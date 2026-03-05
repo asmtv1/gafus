@@ -69,6 +69,13 @@ apps/api/
 - `POST /api/v1/auth/password-reset-request` - Запрос сброса пароля (body: username, phone; код отправляется в Telegram; web и mobile используют api.gafus.ru)
 - `POST /api/v1/auth/refresh` - Обновление токенов
 - `POST /api/v1/auth/logout` - Выход
+- `POST /api/v1/auth/vk` - Вход через VK ID (PKCE: body `{ code, code_verifier, device_id, state }`), см. [VK Auth](../features/vk-auth.md)
+
+### Auth (с JWT — mobile)
+
+- `POST /api/v1/auth/vk-phone-set` - Установка телефона для VK-пользователя (body: `{ phone }`)
+- `POST /api/v1/auth/set-password` - Установка пароля для VK-only пользователя (body: `{ newPassword }`)
+- `POST /api/v1/auth/change-password` - Смена пароля (body: `{ currentPassword, newPassword }`)
 
 ### User (требует авторизации)
 
@@ -130,6 +137,12 @@ CONSENT_VERSION=v1.0 2026-02-13     # Версия документов согл
 
 # Сброс пароля (обязательно для /api/v1/auth/password-reset-request)
 TELEGRAM_BOT_TOKEN=<token>          # Для отправки кода пользователю в Telegram
+
+# VK ID (web и mobile). PKCE — client_secret не передаётся при обмене кода
+VK_CLIENT_ID=<app_id>
+VK_CLIENT_SECRET=<secret_key>  # Только для консоли VK ID
+VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id
+VK_MOBILE_REDIRECT_URI=gafus://auth/vk  # Custom scheme для Expo
 
 # Платежи ЮKassa (обязательны для /api/v1/payments/create)
 YOOKASSA_SHOP_ID=<shop_id>

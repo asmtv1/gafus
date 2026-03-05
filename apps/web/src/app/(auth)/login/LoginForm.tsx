@@ -6,11 +6,17 @@ import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { loginFormSchema } from "@shared/lib/validation/authSchemas";
-import { checkLoginRateLimit, checkUserStateAction } from "@shared/server-actions";
+import {
+  checkLoginRateLimit,
+  checkUserStateAction,
+} from "@shared/server-actions";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
+
+import { VkIdOneTap } from "@shared/components/auth/VkIdOneTap";
 
 import styles from "./login.module.css";
 
@@ -19,6 +25,9 @@ import type { LoginFormSchema } from "@shared/lib/validation/authSchemas";
 export default function LoginForm() {
   const [catchError] = useCaughtError();
   const { token: csrfToken, loading: csrfLoading, error: csrfError } = useCSRFStore();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
   const {
     form,
     handleSubmit,
@@ -27,7 +36,29 @@ export default function LoginForm() {
     username: "",
     password: "",
   });
-  const router = useRouter();
+
+  useEffect(() => {
+    const vkToken = searchParams.get("vk_id_token");
+    if (!vkToken) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("vk_id_token");
+    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.replace(newUrl, { scroll: false });
+
+    signIn("credentials", {
+      username: "__vk_id__",
+      password: vkToken,
+      redirect: false,
+    }).then((res) => {
+      if (res?.error) {
+        alert("Ошибка авторизации VK ID");
+      } else {
+        router.replace("/courses");
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount when token present
+  }, []);
 
   const onSubmit = async (data: LoginFormSchema) => {
     if (csrfLoading || !csrfToken) {
@@ -115,6 +146,7 @@ export default function LoginForm() {
           <Image src="/uploads/login-paw.png" alt="Войти" width={140} height={135} />
         )}
       </button>
+      <VkIdOneTap />
     </form>
   );
 }

@@ -6,6 +6,8 @@ export interface AuthUser {
   id: string;
   username: string;
   role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
+  needsPhone?: boolean;
+  passwordSetAt?: Date | null;
   // Сохраняем совместимость с базовыми полями next-auth
   name?: string | null;
   email?: string | null;

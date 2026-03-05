@@ -3,9 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./server": { "types": "./dist/server.d.ts", "default": "./dist/server.js" },
-    "./jwt": { "types": "./dist/jwt.d.ts", "default": "./dist/jwt.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./jwt": {
+      "types": "./dist/jwt.d.ts",
+      "default": "./dist/jwt.js"
+    }
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,6 +29,7 @@
   "dependencies": {
     "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
+    "@next-auth/prisma-adapter": "^1.0.7",
     "bcryptjs": "^3.0.2",
     "jose": "^5.10.0",
     "libphonenumber-js": "1.12.8",

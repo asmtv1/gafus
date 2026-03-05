@@ -530,6 +530,10 @@ jobs:
               echo "NEXT_PUBLIC_CONTACT_PHONE=${{ secrets.NEXT_PUBLIC_CONTACT_PHONE }}"
               echo "NEXT_PUBLIC_CONTACT_FIO=${{ secrets.NEXT_PUBLIC_CONTACT_FIO }}"
               echo "NEXT_PUBLIC_CONTACT_INN=${{ secrets.NEXT_PUBLIC_CONTACT_INN }}"
+              echo ""
+              echo "# VK ID авторизация"
+              echo "VK_CLIENT_ID=${{ secrets.VK_CLIENT_ID }}"
+              echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI }}"
             } > ci-cd/docker/.env
 
             # Set secure permissions for .env file

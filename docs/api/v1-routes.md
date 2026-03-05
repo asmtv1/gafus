@@ -175,6 +175,72 @@
 
 ---
 
+### POST `/api/v1/auth/vk`
+
+Вход через VK ID (mobile). **PKCE обязателен** — `code_verifier` участвует в обмене кода, `client_secret` не используется. См. [VK Auth](../features/vk-auth.md).
+
+**Body:**
+
+```json
+{
+  "code": "string",
+  "code_verifier": "string (43-128 символов)",
+  "device_id": "string",
+  "state": "string (min 32)"
+}
+```
+
+**Response (success):** `{ "success": true, "data": { "user": { "id", "username", "role" }, "accessToken", "refreshToken", "needsPhone" } }`
+
+**Ошибки:** 400 (не удалось обменять code, профиль не получен, неверная валидация).
+
+---
+
+### POST `/api/v1/auth/vk-phone-set`
+
+Установка телефона для VK-пользователя. Требует авторизацию: Bearer JWT. Доступно только если `phone.startsWith("vk_")`.
+
+**Body:**
+
+```json
+{ "phone": "string" }
+```
+
+**Response:** `{ "success": true }` или `{ "success": false, "error": "string" }`
+
+---
+
+### POST `/api/v1/auth/set-password`
+
+Установка пароля для VK-only пользователя. Требует авторизацию: Bearer JWT. Недоступно если пароль уже установлен.
+
+**Body:**
+
+```json
+{ "newPassword": "string (min 8, upper/lower/digit)" }
+```
+
+**Response:** `{ "success": true }` или `{ "success": false, "error": "string" }`
+
+---
+
+### POST `/api/v1/auth/change-password`
+
+Смена пароля. Требует авторизацию: Bearer JWT. Доступно только если пароль уже установлен.
+
+**Body:**
+
+```json
+{
+  "currentPassword": "string",
+  "newPassword": "string (min 8, upper/lower/digit)"
+}
+```
+
+**Response:** `{ "success": true }` или `{ "success": false, "error": "string" }`
+
+---
+
 ## Training — Тренировки (ОСНОВНОЙ ФУНКЦИОНАЛ)
 
 ### GET `/api/v1/training/days`
@@ -936,6 +1002,10 @@
 ---
 
 ## Changelog
+
+### v1.2.0 (04.03.2026)
+
+- **VK ID Auth:** `POST /api/v1/auth/vk` — обмен code на токены; `POST /api/v1/auth/vk-phone-set`, `POST /api/v1/auth/set-password`, `POST /api/v1/auth/change-password` — JWT-protected endpoints для VK-пользователей. См. [VK Auth](../features/vk-auth.md).
 
 ### v1.1.2 (01.03.2026)
 

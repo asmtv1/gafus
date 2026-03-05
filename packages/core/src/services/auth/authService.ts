@@ -6,6 +6,9 @@
  */
 
 import bcrypt from "bcryptjs";
+import parsePhoneNumberFromString from "libphonenumber-js";
+import { z } from "zod";
+
 import {
   checkUserConfirmed,
   confirmPhoneChangeByShortCode,
@@ -22,6 +25,14 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("auth-service");
+
+const newPasswordSchema = z
+  .string()
+  .min(8, "минимум 8 символов")
+  .max(100, "максимум 100 символов")
+  .regex(/[A-Z]/, "минимум одна заглавная буква")
+  .regex(/[a-z]/, "минимум одна строчная буква")
+  .regex(/[0-9]/, "минимум одна цифра");
 
 /** Результат успешной верификации учётных данных */
 export interface ValidateCredentialsSuccess {
@@ -335,5 +346,89 @@ export async function revokeAllUserTokens(userId: string): Promise<void> {
     where: { userId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+}
+
+// ========== VK-only: setVkPhone, setPassword, changePassword ==========
+
+/**
+ * Установка номера телефона для VK-пользователя (phone = "vk_...").
+ */
+export async function setVkPhone(userId: string, phone: string): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { phone: true },
+  });
+  if (!user) throw new Error("Пользователь не найден");
+  if (!user.phone.startsWith("vk_")) {
+    throw new Error("Смена номера недоступна через этот метод");
+  }
+
+  const parsed = parsePhoneNumberFromString(phone, "RU");
+  if (!parsed || !parsed.isValid()) {
+    throw new Error("Неверный формат номера телефона");
+  }
+  const formatted = parsed.format("E.164");
+
+  const existing = await prisma.user.findFirst({
+    where: { phone: formatted, NOT: { id: userId } },
+  });
+  if (existing) throw new Error("Номер телефона уже занят");
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { phone: formatted },
+  });
+  logger.success("vkPhone set", { userId });
+}
+
+/**
+ * Установка пароля для VK-only пользователя (passwordSetAt === null).
+ */
+export async function setPassword(userId: string, newPassword: string): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { passwordSetAt: true },
+  });
+  if (!user) throw new Error("Пользователь не найден");
+  if (user.passwordSetAt !== null) {
+    throw new Error("Пароль уже установлен, используйте смену пароля");
+  }
+
+  newPasswordSchema.parse(newPassword);
+  const hash = await bcrypt.hash(newPassword, 12);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { password: hash, passwordSetAt: new Date() },
+  });
+  logger.success("setPassword completed", { userId });
+}
+
+/**
+ * Смена пароля (для пользователей с passwordSetAt !== null).
+ */
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { password: true, passwordSetAt: true },
+  });
+  if (!user) throw new Error("Пользователь не найден");
+  if (user.passwordSetAt === null) {
+    throw new Error("Сначала установите пароль");
+  }
+
+  const valid = await bcrypt.compare(currentPassword, user.password);
+  if (!valid) throw new Error("Неверный текущий пароль");
+
+  newPasswordSchema.parse(newPassword);
+  const hash = await bcrypt.hash(newPassword, 12);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { password: hash, passwordSetAt: new Date() },
+  });
+  logger.success("changePassword completed", { userId });
 }
 

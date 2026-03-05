@@ -1,5 +1,11 @@
 export { apiClient, type ApiResponse } from "./client";
-export { authApi, type User, type LoginResponse, type RegisterData } from "./auth";
+export {
+  authApi,
+  type User,
+  type LoginResponse,
+  type VkLoginResponse,
+  type RegisterData,
+} from "./auth";
 export {
   offlineApi,
   type FullCourseData,

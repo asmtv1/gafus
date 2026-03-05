@@ -55,6 +55,7 @@ model User {
   username          String    @unique
   phone             String    @unique
   password          String
+  passwordSetAt     DateTime?  // null = VK-only, пароль не установлен
   telegramId        String?   @unique
   isConfirmed       Boolean   @default(false)
   role              UserRole  @default(USER)
@@ -64,11 +65,20 @@ model User {
   pets              Pet[]
   authoredCourses   Course[]
   userTrainings     UserTraining[]
+  accounts          Account[]
+  sessions          Session[]
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
 ```
+
+#### Account, Session (OAuth / NextAuth)
+
+Для VK ID и PrismaAdapter добавлены модели:
+
+- **Account** — связь User ↔ OAuth provider (provider, providerAccountId)
+- **Session** — NextAuth сессии (strategy: JWT, таблица для adapter)
 
 #### Pet (Питомцы)
 

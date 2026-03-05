@@ -63,6 +63,19 @@ const consent = raw === "accepted" || raw === "declined" ? raw : null;
 
 Подробнее: [Cookie consent — документация фичи](../features/cookie-consent.md).
 
+## LoginForm
+
+Форма входа (credentials). Опционально — кнопка «Войти через VK ID».
+
+| Prop | Тип | По умолчанию | Описание |
+|------|-----|--------------|----------|
+| `showVkLogin` | `boolean` | `false` | Показать кнопку «Войти через VK ID» |
+| `onVkLogin` | `() => void \| Promise<void>` | — | Обработчик клика (вызов Server Action, иначе кнопка скрыта) |
+| `allowedRoles` | `string[]` | `[]` | Ограничение по ролям (trainer-panel) |
+| `redirectPath` | `string` | `"/"` | Редирект после успешного входа |
+
+---
+
 ## 📦 Базовые компоненты
 
 ```typescript

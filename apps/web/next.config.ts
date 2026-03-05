@@ -208,7 +208,15 @@ const nextConfig = {
   },
 
   async rewrites() {
-    return [{ source: "/contacts", destination: "/contacts.html" }];
+    const rewrites: { source: string; destination: string }[] = [
+      { source: "/contacts", destination: "/contacts.html" },
+    ];
+    // Проксируем /uploads/ на CDN (для ngrok и других сценариев без nginx)
+    rewrites.push({
+      source: "/uploads/:path*",
+      destination: "https://storage.yandexcloud.net/gafus-media/uploads/:path*",
+    });
+    return rewrites;
   },
 
   async headers() {

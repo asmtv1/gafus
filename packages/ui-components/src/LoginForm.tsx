@@ -14,8 +14,10 @@ export default function LoginForm({
   icon = <School sx={{ fontSize: 40, color: "primary.main" }} />,
   allowedRoles = [],
   redirectPath = "/",
+  showVkLogin = false,
   onSuccess,
   onError,
+  onVkLogin,
 }: LoginFormProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -117,6 +119,17 @@ export default function LoginForm({
           >
             {loading ? "Вход..." : "Войти"}
           </Button>
+          {showVkLogin && onVkLogin && (
+            <Button
+              type="button"
+              fullWidth
+              variant="outlined"
+              sx={{ mt: 1, borderColor: "#5181b8", color: "#5181b8" }}
+              onClick={() => onVkLogin()}
+            >
+              Войти через VK ID
+            </Button>
+          )}
         </Box>
       </Paper>
     </Container>

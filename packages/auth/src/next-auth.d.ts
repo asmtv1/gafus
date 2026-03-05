@@ -3,6 +3,7 @@ export interface AuthUser {
   id: string;
   username: string;
   role: AuthRole;
+  needsPhone?: boolean;
 }
 
 declare module "next-auth" {
@@ -12,6 +13,8 @@ declare module "next-auth" {
       username: string;
       role: AuthRole;
       avatarUrl?: string | null;
+      passwordSetAt?: Date | null;
+      needsPhone?: boolean;
     } & import("next-auth").DefaultSession["user"];
   }
 
@@ -27,5 +30,7 @@ declare module "next-auth/jwt" {
     id: string;
     username: string;
     role: AuthRole;
+    passwordSetAt?: Date | null;
+    needsPhone?: boolean;
   }
 }

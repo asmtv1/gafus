@@ -11,9 +11,11 @@ import crypto from "crypto";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
 import { registerUser } from "@gafus/auth";
 import {
+  changePassword,
   changeUsername,
   confirmPhoneChange,
   createRefreshSession,
+  findOrCreateVkUser,
   getAuthUserById,
   requestPhoneChange,
   resetPasswordByCode,
@@ -22,6 +24,8 @@ import {
   rotateRefreshToken,
   sendPasswordResetRequest,
   serverCheckUserConfirmed,
+  setPassword,
+  setVkPhone,
   validateCredentials,
   validateRefreshToken,
 } from "@gafus/core/services/auth";
@@ -111,6 +115,33 @@ const phoneChangeConfirmSchema = z.object({
 
 const usernameChangeSchema = z.object({
   newUsername: z.string().trim().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Логин: латиница, цифры, _"),
+});
+
+const vkIdSchema = z.object({
+  code: z.string().min(1),
+  code_verifier: z.string().min(43).max(128),
+  device_id: z.string().min(1),
+  state: z.string().min(32),
+});
+const vkPhoneSetSchema = z.object({ phone: z.string().min(1) });
+const setPasswordApiSchema = z.object({
+  newPassword: z
+    .string()
+    .min(8)
+    .max(100)
+    .regex(/[A-Z]/, "Минимум одна заглавная буква")
+    .regex(/[a-z]/, "Минимум одна строчная буква")
+    .regex(/[0-9]/, "Минимум одна цифра"),
+});
+const changePasswordApiSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z
+    .string()
+    .min(8)
+    .max(100)
+    .regex(/[A-Z]/, "Минимум одна заглавная буква")
+    .regex(/[a-z]/, "Минимум одна строчная буква")
+    .regex(/[0-9]/, "Минимум одна цифра"),
 });
 
 const REFRESH_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000; // 30 дней
@@ -443,6 +474,179 @@ authRoutes.post(
       logger.error("phone-change-confirm error", error as Error);
       const message = error instanceof Error ? error.message : "Не удалось сменить номер";
       return c.json({ success: false, error: message }, 400);
+    }
+  },
+);
+
+// POST /api/v1/auth/vk — вход через VK ID (mobile, PKCE)
+authRoutes.post(
+  "/vk",
+  bodyLimit({ maxSize: 5 * 1024 }),
+  zValidator("json", vkIdSchema),
+  async (c) => {
+    try {
+      const { code, code_verifier, device_id, state } = c.req.valid("json");
+      const ip =
+        c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
+        c.req.header("x-real-ip") ??
+        "";
+
+      const redirectUri = process.env.VK_MOBILE_REDIRECT_URI ?? "";
+      const clientId = process.env.VK_CLIENT_ID ?? "";
+
+      const tokenRes = await fetch("https://id.vk.ru/oauth2/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          code_verifier,
+          redirect_uri: redirectUri,
+          client_id: clientId,
+          device_id,
+          state,
+        }),
+      });
+      const tokenData = (await tokenRes.json()) as {
+        access_token?: string;
+        error?: string;
+        error_description?: string;
+      };
+      if (!tokenData.access_token) {
+        logger.warn("VK ID token exchange failed", { error: tokenData.error });
+        return c.json(
+          { success: false, error: "Не удалось получить токен VK ID" },
+          400,
+        );
+      }
+
+      const userRes = await fetch("https://id.vk.ru/oauth2/user_info", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          access_token: tokenData.access_token,
+        }),
+      });
+      const userData = (await userRes.json()) as {
+        user?: {
+          user_id: string;
+          first_name?: string;
+          last_name?: string;
+          avatar?: string;
+        };
+        error?: string;
+      };
+      if (!userData.user?.user_id) {
+        logger.warn("VK ID user_info failed", { error: userData.error });
+        return c.json(
+          { success: false, error: "Не удалось получить профиль VK ID" },
+          400,
+        );
+      }
+
+      const vkProfile = {
+        id: String(userData.user.user_id),
+        first_name: userData.user.first_name,
+        last_name: userData.user.last_name,
+        avatar: userData.user.avatar,
+      };
+
+      const { user, needsPhone } = await findOrCreateVkUser(vkProfile, vkProfile.id);
+
+      const authUser = {
+        id: user.id,
+        username: user.username,
+        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM",
+      };
+      const accessToken = await generateAccessToken(authUser);
+      const tokenId = crypto.randomUUID();
+      const refreshToken = await generateRefreshToken(user.id, tokenId);
+      const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+
+      await createRefreshSession(user.id, tokenId, tokenHash, {
+        ipAddress: ip,
+        userAgent: c.req.header("user-agent"),
+        expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS),
+      });
+
+      logger.info("VK ID auth success", { userId: user.id });
+
+      return c.json({
+        success: true,
+        data: {
+          user: { id: user.id, username: user.username, role: user.role },
+          accessToken,
+          refreshToken,
+          needsPhone,
+        },
+      });
+    } catch (error) {
+      logger.error("VK ID auth error", error as Error);
+      return c.json({ success: false, error: "Ошибка авторизации VK ID" }, 500);
+    }
+  },
+);
+
+// POST /api/v1/auth/vk-phone-set (требует JWT)
+authRoutes.post(
+  "/vk-phone-set",
+  authMiddleware,
+  bodyLimit({ maxSize: 1024 }),
+  zValidator("json", vkPhoneSetSchema),
+  async (c) => {
+    try {
+      const { phone } = c.req.valid("json");
+      const userId = c.get("user").id;
+      await setVkPhone(userId, phone);
+      return c.json({ success: true });
+    } catch (error) {
+      return c.json(
+        { success: false, error: error instanceof Error ? error.message : "Ошибка" },
+        400,
+      );
+    }
+  },
+);
+
+// POST /api/v1/auth/set-password (требует JWT)
+authRoutes.post(
+  "/set-password",
+  authMiddleware,
+  bodyLimit({ maxSize: 1024 }),
+  zValidator("json", setPasswordApiSchema),
+  async (c) => {
+    try {
+      const { newPassword } = c.req.valid("json");
+      const userId = c.get("user").id;
+      await setPassword(userId, newPassword);
+      return c.json({ success: true });
+    } catch (error) {
+      return c.json(
+        { success: false, error: error instanceof Error ? error.message : "Ошибка" },
+        400,
+      );
+    }
+  },
+);
+
+// POST /api/v1/auth/change-password (требует JWT)
+authRoutes.post(
+  "/change-password",
+  authMiddleware,
+  bodyLimit({ maxSize: 1024 }),
+  zValidator("json", changePasswordApiSchema),
+  async (c) => {
+    try {
+      const { currentPassword, newPassword } = c.req.valid("json");
+      const userId = c.get("user").id;
+      await changePassword(userId, currentPassword, newPassword);
+      return c.json({ success: true });
+    } catch (error) {
+      return c.json(
+        { success: false, error: error instanceof Error ? error.message : "Ошибка" },
+        400,
+      );
     }
   },
 );

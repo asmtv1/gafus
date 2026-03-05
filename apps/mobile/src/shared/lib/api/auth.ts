@@ -25,6 +25,13 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+export interface VkLoginResponse {
+  user: Pick<User, "id" | "username" | "role">;
+  accessToken: string;
+  refreshToken: string;
+  needsPhone?: boolean;
+}
+
 export interface RegisterData {
   name: string;
   phone: string;
@@ -221,6 +228,59 @@ export const authApi = {
         code: "NETWORK_ERROR",
       };
     }
+  },
+
+  /**
+   * Авторизация через VK ID (мобильный, PKCE)
+   */
+  loginViaVk: async (params: {
+    code: string;
+    code_verifier: string;
+    device_id: string;
+    state: string;
+  }): Promise<ApiResponse<VkLoginResponse>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/vk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      });
+
+      if (!response.ok) {
+        let errorData: { error?: string; code?: string } = {};
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            errorData = await response.json();
+          }
+        } catch {
+          // игнорируем ошибки парсинга
+        }
+        return {
+          success: false,
+          error: errorData.error || "Ошибка авторизации VK ID",
+          code: errorData.code || `HTTP_${response.status}`,
+        };
+      }
+
+      const result = await response.json();
+      return { success: true, data: result.data };
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
+      }
+      return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
+    }
+  },
+
+  /**
+   * Установка номера телефона для VK-пользователя (требует Bearer-токен)
+   */
+  setVkPhone: async (phone: string): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/auth/vk-phone-set", {
+      method: "POST",
+      body: { phone },
+    });
   },
 
   /**

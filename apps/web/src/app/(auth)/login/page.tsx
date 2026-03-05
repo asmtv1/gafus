@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { generateStaticPageMetadata } from "@gafus/metadata";
 
 import styles from "./login.module.css";
@@ -33,7 +34,9 @@ export default function LoginPage() {
         </Link>
         .
       </p>
-      <LoginForm />
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </main>
   );
 }

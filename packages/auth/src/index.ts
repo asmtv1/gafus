@@ -9,4 +9,5 @@ export { registerUser } from "./registerUser";
 export { sendTelegramPhoneChangeRequest } from "./sendTelegramPhoneChangeRequest";
 export { confirmPhoneChangeByShortCode } from "./confirmPhoneChangeByShortCode";
 export { sendTelegramUsernameChangeNotification } from "./sendTelegramUsernameChangeNotification";
+export { storeVkIdOneTimeUser } from "./vkIdOneTimeStore";
 export type { AuthRole, AuthUser } from "./next-auth.d";

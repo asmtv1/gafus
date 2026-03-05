@@ -81,6 +81,9 @@ app/
 ├── (main)/
 │   ├── courses/
 │   ├── profile/
+│   │   ├── set-password/   # VK-only: установка пароля
+│   │   ├── change-password/
+│   │   └── change-phone/   # При needsPhone — SetVkPhoneForm
 │   ├── statistics/
 │   └── training/
 └── ~offline/
@@ -90,6 +93,10 @@ app/
 ### Регистрация и согласия
 
 При регистрации сохраняются согласия на три документа (персональные данные, политика конфиденциальности, размещение в публичном профиле). Flow: tempSessionId → createConsentLogs (PENDING) → registerUser → linkConsentLogsToUser (COMPLETED) или markConsentLogsFailed. Подробнее: [docs/features/consent-registration.md](../features/consent-registration.md).
+
+### Вход через VK ID
+
+На страницах `/login` и `/register` — компонент `VkIdOneTap`: виджет VK ID One Tap с lazy init (prepare при клике) и fallback-кнопкой при ошибке (redirect flow). В dev и на localhost rate limit для auth-эндпоинтов не применяется. Подробнее: [docs/features/vk-auth.md](../features/vk-auth.md).
 
 ### Безопасность (auth)
 

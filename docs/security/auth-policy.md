@@ -10,6 +10,7 @@
 - `POST /api/v1/auth/check-phone-match` — заглушка (всегда `matches: true`)
 - `POST /api/v1/auth/password-reset-request` — запрос сброса пароля (web и mobile → api.gafus.ru)
 - `POST /api/v1/auth/reset-password` — сброс по токену
+- `POST /api/v1/auth/vk` — вход через VK ID (mobile, PKCE: body `{ code, code_verifier, device_id, state }`)
 
 Публичные auth API не защищены CSRF по решению: используются и мобильным клиентом; применяются rate limit и CORS.
 
@@ -24,6 +25,13 @@
 - login: 10
 - password-reset-request: 10 (auth limiter на api.gafus.ru, окно 15 мин)
 - reset-password: 10
+- set-password: 5 (Server Action + API, VK-only)
+- change-password: 10
+- vk-phone-set: 5 (Server Action + API, установка телефона VK-пользователя)
+- initiate-vk-id: 10 (prepareVkIdOneTap, initiateVkIdAuth)
+- vk-id-callback: 5
+
+**Bypass для разработки:** при `NODE_ENV=development` или IP localhost rate limit не применяется (`checkAuthRateLimit` в apps/web).
 
 In-memory хранилище: при нескольких инстансах (pod/worker) счётчики не общие; для общего лимита нужен Redis (документировать как ограничение).
 
