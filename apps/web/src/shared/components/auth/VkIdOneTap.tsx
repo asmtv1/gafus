@@ -72,6 +72,8 @@ export function VkIdOneTap() {
         state,
         codeVerifier,
       });
+      // Контейнер должен быть видим при render — VK ID SDK не работает с display:none
+      container.style.removeProperty("display");
       const oneTap = new VKID.OneTap();
       oneTap.render({
         container,
@@ -94,7 +96,7 @@ export function VkIdOneTap() {
           setViewState("error");
         }
       });
-      setViewState("success");
+      if (mountedRef.current) setViewState("success");
     } catch (e) {
       reportClientError(e instanceof Error ? e : new Error("VK ID init failed"), {
         issueKey: "VkIdOneTapInit",
