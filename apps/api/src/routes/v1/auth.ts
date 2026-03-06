@@ -14,9 +14,11 @@ import {
   changePassword,
   changeUsername,
   confirmPhoneChange,
+  isUsernameAvailable,
   createRefreshSession,
   findOrCreateVkUser,
   getAuthUserById,
+  linkVkToUser,
   requestPhoneChange,
   resetPasswordByCode,
   revokeAllUserTokens,
@@ -117,13 +119,22 @@ const usernameChangeSchema = z.object({
   newUsername: z.string().trim().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Логин: латиница, цифры, _"),
 });
 
+const usernameAvailableQuerySchema = z.object({
+  username: z.string().trim().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Логин: латиница, цифры, _"),
+});
+
 const vkIdSchema = z.object({
   code: z.string().min(1),
   code_verifier: z.string().min(43).max(128),
   device_id: z.string().min(1),
   state: z.string().min(32),
 });
-const vkPhoneSetSchema = z.object({ phone: z.string().min(1) });
+const vkPhoneSetSchema = z.object({
+  phone: z
+    .string()
+    .min(1, "Номер телефона обязателен")
+    .regex(/^\+\d{10,15}$/, "Некорректный формат номера (ожидается E.164, пример: +79001234567)"),
+});
 const setPasswordApiSchema = z.object({
   newPassword: z
     .string()
@@ -534,6 +545,7 @@ authRoutes.post(
           first_name?: string;
           last_name?: string;
           avatar?: string;
+          birthday?: string;
         };
         error?: string;
       };
@@ -550,6 +562,7 @@ authRoutes.post(
         first_name: userData.user.first_name,
         last_name: userData.user.last_name,
         avatar: userData.user.avatar,
+        birthday: userData.user.birthday,
       };
 
       const { user, needsPhone } = await findOrCreateVkUser(vkProfile, vkProfile.id);
@@ -601,10 +614,98 @@ authRoutes.post(
       await setVkPhone(userId, phone);
       return c.json({ success: true });
     } catch (error) {
+      const msg = error instanceof Error ? error.message : "";
+      const safeMessages = [
+        "Пользователь не найден",
+        "Смена номера недоступна через этот метод",
+        "Неверный формат номера телефона",
+      ];
       return c.json(
-        { success: false, error: error instanceof Error ? error.message : "Ошибка" },
+        { success: false, error: safeMessages.includes(msg) ? msg : "Не удалось установить номер" },
         400,
       );
+    }
+  },
+);
+
+// POST /api/v1/auth/vk-link — привязка VK аккаунта (mobile, PKCE, требует JWT)
+authRoutes.post(
+  "/vk-link",
+  authMiddleware,
+  bodyLimit({ maxSize: 5 * 1024 }),
+  zValidator("json", vkIdSchema),
+  async (c) => {
+    try {
+      const { code, code_verifier, device_id, state } = c.req.valid("json");
+      const user = c.get("user");
+
+      const redirectUri = process.env.VK_MOBILE_REDIRECT_URI ?? "";
+      const clientId = process.env.VK_CLIENT_ID ?? "";
+
+      const tokenRes = await fetch("https://id.vk.ru/oauth2/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          code_verifier,
+          redirect_uri: redirectUri,
+          client_id: clientId,
+          device_id,
+          state,
+        }),
+      });
+      const tokenData = (await tokenRes.json()) as {
+        access_token?: string;
+        error?: string;
+        error_description?: string;
+      };
+      if (!tokenData.access_token) {
+        logger.warn("VK link token exchange failed", { error: tokenData.error });
+        return c.json({ success: false, error: "Не удалось получить токен VK ID" }, 400);
+      }
+
+      const userRes = await fetch("https://id.vk.ru/oauth2/user_info", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          access_token: tokenData.access_token,
+        }),
+      });
+      const userData = (await userRes.json()) as {
+        user?: {
+          user_id: string;
+          first_name?: string;
+          last_name?: string;
+          avatar?: string;
+          birthday?: string;
+        };
+        error?: string;
+      };
+      if (!userData.user?.user_id) {
+        logger.warn("VK link user_info failed", { error: userData.error });
+        return c.json({ success: false, error: "Не удалось получить профиль VK ID" }, 400);
+      }
+
+      const vkProfile = {
+        id: String(userData.user.user_id),
+        first_name: userData.user.first_name,
+        last_name: userData.user.last_name,
+        avatar: userData.user.avatar,
+        birthday: userData.user.birthday,
+      };
+
+      const result = await linkVkToUser(user.id, vkProfile);
+      if (!result.success) {
+        return c.json({ success: false, error: result.error }, 400);
+      }
+
+      logger.info("VK link success via API", { userId: user.id });
+      return c.json({ success: true });
+    } catch (error) {
+      logger.error("VK link error", error as Error);
+      return c.json({ success: false, error: "Ошибка привязки VK" }, 500);
     }
   },
 );
@@ -622,8 +723,13 @@ authRoutes.post(
       await setPassword(userId, newPassword);
       return c.json({ success: true });
     } catch (error) {
+      const msg = error instanceof Error ? error.message : "";
+      const safeMessages = [
+        "Пользователь не найден",
+        "Пароль уже установлен, используйте смену пароля",
+      ];
       return c.json(
-        { success: false, error: error instanceof Error ? error.message : "Ошибка" },
+        { success: false, error: safeMessages.includes(msg) ? msg : "Не удалось установить пароль" },
         400,
       );
     }
@@ -647,6 +753,24 @@ authRoutes.post(
         { success: false, error: error instanceof Error ? error.message : "Ошибка" },
         400,
       );
+    }
+  },
+);
+
+// GET /api/v1/auth/username-available — live-check доступности логина
+authRoutes.get(
+  "/username-available",
+  authMiddleware,
+  zValidator("query", usernameAvailableQuerySchema),
+  async (c) => {
+    try {
+      const { username } = c.req.valid("query");
+      const user = c.get("user");
+      const available = await isUsernameAvailable(username, user.id);
+      return c.json({ success: true, data: { available } });
+    } catch (error) {
+      logger.error("username-available error", error as Error);
+      return c.json({ success: false, error: "Ошибка проверки логина" }, 500);
     }
   },
 );

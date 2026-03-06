@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDeleteOldFailedConsentLogs = vi.fn();
 
-vi.mock("@gafus/core", () => ({
+vi.mock("@gafus/core/services/consent", () => ({
   deleteOldFailedConsentLogs: (...args: unknown[]) =>
     mockDeleteOldFailedConsentLogs(...args),
 }));

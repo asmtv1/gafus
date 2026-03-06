@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Suspense } from "react";
 import { generateStaticPageMetadata } from "@gafus/metadata";
 
 import styles from "./register.module.css";
@@ -25,7 +26,9 @@ export default function RegisterPage() {
         />
         <h2 className={styles.subtitle}>регистрация</h2>
       </div>
-      <RegisterForm />
+      <Suspense fallback={null}>
+        <RegisterForm />
+      </Suspense>
     </main>
   );
 }

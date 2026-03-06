@@ -8,6 +8,8 @@ export interface User {
   phone: string;
   role: "USER" | "TRAINER" | "ADMIN" | "MODERATOR" | "PREMIUM";
   isConfirmed: boolean;
+  hasAppPassword?: boolean;
+  hasVkLinked?: boolean;
   profile?: {
     fullName: string | null;
     about: string | null;
@@ -274,12 +276,37 @@ export const authApi = {
   },
 
   /**
+   * Привязка VK аккаунта (требует Bearer-токен)
+   */
+  linkVk: async (params: {
+    code: string;
+    code_verifier: string;
+    device_id: string;
+    state: string;
+  }): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/auth/vk-link", {
+      method: "POST",
+      body: params,
+    });
+  },
+
+  /**
    * Установка номера телефона для VK-пользователя (требует Bearer-токен)
    */
   setVkPhone: async (phone: string): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/auth/vk-phone-set", {
       method: "POST",
       body: { phone },
+    });
+  },
+
+  /**
+   * Установка пароля для VK-пользователя без пароля (требует Bearer-токен)
+   */
+  setPassword: async (newPassword: string): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/auth/set-password", {
+      method: "POST",
+      body: { newPassword },
     });
   },
 

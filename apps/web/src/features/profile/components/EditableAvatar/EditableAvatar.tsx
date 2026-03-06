@@ -69,7 +69,7 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
   const displayedUrl =
     currentAvatarUrl && !imageError
       ? cacheBuster
-        ? `${currentAvatarUrl}?cb=${cacheBuster}`
+        ? `${currentAvatarUrl}${currentAvatarUrl.includes("?") ? "&" : "?"}cb=${cacheBuster}`
         : currentAvatarUrl
       : "/uploads/avatar.svg";
 

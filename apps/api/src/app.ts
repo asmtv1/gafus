@@ -10,7 +10,12 @@ import { requestId } from "hono/request-id";
 import { corsMiddleware } from "./middleware/cors.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { authMiddleware } from "./middleware/auth.js";
-import { authRateLimiter, apiRateLimiter, paymentsRateLimiter } from "./middleware/rate-limit.js";
+import {
+  authRateLimiter,
+  apiRateLimiter,
+  paymentsRateLimiter,
+  usernameAvailableRateLimiter,
+} from "./middleware/rate-limit.js";
 import { healthRoutes } from "./routes/v1/health.js";
 import { authRoutes } from "./routes/v1/auth.js";
 import { userRoutes } from "./routes/v1/user.js";
@@ -36,8 +41,14 @@ app.use("*", corsMiddleware);
 // Health routes (no auth)
 app.route("/", healthRoutes);
 
-// Auth routes (rate limited, no auth required)
-app.use("/api/v1/auth/*", authRateLimiter);
+// Auth routes (rate limited) — GET username-available получает мягкий лимит
+app.use("/api/v1/auth/*", (c, next) => {
+  const path = new URL(c.req.url).pathname;
+  if (path.endsWith("/username-available") && c.req.method === "GET") {
+    return usernameAvailableRateLimiter(c, next);
+  }
+  return authRateLimiter(c, next);
+});
 app.route("/api/v1/auth", authRoutes);
 
 // Protected routes - require auth

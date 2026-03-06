@@ -1,0 +1,61 @@
+.buttonsContainer {
+  margin-top: 0px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.button_register {
+  background-color: #fff8e5;
+  width: 221px;
+  height: 48px;
+  border-radius: 5px;
+  border: 2px solid var(--bg-2);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 25px;
+  line-height: 100%;
+  letter-spacing: 0px;
+  color: var(--bg-2);
+  cursor: pointer;
+}
+
+.button_login {
+  background-color: var(--bg-2);
+  width: 221px;
+  height: 48px;
+  border-radius: 5px;
+  border: 2px solid var(--bg-2);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 25px;
+  line-height: 100%;
+  letter-spacing: 0px;
+  color: #fff8e5;
+  cursor: pointer;
+  border: 2px solid #fff8e5;
+}
+
+@media (min-width: 1024px) {
+  .buttonsContainer {
+    margin-top: -40px;
+  }
+
+  .button_register,
+  .button_login {
+    width: 250px;
+    height: 52px;
+    font-size: 26px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .button_register,
+  .button_login {
+    width: 280px;
+    height: 56px;
+    font-size: 28px;
+  }
+}

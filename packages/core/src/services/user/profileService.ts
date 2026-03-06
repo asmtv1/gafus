@@ -311,6 +311,10 @@ export async function getUserWithTrainings(userId: string): Promise<UserWithTrai
       id: true,
       username: true,
       phone: true,
+      accounts: {
+        where: { provider: "vk" },
+        select: { id: true },
+      },
       userTrainings: {
         orderBy: { dayOnCourse: { order: "asc" } },
         select: {
@@ -372,6 +376,7 @@ export async function getUserWithTrainings(userId: string): Promise<UserWithTrai
     id: user.id,
     username: user.username,
     phone: user.phone,
+    hasVkLinked: (user.accounts?.length ?? 0) > 0,
     courses,
   };
 }
@@ -383,6 +388,9 @@ export interface UserProfileForApi {
   phone: string;
   role: string;
   isConfirmed: boolean;
+  /** true, если у пользователя установлен прикладной пароль (passwordSetAt !== null) */
+  hasAppPassword: boolean;
+  hasVkLinked: boolean;
   profile: {
     fullName: string | null;
     about: string | null;
@@ -408,6 +416,11 @@ export async function getUserProfileForApi(
       phone: true,
       role: true,
       isConfirmed: true,
+      passwordSetAt: true,
+      accounts: {
+        where: { provider: "vk" },
+        select: { id: true },
+      },
       profile: {
         select: {
           fullName: true,
@@ -422,9 +435,13 @@ export async function getUserProfileForApi(
     },
   });
   if (!user) return null;
+  const hasVkLinked = (user.accounts?.length ?? 0) > 0;
+  const { passwordSetAt, accounts, ...userRest } = user;
   const p = user.profile;
   return {
-    ...user,
+    ...userRest,
+    hasAppPassword: passwordSetAt !== null,
+    hasVkLinked,
     profile: {
       fullName: p?.fullName ?? null,
       about: p?.about ?? null,

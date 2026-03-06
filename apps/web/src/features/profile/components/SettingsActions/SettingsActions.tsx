@@ -2,17 +2,57 @@
 
 import { resetCookieConsent } from "@gafus/ui-components";
 import Link from "next/link";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { useSession } from "next-auth/react";
+
+import { initiateVkIdLink } from "@shared/server-actions";
 
 import styles from "./SettingsActions.module.css";
 
-const SettingsActions = () => {
+interface SettingsActionsProps {
+  hasVkLinked?: boolean;
+  linkFeedback?: string;
+}
+
+const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsProps) => {
   const { data: session } = useSession();
+  const [isLinking, setIsLinking] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  const handleLinkVk = async () => {
+    setIsLinking(true);
+    setLinkError(null);
+    const result = await initiateVkIdLink();
+    if (result.success) {
+      window.location.href = result.url;
+    } else {
+      setLinkError(result.error);
+      setIsLinking(false);
+    }
+  };
 
   return (
     <section className={styles.section}>
+      {linkFeedback === "vk" && (
+        <div className={styles.successBanner}>VK успешно подключён</div>
+      )}
+      {linkFeedback && linkFeedback !== "vk" && (
+        <div className={styles.errorBanner}>{linkFeedback}</div>
+      )}
       <div className={styles.buttonsContainer}>
+        {!hasVkLinked ? (
+          <button
+            onClick={handleLinkVk}
+            disabled={isLinking}
+            className={styles.button}
+            type="button"
+          >
+            {isLinking ? "Подключение..." : "🔗 Подключить VK"}
+          </button>
+        ) : (
+          <span className={styles.infoText}>✅ VK подключён</span>
+        )}
+        {linkError && <p className={styles.errorText}>{linkError}</p>}
         <button
           onClick={() => resetCookieConsent()}
           className={styles.button}
@@ -29,9 +69,11 @@ const SettingsActions = () => {
             🔐 Сменить пароль
           </Link>
         )}
-        <Link href="/passwordReset" className={styles.button}>
-          Забыли пароль
-        </Link>
+        {session?.user?.passwordSetAt != null && (
+          <Link href="/passwordReset" className={styles.button}>
+            Забыли пароль
+          </Link>
+        )}
         <Link href="/profile/change-phone" className={styles.button}>
           📞 Сменить телефон
         </Link>

@@ -1,5 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
+
+import { MainAuthButtons } from "@shared/components/auth/MainAuthButtons";
 import { generatePageMetadata } from "@gafus/metadata";
 
 import styles from "./page.module.css";
@@ -41,14 +44,20 @@ export default function AuthPage() {
           </p>
         </div>
       </div>
-      <div className={styles.buttonsContainer}>
-        <Link href="/login">
-          <button className={styles.button_login}>войти</button>
-        </Link>
-        <Link href="/register" prefetch={false}>
-          <button className={styles.button_register}>регистрация</button>
-        </Link>
-      </div>
+      <Suspense
+        fallback={
+          <div className={styles.buttonsContainer}>
+            <Link href="/login">
+              <button className={styles.button_login}>войти</button>
+            </Link>
+            <Link href="/register" prefetch={false}>
+              <button className={styles.button_register}>регистрация</button>
+            </Link>
+          </div>
+        }
+      >
+        <MainAuthButtons />
+      </Suspense>
       <p className={styles.subtitle}>
         Умные пошаговые тренировки, отдых и обучение — всё в одном месте.
       </p>

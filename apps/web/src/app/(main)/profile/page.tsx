@@ -17,10 +17,11 @@ export const metadata = generateStaticPageMetadata(
 export default async function ProfilPage({
   searchParams,
 }: {
-  searchParams: Promise<{ username?: string }>;
+  searchParams: Promise<{ username?: string; linked?: string; error?: string }>;
 }) {
   const params = await searchParams;
   const username = params?.username;
+  const linkFeedback = params?.linked ? "vk" : params?.error ? params.error : undefined;
 
   if (!username) {
     notFound();
@@ -44,6 +45,7 @@ export default async function ProfilPage({
         isOwner={isOwner}
         username={username}
         userData={userData}
+        linkFeedback={linkFeedback}
       />
     );
   } catch (error) {

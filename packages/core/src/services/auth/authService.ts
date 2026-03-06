@@ -218,6 +218,40 @@ export async function changeUsername(userId: string, newUsername: string): Promi
   }
 }
 
+/**
+ * Проверка доступности логина (для live-check при вводе).
+ * Нормализация: trim + lowercase, как в changeUsername.
+ */
+export async function isUsernameAvailable(
+  username: string,
+  currentUserId?: string,
+): Promise<boolean> {
+  const normalized = username.trim().toLowerCase();
+
+  if (
+    normalized.length < USERNAME_MIN_LENGTH ||
+    normalized.length > USERNAME_MAX_LENGTH ||
+    !USERNAME_REGEX.test(normalized)
+  ) {
+    return false;
+  }
+
+  if (currentUserId) {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { username: true },
+    });
+    if (currentUser?.username === normalized) return true;
+  }
+
+  const existing = await prisma.user.findUnique({
+    where: { username: normalized },
+    select: { id: true },
+  });
+
+  return !existing || existing.id === currentUserId;
+}
+
 // ========== API Auth (login, refresh, logout) ==========
 
 /**

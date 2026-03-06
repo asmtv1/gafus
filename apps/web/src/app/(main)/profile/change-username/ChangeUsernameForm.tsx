@@ -1,26 +1,57 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+
 import { FormField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { usernameChangeSchema } from "@shared/lib/validation/authSchemas";
-import { changeUsernameAction } from "@shared/server-actions";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { changeUsernameAction, checkUsernameAvailableAction } from "@shared/server-actions";
 
 import type { UsernameChangeSchema } from "@shared/lib/validation/authSchemas";
+
+import styles from "./ChangeUsernameForm.module.css";
+
+type Availability = "idle" | "checking" | "available" | "taken";
 
 export default function ChangeUsernameForm() {
   const router = useRouter();
   const { update: updateSession } = useSession();
   const [error, setError] = useState("");
+  const [availability, setAvailability] = useState<Availability>("idle");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const abortRef = useRef(0);
 
-  const { form, handleSubmit } = useZodForm(usernameChangeSchema, {
-    newUsername: "",
-  });
+  const { form, handleSubmit } = useZodForm(usernameChangeSchema, { newUsername: "" });
+  const watchedUsername = form.watch("newUsername");
+
+  useEffect(() => {
+    const trimmed = watchedUsername?.trim() ?? "";
+    if (trimmed.length < 3 || !/^[A-Za-z0-9_]+$/.test(trimmed)) {
+      setAvailability("idle");
+      return;
+    }
+
+    setAvailability("checking");
+    const requestId = ++abortRef.current;
+
+    const timer = setTimeout(async () => {
+      const result = await checkUsernameAvailableAction(trimmed);
+      if (abortRef.current !== requestId) return;
+      if ("available" in result) {
+        setAvailability(result.available ? "available" : "taken");
+      } else {
+        setAvailability("idle");
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [watchedUsername]);
 
   const onSubmit = async (data: UsernameChangeSchema) => {
     setError("");
+    setIsSubmitting(true);
     try {
       const result = await changeUsernameAction(data.newUsername);
       if (result.error) {
@@ -29,10 +60,12 @@ export default function ChangeUsernameForm() {
       }
       if (result.success && result.username) {
         await updateSession({ username: result.username });
+        router.push(`/profile?username=${result.username}`);
       }
-      router.push("/profile");
     } catch {
       setError("Не удалось сменить логин");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -51,9 +84,34 @@ export default function ChangeUsernameForm() {
           placeholder="mylogin"
           form={form}
           className="mb-4 w-full"
+          ariaDescribedBy="username-availability-hint"
         />
-        <button type="submit">Сохранить</button>
-        {error && <p style={{ color: "var(--mui-palette-error-main)", marginTop: "1rem" }}>{error}</p>}
+        <div
+          id="username-availability-hint"
+          role="status"
+          aria-live="polite"
+          className={styles.availabilityHint}
+        >
+          {availability === "checking" && (
+            <span style={{ color: "var(--mui-palette-text-secondary)" }}>Проверка...</span>
+          )}
+          {availability === "available" && (
+            <span style={{ color: "var(--mui-palette-success-main)" }}>Логин свободен</span>
+          )}
+          {availability === "taken" && (
+            <span style={{ color: "var(--mui-palette-error-main)" }}>Логин занят</span>
+          )}
+        </div>
+        {error && (
+          <p style={{ color: "var(--mui-palette-error-main)", marginTop: "0.5rem" }}>{error}</p>
+        )}
+        <button
+          type="submit"
+          className={styles.button}
+          disabled={availability === "taken" || availability === "checking" || isSubmitting}
+        >
+          {isSubmitting ? "Сохранение..." : "Сохранить"}
+        </button>
       </form>
     </main>
   );

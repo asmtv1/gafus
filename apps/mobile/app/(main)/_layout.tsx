@@ -63,6 +63,13 @@ export default function MainLayout() {
         }}
       />
       <Stack.Screen
+        name="profile/set-password"
+        options={{
+          headerShown: true,
+          title: "Установка пароля",
+        }}
+      />
+      <Stack.Screen
         name="reminders"
         options={{
           headerShown: true,

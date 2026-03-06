@@ -23,6 +23,7 @@ export interface UserWithTrainings {
   username: string;
   phone: string;
   courses: UserCourseInfo[];
+  hasVkLinked?: boolean;
 }
 
 export interface PublicProfile {

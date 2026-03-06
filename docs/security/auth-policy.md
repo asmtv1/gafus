@@ -25,11 +25,12 @@
 - login: 10
 - password-reset-request: 10 (auth limiter на api.gafus.ru, окно 15 мин)
 - reset-password: 10
-- set-password: 5 (Server Action + API, VK-only)
+- set-password: 10 (Server Action + API, VK-only, authRateLimiter)
 - change-password: 10
-- vk-phone-set: 5 (Server Action + API, установка телефона VK-пользователя)
+- vk-phone-set: 10 (API, authRateLimiter, установка телефона VK-пользователя)
 - initiate-vk-id: 10 (prepareVkIdOneTap, initiateVkIdAuth)
 - vk-id-callback: 5
+- username-available: 30 (Server Action checkUsernameAvailableAction; API: 15/мин на IP)
 
 **Bypass для разработки:** при `NODE_ENV=development` или IP localhost rate limit не применяется (`checkAuthRateLimit` в apps/web).
 

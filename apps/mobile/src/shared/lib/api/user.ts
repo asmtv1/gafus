@@ -134,6 +134,17 @@ export const userApi = {
   },
 
   /**
+   * Проверка доступности логина (для live-check при вводе).
+   */
+  checkUsernameAvailable: async (
+    username: string,
+  ): Promise<ApiResponse<{ available: boolean }>> => {
+    return apiClient<{ available: boolean }>(
+      `/api/v1/auth/username-available?username=${encodeURIComponent(username)}`,
+    );
+  },
+
+  /**
    * Загрузить аватар (multipart/form-data).
    * uri — локальный URI из ImagePicker (file:// или content://).
    */

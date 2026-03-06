@@ -134,7 +134,7 @@ TELEGRAM_BOT_TOKEN=your-bot-token
 
 - **CredentialsProvider** — ветка `username === "__vk_id__"`: one-time токен из callback Route Handler, `consumeVkIdOneTimeUser` возвращает пользователя
 - **vkIdOneTimeStore** — in-memory Map, TTL 60s; `storeVkIdOneTimeUser` (callback), `consumeVkIdOneTimeUser` (CredentialsProvider)
-- **Route Handler** `GET /api/auth/callback/vk-id` — PKCE exchange, `findOrCreateVkUser`, one-time token, redirect на `/login?vk_id_token=...`
+- **Route Handler** `GET /api/auth/callback/vk-id` — PKCE exchange, `findOrCreateVkUser`, one-time token, redirect на `returnPath?vk_id_token=...` (returnPath: `/`, `/login`, `/register`)
 - **Server Action** `initiateVkIdAuth` — rate limit, PKCE, cookie `vk_id_state`, возвращает URL для redirect
 - **Server Action** `prepareVkIdOneTap` — rate limit, PKCE, возвращает state/codeVerifier/clientId/redirectUri для инициализации SDK One Tap. Вызывается лениво при клике (VkIdOneTap). При ошибке/rate limit компонент показывает fallback-кнопку с redirect через `initiateVkIdAuth`
 - **CredentialsProvider** — для VK-only (`passwordSetAt === null`) блокирует вход по паролю, сообщение «Войдите через VK ID или установите пароль в профиле»

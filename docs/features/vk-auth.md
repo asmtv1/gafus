@@ -4,6 +4,20 @@
 
 Аутентификация через VK ID (id.vk.ru) для web и mobile. Используется PKCE — `client_secret` не передаётся при обмене кода. **VK OAuth (oauth.vk.com) не поддерживается.**
 
+## Автозаполнение профиля из VK
+
+При входе через VK ID `findOrCreateVkUser` заполняет блок «О себе» (`UserProfile`):
+
+- **fullName** — из `first_name` + `last_name`
+- **birthDate** — из `birthday` (формат DD.MM.YYYY; DD.MM без года не сохраняется)
+- **avatarUrl** — из `avatar` (обновляется при каждом входе)
+
+**Логика обновления:** Для существующих пользователей обновляются только пустые поля — уже заполненные пользователем не перезаписываются. `birthday` приходит из VK API (`user_info`, scope `vkid.personal_info`).
+
+Реализовано в `packages/core` (`vkAuth.ts`): `parseVkBirthday`, `VkProfile.birthday`, расширенный upsert в `findOrCreateVkUser`. Web и API передают `birthday` в `vkProfile`.
+
+---
+
 ## Web flow
 
 **One Tap (виджет):** клик по кнопке → `prepareVkIdOneTap()` (rate limit) → PKCE, инициализация SDK → виджет. При ошибке — fallback-кнопка запускает redirect через `initiateVkIdAuth()`.
@@ -11,12 +25,14 @@
 **Redirect flow:** Server Action `initiateVkIdAuth()` — rate limit, PKCE (code_verifier, code_challenge, state), cookie `vk_id_state` (httpOnly, 10 мин). Далее:
 1. Редирект на `https://id.vk.ru/authorize` с `code_challenge`, `code_challenge_method=S256`
 2. Callback `GET /api/auth/callback/vk-id` — rate limit, проверка state (`crypto.timingSafeEqual` с Uint8Array), обмен code на token, `user_info`, `findOrCreateVkUser`
-3. One-time token (in-memory, TTL 60s) → редирект на `/login?vk_id_token=TOKEN`
-4. LoginForm: `useSearchParams` (в Suspense) — обнаруживает токен, очищает URL, вызывает `signIn("credentials", { username: "__vk_id__", password: token })`
+3. One-time token (in-memory, TTL 60s) → редирект на `/?vk_id_token=TOKEN`
+4. MainAuthButtons (главная страница): `useSearchParams` (в Suspense) — обнаруживает токен, очищает URL, вызывает `signIn("credentials", { username: "__vk_id__", password: token })`
 5. CredentialsProvider: `consumeVkIdOneTimeUser` → сессия
-6. `needsPhone: true` → форма `/profile/change-phone`; `passwordSetAt: null` → «Установить пароль» в профиле
+6. `needsPhone: true` → форма `/profile/change-phone`; `passwordSetAt: null` → «Установить пароль»; при отсутствии пароля скрыты «Забыли пароль» (web) и «Сменить пароль» (mobile). Подробнее: [profile-vk-buttons-prompt.md](profile-vk-buttons-prompt.md)
 
 ## Mobile flow
+
+Кнопка «Войти через VK ID» на экране **welcome** (не на login). Хук `useVkLogin` (`apps/mobile/src/shared/hooks/useVkLogin.ts`).
 
 1. `expo-crypto` — генерация `code_verifier`, `code_challenge` (SHA-256), `state`
 2. `WebBrowser.openAuthSessionAsync` — `https://id.vk.ru/authorize` с PKCE, redirect `gafus://auth/vk`
@@ -24,6 +40,7 @@
 4. `POST /api/v1/auth/vk` с `{ code, code_verifier, device_id, state }` — API обменивает code на token, `user_info`, `findOrCreateVkUser`
 5. Ответ: `{ user, accessToken, refreshToken, needsPhone }`
 6. При `needsPhone: true` → экран `/vk-set-phone`, далее `POST /api/v1/auth/vk-phone-set` с JWT
+7. Кнопка «Установить пароль» доступна в профиле при `!hasAppPassword`, ведёт на `/profile/set-password` → `POST /api/v1/auth/set-password`
 
 **Redirect URI:** `gafus://auth/vk` — совпадает с `VK_MOBILE_REDIRECT_URI` в API, `app.config.js` и настройках приложения VK ID.
 
@@ -62,24 +79,40 @@ VK_MOBILE_REDIRECT_URI=gafus://auth/vk
 | POST | `/api/v1/auth/vk-phone-set` | Установка телефона VK-пользователя | JWT |
 | POST | `/api/v1/auth/set-password` | Установка пароля (VK-only) | JWT |
 | POST | `/api/v1/auth/change-password` | Смена пароля | JWT |
+| POST | `/api/v1/auth/vk-link` | Привязка VK к аккаунту (mobile, JWT) | JWT |
 
-## Компонент VkIdOneTap (web)
+## Компоненты web
 
-Vиджет VK ID One Tap (skin: secondary) на страницах `/login` и `/register`:
+**MainAuthButtons** — Client Component на главной (`/`): кнопки «войти», «регистрация» и виджет VK ID. Обрабатывает `vk_id_token` из URL (useSearchParams → signIn → redirect на `/courses`). Обёрнут в Suspense из‑за useSearchParams.
+
+**VkIdOneTap** — виджет VK ID One Tap (skin: secondary) внутри MainAuthButtons. Удалён с `/login` и `/register`.
 
 - **Lazy init** — `prepareVkIdOneTap()` вызывается только при клике пользователя (не при mount). Снижает число вызовов при открытии нескольких вкладок.
 - **Состояния:** idle → loading → success (SDK отрисован) или error.
 - **Fallback при ошибке:** при rate limit или ошибке SDK показывается сообщение об ошибке и кнопка «Войти через VK ID» — клик запускает redirect-flow через `initiateVkIdAuth()`.
 - **Стили:** fallback-кнопка 250px, как у inputs формы (border, background).
 
+## Подключение VK к существующему аккаунту (Account Linking)
+
+Пользователи, зарегистрировавшиеся **без** VK (телефон/пароль), могут подключить VK в профиле. После подключения вход возможен и через VK ID, и через логин/пароль.
+
+**Web:** Профиль → SettingsActions → кнопка «Подключить VK» → `initiateVkIdLink()` → cookie `vk_id_state` с `mode: "link"` → callback `/api/auth/callback/vk-id` при `mode === "link"` вызывает `linkVkToUser` вместо `findOrCreateVkUser` → redirect `/profile?linked=vk` или `/profile?error=...`.
+
+**Mobile:** Профиль → кнопка «Подключить VK» → хук `useVkLink` (PKCE, WebBrowser, state с префиксом `link_`) → `POST /api/v1/auth/vk-link` с JWT и code.
+
+**API:** `GET /api/v1/user/profile` возвращает `hasVkLinked: boolean`. Web: `getUserWithTrainings` (profile page) включает `hasVkLinked`. Core: `linkVkToUser` в `vkAuth.ts`; `getUserProfileForApi` и `getUserWithTrainings` в profileService.
+
+Подробнее: [vk-account-linking-prompt.md](vk-account-linking-prompt.md).
+
 ## Rate limit
 
 | Path | Лимит |
 |------|-------|
 | `initiate-vk-id` | 10 / 15 мин |
+| `vk-id-link` | 10 / 15 мин |
 | `vk-id-callback` | 5 / 15 мин |
-| `vk-phone-set` | 5 / 15 мин |
-| `set-password` | 5 / 15 мин |
+| `vk-phone-set` | 10 / 15 мин (authRateLimiter) |
+| `set-password` | 10 / 15 мин (authRateLimiter) |
 | `change-password` | 10 / 15 мин |
 
 **Bypass для разработки:** при `NODE_ENV=development` или IP localhost (`127.0.0.1`, `::1`, `::ffff:127.0.0.1`, `localhost`) rate limit не применяется. Пустая строка IP не считается localhost — в prod лимиты действуют.

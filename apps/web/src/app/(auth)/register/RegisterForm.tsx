@@ -4,8 +4,6 @@ import Link from "next/link";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-import { VkIdOneTap } from "@shared/components/auth/VkIdOneTap";
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
@@ -194,8 +192,6 @@ export function RegisterForm() {
       <button className={styles.button} type="submit" disabled={isPending || !isValid}>
         {isPending ? "регистрация..." : "зарегистрироваться"}
       </button>
-
-      <VkIdOneTap />
     </form>
   );
 }

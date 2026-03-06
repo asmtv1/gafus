@@ -14,7 +14,11 @@ const logger = createWebLogger("auth");
 
 const isProd =
   process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL?.includes("https://");
-const cookieDomain = process.env.AUTH_COOKIE_DOMAIN?.trim() || undefined;
+// При ngrok — не задавать domain, иначе cookie не сохранится на ngrok-хосте
+const cookieDomain =
+  /ngrok/i.test(process.env.NEXTAUTH_URL ?? "")
+    ? undefined
+    : (process.env.AUTH_COOKIE_DOMAIN?.trim() || undefined);
 
 const sessionStrategy = "jwt" as const;
 

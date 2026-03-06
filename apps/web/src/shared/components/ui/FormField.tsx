@@ -19,6 +19,7 @@ export function FormField<T extends FieldValues>({
   disabled = false,
   autoComplete,
   ariaLabel,
+  ariaDescribedBy,
   visuallyHiddenLabel = false,
   errorClassName,
 }: FormFieldComponentProps<T>) {
@@ -38,6 +39,7 @@ export function FormField<T extends FieldValues>({
     autoComplete,
     "aria-invalid": !!error,
     ...(hasLabel ? {} : { "aria-label": ariaLabel ?? placeholder ?? id }),
+    ...(ariaDescribedBy ? { "aria-describedby": ariaDescribedBy } : {}),
     className: [
       "w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500",
       error ? "border-red-500" : "border-gray-300",

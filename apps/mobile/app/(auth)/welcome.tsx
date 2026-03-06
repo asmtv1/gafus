@@ -1,12 +1,13 @@
-import { View, StyleSheet } from "react-native";
-import { Text } from "react-native-paper";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Snackbar, Text } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { Button } from "@/shared/components/ui";
 import { COLORS, SPACING, FONTS } from "@/constants";
-import { useLayout } from "@/shared/hooks";
+import { useLayout, useVkLogin } from "@/shared/hooks";
 
 /**
  * Welcome страница (Landing) - точное соответствие веб-версии
@@ -14,6 +15,10 @@ import { useLayout } from "@/shared/hooks";
 export default function WelcomeScreen() {
   const router = useRouter();
   const layout = useLayout();
+  const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const { handleVkLogin, isVkLoading } = useVkLogin({
+    onError: (msg) => setSnackbar({ visible: true, message: msg }),
+  });
   const imgW = layout.contentWidth(SPACING.md * 4);
   const titleSize = layout.moderateScale(110, 0.4);
   const pawW = layout.scale(141);
@@ -62,6 +67,15 @@ export default function WelcomeScreen() {
           onPress={() => router.push("/register")}
           style={styles.button}
         />
+        <Pressable
+          style={[styles.vkButton, { width: "100%" }]}
+          onPress={handleVkLogin}
+          disabled={isVkLoading}
+        >
+          <Text style={styles.vkButtonText}>
+            {isVkLoading ? "Загрузка..." : "Войти через VK ID"}
+          </Text>
+        </Pressable>
       </View>
 
       {/* Подпись */}
@@ -76,6 +90,18 @@ export default function WelcomeScreen() {
       >
         Умные пошаговые тренировки, отдых и обучение — всё в одном месте.
       </Text>
+
+      <Snackbar
+        visible={snackbar.visible}
+        onDismiss={() => setSnackbar({ visible: false, message: "" })}
+        duration={3000}
+        action={{
+          label: "OK",
+          onPress: () => setSnackbar({ visible: false, message: "" }),
+        }}
+      >
+        {snackbar.message}
+      </Snackbar>
     </SafeAreaView>
   );
 }
@@ -126,6 +152,21 @@ const styles = StyleSheet.create({
   },
   button: {
     minHeight: 48,
+  },
+  vkButton: {
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    borderRadius: 5,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+    backgroundColor: "transparent",
+  },
+  vkButtonText: {
+    fontSize: 12,
+    fontFamily: FONTS.montserrat,
+    color: COLORS.primary,
   },
   subtitle: {
     color: COLORS.primary,

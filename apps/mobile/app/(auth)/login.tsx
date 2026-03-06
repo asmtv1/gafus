@@ -13,43 +13,12 @@ import { Link } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as Crypto from "expo-crypto";
-import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
-import Constants from "expo-constants";
 import { z } from "zod";
 
 import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/constants";
-
-function bytesToBase64Url(arr: Uint8Array): string {
-  let binary = "";
-  for (let i = 0; i < arr.length; i++) {
-    binary += String.fromCharCode(arr[i]);
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
-
-async function generateCodeVerifier(): Promise<string> {
-  const bytes = await Crypto.getRandomBytesAsync(32);
-  return bytesToBase64Url(bytes);
-}
-
-async function generateCodeChallenge(verifier: string): Promise<string> {
-  const digest = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    verifier,
-    { encoding: Crypto.CryptoEncoding.BASE64 },
-  );
-  return digest.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
-
-async function generateState(): Promise<string> {
-  const bytes = await Crypto.getRandomBytesAsync(24);
-  return bytesToBase64Url(bytes);
-}
 
 // Схема валидации
 const loginSchema = z.object({
@@ -67,8 +36,7 @@ type FormErrors = {
  */
 export default function LoginScreen() {
   const layout = useLayout();
-  const { login, loginViaVk } = useAuthStore();
-  const [isVkLoading, setIsVkLoading] = useState(false);
+  const { login } = useAuthStore();
 
   const formWidth = layout.contentWidth(SPACING.md * 4, 280);
   const logoSize = Math.min(layout.scale(303), layout.contentWidth(SPACING.md * 4));
@@ -79,81 +47,6 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
-
-  const handleVkLogin = useCallback(async () => {
-    setIsVkLoading(true);
-    try {
-      const clientId = Constants.expoConfig?.extra?.vkClientId as string | undefined;
-      const redirectUri =
-        (Constants.expoConfig?.extra?.vkMobileRedirectUri as string | undefined) ??
-        Linking.createURL("auth/vk");
-
-      if (!clientId) {
-        setSnackbar({ visible: true, message: "VK авторизация не настроена" });
-        return;
-      }
-
-      const codeVerifier = await generateCodeVerifier();
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
-      const state = await generateState();
-
-      const authUrl =
-        `https://id.vk.ru/authorize` +
-        `?response_type=code` +
-        `&client_id=${encodeURIComponent(clientId)}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&state=${encodeURIComponent(state)}` +
-        `&code_challenge=${encodeURIComponent(codeChallenge)}` +
-        `&code_challenge_method=S256` +
-        `&display=mobile`;
-
-      if (Platform.OS === "android") {
-        await WebBrowser.warmUpAsync();
-      }
-
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-
-      if (Platform.OS === "android") {
-        await WebBrowser.coolDownAsync();
-      }
-
-      if (result.type !== "success") return;
-
-      const parsed = Linking.parse(result.url);
-      const code = parsed.queryParams?.code as string | undefined;
-      const device_id = parsed.queryParams?.device_id as string | undefined;
-      const returnedState = parsed.queryParams?.state as string | undefined;
-
-      if (!code || !device_id || returnedState !== state) {
-        setSnackbar({
-          visible: true,
-          message: "Ошибка авторизации VK ID: некорректный ответ",
-        });
-        return;
-      }
-
-      const loginResult = await loginViaVk({
-        code,
-        code_verifier: codeVerifier,
-        device_id,
-        state,
-      });
-
-      if (loginResult.success) {
-        await hapticFeedback.success();
-      } else {
-        setSnackbar({
-          visible: true,
-          message: loginResult.error ?? "Ошибка авторизации VK ID",
-        });
-      }
-    } catch (err) {
-      if (__DEV__) console.error("[Login] handleVkLogin catch", err);
-      setSnackbar({ visible: true, message: "Ошибка подключения к серверу" });
-    } finally {
-      setIsVkLoading(false);
-    }
-  }, [loginViaVk]);
 
   const validateForm = useCallback((): boolean => {
     const result = loginSchema.safeParse({ username, password });
@@ -358,19 +251,6 @@ export default function LoginScreen() {
                 />
               )}
             </Pressable>
-
-            <Text style={styles.orText}>или</Text>
-
-            <Pressable
-              style={[styles.vkButton, { width: formWidth }]}
-              onPress={handleVkLogin}
-              disabled={isVkLoading || isLoading}
-              testID="vk-login-button"
-            >
-              <Text style={styles.vkButtonText}>
-                {isVkLoading ? "Загрузка..." : "Войти через VK ID"}
-              </Text>
-            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -504,27 +384,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   submitButtonImage: {},
-  orText: {
-    fontSize: 11,
-    fontFamily: FONTS.montserrat,
-    color: COLORS.placeholder,
-    marginTop: 4,
-  },
-  vkButton: {
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    borderRadius: 5,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 4,
-    backgroundColor: "transparent",
-  },
-  vkButtonText: {
-    fontSize: 12,
-    fontFamily: FONTS.montserrat,
-    color: COLORS.primary,
-  },
   submitButtonText: {
     fontSize: 25,
     fontWeight: "400",

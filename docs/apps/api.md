@@ -76,6 +76,7 @@ apps/api/
 - `POST /api/v1/auth/vk-phone-set` - Установка телефона для VK-пользователя (body: `{ phone }`)
 - `POST /api/v1/auth/set-password` - Установка пароля для VK-only пользователя (body: `{ newPassword }`)
 - `POST /api/v1/auth/change-password` - Смена пароля (body: `{ currentPassword, newPassword }`)
+- `POST /api/v1/auth/vk-link` - Привязка VK к аккаунту (body: `{ code, code_verifier, device_id, state }`); JWT обязателен
 
 ### User (требует авторизации)
 

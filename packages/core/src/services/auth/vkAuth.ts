@@ -12,11 +12,60 @@ import { transliterate } from "../../utils/transliterate";
 
 const logger = createWebLogger("vk-auth");
 
+const MAX_FULLNAME_LENGTH = 120;
+const MAX_AVATAR_URL_LENGTH = 2048;
+const MAX_BIRTHDAY_LENGTH = 10; // DD.MM.YYYY
+
+/** Безопасный парсинг даты рождения VK: DD.MM.YYYY. DD.MM без года — null. */
+function parseVkBirthday(birthday: string | undefined): Date | null {
+  if (!birthday || typeof birthday !== "string") return null;
+  if (birthday.length > MAX_BIRTHDAY_LENGTH) return null;
+
+  const parts = birthday.trim().split(".");
+  if (parts.length !== 3) return null;
+
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const year = parseInt(parts[2], 10);
+
+  if (Number.isNaN(day) || Number.isNaN(month) || Number.isNaN(year)) return null;
+
+  const currentYear = new Date().getFullYear();
+  if (year < 1900 || year > currentYear) return null;
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > 31) return null;
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCDate() !== day || date.getUTCMonth() !== month - 1) return null;
+
+  return date;
+}
+
+/** Валидация avatar URL: только https, без javascript:/data: и т.п. */
+function sanitizeAvatarUrl(url: string | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (trimmed.length > MAX_AVATAR_URL_LENGTH) return null;
+  if (!trimmed.toLowerCase().startsWith("https://")) return null;
+  return trimmed;
+}
+
+/** Ограничение fullName по длине (как в updateUserProfile). */
+function sanitizeFullName(firstName: unknown, lastName: unknown): string | null {
+  const parts = [firstName, lastName]
+    .filter((s): s is string => typeof s === "string" && s.length > 0)
+    .map((s) => s.trim());
+  const full = parts.join(" ").trim();
+  if (!full) return null;
+  return full.length > MAX_FULLNAME_LENGTH ? full.slice(0, MAX_FULLNAME_LENGTH) : full;
+}
+
 export interface VkProfile {
   id: string;
   first_name?: string;
   last_name?: string;
   avatar?: string;
+  birthday?: string;
 }
 
 export interface FindOrCreateVkResult {
@@ -52,21 +101,48 @@ export async function findOrCreateVkUser(
   vkProfile: VkProfile,
   providerAccountId: string,
 ): Promise<FindOrCreateVkResult> {
+  const fullName = sanitizeFullName(vkProfile.first_name, vkProfile.last_name);
+  const birthDate = parseVkBirthday(vkProfile.birthday);
+  const avatarUrl = sanitizeAvatarUrl(vkProfile.avatar);
+
   const account = await prisma.account.findUnique({
     where: {
       provider_providerAccountId: { provider: "vk", providerAccountId },
     },
-    include: { user: { select: { id: true, username: true, role: true, phone: true } } },
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          role: true,
+          phone: true,
+          profile: { select: { fullName: true, birthDate: true } },
+        },
+      },
+    },
   });
 
   if (account) {
+    const profile = account.user.profile;
+    const updateData: Record<string, unknown> = {
+      avatarUrl,
+    };
+    if (!profile?.fullName && fullName) {
+      updateData.fullName = fullName;
+    }
+    if (!profile?.birthDate && birthDate) {
+      updateData.birthDate = birthDate;
+    }
+
     await prisma.userProfile.upsert({
       where: { userId: account.userId },
       create: {
         userId: account.userId,
-        avatarUrl: vkProfile.avatar ?? null,
+        avatarUrl,
+        fullName,
+        birthDate,
       },
-      update: { avatarUrl: vkProfile.avatar ?? null },
+      update: updateData,
     });
     return {
       user: {
@@ -107,7 +183,9 @@ export async function findOrCreateVkUser(
     await tx.userProfile.create({
       data: {
         userId: u.id,
-        avatarUrl: vkProfile.avatar ?? null,
+        avatarUrl,
+        fullName,
+        birthDate,
       },
     });
     await tx.account.create({
@@ -127,4 +205,76 @@ export async function findOrCreateVkUser(
     user: { id: user.id, username: user.username, role: user.role },
     needsPhone: true,
   };
+}
+
+/**
+ * Привязка VK аккаунта к существующему пользователю (без VK).
+ */
+export async function linkVkToUser(
+  userId: string,
+  vkProfile: VkProfile,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const providerAccountId = vkProfile.id;
+
+  const existingAccount = await prisma.account.findUnique({
+    where: {
+      provider_providerAccountId: { provider: "vk", providerAccountId },
+    },
+    select: { userId: true },
+  });
+
+  if (existingAccount && existingAccount.userId !== userId) {
+    return { success: false, error: "Этот аккаунт VK уже привязан к другому пользователю" };
+  }
+
+  if (existingAccount && existingAccount.userId === userId) {
+    return { success: false, error: "VK уже подключён" };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.account.create({
+        data: {
+          userId,
+          type: "oauth",
+          provider: "vk",
+          providerAccountId,
+        },
+      });
+
+      const fullName = sanitizeFullName(vkProfile.first_name, vkProfile.last_name);
+      const birthDate = parseVkBirthday(vkProfile.birthday);
+      const avatarUrl = sanitizeAvatarUrl(vkProfile.avatar);
+
+      const existingProfile = await tx.userProfile.findUnique({
+        where: { userId },
+        select: { fullName: true, birthDate: true, avatarUrl: true },
+      });
+
+      const updateData: Record<string, unknown> = {};
+      if (!existingProfile?.fullName && fullName) updateData.fullName = fullName;
+      if (!existingProfile?.birthDate && birthDate) updateData.birthDate = birthDate;
+      if (!existingProfile?.avatarUrl && avatarUrl) updateData.avatarUrl = avatarUrl;
+
+      if (Object.keys(updateData).length > 0 || !existingProfile) {
+        await tx.userProfile.upsert({
+          where: { userId },
+          create: { userId, fullName, birthDate, avatarUrl },
+          update: updateData,
+        });
+      }
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code: string }).code === "P2002"
+    ) {
+      return { success: false, error: "Этот аккаунт VK уже привязан к другому пользователю" };
+    }
+    throw error;
+  }
+
+  logger.success("linkVkToUser: VK linked", { userId, providerAccountId });
+  return { success: true };
 }

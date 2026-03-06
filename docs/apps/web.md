@@ -83,7 +83,8 @@ app/
 │   ├── profile/
 │   │   ├── set-password/   # VK-only: установка пароля
 │   │   ├── change-password/
-│   │   └── change-phone/   # При needsPhone — SetVkPhoneForm
+│   │   ├── change-phone/   # При needsPhone — SetVkPhoneForm
+│   │   └── change-username/ # Смена логина (live-check, redirect ?username=)
 │   ├── statistics/
 │   └── training/
 └── ~offline/
@@ -96,7 +97,9 @@ app/
 
 ### Вход через VK ID
 
-На страницах `/login` и `/register` — компонент `VkIdOneTap`: виджет VK ID One Tap с lazy init (prepare при клике) и fallback-кнопкой при ошибке (redirect flow). В dev и на localhost rate limit для auth-эндпоинтов не применяется. Подробнее: [docs/features/vk-auth.md](../features/vk-auth.md).
+На **главной странице** (`/`) — компонент `MainAuthButtons`: кнопки «войти», «регистрация» и `VkIdOneTap` (виджет VK ID One Tap с lazy init при клике, fallback-кнопка при ошибке). Обработка `vk_id_token` из URL — в `MainAuthButtons`. Страницы `/login` и `/register` без VK. В dev и на localhost rate limit для auth-эндпоинтов не применяется.
+
+**Подключение VK к аккаунту:** в профиле (SettingsActions) — кнопка «Подключить VK» для пользователей без VK. Server Action `initiateVkIdLink()`, callback `mode=link`, redirect `/profile?linked=vk` или `?error=...`. Подробнее: [docs/features/vk-auth.md](../features/vk-auth.md).
 
 ### Безопасность (auth)
 

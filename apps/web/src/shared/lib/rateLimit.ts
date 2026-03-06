@@ -21,6 +21,8 @@ const LIMITS: Record<AuthRateLimitPath, number> = {
   "vk-phone-set": 5,
   "vk-id-callback": 5,
   "initiate-vk-id": 10,
+  "vk-id-link": 10,
+  "username-available": 30,
 };
 
 export type AuthRateLimitPath =
@@ -35,7 +37,9 @@ export type AuthRateLimitPath =
   | "change-password"
   | "vk-phone-set"
   | "vk-id-callback"
-  | "initiate-vk-id";
+  | "initiate-vk-id"
+  | "vk-id-link"
+  | "username-available";
 
 const store = new Map<string, number[]>();
 

@@ -38,7 +38,9 @@
 - [x] **Офлайн режим**: скачивание курсов (meta + медиа), локальное HLS, очередь скачивания, воспроизведение из кэша; синхронизация прогресса при появлении сети (очередь мутаций startStep/pause/resume/complete)
 - [x] **Платные курсы (paywall)**: на экране списка дней `/training/[courseType]` при отсутствии доступа — кнопка «Оплатить/Начать курс», текст согласия с Офертой; POST `/api/v1/payments/create` с `acceptanceContext` (IP/UA из заголовков)
 - [x] **Tracer (мониторинг ошибок)**: кастомный RN-клиент, ErrorBoundary → reportClientError, ручная отправка в API/auth/progressSync (см. [docs/monitoring/tracer.md](../monitoring/tracer.md))
-- [x] **Вход через VK ID**: кнопка «Войти через VK» на экране логина, PKCE flow (id.vk.ru) через `expo-web-browser`, экран `/vk-set-phone` при `needsPhone: true`. Env: `VK_CLIENT_ID`, `VK_MOBILE_REDIRECT_URI=gafus://auth/vk`. Требуется Development Build для тестирования (Expo Go не поддерживает custom scheme). См. [vk-auth.md](../features/vk-auth.md).
+- [x] **Вход через VK ID**: кнопка «Войти через VK ID» на экране welcome (не на login), хук `useVkLogin`, PKCE flow (id.vk.ru) через `expo-web-browser`, экран `/vk-set-phone` при `needsPhone: true` (E.164, `POST /api/v1/auth/vk-phone-set`). Кнопка «Установить пароль» в профиле при `!hasAppPassword` → `/profile/set-password` → `authApi.setPassword` (`POST /api/v1/auth/set-password`). Env: `VK_CLIENT_ID`, `VK_MOBILE_REDIRECT_URI=gafus://auth/vk`. Требуется Development Build (Expo Go не поддерживает custom scheme). См. [vk-auth.md](../features/vk-auth.md).
+- [x] **Подключение VK к аккаунту**: в профиле — кнопка «Подключить VK» при `!hasVkLinked`. Хук `useVkLink`, `authApi.linkVk` (POST `/api/v1/auth/vk-link`), `User.hasVkLinked` в profile API.
+- [x] **Смена логина (live-check)**: экран `profile/change-username` с `useUsernameAvailability`, `userApi.checkUsernameAvailable` (GET `/api/v1/auth/username-available`), debounce 450ms, индикатор «Логин свободен» / «Логин занят», кнопка disabled при занятом/проверке.
 
 ### В планах
 
@@ -192,13 +194,19 @@ apps/mobile/
 │   ├── (auth)/                   # Группа авторизации
 │   │   ├── login.tsx
 │   │   ├── register.tsx
-│   │   └── reset-password.tsx
+│   │   ├── reset-password.tsx
+│   │   ├── vk-set-phone.tsx      # VK без телефона (needsPhone)
+│   │   └── welcome.tsx
 │   ├── (main)/                   # Основное приложение (требует auth)
 │   │   ├── (tabs)/               # Tab навигация
 │   │   │   ├── _layout.tsx
 │   │   │   ├── index.tsx         # Главная/Курсы
 │   │   │   ├── achievements.tsx  # Достижения
 │   │   │   └── profile.tsx       # Профиль
+│   │   ├── profile/
+│   │   │   ├── set-password.tsx  # Установка пароля (VK-only, !hasAppPassword)
+│   │   │   ├── change-username.tsx
+│   │   │   └── edit.tsx
 │   │   ├── training/
 │   │   │   ├── [courseType]/
 │   │   │   │   ├── index.tsx     # Список дней
@@ -245,7 +253,9 @@ apps/mobile/
 │   │   ├── hooks/
 │   │   │   ├── useAuth.ts
 │   │   │   ├── useOffline.ts
-│   │   │   └── useNetworkStatus.ts
+│   │   │   ├── useNetworkStatus.ts
+│   │   │   ├── useVkLogin.ts      # VK ID auth (welcome screen)
+│   │   │   └── useVkLink.ts      # VK account linking (profile)
 │   │   ├── lib/
 │   │   │   ├── api/              # API клиент
 │   │   │   │   ├── client.ts     # Базовый fetch клиент

@@ -1,5 +1,5 @@
 import { connection } from "@gafus/queues";
-import { deleteOldFailedConsentLogs } from "@gafus/core";
+import { deleteOldFailedConsentLogs } from "@gafus/core/services/consent";
 import { createWorkerLogger } from "@gafus/logger";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";

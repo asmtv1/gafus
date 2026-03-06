@@ -51,13 +51,21 @@ const logger = createWebLogger("auth-actions");
 
 /**
  * Подготавливает конфиг для VK ID One Tap: rate limit, PKCE, cookie, возвращает параметры для SDK.
+ * @param returnPath - куда редиректить после callback (/login или /register)
  */
-export async function prepareVkIdOneTap(): Promise<
+export async function prepareVkIdOneTap(returnPath?: string): Promise<
   | { success: true; state: string; codeVerifier: string; clientId: string; redirectUri: string }
   | { success: false; error: string }
 > {
+  const vkIdDebug =
+    process.env.NODE_ENV === "development" ||
+    process.env.VK_ID_DEBUG === "true" ||
+    process.env.VK_ID_DEBUG === "1";
+  if (vkIdDebug) console.log("[VK ID server] prepareVkIdOneTap вызван");
+
   const ip = await getClientIpFromHeaders();
   if (!checkAuthRateLimit(ip, "initiate-vk-id")) {
+    if (vkIdDebug) console.warn("[VK ID server] prepareVkIdOneTap: rate limit");
     return { success: false, error: "Слишком много запросов. Попробуйте через 15 минут." };
   }
 
@@ -66,7 +74,8 @@ export async function prepareVkIdOneTap(): Promise<
     const state = generateState();
 
     const cookieStore = await cookies();
-    cookieStore.set("vk_id_state", JSON.stringify({ state, codeVerifier }), {
+    const safeReturn = returnPath === "/" ? "/" : returnPath === "/register" ? "/register" : "/login";
+    cookieStore.set("vk_id_state", JSON.stringify({ state, codeVerifier, returnPath: safeReturn }), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -74,8 +83,17 @@ export async function prepareVkIdOneTap(): Promise<
       path: "/",
     });
 
-    const redirectUri = process.env.VK_WEB_REDIRECT_URI ?? "";
     const clientId = process.env.VK_CLIENT_ID ?? "";
+    let redirectUri = process.env.VK_WEB_REDIRECT_URI ?? "";
+
+    // При запросе через ngrok — подставляем Host автоматически (не нужно править .env при смене ngrok URL)
+    const headersList = await headers();
+    const host = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+    if (host && /ngrok/i.test(host)) {
+      redirectUri = `https://${host}/api/auth/callback/vk-id`;
+    }
+
+    if (vkIdDebug) console.log("[VK ID server] prepareVkIdOneTap OK: clientId=", clientId || "(пусто)", "redirectUri=", redirectUri || "(пусто)");
 
     return { success: true, state, codeVerifier, clientId, redirectUri };
   } catch (error) {
@@ -86,12 +104,22 @@ export async function prepareVkIdOneTap(): Promise<
 
 /**
  * Инициирует авторизацию через VK ID (redirect): rate limit, PKCE, cookie, возвращает URL.
+ * @param returnPath - куда редиректить после callback (/login или /register)
  */
-export async function initiateVkIdAuth(): Promise<
+export async function initiateVkIdAuth(returnPath?: string): Promise<
   { success: true; url: string } | { success: false; error: string }
 > {
-  const prepared = await prepareVkIdOneTap();
-  if (!prepared.success) return prepared;
+  const vkIdDebug =
+    process.env.NODE_ENV === "development" ||
+    process.env.VK_ID_DEBUG === "true" ||
+    process.env.VK_ID_DEBUG === "1";
+  if (vkIdDebug) console.log("[VK ID server] initiateVkIdAuth вызван");
+
+  const prepared = await prepareVkIdOneTap(returnPath);
+  if (!prepared.success) {
+    if (vkIdDebug) console.warn("[VK ID server] initiateVkIdAuth: prepareVkIdOneTap failed", prepared.error);
+    return prepared;
+  }
 
   const codeChallenge = generateCodeChallenge(prepared.codeVerifier);
   const url =
@@ -103,7 +131,67 @@ export async function initiateVkIdAuth(): Promise<
     `&code_challenge=${encodeURIComponent(codeChallenge)}` +
     `&code_challenge_method=S256`;
 
+  if (vkIdDebug) console.log("[VK ID server] initiateVkIdAuth OK, url (первые 80 символов):", url.slice(0, 80) + "...");
   return { success: true, url };
+}
+
+/**
+ * Инициирует привязку VK аккаунта (redirect). Требует авторизации.
+ */
+export async function initiateVkIdLink(): Promise<
+  { success: true; url: string } | { success: false; error: string }
+> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { success: false, error: "Необходима авторизация" };
+  }
+
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "vk-id-link")) {
+    return { success: false, error: "Слишком много запросов. Попробуйте через 15 минут." };
+  }
+
+  try {
+    const codeVerifier = generateCodeVerifier();
+    const state = generateState();
+    const codeChallenge = generateCodeChallenge(codeVerifier);
+
+    const cookieStore = await cookies();
+    cookieStore.set(
+      "vk_id_state",
+      JSON.stringify({ state, codeVerifier, mode: "link", returnPath: "/profile" }),
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 600,
+        path: "/",
+      },
+    );
+
+    const clientId = process.env.VK_CLIENT_ID ?? "";
+    let redirectUri = process.env.VK_WEB_REDIRECT_URI ?? "";
+
+    const headersList = await headers();
+    const host = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+    if (host && /ngrok/i.test(host)) {
+      redirectUri = `https://${host}/api/auth/callback/vk-id`;
+    }
+
+    const url =
+      `https://id.vk.ru/authorize` +
+      `?response_type=code` +
+      `&client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=${encodeURIComponent(state)}` +
+      `&code_challenge=${encodeURIComponent(codeChallenge)}` +
+      `&code_challenge_method=S256`;
+
+    return { success: true, url };
+  } catch (error) {
+    logger.error("initiateVkIdLink failed", error as Error);
+    return { success: false, error: "Не удалось инициализировать привязку VK" };
+  }
 }
 
 /**
@@ -433,6 +521,31 @@ export async function changeUsernameAction(newUsername: string): Promise<{
   } catch (error) {
     logger.error("changeUsernameAction failed", error as Error, { userId: session.user.id });
     return { error: error instanceof Error ? error.message : "Не удалось сменить логин" };
+  }
+}
+
+export async function checkUsernameAvailableAction(
+  username: string,
+): Promise<{ available: boolean } | { error: string }> {
+  const userId = await getCurrentUserId();
+  if (!userId) return { error: "Не авторизован" };
+
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "username-available")) {
+    return { error: "Слишком много запросов" };
+  }
+
+  const parsed = usernameSchema.safeParse(username);
+  if (!parsed.success) {
+    return { error: "Некорректный формат логина" };
+  }
+
+  try {
+    const available = await authService.isUsernameAvailable(parsed.data, userId);
+    return { available };
+  } catch (error) {
+    logger.error("checkUsernameAvailableAction error", error as Error);
+    return { error: "Ошибка проверки" };
   }
 }
 

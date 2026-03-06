@@ -58,17 +58,34 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Должно совпадать с auth. На ngrok NextAuth иногда ставит plain cookie — ищем обе
+  const nextAuthUrl = process.env.NEXTAUTH_URL ?? "";
+  const secureCookie =
+    !/ngrok/i.test(nextAuthUrl) &&
+    process.env.NODE_ENV === "production" &&
+    nextAuthUrl.startsWith("https://");
   const token = await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,
-    secureCookie: process.env.NODE_ENV === "production",
-    cookieName: "next-auth.session-token",
+    secureCookie,
   });
+
+  const mwDebug =
+    process.env.VK_ID_DEBUG === "true" ||
+    process.env.VK_ID_DEBUG === "1";
+  if (mwDebug) {
+    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
+    const cookieNames = req.cookies.getAll().map((c) => c.name);
+    const hasSecure = cookieNames.includes("__Secure-next-auth.session-token");
+    const hasPlain = cookieNames.includes("next-auth.session-token");
+    console.log("[MW] pathname=", pathname, "token=", token ? "OK" : "null", "host=", host, "sessionCookie=", hasSecure ? "Secure" : hasPlain ? "plain" : "нет");
+  }
 
   // Перенаправляем авторизованных пользователей на /courses
   if (token) {
     const authPages = ["/", "/login", "/register"];
     if (authPages.includes(pathname)) {
+      if (mwDebug) console.log("[MW] auth user на", pathname, "→ redirect /courses");
       const redirectUrl = new URL("/courses", url);
       const response = NextResponse.redirect(redirectUrl, 302);
 
@@ -82,7 +99,7 @@ export default async function middleware(req: NextRequest) {
 
       return response;
     }
-    // Если пользователь авторизован, пропускаем все остальные маршруты
+    if (mwDebug) console.log("[MW] auth user, path=", pathname, "→ next");
     return NextResponse.next();
   }
 
@@ -92,10 +109,12 @@ export default async function middleware(req: NextRequest) {
   );
 
   if (isPublicPath) {
+    if (mwDebug) console.log("[MW] public path", pathname, "→ next");
     return NextResponse.next();
   }
 
   // Все остальные маршруты требуют авторизации - редиректим на главную
+  if (mwDebug) console.log("[MW] no token, not public", pathname, "→ redirect /");
   return NextResponse.redirect(new URL("/", url));
 }
 

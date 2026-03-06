@@ -1,19 +1,35 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { revalidatePath } from "next/cache";
 
-import { storeVkIdOneTimeUser } from "@gafus/auth";
-import { findOrCreateVkUser } from "@gafus/core/services/auth";
+import { authOptions, storeVkIdOneTimeUser } from "@gafus/auth";
+import { getServerSession } from "next-auth";
+import { prisma } from "@gafus/prisma";
+import { findOrCreateVkUser, linkVkToUser } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
 import { checkAuthRateLimit, getClientIp } from "@shared/lib/rateLimit";
 
 const logger = createWebLogger("vk-id-callback");
 
+const vkIdCallbackDebug =
+  process.env.NODE_ENV === "development" ||
+  process.env.VK_ID_DEBUG === "true" ||
+  process.env.VK_ID_DEBUG === "1";
+
 export async function GET(request: NextRequest) {
+  if (vkIdCallbackDebug) console.log("[VK ID callback] GET вызван, url:", request.url);
+
+  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
+  const baseOrigin = /ngrok/i.test(forwardedHost)
+    ? `https://${forwardedHost}`
+    : new URL(request.url).origin;
+
   const ip = getClientIp(request);
   if (!checkAuthRateLimit(ip, "vk-id-callback")) {
-    return NextResponse.redirect(new URL("/login?error=rate_limit", request.url));
+    if (vkIdCallbackDebug) console.warn("[VK ID callback] rate limit");
+    return NextResponse.redirect(new URL("/login?error=rate_limit", baseOrigin));
   }
 
   const { searchParams } = request.nextUrl;
@@ -21,21 +37,30 @@ export async function GET(request: NextRequest) {
   const device_id = searchParams.get("device_id");
   const returnedState = searchParams.get("state");
 
+  if (vkIdCallbackDebug) console.log("[VK ID callback] params: code=", !!code, "device_id=", !!device_id, "state=", !!returnedState);
+
   const cookieStore = await cookies();
   const cookieRaw = cookieStore.get("vk_id_state")?.value;
 
   cookieStore.delete("vk_id_state");
 
   if (!code || !device_id || !returnedState || !cookieRaw) {
-    return NextResponse.redirect(new URL("/login?error=vk_id_auth_failed", request.url));
+    if (vkIdCallbackDebug) console.warn("[VK ID callback] не хватает параметров или cookie");
+    return NextResponse.redirect(new URL("/login?error=vk_id_auth_failed", baseOrigin));
   }
 
-  let parsedCookie: { state: string; codeVerifier: string };
+  let parsedCookie: { state: string; codeVerifier: string; returnPath?: string; mode?: string };
   try {
     parsedCookie = JSON.parse(cookieRaw);
   } catch {
-    return NextResponse.redirect(new URL("/login?error=vk_id_auth_failed", request.url));
+    return NextResponse.redirect(new URL("/login?error=vk_id_auth_failed", baseOrigin));
   }
+  const returnPath =
+    parsedCookie.returnPath === "/register"
+      ? "/register"
+      : parsedCookie.returnPath === "/"
+        ? "/"
+        : "/login";
 
   const stateA = new Uint8Array(Buffer.from(returnedState, "utf8"));
   const stateB = new Uint8Array(Buffer.from(parsedCookie.state, "utf8"));
@@ -43,12 +68,19 @@ export async function GET(request: NextRequest) {
     stateA.length !== stateB.length ||
     !crypto.timingSafeEqual(stateA, stateB)
   ) {
+    if (vkIdCallbackDebug) console.warn("[VK ID callback] state mismatch");
     logger.warn("VK ID state mismatch", { ip });
-    return NextResponse.redirect(new URL("/login?error=vk_id_auth_failed", request.url));
+    return NextResponse.redirect(new URL("/login?error=vk_id_auth_failed", baseOrigin));
   }
 
+  const isLinkMode = parsedCookie.mode === "link";
+
   const clientId = process.env.VK_CLIENT_ID ?? "";
-  const redirectUri = process.env.VK_WEB_REDIRECT_URI ?? "";
+  let redirectUri = process.env.VK_WEB_REDIRECT_URI ?? "";
+  if (/ngrok/i.test(forwardedHost)) {
+    redirectUri = `${baseOrigin}/api/auth/callback/vk-id`;
+  }
+  if (vkIdCallbackDebug) console.log("[VK ID callback] state OK, redirectUri=", redirectUri, "обмениваем code на token...");
 
   try {
     const tokenRes = await fetch("https://id.vk.ru/oauth2/auth", {
@@ -71,8 +103,11 @@ export async function GET(request: NextRequest) {
     };
 
     if (!tokenData.access_token) {
+      if (vkIdCallbackDebug) {
+        console.warn("[VK ID callback] token exchange failed:", tokenData.error, tokenData.error_description);
+      }
       logger.warn("VK ID token exchange failed", { error: tokenData.error });
-      return NextResponse.redirect(new URL("/login?error=vk_id_token_failed", request.url));
+      return NextResponse.redirect(new URL("/login?error=vk_id_token_failed", baseOrigin));
     }
 
     const userRes = await fetch("https://id.vk.ru/oauth2/user_info", {
@@ -89,13 +124,14 @@ export async function GET(request: NextRequest) {
         first_name?: string;
         last_name?: string;
         avatar?: string;
+        birthday?: string;
       };
       error?: string;
     };
 
     if (!userData.user?.user_id) {
       logger.warn("VK ID user_info failed", { error: userData.error });
-      return NextResponse.redirect(new URL("/login?error=vk_id_profile_failed", request.url));
+      return NextResponse.redirect(new URL("/login?error=vk_id_profile_failed", baseOrigin));
     }
 
     const vkProfile = {
@@ -103,7 +139,42 @@ export async function GET(request: NextRequest) {
       first_name: userData.user.first_name,
       last_name: userData.user.last_name,
       avatar: userData.user.avatar,
+      birthday: userData.user.birthday,
     };
+
+    if (isLinkMode) {
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.id) {
+        logger.warn("VK ID link: no session");
+        return NextResponse.redirect(new URL("/login?error=session_required", baseOrigin));
+      }
+
+      const result = await linkVkToUser(session.user.id, vkProfile);
+
+      const userForRedirect = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { username: true },
+      });
+      const usernameParam = (userForRedirect?.username ?? session.user.username ?? "")
+        ? `username=${encodeURIComponent(userForRedirect?.username ?? session.user.username ?? "")}&`
+        : "";
+
+      if (!result.success) {
+        logger.warn("VK ID link failed", { error: result.error, userId: session.user.id });
+        return NextResponse.redirect(
+          new URL(
+            `/profile?${usernameParam}error=${encodeURIComponent(result.error)}`,
+            baseOrigin,
+          ),
+        );
+      }
+
+      revalidatePath("/profile");
+      logger.info("VK ID link success", { userId: session.user.id });
+      return NextResponse.redirect(
+        new URL(`/profile?${usernameParam}linked=vk`, baseOrigin),
+      );
+    }
 
     const { user } = await findOrCreateVkUser(vkProfile, vkProfile.id);
 
@@ -115,12 +186,14 @@ export async function GET(request: NextRequest) {
     });
 
     logger.info("VK ID callback success", { userId: user.id });
+    if (vkIdCallbackDebug) console.log("[VK ID callback] success, userId=", user.id, "redirect на", returnPath, "?vk_id_token=...");
 
     return NextResponse.redirect(
-      new URL(`/login?vk_id_token=${encodeURIComponent(oneTimeToken)}`, request.url),
+      new URL(`${returnPath}?vk_id_token=${encodeURIComponent(oneTimeToken)}`, baseOrigin),
     );
   } catch (error) {
+    if (vkIdCallbackDebug) console.error("[VK ID callback] исключение:", error);
     logger.error("VK ID callback error", error as Error);
-    return NextResponse.redirect(new URL("/login?error=vk_id_auth_failed", request.url));
+    return NextResponse.redirect(new URL("/login?error=vk_id_auth_failed", baseOrigin));
   }
 }

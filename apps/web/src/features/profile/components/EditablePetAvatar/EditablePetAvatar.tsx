@@ -87,7 +87,7 @@ export default function EditablePetAvatar({
 
   const displayedUrl = currentAvatarUrl
     ? cacheBuster
-      ? `${currentAvatarUrl}?cb=${cacheBuster}`
+      ? `${currentAvatarUrl}${currentAvatarUrl.includes("?") ? "&" : "?"}cb=${cacheBuster}`
       : currentAvatarUrl
     : "/uploads/pet-avatar.jpg";
 

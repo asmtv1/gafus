@@ -175,9 +175,33 @@
 
 ---
 
+### GET `/api/v1/auth/username-available`
+
+Проверка доступности логина (для live-check при вводе).
+
+**Query:**
+
+| Параметр | Тип    | Описание                                    |
+| -------- | ------ | ------------------------------------------- |
+| username | string | Логин для проверки (3–50 символов, латиница, цифры, _) |
+
+**Headers:** `Authorization: Bearer <token>` (JWT обязателен)
+
+**Rate limit:** 15 запросов/минуту на IP.
+
+**Response:**
+
+```json
+{ "success": true, "data": { "available": true } }
+```
+
+**Ошибки:** 400 (invalid format), 401 (unauthorized), 429 (rate limit).
+
+---
+
 ### POST `/api/v1/auth/vk`
 
-Вход через VK ID (mobile). **PKCE обязателен** — `code_verifier` участвует в обмене кода, `client_secret` не используется. См. [VK Auth](../features/vk-auth.md).
+Вход через VK ID (mobile). **PKCE обязателен** — `code_verifier` участвует в обмене кода, `client_secret` не используется. Профиль (fullName, birthDate) автозаполняется из VK `user_info`. См. [VK Auth](../features/vk-auth.md).
 
 **Body:**
 
@@ -198,21 +222,23 @@
 
 ### POST `/api/v1/auth/vk-phone-set`
 
-Установка телефона для VK-пользователя. Требует авторизацию: Bearer JWT. Доступно только если `phone.startsWith("vk_")`.
+Установка телефона для VK-пользователя. Требует авторизацию: Bearer JWT. Доступно только если `phone.startsWith("vk_")`. Валидация: E.164 (`/^\+\d{10,15}$/`), сообщения об ошибках — whitelist из core, иначе generic fallback.
 
 **Body:**
 
 ```json
-{ "phone": "string" }
+{ "phone": "string (E.164, пример: +79001234567)" }
 ```
 
 **Response:** `{ "success": true }` или `{ "success": false, "error": "string" }`
+
+**Ошибки:** 400 (валидация, пользователь не найден, смена номера недоступна, неверный формат номера). Внутренние ошибки не раскрываются — только whitelist сообщений.
 
 ---
 
 ### POST `/api/v1/auth/set-password`
 
-Установка пароля для VK-only пользователя. Требует авторизацию: Bearer JWT. Недоступно если пароль уже установлен.
+Установка пароля для VK-only пользователя. Требует авторизацию: Bearer JWT. Недоступно если пароль уже установлен. Сообщения об ошибках — whitelist из core, иначе generic fallback (предотвращение утечки внутренних ошибок).
 
 **Body:**
 
@@ -221,6 +247,8 @@
 ```
 
 **Response:** `{ "success": true }` или `{ "success": false, "error": "string" }`
+
+**Ошибки:** 400 (валидация, пользователь не найден, пароль уже установлен). Внутренние ошибки не раскрываются.
 
 ---
 
@@ -238,6 +266,29 @@
 ```
 
 **Response:** `{ "success": true }` или `{ "success": false, "error": "string" }`
+
+---
+
+### POST `/api/v1/auth/vk-link`
+
+Привязка VK аккаунта к текущему пользователю. Требует авторизацию: Bearer JWT. Пользователь должен быть уже залогинен. Body — тот же schema, что и `POST /api/v1/auth/vk`.
+
+**Body:**
+
+```json
+{
+  "code": "string",
+  "code_verifier": "string (43-128 символов)",
+  "device_id": "string",
+  "state": "string (min 32)"
+}
+```
+
+**Response (success):** `{ "success": true }`
+
+**Ошибки:** 400 (VK уже привязан к другому пользователю, VK уже подключён, не удалось обменять code).
+
+См. [VK Auth — Account Linking](../features/vk-auth.md).
 
 ---
 
@@ -593,6 +644,35 @@
 ### GET `/api/v1/user/profile`
 
 Получить профиль текущего пользователя.
+
+**Response (success):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "username": "string",
+    "phone": "string",
+    "role": "USER | TRAINER | ADMIN | MODERATOR | PREMIUM",
+    "isConfirmed": true,
+    "hasAppPassword": true,
+    "profile": {
+      "fullName": "string | null",
+      "about": "string | null",
+      "telegram": "string | null",
+      "instagram": "string | null",
+      "website": "string | null",
+      "birthDate": "YYYY-MM-DD | null",
+      "avatarUrl": "string | null"
+    }
+  }
+}
+```
+
+`hasAppPassword` — `true` если пользователь установил пароль в приложении; `false` для VK ID пользователей без пароля.
+
+`hasVkLinked` — `true` если к аккаунту привязан VK (Account с provider `vk`).
 
 ---
 
@@ -1002,6 +1082,14 @@
 ---
 
 ## Changelog
+
+### v1.4.0 (06.03.2026)
+
+- **VK Account Linking:** `POST /api/v1/auth/vk-link` — привязка VK к существующему аккаунту (JWT обязателен). Web: `initiateVkIdLink`, callback `mode=link`; Mobile: `useVkLink`, `authApi.linkVk`. Профиль: `hasVkLinked` в `GET /api/v1/user/profile` и web `getUserWithTrainings`. См. [VK Auth](../features/vk-auth.md).
+
+### v1.3.0 (06.03.2026)
+
+- **username-available:** `GET /api/v1/auth/username-available` — live-check доступности логина при вводе (JWT обязателен, 15 req/min на IP). Web и mobile: debounced live-check, индикатор доступности.
 
 ### v1.2.0 (04.03.2026)
 

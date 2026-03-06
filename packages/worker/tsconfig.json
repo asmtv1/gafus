@@ -13,6 +13,7 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
+      "@gafus/core/services/consent": ["../../packages/core/src/services/consent"],
       "@gafus/prisma": ["../../packages/prisma/src"],
       "@gafus/queues": ["../../packages/queues/src"]
     }

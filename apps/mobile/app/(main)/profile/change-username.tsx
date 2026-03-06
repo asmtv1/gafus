@@ -9,6 +9,7 @@ import { Button, Input } from "@/shared/components/ui";
 import type { User } from "@/shared/lib/api/auth";
 import { userApi } from "@/shared/lib/api/user";
 import { useAuthStore } from "@/shared/stores";
+import { useUsernameAvailability } from "@/shared/hooks";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/constants";
 
@@ -21,6 +22,7 @@ export default function ChangeUsernameScreen() {
   const [newUsername, setNewUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const { status } = useUsernameAvailability(newUsername);
 
   const onSave = async () => {
     const trimmed = newUsername.trim();
@@ -73,11 +75,26 @@ export default function ChangeUsernameScreen() {
           autoCorrect={false}
           style={styles.input}
         />
+        {status === "checking" && (
+          <Text style={[styles.availabilityHint, { color: COLORS.textSecondary }]}>
+            Проверка...
+          </Text>
+        )}
+        {status === "available" && (
+          <Text style={[styles.availabilityHint, { color: COLORS.success }]}>
+            Логин свободен
+          </Text>
+        )}
+        {status === "taken" && (
+          <Text style={[styles.availabilityHint, { color: COLORS.error }]}>
+            Логин занят
+          </Text>
+        )}
         <Button
           label="Сохранить"
           onPress={onSave}
           loading={loading}
-          disabled={loading}
+          disabled={loading || status === "taken" || status === "checking"}
           style={styles.button}
         />
       </ScrollView>
@@ -106,6 +123,11 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: SPACING.md,
+  },
+  availabilityHint: {
+    marginTop: 4,
+    marginBottom: SPACING.sm,
+    fontSize: 14,
   },
   button: {
     marginTop: SPACING.md,

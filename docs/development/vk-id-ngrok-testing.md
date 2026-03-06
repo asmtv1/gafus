@@ -101,7 +101,7 @@ https://XXXX.ngrok-free.app
 
 ## Шаг 6: Проверка
 
-1. Перейди на `https://XXXX.ngrok-free.app/login`
+1. Перейди на `https://XXXX.ngrok-free.app` (главная)
 2. Нажми «Войти через VK»
 3. Должен открыться VK ID без CORS-ошибок
 4. После авторизации — redirect на callback и вход в приложение

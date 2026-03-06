@@ -106,3 +106,14 @@ export const paymentsRateLimiter = rateLimiter({
   },
   store,
 });
+
+/**
+ * Мягкий лимит для live-check доступности логина (15 req/min)
+ */
+export const usernameAvailableRateLimiter = rateLimiter({
+  windowMs: 60 * 1000,
+  limit: 15,
+  standardHeaders: "draft-6",
+  keyGenerator: (c) => `username-avail:${getClientIp(c)}`,
+  store,
+});

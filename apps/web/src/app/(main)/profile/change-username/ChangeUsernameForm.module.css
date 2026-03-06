@@ -1,0 +1,66 @@
+/* Кнопка — стили как в SettingsActions (gradient, brand colors) */
+.button {
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
+  color: #ece5d2;
+  border: 1px solid #636128;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 220px;
+  min-height: 48px;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
+}
+
+.button:active:not(:disabled) {
+  background: linear-gradient(135deg, #352e2e 0%, #2a2525 100%);
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Индикатор доступности логина */
+.availabilityHint {
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+@media (max-width: 480px) {
+  .button {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    min-height: 48px;
+  }
+}
+
+@media (max-width: 375px) {
+  .button {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+    min-height: 44px;
+    min-width: auto;
+  }
+}

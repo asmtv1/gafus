@@ -10,6 +10,7 @@ interface ProfileClientProps {
   isOwner: boolean;
   username: string;
   userData: UserWithTrainings | null;
+  linkFeedback?: string;
 }
 
 export default function ProfileClient({
@@ -17,13 +18,19 @@ export default function ProfileClient({
   isOwner,
   username,
   userData,
+  linkFeedback,
 }: ProfileClientProps) {
   return (
     <main>
       <Bio publicData={publicData} isOwner={isOwner} username={username} userData={userData} />
       {isOwner && publicData.role === "USER" && <StudentNotes />}
       {isOwner && userData && <PrivateProfileSection user={userData} />}
-      {isOwner && userData && <SettingsActions />}
+      {isOwner && userData && (
+        <SettingsActions
+          hasVkLinked={userData.hasVkLinked ?? false}
+          linkFeedback={linkFeedback}
+        />
+      )}
     </main>
   );
 }

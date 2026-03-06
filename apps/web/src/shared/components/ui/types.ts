@@ -101,6 +101,7 @@ export interface FormFieldComponentProps<T extends FieldValues> {
   disabled?: boolean;
   autoComplete?: string;
   ariaLabel?: string;
+  ariaDescribedBy?: string;
   visuallyHiddenLabel?: boolean;
   errorClassName?: string;
 }

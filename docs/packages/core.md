@@ -74,9 +74,11 @@ import {
   checkUserState,
   registerUser,
   findOrCreateVkUser,
+  linkVkToUser,
   setVkPhone,
   setPassword,
   changePassword,
+  isUsernameAvailable,
 } from "@gafus/core/services/auth";
 
 // Уведомления

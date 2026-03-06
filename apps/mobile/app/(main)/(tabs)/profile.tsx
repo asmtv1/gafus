@@ -8,6 +8,7 @@ import { Image } from "expo-image";
 
 import { Card } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
+import { useVkLink } from "@/shared/hooks";
 import { subscriptionsApi, notesApi } from "@/shared/lib/api";
 import { userApi } from "@/shared/lib/api/user";
 import { petsApi, type Pet } from "@/shared/lib/api/pets";
@@ -292,6 +293,16 @@ export default function ProfileScreen() {
   });
 
   const profile = profileData?.data?.profile;
+  const hasAppPassword = profileData?.data?.hasAppPassword ?? user?.hasAppPassword ?? false;
+  const hasVkLinked = profileData?.data?.hasVkLinked ?? false;
+
+  const { handleVkLink, isVkLinkLoading } = useVkLink({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      Alert.alert("Готово", "VK успешно подключён");
+    },
+    onError: (msg) => Alert.alert("Ошибка", msg),
+  });
   const avatarUrl = profile?.avatarUrl?.trim() || null;
   const pets = petsData?.data || [];
   const displayRole = getRoleLabel(user?.role);
@@ -685,13 +696,39 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* Кнопка смены пароля */}
-        <Pressable
-          style={styles.passwordButton}
-          onPress={() => router.push("/reset-password")}
-        >
-          <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
-        </Pressable>
+        {hasAppPassword ? (
+          <Pressable
+            style={styles.passwordButton}
+            onPress={() => router.push("/reset-password")}
+          >
+            <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={styles.passwordButton}
+            onPress={() => router.push("/profile/set-password")}
+          >
+            <Text style={styles.passwordButtonText}>🔐 Установить пароль</Text>
+          </Pressable>
+        )}
+
+        {!hasVkLinked ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.passwordButton,
+              pressed && { opacity: 0.7 },
+              isVkLinkLoading && { opacity: 0.5 },
+            ]}
+            onPress={handleVkLink}
+            disabled={isVkLinkLoading}
+          >
+            <Text style={styles.passwordButtonText}>
+              {isVkLinkLoading ? "Подключение..." : "🔗 Подключить VK"}
+            </Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.vkLinkedText}>✅ VK подключён</Text>
+        )}
 
         <Pressable
           style={styles.passwordButton}
@@ -1335,6 +1372,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     fontFamily: FONTS.impact,
+  },
+  vkLinkedText: {
+    marginTop: SPACING.md,
+    marginBottom: SPACING.md,
+    color: "#636128",
+    fontSize: 14,
+    fontFamily: FONTS.montserrat,
   },
   logoutButton: {
     backgroundColor: "#636128",
