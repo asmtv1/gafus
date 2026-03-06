@@ -1,4 +1,6 @@
 "use client";
+
+import { reportClientError } from "@gafus/error-handling";
 import { uploadCourseImageServerAction } from "@features/courses/lib/uploadCourseImageServerAction";
 import {
   Card,
@@ -83,7 +85,9 @@ export default function CourseMediaUploader({
         onUploadComplete(preview);
       }
     } catch (err) {
-      logger.error("Ошибка загрузки изображения курса", err as Error, {
+      const error = err instanceof Error ? err : new Error(String(err));
+      reportClientError(error, { issueKey: "CourseMediaUpload", keys: { operation: "upload" } });
+      logger.error("Ошибка загрузки изображения курса", error, {
         operation: "course_image_upload_error",
       });
       setError(err instanceof Error ? err.message : "Не удалось загрузить изображение");

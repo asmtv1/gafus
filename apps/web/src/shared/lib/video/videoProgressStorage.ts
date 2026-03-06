@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 
 /**
@@ -63,7 +64,10 @@ export async function getLocalVideoProgress(videoId: string): Promise<number | n
       };
     });
   } catch (error) {
-    console.error("[videoProgressStorage] Ошибка получения прогресса:", error);
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "VideoProgress",
+      keys: { operation: "get", videoId },
+    });
     return null;
   }
 }
@@ -93,7 +97,10 @@ export async function saveLocalVideoProgress(
       request.onsuccess = () => resolve();
     });
   } catch (error) {
-    console.error("[videoProgressStorage] Ошибка сохранения прогресса:", error);
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "VideoProgress",
+      keys: { operation: "save", videoId },
+    });
     throw error;
   }
 }
@@ -114,7 +121,10 @@ export async function getAllVideoProgress(): Promise<VideoProgressEntry[]> {
       request.onsuccess = () => resolve(request.result as VideoProgressEntry[]);
     });
   } catch (error) {
-    console.error("[videoProgressStorage] Ошибка получения всех прогрессов:", error);
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "VideoProgress",
+      keys: { operation: "getAll" },
+    });
     return [];
   }
 }
@@ -135,7 +145,10 @@ export async function clearAllVideoProgress(): Promise<void> {
       request.onsuccess = () => resolve();
     });
   } catch (error) {
-    console.error("[videoProgressStorage] Ошибка очистки прогрессов:", error);
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "VideoProgress",
+      keys: { operation: "clear" },
+    });
     throw error;
   }
 }
@@ -175,6 +188,10 @@ export async function syncVideoProgressFromIndexedDB(): Promise<void> {
       logger.error("Ошибка синхронизации", new Error(result.error ?? "Unknown"));
     }
   } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "VideoProgress",
+      keys: { operation: "sync" },
+    });
     logger.error("Ошибка синхронизации с сервером", error as Error);
   }
 }

@@ -28,6 +28,7 @@ import {
   FullscreenExit as FullscreenExitIcon,
   SmartToy as BotIcon,
 } from "@mui/icons-material";
+import { reportClientError } from "@gafus/error-handling";
 import { ChatMessage } from "./ChatMessage";
 import { getChatHistory } from "../lib/getChatHistory";
 import { clearChatHistory } from "../lib/clearChatHistory";
@@ -97,6 +98,7 @@ export function AIChatWidget() {
       }, 60000);
     },
     onError: (error) => {
+      reportClientError(error, { issueKey: "AIChatWidget", keys: { operation: "message_send" } });
       // Очищаем таймаут при ошибке
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -174,7 +176,10 @@ export function AIChatWidget() {
           setMessages(formattedMessages);
         }
       } catch (error) {
-        // Игнорируем ошибки перезагрузки истории
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "AIChatWidget",
+          keys: { operation: "history_reload" },
+        });
       } finally {
         setIsLoadingHistory(false);
       }
@@ -363,14 +368,21 @@ export function AIChatWidget() {
   };
 
   useEffect(() => {
-    getAIConfig().then((result) => {
-      if (result.success && result.data) {
-        setConfig(result.data);
-        if (result.data.model) {
-          setSelectedModel(result.data.model);
+    getAIConfig()
+      .then((result) => {
+        if (result.success && result.data) {
+          setConfig(result.data);
+          if (result.data.model) {
+            setSelectedModel(result.data.model);
+          }
         }
-      }
-    });
+      })
+      .catch((error) => {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "AIChatWidget",
+          keys: { operation: "config_load" },
+        });
+      });
   }, []);
 
   useEffect(() => {
@@ -414,6 +426,12 @@ export function AIChatWidget() {
             setMessages(formattedMessages);
             setHistoryLoaded(true);
           }
+        })
+        .catch((error) => {
+          reportClientError(error instanceof Error ? error : new Error(String(error)), {
+            issueKey: "AIChatWidget",
+            keys: { operation: "history_load" },
+          });
         })
         .finally(() => {
           setIsLoadingHistory(false);
@@ -463,10 +481,17 @@ export function AIChatWidget() {
 
   const handleClearHistory = async () => {
     if (confirm("Вы уверены, что хотите очистить всю историю чата?")) {
-      const result = await clearChatHistory();
-      if (result.success) {
-        setMessages([]);
-        setHistoryLoaded(true);
+      try {
+        const result = await clearChatHistory();
+        if (result.success) {
+          setMessages([]);
+          setHistoryLoaded(true);
+        }
+      } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "AIChatWidget",
+          keys: { operation: "clear_history" },
+        });
       }
     }
   };

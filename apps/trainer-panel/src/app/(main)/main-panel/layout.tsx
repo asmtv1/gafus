@@ -23,6 +23,7 @@ import { useState, useEffect } from "react";
 
 import { resetCookieConsent } from "@gafus/ui-components";
 
+import { reportClientError } from "@gafus/error-handling";
 import styles from "./main-panel.module.css";
 import { getPendingExamCount } from "@/features/exam-results/lib/getPendingExamCount";
 import { AIChatWidget } from "@/features/ai-chat/components/AIChatWidget";
@@ -46,7 +47,10 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
         const count = await getPendingExamCount();
         setPendingExamCount(count || 0);
       } catch (error) {
-        console.error("Failed to load pending exam count:", error);
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "MainPanelPendingExams",
+          keys: { operation: "fetch" },
+        });
       }
     }
     loadPendingCount();

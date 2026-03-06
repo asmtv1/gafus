@@ -33,6 +33,8 @@
 3. `initTracerErrorUploader({ appToken, versionName })` — запускает отправку ошибок на apptracer.ru.
 4. `ErrorBoundary.componentDidCatch` вызывает `reportClientError()` → window bridge → `tracerError.error()`.
 
+**trainer-panel** использует `TracerLayout` + `setupGlobalErrorHandling` (как web) для улучшенной группировки ошибок: `window.onerror` и `unhandledrejection` отправляются с `issueKey: "GlobalJsError"` / `"UnhandledRejection"`. Логика офлайн-редиректа (как в web) отсутствует — trainer-panel не имеет offline flow.
+
 ### Web Vitals (производительность)
 
 TracerProvider также инициализирует сбор метрик Web Vitals:

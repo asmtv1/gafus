@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { createTrainingDay } from "@features/steps/lib/createTrainingDay";
 import { updateTrainingDay } from "@features/steps/lib/updateTrainingDay";
@@ -114,7 +115,9 @@ export default function CreateDayClient({ allSteps, initialDay, initialStepIds }
         setSelectedSteps([]);
       }
     } catch (err) {
-      logger.error("Ошибка при сохранении:", err as Error, { operation: "error" });
+      const error = err instanceof Error ? err : new Error(String(err));
+      reportClientError(error, { issueKey: "DaysCreate", keys: { operation: "save" } });
+      logger.error("Ошибка при сохранении:", error, { operation: "error" });
       showToast("Ошибка при сохранении дня", "error");
     }
   };

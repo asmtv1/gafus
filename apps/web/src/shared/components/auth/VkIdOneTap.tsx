@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { initiateVkIdAuth, prepareVkIdOneTap } from "@shared/server-actions";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -26,7 +27,19 @@ export function VkIdOneTap() {
     setViewState("loading");
     setError(null);
 
-    const result = await prepareVkIdOneTap();
+    let result: Awaited<ReturnType<typeof prepareVkIdOneTap>>;
+    try {
+      result = await prepareVkIdOneTap();
+    } catch (e) {
+      reportClientError(e instanceof Error ? e : new Error("prepareVkIdOneTap failed"), {
+        issueKey: "VkIdOneTapPrepare",
+      });
+      if (mountedRef.current) {
+        setError("Ошибка соединения. Обновите страницу.");
+        setViewState("error");
+      }
+      return;
+    }
 
     if (!mountedRef.current) return;
     if (!result.success) {
@@ -65,7 +78,16 @@ export function VkIdOneTap() {
         skin: VKID.OneTapSkin.Secondary,
       });
       oneTap.on(VKID.WidgetEvents.ERROR, (e: unknown) => {
-        console.error("VK ID One Tap error", e);
+        const payload = e && typeof e === "object" && "code" in e && "text" in e
+          ? (e as { code: number; text: string })
+          : null;
+        const err = payload
+          ? new Error(`VK ID One Tap: ${payload.text}`)
+          : new Error("VK ID One Tap error");
+        reportClientError(err, {
+          issueKey: "VkIdOneTap",
+          keys: payload ? { code: payload.code, text: payload.text } : undefined,
+        });
         container.innerHTML = "";
         if (mountedRef.current) {
           setError("Ошибка VK ID");
@@ -74,7 +96,9 @@ export function VkIdOneTap() {
       });
       setViewState("success");
     } catch (e) {
-      console.error("VK ID One Tap init error", e);
+      reportClientError(e instanceof Error ? e : new Error("VK ID init failed"), {
+        issueKey: "VkIdOneTapInit",
+      });
       if (container) container.innerHTML = "";
       if (mountedRef.current) {
         setError("Не удалось загрузить VK ID");
@@ -85,7 +109,19 @@ export function VkIdOneTap() {
 
   const handleFallbackClick = useCallback(async () => {
     setFallbackLoading(true);
-    const result = await initiateVkIdAuth();
+    let result: Awaited<ReturnType<typeof initiateVkIdAuth>>;
+    try {
+      result = await initiateVkIdAuth();
+    } catch (e) {
+      reportClientError(e instanceof Error ? e : new Error("initiateVkIdAuth failed"), {
+        issueKey: "VkIdAuthRedirect",
+      });
+      if (mountedRef.current) {
+        setError("Ошибка соединения. Обновите страницу.");
+        setFallbackLoading(false);
+      }
+      return;
+    }
     if (!mountedRef.current) return;
     if (result.success) {
       window.location.href = result.url;

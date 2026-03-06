@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/tracer";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { trainingApi } from "@/shared/lib/api/training";
 
@@ -108,10 +109,11 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
       })
       .catch((err) => {
         if (!mountedRef.current) return;
+        reportClientError(err instanceof Error ? err : new Error(String(err)), {
+          issueKey: "VideoUrl",
+          keys: { operation: "signed_url" },
+        });
         const errorMsg = err instanceof Error ? err.message : "Ошибка загрузки видео";
-        if (__DEV__) {
-          console.error("[useVideoUrl] Ошибка запроса:", errorMsg, err);
-        }
         setUrl(null);
         setError(errorMsg);
       })

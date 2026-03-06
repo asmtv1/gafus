@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import {
   Category,
   Delete as DeleteIcon,
@@ -124,7 +125,9 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
       }
       showToast("Курс удалён", "success");
     } catch (e) {
-      logger.error("Ошибка удаления курса", e as Error, {
+      const error = e instanceof Error ? e : new Error(String(e));
+      reportClientError(error, { issueKey: "StatisticsDeleteCourse", keys: { operation: "delete" } });
+      logger.error("Ошибка удаления курса", error, {
         operation: "delete_course_error",
         courseId: course.id,
       });
@@ -779,6 +782,8 @@ function UserProgressAccordion({
           setLoading(false);
         })
         .catch((err) => {
+          const error = err instanceof Error ? err : new Error(String(err));
+          reportClientError(error, { issueKey: "StatisticsLoad", keys: { operation: "fetch" } });
           setError(err instanceof Error ? err.message : "Ошибка загрузки");
           setLoading(false);
         });

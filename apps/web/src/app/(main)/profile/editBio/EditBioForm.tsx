@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { FormField } from "@shared/components/ui/FormField";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
@@ -107,6 +108,8 @@ export default function EditBioForm() {
       const redirectUrl = username ? `/profile?username=${username}` : "/courses";
       router.push(redirectUrl);
     } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      reportClientError(err, { issueKey: "ProfilePets", keys: { operation: "save" } });
       catchError(error);
     }
   };

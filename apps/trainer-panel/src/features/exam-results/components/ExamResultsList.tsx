@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import React, { useEffect, useState, useTransition } from "react";
 import {
   Box,
@@ -145,9 +146,11 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
           }));
         }
       } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        reportClientError(err, { issueKey: "ExamResultsAction", keys: { operation: "review" } });
         setActionErrors((prev) => ({
           ...prev,
-          [userStepId]: error instanceof Error ? error.message : "Ошибка при сохранении решения",
+          [userStepId]: err.message,
         }));
       } finally {
         setProcessingId(null);

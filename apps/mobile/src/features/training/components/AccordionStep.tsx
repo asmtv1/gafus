@@ -21,6 +21,7 @@ import { useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
 import { useVideoUrl } from "@/shared/hooks";
 import { getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
+import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, FONTS, SPACING } from "@/constants";
 
@@ -94,9 +95,10 @@ function AccordionStepComponent({
   try {
     stepData = ("step" in step && step.step ? step.step : step) as StepContent;
   } catch (error) {
-    if (__DEV__) {
-      console.error("[AccordionStep] Ошибка при извлечении stepData:", error);
-    }
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "AccordionStep",
+      keys: { operation: "stepData", stepId: ("id" in step ? step.id : undefined) ?? "unknown" },
+    });
     stepData = step as StepContent;
   }
 
@@ -283,9 +285,10 @@ function AccordionStepComponent({
             onCompleteRef.current();
           }
         } catch (error) {
-          if (__DEV__) {
-            console.error("[AccordionStep] Ошибка в интервале таймера:", error);
-          }
+          reportClientError(error instanceof Error ? error : new Error(String(error)), {
+            issueKey: "AccordionStep",
+            keys: { operation: "timer_tick", stepIndex: index },
+          });
         }
       }, 1000);
 
@@ -296,9 +299,10 @@ function AccordionStepComponent({
         }
       };
     } catch (error) {
-      if (__DEV__) {
-        console.error("[AccordionStep] Ошибка в useEffect таймера:", error);
-      }
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "AccordionStep",
+        keys: { operation: "timer_init", stepIndex: index },
+      });
     }
     return;
   // Не включаем activeTimer в deps: при каждом tick() store отдаёт новый объект,
@@ -679,9 +683,10 @@ function AccordionStepComponent({
                       </View>
                     );
                   } catch (error) {
-                    if (__DEV__) {
-                      console.error("[AccordionStep] Ошибка при отображении таймера:", error);
-                    }
+                    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                      issueKey: "AccordionStep",
+                      keys: { operation: "timer_display", stepIndex: index },
+                    });
                     return null;
                   }
                 })()}

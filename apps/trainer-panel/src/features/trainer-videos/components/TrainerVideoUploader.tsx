@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -241,14 +242,15 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
 
         uploadResults.completed++;
       } catch (error) {
-        // Обновляем статус на "error"
+        const err = error instanceof Error ? error : new Error(String(error));
+        reportClientError(err, { issueKey: "TrainerVideoUpload", keys: { operation: "upload" } });
         setFiles((prev) =>
           prev.map((f, idx) =>
             idx === i
               ? {
                   ...f,
                   status: "error",
-                  error: error instanceof Error ? error.message : "Ошибка загрузки",
+                  error: err.message,
                 }
               : f,
           ),

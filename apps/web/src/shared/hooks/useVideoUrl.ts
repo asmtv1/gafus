@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useEffect, useMemo, useState } from "react";
 import { getVideoUrlForPlayback } from "@shared/lib/video/getVideoUrlForPlayback";
 
@@ -57,8 +58,10 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
           }
         })
         .catch((error) => {
-          console.error("[useVideoUrl] === ОШИБКА при получении signed URL ===", error);
-          // При ошибке тоже не используем fallback, так как оригинальный файл может быть удалён
+          reportClientError(error instanceof Error ? error : new Error(String(error)), {
+            issueKey: "VideoUrl",
+            keys: { operation: "signed_url" },
+          });
           setPlaybackUrl(null);
         });
     } else {

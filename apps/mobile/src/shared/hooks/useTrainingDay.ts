@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/tracer";
 import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { trainingApi } from "@/shared/lib/api";
@@ -42,9 +43,10 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
         if (dayData) {
           return { success: true, data: dayData };
         }
-        if (__DEV__) {
-          console.error("[useTrainingDay] Исключение при загрузке:", error);
-        }
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "TrainingDay",
+          keys: { operation: "load", dayOnCourseId, courseType },
+        });
         throw error;
       }
     },

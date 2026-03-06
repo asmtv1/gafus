@@ -1,3 +1,4 @@
+import { reportClientError } from "@gafus/error-handling";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createWebLogger } from "@gafus/logger";
@@ -57,12 +58,14 @@ export const useOfflineStore = create<OfflineState>()(
             const now = Date.now();
             if (!state.lastSyncAttempt || now - state.lastSyncAttempt >= state.syncCooldown) {
               setTimeout(() => {
-                try {
-                  get().syncOfflineActions();
+            try {
+              get().syncOfflineActions();
                 } catch (error) {
+                  const err = error instanceof Error ? error : new Error(String(error));
+                  reportClientError(err, { issueKey: "OfflineStore", keys: { operation: "sync" } });
                   logger.warn("Failed to sync offline actions (online)", {
                     operation: "sync_offline_actions_online_error",
-                    error: error instanceof Error ? error.message : String(error),
+                    error: err.message,
                   });
                 }
               }, 1000);
@@ -77,9 +80,11 @@ export const useOfflineStore = create<OfflineState>()(
               );
               await syncVideoProgressFromIndexedDB();
             } catch (error) {
+              const err = error instanceof Error ? error : new Error(String(error));
+              reportClientError(err, { issueKey: "OfflineStore", keys: { operation: "syncVideo" } });
               logger.warn("Failed to sync video progress", {
                 operation: "sync_video_progress_error",
-                error: error instanceof Error ? error.message : String(error),
+                error: err.message,
               });
             }
           }, 1500); // Через 1.5 сек после основной синхронизации
@@ -120,19 +125,23 @@ export const useOfflineStore = create<OfflineState>()(
                 try {
                   get().syncOfflineActions();
                 } catch (error) {
+                  const err = error instanceof Error ? error : new Error(String(error));
+                  reportClientError(err, { issueKey: "OfflineStore", keys: { operation: "sync" } });
                   logger.warn("Failed to sync offline actions (retry)", {
                     operation: "sync_offline_actions_retry_error",
-                    error: error instanceof Error ? error.message : String(error),
+                    error: err.message,
                   });
                 }
               }, 100);
             }
           }
         } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          reportClientError(err, { issueKey: "OfflineStore", keys: { operation: "addToQueue" } });
           logger.warn("Failed to add action to sync queue", {
             operation: "add_action_to_sync_queue_error",
             actionType: action.type,
-            error: error instanceof Error ? error.message : String(error),
+            error: err.message,
           });
         }
       },
@@ -205,8 +214,11 @@ export const useOfflineStore = create<OfflineState>()(
               // Удаляем успешно синхронизированное действие
               get().removeFromSyncQueue(action.id);
             } catch (error) {
-              // Если все попытки исчерпаны, удаляем действие
               const syncError = error instanceof Error ? error : new Error(String(error));
+              reportClientError(syncError, {
+                issueKey: "OfflineStore",
+                keys: { operation: "syncAction", actionType: action.type },
+              });
               logger.error(
                 `Failed to sync action ${action.type} after ${state.maxRetries} attempts`,
                 syncError,
@@ -223,9 +235,11 @@ export const useOfflineStore = create<OfflineState>()(
           // Обновляем время последней синхронизации
           set({ lastSyncTime: now });
         } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          reportClientError(err, { issueKey: "OfflineStore", keys: { operation: "sync" } });
           logger.warn("Failed to sync offline actions (main)", {
             operation: "sync_offline_actions_main_error",
-            error: error instanceof Error ? error.message : String(error),
+            error: err.message,
           });
         }
       },

@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("web-download-hls-video");
@@ -230,7 +231,12 @@ export async function downloadHLSVideo(
             });
           })
           .catch((error) => {
-            logger.error("Ошибка при скачивании сегмента", error as Error, {
+            const err = error instanceof Error ? error : new Error(String(error));
+            reportClientError(err, {
+              issueKey: "OfflineDownload",
+              keys: { operation: "segment", segmentFileName, hlsManifestPath },
+            });
+            logger.error("Ошибка при скачивании сегмента", err, {
               segmentFileName,
               segmentCdnUrl,
             });
@@ -312,7 +318,12 @@ export async function downloadHLSVideo(
       downloadedAt: Date.now(),
     };
   } catch (error) {
-    logger.error("Критическая ошибка при скачивании HLS видео", error as Error, {
+    const err = error instanceof Error ? error : new Error(String(error));
+    reportClientError(err, {
+      issueKey: "OfflineDownload",
+      keys: { operation: "download", hlsManifestPath, videoUrl },
+    });
+    logger.error("Критическая ошибка при скачивании HLS видео", err, {
       hlsManifestPath,
       videoUrl,
     });

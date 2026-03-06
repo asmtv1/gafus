@@ -25,6 +25,7 @@ import {
   Typography,
 } from "@mui/material";
 
+import { reportClientError } from "@gafus/error-handling";
 import { deleteTrainerVideo } from "../lib/deleteTrainerVideo";
 import { updateTrainerVideoName } from "../lib/updateTrainerVideoName";
 import { getSignedVideoUrl } from "../lib/getSignedVideoUrl";
@@ -72,11 +73,8 @@ function VideoPlayerSection({ video }: { video: TrainerVideoViewModel }) {
           }
         })
         .catch((error) => {
-          console.error("[VideoPlayerSection] Ошибка получения signed URL:", error, {
-            videoId: video.id,
-            errorMessage: error instanceof Error ? error.message : String(error),
-            errorStack: error instanceof Error ? error.stack : undefined,
-          });
+          const err = error instanceof Error ? error : new Error(String(error));
+          reportClientError(err, { issueKey: "TrainerVideoSignedUrl", keys: { videoId: video.id } });
           alert("Ошибка загрузки видео. Попробуйте обновить страницу.");
         })
         .finally(() => {

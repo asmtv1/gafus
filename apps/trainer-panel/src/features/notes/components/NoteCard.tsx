@@ -19,8 +19,9 @@ import { DialogContentText } from "@mui/material";
 import { Edit, Delete, Visibility, VisibilityOff } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import type { TrainerNote } from "../types";
+import { reportClientError } from "@gafus/error-handling";
 import type { ActionResult } from "@gafus/types";
+import type { TrainerNote } from "../types";
 
 interface NoteCardProps {
   note: TrainerNote;
@@ -50,6 +51,10 @@ export default function NoteCard({ note, onEdit, onDelete }: NoteCardProps) {
         setDeleteError(result.error || "Ошибка при удалении заметки");
       }
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "NotesDelete",
+        keys: { operation: "delete" },
+      });
       setDeleteError(error instanceof Error ? error.message : "Неизвестная ошибка");
     } finally {
       setIsDeleting(false);

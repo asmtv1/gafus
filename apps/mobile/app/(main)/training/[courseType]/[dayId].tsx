@@ -34,6 +34,7 @@ import { getStepContent, paymentsApi, trainingApi } from "@/shared/lib/api";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
+import { reportClientError } from "@/shared/lib/tracer";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 
 /**
@@ -120,9 +121,10 @@ export default function TrainingDayScreen() {
           });
         });
       } catch (err) {
-        if (__DEV__) {
-          console.error("[TrainingDayScreen] Ошибка инициализации шагов:", err);
-        }
+        reportClientError(err instanceof Error ? err : new Error(String(err)), {
+          issueKey: "TrainingDay",
+          keys: { operation: "init_steps", dayId, courseId },
+        });
       }
     }
   }, [dayData?.steps, courseId, dayId, initializeStep]);
@@ -170,6 +172,10 @@ export default function TrainingDayScreen() {
           durationSec,
         });
       } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "TrainingDay",
+          keys: { operation: "start", dayId, courseId },
+        });
         setSnackbar({ visible: true, message: "Ошибка старта шага" });
       }
     },
@@ -188,6 +194,10 @@ export default function TrainingDayScreen() {
           timeLeftSec: remainingSec,
         });
       } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "TrainingDay",
+          keys: { operation: "pause", dayId, courseId },
+        });
         setSnackbar({ visible: true, message: "Ошибка паузы" });
       }
     },
@@ -204,6 +214,10 @@ export default function TrainingDayScreen() {
           stepIndex,
         });
       } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "TrainingDay",
+          keys: { operation: "resume", dayId, courseId },
+        });
         setSnackbar({ visible: true, message: "Ошибка возобновления" });
       }
     },
@@ -221,6 +235,10 @@ export default function TrainingDayScreen() {
           durationSec,
         });
       } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "TrainingDay",
+          keys: { operation: "reset", dayId, courseId },
+        });
         setSnackbar({ visible: true, message: "Ошибка сброса шага" });
       }
     },
@@ -272,7 +290,10 @@ export default function TrainingDayScreen() {
           setOpenIndex(courseId, dayId, nextIndex);
         }
       } catch (error) {
-        console.error("[Я выполнил] ошибка в handleCompleteStep:", error);
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "TrainingDay",
+          keys: { operation: "complete", dayId, courseId },
+        });
         setSnackbar({ visible: true, message: "Ошибка сохранения" });
       }
     },
@@ -682,7 +703,11 @@ export default function TrainingDayScreen() {
                     } else {
                       setSnackbar({ visible: true, message: "Не удалось открыть ссылку" });
                     }
-                  } catch {
+                  } catch (err) {
+                    reportClientError(err instanceof Error ? err : new Error(String(err)), {
+                      issueKey: "TrainingDay",
+                      keys: { operation: "export", dayId, courseId },
+                    });
                     setSnackbar({ visible: true, message: "Ошибка при экспорте" });
                   } finally {
                     setIsExporting(false);
@@ -770,11 +795,10 @@ export default function TrainingDayScreen() {
                   />
                   );
                 } catch (error) {
-                  if (__DEV__) {
-                    console.error("[TrainingDayScreen] Ошибка при рендеринге шага:", error, {
-                      index,
-                      hasStep: !!step,
-                    });
+                  reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                    issueKey: "TrainingDay",
+                    keys: { operation: "render_step", index, dayId, courseId },
+                  });
                   }
                   return (
                     <View key={`error-${index}`} style={styles.stepErrorContainer}>

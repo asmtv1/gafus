@@ -3,6 +3,7 @@
 import VideoSelector from "@features/steps/components/VideoSelector";
 import UserSearchSelector from "@features/users/components/UserSearchSelector";
 import { useCSRFStore } from "@gafus/csrf";
+import { reportClientError } from "@gafus/error-handling";
 import type { TrainerVideoDto } from "@gafus/types";
 import { DualListSelector, MarkdownInput } from "@shared/components/common";
 import { FormField, TextAreaField } from "@shared/components/ui/FormField";
@@ -195,6 +196,8 @@ export default function CourseForm({
       }
       router.push("/main-panel/statistics");
     } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      reportClientError(error, { issueKey: "CourseFormSubmit", keys: { operation: "submit" } });
       setError(err instanceof Error ? err.message : "Неизвестная ошибка");
     } finally {
       setIsSubmitting(false);

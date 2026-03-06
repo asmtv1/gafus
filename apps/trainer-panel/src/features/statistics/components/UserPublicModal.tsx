@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { Close } from "@mui/icons-material";
 import { useEffect, useState } from "react";
 import { getPublicProfileAction } from "@shared/lib/actions/users";
@@ -43,8 +44,14 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
           if (res.success) setData(res.data);
           else setError(res.error || "Ошибка загрузки");
         }
-      } catch {
-        if (!cancelled) setError("Ошибка загрузки");
+      } catch (err) {
+        if (!cancelled) {
+          reportClientError(err instanceof Error ? err : new Error(String(err)), {
+            issueKey: "StatisticsUserLoad",
+            keys: { operation: "fetch" },
+          });
+          setError("Ошибка загрузки");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

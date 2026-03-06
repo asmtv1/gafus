@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { MarkdownInput } from "@shared/components/common";
 import { FormField, NumberField } from "@shared/components/ui/FormField";
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
@@ -278,6 +279,10 @@ export default function NewStepForm({
         setImageFiles([]);
       }
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "StepsCreate",
+        keys: { operation: "submit" },
+      });
       setFormState({ error: error instanceof Error ? error.message : "Произошла ошибка" });
     } finally {
       setIsPending(false);

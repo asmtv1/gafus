@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import {
   Box,
   Button,
@@ -102,7 +103,9 @@ export default function StepImageUploader({
         fileInputRef.current.value = "";
       }
     } catch (err) {
-      logger.error("Ошибка обработки изображений шага", err as Error, {
+      const error = err instanceof Error ? err : new Error(String(err));
+      reportClientError(error, { issueKey: "StepImageUpload", keys: { operation: "upload" } });
+      logger.error("Ошибка обработки изображений шага", error, {
         operation: "step_images_processing_error",
       });
       setError(err instanceof Error ? err.message : String(err));

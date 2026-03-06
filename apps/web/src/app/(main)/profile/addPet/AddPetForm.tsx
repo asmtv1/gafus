@@ -11,6 +11,7 @@ import {
   TextAreaField,
   SelectField,
 } from "@shared/components/ui/FormField";
+import { reportClientError } from "@gafus/error-handling";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { usePetZodForm } from "@shared/hooks/usePetZodForm";
 import { savePet } from "@shared/lib/pets/savePet";
@@ -65,6 +66,8 @@ export default function AddPetForm() {
         router.back();
       }
     } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      reportClientError(error, { issueKey: "ProfilePets", keys: { operation: "submit" } });
       catchError(err);
     } finally {
       setIsSubmitting(false);

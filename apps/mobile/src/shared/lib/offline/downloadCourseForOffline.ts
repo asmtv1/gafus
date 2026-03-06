@@ -2,6 +2,7 @@
  * Скачивание одного курса целиком: API → meta → HLS-видео → изображения и PDF.
  * Проверка места на диске, отмена через AbortSignal, при ошибке — откат (deleteCourseData).
  */
+import { reportClientError } from "@/shared/lib/tracer";
 import * as FileSystem from "expo-file-system/legacy";
 import { offlineApi, type FullCourseData } from "@/shared/lib/api/offline";
 import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";
@@ -76,13 +77,24 @@ export async function downloadCourseForOffline(
         lastNetworkError = err instanceof Error ? err : new Error(String(err));
         continue;
       }
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      reportClientError(errorObj, {
+        issueKey: "OfflineDownload",
+        keys: { operation: "download_course", courseType },
+      });
       await deleteCourseData(courseType);
       return {
         success: false,
-        error: err instanceof Error ? err.message : "Ошибка скачивания",
+        error: errorObj.message,
         code: "DOWNLOAD_ERROR",
       };
     }
+  }
+  if (lastNetworkError) {
+    reportClientError(lastNetworkError, {
+      issueKey: "OfflineDownload",
+      keys: { operation: "download_course_retries", courseType },
+    });
   }
   await deleteCourseData(courseType);
   return {

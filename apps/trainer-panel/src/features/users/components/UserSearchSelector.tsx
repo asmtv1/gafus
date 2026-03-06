@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useState } from "react";
 import { Autocomplete, Box, Chip, TextField, Typography } from "../../../utils/muiImports";
 import { searchUsersByUsername } from "@shared/lib/utils/searchUsersByUsername";
@@ -28,7 +29,10 @@ export default function UserSearchSelector({
       const users = await searchUsersByUsername(query);
       setSearchResults(users || []);
     } catch (error) {
-      console.error("Error searching users:", error);
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "UserSearch",
+        keys: { operation: "search" },
+      });
       setSearchResults([]);
     } finally {
       setIsLoading(false);

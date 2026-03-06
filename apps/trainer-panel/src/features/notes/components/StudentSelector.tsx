@@ -1,8 +1,9 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
+import { searchStudentsByUsername } from "@shared/lib/utils/searchStudentsByUsername";
 import { useState, useCallback, useRef } from "react";
 import { Autocomplete, TextField, Typography, Chip, Box } from "@/utils/muiImports";
-import { searchStudentsByUsername } from "@shared/lib/utils/searchStudentsByUsername";
 
 interface StudentSelectorProps {
   selectedStudents: { id: string; username: string }[];
@@ -39,7 +40,10 @@ export default function StudentSelector({
       );
       setSearchResults(filtered);
     } catch (error) {
-      console.error("Error searching students:", error);
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "NotesStudentSearch",
+        keys: { operation: "search" },
+      });
       setSearchResults([]);
     } finally {
       setIsLoading(false);

@@ -16,6 +16,7 @@ import {
   Paper,
 } from "@/utils/muiImports";
 import { Add, Delete, DragIndicator } from "@mui/icons-material";
+import { reportClientError } from "@gafus/error-handling";
 import type { ActionResult } from "@gafus/types";
 import StudentSelector from "./StudentSelector";
 import { getStudentsByIds } from "@shared/lib/utils/getStudentsByIds";
@@ -152,6 +153,10 @@ export default function NoteForm({
         }, 500);
       }
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "NotesSave",
+        keys: { operation: "submit" },
+      });
       setFormState({
         success: false,
         error: error instanceof Error ? error.message : "Неизвестная ошибка",

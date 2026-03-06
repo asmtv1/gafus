@@ -156,13 +156,20 @@ Mobile не использует `@gafus/error-handling` (зависит от re
 | issueKey | operations |
 |----------|------------|
 | VideoPlayerSection | video_thumbnail, video_metadata, video_progress_load, video_progress_save, video_signed_url, video_playback |
+| VideoProgress | get, save, getAll, clear, sync |
+| OfflineStore | sync, syncVideo, addToQueue, syncAction |
+| OfflineDownload | download, segment |
+| VideoUrl | signed_url |
+| ProfilePets | submit, save, avatar |
 | pushStore | push_subscription_setup, push_subscription_remove, push_ensure_active_subscription |
 | courseStore | fetch_all_courses, fetch_favorites, fetch_authored, course_store_rehydrate_sync |
 | fetchInterceptor | fetch_unexpected (только не-сетевые ошибки, не offline) |
 | VideoReport | video_report_load, video_report_camera, video_report_submit, video_report_reset |
 | reviewsStore | review_add, review_update, review_delete |
 
-**Mobile** (issueKey): ErrorBoundary, ApiClient, RefreshToken, AuthLogin, AuthRegister, AuthLogout, AuthCheck, ProgressSync.
+**Mobile** (issueKey): ErrorBoundary, ApiClient, RefreshToken, AuthLogin, AuthRegister, AuthLogout, AuthCheck, ProgressSync, TrainingDay, AccordionStep, OfflineDownload, VideoUrl.
+
+**trainer-panel** (issueKey): NotesDelete, NotesSave, NotesStudentSearch, StepsCreate, DaysCreate, CourseFormSubmit, CourseMediaUpload, StepImageUpload, TrainerVideoSignedUrl, TrainerVideoUpload, ExamResultsAction, StatisticsUserLoad, StatisticsDeleteCourse, StatisticsLoad, UserSearch, MainPanelPendingExams, AIChatWidget, GlobalJsError, UnhandledRejection.
 
 При добавлении новых вызовов — передавать `issueKey` и `keys.operation` (или `keys`) для группировки в Tracer.
 

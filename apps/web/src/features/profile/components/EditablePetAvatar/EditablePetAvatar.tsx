@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import EditIcon from "@mui/icons-material/Edit";
 import { updatePetAvatar } from "@shared/lib/pets/updatePetAvatar";
 import { createWebLogger } from "@gafus/logger";
@@ -60,6 +61,7 @@ export default function EditablePetAvatar({
       router.refresh();
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error("Unknown error");
+      reportClientError(errorObj, { issueKey: "ProfilePets", keys: { operation: "avatar", petId } });
       logger.error("Ошибка при сохранении avatar питомца", errorObj, {
         operation: "save_pet_avatar_error",
         petId: petId,

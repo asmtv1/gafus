@@ -4,6 +4,7 @@ import { ErrorBoundary } from "@gafus/error-handling";
 import { TracerProvider } from "@gafus/ui-components";
 import { SessionProvider } from "@shared/providers/SessionProvider";
 import { TrainerQueryProvider } from "@shared/providers/QueryProvider";
+import { TracerLayout } from "@shared/components/TracerLayout";
 import React from "react";
 import "./globals.css";
 
@@ -45,13 +46,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               showErrorDetails: false,
             }}
           >
-            <SessionProvider>
-              <CSRFProvider autoInitialize={true} logErrors={true} maxRetries={3} retryDelay={1000}>
-                <CSRFErrorBoundary>
-                  <TrainerQueryProvider>{children}</TrainerQueryProvider>
-                </CSRFErrorBoundary>
-              </CSRFProvider>
-            </SessionProvider>
+            <TracerLayout>
+              <SessionProvider>
+                <CSRFProvider autoInitialize={true} logErrors={true} maxRetries={3} retryDelay={1000}>
+                  <CSRFErrorBoundary>
+                    <TrainerQueryProvider>{children}</TrainerQueryProvider>
+                  </CSRFErrorBoundary>
+                </CSRFProvider>
+              </SessionProvider>
+            </TracerLayout>
           </ErrorBoundary>
           <CookieConsentBanner
             cookiePolicyUrl={
