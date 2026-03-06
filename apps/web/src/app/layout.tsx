@@ -11,7 +11,10 @@ import { WebQueryProvider } from "@shared/providers/QueryProvider";
 
 import { Montserrat } from "next/font/google";
 
+import { Suspense } from "react";
+
 import { ClientRedirect } from "./ClientRedirect";
+import { VkIdTokenHandler } from "@shared/components/auth/VkIdTokenHandler";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./normalize.css";
@@ -98,6 +101,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ClientLayout>
               <SessionWrapper>
                 <ClientRedirect />
+                <Suspense fallback={null}>
+                  <VkIdTokenHandler />
+                </Suspense>
                 <UserProvider>
                   <PetsProvider>
                     <WebQueryProvider>

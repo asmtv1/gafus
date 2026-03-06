@@ -16,6 +16,7 @@ import {
   confirmPhoneChange,
   isUsernameAvailable,
   createRefreshSession,
+  fetchVkProfile,
   findOrCreateVkUser,
   getAuthUserById,
   linkVkToUser,
@@ -520,6 +521,7 @@ authRoutes.post(
       });
       const tokenData = (await tokenRes.json()) as {
         access_token?: string;
+        user_id?: string;
         error?: string;
         error_description?: string;
       };
@@ -531,39 +533,20 @@ authRoutes.post(
         );
       }
 
-      const userRes = await fetch("https://id.vk.ru/oauth2/user_info", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: clientId,
-          access_token: tokenData.access_token,
-        }),
-      });
-      const userData = (await userRes.json()) as {
-        user?: {
-          user_id: string;
-          first_name?: string;
-          last_name?: string;
-          avatar?: string;
-          birthday?: string;
-        };
-        error?: string;
-      };
-      if (!userData.user?.user_id) {
-        logger.warn("VK ID user_info failed", { error: userData.error });
+      let vkProfile;
+      try {
+        vkProfile = await fetchVkProfile({
+          accessToken: tokenData.access_token,
+          vkUserId: tokenData.user_id ?? "",
+          clientId,
+        });
+      } catch (err) {
+        logger.warn("VK ID profile fetch failed", { err });
         return c.json(
           { success: false, error: "Не удалось получить профиль VK ID" },
           400,
         );
       }
-
-      const vkProfile = {
-        id: String(userData.user.user_id),
-        first_name: userData.user.first_name,
-        last_name: userData.user.last_name,
-        avatar: userData.user.avatar,
-        birthday: userData.user.birthday,
-      };
 
       const { user, needsPhone } = await findOrCreateVkUser(vkProfile, vkProfile.id);
 
@@ -657,6 +640,7 @@ authRoutes.post(
       });
       const tokenData = (await tokenRes.json()) as {
         access_token?: string;
+        user_id?: string;
         error?: string;
         error_description?: string;
       };
@@ -665,36 +649,17 @@ authRoutes.post(
         return c.json({ success: false, error: "Не удалось получить токен VK ID" }, 400);
       }
 
-      const userRes = await fetch("https://id.vk.ru/oauth2/user_info", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: clientId,
-          access_token: tokenData.access_token,
-        }),
-      });
-      const userData = (await userRes.json()) as {
-        user?: {
-          user_id: string;
-          first_name?: string;
-          last_name?: string;
-          avatar?: string;
-          birthday?: string;
-        };
-        error?: string;
-      };
-      if (!userData.user?.user_id) {
-        logger.warn("VK link user_info failed", { error: userData.error });
+      let vkProfile;
+      try {
+        vkProfile = await fetchVkProfile({
+          accessToken: tokenData.access_token,
+          vkUserId: tokenData.user_id ?? "",
+          clientId,
+        });
+      } catch (err) {
+        logger.warn("VK link profile fetch failed", { err });
         return c.json({ success: false, error: "Не удалось получить профиль VK ID" }, 400);
       }
-
-      const vkProfile = {
-        id: String(userData.user.user_id),
-        first_name: userData.user.first_name,
-        last_name: userData.user.last_name,
-        avatar: userData.user.avatar,
-        birthday: userData.user.birthday,
-      };
 
       const result = await linkVkToUser(user.id, vkProfile);
       if (!result.success) {

@@ -75,6 +75,7 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         "&code_challenge=" +
         encodeURIComponent(codeChallenge) +
         "&code_challenge_method=S256" +
+        "&lang_id=0" + // RUS — русский язык для first_name/last_name
         "&display=mobile";
 
       if (Platform.OS === "android") {

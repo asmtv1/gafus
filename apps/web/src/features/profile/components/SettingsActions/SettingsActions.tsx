@@ -2,12 +2,15 @@
 
 import { resetCookieConsent } from "@gafus/ui-components";
 import Link from "next/link";
-import { memo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { memo, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
 import { initiateVkIdLink } from "@shared/server-actions";
 
 import styles from "./SettingsActions.module.css";
+
+const LINK_SUCCESS_DISMISS_MS = 7000; // 7 секунд
 
 interface SettingsActionsProps {
   hasVkLinked?: boolean;
@@ -16,8 +19,22 @@ interface SettingsActionsProps {
 
 const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsProps) => {
   const { data: session } = useSession();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isLinking, setIsLinking] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (linkFeedback !== "vk") return;
+    const t = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("linked");
+      const newSearch = params.toString();
+      router.replace(newSearch ? `${pathname}?${newSearch}` : pathname, { scroll: false });
+    }, LINK_SUCCESS_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, [linkFeedback, router, pathname, searchParams]);
 
   const handleLinkVk = async () => {
     setIsLinking(true);

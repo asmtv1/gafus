@@ -68,6 +68,65 @@ export interface VkProfile {
   birthday?: string;
 }
 
+/**
+ * Получает профиль VK через users.get с lang=0 (русский).
+ * user_info возвращает имена транслитерированными — users.get с lang=0 даёт кириллицу.
+ * Fallback на user_info при ошибке users.get.
+ */
+export async function fetchVkProfile(params: {
+  accessToken: string;
+  vkUserId: string;
+  clientId: string;
+}): Promise<VkProfile> {
+  const { accessToken, vkUserId, clientId } = params;
+
+  // users.get с lang=0 — имена на русском (VK API транслитерирует при lang=3)
+  if (vkUserId) {
+    const usersGetUrl = `https://api.vk.com/method/users.get?user_ids=${encodeURIComponent(vkUserId)}&fields=photo_200,bdate&access_token=${encodeURIComponent(accessToken)}&v=5.199&lang=0`;
+
+    try {
+      const res = await fetch(usersGetUrl);
+      type VkUser = { id: number; first_name?: string; last_name?: string; bdate?: string; photo_200?: string };
+      const data = (await res.json()) as { response?: VkUser[]; error?: { error_code: number } };
+
+      if (data.response && data.response.length > 0) {
+        const u = data.response[0];
+        return {
+          id: String(u.id),
+          first_name: u.first_name,
+          last_name: u.last_name,
+          avatar: u.photo_200,
+          birthday: u.bdate?.includes(".") ? u.bdate : undefined, // DD.MM или DD.MM.YYYY
+        };
+      }
+    } catch (err) {
+      logger.warn("VK users.get failed, fallback to user_info", { err });
+    }
+  }
+
+  // Fallback: user_info (может вернуть транслит)
+  const userInfoRes = await fetch("https://id.vk.ru/oauth2/user_info", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      access_token: accessToken,
+    }),
+  });
+  type VkUserInfo = { user_id: string; first_name?: string; last_name?: string; avatar?: string; birthday?: string };
+  const userInfo = (await userInfoRes.json()) as { user?: VkUserInfo };
+  if (!userInfo.user?.user_id) {
+    throw new Error("VK profile fetch failed");
+  }
+  return {
+    id: String(userInfo.user.user_id),
+    first_name: userInfo.user.first_name,
+    last_name: userInfo.user.last_name,
+    avatar: userInfo.user.avatar,
+    birthday: userInfo.user.birthday,
+  };
+}
+
 export interface FindOrCreateVkResult {
   user: { id: string; username: string; role: string };
   needsPhone: boolean;

@@ -237,24 +237,25 @@ const nextConfig = {
         ],
       },
       // Кэширование HTML страниц для офлайн работы
+      // Защищённые страницы — private, иначе кэш редиректа ломает авторизацию
       {
         source: "/courses",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=60, s-maxage=60" },
+          { key: "Cache-Control", value: "private, no-store, must-revalidate" },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },
       {
         source: "/statistics",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=60, s-maxage=60" },
+          { key: "Cache-Control", value: "private, no-store, must-revalidate" },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },
       {
         source: "/favorites",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=60, s-maxage=60" },
+          { key: "Cache-Control", value: "private, no-store, must-revalidate" },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },

@@ -48,6 +48,11 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // VK ID callback редиректит на /courses?vk_id_token=... — разрешаем без сессии для exchange
+  if (pathname === "/courses" && nextUrl.searchParams.has("vk_id_token")) {
+    return NextResponse.next();
+  }
+
   // Пропускаем Server Actions (POST запросы к страницам)
   if (req.method === "POST" && req.headers.get("content-type")?.includes("multipart/form-data")) {
     return NextResponse.next();
@@ -68,6 +73,7 @@ export default async function middleware(req: NextRequest) {
     req,
     secret: process.env.NEXTAUTH_SECRET,
     secureCookie,
+    cookieName: "next-auth.session-token",
   });
 
   const mwDebug =
@@ -115,7 +121,9 @@ export default async function middleware(req: NextRequest) {
 
   // Все остальные маршруты требуют авторизации - редиректим на главную
   if (mwDebug) console.log("[MW] no token, not public", pathname, "→ redirect /");
-  return NextResponse.redirect(new URL("/", url));
+  const redirect = NextResponse.redirect(new URL("/", url));
+  redirect.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  return redirect;
 }
 
 export const config = {

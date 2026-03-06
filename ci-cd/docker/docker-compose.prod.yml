@@ -47,6 +47,7 @@ services:
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
       - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN}
+      - AUTH_TRUST_HOST=true
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
       - NEXT_PUBLIC_TRAINER_PANEL_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL}
       - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
@@ -231,6 +232,9 @@ services:
       # Yandex Cloud Object Storage (для загрузки манифестов и сегментов)
       - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
+      # VK ID (mobile auth, vk-link)
+      - VK_CLIENT_ID=${VK_CLIENT_ID}
+      - VK_MOBILE_REDIRECT_URI=${VK_MOBILE_REDIRECT_URI:-gafus://auth/vk}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]

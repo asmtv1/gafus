@@ -129,7 +129,8 @@ export async function initiateVkIdAuth(returnPath?: string): Promise<
     `&redirect_uri=${encodeURIComponent(prepared.redirectUri)}` +
     `&state=${encodeURIComponent(prepared.state)}` +
     `&code_challenge=${encodeURIComponent(codeChallenge)}` +
-    `&code_challenge_method=S256`;
+    `&code_challenge_method=S256` +
+    `&lang_id=0`; // RUS — русский язык для first_name/last_name
 
   if (vkIdDebug) console.log("[VK ID server] initiateVkIdAuth OK, url (первые 80 символов):", url.slice(0, 80) + "...");
   return { success: true, url };
@@ -185,7 +186,8 @@ export async function initiateVkIdLink(): Promise<
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&state=${encodeURIComponent(state)}` +
       `&code_challenge=${encodeURIComponent(codeChallenge)}` +
-      `&code_challenge_method=S256`;
+      `&code_challenge_method=S256` +
+      `&lang_id=0`; // RUS — русский язык для first_name/last_name
 
     return { success: true, url };
   } catch (error) {

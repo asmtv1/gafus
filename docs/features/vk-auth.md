@@ -8,13 +8,13 @@
 
 При входе через VK ID `findOrCreateVkUser` заполняет блок «О себе» (`UserProfile`):
 
-- **fullName** — из `first_name` + `last_name`
+- **fullName** — из `first_name` + `last_name` (на русском)
 - **birthDate** — из `birthday` (формат DD.MM.YYYY; DD.MM без года не сохраняется)
 - **avatarUrl** — из `avatar` (обновляется при каждом входе)
 
-**Логика обновления:** Для существующих пользователей обновляются только пустые поля — уже заполненные пользователем не перезаписываются. `birthday` приходит из VK API (`user_info`, scope `vkid.personal_info`).
+**Источник данных:** `fetchVkProfile` (`packages/core`) — сначала `api.vk.com/method/users.get` с `lang=0` (русский язык имён), fallback на `id.vk.ru/oauth2/user_info`. Web и Mobile используют один и тот же путь через core.
 
-Реализовано в `packages/core` (`vkAuth.ts`): `parseVkBirthday`, `VkProfile.birthday`, расширенный upsert в `findOrCreateVkUser`. Web и API передают `birthday` в `vkProfile`.
+**Логика обновления:** Для существующих пользователей обновляются только пустые поля — уже заполненные не перезаписываются.
 
 ---
 
@@ -24,7 +24,7 @@
 
 **Redirect flow:** Server Action `initiateVkIdAuth()` — rate limit, PKCE (code_verifier, code_challenge, state), cookie `vk_id_state` (httpOnly, 10 мин). Далее:
 1. Редирект на `https://id.vk.ru/authorize` с `code_challenge`, `code_challenge_method=S256`
-2. Callback `GET /api/auth/callback/vk-id` — rate limit, проверка state (`crypto.timingSafeEqual` с Uint8Array), обмен code на token, `user_info`, `findOrCreateVkUser`
+2. Callback `GET /api/auth/callback/vk-id` — rate limit, проверка state, обмен code на token, `fetchVkProfile` (users.get lang=0), `findOrCreateVkUser`
 3. One-time token (in-memory, TTL 60s) → редирект на `/?vk_id_token=TOKEN`
 4. MainAuthButtons (главная страница): `useSearchParams` (в Suspense) — обнаруживает токен, очищает URL, вызывает `signIn("credentials", { username: "__vk_id__", password: token })`
 5. CredentialsProvider: `consumeVkIdOneTimeUser` → сессия
@@ -37,7 +37,7 @@
 1. `expo-crypto` — генерация `code_verifier`, `code_challenge` (SHA-256), `state`
 2. `WebBrowser.openAuthSessionAsync` — `https://id.vk.ru/authorize` с PKCE, redirect `gafus://auth/vk`
 3. Callback URL содержит `code`, `device_id`, `state` — проверка state перед вызовом API
-4. `POST /api/v1/auth/vk` с `{ code, code_verifier, device_id, state }` — API обменивает code на token, `user_info`, `findOrCreateVkUser`
+4. `POST /api/v1/auth/vk` с `{ code, code_verifier, device_id, state }` — API обменивает code на token, `fetchVkProfile` (users.get lang=0), `findOrCreateVkUser`
 5. Ответ: `{ user, accessToken, refreshToken, needsPhone }`
 6. При `needsPhone: true` → экран `/vk-set-phone`, далее `POST /api/v1/auth/vk-phone-set` с JWT
 7. Кнопка «Установить пароль» доступна в профиле при `!hasAppPassword`, ведёт на `/profile/set-password` → `POST /api/v1/auth/set-password`
@@ -61,6 +61,8 @@
 VK_CLIENT_ID=
 VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id
 ```
+
+При деплое: `VK_WEB_REDIRECT_URI` берётся из `vars.VK_WEB_REDIRECT_URI` с fallback `https://gafus.ru/api/auth/callback/vk-id` (deploy-only, ci-cd, build-single-container).
 
 **API (mobile):**
 ```

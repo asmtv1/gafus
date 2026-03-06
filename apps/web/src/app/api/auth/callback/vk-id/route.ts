@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { authOptions, storeVkIdOneTimeUser } from "@gafus/auth";
 import { getServerSession } from "next-auth";
 import { prisma } from "@gafus/prisma";
-import { findOrCreateVkUser, linkVkToUser } from "@gafus/core/services/auth";
+import { fetchVkProfile, findOrCreateVkUser, linkVkToUser } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
 import { checkAuthRateLimit, getClientIp } from "@shared/lib/rateLimit";
@@ -55,11 +55,12 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.redirect(new URL("/login?error=vk_id_auth_failed", baseOrigin));
   }
+  // Для логина (/) и (/login) — сразу на /courses, минуя промежуточный редирект
   const returnPath =
     parsedCookie.returnPath === "/register"
       ? "/register"
-      : parsedCookie.returnPath === "/"
-        ? "/"
+      : parsedCookie.returnPath === "/" || parsedCookie.returnPath === "/login"
+        ? "/courses"
         : "/login";
 
   const stateA = new Uint8Array(Buffer.from(returnedState, "utf8"));
@@ -98,6 +99,7 @@ export async function GET(request: NextRequest) {
     });
     const tokenData = (await tokenRes.json()) as {
       access_token?: string;
+      user_id?: string;
       error?: string;
       error_description?: string;
     };
@@ -110,37 +112,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=vk_id_token_failed", baseOrigin));
     }
 
-    const userRes = await fetch("https://id.vk.ru/oauth2/user_info", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: clientId,
-        access_token: tokenData.access_token,
-      }),
-    });
-    const userData = (await userRes.json()) as {
-      user?: {
-        user_id: string;
-        first_name?: string;
-        last_name?: string;
-        avatar?: string;
-        birthday?: string;
-      };
-      error?: string;
-    };
-
-    if (!userData.user?.user_id) {
-      logger.warn("VK ID user_info failed", { error: userData.error });
+    let vkProfile;
+    try {
+      vkProfile = await fetchVkProfile({
+        accessToken: tokenData.access_token,
+        vkUserId: tokenData.user_id ?? "", // fallback: fetchVkProfile получит id из user_info
+        clientId,
+      });
+    } catch (err) {
+      logger.warn("VK ID profile fetch failed", { err });
       return NextResponse.redirect(new URL("/login?error=vk_id_profile_failed", baseOrigin));
     }
-
-    const vkProfile = {
-      id: String(userData.user.user_id),
-      first_name: userData.user.first_name,
-      last_name: userData.user.last_name,
-      avatar: userData.user.avatar,
-      birthday: userData.user.birthday,
-    };
 
     if (isLinkMode) {
       const session = await getServerSession(authOptions);

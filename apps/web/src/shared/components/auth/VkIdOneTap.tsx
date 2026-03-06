@@ -207,7 +207,7 @@ export function VkIdOneTap() {
           >
             {viewState === "loading" || fallbackLoading
               ? "Загрузка..."
-              : "Войти через VK ID"}
+              : "Войти через VK"}
           </button>
         </div>
       )}

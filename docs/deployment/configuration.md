@@ -108,8 +108,8 @@ SESSION_UPDATE_AGE=86400  # 1 день
 # VK ID (id.vk.ru). PKCE обязателен; client_secret не передаётся при обмене кода. VK OAuth (oauth.vk.com) не поддерживается.
 VK_CLIENT_ID=
 VK_CLIENT_SECRET=  # Опционально — только для консоли VK ID
-VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id
-VK_MOBILE_REDIRECT_URI=  # gafus://auth/vk для Expo
+VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id  # в CI/CD: fallback если vars не задано
+VK_MOBILE_REDIRECT_URI=gafus://auth/vk  # для Expo / mobile API
 ```
 
 ### CSRF защита

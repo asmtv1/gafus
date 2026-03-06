@@ -127,7 +127,7 @@ export default function LoginForm({
               sx={{ mt: 1, borderColor: "#5181b8", color: "#5181b8" }}
               onClick={() => onVkLogin()}
             >
-              Войти через VK ID
+              Войти через VK
             </Button>
           )}
         </Box>

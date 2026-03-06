@@ -81,6 +81,7 @@ api:
 | `YOOKASSA_SHOP_ID`     | ЮKassa shop id        | Web + API (платежи) |
 | `YOOKASSA_SECRET_KEY`  | ЮKassa secret key     | Web + API (платежи) |
 | `WEB_APP_URL`          | Базовый URL web для return_url | API (платежи) |
+| `VK_CLIENT_ID`         | VK ID приложение (mobile auth, vk-link) | Web, API |
 | ~~`NEXT_PUBLIC_CONTACT_*`~~ | ~~Контакты~~ | **Не используются** — страница /contacts теперь статический public/contacts.html |
 
 ## Проверка конфигурации

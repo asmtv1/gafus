@@ -533,7 +533,8 @@ jobs:
               echo ""
               echo "# VK ID авторизация"
               echo "VK_CLIENT_ID=${{ secrets.VK_CLIENT_ID }}"
-              echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI }}"
+              echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI || 'https://gafus.ru/api/auth/callback/vk-id' }}"
+              echo "VK_MOBILE_REDIRECT_URI=gafus://auth/vk"
             } > ci-cd/docker/.env
 
             # Set secure permissions for .env file

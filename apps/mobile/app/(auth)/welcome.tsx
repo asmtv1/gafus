@@ -73,7 +73,7 @@ export default function WelcomeScreen() {
           disabled={isVkLoading}
         >
           <Text style={styles.vkButtonText}>
-            {isVkLoading ? "Загрузка..." : "Войти через VK ID"}
+            {isVkLoading ? "Загрузка..." : "Войти через VK"}
           </Text>
         </Pressable>
       </View>

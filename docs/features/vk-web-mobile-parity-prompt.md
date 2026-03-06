@@ -29,8 +29,8 @@
 | После успеха | signIn credentials → /courses | loginViaVk → JWT, навигация AuthProvider | ✓ |
 
 **Проверить:**
-- [x] Web: `initiateVkIdAuth` и callback передают в `findOrCreateVkUser` те же поля, что и API
-- [x] Mobile: `POST /api/v1/auth/vk` получает `user_info` с `birthday`, `first_name`, `last_name`, `avatar`
+- [x] Web: callback передаёт в `findOrCreateVkUser` те же поля, что и API
+- [x] Mobile: `POST /api/v1/auth/vk` через `fetchVkProfile` (users.get lang=0) — `birthday`, `first_name`, `last_name`, `avatar` на русском
 - [ ] Тексты: Web «Войти через VK ID» vs Mobile «Войти через VK ID» — единообразие
 
 ---

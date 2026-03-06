@@ -80,7 +80,6 @@ export const authOptions: NextAuthOptions = {
     secret: process.env.NEXTAUTH_SECRET,
     maxAge: 30 * 24 * 60 * 60,
   },
-  // Доверяем заголовкам X-Forwarded-* для работы через прокси
   useSecureCookies: isProd,
   callbacks: {
     async jwt({ token, user, trigger, session }) {
