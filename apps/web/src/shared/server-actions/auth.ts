@@ -4,11 +4,12 @@
  * Auth Server Actions - обёртки над authService для Web
  */
 
+import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-import { authOptions } from "@gafus/auth";
+import { authOptions, getVkIdUserFromToken } from "@gafus/auth";
 import { getCurrentUserId } from "@gafus/auth/server";
 import * as authService from "@gafus/core/services/auth";
 import {
@@ -44,6 +45,7 @@ import {
   usernameSchema,
 } from "@shared/lib/validation/authSchemas";
 
+import { prisma } from "@gafus/prisma";
 import { CONSENT_VERSION } from "@shared/constants/consent";
 import type { ConsentPayload } from "@shared/constants/consent";
 
@@ -379,6 +381,57 @@ export async function registerUserAction(
     }
     logger.error("Error in registerUserAction", error as Error);
     return { error: "Что-то пошло не так при регистрации пользователя" };
+  }
+}
+
+/**
+ * Согласия для новых VK-пользователей. Создаёт ConsentLog, привязывает к userId.
+ * Токен не потребляется — клиент вызовет signIn после успеха.
+ */
+export async function submitVkConsentAction(
+  vkIdToken: string,
+  consentPayload: ConsentPayload,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "register")) {
+    return { success: false, error: "Слишком много запросов. Попробуйте через 15 минут." };
+  }
+
+  const vkUser = getVkIdUserFromToken(vkIdToken);
+  if (!vkUser) {
+    return { success: false, error: "Ссылка устарела. Повторите вход через VK." };
+  }
+
+  const consentParsed = consentPayloadSchema.safeParse(consentPayload);
+  if (!consentParsed.success) {
+    return { success: false, error: "Необходимо принять все согласия" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: vkUser.userId },
+    select: { phone: true },
+  });
+  if (!user) {
+    return { success: false, error: "Пользователь не найден." };
+  }
+
+  const tempSessionId = crypto.randomUUID();
+  const userAgent = (await headers()).get("user-agent") ?? undefined;
+
+  try {
+    await createConsentLogs({
+      tempSessionId,
+      consentPayload: consentParsed.data,
+      formData: { name: vkUser.username, phone: user.phone ?? "" },
+      ipAddress: ip,
+      userAgent,
+      defaultVersion: CONSENT_VERSION,
+    });
+    await linkConsentLogsToUser(tempSessionId, vkUser.userId);
+    return { success: true };
+  } catch (error) {
+    logger.error("submitVkConsentAction failed", error as Error);
+    return { success: false, error: "Не удалось сохранить согласия. Попробуйте снова." };
   }
 }
 

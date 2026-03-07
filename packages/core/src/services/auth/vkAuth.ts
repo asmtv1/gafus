@@ -130,6 +130,8 @@ export async function fetchVkProfile(params: {
 export interface FindOrCreateVkResult {
   user: { id: string; username: string; role: string };
   needsPhone: boolean;
+  /** true, если пользователь только что создан (нужно собрать согласия) */
+  isNewUser?: boolean;
 }
 
 export interface ExchangeVkCodeParams {
@@ -286,6 +288,7 @@ export async function findOrCreateVkUser(
         role: account.user.role,
       },
       needsPhone: account.user.phone.startsWith("vk_"),
+      isNewUser: false,
     };
   }
 
@@ -339,6 +342,7 @@ export async function findOrCreateVkUser(
   return {
     user: { id: user.id, username: user.username, role: user.role },
     needsPhone: true,
+    isNewUser: true,
   };
 }
 

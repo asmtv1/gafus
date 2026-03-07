@@ -16,6 +16,9 @@ interface AuthState {
   isAuthenticated: boolean;
   pendingConfirmPhone: string | null;
   pendingVkPhone: boolean;
+  /** Новый VK-пользователь — нужно собрать согласия */
+  pendingVkConsent: boolean;
+  vkConsentToken: string | null;
 }
 
 interface AuthActions {
@@ -32,7 +35,7 @@ interface AuthActions {
     code_verifier: string;
     device_id: string;
     state: string;
-  }) => Promise<{ success: boolean; error?: string; needsPhone?: boolean }>;
+  }) => Promise<{ success: boolean; error?: string; needsPhone?: boolean; needsConsent?: boolean }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   setUser: (user: User) => void;
@@ -41,6 +44,10 @@ interface AuthActions {
   clearPendingConfirmPhone: () => void;
   clearPendingVkPhone: () => void;
   setVkPhoneComplete: (phone: string) => Promise<{ success: boolean; error?: string }>;
+  clearPendingVkConsent: () => void;
+  submitVkConsentComplete: (
+    consentPayload: ConsentPayload,
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -58,6 +65,8 @@ export const useAuthStore = create<AuthStore>()(
       isAuthenticated: false,
       pendingConfirmPhone: null,
       pendingVkPhone: false,
+      pendingVkConsent: false,
+      vkConsentToken: null,
 
       /**
        * Авторизация пользователя
@@ -122,11 +131,25 @@ export const useAuthStore = create<AuthStore>()(
             return { success: false, error: response.error || "Ошибка авторизации VK" };
           }
 
-          const { accessToken, refreshToken, needsPhone, user } = response.data;
+          const { accessToken, refreshToken, needsPhone, needsConsent, vkConsentToken, user } =
+            response.data;
+
+          if (needsConsent && vkConsentToken) {
+            resetUserStores();
+            set({
+              user: { ...user, phone: "", isConfirmed: false } as User,
+              isAuthenticated: false,
+              pendingVkPhone: false,
+              pendingConfirmPhone: null,
+              pendingVkConsent: true,
+              vkConsentToken,
+            });
+            return { success: true, needsConsent: true };
+          }
 
           resetUserStores();
-          await SecureStore.setItemAsync("auth_token", accessToken);
-          await SecureStore.setItemAsync("refresh_token", refreshToken);
+          await SecureStore.setItemAsync("auth_token", accessToken!);
+          await SecureStore.setItemAsync("refresh_token", refreshToken!);
 
           if (needsPhone) {
             // Телефон не задан — направляем на экран установки телефона
@@ -219,7 +242,10 @@ export const useAuthStore = create<AuthStore>()(
         await SecureStore.deleteItemAsync("refresh_token");
 
         resetUserStores();
-        set({ user: null, isAuthenticated: false, pendingConfirmPhone: null, pendingVkPhone: false }); // eslint-disable-line max-len
+        set({
+          user: null, isAuthenticated: false, pendingConfirmPhone: null,
+          pendingVkPhone: false, pendingVkConsent: false, vkConsentToken: null,
+        });
       },
 
       /**
@@ -310,7 +336,10 @@ export const useAuthStore = create<AuthStore>()(
        */
       handleSessionExpired: () => {
         resetUserStores();
-        set({ user: null, isAuthenticated: false, pendingConfirmPhone: null, pendingVkPhone: false }); // eslint-disable-line max-len
+        set({
+          user: null, isAuthenticated: false, pendingConfirmPhone: null,
+          pendingVkPhone: false, pendingVkConsent: false, vkConsentToken: null,
+        });
       },
 
       /**
@@ -320,6 +349,52 @@ export const useAuthStore = create<AuthStore>()(
       setPendingConfirmPhone: (phone) => set({ pendingConfirmPhone: phone }),
       clearPendingConfirmPhone: () => set({ pendingConfirmPhone: null }),
       clearPendingVkPhone: () => set({ pendingVkPhone: false }),
+      clearPendingVkConsent: () =>
+        set({ pendingVkConsent: false, vkConsentToken: null }),
+
+      submitVkConsentComplete: async (consentPayload) => {
+        const token = useAuthStore.getState().vkConsentToken;
+        if (!token) {
+          return { success: false, error: "Токен устарел. Повторите вход через VK." };
+        }
+        try {
+          const response = await authApi.submitVkConsent(token, consentPayload);
+          if (!response.success || !response.data) {
+            return { success: false, error: response.error || "Ошибка сохранения согласий" };
+          }
+          const { accessToken, refreshToken, needsPhone, user } = response.data;
+          resetUserStores();
+          await SecureStore.setItemAsync("auth_token", accessToken!);
+          await SecureStore.setItemAsync("refresh_token", refreshToken!);
+          if (needsPhone) {
+            set({
+              user: { ...user, phone: "", isConfirmed: false } as User,
+              isAuthenticated: false,
+              pendingVkPhone: true,
+              pendingVkConsent: false,
+              vkConsentToken: null,
+              pendingConfirmPhone: null,
+            });
+          } else {
+            const profileRes = await authApi.getProfile();
+            if (!profileRes.success || !profileRes.data) {
+              return { success: false, error: "Ошибка загрузки профиля" };
+            }
+            set({
+              user: profileRes.data,
+              isAuthenticated: true,
+              pendingVkPhone: false,
+              pendingVkConsent: false,
+              vkConsentToken: null,
+              pendingConfirmPhone: null,
+            });
+          }
+          return { success: true };
+        } catch (error) {
+          reportClientError(error, { issueKey: "AuthVkConsent" });
+          return { success: false, error: "Ошибка подключения к серверу" };
+        }
+      },
 
       setVkPhoneCompleted: async () => {
         const profileRes = await authApi.getProfile();

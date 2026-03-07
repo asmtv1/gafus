@@ -10,6 +10,7 @@ import crypto from "crypto";
 
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
 import { registerUser } from "@gafus/auth";
+import { storeVkIdOneTimeUser, consumeVkIdOneTimeUser } from "@gafus/auth";
 import {
   changePassword,
   changeUsername,
@@ -490,6 +491,21 @@ authRoutes.post(
   },
 );
 
+const vkConsentSchema = z.object({
+  vkConsentToken: z.string().min(1, "Токен обязателен"),
+  consentPayload: z.object({
+    acceptPersonalData: z.literal(true, {
+      errorMap: () => ({ message: "Необходимо принять согласие на обработку данных" }),
+    }),
+    acceptPrivacyPolicy: z.literal(true, {
+      errorMap: () => ({ message: "Необходимо принять политику конфиденциальности" }),
+    }),
+    acceptDataDistribution: z.literal(true, {
+      errorMap: () => ({ message: "Необходимо принять согласие на размещение данных" }),
+    }),
+  }),
+});
+
 // POST /api/v1/auth/vk — вход через VK ID (mobile, PKCE)
 authRoutes.post(
   "/vk",
@@ -503,7 +519,7 @@ authRoutes.post(
         c.req.header("x-real-ip") ??
         "";
 
-      const { user, needsPhone } = await exchangeVkCodeAndGetUser({
+      const result = await exchangeVkCodeAndGetUser({
         code,
         codeVerifier: code_verifier,
         deviceId: device_id,
@@ -511,6 +527,26 @@ authRoutes.post(
         redirectUri: process.env.VK_MOBILE_REDIRECT_URI ?? "",
         clientId: process.env.VK_CLIENT_ID ?? "",
       });
+
+      const { user, needsPhone, isNewUser } = result;
+
+      if (isNewUser) {
+        const vkConsentToken = crypto.randomUUID();
+        storeVkIdOneTimeUser(vkConsentToken, {
+          userId: user.id,
+          username: user.username,
+          role: user.role,
+        });
+        logger.info("VK ID new user, needs consent", { userId: user.id });
+        return c.json({
+          success: true,
+          data: {
+            needsConsent: true,
+            vkConsentToken,
+            user: { id: user.id, username: user.username, role: user.role },
+          },
+        });
+      }
 
       const authUser = {
         id: user.id,
@@ -547,6 +583,81 @@ authRoutes.post(
       }
       logger.error("VK ID auth error", error as Error);
       return c.json({ success: false, error: "Ошибка авторизации VK ID" }, 500);
+    }
+  },
+);
+
+// POST /api/v1/auth/vk-consent — согласия для новых VK-пользователей (mobile)
+authRoutes.post(
+  "/vk-consent",
+  bodyLimit({ maxSize: 5 * 1024 }),
+  zValidator("json", vkConsentSchema),
+  async (c) => {
+    try {
+      const { vkConsentToken, consentPayload } = c.req.valid("json");
+      const ip =
+        c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
+        c.req.header("x-real-ip") ??
+        "";
+      const userAgent = c.req.header("user-agent");
+
+      const vkUser = consumeVkIdOneTimeUser(vkConsentToken);
+      if (!vkUser) {
+        return c.json(
+          { success: false, error: "Ссылка устарела. Повторите вход через VK." },
+          400,
+        );
+      }
+
+      const user = await getAuthUserById(vkUser.userId);
+      if (!user) {
+        return c.json({ success: false, error: "Пользователь не найден" }, 400);
+      }
+
+      const tempSessionId = crypto.randomUUID();
+      await createConsentLogs({
+        tempSessionId,
+        consentPayload,
+        formData: { name: vkUser.username, phone: user.phone ?? "" },
+        ipAddress: ip,
+        userAgent: userAgent ?? undefined,
+        defaultVersion: CONSENT_VERSION,
+      });
+      await linkConsentLogsToUser(tempSessionId, vkUser.userId);
+
+      const authUser = {
+        id: user.id,
+        username: user.username,
+        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM",
+      };
+      const accessToken = await generateAccessToken(authUser);
+      const tokenId = crypto.randomUUID();
+      const refreshToken = await generateRefreshToken(user.id, tokenId);
+      const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+
+      await createRefreshSession(user.id, tokenId, tokenHash, {
+        ipAddress: ip,
+        userAgent: userAgent ?? undefined,
+        expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS),
+      });
+
+      logger.info("VK consent completed", { userId: user.id });
+
+      return c.json({
+        success: true,
+        data: {
+          user: { id: user.id, username: user.username, role: user.role },
+          accessToken,
+          refreshToken,
+          needsPhone: user.phone.startsWith("vk_"),
+        },
+      });
+    } catch (error) {
+      logger.error("VK consent error", error as Error);
+      return c.json(
+        { success: false, error: "Не удалось сохранить согласия. Попробуйте снова." },
+        500,
+      );
     }
   },
 );

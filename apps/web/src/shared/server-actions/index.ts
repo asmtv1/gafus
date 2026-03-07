@@ -32,6 +32,7 @@ export {
   serverCheckUserConfirmedAction,
   setPasswordAction,
   setVkPhoneAction,
+  submitVkConsentAction,
 } from "./auth";
 
 // Achievements Actions

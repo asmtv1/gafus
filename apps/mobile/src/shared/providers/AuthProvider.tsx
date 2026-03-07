@@ -21,7 +21,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const queryClient = useQueryClient();
   const {
-    isAuthenticated, isLoading, checkAuth, pendingConfirmPhone, pendingVkPhone,
+    isAuthenticated, isLoading, checkAuth, pendingConfirmPhone, pendingVkPhone, pendingVkConsent,
   } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
@@ -83,15 +83,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const isConfirmScreen = inAuthGroup && segments[1] === "confirm";
     const isResetPasswordScreen = inAuthGroup && segments[1] === "reset-password";
     const isVkSetPhoneScreen = inAuthGroup && (segments[1] as string) === "vk-set-phone";
+    const isVkConsentScreen = inAuthGroup && (segments[1] as string) === "vk-consent";
 
     if (__DEV__) {
       console.log("[AuthProvider] redirect effect", {
         isAuthenticated,
         pendingConfirmPhone,
         pendingVkPhone,
+        pendingVkConsent,
         segments: [...segments],
         inAuthGroup,
       });
+    }
+
+    if (pendingVkConsent && !isVkConsentScreen) {
+      if (__DEV__) console.log("[AuthProvider] → replace /vk-consent");
+      router.replace("/vk-consent" as never);
+      return;
     }
 
     if (pendingVkPhone && !isVkSetPhoneScreen) {
@@ -114,12 +122,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       inAuthGroup &&
       !isConfirmScreen &&
       !isResetPasswordScreen &&
-      !isVkSetPhoneScreen
+      !isVkSetPhoneScreen &&
+      !isVkConsentScreen
     ) {
       if (__DEV__) console.log("[AuthProvider] → replace / (main)");
       router.replace("/");
     }
-  }, [isAuthenticated, isLoading, segments, router, pendingConfirmPhone, pendingVkPhone]);
+  }, [isAuthenticated, isLoading, segments, router, pendingConfirmPhone, pendingVkPhone, pendingVkConsent]);
 
   // Показываем лоадер пока проверяем авторизацию
   if (isLoading) {

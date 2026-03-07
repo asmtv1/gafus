@@ -13,6 +13,7 @@ export default function AuthLayout() {
       <Stack.Screen name="reset-password" />
       <Stack.Screen name="confirm" />
       <Stack.Screen name="vk-set-phone" />
+      <Stack.Screen name="vk-consent" />
     </Stack>
   );
 }

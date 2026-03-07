@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { user } = await exchangeVkCodeAndGetUser({
+    const result = await exchangeVkCodeAndGetUser({
       code,
       codeVerifier: parsedCookie.codeVerifier,
       deviceId: device_id,
@@ -169,6 +169,7 @@ export async function GET(request: NextRequest) {
       clientId,
     });
 
+    const { user, isNewUser } = result;
     const oneTimeToken = crypto.randomUUID();
     storeVkIdOneTimeUser(oneTimeToken, {
       userId: user.id,
@@ -176,11 +177,13 @@ export async function GET(request: NextRequest) {
       role: user.role,
     });
 
-    logger.info("VK ID callback success", { userId: user.id });
-    if (vkIdCallbackDebug) console.log("[VK ID callback] success, userId=", user.id, "redirect на", returnPath, "?vk_id_token=...");
+    logger.info("VK ID callback success", { userId: user.id, isNewUser });
+    if (vkIdCallbackDebug) console.log("[VK ID callback] success, userId=", user.id, "isNewUser=", isNewUser);
 
+    // Новые VK-пользователи — на страницу согласий перед входом
+    const finalPath = isNewUser ? "/vk-consent" : returnPath;
     return NextResponse.redirect(
-      new URL(`${returnPath}?vk_id_token=${encodeURIComponent(oneTimeToken)}`, baseOrigin),
+      new URL(`${finalPath}?vk_id_token=${encodeURIComponent(oneTimeToken)}`, baseOrigin),
     );
   } catch (error) {
     const err = error as Error;

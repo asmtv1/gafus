@@ -298,7 +298,7 @@ const websiteUrlSchema = z
   );
 
 /**
- * Схема для payload согласий — все три обязательны
+ * Схема для payload согласий — все три обязательны (literal true)
  */
 export const consentPayloadSchema = z.object({
   acceptPersonalData: z.literal(true, {
@@ -317,6 +317,19 @@ export const consentPayloadSchema = z.object({
         "Необходимо дать согласие на размещение данных в публичном профиле",
     }),
   }),
+});
+
+/** Схема формы согласий VK (boolean для чекбоксов, валидация — все true) */
+export const vkConsentFormSchema = z.object({
+  acceptPersonalData: acceptRequired(
+    "Необходимо дать согласие на обработку персональных данных",
+  ),
+  acceptPrivacyPolicy: acceptRequired(
+    "Необходимо ознакомиться с Политикой конфиденциальности",
+  ),
+  acceptDataDistribution: acceptRequired(
+    "Необходимо дать согласие на размещение данных в публичном профиле",
+  ),
 });
 
 /**

@@ -29,9 +29,12 @@ export interface LoginResponse {
 
 export interface VkLoginResponse {
   user: Pick<User, "id" | "username" | "role">;
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string;
+  refreshToken?: string;
   needsPhone?: boolean;
+  /** Новый пользователь — нужно собрать согласия (mobile) */
+  needsConsent?: boolean;
+  vkConsentToken?: string;
 }
 
 export interface RegisterData {
@@ -288,6 +291,47 @@ export const authApi = {
       method: "POST",
       body: params,
     });
+  },
+
+  /**
+   * Отправка согласий для новых VK-пользователей (mobile).
+   * Возвращает токены после успешного сохранения согласий.
+   */
+  submitVkConsent: async (
+    vkConsentToken: string,
+    consentPayload: ConsentPayload,
+  ): Promise<ApiResponse<VkLoginResponse>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/vk-consent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vkConsentToken, consentPayload }),
+      });
+
+      if (!response.ok) {
+        let errorData: { error?: string } = {};
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            errorData = await response.json();
+          }
+        } catch {
+          // игнорируем
+        }
+        return {
+          success: false,
+          error: errorData.error || "Ошибка сохранения согласий",
+        };
+      }
+
+      const result = await response.json();
+      return { success: true, data: result.data };
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
+      }
+      return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
+    }
   },
 
   /**

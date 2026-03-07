@@ -24,3 +24,11 @@ export function consumeVkIdOneTimeUser(token: string): VkIdUser | null {
   if (Date.now() > entry.expiresAt) return null;
   return entry.user;
 }
+
+/** Возвращает пользователя по токену без потребления (для страницы согласий VK). */
+export function getVkIdUserFromToken(token: string): VkIdUser | null {
+  const entry = store.get(token);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) return null;
+  return entry.user;
+}

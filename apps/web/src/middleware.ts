@@ -48,8 +48,8 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // VK ID callback редиректит на /courses?vk_id_token=... — разрешаем без сессии для exchange
-  if (pathname === "/courses" && nextUrl.searchParams.has("vk_id_token")) {
+  // VK ID callback редиректит на /courses или /vk-consent с vk_id_token — разрешаем без сессии
+  if (nextUrl.searchParams.has("vk_id_token") && (pathname === "/courses" || pathname === "/vk-consent")) {
     return NextResponse.next();
   }
 
