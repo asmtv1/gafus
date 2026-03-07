@@ -129,9 +129,13 @@ export function VkIdOneTap() {
         codeChallenge,
       });
       if (vkIdDebug) console.log("[VK ID] Config.init OK, рендерим One Tap...");
-      // Контейнер должен быть видим при render — VK ID SDK не работает с display:none
-      container.style.removeProperty("display");
       const oneTap = new VKID.OneTap();
+      oneTap.on(VKID.WidgetEvents.LOAD, () => {
+        if (mountedRef.current) {
+          if (vkIdDebug) console.log("[VK ID] WidgetEvents.LOAD — виджет загружен, viewState=success");
+          setViewState("success");
+        }
+      });
       oneTap.on(VKID.WidgetEvents.ERROR, async (e: unknown) => {
         const payload = e && typeof e === "object" && "code" in e && "text" in e
           ? (e as { code: number; text: string })
@@ -165,10 +169,6 @@ export function VkIdOneTap() {
         container,
         skin: VKID.OneTapSkin.Secondary,
       });
-      if (mountedRef.current) {
-        if (vkIdDebug) console.log("[VK ID] One Tap отрендерен, viewState=success");
-        setViewState("success");
-      }
     } catch (e) {
       if (vkIdDebug) console.error("[VK ID] Инициализация SDK исключение:", e);
       reportClientError(e instanceof Error ? e : new Error("VK ID init failed"), {
@@ -185,11 +185,12 @@ export function VkIdOneTap() {
   return (
     <>
       {/* containerRef всегда в DOM — SDK рендерит в него; скрыт до success */}
+      {/* visibility:hidden вместо display:none — SDK грузит iframe только когда у контейнера есть размеры */}
       <div
         ref={containerRef}
         className={styles.container}
         id="VkIdSdkOneTap"
-        style={viewState !== "success" ? { display: "none" } : undefined}
+        style={viewState !== "success" ? { visibility: "hidden", pointerEvents: "none" } : undefined}
       />
 
       {viewState !== "success" && (
