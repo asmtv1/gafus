@@ -26,9 +26,25 @@ export async function GET(request: NextRequest) {
   if (vkIdCallbackDebug) console.log("[VK ID callback] GET вызван, url:", request.url);
 
   const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
-  const baseOrigin = /ngrok/i.test(forwardedHost)
-    ? `https://${forwardedHost}`
-    : new URL(request.url).origin;
+  const proto = request.headers.get("x-forwarded-proto") ?? "https";
+  let baseOrigin: string;
+  if (/ngrok/i.test(forwardedHost)) {
+    baseOrigin = `https://${forwardedHost}`;
+  } else if (
+    forwardedHost &&
+    /\./.test(forwardedHost) &&
+    !/localhost|127\.0\.0\.1|^[a-f0-9]{12}$/i.test(forwardedHost.split(":")[0] ?? "")
+  ) {
+    baseOrigin = `${proto}://${forwardedHost}`;
+  } else {
+    // В Docker/proxy Host может быть внутренним — используем env, затем fallback для production
+    const vkOrigin = process.env.VK_WEB_REDIRECT_URI
+      ? new URL(process.env.VK_WEB_REDIRECT_URI).origin
+      : null;
+    const webUrl = process.env.WEB_APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
+    const prodFallback = process.env.NODE_ENV === "production" ? "https://gafus.ru" : null;
+    baseOrigin = vkOrigin ?? webUrl ?? prodFallback ?? new URL(request.url).origin;
+  }
 
   const ip = getClientIp(request);
   if (!checkAuthRateLimit(ip, "vk-id-callback")) {

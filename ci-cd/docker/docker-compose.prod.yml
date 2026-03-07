@@ -73,6 +73,7 @@ services:
       # VK ID
       - VK_CLIENT_ID=${VK_CLIENT_ID}
       - VK_WEB_REDIRECT_URI=${VK_WEB_REDIRECT_URI}
+      - WEB_APP_URL=${WEB_APP_URL:-https://gafus.ru}
     # Uploads handled by CDN - no local volume needed
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
