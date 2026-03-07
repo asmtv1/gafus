@@ -54,7 +54,7 @@ const logger = createWebLogger("auth-actions");
  * @param returnPath - куда редиректить после callback (/login или /register)
  */
 export async function prepareVkIdOneTap(returnPath?: string): Promise<
-  | { success: true; state: string; codeVerifier: string; clientId: string; redirectUri: string }
+  | { success: true; state: string; codeVerifier: string; codeChallenge: string; clientId: string; redirectUri: string }
   | { success: false; error: string }
 > {
   const vkIdDebug =
@@ -93,9 +93,10 @@ export async function prepareVkIdOneTap(returnPath?: string): Promise<
       redirectUri = `https://${host}/api/auth/callback/vk-id`;
     }
 
+    const codeChallenge = generateCodeChallenge(codeVerifier);
     if (vkIdDebug) console.log("[VK ID server] prepareVkIdOneTap OK: clientId=", clientId || "(пусто)", "redirectUri=", redirectUri || "(пусто)");
 
-    return { success: true, state, codeVerifier, clientId, redirectUri };
+    return { success: true, state, codeVerifier, codeChallenge, clientId, redirectUri };
   } catch (error) {
     logger.error("prepareVkIdOneTap failed", error as Error);
     return { success: false, error: "Не удалось инициализировать авторизацию VK ID" };

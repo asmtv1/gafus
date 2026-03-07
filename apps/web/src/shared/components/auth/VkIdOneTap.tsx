@@ -92,7 +92,7 @@ export function VkIdOneTap() {
       return;
     }
 
-    const { state, codeVerifier, clientId, redirectUri } = result;
+    const { state, codeChallenge, clientId, redirectUri } = result;
 
     if (!clientId || !redirectUri) {
       if (vkIdDebug) console.warn("[VK ID] VK ID не настроен: clientId=", !!clientId, "redirectUri=", redirectUri || "(пусто)");
@@ -126,16 +126,12 @@ export function VkIdOneTap() {
         app: Number.parseInt(clientId, 10),
         redirectUrl: redirectUri,
         state,
-        codeVerifier,
+        codeChallenge,
       });
       if (vkIdDebug) console.log("[VK ID] Config.init OK, рендерим One Tap...");
       // Контейнер должен быть видим при render — VK ID SDK не работает с display:none
       container.style.removeProperty("display");
       const oneTap = new VKID.OneTap();
-      oneTap.render({
-        container,
-        skin: VKID.OneTapSkin.Secondary,
-      });
       oneTap.on(VKID.WidgetEvents.ERROR, async (e: unknown) => {
         const payload = e && typeof e === "object" && "code" in e && "text" in e
           ? (e as { code: number; text: string })
@@ -164,6 +160,10 @@ export function VkIdOneTap() {
             // ignore, кнопка уже покажет состояние error
           }
         }
+      });
+      oneTap.render({
+        container,
+        skin: VKID.OneTapSkin.Secondary,
       });
       if (mountedRef.current) {
         if (vkIdDebug) console.log("[VK ID] One Tap отрендерен, viewState=success");
