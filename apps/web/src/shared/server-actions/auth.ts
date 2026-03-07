@@ -52,8 +52,12 @@ const logger = createWebLogger("auth-actions");
 /**
  * Подготавливает конфиг для VK ID One Tap: rate limit, PKCE, cookie, возвращает параметры для SDK.
  * @param returnPath - куда редиректить после callback (/login или /register)
+ * @param redirectUriOverride - если задан (с клиента), используется вместо определения по host
  */
-export async function prepareVkIdOneTap(returnPath?: string): Promise<
+export async function prepareVkIdOneTap(
+  returnPath?: string,
+  redirectUriOverride?: string,
+): Promise<
   | { success: true; state: string; codeVerifier: string; codeChallenge: string; clientId: string; redirectUri: string }
   | { success: false; error: string }
 > {
@@ -73,24 +77,38 @@ export async function prepareVkIdOneTap(returnPath?: string): Promise<
     const codeVerifier = generateCodeVerifier();
     const state = generateState();
 
-    const cookieStore = await cookies();
-    const safeReturn = returnPath === "/" ? "/" : returnPath === "/register" ? "/register" : "/login";
-    cookieStore.set("vk_id_state", JSON.stringify({ state, codeVerifier, returnPath: safeReturn }), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 600,
-      path: "/",
-    });
-
     const clientId = process.env.VK_CLIENT_ID ?? "";
-    let redirectUri = process.env.VK_WEB_REDIRECT_URI ?? "";
-
-    // При запросе через ngrok — подставляем Host автоматически (не нужно править .env при смене ngrok URL)
-    const headersList = await headers();
-    const host = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
-    if (host && /ngrok/i.test(host)) {
-      redirectUri = `https://${host}/api/auth/callback/vk-id`;
+    let redirectUri = redirectUriOverride ?? process.env.VK_WEB_REDIRECT_URI ?? "";
+    if (redirectUriOverride) {
+      try {
+        const u = new URL(redirectUriOverride);
+        const host = u.hostname.toLowerCase();
+        const hostAllowed =
+          host === "localhost" ||
+          host === "127.0.0.1" ||
+          host === "gafus.ru" ||
+          host.endsWith(".gafus.ru") ||
+          host.includes("ngrok");
+        const pathOk = u.pathname === "/api/auth/callback/vk-id";
+        if (!pathOk || !hostAllowed) redirectUri = "";
+      } catch {
+        redirectUri = "";
+      }
+    }
+    if (!redirectUri) {
+      const headersList = await headers();
+      const host = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+      const proto = headersList.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+      if (host) {
+        if (/ngrok/i.test(host)) {
+          redirectUri = `https://${host}/api/auth/callback/vk-id`;
+        } else if (/localhost|127\.0\.0\.1/i.test(host)) {
+          redirectUri = `${proto}://${host}/api/auth/callback/vk-id`;
+        }
+      }
+    }
+    if (!redirectUri) {
+      return { success: false, error: "redirect_uri не определён. Добавьте VK_WEB_REDIRECT_URI или откройте через ngrok." };
     }
 
     const codeChallenge = generateCodeChallenge(codeVerifier);
@@ -106,21 +124,42 @@ export async function prepareVkIdOneTap(returnPath?: string): Promise<
 /**
  * Инициирует авторизацию через VK ID (redirect): rate limit, PKCE, cookie, возвращает URL.
  * @param returnPath - куда редиректить после callback (/login или /register)
+ * @param redirectUriOverride - redirect_uri с клиента (window.location.origin + /api/auth/callback/vk-id)
  */
-export async function initiateVkIdAuth(returnPath?: string): Promise<
-  { success: true; url: string } | { success: false; error: string }
-> {
+export async function initiateVkIdAuth(
+  returnPath?: string,
+  redirectUriOverride?: string,
+): Promise<{ success: true; url: string } | { success: false; error: string }> {
   const vkIdDebug =
     process.env.NODE_ENV === "development" ||
     process.env.VK_ID_DEBUG === "true" ||
     process.env.VK_ID_DEBUG === "1";
   if (vkIdDebug) console.log("[VK ID server] initiateVkIdAuth вызван");
 
-  const prepared = await prepareVkIdOneTap(returnPath);
+  const prepared = await prepareVkIdOneTap(returnPath, redirectUriOverride);
   if (!prepared.success) {
     if (vkIdDebug) console.warn("[VK ID server] initiateVkIdAuth: prepareVkIdOneTap failed", prepared.error);
     return prepared;
   }
+
+  const safeReturn = returnPath === "/" ? "/" : returnPath === "/register" ? "/register" : "/login";
+  const cookieStore = await cookies();
+  cookieStore.set(
+    "vk_id_state",
+    JSON.stringify({
+      state: prepared.state,
+      codeVerifier: prepared.codeVerifier,
+      returnPath: safeReturn,
+      redirectUri: prepared.redirectUri,
+    }),
+    {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 600,
+      path: "/",
+    },
+  );
 
   const codeChallenge = generateCodeChallenge(prepared.codeVerifier);
   const url =
@@ -131,7 +170,8 @@ export async function initiateVkIdAuth(returnPath?: string): Promise<
     `&state=${encodeURIComponent(prepared.state)}` +
     `&code_challenge=${encodeURIComponent(codeChallenge)}` +
     `&code_challenge_method=S256` +
-    `&lang_id=0`; // RUS — русский язык для first_name/last_name
+    `&lang_id=0` + // RUS — русский язык для first_name/last_name
+    `&fastAuthEnabled=1`; // не показывать экран подтверждения повторно
 
   if (vkIdDebug) console.log("[VK ID server] initiateVkIdAuth OK, url (первые 80 символов):", url.slice(0, 80) + "...");
   return { success: true, url };
@@ -158,10 +198,24 @@ export async function initiateVkIdLink(): Promise<
     const state = generateState();
     const codeChallenge = generateCodeChallenge(codeVerifier);
 
+    const clientId = process.env.VK_CLIENT_ID ?? "";
+    let redirectUri = process.env.VK_WEB_REDIRECT_URI ?? "";
+
+    const headersList = await headers();
+    const host = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+    const proto = headersList.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+    if (host && !redirectUri) {
+      if (/ngrok/i.test(host)) {
+        redirectUri = `https://${host}/api/auth/callback/vk-id`;
+      } else if (/localhost|127\.0\.0\.1/i.test(host)) {
+        redirectUri = `${proto}://${host}/api/auth/callback/vk-id`;
+      }
+    }
+
     const cookieStore = await cookies();
     cookieStore.set(
       "vk_id_state",
-      JSON.stringify({ state, codeVerifier, mode: "link", returnPath: "/profile" }),
+      JSON.stringify({ state, codeVerifier, mode: "link", returnPath: "/profile", redirectUri }),
       {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -171,15 +225,6 @@ export async function initiateVkIdLink(): Promise<
       },
     );
 
-    const clientId = process.env.VK_CLIENT_ID ?? "";
-    let redirectUri = process.env.VK_WEB_REDIRECT_URI ?? "";
-
-    const headersList = await headers();
-    const host = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
-    if (host && /ngrok/i.test(host)) {
-      redirectUri = `https://${host}/api/auth/callback/vk-id`;
-    }
-
     const url =
       `https://id.vk.ru/authorize` +
       `?response_type=code` +
@@ -188,7 +233,8 @@ export async function initiateVkIdLink(): Promise<
       `&state=${encodeURIComponent(state)}` +
       `&code_challenge=${encodeURIComponent(codeChallenge)}` +
       `&code_challenge_method=S256` +
-      `&lang_id=0`; // RUS — русский язык для first_name/last_name
+      `&lang_id=0` + // RUS — русский язык для first_name/last_name
+      `&fastAuthEnabled=1`; // не показывать экран подтверждения повторно
 
     return { success: true, url };
   } catch (error) {

@@ -76,6 +76,7 @@ p.subtitle {
   margin-top: 4px;
   color: red;
 }
+
 /* Сохраняем фон при фокусе/вводе */
 .input:focus,
 .input:active {

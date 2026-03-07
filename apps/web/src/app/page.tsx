@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { MainAuthButtons } from "@shared/components/auth/MainAuthButtons";
+import { VkErrorBanner } from "@shared/components/auth/VkErrorBanner";
 import { generatePageMetadata } from "@gafus/metadata";
 
 import styles from "./page.module.css";
@@ -56,6 +57,7 @@ export default function AuthPage() {
           </div>
         }
       >
+        <VkErrorBanner />
         <MainAuthButtons />
       </Suspense>
       <p className={styles.subtitle}>

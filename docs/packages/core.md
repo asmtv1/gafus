@@ -73,6 +73,8 @@ import { getUserProfile, updateUserProfile } from "@gafus/core/services/user";
 import {
   checkUserState,
   registerUser,
+  exchangeVkCodeAndGetUser,
+  exchangeVkCodeForProfile,
   findOrCreateVkUser,
   linkVkToUser,
   setVkPhone,
@@ -80,6 +82,8 @@ import {
   changePassword,
   isUsernameAvailable,
 } from "@gafus/core/services/auth";
+// exchangeVkCodeAndGetUser — обмен code на токен, получение профиля, создание/поиск пользователя
+// exchangeVkCodeForProfile — обмен code и профиль без создания пользователя (для link)
 
 // Уведомления
 import { createStepNotification } from "@gafus/core/services/notifications";

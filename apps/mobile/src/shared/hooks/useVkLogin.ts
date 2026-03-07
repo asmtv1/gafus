@@ -76,7 +76,8 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         encodeURIComponent(codeChallenge) +
         "&code_challenge_method=S256" +
         "&lang_id=0" + // RUS — русский язык для first_name/last_name
-        "&display=mobile";
+        "&display=mobile" +
+        "&fastAuthEnabled=1"; // не показывать экран подтверждения повторно
 
       if (Platform.OS === "android") {
         await WebBrowser.warmUpAsync();

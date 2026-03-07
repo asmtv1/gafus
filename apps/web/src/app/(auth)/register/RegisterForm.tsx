@@ -38,7 +38,6 @@ export function RegisterForm() {
   const [isPending, setIsPending] = useState(false);
   const [tempSessionId] = useState<string>(() => crypto.randomUUID());
 
-  // Валидация телефона теперь обрабатывается Zod схемой
 
   const onSubmit = async (data: RegisterFormSchema) => {
     const phoneNumber = parsePhoneNumberFromString(data.phone, "RU");

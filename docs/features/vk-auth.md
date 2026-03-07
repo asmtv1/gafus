@@ -24,7 +24,7 @@
 
 **Redirect flow:** Server Action `initiateVkIdAuth()` — rate limit, PKCE (code_verifier, code_challenge, state), cookie `vk_id_state` (httpOnly, 10 мин). Далее:
 1. Редирект на `https://id.vk.ru/authorize` с `code_challenge`, `code_challenge_method=S256`
-2. Callback `GET /api/auth/callback/vk-id` — rate limit, проверка state, обмен code на token, `fetchVkProfile` (users.get lang=0), `findOrCreateVkUser`
+2. Callback `GET /api/auth/callback/vk-id` — rate limit, проверка state, вызов `exchangeVkCodeAndGetUser` из `@gafus/core` (обмен code → token → fetchVkProfile → findOrCreateVkUser)
 3. One-time token (in-memory, TTL 60s) → редирект на `/?vk_id_token=TOKEN`
 4. MainAuthButtons (главная страница): `useSearchParams` (в Suspense) — обнаруживает токен, очищает URL, вызывает `signIn("credentials", { username: "__vk_id__", password: token })`
 5. CredentialsProvider: `consumeVkIdOneTimeUser` → сессия
@@ -37,7 +37,7 @@
 1. `expo-crypto` — генерация `code_verifier`, `code_challenge` (SHA-256), `state`
 2. `WebBrowser.openAuthSessionAsync` — `https://id.vk.ru/authorize` с PKCE, redirect `gafus://auth/vk`
 3. Callback URL содержит `code`, `device_id`, `state` — проверка state перед вызовом API
-4. `POST /api/v1/auth/vk` с `{ code, code_verifier, device_id, state }` — API обменивает code на token, `fetchVkProfile` (users.get lang=0), `findOrCreateVkUser`
+4. `POST /api/v1/auth/vk` с `{ code, code_verifier, device_id, state }` — API вызывает `exchangeVkCodeAndGetUser` из `@gafus/core`
 5. Ответ: `{ user, accessToken, refreshToken, needsPhone }`
 6. При `needsPhone: true` → экран `/vk-set-phone`, далее `POST /api/v1/auth/vk-phone-set` с JWT
 7. Кнопка «Установить пароль» доступна в профиле при `!hasAppPassword`, ведёт на `/profile/set-password` → `POST /api/v1/auth/set-password`
@@ -54,6 +54,18 @@
    - Mobile: `gafus://auth/vk`
 3. PKCE обязателен — `client_secret` не используется при обмене кода
 
+## Разработка через ngrok
+
+При локальной разработке через ngrok redirect URI берётся с клиента (`window.location.origin + /api/auth/callback/vk-id`). **Обязательно добавьте его в [id.vk.com](https://id.vk.com) → приложение → Redirect URI**, например:
+
+```
+https://xxxx.ngrok-free.app/api/auth/callback/vk-id
+```
+
+Бесплатный ngrok даёт новый URL при каждом запуске — обновляйте Redirect URI в VK или задайте `VK_WEB_REDIRECT_URI` в `.env.local` с фиксированным ngrok-доменом.
+
+**Отладка:** `VK_ID_DEBUG=1` — в консоли сервера выводится `redirectUri`, отправляемый в VK.
+
 ## Env vars
 
 **Web:**
@@ -63,6 +75,13 @@ VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id
 ```
 
 При деплое: `VK_WEB_REDIRECT_URI` берётся из `vars.VK_WEB_REDIRECT_URI` с fallback `https://gafus.ru/api/auth/callback/vk-id` (deploy-only, ci-cd, build-single-container).
+
+**Локальная разработка через ngrok:**
+- redirect_uri берётся с клиента (`window.location.origin + /api/auth/callback/vk-id`) или из `x-forwarded-host`
+- В [id.vk.com](https://id.vk.com) → Redirect URI добавьте `https://ВАШ-NGROK-URL/api/auth/callback/vk-id`
+- При каждом перезапуске ngrok (бесплатный план) URL меняется — обновляйте Redirect URI в VK
+- Альтернатива: задайте `VK_WEB_REDIRECT_URI` в `.env.local` с фиксированным ngrok-URL (если используете платный ngrok с постоянным доменом)
+- Отладка: `VK_ID_DEBUG=1` — в консоли сервера выводится `redirectUri`, отправляемый в VK
 
 **API (mobile):**
 ```
@@ -98,9 +117,9 @@ VK_MOBILE_REDIRECT_URI=gafus://auth/vk
 
 Пользователи, зарегистрировавшиеся **без** VK (телефон/пароль), могут подключить VK в профиле. После подключения вход возможен и через VK ID, и через логин/пароль.
 
-**Web:** Профиль → SettingsActions → кнопка «Подключить VK» → `initiateVkIdLink()` → cookie `vk_id_state` с `mode: "link"` → callback `/api/auth/callback/vk-id` при `mode === "link"` вызывает `linkVkToUser` вместо `findOrCreateVkUser` → redirect `/profile?linked=vk` или `/profile?error=...`.
+**Web:** Профиль → SettingsActions → кнопка «Подключить VK» → `initiateVkIdLink()` → cookie `vk_id_state` с `mode: "link"` → callback `/api/auth/callback/vk-id` при `mode === "link"` вызывает `exchangeVkCodeForProfile` → `linkVkToUser` → redirect `/profile?linked=vk` или `/profile?error=...`.
 
-**Mobile:** Профиль → кнопка «Подключить VK» → хук `useVkLink` (PKCE, WebBrowser, state с префиксом `link_`) → `POST /api/v1/auth/vk-link` с JWT и code.
+**Mobile:** Профиль → кнопка «Подключить VK» → хук `useVkLink` (PKCE, WebBrowser, state с префиксом `link_`) → `POST /api/v1/auth/vk-link` с JWT и code — API вызывает `exchangeVkCodeForProfile` → `linkVkToUser`.
 
 **API:** `GET /api/v1/user/profile` возвращает `hasVkLinked: boolean`. Web: `getUserWithTrainings` (profile page) включает `hasVkLinked`. Core: `linkVkToUser` в `vkAuth.ts`; `getUserProfileForApi` и `getUserWithTrainings` в profileService.
 
@@ -118,3 +137,34 @@ VK_MOBILE_REDIRECT_URI=gafus://auth/vk
 | `change-password` | 10 / 15 мин |
 
 **Bypass для разработки:** при `NODE_ENV=development` или IP localhost (`127.0.0.1`, `::1`, `::ffff:127.0.0.1`, `localhost`) rate limit не применяется. Пустая строка IP не считается localhost — в prod лимиты действуют.
+
+## Отладка: redirect_uri is missing or invalid
+
+Ошибка VK означает, что redirect URI не совпадает с настройками приложения VK ID или не передаётся.
+
+1. **Добавьте redirect URI в id.vk.com** → приложение → Redirect URI:
+   - ngrok: `https://XXXX.ngrok-free.app/api/auth/callback/vk-id` (URL меняется при каждом запуске ngrok)
+   - prod: `https://gafus.ru/api/auth/callback/vk-id`
+
+2. **Проверьте, какой redirect_uri уходит:** в `.env.local` задайте `VK_ID_DEBUG=1`, перезапустите dev-сервер. В консоли будет лог `prepareVkIdOneTap OK: redirectUri=...`.
+
+3. **Фиксированный ngrok:** при платном ngrok можно задать постоянный домен и добавить его в VK один раз. Либо задать `VK_WEB_REDIRECT_URI` в `.env.local` с текущим ngrok URL.
+
+## Разработка через ngrok
+
+При локальной разработке через ngrok (`ngrok http 3002`):
+
+1. **Redirect URI** — в настройках VK ID (id.vk.com) добавьте `https://ВАШ-NGROK-URL/api/auth/callback/vk-id`. URL берётся с клиента (`window.location.origin`), при каждом новом ngrok-домене его нужно обновлять.
+2. **Альтернатива** — задайте `VK_WEB_REDIRECT_URI=https://фиксированный-ngrok/api/auth/callback/vk-id` в `.env.local`, если используете платный ngrok с постоянным доменом.
+3. **Отладка** — `VK_ID_DEBUG=1` в env выводит в консоль сервера `redirectUri`, отправляемый в VK.
+
+**Ошибка `redirect_uri is missing or invalid`** — redirect URI не добавлен в VK ID или не совпадает с тем, что отправляется (проверьте через `VK_ID_DEBUG=1`).
+
+## Разработка через ngrok
+
+При локальной разработке через ngrok (`ngrok http 3002`):
+
+1. **Redirect URI** берётся с клиента: `window.location.origin + '/api/auth/callback/vk-id'` (например `https://xxxx.ngrok-free.app/api/auth/callback/vk-id`).
+2. **Добавьте этот URL в VK ID** — id.vk.com → приложение → Redirect URI.
+3. При бесплатном ngrok URL меняется при каждом запуске — добавляйте новый URI в VK или задайте `VK_WEB_REDIRECT_URI` в `.env.local` (если используете фиксированный домен).
+4. **Отладка:** `VK_ID_DEBUG=1` — в консоли сервера выводится `redirectUri`, отправляемый в VK.

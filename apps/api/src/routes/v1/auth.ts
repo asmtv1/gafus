@@ -16,8 +16,8 @@ import {
   confirmPhoneChange,
   isUsernameAvailable,
   createRefreshSession,
-  fetchVkProfile,
-  findOrCreateVkUser,
+  exchangeVkCodeAndGetUser,
+  exchangeVkCodeForProfile,
   getAuthUserById,
   linkVkToUser,
   requestPhoneChange,
@@ -503,52 +503,14 @@ authRoutes.post(
         c.req.header("x-real-ip") ??
         "";
 
-      const redirectUri = process.env.VK_MOBILE_REDIRECT_URI ?? "";
-      const clientId = process.env.VK_CLIENT_ID ?? "";
-
-      const tokenRes = await fetch("https://id.vk.ru/oauth2/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          code,
-          code_verifier,
-          redirect_uri: redirectUri,
-          client_id: clientId,
-          device_id,
-          state,
-        }),
+      const { user, needsPhone } = await exchangeVkCodeAndGetUser({
+        code,
+        codeVerifier: code_verifier,
+        deviceId: device_id,
+        state,
+        redirectUri: process.env.VK_MOBILE_REDIRECT_URI ?? "",
+        clientId: process.env.VK_CLIENT_ID ?? "",
       });
-      const tokenData = (await tokenRes.json()) as {
-        access_token?: string;
-        user_id?: string;
-        error?: string;
-        error_description?: string;
-      };
-      if (!tokenData.access_token) {
-        logger.warn("VK ID token exchange failed", { error: tokenData.error });
-        return c.json(
-          { success: false, error: "Не удалось получить токен VK ID" },
-          400,
-        );
-      }
-
-      let vkProfile;
-      try {
-        vkProfile = await fetchVkProfile({
-          accessToken: tokenData.access_token,
-          vkUserId: tokenData.user_id ?? "",
-          clientId,
-        });
-      } catch (err) {
-        logger.warn("VK ID profile fetch failed", { err });
-        return c.json(
-          { success: false, error: "Не удалось получить профиль VK ID" },
-          400,
-        );
-      }
-
-      const { user, needsPhone } = await findOrCreateVkUser(vkProfile, vkProfile.id);
 
       const authUser = {
         id: user.id,
@@ -578,6 +540,11 @@ authRoutes.post(
         },
       });
     } catch (error) {
+      const msg = error instanceof Error ? error.message : "";
+      if (msg.includes("VK token exchange failed") || msg.includes("VK profile fetch failed")) {
+        logger.warn("VK ID auth failed", { error: msg });
+        return c.json({ success: false, error: "Не удалось получить токен VK ID" }, 400);
+      }
       logger.error("VK ID auth error", error as Error);
       return c.json({ success: false, error: "Ошибка авторизации VK ID" }, 500);
     }
@@ -622,45 +589,14 @@ authRoutes.post(
       const { code, code_verifier, device_id, state } = c.req.valid("json");
       const user = c.get("user");
 
-      const redirectUri = process.env.VK_MOBILE_REDIRECT_URI ?? "";
-      const clientId = process.env.VK_CLIENT_ID ?? "";
-
-      const tokenRes = await fetch("https://id.vk.ru/oauth2/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          code,
-          code_verifier,
-          redirect_uri: redirectUri,
-          client_id: clientId,
-          device_id,
-          state,
-        }),
+      const vkProfile = await exchangeVkCodeForProfile({
+        code,
+        codeVerifier: code_verifier,
+        deviceId: device_id,
+        state,
+        redirectUri: process.env.VK_MOBILE_REDIRECT_URI ?? "",
+        clientId: process.env.VK_CLIENT_ID ?? "",
       });
-      const tokenData = (await tokenRes.json()) as {
-        access_token?: string;
-        user_id?: string;
-        error?: string;
-        error_description?: string;
-      };
-      if (!tokenData.access_token) {
-        logger.warn("VK link token exchange failed", { error: tokenData.error });
-        return c.json({ success: false, error: "Не удалось получить токен VK ID" }, 400);
-      }
-
-      let vkProfile;
-      try {
-        vkProfile = await fetchVkProfile({
-          accessToken: tokenData.access_token,
-          vkUserId: tokenData.user_id ?? "",
-          clientId,
-        });
-      } catch (err) {
-        logger.warn("VK link profile fetch failed", { err });
-        return c.json({ success: false, error: "Не удалось получить профиль VK ID" }, 400);
-      }
-
       const result = await linkVkToUser(user.id, vkProfile);
       if (!result.success) {
         return c.json({ success: false, error: result.error }, 400);
@@ -669,6 +605,11 @@ authRoutes.post(
       logger.info("VK link success via API", { userId: user.id });
       return c.json({ success: true });
     } catch (error) {
+      const msg = error instanceof Error ? error.message : "";
+      if (msg.includes("VK token exchange failed") || msg.includes("VK profile fetch failed")) {
+        logger.warn("VK link failed", { error: msg });
+        return c.json({ success: false, error: "Не удалось получить токен VK ID" }, 400);
+      }
       logger.error("VK link error", error as Error);
       return c.json({ success: false, error: "Ошибка привязки VK" }, 500);
     }

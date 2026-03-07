@@ -132,6 +132,82 @@ export interface FindOrCreateVkResult {
   needsPhone: boolean;
 }
 
+export interface ExchangeVkCodeParams {
+  code: string;
+  codeVerifier: string;
+  deviceId: string;
+  state: string;
+  redirectUri: string;
+  clientId: string;
+}
+
+async function exchangeVkCodeForToken(
+  params: ExchangeVkCodeParams,
+): Promise<{ access_token: string; user_id: string }> {
+  const { code, codeVerifier, deviceId, state, redirectUri, clientId } = params;
+
+  if (!clientId || !redirectUri) {
+    throw new Error("VK auth misconfigured: missing clientId or redirectUri");
+  }
+
+  const res = await fetch("https://id.vk.ru/oauth2/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      code_verifier: codeVerifier,
+      redirect_uri: redirectUri,
+      client_id: clientId,
+      device_id: deviceId,
+      state,
+    }),
+  });
+
+  const data = (await res.json()) as {
+    access_token?: string;
+    user_id?: string;
+    error?: string;
+    error_description?: string;
+  };
+
+  if (!data.access_token) {
+    logger.warn("VK ID token exchange failed", {
+      error: data.error,
+      errorDescription: data.error_description,
+    });
+    throw new Error("VK token exchange failed");
+  }
+
+  return { access_token: data.access_token, user_id: data.user_id ?? "" };
+}
+
+export async function exchangeVkCodeAndGetUser(
+  params: ExchangeVkCodeParams,
+): Promise<FindOrCreateVkResult> {
+  const { access_token, user_id } = await exchangeVkCodeForToken(params);
+
+  const vkProfile = await fetchVkProfile({
+    accessToken: access_token,
+    vkUserId: user_id,
+    clientId: params.clientId,
+  });
+
+  return findOrCreateVkUser(vkProfile, vkProfile.id);
+}
+
+export async function exchangeVkCodeForProfile(
+  params: ExchangeVkCodeParams,
+): Promise<VkProfile> {
+  const { access_token, user_id } = await exchangeVkCodeForToken(params);
+
+  return fetchVkProfile({
+    accessToken: access_token,
+    vkUserId: user_id,
+    clientId: params.clientId,
+  });
+}
+
 /**
  * Генерирует уникальный username из данных VK ID.
  */

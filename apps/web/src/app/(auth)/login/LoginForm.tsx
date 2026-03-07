@@ -88,7 +88,6 @@ export default function LoginForm() {
         errorClassName={styles.errorText}
         placeholder="Имя пользователя"
         form={form}
-        // Валидация теперь через Zod схему
       />
 
       <PasswordInput

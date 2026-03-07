@@ -1,0 +1,8 @@
+.banner {
+  font-size: 12px;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  line-height: 1.2;
+  margin: 4px 0 8px 0;
+  color: red;
+  text-align: center;
+}
