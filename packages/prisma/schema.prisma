@@ -172,7 +172,7 @@ model UserTraining {
   updatedAt        DateTime       @default(now())
   steps            UserStep[]
   dayOnCourse      DayOnCourse    @relation(fields: [dayOnCourseId], references: [id], onDelete: Cascade)
-  user             User           @relation(fields: [userId], references: [id])
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, dayOnCourseId])
 }
