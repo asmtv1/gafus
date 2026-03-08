@@ -6,6 +6,7 @@
   "scripts": {
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "ios:release": "expo run:ios --device --configuration Release",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "postinstall": "cd ../.. && pnpm exec turbo run build --filter=@gafus/logger",
@@ -23,7 +24,7 @@
     "@react-native-community/netinfo": "~11.4.1",
     "@shopify/flash-list": "^2.0.2",
     "@tanstack/react-query": "^5.62.16",
-    "expo": "~54.0.0",
+    "expo": "54.0.30",
     "expo-application": "^55.0.8",
     "expo-auth-session": "~6.0.3",
     "expo-build-properties": "^1.0.10",

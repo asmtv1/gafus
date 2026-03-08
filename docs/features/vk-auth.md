@@ -85,12 +85,15 @@ VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id
 
 **API (mobile):**
 ```
-VK_CLIENT_ID=
+VK_CLIENT_ID=54472652
+VK_CLIENT_ID_IOS=54472654
+VK_CLIENT_ID_ANDROID=54472653
 VK_MOBILE_REDIRECT_URI=gafus://auth/vk
 ```
 
 **Mobile (app.config.js):**
-- `extra.vkClientId`, `extra.vkMobileRedirectUri` — прокидываются в `Constants.expoConfig`
+- `extra.vkClientIdIos`, `extra.vkClientIdAndroid`, `extra.vkMobileRedirectUri` — прокидываются в `Constants.expoConfig`
+- Подробнее: [vk-id-mobile-setup.md](../vk-id-mobile-setup.md)
 
 ## API эндпоинты
 

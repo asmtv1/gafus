@@ -73,7 +73,7 @@ export default function WelcomeScreen() {
           disabled={isVkLoading}
         >
           <Text style={styles.vkButtonText}>
-            {isVkLoading ? "Загрузка..." : "Войти через VK"}
+            {isVkLoading ? "Загрузка..." : "Продолжить через VK"}
           </Text>
         </Pressable>
       </View>
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   paw: {
     marginLeft: 12,
-    marginTop: 10,
+    marginTop: -30,
   },
   title: {
     fontWeight: "400",
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     marginBottom: -SPACING.lg,
   },
   buttonsContainer: {
-    marginTop: 20,
+    marginTop: 5,
     gap: SPACING.sm,
     width: "100%",
     alignItems: "stretch",
@@ -169,11 +169,12 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   subtitle: {
+    position: "absolute",
+    bottom: 15,
     color: COLORS.primary,
     opacity: 0.8,
     lineHeight: 15.6,
     textAlign: "center",
-    marginBottom: SPACING.lg,
     fontFamily: FONTS.montserrat,
   },
 });

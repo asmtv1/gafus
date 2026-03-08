@@ -799,7 +799,6 @@ export default function TrainingDayScreen() {
                     issueKey: "TrainingDay",
                     keys: { operation: "render_step", index, dayId, courseId },
                   });
-                  }
                   return (
                     <View key={`error-${index}`} style={styles.stepErrorContainer}>
                       <Text style={styles.stepErrorText}>Ошибка загрузки шага {index + 1}</Text>

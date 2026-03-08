@@ -243,6 +243,7 @@ export const authApi = {
     code_verifier: string;
     device_id: string;
     state: string;
+    platform?: "ios" | "android";
   }): Promise<ApiResponse<VkLoginResponse>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/vk`, {
@@ -286,6 +287,7 @@ export const authApi = {
     code_verifier: string;
     device_id: string;
     state: string;
+    platform?: "ios" | "android";
   }): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/auth/vk-link", {
       method: "POST",

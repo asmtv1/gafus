@@ -235,6 +235,8 @@ services:
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
       # VK ID (mobile auth, vk-link)
       - VK_CLIENT_ID=${VK_CLIENT_ID}
+      - VK_CLIENT_ID_IOS=${VK_CLIENT_ID_IOS}
+      - VK_CLIENT_ID_ANDROID=${VK_CLIENT_ID_ANDROID}
       - VK_MOBILE_REDIRECT_URI=${VK_MOBILE_REDIRECT_URI:-gafus://auth/vk}
     restart: unless-stopped
     healthcheck:

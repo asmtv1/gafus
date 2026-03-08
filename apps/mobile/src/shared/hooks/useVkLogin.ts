@@ -49,7 +49,11 @@ export function useVkLogin(options?: UseVkLoginOptions): {
   const handleVkLogin = useCallback(async () => {
     setIsVkLoading(true);
     try {
-      const clientId = Constants.expoConfig?.extra?.vkClientId as string | undefined;
+      const extra = Constants.expoConfig?.extra as Record<string, string> | undefined;
+      const clientId =
+        Platform.OS === "ios"
+          ? (extra?.vkClientIdIos as string | undefined)
+          : (extra?.vkClientIdAndroid as string | undefined);
       const redirectUri =
         (Constants.expoConfig?.extra?.vkMobileRedirectUri as string | undefined) ??
         Linking.createURL("auth/vk");
@@ -101,11 +105,13 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         return;
       }
 
+      const platform = Platform.OS === "ios" || Platform.OS === "android" ? Platform.OS : undefined;
       const loginResult = await loginViaVk({
         code,
         code_verifier: codeVerifier,
         device_id,
         state,
+        platform,
       });
 
       if (loginResult.success) {

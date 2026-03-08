@@ -35,6 +35,7 @@ interface AuthActions {
     code_verifier: string;
     device_id: string;
     state: string;
+    platform?: "ios" | "android";
   }) => Promise<{ success: boolean; error?: string; needsPhone?: boolean; needsConsent?: boolean }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;

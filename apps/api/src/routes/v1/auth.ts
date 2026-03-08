@@ -130,6 +130,7 @@ const vkIdSchema = z.object({
   code_verifier: z.string().min(43).max(128),
   device_id: z.string().min(1),
   state: z.string().min(32),
+  platform: z.enum(["ios", "android"]).optional(),
 });
 const vkPhoneSetSchema = z.object({
   phone: z
@@ -513,11 +514,18 @@ authRoutes.post(
   zValidator("json", vkIdSchema),
   async (c) => {
     try {
-      const { code, code_verifier, device_id, state } = c.req.valid("json");
+      const { code, code_verifier, device_id, state, platform } = c.req.valid("json");
       const ip =
         c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
         c.req.header("x-real-ip") ??
         "";
+
+      const clientId =
+        platform === "ios"
+          ? (process.env.VK_CLIENT_ID_IOS ?? process.env.VK_CLIENT_ID ?? "")
+          : platform === "android"
+            ? (process.env.VK_CLIENT_ID_ANDROID ?? process.env.VK_CLIENT_ID ?? "")
+            : (process.env.VK_CLIENT_ID ?? "");
 
       const result = await exchangeVkCodeAndGetUser({
         code,
@@ -525,7 +533,7 @@ authRoutes.post(
         deviceId: device_id,
         state,
         redirectUri: process.env.VK_MOBILE_REDIRECT_URI ?? "",
-        clientId: process.env.VK_CLIENT_ID ?? "",
+        clientId,
       });
 
       const { user, needsPhone, isNewUser } = result;
@@ -696,8 +704,15 @@ authRoutes.post(
   zValidator("json", vkIdSchema),
   async (c) => {
     try {
-      const { code, code_verifier, device_id, state } = c.req.valid("json");
+      const { code, code_verifier, device_id, state, platform } = c.req.valid("json");
       const user = c.get("user");
+
+      const clientId =
+        platform === "ios"
+          ? (process.env.VK_CLIENT_ID_IOS ?? process.env.VK_CLIENT_ID ?? "")
+          : platform === "android"
+            ? (process.env.VK_CLIENT_ID_ANDROID ?? process.env.VK_CLIENT_ID ?? "")
+            : (process.env.VK_CLIENT_ID ?? "");
 
       const vkProfile = await exchangeVkCodeForProfile({
         code,
@@ -705,7 +720,7 @@ authRoutes.post(
         deviceId: device_id,
         state,
         redirectUri: process.env.VK_MOBILE_REDIRECT_URI ?? "",
-        clientId: process.env.VK_CLIENT_ID ?? "",
+        clientId,
       });
       const result = await linkVkToUser(user.id, vkProfile);
       if (!result.success) {
