@@ -60,6 +60,8 @@ export const usePushStore = create<PushState>()(
 
       // Действия
       setupPushSubscription: async (vapidPublicKey: string) => {
+        if (!get().userId) return;
+
         if (!serviceWorkerManager.isSupported()) {
           set({ error: "Push-уведомления не поддерживаются в этом браузере" });
           return;
@@ -243,9 +245,7 @@ export const usePushStore = create<PushState>()(
       checkServerSubscription: async () => {
         try {
           const userId = get().userId;
-          if (!userId) {
-            return;
-          }
+          if (!userId) return;
 
           // Проверяем локальную подписку
           let localSubscription = null;
@@ -451,6 +451,7 @@ export const usePushStore = create<PushState>()(
           if (!serviceWorkerManager.isSupported() || !isNotificationSupported()) return;
 
           const state = get();
+          if (!state.userId) return;
           if (state.disabledByUser) return;
 
           // Сначала проверяем, есть ли уже синхронизированная подписка

@@ -21,11 +21,15 @@ export function VkConsentForm() {
     handleSubmit,
     setError,
     formState: { errors, isValid },
-  } = useZodForm(vkConsentFormSchema, {
-    acceptPersonalData: false,
-    acceptPrivacyPolicy: false,
-    acceptDataDistribution: false,
-  });
+  } = useZodForm(
+    vkConsentFormSchema,
+    {
+      acceptPersonalData: false,
+      acceptPrivacyPolicy: false,
+      acceptDataDistribution: false,
+    },
+    { mode: "onChange" },
+  );
 
   const [isPending, setIsPending] = useState(false);
 
@@ -67,7 +71,10 @@ export function VkConsentForm() {
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+    <form
+      className={`${styles.form} ${styles.vkConsentForm}`}
+      onSubmit={handleSubmit(onSubmit)}
+    >
       <label className={styles.checkboxRow}>
         <input
           type="checkbox"

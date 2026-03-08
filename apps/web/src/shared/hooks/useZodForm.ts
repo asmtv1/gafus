@@ -1,18 +1,27 @@
-import { useForm, type UseFormReturn } from "react-hook-form";
+import {
+  useForm,
+  type UseFormReturn,
+  type UseFormProps,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { z} from "zod";
+import type { z } from "zod";
 import { type ZodSchema, type ZodType } from "zod";
 
 /**
  * Хук для создания формы с Zod валидацией
  * Интегрирует React Hook Form с Zod схемами
  */
-export function useZodForm<T extends ZodType>(schema: T, defaultValues?: z.infer<T>) {
+export function useZodForm<T extends ZodType>(
+  schema: T,
+  defaultValues?: z.infer<T>,
+  options?: Omit<UseFormProps<z.infer<T>>, "resolver" | "defaultValues">,
+) {
   const form = useForm<z.infer<T>>({
     // @ts-expect-error - временное решение для совместимости типов zodResolver
     resolver: zodResolver(schema),
     mode: "onBlur",
     defaultValues,
+    ...options,
   });
 
   return {

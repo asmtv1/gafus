@@ -26,6 +26,7 @@
     "@gafus/logger": "workspace:*",
     "@gafus/metadata": "workspace:*",
     "@gafus/prisma": "workspace:*",
+    "@prisma/client": "6.10.1",
     "@gafus/queues": "workspace:*",
     "@gafus/react-query": "workspace:*",
     "@gafus/statistics": "workspace:*",

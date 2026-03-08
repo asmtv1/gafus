@@ -255,14 +255,14 @@ export async function isUsernameAvailable(
 // ========== API Auth (login, refresh, logout) ==========
 
 /**
- * Получает минимальные данные пользователя для auth-ответа (id, username, role).
+ * Получает минимальные данные пользователя для auth-ответа (id, username, role, phone).
  */
 export async function getAuthUserById(
   userId: string,
-): Promise<{ id: string; username: string; role: string } | null> {
+): Promise<{ id: string; username: string; role: string; phone: string } | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, username: true, role: true },
+    select: { id: true, username: true, role: true, phone: true },
   });
   return user;
 }

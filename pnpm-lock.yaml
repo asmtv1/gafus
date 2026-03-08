@@ -755,6 +755,9 @@ importers:
       '@mui/utils':
         specifier: 7.1.0
         version: 7.1.0(@types/react@19.1.17)(react@19.1.0)
+      '@prisma/client':
+        specifier: 6.10.1
+        version: 6.10.1(prisma@6.10.1(typescript@5.9.3))(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: ^5.85.9
         version: 5.90.20(react@19.1.0)
@@ -867,6 +870,9 @@ importers:
       bcryptjs:
         specifier: ^3.0.2
         version: 3.0.3
+      ioredis:
+        specifier: 5.3.2
+        version: 5.3.2
       jose:
         specifier: ^5.10.0
         version: 5.10.0

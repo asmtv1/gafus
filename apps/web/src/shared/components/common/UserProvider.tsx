@@ -2,6 +2,7 @@
 
 import { useStepStore } from "@shared/stores/stepStore";
 import { useUserStore } from "@shared/stores";
+import { usePushStore } from "@shared/stores/push/pushStore";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef } from "react";
 
@@ -15,6 +16,7 @@ export default function UserProvider({ children }: UserProviderProps) {
   const { data: session, status } = useSession();
   const { setUser, clearUser } = useUserStore();
   const clearAllSteps = useStepStore((state) => state.clearAllSteps);
+  const setUserId = usePushStore((state) => state.setUserId);
   const lastUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export default function UserProvider({ children }: UserProviderProps) {
       setUser(user);
     } else if (status === "unauthenticated") {
       clearUser();
+      setUserId("");
     }
 
     if (status === "loading") {
@@ -47,7 +50,7 @@ export default function UserProvider({ children }: UserProviderProps) {
       clearAllSteps();
       void useStepStore.persist.rehydrate();
     }
-  }, [session, status, setUser, clearUser, clearAllSteps]);
+  }, [session, status, setUser, clearUser, clearAllSteps, setUserId]);
 
   return <>{children}</>;
 }

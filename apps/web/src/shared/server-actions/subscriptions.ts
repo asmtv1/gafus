@@ -86,6 +86,7 @@ export async function updateSubscriptionAction(subscription: {
   auth: string;
   keys: { p256dh: string; auth: string };
 }) {
+  if (!subscription.userId?.trim()) return { success: false };
   const parsedSubscription = updateSubscriptionSchema.parse(subscription);
   try {
     await savePushSubscriptionService({
@@ -95,6 +96,9 @@ export async function updateSubscriptionAction(subscription: {
     });
     return { success: true };
   } catch (error) {
+    if (error instanceof Error && error.message === "Пользователь не авторизован") {
+      return { success: false };
+    }
     logger.error("Ошибка при сохранении подписки", error as Error);
     throw new Error("Ошибка при сохранении подписки");
   }

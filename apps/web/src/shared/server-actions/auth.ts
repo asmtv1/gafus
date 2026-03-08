@@ -397,7 +397,7 @@ export async function submitVkConsentAction(
     return { success: false, error: "Слишком много запросов. Попробуйте через 15 минут." };
   }
 
-  const vkUser = getVkIdUserFromToken(vkIdToken);
+  const vkUser = await getVkIdUserFromToken(vkIdToken);
   if (!vkUser) {
     return { success: false, error: "Ссылка устарела. Повторите вход через VK." };
   }

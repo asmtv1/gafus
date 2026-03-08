@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
         // VK ID one-time token (web callback redirect)
         if (credentials.username === "__vk_id__" && credentials.password) {
           const { consumeVkIdOneTimeUser } = await import("./vkIdOneTimeStore");
-          const vkUser = consumeVkIdOneTimeUser(credentials.password);
+          const vkUser = await consumeVkIdOneTimeUser(credentials.password);
           if (!vkUser) throw new Error("Токен VK ID недействителен или истёк");
           return {
             id: vkUser.userId,

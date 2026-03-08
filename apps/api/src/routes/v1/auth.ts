@@ -531,8 +531,7 @@ authRoutes.post(
       const { user, needsPhone, isNewUser } = result;
 
       if (isNewUser) {
-        const vkConsentToken = crypto.randomUUID();
-        storeVkIdOneTimeUser(vkConsentToken, {
+        const vkConsentToken = await storeVkIdOneTimeUser(crypto.randomUUID(), {
           userId: user.id,
           username: user.username,
           role: user.role,
@@ -601,7 +600,7 @@ authRoutes.post(
         "";
       const userAgent = c.req.header("user-agent");
 
-      const vkUser = consumeVkIdOneTimeUser(vkConsentToken);
+      const vkUser = await consumeVkIdOneTimeUser(vkConsentToken);
       if (!vkUser) {
         return c.json(
           { success: false, error: "Ссылка устарела. Повторите вход через VK." },

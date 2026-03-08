@@ -138,6 +138,12 @@
   justify-content: center;
   text-align: center;
   box-shadow: 0px 4px 4px 0px #00000040;
+  white-space: nowrap;
+}
+
+/* VK consent: кнопка на всю ширину блока чекбоксов */
+.vkConsentForm .button {
+  width: 250px;
 }
 
 /* Локальный стиль ошибок для этой формы */

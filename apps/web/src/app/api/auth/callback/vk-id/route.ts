@@ -170,8 +170,7 @@ export async function GET(request: NextRequest) {
     });
 
     const { user, isNewUser } = result;
-    const oneTimeToken = crypto.randomUUID();
-    storeVkIdOneTimeUser(oneTimeToken, {
+    const jwtToken = await storeVkIdOneTimeUser(crypto.randomUUID(), {
       userId: user.id,
       username: user.username,
       role: user.role,
@@ -183,7 +182,7 @@ export async function GET(request: NextRequest) {
     // Новые VK-пользователи — на страницу согласий перед входом
     const finalPath = isNewUser ? "/vk-consent" : returnPath;
     return NextResponse.redirect(
-      new URL(`${finalPath}?vk_id_token=${encodeURIComponent(oneTimeToken)}`, baseOrigin),
+      new URL(`${finalPath}?vk_id_token=${encodeURIComponent(jwtToken)}`, baseOrigin),
     );
   } catch (error) {
     const err = error as Error;
