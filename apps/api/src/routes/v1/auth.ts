@@ -532,7 +532,7 @@ authRoutes.post(
         codeVerifier: code_verifier,
         deviceId: device_id,
         state,
-        redirectUri: process.env.VK_MOBILE_REDIRECT_URI ?? "",
+        redirectUri: `vk${clientId}://vk.ru/blank.html`,
         clientId,
       });
 
@@ -719,7 +719,7 @@ authRoutes.post(
         codeVerifier: code_verifier,
         deviceId: device_id,
         state,
-        redirectUri: process.env.VK_MOBILE_REDIRECT_URI ?? "",
+        redirectUri: `vk${clientId}://vk.ru/blank.html`,
         clientId,
       });
       const result = await linkVkToUser(user.id, vkProfile);

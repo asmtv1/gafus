@@ -42,7 +42,7 @@
 6. При `needsPhone: true` → экран `/vk-set-phone`, далее `POST /api/v1/auth/vk-phone-set` с JWT
 7. Кнопка «Установить пароль» доступна в профиле при `!hasAppPassword`, ведёт на `/profile/set-password` → `POST /api/v1/auth/set-password`
 
-**Redirect URI:** `gafus://auth/vk` — совпадает с `VK_MOBILE_REDIRECT_URI` в API, `app.config.js` и настройках приложения VK ID.
+**Redirect URI:** `vk{client_id}://vk.ru/blank.html` — формат VK ID для мобильных ([документация](https://id.vk.com/about/business/go/docs/ru/vkid/latest/vk-id/connection/start-integration/auth-without-sdk/auth-without-sdk-android)). Не добавлять в «Доверенный Redirect URL» — он только для HTTPS (web). Для mobile проверка идёт по package name + SHA-1 в настройках платформы.
 
 **Web redirect:** `https://gafus.ru/api/auth/callback/vk-id` — `VK_WEB_REDIRECT_URI` в env и настройках VK ID.
 
@@ -88,8 +88,8 @@ VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id
 VK_CLIENT_ID=54472652
 VK_CLIENT_ID_IOS=54472654
 VK_CLIENT_ID_ANDROID=54472653
-VK_MOBILE_REDIRECT_URI=gafus://auth/vk
 ```
+redirect_uri формируется как `vk{client_id}://vk.ru/blank.html` из clientId.
 
 **Mobile (app.config.js):**
 - `extra.vkClientIdIos`, `extra.vkClientIdAndroid`, `extra.vkMobileRedirectUri` — прокидываются в `Constants.expoConfig`

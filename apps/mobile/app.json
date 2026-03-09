@@ -21,10 +21,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ru.gafus.app",
-      "buildNumber": "1",
-      "associatedDomains": [
-        "applinks:gafus.ru"
-      ]
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {

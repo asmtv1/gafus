@@ -54,14 +54,13 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         Platform.OS === "ios"
           ? (extra?.vkClientIdIos as string | undefined)
           : (extra?.vkClientIdAndroid as string | undefined);
-      const redirectUri =
-        (Constants.expoConfig?.extra?.vkMobileRedirectUri as string | undefined) ??
-        Linking.createURL("auth/vk");
-
       if (!clientId) {
         options?.onError?.("VK авторизация не настроена");
         return;
       }
+
+      // VK ID требует vk{client_id}://vk.ru/blank.html — см. id.vk.com/docs
+      const redirectUri = `vk${clientId}://vk.ru/blank.html`;
 
       const codeVerifier = await generateCodeVerifier();
       const codeChallenge = await generateCodeChallenge(codeVerifier);
@@ -85,9 +84,12 @@ export function useVkLogin(options?: UseVkLoginOptions): {
 
       if (Platform.OS === "android") {
         await WebBrowser.warmUpAsync();
+        await WebBrowser.mayInitWithUrlAsync(authUrl);
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri, {
+        createTask: false, // Android: в той же task — лучше redirect, совместимость с эмулятором
+      });
 
       if (Platform.OS === "android") {
         await WebBrowser.coolDownAsync();
