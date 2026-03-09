@@ -40,7 +40,7 @@ export function reportClientError(error: unknown, data?: ClientErrorData): void 
           severity,
           stackTrace,
           uploadBean: {
-            environment: __DEV__ ? "development" : "production",
+            environment: __DEV__ ? "dev" : "prod",
             versionName: config.versionName,
             deviceId,
             sessionUuid,

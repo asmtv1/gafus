@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { useSegments, useRouter } from "expo-router";
+import { useRootNavigationState } from "expo-router";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,44 +14,35 @@ interface AuthProviderProps {
 }
 
 /**
- * Провайдер аутентификации
- * Проверяет auth состояние и редиректит на login/main.
- * При старте сессии загружает избранное (getFavorites) в store — как loadFromServer в web.
+ * Провайдер аутентификации — только side effects, без навигации.
+ * Навигация по auth состоянию реализована декларативно через <Redirect>
+ * в layout-файлах групп (auth) и (main).
  */
 export function AuthProvider({ children }: AuthProviderProps) {
   const queryClient = useQueryClient();
-  const {
-    isAuthenticated, isLoading, checkAuth, pendingConfirmPhone, pendingVkPhone, pendingVkConsent,
-  } = useAuthStore();
-  const segments = useSegments();
-  const router = useRouter();
+  const navState = useRootNavigationState();
+  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
   const prevAuthRef = useRef<boolean | null>(null);
   const favoritesLoadedRef = useRef(false);
 
-  // Проверяем авторизацию при монтировании
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
-  // Гарантированный сброс всех хранилищ при выходе / истечении сессии
   useEffect(() => {
     if (isLoading) return;
-
     const prev = prevAuthRef.current;
     prevAuthRef.current = isAuthenticated;
-
     if (prev === true && !isAuthenticated) {
       resetUserStores();
     }
   }, [isAuthenticated, isLoading]);
 
-  // При смене пользователя (логин/логаут) подгружаем stepStore из ключа по userId
   useEffect(() => {
     if (isLoading) return;
     void useStepStore.persist.rehydrate();
   }, [isAuthenticated, isLoading]);
 
-  // Загрузка избранного при старте — prefetch в React Query и sync в store (единый источник)
   useEffect(() => {
     if (!isAuthenticated) {
       favoritesLoadedRef.current = false;
@@ -75,63 +66,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     })();
   }, [isAuthenticated, queryClient]);
 
-  // Редирект на основе auth состояния
-  useEffect(() => {
-    if (isLoading) return;
-
-    const inAuthGroup = segments[0] === "(auth)";
-    const isConfirmScreen = inAuthGroup && segments[1] === "confirm";
-    const isResetPasswordScreen = inAuthGroup && segments[1] === "reset-password";
-    const isVkSetPhoneScreen = inAuthGroup && (segments[1] as string) === "vk-set-phone";
-    const isVkConsentScreen = inAuthGroup && (segments[1] as string) === "vk-consent";
-
-    if (__DEV__) {
-      console.log("[AuthProvider] redirect effect", {
-        isAuthenticated,
-        pendingConfirmPhone,
-        pendingVkPhone,
-        pendingVkConsent,
-        segments: [...segments],
-        inAuthGroup,
-      });
-    }
-
-    if (pendingVkConsent && !isVkConsentScreen) {
-      if (__DEV__) console.log("[AuthProvider] → replace /vk-consent");
-      router.replace("/vk-consent" as never);
-      return;
-    }
-
-    if (pendingVkPhone && !isVkSetPhoneScreen) {
-      if (__DEV__) console.log("[AuthProvider] → replace /vk-set-phone");
-      router.replace("/vk-set-phone" as never);
-      return;
-    }
-
-    if (pendingConfirmPhone && !isConfirmScreen) {
-      if (__DEV__) console.log("[AuthProvider] → replace /confirm");
-      router.replace("/confirm");
-      return;
-    }
-
-    if (!isAuthenticated && !inAuthGroup) {
-      if (__DEV__) console.log("[AuthProvider] → replace /welcome");
-      router.replace("/welcome");
-    } else if (
-      isAuthenticated &&
-      inAuthGroup &&
-      !isConfirmScreen &&
-      !isResetPasswordScreen &&
-      !isVkSetPhoneScreen &&
-      !isVkConsentScreen
-    ) {
-      if (__DEV__) console.log("[AuthProvider] → replace / (main)");
-      router.replace("/");
-    }
-  }, [isAuthenticated, isLoading, segments, router, pendingConfirmPhone, pendingVkPhone, pendingVkConsent]);
-
-  // Показываем лоадер пока проверяем авторизацию
-  if (isLoading) {
+  if (isLoading || !navState?.key) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color={COLORS.primary} />

@@ -1,5 +1,5 @@
 import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
-import { Text, Avatar } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -194,14 +194,15 @@ export default function PublicProfileScreen() {
         <View style={styles.profileBanner}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatarWrapper}>
-              {profile?.avatarUrl ? (
-                <Avatar.Image size={95} source={{ uri: profile.avatarUrl }} />
-              ) : (
-                <Avatar.Image
-                  size={95}
-                  source={require("../../../assets/images/avatar.png")}
-                />
-              )}
+              <Image
+                source={
+                  profile?.avatarUrl
+                    ? { uri: profile.avatarUrl }
+                    : require("../../../assets/images/avatar.png")
+                }
+                style={styles.avatarImage}
+                contentFit="cover"
+              />
             </View>
           </View>
           <View style={styles.profileInfo}>
@@ -447,18 +448,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarWrapper: {
-    width: 105,
-    height: 105,
-    borderRadius: 53,
-    justifyContent: "center",
-    alignItems: "center",
+    width: 95,
+    height: 95,
+    borderRadius: 48,
     overflow: "hidden",
+    backgroundColor: COLORS.primary,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
-    backgroundColor: COLORS.primary,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
   profileInfo: {
     flex: 1,

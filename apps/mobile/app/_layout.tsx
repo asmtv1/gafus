@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useFonts } from "expo-font";
 import {
   Montserrat_400Regular,
@@ -52,6 +54,15 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
+  // DEBUG: лог любых deep link на Android для отладки VK redirect
+  useEffect(() => {
+    if (!__DEV__ || Platform.OS !== "android") return;
+    const sub = Linking.addEventListener("url", (e) => {
+      console.log("[VK_LOGIN] Linking url event received", { url: e.url, urlLength: e.url?.length });
+    });
+    return () => sub.remove();
+  }, []);
+
   // Не рендерим контент до загрузки шрифтов
   if (!fontsLoaded && !fontError) {
     return null;
@@ -59,7 +70,8 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <TracerProvider>
+      <SafeAreaProvider>
+        <TracerProvider>
         <ErrorBoundary>
           <QueryProvider>
             <ThemeProvider>
@@ -77,7 +89,8 @@ export default function RootLayout() {
             </ThemeProvider>
           </QueryProvider>
         </ErrorBoundary>
-      </TracerProvider>
+        </TracerProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

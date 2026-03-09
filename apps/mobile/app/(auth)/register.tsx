@@ -268,11 +268,9 @@ export default function RegisterScreen() {
             {/* Информация о подтверждении */}
             <View style={[styles.infoBlock, { width: formWidth }]}>
               <Text style={styles.info}>
-                Требуется подтверждение номера
+                Требуется подтверждение номера через Telegram
               </Text>
-              <Text style={styles.info}>
-              через Telegram, или альтернативным способом.
-              </Text>
+            
             </View>
 
             {/* Password Input */}
@@ -467,9 +465,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: "center",
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
+    paddingTop: 0,
     paddingBottom: 22,
-    gap: 16,
+    gap: 8,
   },
   // Заголовок "Гафус!" - fontSize задаётся динамически
   title: {
@@ -477,7 +475,9 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     textAlign: "center",
     fontFamily: FONTS.impact,
-    marginBottom: SPACING.sm,
+    marginBottom: 5,
+    marginTop: 0,
+
   },
   // Контейнер с логотипом и подзаголовком
   logoContainer: {
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     height: 48,
     borderRadius: 8,
-    marginTop: 30,
+    marginTop: 20,
     borderWidth: 2,
     borderColor: COLORS.cardBackground,
     alignItems: "center",

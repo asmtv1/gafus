@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: "center",
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
+    paddingTop: 0,
     paddingBottom: SPACING.md,
     gap: 10,
   },
@@ -299,6 +299,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     textAlign: "left",
     fontFamily: FONTS.impact,
+    marginTop: -SPACING.xl,
   },
   registerTextContainer: {},
   // Текст "Если у Вас еще нет аккаунта"

@@ -18,11 +18,13 @@
 
 | Переменная | Описание |
 |-----------|----------|
-| `EXPO_PUBLIC_TRACER_APP_TOKEN` | App Token из настроек проекта в Tracer |
+| `EXPO_PUBLIC_TRACER_APP_TOKEN_IOS` | App Token для проекта Гафус-ios |
+| `EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID` | App Token для проекта Гафус-android |
+| `EXPO_PUBLIC_TRACER_APP_TOKEN` | Fallback (если платформенные не заданы) |
 | `EXPO_PUBLIC_APP_VERSION` | Версия приложения (напр. `1.0.0`) |
 | `EXPO_PUBLIC_ENABLE_TRACER` | `"true"` для включения в dev (иначе только production) |
 
-Прокидываются через `app.config.js` в `Constants.expoConfig.extra`. Для production EAS Build — задать через EAS Secrets.
+Прокидываются через `app.config.js` в `Constants.expoConfig.extra`. Токен выбирается по `Platform.OS`. Для production EAS Build — задать `EXPO_PUBLIC_TRACER_APP_TOKEN_IOS` и `EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID` через EAS Secrets.
 
 ## Как работает
 

@@ -1,11 +1,17 @@
-import { Stack } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import { useTheme } from "react-native-paper";
 
+import { useAuthStore } from "@/shared/stores";
+
 /**
- * Layout для основного приложения (после авторизации)
+ * Layout для основного приложения (после авторизации).
+ * Редиректит неавторизованных пользователей в auth; (main) layout размонтируется, циклов нет.
  */
 export default function MainLayout() {
   const theme = useTheme();
+  const { isAuthenticated } = useAuthStore();
+
+  if (!isAuthenticated) return <Redirect href="/welcome" />;
 
   return (
     <Stack

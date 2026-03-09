@@ -4,6 +4,12 @@
 
 **Redirect URI для мобильных** должен быть `vk{client_id}://vk.ru/blank.html`, а не `gafus://auth/vk`. «Доверенный Redirect URL» в консоли VK — только для HTTPS (web). Для mobile проверка идёт по package name + SHA-1 в настройках платформы. См. [id.vk.com/docs](https://id.vk.com/about/business/go/docs/ru/vkid/latest/vk-id/connection/start-integration/auth-without-sdk/auth-without-sdk-android).
 
+**Intent filter обязателен.** Без него на Android после нажатия «Разрешить» redirect не перехватывается. По документации VK ID redirect может приходить в двух форматах:
+1. `vk{clientId}://vk.ru?payload={"code":"...","device_id":"...","state":"..."}` — без пути
+2. `vk{clientId}://vk.ru/blank.html?code=...&state=...&device_id=...` — с путём
+
+В `app.config.js` в intent filter добавлены оба варианта: `{ scheme, host }` для формата без path и `{ scheme, host, pathPrefix: "/blank.html" }` для формата с путём. **Важно:** в `openAuthSessionAsync` второй параметр (returnUrl) должен быть `vk{clientId}://vk.ru` (без `/blank.html`), т.к. expo-web-browser использует `event.url.startsWith(returnUrl)`, а Android возвращает `vk{id}://vk.ru?payload=...`. Требуется пересборка native (prebuild / EAS build). Переменная `VK_CLIENT_ID_ANDROID` должна быть задана при сборке.
+
 ## Гипотеза (подтверждена)
 
 **Симптом:** При входе через VK ID в мобильном приложении на Android-эмуляторе страница `id.vk.ru` показывает "Error loading" / "Попробовать снова".
@@ -45,20 +51,16 @@ if (Platform.OS === "android") {
 
 ### 3. Plugin `expo-web-browser` (experimentalLauncherActivity)
 
-Для Expo SDK 53+ в `app.json` / `app.config.js`:
+Обязательно для корректной обработки redirect на Android. В `app.config.js`:
 
-```json
-{
-  "plugins": [
-    [
-      "expo-web-browser",
-      { "experimentalLauncherActivity": true }
-    ]
-  ]
-}
+```javascript
+plugins: [
+  ...(config.plugins ?? []),
+  ["expo-web-browser", { experimentalLauncherActivity: true }],
+]
 ```
 
-Предотвращает закрытие браузера при сворачивании приложения. Требует **prebuild** / пересборку нативного кода.
+Предотвращает закрытие браузера при сворачивании и улучшает перехват redirect при нажатии «Разрешить». Требует **prebuild** / пересборку нативного кода.
 
 **Примечание:** В Expo 55+ заменено на runtime-опцию `useProxyActivity` (по умолчанию `true`).
 

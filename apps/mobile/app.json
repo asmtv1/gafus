@@ -14,7 +14,7 @@
     },
     "icon": "./assets/images/icon512.png",
     "splash": {
-      "image": "./assets/images/logo.png",
+      "image": "./assets/images/notification-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#dad3c1"
     },
@@ -24,6 +24,10 @@
       "buildNumber": "1"
     },
     "android": {
+      "androidStatusBar": {
+        "backgroundColor": "#DAD3C1",
+        "translucent": false
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon512.png",
         "backgroundColor": "#dad3c1"
@@ -46,7 +50,7 @@
             "DEFAULT"
           ]
         }
-      ],
+      ]
     },
     "web": {
       "bundler": "metro",

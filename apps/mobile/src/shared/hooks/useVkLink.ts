@@ -60,6 +60,7 @@ export function useVkLink(options?: UseVkLinkOptions): {
       }
 
       const redirectUri = `vk${clientId}://vk.ru/blank.html`;
+      const returnUrl = `vk${clientId}://vk.ru`; // без path — Android возвращает vk{id}://vk.ru?payload=...
 
       const codeVerifier = await generateCodeVerifier();
       const codeChallenge = await generateCodeChallenge(codeVerifier);
@@ -78,11 +79,13 @@ export function useVkLink(options?: UseVkLinkOptions): {
         "&fastAuthEnabled=1"; // не показывать экран подтверждения повторно
 
       if (Platform.OS === "android") {
+        if (__DEV__) console.log("[VK_LINK] Android start", { clientId, returnUrl });
         await WebBrowser.warmUpAsync();
         await WebBrowser.mayInitWithUrlAsync(authUrl);
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri, {
+      if (__DEV__ && Platform.OS === "android") console.log("[VK_LINK] calling openAuthSessionAsync...");
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, {
         createTask: false,
       });
 
@@ -90,13 +93,34 @@ export function useVkLink(options?: UseVkLinkOptions): {
         await WebBrowser.coolDownAsync();
       }
 
-      if (result.type !== "success") return;
-
-      if (__DEV__) {
-        console.log("[useVkLink] redirect URL (first 200 chars):", result.url.slice(0, 200));
+      if (__DEV__ && Platform.OS === "android") {
+        console.log("[VK_LINK] openAuthSessionAsync returned", {
+          type: result.type,
+          url: "url" in result ? String((result as { url?: string }).url).slice(0, 300) : undefined,
+        });
       }
 
-      const parsed = Linking.parse(result.url);
+      let redirectUrl = result.type === "success" ? result.url : undefined;
+      if (!redirectUrl && result.type === "dismiss" && Platform.OS === "android") {
+        redirectUrl = await new Promise<string | undefined>((resolve) => {
+          const sub = Linking.addEventListener("url", (e) => {
+            if (e.url.startsWith(returnUrl)) {
+              clearTimeout(timeout);
+              sub.remove();
+              resolve(e.url);
+            }
+          });
+          const timeout = setTimeout(() => {
+            sub.remove();
+            resolve(undefined);
+          }, 2000);
+        });
+      }
+      if (!redirectUrl) return;
+
+      if (__DEV__) console.log("[VK_LINK] redirect URL:", redirectUrl.slice(0, 300));
+
+      const parsed = Linking.parse(redirectUrl);
       const q = parsed.queryParams ?? {};
 
       // VK может возвращать code/device_id/state либо в query, либо в payload (Android)

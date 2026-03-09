@@ -38,6 +38,7 @@ function TracerProviderInner({ children }: TracerProviderProps) {
       const {
         initTracerError,
         initTracerErrorUploader,
+        initTracerSessionUploader,
         initTracerPerformanceWebVitals,
         initTracerPerformanceUploader,
       } = await import("@apptracer/sdk");
@@ -45,9 +46,10 @@ function TracerProviderInner({ children }: TracerProviderProps) {
       const uploaderConfig = {
         appToken: token,
         versionName: process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown",
-        environment: process.env.NODE_ENV,
+        environment: process.env.NODE_ENV === "production" ? "prod" : "dev",
       };
       initTracerErrorUploader(uploaderConfig);
+      initTracerSessionUploader(uploaderConfig);
       initTracerPerformanceWebVitals({
         webVitalsMetricAttributes: (metric) => ({
           url: typeof window !== "undefined" ? window.location.pathname : "",

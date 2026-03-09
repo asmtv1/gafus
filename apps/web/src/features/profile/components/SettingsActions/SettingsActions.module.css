@@ -10,13 +10,31 @@
   box-sizing: border-box;
 }
 
-.successBanner {
-  background: #e8f5e9;
-  color: #2e7d32;
-  padding: 8px 16px;
-  border-radius: 8px;
-  margin-bottom: 12px;
+/* Pill-форма: светлый беж, зелёная галочка, скруглённые углы (как на mobile) */
+.successBanner,
+.vkLinkedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #f5f0e8;
+  color: #5a5744;
+  padding: 12px 24px;
+  border-radius: 9999px;
   font-size: 14px;
+  font-weight: 500;
+}
+
+.successBanner {
+  margin-bottom: 12px;
+}
+
+.vkLinkedBadge {
+  padding: 10px 20px;
+}
+
+.successIcon {
+  color: #4caf50 !important;
+  font-size: 22px !important;
 }
 
 .errorBanner {
@@ -25,13 +43,6 @@
   padding: 8px 16px;
   border-radius: 8px;
   margin-bottom: 12px;
-  font-size: 14px;
-}
-
-.infoText {
-  display: block;
-  padding: 8px 0;
-  color: #636128;
   font-size: 14px;
 }
 

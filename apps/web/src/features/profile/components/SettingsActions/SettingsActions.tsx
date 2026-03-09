@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { memo, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 import { initiateVkIdLink } from "@shared/server-actions";
 
@@ -51,7 +52,10 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
   return (
     <section className={styles.section}>
       {linkFeedback === "vk" && (
-        <div className={styles.successBanner}>VK успешно подключён</div>
+        <div className={styles.successBanner}>
+          <CheckCircleIcon className={styles.successIcon} />
+          <span>VK подключён</span>
+        </div>
       )}
       {linkFeedback && linkFeedback !== "vk" && (
         <div className={styles.errorBanner}>{linkFeedback}</div>
@@ -67,7 +71,10 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
             {isLinking ? "Подключение..." : "🔗 Подключить VK"}
           </button>
         ) : (
-          <span className={styles.infoText}>✅ VK подключён</span>
+          <div className={styles.vkLinkedBadge}>
+            <CheckCircleIcon className={styles.successIcon} />
+            <span>VK подключён</span>
+          </div>
         )}
         {linkError && <p className={styles.errorText}>{linkError}</p>}
         <button

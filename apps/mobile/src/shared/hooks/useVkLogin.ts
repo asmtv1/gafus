@@ -59,8 +59,10 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         return;
       }
 
-      // VK ID требует vk{client_id}://vk.ru/blank.html — см. id.vk.com/docs
+      // VK ID: redirect_uri для authorize — vk{id}://vk.ru/blank.html; Android возвращает vk{id}://vk.ru?payload=...
       const redirectUri = `vk${clientId}://vk.ru/blank.html`;
+      // returnUrl для openAuthSessionAsync — vk{id}://vk.ru (без path), иначе vk123://vk.ru?payload=... не проходит startsWith
+      const returnUrl = `vk${clientId}://vk.ru`;
 
       const codeVerifier = await generateCodeVerifier();
       const codeChallenge = await generateCodeChallenge(codeVerifier);
@@ -83,11 +85,22 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         "&fastAuthEnabled=1"; // не показывать экран подтверждения повторно
 
       if (Platform.OS === "android") {
+        if (__DEV__) {
+          console.log("[VK_LOGIN] Android start", {
+            clientId,
+            returnUrl,
+            redirectUri,
+            authUrlFirst100: authUrl.slice(0, 100),
+          });
+        }
         await WebBrowser.warmUpAsync();
         await WebBrowser.mayInitWithUrlAsync(authUrl);
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri, {
+      if (__DEV__ && Platform.OS === "android") {
+        console.log("[VK_LOGIN] calling openAuthSessionAsync...");
+      }
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, {
         createTask: false, // Android: в той же task — лучше redirect, совместимость с эмулятором
       });
 
@@ -95,14 +108,55 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         await WebBrowser.coolDownAsync();
       }
 
-      if (result.type !== "success") return;
-
-      if (__DEV__) {
-        console.log("[useVkLogin] redirect URL (first 200 chars):", result.url.slice(0, 200));
+      if (__DEV__ && Platform.OS === "android") {
+        console.log("[VK_LOGIN] openAuthSessionAsync returned", {
+          type: result.type,
+          url: "url" in result ? String((result as { url?: string }).url).slice(0, 300) : undefined,
+        });
       }
 
-      const parsed = Linking.parse(result.url);
+      // Fallback: на Android AppState может сработать раньше Linking — ждём redirect до 2 сек
+      let redirectUrl = result.type === "success" ? result.url : undefined;
+      if (!redirectUrl && result.type === "dismiss" && Platform.OS === "android") {
+        redirectUrl = await new Promise<string | undefined>((resolve) => {
+          const sub = Linking.addEventListener("url", (e) => {
+            if (e.url.startsWith(returnUrl)) {
+              clearTimeout(timeout);
+              sub.remove();
+              resolve(e.url);
+            }
+          });
+          const timeout = setTimeout(() => {
+            sub.remove();
+            resolve(undefined);
+          }, 2000);
+        });
+        if (__DEV__ && redirectUrl) {
+          console.log("[VK_LOGIN] fallback: got URL from Linking after dismiss");
+        }
+      }
+
+      if (!redirectUrl) {
+        if (__DEV__ && Platform.OS === "android") {
+          console.log("[VK_LOGIN] early return: no redirect URL");
+        }
+        return;
+      }
+
+      if (__DEV__) {
+        console.log("[VK_LOGIN] redirect URL (first 300 chars):", redirectUrl.slice(0, 300));
+      }
+
+      const parsed = Linking.parse(redirectUrl);
       const q = parsed.queryParams ?? {};
+
+      if (__DEV__) {
+        console.log("[VK_LOGIN] parsed", {
+          path: parsed.path,
+          queryParamsKeys: Object.keys(q ?? {}),
+          hasPayload: !!q?.payload,
+        });
+      }
 
       // VK может возвращать code/device_id/state либо в query, либо в payload (Android)
       let code = q.code as string | undefined;
@@ -118,14 +172,24 @@ export function useVkLogin(options?: UseVkLoginOptions): {
           code = payload.code ?? code;
           device_id = payload.device_id ?? device_id;
           returnedState = payload.state ?? returnedState;
-        } catch {
-          // игнорируем, оставляем из query
+          if (__DEV__) console.log("[VK_LOGIN] extracted from payload", { code: !!code, device_id: !!device_id });
+        } catch (e) {
+          if (__DEV__) console.warn("[VK_LOGIN] payload parse error", e);
         }
       }
 
       device_id = device_id?.trim();
 
       if (!code || !device_id || returnedState !== state) {
+        if (__DEV__) {
+          console.log("[VK_LOGIN] validation failed", {
+            hasCode: !!code,
+            hasDeviceId: !!device_id,
+            stateMatch: returnedState === state,
+            returnedState: returnedState?.slice(0, 20),
+            expectedState: state.slice(0, 20),
+          });
+        }
         options?.onError?.("Ошибка авторизации VK ID: некорректный ответ");
         return;
       }
@@ -145,7 +209,7 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         options?.onError?.(loginResult.error ?? "Ошибка авторизации VK ID");
       }
     } catch (err) {
-      if (__DEV__) console.error("[useVkLogin] catch", err);
+      if (__DEV__) console.error("[VK_LOGIN] catch", err);
       options?.onError?.("Ошибка подключения к серверу");
     } finally {
       setIsVkLoading(false);

@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/confirm",
   "/~offline", // Страница офлайна доступна всем
+  "/tracer-test", // Тест Tracer без авторизации
   "/api/auth",
   "/api/csrf-token",
   "/api/webhook",

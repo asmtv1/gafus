@@ -122,6 +122,8 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     width: "100%",
     overflow: "visible",
+    marginTop: 20,
+    marginBottom: -20,
   },
   pawText: {
     fontSize: 15,

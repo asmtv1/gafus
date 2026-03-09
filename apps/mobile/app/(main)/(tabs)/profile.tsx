@@ -1,5 +1,6 @@
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking } from "react-native";
-import { Text, Avatar } from "react-native-paper";
+import { Text } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -416,14 +417,11 @@ export default function ProfileScreen() {
             disabled={avatarUploadMutation.isPending}
           >
             <View style={styles.avatarWrapper}>
-              {avatarUrl ? (
-                <Avatar.Image size={95} source={{ uri: avatarUrl }} />
-              ) : (
-                <Avatar.Image
-                  size={95}
-                  source={require("../../../assets/images/avatar.png")}
-                />
-              )}
+              <Image
+                source={avatarUrl ? { uri: avatarUrl } : require("../../../assets/images/avatar.png")}
+                style={styles.avatarImage}
+                contentFit="cover"
+              />
             </View>
             <View style={styles.avatarEditBadge}>
               <Text style={styles.avatarEditText}>✏️</Text>
@@ -696,22 +694,6 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {hasAppPassword ? (
-          <Pressable
-            style={styles.passwordButton}
-            onPress={() => router.push("/reset-password")}
-          >
-            <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            style={styles.passwordButton}
-            onPress={() => router.push("/profile/set-password")}
-          >
-            <Text style={styles.passwordButtonText}>🔐 Установить пароль</Text>
-          </Pressable>
-        )}
-
         {!hasVkLinked ? (
           <Pressable
             style={({ pressed }) => [
@@ -727,7 +709,26 @@ export default function ProfileScreen() {
             </Text>
           </Pressable>
         ) : (
-          <Text style={styles.vkLinkedText}>✅ VK подключён</Text>
+          <View style={styles.vkLinkedBadge}>
+            <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.success} />
+            <Text style={styles.vkLinkedBadgeText}>VK подключён</Text>
+          </View>
+        )}
+
+        {hasAppPassword ? (
+          <Pressable
+            style={styles.passwordButton}
+            onPress={() => router.push("/reset-password")}
+          >
+            <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={styles.passwordButton}
+            onPress={() => router.push("/profile/set-password")}
+          >
+            <Text style={styles.passwordButtonText}>🔐 Установить пароль</Text>
+          </Pressable>
         )}
 
         <Pressable
@@ -873,11 +874,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarWrapper: {
-    width: 105,
-    height: 105,
-    borderRadius: 53,
-    justifyContent: "center",
-    alignItems: "center",
+    width: 95,
+    height: 95,
+    borderRadius: 48,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -885,6 +884,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     backgroundColor: COLORS.primary,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
   avatarEditBadge: {
     position: "absolute",
@@ -1373,11 +1376,26 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: FONTS.impact,
   },
-  vkLinkedText: {
+  vkLinkedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#F5F0E8",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     marginTop: SPACING.md,
     marginBottom: SPACING.md,
-    color: "#636128",
-    fontSize: 14,
+    minHeight: 48,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+  },
+  vkLinkedBadgeText: {
+    color: "#5A5744",
+    fontSize: 15,
+    fontWeight: "600",
     fontFamily: FONTS.montserrat,
   },
   logoutButton: {
