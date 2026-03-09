@@ -92,10 +92,33 @@ export function useVkLink(options?: UseVkLinkOptions): {
 
       if (result.type !== "success") return;
 
+      if (__DEV__) {
+        console.log("[useVkLink] redirect URL (first 200 chars):", result.url.slice(0, 200));
+      }
+
       const parsed = Linking.parse(result.url);
-      const code = parsed.queryParams?.code as string | undefined;
-      const device_id = parsed.queryParams?.device_id as string | undefined;
-      const returnedState = parsed.queryParams?.state as string | undefined;
+      const q = parsed.queryParams ?? {};
+
+      // VK может возвращать code/device_id/state либо в query, либо в payload (Android)
+      let code = q.code as string | undefined;
+      let device_id = q.device_id as string | undefined;
+      let returnedState = q.state as string | undefined;
+
+      const payloadRaw = q.payload as string | undefined;
+      if ((!code || !device_id) && payloadRaw) {
+        try {
+          const payload = JSON.parse(
+            typeof payloadRaw === "string" ? payloadRaw : String(payloadRaw),
+          ) as { code?: string; device_id?: string; state?: string };
+          code = payload.code ?? code;
+          device_id = payload.device_id ?? device_id;
+          returnedState = payload.state ?? returnedState;
+        } catch {
+          // игнорируем, оставляем из query
+        }
+      }
+
+      device_id = device_id?.trim();
 
       if (!code || !device_id || returnedState !== state) {
         options?.onError?.("Ошибка привязки VK: некорректный ответ");

@@ -177,6 +177,9 @@ async function exchangeVkCodeForToken(
     logger.warn("VK ID token exchange failed", {
       error: data.error,
       errorDescription: data.error_description,
+      deviceIdLen: deviceId?.length,
+      redirectUri,
+      clientId,
     });
     throw new Error("VK token exchange failed");
   }

@@ -51,7 +51,7 @@
 1. Создайте приложение в [id.vk.com](https://id.vk.com) (VK ID)
 2. Настройте Redirect URI:
    - Web: `https://gafus.ru/api/auth/callback/vk-id`
-   - Mobile: `gafus://auth/vk`
+   - Mobile: `vk{client_id}://vk.ru/blank.html` (формат VK ID, не добавлять в «Доверенный Redirect URL»)
 3. PKCE обязателен — `client_secret` не используется при обмене кода
 
 ## Разработка через ngrok
@@ -162,6 +162,8 @@ redirect_uri формируется как `vk{client_id}://vk.ru/blank.html` и
 3. **Отладка** — `VK_ID_DEBUG=1` в env выводит в консоль сервера `redirectUri`, отправляемый в VK.
 
 **Ошибка `redirect_uri is missing or invalid`** — redirect URI не добавлен в VK ID или не совпадает с тем, что отправляется (проверьте через `VK_ID_DEBUG=1`).
+
+**Ошибка `device_id is invalid` (mobile):** VK отклоняет device_id при обмене кода. Проверить: логи API содержат `deviceIdLen`, `redirectUri`, `clientId` — должны совпадать с запросом authorize. VK может возвращать `code`/`device_id`/`state` в query-параметрах или в `payload` (JSON). Оба формата поддерживаются в `useVkLogin`/`useVkLink`. В dev-режиме смотрите лог `[useVkLogin] redirect URL` чтобы увидеть фактический redirect.
 
 ## Разработка через ngrok
 
