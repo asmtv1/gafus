@@ -43,7 +43,7 @@ fi
 mkdir -p "$OUTPUT_DIR"
 
 # Конвертация и загрузка каждого дашборда
-DASHBOARDS="overview system-metrics postgres-metrics redis-metrics services-availability bullmq-queues"
+DASHBOARDS="overview system-metrics postgres-metrics services-availability bullmq-queues"
 SUCCESS=0
 FAILED=0
 

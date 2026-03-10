@@ -10,6 +10,15 @@
 - **Фоновые процессы** для тяжелых операций
 - **Планировщик задач** с cron-like функциональностью
 - **Мониторинг** выполнения задач
+- **Health server** — HTTP `/health` для liveness (blackbox-exporter, Docker healthcheck)
+
+## Health endpoint
+
+- **Файл:** `packages/worker/src/health-server.ts`
+- **Endpoint:** `GET /health` и `HEAD /health` → 200, `{"ok": true}`
+- **Порт:** `WORKER_HEALTH_PORT` (по умолчанию 3003)
+- **Сеть:** слушает `0.0.0.0` для доступа внутри Docker
+- **Зависимости:** только `node:http`, без внешних пакетов
 
 ## 📦 Использование
 
@@ -58,3 +67,10 @@ processJob("image-processing", "resize", async (job) => {
 - `processJob(queue, jobType, handler)` - Обработка задач
 - `scheduleJob(queue, jobType, data, schedule)` - Планирование задач
 - `getWorkerStats()` - Статистика воркера
+- `startHealthServer()` - Запуск HTTP-сервера для `/health` (liveness)
+
+## Переменные окружения
+
+| Переменная | По умолчанию | Описание |
+|------------|--------------|----------|
+| `WORKER_HEALTH_PORT` | 3003 | Порт HTTP-сервера для healthcheck |

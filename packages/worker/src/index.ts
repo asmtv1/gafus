@@ -5,9 +5,12 @@ if (typeof process.setMaxListeners === "function") {
 }
 
 import { createWorkerLogger } from "@gafus/logger";
+import { startHealthServer } from "./health-server";
 
 const logger = createWorkerLogger("bootstrap");
 logger.info("Bootstrapping...");
+
+startHealthServer();
 
 // Импортируем основную логику воркеров
 import "./push-worker";

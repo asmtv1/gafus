@@ -12,17 +12,18 @@
 ```
 [node-exporter]      →
 [postgres-exporter]  → [Grafana Alloy] → remote_write → [Yandex Monitoring]
-[redis-exporter]     →
 [blackbox-exporter]  →
 [bull-board /metrics] →
 ```
+
+Redis-exporter не используется. Метрики node-exporter фильтруются (relabel): исключаются `node_disk_io_*`, `node_netstat_*`, `node_sockstat_*`.
 
 Alloy — headless сервис (без UI). Не экспонирует порты наружу. Healthcheck: `http://localhost:12345/-/ready` (внутренний).
 
 ## Конфигурация
 
 - **Конфиг Alloy:** `ci-cd/docker/prometheus/config.alloy`
-- **Scrape targets:** node-exporter, postgres-exporter, redis-exporter, blackbox (services-health), bullmq-queues
+- **Scrape targets:** node-exporter (с relabel-фильтром), postgres-exporter, blackbox (services-health: web-app, api, trainer-panel, admin-panel, worker, bull-board), bullmq-queues
 - **remote_write:** Yandex Monitoring, аутентификация через `YC_MONITORING_API_KEY` (env var → sys.env)
 
 ## Импорт дашбордов
@@ -40,7 +41,7 @@ Alloy — headless сервис (без UI). Не экспонирует пор�
 ./scripts/import-dashboards-to-yandex.sh
 ```
 
-Исходные дашборды: `ci-cd/docker/grafana/dashboards/` (overview, system-metrics, postgres-metrics, redis-metrics, services-availability, bullmq-queues).
+Исходные дашборды: `ci-cd/docker/grafana/dashboards/` (overview, system-metrics, postgres-metrics, services-availability, bullmq-queues). Overview — консолидированный дашборд (сервисы, DB, ресурсы, push queue).
 
 ## PromQL в Explore
 

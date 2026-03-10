@@ -408,6 +408,7 @@ services:
       dockerfile: ci-cd/docker/Dockerfile-worker-optimized
     environment:
       - NODE_ENV=production
+      - WORKER_HEALTH_PORT=3003
       - DATABASE_URL=postgresql://gafus_user:${DATABASE_PASSWORD}@postgres:5432/gafus_production
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
     depends_on:
@@ -416,6 +417,12 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     deploy:
       replicas: 2
 
