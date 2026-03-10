@@ -17,8 +17,8 @@ prometheus.remote_write "yc" {
   }
 
   external_labels = {
-    cluster     = "gafus"
-    environment = "production"
+    cluster     = "gafus",
+    environment = "production",
   }
 }
 
