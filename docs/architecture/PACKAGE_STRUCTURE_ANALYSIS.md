@@ -32,7 +32,7 @@
 
 - ✅ UnifiedLogger (основной класс на базе Pino)
 - ✅ LoggerFactory (фабрика для создания логгеров)
-- ✅ Pino → stdout → Vector → Seq
+- ✅ Pino → stdout (docker logs), errors → Tracer
 
 **Зависимости:**
 

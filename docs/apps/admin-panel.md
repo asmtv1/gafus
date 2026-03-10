@@ -278,7 +278,7 @@ logger.error("Authentication failed", error);
 
 ## Мониторинг
 
-- Серверные логи — Seq (monitor.gafus.ru)
+- Серверные логи — docker logs. Ошибки — Tracer.
 - Метрики Next.js доступны в runtime
 - Health checks через Docker healthcheck
 

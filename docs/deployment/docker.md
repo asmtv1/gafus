@@ -701,32 +701,17 @@ docker-compose logs --since=1h
 docker-compose logs > logs.txt
 ```
 
-#### Seq - централизованное логирование
-
-Vector собирает логи из всех Docker контейнеров и отправляет их в Seq для централизованного хранения и анализа.
-
-**Доступ к Seq:**
-
-- URL: `http://localhost:5341` (или через nginx: `https://seq.gafus.ru`)
-- Логи автоматически собираются и отправляются в Seq
-
-**Настройка дашбордов в Seq:**
-
-- См. [документацию по Seq дашбордам](./seq-dashboards.md)
-- Используйте скрипт для автоматической настройки: `node scripts/setup-seq-dashboards.js`
-
-**Проверка работы Vector:**
+#### Просмотр логов
 
 ```bash
-# Проверка статуса Vector
-docker ps | grep vector
+# Логи приложения
+docker logs gafus-web
 
-# Просмотр логов Vector
-docker logs gafus-vector
-
-# Проверка отправки логов в Seq
-docker logs gafus-vector | grep -i seq
+# В реальном времени
+docker logs -f gafus-web
 ```
+
+См. [Просмотр логов контейнеров](./container-logs.md). Ошибки — в Tracer (docs/monitoring/tracer.md).
 
 ### Метрики
 

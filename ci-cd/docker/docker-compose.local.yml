@@ -81,39 +81,5 @@ services:
       - ./blackbox:/etc/blackbox_exporter
     restart: unless-stopped
 
-  # Seq для хранения логов (локальная разработка)
-  seq:
-    image: datalust/seq:latest
-    container_name: gafus-seq-local
-    ports:
-      - "5341:80" # Web UI
-      - "5342:5341" # Ingestion API
-    environment:
-      - ACCEPT_EULA=Y
-      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
-    volumes:
-      - seq_local_data:/data
-    restart: unless-stopped
-
-  # Vector для сбора логов из Docker контейнеров (локальная разработка)
-  vector:
-    image: timberio/vector:latest-alpine
-    container_name: gafus-vector-local
-    command:
-      - "--config-dir"
-      - "/etc/vector"
-    ports:
-      - "8686:8686" # Vector API
-    volumes:
-      - ./vector:/etc/vector
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - vector_local_data:/var/lib/vector
-    restart: unless-stopped
-    depends_on:
-      - seq
-
 volumes:
   prometheus_local_data:
-  seq_local_data:
-  vector_local_data:

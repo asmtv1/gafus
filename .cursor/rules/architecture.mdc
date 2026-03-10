@@ -18,7 +18,7 @@ packages/
 ├── cdn-upload/     # CDN uploads
 ├── csrf/           # CSRF protection
 ├── error-handling/ # Error reporting, ErrorBoundary
-├── logger/         # Logging (Pino → Seq)
+├── logger/         # Logging (Pino → stdout, errors → Tracer)
 ├── metadata/       # SEO metadata, JSON-LD
 ├── prisma/         # Database & ORM
 ├── queues/         # BullMQ queues

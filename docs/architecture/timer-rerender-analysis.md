@@ -317,4 +317,4 @@ useShallow возвращает новый объект при каждом вы
 
 ### Клиентские ошибки → Tracer
 
-Веб-логи (не серверные): ошибки в клиентских компонентах отправляются через `reportClientError` из `@gafus/error-handling` в Tracer (apptracer.ru). TracerProvider в web инициализирует `@apptracer/sdk` и устанавливает `window.__gafusReportError`. ErrorBoundary и ручные catch → `reportClientError` → Tracer. Серверные логи — `@gafus/logger` → Pino → Seq.
+Веб-логи (не серверные): ошибки в клиентских компонентах отправляются через `reportClientError` из `@gafus/error-handling` в Tracer (apptracer.ru). TracerProvider в web инициализирует `@apptracer/sdk` и устанавливает `window.__gafusReportError`. ErrorBoundary и ручные catch → `reportClientError` → Tracer. Серверные логи — `@gafus/logger` → Pino → stdout (docker logs). Ошибки → Tracer.

@@ -140,7 +140,7 @@ reportClientError(error, {
 });
 ```
 
-Для серверных ошибок — `logger.error()` из `@gafus/logger` (логи идут в Seq).
+Для серверных ошибок — `logger.error()` из `@gafus/logger` (логи → stdout, ошибки → Tracer).
 
 ### Web vs Mobile
 

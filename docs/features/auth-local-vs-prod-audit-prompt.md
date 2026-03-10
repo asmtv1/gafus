@@ -153,7 +153,7 @@ echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI || 'https://gafus.ru/api/
 2. Войти на https://gafus.ru по логину/паролю.
 3. Проверить вход через VK ID (One Tap или redirect).
 4. Проверить подвязку VK в профиле (если есть кнопка «Подключить VK»).
-5. При ошибках — проверить логи: `docker logs gafus-web`, Seq на monitor.gafus.ru.
+5. При ошибках — проверить логи: `docker logs gafus-web`, Tracer (apptracer.ru).
 
 ---
 

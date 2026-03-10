@@ -3,45 +3,40 @@
 ## Обзор
 
 ```
-Приложение (Pino) → stdout → Vector → Seq (все логи)
+Приложение (Pino) → stdout → docker logs (все логи)
+logger.error() / logger.fatal() с Error → Tracer (серверные ошибки)
 Клиентские ошибки → Tracer (ErrorBoundary + reportClientError)
 ```
 
 ## Компоненты
 
-### 1. Серверные логи (Pino → Seq)
+### 1. Серверные логи (Pino → stdout)
 
 - `@gafus/logger` на базе Pino
 - Логи в stdout в формате JSON
-- Vector собирает из Docker контейнеров, парсит Pino JSON, отправляет в Seq
+- Просмотр: `docker logs <container>`
 
-### 2. Клиентские ошибки (Tracer)
+### 2. Серверные ошибки (Tracer)
+
+- `logger.error()` и `logger.fatal()` с объектом `Error` автоматически отправляют в Tracer
+- `errorEventType: "server"`, `component` = appName (web, worker, api и т.д.)
+- См. [Tracer](../monitoring/tracer.md)
+
+### 3. Клиентские ошибки (Tracer)
 
 - `TracerProvider` (apps/web, apps/trainer-panel) инициализирует `@apptracer/sdk`
 - ErrorBoundary → `reportClientError` → Tracer
 - См. [Tracer](../monitoring/tracer.md)
 
-### 3. Vector
-
-- Собирает логи из Docker контейнеров
-- Парсит Docker JSON и Pino JSON
-- Отправляет в Seq в формате CLEF
-
-### 4. Seq
-
-- Хранит все серверные логи
-- Доступ: `http://localhost:5341` (dev), `https://monitor.gafus.ru` (prod)
-
 ## Локальная разработка
 
-Vector работает только с Docker. При локальном запуске логи смотрятся в консоли; Seq UI — `http://localhost:5341`.
+Логи смотрятся в консоли. Для dev-тестирования Tracer: `TRACER_SERVER_ENABLED=true`.
 
 ## Production
 
-Все приложения в Docker → Vector → Seq. Клиентские ошибки — в Tracer.
+Все приложения в Docker → логи в stdout. Ошибки (серверные и клиентские) — в Tracer.
 
 ## См. также
 
-- [Tracer (клиентские ошибки)](../monitoring/tracer.md)
+- [Tracer (ошибки)](../monitoring/tracer.md)
 - [Logger](../packages/logger.md)
-- [Проверка Seq](../troubleshooting/CHECK_SEQ.md)

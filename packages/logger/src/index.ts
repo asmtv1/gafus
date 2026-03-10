@@ -1,8 +1,8 @@
 /**
  * @gafus/logger - Единый логгер для всех приложений Gafus
  *
- * Pino-based logging. Серверные логи → stdout → Vector → Seq.
- * Клиентские ошибки — в Tracer через @gafus/error-handling.
+ * Pino-based logging. Логи → stdout (docker logs). Ошибки → Tracer.
+ * Клиентские ошибки — @gafus/error-handling → Tracer.
  */
 
 export { UnifiedLogger } from "./UnifiedLogger.js";

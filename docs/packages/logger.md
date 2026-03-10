@@ -18,13 +18,12 @@
 
 ### Что уже реализовано
 
-- ✅ Серверные логи → Pino → stdout → Vector → Seq
+- ✅ Серверные логи → Pino → stdout (docker logs)
+- ✅ Серверные ошибки → Tracer (logger.error/fatal с Error)
 - ✅ Структурированные логи (JSON)
 - ✅ Поддержка всех приложений монорепо
 - ✅ Специализированные логгеры для каждого типа сервиса
 - ✅ React Error Boundaries (`@gafus/error-handling`)
-- ✅ Отправка логов в реальном времени
-- ✅ Сбор логов из Docker контейнеров через Vector
 
 ### Чего не хватает (можно добавить при необходимости)
 
@@ -106,7 +105,7 @@ import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("my-context");
 
-// Серверные ошибки — лог в Pino → stdout → Vector → Seq
+// Серверные ошибки — лог в Pino и отправка в Tracer
 logger.error(error.message || "Unknown error", error, {
   userId: user.id,
   operation: "checkout",
@@ -126,31 +125,11 @@ logger.error(error.message || "Unknown error", error, {
 ### Поток данных
 
 ```
-Приложение → Logger → Pino → stdout
-Docker контейнеры → Vector → Seq
+Приложение → Logger → Pino → stdout (docker logs)
+logger.error/fatal с Error → Tracer (серверные ошибки)
 ```
 
 Клиентские ошибки отправляются в Tracer через ErrorBoundary и `reportClientError` из `@gafus/error-handling`.
-
-### Сбор логов из Docker контейнеров
-
-Для сбора логов из Docker контейнеров используется **Vector** — агент для сбора и обработки логов, который:
-
-1. **Читает логи контейнеров** из файловой системы Docker (`/var/lib/docker/containers/*/*-json.log`)
-2. **Парсит Docker JSON формат** и извлекает логи
-3. **Парсит Pino JSON логи** и извлекает метаданные (level, context, app)
-4. **Форматирует в CLEF** (Compact Log Event Format) для Seq
-5. **Отправляет в Seq** через HTTP API
-
-**Конфигурация Vector:** `ci-cd/docker/vector/vector.toml`
-
-**Преимущества:**
-
-- Видим все логи контейнеров в Seq
-- Нативная поддержка Seq (встроенный sink)
-- Автоматический парсинг Pino формата через VRL (Vector Remap Language)
-- Метаданные контейнера (container_id, app, level, context) добавляются автоматически
-- Более гибкая обработка логов через VRL (Vector Remap Language)
 
 ## ⚙️ Конфигурация
 
@@ -182,9 +161,9 @@ interface LoggerConfig {
 [2024-01-15 10:30:45] INFO  [web:profile-page] Страница загружена {"userId":"123"}
 ```
 
-### В Seq (из Vector, Pino JSON)
+### В production (stdout, Pino JSON)
 
-Логи парсятся из stdout и попадают в Seq с полями App, Level, Context, Message.
+Логи в формате JSON с полями app, context, level, msg. Просмотр: `docker logs <container>`.
 
 ## 🔧 Структура пакета
 

@@ -44,7 +44,7 @@ export async function myAction(data: FormData) {
   }
 }
 ```
-Серверные логи — Pino → stdout → Vector → Seq. Клиентские ошибки — ErrorBoundary → reportClientError → Tracer (apptracer.ru).
+Серверные логи — Pino → stdout (docker logs). Ошибки → Tracer. Клиентские ошибки — ErrorBoundary → reportClientError → Tracer.
 
 ## Client-Side Error Handling
 - Показывать пользователю сообщения через state (`error`, `setError`)

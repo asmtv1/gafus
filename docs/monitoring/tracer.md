@@ -1,8 +1,6 @@
-# Мониторинг клиентских ошибок: Tracer
+# Мониторинг ошибок: Tracer
 
-Клиентские ошибки (web, trainer-panel, mobile) отправляются в Tracer. Web/trainer-panel — через SDK `@apptracer/sdk`. Mobile — кастомный RN-клиент (POST в Tracer API). Серверные логи — в Seq (см. [мониторинг](./README.md)).
-
-**monitor.gafus.ru** — перенаправление на Seq UI.
+Серверные ошибки → Tracer. Логи — stdout (docker logs). Клиентские ошибки (web, trainer-panel, mobile) — через SDK `@apptracer/sdk`. Mobile — кастомный RN-клиент (POST в Tracer API).
 
 ## Переменные окружения
 
@@ -25,6 +23,17 @@
 | `EXPO_PUBLIC_ENABLE_TRACER` | `"true"` для включения в dev (иначе только production) |
 
 Прокидываются через `app.config.js` в `Constants.expoConfig.extra`. Токен выбирается по `Platform.OS`. Для production EAS Build — задать `EXPO_PUBLIC_TRACER_APP_TOKEN_IOS` и `EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID` через EAS Secrets.
+
+## Серверные ошибки
+
+Серверные ошибки (при вызове `logger.error()` и `logger.fatal()` с объектом `Error`) автоматически отправляются в Tracer с `errorEventType: "server"`, `component` = appName (web, worker, api и т.д.).
+
+### Переменные
+
+| Переменная | Описание |
+|-----------|----------|
+| `TRACER_APP_TOKEN` | Токен для серверных приложений. Для Next.js можно использовать `NEXT_PUBLIC_TRACER_APP_TOKEN` |
+| `TRACER_SERVER_ENABLED` | `"true"` — включить отправку в dev (иначе только production) |
 
 ## Как работает
 

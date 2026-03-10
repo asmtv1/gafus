@@ -364,4 +364,4 @@ SELECT * FROM "PushSubscription" WHERE "userId" = 'USER_ID';
 
 - Worker: консоль worker процесса
 - Admin-panel: консоль браузера (F12)
-- БД: серверные логи → Seq через Vector
+- БД: серверные логи → docker logs

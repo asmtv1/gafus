@@ -23,8 +23,10 @@ REDIS_URL=redis://localhost:6379
 LOG_LEVEL=debug
 ENABLE_CONSOLE_LOGS=true
 
-# Tracer (клиентские ошибки)
+# Tracer (клиентские и серверные ошибки)
 NEXT_PUBLIC_TRACER_APP_TOKEN=
+TRACER_APP_TOKEN=              # для серверных приложений (fallback: NEXT_PUBLIC_TRACER_APP_TOKEN)
+TRACER_SERVER_ENABLED=        # "true" — включить отправку серверных ошибок в dev
 NEXT_PUBLIC_APP_VERSION=1.0.0
 NEXT_PUBLIC_ENABLE_TRACER=true
 
@@ -77,8 +79,10 @@ REDIS_URL=redis://prod-redis:6379
 LOG_LEVEL=warn
 ENABLE_CONSOLE_LOGS=false
 
-# Tracer
+# Tracer (ошибки — клиентские и серверные)
 NEXT_PUBLIC_TRACER_APP_TOKEN=your-tracer-app-token
+TRACER_APP_TOKEN=your-tracer-app-token   # для серверных приложений (worker, api, telegram-bot и др.)
+TRACER_SERVER_ENABLED=                   # в prod не нужен (по умолчанию включено)
 NEXT_PUBLIC_APP_VERSION=1.0.0
 NEXT_PUBLIC_ENABLE_TRACER=true
 

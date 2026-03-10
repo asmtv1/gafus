@@ -5,7 +5,7 @@
 ## Контекст
 
 - **Клиентские ошибки** → Tracer (ErrorBoundary, reportClientError, @apptracer/sdk)
-- **Серверные логи** → Seq (Pino → stdout → Vector)
+- **Серверные логи** → stdout (docker logs). Ошибки → Tracer.
 - Документация: `docs/monitoring/tracer.md`, `docs/packages/error-handling.md`
 
 ## Что проверить
@@ -94,7 +94,7 @@
 
 - Ожидаемые/валидационные ошибки (пользователь ввёл неверные данные)
 - Ошибки, которые уже перехватываются выше (ErrorBoundary, unhandledrejection)
-- Server Actions — серверная логика, Seq, не Tracer
+- Server Actions — серверная логика, ошибки → Tracer
 
 ### 5. Качество reportClientError
 
@@ -108,7 +108,7 @@
 
 ### 6. Исключения и границы
 
-- **Server Actions / API routes**: ошибки логируются в Seq, не в Tracer
+- **Server Actions / API routes**: ошибки → logger.error/fatal → Tracer
 - **Ожидаемые ошибки** (404, 401, validation): можно не отправлять или отправлять с severity: "warning"
 - **Офлайн/сетевые ошибки**: часто обрабатываются отдельно (offline mode) — решить, отправлять ли в Tracer для статистики
 

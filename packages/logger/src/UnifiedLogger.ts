@@ -1,10 +1,12 @@
 import type { Logger as PinoLogger } from "pino";
 import pino from "pino";
+
+import { reportServerError } from "./tracerServer.js";
 import type { Logger, LoggerConfig, LogMeta, LogLevel } from "./logger-types.js";
 
 /**
  * Единый логгер на основе Pino.
- * Серверные логи — в Seq через stdout/Vector; клиентские ошибки — в Tracer.
+ * Логи → stdout (docker logs). Ошибки → Tracer.
  */
 export class UnifiedLogger implements Logger {
   private pinoLogger: PinoLogger;
@@ -120,12 +122,28 @@ export class UnifiedLogger implements Logger {
   error(message: string, error?: Error, meta?: LogMeta): void {
     if (this.shouldLog("error")) {
       this.pinoLogger.error({ err: error, ...meta }, message);
+      if (error instanceof Error) {
+        reportServerError(error, {
+          appName: this.config.appName,
+          context: this.config.context,
+          message,
+          severity: "error",
+        });
+      }
     }
   }
 
   fatal(message: string, error?: Error, meta?: LogMeta): void {
     if (this.shouldLog("fatal")) {
       this.pinoLogger.fatal({ err: error, ...meta }, message);
+      if (error instanceof Error) {
+        reportServerError(error, {
+          appName: this.config.appName,
+          context: this.config.context,
+          message,
+          severity: "fatal",
+        });
+      }
     }
   }
 

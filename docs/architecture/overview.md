@@ -48,7 +48,7 @@ flowchart TB
 | `@gafus/video-access` | Проверка доступа к видео, подпись URL |
 | `@gafus/cdn-upload` | Загрузка файлов в CDN |
 | `@gafus/prisma` | База данных, миграции, ORM |
-| `@gafus/logger` | Логирование (Pino → Seq) |
+| `@gafus/logger` | Логирование (Pino → stdout, errors → Tracer) |
 | `@gafus/csrf` | CSRF-защита |
 | `@gafus/queues` | BullMQ очереди |
 

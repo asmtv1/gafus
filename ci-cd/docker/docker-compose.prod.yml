@@ -51,6 +51,8 @@ services:
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
       - NEXT_PUBLIC_TRAINER_PANEL_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL}
       - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
       - NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION:-1.0.0}
       - NEXT_PUBLIC_ENABLE_TRACER=${NEXT_PUBLIC_ENABLE_TRACER:-true}
       - REVALIDATE_SECRET_TOKEN=${REVALIDATE_SECRET_TOKEN}
@@ -116,6 +118,8 @@ services:
       - WEB_APP_URL=${WEB_APP_URL:-https://gafus.ru}
       - REVALIDATE_SECRET_TOKEN=${REVALIDATE_SECRET_TOKEN}
       - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
       - NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION:-1.0.0}
       - NEXT_PUBLIC_ENABLE_TRACER=${NEXT_PUBLIC_ENABLE_TRACER:-true}
     restart: unless-stopped
@@ -144,6 +148,9 @@ services:
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${ADMIN_PANEL_URL:-https://adminka.gafus.ru}
       - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
+      - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
     depends_on:
@@ -175,8 +182,10 @@ services:
       # Yandex Cloud CDN credentials (необходимы для транскодирования видео)
       - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
-      # Включаем транспорты для гарантированной записи логов в stdout (для Vector/Seq)
+      # Включаем транспорты для гарантированной записи логов в stdout
       - PINO_USE_WORKER_TRANSPORTS=true
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
     deploy:
       resources:
         limits:
@@ -198,6 +207,8 @@ services:
       - NODE_ENV=production
       - PORT=3002
       - REDIS_URL=redis://redis:6379
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
     healthcheck:
@@ -230,6 +241,8 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       # HLS Video Protection
       - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
       # Yandex Cloud Object Storage (для загрузки манифестов и сегментов)
       - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
@@ -260,6 +273,8 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
     restart: unless-stopped
     depends_on:
       - postgres
@@ -299,7 +314,7 @@ services:
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru -d api.gafus.ru -d trainer-panel.gafus.ru -d monitor.gafus.ru -d adminka.gafus.ru -d queues.gafus.ru -d prometheus.gafus.ru -d grafana.gafus.ru -d logs.gafus.ru -d seq.gafus.ru
+    command: certonly --webroot --webroot-path=/var/www/certbot --email admin@gafus.ru --agree-tos --no-eff-email -d gafus.ru -d www.gafus.ru -d api.gafus.ru -d trainer-panel.gafus.ru -d adminka.gafus.ru -d queues.gafus.ru -d prometheus.gafus.ru -d grafana.gafus.ru
     depends_on:
       - nginx
 
@@ -396,38 +411,7 @@ services:
       - ./blackbox:/etc/blackbox_exporter
     restart: unless-stopped
 
-  # Seq для хранения логов
-  seq:
-    image: datalust/seq:latest
-    container_name: gafus-seq
-    environment:
-      - ACCEPT_EULA=Y
-      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
-    volumes:
-      - seq_data:/data
-    restart: unless-stopped
-    # Убрали открытые порты - доступ только внутри Docker сети
-
-  # Vector для сбора логов из Docker контейнеров
-  vector:
-    image: timberio/vector:latest-alpine
-    container_name: gafus-vector
-    command:
-      - "--config-dir"
-      - "/etc/vector"
-    volumes:
-      - ./vector:/etc/vector
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - vector_data:/var/lib/vector
-    restart: unless-stopped
-    depends_on:
-      seq:
-        condition: service_started
-
 volumes:
   postgres_data:
   prometheus_data:
-  vector_data:
-  seq_data:
   grafana_data:

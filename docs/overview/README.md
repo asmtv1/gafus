@@ -127,8 +127,8 @@ gafus/
 
 ### Централизованное логирование
 
-- Серверные логи: Pino → stdout → Vector → Seq
-- Клиентские ошибки: Tracer (ErrorBoundary, reportClientError)
+- Серверные логи: Pino → stdout (docker logs)
+- Ошибки: Tracer (клиентские и серверные)
 
 ## 🚀 Технологии
 

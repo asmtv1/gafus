@@ -553,7 +553,7 @@ jobs:
             docker rm $(docker ps -aq --filter "name=gafus-*") 2>/dev/null || true
 
             # Remove all gafus containers by name explicitly
-            docker rm -f gafus-web gafus-trainer-panel gafus-admin-panel gafus-api gafus-worker gafus-bull-board gafus-telegram-bot gafus-prisma gafus-postgres gafus-redis gafus-nginx gafus-vector gafus-seq gafus-prometheus gafus-grafana gafus-node-exporter gafus-postgres-exporter gafus-redis-exporter gafus-blackbox-exporter 2>/dev/null || true
+            docker rm -f gafus-web gafus-trainer-panel gafus-admin-panel gafus-api gafus-worker gafus-bull-board gafus-telegram-bot gafus-prisma gafus-postgres gafus-redis gafus-nginx gafus-prometheus gafus-grafana gafus-node-exporter gafus-postgres-exporter gafus-redis-exporter gafus-blackbox-exporter 2>/dev/null || true
 
             # Now do the normal compose cleanup
             docker-compose -f ci-cd/docker/docker-compose.prod.yml down --remove-orphans --timeout 30 || true
@@ -656,8 +656,7 @@ jobs:
             # 6. Start monitoring and logging services
             echo "📊 Starting monitoring and logging services..."
             docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate \
-              prometheus grafana node-exporter postgres-exporter redis-exporter blackbox-exporter \
-              seq vector
+              prometheus grafana node-exporter postgres-exporter redis-exporter blackbox-exporter
             echo "⏳ Waiting for monitoring services to be ready..."
             sleep 10
 

@@ -54,13 +54,12 @@
 - [Конфигурация](./deployment/configuration.md)
 - [Docker](./deployment/docker.md)
 - [Логи контейнеров](./deployment/container-logs.md)
-- [Дашборды Seq](./deployment/seq-dashboards.md)
 - [Секреты API](./deployment/api-secrets.md)
 - [Платные курсы и ЮKassa](./payments/yookassa.md)
 
 ### Мониторинг
 
-- [Мониторинг (Seq, Tracer)](./monitoring/README.md)
+- [Мониторинг (Tracer)](./monitoring/README.md)
 - [Grafana](./monitoring/GRAFANA.md)
 - [Prometheus-запросы](./monitoring/PROMETHEUS_QUERIES.md)
 
@@ -82,7 +81,6 @@
 - [Server Actions 404/503](./troubleshooting/server-actions-404.md) — ошибки Server Actions
 - [Инвалидация кеша между приложениями](./troubleshooting/cache-invalidation-cross-app.md)
 - [Платный курс не открывается](./troubleshooting/paid-course-not-opening.md)
-- [Проверка Seq](./troubleshooting/CHECK_SEQ.md)
 
 ### Юридическое и конфиденциальность
 
