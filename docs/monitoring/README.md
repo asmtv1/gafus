@@ -6,12 +6,12 @@
 
 - **Tracer** — клиентские и серверные ошибки. См. [Tracer](./tracer.md). Логи — docker logs.
 - **Bull Board** — управление очередями.
-- **Grafana** и **Prometheus** — метрики и дашборды (если развёрнуты).
+- **Yandex Cloud Monitoring** — метрики и дашборды (через Grafana Alloy → remote_write).
 
 ## Документация
 
 - [Tracer](./tracer.md) — клиентские и серверные ошибки
-- [Grafana](./GRAFANA.md) — настройка и дашборды
+- [Yandex Monitoring](./yandex-monitoring.md) — настройка, дашборды, troubleshooting
 - [Prometheus-запросы](./PROMETHEUS_QUERIES.md) — примеры запросов для графиков
 
 Логирование приложений: [@gafus/logger](../packages/logger.md), [архитектура логирования](../architecture/logging-architecture.md).

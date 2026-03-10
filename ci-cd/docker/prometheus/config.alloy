@@ -1,0 +1,82 @@
+prometheus.remote_write "yc" {
+  endpoint {
+    url = "https://monitoring.api.cloud.yandex.net/prometheus/workspaces/monn9k9fdti7o4qa45m1/api/v1/write"
+
+    bearer_token = sys.env("YC_MONITORING_API_KEY")
+
+    queue_config {
+      max_samples_per_send = 2000
+      batch_send_deadline  = "15s"
+      min_backoff          = "100ms"
+      max_backoff          = "15s"
+    }
+
+    metadata_config {
+      send = false
+    }
+  }
+
+  external_labels = {
+    cluster     = "gafus"
+    environment = "production"
+  }
+}
+
+prometheus.scrape "node_exporter" {
+  targets = [{
+    __address__ = "host.docker.internal:9100",
+    instance    = "gafus-server",
+    job         = "node-exporter",
+  }]
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.yc.receiver]
+}
+
+prometheus.scrape "postgres_exporter" {
+  targets = [{
+    __address__ = "postgres-exporter:9187",
+    instance    = "gafus-postgres",
+    job         = "postgres-exporter",
+  }]
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.yc.receiver]
+}
+
+prometheus.scrape "redis_exporter" {
+  targets = [{
+    __address__ = "redis-exporter:9121",
+    instance    = "gafus-redis",
+    job         = "redis-exporter",
+  }]
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.yc.receiver]
+}
+
+// Health checks для сервисов через blackbox-exporter
+prometheus.scrape "services_health" {
+  targets = [
+    { __address__ = "blackbox-exporter:9115", __param_target = "http://web:3000/api/health", instance = "http://web:3000/api/health", service = "web-app", job = "services-health" },
+    { __address__ = "blackbox-exporter:9115", __param_target = "http://trainer-panel:3001/api/health", instance = "http://trainer-panel:3001/api/health", service = "trainer-panel", job = "services-health" },
+    { __address__ = "blackbox-exporter:9115", __param_target = "http://admin-panel:3006/api/health", instance = "http://admin-panel:3006/api/health", service = "admin-panel", job = "services-health" },
+    { __address__ = "blackbox-exporter:9115", __param_target = "http://bull-board:3002/health", instance = "http://bull-board:3002/health", service = "bull-board", job = "services-health" },
+  ]
+  metrics_path    = "/probe"
+  params          = { module = ["http_2xx"] }
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.yc.receiver]
+
+  clustering {
+    enabled = false
+  }
+}
+
+prometheus.scrape "bullmq_queues" {
+  targets = [{
+    __address__ = "bull-board:3002",
+    instance    = "production-bull-board",
+    job         = "bullmq-queues",
+  }]
+  metrics_path    = "/metrics"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.yc.receiver]
+}

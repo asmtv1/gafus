@@ -316,7 +316,13 @@ ANALYTICS_TRACKING_ID=your-tracking-id
 # Мониторинг производительности
 PERFORMANCE_MONITORING_ENABLED=true
 PERFORMANCE_SAMPLE_RATE=0.1  # 10% запросов
+
+# Yandex Cloud Monitoring (production — Alloy → remote_write)
+YC_MONITORING_WORKSPACE_ID=     # ID workspace в Yandex Cloud
+YC_MONITORING_API_KEY=          # API-ключ сервисного аккаунта (monitoring.editor)
 ```
+
+Метрики в production: Grafana Alloy → Yandex Monitoring. См. [Yandex Monitoring](../monitoring/yandex-monitoring.md).
 
 ## 🔧 Оптимизация
 

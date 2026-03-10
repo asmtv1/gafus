@@ -60,7 +60,7 @@
 ### Мониторинг
 
 - [Мониторинг (Tracer)](./monitoring/README.md)
-- [Grafana](./monitoring/GRAFANA.md)
+- [Yandex Monitoring](./monitoring/yandex-monitoring.md)
 - [Prometheus-запросы](./monitoring/PROMETHEUS_QUERIES.md)
 
 ### API

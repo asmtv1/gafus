@@ -1,6 +1,6 @@
 # Prometheus запросы для графиков
 
-Список доступных метрик и примеры запросов для построения графиков в Prometheus.
+Список доступных метрик и примеры PromQL-запросов. В production используются в **Yandex Monitoring → Explore**. Локально — в Prometheus (docker-compose.local).
 
 ## 📊 Системные метрики (Node Exporter)
 

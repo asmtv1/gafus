@@ -1,5 +1,7 @@
 # Миграция на Yandex Cloud Monitoring
 
+> **Статус:** Выполнено (2026). Production: Grafana Alloy → Yandex Monitoring.
+
 ## Цель
 
 Заменить self-hosted Prometheus и Grafana на сбор метрик через Grafana Alloy → remote_write в Yandex Monitoring. Дашборды — в Yandex Cloud.

@@ -57,7 +57,7 @@ Web и trainer-panel уже получают `NEXT_PUBLIC_TRACER_APP_TOKEN` — 
 
 **Что сохранить:**
 - Pino пишет в stdout. Логи — в `docker logs <container>`.
-- Grafana/Prometheus — не трогать.
+- Grafana/Prometheus — мигрированы на Yandex Monitoring (2026).
 
 ### 4. Документация
 

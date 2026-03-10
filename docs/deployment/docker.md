@@ -726,6 +726,10 @@ docker system df
 docker system prune -a
 ```
 
+Метрики приложения собираются Grafana Alloy и отправляются в Yandex Cloud Monitoring.
+Локальный Prometheus — только для docker-compose.local (разработка).
+См. [Yandex Monitoring](../monitoring/yandex-monitoring.md).
+
 ---
 
 _Docker обеспечивает надежное и масштабируемое развертывание всей экосистемы GAFUS._
