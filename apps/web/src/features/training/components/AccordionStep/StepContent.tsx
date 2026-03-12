@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import ImageViewer from "@shared/components/ui/ImageViewer";
 import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
@@ -72,7 +73,7 @@ export function StepContent({
           <div>
             <div className={styles.sectionTitle}>Описание:</div>
             <div className={`${styles.cardSection} ${styles.markdownContent}`}>
-              <ReactMarkdown>{stepDescription}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{stepDescription}</ReactMarkdown>
             </div>
           </div>
         </div>

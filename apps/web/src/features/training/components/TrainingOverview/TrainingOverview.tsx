@@ -1,5 +1,6 @@
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import styles from "./TrainingOverview.module.css";
 
@@ -14,7 +15,7 @@ export const TrainingOverview = memo(function TrainingOverview({
     <div>
       <h1>{title}</h1>
       <div className={styles.markdownContent}>
-        <ReactMarkdown>{description ?? ""}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{description ?? ""}</ReactMarkdown>
       </div>
       <p>Продолжительность тренировки сегодня: {duration} минут</p>
     </div>

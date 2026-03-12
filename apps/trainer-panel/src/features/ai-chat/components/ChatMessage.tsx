@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Box, Typography, IconButton, Paper, Tooltip } from "@/utils/muiImports";
 import { 
   ContentCopy as ContentCopyIcon,
@@ -88,6 +89,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
           }}
         >
           <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
             components={{
               p: ({ children }) => (
                 <Typography variant="body2" component="div" sx={{ mb: 0.5, lineHeight: 1.5 }}>

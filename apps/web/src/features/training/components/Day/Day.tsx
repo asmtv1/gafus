@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { getDayKey } from "@gafus/core/utils/training";
 import { getDayTitle } from "@gafus/core/utils/training";
@@ -135,7 +136,7 @@ export function Day({ training, courseType }: DayProps) {
         <div
           className={`${styles.dayDescription} ${isDescriptionOpen ? styles.expanded : styles.collapsed}`}
         >
-          <ReactMarkdown>{training.description || ""}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{training.description || ""}</ReactMarkdown>
         </div>
       </div>
 

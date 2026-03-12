@@ -142,6 +142,24 @@
   font-size: 1.1em;
 }
 
+.descriptionContent table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+}
+
+.descriptionContent th,
+.descriptionContent td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.descriptionContent th {
+  background-color: rgba(99, 97, 40, 0.12);
+  font-weight: 600;
+}
+
 .descriptionContent strong {
   font-weight: 600;
   color: #352e2e;

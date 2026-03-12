@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Чек-лист «Собака: полное руководство» — всё о хорошей жизни с собакой. Отмечай то, что уже есть.">
+  <meta name="theme-color" content="#DAD3C1">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="Чек-лист «Собака: полное руководство» — Гафус">
+  <meta property="og:description" content="Чек-лист хорошей жизни с собакой. Отмечай прогресс.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ru_RU">
+  <title>Чек-лист «Собака: полное руководство» — Всё о жизни с собакой</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #636128;
+      --primary-dark: #4a4920;
+      --secondary: #dad3c1;
+      --accent: #fff8e5;
+      --dark: #352e2e;
+      --gradient: linear-gradient(135deg, #636128 0%, #4a4920 100%);
+      --gradient-warm: linear-gradient(135deg, #dad3c1 0%, #fff8e5 100%);
+      --shadow-soft: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.05);
+      --shadow-medium: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+      --shadow-strong: 0 20px 25px rgba(0, 0, 0, 0.15), 0 10px 10px rgba(0, 0, 0, 0.04);
+      --border: rgba(99, 97, 40, 0.25);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: var(--dark);
+      background: var(--secondary);
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(99, 97, 40, 0.05) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(255, 248, 229, 0.03) 0%, transparent 60%),
+        radial-gradient(circle at 50% 50%, rgba(53, 46, 46, 0.02) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 75rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 2rem 0;
+      position: relative;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 4px;
+      background: var(--gradient);
+      border-radius: 2px;
+    }
+
+    .header-tag {
+      display: inline-block;
+      background: var(--gradient);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+
+    .header h1 {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 0.75rem;
+      text-shadow: 0 2px 4px rgba(99, 97, 40, 0.2);
+    }
+
+    .header-desc {
+      font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+      color: var(--dark);
+      opacity: 0.85;
+      max-width: 540px;
+      margin: 0 auto;
+    }
+
+    .intro-strip {
+      background: var(--accent);
+      border-left: 4px solid var(--primary);
+      border-radius: 0.75rem;
+      padding: 0.875rem 1.25rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--dark);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .actions-bar {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.25rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      font-family: inherit;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      background: var(--gradient);
+      color: #fff;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .btn-action:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-medium);
+    }
+
+    .btn-action:active { transform: translateY(0); }
+
+    @media (hover: none) and (pointer: coarse) {
+      .btn-action {
+        min-height: 44px;
+        min-width: 44px;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+      .item {
+        min-height: 44px;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+    }
+
+    .btn-action.outline {
+      background: var(--accent);
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+
+    .content {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .section {
+      background: var(--accent);
+      border-radius: 1rem;
+      overflow: hidden;
+      box-shadow: var(--shadow-medium);
+      transition: box-shadow 0.3s ease;
+      position: relative;
+    }
+
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--gradient);
+    }
+
+    .section:hover {
+      box-shadow: var(--shadow-strong);
+    }
+
+    .section.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .section-header {
+      padding: 1rem 1.25rem;
+      background: rgba(99, 97, 40, 0.06);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .section-icon {
+      font-size: 1.25rem;
+    }
+
+    .section-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--primary);
+      flex: 1;
+    }
+
+    .section-badge {
+      font-size: 0.7rem;
+      font-weight: 800;
+      background: rgba(99, 97, 40, 0.15);
+      color: var(--primary);
+      padding: 3px 10px;
+      border-radius: 1rem;
+    }
+
+    .section-body {
+      padding: 0.25rem 0;
+    }
+
+    .item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .item:last-child { border-bottom: none; }
+    .item:hover { background: rgba(99, 97, 40, 0.04); }
+
+    .checkbox {
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      border-radius: 6px;
+      border: 2px solid var(--border);
+      background: #fff;
+      margin-top: 2px;
+      transition: all 0.2s;
+    }
+
+    .item.checked .checkbox {
+      border-color: transparent;
+      background: var(--primary);
+    }
+
+    .checkbox::after {
+      content: '✓';
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .item.checked .checkbox {
+      position: relative;
+    }
+
+    .item.checked .checkbox::after {
+      content: '✓';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 1;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .item-text {
+      font-size: 0.875rem;
+      font-weight: 700;
+      line-height: 1.5;
+      color: var(--dark);
+      flex: 1;
+      transition: color 0.2s;
+    }
+
+    .item.checked .item-text {
+      color: #8a8570;
+      text-decoration: line-through;
+    }
+
+    .item-note {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--dark);
+      opacity: 0.7;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .item-tag {
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 1rem;
+      white-space: nowrap;
+      margin-top: 4px;
+      align-self: flex-start;
+    }
+
+    .tag-daily { background: rgba(99, 97, 40, 0.12); color: var(--primary-dark); }
+    .tag-weekly { background: rgba(99, 97, 40, 0.1); color: var(--primary); }
+    .tag-once { background: rgba(99, 97, 40, 0.08); color: var(--primary); }
+    .tag-regular { background: rgba(99, 97, 40, 0.1); color: var(--primary); }
+
+    .danger-item .item-text { color: #8a2a2a; }
+    .danger-item .checkbox { border-color: rgba(138, 42, 42, 0.4); }
+
+    .footer {
+      background: var(--accent);
+      border-radius: 1rem;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .footer-text {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--dark);
+      opacity: 0.7;
+    }
+
+    .progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .progress-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--dark);
+      opacity: 0.8;
+      white-space: nowrap;
+    }
+
+    .progress-bar-outer {
+      width: 180px;
+      height: 8px;
+      background: rgba(99, 97, 40, 0.15);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-bar-inner {
+      height: 100%;
+      background: var(--gradient);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    .progress-count {
+      color: var(--primary);
+      font-size: 0.9rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 768px) {
+      .content { grid-template-columns: 1fr; }
+      .section.full-width { grid-column: 1; }
+      .section-body[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+      }
+      .footer { flex-direction: column; align-items: flex-start; }
+      .container { padding: 1rem 1rem; }
+      .progress-bar-outer { width: 100%; max-width: 180px; }
+    }
+
+    /* Touch-оптимизация: зоны нажатия 44px, без задержки клика */
+    @media (hover: none) and (pointer: coarse) {
+      .btn-action { min-height: 44px; min-width: 44px; padding: 0.75rem 1.5rem; }
+      .item { min-height: 44px; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+      .btn-action { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    }
+
+    @media print {
+      body { padding: 0; }
+      body::before { display: none; }
+      .no-print { display: none !important; }
+      .item { break-inside: avoid; }
+      .section { break-inside: avoid; box-shadow: none; }
+      .item:hover { background: transparent; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="checklist-page">
+    <div class="header">
+      <div class="header-tag">🐾 Курс «Собака: полное руководство»</div>
+      <h1>Чек-лист хорошей жизни с собакой</h1>
+      <p class="header-desc">Отмечай то, что уже есть. Всё непомеченное — зона роста. Распечатай и повесь на холодильник.</p>
+    </div>
+
+    <div class="intro-strip">
+      ☑️ Нажимай на пункт — он отмечается. Внизу видно твой прогресс.
+    </div>
+
+    <div class="actions-bar no-print">
+      <button type="button" class="btn-action btn-primary" onclick="handlePrint()">
+        🖨️ Печать
+      </button>
+      <button type="button" class="btn-action" onclick="handleDownloadPdf()">
+        📥 Скачать PDF
+      </button>
+    </div>
+
+    <div class="content">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-icon">🍗</span>
+          <span class="section-title">День 1 · Еда и вода</span>
+          <span class="section-badge">4 темы</span>
+        </div>
+        <div class="section-body">
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Корм — премиум и выше, без супермаркетов</div>
+              <span class="item-note">Состав изучен, при натуральном питании — есть диетолог</span>
+            </div>
+            <span class="item-tag tag-once">Выбор</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Вода доступна всегда, миски во всех комнатах</div>
+              <span class="item-note">Объём миски — от 1 литра. Менять воду каждый день</span>
+            </div>
+            <span class="item-tag tag-daily">Ежедневно</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Миски металлические или керамические</div>
+              <span class="item-note">Пластик — нет. Мыть со средством раз в неделю минимум</span>
+            </div>
+            <span class="item-tag tag-once">Обустройство</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Миска стоит на полу, никто не мешает собаке есть</div>
+              <span class="item-note">Никаких рук в миску, выдержки перед едой, нависания</span>
+            </div>
+            <span class="item-tag tag-daily">Привычка</span>
+          </div>
+          <div class="item danger-item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">❌ Знаю, что нельзя: виноград, шоколад, лук, авокадо, алкоголь</div>
+              <span class="item-note">Безопасной дозы не существует — никогда и ничуть</span>
+            </div>
+            <span class="item-tag tag-once">Знание</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-icon">🏠</span>
+          <span class="section-title">День 1 · Организация дома</span>
+          <span class="section-badge">5 тем</span>
+        </div>
+        <div class="section-body">
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Перед диваном и кроватью — нескользящие коврики</div>
+              <span class="item-note">Для щенков и пожилых — весь пол. Защита суставов</span>
+            </div>
+            <span class="item-tag tag-once">Обустройство</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">В ванной — резиновый коврик на присосках</div>
+              <span class="item-note">Скользкая ванна удваивает стресс от мытья лап</span>
+            </div>
+            <span class="item-tag tag-once">Обустройство</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Есть лежанка подходящего размера</div>
+              <span class="item-note">Тест: собака помещается, вытянув все 4 лапы</span>
+            </div>
+            <span class="item-tag tag-once">Обустройство</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Есть лесенка или пандус к дивану / кровати</div>
+              <span class="item-note">Для маленьких и коротколапых пород — обязательно</span>
+            </div>
+            <span class="item-tag tag-once">Обустройство</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Проверил(а) камерой, как собака остаётся одна</div>
+              <span class="item-note">Тихая тревога — у каждой второй собаки. Нужно знать</span>
+            </div>
+            <span class="item-tag tag-once">Проверка</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-icon">🦮</span>
+          <span class="section-title">День 2 · Амуниция</span>
+          <span class="section-badge">4 темы</span>
+        </div>
+        <div class="section-body">
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Амуниция подобрана под собаку: ошейник или H-образная шлейка</div>
+              <span class="item-note">Тянет поводок → шлейка. Щенок / мелкая порода → шлейка</span>
+            </div>
+            <span class="item-tag tag-once">Выбор</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Поводок длиной от 5 метров, не рулетка</div>
+              <span class="item-note">Собака ходит на ненатянутом поводке — основа прогулки</span>
+            </div>
+            <span class="item-tag tag-once">Выбор</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">❌ Нет строгих ошейников, удавок, электрошока</div>
+              <span class="item-note">Это не дрессировка — это вред здоровью и психике</span>
+            </div>
+            <span class="item-tag tag-once">Отказ</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">В машине — закреплена ремнём или в клетке в салоне</div>
+              <span class="item-note">Багажник при аварии — зона удара. Не везти там собаку</span>
+            </div>
+            <span class="item-tag tag-daily">Каждая поездка</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-icon">🏥</span>
+          <span class="section-title">День 2 · Здоровье</span>
+          <span class="section-badge">6 тем</span>
+        </div>
+        <div class="section-body">
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Плановый чекап раз в год (раз в 6 мес. после 7 лет)</div>
+              <span class="item-note">УЗИ, эхо сердца, анализы крови, осмотр зубов</span>
+            </div>
+            <span class="item-tag tag-regular">Раз в год</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Прививки по графику, бешенство — обязательно</div>
+              <span class="item-note">График составляет ветеринар с учётом возраста и региона</span>
+            </div>
+            <span class="item-tag tag-regular">По графику</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Есть план обработки от паразитов на год</div>
+              <span class="item-note">Клещи, блохи, гельминты. Спросить у ветеринара</span>
+            </div>
+            <span class="item-tag tag-regular">Сезонно</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Зубы чистятся каждый день</div>
+              <span class="item-note">80–90% собак к 3 годам имеют пародонтоз — это реально</span>
+            </div>
+            <span class="item-tag tag-daily">Ежедневно</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Когти не касаются пола в положении стоя</div>
+              <span class="item-note">Если слышишь цоканье — уже пора. Подстригать раз в 1–3 нед.</span>
+            </div>
+            <span class="item-tag tag-weekly">Раз в 1–3 нед.</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Есть страховка (пока собака молодая)</div>
+              <span class="item-note">После 7–8 лет большинство страховых не берут. Успей сейчас</span>
+            </div>
+            <span class="item-tag tag-once">Оформить</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-icon">🐕</span>
+          <span class="section-title">День 3 · Естественные нужды</span>
+          <span class="section-badge">7 тем</span>
+        </div>
+        <div class="section-body">
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Никаких криков, ругани и наказаний</div>
+              <span class="item-note">Хронический стресс → поведенческие проблемы</span>
+            </div>
+            <span class="item-tag tag-daily">Всегда</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Ежедневная прогулка — минимум 60 минут</div>
+              <span class="item-note">Любая собака, любой размер. Свой двор — не прогулка</span>
+            </div>
+            <span class="item-tag tag-daily">Ежедневно</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Выгул минимум 3 раза в день, интервал до 8 часов</div>
+              <span class="item-note">Ночью — до 12 часов. Хроническое удержание бьёт по почкам</span>
+            </div>
+            <span class="item-tag tag-daily">Ежедневно</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">На прогулке даю нюхать — не тороплю</div>
+              <span class="item-note">Нюх — это «чтение новостей» для собаки. Не отнимай это</span>
+            </div>
+            <span class="item-tag tag-daily">На каждой прогулке</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Есть что-то грызть: конг, жевательные игрушки</div>
+              <span class="item-note">Потребность грызть — физиологическая. Иначе — мебель</span>
+            </div>
+            <span class="item-tag tag-once">Обеспечить</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Есть место где поспать спокойно и без тревоги</div>
+              <span class="item-note">13–14 часов сна в сутки — норма для собаки</span>
+            </div>
+            <span class="item-tag tag-daily">Каждый день</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Маршруты прогулок меняются, есть разнообразие</div>
+              <span class="item-note">Новые места = новые запахи = ментальная нагрузка</span>
+            </div>
+            <span class="item-tag tag-weekly">Раз в неделю</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-icon">🧠</span>
+          <span class="section-title">День 3 · Страх и стресс</span>
+          <span class="section-badge">5 тем</span>
+        </div>
+        <div class="section-body">
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Знаю сигналы стресса у своей собаки</div>
+              <span class="item-note">Зевота, облизывание, поджатый хвост, отворачивание</span>
+            </div>
+            <span class="item-tag tag-once">Знание</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Страшные ситуации не форсирую, не тащу насильно</div>
+              <span class="item-note">Страх уходит через постепенную, безопасную адаптацию</span>
+            </div>
+            <span class="item-tag tag-daily">Привычка</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">К процедурам (груминг, когти, уши) приучаю постепенно</div>
+              <span class="item-note">Маленькие шаги + лакомства. Не силой</span>
+            </div>
+            <span class="item-tag tag-regular">Системно</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">❌ Не верю в «доминирование» и «альфа-лидерство»</div>
+              <span class="item-note">Эта теория опровергнута. Работает только доверие и подкрепление</span>
+            </div>
+            <span class="item-tag tag-once">Знание</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Есть предсказуемые ритуалы: подъём, еда, прогулки</div>
+              <span class="item-note">Стабильный режим снижает тревожность. Собаки любят ритм</span>
+            </div>
+            <span class="item-tag tag-daily">Режим</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section full-width">
+        <div class="section-header">
+          <span class="section-icon">🐶</span>
+          <span class="section-title">Дополнение · Если у тебя щенок</span>
+          <span class="section-badge">6 тем</span>
+        </div>
+        <div class="section-body" style="display: grid; grid-template-columns: 1fr 1fr;">
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Порода выбрана под образ жизни, не под внешность</div>
+              <span class="item-note">Энергия, размер, характер — важнее красоты</span>
+            </div>
+            <span class="item-tag tag-once">До покупки</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Есть клетка — место отдыха, не тюрьма</div>
+              <span class="item-note">Приучена через позитив. Заходит сама.</span>
+            </div>
+            <span class="item-tag tag-once">Обустройство</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Первые недели — в ограниченном пространстве</div>
+              <span class="item-note">Манеж или одна комната, расширяем постепенно</span>
+            </div>
+            <span class="item-tag tag-once">Первые недели</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Квартира «прощёлкана» на четвереньках</div>
+              <span class="item-note">Провода, обувь, растения — вне доступа</span>
+            </div>
+            <span class="item-tag tag-once">До приезда</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Социализация до прививок — в переноске или на руках</div>
+              <span class="item-note">Окно 8–12 недель не ждёт. Земли не касаемся</span>
+            </div>
+            <span class="item-tag tag-once">До 12 недель</span>
+          </div>
+          <div class="item" onclick="toggleItem(this)">
+            <div class="checkbox"></div>
+            <div>
+              <div class="item-text">Первые игрушки: конг, прорезыватели, мягкие без деталей</div>
+              <span class="item-note">Теннисные мячи, тапки, кости — нет. Ротация игрушек</span>
+            </div>
+            <span class="item-tag tag-once">Обеспечить</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="footer-text">«Собака: полное руководство» · Курс о жизни с собакой</div>
+      <div class="progress-wrap">
+        <div class="progress-label">Прогресс:</div>
+        <div class="progress-bar-outer">
+          <div class="progress-bar-inner" id="progressBar" style="width: 0%"></div>
+        </div>
+        <div class="progress-count" id="progressCount">0 / 0</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    var STORAGE_KEY = 'checklist-dog-guide-v1';
+
+    function toggleItem(el) {
+      el.classList.toggle('checked');
+      updateProgress();
+      saveState();
+    }
+
+    function updateProgress() {
+      var all = document.querySelectorAll('.item');
+      var checked = document.querySelectorAll('.item.checked');
+      var total = all.length;
+      var done = checked.length;
+      var pct = total ? Math.round(done / total * 100) : 0;
+
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressCount').textContent = done + ' / ' + total;
+    }
+
+    function saveState() {
+      try {
+        var items = document.querySelectorAll('.item');
+        var checked = [];
+        items.forEach(function (it, i) {
+          if (it.classList.contains('checked')) checked.push(i);
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(checked));
+      } catch (e) {}
+    }
+
+    function loadState() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        var checked = JSON.parse(raw);
+        var items = document.querySelectorAll('.item');
+        checked.forEach(function (i) {
+          if (items[i]) items[i].classList.add('checked');
+        });
+      } catch (e) {}
+    }
+
+    function handlePrint() {
+      window.print();
+    }
+
+    function handleDownloadPdf() {
+      var el = document.getElementById('checklist-page');
+      var opt = {
+        margin: 10,
+        filename: 'Чек-лист-собака-полное-руководство.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(el).save();
+    }
+
+    loadState();
+    updateProgress();
+  </script>
+</body>
+</html>

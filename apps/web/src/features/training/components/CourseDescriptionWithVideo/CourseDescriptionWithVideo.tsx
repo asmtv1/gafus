@@ -1,5 +1,6 @@
 import { memo, useMemo, useCallback, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import styles from "./CourseDescriptionWithVideo.module.css";
 import { ExpandMoreIcon } from "@shared/utils/muiImports";
@@ -62,7 +63,7 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
       <div
         className={`${styles.descriptionContent} ${isDescriptionOpen ? styles.expanded : styles.collapsed}`}
       >
-        <ReactMarkdown>{description ?? ""}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{description ?? ""}</ReactMarkdown>
 
         {(equipment || trainingLevel) && (
           <div className={styles.courseInfo}>

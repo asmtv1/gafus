@@ -28,7 +28,7 @@ export const checklistSchema = z.array(checklistQuestionSchema);
 const createStepBaseSchema = z.object({
   id: z.string().uuid("Некорректный ID шага (ожидается UUID)"),
   title: z.string().min(3, "Минимум 3 символа").max(100),
-  description: z.string().min(10, "Минимум 10 символов").max(3000),
+  description: z.string().min(10, "Минимум 10 символов").max(8000),
   type: stepTypeSchema,
   durationSec: z.number().int().min(1).max(6000).nullable(),
   estimatedDurationSec: z.number().int().min(1).nullable(),

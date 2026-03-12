@@ -26,7 +26,6 @@
     "@gafus/logger": "workspace:*",
     "@gafus/metadata": "workspace:*",
     "@gafus/prisma": "workspace:*",
-    "@prisma/client": "6.10.1",
     "@gafus/queues": "workspace:*",
     "@gafus/react-query": "workspace:*",
     "@gafus/statistics": "workspace:*",
@@ -37,6 +36,7 @@
     "@mui/icons-material": "7.1.0",
     "@mui/material": "7.1.0",
     "@mui/utils": "7.1.0",
+    "@prisma/client": "6.10.1",
     "@tanstack/react-query": "^5.85.9",
     "@tanstack/react-query-devtools": "^5.85.9",
     "bcrypt": "6.0.0",
@@ -54,6 +54,7 @@
     "react-dom": "19.2.1",
     "react-hook-form": "7.58.1",
     "react-markdown": "10.1.0",
+    "remark-gfm": "^4.0.1",
     "sharp": "0.34.3",
     "zod": "^3.24.1",
     "zustand": "5.0.7"

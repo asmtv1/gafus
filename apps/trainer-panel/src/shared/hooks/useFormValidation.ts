@@ -65,7 +65,7 @@ export const commonValidationRules = {
     minLength: { value: 3, message: "Минимум 3 символа" },
     maxLength: { value: 100, message: "Максимум 100 символов" },
     pattern: {
-      value: /^[а-яёА-ЯЁa-zA-Z0-9\s\-–—_.,!?()]+$/,
+      value: /^[а-яёА-ЯЁa-zA-Z0-9\s\-–—_.,!?():]+$/,
       message: "Недопустимые символы в названии курса",
     },
   },
@@ -104,7 +104,7 @@ export const commonValidationRules = {
   stepDescription: {
     required: "Описание шага обязательно",
     minLength: { value: 10, message: "Минимум 10 символов" },
-    maxLength: { value: 3000, message: "Максимум 3000 символов" },
+    maxLength: { value: 8000, message: "Максимум 8000 символов" },
   },
 
   stepDuration: {

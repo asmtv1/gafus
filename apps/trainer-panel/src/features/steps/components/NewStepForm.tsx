@@ -6,8 +6,9 @@ import { FormField, NumberField } from "@shared/components/ui/FormField";
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
+import { commonValidationRules } from "@shared/hooks/useFormValidation";
 import sharedStyles from "@shared/styles/FormLayout.module.css";
 import FormSection from "@shared/components/FormSection";
 import PersonalizationPlaceholdersHint from "@shared/components/PersonalizationPlaceholdersHint";
@@ -423,9 +424,13 @@ export default function NewStepForm({
 
           <Box className={sharedStyles.formField}>
             <Typography className={sharedStyles.formLabel}>Описание *</Typography>
-            <MarkdownInput
-              value={form.watch("description")}
-              onChange={(value: string) => form.setValue("description", value)}
+            <Controller
+              name="description"
+              control={form.control}
+              rules={commonValidationRules.stepDescription}
+              render={({ field }) => (
+                <MarkdownInput value={field.value} onChange={field.onChange} />
+              )}
             />
             {form.formState.errors.description && (
               <Alert severity="error" className={sharedStyles.formAlert}>

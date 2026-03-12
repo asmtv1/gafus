@@ -87,7 +87,7 @@ function validateDescription(description: string): ValidationError {
   const v = String(description ?? "");
   if (!v || v.trim().length === 0) return "Описание обязательно";
   if (v.length < 10) return "Минимум 10 символов";
-  if (v.length > 3000) return "Максимум 3000 символов";
+  if (v.length > 8000) return "Максимум 8000 символов";
   return null;
 }
 

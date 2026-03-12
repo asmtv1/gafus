@@ -1,6 +1,6 @@
 prometheus.remote_write "yc" {
   endpoint {
-    url = "https://monitoring.api.cloud.yandex.net/prometheus/workspaces/monn9k9fdti7o4qa45m1/api/v1/write"
+    url = "https://monitoring.api.cloud.yandex.net/prometheus/workspaces/monj8dpjri8u0bbqvq71/api/v1/write"
 
     bearer_token = sys.env("YC_MONITORING_API_KEY")
 

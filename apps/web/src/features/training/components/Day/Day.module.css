@@ -135,6 +135,24 @@
   font-size: 1.1em;
 }
 
+.dayDescription table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+}
+
+.dayDescription th,
+.dayDescription td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.dayDescription th {
+  background-color: rgba(99, 97, 40, 0.12);
+  font-weight: 600;
+}
+
 .dayDescription strong {
   font-weight: 600;
   color: #352e2e;

@@ -149,4 +149,29 @@ const markdownStyles = StyleSheet.create({
   link: {
     color: COLORS.secondary,
   },
+  table: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 4,
+    marginVertical: 8,
+  },
+  thead: {
+    backgroundColor: "rgba(99, 97, 40, 0.12)",
+  },
+  th: {
+    padding: 8,
+    borderBottomWidth: 1,
+    borderColor: COLORS.border,
+    fontWeight: "600",
+    fontFamily: FONTS.montserrat,
+  },
+  tr: {
+    borderBottomWidth: 1,
+    borderColor: COLORS.border,
+  },
+  td: {
+    padding: 8,
+    fontFamily: FONTS.montserrat,
+    fontSize: 14,
+  },
 });

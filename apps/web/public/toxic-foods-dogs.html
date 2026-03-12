@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Полный список продуктов, запрещённых собакам. На основе данных ASPCA Animal Poison Control.">
+  <meta name="keywords" content="токсичные продукты, собака, отравление, запрещённые продукты, ASPCA">
+  
+  <link rel="canonical" href="https://gafus.ru/toxic-foods-dogs.html">
+  
+  <meta property="og:title" content="Продукты, опасные для собак — Гафус">
+  <meta property="og:description" content="Полный список продуктов, которые нельзя давать собакам. На основе данных ASPCA Animal Poison Control.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://gafus.ru/toxic-foods-dogs.html">
+  <meta property="og:locale" content="ru_RU">
+  
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="Гафус">
+  <meta name="theme-color" content="#DAD3C1">
+  <title>Продукты, опасные для собак — Гафус</title>
+  
+  <style>
+    :root {
+      --primary: #636128;
+      --primary-dark: #4a4920;
+      --secondary: #dad3c1;
+      --accent: #fff8e5;
+      --dark: #352e2e;
+      --light: #dad3c1;
+      --gray: #636128;
+      --gradient: linear-gradient(135deg, #636128 0%, #4a4920 100%);
+      --gradient-warm: linear-gradient(135deg, #dad3c1 0%, #fff8e5 100%);
+      --shadow-soft: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.05);
+      --shadow-medium: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+      --shadow-strong: 0 20px 25px rgba(0, 0, 0, 0.15), 0 10px 10px rgba(0, 0, 0, 0.04);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: var(--dark);
+      background: var(--secondary);
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      position: relative;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(circle at 20% 20%, rgba(99, 97, 40, 0.05) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(255, 248, 229, 0.03) 0%, transparent 60%),
+        radial-gradient(circle at 50% 50%, rgba(53, 46, 46, 0.02) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .container {
+      max-width: 75rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding: 3rem 0;
+      position: relative;
+    }
+    
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 4px;
+      background: var(--gradient);
+      border-radius: 2px;
+    }
+    
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      text-shadow: 0 2px 4px rgba(99, 97, 40, 0.2);
+    }
+    
+    .header .subtitle {
+      font-size: clamp(1rem, 2vw, 1.3rem);
+      color: var(--dark);
+      opacity: 0.8;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .source-box {
+      background: var(--accent);
+      border-left: 4px solid var(--primary);
+      border-radius: 0.75rem;
+      padding: 1.25rem 1.5rem;
+      margin: 0 auto 2rem;
+      max-width: 700px;
+      box-shadow: var(--shadow-soft);
+      font-size: 0.95rem;
+      color: var(--dark);
+      opacity: 0.9;
+    }
+    
+    .source-box a {
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    
+    .source-box a:hover {
+      text-decoration: underline;
+    }
+    
+    .food-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+    
+    .food-card {
+      background: var(--accent);
+      border-radius: 1rem;
+      padding: 1.75rem;
+      box-shadow: var(--shadow-medium);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .food-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--gradient);
+    }
+    
+    .food-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-strong);
+    }
+    
+    .food-card h3 {
+      font-size: 1.25rem;
+      color: var(--primary);
+      margin-bottom: 0.75rem;
+      font-weight: 700;
+    }
+    
+    .food-card p {
+      color: var(--dark);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin: 0;
+    }
+    
+    .food-card ul {
+      margin: 0.5rem 0 0 1.25rem;
+      color: var(--dark);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 2rem 0;
+      margin-top: 3rem;
+      border-top: 1px solid rgba(99, 97, 40, 0.2);
+      color: var(--dark);
+      opacity: 0.7;
+    }
+    
+    .footer a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      transition: opacity 0.3s ease;
+    }
+    
+    .footer a:hover {
+      opacity: 0.8;
+      text-decoration: underline;
+    }
+    
+    @media (max-width: 768px) {
+      .food-grid {
+        grid-template-columns: 1fr;
+      }
+      
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Продукты, опасные для собак</h1>
+      <p class="subtitle">Полный список человеческой еды, которую нельзя давать питомцам. При подозрении на отравление — срочно обратитесь к ветеринару.</p>
+    </div>
+    
+    <div class="source-box">
+      Источник: <a href="https://www.aspca.org/pet-care/animal-poison-control/people-foods-avoid-feeding-your-pets" target="_blank" rel="noopener noreferrer">People Foods to Avoid Feeding Your Pets — ASPCA Animal Poison Control</a>. Список составлен экспертами ASPCA.
+    </div>
+    
+    <div class="food-grid">
+      <div class="food-card">
+        <h3>Алкоголь и дрожжевое тесто</h3>
+        <p>Алкогольные напитки и продукты с алкоголем вызывают рвоту, диарею, нарушение координации, угнетение дыхания, тремор, кому и смерть. Алкоголь быстро всасывается — важно немедленно обратиться к ветеринару.</p>
+        <p style="margin-top: 0.75rem;">Сырое дрожжевое тесто поднимается в желудке и вызывает вздутие, вплоть до заворота желудка — это жизнеугрожающее состояние. Дрожжи также выделяют алкоголь в желудке.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Шоколад, кофе, кофеин</h3>
+        <p>Содержат метилксантины (теобромин, кофеин). Вызывают рвоту, диарею, одышку, учащённое мочеиспускание, гиперреактивность, аритмию, тремор, судороги и смерть.</p>
+        <p style="margin-top: 0.75rem;">Чем темнее шоколад (больше какао) — тем опаснее. Белый шоколад наименее токсичен, какао-порошок и шоколад для выпечки — наиболее.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Виноград и изюм</h3>
+        <p>Токсичный компонент — винная кислота. Организм собаки не перерабатывает её, что приводит к поражению почек. Даже небольшое количество может вызвать острую почечную недостаточность.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Лук, чеснок, порей</h3>
+        <p>Представители рода Allium. Вызывают раздражение ЖКТ и разрушение эритроцитов, что приводит к анемии. Кошки более уязвимы, но собаки тоже в группе риска в зависимости от количества.</p>
+        <p style="margin-top: 0.75rem;">Опасны в сыром, варёном виде и в порошке.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Орехи макадамия</h3>
+        <p>Вызывают слабость, нарушение координации, депрессию, рвоту, тремор и гипертермию у собак. Симптомы обычно появляются в течение 12 часов, восстановление — в течение 24–72 часов.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Другие орехи и жирная еда</h3>
+        <p>Миндаль, пекан, грецкие орехи содержат много масел и жиров. Могут вызвать рвоту, диарею и панкреатит.</p>
+        <p style="margin-top: 0.75rem;">Кокос и кокосовое масло в небольшом количестве обычно не опасны, но мякоть и молоко свежего кокоса могут вызвать расстройство желудка.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Ксилит (ксилитол)</h3>
+        <p>Подсластитель в жвачке, конфетах, выпечке, зубной пасте. Вызывает резкое падение сахара в крови (гипогликемию) и печёночную недостаточность.</p>
+        <p style="margin-top: 0.75rem;">Первые признаки: рвота, вялость, нарушение координации, судороги. Поражение печени может развиться в течение 12–24 часов.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Авокадо</h3>
+        <p>Наиболее опасен для птиц и кроликов. У лошадей, ослов и жвачных вызывает отёк головы и шеи, проблемы с сердцем. У собак риск ниже, но косточка — опасность удушья и непроходимости, кожура и листья содержат токсин персин.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Цитрусовые</h3>
+        <p>Стебли, листья, кожура, семена содержат лимонную кислоту и эфирные масла — раздражение, при больших дозах возможна депрессия. Небольшое количество мякоти обычно вызывает лишь лёгкое расстройство желудка.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Молоко и молочные продукты</h3>
+        <p>У питомцев мало фермента лактазы для переработки лактозы. Молоко и молочные продукты могут вызвать диарею и расстройство пищеварения.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Сырое мясо, яйца, кости</h3>
+        <p>Сырое мясо и яйца могут содержать Salmonella и E. coli. В сырых яйцах есть фермент, нарушающий усвоение некоторых витаминов. Кости могут травмировать ЖКТ или вызвать непроходимость — вплоть до необходимости операции.</p>
+      </div>
+      
+      <div class="food-card">
+        <h3>Соль и сильно солёная еда</h3>
+        <p>Избыток соли вызывает жажду, учащённое мочеиспускание, нарушение электролитного баланса. Признаки отравления: рвота, диарея, депрессия, тремор, судороги, смерть.</p>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>© 2026 Гафус. Данные: <a href="https://www.aspca.org/pet-care/animal-poison-control/people-foods-avoid-feeding-your-pets" target="_blank" rel="noopener noreferrer">ASPCA Animal Poison Control</a>.</p>
+    </div>
+  </div>
+</body>
+</html>

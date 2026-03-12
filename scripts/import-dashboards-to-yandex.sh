@@ -6,7 +6,7 @@ set -e
 
 FOLDER_ID="${FOLDER_ID:-b1g0vbm2pvav4oqc4ds9}"
 PROMETHEUS_DS_ID="${PROMETHEUS_DS_ID:-fbe681839dit4q6504um}"
-WORKSPACE_ID="${WORKSPACE_ID:-monn9k9fdti7o4qa45m1}"
+WORKSPACE_ID="${WORKSPACE_ID:-monj8dpjri8u0bbqvq71}"
 DASHBOARDS_DIR="ci-cd/docker/grafana/dashboards"
 IMPORTER_DIR="${IMPORTER_DIR:-/tmp/yc-dashboard-importer}"
 OUTPUT_DIR="/tmp/yandex-dashboards"

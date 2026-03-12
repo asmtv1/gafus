@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import "react-markdown-editor-lite/lib/index.css";
 
 const MdEditor = dynamic(() => import("react-markdown-editor-lite"), {
@@ -19,7 +20,7 @@ export default function MarkdownInput({
     <MdEditor
       value={value}
       style={{ height: "400px" }}
-      renderHTML={(text) => <ReactMarkdown>{text}</ReactMarkdown>}
+      renderHTML={(text) => <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>}
       onChange={({ text }) => onChange(text)}
       config={{
         view: {
