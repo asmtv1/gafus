@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Диагностика сепарационной тревоги у собак. Ответьте на вопросы и получите рекомендацию — подходит ли курс для вашей собаки.">
+  <meta name="theme-color" content="#DAD3C1">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="Диагностика сепарационной тревоги — Гафус">
+  <meta property="og:description" content="Ответьте на вопросы и получите рекомендацию.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ru_RU">
+  <title>Диагностика сепарационной тревоги — Гафус</title>
+  <link rel="canonical" href="https://gafus.ru/diagnostika_forma.html">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #636128;
+      --primary-dark: #4a4920;
+      --secondary: #dad3c1;
+      --accent: #fff8e5;
+      --dark: #352e2e;
+      --text-secondary: rgba(53, 46, 46, 0.7);
+      --text-tertiary: rgba(53, 46, 46, 0.5);
+      --border: rgba(99, 97, 40, 0.2);
+      --border-hover: rgba(99, 97, 40, 0.35);
+      --gradient: linear-gradient(135deg, #636128 0%, #4a4920 100%);
+      --shadow-soft: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.05);
+      --radius: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: var(--dark);
+      background: var(--secondary);
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(99, 97, 40, 0.05) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(255, 248, 229, 0.03) 0%, transparent 60%),
+        radial-gradient(circle at 50% 50%, rgba(53, 46, 46, 0.02) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--primary);
+      text-decoration: none;
+      margin-bottom: 2rem;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--primary-dark); }
+
+    .form-title {
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      text-shadow: 0 2px 4px rgba(99, 97, 40, 0.15);
+    }
+
+    .form-sub {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .section { margin-bottom: 2rem; }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      margin-bottom: 1rem;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .qblock { margin-bottom: 1.5rem; }
+
+    .qtext {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--dark);
+      margin-bottom: 0.5rem;
+      line-height: 1.5;
+    }
+
+    .qnote {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+
+    .opts { display: flex; flex-direction: column; gap: 8px; }
+
+    .opt {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+    .opt:hover {
+      border-color: var(--border-hover);
+      background: var(--accent);
+      box-shadow: var(--shadow-soft);
+    }
+    .opt.selected {
+      border-color: var(--primary);
+      background: rgba(99, 97, 40, 0.08);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+    .opt.selected .circle {
+      border-color: var(--primary);
+      background: var(--primary);
+    }
+    .opt.selected .otext { color: var(--primary-dark); font-weight: 600; }
+
+    .circle {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .circle-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+    .otext { font-size: 14px; color: var(--dark); line-height: 1.45; }
+
+    .submit-area { margin-top: 2.5rem; }
+
+    .btn-submit {
+      width: 100%;
+      padding: 15px 20px;
+      border-radius: var(--radius);
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      background: var(--gradient);
+      color: #fff;
+      transition: box-shadow 0.2s, transform 0.1s;
+    }
+    .btn-submit:hover { box-shadow: 0 6px 16px rgba(99, 97, 40, 0.35); }
+    .btn-submit:active { transform: scale(0.99); }
+    .btn-submit:disabled {
+      background: var(--border);
+      color: var(--text-tertiary);
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .progress-text {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    .result { padding: 1rem 0 2rem; }
+
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+    }
+    .badge-green { background: rgba(99, 97, 40, 0.15); color: var(--primary-dark); }
+    .badge-yellow { background: #FAEEDA; color: #633806; }
+    .badge-red { background: #FCEBEB; color: #501313; }
+
+    .result-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 0.75rem;
+      line-height: 1.35;
+    }
+
+    .result-body {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 1.5rem;
+    }
+
+    .flags-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .flags { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.75rem; }
+
+    .flag {
+      display: flex;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .flag-red { background: #FCEBEB; color: #501313; border: 1px solid #F7C1C1; }
+    .flag-amber { background: #FAEEDA; color: #633806; border: 1px solid #FAC775; }
+    .flag-dot { flex-shrink: 0; margin-top: 2px; }
+
+    .restart {
+      font-size: 14px;
+      color: var(--primary);
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .restart:hover { text-decoration: underline; }
+
+    .unanswered { outline: 2px solid #E24B4A !important; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="https://gafus.ru" class="back-link">← На главную</a>
+    <div id="app"></div>
+  </div>
+
+  <script>
+  const sections = [
+    {
+      id: "A", title: "История и происхождение",
+      questions: [
+        {
+          id: "A1", text: "Как собака появилась у вас?",
+          options: [
+            { text: "Щенок с рождения, рос в семье", score: 0 },
+            { text: "Взрослая собака, взята из нормальных рук", score: 0 },
+            { text: "Из приюта или передержки, история неизвестна", score: 1 },
+            { text: "Сменила нескольких хозяев или пережила очевидную травму", score: 3, flag: { text: "История многократной смены хозяев — сильный предиктор глубокой тревоги (Overall, 2013)", critical: true } }
+          ]
+        },
+        {
+          id: "A2", text: "Когда появилась проблема?",
+          options: [
+            { text: "Всегда, с первых дней", score: 1 },
+            { text: "После конкретного события: переезд, смерть другого животного, карантин, рождение ребёнка", score: 2, flag: { text: "Триггерное начало после потери или стресса — признак реактивной тревоги", critical: false } },
+            { text: "Постепенно, без видимой причины", score: 1 },
+            { text: "Я не уверен — только начал замечать", score: 0 }
+          ]
+        },
+        {
+          id: "A3", text: "Сколько собака бывает одна в обычный день?",
+          options: [
+            { text: "До 2 часов", score: 0 },
+            { text: "2–4 часа", score: 0 },
+            { text: "4–8 часов", score: 1 },
+            { text: "Больше 8 часов регулярно", score: 2, flag: { text: "Более 8 часов одиночества регулярно — само по себе стрессор, требующий изменения условий содержания", critical: false } }
+          ]
+        }
+      ]
+    },
+    {
+      id: "B", title: "Поведение в одиночестве",
+      questions: [
+        {
+          id: "B1", text: "Что происходит в первые 30 минут после вашего ухода?",
+          note: "Если есть видеозапись — опирайтесь на неё. Если нет — на то, что слышат соседи или что вы наблюдали хоть раз.",
+          options: [
+            { text: "Ложится, спит или спокойно отдыхает", score: 0 },
+            { text: "Ходит, скучает, но затихает в течение 15–20 минут", score: 0 },
+            { text: "Воет, лает или скулит, но потом успокаивается", score: 1 },
+            { text: "Воет или скулит и не успокаивается до моего возвращения", score: 3, flag: { text: "Непрерывный дистресс без затихания — ключевой признак истинной сепарационной тревоги (DeMartini, 2020)", critical: true } }
+          ]
+        },
+        {
+          id: "B2", text: "Ест ли собака угощение, которое вы оставляете при уходе?",
+          options: [
+            { text: "Да, сразу или вскоре после ухода", score: 0 },
+            { text: "Иногда ест, иногда нет", score: 1 },
+            { text: "Никогда не трогает — даже любимое лакомство", score: 3, flag: { text: "Отказ от еды в одиночестве — физиологический маркер высокого стресса: собака не может есть при активированной симпатической системе", critical: true } }
+          ]
+        },
+        {
+          id: "B3", text: "Есть ли физические признаки стресса в ваше отсутствие?",
+          options: [
+            { text: "Нет, ничего подобного", score: 0 },
+            { text: "Иногда тяжело дышит или суетится", score: 1 },
+            { text: "Трясётся, обильно слюнит, рвёт", score: 3, flag: { text: "Тремор, гиперсаливация, рвота — признаки панической реакции. Требуют консультации ветеринарного бихевиориста", critical: true } },
+            { text: "Причиняет себе вред: грызёт лапы, расчёсывает до крови", score: 5, flag: { text: "Самоповреждение — абсолютный критерий направления к специалисту. Курс противопоказан до работы с профессионалом", critical: true } }
+          ]
+        },
+        {
+          id: "B4", text: "Есть ли у вас дома другое животное? Как ведёт себя собака в его присутствии?",
+          options: [
+            { text: "Нет других животных", score: 0 },
+            { text: "Есть, и с другим животным собака спокойнее", score: 0, isolation: true },
+            { text: "Есть, но это не помогает — дистресс одинаковый", score: 1 }
+          ]
+        }
+      ]
+    },
+    {
+      id: "V", title: "Поведение до ухода",
+      questions: [
+        {
+          id: "V1", text: "Как ведёт себя собака, пока вы собираетесь уходить?",
+          options: [
+            { text: "Никак — лежит, не реагирует", score: 0 },
+            { text: "Замечает, встаёт, следит взглядом", score: 0 },
+            { text: "Начинает ходить за вами, скулить ещё до ухода", score: 2 },
+            { text: "Трясётся, отказывается от еды, блокирует выход", score: 4, flag: { text: "Паника до реального ухода — признак высокого фонового уровня тревожности. Десенситизация к ритуалам ухода сама по себе не поможет", critical: true } }
+          ]
+        },
+        {
+          id: "V2", text: "Реагирует ли собака на сигналы ухода — ключи, сумку, обувь, куртку?",
+          options: [
+            { text: "Нет, не обращает внимания", score: 0 },
+            { text: "Замечает, но не тревожится", score: 0 },
+            { text: "Сразу меняет поведение — начинает беспокоиться", score: 2, flag: { text: "Устойчивая условная реакция на сигналы ухода указывает на закреплённую тревожную ассоциацию", critical: false } }
+          ]
+        }
+      ]
+    },
+    {
+      id: "G", title: "Поведение когда вы дома",
+      questions: [
+        {
+          id: "G1", text: "Что делает собака, когда вы дома?",
+          options: [
+            { text: "Спокойно находится в другой комнате", score: 0 },
+            { text: "Предпочитает быть рядом, но легко остаётся одна в комнате", score: 0 },
+            { text: "Постоянно следует за вами из комнаты в комнату", score: 2 },
+            { text: "Паникует, если вы закрываете дверь даже на минуту", score: 3, flag: { text: "Невозможность переносить разлуку даже на минуту внутри дома — один из сильнейших предикторов СТ (Overall, 2013)", critical: true } }
+          ]
+        },
+        {
+          id: "G2", text: "Как собака реагирует на ваше возвращение домой?",
+          options: [
+            { text: "Радуется умеренно, быстро успокаивается", score: 0 },
+            { text: "Бурно радуется, успокаивается за несколько минут", score: 1 },
+            { text: "Бурная реакция дольше 10–15 минут, не может успокоиться", score: 2, flag: { text: "Длительная реакция на возвращение — признак высокого накопленного стресса в период одиночества", critical: false } }
+          ]
+        }
+      ]
+    }
+  ];
+
+  const allQuestions = sections.flatMap(s => s.questions.map(q => ({ ...q, sectionId: s.id })));
+  let answers = {};
+  let showResult = false;
+  let showErrors = false;
+
+  function countAnswered() {
+    return allQuestions.filter(q => answers[q.id] !== undefined).length;
+  }
+
+  function renderForm() {
+    const app = document.getElementById('app');
+    const answered = countAnswered();
+    const total = allQuestions.length;
+
+    let html = `<div class="form-title">Диагностика</div>
+    <div class="form-sub">Ответьте на все вопросы честно — не как «должно быть», а как есть. В конце вы получите чёткую рекомендацию.</div>`;
+
+    sections.forEach(sec => {
+      html += `<div class="section"><div class="section-label">${sec.title}</div>`;
+      sec.questions.forEach(q => {
+        const sel = answers[q.id];
+        const isError = showErrors && sel === undefined;
+        html += `<div class="qblock" id="qblock-${q.id}">`;
+        html += `<div class="qtext">${q.text}</div>`;
+        if (q.note) html += `<div class="qnote">${q.note}</div>`;
+        html += `<div class="opts ${isError ? 'unanswered' : ''}" id="opts-${q.id}">`;
+        q.options.forEach((opt, i) => {
+          const isSel = sel === i;
+          html += `<div class="opt ${isSel ? 'selected' : ''}" onclick="pick('${q.id}', ${i})">
+            <div class="circle">${isSel ? '<div class="circle-dot"></div>' : ''}</div>
+            <div class="otext">${opt.text}</div>
+          </div>`;
+        });
+        html += `</div></div>`;
+      });
+      html += `</div>`;
+    });
+
+    html += `<div class="submit-area">
+      <button class="btn-submit" onclick="diagnose()">Диагностировать</button>
+      <div class="progress-text">${answered} из ${total} вопросов отвечено</div>
+    </div>`;
+
+    app.innerHTML = html;
+  }
+
+  function renderResult() {
+    const app = document.getElementById('app');
+    let score = 0;
+    let flags = [];
+    let isolation = false;
+
+    allQuestions.forEach(q => {
+      const idx = answers[q.id];
+      if (idx !== undefined) {
+        const opt = q.options[idx];
+        score += opt.score || 0;
+        if (opt.flag) flags.push(opt.flag);
+        if (opt.isolation) isolation = true;
+      }
+    });
+
+    const selfHarm = answers["B3"] === 3;
+    const hasCritical = flags.some(f => f.critical);
+
+    let level, badge, title, body;
+
+    if (selfHarm || (hasCritical && score >= 9)) {
+      level = 'red';
+      badge = 'Нужен специалист';
+      title = 'Курс сейчас не подойдёт — сначала нужна профессиональная помощь';
+      body = 'Ответы указывают на серьёзный уровень тревоги, с которым самостоятельная работа по курсу не справится и может навредить. Первый шаг — ветеринарный бихевиорист или сертифицированный специалист по поведению (CAAB/IAABC). После работы с ним курс может стать хорошим следующим этапом.';
+    } else if (score >= 5 || (hasCritical && score >= 3)) {
+      level = 'yellow';
+      badge = 'Сначала — консультация';
+      title = 'Есть признаки, которые стоит прояснить с кинологом перед курсом';
+      body = 'Некоторые ответы указывают на тревогу глубже, чем та, с которой курс работает напрямую. Рекомендуем одну консультацию со специалистом по поведению, чтобы исключить истинную сепарационную тревогу. После этого курс станет отличным следующим шагом.';
+    } else {
+      level = 'green';
+      badge = 'Курс подойдёт';
+      title = isolation
+        ? 'Похоже на дистресс изоляции — курс для вас'
+        : 'Признаков глубокой тревоги нет — курс для вас';
+      body = isolation
+        ? 'Судя по ответам, ваша собака страдает не от разлуки с вами лично, а от одиночества как такового. Это хорошая новость: дистресс изоляции хорошо поддаётся работе по протоколу, который мы разберём в курсе.'
+        : 'Ответы не указывают на истинную сепарационную тревогу. Скорее всего, это скука, недостаток нагрузки или лёгкий дистресс — именно с этим работает курс.';
+    }
+
+    const badgeClass = `badge-${level}`;
+    const dot = level === 'green' ? '●' : level === 'yellow' ? '▲' : '■';
+
+    let flagsHTML = '';
+    if (flags.length > 0) {
+      flagsHTML = `<div class="flags-title">На что обратили внимание</div><div class="flags">` +
+        flags.map(f => `<div class="flag ${f.critical ? 'flag-red' : 'flag-amber'}">
+          <span class="flag-dot">${f.critical ? '●' : '▲'}</span>
+          <span>${f.text}</span>
+        </div>`).join('') + `</div>`;
+    }
+
+    app.innerHTML = `<div class="result">
+      <div class="result-badge ${badgeClass}">${dot} ${badge}</div>
+      <div class="result-title">${title}</div>
+      <div class="result-body">${body}</div>
+      ${flagsHTML}
+      <a href="#" class="restart" onclick="restart(); return false;">Пройти заново</a>
+    </div>`;
+  }
+
+  function pick(qid, idx) {
+    answers[qid] = idx;
+    const optsEl = document.getElementById('opts-' + qid);
+    if (optsEl) {
+      optsEl.classList.remove('unanswered');
+      optsEl.querySelectorAll('.opt').forEach((el, i) => {
+        el.className = 'opt' + (i === idx ? ' selected' : '');
+        el.querySelector('.circle').innerHTML = i === idx ? '<div class="circle-dot"></div>' : '';
+      });
+    }
+    const pt = document.querySelector('.progress-text');
+    if (pt) pt.textContent = countAnswered() + ' из ' + allQuestions.length + ' вопросов отвечено';
+  }
+
+  function diagnose() {
+    const unanswered = allQuestions.filter(q => answers[q.id] === undefined);
+    if (unanswered.length > 0) {
+      showErrors = true;
+      unanswered.forEach(q => {
+        const el = document.getElementById('opts-' + q.id);
+        if (el) el.classList.add('unanswered');
+      });
+      const first = document.getElementById('qblock-' + unanswered[0].id);
+      if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    showResult = true;
+    renderResult();
+  }
+
+  function restart() {
+    answers = {};
+    showResult = false;
+    showErrors = false;
+    renderForm();
+  }
+
+  renderForm();
+  </script>
+</body>
+</html>
