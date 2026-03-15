@@ -173,6 +173,41 @@ describe("createCourse", () => {
     );
   });
 
+  it("creates guide course with guideContent and no dayLinks", async () => {
+    const result = await createCourse(
+      {
+        id: "guide-1",
+        name: "Мини-гайд",
+        shortDesc: "Кратко",
+        description: "Описание",
+        duration: "1 день",
+        logoImg: "",
+        isPublic: true,
+        isPaid: false,
+        priceRub: null,
+        showInProfile: true,
+        isPersonalized: false,
+        isGuide: true,
+        guideContent: "<p>HTML контент гайда</p>",
+        trainingDays: [],
+        allowedUsers: [],
+        equipment: "",
+        trainingLevel: "BEGINNER",
+      },
+      "author-1",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockCourseCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          guideContent: "<p>HTML контент гайда</p>",
+          dayLinks: { create: [] },
+        }),
+      }),
+    );
+  });
+
   it("returns handlePrismaError message on P2002 during createCourse", async () => {
     mockCourseCreate.mockRejectedValueOnce(
       Object.assign(new Error("unique"), { code: "P2002" }),
@@ -202,6 +237,7 @@ describe("updateCourse", () => {
     vi.clearAllMocks();
     mockCourseUpdate.mockResolvedValue({});
     mockDayOnCourseFindMany.mockResolvedValue([]);
+    mockDayOnCourseDeleteMany.mockResolvedValue({});
     mockDayOnCourseCreateMany.mockResolvedValue({});
     mockCourseAccessDeleteMany.mockResolvedValue({});
   });
@@ -278,6 +314,75 @@ describe("updateCourse", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
+  });
+
+  it("updates guide course: deletes dayLinks, sets guideContent", async () => {
+    mockDayOnCourseDeleteMany.mockResolvedValue({ count: 2 });
+    mockCourseAccessDeleteMany.mockResolvedValue({});
+    mockCourseAccessCreateMany.mockResolvedValue({});
+
+    const result = await updateCourse({
+      id: "guide-1",
+      name: "Мини-гайд",
+      shortDesc: "Кратко",
+      description: "Описание",
+      duration: "1 день",
+      logoImg: "",
+      isPublic: true,
+      isPaid: false,
+      isGuide: true,
+      guideContent: "<p>HTML контент</p>",
+      trainingDays: [],
+      equipment: "",
+      trainingLevel: "beginner",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockDayOnCourseDeleteMany).toHaveBeenCalledWith({
+      where: { courseId: "guide-1" },
+    });
+    expect(mockCourseUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "guide-1" },
+        data: expect.objectContaining({
+          guideContent: "<p>HTML контент</p>",
+          name: "Мини-гайд",
+        }),
+      }),
+    );
+  });
+
+  it("switches from guide to training: clears guideContent, manages dayLinks", async () => {
+    mockDayOnCourseFindMany.mockResolvedValue([]);
+    mockDayOnCourseCreateMany.mockResolvedValue({});
+    mockCourseAccessDeleteMany.mockResolvedValue({});
+
+    const result = await updateCourse({
+      id: "guide-1",
+      name: "Курс",
+      shortDesc: "Кратко",
+      description: "Описание",
+      duration: "30 дней",
+      logoImg: "",
+      isPublic: true,
+      isPaid: false,
+      isGuide: false,
+      guideContent: null,
+      trainingDays: ["day1"],
+      equipment: "",
+      trainingLevel: "beginner",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockCourseUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          guideContent: null,
+        }),
+      }),
+    );
+    expect(mockDayOnCourseFindMany).toHaveBeenCalled();
+    expect(mockDayOnCourseCreateMany).toHaveBeenCalled();
   });
 });
 

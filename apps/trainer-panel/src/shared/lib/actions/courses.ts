@@ -1,21 +1,5 @@
 "use server";
 
-import { appendFileSync } from "fs";
-import { join } from "path";
-
-const DEBUG_LOG = join(process.cwd(), "create-course-debug.log");
-
-function debugLog(msg: string, data?: unknown) {
-  const line = `[${new Date().toISOString()}] ${msg}${data != null ? " " + JSON.stringify(data) : ""}\n`;
-  try {
-    appendFileSync(DEBUG_LOG, line);
-  } catch {
-    // ignore
-  }
-}
-
-debugLog("courses.ts module loaded");
-
 import {
   deleteFileFromCDN,
   uploadFileToCDN,
@@ -53,6 +37,8 @@ export interface CreateCourseInput {
   priceRub: number | null;
   showInProfile: boolean;
   isPersonalized: boolean;
+  isGuide: boolean;
+  guideContent?: string;
   trainingDays: string[];
   allowedUsers: string[];
   equipment: string;
@@ -60,12 +46,10 @@ export interface CreateCourseInput {
 }
 
 export async function createCourseServerAction(formData: FormData) {
-  debugLog("createCourse: ENTRY");
   try {
     const session = (await getServerSession(authOptions)) as {
       user: { id: string; username: string; role: string };
     } | null;
-    debugLog("createCourse: session", { hasSession: !!session?.user?.id });
     if (!session?.user?.id) {
       return { success: false, error: "Не авторизован" };
     }
@@ -111,7 +95,13 @@ export async function createCourseServerAction(formData: FormData) {
     const showInProfile = formData.get("showInProfile")?.toString() === "true";
     const isPersonalized =
       formData.get("isPersonalized")?.toString() === "true";
-    const trainingDays = formData.getAll("trainingDays").map(String);
+    const isGuide = formData.get("isGuide")?.toString() === "true";
+    const guideContent = isGuide
+      ? (formData.get("guideContent")?.toString() ?? "")
+      : "";
+    const trainingDays = isGuide
+      ? []
+      : formData.getAll("trainingDays").map(String);
     const allowedUsers = formData.getAll("allowedUsers").map(String);
     const equipment = formData.get("equipment")?.toString() || "";
     const trainingLevel =
@@ -121,25 +111,15 @@ export async function createCourseServerAction(formData: FormData) {
         | "ADVANCED"
         | "EXPERT") || "BEGINNER";
     const logoFile = formData.get("logoImg") as File | null;
-    debugLog("createCourse: form parsed", {
-      name,
-      trainingDaysCount: trainingDays.length,
-      logoFile: logoFile ? `${logoFile.name} ${logoFile.size}b` : "none",
-    });
 
     const uuid = randomUUID();
     let logoImgUrl = "";
     if (logoFile && logoFile.size > 0) {
       try {
-        debugLog("createCourse: uploading logo to CDN");
         const ext = logoFile.name.split(".").pop() || "jpg";
         const relativePath = getCourseImagePath(trainerId, uuid, uuid, ext);
         logoImgUrl = await uploadFileToCDN(logoFile, relativePath);
-        debugLog("createCourse: logo uploaded", { logoImgUrl });
       } catch (error) {
-        debugLog("createCourse: CDN upload error", {
-          err: error instanceof Error ? error.message : String(error),
-        });
         return { success: false, error: "Не удалось загрузить изображение курса" };
       }
     }
@@ -157,6 +137,8 @@ export async function createCourseServerAction(formData: FormData) {
       priceRub: isPaid ? priceRub : null,
       showInProfile,
       isPersonalized,
+      isGuide,
+      guideContent: isGuide ? guideContent : undefined,
       trainingDays,
       allowedUsers,
       equipment,
@@ -164,7 +146,6 @@ export async function createCourseServerAction(formData: FormData) {
     });
     if (!parseResult.success) {
       const msg = parseResult.error.flatten().formErrors[0] ?? "Ошибка валидации";
-      debugLog("createCourse: validation failed", parseResult.error.flatten());
       if (logoImgUrl) {
         try {
           await deleteFileFromCDN(getRelativePathFromCDNUrl(logoImgUrl));
@@ -175,13 +156,7 @@ export async function createCourseServerAction(formData: FormData) {
       return { success: false, error: msg };
     }
 
-    debugLog("createCourse: calling createCourse (DB)");
     const result = await createCourse(parseResult.data, authorId);
-    debugLog("createCourse: createCourse result", {
-      success: result.success,
-      error: result.error,
-      id: result.id,
-    });
     if (!result.success) {
       if (logoImgUrl) {
         try {
@@ -193,20 +168,13 @@ export async function createCourseServerAction(formData: FormData) {
       return { success: false, error: result.error };
     }
 
-    debugLog("createCourse: invalidating cache");
     revalidateTag(CACHE_TAGS.STATISTICS);
     revalidatePath("/main-panel/statistics");
     await invalidateCoursesCache();
-    debugLog("createCourse: invalidateCoursesCache done");
     await invalidateTrainingDaysCache(result.id);
-    debugLog("createCourse: invalidateTrainingDaysCache done, SUCCESS");
 
     return { success: true, id: result.id };
   } catch (err) {
-    debugLog("createCourse: CAUGHT ERROR", {
-      message: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-    });
     return {
       success: false,
       error:
@@ -250,6 +218,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
     };
   }
 
+  const isGuide = input.isGuide === true;
   const parseResult = updateTrainerCourseSchema.safeParse({
     id: input.id,
     name: input.name,
@@ -263,7 +232,9 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
     priceRub: input.priceRub,
     showInProfile: input.showInProfile,
     isPersonalized: input.isPersonalized,
-    trainingDays: input.trainingDays,
+    isGuide,
+    guideContent: isGuide ? input.guideContent ?? "" : undefined,
+    trainingDays: isGuide ? [] : input.trainingDays,
     allowedUsers: input.allowedUsers,
     equipment: input.equipment,
     trainingLevel: input.trainingLevel,

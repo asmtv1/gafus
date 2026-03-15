@@ -184,3 +184,17 @@
     transform: translateX(-50%) translateY(0);
   }
 }
+
+/* Гайд — iframe с HTML-контентом */
+.guideWrapper {
+  margin-top: 24px;
+  width: 100%;
+}
+
+.guideIframe {
+  width: 100%;
+  min-height: 600px;
+  border: none;
+  display: block;
+  background: var(--bg-1, #dad3c1);
+}

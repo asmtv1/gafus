@@ -8,6 +8,8 @@ import { createWebLogger } from "@gafus/logger";
 const logger = createWebLogger("core-offline");
 
 export interface FullCourseData {
+  isGuide?: boolean;
+  guideContent?: string;
   course: {
     id: string;
     type: string;
@@ -169,6 +171,7 @@ export async function downloadFullCourse(
         },
         videoUrl: true,
         equipment: true,
+        guideContent: true,
         dayLinks: {
           orderBy: { order: "asc" },
           select: {
@@ -215,6 +218,36 @@ export async function downloadFullCourse(
 
     if (!course) {
       return { success: false, error: "Курс не найден" };
+    }
+
+    // Ранний выход для мини-гайда: только guideContent, без trainingDays и mediaFiles
+    if (course.guideContent?.trim()) {
+      const courseData: FullCourseData = {
+        isGuide: true,
+        guideContent: course.guideContent,
+        course: {
+          id: course.id,
+          type: course.type,
+          name: course.name,
+          description: course.description || "",
+          shortDesc: course.shortDesc || "",
+          duration: course.duration || "",
+          logoImg: course.logoImg,
+          isPrivate: course.isPrivate,
+          isPaid: course.isPaid,
+          priceRub: course.priceRub != null ? Number(course.priceRub) : null,
+          avgRating: course.avgRating,
+          trainingLevel: course.trainingLevel,
+          createdAt: course.createdAt.toISOString(),
+          updatedAt: course.updatedAt.toISOString(),
+          authorUsername: course.author.username,
+          videoUrl: course.videoUrl,
+          equipment: course.equipment,
+        },
+        trainingDays: [],
+        mediaFiles: { videos: [], images: [], pdfs: [] },
+      };
+      return { success: true, data: courseData };
     }
 
     // Формируем структуру данных курса
@@ -288,6 +321,7 @@ export async function downloadFullCourse(
     });
 
     const courseData: FullCourseData = {
+      isGuide: false,
       course: {
         id: course.id,
         type: course.type,

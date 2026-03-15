@@ -33,6 +33,8 @@ export interface CourseDraftDto {
   priceRub: number | null;
   showInProfile: boolean;
   isPersonalized: boolean;
+  isGuide: boolean;
+  guideContent: string | null;
   equipment: string;
   trainingLevel: string;
   dayLinks: { id: string; dayId: string; order: number; day: { id: string; title: string } }[];
@@ -63,6 +65,15 @@ export async function createCourse(
     const isPrivate = !input.isPublic;
     const type = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+    const isGuide = input.isGuide === true;
+    const guideContentValue = isGuide ? (input.guideContent ?? null) : null;
+    const dayLinksCreate = isGuide
+      ? []
+      : (input.trainingDays ?? []).map((dayId, index) => ({
+          day: { connect: { id: String(dayId) } },
+          order: index + 1,
+        }));
+
     await prisma.$transaction(async (tx) => {
       await tx.course.create({
         data: {
@@ -79,15 +90,13 @@ export async function createCourse(
             input.isPaid && input.priceRub != null ? input.priceRub : null,
           showInProfile: input.showInProfile ?? true,
           isPersonalized: input.isPersonalized ?? false,
+          guideContent: guideContentValue,
           videoUrl: input.videoUrl || null,
           equipment: input.equipment ?? "",
           trainingLevel: input.trainingLevel,
           authorId,
           dayLinks: {
-            create: (input.trainingDays ?? []).map((dayId, index) => ({
-              day: { connect: { id: String(dayId) } },
-              order: index + 1,
-            })),
+            create: dayLinksCreate,
           },
           access:
             isPrivate && (input.allowedUsers?.length ?? 0) > 0
@@ -136,31 +145,58 @@ export async function updateCourse(
 ): Promise<ActionResult> {
   try {
     const isPrivate = !input.isPublic;
-    const desiredDayIds = (input.trainingDays ?? []).map((d) => String(d));
+    const isGuide = input.isGuide === true;
 
     await prisma.$transaction(
       async (tx) => {
-        await tx.course.update({
-          where: { id: input.id },
-          data: {
-            name: input.name,
-            description: input.description ?? "",
-            shortDesc: input.shortDesc ?? "",
-            duration: input.duration,
-            logoImg: input.logoImg,
-            videoUrl: input.videoUrl || null,
-            isPrivate,
-            isPaid: input.isPaid,
-            priceRub:
-              input.isPaid && input.priceRub != null ? input.priceRub : null,
-            showInProfile: input.showInProfile ?? true,
-            isPersonalized: input.isPersonalized ?? false,
-            equipment: input.equipment ?? "",
-            trainingLevel: input.trainingLevel,
-          },
-        });
+        if (isGuide) {
+          await tx.dayOnCourse.deleteMany({ where: { courseId: input.id } });
+          await tx.course.update({
+            where: { id: input.id },
+            data: {
+              name: input.name,
+              description: input.description ?? "",
+              shortDesc: input.shortDesc ?? "",
+              duration: input.duration,
+              logoImg: input.logoImg,
+              videoUrl: input.videoUrl || null,
+              isPrivate,
+              isPaid: input.isPaid,
+              priceRub:
+                input.isPaid && input.priceRub != null ? input.priceRub : null,
+              showInProfile: input.showInProfile ?? true,
+              isPersonalized: input.isPersonalized ?? false,
+              guideContent: input.guideContent ?? null,
+              equipment: input.equipment ?? "",
+              trainingLevel: input.trainingLevel,
+            },
+          });
+        }
 
-        const existingDayLinks = await tx.dayOnCourse.findMany({
+        if (!isGuide) {
+          const desiredDayIds = (input.trainingDays ?? []).map((d) => String(d));
+          await tx.course.update({
+            where: { id: input.id },
+            data: {
+              name: input.name,
+              description: input.description ?? "",
+              shortDesc: input.shortDesc ?? "",
+              duration: input.duration,
+              logoImg: input.logoImg,
+              videoUrl: input.videoUrl || null,
+              isPrivate,
+              isPaid: input.isPaid,
+              priceRub:
+                input.isPaid && input.priceRub != null ? input.priceRub : null,
+              showInProfile: input.showInProfile ?? true,
+              isPersonalized: input.isPersonalized ?? false,
+              guideContent: null,
+              equipment: input.equipment ?? "",
+              trainingLevel: input.trainingLevel,
+            },
+          });
+
+          const existingDayLinks = await tx.dayOnCourse.findMany({
           where: { courseId: input.id },
           select: { id: true, dayId: true, order: true },
           orderBy: { order: "asc" },
@@ -219,7 +255,9 @@ export async function updateCourse(
             data: { order: link.newOrder },
           });
         }
+        }
 
+        // CourseAccess — общий для гайдов и курсов (приватные/платные)
         if (input.isPaid) {
           const allowedSet = new Set(
             (input.allowedUsers ?? []).map(String),
@@ -370,6 +408,7 @@ export async function getCourseDraftWithRelations(
         priceRub: true,
         showInProfile: true,
         isPersonalized: true,
+        guideContent: true,
         equipment: true,
         trainingLevel: true,
         authorId: true,
@@ -395,6 +434,7 @@ export async function getCourseDraftWithRelations(
     const isAuthor = course.authorId === trainerId;
     if (!options?.allowAdmin && !isAuthor) return null;
 
+    const isGuide = Boolean(course.guideContent?.trim());
     return {
       id: course.id,
       name: course.name,
@@ -409,6 +449,8 @@ export async function getCourseDraftWithRelations(
       showInProfile: (course as { showInProfile?: boolean }).showInProfile ?? true,
       isPersonalized:
         (course as { isPersonalized?: boolean }).isPersonalized ?? false,
+      isGuide,
+      guideContent: course.guideContent ?? null,
       equipment: course.equipment,
       trainingLevel: course.trainingLevel,
       dayLinks: course.dayLinks.map((dl) => ({

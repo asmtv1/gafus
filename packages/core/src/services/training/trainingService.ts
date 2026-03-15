@@ -193,6 +193,8 @@ export async function getTrainingDays(
   userId: string,
   courseType?: string,
 ): Promise<{
+  isGuide?: boolean;
+  guideContent?: string | null;
   trainingDays: {
     trainingDayId: string;
     dayOnCourseId: string;
@@ -229,6 +231,7 @@ export async function getTrainingDays(
         isPersonalized: true,
         isPrivate: true,
         isPaid: true,
+        guideContent: true,
         userCourses: {
           where: { userId },
           select: {
@@ -342,6 +345,42 @@ export async function getTrainingDays(
       if (!hasAccess.hasAccess) {
         throw new Error("COURSE_ACCESS_DENIED");
       }
+    }
+
+    // Ранний возврат для гайдов — полный HTML вместо тренировочных дней
+    const guideContent = (firstCourse as { guideContent?: string | null }).guideContent;
+    if (guideContent?.trim()) {
+      const uc = firstCourse.userCourses?.[0];
+      const hasPersonalization =
+        uc?.userDisplayName != null && String(uc.userDisplayName).trim() !== "";
+      const userCoursePersonalization = hasPersonalization
+        ? {
+            userDisplayName: String(uc!.userDisplayName).trim(),
+            userGender: (uc!.userGender === "female" ? "female" : "male") as "male" | "female",
+            petName: String(uc!.petName ?? "").trim(),
+            petGender:
+              (uc!.petGender === "female" || uc!.petGender === "male"
+                ? uc!.petGender
+                : null) as "male" | "female" | null,
+            petNameGen: uc!.petNameGen?.trim() ?? null,
+            petNameDat: uc!.petNameDat?.trim() ?? null,
+            petNameAcc: uc!.petNameAcc?.trim() ?? null,
+            petNameIns: uc!.petNameIns?.trim() ?? null,
+            petNamePre: uc!.petNamePre?.trim() ?? null,
+          }
+        : null;
+      return {
+        trainingDays: [],
+        isGuide: true,
+        guideContent: guideContent.trim(),
+        courseDescription: firstCourse.description,
+        courseId: firstCourse.id,
+        courseVideoUrl: firstCourse.videoUrl,
+        courseEquipment: firstCourse.equipment,
+        courseTrainingLevel: firstCourse.trainingLevel,
+        courseIsPersonalized: firstCourse.isPersonalized ?? false,
+        userCoursePersonalization,
+      };
     }
 
     const trainingDays = mapCourseToTrainingDays(

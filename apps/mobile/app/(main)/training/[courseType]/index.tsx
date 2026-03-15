@@ -28,6 +28,7 @@ import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
 import { showLockedDayAlert, WEB_BASE } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
+import { wrapInFullHtml } from "@/shared/lib/training/wrapInFullHtml";
 
 /**
  * Экран списка дней тренировок курса
@@ -790,6 +791,49 @@ export default function TrainingDaysScreen() {
     );
   }
 
+  // Гайд: описание + WebView с HTML
+  if (courseData?.isGuide && courseData?.guideContent) {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+          <Pressable
+            style={styles.backRow}
+            onPress={() => {
+              void hapticFeedback.light();
+              router.back();
+            }}
+            hitSlop={12}
+          >
+            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+            <Text style={styles.backText}>Назад</Text>
+          </Pressable>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
+          >
+            <Text style={styles.contentTitle}>Содержание</Text>
+            {courseData.courseDescription && (
+              <CourseDescription
+                description={courseData.courseDescription}
+                equipment={courseData.courseEquipment}
+                trainingLevel={courseData.courseTrainingLevel}
+                onShare={handleShareCourse}
+                courseType={courseType}
+              />
+            )}
+            <View style={styles.guideWebViewContainer}>
+              <WebView
+                source={{ html: wrapInFullHtml(courseData.guideContent) }}
+                style={styles.guideWebView}
+              />
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </>
+    );
+  }
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -1243,6 +1287,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
+  },
+  guideWebViewContainer: {
+    flex: 1,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    minHeight: 600,
+  },
+  guideWebView: {
+    flex: 1,
+    width: "100%",
+    backgroundColor: "#fff",
   },
   planTitle: {
     color: "#352E2E",

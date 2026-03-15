@@ -44,6 +44,7 @@
 ### Фичи
 
 - [Shared Day Progress](./features/shared-day-progress.md) — прогресс дня с `shareProgressAcrossCourses` засчитывается во всех курсах
+- [Мини-гайд (тип курса)](./features/guide-course-type.md) — курс с полным HTML вместо дней (чек-листы, справочники)
 
 ### Разработка
 

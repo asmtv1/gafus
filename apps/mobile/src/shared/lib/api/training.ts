@@ -28,6 +28,8 @@ export interface TrainingDaysResponse {
   courseTrainingLevel: string;
   courseIsPersonalized?: boolean;
   userCoursePersonalization?: UserCoursePersonalization | null;
+  isGuide?: boolean;
+  guideContent?: string | null;
 }
 
 /** Данные шага из курса (вложенный объект в UserStep или плоский шаг из офлайна). */

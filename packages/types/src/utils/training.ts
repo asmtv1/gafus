@@ -1,4 +1,5 @@
 // Типы для утилит тренировок
+import type { UserCoursePersonalization } from "../data/training";
 import type { TrainingStatus } from "./training-status";
 
 export interface TrainingDayUtil {
@@ -33,6 +34,32 @@ export interface TrainingStep {
 
   // ID пользовательского шага для экзаменов
   userStepId?: string;
+}
+
+/** Результат getTrainingDays — дни курса или гайд (isGuide/guideContent) */
+export interface GetTrainingDaysResult {
+  trainingDays: {
+    trainingDayId: string;
+    dayOnCourseId: string;
+    title: string;
+    type: string;
+    courseId: string;
+    userStatus: TrainingStatus;
+    estimatedDuration: number;
+    theoryMinutes: number;
+    equipment: string;
+    isLocked: boolean;
+    showCoursePathExport: boolean;
+  }[];
+  courseDescription: string | null;
+  courseId: string | null;
+  courseVideoUrl: string | null;
+  courseEquipment: string | null;
+  courseTrainingLevel: string | null;
+  courseIsPersonalized: boolean;
+  userCoursePersonalization: UserCoursePersonalization | null;
+  isGuide?: boolean;
+  guideContent?: string | null;
 }
 
 /** Полная информация о тренировочном дне + шаги + статус пользователя */

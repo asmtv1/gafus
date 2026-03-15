@@ -52,6 +52,8 @@ export interface FullCourseData {
     images: string[];
     pdfs: string[];
   };
+  isGuide?: boolean;
+  guideContent?: string;
 }
 
 export interface VersionResponse {

@@ -82,6 +82,8 @@ export default function CourseForm({
       priceRub: null as number | null,
       showInProfile: true,
       isPersonalized: false,
+      isGuide: false,
+      guideContent: "",
       trainingDays: [],
       allowedUsers: [],
       equipment: "",
@@ -92,6 +94,7 @@ export default function CourseForm({
   // Применяем initialValues при редактировании
   useEffect(() => {
     if (initialValues) {
+      const isGuide = Boolean(initialValues.guideContent?.trim());
       form.reset({
         name: initialValues.name ?? "",
         shortDesc: initialValues.shortDesc ?? "",
@@ -104,7 +107,9 @@ export default function CourseForm({
         priceRub: initialValues.priceRub ?? null,
         showInProfile: initialValues.showInProfile ?? true,
         isPersonalized: initialValues.isPersonalized ?? false,
-        trainingDays: initialValues.trainingDays ?? [],
+        isGuide,
+        guideContent: initialValues.guideContent ?? "",
+        trainingDays: isGuide ? [] : (initialValues.trainingDays ?? []),
         allowedUsers: initialValues.allowedUsers ?? [],
         equipment: initialValues.equipment ?? "",
         trainingLevel: initialValues.trainingLevel ?? "BEGINNER",
@@ -140,7 +145,9 @@ export default function CourseForm({
           priceRub: data.priceRub ?? null,
           showInProfile: data.showInProfile,
           isPersonalized: data.isPersonalized,
-          trainingDays: data.trainingDays,
+          isGuide: data.isGuide ?? false,
+          guideContent: data.isGuide ? (data.guideContent ?? "") : "",
+          trainingDays: data.isGuide ? [] : data.trainingDays,
           allowedUsers: data.allowedUsers,
           equipment: data.equipment,
           trainingLevel: data.trainingLevel,
@@ -164,13 +171,17 @@ export default function CourseForm({
         }
         formData.append("showInProfile", data.showInProfile ? "true" : "false");
         formData.append("isPersonalized", data.isPersonalized ? "true" : "false");
+        formData.append("isGuide", (data.isGuide ?? false) ? "true" : "false");
         formData.append("equipment", data.equipment || "");
         formData.append("trainingLevel", data.trainingLevel || "BEGINNER");
 
-        // Добавляем trainingDays
-        data.trainingDays.forEach((dayId) => {
-          formData.append("trainingDays", dayId);
-        });
+        if (data.isGuide) {
+          formData.append("guideContent", data.guideContent ?? "");
+        } else {
+          data.trainingDays.forEach((dayId) => {
+            formData.append("trainingDays", dayId);
+          });
+        }
 
         // Добавляем allowedUsers
         data.allowedUsers.forEach((userId) => {
@@ -437,6 +448,30 @@ export default function CourseForm({
           </FormSection>
         )}
 
+        <FormSection title="Тип курса">
+          <RadioGroup
+            value={form.watch("isGuide") ? "guide" : "training"}
+            onChange={(e) => {
+              const newIsGuide = e.target.value === "guide";
+              if (form.watch("isGuide") && !newIsGuide) {
+                if (!window.confirm("Контент гайда будет удалён. Продолжить?")) {
+                  return;
+                }
+                form.setValue("guideContent", "");
+              }
+              form.setValue("isGuide", newIsGuide);
+              if (newIsGuide) {
+                form.setValue("trainingDays", []);
+              }
+            }}
+            row
+          >
+            <FormControlLabel value="training" control={<Radio />} label="Полноценный курс" />
+            <FormControlLabel value="guide" control={<Radio />} label="Мини-гайд" />
+          </RadioGroup>
+        </FormSection>
+
+        {!form.watch("isGuide") ? (
         <FormSection title="Тренировочные дни">
           <DualListSelector
             allItems={allDays}
@@ -456,6 +491,19 @@ export default function CourseForm({
             allowDuplicates={true}
           />
         </FormSection>
+        ) : (
+        <FormSection title="HTML-контент гайда">
+          <TextAreaField
+            id="guideContent"
+            label="HTML-контент гайда"
+            name="guideContent"
+            placeholder="Вставьте полный HTML (например, из checklist-eta-baza.html). Поддерживаются стили, скрипты, интерактив."
+            form={form}
+            multiline
+            rows={12}
+          />
+        </FormSection>
+        )}
 
         <ValidationErrors
           errors={Object.fromEntries(

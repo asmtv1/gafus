@@ -36,6 +36,8 @@ interface TrainingPageClientProps {
     courseTrainingLevel: string | null;
     courseIsPersonalized?: boolean;
     userCoursePersonalization?: import("@gafus/types").UserCoursePersonalization | null;
+    isGuide?: boolean;
+    guideContent?: string | null;
   } | null;
   initialError?: string | null;
   accessDenied?: boolean;
@@ -344,6 +346,37 @@ export default function TrainingPageClient({
           </Link>
         </div>
       </div>
+    );
+  }
+
+  // Гайд: только описание + iframe с HTML-контентом
+  if (initialData?.isGuide && initialData?.guideContent) {
+    return (
+      <>
+        {showPaymentSuccess && (
+          <div className={styles.successNotification}>
+            Оплата прошла успешно! Доступ к курсу откроется через несколько секунд...
+          </div>
+        )}
+        <div className="courseDescription">
+          <CourseDescriptionWithVideo
+            description={initialData.courseDescription || null}
+            videoUrl={initialData.courseVideoUrl || null}
+            equipment={initialData.courseEquipment || null}
+            trainingLevel={initialData.courseTrainingLevel || null}
+            courseName={courseName}
+            courseType={courseType}
+          />
+        </div>
+        <div className={styles.guideWrapper}>
+          <iframe
+            srcDoc={initialData.guideContent}
+            title="Контент гайда"
+            className={styles.guideIframe}
+            sandbox="allow-scripts"
+          />
+        </div>
+      </>
     );
   }
 

@@ -127,9 +127,11 @@ async function runDownload(
   const downloadedAt = new Date().toISOString();
   await saveCourseMeta(courseType, {
     course: data.course,
-    trainingDays: data.trainingDays,
+    trainingDays: data.trainingDays ?? [],
     version: data.course.updatedAt,
     downloadedAt,
+    isGuide: data.isGuide,
+    guideContent: data.guideContent,
   });
   onProgress({ phase: "meta", current: 1, total: 1 });
 

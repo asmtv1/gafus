@@ -267,7 +267,8 @@ const courses = await getCoursesWithProgress(userId);
 
 Возвращает дни тренировок курса для страницы `/trainings/[courseType]`. Используется в `apps/web` и `apps/api`.
 
-**Shared Day Progress:** для дней с `shareProgressAcrossCourses: true` прогресс из других курсов засчитывается в текущем. Подробнее: [docs/features/shared-day-progress.md](../features/shared-day-progress.md).
+- **Мини-гайды:** при `Course.guideContent` не null — early return с `isGuide: true`, `guideContent`, `trainingDays: []`. Проверка доступа выполняется до возврата. Подробнее: [docs/features/guide-course-type.md](../features/guide-course-type.md).
+- **Shared Day Progress:** для дней с `shareProgressAcrossCourses: true` прогресс из других курсов засчитывается в текущем. Подробнее: [docs/features/shared-day-progress.md](../features/shared-day-progress.md).
 
 ## Теги кэша (CACHE_TAGS)
 

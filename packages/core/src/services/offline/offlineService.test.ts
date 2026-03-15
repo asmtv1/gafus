@@ -200,4 +200,22 @@ describe("downloadFullCourse", () => {
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
   });
+
+  it("returns isGuide, guideContent, empty trainingDays for guide course", async () => {
+    mockCourseFindFirst.mockResolvedValue({
+      ...fullCourseMock,
+      dayLinks: [],
+      guideContent: "<!DOCTYPE html><html><body><h1>Гайд</h1></body></html>",
+    });
+
+    const result = await downloadFullCourse("guide-type");
+
+    expect(result.success).toBe(true);
+    expect(result.data?.isGuide).toBe(true);
+    expect(result.data?.guideContent).toContain("<h1>Гайд</h1>");
+    expect(result.data?.trainingDays).toEqual([]);
+    expect(result.data?.mediaFiles.videos).toEqual([]);
+    expect(result.data?.mediaFiles.images).toEqual([]);
+    expect(result.data?.mediaFiles.pdfs).toEqual([]);
+  });
 });

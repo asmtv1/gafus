@@ -51,6 +51,20 @@ export function mapMetaToTrainingDaysResponse(
   meta: OfflineCourseMeta,
   getStepState: GetStepState,
 ): TrainingDaysResponse {
+  // Гайд: только описание + guideContent, без дней
+  if (meta.isGuide && meta.guideContent) {
+    return {
+      trainingDays: [],
+      courseDescription: meta.course.description ?? "",
+      courseId: meta.course.id,
+      courseVideoUrl: meta.course.videoUrl ?? "",
+      courseEquipment: meta.course.equipment ?? "",
+      courseTrainingLevel: meta.course.trainingLevel ?? "",
+      isGuide: true,
+      guideContent: meta.guideContent,
+    };
+  }
+
   const courseId = meta.course.id;
 
   // Предварительно вычисляем статусы всех дней для isLocked summary (как на web)

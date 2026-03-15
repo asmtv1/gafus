@@ -28,6 +28,7 @@ model Course {
   showInProfile  Boolean          @default(true)
   priceRub       Decimal?         @db.Decimal(10, 2)
   isPersonalized Boolean          @default(false)
+  guideContent   String?           @db.Text
   awards         Award[]
   author         User             @relation(fields: [authorId], references: [id])
   access         CourseAccess[]
