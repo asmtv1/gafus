@@ -6,9 +6,9 @@ prometheus.remote_write "yc" {
 
     queue_config {
       max_samples_per_send = 2000
-      batch_send_deadline  = "15s"
+      batch_send_deadline  = "60s"
       min_backoff          = "100ms"
-      max_backoff          = "15s"
+      max_backoff          = "60s"
     }
 
     metadata_config {
@@ -28,7 +28,7 @@ prometheus.scrape "node_exporter" {
     instance    = "gafus-server",
     job         = "node-exporter",
   }]
-  scrape_interval = "15s"
+  scrape_interval = "60s"
   forward_to      = [prometheus.relabel.node_filter.receiver]
 }
 
@@ -47,7 +47,7 @@ prometheus.scrape "postgres_exporter" {
     instance    = "gafus-postgres",
     job         = "postgres-exporter",
   }]
-  scrape_interval = "15s"
+  scrape_interval = "60s"
   forward_to      = [prometheus.remote_write.yc.receiver]
 }
 
@@ -63,7 +63,7 @@ prometheus.scrape "services_health" {
   ]
   metrics_path    = "/probe"
   params          = { module = ["http_2xx"] }
-  scrape_interval = "15s"
+  scrape_interval = "60s"
   forward_to      = [prometheus.remote_write.yc.receiver]
 
   clustering {
@@ -78,6 +78,6 @@ prometheus.scrape "bullmq_queues" {
     job         = "bullmq-queues",
   }]
   metrics_path    = "/metrics"
-  scrape_interval = "15s"
+  scrape_interval = "60s"
   forward_to      = [prometheus.remote_write.yc.receiver]
 }

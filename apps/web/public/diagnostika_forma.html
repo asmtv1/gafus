@@ -119,22 +119,24 @@
       line-height: 1.4;
     }
 
-    .opts { display: flex; flex-direction: column; gap: 8px; }
+    .opts { display: flex; flex-direction: column; gap: 10px; }
 
     .opt {
       display: flex;
       align-items: flex-start;
       gap: 12px;
-      padding: 12px 14px;
-      border: 1px solid var(--border);
+      padding: 14px 16px;
+      border: 1.5px solid rgba(99, 97, 40, 0.25);
       border-radius: var(--radius);
+      background: rgba(255, 248, 229, 0.6);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
       cursor: pointer;
       transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
     }
     .opt:hover {
-      border-color: var(--border-hover);
+      border-color: rgba(99, 97, 40, 0.45);
       background: var(--accent);
-      box-shadow: var(--shadow-soft);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
     .opt.selected {
       border-color: var(--primary);
