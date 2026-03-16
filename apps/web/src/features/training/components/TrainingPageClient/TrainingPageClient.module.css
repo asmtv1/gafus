@@ -185,16 +185,15 @@
   }
 }
 
-/* Гайд — iframe с HTML-контентом */
+/* Гайд — встроенный HTML в Shadow DOM (единый скролл) */
 .guideWrapper {
   margin-top: 24px;
   width: 100%;
 }
 
-.guideIframe {
+.guideEmbed {
   width: 100%;
-  min-height: 600px;
-  border: none;
   display: block;
-  background: var(--bg-1, #dad3c1);
+  border: none;
+  background: transparent;
 }

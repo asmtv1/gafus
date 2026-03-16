@@ -28,7 +28,7 @@ import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
 import { showLockedDayAlert, WEB_BASE } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
-import { wrapInFullHtml } from "@/shared/lib/training/wrapInFullHtml";
+import { wrapInFullHtmlWithReadySignal } from "@/shared/lib/training/wrapInFullHtml";
 
 /**
  * Экран списка дней тренировок курса
@@ -69,6 +69,10 @@ export default function TrainingDaysScreen() {
   const [petNameIns, setPetNameIns] = useState("");
   const [petNamePre, setPetNamePre] = useState("");
   const [isSavingPersonalization, setIsSavingPersonalization] = useState(false);
+  const [guideReady, setGuideReady] = useState(false);
+  useEffect(() => {
+    setGuideReady(false);
+  }, [courseData?.guideContent]);
   const hasHandledPaymentReturnRef = useRef(false);
 
   const isAccessDenied =
@@ -791,7 +795,7 @@ export default function TrainingDaysScreen() {
     );
   }
 
-  // Гайд: описание + WebView с HTML
+  // Гайд: описание + WebView с HTML (спиннер до полной загрузки, как на web)
   if (courseData?.isGuide && courseData?.guideContent) {
     return (
       <>
@@ -823,9 +827,22 @@ export default function TrainingDaysScreen() {
               />
             )}
             <View style={styles.guideWebViewContainer}>
+              {!guideReady && (
+                <View style={styles.guideSpinnerOverlay} pointerEvents="none">
+                  <ActivityIndicator size="large" color={COLORS.primary} />
+                </View>
+              )}
               <WebView
-                source={{ html: wrapInFullHtml(courseData.guideContent) }}
-                style={styles.guideWebView}
+                source={{ html: wrapInFullHtmlWithReadySignal(courseData.guideContent) }}
+                style={[styles.guideWebView, !guideReady && styles.guideWebViewHidden]}
+                onMessage={(e) => {
+                  try {
+                    const data = JSON.parse(e.nativeEvent.data);
+                    if (data?.type === "gafus:guide-ready") setGuideReady(true);
+                  } catch {
+                    /* ignore */
+                  }
+                }}
               />
             </View>
           </ScrollView>
@@ -1293,11 +1310,22 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
     marginTop: SPACING.md,
     minHeight: 600,
+    position: "relative",
+  },
+  guideSpinnerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
   },
   guideWebView: {
     flex: 1,
     width: "100%",
     backgroundColor: "#fff",
+  },
+  guideWebViewHidden: {
+    opacity: 0,
   },
   planTitle: {
     color: "#352E2E",

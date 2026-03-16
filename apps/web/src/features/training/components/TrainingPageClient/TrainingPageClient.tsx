@@ -13,6 +13,7 @@ import { showPersonalizationAlert } from "@shared/utils/sweetAlert";
 import { getDeclinedName } from "@shared/lib/training/getDeclinedName";
 import { saveCoursePersonalization } from "@shared/lib/training/saveCoursePersonalization";
 import CourseDescriptionWithVideo from "../CourseDescriptionWithVideo";
+import GuideContentEmbed from "../GuideContentEmbed";
 import TrainingDayList from "../TrainingDayList";
 
 import styles from "./TrainingPageClient.module.css";
@@ -369,11 +370,9 @@ export default function TrainingPageClient({
           />
         </div>
         <div className={styles.guideWrapper}>
-          <iframe
-            srcDoc={initialData.guideContent}
-            title="Контент гайда"
-            className={styles.guideIframe}
-            sandbox="allow-scripts"
+          <GuideContentEmbed
+            content={initialData.guideContent}
+            className={styles.guideEmbed}
           />
         </div>
       </>

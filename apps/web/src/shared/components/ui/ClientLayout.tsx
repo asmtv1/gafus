@@ -6,58 +6,40 @@ import { setupGlobalErrorHandling } from "@shared/lib/global-error-handler";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 
+import styles from "./ClientLayout.module.css";
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
+    // Страница курса: гайд имеет свой оверлей, обычный курс стримится с сервера — без глобального спиннера
+    const isCourseMainPage = /^\/trainings\/[^/]+$/.test(pathname ?? "");
+    if (isCourseMainPage) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const timeout = setTimeout(() => setLoading(false), 400);
     return () => clearTimeout(timeout);
   }, [pathname]);
 
-  // Настройка глобального отлова ошибок
   useEffect(() => {
-    // Настраиваем обработку ошибок
     setupGlobalErrorHandling();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- однажды при монтировании
 
   return (
     <CSRFProvider>
-      <div style={{ position: "relative" }}>
+      <div className={styles.container}>
         {loading && (
           <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              backdropFilter: "blur(4px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 9999,
-              pointerEvents: "none",
-            }}
+            className={styles.overlay}
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+            aria-label="Загрузка"
           >
-            <div
-              style={{
-                width: "48px",
-                height: "48px",
-                border: "6px solid #ccc",
-                borderTop: "6px solid #333",
-                borderRadius: "50%",
-                animation: "spin 1s linear infinite",
-              }}
-            />
-            <style>{`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}</style>
+            <div className={styles.spinner} aria-hidden="true" />
           </div>
         )}
 
