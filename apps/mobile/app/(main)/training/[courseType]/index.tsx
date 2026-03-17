@@ -8,6 +8,7 @@ import {
   Share,
   ActivityIndicator,
   Linking,
+  Platform,
 } from "react-native";
 import { Text, Surface, Snackbar, TextInput } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -70,9 +71,20 @@ export default function TrainingDaysScreen() {
   const [petNamePre, setPetNamePre] = useState("");
   const [isSavingPersonalization, setIsSavingPersonalization] = useState(false);
   const [guideReady, setGuideReady] = useState(false);
+  const [guideHeight, setGuideHeight] = useState<number>(600);
   useEffect(() => {
     setGuideReady(false);
+    setGuideHeight(600);
   }, [courseData?.guideContent]);
+
+  // Fallback: если postMessage не пришёл, скрываем спиннер через 3 с (паритет с web/Safari)
+  useEffect(() => {
+    if (!courseData?.isGuide || !courseData?.guideContent || guideReady) return;
+    const t = setTimeout(() => {
+      setGuideReady(true);
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [courseData?.isGuide, courseData?.guideContent, guideReady]);
   const hasHandledPaymentReturnRef = useRef(false);
 
   const isAccessDenied =
@@ -795,7 +807,7 @@ export default function TrainingDaysScreen() {
     );
   }
 
-  // Гайд: описание + WebView с HTML (спиннер до полной загрузки, как на web)
+  // Гайд: без ScrollView — WebView заполняет экран и прокручивает свой HTML (избегаем конфликта жестов).
   if (courseData?.isGuide && courseData?.guideContent) {
     return (
       <>
@@ -812,21 +824,19 @@ export default function TrainingDaysScreen() {
             <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
             <Text style={styles.backText}>Назад</Text>
           </Pressable>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
-          >
+          <View style={styles.guideContent}>
             <Text style={styles.contentTitle}>Содержание</Text>
-            {courseData.courseDescription && (
+            {(courseData.courseDescription || courseData.courseVideoUrl) && (
               <CourseDescription
                 description={courseData.courseDescription}
                 equipment={courseData.courseEquipment}
                 trainingLevel={courseData.courseTrainingLevel}
+                videoUrl={courseData.courseVideoUrl}
                 onShare={handleShareCourse}
                 courseType={courseType}
               />
             )}
-            <View style={styles.guideWebViewContainer}>
+            <View style={styles.guideWebViewWrapper}>
               {!guideReady && (
                 <View style={styles.guideSpinnerOverlay} pointerEvents="none">
                   <ActivityIndicator size="large" color={COLORS.primary} />
@@ -835,17 +845,26 @@ export default function TrainingDaysScreen() {
               <WebView
                 source={{ html: wrapInFullHtmlWithReadySignal(courseData.guideContent) }}
                 style={[styles.guideWebView, !guideReady && styles.guideWebViewHidden]}
+                scrollEnabled={true}
+                nestedScrollEnabled={true}
                 onMessage={(e) => {
                   try {
                     const data = JSON.parse(e.nativeEvent.data);
                     if (data?.type === "gafus:guide-ready") setGuideReady(true);
+                    if (
+                      data?.type === "gafus:guide-height" &&
+                      typeof data.height === "number" &&
+                      data.height > 0
+                    ) {
+                      setGuideHeight(data.height);
+                    }
                   } catch {
                     /* ignore */
                   }
                 }}
               />
             </View>
-          </ScrollView>
+          </View>
         </SafeAreaView>
       </>
     );
@@ -1305,11 +1324,27 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
   },
-  guideWebViewContainer: {
+  guideContent: {
+    flex: 1,
+    paddingTop: SPACING.md,
+  },
+  guideWebViewWrapper: {
     flex: 1,
     marginHorizontal: SPACING.md,
     marginTop: SPACING.md,
-    minHeight: 600,
+    position: "relative",
+  },
+  guideScrollView: {
+    flex: 1,
+  },
+  guideScrollContent: {
+    paddingBottom: SPACING.xl,
+    paddingHorizontal: 0,
+    paddingTop: SPACING.md,
+  },
+  guideWebViewContainer: {
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
     position: "relative",
   },
   guideSpinnerOverlay: {

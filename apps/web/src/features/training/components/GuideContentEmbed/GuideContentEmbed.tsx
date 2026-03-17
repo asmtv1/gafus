@@ -1,19 +1,22 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const MSG_TYPE = "gafus:guide-height";
 
 /**
- * Добавляет скрипт в srcdoc с двумя замерами высоты:
- * - сразу при load (быстрый первый замер)
- * - после fonts.ready (финальный — когда шрифты загружены и layout стабилен)
+ * Добавляет скрипт в srcdoc для замера высоты.
+ * Safari: load и document.fonts.ready в srcdoc iframe могут не срабатывать,
+ * поэтому добавлен немедленный вызов и DOMContentLoaded.
  */
 function injectHeightScript(html: string): string {
   const script = `<script>
     function reportHeight() {
-      parent.postMessage({ type: "${MSG_TYPE}", height: document.documentElement.scrollHeight }, "*");
+      var h = document.documentElement.scrollHeight;
+      if (h > 0) parent.postMessage({ type: "${MSG_TYPE}", height: h }, "*");
     }
+    reportHeight();
+    document.addEventListener("DOMContentLoaded", reportHeight);
     window.addEventListener("load", reportHeight);
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(reportHeight);
@@ -38,22 +41,66 @@ interface GuideContentEmbedProps {
 export default function GuideContentEmbed({ content, className }: GuideContentEmbedProps) {
   const [height, setHeight] = useState(0);
   const [ready, setReady] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const srcDoc = useCallback(() => injectHeightScript(content), [content])();
+
+  const applyHeight = useCallback((h: number) => {
+    if (h > 0) {
+      setHeight(h);
+      setReady(true);
+    }
+  }, []);
 
   useEffect(() => {
     setHeight(0);
     setReady(false);
 
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === MSG_TYPE && typeof e.data.height === "number" && e.data.height > 0) {
-        setHeight(e.data.height);
-        setReady(true);
+      if (e.data?.type === MSG_TYPE && typeof e.data.height === "number") {
+        applyHeight(e.data.height);
       }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [content]);
+  }, [content, applyHeight]);
+
+  // Fallback для Safari: читаем высоту из contentDocument при onLoad iframe (srcdoc — same-origin).
+  // Safari может вызвать onLoad до завершения layout — повторяем через rAF и 100ms.
+  const handleIframeLoad = useCallback(() => {
+    if (ready) return;
+    const tryRead = () => {
+      try {
+        const doc = iframeRef.current?.contentDocument;
+        const h = doc?.documentElement?.scrollHeight ?? 0;
+        if (h > 0) applyHeight(h);
+      } catch {
+        /* same-origin для srcdoc */
+      }
+    };
+    tryRead();
+    requestAnimationFrame(() => {
+      tryRead();
+      setTimeout(tryRead, 100);
+    });
+  }, [ready, applyHeight]);
+
+  // Таймаут: если postMessage и onLoad не сработали (Safari Cmd+R), скрываем спиннер через 3 с
+  useEffect(() => {
+    if (ready) return;
+    const t = setTimeout(() => {
+      try {
+        const doc = iframeRef.current?.contentDocument;
+        const h = doc?.documentElement?.scrollHeight ?? 600;
+        setHeight(h > 0 ? h : 600);
+        setReady(true);
+      } catch {
+        setHeight(600);
+        setReady(true);
+      }
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [content, ready]);
 
   return (
     <div style={{ position: "relative", minHeight: ready ? undefined : "100vh" }}>
@@ -88,6 +135,7 @@ export default function GuideContentEmbed({ content, className }: GuideContentEm
         </div>
       )}
       <iframe
+        ref={iframeRef}
         srcDoc={srcDoc}
         title="Контент гайда"
         className={className}
@@ -97,6 +145,7 @@ export default function GuideContentEmbed({ content, className }: GuideContentEm
           opacity: ready ? 1 : 0,
         }}
         sandbox="allow-scripts"
+        onLoad={handleIframeLoad}
       />
     </div>
   );

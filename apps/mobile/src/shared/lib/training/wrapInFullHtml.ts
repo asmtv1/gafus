@@ -1,15 +1,27 @@
 const GUIDE_READY_MSG = "gafus:guide-ready";
+const GUIDE_HEIGHT_MSG = "gafus:guide-height";
 
 /**
  * Скрипт для WebView: после load + fonts.ready отправляет postMessage в React Native.
  * Поведение как на web (GuideContentEmbed) — спиннер до полной загрузки шрифтов.
+ * Дополнительно отправляет height для динамической высоты WebView (паритет с web, без двойного скролла).
  */
 const READY_SCRIPT = `
 (function() {
-  function report() {
+  function reportHeight() {
+    var h = document.documentElement.scrollHeight;
+    if (h > 0 && window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: "${GUIDE_HEIGHT_MSG}", height: h }));
+    }
+  }
+  function reportReady() {
     if (window.ReactNativeWebView) {
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: "${GUIDE_READY_MSG}" }));
     }
+  }
+  function report() {
+    reportHeight();
+    reportReady();
   }
   if (document.readyState === "complete") {
     if (document.fonts && document.fonts.ready) {

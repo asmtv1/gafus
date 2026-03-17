@@ -1,15 +1,20 @@
-import { useState, useCallback } from "react";
-import { View, StyleSheet, Pressable } from "react-native";
+import { useState, useCallback, useMemo } from "react";
+import { View, StyleSheet, Pressable, Linking } from "react-native";
 import { Text, Surface } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { WebView } from "react-native-webview";
 
-import { MarkdownText } from "@/shared/components";
+import { MarkdownText, VideoPlayer } from "@/shared/components";
+import { useVideoUrl } from "@/shared/hooks";
+import { getEmbeddedVideoInfo } from "@gafus/core/utils";
 import { COLORS, SPACING } from "@/constants";
 
 interface CourseDescriptionProps {
   description: string | null;
   equipment?: string | null;
   trainingLevel?: string | null;
+  /** URL видео презентации курса (как на web) */
+  videoUrl?: string | null;
   /** Кнопка «Поделиться» внутри блока описания (как на web) */
   onShare?: () => void;
   courseType?: string;
@@ -29,10 +34,15 @@ export function CourseDescription({
   description,
   equipment,
   trainingLevel,
+  videoUrl,
   onShare,
   courseType,
 }: CourseDescriptionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [videoUrl]);
+  const { url: playbackUrl, isLoading: isLoadingVideo, error: videoError } = useVideoUrl(
+    videoInfo?.isCDN || videoInfo?.isHLS ? videoUrl ?? null : null,
+  );
 
   const handleToggle = useCallback(() => {
     setIsExpanded((prev) => !prev);
@@ -43,7 +53,8 @@ export function CourseDescription({
     return LEVEL_LABELS[level] || level;
   };
 
-  if (!description) return null;
+  const hasContent = !!description || !!videoUrl;
+  if (!hasContent) return null;
 
   return (
     <View style={styles.container}>
@@ -68,7 +79,40 @@ export function CourseDescription({
         <View style={styles.content}>
           <Surface style={styles.contentSurface} elevation={1}>
             <View style={styles.markdownContainer}>
-              <MarkdownText text={description} />
+              {description ? <MarkdownText text={description} /> : null}
+
+              {videoUrl && videoInfo && (
+                <View style={styles.videoSection}>
+                  <Text variant="titleSmall" style={styles.videoTitle}>
+                    Видео презентация курса:
+                  </Text>
+                  {(videoInfo.isCDN || videoInfo.isHLS) ? (
+                    isLoadingVideo ? (
+                      <View style={styles.videoLoading}>
+                        <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
+                      </View>
+                    ) : videoError ? null : playbackUrl ? (
+                      <VideoPlayer uri={playbackUrl} />
+                    ) : null
+                  ) : videoInfo.embedUrl ? (
+                    <Pressable
+                      style={({ pressed }) => [styles.videoLinkButton, pressed && styles.videoLinkPressed]}
+                      onPress={() => videoUrl && Linking.openURL(videoUrl)}
+                    >
+                      <MaterialCommunityIcons name="play-circle-outline" size={24} color={COLORS.primary} />
+                      <Text style={styles.videoLinkText}>Смотреть видео</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      style={({ pressed }) => [styles.videoLinkButton, pressed && styles.videoLinkPressed]}
+                      onPress={() => videoUrl && Linking.openURL(videoUrl)}
+                    >
+                      <MaterialCommunityIcons name="open-in-new" size={24} color={COLORS.primary} />
+                      <Text style={styles.videoLinkText}>Открыть видео</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
 
               {(equipment || trainingLevel) && (
                 <View style={styles.courseInfo}>
@@ -210,6 +254,44 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   shareButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#352E2E",
+  },
+  videoSection: {
+    marginTop: SPACING.md,
+  },
+  videoTitle: {
+    fontWeight: "600",
+    color: "#352E2E",
+    marginBottom: SPACING.sm,
+  },
+  videoLoading: {
+    aspectRatio: 16 / 9,
+    backgroundColor: "#e0e0e0",
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  videoLoadingText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  videoLinkButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#F5F0E8",
+    borderWidth: 2,
+    borderColor: "#D4C4A8",
+    borderRadius: 12,
+  },
+  videoLinkPressed: {
+    opacity: 0.9,
+  },
+  videoLinkText: {
     fontSize: 15,
     fontWeight: "600",
     color: "#352E2E",
