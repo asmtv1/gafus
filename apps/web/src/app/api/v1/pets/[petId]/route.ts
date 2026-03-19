@@ -5,6 +5,7 @@ import type { NextRequest} from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
+import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError, NotFoundError } from "@gafus/core/errors";
 import { z } from "zod";
@@ -26,7 +27,7 @@ type RouteContext = {
   params: Promise<{ petId: string }>;
 };
 
-export async function PUT(request: NextRequest, context: RouteContext) {
+async function putHandler(request: NextRequest, context: RouteContext) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -79,7 +80,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(request: NextRequest, context: RouteContext) {
+async function deleteHandler(request: NextRequest, context: RouteContext) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -113,3 +114,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     );
   }
 }
+
+export const PUT = withCSRFProtection(putHandler);
+export const DELETE = withCSRFProtection(deleteHandler);

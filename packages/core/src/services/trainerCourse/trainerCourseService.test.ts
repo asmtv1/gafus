@@ -173,7 +173,7 @@ describe("createCourse", () => {
     );
   });
 
-  it("creates guide course with guideContent and no dayLinks", async () => {
+  it("creates course with empty trainingDays: guideContent null and empty dayLinks", async () => {
     const result = await createCourse(
       {
         id: "guide-1",
@@ -187,8 +187,6 @@ describe("createCourse", () => {
         priceRub: null,
         showInProfile: true,
         isPersonalized: false,
-        isGuide: true,
-        guideContent: "<p>HTML контент гайда</p>",
         trainingDays: [],
         allowedUsers: [],
         equipment: "",
@@ -201,7 +199,7 @@ describe("createCourse", () => {
     expect(mockCourseCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          guideContent: "<p>HTML контент гайда</p>",
+          guideContent: null,
           dayLinks: { create: [] },
         }),
       }),
@@ -316,10 +314,13 @@ describe("updateCourse", () => {
     expect(result.error).toBeDefined();
   });
 
-  it("updates guide course: deletes dayLinks, sets guideContent", async () => {
-    mockDayOnCourseDeleteMany.mockResolvedValue({ count: 2 });
+  it("update with empty trainingDays removes all existing day links", async () => {
+    mockDayOnCourseFindMany.mockResolvedValue([
+      { id: "link-1", dayId: "day-old", order: 1 },
+    ]);
+    mockDayOnCourseDeleteMany.mockResolvedValue({ count: 1 });
+    mockDayOnCourseUpdate.mockResolvedValue({});
     mockCourseAccessDeleteMany.mockResolvedValue({});
-    mockCourseAccessCreateMany.mockResolvedValue({});
 
     const result = await updateCourse({
       id: "guide-1",
@@ -330,29 +331,27 @@ describe("updateCourse", () => {
       logoImg: "",
       isPublic: true,
       isPaid: false,
-      isGuide: true,
-      guideContent: "<p>HTML контент</p>",
       trainingDays: [],
       equipment: "",
-      trainingLevel: "beginner",
+      trainingLevel: "BEGINNER",
     });
 
     expect(result.success).toBe(true);
     expect(mockDayOnCourseDeleteMany).toHaveBeenCalledWith({
-      where: { courseId: "guide-1" },
+      where: { id: { in: ["link-1"] } },
     });
     expect(mockCourseUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "guide-1" },
         data: expect.objectContaining({
-          guideContent: "<p>HTML контент</p>",
+          guideContent: null,
           name: "Мини-гайд",
         }),
       }),
     );
   });
 
-  it("switches from guide to training: clears guideContent, manages dayLinks", async () => {
+  it("update with trainingDays creates links and keeps guideContent null", async () => {
     mockDayOnCourseFindMany.mockResolvedValue([]);
     mockDayOnCourseCreateMany.mockResolvedValue({});
     mockCourseAccessDeleteMany.mockResolvedValue({});
@@ -366,11 +365,9 @@ describe("updateCourse", () => {
       logoImg: "",
       isPublic: true,
       isPaid: false,
-      isGuide: false,
-      guideContent: null,
       trainingDays: ["day1"],
       equipment: "",
-      trainingLevel: "beginner",
+      trainingLevel: "BEGINNER",
     });
 
     expect(result.success).toBe(true);

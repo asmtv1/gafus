@@ -2,26 +2,42 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import {
   createPayment,
+  createArticlePayment,
   confirmPaymentFromWebhook,
   cancelPaymentFromWebhook,
   refundPaymentFromWebhook,
+  getUserIdByYookassaPaymentId,
 } from "./paymentService";
 
 const mockCourseFindUnique = vi.fn();
 const mockCourseAccessFindUnique = vi.fn();
+const mockArticleFindUnique = vi.fn();
+const mockArticleAccessFindUnique = vi.fn();
 const mockPaymentFindFirst = vi.fn();
 const mockPaymentCreate = vi.fn();
 const mockPaymentUpdate = vi.fn();
+const mockArticlePaymentFindFirst = vi.fn();
+const mockArticlePaymentCreate = vi.fn();
 const mockCourseAccessUpsert = vi.fn();
 const mockCourseAccessDelete = vi.fn();
+const mockArticleAccessUpsert = vi.fn();
+const mockArticleAccessDelete = vi.fn();
+const mockArticlePaymentUpdate = vi.fn();
 
 const txStub = {
   courseAccess: {
     upsert: (...args: unknown[]) => mockCourseAccessUpsert(...args),
     delete: (...args: unknown[]) => mockCourseAccessDelete(...args),
   },
+  articleAccess: {
+    upsert: (...args: unknown[]) => mockArticleAccessUpsert(...args),
+    delete: (...args: unknown[]) => mockArticleAccessDelete(...args),
+  },
   payment: {
     update: (...args: unknown[]) => mockPaymentUpdate(...args),
+  },
+  articlePayment: {
+    update: (...args: unknown[]) => mockArticlePaymentUpdate(...args),
   },
 };
 
@@ -34,13 +50,24 @@ vi.mock("@gafus/prisma", () => ({
     course: {
       findUnique: (...args: unknown[]) => mockCourseFindUnique(...args),
     },
+    article: {
+      findUnique: (...args: unknown[]) => mockArticleFindUnique(...args),
+    },
     courseAccess: {
       findUnique: (...args: unknown[]) => mockCourseAccessFindUnique(...args),
+    },
+    articleAccess: {
+      findUnique: (...args: unknown[]) => mockArticleAccessFindUnique(...args),
     },
     payment: {
       findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
       create: (...args: unknown[]) => mockPaymentCreate(...args),
       update: (...args: unknown[]) => mockPaymentUpdate(...args),
+    },
+    articlePayment: {
+      findFirst: (...args: unknown[]) => mockArticlePaymentFindFirst(...args),
+      create: (...args: unknown[]) => mockArticlePaymentCreate(...args),
+      update: (...args: unknown[]) => mockArticlePaymentUpdate(...args),
     },
     $transaction: (fn: (tx: unknown) => Promise<unknown>) =>
       mockTransaction(fn),
@@ -54,6 +81,10 @@ vi.mock("@gafus/logger", () => ({
     error: vi.fn(),
     success: vi.fn(),
   }),
+}));
+
+vi.mock("../oferta/ofertaAcceptanceService", () => ({
+  recordOfertaAcceptance: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 const baseParams = {
@@ -191,6 +222,7 @@ describe("confirmPaymentFromWebhook", () => {
 
   it("returns early when payment not found", async () => {
     mockPaymentFindFirst.mockResolvedValue(null);
+    mockArticlePaymentFindFirst.mockResolvedValue(null);
 
     await confirmPaymentFromWebhook("yoo-nonexistent");
 
@@ -224,6 +256,22 @@ describe("confirmPaymentFromWebhook", () => {
     expect(mockCourseAccessUpsert).toHaveBeenCalled();
     expect(mockPaymentUpdate).toHaveBeenCalled();
   });
+
+  it("подтверждает платёж статьи и выдаёт доступ", async () => {
+    mockPaymentFindFirst.mockResolvedValue(null);
+    mockArticlePaymentFindFirst.mockResolvedValue({
+      id: "ap1",
+      userId: "u1",
+      articleId: "art1",
+      amountRub: 500,
+    });
+
+    await confirmPaymentFromWebhook("yoo-article", "500.00");
+
+    expect(mockTransaction).toHaveBeenCalled();
+    expect(mockArticleAccessUpsert).toHaveBeenCalled();
+    expect(mockArticlePaymentUpdate).toHaveBeenCalled();
+  });
 });
 
 describe("cancelPaymentFromWebhook", () => {
@@ -234,10 +282,12 @@ describe("cancelPaymentFromWebhook", () => {
 
   it("returns early when payment not found", async () => {
     mockPaymentFindFirst.mockResolvedValue(null);
+    mockArticlePaymentFindFirst.mockResolvedValue(null);
 
     await cancelPaymentFromWebhook("yoo-nonexistent");
 
     expect(mockPaymentUpdate).not.toHaveBeenCalled();
+    expect(mockArticlePaymentUpdate).not.toHaveBeenCalled();
   });
 
   it("updates status to CANCELED when payment found", async () => {
@@ -252,17 +302,33 @@ describe("cancelPaymentFromWebhook", () => {
       }),
     );
   });
+
+  it("отменяет pending-платёж статьи", async () => {
+    mockPaymentFindFirst.mockResolvedValue(null);
+    mockArticlePaymentFindFirst.mockResolvedValue({ id: "ap1" });
+
+    await cancelPaymentFromWebhook("yoo-article");
+
+    expect(mockArticlePaymentUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "ap1" },
+        data: { status: "CANCELED" },
+      }),
+    );
+  });
 });
 
 describe("refundPaymentFromWebhook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCourseAccessDelete.mockResolvedValue({});
+    mockArticleAccessDelete.mockResolvedValue({});
     mockPaymentUpdate.mockResolvedValue({});
   });
 
   it("returns early when payment not found", async () => {
     mockPaymentFindFirst.mockResolvedValue(null);
+    mockArticlePaymentFindFirst.mockResolvedValue(null);
 
     await refundPaymentFromWebhook("yoo-nonexistent");
 
@@ -281,5 +347,113 @@ describe("refundPaymentFromWebhook", () => {
     expect(mockTransaction).toHaveBeenCalled();
     expect(mockCourseAccessDelete).toHaveBeenCalled();
     expect(mockPaymentUpdate).toHaveBeenCalled();
+  });
+
+  it("возврат по платежу статьи: удаляет доступ и статус REFUNDED", async () => {
+    mockPaymentFindFirst.mockResolvedValue(null);
+    mockArticlePaymentFindFirst.mockResolvedValue({
+      id: "ap1",
+      userId: "u1",
+      articleId: "art1",
+    });
+
+    await refundPaymentFromWebhook("yoo-article-refund");
+
+    expect(mockTransaction).toHaveBeenCalled();
+    expect(mockArticleAccessDelete).toHaveBeenCalled();
+    expect(mockArticlePaymentUpdate).toHaveBeenCalled();
+  });
+});
+
+const articlePayBase = {
+  userId: "user-1",
+  articleId: "article-1",
+  returnUrl: "https://example.com/return",
+  shopId: "shop",
+  secretKey: "key",
+};
+
+describe("createArticlePayment", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockArticleFindUnique.mockResolvedValue({
+      id: "article-1",
+      slug: "my-article",
+      visibility: "PAID",
+      priceRub: 300,
+    });
+    mockArticleAccessFindUnique.mockResolvedValue(null);
+    mockArticlePaymentFindFirst.mockResolvedValue(null);
+    mockArticlePaymentCreate.mockResolvedValue({ id: "ap-new" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            id: "yoo-art",
+            confirmation: { confirmation_url: "https://yookassa.ru/a" },
+          }),
+      }),
+    );
+  });
+
+  it("ошибка если нет returnUrl и origin", async () => {
+    const result = await createArticlePayment({
+      ...articlePayBase,
+      returnUrl: undefined,
+      origin: undefined,
+    } as Parameters<typeof createArticlePayment>[0]);
+
+    expect(result.success).toBe(false);
+    expect(mockArticleFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("ошибка если статья не найдена", async () => {
+    mockArticleFindUnique.mockResolvedValue(null);
+
+    const result = await createArticlePayment(articlePayBase);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("не найдена");
+  });
+
+  it("успех: создаёт ArticlePayment и возвращает confirmationUrl", async () => {
+    const result = await createArticlePayment(articlePayBase);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.paymentId).toBe("ap-new");
+      expect(result.confirmationUrl).toBe("https://yookassa.ru/a");
+    }
+    expect(mockArticlePaymentCreate).toHaveBeenCalled();
+    expect(mockArticlePaymentUpdate).toHaveBeenCalled();
+  });
+});
+
+describe("getUserIdByYookassaPaymentId", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("возвращает userId из платежа курса", async () => {
+    mockPaymentFindFirst.mockResolvedValue({ userId: "u-course" });
+
+    await expect(getUserIdByYookassaPaymentId("y1")).resolves.toBe("u-course");
+    expect(mockArticlePaymentFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("возвращает userId из платежа статьи", async () => {
+    mockPaymentFindFirst.mockResolvedValue(null);
+    mockArticlePaymentFindFirst.mockResolvedValue({ userId: "u-article" });
+
+    await expect(getUserIdByYookassaPaymentId("y2")).resolves.toBe("u-article");
+  });
+
+  it("возвращает null если не найдено", async () => {
+    mockPaymentFindFirst.mockResolvedValue(null);
+    mockArticlePaymentFindFirst.mockResolvedValue(null);
+
+    await expect(getUserIdByYookassaPaymentId("none")).resolves.toBeNull();
   });
 });

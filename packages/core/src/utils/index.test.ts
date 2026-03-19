@@ -11,6 +11,10 @@ describe("utils barrel exports", () => {
     expect(typeof utils.declOfNum).toBe("function");
   });
 
+  it("exports transliterate", () => {
+    expect(typeof utils.transliterate).toBe("function");
+  });
+
   it("exports getAge and getAgeWithMonths from age", () => {
     expect(typeof utils.getAge).toBe("function");
     expect(typeof utils.getAgeWithMonths).toBe("function");

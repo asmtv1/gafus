@@ -14,6 +14,24 @@ const KEY_LEN = 32;
 const IV_LEN = 16;
 const SALT = "gafus-pending-confirm-v1";
 
+const DEV_FALLBACK_SECRET = "dev-secret-change-in-production";
+
+/**
+ * В production секрет обязателен — иначе все инстансы шифровали бы одинаково известным ключом.
+ */
+function getPendingConfirmSecret(): string {
+  const raw = process.env.PENDING_CONFIRM_SECRET?.trim();
+  if (process.env.NODE_ENV === "production") {
+    if (!raw) {
+      throw new Error(
+        "PENDING_CONFIRM_SECRET обязателен в production (cookie pending_confirm)",
+      );
+    }
+    return raw;
+  }
+  return raw || DEV_FALLBACK_SECRET;
+}
+
 /** Обход строгих CipherKey/BinaryLike в @types/node; Node в рантайме принимает Buffer. Один источник на границе (practice: typescript-advanced-types). */
 type GcmCipher = (
   alg: string,
@@ -34,8 +52,7 @@ function concatBuffers(list: Buffer[]): Buffer {
 }
 
 function getKey(): Buffer {
-  const secret = process.env.PENDING_CONFIRM_SECRET || "dev-secret-change-in-production";
-  return scryptSync(secret, SALT, KEY_LEN);
+  return scryptSync(getPendingConfirmSecret(), SALT, KEY_LEN);
 }
 
 function encrypt(plain: string): string {
