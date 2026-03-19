@@ -1,5 +1,13 @@
 import { useEffect, useCallback, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Linking,
+  ActivityIndicator,
+  Dimensions,
+} from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -10,7 +18,7 @@ import { WebView } from "react-native-webview";
 import Markdown from "react-native-markdown-display";
 
 import { articlesApi, paymentsApi } from "@/shared/lib/api";
-import { wrapArticleHtml, ARTICLE_HEIGHT_MSG } from "@/shared/lib/articles/wrapArticleHtml";
+import { wrapArticleHtml, ARTICLE_HEIGHT_MSG, ARTICLE_READY_MSG } from "@/shared/lib/articles/wrapArticleHtml";
 import { useAuthStore } from "@/shared/stores";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
@@ -34,9 +42,25 @@ export default function ArticleDetailScreen() {
 
   const toggleLikeMutation = useMutation({
     mutationFn: (articleId: string) => articlesApi.toggleLike(articleId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["article", slug] });
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+    onSuccess: (res, articleId) => {
+      void queryClient.invalidateQueries({ queryKey: ["article", slug] });
+      const newIsLiked = res?.data?.isLiked;
+      if (typeof newIsLiked !== "boolean") return;
+      const delta = newIsLiked ? 1 : -1;
+      queryClient.setQueryData(
+        ["articles"],
+        (old: { success?: boolean; data?: Array<{ id: string; likeCount: number; isLiked: boolean }> } | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((a) =>
+              a.id === articleId
+                ? { ...a, isLiked: newIsLiked, likeCount: Math.max(0, (a.likeCount ?? 0) + delta) }
+                : a,
+            ),
+          };
+        },
+      );
     },
   });
 
@@ -44,6 +68,7 @@ export default function ArticleDetailScreen() {
   const { user } = useAuthStore();
   const [payLoading, setPayLoading] = useState(false);
   const [htmlHeight, setHtmlHeight] = useState<number | null>(null);
+  const [webViewReady, setWebViewReady] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,7 +77,31 @@ export default function ArticleDetailScreen() {
 
   useEffect(() => {
     setHtmlHeight(null);
+    setWebViewReady(false);
   }, [article?.id]);
+
+  // Fallback: высота и ready, если postMessage не пришёл
+  useEffect(() => {
+    if (
+      !article ||
+      article.contentType === "TEXT" ||
+      article.content === null ||
+      htmlHeight != null
+    )
+      return;
+    const t = setTimeout(() => {
+      setHtmlHeight(800);
+      setWebViewReady(true);
+    }, 3500);
+    return () => clearTimeout(t);
+  }, [article?.id, article?.contentType, article?.content, htmlHeight]);
+
+  // Fallback: показать WebView, если postMessage так и не пришёл (4 с)
+  useEffect(() => {
+    if (!article || article.contentType === "TEXT" || article.content === null) return;
+    const t = setTimeout(() => setWebViewReady(true), 4000);
+    return () => clearTimeout(t);
+  }, [article?.id, article?.contentType, article?.content]);
 
   const handleLike = () => {
     if (article) toggleLikeMutation.mutate(article.id);
@@ -125,9 +174,10 @@ export default function ArticleDetailScreen() {
         </View>
 
         <Pressable
-          style={styles.likeButton}
+          style={({ pressed }) => [styles.likeButton, pressed && styles.likeButtonPressed]}
           onPress={handleLike}
           disabled={toggleLikeMutation.isPending}
+          hitSlop={12}
           accessibilityLabel={article.isLiked ? "Убрать лайк" : "Нравится"}
           accessibilityRole="button"
         >
@@ -136,7 +186,9 @@ export default function ArticleDetailScreen() {
             size={20}
             color={article.isLiked ? "#e63946" : COLORS.textSecondary}
           />
-          <Text style={styles.likeCount}>{article.likeCount}</Text>
+          <Text style={[styles.likeCount, article.isLiked && styles.likeCountLiked]}>
+            {article.likeCount}
+          </Text>
         </Pressable>
 
         {coverUrl && (
@@ -230,23 +282,52 @@ export default function ArticleDetailScreen() {
             <Markdown style={markdownStyles}>{article.content}</Markdown>
           </View>
         ) : (
-          <View style={[styles.webviewContainer, htmlHeight != null && { height: htmlHeight }]}>
-            <WebView
-              source={{ html: wrapArticleHtml(article.content ?? "") }}
-              style={styles.webview}
-              scrollEnabled={false}
-              originWhitelist={["*"]}
-              onMessage={(e) => {
-                try {
-                  const msg = JSON.parse(e.nativeEvent.data) as { type?: string; height?: number };
-                  if (msg.type === ARTICLE_HEIGHT_MSG && typeof msg.height === "number") {
-                    setHtmlHeight(msg.height);
+          <View style={styles.webviewWrapper}>
+            {!webViewReady && (
+              <View style={[styles.webviewSpinner, { height: Dimensions.get("window").height - 100 }]}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+              </View>
+            )}
+            <View
+              style={[
+                styles.webviewContainer,
+                {
+                  height: Dimensions.get("window").height - 100,
+                  opacity: webViewReady ? 1 : 0,
+                },
+              ]}
+            >
+              <WebView
+                key={article.id}
+                source={{ html: wrapArticleHtml(article.content ?? "") }}
+                style={[styles.webview, { flex: 1 }]}
+                scrollEnabled={true}
+                nestedScrollEnabled={true}
+                originWhitelist={["*"]}
+                onMessage={(e) => {
+                  try {
+                    const msg = JSON.parse(e.nativeEvent.data) as {
+                      type?: string;
+                      height?: number;
+                    };
+                    if (msg.type === ARTICLE_READY_MSG) {
+                      setTimeout(() => setWebViewReady(true), 100);
+                      if (typeof msg.height === "number" && msg.height > 0) {
+                        setHtmlHeight((prev) => Math.max(prev ?? 0, msg.height!));
+                      }
+                    } else if (
+                      msg.type === ARTICLE_HEIGHT_MSG &&
+                      typeof msg.height === "number" &&
+                      msg.height > 0
+                    ) {
+                      setHtmlHeight((prev) => Math.max(prev ?? 0, msg.height!));
+                    }
+                  } catch {
+                    /* ignore */
                   }
-                } catch {
-                  /* ignore */
-                }
-              }}
-            />
+                }}
+              />
+            </View>
           </View>
         )}
       </ScrollView>
@@ -308,14 +389,30 @@ const styles = StyleSheet.create({
   likeButton: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     marginBottom: SPACING.md,
     alignSelf: "flex-start",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    backgroundColor: "rgba(0, 0, 0, 0.06)",
+    borderRadius: 24,
+    minWidth: 96,
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.1)",
+  },
+  likeButtonPressed: {
+    opacity: 0.8,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
   },
   likeCount: {
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: "600",
     color: COLORS.textSecondary,
     fontFamily: FONTS.montserrat,
+  },
+  likeCountLiked: {
+    color: "#e63946",
   },
   coverFrame: {
     width: "100%",
@@ -401,16 +498,29 @@ const styles = StyleSheet.create({
   contentBlock: {
     marginBottom: SPACING.md,
   },
-  webviewContainer: {
+  webviewWrapper: {
+    position: "relative" as const,
+    marginBottom: SPACING.md,
+  },
+  webviewSpinner: {
+    position: "absolute" as const,
+    top: 0,
+    left: 0,
+    right: 0,
     minHeight: 200,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  webviewContainer: {
     marginBottom: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    overflow: "hidden",
+    overflow: "hidden" as const,
     backgroundColor: "#fff",
   },
   webview: {
-    flex: 1,
-    minHeight: 200,
+    width: "100%",
   },
   gallery: {
     flexDirection: "row",

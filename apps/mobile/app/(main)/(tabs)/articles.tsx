@@ -9,7 +9,7 @@ import { FlashList } from "@shopify/flash-list";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -54,60 +54,65 @@ const ArticleCard = memo(function ArticleCard({ article, onLike, isLikePending }
         )
       }
     >
-      <View style={styles.imageFrame}>
-        {coverUrl ? (
-          <Image
-            source={{ uri: coverUrl, cacheKey: `article-${article.id}` }}
-            style={styles.coverImage}
-            contentFit="cover"
-            recyclingKey={article.id}
-            accessibilityLabel={`Обложка статьи «${article.title}»`}
-          />
-        ) : (
-          <View style={styles.coverPlaceholder}>
-            <MaterialCommunityIcons
-              name="newspaper-variant-outline"
-              size={48}
-              color={COLORS.textSecondary}
+      <View style={styles.row}>
+        <View style={styles.logoBox}>
+          {coverUrl ? (
+            <Image
+              source={{ uri: coverUrl, cacheKey: `article-${article.id}` }}
+              style={styles.logoImage}
+              contentFit="cover"
+              recyclingKey={article.id}
+              accessibilityLabel={`Обложка статьи «${article.title}»`}
             />
-          </View>
-        )}
-        {article.visibility === "PAID" && (
-          <View style={styles.paidBadge}>
-            <Text style={styles.paidBadgeText}>Платная</Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={2}>
-          {article.title}
-        </Text>
-        <View style={styles.meta}>
-          <Pressable
-            onPress={handleLikePress}
-            disabled={isLikePending}
-            style={styles.likeButton}
-            accessibilityLabel={article.isLiked ? "Убрать лайк" : "Нравится"}
-            accessibilityRole="button"
-          >
-            <MaterialCommunityIcons
-              name={article.isLiked ? "heart" : "heart-outline"}
-              size={16}
-              color={article.isLiked ? "#e63946" : COLORS.textSecondary}
-            />
-            <Text style={styles.likeCount}>{article.likeCount}</Text>
-          </Pressable>
-          <Text style={styles.author} numberOfLines={1}>
-            {article.authorUsername}
+          ) : (
+            <View style={styles.logoPlaceholder}>
+              <MaterialCommunityIcons
+                name="newspaper-variant-outline"
+                size={32}
+                color={COLORS.textSecondary}
+              />
+            </View>
+          )}
+          {article.visibility === "PAID" && (
+            <View style={styles.paidBadge}>
+              <Text style={styles.paidBadgeText}>Платная</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.content}>
+          <Text style={styles.title} numberOfLines={2}>
+            {article.title}
           </Text>
-          <Text style={styles.views}>{formatViews(article.viewCount ?? 0)}</Text>
-          <Text style={styles.date}>
-            {new Date(article.createdAt).toLocaleDateString("ru-RU", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
-          </Text>
+          <View style={styles.meta}>
+            <View style={styles.metaCol}>
+              <Text style={styles.metaText}>{article.authorUsername}</Text>
+              <Text style={styles.metaText}>
+                {formatViews(article.viewCount ?? 0)}
+              </Text>
+              <Text style={styles.metaText}>
+                {new Date(article.createdAt).toLocaleDateString("ru-RU", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </Text>
+            </View>
+            <Pressable
+              style={({ pressed: p }) => [styles.likeButton, p && styles.likeButtonPressed]}
+              onPress={handleLikePress}
+              disabled={isLikePending}
+              hitSlop={8}
+              accessibilityLabel={article.isLiked ? "Убрать лайк" : "Нравится"}
+              accessibilityRole="button"
+            >
+              <MaterialCommunityIcons
+                name={article.isLiked ? "heart" : "heart-outline"}
+                size={14}
+                color={article.isLiked ? "#e63946" : "rgba(255,255,255,0.9)"}
+              />
+              <Text style={styles.likeButtonText}>{article.likeCount}</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Pressable>
@@ -116,6 +121,7 @@ const ArticleCard = memo(function ArticleCard({ article, onLike, isLikePending }
 
 export default function ArticlesScreen() {
   const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["articles"],
@@ -124,7 +130,14 @@ export default function ArticlesScreen() {
       if (!res.success) throw new Error(res.error ?? "Ошибка загрузки статей");
       return res;
     },
+    staleTime: 30_000,
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      void queryClient.invalidateQueries({ queryKey: ["articles"] });
+    }, [queryClient]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -136,7 +149,6 @@ export default function ArticlesScreen() {
   }, [refetch]);
 
   const articles = data?.data ?? [];
-  const queryClient = useQueryClient();
   const likeMutation = useMutation({
     mutationFn: (articleId: string) => articlesApi.toggleLike(articleId),
     onSuccess: () => {
@@ -186,7 +198,7 @@ export default function ArticlesScreen() {
           data={articles}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
-          overrideProps={{ estimatedItemSize: 200 }}
+          overrideProps={{ estimatedItemSize: 112 }}
           ListHeaderComponent={listHeader}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -226,33 +238,41 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   card: {
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.lg,
     overflow: "hidden",
     marginBottom: SPACING.md,
-    borderWidth: 2,
-    borderColor: COLORS.border,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+    position: "relative",
   },
   cardPressed: {
     opacity: 0.9,
   },
-  imageFrame: {
-    width: "100%",
-    aspectRatio: 280 / 160,
-    backgroundColor: COLORS.onPrimary,
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: SPACING.md,
+    gap: SPACING.md,
+  },
+  logoBox: {
+    width: 80,
+    height: 80,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: "#fff",
+    overflow: "hidden",
     position: "relative",
   },
-  coverImage: {
+  logoImage: {
     width: "100%",
     height: "100%",
   },
-  coverPlaceholder: {
-    flex: 1,
+  logoPlaceholder: {
+    width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#e8e3d2",
@@ -276,6 +296,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.5)",
+    alignSelf: "flex-start",
+  },
+  likeButtonPressed: {
+    opacity: 0.85,
+  },
+  likeButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#fff",
+    fontFamily: FONTS.montserrat,
+  },
+  metaText: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.9)",
+    fontFamily: FONTS.montserrat,
   },
   views: {
     fontSize: 12,
@@ -288,20 +329,39 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserrat,
   },
   content: {
-    padding: SPACING.md,
+    flex: 1,
+    minWidth: 0,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "400",
-    fontFamily: FONTS.impact,
-    color: "#352e2e",
+    fontSize: 15,
+    fontWeight: "700",
+    fontFamily: FONTS.montserrat,
+    color: "#fff",
     marginBottom: SPACING.xs,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   meta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  metaCol: {
+    flexDirection: "column",
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  metaDot: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
   },
   likeCount: {
     fontSize: 13,

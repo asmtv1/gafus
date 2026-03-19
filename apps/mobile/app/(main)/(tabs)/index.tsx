@@ -43,6 +43,7 @@ export default function CoursesScreen() {
     addToFavorites,
     removeFromFavorites,
     isFavorite,
+    favorites,
   } = useCourseStore();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -154,7 +155,7 @@ export default function CoursesScreen() {
 
   const renderCourseItem = useCallback(
     ({ item }: { item: Course }) => {
-      const courseIsFavorite = isFavorite(item.id) ?? item.isFavorite;
+      const courseIsFavorite = favorites.includes(item.id) || item.isFavorite;
       return (
         <CourseCard
           course={item}
@@ -164,7 +165,7 @@ export default function CoursesScreen() {
         />
       );
     },
-    [isFavorite, handleToggleFavorite, pendingIds],
+    [favorites, handleToggleFavorite, pendingIds],
   );
 
   const keyExtractor = useCallback((item: Course) => item.id, []);
@@ -218,6 +219,7 @@ export default function CoursesScreen() {
           data={filteredCourses}
           renderItem={renderCourseItem}
           keyExtractor={keyExtractor}
+          extraData={favorites}
           overrideProps={{ estimatedItemSize: 380 }}
           ListHeaderComponent={listHeader}
           contentContainerStyle={styles.listContent}

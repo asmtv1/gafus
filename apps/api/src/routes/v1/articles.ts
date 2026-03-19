@@ -22,7 +22,7 @@ articlesRoutes.get("/", async (c) => {
     const user = c.get("user");
     const result = await getArticles(user.id);
     return c.json(result, {
-      headers: { "Cache-Control": "private, max-age=60" },
+      headers: { "Cache-Control": "private, max-age=0, must-revalidate" },
     });
   } catch (error) {
     logger.error("Error in articles GET", error as Error);
