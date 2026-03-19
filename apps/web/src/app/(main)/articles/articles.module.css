@@ -14,11 +14,11 @@
 .articleCard {
   position: relative;
   list-style: none;
-  flex: 0 0 auto;
+  flex: 1 1 min(100%, 480px);
+  min-width: 0;
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  min-width: 320px;
   max-width: 480px;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -100,7 +100,7 @@
 .likeButton {
   position: absolute;
   bottom: 12px;
-  right: 4%;
+  right: 12px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -122,4 +122,35 @@
 .likeButton:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+/* Мобильная адаптация — компактная карточка без overflow */
+@media (max-width: 480px) {
+  .articleCard {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  .articleLogoBox {
+    width: 64px;
+    height: 64px;
+  }
+
+  .articleLink {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .articleTitle {
+    font-size: 14px;
+  }
+
+  .articleMeta {
+    font-size: 11px;
+  }
+
+  .likeButton {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
 }

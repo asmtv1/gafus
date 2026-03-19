@@ -1,56 +1,65 @@
 /**
- * Оборачивает HTML-контент статьи в полный документ с инжектом стилей (паритет с web markdownContent)
- * и скриптом для динамической высоты WebView (встроенный скролл без двойной прокрутки).
+ * Оборачивает HTML-контент статьи как мини-гайды в курсах (wrapInFullHtmlWithReadySignal).
+ * Контент передаётся как есть, без инжекта стилей — HTML содержит собственные стили.
+ * Скрипт инжектируется перед </body> для postMessage высоты (load + fonts.ready).
  */
 
 export const ARTICLE_HEIGHT_MSG = "gafus:article-height";
+export const ARTICLE_READY_MSG = "gafus:article-ready";
 
-const MARKDOWN_CONTENT_STYLES = `
-  body { margin: 0; padding: 0; color: #352e2e; font-size: 16px; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-  .markdownContent p { margin-bottom: 1em; }
-  .markdownContent ul, .markdownContent ol { padding-left: 1.5em; margin-bottom: 1em; }
-  .markdownContent li { margin-bottom: 0.5em; }
-  .markdownContent h1, .markdownContent h2, .markdownContent h3, .markdownContent h4, .markdownContent h5, .markdownContent h6 { margin-top: 1em; margin-bottom: 0.5em; font-weight: bold; }
-  .markdownContent code { background-color: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
-  .markdownContent pre { background-color: #f5f5f5; padding: 1em; border-radius: 5px; overflow-x: auto; }
-  .markdownContent blockquote { border-left: 4px solid #ddd; margin: 1em 0; padding-left: 1em; color: #666; }
-  .markdownContent table { border-collapse: collapse; margin: 1em 0; width: 100%; }
-  .markdownContent th, .markdownContent td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-  .markdownContent th { background-color: rgba(99, 97, 40, 0.12); font-weight: 600; }
-  img { max-width: 100%; height: auto; }
-`;
-
+/** Скрипт: ready после load+fonts, height — многократно для отложенных замеров */
 const HEIGHT_SCRIPT = `
 (function() {
-  function report() {
+  function reportHeight() {
     var h = document.documentElement.scrollHeight;
     if (h > 0 && window.ReactNativeWebView) {
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: "${ARTICLE_HEIGHT_MSG}", height: h }));
     }
   }
-  if (document.readyState === "complete") {
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(report);
-    } else {
-      report();
+  function signalReady() {
+    if (window.ReactNativeWebView) {
+      reportHeight();
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: "${ARTICLE_READY_MSG}", height: document.documentElement.scrollHeight }));
     }
-  } else {
-    window.addEventListener("load", function() {
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(report);
-      } else {
-        report();
-      }
-    });
   }
+  reportHeight();
+  document.addEventListener("DOMContentLoaded", reportHeight);
+  window.addEventListener("load", function() {
+    reportHeight();
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function() {
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() { setTimeout(signalReady, 80); });
+        });
+      });
+    } else {
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { setTimeout(signalReady, 80); });
+      });
+    }
+    [500, 1000, 1500, 2500, 4000].forEach(function(ms) {
+      setTimeout(reportHeight, ms);
+    });
+  });
 })();
 `;
 
+/** Оборачивает фрагмент в полный документ, если нет DOCTYPE */
 function wrapInFullHtml(content: string): string {
   if (/<!DOCTYPE/i.test(content)) return content;
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>${MARKDOWN_CONTENT_STYLES}</style></head><body><div class="markdownContent">${content}</div><script>${HEIGHT_SCRIPT}<\\/script></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body>${content}</body></html>`;
 }
 
+/**
+ * wrapInFullHtml + инжект скрипта высоты перед </body>.
+ * Для полных документов — инжект в существующий </body>, для фрагментов — в обёртку.
+ */
 export function wrapArticleHtml(htmlFragment: string): string {
-  return wrapInFullHtml(htmlFragment);
+  const full = wrapInFullHtml(htmlFragment);
+  const closeBody = full.lastIndexOf("</body>");
+  const script = `<script>${HEIGHT_SCRIPT}<\\/script>`;
+  if (closeBody !== -1) {
+    return full.slice(0, closeBody) + script + full.slice(closeBody);
+  }
+  return full + script;
 }

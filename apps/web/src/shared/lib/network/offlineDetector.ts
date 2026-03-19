@@ -14,7 +14,11 @@ const PING_INTERVAL =
     : 8000; // 8 с в проде
 const OFFLINE_PAGE = "/~offline";
 
+/** Задержка перед переходом в офлайн после события offline (игнорируем кратковременные просадки) */
+const OFFLINE_GRACE_PERIOD_MS = 2500;
+
 let pingIntervalId: NodeJS.Timeout | null = null;
+let offlineGraceTimerId: ReturnType<typeof setTimeout> | null = null;
 let isInitialized = false;
 
 /**
@@ -204,41 +208,55 @@ async function redirectToOffline(): Promise<void> {
 }
 
 /**
- * Обработчик события offline браузера
+ * Отменяет таймер grace period при восстановлении сети
+ */
+function clearOfflineGraceTimer(): void {
+  if (offlineGraceTimerId) {
+    clearTimeout(offlineGraceTimerId);
+    offlineGraceTimerId = null;
+  }
+}
+
+/** True во время grace period — кратковременные просадки не блокируют fetch */
+export function isInOfflineGracePeriod(): boolean {
+  return offlineGraceTimerId !== null;
+}
+
+/**
+ * Обработчик события offline браузера.
+ * Grace period: не переводим в офлайн сразу — сначала проверяем ping.
+ * Кратковременные просадки сети (jitter) не обваливают всё приложение.
  */
 function handleOfflineEvent(): void {
   logger.warn("Browser offline event detected", {
     operation: "browser_offline_event",
   });
 
-  const store = useOfflineStore.getState();
-  store.setOnlineStatus(false);
+  clearOfflineGraceTimer();
 
-  // Немедленно делаем редирект при событии offline
-  // Это предотвращает показ встроенной страницы ошибки браузера
-  // Проверяем асинхронно, не находимся ли мы на странице скачанного курса
-  shouldRedirectToOffline().then((shouldRedirect) => {
-    if (shouldRedirect) {
-      redirectToOffline();
-    }
-  });
+  offlineGraceTimerId = setTimeout(() => {
+    offlineGraceTimerId = null;
+    const store = useOfflineStore.getState();
+    if (store.activeDownloads > 0) return;
 
-  // Параллельно проверяем реальное подключение для корректности статуса
-  // (но редирект уже выполнен)
-  checkRealConnection()
-    .then((isOnline) => {
-      if (isOnline) {
-        // Если navigator.onLine говорит офлайн, но ping успешен - обновляем статус
-        // и возвращаемся на предыдущую страницу
-        store.setOnlineStatus(true);
-        if (typeof window !== "undefined" && window.location.pathname === OFFLINE_PAGE) {
-          restorePreviousUrl();
+    checkRealConnection()
+      .then((isOnline) => {
+        if (isOnline) {
+          // navigator.onLine солгал — связь есть, игнорируем
+          return;
         }
-      }
-    })
-    .catch(() => {
-      // В случае ошибки проверки оставляем статус офлайн
-    });
+        store.setOnlineStatus(false);
+        return shouldRedirectToOffline().then((shouldRedirect) => {
+          if (shouldRedirect) redirectToOffline();
+        });
+      })
+      .catch(() => {
+        store.setOnlineStatus(false);
+        return shouldRedirectToOffline().then((shouldRedirect) => {
+          if (shouldRedirect) redirectToOffline();
+        });
+      });
+  }, OFFLINE_GRACE_PERIOD_MS);
 }
 
 /**
@@ -248,6 +266,8 @@ function handleOnlineEvent(): void {
   logger.info("Browser online event detected", {
     operation: "browser_online_event",
   });
+
+  clearOfflineGraceTimer();
 
   // Проверяем реальное подключение
   checkRealConnection()
@@ -440,6 +460,8 @@ export function cleanupOfflineDetector(): void {
   // Удаляем слушатели событий
   window.removeEventListener("online", handleOnlineEvent);
   window.removeEventListener("offline", handleOfflineEvent);
+
+  clearOfflineGraceTimer();
 
   // Останавливаем периодическую проверку
   stopPeriodicCheck();

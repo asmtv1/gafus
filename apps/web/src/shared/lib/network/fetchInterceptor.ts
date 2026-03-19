@@ -3,6 +3,7 @@
 import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 import { useOfflineStore } from "@shared/stores/offlineStore";
+import { isInOfflineGracePeriod } from "./offlineDetector";
 
 /** Извлекает pathname из URL без query (безопасность: не передаём токены/секреты) */
 function extractUrlPath(u: string): string {
@@ -69,14 +70,12 @@ export function setupFetchInterceptor() {
       throw new TypeError("Failed to fetch: OFFLINE_MODE");
     }
 
-    // Проверяем navigator.onLine перед запросом
-    if (!navigator.onLine && !shouldIgnoreOffline) {
-      // Если офлайн, устанавливаем статус и не делаем запрос
+    // Проверяем navigator.onLine перед запросом (grace period — не блокируем при кратких просадках)
+    if (!navigator.onLine && !shouldIgnoreOffline && !isInOfflineGracePeriod()) {
       if (store.isOnline) {
         logger.warn("Navigator offline detected before request, setting offline status", { url });
         store.setOnlineStatus(false);
       }
-      // Бросаем ошибку, чтобы запрос не выполнился
       throw new TypeError("Failed to fetch: ERR_INTERNET_DISCONNECTED");
     }
 

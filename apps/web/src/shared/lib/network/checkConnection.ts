@@ -4,12 +4,43 @@ import { createWebLogger } from "@gafus/logger";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 
 const logger = createWebLogger("web-check-connection");
-const PING_TIMEOUT_MS = 3000;
+
+const PING_TIMEOUT_MS = 2500;
+const MAX_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 500;
 
 let isCheckingConnection = false;
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
- * Проверяет реальное подключение к серверу через /api/ping
+ * Один HEAD-запрос к /api/ping с индивидуальным таймаутом.
+ * Возвращает true только при HTTP 2xx.
+ */
+async function singlePing(timeoutMs: number): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch("/api/ping", {
+      method: "HEAD",
+      cache: "no-cache",
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch {
+    clearTimeout(timeoutId);
+    return false;
+  }
+}
+
+/**
+ * Проверяет реальное подключение к серверу через /api/ping.
+ * При неудаче повторяет с экспоненциальным backoff + jitter.
+ * Офлайн фиксируется только если все попытки провалились.
  */
 export async function checkRealConnection(
   timeoutMs = PING_TIMEOUT_MS,
@@ -20,30 +51,33 @@ export async function checkRealConnection(
   try {
     const store = useOfflineStore.getState();
     if (store.activeDownloads > 0) {
-      isCheckingConnection = false;
       return true;
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        // Экспоненциальный backoff: 500ms, 1000ms + jitter до 200ms
+        const backoff = RETRY_BASE_DELAY_MS * 2 ** (attempt - 1);
+        const jitter = Math.random() * 200;
+        await sleep(backoff + jitter);
+      }
 
-    const response = await fetch("/api/ping", {
-      method: "HEAD",
-      cache: "no-cache",
-      signal: controller.signal,
-    });
+      const ok = await singlePing(timeoutMs);
 
-    clearTimeout(timeoutId);
-    isCheckingConnection = false;
-    return response.ok;
-  } catch (error) {
-    isCheckingConnection = false;
-    const msg = error instanceof Error ? error.message : String(error);
-    if (msg.includes("aborted") || msg.includes("AbortError")) return false;
-    logger.warn("Connection check failed", {
-      operation: "connection_check_failed",
-      error: msg,
+      if (ok) return true;
+
+      logger.warn("Ping attempt failed", {
+        operation: "connection_check_attempt_failed",
+        attempt: attempt + 1,
+        maxAttempts: MAX_RETRIES + 1,
+      });
+    }
+
+    logger.warn("All ping attempts failed — connection offline", {
+      operation: "connection_check_all_failed",
     });
     return false;
+  } finally {
+    isCheckingConnection = false;
   }
 }
