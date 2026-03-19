@@ -13,7 +13,6 @@ import { showPersonalizationAlert } from "@shared/utils/sweetAlert";
 import { getDeclinedName } from "@shared/lib/training/getDeclinedName";
 import { saveCoursePersonalization } from "@shared/lib/training/saveCoursePersonalization";
 import CourseDescriptionWithVideo from "../CourseDescriptionWithVideo";
-import GuideContentEmbed from "../GuideContentEmbed";
 import TrainingDayList from "../TrainingDayList";
 
 import styles from "./TrainingPageClient.module.css";
@@ -37,8 +36,6 @@ interface TrainingPageClientProps {
     courseTrainingLevel: string | null;
     courseIsPersonalized?: boolean;
     userCoursePersonalization?: import("@gafus/types").UserCoursePersonalization | null;
-    isGuide?: boolean;
-    guideContent?: string | null;
   } | null;
   initialError?: string | null;
   accessDenied?: boolean;
@@ -347,35 +344,6 @@ export default function TrainingPageClient({
           </Link>
         </div>
       </div>
-    );
-  }
-
-  // Гайд: только описание + iframe с HTML-контентом
-  if (initialData?.isGuide && initialData?.guideContent) {
-    return (
-      <>
-        {showPaymentSuccess && (
-          <div className={styles.successNotification}>
-            Оплата прошла успешно! Доступ к курсу откроется через несколько секунд...
-          </div>
-        )}
-        <div className="courseDescription">
-          <CourseDescriptionWithVideo
-            description={initialData.courseDescription || null}
-            videoUrl={initialData.courseVideoUrl || null}
-            equipment={initialData.courseEquipment || null}
-            trainingLevel={initialData.courseTrainingLevel || null}
-            courseName={courseName}
-            courseType={courseType}
-          />
-        </div>
-        <div className={styles.guideWrapper}>
-          <GuideContentEmbed
-            content={initialData.guideContent}
-            className={styles.guideEmbed}
-          />
-        </div>
-      </>
     );
   }
 

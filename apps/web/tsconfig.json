@@ -35,6 +35,9 @@
         "../../packages/core/src/services/subscriptions/index.ts"
       ],
       "@gafus/core/services/tracking": ["../../packages/core/src/services/tracking/index.ts"],
+      "@gafus/core/services/article": [
+        "../../packages/core/src/services/article/index.ts"
+      ],
       "@gafus/core/services/achievements": [
         "../../packages/core/src/services/achievements/index.ts"
       ],

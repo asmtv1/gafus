@@ -45,7 +45,12 @@ const nextConfig: NextConfig = {
   // Больше не требуется: статика на CDN (см. nginx)
 
   // Webpack конфигурация для workspace зависимостей
-  webpack: (config, { isServer: _isServer }) => {
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      const { PrismaPlugin } = require("@prisma/nextjs-monorepo-workaround-plugin");
+      config.plugins = config.plugins || [];
+      config.plugins.push(new PrismaPlugin());
+    }
     // Разрешаем workspace зависимости
     config.resolve.alias = {
       ...config.resolve.alias,

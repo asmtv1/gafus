@@ -1,4 +1,5 @@
 export { apiClient, type ApiResponse } from "./client";
+export { articlesApi } from "./articles";
 export {
   authApi,
   type User,

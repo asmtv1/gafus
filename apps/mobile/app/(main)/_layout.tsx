@@ -82,6 +82,10 @@ export default function MainLayout() {
           title: "Напоминания",
         }}
       />
+      <Stack.Screen
+        name="articles/[slug]"
+        options={{ headerShown: false }}
+      />
     </Stack>
   );
 }

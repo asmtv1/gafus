@@ -249,16 +249,18 @@ export default function CoursesClient({
       />
 
       {/* Список курсов */}
-      <ul className={styles.courseList}>
-        {filteredCourses.map((course, index) => (
-          <CourseCard
-            key={course.id}
-            {...course}
-            index={index}
-            onPaidCourseClick={setPaidDrawerCourse}
-          />
-        ))}
-      </ul>
+      <section className={styles.coursesSection} aria-label="Список курсов">
+        <ul className={styles.courseList}>
+          {filteredCourses.map((course, index) => (
+            <CourseCard
+              key={course.id}
+              {...course}
+              index={index}
+              onPaidCourseClick={setPaidDrawerCourse}
+            />
+          ))}
+        </ul>
+      </section>
 
       <PaidCourseDrawer
         open={!!paidDrawerCourse}

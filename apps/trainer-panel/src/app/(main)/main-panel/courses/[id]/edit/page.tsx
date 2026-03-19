@@ -49,14 +49,6 @@ export default async function EditCoursePage({ params }: PageProps) {
     | "INTERMEDIATE"
     | "ADVANCED"
     | "EXPERT";
-  const isGuide = Boolean(
-    course &&
-      "isGuide" in course &&
-      course.isGuide &&
-      "guideContent" in course &&
-      typeof course.guideContent === "string" &&
-      course.guideContent.trim() !== "",
-  );
   const initialValues = {
     name: course.name,
     shortDesc: course.shortDesc,
@@ -69,9 +61,7 @@ export default async function EditCoursePage({ params }: PageProps) {
     priceRub: course.priceRub,
     showInProfile: course.showInProfile ?? true,
     isPersonalized: course.isPersonalized ?? false,
-    isGuide,
-    guideContent: (course as { guideContent?: string | null }).guideContent ?? "",
-    trainingDays: isGuide ? [] : course.dayLinks.map((dl) => dl.day.id),
+    trainingDays: course.dayLinks.map((dl) => dl.day.id),
     allowedUsers: course.isPrivate ? course.access.map((a) => a.userId) : [],
     equipment: course.equipment,
     trainingLevel,

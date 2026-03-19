@@ -201,21 +201,17 @@ describe("downloadFullCourse", () => {
     expect(result.error).toBeDefined();
   });
 
-  it("returns isGuide, guideContent, empty trainingDays for guide course", async () => {
+  it("returns trainingDays for course with dayLinks (guides migrated to Article)", async () => {
     mockCourseFindFirst.mockResolvedValue({
       ...fullCourseMock,
-      dayLinks: [],
-      guideContent: "<!DOCTYPE html><html><body><h1>Гайд</h1></body></html>",
+      dayLinks: fullCourseMock.dayLinks,
+      guideContent: null,
     });
 
-    const result = await downloadFullCourse("guide-type");
+    const result = await downloadFullCourse("fitness");
 
     expect(result.success).toBe(true);
-    expect(result.data?.isGuide).toBe(true);
-    expect(result.data?.guideContent).toContain("<h1>Гайд</h1>");
-    expect(result.data?.trainingDays).toEqual([]);
-    expect(result.data?.mediaFiles.videos).toEqual([]);
-    expect(result.data?.mediaFiles.images).toEqual([]);
-    expect(result.data?.mediaFiles.pdfs).toEqual([]);
+    expect(result.data?.trainingDays).toBeDefined();
+    expect(result.data?.trainingDays.length).toBeGreaterThan(0);
   });
 });

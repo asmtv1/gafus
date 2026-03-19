@@ -32,8 +32,6 @@ export async function getTrainingDays(
   courseTrainingLevel: string | null;
   courseIsPersonalized: boolean;
   userCoursePersonalization: UserCoursePersonalization | null;
-  isGuide?: boolean;
-  guideContent?: string | null;
 }> {
   try {
     const safeUserId = optionalUserIdSchema.parse(userId);

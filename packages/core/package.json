@@ -9,6 +9,10 @@
       "types": "./dist/core/src/index.d.ts",
       "default": "./dist/core/src/index.js"
     },
+    "./services/article": {
+      "types": "./dist/core/src/services/article/index.d.ts",
+      "default": "./dist/core/src/services/article/index.js"
+    },
     "./services/cache": {
       "types": "./dist/core/src/services/cache/index.d.ts",
       "default": "./dist/core/src/services/cache/index.js"

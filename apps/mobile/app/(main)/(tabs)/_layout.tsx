@@ -43,6 +43,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="articles"
+        options={{
+          title: "Статьи",
+          tabBarIcon: ({ color, size }) =>
+            renderIcon("newspaper-variant-outline", color, size),
+        }}
+      />
+      <Tabs.Screen
         name="courses"
         options={{
           title: "Избранное",

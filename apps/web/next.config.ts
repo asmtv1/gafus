@@ -62,6 +62,10 @@ const gafusAliases = {
     __dirname,
     "../../packages/core/src/services/tracking",
   ),
+  "@gafus/core/services/article": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/article",
+  ),
   "@gafus/core/services/achievements": _path.resolve(
     __dirname,
     "../../packages/core/src/services/achievements",
@@ -194,6 +198,13 @@ const nextConfig = {
   // Отключаем Image Optimization - вся статика на CDN
   images: {
     unoptimized: true,
+  },
+
+  async redirects() {
+    return [
+      { source: "/guides", destination: "/articles", permanent: true },
+      { source: "/guides/:path*", destination: "/articles/:path*", permanent: true },
+    ];
   },
 
   async rewrites() {

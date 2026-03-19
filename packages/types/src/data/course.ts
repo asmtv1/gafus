@@ -26,6 +26,7 @@ export interface CourseWithProgressData {
   reviews: CourseReview[];
   userCourses: UserCourse[];
   dayLinks: DayLink[];
+  /** Мини-гайд (чек-лист, справочник) — без дней, только HTML */
 }
 
 export interface CourseReview {

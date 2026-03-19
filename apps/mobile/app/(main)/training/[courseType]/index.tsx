@@ -29,7 +29,6 @@ import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
 import { showLockedDayAlert, WEB_BASE } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
-import { wrapInFullHtmlWithReadySignal } from "@/shared/lib/training/wrapInFullHtml";
 
 /**
  * Экран списка дней тренировок курса
@@ -70,21 +69,6 @@ export default function TrainingDaysScreen() {
   const [petNameIns, setPetNameIns] = useState("");
   const [petNamePre, setPetNamePre] = useState("");
   const [isSavingPersonalization, setIsSavingPersonalization] = useState(false);
-  const [guideReady, setGuideReady] = useState(false);
-  const [guideHeight, setGuideHeight] = useState<number>(600);
-  useEffect(() => {
-    setGuideReady(false);
-    setGuideHeight(600);
-  }, [courseData?.guideContent]);
-
-  // Fallback: если postMessage не пришёл, скрываем спиннер через 3 с (паритет с web/Safari)
-  useEffect(() => {
-    if (!courseData?.isGuide || !courseData?.guideContent || guideReady) return;
-    const t = setTimeout(() => {
-      setGuideReady(true);
-    }, 3000);
-    return () => clearTimeout(t);
-  }, [courseData?.isGuide, courseData?.guideContent, guideReady]);
   const hasHandledPaymentReturnRef = useRef(false);
 
   const isAccessDenied =
@@ -804,69 +788,6 @@ export default function TrainingDaysScreen() {
           </Pressable>
         </View>
       </SafeAreaView>
-    );
-  }
-
-  // Гайд: без ScrollView — WebView заполняет экран и прокручивает свой HTML (избегаем конфликта жестов).
-  if (courseData?.isGuide && courseData?.guideContent) {
-    return (
-      <>
-        <Stack.Screen options={{ headerShown: false }} />
-        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-          <Pressable
-            style={styles.backRow}
-            onPress={() => {
-              void hapticFeedback.light();
-              router.back();
-            }}
-            hitSlop={12}
-          >
-            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-            <Text style={styles.backText}>Назад</Text>
-          </Pressable>
-          <View style={styles.guideContent}>
-            <Text style={styles.contentTitle}>Содержание</Text>
-            {(courseData.courseDescription || courseData.courseVideoUrl) && (
-              <CourseDescription
-                description={courseData.courseDescription}
-                equipment={courseData.courseEquipment}
-                trainingLevel={courseData.courseTrainingLevel}
-                videoUrl={courseData.courseVideoUrl}
-                onShare={handleShareCourse}
-                courseType={courseType}
-              />
-            )}
-            <View style={styles.guideWebViewWrapper}>
-              {!guideReady && (
-                <View style={styles.guideSpinnerOverlay} pointerEvents="none">
-                  <ActivityIndicator size="large" color={COLORS.primary} />
-                </View>
-              )}
-              <WebView
-                source={{ html: wrapInFullHtmlWithReadySignal(courseData.guideContent) }}
-                style={[styles.guideWebView, !guideReady && styles.guideWebViewHidden]}
-                scrollEnabled={true}
-                nestedScrollEnabled={true}
-                onMessage={(e) => {
-                  try {
-                    const data = JSON.parse(e.nativeEvent.data);
-                    if (data?.type === "gafus:guide-ready") setGuideReady(true);
-                    if (
-                      data?.type === "gafus:guide-height" &&
-                      typeof data.height === "number" &&
-                      data.height > 0
-                    ) {
-                      setGuideHeight(data.height);
-                    }
-                  } catch {
-                    /* ignore */
-                  }
-                }}
-              />
-            </View>
-          </View>
-        </SafeAreaView>
-      </>
     );
   }
 

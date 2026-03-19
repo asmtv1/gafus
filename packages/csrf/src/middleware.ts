@@ -86,6 +86,14 @@ function logCSRFAttack(req: NextRequest, reason: string, token?: string): void {
  * Middleware для проверки CSRF токенов в API маршрутах
  * Поддерживает динамические маршруты с параметрами (context)
  */
+export function withCSRFProtection(
+  handler: (req: NextRequest) => Promise<NextResponse> | NextResponse,
+): (req: NextRequest) => Promise<NextResponse>;
+
+export function withCSRFProtection<T extends { params?: unknown }>(
+  handler: (req: NextRequest, context: T) => Promise<NextResponse> | NextResponse,
+): (req: NextRequest, context: T) => Promise<NextResponse>;
+
 export function withCSRFProtection<T = unknown>(
   handler: (req: NextRequest, context?: T) => Promise<NextResponse> | NextResponse,
 ) {

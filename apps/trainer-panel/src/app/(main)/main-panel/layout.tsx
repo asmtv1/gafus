@@ -18,6 +18,7 @@ import {
   VideoLibrary,
   Note,
   Cookie,
+  MenuBook,
 } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 
@@ -139,6 +140,10 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           Результаты экзаменов
           {pendingExamCount > 0 && <span className={styles.badge}>{pendingExamCount}</span>}
         </Link>
+        <Link href="/main-panel/articles" className={styles.button} onClick={closeMobileMenu}>
+          <MenuBook />
+          Статьи
+        </Link>
         <Link href="/main-panel/notes" className={styles.button} onClick={closeMobileMenu}>
           <Note />
           Заметки
@@ -161,6 +166,10 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
         <Link href="/main-panel/courses/new" className={styles.button} onClick={closeMobileMenu}>
           <Add />
           Создать новый курс
+        </Link>
+        <Link href="/main-panel/articles/new" className={styles.button} onClick={closeMobileMenu}>
+          <Add />
+          Создать статью
         </Link>
 
         <div className={styles.divider}></div>

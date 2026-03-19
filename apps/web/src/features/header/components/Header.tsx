@@ -1,5 +1,6 @@
 "use client";
 
+import { Article as ArticleIcon } from "@mui/icons-material";
 import { BurgerIcon } from "@shared/components/ui/BurgerIcon";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
@@ -75,39 +76,21 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
               </div>
               <div className={styles.profiltext}>Профиль</div>
             </Link>
-            <Link
-              href="/achievements/"
-              onClick={() => setMenuOpen(false)}
-              className={styles.menuButton}
-            >
-              <Image
-                src="/uploads/header/achievements.svg"
-                alt="achievements"
-                width={24}
-                height={24}
-                loading="lazy"
-              />
-              Достижения
-            </Link>
-            {trainerOnly && (
-              <>
-                {process.env.NEXT_PUBLIC_TRAINER_PANEL_URL && (
-                  <Link
-                    href={process.env.NEXT_PUBLIC_TRAINER_PANEL_URL}
-                    onClick={() => setMenuOpen(false)}
-                    className={styles.menuButton}
-                  >
-                    <Image
-                      src="/uploads/header/trainer-panel.svg"
-                      alt="statistics"
-                      width={24}
-                      height={24}
-                      loading="lazy"
-                    />
-                    Панель тренера
-                  </Link>
-                )}
-              </>
+            {trainerOnly && process.env.NEXT_PUBLIC_TRAINER_PANEL_URL && (
+              <Link
+                href={process.env.NEXT_PUBLIC_TRAINER_PANEL_URL}
+                onClick={() => setMenuOpen(false)}
+                className={styles.menuButton}
+              >
+                <Image
+                  src="/uploads/header/trainer-panel.svg"
+                  alt="Панель тренера"
+                  width={24}
+                  height={24}
+                  loading="lazy"
+                />
+                Панель тренера
+              </Link>
             )}
             <Link
               href="/courses"
@@ -117,12 +100,21 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
             >
               <Image
                 src="/uploads/header/home.svg"
-                alt="Home"
+                alt="Курсы"
                 width={24}
                 height={24}
                 loading="lazy"
               />
-              Все курсы
+              Курсы
+            </Link>
+            <Link
+              href="/articles"
+              onClick={() => setMenuOpen(false)}
+              onMouseEnter={() => router.prefetch("/articles")}
+              className={styles.menuButton}
+            >
+              <ArticleIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
+              Статьи
             </Link>
             <Link
               href="/favorites"

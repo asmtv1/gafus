@@ -67,6 +67,20 @@ export function getCourseImagePath(
 }
 
 /**
+ * Генерирует путь для изображения статьи
+ * @param trainerId - ID тренера
+ * @param articleIdOrDraft - ID статьи или "draft" для предварительной загрузки
+ */
+export function getArticleImagePath(
+  trainerId: string,
+  articleIdOrDraft: string,
+  uuid: string = randomUUID(),
+  ext: string,
+): string {
+  return `trainers/${trainerId}/articles/${articleIdOrDraft}/${uuid}.${ext}`;
+}
+
+/**
  * Генерирует путь для видео экзамена
  * @param userStepId - ID userStep (связка пользователя и шага)
  * @param uuid - UUID файла (или будет сгенерирован автоматически)

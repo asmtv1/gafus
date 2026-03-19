@@ -14,16 +14,40 @@
   text-align: center;
 }
 
+.guidesSection {
+  margin-top: 22px;
+  padding: 0 20px;
+}
+
+.guidesSection + .coursesSection {
+  margin-top: 32px;
+}
+
+.coursesSection {
+  margin-top: 22px;
+  padding: 0 20px;
+}
+
+.sectionTitle {
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 1.2;
+  color: #352e2e;
+  margin: 0 0 16px;
+}
+
 .courseList {
   display: flex;
   gap: 20px;
-  padding: 0 20px;
-  margin-top: 22px;
+  padding: 0;
+  margin: 0;
   justify-items: center;
   align-items: center;
   align-content: center;
   flex-wrap: wrap;
   justify-content: space-evenly;
+  list-style: none;
 }
 
 .emptyState {

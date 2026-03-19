@@ -36,7 +36,7 @@ export interface TrainingStep {
   userStepId?: string;
 }
 
-/** Результат getTrainingDays — дни курса или гайд (isGuide/guideContent) */
+/** Результат getTrainingDays — дни курса */
 export interface GetTrainingDaysResult {
   trainingDays: {
     trainingDayId: string;
@@ -58,8 +58,6 @@ export interface GetTrainingDaysResult {
   courseTrainingLevel: string | null;
   courseIsPersonalized: boolean;
   userCoursePersonalization: UserCoursePersonalization | null;
-  isGuide?: boolean;
-  guideContent?: string | null;
 }
 
 /** Полная информация о тренировочном дне + шаги + статус пользователя */

@@ -6,15 +6,21 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
-import { createPayment } from "@gafus/core/services/payments";
+import { createPayment, createArticlePayment } from "@gafus/core/services/payments";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
 const logger = createWebLogger("api-payments-create");
 
-const createSchema = z.object({
-  courseId: z.string().min(1, "courseId обязателен"),
-});
+const createSchema = z
+  .object({
+    courseId: z.string().min(1).optional(),
+    articleId: z.string().min(1).optional(),
+  })
+  .refine(
+    (d) => (d.courseId && !d.articleId) || (!d.courseId && d.articleId),
+    { message: "Укажите courseId или articleId" }
+  );
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 10;
@@ -83,14 +89,23 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
       request.headers.get("x-real-ip") ??
       null;
     const userAgent = request.headers.get("user-agent") ?? null;
-    const result = await createPayment({
-      userId,
-      courseId: parsed.data.courseId,
-      origin,
-      shopId,
-      secretKey,
-      acceptanceContext: { ipAddress, userAgent, source: "web" },
-    });
+
+    const result = parsed.data.courseId
+      ? await createPayment({
+          userId,
+          courseId: parsed.data.courseId,
+          origin,
+          shopId,
+          secretKey,
+          acceptanceContext: { ipAddress, userAgent, source: "web" },
+        })
+      : await createArticlePayment({
+          userId,
+          articleId: parsed.data.articleId!,
+          origin,
+          shopId,
+          secretKey,
+        });
 
     if (!result.success) {
       const status = result.error.includes("не найден") ? 404 : 400;

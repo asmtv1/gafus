@@ -49,6 +49,12 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "types/**/*.d.ts",
+    "../../packages/core/src/petrovich.d.ts",
+    "../../packages/core/src/petrovich.d.ts",
+    "../../packages/core/src/petrovich.d.ts",
+    "../../packages/core/src/petrovich.d.ts",
+    "../../packages/core/src/petrovich.d.ts",
     "../../packages/webpush/src/db.ts",
     "../../packages/webpush/src/index.ts",
     "next-env.d.ts",

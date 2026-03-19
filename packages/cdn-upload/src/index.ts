@@ -19,5 +19,6 @@ export {
   getPetPhotoPath,
   getStepImagePath,
   getCourseImagePath,
+  getArticleImagePath,
   getExamVideoPath,
 } from "./pathHelpers";

@@ -16,8 +16,6 @@ export interface OfflineCourseMeta {
   trainingDays: FullCourseData["trainingDays"];
   version: string;
   downloadedAt: string;
-  isGuide?: boolean;
-  guideContent?: string;
 }
 
 function getOfflineBaseUri(): string {

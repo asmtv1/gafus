@@ -130,8 +130,6 @@ async function runDownload(
     trainingDays: data.trainingDays ?? [],
     version: data.course.updatedAt,
     downloadedAt,
-    isGuide: data.isGuide,
-    guideContent: data.guideContent,
   });
   onProgress({ phase: "meta", current: 1, total: 1 });
 

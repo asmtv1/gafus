@@ -37,8 +37,6 @@ export interface CreateCourseInput {
   priceRub: number | null;
   showInProfile: boolean;
   isPersonalized: boolean;
-  isGuide: boolean;
-  guideContent?: string;
   trainingDays: string[];
   allowedUsers: string[];
   equipment: string;
@@ -95,13 +93,7 @@ export async function createCourseServerAction(formData: FormData) {
     const showInProfile = formData.get("showInProfile")?.toString() === "true";
     const isPersonalized =
       formData.get("isPersonalized")?.toString() === "true";
-    const isGuide = formData.get("isGuide")?.toString() === "true";
-    const guideContent = isGuide
-      ? (formData.get("guideContent")?.toString() ?? "")
-      : "";
-    const trainingDays = isGuide
-      ? []
-      : formData.getAll("trainingDays").map(String);
+    const trainingDays = formData.getAll("trainingDays").map(String);
     const allowedUsers = formData.getAll("allowedUsers").map(String);
     const equipment = formData.get("equipment")?.toString() || "";
     const trainingLevel =
@@ -137,8 +129,6 @@ export async function createCourseServerAction(formData: FormData) {
       priceRub: isPaid ? priceRub : null,
       showInProfile,
       isPersonalized,
-      isGuide,
-      guideContent: isGuide ? guideContent : undefined,
       trainingDays,
       allowedUsers,
       equipment,
@@ -218,7 +208,6 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
     };
   }
 
-  const isGuide = input.isGuide === true;
   const parseResult = updateTrainerCourseSchema.safeParse({
     id: input.id,
     name: input.name,
@@ -232,9 +221,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
     priceRub: input.priceRub,
     showInProfile: input.showInProfile,
     isPersonalized: input.isPersonalized,
-    isGuide,
-    guideContent: isGuide ? input.guideContent ?? "" : undefined,
-    trainingDays: isGuide ? [] : input.trainingDays,
+    trainingDays: input.trainingDays,
     allowedUsers: input.allowedUsers,
     equipment: input.equipment,
     trainingLevel: input.trainingLevel,

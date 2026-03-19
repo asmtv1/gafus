@@ -1,8 +1,12 @@
 import { apiClient, type ApiResponse } from "./client";
 
-type CreatePaymentByCourseId = { courseId: string; courseType?: never };
-type CreatePaymentByCourseType = { courseType: string; courseId?: never };
-export type CreatePaymentParams = CreatePaymentByCourseId | CreatePaymentByCourseType;
+type CreatePaymentByCourseId = { courseId: string; courseType?: never; articleId?: never };
+type CreatePaymentByCourseType = { courseType: string; courseId?: never; articleId?: never };
+type CreatePaymentByArticleId = { articleId: string; courseId?: never; courseType?: never };
+export type CreatePaymentParams =
+  | CreatePaymentByCourseId
+  | CreatePaymentByCourseType
+  | CreatePaymentByArticleId;
 
 export interface CreatePaymentData {
   paymentId: string;

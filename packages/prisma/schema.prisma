@@ -242,6 +242,10 @@ model User {
   userVideoProgresses      UserVideoProgress[]
   consentLogs              ConsentLog[]
   ofertaAcceptances        OfertaAcceptance[]
+  authoredArticles         Article[]           @relation("authoredArticles")
+  articleLikes             ArticleLike[]
+  articleAccesses          ArticleAccess[]
+  articlePayments          ArticlePayment[]
 }
 
 enum ConsentType {
@@ -949,4 +953,87 @@ enum PaymentStatus {
   SUCCEEDED
   CANCELED
   REFUNDED
+}
+
+enum ArticleContentType {
+  TEXT
+  HTML
+}
+
+enum ArticleVisibility {
+  PUBLIC
+  PAID
+}
+
+model Article {
+  id          String               @id @default(cuid())
+  authorId    String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  title       String
+  contentType ArticleContentType   @default(HTML)
+  content     String               @db.Text
+  visibility  ArticleVisibility    @default(PUBLIC)
+  priceRub    Decimal?             @db.Decimal(10, 2)
+  videoUrl    String?
+  logoImg     String               @default("")
+  imageUrls   String[]             @default([])
+  slug        String               @unique
+  viewCount   Int                  @default(0)
+  description String               @default("") @db.Text
+
+  author        User              @relation("authoredArticles", fields: [authorId], references: [id])
+  articleLikes  ArticleLike[]
+  access        ArticleAccess[]
+  payments      ArticlePayment[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([visibility])
+}
+
+model ArticleLike {
+  userId    String
+  articleId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, articleId])
+  @@index([articleId])
+  @@index([userId])
+}
+
+model ArticleAccess {
+  userId    String
+  articleId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, userId])
+  @@index([articleId])
+  @@index([userId])
+}
+
+model ArticlePayment {
+  id                String            @id @default(cuid())
+  userId            String
+  articleId         String
+  amountRub         Decimal           @db.Decimal(10, 2)
+  currency          String            @default("RUB")
+  yookassaPaymentId String?           @unique
+  confirmationUrl   String?
+  status            PaymentStatus     @default(PENDING)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  article           Article           @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([articleId])
+  @@index([status])
 }

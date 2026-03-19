@@ -19,6 +19,7 @@ import {
 import { healthRoutes } from "./routes/v1/health.js";
 import { authRoutes } from "./routes/v1/auth.js";
 import { userRoutes } from "./routes/v1/user.js";
+import { articlesRoutes } from "./routes/v1/articles.js";
 import { coursesRoutes } from "./routes/v1/courses.js";
 import { petsRoutes } from "./routes/v1/pets.js";
 import { trainingRoutes } from "./routes/v1/training.js";
@@ -55,6 +56,10 @@ app.route("/api/v1/auth", authRoutes);
 app.use("/api/v1/user/*", apiRateLimiter);
 app.use("/api/v1/user/*", authMiddleware);
 app.route("/api/v1/user", userRoutes);
+
+app.use("/api/v1/articles/*", apiRateLimiter);
+app.use("/api/v1/articles/*", authMiddleware);
+app.route("/api/v1/articles", articlesRoutes);
 
 app.use("/api/v1/courses/*", apiRateLimiter);
 app.use("/api/v1/courses/*", authMiddleware);

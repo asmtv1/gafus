@@ -2,8 +2,9 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
-import { createPayment } from "@gafus/core/services/payments";
+import { createPayment, createArticlePayment } from "@gafus/core/services/payments";
 import { getCourseByIdOrType } from "@gafus/core/services/course";
+import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-payments");
@@ -14,14 +15,14 @@ const createPaymentSchema = z
   .object({
     courseId: z.string().min(1).optional(),
     courseType: z.string().min(1).optional(),
+    articleId: z.string().min(1).optional(),
   })
   .superRefine((value, ctx) => {
-    const hasCourseId = Boolean(value.courseId);
-    const hasCourseType = Boolean(value.courseType);
-    if (hasCourseId === hasCourseType) {
+    const count = [value.courseId, value.courseType, value.articleId].filter(Boolean).length;
+    if (count !== 1) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Передайте ровно одно поле: courseId или courseType",
+        message: "Передайте ровно одно поле: courseId, courseType или articleId",
         path: ["courseId"],
       });
     }
@@ -45,7 +46,7 @@ function resolveWebBaseUrl(): { success: true; baseUrl: string } | { success: fa
 paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c) => {
   try {
     const user = c.get("user");
-    const { courseId, courseType } = c.req.valid("json");
+    const { courseId, courseType, articleId } = c.req.valid("json");
 
     const webBaseUrl = resolveWebBaseUrl();
     if (!webBaseUrl.success) {
@@ -53,12 +54,6 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
         `Payments config error: WEB_APP_URL is invalid (WEB_APP_URL=${process.env.WEB_APP_URL ?? "undefined"}, NEXT_PUBLIC_WEB_APP_URL=${process.env.NEXT_PUBLIC_WEB_APP_URL ?? "undefined"})`,
       );
       return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" }, 500);
-    }
-
-    const course = await getCourseByIdOrType(courseId, courseType);
-
-    if (!course) {
-      return c.json({ success: false, error: "Курс не найден", code: "NOT_FOUND" }, 404);
     }
 
     const shopId = process.env.YOOKASSA_SHOP_ID;
@@ -70,10 +65,48 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
       return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG_YOOKASSA" }, 500);
     }
 
-    const returnUrl =
-      `${webBaseUrl.baseUrl}/trainings/${encodeURIComponent(course.type)}` + "?paid=1&from=app";
     const ipAddress = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
     const userAgent = c.req.header("user-agent") ?? null;
+
+    if (articleId) {
+      const article = await prisma.article.findUnique({
+        where: { id: articleId },
+        select: { slug: true },
+      });
+      if (!article) {
+        return c.json({ success: false, error: "Статья не найдена", code: "NOT_FOUND" }, 404);
+      }
+      const returnUrl = `${webBaseUrl.baseUrl}/articles/${encodeURIComponent(article.slug)}?paid=1&from=app`;
+      const result = await createArticlePayment({
+        userId: user.id,
+        articleId,
+        shopId,
+        secretKey,
+        returnUrl,
+      });
+      if (!result.success) {
+        const status = result.error.includes("не найден") ? 404 : 400;
+        return c.json(
+          { success: false, error: result.error, code: "PAYMENT_ERROR" },
+          status,
+        );
+      }
+      return c.json({
+        success: true,
+        data: {
+          paymentId: result.paymentId,
+          confirmationUrl: result.confirmationUrl,
+        },
+      });
+    }
+
+    const course = await getCourseByIdOrType(courseId, courseType);
+    if (!course) {
+      return c.json({ success: false, error: "Курс не найден", code: "NOT_FOUND" }, 404);
+    }
+
+    const returnUrl =
+      `${webBaseUrl.baseUrl}/trainings/${encodeURIComponent(course.type)}` + "?paid=1&from=app";
 
     const result = await createPayment({
       userId: user.id,

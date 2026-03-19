@@ -33,8 +33,11 @@ uploads/
 │       ├── steps/
 │       │   └── {stepId}/
 │       │       └── {uuid}.{ext}
-│       └── courses/
-│           └── {courseId}/
+│       ├── courses/
+│       │   └── {courseId}/
+│       │       └── {uuid}.{ext}
+│       └── articles/
+│           └── {articleId}/
 │               └── {uuid}.{ext}
 └── exams/
     └── {userStepId}/
@@ -47,6 +50,7 @@ uploads/
 - `users/{userId}/pets/{petId}/` — фото питомцев
 - `trainers/{trainerId}/steps/{stepId}/` — изображения шагов
 - `trainers/{trainerId}/courses/{courseId}/` — изображения курсов
+- `trainers/{trainerId}/articles/{articleId}/` — логотип и изображения статей
 - `trainers/{trainerId}/videocourses/{videoId}/` — видео тренеров (HLS)
 - `exams/{userStepId}/` — видео экзаменов
 

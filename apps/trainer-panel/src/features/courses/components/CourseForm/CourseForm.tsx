@@ -29,6 +29,7 @@ import {
   RadioGroup,
   Typography,
 } from "../../../../utils/muiImports";
+
 import CourseMediaUploader from "./CourseMediaUploader";
 import sharedStyles from "@shared/styles/FormLayout.module.css";
 import FormSection from "@shared/components/FormSection";
@@ -82,8 +83,6 @@ export default function CourseForm({
       priceRub: null as number | null,
       showInProfile: true,
       isPersonalized: false,
-      isGuide: false,
-      guideContent: "",
       trainingDays: [],
       allowedUsers: [],
       equipment: "",
@@ -94,7 +93,6 @@ export default function CourseForm({
   // Применяем initialValues при редактировании
   useEffect(() => {
     if (initialValues) {
-      const isGuide = Boolean(initialValues.guideContent?.trim());
       form.reset({
         name: initialValues.name ?? "",
         shortDesc: initialValues.shortDesc ?? "",
@@ -107,9 +105,7 @@ export default function CourseForm({
         priceRub: initialValues.priceRub ?? null,
         showInProfile: initialValues.showInProfile ?? true,
         isPersonalized: initialValues.isPersonalized ?? false,
-        isGuide,
-        guideContent: initialValues.guideContent ?? "",
-        trainingDays: isGuide ? [] : (initialValues.trainingDays ?? []),
+        trainingDays: initialValues.trainingDays ?? [],
         allowedUsers: initialValues.allowedUsers ?? [],
         equipment: initialValues.equipment ?? "",
         trainingLevel: initialValues.trainingLevel ?? "BEGINNER",
@@ -145,9 +141,7 @@ export default function CourseForm({
           priceRub: data.priceRub ?? null,
           showInProfile: data.showInProfile,
           isPersonalized: data.isPersonalized,
-          isGuide: data.isGuide ?? false,
-          guideContent: data.isGuide ? (data.guideContent ?? "") : "",
-          trainingDays: data.isGuide ? [] : data.trainingDays,
+          trainingDays: data.trainingDays,
           allowedUsers: data.allowedUsers,
           equipment: data.equipment,
           trainingLevel: data.trainingLevel,
@@ -171,17 +165,12 @@ export default function CourseForm({
         }
         formData.append("showInProfile", data.showInProfile ? "true" : "false");
         formData.append("isPersonalized", data.isPersonalized ? "true" : "false");
-        formData.append("isGuide", (data.isGuide ?? false) ? "true" : "false");
         formData.append("equipment", data.equipment || "");
         formData.append("trainingLevel", data.trainingLevel || "BEGINNER");
 
-        if (data.isGuide) {
-          formData.append("guideContent", data.guideContent ?? "");
-        } else {
-          data.trainingDays.forEach((dayId) => {
-            formData.append("trainingDays", dayId);
-          });
-        }
+        data.trainingDays.forEach((dayId) => {
+          formData.append("trainingDays", dayId);
+        });
 
         // Добавляем allowedUsers
         data.allowedUsers.forEach((userId) => {
@@ -417,10 +406,6 @@ export default function CourseForm({
                 }
                 label="Показывать курс в моём профиле"
               />
-            </FormGroup>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Если включено, курс будет отображаться в вашем публичном профиле для всех посетителей
-            </Typography>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -432,6 +417,10 @@ export default function CourseForm({
                 }
                 label="Персонализированный курс"
               />
+            </FormGroup>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Если включено, курс будет отображаться в вашем публичном профиле для всех посетителей
+            </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {"В текстах шагов можно использовать плейсхолдеры имени ученика и питомца ({{userName}}, {{petName}} и др.)"}
             </Typography>
@@ -448,30 +437,6 @@ export default function CourseForm({
           </FormSection>
         )}
 
-        <FormSection title="Тип курса">
-          <RadioGroup
-            value={form.watch("isGuide") ? "guide" : "training"}
-            onChange={(e) => {
-              const newIsGuide = e.target.value === "guide";
-              if (form.watch("isGuide") && !newIsGuide) {
-                if (!window.confirm("Контент гайда будет удалён. Продолжить?")) {
-                  return;
-                }
-                form.setValue("guideContent", "");
-              }
-              form.setValue("isGuide", newIsGuide);
-              if (newIsGuide) {
-                form.setValue("trainingDays", []);
-              }
-            }}
-            row
-          >
-            <FormControlLabel value="training" control={<Radio />} label="Полноценный курс" />
-            <FormControlLabel value="guide" control={<Radio />} label="Мини-гайд" />
-          </RadioGroup>
-        </FormSection>
-
-        {!form.watch("isGuide") ? (
         <FormSection title="Тренировочные дни">
           <DualListSelector
             allItems={allDays}
@@ -491,19 +456,6 @@ export default function CourseForm({
             allowDuplicates={true}
           />
         </FormSection>
-        ) : (
-        <FormSection title="HTML-контент гайда">
-          <TextAreaField
-            id="guideContent"
-            label="HTML-контент гайда"
-            name="guideContent"
-            placeholder="Вставьте полный HTML (например, из checklist-eta-baza.html). Поддерживаются стили, скрипты, интерактив."
-            form={form}
-            multiline
-            rows={12}
-          />
-        </FormSection>
-        )}
 
         <ValidationErrors
           errors={Object.fromEntries(
