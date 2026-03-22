@@ -246,6 +246,7 @@ model User {
   articleLikes             ArticleLike[]
   articleAccesses          ArticleAccess[]
   articlePayments          ArticlePayment[]
+  articleViews             ArticleViewer[]
 }
 
 enum ConsentType {
@@ -986,6 +987,7 @@ model Article {
   articleLikes  ArticleLike[]
   access        ArticleAccess[]
   payments      ArticlePayment[]
+  viewers       ArticleViewer[]
 
   @@index([authorId])
   @@index([createdAt])
@@ -1015,6 +1017,21 @@ model ArticleAccess {
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@unique([articleId, userId])
+  @@index([articleId])
+  @@index([userId])
+}
+
+/** Уникальные авторизованные просмотры (для аналитики тренера); общий счётчик — Article.viewCount */
+model ArticleViewer {
+  articleId     String
+  userId        String
+  firstViewedAt DateTime @default(now())
+  lastViewedAt  DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, userId])
   @@index([articleId])
   @@index([userId])
 }

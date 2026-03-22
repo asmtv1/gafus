@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { incrementArticleView } from "@gafus/core/services/article";
 import { revalidateTag } from "next/cache";
@@ -23,7 +25,10 @@ export const POST = withCSRFProtection(async (
       );
     }
 
-    const result = await incrementArticleView(slug);
+    const session = await getServerSession(authOptions);
+    const viewerUserId = session?.user?.id ?? null;
+
+    const result = await incrementArticleView(slug, viewerUserId);
     if (!result.success) {
       return NextResponse.json(
         { success: false, error: result.error ?? "Ошибка" },

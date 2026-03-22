@@ -16,9 +16,12 @@ const mockArticleCreate = vi.fn();
 const mockArticleUpdate = vi.fn();
 const mockArticleDelete = vi.fn();
 const mockArticleUpdateMany = vi.fn();
+const mockTransaction = vi.fn();
+const mockArticleViewerUpsert = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
+    $transaction: (...args: unknown[]) => mockTransaction(...args),
     article: {
       findMany: (...args: unknown[]) => mockArticleFindMany(...args),
       findUnique: (...args: unknown[]) => mockArticleFindUnique(...args),
@@ -26,6 +29,9 @@ vi.mock("@gafus/prisma", () => ({
       update: (...args: unknown[]) => mockArticleUpdate(...args),
       delete: (...args: unknown[]) => mockArticleDelete(...args),
       updateMany: (...args: unknown[]) => mockArticleUpdateMany(...args),
+    },
+    articleViewer: {
+      upsert: (...args: unknown[]) => mockArticleViewerUpsert(...args),
     },
   },
 }));
@@ -325,19 +331,57 @@ describe("getArticleForEdit", () => {
 describe("incrementArticleView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockArticleUpdateMany.mockResolvedValue({ count: 1 });
+    mockArticleFindUnique.mockResolvedValue({ id: "art1" });
+    mockArticleUpdate.mockResolvedValue({});
+    mockArticleViewerUpsert.mockResolvedValue({});
+    mockTransaction.mockImplementation(
+      async (
+        fn: (tx: {
+          article: { update: typeof mockArticleUpdate };
+          articleViewer: { upsert: typeof mockArticleViewerUpsert };
+        }) => Promise<void>
+      ) => {
+        await fn({
+          article: { update: mockArticleUpdate },
+          articleViewer: { upsert: mockArticleViewerUpsert },
+        });
+      }
+    );
   });
 
-  it("успех", async () => {
+  it("успех без пользователя — только счётчик", async () => {
     await expect(incrementArticleView("slug-x")).resolves.toEqual({ success: true });
-    expect(mockArticleUpdateMany).toHaveBeenCalledWith({
+    expect(mockArticleFindUnique).toHaveBeenCalledWith({
       where: { slug: "slug-x" },
+      select: { id: true },
+    });
+    expect(mockTransaction).toHaveBeenCalled();
+    expect(mockArticleUpdate).toHaveBeenCalledWith({
+      where: { id: "art1" },
       data: { viewCount: { increment: 1 } },
     });
+    expect(mockArticleViewerUpsert).not.toHaveBeenCalled();
+  });
+
+  it("успех с пользователем — upsert зрителя", async () => {
+    await incrementArticleView("slug-x", "user-1");
+    expect(mockArticleViewerUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { articleId_userId: { articleId: "art1", userId: "user-1" } },
+        create: { articleId: "art1", userId: "user-1" },
+        update: { lastViewedAt: expect.any(Date) as Date },
+      })
+    );
+  });
+
+  it("slug не найден — без транзакции", async () => {
+    mockArticleFindUnique.mockResolvedValueOnce(null);
+    await expect(incrementArticleView("missing")).resolves.toEqual({ success: true });
+    expect(mockTransaction).not.toHaveBeenCalled();
   });
 
   it("ошибка БД", async () => {
-    mockArticleUpdateMany.mockRejectedValue(new Error("db"));
+    mockTransaction.mockRejectedValue(new Error("db"));
 
     const r = await incrementArticleView("s");
 

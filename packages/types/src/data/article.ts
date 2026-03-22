@@ -1,5 +1,13 @@
 /** DTO и типы сущности Article (статьи) */
 
+/** Просмотр статьи авторизованным пользователем (для панели тренера) */
+export interface ArticleViewerDto {
+  userId: string;
+  username: string;
+  fullName: string | null;
+  lastViewedAt: string;
+}
+
 export interface ArticleListDto {
   id: string;
   title: string;

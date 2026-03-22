@@ -51,7 +51,8 @@ const viewParamSchema = z.object({ slug: z.string().min(1) });
 articlesRoutes.post("/:slug/view", zValidator("param", viewParamSchema), async (c) => {
   try {
     const { slug } = c.req.valid("param");
-    const result = await incrementArticleView(slug);
+    const user = c.get("user");
+    const result = await incrementArticleView(slug, user?.id);
     return c.json(result.success ? { success: true } : { success: false, error: result.error }, 200);
   } catch (error) {
     logger.error("Error in article view POST", error as Error);

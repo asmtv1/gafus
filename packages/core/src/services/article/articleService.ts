@@ -4,7 +4,7 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
-import type { ArticleListDto, ArticleDetailDto } from "@gafus/types";
+import type { ArticleListDto, ArticleDetailDto, ArticleViewerDto } from "@gafus/types";
 import {
   createArticleSchema,
   updateArticleSchema,
@@ -307,18 +307,95 @@ export async function updateArticle(
 
 /**
  * Инкрементирует счётчик просмотров статьи по slug.
- * Вызывается при входе пользователя на страницу статьи.
+ * Для авторизованного пользователя дополнительно фиксируется запись в ArticleViewer (уникально на пару статья–пользователь).
  */
-export async function incrementArticleView(slug: string): Promise<{ success: boolean; error?: string }> {
+export async function incrementArticleView(
+  slug: string,
+  viewerUserId?: string | null
+): Promise<{ success: boolean; error?: string }> {
   try {
-    await prisma.article.updateMany({
+    const article = await prisma.article.findUnique({
       where: { slug },
-      data: { viewCount: { increment: 1 } },
+      select: { id: true },
     });
+    if (!article) {
+      return { success: true };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.article.update({
+        where: { id: article.id },
+        data: { viewCount: { increment: 1 } },
+      });
+      if (viewerUserId) {
+        await tx.articleViewer.upsert({
+          where: {
+            articleId_userId: { articleId: article.id, userId: viewerUserId },
+          },
+          create: {
+            articleId: article.id,
+            userId: viewerUserId,
+          },
+          update: {
+            lastViewedAt: new Date(),
+          },
+        });
+      }
+    });
+
     return { success: true };
   } catch (error) {
     logger.error("Ошибка incrementArticleView", error as Error);
     return { success: false, error: "Не удалось обновить просмотры" };
+  }
+}
+
+export type GetArticleViewersResult =
+  | { success: true; data: ArticleViewerDto[] }
+  | { success: false; error: string };
+
+/**
+ * Список пользователей, открывавших статью (только для автора статьи).
+ */
+export async function getArticleViewersForAuthor(
+  articleId: string,
+  authorId: string
+): Promise<GetArticleViewersResult> {
+  try {
+    const article = await prisma.article.findFirst({
+      where: { id: articleId, authorId },
+      select: {
+        viewers: {
+          orderBy: { lastViewedAt: "desc" },
+          select: {
+            lastViewedAt: true,
+            user: {
+              select: {
+                id: true,
+                username: true,
+                profile: { select: { fullName: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!article) {
+      return { success: false, error: "Статья не найдена или нет доступа" };
+    }
+
+    const data: ArticleViewerDto[] = article.viewers.map((v) => ({
+      userId: v.user.id,
+      username: v.user.username,
+      fullName: v.user.profile?.fullName ?? null,
+      lastViewedAt: v.lastViewedAt.toISOString(),
+    }));
+
+    return { success: true, data };
+  } catch (error) {
+    logger.error("Ошибка getArticleViewersForAuthor", error as Error);
+    return { success: false, error: "Не удалось загрузить просмотры" };
   }
 }
 

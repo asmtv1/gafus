@@ -6,7 +6,9 @@ import {
   createArticle,
   updateArticle,
   deleteArticle,
+  getArticleViewersForAuthor,
 } from "@gafus/core/services/article";
+import type { ArticleViewerDto } from "@gafus/types";
 import { deleteFolderFromCDN } from "@gafus/cdn-upload";
 import { revalidatePath } from "next/cache";
 import { invalidateArticlesCache } from "./invalidateArticlesCache";
@@ -47,6 +49,22 @@ export async function updateArticleAction(
   } catch (error) {
     logger.error("Ошибка обновления статьи", error as Error);
     return { success: false, error: "Не удалось обновить статью" };
+  }
+}
+
+export async function getArticleViewersAction(
+  articleId: string
+): Promise<
+  | { success: true; data: ArticleViewerDto[] }
+  | { success: false; error: string }
+> {
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) return { success: false, error: "Не авторизован" };
+    return await getArticleViewersForAuthor(articleId, userId);
+  } catch (error) {
+    logger.error("Ошибка списка просмотров статьи", error as Error);
+    return { success: false, error: "Не удалось загрузить список" };
   }
 }
 
