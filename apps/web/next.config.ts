@@ -71,6 +71,10 @@ const gafusAliases = {
     "../../packages/core/src/services/achievements",
   ),
   "@gafus/core/services/pets": _path.resolve(__dirname, "../../packages/core/src/services/pets"),
+  "@gafus/core/services/petPrevention": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/petPrevention",
+  ),
   "@gafus/core/errors": _path.resolve(__dirname, "../../packages/core/src/errors"),
   "@gafus/core/utils": _path.resolve(__dirname, "../../packages/core/src/utils"),
   "@gafus/core/utils/social": _path.resolve(__dirname, "../../packages/core/src/utils/social"),

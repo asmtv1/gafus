@@ -10,6 +10,7 @@ export * from "./subscriptions";
 export * from "./tracking";
 export * from "./achievements";
 export * from "./pets";
+export * from "./petPrevention";
 export * from "./training";
 export * from "./exam";
 export * from "./notes";

@@ -65,8 +65,9 @@ processQueue("email", "send-welcome", async (job) => {
 | `videoTranscodingQueue` | Транскодирование видео |
 | `examCleanupQueue` | Очистка старых результатов экзаменов |
 | `consentLogCleanupQueue` | Очистка старых orphaned FAILED записей ConsentLog (ежедневно 02:00 MSK) |
+| `petPreventionReminderQueue` | Напоминания о профилактике питомца (прививки, глистогонка, клещи/блохи) |
 
-Экспорт: `consentLogCleanupQueue` из `@gafus/queues`.
+Экспорт: `consentLogCleanupQueue`, `petPreventionReminderQueue` из `@gafus/queues`.
 
 ## 🔧 API
 

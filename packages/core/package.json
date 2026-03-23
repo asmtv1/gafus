@@ -53,6 +53,10 @@
       "types": "./dist/core/src/services/pets/index.d.ts",
       "default": "./dist/core/src/services/pets/index.js"
     },
+    "./services/petPrevention": {
+      "types": "./dist/core/src/services/petPrevention/index.d.ts",
+      "default": "./dist/core/src/services/petPrevention/index.js"
+    },
     "./services/training": {
       "types": "./dist/core/src/services/training/index.d.ts",
       "default": "./dist/core/src/services/training/index.js"

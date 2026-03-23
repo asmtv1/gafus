@@ -57,6 +57,7 @@ processJob("image-processing", "resize", async (job) => {
 |--------|---------|------------|----------|
 | Exam Cleanup | exam-cleanup | 03:00 MSK | Очистка старых результатов экзаменов |
 | Consent Log Cleanup | consent-log-cleanup | 02:00 MSK | Удаление orphaned FAILED ConsentLog старше 90 дней |
+| Pet Prevention Reminder | pet-prevention-reminder | 09:00 MSK | Push-напоминания о профилактике питомца (прививки, глистогонка, клещи/блохи) |
 | Re-engagement | reengagement | cron | Re-engagement письма |
 | Push | push | — | Push (Web/VAPID, Expo/FCM, RuStore) |
 | Video Transcoding | video-transcoding | — | Транскодирование видео |
@@ -74,3 +75,6 @@ processJob("image-processing", "resize", async (job) => {
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
 | `WORKER_HEALTH_PORT` | 3003 | Порт HTTP-сервера для healthcheck |
+| `PET_PREVENTION_VACCINATION_DAYS` | 365 | Интервал (дней) для напоминания о прививке |
+| `PET_PREVENTION_DEWORMING_DAYS` | 90 | Интервал (дней) для напоминания о глистогонке |
+| `PET_PREVENTION_TICKS_FLEAS_DAYS` | 30 | Интервал (дней) для напоминания об обработке от клещей/блох |

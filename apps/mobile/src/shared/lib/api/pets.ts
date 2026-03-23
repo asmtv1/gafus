@@ -31,6 +31,43 @@ export interface CreatePetData {
 
 export interface UpdatePetData extends Partial<CreatePetData> {}
 
+export type PetPreventionType = "VACCINATION" | "DEWORMING" | "TICKS_FLEAS";
+
+export type PetPreventionReminderKind = "AFTER_DAYS" | "ON_DATE";
+
+export interface PetPreventionEntry {
+  id: string;
+  petId: string;
+  type: PetPreventionType;
+  performedAt: string;
+  productName?: string | null;
+  notes?: string | null;
+  clientId?: string | null;
+  reminderEnabled?: boolean;
+  reminderKind?: PetPreventionReminderKind;
+  reminderDaysAfter?: number | null;
+  reminderOnDate?: string | null;
+  remindAt?: string | null;
+  lastNotifiedForRemindAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePreventionEntryData {
+  type: PetPreventionType;
+  performedAt: string;
+  productName?: string;
+  notes?: string;
+  reminderEnabled?: boolean;
+  reminderKind?: PetPreventionReminderKind;
+  reminderDaysAfter?: number;
+  reminderOnDate?: string;
+}
+
+export interface BatchPreventionEntry extends CreatePreventionEntryData {
+  clientId: string;
+}
+
 /**
  * API модуль для работы с питомцами
  */
@@ -209,5 +246,115 @@ export const petsApi = {
       };
     }
     return data;
+  },
+
+  // ==================== Prevention Journal ====================
+
+  getPreventionEntries: async (
+    petId: string,
+  ): Promise<ApiResponse<PetPreventionEntry[]>> => {
+    try {
+      return await apiClient<PetPreventionEntry[]>(
+        `/api/v1/pets/${petId}/prevention`,
+      );
+    } catch (error) {
+      if (__DEV__) {
+        console.error(`${LOG_PREFIX} Ошибка получения записей профилактики`, {
+          petId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      throw error;
+    }
+  },
+
+  addPreventionEntry: async (
+    petId: string,
+    data: CreatePreventionEntryData,
+  ): Promise<ApiResponse<PetPreventionEntry>> => {
+    try {
+      return await apiClient<PetPreventionEntry>(
+        `/api/v1/pets/${petId}/prevention`,
+        { method: "POST", body: data },
+      );
+    } catch (error) {
+      if (__DEV__) {
+        console.error(`${LOG_PREFIX} Ошибка добавления записи профилактики`, {
+          petId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      throw error;
+    }
+  },
+
+  updatePreventionEntry: async (
+    petId: string,
+    entryId: string,
+    data: Partial<CreatePreventionEntryData>,
+  ): Promise<ApiResponse<PetPreventionEntry>> => {
+    try {
+      return await apiClient<PetPreventionEntry>(
+        `/api/v1/pets/${petId}/prevention/${entryId}`,
+        { method: "PUT", body: data },
+      );
+    } catch (error) {
+      if (__DEV__) {
+        console.error(`${LOG_PREFIX} Ошибка обновления записи профилактики`, {
+          petId,
+          entryId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      throw error;
+    }
+  },
+
+  deletePreventionEntry: async (
+    petId: string,
+    entryId: string,
+  ): Promise<ApiResponse<void>> => {
+    try {
+      return await apiClient<void>(
+        `/api/v1/pets/${petId}/prevention/${entryId}`,
+        { method: "DELETE" },
+      );
+    } catch (error) {
+      if (__DEV__) {
+        console.error(`${LOG_PREFIX} Ошибка удаления записи профилактики`, {
+          petId,
+          entryId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      throw error;
+    }
+  },
+
+  batchUpsertPreventionEntries: async (
+    petId: string,
+    entries: BatchPreventionEntry[],
+  ): Promise<
+    ApiResponse<{ created: number; updated: number; errors: string[] }>
+  > => {
+    try {
+      return await apiClient<{
+        created: number;
+        updated: number;
+        errors: string[];
+      }>(`/api/v1/pets/${petId}/prevention/batch`, {
+        method: "POST",
+        body: { entries },
+      });
+    } catch (error) {
+      if (__DEV__) {
+        console.error(`${LOG_PREFIX} Ошибка batch sync профилактики`, {
+          petId,
+          count: entries.length,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      throw error;
+    }
   },
 };

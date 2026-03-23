@@ -1,9 +1,11 @@
 "use client";
 
 import { memo } from "react";
+import Link from "next/link";
 
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import { getAgeWithMonths, declOfNum, getPetTypeLabel } from "@gafus/core/utils";
 import { Avatar, IconButton } from "@shared/utils/muiImports";
 
@@ -77,6 +79,12 @@ const PetCard = memo(function PetCard({
         {pet.heightCm && <p>Рост: {pet.heightCm} см</p>}
         {pet.weightKg && <p>Вес: {pet.weightKg} кг</p>}
         {pet.notes && <p>Заметки: {pet.notes}</p>}
+        {isOwner && (
+          <Link href={`/profile/pets/${pet.id}/prevention`} className={styles.preventionLink}>
+            <ListAltOutlinedIcon className={styles.preventionLinkIcon} fontSize="small" />
+            Записи о процедурах
+          </Link>
+        )}
       </div>
       {isOwner ? (
         <div className={styles.dog_actions}>

@@ -790,6 +790,87 @@
 
 ---
 
+## Pet Prevention — Журнал профилактики питомца
+
+Журнал для учёта прививок, глистогонки, обработок от клещей/блох. Требует авторизацию (Bearer JWT). Владелец питомца определяется через `pet.ownerId === userId`.
+
+### GET `/api/v1/pets/:petId/prevention`
+
+Получить список записей профилактики питомца.
+
+**Response (success):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "cuid",
+      "type": "VACCINATION | DEWORMING | TICKS_FLEAS",
+      "performedAt": "ISO date",
+      "productName": "string | null",
+      "notes": "string | null",
+      "clientId": "uuid | null",
+      "createdAt": "ISO date",
+      "updatedAt": "ISO date"
+    }
+  ]
+}
+```
+
+### POST `/api/v1/pets/:petId/prevention`
+
+Создать запись профилактики.
+
+**Body:**
+
+```json
+{
+  "type": "VACCINATION | DEWORMING | TICKS_FLEAS",
+  "performedAt": "ISO date",
+  "productName": "string (опц., max 200)",
+  "notes": "string (опц., max 2000)"
+}
+```
+
+### PUT `/api/v1/pets/:petId/prevention/:entryId`
+
+Обновить запись профилактики.
+
+**Body:** Частичные поля из создания (type, performedAt, productName, notes).
+
+### DELETE `/api/v1/pets/:petId/prevention/:entryId`
+
+Удалить запись профилактики.
+
+### POST `/api/v1/pets/:petId/prevention/batch`
+
+Пакетный upsert записей (для mobile offline sync). Идемпотентность по `clientId`.
+
+**Body:**
+
+```json
+{
+  "entries": [
+    {
+      "clientId": "uuid (обязательно)",
+      "type": "VACCINATION | DEWORMING | TICKS_FLEAS",
+      "performedAt": "ISO date",
+      "productName": "string (опц.)",
+      "notes": "string (опц.)"
+    }
+  ]
+}
+```
+
+**Response:** `{ "success": true, "data": { "created": number, "updated": number } }`
+
+**Ограничения:** до 50 записей в одном batch.
+
+**Ошибки (Pet Prevention):** при `success: false` поле `error` содержит только безопасные русские строки (не Zod issues, не детали Prisma). 400 — валидация (`"Неверные данные"`); 404/500 — фиксированные сообщения.
+
+---
+
 ## Notifications — Уведомления
 
 ### POST `/api/v1/notifications/step`
@@ -1082,6 +1163,10 @@
 ---
 
 ## Changelog
+
+### v1.5.0 (23.03.2026)
+
+- **Pet Prevention (журнал профилактики питомца):** `GET/POST/PUT/DELETE /api/v1/pets/:petId/prevention` — CRUD записей прививок, глистогонки, обработок от клещей/блох; `POST /api/v1/pets/:petId/prevention/batch` — batch upsert для mobile offline sync (идемпотентность по clientId). См. [Pet Prevention](../features/pet-prevention.md).
 
 ### v1.4.0 (06.03.2026)
 

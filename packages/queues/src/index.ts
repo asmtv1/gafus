@@ -4,3 +4,4 @@ export { consentLogCleanupQueue } from "./consent-log-cleanup-queue.js";
 export * from "./reengagement-queue.js";
 export * from "./video-transcoding-queue.js";
 export { examCleanupQueue } from "./push-queue.js";
+export { petPreventionReminderQueue } from "./pet-prevention-reminder-queue.js";

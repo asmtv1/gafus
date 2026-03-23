@@ -22,6 +22,7 @@ import { userRoutes } from "./routes/v1/user.js";
 import { articlesRoutes } from "./routes/v1/articles.js";
 import { coursesRoutes } from "./routes/v1/courses.js";
 import { petsRoutes } from "./routes/v1/pets.js";
+import { petPreventionRoutes } from "./routes/v1/pet-prevention.js";
 import { trainingRoutes } from "./routes/v1/training.js";
 import { examRoutes } from "./routes/v1/exam.js";
 import { offlineRoutes } from "./routes/v1/offline.js";
@@ -68,6 +69,7 @@ app.route("/api/v1/courses", coursesRoutes);
 app.use("/api/v1/pets/*", apiRateLimiter);
 app.use("/api/v1/pets/*", authMiddleware);
 app.route("/api/v1/pets", petsRoutes);
+app.route("/api/v1/pets", petPreventionRoutes);
 
 // Training routes - большинство требуют JWT
 // authMiddleware пропускает маршруты /video/:videoId/manifest и /video/:videoId/segment

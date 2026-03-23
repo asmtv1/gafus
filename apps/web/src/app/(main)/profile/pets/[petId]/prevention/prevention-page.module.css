@@ -1,0 +1,33 @@
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 2.5rem;
+  box-sizing: border-box;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #352e2e;
+  margin: 0 0 1rem;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  line-height: 1.25;
+}
+
+.alert {
+  margin-bottom: 1.25rem;
+  border-radius: 12px !important;
+  border: 1px solid #d4c4a8 !important;
+  background: #fff8e5 !important;
+  color: #352e2e !important;
+}
+
+@media (min-width: 769px) {
+  .page {
+    padding: 2rem 1.25rem 3rem;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+}

@@ -1,0 +1,300 @@
+/* Общая палитра раздела «профиль / питомцы» */
+
+.formRoot {
+  padding-top: 0.25rem;
+}
+
+.formRoot :global(.MuiFormControl-root) {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.formRoot :global(.MuiInputLabel-root) {
+  color: #636128;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.formRoot :global(.MuiInputLabel-root.Mui-focused) {
+  color: #4a4a1a;
+}
+
+.formRoot :global(.MuiOutlinedInput-root) {
+  border-radius: 12px;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  background: #fffdf8;
+}
+
+.formRoot :global(.MuiOutlinedInput-notchedOutline) {
+  border-color: #d4c4a8;
+}
+
+.formRoot :global(.MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline) {
+  border-color: #b6c582;
+}
+
+.formRoot :global(.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline) {
+  border-color: #636128;
+  border-width: 2px;
+}
+
+.formRoot :global(.MuiSelect-icon) {
+  color: #636128;
+}
+
+.disclaimer {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #636128;
+  margin: 0;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.switchRow :global(.MuiFormControlLabel-label) {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 0.95rem;
+  color: #352e2e;
+  font-weight: 500;
+}
+
+/* Dialog */
+.dialogPaper {
+  border-radius: 16px !important;
+  border: 1px solid #d4c4a8;
+  background: linear-gradient(145deg, #f5f0e8 0%, #ece5d2 100%);
+  box-shadow: 0 8px 32px rgba(53, 46, 46, 0.12) !important;
+}
+
+.dialogTitle {
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif !important;
+  font-weight: 600 !important;
+  color: #352e2e !important;
+  font-size: 1.35rem !important;
+  padding-bottom: 0 !important;
+}
+
+.dialogContent {
+  padding-top: 0.5rem !important;
+}
+
+.dialogActions {
+  padding: 1rem 1.5rem 1.25rem !important;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  border-top: 1px solid #d4c4a8;
+  background: rgba(255, 253, 248, 0.6);
+}
+
+.btnSecondary {
+  text-transform: none !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  font-family: var(--font-montserrat), system-ui, sans-serif !important;
+  color: #4a4a1a !important;
+  padding: 8px 16px !important;
+}
+
+.btnSecondary:hover {
+  background: rgba(99, 97, 40, 0.08) !important;
+}
+
+.btnPrimary {
+  text-transform: none !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif !important;
+  padding: 10px 22px !important;
+  border-radius: 12px !important;
+  color: #ece5d2 !important;
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%) !important;
+  border: 1px solid #636128 !important;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3) !important;
+}
+
+.btnPrimary:hover {
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%) !important;
+  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4) !important;
+}
+
+.btnPrimary:disabled {
+  background: #d4c4a8 !important;
+  color: #636128 !important;
+  border-color: #d4c4a8 !important;
+  box-shadow: none !important;
+}
+
+.errorText {
+  font-size: 0.875rem;
+  color: #8b4513;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+/* Список записей */
+.listWrap {
+  margin-top: 0.5rem;
+}
+
+.addButton {
+  text-transform: none !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif !important;
+  padding: 10px 20px !important;
+  border-radius: 12px !important;
+  color: #ece5d2 !important;
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%) !important;
+  border: 1px solid #636128 !important;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3) !important;
+}
+
+.addButton:hover {
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%) !important;
+  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4) !important;
+}
+
+.addButton :global(.MuiButton-startIcon) {
+  color: inherit;
+}
+
+.emptyState {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: #636128;
+  font-style: italic;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  background: #fff8e5;
+  border: 2px dashed #d4c4a8;
+  border-radius: 12px;
+}
+
+/* Блок-строка: на узком экране кнопки не перекрывают текст */
+.listItem {
+  display: block !important;
+  border-radius: 12px;
+  border: 1px solid #d4c4a8;
+  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
+  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.listItem:hover {
+  border-color: #b6c582;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.listItemInner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.listItemMain {
+  min-width: 0;
+  width: 100%;
+}
+
+.listItemMain :global(.MuiListItemText-root) {
+  margin: 0;
+}
+
+@media (min-width: 600px) {
+  .listItemInner {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .listItemMain {
+    flex: 1;
+    width: auto;
+  }
+}
+
+.chipVaccination {
+  background: linear-gradient(135deg, #b6c582 0%, #9ba86a 100%) !important;
+  color: #352e2e !important;
+  font-weight: 600 !important;
+  border: 1px solid #8a9658 !important;
+}
+
+.chipDeworming {
+  background: linear-gradient(135deg, #c4a574 0%, #a88654 100%) !important;
+  color: #352e2e !important;
+  font-weight: 600 !important;
+  border: 1px solid #8b7355 !important;
+}
+
+.chipTicks {
+  background: linear-gradient(135deg, #a8b89a 0%, #8a9a7c 100%) !important;
+  color: #352e2e !important;
+  font-weight: 600 !important;
+  border: 1px solid #6b7a5e !important;
+}
+
+.listItemActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+@media (min-width: 600px) {
+  .listItemActions {
+    justify-content: flex-start;
+    padding-top: 2px;
+  }
+}
+
+.iconBtn {
+  border-radius: 10px !important;
+  padding: 8px !important;
+  color: #ece5d2 !important;
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%) !important;
+  border: 1px solid #636128 !important;
+  box-shadow: 0 2px 6px rgba(99, 97, 40, 0.25);
+}
+
+.iconBtn:hover {
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%) !important;
+}
+
+.iconBtnDelete {
+  background: linear-gradient(135deg, #8b4513 0%, #6b3410 100%) !important;
+  border-color: #8b4513 !important;
+}
+
+.iconBtnDelete:hover {
+  background: linear-gradient(135deg, #6b3410 0%, #4a2c0a 100%) !important;
+}
+
+.dateText {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  color: #636128 !important;
+}
+
+.bodyPrimary {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  color: #352e2e !important;
+}
+
+.bodySecondary {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  color: #636128 !important;
+}
+
+.captionMuted {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  color: #636128 !important;
+}

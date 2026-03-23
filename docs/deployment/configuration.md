@@ -323,6 +323,11 @@ YC_MONITORING_API_KEY=          # API-ключ сервисного аккаун
 
 # Worker (health endpoint для мониторинга)
 WORKER_HEALTH_PORT=3003         # Порт HTTP /health (по умолчанию 3003)
+
+# Журнал профилактики питомца — интервалы напоминаний (дней)
+PET_PREVENTION_VACCINATION_DAYS=365  # Прививка (по умолчанию)
+PET_PREVENTION_DEWORMING_DAYS=90     # Глистогонка
+PET_PREVENTION_TICKS_FLEAS_DAYS=30   # Клещи/блохи
 ```
 
 Метрики в production: Grafana Alloy → Yandex Monitoring. См. [Yandex Monitoring](../monitoring/yandex-monitoring.md).

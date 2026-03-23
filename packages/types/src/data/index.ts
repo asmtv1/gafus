@@ -6,6 +6,7 @@ export * from "./course";
 export * from "./login-form";
 export * from "./pet";
 export * from "./pet-input";
+export * from "./pet-prevention";
 export * from "./push";
 export * from "./step";
 export * from "./trainer-panel";

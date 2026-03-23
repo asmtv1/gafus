@@ -20,6 +20,7 @@ import {
 } from "@/shared/providers";
 import { ErrorBoundary, OfflineIndicator } from "@/shared/components";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
+import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
 import { COLORS } from "@/constants";
 
 function SyncProgressOnReconnect() {
@@ -79,6 +80,7 @@ export default function RootLayout() {
                 <View style={styles.container}>
                   <OfflineIndicator />
                   <SyncProgressOnReconnect />
+                  <SyncPreventionOnReconnect />
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="(auth)" />
                     <Stack.Screen name="(main)" />

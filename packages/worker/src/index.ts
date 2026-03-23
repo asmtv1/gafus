@@ -18,8 +18,10 @@ import "./reengagement-worker";
 import "./video-transcoding-worker";
 import { startConsentLogCleanupWorker } from "./consent-log-cleanup-worker";
 import { startExamCleanupWorker } from "./exam-cleanup-worker";
+import { startPetPreventionReminderWorker } from "./pet-prevention-reminder-worker";
 import { setupConsentLogCleanupSchedule } from "./schedules/consent-log-cleanup-schedule";
 import { setupExamCleanupSchedule } from "./schedules/exam-cleanup-schedule";
+import { setupPetPreventionReminderSchedule } from "./schedules/pet-prevention-reminder-schedule";
 import { startCronJobs } from "./cron-scheduler";
 
 // Запускаем exam cleanup worker
@@ -35,6 +37,13 @@ startConsentLogCleanupWorker();
 
 setupConsentLogCleanupSchedule().catch((error) => {
   logger.error("Failed to setup consent log cleanup schedule", error as Error);
+});
+
+// Запускаем pet prevention reminder worker
+startPetPreventionReminderWorker();
+
+setupPetPreventionReminderSchedule().catch((error) => {
+  logger.error("Failed to setup pet prevention reminder schedule", error as Error);
 });
 
 // Запускаем cron-планировщик для re-engagement

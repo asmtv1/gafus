@@ -242,6 +242,7 @@ model User {
   userVideoProgresses      UserVideoProgress[]
   consentLogs              ConsentLog[]
   ofertaAcceptances        OfertaAcceptance[]
+  petPreventionEntries     PetPreventionEntry[]
   authoredArticles         Article[]           @relation("authoredArticles")
   articleLikes             ArticleLike[]
   articleAccesses          ArticleAccess[]
@@ -385,20 +386,21 @@ model UserCourse {
 }
 
 model Pet {
-  id        String   @id @default(cuid())
-  ownerId   String
-  name      String
-  type      PetType
-  breed     String
-  birthDate DateTime
-  heightCm  Float?
-  weightKg  Float?
-  photoUrl  String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
-  awards    Award[]
-  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  id                 String               @id @default(cuid())
+  ownerId            String
+  name               String
+  type               PetType
+  breed              String
+  birthDate          DateTime
+  heightCm           Float?
+  weightKg           Float?
+  photoUrl           String?
+  notes              String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now())
+  awards             Award[]
+  owner              User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  preventionEntries  PetPreventionEntry[]
 }
 
 model Award {
@@ -418,6 +420,39 @@ model Award {
 
   @@index([petId])
   @@index([courseId])
+}
+
+model PetPreventionEntry {
+  id                       String                     @id @default(cuid())
+  petId                    String
+  ownerId                  String
+  type                     PetPreventionType
+  performedAt              DateTime
+  productName              String?
+  notes                    String?
+  clientId                 String?
+  /// Включено ли push-напоминание по этой записи
+  reminderEnabled          Boolean                    @default(true)
+  /// Способ задания даты напоминания: через N дней после выполненного или фиксированная дата
+  reminderKind             PetPreventionReminderKind  @default(AFTER_DAYS)
+  /// Интервал в днях после performedAt (только при reminderKind = AFTER_DAYS)
+  reminderDaysAfter        Int?
+  /// Календарная дата напоминания (только при reminderKind = ON_DATE), хранится как date
+  reminderOnDate           DateTime?                  @db.Date
+  /// Вычисленный день срабатывания напоминания (для выборки воркером)
+  remindAt                 DateTime?                  @db.Date
+  /// Дата remindAt, по которой уже успешно отправили push (идемпотентность повторных прогонов)
+  lastNotifiedForRemindAt  DateTime?                  @db.Date
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+  pet                      Pet                        @relation(fields: [petId], references: [id], onDelete: Cascade)
+  owner                    User                       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([petId, clientId])
+  @@index([petId])
+  @@index([ownerId])
+  @@index([petId, type, performedAt])
+  @@index([reminderEnabled, remindAt])
 }
 
 model TrainingAccess {
@@ -924,6 +959,17 @@ enum UserRole {
 enum PetType {
   DOG
   CAT
+}
+
+enum PetPreventionType {
+  VACCINATION
+  DEWORMING
+  TICKS_FLEAS
+}
+
+enum PetPreventionReminderKind {
+  AFTER_DAYS
+  ON_DATE
 }
 
 enum TrainingLevel {

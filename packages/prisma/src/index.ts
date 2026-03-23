@@ -27,6 +27,8 @@ export type {
 export {
   ConsentLogStatus,
   ConsentType,
+  PetPreventionReminderKind,
+  PetPreventionType,
   PetType,
   StepType,
   TrainingStatus,

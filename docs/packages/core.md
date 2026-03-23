@@ -42,7 +42,8 @@ packages/core/
 │   │   ├── adminBroadcast/ # Push-рассылка (admin-panel)
 │   │   ├── consent/       # Согласия при регистрации (ConsentLog)
 │   │   ├── oferta/        # Фиксация согласия с Офертой (OfertaAcceptance)
-│   │   └── payments/      # Платежи ЮKassa
+│   │   ├── payments/      # Платежи ЮKassa
+│   │   └── petPrevention/ # Журнал профилактики питомца (прививки, глистогонка, клещи/блохи)
 │   ├── config/            # Конфигурация
 │   │   └── documentVersions.ts  # Версии oferta, policy, personal
 │   ├── errors/            # ServiceError, prismaErrorHandler
@@ -128,6 +129,15 @@ import { createStep, getVisibleSteps } from "@gafus/core/services/trainerStep";
 import { createTrainingDay, getVisibleDays } from "@gafus/core/services/trainingDay";
 import { registerTrainerVideo, getTrainerVideos } from "@gafus/core/services/trainerVideo";
 import { reviewExamResult, getPendingExamResults } from "@gafus/core/services/exam";
+
+// Журнал профилактики питомца
+import {
+  createEntry,
+  updateEntry,
+  deleteEntry,
+  getEntriesByPet,
+  upsertPreventionEntriesBatch,
+} from "@gafus/core/services/petPrevention";
 
 // Утилиты (общие)
 import {

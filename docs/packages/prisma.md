@@ -84,22 +84,61 @@ model User {
 
 ```prisma
 model Pet {
-  id          String   @id @default(cuid())
+  id                String               @id @default(cuid())
+  ownerId           String
+  name              String
+  type              PetType
+  breed             String
+  birthDate         DateTime
+  heightCm          Float?
+  weightKg          Float?
+  photoUrl          String?
+  notes             String?
+
+  owner             User                 @relation(fields: [ownerId], references: [id])
+  awards            Award[]
+  preventionEntries PetPreventionEntry[]
+
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+```
+
+#### PetPreventionEntry (Журнал профилактики питомца)
+
+Записи о прививках, глистогонке, обработках от клещей/блох.
+
+```prisma
+model PetPreventionEntry {
+  id          String            @id @default(cuid())
+  petId       String
   ownerId     String
-  name        String
-  type        PetType
-  breed       String
-  birthDate   DateTime
-  heightCm    Float?
-  weightKg    Float?
-  photoUrl    String?
+  type        PetPreventionType
+  performedAt DateTime
+  productName String?
   notes       String?
+  clientId    String?           // UUID для идемпотентности batch sync
 
-  owner       User     @relation(fields: [ownerId], references: [id])
-  awards      Award[]
+  pet         Pet               @relation(...)
+  owner       User              @relation(...)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([petId, clientId])
+  @@index([petId])
+  @@index([ownerId])
+  @@index([petId, type, performedAt])
+}
+```
+
+#### PetPreventionType (enum)
+
+```prisma
+enum PetPreventionType {
+  VACCINATION  // Прививка
+  DEWORMING    // Глистогонка
+  TICKS_FLEAS  // Обработка от клещей/блох
 }
 ```
 

@@ -14,6 +14,7 @@
     "baseUrl": ".",
     "paths": {
       "@gafus/core/services/consent": ["../../packages/core/src/services/consent"],
+      "@gafus/core/services/notifications": ["../../packages/core/src/services/notifications"],
       "@gafus/prisma": ["../../packages/prisma/src"],
       "@gafus/queues": ["../../packages/queues/src"]
     }

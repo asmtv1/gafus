@@ -1,11 +1,12 @@
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Constants from "expo-constants";
 import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Card } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
@@ -660,6 +661,25 @@ export default function ProfileScreen() {
                         styles.petActionButton,
                         pressed && styles.petActionButtonPressed,
                       ]}
+                      onPress={() =>
+                        router.push(
+                          `/pets/${pet.id}/prevention` as Parameters<typeof router.push>[0],
+                        )
+                      }
+                    >
+                      <Text style={styles.petActionIcon}>📋</Text>
+                      <Text
+                        style={[styles.petActionText, styles.petActionTextMultiline]}
+                        numberOfLines={2}
+                      >
+                        Записи о процедурах
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.petActionButton,
+                        pressed && styles.petActionButtonPressed,
+                      ]}
                       onPress={() => handleEditPet(pet)}
                     >
                       <Text style={styles.petActionIcon}>✏️</Text>
@@ -758,7 +778,9 @@ export default function ProfileScreen() {
             <Text style={styles.infoIcon}>ℹ️</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoItemTitle}>О приложении</Text>
-              <Text style={styles.infoItemDesc}>Версия 1.0.0</Text>
+              <Text style={styles.infoItemDesc}>
+                Версия {Constants.expoConfig?.version ?? "—"}
+              </Text>
             </View>
           </View>
 
@@ -1309,7 +1331,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
-    minHeight: 36,
+    minHeight: 44,
   },
   petActionButtonPressed: {
     backgroundColor: "#F5F0E8",
@@ -1330,6 +1352,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: 0.1,
     flexShrink: 1,
+  },
+  petActionTextMultiline: {
+    textAlign: "center",
+    lineHeight: 15,
   },
   petActionTextDelete: {
     color: "#8B4513",

@@ -124,6 +124,32 @@ interface Pet {
 type PetType = "DOG" | "CAT";
 ```
 
+#### `PetPreventionType`
+
+Типы профилактики питомца.
+
+```typescript
+type PetPreventionType = "VACCINATION" | "DEWORMING" | "TICKS_FLEAS";
+```
+
+#### `PetPreventionEntry`
+
+Запись журнала профилактики (прививки, глистогонка, клещи/блохи).
+
+```typescript
+interface PetPreventionEntry {
+  id: string;
+  petId: string;
+  type: PetPreventionType;
+  performedAt: string; // ISO date
+  productName?: string;
+  notes?: string;
+  clientId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
 #### `Course`
 
 Тип курса обучения.
