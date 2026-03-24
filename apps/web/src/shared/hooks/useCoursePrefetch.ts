@@ -1,7 +1,9 @@
-import { useCourseStoreActions } from "@shared/stores";
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
-import { createWebLogger } from "@gafus/logger";
+
+import { useCourseStoreActions } from "@shared/stores";
 
 // Создаем логгер для useCoursePrefetch
 const logger = createWebLogger("web-course-prefetch");
@@ -22,8 +24,12 @@ export const useCoursePrefetch = () => {
       // Защита от возможных циклов: не дергаем если уже есть кэш
       if (!allCourses) {
         fetchAllCourses().catch((error) => {
-          // Игнорируем ошибки в префетчере
           logger.warn("Ошибка при предзагрузке курсов:", { error, operation: "warn" });
+          reportClientError(error, {
+            severity: "warning",
+            issueKey: "useCoursePrefetch",
+            keys: { operation: "prefetch_all_courses" },
+          });
         });
       }
     }

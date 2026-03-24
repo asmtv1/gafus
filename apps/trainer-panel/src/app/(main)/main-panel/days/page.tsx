@@ -1,13 +1,11 @@
-import { getServerSession } from "next-auth";
-
-import { authOptions } from "@gafus/auth";
 import { getVisibleDays } from "@features/courses/lib/getVisibleDays";
 
 import DaysClient from "./DaysClient";
 
+import { getCachedSession } from "@/shared/lib/getSessionCached";
+
 export default async function DaysPage() {
-  const session = await getServerSession(authOptions);
-  const days = await getVisibleDays();
+  const [session, days] = await Promise.all([getCachedSession(), getVisibleDays()]);
   const isAdmin = session?.user?.role === "ADMIN";
 
   // Убираем дубликаты по id, оставляя только уникальные дни

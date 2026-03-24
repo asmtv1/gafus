@@ -1,15 +1,14 @@
 import { CourseForm } from "@features/courses/components/CourseForm";
 import { getVisibleDays } from "@features/courses/lib/getVisibleDays";
 import { getTrainerVideos } from "@features/trainer-videos/lib/getTrainerVideos";
-import { authOptions } from "@gafus/auth";
 import { Typography } from "@mui/material";
-import { getServerSession } from "next-auth";
+
 import FormPageLayout from "@shared/components/FormPageLayout";
+import { getCachedSession } from "@/shared/lib/getSessionCached";
 
 export default async function NewCoursePage() {
-  const session = await getServerSession(authOptions);
+  const [session, steps] = await Promise.all([getCachedSession(), getVisibleDays()]);
   const trainerVideos = session?.user?.id ? await getTrainerVideos(session.user.id) : [];
-  const steps = await getVisibleDays();
 
   // Проверяем, что steps не undefined и является массивом
   if (!steps || !Array.isArray(steps)) {

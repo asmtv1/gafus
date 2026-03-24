@@ -1,10 +1,13 @@
 "use server";
 
+import { getCurrentUserId as getCurrentUserIdFromAuth } from "@gafus/auth/server";
 import { saveCoursePersonalization as saveCoursePersonalizationService } from "@gafus/core/services/course";
+import { createWebLogger } from "@gafus/logger";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 
-import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
+const logger = createWebLogger("web-save-course-personalization");
 
 const savePersonalizationSchema = z.object({
   userDisplayName: z.string().min(1, "Укажите имя").transform((s) => s.trim()),
@@ -39,26 +42,36 @@ export async function saveCoursePersonalization(
   courseId: string,
   data: unknown,
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return { success: false, error: "Не авторизован" };
-  }
+  try {
+    const userId = await getCurrentUserIdFromAuth();
+    if (!userId) {
+      return { success: false, error: "Не авторизован" };
+    }
 
-  const parsed = savePersonalizationSchema.safeParse(data);
-  if (!parsed.success) {
-    const first = parsed.error.flatten().fieldErrors;
-    const msg = first.userDisplayName?.[0] ?? first.petName?.[0] ?? "Проверьте поля";
-    return { success: false, error: msg };
-  }
+    const parsed = savePersonalizationSchema.safeParse(data);
+    if (!parsed.success) {
+      const first = parsed.error.flatten().fieldErrors;
+      const msg = first.userDisplayName?.[0] ?? first.petName?.[0] ?? "Проверьте поля";
+      return { success: false, error: msg };
+    }
 
-  const result = await saveCoursePersonalizationService(userId, courseId, parsed.data);
+    const result = await saveCoursePersonalizationService(userId, courseId, parsed.data);
 
-  if (result.success) {
-    revalidateTag("training");
-    revalidateTag("days");
-    revalidateTag(`user-${userId}`);
-    revalidatePath("/trainings/[courseType]", "page");
-    revalidatePath("/trainings/[courseType]/[dayId]", "page");
+    if (result.success) {
+      revalidateTag("training");
+      revalidateTag("days");
+      revalidateTag(`user-${userId}`);
+      revalidatePath("/trainings/[courseType]", "page");
+      revalidatePath("/trainings/[courseType]/[dayId]", "page");
+    }
+    return result;
+  } catch (error) {
+    unstable_rethrow(error);
+    logger.error(
+      "Ошибка saveCoursePersonalization",
+      error instanceof Error ? error : new Error(String(error)),
+      { courseId },
+    );
+    return { success: false, error: "Не удалось сохранить персонализацию" };
   }
-  return result;
 }

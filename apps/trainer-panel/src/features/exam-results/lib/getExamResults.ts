@@ -2,6 +2,8 @@
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
+import { createTrainerPanelLogger } from "@gafus/logger";
+import { unstable_rethrow } from "next/navigation";
 import {
   getExamResults as getExamResultsCore,
   getExamResultsByCourse as getExamResultsByCourseCore,
@@ -14,6 +16,8 @@ import type {
 
 export type { ExamResultWithDetails, GetExamResultsOptions };
 
+const logger = createTrainerPanelLogger("trainer-get-exam-results");
+
 /**
  * Получает результаты экзаменов для текущего тренера.
  * Для админа — все курсы, для остальных — только свои.
@@ -21,14 +25,23 @@ export type { ExamResultWithDetails, GetExamResultsOptions };
 export async function getExamResults(
   options?: GetExamResultsOptions,
 ): Promise<ExamResultWithDetails[]> {
-  const session = await getServerSession(authOptions);
+  try {
+    const session = await getServerSession(authOptions);
 
-  if (!session?.user?.id) {
-    throw new Error("Не авторизован");
+    if (!session?.user?.id) {
+      throw new Error("Не авторизован");
+    }
+
+    const isAdmin = session.user.role === "ADMIN";
+    return await getExamResultsCore(session.user.id, options, isAdmin);
+  } catch (error) {
+    unstable_rethrow(error);
+    logger.error(
+      "getExamResults failed",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+    throw error;
   }
-
-  const isAdmin = session.user.role === "ADMIN";
-  return getExamResultsCore(session.user.id, options, isAdmin);
 }
 
 /**
@@ -37,12 +50,22 @@ export async function getExamResults(
 export async function getExamResultsByCourse(
   courseId: string,
 ): Promise<ExamResultWithDetails[]> {
-  const session = await getServerSession(authOptions);
+  try {
+    const session = await getServerSession(authOptions);
 
-  if (!session?.user?.id) {
-    throw new Error("Не авторизован");
+    if (!session?.user?.id) {
+      throw new Error("Не авторизован");
+    }
+
+    const isAdmin = session.user.role === "ADMIN";
+    return await getExamResultsByCourseCore(courseId, session.user.id, isAdmin);
+  } catch (error) {
+    unstable_rethrow(error);
+    logger.error(
+      "getExamResultsByCourse failed",
+      error instanceof Error ? error : new Error(String(error)),
+      { courseId },
+    );
+    throw error;
   }
-
-  const isAdmin = session.user.role === "ADMIN";
-  return getExamResultsByCourseCore(courseId, session.user.id, isAdmin);
 }

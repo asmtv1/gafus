@@ -13,6 +13,7 @@ import { useRouter } from "expo-router";
 import { useShallow } from "zustand/react/shallow";
 
 import { Button } from "@/shared/components/ui";
+import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 
 import { useAuthStore } from "@/shared/stores";
@@ -60,8 +61,12 @@ export default function ConfirmScreen() {
           await checkAuth(); // обновляет store (isConfirmed, isAuthenticated)
           router.replace("/"); // с confirm AuthProvider не редиректит — нужен явный переход
         }
-      } catch {
-        // no-op, next poll retry
+      } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "ConfirmScreen",
+          severity: "warning",
+          keys: { operation: "poll_check_confirmed" },
+        });
       }
     };
 

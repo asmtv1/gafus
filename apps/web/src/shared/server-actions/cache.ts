@@ -21,25 +21,37 @@ const invalidateUserProgressSchema = z.object({
  * @returns Результат операции с информацией о статусе
  */
 export async function invalidateUserProgressCache(userId: string, force: boolean = false) {
-  const { userId: safeUserId } = invalidateUserProgressSchema.parse({
-    userId,
-    force,
-  });
+  try {
+    const { userId: safeUserId } = invalidateUserProgressSchema.parse({
+      userId,
+      force,
+    });
 
-  logger.info(`[Cache] Invalidating user progress cache for user: ${safeUserId}`);
+    logger.info(`[Cache] Invalidating user progress cache for user: ${safeUserId}`);
 
-  revalidateTag(`user-${safeUserId}`);
-  revalidateTag("user-progress");
-  revalidateTag("training");
-  revalidateTag("days");
-  revalidateTag("courses-favorites");
-  revalidateTag("courses");
-  revalidateTag("courses-metadata");
-  revalidateTag("achievements");
-  revalidateTag("streaks");
+    revalidateTag(`user-${safeUserId}`);
+    revalidateTag("user-progress");
+    revalidateTag("training");
+    revalidateTag("days");
+    revalidateTag("courses-favorites");
+    revalidateTag("courses");
+    revalidateTag("courses-metadata");
+    revalidateTag("achievements");
+    revalidateTag("streaks");
 
-  logger.success(`[Cache] User progress cache invalidated successfully for user: ${safeUserId}`);
-  return { success: true };
+    logger.success(`[Cache] User progress cache invalidated successfully for user: ${safeUserId}`);
+    return { success: true };
+  } catch (error) {
+    logger.error(
+      "invalidateUserProgressCache failed",
+      error instanceof Error ? error : new Error(String(error)),
+      { userId },
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Не удалось инвалидировать кэш",
+    };
+  }
 }
 
 /**

@@ -292,8 +292,16 @@ export default function ProfileScreen() {
         Alert.alert("Уведомления", result.error ?? "Не удалось включить уведомления");
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: ["push-subscription-status"] });
-      hapticFeedback.success();
+      try {
+        await queryClient.invalidateQueries({ queryKey: ["push-subscription-status"] });
+        hapticFeedback.success();
+      } catch (err) {
+        reportClientError(err, {
+          issueKey: "ProfileScreen",
+          keys: { operation: "push_enable_invalidate" },
+        });
+        Alert.alert("Уведомления", "Не удалось обновить статус подписки");
+      }
     },
   });
 
@@ -304,8 +312,16 @@ export default function ProfileScreen() {
         Alert.alert("Уведомления", result.error ?? "Не удалось отключить уведомления");
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: ["push-subscription-status"] });
-      hapticFeedback.success();
+      try {
+        await queryClient.invalidateQueries({ queryKey: ["push-subscription-status"] });
+        hapticFeedback.success();
+      } catch (err) {
+        reportClientError(err, {
+          issueKey: "ProfileScreen",
+          keys: { operation: "push_disable_invalidate" },
+        });
+        Alert.alert("Уведомления", "Не удалось обновить статус подписки");
+      }
     },
   });
 
@@ -353,8 +369,15 @@ export default function ProfileScreen() {
         text: "Выйти",
         style: "destructive",
         onPress: async () => {
-          await logout();
-          // Навигация на /welcome управляется AuthProvider
+          try {
+            await logout();
+          } catch (err) {
+            reportClientError(err, {
+              issueKey: "ProfileScreen",
+              keys: { operation: "logout" },
+            });
+            Alert.alert("Ошибка", "Не удалось выйти из аккаунта");
+          }
         },
       },
     ]);
@@ -364,59 +387,75 @@ export default function ProfileScreen() {
   const hasSocialLinks = profile?.instagram || profile?.telegram || profile?.website;
 
   const pickImageAndUploadAvatar = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Доступ", "Нужен доступ к фото для смены аватара");
-      return;
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Доступ", "Нужен доступ к фото для смены аватара");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      const mimeType = asset.mimeType ?? "image/jpeg";
+      if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
+        Alert.alert("Ошибка", "Разрешены только JPEG, PNG, WebP, GIF");
+        return;
+      }
+      const sizeMB = (asset.fileSize ?? 0) / (1024 * 1024);
+      if (sizeMB > AVATAR_MAX_SIZE_MB) {
+        Alert.alert("Ошибка", `Максимальный размер аватара — ${AVATAR_MAX_SIZE_MB} МБ`);
+        return;
+      }
+      const fileName = asset.uri.split("/").pop() ?? "photo.jpg";
+      avatarUploadMutation.mutate({ uri: asset.uri, mimeType, fileName });
+    } catch (err) {
+      reportClientError(err, {
+        issueKey: "ProfileScreen",
+        keys: { operation: "pick_avatar" },
+      });
+      Alert.alert("Ошибка", "Не удалось выбрать фото");
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    const mimeType = asset.mimeType ?? "image/jpeg";
-    if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
-      Alert.alert("Ошибка", "Разрешены только JPEG, PNG, WebP, GIF");
-      return;
-    }
-    const sizeMB = (asset.fileSize ?? 0) / (1024 * 1024);
-    if (sizeMB > AVATAR_MAX_SIZE_MB) {
-      Alert.alert("Ошибка", `Максимальный размер аватара — ${AVATAR_MAX_SIZE_MB} МБ`);
-      return;
-    }
-    const fileName = asset.uri.split("/").pop() ?? "photo.jpg";
-    avatarUploadMutation.mutate({ uri: asset.uri, mimeType, fileName });
   };
 
   const pickImageAndUploadPetPhoto = async (petId: string) => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Доступ", "Нужен доступ к фото для смены фото питомца");
-      return;
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Доступ", "Нужен доступ к фото для смены фото питомца");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      const mimeType = asset.mimeType ?? "image/jpeg";
+      if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
+        Alert.alert("Ошибка", "Разрешены только JPEG, PNG, WebP, GIF");
+        return;
+      }
+      const sizeMB = (asset.fileSize ?? 0) / (1024 * 1024);
+      if (sizeMB > PET_PHOTO_MAX_SIZE_MB) {
+        Alert.alert("Ошибка", `Максимальный размер фото — ${PET_PHOTO_MAX_SIZE_MB} МБ`);
+        return;
+      }
+      const fileName = asset.uri.split("/").pop() ?? "photo.jpg";
+      petPhotoUploadMutation.mutate({ petId, uri: asset.uri, mimeType, fileName });
+    } catch (err) {
+      reportClientError(err, {
+        issueKey: "ProfileScreen",
+        keys: { operation: "pick_pet_photo" },
+      });
+      Alert.alert("Ошибка", "Не удалось выбрать фото");
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    const mimeType = asset.mimeType ?? "image/jpeg";
-    if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
-      Alert.alert("Ошибка", "Разрешены только JPEG, PNG, WebP, GIF");
-      return;
-    }
-    const sizeMB = (asset.fileSize ?? 0) / (1024 * 1024);
-    if (sizeMB > PET_PHOTO_MAX_SIZE_MB) {
-      Alert.alert("Ошибка", `Максимальный размер фото — ${PET_PHOTO_MAX_SIZE_MB} МБ`);
-      return;
-    }
-    const fileName = asset.uri.split("/").pop() ?? "photo.jpg";
-    petPhotoUploadMutation.mutate({ petId, uri: asset.uri, mimeType, fileName });
   };
 
   return (

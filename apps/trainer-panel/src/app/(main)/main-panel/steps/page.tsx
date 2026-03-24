@@ -1,10 +1,8 @@
-import { getServerSession } from "next-auth";
-
-import { authOptions } from "@gafus/auth";
-import StepsClient from "./StepsClient";
-
 import { getVisibleSteps } from "@/features/steps/lib/getVisibleSteps";
+import { getCachedSession } from "@/shared/lib/getSessionCached";
 import type { TrainerStepTableRow } from "@gafus/types";
+
+import StepsClient from "./StepsClient";
 
 export default async function StepsPage({
   searchParams,
@@ -18,10 +16,9 @@ export default async function StepsPage({
     onlyOrphanSteps?: string;
   }>;
 }) {
-  const session = await getServerSession(authOptions);
-  const steps = await getVisibleSteps();
+  const [steps, params] = await Promise.all([getVisibleSteps(), searchParams]);
+  const session = await getCachedSession();
   const isAdmin = session?.user?.role === "ADMIN";
-  const params = await searchParams;
 
   return (
     <StepsClient steps={steps as TrainerStepTableRow[]} isAdmin={isAdmin} searchParams={params} />

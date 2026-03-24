@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 
@@ -77,6 +78,11 @@ export async function checkRealConnection(
 
     logger.warn("All ping attempts failed — connection offline", {
       operation: "connection_check_all_failed",
+    });
+    reportClientError(new Error("connection_check_all_failed"), {
+      issueKey: "checkRealConnection",
+      severity: "warning",
+      keys: { operation: "all_ping_attempts_failed" },
     });
     return false;
   } finally {

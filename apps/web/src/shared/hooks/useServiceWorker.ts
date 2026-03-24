@@ -3,9 +3,11 @@
  * Обеспечивает коммуникацию между приложением и SW
  */
 
-import { useEffect, useCallback } from "react";
-import { useOfflineStore } from "@shared/stores/offlineStore";
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
+import { useCallback, useEffect } from "react";
+
+import { useOfflineStore } from "@shared/stores/offlineStore";
 
 // Создаем логгер для useServiceWorker
 const logger = createWebLogger("web-service-worker-hook");
@@ -77,6 +79,11 @@ export function useServiceWorker() {
       return response.status;
     } catch (error) {
       logger.warn("Failed to get cache status:", { error, operation: "warn" });
+      reportClientError(error, {
+        severity: "warning",
+        issueKey: "useServiceWorker",
+        keys: { operation: "get_cache_status" },
+      });
       return null;
     }
   }, [getMessageFromSW]);

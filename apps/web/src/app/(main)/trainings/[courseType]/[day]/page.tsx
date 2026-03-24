@@ -38,12 +38,14 @@ export default async function DayPage(props: {
 
   if (!training) {
     // Платный курс без оплаты — редирект на страницу курса с предложением оплаты (ЮKassa)
-    const courseMetadata = await getCourseMetadata(courseType);
+    const [courseMetadata, userId] = await Promise.all([
+      getCourseMetadata(courseType),
+      getCurrentUserId()
+        .then((id) => id as string)
+        .catch(() => null),
+    ]);
     if (courseMetadata?.isPaid && courseMetadata.id) {
-      let userId: string | null = null;
-      try {
-        userId = await getCurrentUserId();
-      } catch {
+      if (!userId) {
         // Гость на платном — редирект на список, там покажут оплату
         redirect(`/trainings/${courseType}`);
       }

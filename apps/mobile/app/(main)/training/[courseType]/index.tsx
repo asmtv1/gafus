@@ -30,6 +30,7 @@ import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
 import { showLockedDayAlert, WEB_BASE } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
+import { reportClientError } from "@/shared/lib/tracer";
 
 /**
  * Экран списка дней тренировок курса
@@ -317,14 +318,19 @@ export default function TrainingDaysScreen() {
   const handleShareCourse = useCallback(async () => {
     const url = `https://gafus.ru/trainings/${courseType}`;
     const message = [courseType, courseData?.courseDescription, url].filter(Boolean).join("\n\n");
-    /* eslint-disable @gafus/require-client-catch-tracer -- отмена Share или ошибка → копируем URL */
+    /* eslint-disable @gafus/require-client-catch-tracer -- Share + fallback + warning в Tracer */
     try {
       await Share.share({
         title: `Курс: ${courseType}`,
         message,
         url,
       });
-    } catch {
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "TrainingDaysScreen",
+        severity: "warning",
+        keys: { operation: "share_course_fallback_clipboard" },
+      });
       await Clipboard.setStringAsync(url);
       setSnackbar({ visible: true, message: "Ссылка скопирована" });
     }

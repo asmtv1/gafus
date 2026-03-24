@@ -1,6 +1,7 @@
 "use client";
-/* eslint-disable @gafus/require-client-catch-tracer -- защитный доступ к iframe.contentDocument; штатные ограничения браузера */
+/* eslint-disable @gafus/require-client-catch-tracer -- iframe.contentDocument + явный warning в Tracer */
 
+import { reportClientError } from "@gafus/error-handling";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const MSG_TYPE = "gafus:guide-height";
@@ -75,8 +76,12 @@ export default function GuideContentEmbed({ content, className }: GuideContentEm
         const doc = iframeRef.current?.contentDocument;
         const h = doc?.documentElement?.scrollHeight ?? 0;
         if (h > 0) applyHeight(h);
-      } catch {
-        /* same-origin для srcdoc */
+      } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "GuideContentEmbed",
+          severity: "warning",
+          keys: { operation: "iframe_content_document_height" },
+        });
       }
     };
     tryRead();
@@ -95,7 +100,12 @@ export default function GuideContentEmbed({ content, className }: GuideContentEm
         const h = doc?.documentElement?.scrollHeight ?? 600;
         setHeight(h > 0 ? h : 600);
         setReady(true);
-      } catch {
+      } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "GuideContentEmbed",
+          severity: "warning",
+          keys: { operation: "iframe_timeout_fallback" },
+        });
         setHeight(600);
         setReady(true);
       }

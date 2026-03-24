@@ -3,6 +3,8 @@
  * Обеспечивает нативное ощущение через Vibration API
  */
 
+import { reportClientError } from "@gafus/error-handling";
+
 type HapticPattern = "light" | "medium" | "heavy" | "success" | "warning" | "error";
 
 interface HapticPatterns {
@@ -47,6 +49,11 @@ export function triggerHaptic(pattern: HapticPattern = "light"): boolean {
     return true;
   } catch (error) {
     console.warn("Failed to trigger haptic feedback:", error);
+    reportClientError(error, {
+      severity: "warning",
+      issueKey: "HapticFeedback",
+      keys: { operation: "trigger_vibrate", pattern },
+    });
     return false;
   }
 }

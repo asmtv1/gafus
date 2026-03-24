@@ -1,5 +1,6 @@
-import Swal from "sweetalert2";
+import { reportClientError } from "@gafus/error-handling";
 import type { PetFormData } from "@gafus/types";
+import Swal from "sweetalert2";
 
 /** Экранирование для подстановки в HTML (value="...") — защита от XSS */
 function escapeHtml(s: string): string {
@@ -193,6 +194,10 @@ export const showNotificationPermissionAlert = (
         const errorMessage =
           error instanceof Error ? error.message : "Произошла ошибка при включении уведомлений";
 
+        reportClientError(error, {
+          issueKey: "SweetAlertNotifications",
+          keys: { operation: "notification_permission_on_allow" },
+        });
         Swal.showValidationMessage(errorMessage);
       }
     } else if (result.dismiss === "cancel") {
@@ -488,8 +493,12 @@ export const showPersonalizationAlert = async (
       accEl.value = accusative;
       insEl.value = instrumental;
       preEl.value = prepositional;
-    } catch {
-      // ignore
+    } catch (error) {
+      reportClientError(error, {
+        severity: "warning",
+        issueKey: "SweetAlertPersonalization",
+        keys: { operation: "get_declined_name_prefill" },
+      });
     }
   };
 

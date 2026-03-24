@@ -12,13 +12,14 @@ export default async function EditDayPage({ params }: Props) {
   const { id } = await params;
   if (!id) return notFound();
 
-  const day = await prisma.trainingDay.findUnique({
-    where: { id },
-    include: { stepLinks: { orderBy: { order: "asc" } } },
-  });
+  const [day, steps] = await Promise.all([
+    prisma.trainingDay.findUnique({
+      where: { id },
+      include: { stepLinks: { orderBy: { order: "asc" } } },
+    }),
+    getVisibleSteps(),
+  ]);
   if (!day) return null;
-
-  const steps = await getVisibleSteps();
 
   const formattedSteps = steps.map((step: { id: string | number; title: string }) => ({
     id: String(step.id),

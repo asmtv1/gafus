@@ -1,8 +1,10 @@
-import { useCallback } from "react";
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
 import { useQueryClient } from "@gafus/react-query";
+import { useCallback } from "react";
+
 import { useCourseStoreActions } from "@shared/stores/courseStore";
 import { isOnline } from "@shared/utils/offlineCacheUtils";
-import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для useRefreshData
 const logger = createWebLogger("web-refresh-data");
@@ -91,6 +93,10 @@ export function useRefreshData(pageType: RefreshPageType) {
       };
     } catch (error) {
       logger.error(`❌ Ошибка обновления ${pageType}:`, error as Error, { operation: "error" });
+      reportClientError(error, {
+        issueKey: "useRefreshData",
+        keys: { operation: "refresh", pageType },
+      });
       throw error;
     }
   }, [pageType, queryClient, fetchAllCourses, fetchFavorites, fetchAuthored]);

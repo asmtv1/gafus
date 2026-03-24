@@ -7,10 +7,7 @@
  * и добавляют авторизацию через getCurrentUserId.
  */
 
-import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { createWebLogger } from "@gafus/logger";
-import { z } from "zod";
-
 import {
   pauseStepNotification,
   resetStepNotification,
@@ -20,6 +17,10 @@ import {
   createStepNotificationForStepStart,
   getDayFromDayOnCourseId,
 } from "@gafus/core/services/notifications";
+import { unstable_rethrow } from "next/navigation";
+import { z } from "zod";
+
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import {
   courseIdSchema,
   stepIndexSchema,
@@ -68,19 +69,20 @@ export async function pauseNotificationAction(
   dayOnCourseId: string,
   stepIndex: number,
 ) {
-  const parsed = notificationKeySchema.parse({ courseId, dayOnCourseId, stepIndex });
   try {
+    const parsed = notificationKeySchema.parse({ courseId, dayOnCourseId, stepIndex });
     const userId = await getCurrentUserId();
     const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
 
     await pauseStepNotification(userId, day, parsed.stepIndex);
     return { success: true };
   } catch (error) {
-    logger.error("Failed to pause notification", error as Error, {
-      courseId,
-      dayOnCourseId,
-      stepIndex,
-    });
+    unstable_rethrow(error);
+    logger.error(
+      "Failed to pause notification",
+      error instanceof Error ? error : new Error(String(error)),
+      { courseId, dayOnCourseId, stepIndex },
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to pause notification",
@@ -96,19 +98,20 @@ export async function resetNotificationAction(
   dayOnCourseId: string,
   stepIndex: number,
 ) {
-  const parsed = notificationKeySchema.parse({ courseId, dayOnCourseId, stepIndex });
   try {
+    const parsed = notificationKeySchema.parse({ courseId, dayOnCourseId, stepIndex });
     const userId = await getCurrentUserId();
     const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
 
     await resetStepNotification(userId, day, parsed.stepIndex);
     return { success: true };
   } catch (error) {
-    logger.error("Failed to reset notification", error as Error, {
-      courseId,
-      dayOnCourseId,
-      stepIndex,
-    });
+    unstable_rethrow(error);
+    logger.error(
+      "Failed to reset notification",
+      error instanceof Error ? error : new Error(String(error)),
+      { courseId, dayOnCourseId, stepIndex },
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to reset notification",
@@ -125,13 +128,13 @@ export async function resumeNotificationAction(
   stepIndex: number,
   durationSec: number,
 ) {
-  const parsed = resumeNotificationSchema.parse({
-    courseId,
-    dayOnCourseId,
-    stepIndex,
-    durationSec,
-  });
   try {
+    const parsed = resumeNotificationSchema.parse({
+      courseId,
+      dayOnCourseId,
+      stepIndex,
+      durationSec,
+    });
     const userId = await getCurrentUserId();
     const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
 
@@ -144,12 +147,12 @@ export async function resumeNotificationAction(
     );
     return { success: true };
   } catch (error) {
-    logger.error("Failed to resume notification", error as Error, {
-      courseId,
-      dayOnCourseId,
-      stepIndex,
-      durationSec,
-    });
+    unstable_rethrow(error);
+    logger.error(
+      "Failed to resume notification",
+      error instanceof Error ? error : new Error(String(error)),
+      { courseId, dayOnCourseId, stepIndex, durationSec },
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to resume notification",
@@ -166,23 +169,23 @@ export async function toggleStepNotificationPauseByDayOnCourseAction(
   stepIndex: number,
   pause: boolean,
 ) {
-  const parsed = togglePauseByDayOnCourseSchema.parse({
-    courseId,
-    dayOnCourseId,
-    stepIndex,
-    pause,
-  });
   try {
-    const userId = await getCurrentUserId();
-    const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
-    return toggleStepNotificationPause(userId, day, parsed.stepIndex, parsed.pause);
-  } catch (error) {
-    logger.error("Failed to toggle notification pause", error as Error, {
+    const parsed = togglePauseByDayOnCourseSchema.parse({
       courseId,
       dayOnCourseId,
       stepIndex,
       pause,
     });
+    const userId = await getCurrentUserId();
+    const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
+    return toggleStepNotificationPause(userId, day, parsed.stepIndex, parsed.pause);
+  } catch (error) {
+    unstable_rethrow(error);
+    logger.error(
+      "Failed to toggle notification pause",
+      error instanceof Error ? error : new Error(String(error)),
+      { courseId, dayOnCourseId, stepIndex, pause },
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to toggle notification pause",
@@ -198,10 +201,23 @@ export async function toggleStepNotificationPauseAction(
   stepIndex: number,
   pause: boolean,
 ) {
-  const parsed = togglePauseSchema.parse({ day, stepIndex, pause });
-  const userId = await getCurrentUserId();
+  try {
+    const parsed = togglePauseSchema.parse({ day, stepIndex, pause });
+    const userId = await getCurrentUserId();
 
-  return toggleStepNotificationPause(userId, parsed.day, parsed.stepIndex, parsed.pause);
+    return toggleStepNotificationPause(userId, parsed.day, parsed.stepIndex, parsed.pause);
+  } catch (error) {
+    unstable_rethrow(error);
+    logger.error(
+      "Failed to toggle notification pause (by day)",
+      error instanceof Error ? error : new Error(String(error)),
+      { day, stepIndex, pause },
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to toggle notification pause",
+    };
+  }
 }
 
 /**
@@ -212,10 +228,23 @@ export async function deleteStepNotificationAction(
   stepIndex: number,
   deleted: boolean,
 ) {
-  const parsed = deleteSchema.parse({ day, stepIndex, deleted });
-  const userId = await getCurrentUserId();
+  try {
+    const parsed = deleteSchema.parse({ day, stepIndex, deleted });
+    const userId = await getCurrentUserId();
 
-  return deleteStepNotification(userId, parsed.day, parsed.stepIndex, parsed.deleted);
+    return deleteStepNotification(userId, parsed.day, parsed.stepIndex, parsed.deleted);
+  } catch (error) {
+    unstable_rethrow(error);
+    logger.error(
+      "Failed to delete step notification",
+      error instanceof Error ? error : new Error(String(error)),
+      { day, stepIndex, deleted },
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete notification",
+    };
+  }
 }
 
 /**
@@ -226,17 +255,17 @@ export async function createStepNotificationAction(params: {
   stepIndex: number;
   durationSec: number;
 }) {
-  const parsed = resumeNotificationSchema.pick({
-    dayOnCourseId: true,
-    stepIndex: true,
-    durationSec: true,
-  }).parse({
-    dayOnCourseId: params.dayOnCourseId,
-    stepIndex: params.stepIndex,
-    durationSec: params.durationSec,
-  });
-
   try {
+    const parsed = resumeNotificationSchema.pick({
+      dayOnCourseId: true,
+      stepIndex: true,
+      durationSec: true,
+    }).parse({
+      dayOnCourseId: params.dayOnCourseId,
+      stepIndex: params.stepIndex,
+      durationSec: params.durationSec,
+    });
+
     const userId = await getCurrentUserId();
     await createStepNotificationForStepStart(
       userId,
@@ -247,9 +276,12 @@ export async function createStepNotificationAction(params: {
 
     return { success: true };
   } catch (error) {
-    logger.error("Failed to create step notification", error as Error, {
-      params,
-    });
+    unstable_rethrow(error);
+    logger.error(
+      "Failed to create step notification",
+      error instanceof Error ? error : new Error(String(error)),
+      { params },
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

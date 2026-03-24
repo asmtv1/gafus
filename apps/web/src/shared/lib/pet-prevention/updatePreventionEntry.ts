@@ -8,6 +8,7 @@ import {
   updateEntrySchema,
 } from "@gafus/core/services/petPrevention";
 import { createWebLogger } from "@gafus/logger";
+import { unstable_rethrow } from "next/navigation";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
@@ -27,6 +28,7 @@ export async function updatePreventionEntry(
     }
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof ZodError) {
       logger.error("updatePreventionEntry validation failed", error, {
         petId,
@@ -35,7 +37,11 @@ export async function updatePreventionEntry(
       });
       return { success: false as const, error: "Неверные данные" };
     }
-    logger.error("updatePreventionEntry failed", error as Error, { petId, entryId });
+    logger.error(
+      "updatePreventionEntry failed",
+      error instanceof Error ? error : new Error(String(error)),
+      { petId, entryId },
+    );
     return { success: false as const, error: "Не удалось обновить запись" };
   }
 }

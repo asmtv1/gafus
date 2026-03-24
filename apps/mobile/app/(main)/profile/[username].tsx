@@ -8,6 +8,7 @@ import { Image } from "expo-image";
 
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { coursesApi } from "@/shared/lib/api/courses";
+import { reportClientError } from "@/shared/lib/tracer";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 // Функция для получения инициалов
@@ -32,7 +33,12 @@ const getAge = (birthDate: string | null): number | null => {
       age--;
     }
     return age;
-  } catch {
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "PublicProfile",
+      severity: "warning",
+      keys: { operation: "get_age_from_birth_date" },
+    });
     return null;
   }
   /* eslint-enable @gafus/require-client-catch-tracer */

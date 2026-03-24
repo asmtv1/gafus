@@ -4,7 +4,9 @@
  * и показывает 404. Возвращаем /(auth)/welcome чтобы остаться на auth экране;
  * useVkLogin обрабатывает redirect через Linking.
  */
-/* eslint-disable @gafus/require-client-catch-tracer -- защитный обёрточный catch */
+import { reportClientError } from "@/shared/lib/tracer";
+
+/* eslint-disable @gafus/require-client-catch-tracer -- защитный обёрточный catch + явный warning в Tracer */
 export function redirectSystemPath({
   path,
 }: {
@@ -18,7 +20,12 @@ export function redirectSystemPath({
       return "/(auth)/welcome";
     }
     return path;
-  } catch {
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "nativeIntent",
+      severity: "warning",
+      keys: { operation: "redirect_system_path" },
+    });
     return "/(auth)/welcome";
   }
 }

@@ -1,5 +1,7 @@
-import { useCallback, useEffect } from "react";
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
+import { useCallback, useEffect } from "react";
+
 import { addPassiveEventListener, removePassiveEventListener } from "../utils/eventListeners";
 
 // Создаем логгер для usePreloadComponents
@@ -33,6 +35,11 @@ export function usePreloadComponents(configs: PreloadConfig[]) {
       if (process.env.NODE_ENV === "development") {
         logger.warn("⚠️ Failed to preload component:", { error, operation: "warn" });
       }
+      reportClientError(error, {
+        severity: "warning",
+        issueKey: "usePreloadComponents",
+        keys: { operation: "preload", priority: config.priority },
+      });
     }
   }, []);
 
@@ -69,6 +76,11 @@ export function useInteractionPreload() {
       if (process.env.NODE_ENV === "development") {
         logger.warn("⚠️ Failed to preload component:", { error, operation: "warn" });
       }
+      reportClientError(error, {
+        severity: "warning",
+        issueKey: "useInteractionPreload",
+        keys: { operation: "preload_on_interaction" },
+      });
     }
   }, []);
 
@@ -106,6 +118,11 @@ export function useVisibilityPreload() {
       if (process.env.NODE_ENV === "development") {
         logger.warn("⚠️ Failed to preload component:", { error, operation: "warn" });
       }
+      reportClientError(error, {
+        severity: "warning",
+        issueKey: "useVisibilityPreload",
+        keys: { operation: "preload_on_visibility" },
+      });
     }
   }, []);
 

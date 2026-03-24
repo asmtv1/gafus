@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-
 import NewStepForm from "@features/steps/components/NewStepForm";
 import { updateStep } from "@features/steps/lib/updateStep";
 import { prisma } from "@gafus/prisma";
 import { notFound } from "next/navigation";
+
 import FormPageLayout from "@shared/components/FormPageLayout";
 import { getTrainerVideos } from "@features/trainer-videos/lib/getTrainerVideos";
-import { authOptions } from "@gafus/auth";
+import { getCachedSession } from "@/shared/lib/getSessionCached";
 import type { ChecklistQuestion } from "@gafus/types";
 
 interface Props {
@@ -15,10 +14,12 @@ interface Props {
 
 export default async function EditStepPage({ params }: Props) {
   const { id } = await params;
-  const step = await prisma.step.findUnique({ where: { id } });
+  const [step, session] = await Promise.all([
+    prisma.step.findUnique({ where: { id } }),
+    getCachedSession(),
+  ]);
   if (!step) return notFound();
 
-  const session = await getServerSession(authOptions);
   const trainerVideos = session?.user?.id ? await getTrainerVideos(session.user.id) : [];
 
   return (

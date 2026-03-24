@@ -2,9 +2,10 @@
  * Офлайн-хранилище: метаданные и пути к медиа в expo-file-system.
  * schemaVersion в meta.json для будущей миграции структуры.
  */
-/* eslint-disable @gafus/require-client-catch-tracer -- нет файла / битый meta: штатно null или [] */
+/* eslint-disable @gafus/require-client-catch-tracer -- штатные сбои FS + дублируем warning в Tracer */
 import * as FileSystem from "expo-file-system/legacy";
 import type { FullCourseData } from "@/shared/lib/api/offline";
+import { reportClientError } from "@/shared/lib/tracer";
 import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";
 
 const OFFLINE_DIR = "offline";
@@ -66,7 +67,12 @@ export async function getCourseMeta(courseType: string): Promise<OfflineCourseMe
       return null;
     }
     return parsed;
-  } catch {
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "offlineStorage",
+      severity: "warning",
+      keys: { operation: "getCourseMeta", courseType },
+    });
     return null;
   }
 }
@@ -88,7 +94,12 @@ export async function getOfflineCourseTypes(): Promise<string[]> {
       }
     }
     return courseTypes;
-  } catch {
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "offlineStorage",
+      severity: "warning",
+      keys: { operation: "getOfflineCourseTypes" },
+    });
     return [];
   }
 }
@@ -115,7 +126,12 @@ export async function getLocalVideoManifestPath(
     const info = await FileSystem.getInfoAsync(fullUri);
     if (info.exists && !info.isDirectory) return manifestPath;
     return null;
-  } catch {
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "offlineStorage",
+      severity: "warning",
+      keys: { operation: "getLocalVideoManifestPath", courseType, videoId },
+    });
     return null;
   }
 }

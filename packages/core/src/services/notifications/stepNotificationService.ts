@@ -291,7 +291,11 @@ export async function pauseStepNotification(
     await pushQueue.remove(notification.jobId.toString());
     logger.info(`Job ${notification.jobId} removed from queue`);
   } catch (error) {
-    logger.warn("Failed to remove job from queue", { error });
+    logger.error(
+      "Failed to remove job from queue",
+      error instanceof Error ? error : new Error(String(error)),
+      { jobId: notification.jobId, userId, day, stepIndex },
+    );
   }
 
   // Атомарно обновляем статус и очищаем jobId
@@ -347,7 +351,11 @@ export async function resetStepNotification(
       await pushQueue.remove(notification.jobId.toString());
       logger.info(`Job ${notification.jobId} removed from queue`);
     } catch (error) {
-      logger.warn("Failed to remove job from queue", { error });
+      logger.error(
+        "Failed to remove job from queue",
+        error instanceof Error ? error : new Error(String(error)),
+        { jobId: notification.jobId, userId, day, stepIndex },
+      );
     }
   }
 
@@ -417,12 +425,11 @@ export async function resumeStepNotification(
           url = `/trainings/${dayOnCourse.course.type}/${dayOnCourse.id}`;
         }
       } catch (error) {
-        logger.warn("Failed to get stepTitle from DB when resuming notification", {
-          dayOnCourseId,
-          day,
-          stepIndex,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        logger.error(
+          "Failed to get stepTitle from DB when resuming notification",
+          error instanceof Error ? error : new Error(String(error)),
+          { dayOnCourseId, day, stepIndex, userId },
+        );
       }
     }
 

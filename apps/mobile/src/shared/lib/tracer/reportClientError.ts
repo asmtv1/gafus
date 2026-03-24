@@ -1,9 +1,8 @@
-import { getDeviceId, getSessionUuid } from "./deviceContext";
+import { getDeviceId } from "./deviceContext";
+import { getSessionUuid } from "./sessionUuid";
 import { getTracerConfig, isTracerEnabled } from "./tracerConfig";
 import type { ClientErrorData, TracerPayloadItem } from "./types";
-
-const TRACER_URL = "https://sdk-api.apptracer.ru/api/crash/uploadBatch";
-const SDK_VERSION = "1.0.0";
+import { uploadTracerBatch } from "./tracerUpload";
 
 /** Маппинг severity в type для Tracer */
 const SEVERITY_TO_TYPE: Record<string, TracerPayloadItem["type"]> = {
@@ -56,12 +55,7 @@ export function reportClientError(error: unknown, data?: ClientErrorData): void 
         },
       ];
 
-      const url = `${TRACER_URL}?crashToken=${encodeURIComponent(config.appToken)}&compressType=NONE&sdkVersion=${SDK_VERSION}`;
-      void fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).catch(() => undefined);
+      uploadTracerBatch(payload, config.appToken);
     } catch {
       // Игнорируем ошибки отправки — не блокируем приложение
     }

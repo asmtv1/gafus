@@ -1,6 +1,7 @@
 // Универсальный менеджер Service Worker для всех браузеров
 // Кардинальное решение проблем с PWA и Safari
 
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для service worker
@@ -82,6 +83,11 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
       logger.warn("⚠️ SW Manager: Registration failed (push/offline may be unavailable)", {
         operation: "service_worker_registration_failed",
         error: error instanceof Error ? error.message : String(error),
+      });
+      reportClientError(error, {
+        severity: "warning",
+        issueKey: "ServiceWorkerManager",
+        keys: { operation: "perform_registration" },
       });
       throw new Error("Service Worker registration failed");
     }
@@ -184,6 +190,11 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
         operation: "cleanup_old_registrations_failed",
         error: error instanceof Error ? error.message : String(error),
       });
+      reportClientError(error, {
+        severity: "warning",
+        issueKey: "ServiceWorkerManager",
+        keys: { operation: "cleanup_old_registrations" },
+      });
     }
   }
 
@@ -206,7 +217,12 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
     try {
       const registration = await this.getRegistration();
       return !!(registration?.active && navigator.serviceWorker.controller);
-    } catch {
+    } catch (error) {
+      reportClientError(error, {
+        severity: "warning",
+        issueKey: "ServiceWorkerManager",
+        keys: { operation: "is_ready" },
+      });
       return false;
     }
   }

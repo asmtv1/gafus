@@ -213,7 +213,11 @@ export async function changeUsername(userId: string, newUsername: string): Promi
     try {
       await sendTelegramUsernameChangeNotification(currentUser.telegramId, normalized);
     } catch (err) {
-      logger.warn("Не удалось отправить уведомление о смене логина в Telegram", { userId, error: err });
+      logger.error(
+        "Не удалось отправить уведомление о смене логина в Telegram",
+        err instanceof Error ? err : new Error(String(err)),
+        { userId },
+      );
     }
   }
 }

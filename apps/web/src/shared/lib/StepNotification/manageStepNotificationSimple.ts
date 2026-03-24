@@ -3,12 +3,14 @@
  * Основная логика выполняется на сервере
  */
 
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
+
 import {
   pauseNotificationAction,
   resetNotificationAction,
   resumeNotificationAction,
 } from "./notificationActions";
-import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("web");
 
@@ -34,6 +36,10 @@ export async function pauseNotificationClient(
     return result;
   } catch (error) {
     logger.error("Failed to pause notification:", error as Error, { operation: "error" });
+    reportClientError(error, {
+      issueKey: "ManageStepNotification",
+      keys: { operation: "pause_notification_client" },
+    });
     return { success: false };
   }
 }
@@ -53,6 +59,10 @@ export async function resetNotificationClient(
     return result;
   } catch (error) {
     logger.error("Failed to reset notification:", error as Error, { operation: "error" });
+    reportClientError(error, {
+      issueKey: "ManageStepNotification",
+      keys: { operation: "reset_notification_client" },
+    });
     return { success: false };
   }
 }
@@ -77,6 +87,10 @@ export async function resumeNotificationClient(
     return result;
   } catch (error) {
     logger.error("Failed to resume notification:", error as Error, { operation: "error" });
+    reportClientError(error, {
+      issueKey: "ManageStepNotification",
+      keys: { operation: "resume_notification_client" },
+    });
     return { success: false };
   }
 }

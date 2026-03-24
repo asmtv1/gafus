@@ -32,6 +32,8 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
+import { reportClientError } from "@gafus/error-handling";
+
 import PageLayout from "@shared/components/PageLayout";
 import { deleteArticleAction, getArticleViewersAction } from "@shared/lib/actions/articles";
 import type { ArticleListDto, ArticleViewerDto } from "@gafus/types";
@@ -54,7 +56,12 @@ function formatViewerDate(iso: string): string {
       hour: "2-digit",
       minute: "2-digit",
     });
-  } catch {
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "ArticlesListClient",
+      severity: "warning",
+      keys: { operation: "format_viewer_date" },
+    });
     return iso;
   }
   /* eslint-enable @gafus/require-client-catch-tracer */

@@ -1,29 +1,22 @@
 import { Suspense } from "react";
 import { Box, CircularProgress, Alert } from "@/utils/muiImports";
 import { createTrainerPanelLogger } from "@gafus/logger";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@gafus/auth";
 import { getNotes } from "@/features/notes/lib/getNotes";
 import NotesClient from "./NotesClient";
 import { redirect, unstable_rethrow } from "next/navigation";
 
+import { getCachedSession } from "@/shared/lib/getSessionCached";
+
 const logger = createTrainerPanelLogger("trainer-panel-notes-page");
 
-async function NotesContent({ studentId }: { studentId?: string }) {
+async function NotesContent({
+  studentId,
+  trainerId,
+}: {
+  studentId?: string;
+  trainerId: string;
+}) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      redirect("/login");
-    }
-
-    // Проверка роли
-    if (!["TRAINER", "ADMIN", "MODERATOR"].includes(session.user.role)) {
-      return (
-        <Alert severity="error">Недостаточно прав доступа для просмотра заметок</Alert>
-      );
-    }
-
-    const trainerId = session.user.id;
     const notes = await getNotes(trainerId, {
       studentId: studentId,
       page: 0,
@@ -49,7 +42,7 @@ export default async function NotesPage({
 }: {
   searchParams: Promise<{ studentId?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const [session, params] = await Promise.all([getCachedSession(), searchParams]);
   if (!session?.user) {
     redirect("/login");
   }
@@ -59,7 +52,7 @@ export default async function NotesPage({
     redirect("/main-panel");
   }
 
-  const params = await searchParams;
+  const trainerId = session.user.id;
   const studentId = params.studentId;
 
   return (
@@ -77,7 +70,7 @@ export default async function NotesPage({
         </Box>
       }
     >
-      <NotesContent studentId={studentId} />
+      <NotesContent studentId={studentId} trainerId={trainerId} />
     </Suspense>
   );
 }

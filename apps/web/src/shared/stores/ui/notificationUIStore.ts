@@ -1,5 +1,6 @@
 // Store для управления UI уведомлений (модальные окна, статус)
 
+import { reportClientError } from "@gafus/error-handling";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -13,7 +14,12 @@ const KEY_DISMISSED_UNTIL = `${STORAGE_VERSION}:notificationDismissedUntil`;
 function safeGetItem(key: string): string | null {
   try {
     return typeof window !== "undefined" ? localStorage.getItem(key) : null;
-  } catch {
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "notificationUIStore",
+      severity: "warning",
+      keys: { operation: "localStorage_getItem" },
+    });
     return null;
   }
 }
@@ -21,16 +27,24 @@ function safeGetItem(key: string): string | null {
 function safeSetItem(key: string, value: string): void {
   try {
     if (typeof window !== "undefined") localStorage.setItem(key, value);
-  } catch {
-    // Quota exceeded or private mode
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "notificationUIStore",
+      severity: "warning",
+      keys: { operation: "localStorage_setItem" },
+    });
   }
 }
 
 function safeRemoveItem(key: string): void {
   try {
     if (typeof window !== "undefined") localStorage.removeItem(key);
-  } catch {
-    // ignore
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "notificationUIStore",
+      severity: "warning",
+      keys: { operation: "localStorage_removeItem" },
+    });
   }
 }
 

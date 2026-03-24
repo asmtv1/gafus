@@ -87,16 +87,18 @@ export default function TrainingPageClient({
     if (!needPersonalization || personalizationShownRef.current || !courseId) return;
     personalizationShownRef.current = true;
     setPersonalizationError(null);
-    void showPersonalizationAlert({
-      initialValues: null,
-      getDeclinedName,
-    }).then((result) => {
-      if (result === null) {
-        router.push("/courses");
-        return;
-      }
-      setPersonalizationSaving(true);
-      saveCoursePersonalization(courseId, result).then((res) => {
+    void (async () => {
+      try {
+        const result = await showPersonalizationAlert({
+          initialValues: null,
+          getDeclinedName,
+        });
+        if (result === null) {
+          router.push("/courses");
+          return;
+        }
+        setPersonalizationSaving(true);
+        const res = await saveCoursePersonalization(courseId, result);
         setPersonalizationSaving(false);
         if (res.success) {
           router.refresh();
@@ -104,8 +106,16 @@ export default function TrainingPageClient({
           setPersonalizationError(res.error ?? "Не удалось сохранить");
           personalizationShownRef.current = false;
         }
-      });
-    });
+      } catch (err) {
+        reportClientError(err, {
+          issueKey: "TrainingPageClient",
+          keys: { operation: "need_personalization_flow" },
+        });
+        setPersonalizationSaving(false);
+        personalizationShownRef.current = false;
+        setPersonalizationError("Произошла ошибка");
+      }
+    })();
   }, [needPersonalization, initialData?.courseId, router]);
 
   useCourseCompletionCelebration({

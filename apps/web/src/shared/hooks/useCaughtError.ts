@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { reportClientError } from "@gafus/error-handling";
 
 /**
  * Хук для проброса асинхронных ошибок в Error Boundary.
@@ -13,7 +14,9 @@ export function useCaughtError(): [(err: unknown) => void, () => void] {
   const [error, setError] = useState<Error | null>(null);
 
   const catchError = useCallback((err: unknown) => {
-    setError(err instanceof Error ? err : new Error(String(err)));
+    const e = err instanceof Error ? err : new Error(String(err));
+    reportClientError(e, { issueKey: "useCaughtError", keys: { operation: "boundary_handoff" } });
+    setError(e);
   }, []);
 
   const clearError = useCallback(() => setError(null), []);

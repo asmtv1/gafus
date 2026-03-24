@@ -1,21 +1,34 @@
 "use server";
 
-import { authOptions } from "@gafus/auth";
 import { getVisibleSteps as getVisibleStepsCore } from "@gafus/core/services/trainerStep";
-import { getServerSession } from "next-auth";
+import { createTrainerPanelLogger } from "@gafus/logger";
+import { unstable_rethrow } from "next/navigation";
+
+import { getCachedSession } from "@/shared/lib/getSessionCached";
 
 import type { AuthUser } from "@gafus/types";
 
+const logger = createTrainerPanelLogger("trainer-get-visible-steps");
+
 export async function getVisibleSteps() {
-  const session = await getServerSession(authOptions);
-  const user = session?.user as AuthUser;
+  try {
+    const session = await getCachedSession();
+    const user = session?.user as AuthUser;
 
-  if (!user) {
-    throw new Error("Unauthorized: No session or user found.");
+    if (!user) {
+      throw new Error("Unauthorized: No session or user found.");
+    }
+
+    const { id: userId, role } = user;
+    const isAdminOrModerator = ["ADMIN", "MODERATOR"].includes(role);
+
+    return await getVisibleStepsCore(userId, isAdminOrModerator);
+  } catch (error) {
+    unstable_rethrow(error);
+    logger.error(
+      "getVisibleSteps failed",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+    throw error;
   }
-
-  const { id: userId, role } = user;
-  const isAdminOrModerator = ["ADMIN", "MODERATOR"].includes(role);
-
-  return getVisibleStepsCore(userId, isAdminOrModerator);
 }

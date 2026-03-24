@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTransition } from "react";
 import { Favorite as FavoriteIcon, FavoriteBorder as FavoriteBorderIcon } from "@mui/icons-material";
 import { useCSRFStore } from "@gafus/csrf";
+import { reportClientError } from "@gafus/error-handling";
 
 import { getCDNUrl } from "@gafus/cdn-upload";
 import type { ArticleListDto } from "@gafus/types";
@@ -138,12 +139,16 @@ export default function ArticlesClient({
               )
             );
           }
-        } catch {
-          /* ignore */
+        } catch (error) {
+          reportClientError(error instanceof Error ? error : new Error(String(error)), {
+            issueKey: "ArticlesClient",
+            keys: { operation: "article_like" },
+            userId: userId ?? undefined,
+          });
         }
       });
     },
-    [csrfToken, fetchToken]
+    [csrfToken, fetchToken, userId]
   );
 
   if (initialError) {

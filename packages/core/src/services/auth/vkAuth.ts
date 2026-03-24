@@ -100,7 +100,11 @@ export async function fetchVkProfile(params: {
         };
       }
     } catch (err) {
-      logger.warn("VK users.get failed, fallback to user_info", { err });
+      logger.error(
+        "VK users.get не удался, используем user_info",
+        err instanceof Error ? err : new Error(String(err)),
+        { operation: "vk_users_get_fallback" },
+      );
     }
   }
 

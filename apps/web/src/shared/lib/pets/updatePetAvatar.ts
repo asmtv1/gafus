@@ -3,6 +3,8 @@
 import { z } from "zod";
 
 import { updatePetPhoto } from "@gafus/core/updatePetPhoto";
+import { createWebLogger } from "@gafus/logger";
+import { unstable_rethrow } from "next/navigation";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 
@@ -10,6 +12,8 @@ import { petIdSchema } from "../validation/petSchemas";
 
 const MAX_PET_AVATAR_SIZE = 2 * 1024 * 1024; // 2 МБ
 const ALLOWED_PET_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+const logger = createWebLogger("web-update-pet-avatar");
 
 const fileSchema = z.instanceof(File, { message: "Файл обязателен" });
 
@@ -29,14 +33,24 @@ function validatePetAvatarFile(file: File): void {
  * Валидация и получение текущего пользователя — в web; загрузка в CDN и обновление БД — в core.
  */
 export async function updatePetAvatar(file: File, petId: string): Promise<string> {
-  const validFile = fileSchema.parse(file);
-  validatePetAvatarFile(validFile);
-  const safePetId = petIdSchema.parse(petId);
+  try {
+    const validFile = fileSchema.parse(file);
+    validatePetAvatarFile(validFile);
+    const safePetId = petIdSchema.parse(petId);
 
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    throw new Error("Не авторизован");
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      throw new Error("Не авторизован");
+    }
+
+    return await updatePetPhoto(safePetId, userId, validFile);
+  } catch (error) {
+    unstable_rethrow(error);
+    logger.error(
+      "updatePetAvatar failed",
+      error instanceof Error ? error : new Error(String(error)),
+      { petId },
+    );
+    throw error;
   }
-
-  return updatePetPhoto(safePetId, userId, validFile);
 }

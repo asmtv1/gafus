@@ -38,5 +38,20 @@ export async function sendBroadcastPush(
     bodyLength: body.length,
   });
 
-  return sendBroadcastPushFromCore(title, body, url);
+  try {
+    return await sendBroadcastPushFromCore(title, body, url);
+  } catch (error) {
+    logger.error(
+      "sendBroadcastPush failed",
+      error instanceof Error ? error : new Error(String(error)),
+      { titleLength: title.length },
+    );
+    return {
+      success: false,
+      totalUsers: 0,
+      sentCount: 0,
+      failedCount: 0,
+      error: error instanceof Error ? error.message : "Ошибка рассылки",
+    };
+  }
 }

@@ -5,6 +5,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import type { VideoSource } from "expo-video";
 import { IconButton, ActivityIndicator, Text } from "react-native-paper";
 import { COLORS, SPACING } from "@/constants";
+import { reportClientError } from "@/shared/lib/tracer";
 
 /** Скорости воспроизведения для обучающих видео */
 const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 1.75, 2] as const;
@@ -68,9 +69,10 @@ export function VideoPlayer({ uri, poster: _poster, onComplete, onRetry, autoPla
   useEventListener(player, "statusChange", (payload: { status?: string; error?: { message?: string } }) => {
     if (payload.status === "error" && payload.error?.message) {
       setPlaybackError(payload.error.message);
-      if (__DEV__) {
-        console.warn("[VideoPlayer] Ошибка воспроизведения:", payload.error.message, { uri: uri?.slice(0, 80) });
-      }
+      reportClientError(new Error(payload.error.message), {
+        issueKey: "VideoPlayer",
+        keys: { operation: "playback_error", uriPrefix: uri?.slice(0, 120) },
+      });
     } else {
       setPlaybackError(null);
     }

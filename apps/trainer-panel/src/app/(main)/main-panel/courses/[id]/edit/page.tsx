@@ -1,11 +1,11 @@
 import { CourseForm } from "@features/courses/components/CourseForm";
 import { getVisibleDays } from "@features/courses/lib/getVisibleDays";
 import { getTrainerVideos } from "@features/trainer-videos/lib/getTrainerVideos";
-import { authOptions } from "@gafus/auth";
 import { getCourseDraftWithRelations } from "@gafus/core/services/trainerCourse";
 import { Typography } from "@mui/material";
-import { getServerSession } from "next-auth";
+
 import FormPageLayout from "@shared/components/FormPageLayout";
+import { getCachedSession } from "@/shared/lib/getSessionCached";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -13,16 +13,15 @@ interface PageProps {
 
 export default async function EditCoursePage({ params }: PageProps) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const [session, days] = await Promise.all([getCachedSession(), getVisibleDays()]);
   const trainerId = session?.user?.id ?? "";
   const isAdmin = session?.user?.role === "ADMIN";
-  const trainerVideos = trainerId ? await getTrainerVideos(trainerId) : [];
-
-  const course = trainerId
-    ? await getCourseDraftWithRelations(id, trainerId, { allowAdmin: isAdmin })
-    : null;
-
-  const days = await getVisibleDays();
+  const [trainerVideos, course] = await Promise.all([
+    trainerId ? getTrainerVideos(trainerId) : Promise.resolve([]),
+    trainerId
+      ? getCourseDraftWithRelations(id, trainerId, { allowAdmin: isAdmin })
+      : Promise.resolve(null),
+  ]);
   const uniqueDays = days.filter(
     (day, index, self) => index === self.findIndex((d) => d.id === day.id),
   );
