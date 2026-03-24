@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { changePasswordSchema } from "@shared/lib/validation/authSchemas";
@@ -29,7 +30,8 @@ export default function ChangePasswordForm() {
         return;
       }
       router.push("/profile");
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ChangePasswordForm", keys: { operation: "submit" } });
       setError("Не удалось сменить пароль");
     }
   };

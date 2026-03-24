@@ -1,8 +1,11 @@
 import { getIsOwner } from "@gafus/auth/server";
+import { createWebLogger } from "@gafus/logger";
 import { getPublicProfile } from "@shared/lib/profile/getPublicProfile";
 import { getUserWithTrainings } from "@shared/lib/user/getUserWithTrainings";
 import { generateStaticPageMetadata } from "@gafus/metadata";
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
+
+const logger = createWebLogger("web-profile-page");
 
 import ProfileClient from "./ProfileClient";
 
@@ -49,9 +52,9 @@ export default async function ProfilPage({
       />
     );
   } catch (error) {
-    // Логируем ошибку для отладки, но не выбрасываем её дальше,
-    // чтобы избежать бесконечных циклов ререндеринга
-    console.error("Ошибка при загрузке профиля:", error);
+    unstable_rethrow(error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Ошибка при загрузке профиля", err, { username });
     notFound();
   }
 }

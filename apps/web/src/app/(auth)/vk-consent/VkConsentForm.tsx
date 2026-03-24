@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { reportClientError } from "@gafus/error-handling";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { submitVkConsentAction } from "@shared/server-actions";
 import { vkConsentFormSchema } from "@shared/lib/validation/authSchemas";
@@ -64,7 +65,8 @@ export function VkConsentForm() {
         setError("acceptPersonalData", { message: result.error });
         setIsPending(false);
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "VkConsentForm", keys: { operation: "submit" } });
       setError("acceptPersonalData", { message: "Ошибка. Попробуйте снова." });
       setIsPending(false);
     }

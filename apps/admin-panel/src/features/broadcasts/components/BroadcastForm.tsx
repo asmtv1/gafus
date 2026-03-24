@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useState, useTransition } from "react";
 import {
   Card,
@@ -72,6 +73,7 @@ export default function BroadcastForm({ className }: BroadcastFormProps) {
           });
         }
       } catch (error) {
+        reportClientError(error, { issueKey: "BroadcastForm", keys: { operation: "sendBroadcast" } });
         setMessage({
           type: "error",
           text: `❌ Ошибка: ${error instanceof Error ? error.message : "Неизвестная ошибка"}`,

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import { useState } from "react";
 
+import { reportClientError } from "@gafus/error-handling";
 import type { LoginFormProps, UserSession } from "@gafus/types";
 
 export default function LoginForm({
@@ -63,6 +64,7 @@ export default function LoginForm({
         }
       }
     } catch (err) {
+      reportClientError(err, { issueKey: "LoginForm", keys: { source: "ui-components" } });
       const errorMessage = "Произошла ошибка при входе";
       setError(errorMessage);
       onError?.(errorMessage);

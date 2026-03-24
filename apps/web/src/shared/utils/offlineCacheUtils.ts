@@ -1,7 +1,9 @@
 "use client";
 
-import { useOfflineStore } from "@shared/stores/offlineStore";
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
+
+import { useOfflineStore } from "@shared/stores/offlineStore";
 
 // Создаем логгер для offline cache utils
 const logger = createWebLogger("web-offline-cache-utils");
@@ -18,7 +20,11 @@ export function isOffline(): boolean {
   try {
     const state = useOfflineStore.getState();
     return !state.isOnline;
-  } catch {
+  } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCacheUtils",
+      keys: { operation: "is_offline_read_store" },
+    });
     return !navigator.onLine;
   }
 }
@@ -31,7 +37,11 @@ export function isOnline(): boolean {
   try {
     const state = useOfflineStore.getState();
     return state.isOnline;
-  } catch {
+  } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCacheUtils",
+      keys: { operation: "is_online_read_store" },
+    });
     return navigator.onLine;
   }
 }
@@ -64,6 +74,10 @@ export async function safeInvalidateCache(
     const result = await invalidateFunction();
     return { ...result };
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCacheUtils",
+      keys: { operation: "safe_invalidate_cache" },
+    });
     logger.error("[OfflineCache] Error during cache invalidation", error as Error, {
       operation: "cache_invalidation_error",
     });
@@ -92,6 +106,10 @@ export function addToSyncQueue(action: {
       actionType: action.type,
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCacheUtils",
+      keys: { operation: "add_to_sync_queue" },
+    });
     logger.error("[OfflineCache] Failed to add action to sync queue", error as Error, {
       operation: "add_to_sync_queue_failed",
       actionType: action.type,
@@ -113,6 +131,10 @@ export async function syncOfflineQueue() {
       await offlineStore.syncOfflineActions();
     }
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCacheUtils",
+      keys: { operation: "sync_offline_queue" },
+    });
     logger.error("[OfflineCache] Failed to sync offline queue", error as Error, {
       operation: "sync_offline_queue_failed",
     });
@@ -130,6 +152,10 @@ export function clearSyncQueue() {
       operation: "clear_sync_queue",
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCacheUtils",
+      keys: { operation: "clear_sync_queue" },
+    });
     logger.error("[OfflineCache] Failed to clear sync queue", error as Error, {
       operation: "clear_sync_queue_failed",
     });
@@ -149,6 +175,10 @@ export function getSyncQueueStatus() {
       syncErrors: offlineStore.syncErrors,
     };
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCacheUtils",
+      keys: { operation: "get_sync_queue_status" },
+    });
     logger.error("[OfflineCache] Failed to get sync queue status", error as Error, {
       operation: "get_sync_queue_status_failed",
     });
@@ -207,6 +237,10 @@ export async function handleCacheInvalidationAction(action: {
     });
     return result;
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCacheUtils",
+      keys: { operation: "handle_cache_invalidation" },
+    });
     logger.error("[OfflineCache] Failed to handle cache invalidation action", error as Error, {
       operation: "handle_cache_invalidation_action_failed",
       userId: userId,

@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 
 const HTML_CACHE_NAME = "gafus-html-v4";
@@ -30,6 +31,10 @@ export async function clearProfilePageCache(username?: string | null): Promise<v
         return;
       }
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "ClearProfileCache",
+        keys: { operation: "clear_via_service_worker" },
+      });
       logger.warn("Не удалось очистить кэш профиля через Service Worker", {
         error,
         operation: "warn",
@@ -45,6 +50,10 @@ export async function clearProfilePageCache(username?: string | null): Promise<v
         operation: "clear_profile_cache_cache_api",
       });
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "ClearProfileCache",
+        keys: { operation: "clear_via_cache_api" },
+      });
       logger.warn("Не удалось очистить кэш профиля через Cache API", {
         error,
         operation: "warn",
@@ -93,6 +102,10 @@ async function sendMessageToServiceWorker(
         [channel.port2],
       );
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "ClearProfileCache",
+        keys: { operation: "post_message_to_sw" },
+      });
       window.clearTimeout(timeoutId);
       reject(error instanceof Error ? error : new Error("Unknown error"));
     }
@@ -146,6 +159,10 @@ async function clearCachesDirectly(username: string | null): Promise<number> {
             if (deleted) removed += 1;
           }
         } catch (error) {
+          reportClientError(error, {
+            issueKey: "ClearProfileCache",
+            keys: { operation: "delete_cache_request" },
+          });
           logger.warn("Ошибка обработки записи кэша", {
             cacheName,
             url: request.url,
@@ -155,6 +172,10 @@ async function clearCachesDirectly(username: string | null): Promise<number> {
         }
       }
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "ClearProfileCache",
+        keys: { operation: "iterate_profile_cache" },
+      });
       logger.warn("Ошибка очистки кеша профиля", {
         cacheName,
         error,

@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import type { CourseReviewData, UserReviewStatus } from "@shared/server-actions";
@@ -113,7 +114,8 @@ export function ReviewsList({
       } else {
         await showErrorAlert(error || "Произошла ошибка при сохранении отзыва");
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ReviewsList", keys: { operation: "submit_review" } });
       await showErrorAlert("Произошла ошибка при сохранении отзыва");
     }
   };
@@ -136,7 +138,8 @@ export function ReviewsList({
       } else {
         await showErrorAlert(error || "Произошла ошибка при удалении отзыва");
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ReviewsList", keys: { operation: "delete_review" } });
       await showErrorAlert("Произошла ошибка при удалении отзыва");
     }
   };

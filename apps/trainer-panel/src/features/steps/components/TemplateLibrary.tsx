@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -92,7 +93,8 @@ export default function TemplateLibrary({
       } else {
         setError(result.message);
       }
-    } catch (_err) {
+    } catch (err) {
+      reportClientError(err, { issueKey: "TemplateLibrary", keys: { operation: "createFromTemplate" } });
       setError("Произошла ошибка при создании шага");
     } finally {
       setLoading(false);

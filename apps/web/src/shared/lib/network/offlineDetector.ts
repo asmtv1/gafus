@@ -1,8 +1,11 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
-import { useOfflineStore } from "@shared/stores/offlineStore";
+
 import { isCourseDownloadedByType } from "@shared/lib/offline/offlineCourseStorage";
+import { useOfflineStore } from "@shared/stores/offlineStore";
+
 import { checkRealConnection } from "./checkConnection";
 
 const logger = createWebLogger("web-offline-detector");
@@ -45,6 +48,10 @@ function _saveCurrentUrl(): void {
       url: currentPath,
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineDetector",
+      keys: { operation: "save_previous_url" },
+    });
     logger.warn("Failed to save previous URL", {
       operation: "save_previous_url_error",
       error: error instanceof Error ? error.message : String(error),
@@ -67,7 +74,11 @@ function restorePreviousUrl(): void {
       // Очищаем сохраненный URL если есть (для совместимости)
       try {
         sessionStorage.removeItem(STORAGE_KEY);
-      } catch {
+      } catch (error) {
+        reportClientError(error, {
+          issueKey: "OfflineDetector",
+          keys: { operation: "session_storage_remove" },
+        });
         // Игнорируем ошибки
       }
       return;
@@ -80,7 +91,11 @@ function restorePreviousUrl(): void {
     // Очищаем сохраненный URL (для совместимости)
     try {
       sessionStorage.removeItem(STORAGE_KEY);
-    } catch {
+    } catch (error) {
+      reportClientError(error, {
+        issueKey: "OfflineDetector",
+        keys: { operation: "session_storage_clear_before_restore" },
+      });
       // Игнорируем ошибки
     }
 
@@ -91,6 +106,10 @@ function restorePreviousUrl(): void {
           window.location.replace("/courses");
         }
       } catch (error) {
+        reportClientError(error, {
+          issueKey: "OfflineDetector",
+          keys: { operation: "restore_redirect_replace" },
+        });
         logger.error("Failed to execute redirect", error as Error, {
           operation: "restore_previous_url_execute_error",
         });
@@ -100,11 +119,19 @@ function restorePreviousUrl(): void {
             window.location.href = "/courses";
           }
         } catch (fallbackError) {
+          reportClientError(fallbackError, {
+            issueKey: "OfflineDetector",
+            keys: { operation: "restore_redirect_href_fallback" },
+          });
           logger.error("Fallback redirect also failed", fallbackError as Error);
         }
       }
     }, 100);
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineDetector",
+      keys: { operation: "restore_previous_url_outer" },
+    });
     logger.error("Failed to restore previous URL", error as Error);
     // Fallback на /courses
     try {
@@ -116,6 +143,10 @@ function restorePreviousUrl(): void {
         }, 100);
       }
     } catch (fallbackError) {
+      reportClientError(fallbackError, {
+        issueKey: "OfflineDetector",
+        keys: { operation: "restore_outer_fallback" },
+      });
       logger.error("Fallback redirect failed", fallbackError as Error);
     }
   }
@@ -174,6 +205,10 @@ async function shouldRedirectToOffline(): Promise<boolean> {
         return false;
       }
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "OfflineDetector",
+        keys: { operation: "is_course_downloaded_for_redirect" },
+      });
       // В случае ошибки проверки продолжаем с обычной логикой
       logger.warn("Failed to check if course is downloaded", {
         operation: "check_downloaded_course_error",
@@ -250,7 +285,11 @@ function handleOfflineEvent(): void {
           if (shouldRedirect) redirectToOffline();
         });
       })
-      .catch(() => {
+      .catch((error) => {
+        reportClientError(error, {
+          issueKey: "OfflineDetector",
+          keys: { operation: "check_connection_after_offline_event" },
+        });
         store.setOnlineStatus(false);
         return shouldRedirectToOffline().then((shouldRedirect) => {
           if (shouldRedirect) redirectToOffline();
@@ -291,7 +330,11 @@ function handleOnlineEvent(): void {
         }
       }
     })
-    .catch(() => {
+    .catch((error) => {
+      reportClientError(error, {
+        issueKey: "OfflineDetector",
+        keys: { operation: "verify_connection_after_online_event" },
+      });
       // В случае ошибки проверки оставляем статус как есть
       logger.warn("Failed to verify connection after online event", {
         operation: "verify_connection_after_online_failed",
@@ -425,7 +468,11 @@ export function initializeOfflineDetector(): void {
           restorePreviousUrl();
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        reportClientError(error, {
+          issueKey: "OfflineDetector",
+          keys: { operation: "check_connection_initial_offline" },
+        });
         // В случае ошибки проверки оставляем статус офлайн
       });
   }

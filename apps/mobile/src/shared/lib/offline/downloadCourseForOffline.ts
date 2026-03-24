@@ -39,12 +39,14 @@ export interface DownloadCourseProgress {
  * Проверяет доступное место на диске. Возвращает true, если места достаточно.
  */
 export async function hasEnoughDiskSpace(): Promise<boolean> {
+  /* eslint-disable @gafus/require-client-catch-tracer -- API FileSystem может вернуть ошибку; считаем места нет */
   try {
     const free = await FileSystem.getFreeDiskStorageAsync();
     return free >= MIN_FREE_BYTES;
   } catch {
     return false;
   }
+  /* eslint-enable @gafus/require-client-catch-tracer */
 }
 
 /**

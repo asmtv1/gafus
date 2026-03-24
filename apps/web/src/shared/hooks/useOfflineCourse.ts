@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 import {
   saveOfflineCourse,
@@ -127,6 +129,10 @@ async function downloadMediaFile(url: string): Promise<Blob | null> {
 
     return await response.blob();
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "UseOfflineCourse",
+      keys: { operation: "download_media_file" },
+    });
     logger.error("Error downloading media file", error as Error, { url });
     return null;
   }
@@ -193,6 +199,10 @@ export function useOfflineCourse(): UseOfflineCourseResult {
       const courses = await getAllDownloadedCourses();
       setDownloadedCourses(courses);
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "UseOfflineCourse",
+        keys: { operation: "refresh_downloaded_courses" },
+      });
       logger.error("Failed to refresh downloaded courses", error as Error);
     }
   }, []);
@@ -201,6 +211,10 @@ export function useOfflineCourse(): UseOfflineCourseResult {
     try {
       return await isCourseDownloaded(courseId);
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "UseOfflineCourse",
+        keys: { operation: "is_course_downloaded" },
+      });
       logger.error("Failed to check if course is downloaded", error as Error, { courseId });
       return false;
     }
@@ -210,6 +224,10 @@ export function useOfflineCourse(): UseOfflineCourseResult {
     try {
       return await isCourseDownloadedByType(courseType);
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "UseOfflineCourse",
+        keys: { operation: "is_course_downloaded_by_type" },
+      });
       logger.error("Failed to check if course is downloaded by type", error as Error, {
         courseType,
       });
@@ -248,6 +266,10 @@ export function useOfflineCourse(): UseOfflineCourseResult {
 
       return { available: true };
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "UseOfflineCourse",
+        keys: { operation: "check_storage_quota" },
+      });
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.warn("Failed to check storage quota", { error: errorMessage });
       // При ошибке проверки разрешаем скачивание
@@ -457,6 +479,10 @@ export function useOfflineCourse(): UseOfflineCourseResult {
                     });
                   }
                 } catch (error) {
+                  reportClientError(error, {
+                    issueKey: "UseOfflineCourse",
+                    keys: { operation: "download_video_thumbnail" },
+                  });
                   logger.warn("Ошибка при скачивании thumbnail", {
                     videoUrl,
                     thumbnailPath,
@@ -492,6 +518,10 @@ export function useOfflineCourse(): UseOfflineCourseResult {
               };
             }
           } catch (error) {
+            reportClientError(error, {
+              issueKey: "UseOfflineCourse",
+              keys: { operation: "download_hls_video" },
+            });
             logger.error("Ошибка при скачивании HLS видео", error as Error, {
               videoUrl,
               hlsManifestPath,
@@ -547,6 +577,10 @@ export function useOfflineCourse(): UseOfflineCourseResult {
         try {
           await saveOfflineCourse(offlineCourse);
         } catch (error) {
+          reportClientError(error, {
+            issueKey: "UseOfflineCourse",
+            keys: { operation: "save_offline_course" },
+          });
           const errorMessage = error instanceof Error ? error.message : String(error);
           const isQuotaError =
             (error instanceof DOMException && error.name === "QuotaExceededError") ||
@@ -581,6 +615,10 @@ export function useOfflineCourse(): UseOfflineCourseResult {
             courseType: courseData.course.type,
           });
         } catch (error) {
+          reportClientError(error, {
+            issueKey: "UseOfflineCourse",
+            keys: { operation: "save_course_html_pages" },
+          });
           logger.error("Failed to save HTML pages", error as Error, {
             courseType: courseData.course.type,
           });
@@ -597,6 +635,10 @@ export function useOfflineCourse(): UseOfflineCourseResult {
 
         return { success: true };
       } catch (error) {
+        reportClientError(error, {
+          issueKey: "UseOfflineCourse",
+          keys: { operation: "download_course" },
+        });
         logger.error("Error downloading course", error as Error, { courseType });
         return {
           success: false,
@@ -676,6 +718,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
           message: "Курс успешно обновлен",
         };
       } catch (error) {
+        reportClientError(error, { issueKey: "UseOfflineCourse", keys: { operation: "update_course" } });
         logger.error("Error updating course", error as Error, { courseType });
         return {
           success: false,
@@ -699,6 +742,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
 
         return { success: true };
       } catch (error) {
+        reportClientError(error, { issueKey: "UseOfflineCourse", keys: { operation: "delete_course" } });
         logger.error("Error deleting course", error as Error, { courseId });
         return {
           success: false,

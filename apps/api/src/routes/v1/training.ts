@@ -453,7 +453,10 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     try {
       user = c.get("user");
       if (!user) {
-        logger.error("[training/video/url] Пользователь не найден в контексте");
+        logger.error(
+          "[training/video/url] Пользователь не найден в контексте",
+          new Error("training/video/url: no user in context"),
+        );
         return c.json({ success: false, error: "Не авторизован", code: "UNAUTHORIZED" }, 401);
       }
       logger.info("[training/video/url] Пользователь получен", { userId: user.id });

@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
+
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { passwordResetFormSchema } from "@shared/lib/validation/authSchemas";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { useState } from "react";
 
 import styles from "./passwordReset.module.css";
 
@@ -59,7 +62,11 @@ export function PasswordResetForm() {
               const errorData: { error?: string } = await response.json();
               if (errorData.error) errorMessage = errorData.error;
             }
-          } catch {
+          } catch (error) {
+            reportClientError(error, {
+              issueKey: "PasswordResetForm",
+              keys: { operation: "parse_error_response_json" },
+            });
             // Игнорируем ошибки парсинга — используем дефолтное сообщение
           }
         }
@@ -69,6 +76,10 @@ export function PasswordResetForm() {
 
       setStatus("Если указанные данные верны, вам придёт сообщение в Telegram");
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "PasswordResetForm",
+        keys: { operation: "password_reset_request" },
+      });
       setError("root", {
         message: error instanceof Error ? error.message : "Ошибка отправки запроса. Попробуйте позже.",
       });

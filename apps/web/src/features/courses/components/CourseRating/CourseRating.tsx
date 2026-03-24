@@ -1,9 +1,12 @@
 // src/components/CourseRating.tsx
 "use client";
 
-import { updateCourseRatingAction } from "@shared/server-actions";
-import { createWebLogger } from "@gafus/logger";
 import { useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
+
+import { updateCourseRatingAction } from "@shared/server-actions";
 
 import type { CourseRatingProps, LegacyCourseRatingProps, ClientCourseRatingProps } from "./types";
 
@@ -51,6 +54,10 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
         await showErrorAlert(result.error || "Ошибка при сохранении рейтинга");
       }
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "CourseRating",
+        keys: { operation: "save_rating_mui" },
+      });
       logger.error("Ошибка при сохранении рейтинга", error as Error, {
         operation: "save_rating_exception",
         courseId: courseId,
@@ -144,6 +151,10 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
         await showErrorAlert(result.error || "Ошибка при сохранении рейтинга");
       }
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "CourseRating",
+        keys: { operation: "save_rating_simple" },
+      });
       logger.error("Ошибка при сохранении рейтинга", error as Error, {
         operation: "save_rating_exception",
         courseId: courseId,

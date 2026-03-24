@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+import { reportClientError } from "@gafus/error-handling";
 import { FormField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { usernameChangeSchema } from "@shared/lib/validation/authSchemas";
@@ -62,7 +63,8 @@ export default function ChangeUsernameForm() {
         await updateSession({ username: result.username });
         router.push(`/profile?username=${result.username}`);
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ChangeUsernameForm", keys: { operation: "submit" } });
       setError("Не удалось сменить логин");
     } finally {
       setIsSubmitting(false);

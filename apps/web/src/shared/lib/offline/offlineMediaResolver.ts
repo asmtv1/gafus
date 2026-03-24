@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
-import { getOfflineCourseByType } from "./offlineCourseStorage";
+
 import { useOfflineStore } from "@shared/stores/offlineStore";
+
+import { getOfflineCourseByType } from "./offlineCourseStorage";
 
 const logger = createWebLogger("web-offline-media-resolver");
 
@@ -14,6 +18,10 @@ function revokeBlobUrl(url: string): void {
   try {
     URL.revokeObjectURL(url);
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineMediaResolver",
+      keys: { operation: "revoke_blob_url" },
+    });
     logger.warn("Failed to revoke blob URL", { url, error });
   }
 }
@@ -66,6 +74,10 @@ function extractVideoIdFromUrl(url: string): string | null {
 
     return null;
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineMediaResolver",
+      keys: { operation: "extract_video_id" },
+    });
     logger.warn("Failed to extract videoId from URL", { url, error });
     return null;
   }
@@ -85,7 +97,11 @@ function normalizeVideoUrl(url: string): string {
     try {
       const urlObj = new URL(normalized);
       normalized = urlObj.origin + urlObj.pathname;
-    } catch {
+    } catch (error) {
+      reportClientError(error, {
+        issueKey: "OfflineMediaResolver",
+        keys: { operation: "parse_url_for_normalize" },
+      });
       // Если не удалось создать URL объект (относительный путь), работаем со строкой
       // Убираем query параметры вручную
       const queryIndex = normalized.indexOf("?");
@@ -128,6 +144,10 @@ function normalizeVideoUrl(url: string): string {
 
     return normalized;
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineMediaResolver",
+      keys: { operation: "normalize_video_url" },
+    });
     logger.warn("Failed to normalize video URL", { url, error });
     return url;
   }
@@ -254,6 +274,10 @@ async function getOfflineHLSManifestUrl(
       videoId: hlsVideo.videoId,
     };
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineMediaResolver",
+      keys: { operation: "get_offline_hls_manifest" },
+    });
     logger.error("getOfflineHLSManifestUrl: Failed to get offline HLS manifest", error as Error, {
       courseType,
       mediaUrl,
@@ -309,6 +333,10 @@ async function getOfflineMediaBlob(courseType: string, mediaUrl: string): Promis
 
     return null;
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineMediaResolver",
+      keys: { operation: "get_offline_media_blob" },
+    });
     logger.error("getOfflineMediaBlob: Failed to get offline media blob", error as Error, {
       courseType,
       mediaUrl,
@@ -420,6 +448,10 @@ export function useOfflineMediaUrl(
         });
       })
       .catch((error) => {
+        reportClientError(error, {
+          issueKey: "OfflineMediaResolver",
+          keys: { operation: "resolve_offline_media_url" },
+        });
         logger.error("useOfflineMediaUrl: Error resolving offline media URL", error as Error, {
           courseType,
           mediaUrl,

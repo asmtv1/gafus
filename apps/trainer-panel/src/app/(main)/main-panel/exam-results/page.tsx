@@ -1,9 +1,12 @@
 import { Suspense } from "react";
 import { Box, Typography, CircularProgress, Alert } from "@/utils/muiImports";
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { getExamResults } from "@/features/exam-results/lib/getExamResults";
 import { ExamResultsListWithFilter } from "@/features/exam-results/components/ExamResultsListWithFilter";
+
+const logger = createTrainerPanelLogger("trainer-panel-exam-results-page");
 
 async function ExamResultsContent({ hideCompleted }: { hideCompleted: boolean }) {
   try {
@@ -31,6 +34,10 @@ async function ExamResultsContent({ hideCompleted }: { hideCompleted: boolean })
       </Box>
     );
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Ошибка при загрузке результатов экзаменов", err, {
+      page: "exam-results",
+    });
     return (
       <Alert severity="error">
         Ошибка при загрузке результатов экзаменов:{" "}

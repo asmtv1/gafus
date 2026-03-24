@@ -18,6 +18,7 @@ import parsePhoneNumberFromString from "libphonenumber-js";
 
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { authApi } from "@/shared/lib/api/auth";
+import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 
 // Схемы валидации
@@ -142,7 +143,8 @@ export default function ResetPasswordScreen() {
       await hapticFeedback.success();
       setPhase("code");
       setStatus("");
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ResetPassword", keys: { operation: "send_reset_request" } });
       setSnackbar({
         visible: true,
         message: "Ошибка отправки. Попробуйте позже.",
@@ -187,7 +189,8 @@ export default function ResetPasswordScreen() {
         message: "Пароль изменён. Войдите с новым паролем.",
       });
       router.replace("/login");
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ResetPassword", keys: { operation: "reset_by_code" } });
       setSnackbar({
         visible: true,
         message: "Ошибка. Попробуйте позже.",

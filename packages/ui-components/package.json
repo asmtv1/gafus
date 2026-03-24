@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gafus/error-handling": "workspace:*",
     "@apptracer/sdk": "^2.6.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",

@@ -94,6 +94,11 @@ export default function PetList({
     try {
       await clearProfilePageCache(username);
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "PetList",
+        severity: "warning",
+        keys: { operation: "clear_profile_cache" },
+      });
       logger.warn("Не удалось очистить кэш профиля после операции с питомцем", {
         error: error instanceof Error ? error.message : String(error),
         operation: "warn",

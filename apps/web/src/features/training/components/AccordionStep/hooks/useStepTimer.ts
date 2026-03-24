@@ -189,7 +189,12 @@ export function useStepTimer({
             await finishStepWithServer(courseId, dayOnCourseId, stepIndex, stepTitle, stepOrder);
             finishSync(true);
             removePendingChange();
-          } catch {
+          } catch (finishErr) {
+            reportClientError(finishErr, {
+              issueKey: "useStepTimer",
+              severity: "warning",
+              keys: { operation: "finish_step_server", stepIndex, courseId },
+            });
             finishSync(false);
           }
         },

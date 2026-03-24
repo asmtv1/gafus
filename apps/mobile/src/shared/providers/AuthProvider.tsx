@@ -4,6 +4,7 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 
 import { useQueryClient } from "@tanstack/react-query";
 
+import { reportClientError } from "@/shared/lib/tracer";
 import { useAuthStore, useCourseStore, useStepStore } from "@/shared/stores";
 import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import { COLORS } from "@/constants";
@@ -60,7 +61,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
             favorites: Array.isArray(ids) ? ids : [],
           });
         }
-      } catch {
+      } catch (err) {
+        reportClientError(err, {
+          issueKey: "AuthProvider",
+          severity: "warning",
+          keys: { operation: "fetch_favorites" },
+        });
         favoritesLoadedRef.current = false;
       }
     })();

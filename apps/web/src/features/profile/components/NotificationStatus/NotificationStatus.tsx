@@ -1,12 +1,15 @@
 "use client";
 
-import { createWebLogger } from "@gafus/logger";
-import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
-import { useNotificationComposite, useNotificationInitializer } from "@shared/stores";
-import { showInstallPWAAlert } from "@shared/utils/sweetAlert";
-import { detectPushSupport } from "@shared/utils/detectPushSupport";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
+
+import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
+import { useNotificationComposite, useNotificationInitializer } from "@shared/stores";
+import { detectPushSupport } from "@shared/utils/detectPushSupport";
+import { showInstallPWAAlert } from "@shared/utils/sweetAlert";
 
 import styles from "./NotificationStatus.module.css";
 
@@ -75,6 +78,10 @@ export default function NotificationStatus() {
         const permissionPromise = requestPermission(vapidKey);
         await Promise.race([permissionPromise, timeoutPromise]);
       } catch (error) {
+        reportClientError(error, {
+          issueKey: "NotificationStatus",
+          keys: { operation: "request_push_permission" },
+        });
         // В Safari часто бывают таймауты, логируем для отладки
         if (error instanceof Error && error.message.includes("timeout")) {
           logger.warn("⚠️ NotificationStatus: Таймаут в Safari - это нормально", {
@@ -122,6 +129,10 @@ export default function NotificationStatus() {
       const removePromise = removePushSubscription();
       await Promise.race([removePromise, timeoutPromise]);
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "NotificationStatus",
+        keys: { operation: "remove_push_subscription" },
+      });
       console.error("❌ NotificationStatus: Ошибка при удалении подписки:", error);
       // В Safari часто бывают таймауты, показываем пользователю
       if (error instanceof Error && error.message.includes("timeout")) {
@@ -178,7 +189,11 @@ export default function NotificationStatus() {
             hasUserId: !!session?.user?.id,
           });
         }
-      } catch {
+      } catch (error) {
+        reportClientError(error, {
+          issueKey: "NotificationStatus",
+          keys: { operation: "fetch_vapid_public_key" },
+        });
         if (!cancelled) {
           setVapidKey(null);
         }

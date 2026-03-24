@@ -11,9 +11,9 @@ const logger = createWebLogger("api-article-view");
 
 type RouteContext = { params: Promise<{ slug: string }> };
 
-/** POST — учитывает просмотр статьи (+1). Вызывается при открытии страницы статьи. */
+/** POST — учитывает уникальный просмотр статьи. Тело: `{ visitorKey?: string }` для гостей. */
 export const POST = withCSRFProtection(async (
-  _request: NextRequest,
+  request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> => {
   try {
@@ -25,10 +25,26 @@ export const POST = withCSRFProtection(async (
       );
     }
 
+    let guestVisitorKey: string | null = null;
+    try {
+      const raw = await request.text();
+      if (raw) {
+        const body = JSON.parse(raw) as { visitorKey?: unknown };
+        if (typeof body.visitorKey === "string") {
+          guestVisitorKey = body.visitorKey;
+        }
+      }
+    } catch {
+      // пустое или невалидное тело — только сессия
+    }
+
     const session = await getServerSession(authOptions);
     const viewerUserId = session?.user?.id ?? null;
 
-    const result = await incrementArticleView(slug, viewerUserId);
+    const result = await incrementArticleView(slug, {
+      viewerUserId,
+      guestVisitorKey,
+    });
     if (!result.success) {
       return NextResponse.json(
         { success: false, error: result.error ?? "Ошибка" },

@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useCallback, useEffect, useState } from "react";
 
 import { getDiaryEntries } from "@shared/lib/actions/getDiaryEntries";
@@ -93,7 +94,8 @@ export function useStepDiary({
           })),
         );
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "useStepDiary", keys: { operation: "mark_completed" } });
       setDiaryError("Не удалось отметить шаг выполненным");
     }
     setIsSavingDiary(false);

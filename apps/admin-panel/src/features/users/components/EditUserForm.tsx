@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createAdminPanelLogger } from "@gafus/logger";
 import { FormField, PasswordField, SelectField } from "@shared/components/ui/FormField";
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
@@ -99,6 +100,7 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
       }
     } catch (error) {
       logger.error("Ошибка в handleSubmit:", error as Error);
+      reportClientError(error, { issueKey: "EditUserForm", keys: { operation: "updateUser" } });
       setFormState({
         error: `Произошла ошибка при обновлении: ${error instanceof Error ? error.message : String(error)}`,
       });

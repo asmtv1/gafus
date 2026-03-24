@@ -1002,6 +1002,9 @@ importers:
 
   packages/csrf:
     dependencies:
+      '@gafus/error-handling':
+        specifier: workspace:*
+        version: link:../error-handling
       '@gafus/logger':
         specifier: workspace:*
         version: link:../logger
@@ -1291,6 +1294,9 @@ importers:
       '@emotion/styled':
         specifier: ^11.14.0
         version: 11.14.0(@emotion/react@11.14.0(@types/react@19.1.17)(react@19.1.0))(@types/react@19.1.17)(react@19.1.0)
+      '@gafus/error-handling':
+        specifier: workspace:*
+        version: link:../error-handling
       '@mui/icons-material':
         specifier: 7.1.0
         version: 7.1.0(@mui/material@7.1.0(@emotion/react@11.14.0(@types/react@19.1.17)(react@19.1.0))(@emotion/styled@11.14.0(@emotion/react@11.14.0(@types/react@19.1.17)(react@19.1.0))(@types/react@19.1.17)(react@19.1.0))(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(@types/react@19.1.17)(react@19.1.0)

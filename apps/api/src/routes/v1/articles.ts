@@ -52,7 +52,19 @@ articlesRoutes.post("/:slug/view", zValidator("param", viewParamSchema), async (
   try {
     const { slug } = c.req.valid("param");
     const user = c.get("user");
-    const result = await incrementArticleView(slug, user?.id);
+    let guestVisitorKey: string | null = null;
+    try {
+      const body = (await c.req.json()) as { visitorKey?: unknown };
+      if (typeof body?.visitorKey === "string") {
+        guestVisitorKey = body.visitorKey;
+      }
+    } catch {
+      // без JSON-тела
+    }
+    const result = await incrementArticleView(slug, {
+      viewerUserId: user?.id,
+      guestVisitorKey,
+    });
     return c.json(result.success ? { success: true } : { success: false, error: result.error }, 200);
   } catch (error) {
     logger.error("Error in article view POST", error as Error);

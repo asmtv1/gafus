@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { FormField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { phoneChangeConfirmSchema } from "@shared/lib/validation/authSchemas";
@@ -45,7 +46,8 @@ export default function ChangePhoneForm() {
         return;
       }
       router.push("/profile");
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ChangePhoneForm", keys: { operation: "confirm" } });
       setFormError("Не удалось сменить номер");
     }
   };

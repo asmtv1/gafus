@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
 import { CircularProgress } from "@shared/utils/muiImports";
 import { PlayArrowIcon } from "@shared/utils/muiImports";
 
@@ -111,6 +113,10 @@ export function CourseVideoPlayer({
         }
       })
       .catch((err) => {
+        reportClientError(err, {
+          issueKey: "CourseVideoPlayer",
+          keys: { operation: "load_hls_module" },
+        });
         console.error("[CourseVideoPlayer] Ошибка загрузки hls.js:", err);
         onError?.(err instanceof Error ? err : new Error(String(err)));
       });
@@ -141,6 +147,10 @@ export function CourseVideoPlayer({
         hasAppliedInitialPositionRef.current = true;
       }
       video.play().catch((e) => {
+        reportClientError(e, {
+          issueKey: "CourseVideoPlayer",
+          keys: { operation: "video_autoplay" },
+        });
         console.warn("[CourseVideoPlayer] Автоплей заблокирован:", e);
       });
     };

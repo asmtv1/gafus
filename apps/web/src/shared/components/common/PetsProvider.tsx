@@ -1,8 +1,11 @@
 "use client";
 
-import { usePetsStore } from "@shared/stores";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
+
+import { usePetsStore } from "@shared/stores";
 
 interface PetsProviderProps {
   children: React.ReactNode;
@@ -17,7 +20,8 @@ export default function PetsProvider({ children }: PetsProviderProps) {
     // Защита от повторных вызовов и race conditions
     if (status === "authenticated" && session?.user && !hasFetched.current) {
       hasFetched.current = true;
-      fetchPets().catch(() => {
+      fetchPets().catch((error) => {
+        reportClientError(error, { issueKey: "PetsProvider", keys: { operation: "fetch_pets" } });
         // Сбрасываем флаг при ошибке для возможности повтора
         hasFetched.current = false;
       });

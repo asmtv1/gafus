@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { create } from "zustand";
+
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 
 import {
@@ -23,6 +25,13 @@ import { hapticStart, hapticComplete } from "@shared/utils/hapticFeedback";
 
 // Создаем логгер для timer store
 const logger = createWebLogger("web-timer-store");
+
+function traceTimerErr(error: unknown, keys: Record<string, string | number | boolean>): void {
+  reportClientError(error instanceof Error ? error : new Error(String(error)), {
+    issueKey: "TimerStore",
+    keys,
+  });
+}
 
 // ===== УТИЛИТЫ =====
 const nowSec = () => Math.floor(Date.now() / 1000);
@@ -236,6 +245,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             stepIndex: stepIndex,
             durationSec: durationSec,
           });
+          traceTimerErr(error, { operation: "start_step_with_server_error" });
           try {
             const { useOfflineStore } = await import("@shared/stores/offlineStore");
             const offlineStore = useOfflineStore.getState();
@@ -256,6 +266,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
               dayOnCourseId: dayOnCourseId,
               stepIndex: stepIndex,
             });
+            traceTimerErr(offlineError, { operation: "failed_to_add_to_sync_queue" });
           }
         }
       })();
@@ -301,6 +312,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             stepTitle: stepTitle,
             stepOrder: stepOrder,
           });
+          traceTimerErr(error, { operation: "finish_step_with_server_error" });
           try {
             const { useOfflineStore } = await import("@shared/stores/offlineStore");
             const offlineStore = useOfflineStore.getState();
@@ -329,6 +341,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
               dayOnCourseId: dayOnCourseId,
               stepIndex: stepIndex,
             });
+            traceTimerErr(offlineError, { operation: "failed_to_add_to_sync_queue_finish" });
           }
         }
       })();
@@ -359,6 +372,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           dayOnCourseId,
           stepIndex,
         });
+        traceTimerErr(error, { operation: "reset_step_error" });
         try {
           const { useOfflineStore } = await import("@shared/stores/offlineStore");
           useOfflineStore.getState().addToSyncQueue({
@@ -378,6 +392,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
             dayOnCourseId,
             stepIndex,
           });
+          traceTimerErr(offlineError, { operation: "failed_to_add_to_sync_queue_reset" });
         }
         throw error;
       }
@@ -425,6 +440,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           stepIndex: stepIndex,
           timeLeft: stepState?.timeLeft || 0,
         });
+        traceTimerErr(error, { operation: "pause_step_on_server_error" });
         throw error;
       }
     },
@@ -449,6 +465,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           stepIndex: stepIndex,
           durationSec: durationSec,
         });
+        traceTimerErr(error, { operation: "resume_step_on_server_error" });
         throw error;
       }
     },
@@ -500,6 +517,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
                 stepIndex: stepIndex,
                 timeLeft: timeLeft,
               });
+              traceTimerErr(offlineError, { operation: "failed_to_add_pause_to_offline_queue" });
             }
           }
         })();
@@ -510,6 +528,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           dayOnCourseId: dayOnCourseId,
           stepIndex: stepIndex,
         });
+        traceTimerErr(e, { operation: "local_pause_error" });
         // В случае ошибки пытаемся остановить таймер и обновить состояние
         try {
           const { useStepStore } = await import("@shared/stores/stepStore");
@@ -517,6 +536,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           await stepStore.pauseStep(courseId, dayOnCourseId, stepIndex);
         } catch (fallbackError) {
           logger.error("Ошибка при fallback паузе", fallbackError as Error);
+          traceTimerErr(fallbackError, { operation: "local_pause_fallback" });
         }
       }
     },
@@ -569,6 +589,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
                 stepIndex: stepIndex,
                 timeLeft: timeLeft,
               });
+              traceTimerErr(offlineError, { operation: "failed_to_add_resume_to_offline_queue" });
             }
           }
         })();
@@ -580,6 +601,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           stepIndex: stepIndex,
           durationSec: durationSec,
         });
+        traceTimerErr(e, { operation: "local_resume_error" });
         // В случае ошибки пытаемся обновить состояние
         try {
           const { useStepStore } = await import("@shared/stores/stepStore");
@@ -587,6 +609,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => {
           stepStore.resumeStep(courseId, dayOnCourseId, stepIndex);
         } catch (fallbackError) {
           logger.error("Ошибка при fallback возобновлении", fallbackError as Error);
+          traceTimerErr(fallbackError, { operation: "local_resume_fallback" });
         }
       }
     },

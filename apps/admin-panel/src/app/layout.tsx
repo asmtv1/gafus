@@ -1,4 +1,5 @@
-import { CookieConsentBanner } from "@gafus/ui-components";
+import { CookieConsentBanner, TracerProvider } from "@gafus/ui-components";
+import { ErrorBoundary } from "@gafus/error-handling";
 import { SessionProviderWrapper } from "@/features/auth/components/SessionProviderWrapper";
 import { CSRFProvider } from "@gafus/csrf";
 import { AdminPanelQueryProvider } from "@shared/providers/QueryProvider";
@@ -16,16 +17,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="ru">
       <body>
-        <SessionProviderWrapper>
-          <CSRFProvider>
-            <AdminPanelQueryProvider>{children}</AdminPanelQueryProvider>
-          </CSRFProvider>
-        </SessionProviderWrapper>
-        <CookieConsentBanner
-          cookiePolicyUrl={
-            process.env.NEXT_PUBLIC_COOKIES_URL ?? "/cookies.html"
-          }
-        />
+        <TracerProvider>
+          <ErrorBoundary
+            config={{
+              appName: "admin-panel",
+              logToConsole: true,
+              showErrorDetails: false,
+            }}
+          >
+            <SessionProviderWrapper>
+              <CSRFProvider>
+                <AdminPanelQueryProvider>{children}</AdminPanelQueryProvider>
+              </CSRFProvider>
+            </SessionProviderWrapper>
+          </ErrorBoundary>
+          <CookieConsentBanner
+            cookiePolicyUrl={
+              process.env.NEXT_PUBLIC_COOKIES_URL ?? "/cookies.html"
+            }
+          />
+        </TracerProvider>
       </body>
     </html>
   );

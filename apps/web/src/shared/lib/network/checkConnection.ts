@@ -23,6 +23,7 @@ async function singlePing(timeoutMs: number): Promise<boolean> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+  /* eslint-disable @gafus/require-client-catch-tracer -- ping: ожидаемые сетевые сбои, не спамим Tracer */
   try {
     const response = await fetch("/api/ping", {
       method: "HEAD",
@@ -35,6 +36,7 @@ async function singlePing(timeoutMs: number): Promise<boolean> {
     clearTimeout(timeoutId);
     return false;
   }
+  /* eslint-enable @gafus/require-client-catch-tracer */
 }
 
 /**

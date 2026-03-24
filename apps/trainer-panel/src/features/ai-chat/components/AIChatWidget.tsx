@@ -332,7 +332,11 @@ export function AIChatWidget() {
               processedFile = file;
             }
           } catch (compressionError) {
-            // Используем оригинальный файл при ошибке сжатия
+            reportClientError(compressionError, {
+              issueKey: "AIChatWidget",
+              severity: "warning",
+              keys: { operation: "image_compression" },
+            });
             processedFile = file;
           }
         }

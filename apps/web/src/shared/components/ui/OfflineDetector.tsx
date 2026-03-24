@@ -1,12 +1,15 @@
 "use client";
 
-import { createWebLogger } from "@gafus/logger";
 import { useEffect } from "react";
-import {
-  initializeOfflineDetector,
-  cleanupOfflineDetector,
-} from "@shared/lib/network/offlineDetector";
+
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
+
 import { setupFetchInterceptor } from "@shared/lib/network/fetchInterceptor";
+import {
+  cleanupOfflineDetector,
+  initializeOfflineDetector,
+} from "@shared/lib/network/offlineDetector";
 
 const logger = createWebLogger("web-offline-detector-component");
 
@@ -21,6 +24,10 @@ export default function OfflineDetector() {
       initializeOfflineDetector();
       setupFetchInterceptor();
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "OfflineDetector",
+        keys: { operation: "initialize_offline_detector" },
+      });
       logger.warn("Failed to initialize offline detector", {
         operation: "detector_init_error",
         error: error instanceof Error ? error.message : String(error),
@@ -32,6 +39,10 @@ export default function OfflineDetector() {
       try {
         cleanupOfflineDetector();
       } catch (error) {
+        reportClientError(error, {
+          issueKey: "OfflineDetector",
+          keys: { operation: "cleanup_offline_detector" },
+        });
         logger.warn("Failed to cleanup offline detector", {
           operation: "detector_cleanup_error",
           error: error instanceof Error ? error.message : String(error),

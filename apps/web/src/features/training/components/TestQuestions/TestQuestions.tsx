@@ -95,6 +95,7 @@ export function TestQuestions({
       setShowResults(true);
       onComplete(answers);
     } catch (error) {
+      reportClientError(error, { issueKey: "TestQuestions", keys: { operation: "submit_exam" } });
       setSubmitError(error instanceof Error ? error.message : "Ошибка при сохранении результатов");
     } finally {
       setIsSubmitting(false);

@@ -1,6 +1,7 @@
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
 import { PETS_CACHE_DURATION } from "@gafus/types";
 import { createPet, deletePet, getUserPets, updatePet } from "@shared/lib/pets";
-import { createWebLogger } from "@gafus/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -73,6 +74,10 @@ export const usePetsStore = create<PetsStore>()(
           logger.error("Ошибка загрузки питомцев", error as Error, {
             operation: "load_pets_error",
           });
+          reportClientError(error, {
+            issueKey: "PetsStore",
+            keys: { operation: "fetchPets" },
+          });
         }
       },
 
@@ -96,6 +101,10 @@ export const usePetsStore = create<PetsStore>()(
           logger.error("Ошибка создания питомца", error as Error, {
             operation: "create_pet_error",
             petData: data,
+          });
+          reportClientError(error, {
+            issueKey: "PetsStore",
+            keys: { operation: "createPet" },
           });
           throw error;
         }
@@ -123,6 +132,10 @@ export const usePetsStore = create<PetsStore>()(
             petId: data.id,
             updateData: data,
           });
+          reportClientError(error, {
+            issueKey: "PetsStore",
+            keys: { operation: "updatePet" },
+          });
           throw error;
         }
       },
@@ -147,6 +160,10 @@ export const usePetsStore = create<PetsStore>()(
           logger.error("Ошибка удаления питомца", error as Error, {
             operation: "delete_pet_error",
             petId: petId,
+          });
+          reportClientError(error, {
+            issueKey: "PetsStore",
+            keys: { operation: "deletePet" },
           });
           throw error;
         }

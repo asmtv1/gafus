@@ -12,6 +12,10 @@ import { Readable } from "stream";
 
 const logger = createTrainerPanelLogger("cdn-upload");
 
+function toLogError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
 // Функция для очистки имени файла от недопустимых символов
 function sanitizeFileName(fileName: string): string {
   // Убираем недопустимые символы для HTTP заголовков
@@ -83,7 +87,7 @@ export async function uploadFileToCDN(file: File, relativePath: string): Promise
 
     return `https://storage.yandexcloud.net/gafus-media/uploads/${relativePath}`;
   } catch (error) {
-    logger.error(`❌ Ошибка загрузки в CDN: ${error}`);
+    logger.error("Ошибка загрузки в CDN", toLogError(error), { relativePath });
     throw error;
   }
 }
@@ -156,7 +160,7 @@ export async function downloadFileFromCDN(relativePath: string): Promise<Buffer>
 
     return buffer;
   } catch (error) {
-    logger.error(`❌ Ошибка скачивания из CDN: ${error}`);
+    logger.error("Ошибка скачивания из CDN", toLogError(error), { relativePath });
     throw error;
   }
 }
@@ -227,7 +231,7 @@ export async function streamFileFromCDN(
 
     return result;
   } catch (error) {
-    logger.error(`❌ Ошибка создания стрима из CDN: ${error}`);
+    logger.error("Ошибка создания стрима из CDN", toLogError(error), { relativePath });
     throw error;
   }
 }
@@ -302,7 +306,7 @@ export async function deleteFileFromCDN(relativePath: string): Promise<void> {
 
     logger.info(`✅ Файл удален из CDN: ${key}`);
   } catch (error) {
-    logger.error(`❌ Ошибка удаления из CDN: ${error}`);
+    logger.error("Ошибка удаления из CDN", toLogError(error), { relativePath });
     throw error;
   }
 }
@@ -377,7 +381,7 @@ export async function deleteFolderFromCDN(folderPath: string): Promise<number> {
 
     return deletedCount;
   } catch (error) {
-    logger.error(`❌ Ошибка удаления папки из CDN: ${error}`);
+    logger.error("Ошибка удаления папки из CDN", toLogError(error), { folderPath });
     throw error;
   }
 }
@@ -421,7 +425,7 @@ export async function uploadBufferToCDN(
 
     return `https://storage.yandexcloud.net/gafus-media/${key}`;
   } catch (error) {
-    logger.error(`❌ Ошибка загрузки buffer в CDN: ${error}`);
+    logger.error("Ошибка загрузки buffer в CDN", toLogError(error), { relativePath });
     throw error;
   }
 }

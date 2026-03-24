@@ -19,6 +19,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
+import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";
@@ -181,6 +182,10 @@ export default function RegisterScreen() {
         setSnackbar({ visible: true, message: msg });
       }
     } catch (err) {
+      reportClientError(err instanceof Error ? err : new Error(String(err)), {
+        issueKey: "RegisterScreen",
+        keys: { operation: "register" },
+      });
       if (__DEV__) console.error("[Register] handleRegister catch", err);
       const msg = "Ошибка подключения к серверу";
       setErrors((prev) => ({ ...prev, api: msg }));

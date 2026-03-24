@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { reportClientError } from "@/shared/lib/tracer";
 import { trainingApi, type TrainingDaysResponse } from "@/shared/lib/api";
 import { useStepStore, useTrainingStore } from "@/shared/stores";
 import type { ApiResponse } from "@/shared/lib/api/client";
@@ -22,7 +23,12 @@ export function useTrainingDays(courseType: string) {
           setCachedTrainingDays(courseType, response.data);
         }
         return response;
-      } catch {
+      } catch (err) {
+        reportClientError(err, {
+          issueKey: "useTrainingDays",
+          severity: "warning",
+          keys: { operation: "api_then_offline", courseType },
+        });
         const meta = await getCourseMeta(courseType);
         if (meta) {
           const data = mapMetaToTrainingDaysResponse(meta, getStepState);

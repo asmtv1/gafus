@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("web-clear-course-cache");
@@ -55,6 +56,10 @@ export async function clearCourseCache(courseType: string): Promise<void> {
       deletedCount,
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "ClearCourseCache",
+      keys: { operation: "clear_course_sw_cache" },
+    });
     logger.error("Failed to clear course cache", error as Error, {
       courseType,
     });

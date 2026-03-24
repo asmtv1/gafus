@@ -6,6 +6,7 @@ import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 
 import { useAuthStore } from "@/shared/stores";
+import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 
 function bytesToBase64Url(arr: Uint8Array): string {
@@ -174,6 +175,10 @@ export function useVkLogin(options?: UseVkLoginOptions): {
           returnedState = payload.state ?? returnedState;
           if (__DEV__) console.log("[VK_LOGIN] extracted from payload", { code: !!code, device_id: !!device_id });
         } catch (e) {
+          reportClientError(e instanceof Error ? e : new Error(String(e)), {
+            issueKey: "VkLogin",
+            keys: { operation: "parse_vk_redirect_payload" },
+          });
           if (__DEV__) console.warn("[VK_LOGIN] payload parse error", e);
         }
       }
@@ -209,6 +214,10 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         options?.onError?.(loginResult.error ?? "Ошибка авторизации VK ID");
       }
     } catch (err) {
+      reportClientError(err instanceof Error ? err : new Error(String(err)), {
+        issueKey: "VkLogin",
+        keys: { operation: "vk_login" },
+      });
       if (__DEV__) console.error("[VK_LOGIN] catch", err);
       options?.onError?.("Ошибка подключения к серверу");
     } finally {

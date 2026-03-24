@@ -17,6 +17,7 @@ import { z } from "zod";
 
 import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
+import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
@@ -84,6 +85,10 @@ export default function LoginScreen() {
       }
       // Навигация управляется AuthProvider на основе isAuthenticated / pendingConfirmPhone
     } catch (err) {
+      reportClientError(err instanceof Error ? err : new Error(String(err)), {
+        issueKey: "LoginScreen",
+        keys: { operation: "login" },
+      });
       if (__DEV__) console.error("[Login] handleLogin catch", err);
       setSnackbar({
         visible: true,

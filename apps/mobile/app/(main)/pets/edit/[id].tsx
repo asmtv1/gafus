@@ -6,7 +6,7 @@ import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button, Input } from "@/shared/components/ui";
-import { petsApi, type CreatePetData } from "@/shared/lib/api";
+import { parsePetKind, petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/constants";
 
@@ -15,8 +15,7 @@ const LOG_PREFIX = "[EditPetScreen]";
 const PET_TYPES = [
   { value: "DOG", label: "Собака", icon: "dog" },
   { value: "CAT", label: "Кошка", icon: "cat" },
-  { value: "OTHER", label: "Другое", icon: "paw" },
-] as const;
+] as const satisfies ReadonlyArray<{ value: PetKind; label: string; icon: string }>;
 
 /**
  * Экран редактирования питомца
@@ -24,41 +23,42 @@ const PET_TYPES = [
 export default function EditPetScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const rawId = useLocalSearchParams<{ id: string | string[] }>().id;
+  const petId = typeof rawId === "string" ? rawId : rawId?.[0] ?? "";
   const [name, setName] = useState("");
-  const [type, setType] = useState<"DOG" | "CAT" | "OTHER">("DOG");
+  const [type, setType] = useState<PetKind>("DOG");
   const [breed, setBreed] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Загрузка питомца
+  // Загрузка питомца по id (тот же источник, что и GET /pets/:id на API)
   const { data: petData, isLoading: isLoadingPet } = useQuery({
-    queryKey: ["pet", id],
+    queryKey: ["pet", petId],
     queryFn: async () => {
-      const response = await petsApi.getAll();
-      const pet = response.data?.find((p) => p.id === id);
-      if (!pet) throw new Error("Питомец не найден");
-      return pet;
+      const response = await petsApi.getById(petId);
+      if (!response.success || !response.data) {
+        throw new Error(response.error ?? "Питомец не найден");
+      }
+      return response.data;
     },
-    enabled: !!id,
+    enabled: !!petId,
   });
 
-  // Заполнение формы при загрузке питомца
+  // Заполнение формы при загрузке питомца (проверка id — от залипания кэша при смене маршрута)
   useEffect(() => {
-    if (petData) {
-      setName(petData.name || "");
-      setType(petData.type || "DOG");
-      setBreed(petData.breed || "");
-      setBirthDate(
-        petData.birthDate ? new Date(petData.birthDate).toISOString().split("T")[0] : "",
-      );
-      setHeightCm(petData.heightCm?.toString() || "");
-      setWeightKg(petData.weightKg?.toString() || "");
-      setNotes(petData.notes || "");
-    }
-  }, [petData]);
+    if (!petData || petData.id !== petId) return;
+    setName(petData.name || "");
+    setType(parsePetKind(petData.type));
+    setBreed(petData.breed || "");
+    setBirthDate(
+      petData.birthDate ? new Date(petData.birthDate).toISOString().split("T")[0] : "",
+    );
+    setHeightCm(petData.heightCm != null ? String(petData.heightCm) : "");
+    setWeightKg(petData.weightKg != null ? String(petData.weightKg) : "");
+    setNotes(petData.notes || "");
+  }, [petData, petId]);
 
   // Обновление питомца
   const updateMutation = useMutation({
@@ -70,12 +70,13 @@ export default function EditPetScreen() {
     onSuccess: (data) => {
       if (__DEV__) {
         console.log(`${LOG_PREFIX} Питомец успешно обновлен`, {
-          petId: id,
+          petId,
           petName: data.data?.name,
           petType: data.data?.type,
         });
       }
       queryClient.invalidateQueries({ queryKey: ["pets"] });
+      queryClient.invalidateQueries({ queryKey: ["pet"] });
       hapticFeedback.success();
       router.back();
     },
@@ -91,14 +92,14 @@ export default function EditPetScreen() {
   });
 
   const handleSave = () => {
-    if (!id) {
+    if (!petId) {
       Alert.alert("Ошибка", "ID питомца не указан");
       return;
     }
 
     if (__DEV__) {
       console.log(`${LOG_PREFIX} Начало сохранения питомца`, {
-        petId: id,
+        petId,
         name,
         type,
         breed,
@@ -181,12 +182,12 @@ export default function EditPetScreen() {
 
     if (__DEV__) {
       console.log(`${LOG_PREFIX} Валидация пройдена, отправка данных на сервер`, {
-        petId: id,
+        petId,
         petData: { ...petData, notes: petData.notes ? "[заметки есть]" : undefined },
       });
     }
 
-    updateMutation.mutate({ id, data: petData });
+    updateMutation.mutate({ id: petId, data: petData });
   };
 
   if (isLoadingPet) {

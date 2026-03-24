@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { FormField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { phoneSchema } from "@shared/lib/validation/authSchemas";
@@ -24,7 +25,8 @@ export default function SetVkPhoneForm() {
         return;
       }
       router.push("/profile");
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "SetVkPhoneForm", keys: { operation: "submit" } });
       setError("Не удалось установить номер");
     }
   };

@@ -14,6 +14,7 @@ import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { coursesApi, subscriptionsApi, type Course } from "@/shared/lib/api";
+import { reportClientError } from "@/shared/lib/tracer";
 import { setupPushNotifications } from "@/shared/lib/utils/notifications";
 import {
   CourseCard,
@@ -132,6 +133,10 @@ export default function CoursesScreen() {
           throw new Error(res.error ?? "Ошибка избранного");
         }
       } catch (err) {
+        reportClientError(err instanceof Error ? err : new Error(String(err)), {
+          issueKey: "CoursesScreen",
+          keys: { operation: "toggle_favorite" },
+        });
         if (wasFavorite) {
           addToFavorites(courseId);
         } else {

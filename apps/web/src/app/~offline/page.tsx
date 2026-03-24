@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
 import { TrainingStatus } from "@gafus/types";
+
 import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
 import { useOfflineStatus } from "@shared/hooks/useOfflineStatus";
 import type { OfflineCourse } from "@shared/lib/offline/types";
-import type { CourseCardPropsWithIndex } from "@/features/courses/components/CourseCard/types";
+
 import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
+import type { CourseCardPropsWithIndex } from "@/features/courses/components/CourseCard/types";
 import courseStyles from "../(main)/courses/courses.module.css";
 import styles from "./offline.module.css";
 
@@ -55,6 +59,7 @@ export default function OfflinePage() {
       try {
         await refreshDownloadedCourses();
       } catch (error) {
+        reportClientError(error, { issueKey: "Page", keys: { operation: "refresh_downloaded_courses" } });
         setIndexedDBError(error instanceof Error ? error.message : "Ошибка загрузки курсов");
       } finally {
         setIsLoading(false);

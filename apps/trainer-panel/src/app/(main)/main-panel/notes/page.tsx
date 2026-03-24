@@ -1,10 +1,13 @@
 import { Suspense } from "react";
 import { Box, CircularProgress, Alert } from "@/utils/muiImports";
+import { createTrainerPanelLogger } from "@gafus/logger";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { getNotes } from "@/features/notes/lib/getNotes";
 import NotesClient from "./NotesClient";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
+
+const logger = createTrainerPanelLogger("trainer-panel-notes-page");
 
 async function NotesContent({ studentId }: { studentId?: string }) {
   try {
@@ -29,6 +32,9 @@ async function NotesContent({ studentId }: { studentId?: string }) {
 
     return <NotesClient initialNotes={notes} />;
   } catch (error) {
+    unstable_rethrow(error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Ошибка при загрузке заметок", err, { page: "notes" });
     return (
       <Alert severity="error">
         Ошибка при загрузке заметок:{" "}

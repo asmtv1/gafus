@@ -1,6 +1,7 @@
 "use client";
 
 import { useCSRFStore } from "@gafus/csrf";
+import { reportClientError } from "@gafus/error-handling";
 import { FormField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
@@ -71,6 +72,7 @@ export default function LoginForm() {
       // чтобы избежать смены хоста (например, на localhost:3002)
       router.replace("/courses");
     } catch (error) {
+      reportClientError(error, { issueKey: "LoginForm", keys: { operation: "submit_login" } });
       catchError(error);
     }
   };

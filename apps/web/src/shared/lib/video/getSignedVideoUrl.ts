@@ -18,7 +18,11 @@ export async function getSignedVideoUrl(videoId: string): Promise<string | null>
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      logger.error("Нет сессии пользователя");
+      logger.error(
+        "Нет сессии пользователя",
+        new Error("getSignedVideoUrl: no session"),
+        { videoId },
+      );
       return null;
     }
 

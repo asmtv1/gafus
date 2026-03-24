@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useState, useEffect } from "react";
 import {
   Card,
@@ -55,7 +56,11 @@ export default function PresentationStatsMonitor() {
       } else {
         setError(!result.success ? result.error : "Не удалось загрузить статистику");
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, {
+        issueKey: "PresentationStatsMonitor",
+        keys: { operation: "load_stats" },
+      });
       setError("Произошла ошибка при загрузке статистики");
     } finally {
       setLoading(false);

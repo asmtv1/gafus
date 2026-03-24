@@ -4,6 +4,8 @@ import Link from "next/link";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
@@ -71,6 +73,7 @@ export function RegisterForm() {
         router.push("/confirm");
       }
     } catch (error) {
+      reportClientError(error, { issueKey: "RegisterForm", keys: { operation: "submit_register" } });
       catchError(error);
     }
   };

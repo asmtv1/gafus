@@ -67,6 +67,12 @@ async function downloadWithRetry(
         attempt,
         error: lastError.message,
       });
+      if (attempt === maxRetries) {
+        reportClientError(lastError, {
+          issueKey: "downloadHLSVideo",
+          keys: { operation: "download_with_retry", attempt: maxRetries },
+        });
+      }
 
       if (attempt < maxRetries) {
         // Exponential backoff

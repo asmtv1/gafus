@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   getTrainingReminders,
@@ -47,7 +48,8 @@ export default function TrainingReminders() {
       if (result.success && result.data) {
         setReminders(result.data);
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "TrainingReminders", keys: { operation: "load" } });
       console.error("Ошибка загрузки напоминаний");
     } finally {
       setLoading(false);
@@ -83,7 +85,8 @@ export default function TrainingReminders() {
           text: result.error || "Не удалось создать напоминание",
         });
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "TrainingReminders", keys: { operation: "create" } });
       setMessage({
         type: "error",
         text: "Произошла ошибка",
@@ -107,7 +110,8 @@ export default function TrainingReminders() {
           text: result.error || "Не удалось удалить",
         });
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "TrainingReminders", keys: { operation: "delete" } });
       setMessage({
         type: "error",
         text: "Произошла ошибка",
@@ -142,7 +146,8 @@ export default function TrainingReminders() {
           });
           return false;
         }
-      } catch {
+      } catch (err) {
+        reportClientError(err, { issueKey: "TrainingReminders", keys: { operation: "update" } });
         setMessage({
           type: "error",
           text: "Произошла ошибка",

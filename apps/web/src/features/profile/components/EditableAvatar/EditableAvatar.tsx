@@ -1,13 +1,15 @@
 "use client";
 
 import EditIcon from "@mui/icons-material/Edit";
-import { updateAvatar } from "@shared/lib/profile/updateAvatar";
-import { createWebLogger } from "@gafus/logger";
 import imageCompression from "browser-image-compression";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
+
+import { updateAvatar } from "@shared/lib/profile/updateAvatar";
 import { Avatar, Box, IconButton, Tooltip } from "@shared/utils/muiImports";
 
 // Создаем логгер для EditableAvatar
@@ -51,6 +53,7 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
       setCacheBuster(Date.now().toString());
       router.refresh();
     } catch (err) {
+      reportClientError(err, { issueKey: "EditableAvatar", keys: { operation: "upload_avatar" } });
       const errorObj = err instanceof Error ? err : new Error("Unknown error");
       logger.error("Ошибка при сохранении avatar", errorObj, {
         operation: "save_avatar_error",

@@ -304,6 +304,7 @@ export default function TrainingDaysScreen() {
   const handleShareCourse = useCallback(async () => {
     const url = `https://gafus.ru/trainings/${courseType}`;
     const message = [courseType, courseData?.courseDescription, url].filter(Boolean).join("\n\n");
+    /* eslint-disable @gafus/require-client-catch-tracer -- отмена Share или ошибка → копируем URL */
     try {
       await Share.share({
         title: `Курс: ${courseType}`,
@@ -314,6 +315,7 @@ export default function TrainingDaysScreen() {
       await Clipboard.setStringAsync(url);
       setSnackbar({ visible: true, message: "Ссылка скопирована" });
     }
+    /* eslint-enable @gafus/require-client-catch-tracer */
   }, [courseType, courseData?.courseDescription]);
 
   const renderDayItem = useCallback(

@@ -1,7 +1,7 @@
 /**
  * Article Service — бизнес-логика статей.
  */
-import { prisma } from "@gafus/prisma";
+import { isPrismaUniqueConstraintError, prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import type { ArticleListDto, ArticleDetailDto, ArticleViewerDto } from "@gafus/types";
@@ -305,13 +305,30 @@ export async function updateArticle(
   }
 }
 
+export interface IncrementArticleViewOptions {
+  /** Авторизованный зритель — один уникальный просмотр на пару статья–пользователь */
+  viewerUserId?: string | null;
+  /** Ключ гостя (UUID с клиента) — один уникальный просмотр на пару статья–ключ */
+  guestVisitorKey?: string | null;
+}
+
+/** Нормализация и базовая валидация ключа гостя (защита от мусора в БД) */
+function normalizeGuestVisitorKey(key: string | null | undefined): string | null {
+  if (key == null || typeof key !== "string") return null;
+  const t = key.trim();
+  if (t.length < 16 || t.length > 128) return null;
+  if (!/^[a-zA-Z0-9_-]+$/.test(t)) return null;
+  return t;
+}
+
 /**
- * Инкрементирует счётчик просмотров статьи по slug.
- * Для авторизованного пользователя дополнительно фиксируется запись в ArticleViewer (уникально на пару статья–пользователь).
+ * Учитывает просмотр статьи: +1 к viewCount только при первом уникальном просмотре
+ * (авторизованный пользователь или гость с тем же visitorKey).
+ * Повторные заходы обновляют только lastViewedAt у ArticleViewer.
  */
 export async function incrementArticleView(
   slug: string,
-  viewerUserId?: string | null
+  options?: IncrementArticleViewOptions
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const article = await prisma.article.findUnique({
@@ -322,25 +339,53 @@ export async function incrementArticleView(
       return { success: true };
     }
 
+    const userId = options?.viewerUserId?.trim() || null;
+    const guestKey = normalizeGuestVisitorKey(options?.guestVisitorKey);
+
     await prisma.$transaction(async (tx) => {
-      await tx.article.update({
-        where: { id: article.id },
-        data: { viewCount: { increment: 1 } },
-      });
-      if (viewerUserId) {
-        await tx.articleViewer.upsert({
-          where: {
-            articleId_userId: { articleId: article.id, userId: viewerUserId },
-          },
-          create: {
-            articleId: article.id,
-            userId: viewerUserId,
-          },
-          update: {
-            lastViewedAt: new Date(),
-          },
+      const articleId = article.id;
+
+      if (userId) {
+        try {
+          await tx.articleViewer.create({
+            data: { articleId, userId },
+          });
+        } catch (e) {
+          if (isPrismaUniqueConstraintError(e)) {
+            await tx.articleViewer.update({
+              where: { articleId_userId: { articleId, userId } },
+              data: { lastViewedAt: new Date() },
+            });
+            return;
+          }
+          throw e;
+        }
+        await tx.article.update({
+          where: { id: articleId },
+          data: { viewCount: { increment: 1 } },
         });
+        return;
       }
+
+      if (guestKey) {
+        try {
+          await tx.articleGuestView.create({
+            data: { articleId, visitorKey: guestKey },
+          });
+        } catch (e) {
+          if (isPrismaUniqueConstraintError(e)) {
+            return;
+          }
+          throw e;
+        }
+        await tx.article.update({
+          where: { id: articleId },
+          data: { viewCount: { increment: 1 } },
+        });
+        return;
+      }
+
+      // Без userId и без ключа гостя счётчик не меняем
     });
 
     return { success: true };

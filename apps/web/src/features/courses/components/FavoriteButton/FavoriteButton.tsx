@@ -1,9 +1,12 @@
 "use client";
 
 import TurnedInIcon from "@mui/icons-material/TurnedIn";
-import { useOfflineStore } from "@shared/stores/offlineStore";
+import { useEffect, useState, useTransition } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
+
 import { useFavoritesStore } from "@shared/stores/favoritesStore";
-import { useState, useTransition, useEffect } from "react";
+import { useOfflineStore } from "@shared/stores/offlineStore";
 
 import type { FavoriteButtonProps } from "./types";
 import styles from "./FavoriteButton.module.css";
@@ -51,6 +54,10 @@ export const FavoriteButton = ({ id, isFavorite = false, onUnfavorite }: Favorit
 
           // Глобальное событие автоматически отправится через store
         } catch (error) {
+          reportClientError(error, {
+            issueKey: "FavoriteButton",
+            keys: { operation: "toggle_favorite" },
+          });
           setError(error instanceof Error ? error : new Error("Unknown error"));
         }
       })();

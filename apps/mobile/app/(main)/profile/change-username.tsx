@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button, Input } from "@/shared/components/ui";
 import type { User } from "@/shared/lib/api/auth";
 import { userApi } from "@/shared/lib/api/user";
+import { reportClientError } from "@/shared/lib/tracer";
 import { useAuthStore } from "@/shared/stores";
 import { useUsernameAvailability } from "@/shared/hooks";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -53,7 +54,8 @@ export default function ChangeUsernameScreen() {
       } else {
         setSnackbar({ visible: true, message: result.error || "Не удалось сменить логин" });
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ChangeUsername", keys: { operation: "save" } });
       setSnackbar({ visible: true, message: "Ошибка подключения" });
     } finally {
       setLoading(false);

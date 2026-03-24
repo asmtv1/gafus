@@ -10,6 +10,7 @@ import { TrainingStatus } from "@gafus/types";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { SPACING, FONTS, COLORS, BORDER_RADIUS, API_BASE_URL } from "@/constants";
 import { useOfflineStore } from "@/shared/stores";
+import { reportClientError } from "@/shared/lib/tracer";
 import { offlineApi } from "@/shared/lib/api/offline";
 import type { Course } from "@/shared/lib/api";
 
@@ -44,6 +45,7 @@ function getStatusColor(status: string): string {
 
 function formatDate(date: Date | string | null): string | null {
   if (!date) return null;
+  /* eslint-disable @gafus/require-client-catch-tracer -- невалидная дата → null */
   try {
     const d = typeof date === "string" ? new Date(date) : date;
     if (isNaN(d.getTime())) return null;
@@ -51,6 +53,7 @@ function formatDate(date: Date | string | null): string | null {
   } catch {
     return null;
   }
+  /* eslint-enable @gafus/require-client-catch-tracer */
 }
 
 function getReviewText(reviewsCount: number, userStatus: string): string {
@@ -177,7 +180,8 @@ export function CourseCard({
       } else if (res.success && !res.data?.hasUpdates) {
         Alert.alert("Курс актуален", "У вас установлена последняя версия.");
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "CourseCard", keys: { operation: "check_offline_updates" } });
       Alert.alert("Ошибка", "Не удалось проверить обновления.");
     } finally {
       setCheckingUpdates(false);

@@ -18,6 +18,7 @@ import {
   ThemeProvider,
   TracerProvider,
 } from "@/shared/providers";
+import { installGlobalJsErrorHandler } from "@/shared/lib/tracer";
 import { ErrorBoundary, OfflineIndicator } from "@/shared/components";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
 import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
@@ -54,6 +55,10 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    installGlobalJsErrorHandler();
+  }, []);
 
   // DEBUG: лог любых deep link на Android для отладки VK redirect
   useEffect(() => {

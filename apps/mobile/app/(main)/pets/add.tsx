@@ -6,7 +6,7 @@ import { Stack, useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button, Input } from "@/shared/components/ui";
-import { petsApi, type CreatePetData } from "@/shared/lib/api";
+import { petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/constants";
 
@@ -15,8 +15,7 @@ const LOG_PREFIX = "[AddPetScreen]";
 const PET_TYPES = [
   { value: "DOG", label: "Собака", icon: "dog" },
   { value: "CAT", label: "Кошка", icon: "cat" },
-  { value: "OTHER", label: "Другое", icon: "paw" },
-] as const;
+] as const satisfies ReadonlyArray<{ value: PetKind; label: string; icon: string }>;
 
 /**
  * Экран добавления питомца
@@ -25,7 +24,7 @@ export default function AddPetScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
-  const [type, setType] = useState<"DOG" | "CAT" | "OTHER">("DOG");
+  const [type, setType] = useState<PetKind>("DOG");
   const [breed, setBreed] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [heightCm, setHeightCm] = useState("");

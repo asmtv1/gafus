@@ -1,10 +1,14 @@
 "use client";
-import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
-import { useCourseStoreActions } from "@shared/stores";
+
 import { useEffect, useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
 import type { CourseWithProgressData } from "@gafus/types";
-import { useCourseProgressSync } from "@shared/hooks/useCourseProgressSync";
+
+import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
 import { SyncStatusIndicator } from "@shared/components/ui/SyncStatusIndicator";
+import { useCourseProgressSync } from "@shared/hooks/useCourseProgressSync";
+import { useCourseStoreActions } from "@shared/stores";
 
 import styles from "./courses.module.css";
 import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
@@ -70,7 +74,11 @@ function loadFiltersFromStorage(): {
         ? (parsed.sorting as SortingType)
         : "newest",
     };
-  } catch {
+  } catch (error) {
+    reportClientError(error, {
+      issueKey: "CoursesClient",
+      keys: { operation: "load_filters_from_storage" },
+    });
     return getDefaultFilters();
   }
 }
@@ -126,7 +134,11 @@ export default function CoursesClient({
       if (typeof window !== "undefined") {
         localStorage.setItem(COURSES_FILTERS_STORAGE_KEY, JSON.stringify(filters));
       }
-    } catch {
+    } catch (error) {
+      reportClientError(error, {
+        issueKey: "CoursesClient",
+        keys: { operation: "persist_course_filters" },
+      });
       // Quota exceeded or private mode
     }
   }, [filters]);
@@ -153,7 +165,11 @@ export default function CoursesClient({
     } else if (initialError && !allCourses) {
       // Ошибка будет обработана в store
     } else if (!initialCourses && !allCourses && !loading.all && userId) {
-      fetchAllCourses().catch((_error) => {
+      fetchAllCourses().catch((error) => {
+        reportClientError(error, {
+          issueKey: "CoursesClient",
+          keys: { operation: "fetch_all_courses" },
+        });
         // Ошибка уже обрабатывается в store
       });
     }

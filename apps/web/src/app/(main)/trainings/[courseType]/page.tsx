@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { createWebLogger } from "@gafus/logger";
 import TrainingPageClient from "@features/training/components/TrainingPageClient";
 import { getTrainingDays } from "@shared/lib/training/getTrainingDays";
 import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
@@ -9,6 +10,8 @@ import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { generateCourseMetadata } from "@gafus/metadata";
 
 import styles from "./trainings.module.css";
+
+const logger = createWebLogger("web-trainings-page");
 
 // Отключаем кэш RSC: каждый запрос проверяет доступ заново (важно для платных курсов)
 export const dynamic = "force-dynamic";
@@ -69,6 +72,12 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
         } catch (error) {
           if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
             serverError = "COURSE_ACCESS_DENIED";
+          } else {
+            logger.error(
+              "Неожиданная ошибка загрузки дней тренировки",
+              error instanceof Error ? error : new Error(String(error)),
+              { courseType, userId },
+            );
           }
         }
       }
@@ -80,6 +89,12 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
       } catch (error) {
         if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
           serverError = "COURSE_ACCESS_DENIED";
+        } else {
+          logger.error(
+            "Неожиданная ошибка загрузки дней тренировки",
+            error instanceof Error ? error : new Error(String(error)),
+            { courseType, userId },
+          );
         }
       }
     }

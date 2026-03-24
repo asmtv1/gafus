@@ -2,6 +2,7 @@ import * as Device from "expo-device";
 import { Platform, NativeModules } from "react-native";
 import Constants from "expo-constants";
 import { subscriptionsApi } from "@/shared/lib/api";
+import { reportClientError } from "@/shared/lib/tracer";
 
 /**
  * Регистрация для получения push уведомлений
@@ -60,6 +61,10 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
     return token;
   } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "PushNotifications",
+      keys: { operation: "register_expo_push" },
+    });
     console.error("Error getting push token:", error);
     return null;
   }
@@ -91,7 +96,11 @@ async function tryRegisterRustorePush(): Promise<void> {
         console.log("RuStore push: не удалось сохранить подписку");
       }
     }
-  } catch {
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "PushNotifications",
+      keys: { operation: "register_rustore_push" },
+    });
     // Expo Go, пакет не установлен или ошибка SDK — не критично
   }
 }
@@ -110,6 +119,10 @@ export async function savePushToken(token: string): Promise<boolean> {
     });
     return result.success;
   } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "PushNotifications",
+      keys: { operation: "save_push_token" },
+    });
     console.error("Error saving push token:", error);
     return false;
   }

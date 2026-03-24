@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { reportClientError } from "@gafus/error-handling";
 import Hls from "hls.js";
+import { useEffect, useRef, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 
 interface HLSVideoPlayerProps {
@@ -89,6 +90,11 @@ export function HLSVideoPlayer({
           if (autoplay) {
             video.play().catch((err) => {
               console.warn("Autoplay blocked:", err);
+              reportClientError(err instanceof Error ? err : new Error(String(err)), {
+                issueKey: "HLSVideoPlayer",
+                severity: "warning",
+                keys: { operation: "autoplay_hls_js" },
+              });
             });
           }
         });
@@ -96,6 +102,13 @@ export function HLSVideoPlayer({
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (data.fatal) {
             console.error("[HLSVideoPlayer] Фатальная ошибка HLS:", data);
+            reportClientError(
+              new Error(data.details || data.type || "HLS fatal error"),
+              {
+                issueKey: "HLSVideoPlayer",
+                keys: { operation: "hls_fatal", hlsType: String(data.type) },
+              },
+            );
             setError("Ошибка загрузки видео");
             setIsLoading(false);
 
@@ -141,6 +154,11 @@ export function HLSVideoPlayer({
         if (autoplay) {
           video.play().catch((err) => {
             console.warn("Autoplay blocked:", err);
+            reportClientError(err instanceof Error ? err : new Error(String(err)), {
+              issueKey: "HLSVideoPlayer",
+              severity: "warning",
+              keys: { operation: "autoplay_native_hls" },
+            });
           });
         }
       } else {

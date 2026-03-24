@@ -1,5 +1,8 @@
 "use client";
+
 import { useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
 import styles from "./ShareButton.module.css";
 
 interface ShareButtonProps {
@@ -31,6 +34,7 @@ export default function ShareButton({
           url: shareUrl,
         });
       } catch (error) {
+        reportClientError(error, { issueKey: "ShareButton", keys: { operation: "navigator_share" } });
         // Пользователь отменил шаринг или ошибка
         if ((error as Error).name !== "AbortError") {
           console.error("Ошибка при шаринге:", error);
@@ -43,6 +47,7 @@ export default function ShareButton({
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch (error) {
+        reportClientError(error, { issueKey: "ShareButton", keys: { operation: "clipboard_write" } });
         console.error("Ошибка при копировании:", error);
       }
     }

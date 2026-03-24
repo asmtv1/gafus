@@ -1,9 +1,11 @@
 // Композитный store для управления уведомлениями
 // Объединяет функциональность нескольких специализированных stores
 
-import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
-import { useEffect, useCallback } from "react";
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
+import { useCallback, useEffect } from "react";
+
+import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
 import { usePermissionStore } from "../permission/permissionStore";
 import { usePushStore } from "../push/pushStore";
 import { useNotificationUIStore } from "../ui/notificationUIStore";
@@ -60,6 +62,10 @@ export function useNotificationComposite() {
           }
         } catch (e) {
           logger.error("Failed to setup push subscription:", e as Error, { operation: "error" });
+          reportClientError(e, {
+            issueKey: "NotificationComposite",
+            keys: { operation: "setupPushSubscription" },
+          });
           const errorMsg = e instanceof Error ? e.message : "Ошибка настройки push-подписки";
           permission.setError(errorMsg);
           throw e;
@@ -182,6 +188,11 @@ export function useNotificationModal() {
       }
     } catch (error) {
       logger.warn("Failed to get localStorage item:", { error, operation: "warn" });
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "NotificationComposite",
+        severity: "warning",
+        keys: { operation: "localStorageNotificationsFlag" },
+      });
     }
   }, [stores.push]);
 

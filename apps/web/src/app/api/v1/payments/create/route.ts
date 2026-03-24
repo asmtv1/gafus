@@ -76,7 +76,10 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     const shopId = process.env.YOOKASSA_SHOP_ID;
     const secretKey = process.env.YOOKASSA_SECRET_KEY;
     if (!shopId || !secretKey) {
-      logger.error("YOOKASSA_SHOP_ID или YOOKASSA_SECRET_KEY не заданы");
+      logger.error(
+        "YOOKASSA_SHOP_ID или YOOKASSA_SECRET_KEY не заданы",
+        new Error("YooKassa env missing"),
+      );
       return NextResponse.json(
         { success: false, error: "Платежи недоступны", code: "CONFIG" },
         { status: 500 },

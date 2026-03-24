@@ -13,7 +13,10 @@ import {
 
 import { getCDNUrl } from "@gafus/cdn-upload";
 import { useCSRFStore } from "@gafus/csrf";
+import { reportClientError } from "@gafus/error-handling";
 import type { ArticleDetailDto } from "@gafus/types";
+
+import { getOrCreateArticleGuestVisitorKey } from "@/shared/lib/articles/articleGuestVisitorKey";
 
 import styles from "./ArticleDetailClient.module.css";
 
@@ -56,7 +59,8 @@ function PaidArticleBlock({
       } else {
         setPayError("Нет ссылки на оплату");
       }
-    } catch {
+    } catch (error) {
+      reportClientError(error, { issueKey: "ArticleDetailClient", keys: { operation: "pay_article" } });
       setPayError("Ошибка сети");
     } finally {
       setPayLoading(false);
@@ -130,9 +134,20 @@ export default function ArticleDetailClient({
     if (!csrfToken) return;
     void fetch(`/api/v1/articles/${article.slug}/view`, {
       method: "POST",
-      headers: { "x-csrf-token": csrfToken },
+      headers: {
+        "x-csrf-token": csrfToken,
+        "Content-Type": "application/json",
+      },
       credentials: "include",
-    }).catch(() => {});
+      body: JSON.stringify({
+        visitorKey: getOrCreateArticleGuestVisitorKey(),
+      }),
+    }).catch((err) => {
+      reportClientError(err, {
+        issueKey: "ArticleDetailClient",
+        keys: { operation: "record_article_view" },
+      });
+    });
   }, [article.slug, csrfToken]);
 
   const handleLike = () => {
@@ -155,8 +170,11 @@ export default function ArticleDetailClient({
           setIsLiked(data.data.isLiked);
           setLikeCount((c) => (data.data!.isLiked ? c + 1 : c - 1));
         }
-      } catch {
-        /* */
+      } catch (error) {
+        reportClientError(error, {
+          issueKey: "ArticleDetailClient",
+          keys: { operation: "toggle_article_like" },
+        });
       }
     });
   };

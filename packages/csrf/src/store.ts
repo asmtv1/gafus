@@ -1,9 +1,10 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
 import React from "react"; // Added missing import for React
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для CSRF Store
 const logger = createWebLogger("csrf-store");
@@ -120,6 +121,10 @@ export const useCSRFStore = create<CSRFState>()(
           logger.error("Ошибка при получении CSRF токена", new Error(errorMessage), {
             retryCount: get().retryCount,
             lastFetched: get().lastFetched,
+          });
+          reportClientError(error instanceof Error ? error : new Error(errorMessage), {
+            issueKey: "CSRFStore",
+            keys: { operation: "fetchToken" },
           });
 
           const newRetryCount = state.retryCount + 1;

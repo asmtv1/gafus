@@ -1,15 +1,18 @@
 "use client";
 
-import { useCourseStore, useCourseStoreActions } from "@shared/stores/courseStore";
-import { useStepStore } from "@shared/stores/stepStore";
-import { useCourseProgressSync } from "@shared/hooks/useCourseProgressSync";
-import { TrainingStatus, type CourseWithProgressData } from "@gafus/types";
-import { getUserProgress, type UserDetailedProgress } from "@shared/lib/user/getUserProgress";
-import Link from "next/link";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { useMemo, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useEffect, useMemo, useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
+import { TrainingStatus, type CourseWithProgressData } from "@gafus/types";
+
+import { useCourseProgressSync } from "@shared/hooks/useCourseProgressSync";
+import { getUserProgress, type UserDetailedProgress } from "@shared/lib/user/getUserProgress";
+import { useCourseStore, useCourseStoreActions } from "@shared/stores/courseStore";
+import { useStepStore } from "@shared/stores/stepStore";
 
 import styles from "./UserCoursesStatistics.module.css";
 
@@ -32,6 +35,10 @@ function useSelfCourseProgress(courseId: string, userId?: string) {
           setProgress(data);
         }
       } catch (err) {
+        reportClientError(err, {
+          issueKey: "UserCoursesStatistics",
+          keys: { operation: "fetch_course_progress" },
+        });
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Не удалось загрузить прогресс");
         }

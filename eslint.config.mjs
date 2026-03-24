@@ -162,6 +162,8 @@ export default [
       "@gafus/no-getCurrentUserId-in-api-routes": "error",
       "@gafus/server-action-serialization": "error",
       "@gafus/no-client-code-in-server-actions": "error",
+      // Клиентский catch → Tracer (мягко; см. docs/audit/tracer-client-catch-process.md)
+      "@gafus/require-client-catch-tracer": "warn",
     },
   },
 

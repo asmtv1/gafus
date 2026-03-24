@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { userApi } from "@/shared/lib/api/user";
+import { reportClientError } from "@/shared/lib/tracer";
 
 type AvailabilityStatus = "idle" | "checking" | "available" | "taken";
 
@@ -27,7 +28,12 @@ export function useUsernameAvailability(username: string) {
         } else {
           setStatus("idle");
         }
-      } catch {
+      } catch (err) {
+        reportClientError(err, {
+          issueKey: "useUsernameAvailability",
+          severity: "warning",
+          keys: { operation: "check_username" },
+        });
         if (requestIdRef.current === requestId) setStatus("idle");
       }
     }, 450);

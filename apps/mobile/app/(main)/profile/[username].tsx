@@ -22,6 +22,7 @@ const getInitials = (name: string): string => {
 // Функция для получения возраста
 const getAge = (birthDate: string | null): number | null => {
   if (!birthDate) return null;
+  /* eslint-disable @gafus/require-client-catch-tracer -- невалидная дата → null */
   try {
     const birth = new Date(birthDate);
     const today = new Date();
@@ -34,6 +35,7 @@ const getAge = (birthDate: string | null): number | null => {
   } catch {
     return null;
   }
+  /* eslint-enable @gafus/require-client-catch-tracer */
 };
 
 // Функция для склонения

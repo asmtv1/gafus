@@ -1,14 +1,25 @@
 import * as SecureStore from "expo-secure-store";
 
-import { apiClient, type ApiResponse } from "./client";
 import { API_BASE_URL } from "@/constants";
+import { reportClientError } from "@/shared/lib/tracer";
+
+import { apiClient, type ApiResponse } from "./client";
 
 const LOG_PREFIX = "[PetsAPI]";
+
+/** Соответствует enum PetType в Prisma (только собака и кошка) */
+export type PetKind = "DOG" | "CAT";
+
+/** Приводит значение типа с API к PetKind (регистр и лишние пробелы) */
+export function parsePetKind(value: unknown): PetKind {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  return normalized === "CAT" ? "CAT" : "DOG";
+}
 
 export interface Pet {
   id: string;
   name: string;
-  type: "DOG" | "CAT" | "OTHER";
+  type: PetKind;
   breed: string | null;
   birthDate: string | null;
   heightCm: number | null;
@@ -20,7 +31,7 @@ export interface Pet {
 
 export interface CreatePetData {
   name: string;
-  type: "DOG" | "CAT" | "OTHER";
+  type: PetKind;
   breed: string;
   birthDate: string;
   heightCm?: number;
@@ -90,10 +101,35 @@ export const petsApi = {
       }
       return response;
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "get_all" },
+      });
       if (__DEV__) {
         console.error(`${LOG_PREFIX} Ошибка при получении списка питомцев`, {
           error: error instanceof Error ? error.message : String(error),
           errorStack: error instanceof Error ? error.stack : undefined,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Получить питомца по id
+   */
+  getById: async (petId: string): Promise<ApiResponse<Pet>> => {
+    try {
+      return await apiClient<Pet>(`/api/v1/pets/${petId}`);
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "get_by_id" },
+      });
+      if (__DEV__) {
+        console.error(`${LOG_PREFIX} Ошибка при получении питомца`, {
+          petId,
+          error: error instanceof Error ? error.message : String(error),
         });
       }
       throw error;
@@ -130,6 +166,10 @@ export const petsApi = {
       }
       return response;
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "create" },
+      });
       if (__DEV__) {
         console.error(`${LOG_PREFIX} Ошибка при создании питомца`, {
           error: error instanceof Error ? error.message : String(error),
@@ -168,6 +208,10 @@ export const petsApi = {
       }
       return response;
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "update" },
+      });
       if (__DEV__) {
         console.error(`${LOG_PREFIX} Ошибка при обновлении питомца`, {
           petId,
@@ -199,6 +243,10 @@ export const petsApi = {
       }
       return response;
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "delete" },
+      });
       if (__DEV__) {
         console.error(`${LOG_PREFIX} Ошибка при удалении питомца`, {
           petId,
@@ -258,6 +306,10 @@ export const petsApi = {
         `/api/v1/pets/${petId}/prevention`,
       );
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "get_prevention_entries" },
+      });
       if (__DEV__) {
         console.error(`${LOG_PREFIX} Ошибка получения записей профилактики`, {
           petId,
@@ -278,6 +330,10 @@ export const petsApi = {
         { method: "POST", body: data },
       );
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "add_prevention_entry" },
+      });
       if (__DEV__) {
         console.error(`${LOG_PREFIX} Ошибка добавления записи профилактики`, {
           petId,
@@ -299,6 +355,10 @@ export const petsApi = {
         { method: "PUT", body: data },
       );
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "update_prevention_entry" },
+      });
       if (__DEV__) {
         console.error(`${LOG_PREFIX} Ошибка обновления записи профилактики`, {
           petId,
@@ -320,6 +380,10 @@ export const petsApi = {
         { method: "DELETE" },
       );
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "delete_prevention_entry" },
+      });
       if (__DEV__) {
         console.error(`${LOG_PREFIX} Ошибка удаления записи профилактики`, {
           petId,
@@ -347,6 +411,10 @@ export const petsApi = {
         body: { entries },
       });
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "batch_upsert_prevention_entries" },
+      });
       if (__DEV__) {
         console.error(`${LOG_PREFIX} Ошибка batch sync профилактики`, {
           petId,

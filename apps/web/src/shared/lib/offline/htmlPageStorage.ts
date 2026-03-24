@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 import type { OfflineCourse } from "./types";
 
@@ -64,6 +65,10 @@ async function cacheChunksFromHtml(html: string, pageUrl: string): Promise<void>
           chunksToCache.add(fullUrl);
         }
       } catch (e) {
+        reportClientError(e, {
+          issueKey: "HtmlPageStorage",
+          keys: { operation: "parse_next_data_chunks" },
+        });
         // Игнорируем ошибки парсинга
         logger.warn("Failed to parse __NEXT_DATA__", {
           error: e instanceof Error ? e.message : String(e),
@@ -103,6 +108,10 @@ async function cacheChunksFromHtml(html: string, pageUrl: string): Promise<void>
           });
         }
       } catch (error) {
+        reportClientError(error, {
+          issueKey: "HtmlPageStorage",
+          keys: { operation: "cache_static_chunk" },
+        });
         logger.warn("Failed to cache chunk", {
           chunkUrl,
           error: error instanceof Error ? error.message : String(error),
@@ -117,6 +126,10 @@ async function cacheChunksFromHtml(html: string, pageUrl: string): Promise<void>
       totalChunks: chunksToCache.size,
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "HtmlPageStorage",
+      keys: { operation: "cache_chunks_from_html" },
+    });
     logger.error("Failed to cache chunks from HTML", error as Error, {
       pageUrl,
     });
@@ -213,6 +226,10 @@ export async function saveCourseHtmlPage(
       dayPagesCount: course.htmlPages.dayPages ? Object.keys(course.htmlPages.dayPages).length : 0,
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "HtmlPageStorage",
+      keys: { operation: "save_course_html_page" },
+    });
     logger.error("Failed to save course HTML page to IndexedDB", error as Error, {
       courseType,
       pagePath,
@@ -262,6 +279,10 @@ export async function saveCourseHtmlPagesOnDownload(
         });
       }
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "HtmlPageStorage",
+        keys: { operation: "fetch_list_page_html" },
+      });
       logger.warn("Failed to fetch list page HTML", {
         courseType,
         url: listPageUrl,
@@ -320,6 +341,10 @@ export async function saveCourseHtmlPagesOnDownload(
           });
         }
       } catch (error) {
+        reportClientError(error, {
+          issueKey: "HtmlPageStorage",
+          keys: { operation: "fetch_day_page_html" },
+        });
         logger.warn("Failed to fetch day page HTML", {
           courseType,
           dayId,
@@ -337,6 +362,10 @@ export async function saveCourseHtmlPagesOnDownload(
       totalPages: savedDayPages + (savedListPage ? 1 : 0),
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "HtmlPageStorage",
+      keys: { operation: "save_html_pages_on_download" },
+    });
     logger.error("Failed to save course HTML pages on download", error as Error, {
       courseType,
     });
@@ -424,6 +453,10 @@ export async function getCourseHtmlPage(
 
     return null;
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "HtmlPageStorage",
+      keys: { operation: "get_course_html_page" },
+    });
     logger.error("Failed to get course HTML page from IndexedDB", error as Error, {
       courseType,
       pagePath,

@@ -10,6 +10,12 @@ alwaysApply: true
 - Log errors with `@gafus/logger`
 - Клиентские ошибки: `reportClientError` из `@gafus/error-handling` → Tracer
 
+## Tracer / наблюдаемость (единая схема)
+- **Web, trainer-panel, admin-panel (клиент):** в `catch` вызывать `reportClientError` из `@gafus/error-handling` (контекст: `issueKey`, `keys`). Рендер — через `ErrorBoundary`, где уже есть репорт.
+- **Mobile:** `reportClientError` из `@/shared/lib/tracer`; в root layout — `installGlobalJsErrorHandler()` для необработанных JS-ошибок (в пойманных `catch` по-прежнему явный `reportClientError` при необходимости).
+- **Сервер (RSC, route handlers, actions, packages):** `logger.error("…", error as Error, meta)` — второй аргумент обязательно `Error`, иначе Tracer не получит стек. В `catch` вокруг `redirect()` / `notFound()` сначала `unstable_rethrow(error)` из `next/navigation`, затем логирование.
+- **Процесс и напоминание в IDE:** `docs/audit/tracer-client-catch-process.md`; ESLint `@gafus/require-client-catch-tracer` (warn).
+
 ## Logger Usage
 ```typescript
 import { createWebLogger } from "@gafus/logger";

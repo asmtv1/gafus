@@ -15,6 +15,7 @@ import { subscriptionsApi, notesApi } from "@/shared/lib/api";
 import { userApi } from "@/shared/lib/api/user";
 import { petsApi, type Pet } from "@/shared/lib/api/pets";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
+import { reportClientError } from "@/shared/lib/tracer";
 import { setupPushNotifications } from "@/shared/lib/utils/notifications";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
@@ -53,6 +54,11 @@ const getAge = (birthDate: string | null): number | null => {
     }
     return age;
   } catch {
+    reportClientError(new Error("parse_birth_date"), {
+      severity: "warning",
+      issueKey: "ProfileScreen",
+      keys: { operation: "parse_birth_date" },
+    });
     return null;
   }
 };
@@ -82,6 +88,11 @@ const getAgeWithMonths = (
 
     return { years, months };
   } catch {
+    reportClientError(new Error("parse_pet_birth_date"), {
+      severity: "warning",
+      issueKey: "ProfileScreen",
+      keys: { operation: "parse_pet_birth_date" },
+    });
     return null;
   }
 };
@@ -132,8 +143,6 @@ const getPetTypeLabel = (type: string) => {
       return "Собака";
     case "CAT":
       return "Кошка";
-    case "OTHER":
-      return "Другое";
     default:
       return type;
   }
@@ -655,11 +664,11 @@ export default function ProfileScreen() {
                       {pet.notes && <Text style={styles.petDetail}>Заметки: {pet.notes}</Text>}
                     </View>
                   </View>
-                  <View style={styles.petActions}>
+                  <View style={styles.petCardActions}>
                     <Pressable
                       style={({ pressed }) => [
-                        styles.petActionButton,
-                        pressed && styles.petActionButtonPressed,
+                        styles.petProcedureButton,
+                        pressed && styles.petProcedureButtonPressed,
                       ]}
                       onPress={() =>
                         router.push(
@@ -667,42 +676,41 @@ export default function ProfileScreen() {
                         )
                       }
                     >
-                      <Text style={styles.petActionIcon}>📋</Text>
-                      <Text
-                        style={[styles.petActionText, styles.petActionTextMultiline]}
-                        numberOfLines={2}
-                      >
+                      <Text style={styles.petProcedureIcon}>📋</Text>
+                      <Text style={styles.petProcedureLabel} numberOfLines={1}>
                         Записи о процедурах
                       </Text>
                     </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.petActionButton,
-                        pressed && styles.petActionButtonPressed,
-                      ]}
-                      onPress={() => handleEditPet(pet)}
-                    >
-                      <Text style={styles.petActionIcon}>✏️</Text>
-                      <Text style={styles.petActionText} numberOfLines={1}>
-                        Изменить
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.petActionButton,
-                        styles.petActionButtonDelete,
-                        pressed && styles.petActionButtonPressed,
-                      ]}
-                      onPress={() => handleDeletePet(pet)}
-                    >
-                      <Text style={styles.petActionIcon}>🗑️</Text>
-                      <Text
-                        style={[styles.petActionText, styles.petActionTextDelete]}
-                        numberOfLines={1}
+                    <View style={styles.petManageActions}>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.petManageButton,
+                          pressed && styles.petActionButtonPressed,
+                        ]}
+                        onPress={() => handleEditPet(pet)}
                       >
-                        Удалить
-                      </Text>
-                    </Pressable>
+                        <Text style={styles.petActionIcon}>✏️</Text>
+                        <Text style={styles.petActionText} numberOfLines={2}>
+                          Изменить
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.petManageButton,
+                          styles.petActionButtonDelete,
+                          pressed && styles.petActionButtonPressed,
+                        ]}
+                        onPress={() => handleDeletePet(pet)}
+                      >
+                        <Text style={styles.petActionIcon}>🗑️</Text>
+                        <Text
+                          style={[styles.petActionText, styles.petActionTextDelete]}
+                          numberOfLines={2}
+                        >
+                          Удалить
+                        </Text>
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
               ))}
@@ -1306,22 +1314,64 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     fontFamily: FONTS.montserrat,
   },
-  petActions: {
-    flexDirection: "row",
-    gap: SPACING.md,
+  petCardActions: {
     marginTop: SPACING.md,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: "rgba(212, 196, 168, 0.5)",
+    gap: SPACING.sm,
   },
-  petActionButton: {
-    flex: 1,
+  petProcedureButton: {
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm + 2,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: "#FFF8E5",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#C4B896",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+    minHeight: 48,
+  },
+  petProcedureButtonPressed: {
+    backgroundColor: "#F5F0E8",
+    borderColor: "#B6C582",
+    transform: [{ scale: 0.99 }],
+  },
+  petProcedureIcon: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  petProcedureLabel: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#636128",
+    fontFamily: FONTS.montserrat,
+    letterSpacing: 0.1,
+  },
+  petManageActions: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(212, 196, 168, 0.4)",
+  },
+  petManageButton: {
+    flex: 1,
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     gap: SPACING.xs,
     paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.xs,
+    paddingHorizontal: 4,
     backgroundColor: "#FFF8E5",
     borderRadius: 6,
     borderWidth: 1,
@@ -1331,7 +1381,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
-    minHeight: 44,
+    minHeight: 56,
   },
   petActionButtonPressed: {
     backgroundColor: "#F5F0E8",
@@ -1343,19 +1393,19 @@ const styles = StyleSheet.create({
     borderColor: "#D4C4A8",
   },
   petActionIcon: {
-    fontSize: 14,
+    fontSize: 16,
+    lineHeight: 20,
+    textAlign: "center",
   },
   petActionText: {
-    fontSize: 12,
+    fontSize: 11,
+    lineHeight: 14,
     color: "#636128",
     fontFamily: FONTS.montserrat,
     fontWeight: "600",
     letterSpacing: 0.1,
-    flexShrink: 1,
-  },
-  petActionTextMultiline: {
     textAlign: "center",
-    lineHeight: 15,
+    width: "100%",
   },
   petActionTextDelete: {
     color: "#8B4513",

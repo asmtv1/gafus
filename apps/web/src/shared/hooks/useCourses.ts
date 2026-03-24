@@ -1,7 +1,10 @@
 "use client";
 
-import { useCourseStoreActions } from "@shared/stores/courseStore";
 import { useEffect } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
+
+import { useCourseStoreActions } from "@shared/stores/courseStore";
 import { isOnline } from "@shared/utils/offlineCacheUtils";
 
 // CourseWithProgressData больше не импортируется напрямую, используется через courseStore
@@ -15,7 +18,8 @@ export function useCourses() {
   useEffect(() => {
     if (!store.allCourses && !store.loading.all) {
       if (!isOnline()) return; // офлайн — не инициируем сеть
-      store.fetchAllCourses().catch(() => {
+      store.fetchAllCourses().catch((error) => {
+        reportClientError(error, { issueKey: "UseCourses", keys: { operation: "fetch_all_courses" } });
         // Ошибка уже обрабатывается в store
       });
     }
@@ -36,7 +40,8 @@ export function useFavorites() {
   useEffect(() => {
     if (!store.favorites && !store.loading.favorites) {
       if (!isOnline()) return; // офлайн — не инициируем сеть
-      store.fetchFavorites().catch(() => {
+      store.fetchFavorites().catch((error) => {
+        reportClientError(error, { issueKey: "UseCourses", keys: { operation: "fetch_favorites" } });
         // Ошибка уже обрабатывается в store
       });
     }
@@ -57,7 +62,8 @@ export function useAuthored() {
   useEffect(() => {
     if (!store.authored && !store.loading.authored) {
       if (!isOnline()) return; // офлайн — не инициируем сеть
-      store.fetchAuthored().catch(() => {
+      store.fetchAuthored().catch((error) => {
+        reportClientError(error, { issueKey: "UseCourses", keys: { operation: "fetch_authored" } });
         // Ошибка уже обрабатывается в store
       });
     }

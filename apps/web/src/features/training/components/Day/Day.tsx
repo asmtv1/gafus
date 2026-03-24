@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 
 import { getDayKey } from "@gafus/core/utils/training";
 import { getDayTitle } from "@gafus/core/utils/training";
+import { reportClientError } from "@gafus/error-handling";
 import type { TrainingDetail } from "@gafus/types";
 import { useStepStore } from "@shared/stores/stepStore";
 import {
@@ -103,7 +104,8 @@ export function Day({ training, courseType }: DayProps) {
       if (savedOpen !== undefined && savedOpen !== null) {
         setOpenIndex(savedOpen);
       }
-    } catch {
+    } catch (error) {
+      reportClientError(error, { issueKey: "Day", keys: { operation: "init_training_steps" } });
       // no-op
     }
   }, [
@@ -168,6 +170,10 @@ export function Day({ training, courseType }: DayProps) {
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
               } catch (err) {
+                reportClientError(err, {
+                  issueKey: "Day",
+                  keys: { operation: "export_course_path_pdf" },
+                });
                 setExportError(
                   err instanceof Error ? err.message : "Не удалось скачать PDF",
                 );

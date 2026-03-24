@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { signIn } from "next-auth/react";
@@ -45,7 +46,8 @@ export default function LoginForm() {
         router.push("/");
         router.refresh();
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "AdminLoginForm", keys: { operation: "signIn" } });
       setError("Произошла ошибка при входе");
       setLoading(false);
     }

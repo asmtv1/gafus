@@ -10,6 +10,7 @@ import { useCourseStore } from "@/shared/stores";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import { coursesApi, type Course } from "@/shared/lib/api";
+import { reportClientError } from "@/shared/lib/tracer";
 import { CourseCard } from "@/features/courses/components";
 import { OfflineDownloadedScreen } from "@/features/offline";
 import { COLORS, SPACING, FONTS } from "@/constants";
@@ -57,6 +58,10 @@ export default function FavoritesScreen() {
       if (res.success) await refetch();
       else throw new Error(res.error);
     } catch (err) {
+      reportClientError(err instanceof Error ? err : new Error(String(err)), {
+        issueKey: "FavoritesScreen",
+        keys: { operation: "toggle_favorite" },
+      });
       addToFavorites(courseId);
       setSnackbar({
         visible: true,

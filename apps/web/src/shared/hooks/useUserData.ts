@@ -1,12 +1,13 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
 import { useData, useMutate, useQueryClient } from "@gafus/react-query";
+import type { UserPreferences, UserProfile } from "@gafus/types";
+
 import { getUserPreferences } from "@shared/lib/user/getUserPreferences";
 import { getUserProfile } from "@shared/lib/user/getUserProfile";
 import { updateUserProfile } from "@shared/lib/user/updateUserProfile";
-import { createWebLogger } from "@gafus/logger";
-
-import type { UserProfile, UserPreferences } from "@gafus/types";
 
 // Создаем логгер для useUserData hooks
 const logger = createWebLogger("web-use-user-data");
@@ -18,6 +19,7 @@ export function useUserProfile() {
       try {
         return await getUserProfile();
       } catch (error) {
+        reportClientError(error, { issueKey: "UseUserData", keys: { operation: "load_user_profile" } });
         logger.error("Ошибка загрузки профиля", error as Error, {
           operation: "load_user_profile_error",
         });
@@ -64,6 +66,10 @@ export function useUserPreferences() {
           }
         );
       } catch (error) {
+        reportClientError(error, {
+          issueKey: "UseUserData",
+          keys: { operation: "load_user_preferences" },
+        });
         logger.error("Ошибка загрузки настроек", error as Error, {
           operation: "load_user_preferences_error",
         });
@@ -120,6 +126,7 @@ export function useUserMutations() {
       queryClient.setQueryData(["user:profile"], updatedProfile);
       return { success: true, data: updatedProfile };
     } catch (error) {
+      reportClientError(error, { issueKey: "UseUserData", keys: { operation: "update_user_profile" } });
       logger.error("Ошибка обновления профиля", error as Error, {
         operation: "update_user_profile_error",
         profileData: data,

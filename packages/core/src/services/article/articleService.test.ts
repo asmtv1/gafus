@@ -17,9 +17,18 @@ const mockArticleUpdate = vi.fn();
 const mockArticleDelete = vi.fn();
 const mockArticleUpdateMany = vi.fn();
 const mockTransaction = vi.fn();
-const mockArticleViewerUpsert = vi.fn();
+const mockArticleViewerCreate = vi.fn();
+const mockArticleViewerUpdate = vi.fn();
+const mockArticleGuestViewCreate = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
+  isPrismaUniqueConstraintError: (error: unknown) =>
+    Boolean(
+      error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as { code: string }).code === "P2002",
+    ),
   prisma: {
     $transaction: (...args: unknown[]) => mockTransaction(...args),
     article: {
@@ -31,7 +40,11 @@ vi.mock("@gafus/prisma", () => ({
       updateMany: (...args: unknown[]) => mockArticleUpdateMany(...args),
     },
     articleViewer: {
-      upsert: (...args: unknown[]) => mockArticleViewerUpsert(...args),
+      create: (...args: unknown[]) => mockArticleViewerCreate(...args),
+      update: (...args: unknown[]) => mockArticleViewerUpdate(...args),
+    },
+    articleGuestView: {
+      create: (...args: unknown[]) => mockArticleGuestViewCreate(...args),
     },
   },
 }));
@@ -333,45 +346,81 @@ describe("incrementArticleView", () => {
     vi.clearAllMocks();
     mockArticleFindUnique.mockResolvedValue({ id: "art1" });
     mockArticleUpdate.mockResolvedValue({});
-    mockArticleViewerUpsert.mockResolvedValue({});
+    mockArticleViewerCreate.mockResolvedValue({});
+    mockArticleViewerUpdate.mockResolvedValue({});
+    mockArticleGuestViewCreate.mockResolvedValue({});
     mockTransaction.mockImplementation(
       async (
         fn: (tx: {
           article: { update: typeof mockArticleUpdate };
-          articleViewer: { upsert: typeof mockArticleViewerUpsert };
+          articleViewer: {
+            create: typeof mockArticleViewerCreate;
+            update: typeof mockArticleViewerUpdate;
+          };
+          articleGuestView: { create: typeof mockArticleGuestViewCreate };
         }) => Promise<void>
       ) => {
         await fn({
           article: { update: mockArticleUpdate },
-          articleViewer: { upsert: mockArticleViewerUpsert },
+          articleViewer: {
+            create: mockArticleViewerCreate,
+            update: mockArticleViewerUpdate,
+          },
+          articleGuestView: { create: mockArticleGuestViewCreate },
         });
       }
     );
   });
 
-  it("успех без пользователя — только счётчик", async () => {
+  it("гость без ключа — счётчик не меняется", async () => {
     await expect(incrementArticleView("slug-x")).resolves.toEqual({ success: true });
-    expect(mockArticleFindUnique).toHaveBeenCalledWith({
-      where: { slug: "slug-x" },
-      select: { id: true },
-    });
     expect(mockTransaction).toHaveBeenCalled();
+    expect(mockArticleUpdate).not.toHaveBeenCalled();
+    expect(mockArticleGuestViewCreate).not.toHaveBeenCalled();
+    expect(mockArticleViewerCreate).not.toHaveBeenCalled();
+  });
+
+  it("гость с ключом — первая запись + инкремент", async () => {
+    await expect(
+      incrementArticleView("slug-x", { guestVisitorKey: "abcd1234abcd1234" }),
+    ).resolves.toEqual({ success: true });
+    expect(mockArticleGuestViewCreate).toHaveBeenCalledWith({
+      data: { articleId: "art1", visitorKey: "abcd1234abcd1234" },
+    });
     expect(mockArticleUpdate).toHaveBeenCalledWith({
       where: { id: "art1" },
       data: { viewCount: { increment: 1 } },
     });
-    expect(mockArticleViewerUpsert).not.toHaveBeenCalled();
   });
 
-  it("успех с пользователем — upsert зрителя", async () => {
-    await incrementArticleView("slug-x", "user-1");
-    expect(mockArticleViewerUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { articleId_userId: { articleId: "art1", userId: "user-1" } },
-        create: { articleId: "art1", userId: "user-1" },
-        update: { lastViewedAt: expect.any(Date) as Date },
-      })
-    );
+  it("гость с ключом повторно — P2002, без инкремента", async () => {
+    mockArticleGuestViewCreate.mockRejectedValueOnce({ code: "P2002" });
+    await expect(
+      incrementArticleView("slug-x", { guestVisitorKey: "abcd1234abcd1234" }),
+    ).resolves.toEqual({ success: true });
+    expect(mockArticleUpdate).not.toHaveBeenCalled();
+  });
+
+  it("авторизованный первый просмотр — create зрителя и инкремент", async () => {
+    await incrementArticleView("slug-x", { viewerUserId: "user-1" });
+    expect(mockArticleViewerCreate).toHaveBeenCalledWith({
+      data: { articleId: "art1", userId: "user-1" },
+    });
+    expect(mockArticleUpdate).toHaveBeenCalledWith({
+      where: { id: "art1" },
+      data: { viewCount: { increment: 1 } },
+    });
+    expect(mockArticleViewerUpdate).not.toHaveBeenCalled();
+  });
+
+  it("авторизованный повторный просмотр — только lastViewedAt", async () => {
+    mockArticleViewerCreate.mockRejectedValueOnce({ code: "P2002" });
+    await incrementArticleView("slug-x", { viewerUserId: "user-1" });
+    expect(mockArticleViewerUpdate).toHaveBeenCalledWith({
+      where: { articleId_userId: { articleId: "art1", userId: "user-1" } },
+      data: { lastViewedAt: expect.any(Date) as Date },
+    });
+    expect(mockArticleUpdate).not.toHaveBeenCalled();
   });
 
   it("slug не найден — без транзакции", async () => {

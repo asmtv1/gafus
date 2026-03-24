@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { useState, useEffect } from "react";
 import {
   Card,
@@ -58,7 +59,8 @@ export default function ReengagementMonitor() {
       } else {
         setError(!result.success ? result.error : "Не удалось загрузить метрики");
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ReengagementMonitor", keys: { operation: "load_metrics" } });
       setError("Произошла ошибка при загрузке метрик");
     } finally {
       setLoading(false);
@@ -87,7 +89,11 @@ export default function ReengagementMonitor() {
       } else {
         setTriggerResult(`❌ Ошибка: ${result.error || "Неизвестная ошибка"}`);
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, {
+        issueKey: "ReengagementMonitor",
+        keys: { operation: "trigger_scheduler" },
+      });
       setTriggerResult("❌ Произошла ошибка при запуске планировщика");
     } finally {
       setTriggering(false);

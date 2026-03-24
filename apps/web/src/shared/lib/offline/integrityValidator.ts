@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 import { getOfflineCourseByType } from "./offlineCourseStorage";
 
@@ -147,6 +148,10 @@ export async function validateOfflineVideo(
       warnings,
     };
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "IntegrityValidator",
+      keys: { operation: "validate_offline_video" },
+    });
     logger.error("validateOfflineVideo: Validation failed", error as Error, {
       courseType,
       videoId,

@@ -155,6 +155,11 @@ export function useCachedTrainingDays(
           return;
         }
       } catch (offlineError) {
+        reportClientError(offlineError, {
+          issueKey: "useCachedTrainingDays",
+          severity: "warning",
+          keys: { operation: "offline_indexeddb", courseType },
+        });
         logger.warn("[Offline] Failed to load from IndexedDB", {
           error: offlineError instanceof Error ? offlineError.message : String(offlineError),
           courseType,

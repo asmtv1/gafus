@@ -1,6 +1,8 @@
 import type { ConsentPayload } from "@/shared/constants/consent";
-import { apiClient, type ApiResponse } from "./client";
 import { API_BASE_URL } from "@/constants";
+import { reportClientError } from "@/shared/lib/tracer";
+
+import { apiClient, type ApiResponse } from "./client";
 
 export interface User {
   id: string;
@@ -70,6 +72,10 @@ export const authApi = {
             errorData = await response.json();
           }
         } catch {
+          reportClientError(new Error("login_error_response_parse"), {
+            issueKey: "AuthApi",
+            keys: { operation: "login_error_response_parse" },
+          });
           // Игнорируем ошибки парсинга - используем дефолтное сообщение
         }
 
@@ -88,6 +94,10 @@ export const authApi = {
         data: data.data,
       };
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "AuthApi",
+        keys: { operation: "login" },
+      });
       // Обработка сетевых ошибок и ошибок парсинга
       if (error instanceof TypeError && error.message.includes("fetch")) {
         return {
@@ -131,6 +141,10 @@ export const authApi = {
             if (__DEV__) console.log("[authApi] register error response", { status: response.status, errorData });
           }
         } catch {
+          reportClientError(new Error("register_error_response_parse"), {
+            issueKey: "AuthApi",
+            keys: { operation: "register_error_response_parse" },
+          });
           // игнорируем ошибки парсинга
         }
         return {
@@ -143,6 +157,10 @@ export const authApi = {
       const result = await response.json();
       return { success: true, data: result.data };
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "AuthApi",
+        keys: { operation: "register" },
+      });
       if (error instanceof TypeError && error.message.includes("fetch")) {
         return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
       }
@@ -173,7 +191,11 @@ export const authApi = {
       }
 
       return { success: true };
-    } catch {
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "AuthApi",
+        keys: { operation: "logout" },
+      });
       // Не раскрываем ошибки logout
       return { success: true };
     }
@@ -198,6 +220,10 @@ export const authApi = {
             errorData = await response.json();
           }
         } catch {
+          reportClientError(new Error("password_reset_error_response_parse"), {
+            issueKey: "AuthApi",
+            keys: { operation: "password_reset_error_response_parse" },
+          });
           // Игнорируем ошибки парсинга
         }
 
@@ -212,6 +238,10 @@ export const authApi = {
       try {
         await response.json();
       } catch {
+        reportClientError(new Error("password_reset_success_body_parse"), {
+          issueKey: "AuthApi",
+          keys: { operation: "password_reset_success_body_parse" },
+        });
         // Игнорируем если нет JSON тела
       }
 
@@ -219,6 +249,10 @@ export const authApi = {
         success: true,
       };
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "AuthApi",
+        keys: { operation: "send_password_reset_request" },
+      });
       if (error instanceof TypeError && error.message.includes("fetch")) {
         return {
           success: false,
@@ -260,6 +294,10 @@ export const authApi = {
             errorData = await response.json();
           }
         } catch {
+          reportClientError(new Error("vk_login_error_response_parse"), {
+            issueKey: "AuthApi",
+            keys: { operation: "vk_login_error_response_parse" },
+          });
           // игнорируем ошибки парсинга
         }
         return {
@@ -272,6 +310,10 @@ export const authApi = {
       const result = await response.json();
       return { success: true, data: result.data };
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "AuthApi",
+        keys: { operation: "login_via_vk" },
+      });
       if (error instanceof TypeError && error.message.includes("fetch")) {
         return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
       }
@@ -318,6 +360,10 @@ export const authApi = {
             errorData = await response.json();
           }
         } catch {
+          reportClientError(new Error("vk_consent_error_response_parse"), {
+            issueKey: "AuthApi",
+            keys: { operation: "vk_consent_error_response_parse" },
+          });
           // игнорируем
         }
         return {
@@ -329,6 +375,10 @@ export const authApi = {
       const result = await response.json();
       return { success: true, data: result.data };
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "AuthApi",
+        keys: { operation: "submit_vk_consent" },
+      });
       if (error instanceof TypeError && error.message.includes("fetch")) {
         return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
       }
@@ -378,6 +428,10 @@ export const authApi = {
             errorData = await response.json();
           }
         } catch {
+          reportClientError(new Error("reset_password_error_response_parse"), {
+            issueKey: "AuthApi",
+            keys: { operation: "reset_password_error_response_parse" },
+          });
           // игнорируем
         }
         return {
@@ -388,6 +442,10 @@ export const authApi = {
 
       return { success: true };
     } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "AuthApi",
+        keys: { operation: "reset_password_by_code" },
+      });
       if (error instanceof TypeError && error.message.includes("fetch")) {
         return {
           success: false,

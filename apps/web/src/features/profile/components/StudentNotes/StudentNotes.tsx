@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { getStudentNotes } from "@shared/server-actions";
+import { useEffect, useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
+
 import type { StudentNote } from "@shared/lib/notes/types";
+import { getStudentNotes } from "@shared/server-actions";
 import styles from "./StudentNotes.module.css";
 
 export default function StudentNotes() {
@@ -20,6 +23,7 @@ export default function StudentNotes() {
         const data = await getStudentNotes();
         setNotes(data);
       } catch (err) {
+        reportClientError(err, { issueKey: "StudentNotes", keys: { operation: "load_student_notes" } });
         setError(err instanceof Error ? err.message : "Ошибка при загрузке заметок");
       } finally {
         setIsLoading(false);

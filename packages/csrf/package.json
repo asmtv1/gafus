@@ -17,6 +17,7 @@
     "test:coverage": "vitest run --coverage --config vitest.config.ts"
   },
   "dependencies": {
+    "@gafus/error-handling": "workspace:*",
     "@gafus/logger": "workspace:*",
     "next": "15.5.7",
     "react": "19.2.1",

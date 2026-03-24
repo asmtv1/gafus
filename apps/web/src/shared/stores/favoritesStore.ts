@@ -134,8 +134,12 @@ export const useFavoritesStore = create<FavoritesState>()(
             // Пользователь не авторизован, не загружаем избранные
             return;
           }
-        } catch {
-          // Если не можем проверить сессию, не загружаем
+        } catch (sessionErr) {
+          reportClientError(sessionErr instanceof Error ? sessionErr : new Error(String(sessionErr)), {
+            issueKey: "FavoritesStore",
+            severity: "warning",
+            keys: { operation: "getSession" },
+          });
           return;
         }
 
@@ -152,7 +156,7 @@ export const useFavoritesStore = create<FavoritesState>()(
         } catch (e) {
           reportClientError(e, {
             issueKey: "FavoritesStore",
-            keys: { operation: "syncWithServer" },
+            keys: { operation: "loadFromServer" },
           });
           set({ error: e instanceof Error ? e.message : "Unknown error" });
         } finally {
@@ -176,6 +180,11 @@ export const useFavoritesStore = create<FavoritesState>()(
             await withTimeout(doRequest(), 2500);
           } catch (e) {
             // Не кидаем сразу в офлайн-очередь — пробуем фоновые ретраи
+            reportClientError(e, {
+              issueKey: "FavoritesStore",
+              severity: "warning",
+              keys: { operation: "addFavorite", phase: "online" },
+            });
             logger.warn("addFavorite online attempt failed, retrying in background", {
               error: e,
               operation: "warn",
@@ -186,6 +195,11 @@ export const useFavoritesStore = create<FavoritesState>()(
                   await withTimeout(doRequest(), 2500);
                   return;
                 } catch (err) {
+                  reportClientError(err, {
+                    issueKey: "FavoritesStore",
+                    severity: "warning",
+                    keys: { operation: "addFavorite", phase: "retry", attempt: i },
+                  });
                   logger.warn("addFavorite retry failed", { error: err, operation: "warn" });
                 }
               }
@@ -214,6 +228,11 @@ export const useFavoritesStore = create<FavoritesState>()(
           try {
             await withTimeout(doRequest(), 2500);
           } catch (e) {
+            reportClientError(e, {
+              issueKey: "FavoritesStore",
+              severity: "warning",
+              keys: { operation: "removeFavorite", phase: "online" },
+            });
             logger.warn("removeFavorite online attempt failed, retrying in background", {
               error: e,
               operation: "warn",
@@ -224,6 +243,11 @@ export const useFavoritesStore = create<FavoritesState>()(
                   await withTimeout(doRequest(), 2500);
                   return;
                 } catch (err) {
+                  reportClientError(err, {
+                    issueKey: "FavoritesStore",
+                    severity: "warning",
+                    keys: { operation: "removeFavorite", phase: "retry", attempt: i },
+                  });
                   logger.warn("removeFavorite retry failed", { error: err, operation: "warn" });
                 }
               }
@@ -246,6 +270,10 @@ export const useFavoritesStore = create<FavoritesState>()(
           const merged = new Set<string>([...serverIds, ...Array.from(local)]);
           get().setFromServer(Array.from(merged));
         } catch (e) {
+          reportClientError(e, {
+            issueKey: "FavoritesStore",
+            keys: { operation: "syncWithServer" },
+          });
           const message = e instanceof Error ? e.message : "Unknown error";
           set({ error: message });
         }

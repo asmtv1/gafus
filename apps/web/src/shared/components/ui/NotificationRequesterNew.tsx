@@ -1,12 +1,18 @@
 "use client";
 
+import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
+
 import { getPublicKeyAction } from "@shared/lib/actions/publicKey";
 import { useNotificationComposite, useNotificationInitializer } from "@shared/stores";
-import { showNotificationPermissionAlert, showInstallPWAAlert } from "@shared/utils/sweetAlert";
 import { detectPushSupport } from "@shared/utils/detectPushSupport";
-import { useSession } from "next-auth/react";
-import { useEffect, useState, useCallback, useRef } from "react";
+import {
+  showInstallPWAAlert,
+  showNotificationPermissionAlert,
+} from "@shared/utils/sweetAlert";
 
 // Создаем логгер для notification-requester-new
 const logger = createWebLogger("web-notification-requester-new");
@@ -68,6 +74,10 @@ export default function NotificationRequesterNew() {
           });
         }
       } catch (e) {
+        reportClientError(e, {
+          issueKey: "NotificationRequesterNew",
+          keys: { operation: "fetch_vapid_public_key" },
+        });
         if (!cancelled) {
           setVapidKey(null);
           // warn: в dev часто VAPID не настроен или server action недоступен — не слать в error-dashboard

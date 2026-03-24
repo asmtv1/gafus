@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { reportClientError } from "@gafus/error-handling";
 import { useSession } from "next-auth/react";
+import { useState } from "react";
 
 import { Alert, Box, Button, Card, CardContent, CardHeader, Typography } from "@mui/material";
 import { invalidateCoursesCacheAction } from "@/shared/lib/actions/invalidateCacheActions";
@@ -38,6 +39,10 @@ export default function CacheManagement({ className }: CacheManagementProps) {
         setMessage(`❌ Ошибка: ${result.error}`);
       }
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "CacheManagement",
+        keys: { operation: "invalidateCoursesCache" },
+      });
       setMessage(`❌ Ошибка: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsInvalidating(false);
@@ -65,6 +70,10 @@ export default function CacheManagement({ className }: CacheManagementProps) {
         setMessage(`❌ Ошибка: ${result.error}`);
       }
     } catch (error) {
+      reportClientError(error, {
+        issueKey: "CacheManagement",
+        keys: { operation: "invalidateAllCache" },
+      });
       setMessage(`❌ Ошибка: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsInvalidatingAll(false);

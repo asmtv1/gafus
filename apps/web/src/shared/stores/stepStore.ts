@@ -1,8 +1,3 @@
-import { create } from "zustand";
-import { useShallow } from "zustand/react/shallow";
-import { createJSONStorage, persist } from "zustand/middleware";
-import { createWebLogger } from "@gafus/logger";
-
 import {
   getDayStepKeyPrefix,
   getStepKey as getStepKeyCore,
@@ -10,6 +5,11 @@ import {
   getStepTimerPauseStorageKey,
   statusRank,
 } from "@gafus/core/utils/training";
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
+import { create } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 import type { StepStore } from "./stepStore.types";
 import { useUserStore } from "./userStore";
@@ -363,6 +363,11 @@ export const useStepStore = create<StepStore>()(
               dayOnCourseId: dayOnCourseId,
               stepIndex: stepIndex,
               error: error instanceof Error ? error.message : String(error),
+            });
+            reportClientError(error instanceof Error ? error : new Error(String(error)), {
+              issueKey: "StepStore",
+              severity: "warning",
+              keys: { operation: "parse_pause_data" },
             });
             localStorage.removeItem(PAUSE_KEY);
           }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { reportClientError } from "@gafus/error-handling";
 import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
 
 import UsersTable from "@/app/(main)/main-panel/users/UsersTable";
 import EditUserForm from "@/features/users/components/EditUserForm";
@@ -140,6 +141,7 @@ export default function UsersClient({ users }: UsersClientProps) {
           });
         }
       } catch (error) {
+        reportClientError(error, { issueKey: "UsersClient", keys: { operation: "deleteUser" } });
         setMessage({
           type: "error",
           text: `❌ Ошибка: ${error instanceof Error ? error.message : "Неизвестная ошибка"}`,

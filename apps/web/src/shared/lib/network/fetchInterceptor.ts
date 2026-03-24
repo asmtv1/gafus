@@ -7,11 +7,13 @@ import { isInOfflineGracePeriod } from "./offlineDetector";
 
 /** Извлекает pathname из URL без query (безопасность: не передаём токены/секреты) */
 function extractUrlPath(u: string): string {
+  /* eslint-disable @gafus/require-client-catch-tracer -- невалидный URL → fallback path */
   try {
     return new URL(u, "https://x").pathname;
   } catch {
     return u.slice(0, 50);
   }
+  /* eslint-enable @gafus/require-client-catch-tracer */
 }
 
 const logger = createWebLogger("web-fetch-interceptor");
@@ -120,6 +122,7 @@ export function setupFetchInterceptor() {
 
       // Проверяем, является ли запрос same-origin (только для таких ставим offline)
       let isSameOrigin = false;
+      /* eslint-disable @gafus/require-client-catch-tracer -- парсинг URL: fallback для относительных путей */
       try {
         const requestUrl = new URL(url, window.location.origin);
         isSameOrigin = requestUrl.origin === window.location.origin;
@@ -127,6 +130,7 @@ export function setupFetchInterceptor() {
         // Если не удалось распарсить URL, считаем same-origin (для относительных путей)
         isSameOrigin = !url.startsWith("http://") && !url.startsWith("https://");
       }
+      /* eslint-enable @gafus/require-client-catch-tracer */
 
       if (
         (isNetworkError || isNavigatorOffline) &&

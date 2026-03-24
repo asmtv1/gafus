@@ -3,7 +3,9 @@
  * Переписанный манифест — только имена файлов сегментов (относительные).
  */
 import * as FileSystem from "expo-file-system/legacy";
+
 import { trainingApi } from "@/shared/lib/api";
+import { reportClientError } from "@/shared/lib/tracer";
 
 const CONCURRENCY = 3;
 const SEGMENT_RETRIES = 2;
@@ -41,7 +43,11 @@ function getSegmentFileName(line: string): string {
     const pathname = url.pathname;
     const last = pathname.split("/").pop();
     return last || trimmed;
-  } catch {
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "DownloadHLSForOffline",
+      keys: { operation: "resolve_segment_url" },
+    });
     return trimmed;
   }
 }
@@ -98,6 +104,10 @@ export async function downloadHLSForOffline(
         });
         return;
       } catch (e) {
+        reportClientError(e instanceof Error ? e : new Error(String(e)), {
+          issueKey: "DownloadHLSForOffline",
+          keys: { operation: "download_segment_attempt" },
+        });
         lastError = e instanceof Error ? e : new Error(String(e));
       }
     }
@@ -126,6 +136,10 @@ export async function downloadHLSForOffline(
         onProgress?.({ current: completed, total, segmentFileName: fileName });
       },
       (err) => {
+        reportClientError(err instanceof Error ? err : new Error(String(err)), {
+          issueKey: "DownloadHLSForOffline",
+          keys: { operation: "download_segment_rejected" },
+        });
         completed++;
         onProgress?.({ current: completed, total, segmentFileName: fileName });
         throw err;

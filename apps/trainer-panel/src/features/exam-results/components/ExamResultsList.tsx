@@ -290,7 +290,11 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                                 testAnswers = parsed as Record<string, number>;
                               }
                             } catch (error) {
-                              console.error("Не удалось распарсить testAnswers", error);
+                              reportClientError(error, {
+                                issueKey: "ExamResultsList",
+                                severity: "warning",
+                                keys: { operation: "parse_test_answers" },
+                              });
                             }
                           } else if (typeof rawTestAnswers === "object") {
                             testAnswers = rawTestAnswers as Record<string, number>;
@@ -306,7 +310,11 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                                 checklist = parsed as ChecklistQuestion[];
                               }
                             } catch (error) {
-                              console.error("Не удалось распарсить checklist", error);
+                              reportClientError(error, {
+                                issueKey: "ExamResultsList",
+                                severity: "warning",
+                                keys: { operation: "parse_checklist" },
+                              });
                             }
                           } else if (Array.isArray(rawChecklist)) {
                             checklist = rawChecklist as ChecklistQuestion[];

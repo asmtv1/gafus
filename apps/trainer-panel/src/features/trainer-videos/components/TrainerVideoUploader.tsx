@@ -200,6 +200,10 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
           onUploaded(response.video);
           resolve();
         } catch (error) {
+          reportClientError(error, {
+            issueKey: "TrainerVideoUploader",
+            keys: { operation: "xhr_upload_response" },
+          });
           reject(error);
         }
       };

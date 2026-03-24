@@ -71,6 +71,7 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
       setIsSubmitted(true);
       onComplete(feedback);
     } catch (error) {
+      reportClientError(error, { issueKey: "WrittenFeedback", keys: { operation: "submit" } });
       setSubmitError(
         error instanceof Error ? error.message : "Ошибка при сохранении обратной связи",
       );

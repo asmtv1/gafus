@@ -1,7 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 import { useCSRFStore } from "../store";
 
@@ -83,6 +84,10 @@ export function CSRFProvider({
           maxRetries: maxRetries,
         });
       }
+      reportClientError(error instanceof Error ? error : new Error(message), {
+        issueKey: "CSRFProvider",
+        keys: { operation: "retry" },
+      });
     }
   };
 
@@ -114,6 +119,10 @@ export function CSRFProvider({
             maxRetries: maxRetries,
           });
         }
+        reportClientError(error instanceof Error ? error : new Error(message), {
+          issueKey: "CSRFProvider",
+          keys: { operation: "initialize" },
+        });
       }
     };
 
@@ -132,6 +141,10 @@ export function CSRFProvider({
           maxRetries: maxRetries,
         });
       }
+      reportClientError(new Error(error), {
+        issueKey: "CSRFProvider",
+        keys: { operation: "storeError" },
+      });
     } else if (!error && hasError) {
       setHasError(false);
       setErrorMessage(null);

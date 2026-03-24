@@ -6,6 +6,7 @@ import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 
 import { authApi } from "@/shared/lib/api/auth";
+import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 
 function bytesToBase64Url(arr: Uint8Array): string {
@@ -137,7 +138,11 @@ export function useVkLink(options?: UseVkLinkOptions): {
           code = payload.code ?? code;
           device_id = payload.device_id ?? device_id;
           returnedState = payload.state ?? returnedState;
-        } catch {
+        } catch (error) {
+          reportClientError(error instanceof Error ? error : new Error(String(error)), {
+            issueKey: "VkLink",
+            keys: { operation: "parse_vk_redirect_payload" },
+          });
           // игнорируем, оставляем из query
         }
       }
@@ -165,6 +170,10 @@ export function useVkLink(options?: UseVkLinkOptions): {
         options?.onError?.(linkResult.error ?? "Ошибка привязки VK");
       }
     } catch (err) {
+      reportClientError(err instanceof Error ? err : new Error(String(err)), {
+        issueKey: "VkLink",
+        keys: { operation: "vk_link" },
+      });
       if (__DEV__) console.error("[useVkLink] catch", err);
       options?.onError?.("Ошибка подключения к серверу");
     } finally {

@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { setPasswordSchema } from "@shared/lib/validation/authSchemas";
@@ -28,7 +29,8 @@ export default function SetPasswordForm() {
         return;
       }
       router.push("/profile");
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "SetPasswordForm", keys: { operation: "submit" } });
       setError("Не удалось установить пароль");
     }
   };

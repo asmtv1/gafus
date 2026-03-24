@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { useData, useMutate } from "@gafus/react-query";
 
@@ -57,6 +58,7 @@ export function useStepStatistics(userId: string, isElevated: boolean) {
         return result.data || { steps: [], totalSteps: 0 };
       } catch (error) {
         logger.error("useStepStatistics: error:", error as Error, { operation: "error" });
+        reportClientError(error, { issueKey: "useStepStatistics", keys: { operation: "fetch" } });
         throw error;
       }
     },

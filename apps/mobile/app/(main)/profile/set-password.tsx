@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { Button, Input } from "@/shared/components/ui";
 import { authApi } from "@/shared/lib/api/auth";
+import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/constants";
 
@@ -55,7 +56,8 @@ export default function SetPasswordScreen() {
           message: result.error || "Не удалось установить пароль",
         });
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "SetPassword", keys: { operation: "save" } });
       setSnackbar({ visible: true, message: "Ошибка подключения" });
     } finally {
       setLoading(false);

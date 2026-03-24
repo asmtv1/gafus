@@ -1,12 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
+
 import { FormField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useZodForm } from "@shared/hooks/useZodForm";
-import { resetPasswordByCodeAction } from "@shared/server-actions";
 import { resetPasswordFormSchema } from "@shared/lib/validation/authSchemas";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { resetPasswordByCodeAction } from "@shared/server-actions";
 
 import styles from "./reset-password.module.css";
 
@@ -36,6 +39,10 @@ export default function ResetPasswordForm() {
       setSuccess(true);
       setTimeout(() => router.push("/login"), 3000);
     } catch (err: unknown) {
+      reportClientError(err, {
+        issueKey: "ResetPasswordForm",
+        keys: { operation: "reset_password_by_code" },
+      });
       setError(err instanceof Error ? err.message : "Ошибка сброса пароля");
     } finally {
       setIsPending(false);

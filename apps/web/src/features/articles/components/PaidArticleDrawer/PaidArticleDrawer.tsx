@@ -1,6 +1,7 @@
 "use client";
 
 import { useCSRFStore } from "@gafus/csrf";
+import { reportClientError } from "@gafus/error-handling";
 import {
   Button,
   CircularProgress,
@@ -78,7 +79,8 @@ export function PaidArticleDrawer({
         return;
       }
       setPayError("Нет ссылки на оплату");
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "PaidArticleDrawer", keys: { operation: "pay" } });
       setPayError("Ошибка сети");
     } finally {
       setPayLoading(false);

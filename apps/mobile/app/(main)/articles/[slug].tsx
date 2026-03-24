@@ -18,6 +18,7 @@ import { WebView } from "react-native-webview";
 import Markdown from "react-native-markdown-display";
 
 import { articlesApi, paymentsApi } from "@/shared/lib/api";
+import { reportClientError } from "@/shared/lib/tracer";
 import { wrapArticleHtml, ARTICLE_HEIGHT_MSG, ARTICLE_READY_MSG } from "@/shared/lib/articles/wrapArticleHtml";
 import { useAuthStore } from "@/shared/stores";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
@@ -72,7 +73,14 @@ export default function ArticleDetailScreen() {
   const [payError, setPayError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (slug && article) void articlesApi.incrementView(slug).catch(() => {});
+    if (slug && article) {
+      void articlesApi.incrementView(slug).catch((error) => {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "ArticleDetailScreen",
+          keys: { operation: "increment_view" },
+        });
+      });
+    }
   }, [slug, article?.id]);
 
   useEffect(() => {
@@ -322,7 +330,14 @@ export default function ArticleDetailScreen() {
                     ) {
                       setHtmlHeight((prev) => Math.max(prev ?? 0, msg.height!));
                     }
-                  } catch {
+                  } catch (error) {
+                    reportClientError(
+                      error instanceof Error ? error : new Error(String(error)),
+                      {
+                        issueKey: "ArticleDetailScreen",
+                        keys: { operation: "parse_webview_message" },
+                      },
+                    );
                     /* ignore */
                   }
                 }}

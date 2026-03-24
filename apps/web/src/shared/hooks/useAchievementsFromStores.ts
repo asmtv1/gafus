@@ -1,15 +1,18 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
-import { useMemo, useEffect } from "react";
 import { useData, useQueryClient } from "@gafus/react-query";
-import { useCourseStore } from "@shared/stores/courseStore";
-import { useStepStore } from "@shared/stores/stepStore";
+import type { AchievementData } from "@gafus/types";
+
 import { useCourseProgressSync } from "@shared/hooks/useCourseProgressSync";
 import { calculateAchievementsFromStores } from "@shared/lib/achievements/calculateAchievements";
 import { getUserTrainingDates } from "@shared/lib/achievements/getUserTrainingDates";
+import { useCourseStore } from "@shared/stores/courseStore";
+import { useStepStore } from "@shared/stores/stepStore";
 import { isOnline } from "@shared/utils/offlineCacheUtils";
-import type { AchievementData } from "@gafus/types";
 
 // Создаем логгер для use-achievements-from-stores
 const logger = createWebLogger("web-use-achievements-from-stores");
@@ -33,6 +36,10 @@ export function useAchievementsFromStores() {
       try {
         return await getUserTrainingDates();
       } catch (error) {
+        reportClientError(error, {
+          issueKey: "UseAchievementsFromStores",
+          keys: { operation: "fetch_training_dates" },
+        });
         logger.error("Ошибка загрузки дат занятий", error as Error);
         return [];
       }

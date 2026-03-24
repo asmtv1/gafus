@@ -1,3 +1,5 @@
+import { getOrCreateArticleGuestVisitorKey } from "@/shared/lib/articles/articleGuestVisitorKey";
+
 import { apiClient, type ApiResponse } from "./client";
 import type { ArticleListDto, ArticleDetailDto } from "@gafus/types";
 
@@ -16,6 +18,11 @@ export const articlesApi = {
       { method: "POST" }
     ),
 
-  incrementView: (slug: string): Promise<ApiResponse<void>> =>
-    apiClient<void>(`/api/v1/articles/${slug}/view`, { method: "POST" }),
+  incrementView: async (slug: string): Promise<ApiResponse<void>> => {
+    const visitorKey = await getOrCreateArticleGuestVisitorKey();
+    return apiClient<void>(`/api/v1/articles/${slug}/view`, {
+      method: "POST",
+      body: { visitorKey },
+    });
+  },
 };

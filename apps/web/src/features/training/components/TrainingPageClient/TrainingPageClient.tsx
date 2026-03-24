@@ -5,6 +5,7 @@ import { Typography } from "@mui/material";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCSRFStore } from "@gafus/csrf";
+import { reportClientError } from "@gafus/error-handling";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { useCourseCompletionCelebration } from "@shared/hooks/useCourseCompletionCelebration";
 
@@ -174,7 +175,8 @@ export default function TrainingPageClient({
         return;
       }
       setPayError("Нет ссылки на оплату");
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "TrainingPageClient", keys: { operation: "pay" } });
       setPayError("Ошибка сети");
     } finally {
       setPayLoading(false);
@@ -197,7 +199,11 @@ export default function TrainingPageClient({
       } else {
         setPersonalizationError(res.error ?? "Не удалось сохранить");
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, {
+        issueKey: "TrainingPageClient",
+        keys: { operation: "save_personalization" },
+      });
       setPersonalizationError("Произошла ошибка");
     } finally {
       setPersonalizationSaving(false);

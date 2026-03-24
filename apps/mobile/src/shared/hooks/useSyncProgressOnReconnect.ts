@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNetworkStatus } from "./useNetworkStatus";
+import { reportClientError } from "@/shared/lib/tracer";
 import { useProgressSyncStore } from "@/shared/stores/progressSyncStore";
 
 /**
@@ -35,7 +36,11 @@ export function useSyncProgressOnReconnect(): void {
           }
         }
       };
-      void run().catch(() => {
+      void run().catch((error) => {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "SyncProgressOnReconnect",
+          keys: { operation: "process_queue" },
+        });
         // processNext уже логирует; избегаем unhandled rejection
       });
     } else {

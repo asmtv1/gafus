@@ -1,13 +1,13 @@
 // Store для управления push-подписками
 
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
 import { validateVapidPublicKey } from "@gafus/types";
 import {
   deleteSubscriptionAction,
   updateSubscriptionAction,
 } from "@shared/lib/actions/subscription";
 import serviceWorkerManager from "@shared/utils/serviceWorkerManager";
-import { reportClientError } from "@gafus/error-handling";
-import { createWebLogger } from "@gafus/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -97,6 +97,12 @@ export const usePushStore = create<PushState>()(
               operation: "get_existing_subscription_error",
               error: error instanceof Error ? error.message : String(error),
             });
+            reportClientError(error instanceof Error ? error : new Error(String(error)), {
+              issueKey: "pushStore",
+              severity: "warning",
+              keys: { operation: "get_existing_subscription_error" },
+              userId: get().userId || undefined,
+            });
           }
 
           // Если подписка уже существует, проверяем есть ли она в БД
@@ -167,6 +173,12 @@ export const usePushStore = create<PushState>()(
               logger.warn("Ошибка проверки БД, продолжаем создание новой подписки", {
                 operation: "check_db_error_continue_subscription",
                 error: error instanceof Error ? error.message : String(error),
+              });
+              reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                issueKey: "pushStore",
+                severity: "warning",
+                keys: { operation: "check_db_error_continue_subscription" },
+                userId: get().userId || undefined,
               });
             }
           }
@@ -265,6 +277,12 @@ export const usePushStore = create<PushState>()(
                 operation: "check_local_subscription_error",
                 error: error instanceof Error ? error.message : String(error),
               });
+              reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                issueKey: "pushStore",
+                severity: "warning",
+                keys: { operation: "check_local_subscription_error" },
+                userId: get().userId || undefined,
+              });
               hasLocalSubscription = false;
             }
           }
@@ -314,6 +332,12 @@ export const usePushStore = create<PushState>()(
               hasLocalSubscription: hasLocalSubscription,
               error: error instanceof Error ? error.message : String(error),
             });
+            reportClientError(error instanceof Error ? error : new Error(String(error)), {
+              issueKey: "pushStore",
+              severity: "warning",
+              keys: { operation: "check_db_error" },
+              userId: get().userId || undefined,
+            });
             // В случае ошибки БД, полагаемся только на локальную подписку
             set({ hasServerSubscription: hasLocalSubscription });
           }
@@ -321,6 +345,12 @@ export const usePushStore = create<PushState>()(
           logger.warn("checkServerSubscription failed", {
             operation: "check_server_subscription_unexpected_error",
             error: error instanceof Error ? error.message : String(error),
+          });
+          reportClientError(error instanceof Error ? error : new Error(String(error)), {
+            issueKey: "pushStore",
+            severity: "warning",
+            keys: { operation: "check_server_subscription_unexpected_error" },
+            userId: get().userId || undefined,
           });
           set({ hasServerSubscription: false });
         }
@@ -351,6 +381,12 @@ export const usePushStore = create<PushState>()(
                 operation: "get_existing_subscription_failed",
                 error: error instanceof Error ? error.message : String(error),
               });
+              reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                issueKey: "pushStore",
+                severity: "warning",
+                keys: { operation: "get_existing_subscription_failed" },
+                userId: get().userId || undefined,
+              });
             }
           }
 
@@ -365,6 +401,12 @@ export const usePushStore = create<PushState>()(
                 endpoint: endpoint,
                 error: error instanceof Error ? error.message : String(error),
               });
+              reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                issueKey: "pushStore",
+                severity: "warning",
+                keys: { operation: "delete_from_database_failed" },
+                userId: get().userId || undefined,
+              });
             }
           } else {
             // Fallback: удаляем все подписки если не можем определить endpoint
@@ -378,6 +420,12 @@ export const usePushStore = create<PushState>()(
                 operation: "delete_all_subscriptions_failed",
                 error: error instanceof Error ? error.message : String(error),
               });
+              reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                issueKey: "pushStore",
+                severity: "warning",
+                keys: { operation: "delete_all_subscriptions_failed" },
+                userId: get().userId || undefined,
+              });
             }
           }
 
@@ -389,6 +437,12 @@ export const usePushStore = create<PushState>()(
               logger.warn("Failed to unsubscribe from store", {
                 operation: "unsubscribe_from_store_failed",
                 error: error instanceof Error ? error.message : String(error),
+              });
+              reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                issueKey: "pushStore",
+                severity: "warning",
+                keys: { operation: "unsubscribe_from_store_failed" },
+                userId: get().userId || undefined,
               });
             }
           }
@@ -407,6 +461,12 @@ export const usePushStore = create<PushState>()(
               logger.warn("Failed to unsubscribe from service worker", {
                 operation: "unsubscribe_from_service_worker_failed",
                 error: error instanceof Error ? error.message : String(error),
+              });
+              reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                issueKey: "pushStore",
+                severity: "warning",
+                keys: { operation: "unsubscribe_from_service_worker_failed" },
+                userId: get().userId || undefined,
               });
             }
           }
@@ -521,6 +581,12 @@ export const usePushStore = create<PushState>()(
               logger.warn("Ошибка проверки локальной подписки", {
                 operation: "check_local_subscription_error_ensure",
                 error: error instanceof Error ? error.message : String(error),
+              });
+              reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                issueKey: "pushStore",
+                severity: "warning",
+                keys: { operation: "check_local_subscription_error_ensure" },
+                userId: get().userId || undefined,
               });
             }
           }

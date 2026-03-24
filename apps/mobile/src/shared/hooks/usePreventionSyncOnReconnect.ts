@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNetworkStatus } from "./useNetworkStatus";
+import { reportClientError } from "@/shared/lib/tracer";
 import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
 
 /**
@@ -34,7 +35,12 @@ export function usePreventionSyncOnReconnect(): void {
           }
         }
       };
-      void run().catch(() => {});
+      void run().catch((error) => {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "PreventionSyncOnReconnect",
+          keys: { operation: "process_queue" },
+        });
+      });
     } else {
       prevOffline.current = isOffline;
     }

@@ -122,7 +122,12 @@ export function AccordionStep({
           );
           finishSync(true);
           removePendingChange();
-        } catch {
+        } catch (markErr) {
+          reportClientError(markErr, {
+            issueKey: "AccordionStep",
+            severity: "warning",
+            keys: { operation: "mark_practice_completed", stepIndex, courseId },
+          });
           finishSync(false);
           // При ошибке добавляем в очередь синхронизации
           const { useOfflineStore } = await import("@shared/stores/offlineStore");

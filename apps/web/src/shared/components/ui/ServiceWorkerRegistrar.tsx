@@ -1,10 +1,13 @@
 "use client";
 
-import serviceWorkerManager from "@shared/utils/serviceWorkerManager";
-import { useOfflineStore } from "@shared/stores/offlineStore";
-import { createWebLogger } from "@gafus/logger";
 import { useEffect } from "react";
+
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
+
 import type { OfflineCourse } from "@shared/lib/offline/types";
+import { useOfflineStore } from "@shared/stores/offlineStore";
+import serviceWorkerManager from "@shared/utils/serviceWorkerManager";
 
 // Создаем логгер для ServiceWorkerRegistrar
 const logger = createWebLogger("web-service-worker-registrar");
@@ -109,6 +112,10 @@ async function getCourseHtmlPageInline(
 
     return null;
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "ServiceWorkerRegistrar",
+      keys: { operation: "get_course_html_from_indexeddb" },
+    });
     logger.error("Failed to get course HTML page from IndexedDB", error as Error, {
       courseType,
       pagePath,
@@ -133,6 +140,10 @@ export default function ServiceWorkerRegistrar() {
     if (process.env.NODE_ENV === "development") return;
     if (serviceWorkerManager.isSupported()) {
       serviceWorkerManager.register().catch((error) => {
+        reportClientError(error, {
+          issueKey: "ServiceWorkerRegistrar",
+          keys: { operation: "register_service_worker" },
+        });
         logger.warn("⚠️ Не удалось зарегистрировать Service Worker", {
           operation: "service_worker_registration_failed",
           error: error instanceof Error ? error.message : String(error),
@@ -228,6 +239,10 @@ export default function ServiceWorkerRegistrar() {
             });
           }
         } catch (error) {
+          reportClientError(error, {
+            issueKey: "ServiceWorkerRegistrar",
+            keys: { operation: "sw_message_get_html" },
+          });
           logger.error("Failed to get HTML from IndexedDB for Service Worker", error as Error, {
             url: data.url,
           });

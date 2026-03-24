@@ -8,6 +8,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 import { Button, Input } from "@/shared/components/ui";
 import { userApi } from "@/shared/lib/api/user";
+import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/constants";
 
@@ -32,7 +33,8 @@ export default function ChangePhoneScreen() {
       } else {
         setSnackbar({ visible: true, message: result.error || "Ошибка запроса кода" });
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ChangePhone", keys: { operation: "request_code" } });
       setSnackbar({ visible: true, message: "Ошибка подключения" });
     } finally {
       setLoading(false);
@@ -68,7 +70,8 @@ export default function ChangePhoneScreen() {
       } else {
         setSnackbar({ visible: true, message: result.error || "Не удалось сменить номер" });
       }
-    } catch {
+    } catch (err) {
+      reportClientError(err, { issueKey: "ChangePhone", keys: { operation: "confirm" } });
       setSnackbar({ visible: true, message: "Ошибка подключения" });
     } finally {
       setLoading(false);

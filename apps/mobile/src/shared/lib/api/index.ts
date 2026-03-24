@@ -35,7 +35,14 @@ export {
   type PauseStepParams,
   type CompleteStepParams,
 } from "./training";
-export { petsApi, type Pet, type CreatePetData, type UpdatePetData } from "./pets";
+export {
+  parsePetKind,
+  petsApi,
+  type CreatePetData,
+  type Pet,
+  type PetKind,
+  type UpdatePetData,
+} from "./pets";
 export { achievementsApi, type TrainingDatesResponse } from "./achievements";
 export {
   userApi,

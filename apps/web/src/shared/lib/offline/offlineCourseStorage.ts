@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 import type { OfflineCourse } from "./types";
 
@@ -54,6 +55,10 @@ export async function saveOfflineCourse(data: OfflineCourse): Promise<void> {
       courseType: data.courseType,
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCourseStorage",
+      keys: { operation: "save_offline_course" },
+    });
     logger.error("Failed to save course to offline storage", error as Error, {
       courseId: data.courseId,
     });
@@ -76,6 +81,10 @@ export async function getOfflineCourse(courseId: string): Promise<OfflineCourse 
       request.onerror = () => reject(request.error);
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCourseStorage",
+      keys: { operation: "get_offline_course" },
+    });
     logger.error("Failed to get course from offline storage", error as Error, {
       courseId,
     });
@@ -99,6 +108,10 @@ export async function getOfflineCourseByType(courseType: string): Promise<Offlin
       request.onerror = () => reject(request.error);
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCourseStorage",
+      keys: { operation: "get_offline_course_by_type" },
+    });
     logger.error("Failed to get course by type from offline storage", error as Error, {
       courseType,
     });
@@ -126,6 +139,10 @@ export async function updateOfflineCourse(
     await saveOfflineCourse(updated);
     logger.info("Course updated in offline storage", { courseId });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCourseStorage",
+      keys: { operation: "update_offline_course" },
+    });
     logger.error("Failed to update course in offline storage", error as Error, {
       courseId,
     });
@@ -148,6 +165,10 @@ export async function deleteOfflineCourse(courseId: string): Promise<void> {
 
     logger.info("Course deleted from offline storage", { courseId });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCourseStorage",
+      keys: { operation: "delete_offline_course" },
+    });
     logger.error("Failed to delete course from offline storage", error as Error, {
       courseId,
     });
@@ -161,6 +182,10 @@ export async function getOfflineCourseVersion(courseId: string): Promise<string 
     const course = await getOfflineCourse(courseId);
     return course?.version || null;
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCourseStorage",
+      keys: { operation: "get_offline_course_version" },
+    });
     logger.error("Failed to get course version from offline storage", error as Error, { courseId });
     return null;
   }
@@ -172,6 +197,10 @@ export async function isCourseDownloaded(courseId: string): Promise<boolean> {
     const course = await getOfflineCourse(courseId);
     return !!course;
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCourseStorage",
+      keys: { operation: "is_course_downloaded" },
+    });
     logger.error("Failed to check if course is downloaded", error as Error, { courseId });
     return false;
   }
@@ -183,6 +212,10 @@ export async function isCourseDownloadedByType(courseType: string): Promise<bool
     const course = await getOfflineCourseByType(courseType);
     return !!course;
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCourseStorage",
+      keys: { operation: "is_course_downloaded_by_type" },
+    });
     logger.error("Failed to check if course is downloaded by type", error as Error, { courseType });
     return false;
   }
@@ -203,6 +236,10 @@ export async function getAllDownloadedCourses(): Promise<OfflineCourse[]> {
       request.onerror = () => reject(request.error);
     });
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCourseStorage",
+      keys: { operation: "get_all_downloaded_courses" },
+    });
     logger.error("Failed to get all downloaded courses", error as Error);
     return [];
   }
@@ -238,6 +275,10 @@ export async function getStorageSize(): Promise<number> {
 
     return totalSize;
   } catch (error) {
+    reportClientError(error, {
+      issueKey: "OfflineCourseStorage",
+      keys: { operation: "get_storage_size" },
+    });
     logger.error("Failed to calculate storage size", error as Error);
     return 0;
   }

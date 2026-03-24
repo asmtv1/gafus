@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @gafus/require-client-catch-tracer -- защитный доступ к iframe.contentDocument; штатные ограничения браузера */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 

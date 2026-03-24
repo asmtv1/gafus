@@ -1,5 +1,6 @@
 "use client";
 
+import { reportClientError } from "@gafus/error-handling";
 import React, { useState, useTransition } from "react";
 import {
   Dialog,
@@ -95,6 +96,7 @@ export function AIChatSettings({ open, onClose, onSaved }: AIChatSettingsProps) 
           setError(result.error || "Ошибка при сохранении настроек");
         }
       } catch (err) {
+        reportClientError(err, { issueKey: "AIChatSettings", keys: { operation: "saveConfig" } });
         setError(err instanceof Error ? err.message : "Неизвестная ошибка");
       }
     });

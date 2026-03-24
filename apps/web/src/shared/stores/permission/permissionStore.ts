@@ -1,8 +1,9 @@
 // Store для управления разрешениями браузера на уведомления
 
+import { reportClientError } from "@gafus/error-handling";
+import { createWebLogger } from "@gafus/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { createWebLogger } from "@gafus/logger";
 
 // Создаем логгер для permission store
 const logger = createWebLogger("web-permission-store");
@@ -104,6 +105,10 @@ export const usePermissionStore = create<PermissionState>()(
               operation: "permission_request_failed",
             },
           );
+          reportClientError(error, {
+            issueKey: "PermissionStore",
+            keys: { operation: "requestPermission" },
+          });
           set({
             error: "Не удалось запросить разрешение",
             isLoading: false,

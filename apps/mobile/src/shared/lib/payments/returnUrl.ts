@@ -1,6 +1,7 @@
 const DEFAULT_WEB_HOST = "gafus.ru";
 
 export function isPaymentSuccessReturnUrl(url: string, expectedHost = DEFAULT_WEB_HOST): boolean {
+  /* eslint-disable @gafus/require-client-catch-tracer -- невалидный URL → false */
   try {
     const parsed = new URL(url);
     const paid = parsed.searchParams.get("paid");
@@ -14,5 +15,6 @@ export function isPaymentSuccessReturnUrl(url: string, expectedHost = DEFAULT_WE
   } catch {
     return false;
   }
+  /* eslint-enable @gafus/require-client-catch-tracer */
 }
 

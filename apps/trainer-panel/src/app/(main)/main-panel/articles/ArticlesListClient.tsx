@@ -45,6 +45,7 @@ function formatViewCount(n: number): string {
 }
 
 function formatViewerDate(iso: string): string {
+  /* eslint-disable @gafus/require-client-catch-tracer -- невалидная дата → показ исходной строки */
   try {
     return new Date(iso).toLocaleString("ru-RU", {
       day: "2-digit",
@@ -56,6 +57,7 @@ function formatViewerDate(iso: string): string {
   } catch {
     return iso;
   }
+  /* eslint-enable @gafus/require-client-catch-tracer */
 }
 
 export default function ArticlesListClient({ articles }: ArticlesListClientProps) {
