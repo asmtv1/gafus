@@ -71,7 +71,7 @@ type FormErrors = {
  */
 export default function RegisterScreen() {
   const layout = useLayout();
-  const { register } = useAuthStore();
+  const register = useAuthStore((s) => s.register);
 
   const formWidth = layout.contentWidth(SPACING.md * 4, 320);
 

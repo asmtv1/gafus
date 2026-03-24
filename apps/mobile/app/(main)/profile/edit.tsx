@@ -48,7 +48,7 @@ function mapProfileToForm(profile: {
 export default function EditProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { setUser } = useAuthStore();
+  const setUser = useAuthStore((s) => s.setUser);
 
   const [form, setForm] = useState<UpdateProfileData>({
     fullName: "",

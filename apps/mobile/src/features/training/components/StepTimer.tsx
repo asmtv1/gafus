@@ -3,6 +3,8 @@ import { useEffect, useRef, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
 import { Text, IconButton, ProgressBar } from "react-native-paper";
 import * as Haptics from "expo-haptics";
+import { useShallow } from "zustand/react/shallow";
+
 import { useTimerStore } from "@/shared/stores";
 import { COLORS, SPACING } from "@/constants";
 
@@ -27,7 +29,17 @@ export function StepTimer({
   onPause,
 }: StepTimerProps) {
   const { activeTimer, startTimer, resumeTimer, pauseTimer, tick, stopTimer, isTimerActiveFor } =
-    useTimerStore();
+    useTimerStore(
+      useShallow((s) => ({
+        activeTimer: s.activeTimer,
+        startTimer: s.startTimer,
+        resumeTimer: s.resumeTimer,
+        pauseTimer: s.pauseTimer,
+        tick: s.tick,
+        stopTimer: s.stopTimer,
+        isTimerActiveFor: s.isTimerActiveFor,
+      })),
+    );
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isActive = isTimerActiveFor(courseId, dayOnCourseId, stepIndex);

@@ -69,7 +69,7 @@ export default function ReviewsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { courseType } = useLocalSearchParams<{ courseType: string }>();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);

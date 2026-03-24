@@ -9,6 +9,7 @@ import { FlashList } from "@shopify/flash-list";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useShallow } from "zustand/react/shallow";
 
 import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
@@ -45,7 +46,16 @@ export default function CoursesScreen() {
     removeFromFavorites,
     isFavorite,
     favorites,
-  } = useCourseStore();
+  } = useCourseStore(
+    useShallow((s) => ({
+      filters: s.filters,
+      setFilter: s.setFilter,
+      addToFavorites: s.addToFavorites,
+      removeFromFavorites: s.removeFromFavorites,
+      isFavorite: s.isFavorite,
+      favorites: s.favorites,
+    })),
+  );
 
   const [refreshing, setRefreshing] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);

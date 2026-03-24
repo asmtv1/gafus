@@ -4,6 +4,7 @@ import { FlashList } from "@shopify/flash-list";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { useShallow } from "zustand/react/shallow";
 
 import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
@@ -21,7 +22,13 @@ import { COLORS, SPACING, FONTS } from "@/constants";
  */
 export default function FavoritesScreen() {
   const { isOffline } = useNetworkStatus();
-  const { favorites, removeFromFavorites, addToFavorites } = useCourseStore();
+  const { favorites, removeFromFavorites, addToFavorites } = useCourseStore(
+    useShallow((s) => ({
+      favorites: s.favorites,
+      removeFromFavorites: s.removeFromFavorites,
+      addToFavorites: s.addToFavorites,
+    })),
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });

@@ -37,7 +37,7 @@ type FormErrors = {
  */
 export default function LoginScreen() {
   const layout = useLayout();
-  const { login } = useAuthStore();
+  const login = useAuthStore((s) => s.login);
 
   const formWidth = layout.contentWidth(SPACING.md * 4, 280);
   const logoSize = Math.min(layout.scale(303), layout.contentWidth(SPACING.md * 4));

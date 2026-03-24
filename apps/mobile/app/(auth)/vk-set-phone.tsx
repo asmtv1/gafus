@@ -10,7 +10,7 @@ import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/constants";
 
 export default function VkSetPhoneScreen() {
-  const { setVkPhoneComplete } = useAuthStore();
+  const setVkPhoneComplete = useAuthStore((s) => s.setVkPhoneComplete);
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });

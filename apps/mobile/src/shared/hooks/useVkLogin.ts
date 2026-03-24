@@ -44,7 +44,7 @@ export function useVkLogin(options?: UseVkLoginOptions): {
   handleVkLogin: () => Promise<void>;
   isVkLoading: boolean;
 } {
-  const { loginViaVk } = useAuthStore();
+  const loginViaVk = useAuthStore((s) => s.loginViaVk);
   const [isVkLoading, setIsVkLoading] = useState(false);
 
   const handleVkLogin = useCallback(async () => {

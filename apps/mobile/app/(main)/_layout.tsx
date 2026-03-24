@@ -9,7 +9,7 @@ import { useAuthStore } from "@/shared/stores";
  */
 export default function MainLayout() {
   const theme = useTheme();
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   if (!isAuthenticated) return <Redirect href="/welcome" />;
 

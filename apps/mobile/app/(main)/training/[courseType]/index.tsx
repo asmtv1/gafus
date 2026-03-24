@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import { useShallow } from "zustand/react/shallow";
 import { declineRussianName } from "@gafus/core/utils";
 import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
 import { WebView } from "react-native-webview";
@@ -43,13 +44,25 @@ export default function TrainingDaysScreen() {
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDays(courseType);
   const courseData = data?.success && data.data ? data.data : undefined;
   const stepStates = useStepStatesForCourse(courseData?.courseId ?? "");
-  const downloadStatus = useOfflineStore((s) => s.status);
-  const downloadQueue = useOfflineStore((s) => s.downloadQueue);
-  const downloaded = useOfflineStore((s) => s.downloaded);
-  const startDownload = useOfflineStore((s) => s.startDownload);
-  const cancelDownload = useOfflineStore((s) => s.cancelDownload);
-  const removeFromQueue = useOfflineStore((s) => s.removeFromQueue);
-  const removeDownload = useOfflineStore((s) => s.removeDownload);
+  const {
+    status: downloadStatus,
+    downloadQueue,
+    downloaded,
+    startDownload,
+    cancelDownload,
+    removeFromQueue,
+    removeDownload,
+  } = useOfflineStore(
+    useShallow((s) => ({
+      status: s.status,
+      downloadQueue: s.downloadQueue,
+      downloaded: s.downloaded,
+      startDownload: s.startDownload,
+      cancelDownload: s.cancelDownload,
+      removeFromQueue: s.removeFromQueue,
+      removeDownload: s.removeDownload,
+    })),
+  );
   const isDownloaded = !!downloaded[courseType];
   const isDownloadingThis = downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useShallow } from "zustand/react/shallow";
 
 import { Button } from "@/shared/components/ui";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -22,7 +23,14 @@ const POLL_INTERVAL_MS = 5000;
 
 export default function ConfirmScreen() {
   const router = useRouter();
-  const { pendingConfirmPhone, clearPendingConfirmPhone, checkAuth, logout } = useAuthStore();
+  const { pendingConfirmPhone, clearPendingConfirmPhone, checkAuth, logout } = useAuthStore(
+    useShallow((s) => ({
+      pendingConfirmPhone: s.pendingConfirmPhone,
+      clearPendingConfirmPhone: s.clearPendingConfirmPhone,
+      checkAuth: s.checkAuth,
+      logout: s.logout,
+    })),
+  );
   const [isPolling, setIsPolling] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const redirectedRef = useRef(false);

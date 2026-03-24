@@ -11,7 +11,8 @@ import { mapMetaToTrainingDaysResponse } from "@/shared/lib/offline/mapOfflineMe
  * При ошибке сети отдаёт офлайн-данные из getCourseMeta, если курс скачан.
  */
 export function useTrainingDays(courseType: string) {
-  const { getCachedTrainingDays, setCachedTrainingDays } = useTrainingStore();
+  const getCachedTrainingDays = useTrainingStore((s) => s.getCachedTrainingDays);
+  const setCachedTrainingDays = useTrainingStore((s) => s.setCachedTrainingDays);
   const getStepState = useStepStore((s) => s.getStepState);
 
   return useQuery<ApiResponse<TrainingDaysResponse>>({

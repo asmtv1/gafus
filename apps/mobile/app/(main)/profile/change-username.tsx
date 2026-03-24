@@ -3,6 +3,7 @@ import { StyleSheet, ScrollView } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useShallow } from "zustand/react/shallow";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button, Input } from "@/shared/components/ui";
@@ -19,7 +20,12 @@ const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
 export default function ChangeUsernameScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user: currentUser, setUser } = useAuthStore();
+  const { user: currentUser, setUser } = useAuthStore(
+    useShallow((s) => ({
+      user: s.user,
+      setUser: s.setUser,
+    })),
+  );
   const [newUsername, setNewUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });

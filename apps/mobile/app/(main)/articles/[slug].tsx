@@ -66,7 +66,7 @@ export default function ArticleDetailScreen() {
   });
 
   const article = res?.data;
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [payLoading, setPayLoading] = useState(false);
   const [htmlHeight, setHtmlHeight] = useState<number | null>(null);
   const [webViewReady, setWebViewReady] = useState(false);

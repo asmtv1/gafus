@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { WebView } from "react-native-webview";
+import { useShallow } from "zustand/react/shallow";
 
 import { Loading } from "@/shared/components/ui";
 import { MarkdownText } from "@/shared/components";
@@ -70,7 +71,12 @@ export default function TrainingDayScreen() {
     data != null && "code" in data && data.code === "PERSONALIZATION_REQUIRED";
 
   // Stores
-  const { getOpenIndex, setOpenIndex } = useTrainingStore();
+  const { getOpenIndex, setOpenIndex } = useTrainingStore(
+    useShallow((s) => ({
+      getOpenIndex: s.getOpenIndex,
+      setOpenIndex: s.setOpenIndex,
+    })),
+  );
   const getStepState = useStepStore((s) => s.getStepState);
   const startStep = useStepStore((s) => s.startStep);
   const pauseStep = useStepStore((s) => s.pauseStep);

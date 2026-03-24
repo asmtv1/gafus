@@ -4,6 +4,7 @@ import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useShallow } from "zustand/react/shallow";
 
 import { Button } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
@@ -13,7 +14,13 @@ import { COLORS, SPACING } from "@/constants";
 
 export default function VkConsentScreen() {
   const router = useRouter();
-  const { vkConsentToken, submitVkConsentComplete, clearPendingVkConsent } = useAuthStore();
+  const { vkConsentToken, submitVkConsentComplete, clearPendingVkConsent } = useAuthStore(
+    useShallow((s) => ({
+      vkConsentToken: s.vkConsentToken,
+      submitVkConsentComplete: s.submitVkConsentComplete,
+      clearPendingVkConsent: s.clearPendingVkConsent,
+    })),
+  );
   const [consents, setConsents] = useState({
     acceptPersonalData: false,
     acceptPrivacyPolicy: false,

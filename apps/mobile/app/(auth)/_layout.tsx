@@ -1,4 +1,5 @@
 import { Redirect, Stack, usePathname } from "expo-router";
+import { useShallow } from "zustand/react/shallow";
 
 import { useAuthStore } from "@/shared/stores";
 
@@ -9,7 +10,14 @@ import { useAuthStore } from "@/shared/stores";
  * Использует <Redirect> (fires once on mount) — не вызывает циклов.
  */
 export default function AuthLayout() {
-  const { isAuthenticated, pendingConfirmPhone, pendingVkPhone, pendingVkConsent } = useAuthStore();
+  const { isAuthenticated, pendingConfirmPhone, pendingVkPhone, pendingVkConsent } = useAuthStore(
+    useShallow((s) => ({
+      isAuthenticated: s.isAuthenticated,
+      pendingConfirmPhone: s.pendingConfirmPhone,
+      pendingVkPhone: s.pendingVkPhone,
+      pendingVkConsent: s.pendingVkConsent,
+    })),
+  );
   const pathname = usePathname();
 
   // Полностью авторизован → переходим в main; (auth) layout размонтируется, циклов нет

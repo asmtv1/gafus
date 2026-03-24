@@ -7,6 +7,7 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useShallow } from "zustand/react/shallow";
 
 import { Card } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
@@ -154,7 +155,12 @@ const getPetTypeLabel = (type: string) => {
 export default function ProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useAuthStore(
+    useShallow((s) => ({
+      user: s.user,
+      logout: s.logout,
+    })),
+  );
 
   // Загрузка данных профиля
   const { data: profileData } = useQuery({

@@ -4,6 +4,7 @@ import { Text } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useShallow } from "zustand/react/shallow";
 
 import { STEP_STATUS_LABELS } from "@gafus/core/utils/training";
 import { TrainingStatus } from "@gafus/types";
@@ -128,13 +129,25 @@ export function CourseCard({
   const formattedStartedAt = formatDate(course.startedAt);
   const formattedCompletedAt = formatDate(course.completedAt);
 
-  const downloaded = useOfflineStore((s) => s.downloaded);
-  const downloadQueue = useOfflineStore((s) => s.downloadQueue);
-  const downloadStatus = useOfflineStore((s) => s.status);
-  const startDownload = useOfflineStore((s) => s.startDownload);
-  const cancelDownload = useOfflineStore((s) => s.cancelDownload);
-  const removeFromQueue = useOfflineStore((s) => s.removeFromQueue);
-  const removeDownload = useOfflineStore((s) => s.removeDownload);
+  const {
+    downloaded,
+    downloadQueue,
+    status: downloadStatus,
+    startDownload,
+    cancelDownload,
+    removeFromQueue,
+    removeDownload,
+  } = useOfflineStore(
+    useShallow((s) => ({
+      downloaded: s.downloaded,
+      downloadQueue: s.downloadQueue,
+      status: s.status,
+      startDownload: s.startDownload,
+      cancelDownload: s.cancelDownload,
+      removeFromQueue: s.removeFromQueue,
+      removeDownload: s.removeDownload,
+    })),
+  );
   const isDownloaded = !!downloaded[courseType];
   const hasCourseAccess = !course.isPaid || course.hasAccess === true;
   const isPaidWithoutAccess = course.isPaid && !hasCourseAccess;
